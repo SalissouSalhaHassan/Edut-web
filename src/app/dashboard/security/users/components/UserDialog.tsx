@@ -230,7 +230,7 @@ export default function UserDialog({
               <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Rôle</Label>
               <Select 
                 value={formData.roleId} 
-                onValueChange={(v) => setFormData({...formData, roleId: v})}
+                onValueChange={(v) => setFormData({...formData, roleId: v || ""})}
               >
                 <SelectTrigger className="h-12 rounded-xl border-slate-100 bg-slate-50 font-bold">
                   <SelectValue placeholder="Choisir un rôle" />
@@ -248,7 +248,7 @@ export default function UserDialog({
               <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Niveau Éducatif</Label>
               <Select 
                 value={formData.educationalLevel} 
-                onValueChange={(v) => setFormData({...formData, educationalLevel: v})}
+                onValueChange={(v) => setFormData({...formData, educationalLevel: v || ""})}
               >
                 <SelectTrigger className="h-12 rounded-xl border-slate-100 bg-slate-50 font-bold">
                   <SelectValue placeholder="Choisir un niveau" />
@@ -267,7 +267,7 @@ export default function UserDialog({
             <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Langue</Label>
             <Select 
               value={formData.langue} 
-              onValueChange={(v) => setFormData({...formData, langue: v})}
+              onValueChange={(v) => setFormData({...formData, langue: v || ""})}
             >
               <SelectTrigger className="h-12 rounded-xl border-slate-100 bg-slate-50 font-bold">
                 <SelectValue placeholder="Choisir une langue" />
@@ -300,7 +300,7 @@ export default function UserDialog({
               <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">École (Multi-Tenancy)</Label>
               <Select 
                 value={formData.schoolId} 
-                onValueChange={(v) => setFormData({...formData, schoolId: v})}
+                onValueChange={(v) => setFormData({...formData, schoolId: v || ""})}
               >
                 <SelectTrigger className="h-12 rounded-xl border-slate-100 bg-amber-50/50 border-amber-100 font-bold">
                   <SelectValue placeholder="Attribuer à une école" />

@@ -26,7 +26,7 @@ export default async function NotificationsPage() {
 
   return (
     <NotificationsUI
-      initialNotifications={initialNotifications}
+      initialNotifications={initialNotifications as any}
       usersList={usersList}
       currentUser={{
         id: user.id,

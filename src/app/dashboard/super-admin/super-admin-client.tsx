@@ -36,7 +36,7 @@ type SchoolType = {
   slug: string;
   plan: string | null;
   status: string | null;
-  createdAt: Date | string | number;
+  createdAt: Date | string | number | null;
 };
 
 type StatsType = {
@@ -330,7 +330,7 @@ export default function SuperAdminClient({
                       </Badge>
                     </TableCell>
                     <TableCell className="text-slate-500 text-sm font-semibold">
-                      {new Date(school.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}
+                      {school.createdAt ? new Date(school.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }) : "N/A"}
                     </TableCell>
                     <TableCell className="text-center pr-8">
                       <Button 

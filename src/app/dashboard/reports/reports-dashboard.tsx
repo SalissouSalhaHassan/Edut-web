@@ -506,7 +506,8 @@ export default function ReportsDashboard(props: ReportsDashboardProps) {
       try {
         const res = await sendBulkPaymentReminders();
         if (res.success) {
-          toast.success(`${res.count} relances de paiement ont été envoyées avec succès par SMS !`);
+          const count = (res as any).count || 0;
+          toast.success(`${count} relances de paiement ont été envoyées avec succès par SMS !`);
         } else {
           toast.error(res.error || "Une erreur est survenue lors de l'envoi");
         }
@@ -715,11 +716,11 @@ export default function ReportsDashboard(props: ReportsDashboardProps) {
           </Select>
 
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+            {React.createElement(DropdownMenuTrigger as any, { asChild: true }, (
               <Button className="h-12 px-6 rounded-2xl bg-primary text-white font-black text-xs uppercase tracking-widest shadow-xl shadow-indigo-100 flex items-center gap-2 hover:opacity-90">
                 <Download size={18} /> Exporter
               </Button>
-            </DropdownMenuTrigger>
+            ))}
             <DropdownMenuContent align="end" className="rounded-2xl bg-white p-2 border border-slate-100 shadow-2xl min-w-[200px] z-50">
               <DropdownMenuItem onClick={handleExportPDF} className="h-10 rounded-xl px-4 text-xs font-bold text-slate-700 hover:bg-slate-50 cursor-pointer flex items-center gap-2">
                 📄 Exporter en PDF

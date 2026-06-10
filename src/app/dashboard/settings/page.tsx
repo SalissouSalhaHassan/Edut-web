@@ -31,7 +31,7 @@ export default async function SettingsPage({
   const classes = classesRes.data?.data || classesRes.data || [];
   const sectionsRes = await getSections(true) as any;
   const sections = sectionsRes.data?.data || sectionsRes.data || [];
-  const subjectsRes = await getSubjects(true) as any;
+  const subjectsRes = await getSubjects() as any;
   const subjects = subjectsRes.data?.data || subjectsRes.data || [];
   const sectionSubjectsRes = await getSectionSubjects() as any;
   const sectionSubjects = sectionSubjectsRes.data?.data || sectionSubjectsRes.data || [];

@@ -67,8 +67,8 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
   const allStudents = (result.data as any)?.data || result.data || [];
   
   const currentUser = await getCurrentUser();
-  const canEdit = currentUser?.admin || currentUser?.role?.permissions?.some(p => p.moduleName === "Students" && p.canEdit);
-  const canDelete = currentUser?.admin || currentUser?.role?.permissions?.some(p => p.moduleName === "Students" && p.canDelete);
+  const canEdit = currentUser?.admin || currentUser?.role?.permissions?.some((p: any) => p.moduleName === "Students" && p.canEdit);
+  const canDelete = currentUser?.admin || currentUser?.role?.permissions?.some((p: any) => p.moduleName === "Students" && p.canDelete);
 
   // Performance Optimization: Student growth and new students count
   const currentMonth = new Date().getMonth();

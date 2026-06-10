@@ -232,7 +232,7 @@ export default function AcademicFilters({ onLoad, loading }: AcademicFiltersProp
           label="Niveau"
           value={level}
           onChange={(v: string) => { setLevel(v); }}
-          options={levels.map(l => ({ id: l, name: l }))}
+          options={levels.map((l: any) => ({ id: l, name: l }))}
         />
 
         <FilterGroup

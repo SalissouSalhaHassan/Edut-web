@@ -26,7 +26,7 @@ export default async function SuperAdminDashboard() {
     };
 
   const schoolsResponse = await getAllSchools();
-  const schoolsList = schoolsResponse.data ?? [];
+  const schoolsList = schoolsResponse.data?.data ?? [];
 
   return (
     <SuperAdminClient 

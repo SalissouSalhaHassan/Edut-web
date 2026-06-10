@@ -116,7 +116,7 @@ export async function generateBulletinPDF(data: any) {
     ];
   });
 
-  const footerRows = [
+  const footerRows: any[] = [
     [
       { content: "Conduite", colSpan: 4, styles: { halign: "left", fontStyle: "bold", fillColor: [255, 255, 255] } },
       { content: "1", styles: { halign: "center", fontStyle: "bold", fillColor: [255, 255, 255] } },
