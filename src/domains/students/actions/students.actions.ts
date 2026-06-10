@@ -1,0 +1,250 @@
+"use server";
+
+import { db } from "@/infrastructure/database";
+import { students } from "@/infrastructure/database/schema/students";
+import { schoolClasses } from "@/infrastructure/database/schema/academics";
+import { eq, desc, and, or, inArray, sql } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
+import { studentSchema, StudentFormData } from "../validators/student.schema";
+import { protectedDbAction } from "@/lib/protected-action";
+import { getActiveSchoolId } from "@/domains/auth/services/school";
+import { getActiveEducationalLevel, getCompatibleLevels, getUserRoleType, getTeacherEmployee, getTeacherClassIds, checkEducationalLevelAccess } from "@/domains/auth/services/rbac";
+
+export async function getStudents() {
+  return protectedDbAction("Students", "canView", async (user) => {
+    const schoolId = await getActiveSchoolId();
+    const roleType = await getUserRoleType(user);
+    
+    let whereClause = eq(students.schoolId, schoolId);
+    
+    if (roleType === "level_director") {
+      const activeLevel = user.educationalLevel;
+      if (activeLevel) {
+        const compatibleLevels = getCompatibleLevels(activeLevel);
+        whereClause = and(whereClause, inArray(students.educationalLevel, compatibleLevels)) as any;
+      }
+    } else if (roleType === "teacher") {
+      const emp = await getTeacherEmployee(user);
+      if (emp) {
+        const classIds = await getTeacherClassIds(emp.id);
+        if (classIds.length > 0) {
+          const classesList = await db.select({ className: schoolClasses.className })
+            .from(schoolClasses)
+            .where(inArray(schoolClasses.id, classIds));
+          const classNames = classesList.map(c => c.className);
+          if (classNames.length > 0) {
+            whereClause = and(whereClause, inArray(students.classe, classNames)) as any;
+          } else {
+            whereClause = and(whereClause, sql`FALSE`) as any;
+          }
+        } else {
+          whereClause = and(whereClause, sql`FALSE`) as any;
+        }
+      } else {
+        whereClause = and(whereClause, sql`FALSE`) as any;
+      }
+    }
+
+    const data = await db.query.students.findMany({
+      where: whereClause,
+      orderBy: [desc(students.createdAt)],
+    });
+    return { data };
+  });
+}
+
+export async function createStudent(formData: StudentFormData) {
+  const validation = studentSchema.safeParse(formData);
+  if (!validation.success) {
+    return { error: validation.error.issues[0]?.message || "Erreur de validation" };
+  }
+
+  return protectedDbAction("Students", "canEdit", async (user) => {
+    const schoolId = await getActiveSchoolId();
+    const roleType = await getUserRoleType(user);
+    
+    // Check if admission number already exists for this school
+    const existing = await db.query.students.findFirst({
+      where: and(
+        eq(students.schoolId, schoolId),
+        eq(students.numAdmission, validation.data.numAdmission)
+      )
+    });
+    if (existing) {
+      return { error: "Ce numéro d'admission existe déjà pour cette école." };
+    }
+
+    const studentData = { 
+      ...validation.data,
+      schoolId: schoolId 
+    };
+    
+    if (roleType === "level_director") {
+      studentData.educationalLevel = user.educationalLevel;
+    } else if (roleType === "teacher") {
+      return { error: "Non autorisé à inscrire des élèves." };
+    }
+
+    await db.insert(students).values(studentData);
+    revalidatePath("/dashboard/students");
+    return { success: true };
+  });
+}
+
+export async function deleteStudent(id: number) {
+  return protectedDbAction("Students", "canDelete", async (user) => {
+    const schoolId = await getActiveSchoolId();
+    const roleType = await getUserRoleType(user);
+
+    if (roleType === "teacher") {
+      return { error: "Non autorisé" };
+    }
+
+    if (roleType === "level_director") {
+      const student = await db.query.students.findFirst({
+        where: and(eq(students.id, id), eq(students.schoolId, schoolId))
+      });
+      if (!student || !checkEducationalLevelAccess(user, student.educationalLevel)) {
+        return { error: "Accès refusé. Cet élève appartient à un autre secteur." };
+      }
+    }
+
+    await db.delete(students).where(
+      and(
+        eq(students.id, id),
+        eq(students.schoolId, schoolId)
+      )
+    );
+    revalidatePath("/dashboard/students");
+    return { success: true };
+  });
+}
+
+export async function updateStudent(id: number, formData: StudentFormData) {
+  const validation = studentSchema.safeParse(formData);
+  if (!validation.success) {
+    return { error: validation.error.issues[0]?.message || "Erreur de validation" };
+  }
+
+  return protectedDbAction("Students", "canEdit", async (user) => {
+    const schoolId = await getActiveSchoolId();
+    const roleType = await getUserRoleType(user);
+
+    if (roleType === "teacher") {
+      return { error: "Non autorisé" };
+    }
+
+    // Check if admission number already exists for another student
+    const existing = await db.query.students.findFirst({
+      where: and(
+        eq(students.schoolId, schoolId),
+        eq(students.numAdmission, validation.data.numAdmission)
+      )
+    });
+    
+    if (existing && existing.id !== id) {
+      return { error: "Ce numéro d'admission existe déjà pour un autre élève." };
+    }
+
+    if (roleType === "level_director") {
+      const student = await db.query.students.findFirst({
+        where: and(eq(students.id, id), eq(students.schoolId, schoolId))
+      });
+      if (!student || !checkEducationalLevelAccess(user, student.educationalLevel)) {
+        return { error: "Accès refusé. Cet élève appartient à un autre secteur." };
+      }
+    }
+    
+    await db.update(students)
+      .set(validation.data)
+      .where(
+        and(
+          eq(students.id, id),
+          eq(students.schoolId, schoolId)
+        )
+      );
+    
+    revalidatePath("/dashboard/students");
+    revalidatePath("/dashboard/students", "layout");
+    revalidatePath("/");
+    
+    return { success: true };
+  });
+}
+
+export async function getStudentsByClass(className: string) {
+  return protectedDbAction("Students", "canView", async (user) => {
+    const schoolId = await getActiveSchoolId();
+    const roleType = await getUserRoleType(user);
+    
+    let whereClause = and(
+      eq(students.classe, className),
+      eq(students.schoolId, schoolId)
+    ) as any;
+    
+    if (roleType === "level_director") {
+      const activeLevel = user.educationalLevel;
+      if (activeLevel) {
+        const compatibleLevels = getCompatibleLevels(activeLevel);
+        whereClause = and(whereClause, inArray(students.educationalLevel, compatibleLevels)) as any;
+      }
+    } else if (roleType === "teacher") {
+      const emp = await getTeacherEmployee(user);
+      if (emp) {
+        const classIds = await getTeacherClassIds(emp.id);
+        if (classIds.length > 0) {
+          const classesList = await db.select({ className: schoolClasses.className })
+            .from(schoolClasses)
+            .where(and(inArray(schoolClasses.id, classIds), eq(schoolClasses.className, className)));
+          if (classesList.length === 0) {
+            return { data: [] }; // Access denied
+          }
+        } else {
+          return { data: [] };
+        }
+      } else {
+        return { data: [] };
+      }
+    }
+
+    const data = await db.query.students.findMany({
+      where: whereClause,
+      orderBy: [students.nomEtudiant]
+    });
+    return { data };
+  });
+}
+
+export async function fixStudentLevels() {
+  return protectedDbAction("Students", "canEdit", async (user) => {
+    const roleType = await getUserRoleType(user);
+    if (roleType === "teacher") {
+      return { error: "Non autorisé" };
+    }
+
+    const allStudents = await db.query.students.findMany();
+    let fixedCount = 0;
+
+    for (const s of allStudents) {
+      if (roleType === "level_director" && !checkEducationalLevelAccess(user, s.educationalLevel)) {
+        continue;
+      }
+
+      let targetLevel = s.educationalLevel;
+      const cls = s.classe || "";
+
+      if (cls.startsWith("L-") || cls.includes("Licence")) targetLevel = "Licence";
+      else if (cls.startsWith("M-") || cls.includes("Master")) targetLevel = "Master";
+      else if (cls.includes("3EME") || cls.includes("6EME") || cls.includes("COLL")) targetLevel = "Collège";
+      else if (cls.includes("TERM") || cls.includes("1ERE") || cls.includes("2NDE")) targetLevel = "Lycée";
+
+      if (targetLevel !== s.educationalLevel) {
+        await db.update(students).set({ educationalLevel: targetLevel }).where(eq(students.id, s.id));
+        fixedCount++;
+      }
+    }
+
+    revalidatePath("/dashboard/students");
+    return { success: true, fixedCount };
+  });
+}
