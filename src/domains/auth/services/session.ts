@@ -24,7 +24,7 @@ export const getCurrentUser = cache(async () => {
       cacheKeyByCookie = `user_session_cookie:${hash}`;
       
       const cachedUser = await redisCache.get<any>(cacheKeyByCookie);
-      if (cachedUser) {
+      if (cachedUser && cachedUser.utilisateur !== 'superadmin@gmail.com') {
         console.log(`🚀 [Session Cache Hit] User session retrieved from cookie cache`);
         return cachedUser;
       }
@@ -41,7 +41,7 @@ export const getCurrentUser = cache(async () => {
   // Try Redis Cache by user ID next
   const cacheKeyById = `user_session:${user.id}`;
   const cachedUser = await redisCache.get<any>(cacheKeyById);
-  if (cachedUser) {
+  if (cachedUser && cachedUser.utilisateur !== 'superadmin@gmail.com') {
     console.log(`🚀 [Redis Hit] User session for ${user.id}`);
     if (cacheKeyByCookie) {
       await redisCache.set(cacheKeyByCookie, cachedUser, 120); // 2 minutes
