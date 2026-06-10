@@ -1,6 +1,6 @@
-import { client, db } from "./src/infrastructure/database/index.ts";
-import { users } from "./src/infrastructure/database/schema/auth.ts";
-import { schoolSessions } from "./src/infrastructure/database/schema/academics.ts";
+import { client, db } from "./src/infrastructure/database";
+import { users } from "./src/infrastructure/database/schema/auth";
+import { schoolSessions } from "./src/infrastructure/database/schema/academics";
 
 async function main() {
   try {

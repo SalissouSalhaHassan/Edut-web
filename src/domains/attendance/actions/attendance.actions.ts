@@ -20,12 +20,10 @@ export async function getAttendanceRecords(classId: number, date: string, subjec
       return { data: [] };
     }
 
-    const schoolId = await getActiveSchoolId();
     const targetDate = new Date(date);
     
     const data = await db.query.studentAttendance.findMany({
       where: and(
-        eq(studentAttendance.schoolId, schoolId),
         eq(studentAttendance.classId, classId),
         subjectId ? eq(studentAttendance.subjectId, subjectId) : sql`TRUE`,
         sql`DATE(${studentAttendance.date}) = DATE(${targetDate.toISOString()})`
@@ -52,13 +50,11 @@ export async function saveBatchAttendance(data: BatchAttendanceFormData) {
       return { error: "Accès refusé. Vous n'êtes pas autorisé pour cette classe." };
     }
 
-    const schoolId = await getActiveSchoolId();
     const targetDate = new Date(date);
 
     // Fetch existing attendance records for the target date, class, and subject
     const existing = await db.query.studentAttendance.findMany({
       where: and(
-        eq(studentAttendance.schoolId, schoolId),
         eq(studentAttendance.classId, classId),
         subjectId ? eq(studentAttendance.subjectId, subjectId) : isNull(studentAttendance.subjectId),
         sql`DATE(${studentAttendance.date}) = DATE(${targetDate.toISOString()})`
@@ -74,13 +70,11 @@ export async function saveBatchAttendance(data: BatchAttendanceFormData) {
           status: record.status,
           remark: record.remark,
           employeeId: employeeId || null,
-        }).where(and(
-          eq(studentAttendance.id, existingId),
-          eq(studentAttendance.schoolId, schoolId)
-        ));
+        }).where(
+          eq(studentAttendance.id, existingId)
+        );
       } else {
         await db.insert(studentAttendance).values({
-          schoolId: schoolId,
           studentId: record.studentId,
           classId,
           subjectId: subjectId || null,

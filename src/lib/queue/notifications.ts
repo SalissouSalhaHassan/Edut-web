@@ -6,7 +6,7 @@ const connection = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379'
 });
 
 export const notificationQueue = new Queue('notifications', {
-  connection,
+  connection: connection as any,
   defaultJobOptions: {
     attempts: 3,
     backoff: {
@@ -43,7 +43,7 @@ export const startNotificationWorker = () => {
       
       return { success: true };
     },
-    { connection }
+    { connection: connection as any }
   );
 
   worker.on('completed', (job) => {

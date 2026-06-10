@@ -17,7 +17,8 @@ export default function RepairDataButton() {
     try {
       const res = await fixStudentLevels();
       if (res.success) {
-        toast.success(`${res.fixedCount} enregistrements corrigés !`, {
+        const fixedCount = (res as any).fixedCount || 0;
+        toast.success(`${fixedCount} enregistrements corrigés !`, {
           description: "Les incohérences entre Niveau et Classe ont été réparées.",
         });
       } else {

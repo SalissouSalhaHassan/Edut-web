@@ -193,8 +193,8 @@ export default function AcademicResultsPage() {
     setLoading(true);
     try {
       const response = await getBatchBulletinData(activeFilters.classId, activeFilters.sessionId, activeFilters.period);
-      if (response?.data) {
-        const batchData = response.data;
+      if (response && response.data) {
+        const batchData = response.data as any;
         if (batchData.length === 0) {
           toast.warning("Aucune donnée à imprimer.");
           return;
@@ -210,6 +210,8 @@ export default function AcademicResultsPage() {
         }
         
         toast.success("Tous les bulletins ont été générés !");
+      } else if (response && response.error) {
+        toast.error(response.error);
       }
     } catch (err: any) {
       toast.error("Erreur lors de l'impression groupée", { description: err.message });
@@ -297,6 +299,8 @@ export default function AcademicResultsPage() {
                 gradingScale={gradingScale}
                 onSave={handleSave}
                 onPrintBulletin={handlePrintBulletin}
+                level={level}
+                coefficient={activeCoef}
               />
             ) : (
               <BroadsheetMatrix

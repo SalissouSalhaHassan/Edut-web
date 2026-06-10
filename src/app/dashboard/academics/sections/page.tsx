@@ -63,7 +63,7 @@ export default async function SectionsPage() {
                     <ActionMenu 
                       onDelete={async () => {
                         "use server";
-                        await deleteSection(s.id);
+                        return await deleteSection(s.id);
                       }}
                       editDialog={<SectionDialog mode="edit" initialData={s} trigger={
                         <button className="flex items-center gap-2 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 w-full text-left">
