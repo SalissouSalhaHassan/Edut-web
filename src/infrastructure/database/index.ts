@@ -24,8 +24,18 @@ if (!process.env.DATABASE_URL) {
   console.warn("⚠️ DATABASE_URL is not defined in environment variables. Using default local connection.");
 }
 
-const connectionString = process.env.DATABASE_URL || "postgres://postgres:postgres@localhost:5432/edut";
-const readReplicaUrl = process.env.READ_REPLICA_URL;
+function normalizeDatabaseUrl(value: string | undefined) {
+  if (!value) return undefined;
+
+  const trimmed = value.trim().replace(/^['"]|['"]$/g, "");
+  const assignment = trimmed.match(/^[A-Z0-9_]+\s*=\s*(.+)$/i);
+  const url = (assignment ? assignment[1] : trimmed).trim().replace(/^['"]|['"]$/g, "");
+
+  return url || undefined;
+}
+
+const connectionString = normalizeDatabaseUrl(process.env.DATABASE_URL) || "postgres://postgres:postgres@localhost:5432/edut";
+const readReplicaUrl = normalizeDatabaseUrl(process.env.READ_REPLICA_URL);
 
 // Log connection target for debugging (masking password)
 const maskedUrl = connectionString.replace(/:([^:@]+)@/, ":****@");
@@ -45,7 +55,7 @@ const globalForDb = global as unknown as {
   readClient: ReturnType<typeof postgres> | undefined;
 };
 
-const commonConfig: postgres.Options<{}> = {
+const commonConfig: postgres.Options<Record<string, never>> = {
   prepare: false,
   ssl: isLocal ? false : { rejectUnauthorized: false },
   max: 10,           // Moderate pool size to prevent exceeding connection limits
@@ -77,12 +87,15 @@ export const db = drizzle(client, { schema });
 // Read DB instance (for SELECT queries)
 export const readDb = drizzle(readClient, { schema });
 
+type WriteTenantTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+type ReadTenantTransaction = Parameters<Parameters<typeof readDb.transaction>[0]>[0];
+
 /**
  * Executes write/primary queries inside a transaction with tenant RLS context set
  */
 export async function withTenant<T>(
   schoolId: number,
-  callback: (tx: any) => Promise<T>
+  callback: (tx: WriteTenantTransaction) => Promise<T>
 ): Promise<T> {
   return await db.transaction(async (tx) => {
     await tx.execute(sql`SET LOCAL ROLE authenticated`);
@@ -96,7 +109,7 @@ export async function withTenant<T>(
  */
 export async function withReadTenant<T>(
   schoolId: number,
-  callback: (tx: any) => Promise<T>
+  callback: (tx: ReadTenantTransaction) => Promise<T>
 ): Promise<T> {
   return await readDb.transaction(async (tx) => {
     await tx.execute(sql`SET LOCAL ROLE authenticated`);
@@ -104,4 +117,3 @@ export async function withReadTenant<T>(
     return await callback(tx);
   });
 }
-

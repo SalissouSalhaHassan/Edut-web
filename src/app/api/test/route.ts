@@ -1,12 +1,18 @@
 import { NextResponse } from "next/server";
-import { db } from "@/infrastructure/database";
-import { schoolSessions } from "@/infrastructure/database/schema/academics";
+
+export const dynamic = "force-dynamic";
 
 export async function GET() {
+  if (process.env.NODE_ENV === "production") {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   try {
+    const { db } = await import("@/infrastructure/database");
     const sessions = await db.query.schoolSessions.findMany();
     return NextResponse.json({ sessions });
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
