@@ -1,5 +1,12 @@
 const postgres = require('postgres');
-const sql = postgres('postgresql://postgres.gkarotahjtyvmhjqejts:salissou1994S@aws-1-eu-central-2.pooler.supabase.com:5432/postgres', { ssl: { rejectUnauthorized: false } });
+require('dotenv').config({ path: '.env.local' });
+
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) {
+  throw new Error('DATABASE_URL is not defined.');
+}
+
+const sql = postgres(connectionString, { ssl: { rejectUnauthorized: false } });
 
 async function run() {
   try {
