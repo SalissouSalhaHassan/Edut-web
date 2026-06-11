@@ -36,8 +36,8 @@ if (readReplicaUrl) {
   console.log(`🔌 Initializing read replica client: ${maskedReadUrl}`);
 }
 
-// Detect both direct and pooler Supabase URLs
-const isSupabase = connectionString.includes("supabase.co") || connectionString.includes("supabase.com");
+// Detect remote connections (anything other than localhost/127.0.0.1)
+const isLocal = connectionString.includes("localhost") || connectionString.includes("127.0.0.1");
 
 // Prevent multiple instances of the database client in development
 const globalForDb = global as unknown as {
@@ -47,7 +47,7 @@ const globalForDb = global as unknown as {
 
 const commonConfig: postgres.Options<{}> = {
   prepare: false,
-  ssl: isSupabase ? { rejectUnauthorized: false } : false,
+  ssl: isLocal ? false : { rejectUnauthorized: false },
   max: 10,           // Moderate pool size to prevent exceeding connection limits
   idle_timeout: 1,   // Very short idle timeout (1 second) to clean up idle sockets immediately
   connect_timeout: 30, 

@@ -7,7 +7,7 @@ import { cache as redisCache } from "@/lib/redis";
 import { cookies } from "next/headers";
 import crypto from "crypto";
 
-const DEFAULT_PLATFORM_OWNER_EMAILS = ["superadmin@gmail.com", "viewer@test.com"];
+const DEFAULT_PLATFORM_OWNER_EMAILS = ["superadmin@gmail.com", "viewer@test.com", "salissousalhahassan@gmail.com"];
 
 type DbUser = typeof users.$inferSelect;
 type SessionUserRecord = Omit<DbUser, "superAdmin"> & {
