@@ -29,7 +29,7 @@ if (hasRedisConfig) {
     isRedisConnected = true;
   });
 
-  redis.on('error', (err) => {
+  redis.on('error', (err: any) => {
     console.warn('⚠️ Redis Connection Error:', err.message || err.code || 'Unknown');
     isRedisConnected = false;
   });
