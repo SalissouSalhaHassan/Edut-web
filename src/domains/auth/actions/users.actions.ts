@@ -1,13 +1,62 @@
 "use server";
 
 import { db } from "@/infrastructure/database";
-import { users, roles } from "@/infrastructure/database/schema/auth";
-import { eq, desc, and, inArray } from "drizzle-orm";
+import { users } from "@/infrastructure/database/schema/auth";
+import { eq, desc, and, inArray, type SQL } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/domains/auth/services/session";
 import bcrypt from "bcryptjs";
 import { getActiveSchoolId } from "@/domains/auth/services/school";
 import { getUserRoleType, getCompatibleLevels, checkEducationalLevelAccess } from "@/domains/auth/services/rbac";
+
+type SaveUserFormData = {
+  utilisateur?: string;
+  nomPrenom?: string;
+  motDePasse?: string;
+  admin?: boolean;
+  superAdmin?: boolean;
+  roleId?: unknown;
+  langue?: string;
+  educationalLevel?: string;
+  supabaseId?: string;
+  schoolId?: unknown;
+};
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "Erreur inconnue";
+}
+
+function parseOptionalId(value: unknown) {
+  if (value === null || value === undefined || value === "") return null;
+
+  const parsed = typeof value === "number" ? value : Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+async function resolveUserRoleId(roleId: unknown, wantsAdminAccess: boolean) {
+  const parsedRoleId = parseOptionalId(roleId);
+  if (parsedRoleId) return { roleId: parsedRoleId };
+
+  const availableRoles = await db.query.roles.findMany({
+    columns: {
+      id: true,
+      roleName: true,
+    },
+  });
+
+  if (availableRoles.length === 0) {
+    return {
+      roleId: null,
+      error: "Aucun rôle disponible. Créez d'abord un rôle dans Sécurité > Gérer les Rôles.",
+    };
+  }
+
+  const defaultRole = wantsAdminAccess
+    ? availableRoles.find((role) => /admin|administrateur|super/i.test(role.roleName)) || availableRoles[0]
+    : availableRoles[0];
+
+  return { roleId: defaultRole.id };
+}
 
 export async function getUsers() {
   try {
@@ -21,7 +70,7 @@ export async function getUsers() {
 
     // Multi-tenancy logic: 
     // Super Admins see everyone, regular users see only their school's users
-    let whereClause: any;
+    let whereClause: SQL | undefined;
     if (user.superAdmin) {
       // superAdmin sees ALL users across platform
       whereClause = undefined;
@@ -55,13 +104,14 @@ export async function getUsers() {
     
     console.log(`[getUsers] Found ${data.length} users (SuperAdmin: ${user.superAdmin}, schoolId filter: ${schoolId ?? user.schoolId ?? 'none'})`);
     return { data, success: true };
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = getErrorMessage(error);
     console.error("getUsers Error:", error);
-    return { error: error.message, success: false, data: [] };
+    return { error: message, success: false, data: [] };
   }
 }
 
-export async function saveUser(formData: any, id?: number) {
+export async function saveUser(formData: SaveUserFormData, id?: number) {
   console.log(`[saveUser] Attempting to save user. ID: ${id || 'NEW'}, Data:`, formData);
   
   try {
@@ -80,31 +130,57 @@ export async function saveUser(formData: any, id?: number) {
     }
 
     const { utilisateur, nomPrenom, motDePasse, admin, superAdmin, roleId, langue, educationalLevel, supabaseId, schoolId } = formData;
+    const utilisateurValue = typeof utilisateur === "string" ? utilisateur.trim() : "";
+    const nomPrenomValue = typeof nomPrenom === "string" ? nomPrenom.trim() : "";
+    const passwordValue = typeof motDePasse === "string" ? motDePasse : "";
     const roleType = await getUserRoleType(currentUser);
+    const requestedAdmin = !!admin;
+    const requestedSuperAdmin = isSuperAdmin ? !!superAdmin : false;
+    const resolvedRole = await resolveUserRoleId(roleId, requestedAdmin || requestedSuperAdmin);
+
+    if (!resolvedRole.roleId) {
+      return { error: resolvedRole.error || "Le rôle est requis", success: false };
+    }
+
+    const selectedSchoolId = parseOptionalId(schoolId);
+    const currentSchoolId = parseOptionalId(currentUser.schoolId);
+
+    if (!isSuperAdmin && !currentSchoolId) {
+      return { error: "Aucune école active trouvée pour cet utilisateur.", success: false };
+    }
 
     // Basic validation
-    if (!utilisateur) return { error: "L'identifiant est requis", success: false };
-    if (!nomPrenom) return { error: "Le nom complet est requis", success: false };
+    if (!utilisateurValue) return { error: "L'identifiant est requis", success: false };
+    if (!nomPrenomValue) return { error: "Le nom complet est requis", success: false };
 
-    const data: any = {
-      utilisateur,
-      nomPrenom,
-      admin: !!admin,
-      superAdmin: isSuperAdmin ? !!superAdmin : undefined,
-      roleId: roleId && roleId !== "" ? parseInt(roleId) : null,
+    const data: Partial<typeof users.$inferInsert> & {
+      utilisateur: string;
+      nomPrenom: string;
+      admin: boolean;
+      roleId: number;
+      langue: string;
+      educationalLevel: string;
+      supabaseId: string | null;
+      schoolId: number | null;
+    } = {
+      utilisateur: utilisateurValue,
+      nomPrenom: nomPrenomValue,
+      admin: requestedAdmin,
+      superAdmin: isSuperAdmin ? requestedSuperAdmin : undefined,
+      roleId: resolvedRole.roleId,
       langue: langue || "FR",
       educationalLevel: educationalLevel || "Primaire",
-      supabaseId: supabaseId || null,
+      supabaseId: supabaseId?.trim() || null,
       // Multi-tenancy: set schoolId.
-      schoolId: isSuperAdmin && schoolId && schoolId !== "" ? parseInt(schoolId) : currentUser.schoolId,
+      schoolId: isSuperAdmin ? selectedSchoolId : currentSchoolId,
     };
 
     if (roleType === "level_director") {
-      data.educationalLevel = currentUser.educationalLevel;
+      data.educationalLevel = currentUser.educationalLevel || "Primaire";
     }
 
-    if (motDePasse) {
-      data.motDePasse = await bcrypt.hash(motDePasse, 10);
+    if (passwordValue) {
+      data.motDePasse = await bcrypt.hash(passwordValue, 10);
     }
 
     if (id) {
@@ -129,21 +205,22 @@ export async function saveUser(formData: any, id?: number) {
       await db.update(users).set(data).where(eq(users.id, id));
       console.log(`[saveUser] Update success for user ${id}`);
     } else {
-      if (!motDePasse) return { error: "Mot de passe requis pour un nouvel utilisateur", success: false };
+      if (!passwordValue) return { error: "Mot de passe requis pour un nouvel utilisateur", success: false };
       console.log(`[saveUser] Inserting new user with:`, data);
-      await db.insert(users).values(data);
+      await db.insert(users).values(data as typeof users.$inferInsert);
       console.log(`[saveUser] Insert success`);
     }
 
     revalidatePath("/dashboard/security/users");
     return { success: true };
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = getErrorMessage(error);
     console.error("[saveUser] Error saving user:", error);
     // Return proper error message instead of throwing
-    if (error.message?.includes("unique") || error.message?.includes("duplicate")) {
+    if (message.includes("unique") || message.includes("duplicate")) {
       return { error: "Cet identifiant existe déjà.", success: false };
     }
-    return { error: error.message || "Erreur lors de l'enregistrement", success: false };
+    return { error: message || "Erreur lors de l'enregistrement", success: false };
   }
 }
 
@@ -182,8 +259,9 @@ export async function deleteUser(id: number) {
     await db.delete(users).where(eq(users.id, id));
     revalidatePath("/dashboard/security/users");
     return { success: true };
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = getErrorMessage(error);
     console.error("[deleteUser] Error:", error);
-    return { error: error.message || "Erreur lors de la suppression", success: false };
+    return { error: message || "Erreur lors de la suppression", success: false };
   }
 }
