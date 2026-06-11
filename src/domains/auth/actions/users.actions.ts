@@ -2,7 +2,7 @@
 
 import { db } from "@/infrastructure/database";
 import { users } from "@/infrastructure/database/schema/auth";
-import { eq, desc, and, inArray, type SQL } from "drizzle-orm";
+import { eq, desc, and, inArray, sql, type SQL } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/domains/auth/services/session";
 import bcrypt from "bcryptjs";
@@ -22,6 +22,11 @@ type SaveUserFormData = {
   schoolId?: unknown;
 };
 
+type RoleLookupRow = {
+  id: number;
+  roleName: string;
+};
+
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Erreur inconnue";
 }
@@ -33,16 +38,83 @@ function parseOptionalId(value: unknown) {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
+function rowsFromResult(result: unknown): Record<string, unknown>[] {
+  if (Array.isArray(result)) return result as Record<string, unknown>[];
+
+  if (result && typeof result === "object" && "rows" in result) {
+    const rows = (result as { rows?: unknown }).rows;
+    if (Array.isArray(rows)) return rows as Record<string, unknown>[];
+  }
+
+  return [];
+}
+
+function normalizeRoleRows(result: unknown): RoleLookupRow[] {
+  return rowsFromResult(result)
+    .map((row) => {
+      const id = Number(row.id);
+      const roleName = typeof row.roleName === "string" ? row.roleName : String(row.role_name || "");
+      return Number.isInteger(id) && id > 0 && roleName ? { id, roleName } : null;
+    })
+    .filter((row): row is RoleLookupRow => row !== null);
+}
+
+async function fetchRoleRows() {
+  const result = await db.execute(sql`
+    SELECT "id", "role_name" AS "roleName"
+    FROM "roles"
+    ORDER BY "id" ASC
+  `);
+
+  return normalizeRoleRows(result);
+}
+
+async function ensureDefaultRoles() {
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS "roles" (
+      "id" serial PRIMARY KEY,
+      "role_name" varchar(50) NOT NULL UNIQUE,
+      "description" varchar(200)
+    )
+  `);
+
+  await db.execute(sql`ALTER TABLE "roles" ADD COLUMN IF NOT EXISTS "role_name" varchar(50)`);
+  await db.execute(sql`ALTER TABLE "roles" ADD COLUMN IF NOT EXISTS "description" varchar(200)`);
+  await db.execute(sql`
+    UPDATE "roles"
+    SET "role_name" = 'Role ' || "id"::text
+    WHERE "role_name" IS NULL OR "role_name" = ''
+  `);
+  await db.execute(sql`ALTER TABLE "roles" ALTER COLUMN "role_name" SET NOT NULL`);
+  await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS "roles_role_name_unique" ON "roles" ("role_name")`);
+  await db.execute(sql`
+    INSERT INTO "roles" ("role_name", "description")
+    VALUES
+      ('Administrateur', 'Accès administrateur au système'),
+      ('Membre', 'Accès utilisateur standard')
+    ON CONFLICT ("role_name") DO UPDATE
+    SET "description" = EXCLUDED."description"
+  `);
+}
+
 async function resolveUserRoleId(roleId: unknown, wantsAdminAccess: boolean) {
   const parsedRoleId = parseOptionalId(roleId);
   if (parsedRoleId) return { roleId: parsedRoleId };
 
-  const availableRoles = await db.query.roles.findMany({
-    columns: {
-      id: true,
-      roleName: true,
-    },
-  });
+  let availableRoles: RoleLookupRow[] = [];
+
+  try {
+    availableRoles = await fetchRoleRows();
+  } catch (error: unknown) {
+    console.warn("[saveUser] roles table lookup failed, attempting bootstrap:", getErrorMessage(error));
+    await ensureDefaultRoles();
+    availableRoles = await fetchRoleRows();
+  }
+
+  if (availableRoles.length === 0) {
+    await ensureDefaultRoles();
+    availableRoles = await fetchRoleRows();
+  }
 
   if (availableRoles.length === 0) {
     return {
