@@ -56,6 +56,7 @@ export default function EmployeeDialog({ mode = "add", initialData, trigger }: E
       banqueNom: form.get("banqueNom") as string,
       banqueCompte: form.get("banqueCompte") as string,
       statut: (form.get("statut") as string) || "Actif",
+      educationalLevel: (form.get("educationalLevel") as string) || undefined,
     };
 
     let result;
@@ -98,11 +99,12 @@ export default function EmployeeDialog({ mode = "add", initialData, trigger }: E
               </div>
             )}
 
+            {/* ─── Identité ─── */}
             <fieldset className="border border-slate-100 rounded-[2rem] p-8 space-y-6 bg-slate-50/50">
               <legend className="px-4 py-1 font-black text-[10px] uppercase tracking-[0.2em] text-primary bg-white border border-slate-100 rounded-full shadow-sm">
                 🪪 Identité
               </legend>
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <Label className="text-xs font-bold text-slate-500 ml-1">ID Employé *</Label>
                   <Input name="empId" defaultValue={initialData?.empId} required className="rounded-xl h-11" />
@@ -111,21 +113,115 @@ export default function EmployeeDialog({ mode = "add", initialData, trigger }: E
                   <Label className="text-xs font-bold text-slate-500 ml-1">Nom complet *</Label>
                   <Input name="nom" defaultValue={initialData?.nom} required className="rounded-xl h-11" />
                 </div>
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold text-slate-500 ml-1">Sexe</Label>
+                  <select
+                    name="sexe"
+                    defaultValue={initialData?.sexe || ""}
+                    className="w-full h-11 px-4 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 cursor-pointer shadow-sm"
+                  >
+                    <option value="">-- Sélectionner --</option>
+                    <option value="Homme">Homme</option>
+                    <option value="Femme">Femme</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold text-slate-500 ml-1">Date de naissance</Label>
+                  <Input type="date" name="dateNaissance" defaultValue={initialData?.dateNaissance} className="rounded-xl h-11 text-slate-700" />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label className="text-xs font-bold text-slate-500 ml-1">Numéro de Carte d'Identité (CNIC)</Label>
+                  <Input name="cnic" defaultValue={initialData?.cnic} className="rounded-xl h-11" />
+                </div>
               </div>
             </fieldset>
 
+            {/* ─── Contact & Adresse ─── */}
             <fieldset className="border border-slate-100 rounded-[2rem] p-8 space-y-6 bg-slate-50/50">
               <legend className="px-4 py-1 font-black text-[10px] uppercase tracking-[0.2em] text-primary bg-white border border-slate-100 rounded-full shadow-sm">
-                💼 Poste
+                📞 Contact &amp; Adresse
               </legend>
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <Label className="text-xs font-bold text-slate-500 ml-1">Poste</Label>
+                  <Label className="text-xs font-bold text-slate-500 ml-1">Téléphone Mobile</Label>
+                  <Input name="mobile" defaultValue={initialData?.mobile} className="rounded-xl h-11" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold text-slate-500 ml-1">Adresse E-mail</Label>
+                  <Input type="email" name="email" defaultValue={initialData?.email} className="rounded-xl h-11" />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label className="text-xs font-bold text-slate-500 ml-1">Adresse Physique</Label>
+                  <Textarea name="adresse" defaultValue={initialData?.adresse} className="rounded-xl" rows={3} />
+                </div>
+              </div>
+            </fieldset>
+
+            {/* ─── Poste & Contrat ─── */}
+            <fieldset className="border border-slate-100 rounded-[2rem] p-8 space-y-6 bg-slate-50/50">
+              <legend className="px-4 py-1 font-black text-[10px] uppercase tracking-[0.2em] text-primary bg-white border border-slate-100 rounded-full shadow-sm">
+                💼 Poste &amp; Contrat
+              </legend>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold text-slate-500 ml-1">Poste / Fonction</Label>
                   <Input name="poste" defaultValue={initialData?.poste} className="rounded-xl h-11" />
                 </div>
                 <div className="space-y-2">
                   <Label className="text-xs font-bold text-slate-500 ml-1">Département</Label>
                   <Input name="departement" defaultValue={initialData?.departement} className="rounded-xl h-11" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold text-slate-500 ml-1">Date d'embauche</Label>
+                  <Input type="date" name="dateEmbauche" defaultValue={initialData?.dateEmbauche} className="rounded-xl h-11 text-slate-700" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold text-slate-500 ml-1">Niveau Éducatif / Secteur</Label>
+                  <select
+                    name="educationalLevel"
+                    defaultValue={initialData?.educationalLevel || "Primaire"}
+                    className="w-full h-11 px-4 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 cursor-pointer shadow-sm"
+                  >
+                    <option value="Tous">Tous</option>
+                    <option value="Maternelle">Maternelle</option>
+                    <option value="Primaire">Primaire</option>
+                    <option value="Collège">Collège</option>
+                    <option value="Lycée">Lycée</option>
+                    <option value="Supérieur">Supérieur</option>
+                  </select>
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label className="text-xs font-bold text-slate-500 ml-1">Statut</Label>
+                  <select
+                    name="statut"
+                    defaultValue={initialData?.statut || "Actif"}
+                    className="w-full h-11 px-4 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 cursor-pointer shadow-sm"
+                  >
+                    <option value="Actif">Actif</option>
+                    <option value="Inactif">Inactif</option>
+                    <option value="En Attente">En Attente</option>
+                  </select>
+                </div>
+              </div>
+            </fieldset>
+
+            {/* ─── Finances & Banque ─── */}
+            <fieldset className="border border-slate-100 rounded-[2rem] p-8 space-y-6 bg-slate-50/50">
+              <legend className="px-4 py-1 font-black text-[10px] uppercase tracking-[0.2em] text-primary bg-white border border-slate-100 rounded-full shadow-sm">
+                💰 Finances &amp; Banque
+              </legend>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2 md:col-span-2">
+                  <Label className="text-xs font-bold text-slate-500 ml-1">Salaire de Base</Label>
+                  <Input type="number" name="salaireBase" defaultValue={initialData?.salaireBase} className="rounded-xl h-11" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold text-slate-500 ml-1">Nom de la Banque</Label>
+                  <Input name="banqueNom" defaultValue={initialData?.banqueNom} className="rounded-xl h-11" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold text-slate-500 ml-1">Numéro de Compte</Label>
+                  <Input name="banqueCompte" defaultValue={initialData?.banqueCompte} className="rounded-xl h-11" />
                 </div>
               </div>
             </fieldset>
@@ -144,3 +240,4 @@ export default function EmployeeDialog({ mode = "add", initialData, trigger }: E
     </Dialog>
   );
 }
+

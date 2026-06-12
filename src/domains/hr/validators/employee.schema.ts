@@ -16,6 +16,8 @@ export const employeeSchema = z.object({
   banqueNom: z.string().nullish(),
   banqueCompte: z.string().nullish(),
   statut: z.string().default("Actif"),
+  educationalLevel: z.string().nullish(),
 });
 
 export type EmployeeFormData = z.infer<typeof employeeSchema>;
+
