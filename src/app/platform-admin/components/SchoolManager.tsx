@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useMemo, useEffect } from "react";
+import { useState, useTransition, useMemo } from "react";
 import { 
   updateSchoolStatus, 
   updateSchoolPlan, 
@@ -39,37 +39,64 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 
-export function SchoolManager({ schools: initialSchools }: { schools: any[] }) {
+const PRIMARY_DOMAIN = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "edut.pro";
+type HostMode = "localhost" | "primary-domain" | "single-deployment";
+type SchoolRecord = {
+  id: number;
+  name: string;
+  slug: string;
+  customDomain?: string | null;
+  logoPath?: string | null;
+  plan?: string | null;
+  status?: string | null;
+  createdAt?: string | Date | null;
+};
+
+export function SchoolManager({ schools: initialSchools }: { schools: SchoolRecord[] }) {
   const [schools, setSchools] = useState(initialSchools);
   const [isPending, startTransition] = useTransition();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [baseDomain, setBaseDomain] = useState("edut.pro");
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const host = window.location.host;
-      // If localhost, keep localhost:3000 logic, otherwise use the host
-      if (host.includes('localhost')) {
-        setBaseDomain('localhost:3000');
-      } else {
-        // Remove the subdomain if we are on one, to get the base domain
-        const parts = host.split('.');
-        if (parts.length > 2) {
-          setBaseDomain(parts.slice(-2).join('.'));
-        } else {
-          setBaseDomain(host);
-        }
-      }
+  const hostConfig = useMemo<{ baseDomain: string; mode: HostMode }>(() => {
+    if (typeof window === "undefined") {
+      return { baseDomain: PRIMARY_DOMAIN, mode: "primary-domain" };
     }
+
+    const host = window.location.host;
+    const hostname = window.location.hostname;
+
+    if (host.includes("localhost")) {
+      return { baseDomain: host, mode: "localhost" };
+    }
+
+    if (hostname === PRIMARY_DOMAIN || hostname.endsWith(`.${PRIMARY_DOMAIN}`)) {
+      return { baseDomain: PRIMARY_DOMAIN, mode: "primary-domain" };
+    }
+
+    return { baseDomain: host, mode: "single-deployment" };
   }, []);
 
-  const getSchoolUrl = (slug: string) => {
+  const getSchoolUrl = (school: SchoolRecord) => {
     const protocol = typeof window !== 'undefined' ? window.location.protocol : 'http:';
-    if (baseDomain.includes('localhost')) {
-      return `${protocol}//${slug}.${baseDomain}`;
+    const customDomain = typeof school.customDomain === "string" ? school.customDomain.trim() : "";
+
+    if (customDomain) {
+      return customDomain.startsWith("http") ? customDomain : `${protocol}//${customDomain}`;
     }
-    return `${protocol}//${slug}.${baseDomain}`;
+
+    if (hostConfig.mode === "single-deployment") {
+      return null;
+    }
+
+    return `${protocol}//${school.slug}.${hostConfig.baseDomain}`;
+  };
+
+  const getSchoolDomainLabel = (school: SchoolRecord) => {
+    const customDomain = typeof school.customDomain === "string" ? school.customDomain.trim() : "";
+    if (customDomain) return customDomain.replace(/^https?:\/\//, "");
+    if (hostConfig.mode === "single-deployment") return school.slug;
+    return `${school.slug}.${hostConfig.baseDomain}`;
   };
 
   const filteredSchools = useMemo(() => {
@@ -94,9 +121,9 @@ export function SchoolManager({ schools: initialSchools }: { schools: any[] }) {
   };
 
   const handleToggleStatus = (schoolId: number, currentStatus: string) => {
-    const newStatus = currentStatus === 'active' ? 'suspended' : 'active';
+    const newStatus: "active" | "suspended" = currentStatus === "active" ? "suspended" : "active";
     startTransition(async () => {
-      const res = await updateSchoolStatus(schoolId, newStatus as any);
+      const res = await updateSchoolStatus(schoolId, newStatus);
       if (res.success) {
         setSchools(prev => prev.map(s => s.id === schoolId ? { ...s, status: newStatus } : s));
         toast.success(`L'école a été ${newStatus === 'active' ? 'activée' : 'suspendue'} avec succès.`);
@@ -167,17 +194,30 @@ export function SchoolManager({ schools: initialSchools }: { schools: any[] }) {
                     </div>
                     <div className="flex flex-col">
                       <span className="font-black text-slate-900 text-base">{school.name}</span>
-                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Inscrit le {new Date(school.createdAt).toLocaleDateString('fr-FR')}</span>
+                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                        Inscrit le {school.createdAt ? new Date(school.createdAt).toLocaleDateString('fr-FR') : "—"}
+                      </span>
                     </div>
                   </div>
                 </TableCell>
                 <TableCell className="px-8 py-5 font-bold text-indigo-600 text-sm">
-                  <a href={getSchoolUrl(school.slug)} target="_blank" className="hover:underline flex items-center gap-2 group/link">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const schoolUrl = getSchoolUrl(school);
+                      if (schoolUrl) {
+                        window.open(schoolUrl, "_blank", "noopener,noreferrer");
+                      } else {
+                        handleImpersonate(school.id);
+                      }
+                    }}
+                    className="hover:underline flex items-center gap-2 group/link"
+                  >
                     <span className="bg-indigo-50 px-3 py-1 rounded-lg border border-indigo-100/50 group-hover/link:bg-indigo-600 group-hover/link:text-white transition-colors">
-                      {school.slug}.{baseDomain}
+                      {getSchoolDomainLabel(school)}
                     </span>
                     <ExternalLink size={14} className="opacity-0 group-hover/link:opacity-100 transition-opacity" />
-                  </a>
+                  </button>
                 </TableCell>
                 <TableCell className="px-8 py-5">
                   <Badge variant="outline" className={cn(
@@ -220,7 +260,7 @@ export function SchoolManager({ schools: initialSchools }: { schools: any[] }) {
                           </div>
                         </DropdownMenuItem>
                         <DropdownMenuItem 
-                          onClick={() => handleToggleStatus(school.id, school.status)}
+                          onClick={() => handleToggleStatus(school.id, school.status || "active")}
                           className={cn(
                             "rounded-2xl font-bold gap-4 p-4 cursor-pointer",
                             school.status === 'active' ? "text-rose-600 focus:bg-rose-50 focus:text-rose-600" : "text-emerald-600 focus:bg-emerald-50 focus:text-emerald-600"
@@ -247,7 +287,7 @@ export function SchoolManager({ schools: initialSchools }: { schools: any[] }) {
                             disabled={school.plan === plan}
                             onClick={() => {
                               startTransition(async () => {
-                                const res = await updateSchoolPlan(school.id, plan as any);
+                                const res = await updateSchoolPlan(school.id, plan as "basic" | "premium" | "enterprise");
                                 if (res.success) {
                                   setSchools(prev => prev.map(s => s.id === school.id ? { ...s, plan } : s));
                                   toast.success(`Passage au forfait ${plan.toUpperCase()} réussi`);
