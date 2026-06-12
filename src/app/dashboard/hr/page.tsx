@@ -6,7 +6,7 @@ import Link from "next/link";
 import {
   Users, Building2, Search, Filter, LayoutGrid, List, Download,
   Eye, Edit, Phone, Mail, Lock, Bell, ChevronDown,
-  ChevronLeft, ChevronRight, Plus, ClipboardCheck
+  ChevronLeft, ChevronRight, Plus, ClipboardCheck, QrCode, BarChart3
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -107,7 +107,25 @@ export default async function HRPage({ searchParams }: { searchParams: Promise<{
           <p className="text-slate-500 font-medium text-sm">Gérez votre personnel et leurs contrats.</p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          {/* ─── Reports Center Link ─── */}
+          <Link
+            href="/dashboard/hr/reports"
+            className="h-11 px-5 rounded-xl bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 font-semibold flex items-center gap-2 transition-all text-sm animate-fade-in"
+          >
+            <BarChart3 size={16} />
+            Centre de Rapports
+          </Link>
+
+          {/* ─── QR Codes Link ─── */}
+          <Link
+            href="/dashboard/hr/attendance/qrcodes"
+            className="h-11 px-5 rounded-xl bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 font-semibold flex items-center gap-2 transition-all text-sm animate-fade-in"
+          >
+            <QrCode size={16} />
+            Codes QR Classes
+          </Link>
+
           {/* ─── Attendance Quick Link ─── */}
           <Link
             href={`/dashboard/hr/attendance?date=${today}`}
@@ -122,7 +140,7 @@ export default async function HRPage({ searchParams }: { searchParams: Promise<{
             href="/dashboard/hr/payroll"
             className="h-11 px-5 rounded-xl bg-violet-50 hover:bg-violet-100 border border-violet-200 text-violet-700 font-semibold flex items-center gap-2 transition-all text-sm"
           >
-            <span className="text-base leading-none">💰</span>
+            <span className="text-base leading-none font-bold">💰</span>
             Salaires
           </Link>
 

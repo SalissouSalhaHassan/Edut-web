@@ -82,6 +82,7 @@ const sections: Array<{ title: string; dotColor: string; items: NavItem[] }> = [
       { href: "/dashboard/academics/exams", label: "Examens", icon: <ClipboardList className="size-[18px]" />, color: "text-indigo-500" },
       { href: "/dashboard/academics/grades", label: "Notes & Résultats", icon: <ClipboardCheck className="size-[18px]" />, color: "text-emerald-500" },
       { href: "/dashboard/academics/timetable", label: "Emploi du Temps", icon: <CalendarCheck2 className="size-[18px]" />, color: "text-amber-500" },
+      { href: "/dashboard/hr/attendance/teacher/me", label: "Ma Présence", icon: <ClipboardCheck className="size-[18px]" />, color: "text-emerald-500" },
       { href: "/dashboard/academics/homework", label: "Devoirs", icon: <FileBarChart2 className="size-[18px]" />, color: "text-blue-500" },
       { href: "/dashboard/academics/devoirs", label: "Devoirs (AI)", icon: <BriefcaseBusiness className="size-[18px]" />, color: "text-indigo-500" },
     ],
@@ -101,6 +102,7 @@ const sections: Array<{ title: string; dotColor: string; items: NavItem[] }> = [
       { href: "/dashboard/finance", label: "Finances", icon: <Wallet className="size-[18px]" />, color: "text-emerald-500" },
       { href: "/dashboard/coges", label: "Paiement COGES", icon: <BriefcaseBusiness className="size-[18px]" />, color: "text-indigo-500" },
       { href: "/dashboard/hr", label: "Personnel HR", icon: <UserRound className="size-[18px]" />, color: "text-blue-500" },
+      { href: "/dashboard/hr/reports", label: "Centre de Rapports", icon: <FileBarChart2 className="size-[18px]" />, color: "text-indigo-500" },
       { href: "/dashboard/front-office", label: "Front Office", icon: <Building2 className="size-[18px]" />, color: "text-indigo-500" },
       { href: "/dashboard/inventory", label: "Stock", icon: <Package className="size-[18px]" />, color: "text-amber-500" },
       { href: "/dashboard/library", label: "Bibliothèque", icon: <LibraryBig className="size-[18px]" />, color: "text-indigo-500" },
@@ -181,20 +183,26 @@ export default function DashboardSidebar({
             "/dashboard/academics/exams",
             "/dashboard/academics/grades",
             "/dashboard/academics/timetable",
+            "/dashboard/hr/attendance/teacher/me",
             "/dashboard/academics/homework"
           ].includes(item.href));
         } else if (section.title === "GESTION") {
           items = []; // Hide all management tabs
         }
-      } else if (isLevelDirector) {
-        if (section.title === "GÉNÉRAL") {
-          items = items.filter(item => [
-            "/dashboard",
-            "/dashboard/reports",
-            "/dashboard/security",
-            "/dashboard/security/users",
-            "/dashboard/security/audit-logs"
-          ].includes(item.href));
+      } else {
+        // Non-teacher: filter out personal attendance link
+        items = items.filter(item => item.href !== "/dashboard/hr/attendance/teacher/me");
+        
+        if (isLevelDirector) {
+          if (section.title === "GÉNÉRAL") {
+            items = items.filter(item => [
+              "/dashboard",
+              "/dashboard/reports",
+              "/dashboard/security",
+              "/dashboard/security/users",
+              "/dashboard/security/audit-logs"
+            ].includes(item.href));
+          }
         }
       }
 
