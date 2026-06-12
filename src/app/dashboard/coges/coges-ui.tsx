@@ -32,6 +32,7 @@ import {
   ArrowLeft,
   Filter,
   Info,
+  type LucideIcon,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { getBranchByLevel } from "@/domains/settings/actions/settings.actions";
@@ -45,6 +46,8 @@ type Student = {
   nomPere: string | null;
   mobile: string | null;
 };
+
+type CogesReportType = "daily" | "weekly" | "monthly" | "yearly" | "class" | "purpose";
 
 // ─── Number to French CFA letters ──────────────────────────────────────────
 function numberToFrench(num: number): string {
@@ -549,6 +552,15 @@ export default function CogesUI({ initialPayments }: { initialPayments: any[] })
     setTimeout(() => window.print(), 150);
   };
 
+  const reportOptions: Array<{ type: CogesReportType; label: string; Icon: LucideIcon }> = [
+    { type: "daily", label: "Rapport Journalier", Icon: CalendarDays },
+    { type: "weekly", label: "Rapport Hebdomadaire", Icon: CalendarDays },
+    { type: "monthly", label: "Rapport Mensuel", Icon: CalendarDays },
+    { type: "yearly", label: "Rapport Annuel", Icon: CalendarDays },
+    { type: "class", label: "Rapport par Classe", Icon: GraduationCap },
+    { type: "purpose", label: "Rapport par Motif", Icon: FileCheck2 },
+  ];
+
   return (
     <div className="h-full flex flex-col relative bg-slate-50/50">
       {/* ── PRINT STYLES ─────────────────────────────────────────────────── */}
@@ -577,405 +589,376 @@ export default function CogesUI({ initialPayments }: { initialPayments: any[] })
         }
       `}} />
 
-      {/* ── HEADER ────────────────────────────────────────────────────────── */}
-      <header className="shrink-0 px-8 py-5 bg-white border-b border-slate-100 flex items-center justify-between z-20 print:hidden shadow-sm">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight">Paiement COGES</h1>
-            <span className="text-[10px] font-black bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full">École Plus</span>
-          </div>
-          <p className="text-xs font-bold text-slate-400 mt-0.5">Comité de Gestion des Établissements Scolaires (COGES)</p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          {/* Reports Dropdown */}
-          <div className="relative">
-            <Button
-              onClick={() => setReportsOpen(!reportsOpen)}
-              variant="outline"
-              className="h-10 px-4 rounded-xl border-slate-200 bg-white font-bold gap-2 text-slate-700 hover:bg-slate-50 transition-all cursor-pointer"
-            >
-              <FileText size={16} className="text-indigo-500" />
-              <span>Rapports</span>
-              <ChevronDown size={14} className={`text-slate-400 transition-transform ${reportsOpen ? 'rotate-180' : ''}`} />
-            </Button>
-            
-            {reportsOpen && (
-              <>
-                <div className="fixed inset-0 z-30" onClick={() => setReportsOpen(false)}></div>
-                <div className="absolute right-0 top-[calc(100%+6px)] w-60 bg-white border border-slate-100 rounded-2xl shadow-xl py-2 z-40 animate-in fade-in slide-in-from-top-1 duration-200">
-                  <div className="px-4 py-1.5 border-b border-slate-50 mb-1.5 text-left">
-                    <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Sélectionner un rapport</span>
-                  </div>
-                  <button
-                    onClick={() => { setActiveReportType("daily"); setReportsOpen(false); }}
-                    className="w-full text-left px-4 py-2.5 hover:bg-slate-50 text-xs font-bold text-slate-700 flex items-center gap-2.5 transition-colors cursor-pointer"
-                  >
-                    <CalendarDays size={15} className="text-indigo-500" />
-                    <span>Rapport Journalier</span>
-                  </button>
-                  <button
-                    onClick={() => { setActiveReportType("weekly"); setReportsOpen(false); }}
-                    className="w-full text-left px-4 py-2.5 hover:bg-slate-50 text-xs font-bold text-slate-700 flex items-center gap-2.5 transition-colors cursor-pointer"
-                  >
-                    <CalendarDays size={15} className="text-indigo-500" />
-                    <span>Rapport Hebdomadaire</span>
-                  </button>
-                  <button
-                    onClick={() => { setActiveReportType("monthly"); setReportsOpen(false); }}
-                    className="w-full text-left px-4 py-2.5 hover:bg-slate-50 text-xs font-bold text-slate-700 flex items-center gap-2.5 transition-colors cursor-pointer"
-                  >
-                    <CalendarDays size={15} className="text-indigo-500" />
-                    <span>Rapport Mensuel</span>
-                  </button>
-                  <button
-                    onClick={() => { setActiveReportType("yearly"); setReportsOpen(false); }}
-                    className="w-full text-left px-4 py-2.5 hover:bg-slate-50 text-xs font-bold text-slate-700 flex items-center gap-2.5 transition-colors cursor-pointer"
-                  >
-                    <CalendarDays size={15} className="text-indigo-500" />
-                    <span>Rapport Annuel</span>
-                  </button>
-                  <div className="h-px bg-slate-100/80 my-1.5"></div>
-                  <button
-                    onClick={() => { setActiveReportType("class"); setReportsOpen(false); }}
-                    className="w-full text-left px-4 py-2.5 hover:bg-slate-50 text-xs font-bold text-slate-700 flex items-center gap-2.5 transition-colors cursor-pointer"
-                  >
-                    <GraduationCap size={15} className="text-purple-500" />
-                    <span>Rapport par Classe</span>
-                  </button>
-                  <button
-                    onClick={() => { setActiveReportType("purpose"); setReportsOpen(false); }}
-                    className="w-full text-left px-4 py-2.5 hover:bg-slate-50 text-xs font-bold text-slate-700 flex items-center gap-2.5 transition-colors cursor-pointer"
-                  >
-                    <FileCheck2 size={15} className="text-emerald-500" />
-                    <span>Rapport par Motif</span>
-                  </button>
+      <main className="flex-1 overflow-y-auto px-6 py-8 lg:px-10 print:hidden">
+        <div className="mx-auto max-w-[1500px] space-y-8">
+          <header className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+            <div className="flex items-center gap-4">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 shadow-sm shadow-indigo-100">
+                <Banknote className="size-7" />
+              </div>
+              <div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <h1 className="text-4xl font-black tracking-normal text-slate-950">Paiement COGES</h1>
+                  <span className="rounded-full bg-indigo-50 px-3 py-1 text-[11px] font-black text-indigo-600 ring-1 ring-indigo-100">
+                    École Plus
+                  </span>
                 </div>
-              </>
-            )}
-          </div>
-
-          <Button
-            onClick={openDialog}
-            className="h-10 px-5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold gap-2 shadow-md shadow-indigo-100 transition-all hover:scale-[1.02] cursor-pointer"
-          >
-            <Plus size={16} />
-            Nouveau Reçu
-          </Button>
-        </div>
-      </header>
-
-      {/* ── STATS BAR (GLASSMORPHISM CARDS) ───────────────────────────────── */}
-      <section className="shrink-0 px-8 py-6 grid grid-cols-1 md:grid-cols-4 gap-5 print:hidden">
-        {/* Card 1: Total amount */}
-        <div className="bg-gradient-to-br from-indigo-500/10 via-indigo-600/5 to-transparent border border-indigo-500/10 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all duration-300 group hover:scale-[1.01] text-left">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black text-indigo-700 uppercase tracking-widest leading-none">Total Collecté</span>
-            <div className="w-8 h-8 rounded-xl bg-indigo-600/10 flex items-center justify-center text-indigo-700">
-              <Coins className="size-4 group-hover:animate-bounce" />
+                <p className="mt-1 text-sm font-semibold text-slate-500">
+                  Suivi des cotisations COGES, des élèves et des reçus de paiement.
+                </p>
+              </div>
             </div>
-          </div>
-          <div className="mt-3">
-            <h3 className="text-2xl font-black text-slate-900 tracking-tight leading-none">
-              {filteredTotal.toLocaleString("fr-FR")}
-              <span className="text-xs font-black text-indigo-600 ml-1.5">F CFA</span>
-            </h3>
-            <p className="text-[10px] font-bold text-slate-400 mt-1.5">Sur {successfulCount} reçu(s) valide(s)</p>
-          </div>
-        </div>
 
-        {/* Card 2: Successful */}
-        <div className="bg-gradient-to-br from-emerald-500/10 via-emerald-600/5 to-transparent border border-emerald-500/10 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all duration-300 group hover:scale-[1.01] text-left">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black text-emerald-700 uppercase tracking-widest leading-none">Paiements Réussis</span>
-            <div className="w-8 h-8 rounded-xl bg-emerald-600/10 flex items-center justify-center text-emerald-700">
-              <CheckCircle2 className="size-4" />
+            <div className="flex flex-wrap items-center gap-3">
+              <Button
+                onClick={openDialog}
+                className="h-12 rounded-xl bg-indigo-600 px-7 text-xs font-black uppercase tracking-wide text-white shadow-lg shadow-indigo-100 hover:bg-indigo-700"
+              >
+                <Plus className="mr-2 size-4" />
+                Ajouter un paiement
+              </Button>
+
+              <div className="relative">
+                <Button
+                  onClick={() => setReportsOpen(!reportsOpen)}
+                  variant="ghost"
+                  className="h-12 rounded-xl px-4 text-xs font-black uppercase tracking-wide text-slate-600 hover:bg-white"
+                >
+                  <FileText className="mr-2 size-4 text-slate-500" />
+                  Rapports
+                  <ChevronDown className={`ml-2 size-4 text-slate-400 transition-transform ${reportsOpen ? "rotate-180" : ""}`} />
+                </Button>
+
+                {reportsOpen && (
+                  <>
+                    <div className="fixed inset-0 z-30" onClick={() => setReportsOpen(false)} />
+                    <div className="absolute right-0 top-[calc(100%+8px)] z-40 w-64 overflow-hidden rounded-2xl border border-slate-100 bg-white py-2 shadow-2xl shadow-slate-200/70">
+                      <div className="border-b border-slate-50 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                        Sélectionner un rapport
+                      </div>
+                      {reportOptions.map(({ type, label, Icon }) => (
+                        <button
+                          key={type}
+                          onClick={() => {
+                            setActiveReportType(type);
+                            setReportsOpen(false);
+                          }}
+                          className="flex w-full items-center gap-3 px-4 py-3 text-left text-xs font-bold text-slate-700 transition-colors hover:bg-slate-50"
+                        >
+                          <Icon className="size-4 text-indigo-500" />
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
-          </div>
-          <div className="mt-3">
-            <h3 className="text-2xl font-black text-slate-900 tracking-tight leading-none">
-              {successfulCount}
-              <span className="text-xs font-bold text-emerald-600 ml-1.5">reçu(s)</span>
-            </h3>
-            <p className="text-[10px] font-bold text-slate-400 mt-1.5">Taux de réussite : {successRate}%</p>
-          </div>
-        </div>
+          </header>
 
-        {/* Card 3: Failed/Cancelled */}
-        <div className="bg-gradient-to-br from-rose-500/10 via-rose-600/5 to-transparent border border-rose-500/10 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all duration-300 group hover:scale-[1.01] text-left">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black text-rose-700 uppercase tracking-widest leading-none">Paiements Annulés</span>
-            <div className="w-8 h-8 rounded-xl bg-rose-600/10 flex items-center justify-center text-rose-700">
-              <AlertTriangle className="size-4 text-rose-600" />
+          <section className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+            <div className="rounded-[28px] border border-slate-200/80 bg-white p-8 shadow-sm">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
+                <Coins className="size-6" />
+              </div>
+              <div className="mt-7">
+                <p className="text-xs font-black uppercase tracking-widest text-slate-400">Encaissements COGES</p>
+                <p className="mt-2 text-3xl font-black tracking-normal text-slate-950">
+                  {filteredTotal.toLocaleString("fr-FR")} CFA
+                </p>
+                <p className="mt-2 text-xs font-black text-emerald-600">↗ {successfulCount} reçu(s) valide(s)</p>
+              </div>
             </div>
-          </div>
-          <div className="mt-3">
-            <h3 className="text-2xl font-black text-slate-900 tracking-tight leading-none">
-              {failedCount}
-              <span className="text-xs font-bold text-rose-600 ml-1.5">reçu(s)</span>
-            </h3>
-            <p className="text-[10px] font-bold text-slate-400 mt-1.5">Sécurité des transactions 100%</p>
-          </div>
-        </div>
 
-        {/* Card 4: Average amount */}
-        <div className="bg-gradient-to-br from-purple-500/10 via-purple-600/5 to-transparent border border-purple-500/10 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all duration-300 group hover:scale-[1.01] text-left">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black text-purple-700 uppercase tracking-widest leading-none">Panier Moyen</span>
-            <div className="w-8 h-8 rounded-xl bg-purple-600/10 flex items-center justify-center text-purple-700">
-              <TrendingUp className="size-4" />
+            <div className="rounded-[28px] border border-slate-200/80 bg-white p-8 shadow-sm">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
+                <TrendingUp className="size-6" />
+              </div>
+              <div className="mt-7">
+                <p className="text-xs font-black uppercase tracking-widest text-slate-400">Montant moyen</p>
+                <p className="mt-2 text-3xl font-black tracking-normal text-slate-950">
+                  {averageAmount.toLocaleString("fr-FR")} CFA
+                </p>
+                <p className="mt-2 text-xs font-black text-emerald-600">↗ Taux de validation {successRate}%</p>
+              </div>
             </div>
-          </div>
-          <div className="mt-3">
-            <h3 className="text-2xl font-black text-slate-900 tracking-tight leading-none">
-              {averageAmount.toLocaleString("fr-FR")}
-              <span className="text-xs font-black text-purple-600 ml-1.5">F CFA</span>
-            </h3>
-            <p className="text-[10px] font-bold text-slate-400 mt-1.5">Montant moyen par reçu</p>
-          </div>
-        </div>
-      </section>
 
-      {/* ── ADVANCED FILTER SYSTEM ───────────────────────────────────────── */}
-      <section className="shrink-0 px-8 pb-4 print:hidden">
-        <div className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-3 flex-1 min-w-[280px]">
-              {/* Search input */}
-              <div className="relative flex-1">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-slate-400 pointer-events-none" />
+            <div className="rounded-[28px] border border-slate-200/80 bg-white p-8 shadow-sm">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-50 text-rose-600">
+                <AlertTriangle className="size-6" />
+              </div>
+              <div className="mt-7">
+                <p className="text-xs font-black uppercase tracking-widest text-slate-400">Reçus annulés</p>
+                <p className="mt-2 text-3xl font-black tracking-normal text-slate-950">
+                  {failedCount}
+                </p>
+                <p className="mt-2 text-xs font-black text-rose-500">↘ Transactions à vérifier</p>
+              </div>
+            </div>
+          </section>
+
+          <section className="overflow-hidden rounded-[28px] border border-slate-200/80 bg-white shadow-sm">
+            <div className="grid gap-4 border-b border-slate-100 p-6 xl:grid-cols-[1fr_auto] xl:items-end">
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 size-5 -translate-y-1/2 text-slate-300" />
                 <input
                   type="text"
-                  placeholder="Rechercher un élève, N° reçu, motif..."
+                  placeholder="Rechercher un élève, une classe, un reçu COGES..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="w-full h-11 pl-9 pr-4 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-400 transition-all text-xs font-bold outline-none"
+                  className="h-12 w-full rounded-2xl border border-slate-100 bg-slate-50 pl-12 pr-10 text-sm font-semibold text-slate-700 outline-none transition focus:border-indigo-200 focus:bg-white focus:ring-4 focus:ring-indigo-50"
                 />
                 {search && (
-                  <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                  <button
+                    onClick={() => setSearch("")}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    title="Effacer"
+                  >
                     <X className="size-4" />
                   </button>
                 )}
               </div>
-            </div>
 
-            {/* Core quick filters */}
-            <div className="flex items-center gap-2">
-              {/* Class Filter */}
-              <div className="relative">
-                <select
-                  value={selectedClass}
-                  onChange={(e) => setSelectedClass(e.target.value)}
-                  className="h-11 px-4 rounded-xl border border-slate-200 bg-slate-50/50 hover:bg-white font-bold text-xs text-slate-700 outline-none transition-all cursor-pointer appearance-none pr-8 min-w-[140px]"
-                >
-                  <option value="all">Toutes les classes</option>
-                  {uniqueClasses.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 size-3.5 text-slate-400 pointer-events-none" />
-              </div>
-
-              {/* Period Filter */}
-              <div className="relative">
-                <select
-                  value={selectedPeriod}
-                  onChange={(e) => setSelectedPeriod(e.target.value)}
-                  className="h-11 px-4 rounded-xl border border-slate-200 bg-slate-50/50 hover:bg-white font-bold text-xs text-slate-700 outline-none transition-all cursor-pointer appearance-none pr-8 min-w-[140px]"
-                >
-                  <option value="all">Toutes les périodes</option>
-                  <option value="today">Aujourd'hui</option>
-                  <option value="week">Cette semaine</option>
-                  <option value="month">Ce mois</option>
-                  <option value="year">Cette année</option>
-                  <option value="custom">Personnalisé...</option>
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 size-3.5 text-slate-400 pointer-events-none" />
-              </div>
-
-              {/* Advanced toggle */}
-              <Button
-                variant="ghost"
-                onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-                className={`h-11 px-3 rounded-xl border ${showAdvancedFilters ? 'bg-indigo-50 border-indigo-200 text-indigo-600' : 'border-slate-200 text-slate-500 hover:bg-slate-50'} font-bold text-xs gap-1.5 transition-all`}
-              >
-                <Filter size={14} />
-                <span>Filtres Avancés</span>
-              </Button>
-
-              {/* Reset button */}
-              {(search || selectedClass !== "all" || selectedPeriod !== "all" || selectedStatus !== "all" || minAmount || maxAmount) && (
-                <button
-                  onClick={handleResetFilters}
-                  className="h-11 w-11 rounded-xl border border-slate-200 hover:border-red-200 text-slate-400 hover:text-red-500 bg-white flex items-center justify-center transition-all cursor-pointer"
-                  title="Réinitialiser"
-                >
-                  <RefreshCw size={14} />
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Advanced collapsible items */}
-          {showAdvancedFilters && (
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-3 border-t border-slate-100/80 animate-in slide-in-from-top-2 duration-300">
-              {/* Custom Date Range */}
-              {selectedPeriod === "custom" && (
-                <>
-                  <div className="space-y-1.5 text-left">
-                    <Label className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Du</Label>
-                    <input
-                      type="date"
-                      value={startDate}
-                      onChange={(e) => setStartDate(e.target.value)}
-                      className="w-full h-10 px-3 border border-slate-200 rounded-xl bg-slate-50/50 focus:bg-white text-xs font-bold text-slate-700 outline-none"
-                    />
-                  </div>
-                  <div className="space-y-1.5 text-left">
-                    <Label className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Au</Label>
-                    <input
-                      type="date"
-                      value={endDate}
-                      onChange={(e) => setEndDate(e.target.value)}
-                      className="w-full h-10 px-3 border border-slate-200 rounded-xl bg-slate-50/50 focus:bg-white text-xs font-bold text-slate-700 outline-none"
-                    />
-                  </div>
-                </>
-              )}
-
-              {/* Status filter */}
-              <div className="space-y-1.5 text-left">
-                <Label className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Statut</Label>
-                <div className="relative">
-                  <select
-                    value={selectedStatus}
-                    onChange={(e) => setSelectedStatus(e.target.value)}
-                    className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-slate-50/50 hover:bg-white font-bold text-xs text-slate-700 outline-none transition-all cursor-pointer appearance-none pr-8"
-                  >
-                    <option value="all">Tous</option>
-                    <option value="Validé">Validé</option>
-                    <option value="Annulé">Annulé</option>
-                  </select>
-                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 size-3.5 text-slate-400 pointer-events-none" />
-                </div>
-              </div>
-
-              {/* Amount range */}
-              <div className="space-y-1.5 text-left">
-                <Label className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Montant Min</Label>
-                <input
-                  type="number"
-                  placeholder="Min F CFA"
-                  value={minAmount}
-                  onChange={(e) => setMinAmount(e.target.value)}
-                  className="w-full h-10 px-3 border border-slate-200 rounded-xl bg-slate-50/50 focus:bg-white text-xs font-bold text-slate-700 outline-none"
-                />
-              </div>
-              <div className="space-y-1.5 text-left">
-                <Label className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Montant Max</Label>
-                <input
-                  type="number"
-                  placeholder="Max F CFA"
-                  value={maxAmount}
-                  onChange={(e) => setMaxAmount(e.target.value)}
-                  className="w-full h-10 px-3 border border-slate-200 rounded-xl bg-slate-50/50 focus:bg-white text-xs font-bold text-slate-700 outline-none"
-                />
-              </div>
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* ── TABLE ─────────────────────────────────────────────────────────── */}
-      <main className="flex-1 overflow-y-auto px-8 pb-8 print:hidden">
-        <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="bg-slate-50/80 border-b border-slate-100">
-                <th className="px-5 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">N° Reçu</th>
-                <th className="px-5 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Date</th>
-                <th className="px-5 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Élève / Payeur</th>
-                <th className="px-5 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Classe</th>
-                <th className="px-5 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Motif</th>
-                <th className="px-5 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Montant</th>
-                <th className="px-5 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Statut</th>
-                <th className="px-5 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {filteredPayments.map((p: any) => (
-                <tr key={p.id} className="hover:bg-indigo-50/10 transition-colors group">
-                  <td className="px-5 py-4">
-                    <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 text-xs font-black tracking-wide">
-                      #{p.receiptNumber}
-                    </span>
-                  </td>
-                  <td className="px-5 py-4 text-xs font-semibold text-slate-400">
-                    {p.datePaid ? format(new Date(p.datePaid), "dd MMM yyyy HH:mm", { locale: fr }) : "—"}
-                  </td>
-                  <td className="px-5 py-4">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-black text-xs shrink-0 shadow-sm shadow-indigo-100">
-                        {(p.studentName || p.receivedFrom || "?").charAt(0).toUpperCase()}
-                      </div>
-                      <div>
-                        <p className="text-xs font-black text-slate-900 leading-tight truncate max-w-[180px]">{p.studentName || p.receivedFrom}</p>
-                        {p.studentName && (
-                          <p className="text-[9px] font-bold text-slate-400 mt-0.5 leading-none">Payeur : {p.receivedFrom}</p>
-                        )}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-5 py-4">
-                    {p.classe ? (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 text-[10px] font-bold">
-                        {p.classe}
-                      </span>
-                    ) : (
-                      <span className="text-slate-300 text-xs font-medium">—</span>
-                    )}
-                  </td>
-                  <td className="px-5 py-4 text-xs font-semibold text-slate-500 max-w-[140px] truncate">{p.purpose}</td>
-                  <td className="px-5 py-4">
-                    <p className="text-sm font-black text-slate-900">
-                      {(p.amount || 0).toLocaleString("fr-FR")}
-                      <span className="text-[10px] font-semibold text-slate-400 ml-1">F CFA</span>
-                    </p>
-                  </td>
-                  <td className="px-5 py-4">
-                    {p.status === "Annulé" ? (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-red-50 text-red-600 text-[9px] font-black">Annulé</span>
-                    ) : (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 text-[9px] font-black">Validé</span>
-                    )}
-                  </td>
-                  <td className="px-5 py-4 text-right">
-                    <button
-                      onClick={() => handlePrint(p)}
-                      className="opacity-0 group-hover:opacity-100 transition-all h-8 w-8 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-600 flex items-center justify-center ml-auto cursor-pointer"
-                      title="Imprimer le reçu"
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                <label className="space-y-1">
+                  <span className="block text-[10px] font-black uppercase tracking-widest text-slate-400">Classe</span>
+                  <div className="relative">
+                    <select
+                      value={selectedClass}
+                      onChange={(e) => setSelectedClass(e.target.value)}
+                      className="h-12 min-w-[130px] appearance-none rounded-xl border border-slate-100 bg-slate-50 px-4 pr-9 text-xs font-bold text-slate-700 outline-none"
                     >
-                      <Printer size={14} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
+                      <option value="all">Toutes</option>
+                      {uniqueClasses.map((c) => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+                  </div>
+                </label>
 
-              {filteredPayments.length === 0 && (
-                <tr>
-                  <td colSpan={8} className="px-6 py-20 text-center">
-                    <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3">
-                      <Banknote className="size-6 text-slate-300" />
-                    </div>
-                    <p className="font-bold text-sm text-slate-400">Aucun reçu COGES trouvé</p>
-                    <p className="text-xs text-slate-300 mt-1">Ajustez vos filtres ou créez un nouveau reçu en cliquant sur 'Nouveau Reçu'.</p>
-                  </td>
-                </tr>
+                <label className="space-y-1">
+                  <span className="block text-[10px] font-black uppercase tracking-widest text-slate-400">Statut</span>
+                  <div className="relative">
+                    <select
+                      value={selectedStatus}
+                      onChange={(e) => setSelectedStatus(e.target.value)}
+                      className="h-12 min-w-[130px] appearance-none rounded-xl border border-slate-100 bg-slate-50 px-4 pr-9 text-xs font-bold text-slate-700 outline-none"
+                    >
+                      <option value="all">Tous</option>
+                      <option value="Validé">Validé</option>
+                      <option value="Annulé">Annulé</option>
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+                  </div>
+                </label>
+
+                <label className="space-y-1">
+                  <span className="block text-[10px] font-black uppercase tracking-widest text-slate-400">Période</span>
+                  <div className="relative">
+                    <select
+                      value={selectedPeriod}
+                      onChange={(e) => setSelectedPeriod(e.target.value)}
+                      className="h-12 min-w-[145px] appearance-none rounded-xl border border-slate-100 bg-slate-50 px-4 pr-9 text-xs font-bold text-slate-700 outline-none"
+                    >
+                      <option value="all">Toutes</option>
+                      <option value="today">Aujourd'hui</option>
+                      <option value="week">Cette semaine</option>
+                      <option value="month">Ce mois-ci</option>
+                      <option value="year">Cette année</option>
+                      <option value="custom">Personnalisé</option>
+                    </select>
+                    <Calendar className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+                  </div>
+                </label>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                  className={`mt-5 h-12 rounded-xl border-indigo-100 px-5 text-xs font-black uppercase tracking-wide ${showAdvancedFilters ? "bg-indigo-50 text-indigo-600" : "bg-indigo-50/50 text-indigo-600"}`}
+                >
+                  <Filter className="mr-2 size-4" />
+                  Filtrer
+                </Button>
+              </div>
+
+              {showAdvancedFilters && (
+                <div className="grid gap-3 border-t border-slate-100 pt-4 md:grid-cols-4 xl:col-span-2">
+                  {selectedPeriod === "custom" && (
+                    <>
+                      <label className="space-y-1">
+                        <span className="block text-[10px] font-black uppercase tracking-widest text-slate-400">Du</span>
+                        <input
+                          type="date"
+                          value={startDate}
+                          onChange={(e) => setStartDate(e.target.value)}
+                          className="h-11 w-full rounded-xl border border-slate-100 bg-slate-50 px-3 text-xs font-bold text-slate-700 outline-none"
+                        />
+                      </label>
+                      <label className="space-y-1">
+                        <span className="block text-[10px] font-black uppercase tracking-widest text-slate-400">Au</span>
+                        <input
+                          type="date"
+                          value={endDate}
+                          onChange={(e) => setEndDate(e.target.value)}
+                          className="h-11 w-full rounded-xl border border-slate-100 bg-slate-50 px-3 text-xs font-bold text-slate-700 outline-none"
+                        />
+                      </label>
+                    </>
+                  )}
+                  <label className="space-y-1">
+                    <span className="block text-[10px] font-black uppercase tracking-widest text-slate-400">Montant min</span>
+                    <input
+                      type="number"
+                      placeholder="Min CFA"
+                      value={minAmount}
+                      onChange={(e) => setMinAmount(e.target.value)}
+                      className="h-11 w-full rounded-xl border border-slate-100 bg-slate-50 px-3 text-xs font-bold text-slate-700 outline-none"
+                    />
+                  </label>
+                  <label className="space-y-1">
+                    <span className="block text-[10px] font-black uppercase tracking-widest text-slate-400">Montant max</span>
+                    <input
+                      type="number"
+                      placeholder="Max CFA"
+                      value={maxAmount}
+                      onChange={(e) => setMaxAmount(e.target.value)}
+                      className="h-11 w-full rounded-xl border border-slate-100 bg-slate-50 px-3 text-xs font-bold text-slate-700 outline-none"
+                    />
+                  </label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={handleResetFilters}
+                    className="self-end rounded-xl text-xs font-black text-slate-500 hover:bg-slate-50"
+                  >
+                    <RefreshCw className="mr-2 size-4" />
+                    Réinitialiser
+                  </Button>
+                </div>
               )}
-            </tbody>
-          </table>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[1050px] text-left">
+                <thead>
+                  <tr className="border-b border-slate-100 bg-slate-50/40">
+                    <th className="w-14 px-6 py-5">
+                      <span className="block h-5 w-5 rounded-full border-2 border-slate-200" />
+                    </th>
+                    <th className="px-4 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Élève / classe</th>
+                    <th className="px-4 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Reçu</th>
+                    <th className="px-4 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Montant</th>
+                    <th className="px-4 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Motif</th>
+                    <th className="px-4 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Statut</th>
+                    <th className="px-4 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Date</th>
+                    <th className="px-4 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Payeur</th>
+                    <th className="px-6 py-5 text-right text-[10px] font-black uppercase tracking-widest text-slate-400">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredPayments.map((p: any) => (
+                    <tr key={p.id} className="group transition-colors hover:bg-slate-50/70">
+                      <td className="px-6 py-4">
+                        <span className="block h-5 w-5 rounded-full border-2 border-slate-200" />
+                      </td>
+                      <td className="px-4 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-indigo-50 text-sm font-black text-indigo-600">
+                            {(p.studentName || p.receivedFrom || "?").charAt(0).toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-black text-slate-950">{p.studentName || p.receivedFrom || "Élève non lié"}</p>
+                            <p className="mt-0.5 text-[11px] font-bold uppercase tracking-wide text-slate-400">
+                              {p.classe || "Classe non renseignée"}{p.studentNumAdmission ? ` • ${p.studentNumAdmission}` : ""}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-4">
+                        <span className="rounded-lg bg-indigo-50 px-3 py-1 text-xs font-black text-indigo-600">#{p.receiptNumber}</span>
+                      </td>
+                      <td className="px-4 py-4 text-sm font-black text-indigo-600">
+                        {(p.amount || 0).toLocaleString("fr-FR")} CFA
+                      </td>
+                      <td className="max-w-[170px] px-4 py-4">
+                        <p className="truncate text-xs font-bold text-slate-500">{p.purpose || "Cotisation COGES"}</p>
+                      </td>
+                      <td className="px-4 py-4">
+                        {p.status === "Annulé" ? (
+                          <span className="inline-flex items-center gap-2 rounded-full bg-rose-50 px-4 py-1.5 text-[10px] font-black uppercase text-rose-600">
+                            <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
+                            Annulé
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-4 py-1.5 text-[10px] font-black uppercase text-emerald-600">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                            Validé
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-4 text-xs font-bold text-slate-500">
+                        {p.datePaid ? format(new Date(p.datePaid), "dd MMM yyyy", { locale: fr }) : "-"}
+                      </td>
+                      <td className="max-w-[180px] px-4 py-4">
+                        <p className="truncate text-xs font-bold text-slate-500">{p.receivedFrom || "Non spécifié"}</p>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() => handlePrint(p)}
+                            className="flex h-9 w-9 items-center justify-center rounded-xl text-indigo-500 transition hover:bg-indigo-50"
+                            title="Imprimer le reçu"
+                          >
+                            <Printer className="size-4" />
+                          </button>
+                          <button
+                            onClick={() => handlePrint(p)}
+                            className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-400 transition hover:bg-slate-50 hover:text-slate-600"
+                            title="Voir le reçu"
+                          >
+                            <FileText className="size-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+
+                  {filteredPayments.length === 0 && (
+                    <tr>
+                      <td colSpan={9} className="px-6 py-20 text-center">
+                        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-slate-50">
+                          <Banknote className="size-8 text-slate-300" />
+                        </div>
+                        <p className="mt-4 text-sm font-black text-slate-500">Aucun paiement COGES trouvé</p>
+                        <p className="mt-1 text-xs font-semibold text-slate-300">
+                          Utilisez le bouton Ajouter un paiement pour rechercher un élève et enregistrer un reçu.
+                        </p>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-6 py-5">
+              <div className="flex items-center gap-3 text-xs font-black text-slate-500">
+                <span>Affichage</span>
+                <span className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-indigo-600">{filteredPayments.length}</span>
+                <span>sur {payments.length} paiement(s)</span>
+              </div>
+              <div className="flex items-center gap-2 text-xs font-black text-slate-400">
+                <span className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-100 text-slate-300">
+                  <ArrowLeft className="size-4" />
+                </span>
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-600 text-white">1</span>
+                <span className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-100 text-slate-300">
+                  <ArrowRight className="size-4" />
+                </span>
+              </div>
+            </div>
+          </section>
         </div>
       </main>
 
