@@ -8,7 +8,7 @@ import { protectedDbAction } from "@/lib/protected-action";
 import { getCurrentUser } from "@/domains/auth/services/session";
 import { getActiveSchoolId } from "@/domains/auth/services/school";
 import { revalidatePath } from "next/cache";
-import { getActiveEducationalLevel, getCompatibleLevels } from "@/domains/auth/services/rbac";
+import { getActiveEducationalLevel, getCompatibleLevels, getUserRoleType } from "@/domains/auth/services/rbac";
 
 export async function createCogesPayment(data: {
   amount: number;
@@ -66,11 +66,12 @@ export async function createCogesPayment(data: {
 export async function getCogesPayments() {
   return protectedDbAction("Finance", "canView", async () => {
     const user = await getCurrentUser();
+    const roleType = await getUserRoleType(user);
     const activeLevel = await getActiveEducationalLevel(user);
     const schoolId = await getActiveSchoolId();
     
     let whereClause = eq(cogesPayments.schoolId, schoolId);
-    if (activeLevel) {
+    if (roleType === "level_director" && activeLevel) {
       const compatibleLevels = getCompatibleLevels(activeLevel);
       whereClause = and(whereClause, inArray(students.educationalLevel, compatibleLevels)) as any;
     }
@@ -103,18 +104,16 @@ export async function getCogesPayments() {
 export async function getCogesStudentLedger() {
   return protectedDbAction("Finance", "canView", async () => {
     const user = await getCurrentUser();
+    const roleType = await getUserRoleType(user);
     const activeLevel = await getActiveEducationalLevel(user);
     const schoolId = await getActiveSchoolId();
     const configuredExpected = Number(
       process.env.COGES_ANNUAL_AMOUNT || process.env.NEXT_PUBLIC_COGES_ANNUAL_AMOUNT || 0
     ) || 0;
 
-    const studentConditions = [
-      eq(students.schoolId, schoolId),
-      eq(students.statut, "Actif"),
-    ];
+    const studentConditions = [eq(students.schoolId, schoolId)];
 
-    if (activeLevel) {
+    if (roleType === "level_director" && activeLevel) {
       studentConditions.push(inArray(students.educationalLevel, getCompatibleLevels(activeLevel)));
     }
 
@@ -198,6 +197,7 @@ export async function searchStudents(query: string) {
   return protectedDbAction("Finance", "canView", async () => {
     if (!query || query.trim().length < 2) return [];
     const user = await getCurrentUser();
+    const roleType = await getUserRoleType(user);
     const activeLevel = await getActiveEducationalLevel(user);
     const schoolId = await getActiveSchoolId();
     const term = `%${query.trim()}%`;
@@ -211,7 +211,7 @@ export async function searchStudents(query: string) {
       )
     ];
     
-    if (activeLevel) {
+    if (roleType === "level_director" && activeLevel) {
       const compatibleLevels = getCompatibleLevels(activeLevel);
       conditions.push(inArray(students.educationalLevel, compatibleLevels));
     }
