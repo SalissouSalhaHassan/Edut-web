@@ -3,12 +3,49 @@
 import { db } from "@/infrastructure/database";
 import { cogesPayments } from "@/infrastructure/database/schema/finance";
 import { students } from "@/infrastructure/database/schema/students";
-import { asc, desc, ilike, or, eq, and, inArray } from "drizzle-orm";
+import { asc, desc, ilike, or, eq, and, inArray, sql } from "drizzle-orm";
 import { protectedDbAction } from "@/lib/protected-action";
 import { getCurrentUser } from "@/domains/auth/services/session";
 import { getActiveSchoolId } from "@/domains/auth/services/school";
 import { revalidatePath } from "next/cache";
 import { getActiveEducationalLevel, getCompatibleLevels, getUserRoleType } from "@/domains/auth/services/rbac";
+
+async function ensureCogesPaymentsTable() {
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS "coges_payments" (
+      "id" serial PRIMARY KEY,
+      "school_id" integer,
+      "receipt_number" varchar(50) NOT NULL UNIQUE,
+      "student_id" integer,
+      "classe" varchar(100),
+      "session" varchar(50),
+      "amount" double precision NOT NULL,
+      "amount_letters" varchar(255),
+      "received_from" varchar(255) NOT NULL,
+      "purpose" varchar(255),
+      "date_paid" timestamp DEFAULT now(),
+      "status" varchar(20) DEFAULT 'Validé',
+      "recorded_by" varchar(100),
+      "created_at" timestamp DEFAULT now()
+    )
+  `);
+
+  await db.execute(sql`ALTER TABLE "coges_payments" ADD COLUMN IF NOT EXISTS "school_id" integer`);
+  await db.execute(sql`ALTER TABLE "coges_payments" ADD COLUMN IF NOT EXISTS "receipt_number" varchar(50)`);
+  await db.execute(sql`ALTER TABLE "coges_payments" ADD COLUMN IF NOT EXISTS "student_id" integer`);
+  await db.execute(sql`ALTER TABLE "coges_payments" ADD COLUMN IF NOT EXISTS "classe" varchar(100)`);
+  await db.execute(sql`ALTER TABLE "coges_payments" ADD COLUMN IF NOT EXISTS "session" varchar(50)`);
+  await db.execute(sql`ALTER TABLE "coges_payments" ADD COLUMN IF NOT EXISTS "amount" double precision`);
+  await db.execute(sql`ALTER TABLE "coges_payments" ADD COLUMN IF NOT EXISTS "amount_letters" varchar(255)`);
+  await db.execute(sql`ALTER TABLE "coges_payments" ADD COLUMN IF NOT EXISTS "received_from" varchar(255)`);
+  await db.execute(sql`ALTER TABLE "coges_payments" ADD COLUMN IF NOT EXISTS "purpose" varchar(255)`);
+  await db.execute(sql`ALTER TABLE "coges_payments" ADD COLUMN IF NOT EXISTS "date_paid" timestamp DEFAULT now()`);
+  await db.execute(sql`ALTER TABLE "coges_payments" ADD COLUMN IF NOT EXISTS "status" varchar(20) DEFAULT 'Validé'`);
+  await db.execute(sql`ALTER TABLE "coges_payments" ADD COLUMN IF NOT EXISTS "recorded_by" varchar(100)`);
+  await db.execute(sql`ALTER TABLE "coges_payments" ADD COLUMN IF NOT EXISTS "created_at" timestamp DEFAULT now()`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS "coges_payments_school_id_idx" ON "coges_payments" ("school_id")`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS "coges_payments_student_id_idx" ON "coges_payments" ("student_id")`);
+}
 
 export async function createCogesPayment(data: {
   amount: number;
@@ -22,6 +59,7 @@ export async function createCogesPayment(data: {
   return protectedDbAction("Finance", "canEdit", async () => {
     const user = await getCurrentUser();
     const schoolId = await getActiveSchoolId();
+    await ensureCogesPaymentsTable();
     
     // Generate a receipt number
     const existing = await db
@@ -88,6 +126,7 @@ export async function getCogesPayments() {
     const roleType = await getUserRoleType(user);
     const activeLevel = await getActiveEducationalLevel(user);
     const schoolId = await getActiveSchoolId();
+    await ensureCogesPaymentsTable();
     
     let whereClause = eq(cogesPayments.schoolId, schoolId);
     if (roleType === "level_director" && activeLevel) {
@@ -126,6 +165,7 @@ export async function getCogesStudentLedger() {
     const roleType = await getUserRoleType(user);
     const activeLevel = await getActiveEducationalLevel(user);
     const schoolId = await getActiveSchoolId();
+    await ensureCogesPaymentsTable();
     const configuredExpected = Number(
       process.env.COGES_ANNUAL_AMOUNT || process.env.NEXT_PUBLIC_COGES_ANNUAL_AMOUNT || 0
     ) || 0;
