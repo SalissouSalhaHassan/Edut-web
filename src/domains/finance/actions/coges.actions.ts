@@ -24,7 +24,12 @@ export async function createCogesPayment(data: {
     const schoolId = await getActiveSchoolId();
     
     // Generate a receipt number
-    const existing = await db.select().from(cogesPayments).where(eq(cogesPayments.schoolId, schoolId)).orderBy(desc(cogesPayments.id)).limit(1);
+    const existing = await db
+      .select({ id: cogesPayments.id })
+      .from(cogesPayments)
+      .where(eq(cogesPayments.schoolId, schoolId))
+      .orderBy(desc(cogesPayments.id))
+      .limit(1);
     let nextId = 1;
     if (existing && existing.length > 0) {
       nextId = existing[0].id + 1;
@@ -56,7 +61,21 @@ export async function createCogesPayment(data: {
         session: data.session || "2025/2026",
         recordedBy: user?.utilisateur || "System",
       })
-      .returning();
+      .returning({
+        id: cogesPayments.id,
+        receiptNumber: cogesPayments.receiptNumber,
+        studentId: cogesPayments.studentId,
+        classe: cogesPayments.classe,
+        session: cogesPayments.session,
+        amount: cogesPayments.amount,
+        amountLetters: cogesPayments.amountLetters,
+        receivedFrom: cogesPayments.receivedFrom,
+        purpose: cogesPayments.purpose,
+        datePaid: cogesPayments.datePaid,
+        status: cogesPayments.status,
+        recordedBy: cogesPayments.recordedBy,
+        createdAt: cogesPayments.createdAt,
+      });
 
     revalidatePath("/dashboard/coges");
     return payment;
