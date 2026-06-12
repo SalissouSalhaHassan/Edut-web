@@ -32,6 +32,11 @@ import {
   ArrowLeft,
   Filter,
   Info,
+  Eye,
+  HelpCircle,
+  History,
+  Pencil,
+  Trash2,
   type LucideIcon,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -49,11 +54,78 @@ type Student = {
 
 type CogesReportType = "daily" | "weekly" | "monthly" | "yearly" | "class" | "purpose";
 
+type CogesLedgerRow = {
+  id: number;
+  studentId: number;
+  studentName: string;
+  studentNumAdmission: string;
+  classe: string | null;
+  nomPere: string | null;
+  mobile: string | null;
+  photoPath: string | null;
+  expected: number;
+  paid: number;
+  balance: number;
+  status: "Payé" | "Partiel" | "En retard" | "Non défini" | string;
+  lastPaymentDate: string | Date | null;
+  paymentMode: string;
+  lastReceiptNumber: string | null;
+  lastPaymentId: number | null;
+  lastPaymentAmount: number;
+  receivedFrom: string | null;
+  purpose: string | null;
+};
+
 // ─── Number to French CFA letters ──────────────────────────────────────────
 function numberToFrench(num: number): string {
   if (num === 0) return "Zéro Franc CFA";
   return new Intl.NumberFormat("fr-FR").format(num) + " Francs CFA";
 }
+
+const getCogesStatusBadge = (status: string) => {
+  if (status === "Payé") {
+    return (
+      <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-emerald-600">
+        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+        <span className="text-[10px] font-black uppercase tracking-widest">Payé</span>
+      </div>
+    );
+  }
+
+  if (status === "Partiel") {
+    return (
+      <div className="inline-flex items-center gap-1.5 rounded-full border border-amber-100 bg-amber-50 px-3 py-1 text-amber-600">
+        <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+        <span className="text-[10px] font-black uppercase tracking-widest">Partiel</span>
+      </div>
+    );
+  }
+
+  if (status === "Non défini") {
+    return (
+      <div className="inline-flex items-center gap-1.5 rounded-full border border-slate-100 bg-slate-50 px-3 py-1 text-slate-500">
+        <span className="h-1.5 w-1.5 rounded-full bg-slate-300" />
+        <span className="text-[10px] font-black uppercase tracking-widest">Non défini</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="inline-flex items-center gap-1.5 rounded-full border border-rose-100 bg-rose-50 px-3 py-1 text-rose-600">
+      <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
+      <span className="text-[10px] font-black uppercase tracking-widest">En retard</span>
+    </div>
+  );
+};
+
+const getCogesModeIcon = (mode: string) => {
+  switch (mode) {
+    case "Espèces":
+      return <Banknote size={14} />;
+    default:
+      return <HelpCircle size={14} />;
+  }
+};
 
 // ─── Student Search Combobox ──────────────────────────────────────────────────
 function StudentSearch({
@@ -181,8 +253,15 @@ function StudentSearch({
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
-export default function CogesUI({ initialPayments }: { initialPayments: any[] }) {
+export default function CogesUI({
+  initialPayments,
+  initialLedger,
+}: {
+  initialPayments: any[];
+  initialLedger: CogesLedgerRow[];
+}) {
   const [payments, setPayments] = useState(initialPayments || []);
+  const [studentLedger, setStudentLedger] = useState<CogesLedgerRow[]>(initialLedger || []);
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   
@@ -247,6 +326,41 @@ export default function CogesUI({ initialPayments }: { initialPayments: any[] })
     setTimeout(() => window.print(), 150);
   };
 
+  const getLedgerStatus = (expected: number, paid: number) => {
+    const balance = Math.max(expected - paid, 0);
+    if (expected === 0 && paid === 0) return "Non défini";
+    if (balance <= 0) return "Payé";
+    if (paid > 0) return "Partiel";
+    return "En retard";
+  };
+
+  const openDialog = (studentRow?: CogesLedgerRow) => {
+    setFormData({
+      amount: "",
+      amountLetters: "",
+      receivedFrom: studentRow
+        ? studentRow.nomPere
+          ? `${studentRow.nomPere} (père de ${studentRow.studentName})`
+          : studentRow.studentName
+        : "",
+      purpose: "Cotisation Annuelle COGES",
+    });
+    setCustomPurpose("");
+    setSelectedStudent(studentRow ? {
+      id: studentRow.studentId,
+      nomEtudiant: studentRow.studentName,
+      numAdmission: studentRow.studentNumAdmission,
+      classe: studentRow.classe,
+      nomPere: studentRow.nomPere,
+      mobile: studentRow.mobile,
+    } : null);
+    setStep(1);
+    setWizardStatus("idle");
+    setErrorMessage("");
+    setSuccessData(null);
+    setIsOpen(true);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -265,8 +379,35 @@ export default function CogesUI({ initialPayments }: { initialPayments: any[] })
     });
 
     if (result.success && result.data) {
-      const newPayment = result.data;
+      const newPayment = {
+        ...result.data,
+        studentName: selectedStudent?.nomEtudiant,
+        studentNumAdmission: selectedStudent?.numAdmission,
+      };
+      const paidAmount = Number(formData.amount || 0);
       setPayments([newPayment, ...payments]);
+      if (selectedStudent) {
+        setStudentLedger((rows) => rows.map((row) => {
+          if (row.studentId !== selectedStudent.id) return row;
+          const paid = Number(row.paid || 0) + paidAmount;
+          const expected = Math.max(Number(row.expected || 0), paid);
+          const balance = Math.max(expected - paid, 0);
+          return {
+            ...row,
+            paid,
+            expected,
+            balance,
+            status: getLedgerStatus(expected, paid),
+            lastPaymentDate: newPayment.datePaid || new Date(),
+            paymentMode: "Non spécifié",
+            lastReceiptNumber: newPayment.receiptNumber || null,
+            lastPaymentId: newPayment.id || null,
+            lastPaymentAmount: paidAmount,
+            receivedFrom: formData.receivedFrom,
+            purpose: finalPurpose,
+          };
+        }));
+      }
       setSuccessData(newPayment);
       setWizardStatus("success");
       setLastReceipt(newPayment);
@@ -276,17 +417,6 @@ export default function CogesUI({ initialPayments }: { initialPayments: any[] })
     }
 
     setLoading(false);
-  };
-
-  const openDialog = () => {
-    setFormData({ amount: "", amountLetters: "", receivedFrom: "", purpose: "Cotisation Annuelle COGES" });
-    setCustomPurpose("");
-    setSelectedStudent(null);
-    setStep(1);
-    setWizardStatus("idle");
-    setErrorMessage("");
-    setSuccessData(null);
-    setIsOpen(true);
   };
 
   const handleResetFilters = () => {
@@ -314,7 +444,8 @@ export default function CogesUI({ initialPayments }: { initialPayments: any[] })
     const matchesClass = !selectedClass || selectedClass === "all" || p.classe === selectedClass;
 
     // 3. Status Filter
-    const matchesStatus = !selectedStatus || selectedStatus === "all" || p.status === selectedStatus;
+    const paymentStatusFilterApplies = selectedStatus === "Validé" || selectedStatus === "Annulé";
+    const matchesStatus = !paymentStatusFilterApplies || p.status === selectedStatus;
 
     // 4. Amount Range Filter
     const amt = p.amount || 0;
@@ -357,20 +488,69 @@ export default function CogesUI({ initialPayments }: { initialPayments: any[] })
     return matchesSearch && matchesClass && matchesStatus && matchesMinAmount && matchesMaxAmount && matchesDate;
   });
 
-  // ─── DYNAMIC STATISTICS ────────────────────────────────────────────────────
-  const successfulPayments = filteredPayments.filter((p: any) => p.status !== "Annulé");
-  const failedPayments = filteredPayments.filter((p: any) => p.status === "Annulé");
+  const filteredLedger = studentLedger.filter((row) => {
+    const searchLower = search.trim().toLowerCase();
+    const matchesSearch = !searchLower ||
+      row.studentName?.toLowerCase().includes(searchLower) ||
+      row.studentNumAdmission?.toLowerCase().includes(searchLower) ||
+      row.classe?.toLowerCase().includes(searchLower) ||
+      row.lastReceiptNumber?.toLowerCase().includes(searchLower) ||
+      row.receivedFrom?.toLowerCase().includes(searchLower);
 
-  const filteredTotal = successfulPayments.reduce((s: number, p: any) => s + (p.amount || 0), 0);
-  const successfulCount = successfulPayments.length;
-  const failedCount = failedPayments.length;
-  
-  const averageAmount = successfulCount > 0 ? Math.round(filteredTotal / successfulCount) : 0;
-  const successRate = filteredPayments.length > 0 ? Math.round((successfulCount / filteredPayments.length) * 100) : 100;
+    const matchesClass = !selectedClass || selectedClass === "all" || row.classe === selectedClass;
+    const matchesStatus = !selectedStatus || selectedStatus === "all" || row.status === selectedStatus;
+    const amount = Number(row.balance || 0);
+    const matchesMinAmount = !minAmount || amount >= Number(minAmount);
+    const matchesMaxAmount = !maxAmount || amount <= Number(maxAmount);
+
+    let matchesDate = true;
+    if (selectedPeriod !== "all") {
+      const date = row.lastPaymentDate ? new Date(row.lastPaymentDate) : null;
+      if (!date) {
+        matchesDate = false;
+      } else {
+        const now = new Date();
+        if (selectedPeriod === "today") {
+          matchesDate = date.toDateString() === now.toDateString();
+        } else if (selectedPeriod === "week") {
+          const oneWeekAgo = new Date();
+          oneWeekAgo.setDate(now.getDate() - 7);
+          matchesDate = date >= oneWeekAgo;
+        } else if (selectedPeriod === "month") {
+          matchesDate = date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+        } else if (selectedPeriod === "year") {
+          matchesDate = date.getFullYear() === now.getFullYear();
+        } else if (selectedPeriod === "custom") {
+          if (startDate) {
+            const start = new Date(startDate);
+            start.setHours(0, 0, 0, 0);
+            matchesDate = matchesDate && date >= start;
+          }
+          if (endDate) {
+            const end = new Date(endDate);
+            end.setHours(23, 59, 59, 999);
+            matchesDate = matchesDate && date <= end;
+          }
+        }
+      }
+    }
+
+    return matchesSearch && matchesClass && matchesStatus && matchesMinAmount && matchesMaxAmount && matchesDate;
+  });
+
+  // ─── DYNAMIC STATISTICS ────────────────────────────────────────────────────
+  const filteredTotal = filteredLedger.reduce((s, row) => s + Number(row.paid || 0), 0);
+  const successfulCount = filteredLedger.filter((row) => Number(row.paid || 0) > 0).length;
+  const failedCount = filteredLedger.filter((row) => row.status === "En retard").length;
+  const totalExpected = filteredLedger.reduce((s, row) => s + Number(row.expected || 0), 0);
+  const totalBalance = filteredLedger.reduce((s, row) => s + Number(row.balance || 0), 0);
 
   // Dynamically extract unique classes from payment records for class filter dropdown
   const uniqueClasses = Array.from(
-    new Set(payments.map((p: any) => p.classe).filter(Boolean))
+    new Set([
+      ...studentLedger.map((row) => row.classe),
+      ...payments.map((p: any) => p.classe),
+    ].filter(Boolean))
   ) as string[];
 
   // ─── REPORT GENERATION LOGIC ───────────────────────────────────────────────
@@ -552,6 +732,21 @@ export default function CogesUI({ initialPayments }: { initialPayments: any[] })
     setTimeout(() => window.print(), 150);
   };
 
+  const buildReceiptFromLedgerRow = (row: CogesLedgerRow) => ({
+    id: row.lastPaymentId || row.studentId,
+    receiptNumber: row.lastReceiptNumber || "—",
+    studentId: row.studentId,
+    classe: row.classe,
+    amount: Number(row.lastPaymentAmount || row.paid || 0),
+    amountLetters: numberToFrench(Number(row.lastPaymentAmount || row.paid || 0)),
+    receivedFrom: row.receivedFrom || row.nomPere || row.studentName,
+    purpose: row.purpose || "Cotisation COGES",
+    datePaid: row.lastPaymentDate,
+    status: row.lastReceiptNumber ? "Validé" : "Non défini",
+    studentName: row.studentName,
+    studentNumAdmission: row.studentNumAdmission,
+  });
+
   const reportOptions: Array<{ type: CogesReportType; label: string; Icon: LucideIcon }> = [
     { type: "daily", label: "Rapport Journalier", Icon: CalendarDays },
     { type: "weekly", label: "Rapport Hebdomadaire", Icon: CalendarDays },
@@ -611,7 +806,7 @@ export default function CogesUI({ initialPayments }: { initialPayments: any[] })
 
             <div className="flex flex-wrap items-center gap-3">
               <Button
-                onClick={openDialog}
+                onClick={() => openDialog()}
                 className="h-12 rounded-xl bg-indigo-600 px-7 text-xs font-black uppercase tracking-wide text-white shadow-lg shadow-indigo-100 hover:bg-indigo-700"
               >
                 <Plus className="mr-2 size-4" />
@@ -662,11 +857,11 @@ export default function CogesUI({ initialPayments }: { initialPayments: any[] })
                 <Coins className="size-6" />
               </div>
               <div className="mt-7">
-                <p className="text-xs font-black uppercase tracking-widest text-slate-400">Encaissements COGES</p>
+                <p className="text-xs font-black uppercase tracking-widest text-slate-400">Attendu total</p>
                 <p className="mt-2 text-3xl font-black tracking-normal text-slate-950">
-                  {filteredTotal.toLocaleString("fr-FR")} CFA
+                  {totalExpected.toLocaleString("fr-FR")} CFA
                 </p>
-                <p className="mt-2 text-xs font-black text-emerald-600">↗ {successfulCount} reçu(s) valide(s)</p>
+                <p className="mt-2 text-xs font-black text-emerald-600">↗ {filteredLedger.length} élève(s) actif(s)</p>
               </div>
             </div>
 
@@ -675,11 +870,11 @@ export default function CogesUI({ initialPayments }: { initialPayments: any[] })
                 <TrendingUp className="size-6" />
               </div>
               <div className="mt-7">
-                <p className="text-xs font-black uppercase tracking-widest text-slate-400">Montant moyen</p>
+                <p className="text-xs font-black uppercase tracking-widest text-slate-400">Encaissé</p>
                 <p className="mt-2 text-3xl font-black tracking-normal text-slate-950">
-                  {averageAmount.toLocaleString("fr-FR")} CFA
+                  {filteredTotal.toLocaleString("fr-FR")} CFA
                 </p>
-                <p className="mt-2 text-xs font-black text-emerald-600">↗ Taux de validation {successRate}%</p>
+                <p className="mt-2 text-xs font-black text-emerald-600">↗ {successfulCount} élève(s) payé(s)</p>
               </div>
             </div>
 
@@ -688,11 +883,11 @@ export default function CogesUI({ initialPayments }: { initialPayments: any[] })
                 <AlertTriangle className="size-6" />
               </div>
               <div className="mt-7">
-                <p className="text-xs font-black uppercase tracking-widest text-slate-400">Reçus annulés</p>
+                <p className="text-xs font-black uppercase tracking-widest text-slate-400">Impayés</p>
                 <p className="mt-2 text-3xl font-black tracking-normal text-slate-950">
-                  {failedCount}
+                  {totalBalance.toLocaleString("fr-FR")} CFA
                 </p>
-                <p className="mt-2 text-xs font-black text-rose-500">↘ Transactions à vérifier</p>
+                <p className="mt-2 text-xs font-black text-rose-500">↘ {failedCount} élève(s) en retard</p>
               </div>
             </div>
           </section>
@@ -746,8 +941,10 @@ export default function CogesUI({ initialPayments }: { initialPayments: any[] })
                       className="h-12 min-w-[130px] appearance-none rounded-xl border border-slate-100 bg-slate-50 px-4 pr-9 text-xs font-bold text-slate-700 outline-none"
                     >
                       <option value="all">Tous</option>
-                      <option value="Validé">Validé</option>
-                      <option value="Annulé">Annulé</option>
+                      <option value="Payé">Payé</option>
+                      <option value="Partiel">Partiel</option>
+                      <option value="En retard">En retard</option>
+                      <option value="Non défini">Non défini</option>
                     </select>
                     <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
                   </div>
@@ -841,99 +1038,114 @@ export default function CogesUI({ initialPayments }: { initialPayments: any[] })
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[1050px] text-left">
+              <table className="w-full min-w-[1180px] text-left">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50/40">
                     <th className="w-14 px-6 py-5">
                       <span className="block h-5 w-5 rounded-full border-2 border-slate-200" />
                     </th>
                     <th className="px-4 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Élève / classe</th>
-                    <th className="px-4 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Reçu</th>
-                    <th className="px-4 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Montant</th>
-                    <th className="px-4 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Motif</th>
+                    <th className="px-4 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Attendu</th>
+                    <th className="px-4 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Payé</th>
+                    <th className="px-4 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Solde</th>
                     <th className="px-4 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Statut</th>
                     <th className="px-4 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Date</th>
-                    <th className="px-4 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Payeur</th>
+                    <th className="px-4 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Mode de paiement</th>
                     <th className="px-6 py-5 text-right text-[10px] font-black uppercase tracking-widest text-slate-400">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {filteredPayments.map((p: any) => (
-                    <tr key={p.id} className="group transition-colors hover:bg-slate-50/70">
+                  {filteredLedger.map((row) => (
+                    <tr key={row.studentId} className="group transition-colors hover:bg-slate-50/70">
                       <td className="px-6 py-4">
                         <span className="block h-5 w-5 rounded-full border-2 border-slate-200" />
                       </td>
                       <td className="px-4 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-indigo-50 text-sm font-black text-indigo-600">
-                            {(p.studentName || p.receivedFrom || "?").charAt(0).toUpperCase()}
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-100 bg-indigo-50 text-sm font-black text-indigo-300">
+                            {row.photoPath && !row.photoPath.startsWith("file://") ? (
+                              <img src={row.photoPath} alt={row.studentName} className="h-full w-full object-cover" />
+                            ) : (
+                              row.studentName?.charAt(0).toUpperCase() || "?"
+                            )}
                           </div>
                           <div className="min-w-0">
-                            <p className="truncate text-sm font-black text-slate-950">{p.studentName || p.receivedFrom || "Élève non lié"}</p>
-                            <p className="mt-0.5 text-[11px] font-bold uppercase tracking-wide text-slate-400">
-                              {p.classe || "Classe non renseignée"}{p.studentNumAdmission ? ` • ${p.studentNumAdmission}` : ""}
+                            <p className="truncate text-[13px] font-black leading-none text-slate-950">{row.studentName}</p>
+                            <p className="mt-1 text-[10px] font-bold uppercase tracking-tight text-slate-400">
+                              {row.classe || "Classe non renseignée"}{row.studentNumAdmission ? ` • ${row.studentNumAdmission}` : ""}
                             </p>
                           </div>
                         </div>
                       </td>
                       <td className="px-4 py-4">
-                        <span className="rounded-lg bg-indigo-50 px-3 py-1 text-xs font-black text-indigo-600">#{p.receiptNumber}</span>
-                      </td>
-                      <td className="px-4 py-4 text-sm font-black text-indigo-600">
-                        {(p.amount || 0).toLocaleString("fr-FR")} CFA
-                      </td>
-                      <td className="max-w-[170px] px-4 py-4">
-                        <p className="truncate text-xs font-bold text-slate-500">{p.purpose || "Cotisation COGES"}</p>
+                        <p className="text-[11px] font-black text-indigo-600">{Number(row.expected || 0).toLocaleString("fr-FR")} CFA</p>
                       </td>
                       <td className="px-4 py-4">
-                        {p.status === "Annulé" ? (
-                          <span className="inline-flex items-center gap-2 rounded-full bg-rose-50 px-4 py-1.5 text-[10px] font-black uppercase text-rose-600">
-                            <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
-                            Annulé
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-4 py-1.5 text-[10px] font-black uppercase text-emerald-600">
-                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                            Validé
-                          </span>
-                        )}
+                        <p className="text-[11px] font-black text-emerald-600">{Number(row.paid || 0).toLocaleString("fr-FR")} CFA</p>
+                      </td>
+                      <td className="px-4 py-4">
+                        <p className={`text-[11px] font-black ${Number(row.balance || 0) > 0 ? "text-rose-500" : "text-emerald-500"}`}>
+                          {Number(row.balance || 0).toLocaleString("fr-FR")} CFA
+                        </p>
+                      </td>
+                      <td className="px-4 py-4">
+                        {getCogesStatusBadge(row.status)}
                       </td>
                       <td className="px-4 py-4 text-xs font-bold text-slate-500">
-                        {p.datePaid ? format(new Date(p.datePaid), "dd MMM yyyy", { locale: fr }) : "-"}
+                        {row.lastPaymentDate ? format(new Date(row.lastPaymentDate), "dd MMM yyyy", { locale: fr }) : "-"}
                       </td>
                       <td className="max-w-[180px] px-4 py-4">
-                        <p className="truncate text-xs font-bold text-slate-500">{p.receivedFrom || "Non spécifié"}</p>
+                        <div className="flex items-center gap-2 text-slate-500">
+                          {getCogesModeIcon(row.paymentMode)}
+                          <span className="text-[11px] font-bold">{row.paymentMode || "Non spécifié"}</span>
+                        </div>
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <div className="flex justify-end gap-2">
+                        <div className="flex items-center justify-end gap-1.5">
                           <button
-                            onClick={() => handlePrint(p)}
-                            className="flex h-9 w-9 items-center justify-center rounded-xl text-indigo-500 transition hover:bg-indigo-50"
-                            title="Imprimer le reçu"
+                            onClick={() => row.lastReceiptNumber && handlePrint(buildReceiptFromLedgerRow(row))}
+                            className="flex h-9 w-9 items-center justify-center rounded-xl text-indigo-400 transition hover:bg-indigo-50 hover:text-indigo-600 disabled:cursor-not-allowed disabled:opacity-30"
+                            disabled={!row.lastReceiptNumber}
+                            title="Voir le dernier reçu"
                           >
-                            <Printer className="size-4" />
+                            <Eye className="size-4" />
                           </button>
                           <button
-                            onClick={() => handlePrint(p)}
-                            className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-400 transition hover:bg-slate-50 hover:text-slate-600"
-                            title="Voir le reçu"
+                            onClick={() => openDialog(row)}
+                            className="flex h-9 w-9 items-center justify-center rounded-xl text-amber-400 transition hover:bg-amber-50 hover:text-amber-600"
+                            title="Ajouter un paiement"
                           >
-                            <FileText className="size-4" />
+                            <Pencil className="size-4" />
+                          </button>
+                          <button
+                            className="flex h-9 w-9 items-center justify-center rounded-xl text-rose-400 opacity-50"
+                            title="Suppression indisponible pour le solde COGES"
+                            disabled
+                          >
+                            <Trash2 className="size-4" />
+                          </button>
+                          <button
+                            onClick={() => row.lastReceiptNumber && handlePrint(buildReceiptFromLedgerRow(row))}
+                            className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-300 transition hover:text-slate-600 disabled:cursor-not-allowed disabled:opacity-30"
+                            disabled={!row.lastReceiptNumber}
+                            title="Historique"
+                          >
+                            <History className="size-4" />
                           </button>
                         </div>
                       </td>
                     </tr>
                   ))}
 
-                  {filteredPayments.length === 0 && (
+                  {filteredLedger.length === 0 && (
                     <tr>
                       <td colSpan={9} className="px-6 py-20 text-center">
                         <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-slate-50">
                           <Banknote className="size-8 text-slate-300" />
                         </div>
-                        <p className="mt-4 text-sm font-black text-slate-500">Aucun paiement COGES trouvé</p>
+                        <p className="mt-4 text-sm font-black text-slate-500">Aucun élève trouvé</p>
                         <p className="mt-1 text-xs font-semibold text-slate-300">
-                          Utilisez le bouton Ajouter un paiement pour rechercher un élève et enregistrer un reçu.
+                          Ajustez les filtres ou ajoutez un paiement COGES pour un élève.
                         </p>
                       </td>
                     </tr>
@@ -945,8 +1157,8 @@ export default function CogesUI({ initialPayments }: { initialPayments: any[] })
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-6 py-5">
               <div className="flex items-center gap-3 text-xs font-black text-slate-500">
                 <span>Affichage</span>
-                <span className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-indigo-600">{filteredPayments.length}</span>
-                <span>sur {payments.length} paiement(s)</span>
+                <span className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-indigo-600">{filteredLedger.length}</span>
+                <span>sur {studentLedger.length} élève(s)</span>
               </div>
               <div className="flex items-center gap-2 text-xs font-black text-slate-400">
                 <span className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-100 text-slate-300">
@@ -1053,7 +1265,7 @@ export default function CogesUI({ initialPayments }: { initialPayments: any[] })
                     <span>Imprimer le reçu</span>
                   </Button>
                   <Button
-                    onClick={openDialog}
+                    onClick={() => openDialog()}
                     variant="outline"
                     className="flex-1 h-11 rounded-xl border-slate-200 font-bold text-xs text-slate-700 cursor-pointer"
                   >

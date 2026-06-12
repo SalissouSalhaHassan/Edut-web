@@ -3,7 +3,7 @@
 import { db } from "@/infrastructure/database";
 import { cogesPayments } from "@/infrastructure/database/schema/finance";
 import { students } from "@/infrastructure/database/schema/students";
-import { desc, ilike, or, eq, and, inArray } from "drizzle-orm";
+import { asc, desc, ilike, or, eq, and, inArray } from "drizzle-orm";
 import { protectedDbAction } from "@/lib/protected-action";
 import { getCurrentUser } from "@/domains/auth/services/session";
 import { getActiveSchoolId } from "@/domains/auth/services/school";
@@ -100,6 +100,100 @@ export async function getCogesPayments() {
   });
 }
 
+export async function getCogesStudentLedger() {
+  return protectedDbAction("Finance", "canView", async () => {
+    const user = await getCurrentUser();
+    const activeLevel = await getActiveEducationalLevel(user);
+    const schoolId = await getActiveSchoolId();
+    const configuredExpected = Number(
+      process.env.COGES_ANNUAL_AMOUNT || process.env.NEXT_PUBLIC_COGES_ANNUAL_AMOUNT || 0
+    ) || 0;
+
+    const studentConditions = [
+      eq(students.schoolId, schoolId),
+      eq(students.statut, "Actif"),
+    ];
+
+    if (activeLevel) {
+      studentConditions.push(inArray(students.educationalLevel, getCompatibleLevels(activeLevel)));
+    }
+
+    const studentRows = await db
+      .select({
+        id: students.id,
+        nomEtudiant: students.nomEtudiant,
+        numAdmission: students.numAdmission,
+        classe: students.classe,
+        nomPere: students.nomPere,
+        mobile: students.mobile,
+        photoPath: students.photoPath,
+      })
+      .from(students)
+      .where(and(...studentConditions))
+      .orderBy(asc(students.nomEtudiant));
+
+    const paymentRows = await db
+      .select({
+        id: cogesPayments.id,
+        receiptNumber: cogesPayments.receiptNumber,
+        studentId: cogesPayments.studentId,
+        amount: cogesPayments.amount,
+        receivedFrom: cogesPayments.receivedFrom,
+        purpose: cogesPayments.purpose,
+        datePaid: cogesPayments.datePaid,
+        status: cogesPayments.status,
+      })
+      .from(cogesPayments)
+      .where(eq(cogesPayments.schoolId, schoolId))
+      .orderBy(desc(cogesPayments.datePaid));
+
+    const validPaymentsByStudent = new Map<number, typeof paymentRows>();
+    for (const payment of paymentRows) {
+      if (!payment.studentId || payment.status === "Annulé") continue;
+      const current = validPaymentsByStudent.get(payment.studentId) || [];
+      current.push(payment);
+      validPaymentsByStudent.set(payment.studentId, current);
+    }
+
+    return studentRows.map((student) => {
+      const studentPayments = validPaymentsByStudent.get(student.id) || [];
+      const totalPaid = studentPayments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+      const expected = Math.max(configuredExpected, totalPaid);
+      const balance = Math.max(expected - totalPaid, 0);
+      const lastPayment = studentPayments[0];
+      const status = expected === 0 && totalPaid === 0
+        ? "Non défini"
+        : balance <= 0
+          ? "Payé"
+          : totalPaid > 0
+            ? "Partiel"
+            : "En retard";
+
+      return {
+        id: student.id,
+        studentId: student.id,
+        studentName: student.nomEtudiant,
+        studentNumAdmission: student.numAdmission,
+        classe: student.classe,
+        nomPere: student.nomPere,
+        mobile: student.mobile,
+        photoPath: student.photoPath,
+        expected,
+        paid: totalPaid,
+        balance,
+        status,
+        lastPaymentDate: lastPayment?.datePaid || null,
+        paymentMode: "Non spécifié",
+        lastReceiptNumber: lastPayment?.receiptNumber || null,
+        lastPaymentId: lastPayment?.id || null,
+        lastPaymentAmount: lastPayment?.amount || 0,
+        receivedFrom: lastPayment?.receivedFrom || null,
+        purpose: lastPayment?.purpose || "Cotisation COGES",
+      };
+    });
+  });
+}
+
 export async function searchStudents(query: string) {
   return protectedDbAction("Finance", "canView", async () => {
     if (!query || query.trim().length < 2) return [];
@@ -136,4 +230,3 @@ export async function searchStudents(query: string) {
       .limit(10);
   });
 }
-
