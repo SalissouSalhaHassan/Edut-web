@@ -190,7 +190,11 @@ export async function getActiveEducationalLevel(user: any): Promise<string | nul
   }
   
   if (roleType === "level_director") {
-    return user.educationalLevel;
+    return user.educationalLevel || "Primaire";
+  }
+
+  if (roleType === "super_admin" || roleType === "general_director") {
+    return null;
   }
   
   return user.educationalLevel || "Primaire";

@@ -504,6 +504,10 @@ export default function IntelligentTimetable({ classes, teachers, subjects, curr
 
   const distribution = React.useMemo(() => subjectDistribution(entries), [entries]);
   const bars = React.useMemo(() => weeklyBars(days, settings, entries), [days, settings, entries]);
+  const roomCount = React.useMemo(
+    () => new Set(entries.map((e) => e.roomName).filter(Boolean)).size,
+    [entries]
+  );
 
   const globalOccupancyMap = React.useMemo(() => {
     if (!globalData) return null;
@@ -797,19 +801,26 @@ export default function IntelligentTimetable({ classes, teachers, subjects, curr
                 if (viewMode === "class") setLastClassId(next);
                 if (viewMode === "teacher") setLastTeacherId(next);
               }}
+              disabled={viewMode === "class" ? classes.length === 0 : teachers.length === 0}
               className="bg-black/60 border border-white/5 rounded-2xl px-6 py-2.5 text-xs font-black text-slate-300 outline-none focus:ring-2 focus:ring-indigo-500/30 min-w-[220px] appearance-none cursor-pointer"
             >
-              {viewMode === "class"
-                ? classes.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.className}
-                    </option>
-                  ))
-                : teachers.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.nom}
-                    </option>
-                  ))}
+              {(viewMode === "class" ? classes.length === 0 : teachers.length === 0) ? (
+                <option value="">
+                  {viewMode === "class" ? "Aucune classe" : "Aucun professeur"}
+                </option>
+              ) : viewMode === "class" ? (
+                classes.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.className}
+                  </option>
+                ))
+              ) : (
+                teachers.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.nom}
+                  </option>
+                ))
+              )}
             </select>
           ) : null}
 
@@ -882,7 +893,7 @@ export default function IntelligentTimetable({ classes, teachers, subjects, curr
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
                 <StatTile label="Heures hebdomadaires" value={`${weeklyHours}h`} sub="Planifiées" icon={<Clock size={18} />} />
                 <StatTile label="Matières" value={`${uniqueSubjects || subjects.length || 0}`} sub="Au programme" icon={<BookOpen size={18} />} />
-                <StatTile label="Salles utilisées" value="12" sub="Disponibles" icon={<LayoutGrid size={18} />} />
+                <StatTile label="Salles utilisées" value={`${roomCount}`} sub="Disponibles" icon={<LayoutGrid size={18} />} />
                 <StatTile
                   label="Charge moyenne"
                   value={`${occupancy.percent}%`}
@@ -973,7 +984,16 @@ export default function IntelligentTimetable({ classes, teachers, subjects, curr
                 </div>
 
                 <div className={cn("flex-1 overflow-auto custom-scrollbar p-6", compactView && "p-4")}>
-                  {showModernView && viewMode !== "global" ? (
+                  {viewMode === "class" && classes.length === 0 ? (
+                    <div className="h-full min-h-[420px] rounded-[24px] border border-dashed border-white/10 bg-black/20 flex items-center justify-center text-center p-8">
+                      <div>
+                        <p className="text-sm font-black text-white">Aucune classe trouvée</p>
+                        <p className="mt-2 text-xs font-bold text-slate-500">
+                          Créez les classes dans Académie ou vérifiez le niveau actif de l&apos;utilisateur.
+                        </p>
+                      </div>
+                    </div>
+                  ) : showModernView && viewMode !== "global" ? (
                     <ModernTimetable 
                       mode={viewMode}
                       title={viewMode === "class" 
