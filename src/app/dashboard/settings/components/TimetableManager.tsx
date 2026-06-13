@@ -22,6 +22,7 @@ import {
   deleteTimetableEntry 
 } from '@/domains/academics/actions/timetable.actions';
 import { ConstraintsDialog, TimetableSettingsDialog, AssignmentsDialog, PrintOptionsDialog } from './TimetableDialogs';
+import { getClassDisplayName } from '@/domains/academics/utils/class-name';
 
 interface TimetableManagerProps {
   classes: any[];
@@ -174,7 +175,7 @@ export default function TimetableManager({ classes, teachers, subjects, currentS
             onChange={(e) => setSelectedId(Number(e.target.value))}
             className="bg-black/60 border border-white/5 rounded-2xl px-6 py-2.5 text-xs font-black text-slate-300 outline-none focus:ring-2 focus:ring-indigo-500/30 min-w-[240px] appearance-none cursor-pointer"
           >
-            {viewMode === 'class' ? classes.map(c => <option key={c.id} value={c.id}>{c.className}</option>) : teachers.map(t => <option key={t.id} value={t.id}>{t.nom}</option>)}
+            {viewMode === 'class' ? classes.map(c => <option key={c.id} value={c.id}>{getClassDisplayName(c)}</option>) : teachers.map(t => <option key={t.id} value={t.id}>{t.nom}</option>)}
           </select>
 
           <Button 

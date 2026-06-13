@@ -24,6 +24,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { promoteStudents } from "@/domains/students/actions/promotion.actions";
+import { getClassDisplayName } from "@/domains/academics/utils/class-name";
 
 interface Student {
   id: number;
@@ -176,7 +177,10 @@ export default function PromoteClient({
                   className="w-full h-12 bg-slate-50 border border-slate-100 rounded-xl px-4 font-bold text-slate-700 appearance-none outline-none focus:ring-2 focus:ring-indigo-500/20"
                 >
                   <option value="">Sélectionner</option>
-                  {classes.map(c => <option key={c.id} value={c.className}>{c.className}</option>)}
+                  {classes.map(c => {
+                    const className = getClassDisplayName(c, "");
+                    return className ? <option key={c.id} value={className}>{className}</option> : null;
+                  })}
                 </select>
                 <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
               </div>
@@ -223,7 +227,10 @@ export default function PromoteClient({
                   className="w-full h-12 bg-slate-50 border border-slate-100 rounded-xl px-4 font-bold text-slate-700 appearance-none outline-none focus:ring-2 focus:ring-indigo-500/20"
                 >
                   <option value="">Sélectionner</option>
-                  {classes.map(c => <option key={c.id} value={c.className}>{c.className}</option>)}
+                  {classes.map(c => {
+                    const className = getClassDisplayName(c, "");
+                    return className ? <option key={c.id} value={className}>{className}</option> : null;
+                  })}
                 </select>
                 <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
               </div>

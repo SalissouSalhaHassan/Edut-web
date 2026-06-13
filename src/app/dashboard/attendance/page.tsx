@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/domains/auth/services/session";
 import AttendanceGrid from "@/domains/attendance/components/AttendanceGrid";
 import { AttendanceFilters } from "@/domains/attendance/components/AttendanceFilters";
 import { ClipboardCheck, Users, Calendar, BookOpen } from "lucide-react";
+import { getClassDisplayName } from "@/domains/academics/utils/class-name";
 
 export default async function AttendancePage({ searchParams: searchParamsPromise }: { searchParams: Promise<{ classId?: string, subjectId?: string, date?: string }> }) {
   const searchParams = await searchParamsPromise;
@@ -40,7 +41,8 @@ export default async function AttendancePage({ searchParams: searchParamsPromise
 
     const selectedClass = classes.find(c => c.id === classId);
     if (selectedClass) {
-      const studentsRes = await getStudentsByClass(selectedClass.className);
+      const selectedClassName = getClassDisplayName(selectedClass, "");
+      const studentsRes = await getStudentsByClass(selectedClassName);
       students = ((studentsRes as any).data?.data || (studentsRes as any).data || []) as any[];
     }
   }

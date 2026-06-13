@@ -59,6 +59,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { getClassDisplayName } from "@/domains/academics/utils/class-name";
 
 type TimetableEntry = {
   id: number;
@@ -350,7 +351,7 @@ function TimetableCell({
             {cell.subject?.subjectName || "Cours"}
           </span>
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest opacity-70">
-            {mode === "teacher" ? cell.class?.className || "Classe" : cell.teacher?.nom || "Prof"}
+            {mode === "teacher" ? getClassDisplayName(cell.class) : cell.teacher?.nom || "Prof"}
           </span>
           <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest opacity-60">
             {cell.roomName ? `Salle ${cell.roomName}` : "Salle —"}
@@ -686,7 +687,7 @@ export default function IntelligentTimetable({ classes, teachers, subjects, curr
                 >
                   {classes.map((c) => (
                     <option key={c.id} value={c.id}>
-                      {c.className}
+                      {getClassDisplayName(c)}
                     </option>
                   ))}
                 </select>
@@ -811,7 +812,7 @@ export default function IntelligentTimetable({ classes, teachers, subjects, curr
               ) : viewMode === "class" ? (
                 classes.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.className}
+                    {getClassDisplayName(c)}
                   </option>
                 ))
               ) : (
@@ -995,9 +996,9 @@ export default function IntelligentTimetable({ classes, teachers, subjects, curr
                     </div>
                   ) : showModernView && viewMode !== "global" ? (
                     <ModernTimetable 
-                      mode={viewMode}
-                      title={viewMode === "class" 
-                        ? classes.find(c => c.id === selectedId)?.className || "Inconnue"
+                        mode={viewMode}
+                        title={viewMode === "class"
+                        ? getClassDisplayName(classes.find(c => c.id === selectedId), "Inconnue")
                         : teachers.find(t => t.id === selectedId)?.nom || "Inconnu"
                       }
                       entries={entries}

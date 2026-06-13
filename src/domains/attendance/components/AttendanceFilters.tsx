@@ -2,6 +2,7 @@
 
 import { Calendar } from "lucide-react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { getClassDisplayName } from "@/domains/academics/utils/class-name";
 
 interface AttendanceFiltersProps {
   date: string;
@@ -58,7 +59,7 @@ export function AttendanceFilters({ date, classId, subjectId, classes, subjects 
         >
           <option value="">-- Choisir une classe --</option>
           {classes.map(c => (
-            <option key={c.id} value={c.id}>{c.className}</option>
+            <option key={c.id} value={c.id}>{getClassDisplayName(c)}</option>
           ))}
         </select>
       </div>

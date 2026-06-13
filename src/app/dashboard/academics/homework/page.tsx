@@ -4,6 +4,7 @@ import ActionMenu from "@/components/common/ActionMenu";
 import { FileText, Calendar, Clock, Paperclip, CheckCircle2 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { getClassDisplayName } from "@/domains/academics/utils/class-name";
 
 export default async function HomeworkPage() {
   const res = await getHomeworks();
@@ -40,7 +41,7 @@ export default async function HomeworkPage() {
                   <h3 className="text-xl font-black text-slate-900 leading-tight group-hover:text-primary transition-colors">{hw.title}</h3>
                   <div className="flex flex-wrap gap-2 pt-1">
                     <span className="px-3 py-1 rounded-full bg-slate-100 text-slate-600 text-[10px] font-black uppercase tracking-wider">
-                      {hw.class?.className}
+                      {getClassDisplayName(hw.class)}
                     </span>
                     <span className="px-3 py-1 rounded-full bg-slate-100 text-slate-600 text-[10px] font-black uppercase tracking-wider">
                       {hw.subject?.subjectName}

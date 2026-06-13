@@ -9,6 +9,7 @@ import { createExam } from "@/domains/academics/actions/exams.actions";
 import { getClasses, getSubjects, getPeriods } from "@/domains/academics/actions/academics.actions";
 import { ExamFormData } from "../validators/exams.schema";
 import { PlusCircle } from "lucide-react";
+import { getClassDisplayName } from "@/domains/academics/utils/class-name";
 
 export default function ExamDialog() {
   const [open, setOpen] = useState(false);
@@ -80,7 +81,7 @@ export default function ExamDialog() {
                 <Label className="text-xs font-bold text-slate-500 ml-1">Classe *</Label>
                 <select name="classId" required className="w-full rounded-xl border border-slate-200 bg-white px-3 h-12 text-sm font-medium outline-none focus:ring-2 focus:ring-primary/20">
                   <option value="">-- Choisir --</option>
-                  {classes.map(c => <option key={c.id} value={c.id}>{c.className}</option>)}
+                  {classes.map(c => <option key={c.id} value={c.id}>{getClassDisplayName(c)}</option>)}
                 </select>
               </div>
               <div className="space-y-2">

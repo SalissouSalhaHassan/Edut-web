@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { createHomework, updateHomework } from "@/domains/academics/actions/homework.actions";
 import { getClasses, getSubjects } from "@/domains/academics/actions/academics.actions";
 import { HomeworkFormData } from "../validators/homework.schema";
+import { getClassDisplayName } from "@/domains/academics/utils/class-name";
 
 interface HomeworkDialogProps {
   mode?: "add" | "edit";
@@ -94,7 +95,7 @@ export default function HomeworkDialog({ mode = "add", initialData, trigger }: H
                 <Label className="text-xs font-bold text-slate-500 ml-1">Classe *</Label>
                 <select name="classId" defaultValue={initialData?.classId} required className="w-full rounded-xl border border-slate-200 bg-white px-3 h-11 text-sm font-medium outline-none">
                   <option value="">-- Choisir --</option>
-                  {classes.map(c => <option key={c.id} value={c.id}>{c.className}</option>)}
+                  {classes.map(c => <option key={c.id} value={c.id}>{getClassDisplayName(c)}</option>)}
                 </select>
               </div>
               <div className="space-y-2">

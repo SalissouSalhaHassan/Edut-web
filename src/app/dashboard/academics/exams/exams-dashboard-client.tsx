@@ -22,6 +22,7 @@ import {
   RefreshCw,
   Info
 } from "lucide-react";
+import { getClassDisplayName } from "@/domains/academics/utils/class-name";
 
 const BACKEND_URL = "http://localhost:8000";
 
@@ -1250,7 +1251,7 @@ export default function ExamsDashboardClient({
                           className="w-full h-12 px-4 rounded-2xl border border-slate-200 bg-slate-50/50 font-bold text-sm text-slate-700"
                         >
                           <option value="">-- Choisir la classe --</option>
-                          {classes.map(c => <option key={c.id} value={c.id}>{c.className || c.name}</option>)}
+                          {classes.map(c => <option key={c.id} value={c.id}>{getClassDisplayName(c)}</option>)}
                         </select>
                       </div>
 
@@ -1553,7 +1554,7 @@ export default function ExamsDashboardClient({
                 className="w-full h-12 px-4 rounded-2xl border border-slate-200 bg-slate-50/50 font-bold text-sm text-slate-700 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
               >
                 <option value="">-- Choisir la classe --</option>
-                {classes.map(c => <option key={c.id} value={c.id}>{c.className || c.name}</option>)}
+                {classes.map(c => <option key={c.id} value={c.id}>{getClassDisplayName(c)}</option>)}
               </select>
             </div>
 
@@ -1701,7 +1702,7 @@ export default function ExamsDashboardClient({
                 className="w-full h-12 px-4 rounded-2xl border border-slate-200 bg-slate-50/50 font-bold text-sm text-slate-700 focus:outline-none"
               >
                 <option value="">-- Classe --</option>
-                {classes.map(c => <option key={c.id} value={c.id}>{c.className || c.name}</option>)}
+                {classes.map(c => <option key={c.id} value={c.id}>{getClassDisplayName(c)}</option>)}
               </select>
             </div>
 

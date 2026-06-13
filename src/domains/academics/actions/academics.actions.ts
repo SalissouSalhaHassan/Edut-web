@@ -2,7 +2,13 @@
 
 import { db, readDb } from "@/infrastructure/database";
 import { getCurrentUser } from "@/domains/auth/services/session";
-import { getActiveEducationalLevel, getCompatibleLevels } from "@/domains/auth/services/rbac";
+import {
+  getActiveEducationalLevel,
+  getCompatibleLevels,
+  getTeacherClassIds,
+  getTeacherEmployee,
+  getUserRoleType,
+} from "@/domains/auth/services/rbac";
 import { 
   schoolClasses, 
   schoolSections, 
@@ -45,15 +51,33 @@ function getLevelFilter() {
   };
 }
 
-const fetchFilterOptions = (schoolId: number, isAdmin: boolean, userLevel: string) =>
+const fetchFilterOptions = (schoolId: number, activeLevel: string | null, restrictedClassIds: number[] | null) =>
   unstable_cache(
     async () => {
+      const compatibleLevels = activeLevel ? getCompatibleLevels(activeLevel) : null;
+      const classIdRestriction = restrictedClassIds && restrictedClassIds.length > 0
+        ? inArray(schoolClasses.id, restrictedClassIds)
+        : undefined;
+
+      if (restrictedClassIds && restrictedClassIds.length === 0) {
+        return {
+          classes: [],
+          sessions: [],
+          periods: [],
+          subjects: [],
+          sections: [],
+          levels: [],
+          classSubjectLinks: [],
+          sectionSubjectLinks: []
+        };
+      }
+
       // Run all primary queries in parallel using db to reduce latency
-      const [sections, sessions, periods, subjects] = await Promise.all([
+      const [sections, sessions, periods, subjects, levels] = await Promise.all([
         db.query.schoolSections.findMany({
           where: and(
             eq(schoolSections.schoolId, schoolId),
-            !isAdmin ? ilike(schoolSections.educationalLevel, userLevel) : undefined
+            compatibleLevels ? inArray(schoolSections.educationalLevel, compatibleLevels) : undefined
           ),
           orderBy: schoolSections.sectionName
         }),
@@ -68,6 +92,13 @@ const fetchFilterOptions = (schoolId: number, isAdmin: boolean, userLevel: strin
         db.query.schoolSubjects.findMany({
           where: eq(schoolSubjects.schoolId, schoolId),
           orderBy: schoolSubjects.subjectName 
+        }),
+        db.query.educationalLevels.findMany({
+          where: and(
+            eq(educationalLevels.schoolId, schoolId),
+            compatibleLevels ? inArray(educationalLevels.levelName, compatibleLevels) : undefined
+          ),
+          orderBy: educationalLevels.levelName
         })
       ]);
       
@@ -79,7 +110,8 @@ const fetchFilterOptions = (schoolId: number, isAdmin: boolean, userLevel: strin
           ? db.query.schoolClasses.findMany({
               where: and(
                 eq(schoolClasses.schoolId, schoolId),
-                inArray(schoolClasses.sectionId, sectionIds)
+                inArray(schoolClasses.sectionId, sectionIds),
+                classIdRestriction
               ),
               with: { section: true },
               orderBy: schoolClasses.className
@@ -103,11 +135,17 @@ const fetchFilterOptions = (schoolId: number, isAdmin: boolean, userLevel: strin
         periods,
         subjects,
         sections,
+        levels,
         classSubjectLinks,
         sectionSubjectLinks
       };
     },
-    ['academic-filter-options', String(schoolId), String(isAdmin), userLevel],
+    [
+      'academic-filter-options-v2',
+      String(schoolId),
+      activeLevel || 'all-levels',
+      restrictedClassIds ? restrictedClassIds.join(',') || 'no-classes' : 'all-classes'
+    ],
     { tags: [ACADEMICS_CACHE_TAG], revalidate: 3600 }
   )();
 
@@ -115,21 +153,47 @@ const fetchFilterOptions = (schoolId: number, isAdmin: boolean, userLevel: strin
 export async function getFilterOptions() {
   const user = await getCurrentUser();
   const schoolId = await getActiveSchoolId();
-  const isAdmin = user?.admin === true;
-  const userLevel = user?.educationalLevel || "Primaire";
+  const roleType = await getUserRoleType(user);
+  let activeLevel = await getActiveEducationalLevel(user);
+  let restrictedClassIds: number[] | null = null;
+
+  if (roleType === "teacher") {
+    const employee = await getTeacherEmployee(user);
+    restrictedClassIds = employee ? await getTeacherClassIds(employee.id) : [];
+    activeLevel = null;
+  }
   
   return protectedDbAction("Academics", "canView", async () => {
-    return await fetchFilterOptions(schoolId, isAdmin, userLevel);
+    return await fetchFilterOptions(schoolId, activeLevel, restrictedClassIds);
   });
 }
 
 // Basic Fetchers - filtered by educational level for non-admins
 export async function getClasses(ignoreActiveFilter = false) {
-  const user = await getCurrentUser();
   const schoolId = await getActiveSchoolId();
-  const activeLevel = ignoreActiveFilter ? null : await getActiveEducationalLevel(user);
   
-  return protectedDbAction("Academics", "canView", async () => {
+  return protectedDbAction("Academics", "canView", async (user) => {
+    const roleType = await getUserRoleType(user);
+
+    if (!ignoreActiveFilter && roleType === "teacher") {
+      const employee = await getTeacherEmployee(user);
+      if (!employee) return [];
+
+      const classIds = await getTeacherClassIds(employee.id);
+      if (classIds.length === 0) return [];
+
+      return await db.query.schoolClasses.findMany({
+        where: and(
+          eq(schoolClasses.schoolId, schoolId),
+          inArray(schoolClasses.id, classIds)
+        ),
+        orderBy: schoolClasses.className,
+        with: { section: true }
+      });
+    }
+
+    const activeLevel = ignoreActiveFilter ? null : await getActiveEducationalLevel(user);
+
     if (!activeLevel) {
       return await db.query.schoolClasses.findMany({
         where: eq(schoolClasses.schoolId, schoolId),

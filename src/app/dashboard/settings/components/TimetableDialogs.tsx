@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
+import { getClassDisplayName } from '@/domains/academics/utils/class-name';
 
 // --- 3. Assignments Dialog (🔗 Affectations & Plan d'Études) ---
 export function AssignmentsDialog({ open, onOpenChange, classes, teachers: initialTeachers, subjects }: { open: boolean, onOpenChange: (open: boolean) => void, classes: any[], teachers: any[], subjects: any[] }) {
@@ -168,8 +169,8 @@ export function AssignmentsDialog({ open, onOpenChange, classes, teachers: initi
                  </div>
 
                  <TabsContent value="classes" className="flex-1 overflow-auto p-4 m-0 space-y-1 custom-scrollbar">
-                    {classes.filter(c => c.className.toLowerCase().includes(searchQuery.toLowerCase())).map(c => (
-                      <button 
+                     {classes.filter(c => getClassDisplayName(c, "").toLowerCase().includes(searchQuery.toLowerCase())).map(c => (
+                       <button
                         key={c.id} 
                         onClick={() => setSelectedClassId(c.id)}
                         className={cn(
@@ -177,7 +178,7 @@ export function AssignmentsDialog({ open, onOpenChange, classes, teachers: initi
                           selectedClassId === c.id ? "bg-indigo-500/10 border border-indigo-500/30 text-white" : "hover:bg-white/5 border border-transparent text-slate-500"
                         )}
                       >
-                         <span className="text-xs font-black uppercase tracking-widest">{c.className}</span>
+                          <span className="text-xs font-black uppercase tracking-widest">{getClassDisplayName(c)}</span>
                          <ChevronRight size={14} className={selectedClassId === c.id ? "text-indigo-400" : "text-slate-700"} />
                       </button>
                     ))}
@@ -204,7 +205,7 @@ export function AssignmentsDialog({ open, onOpenChange, classes, teachers: initi
               <div className="px-8 py-5 border-b border-white/[0.03] flex items-center justify-between bg-white/[0.01]">
                  <div className="flex items-center gap-4">
                     <BookOpen className="text-indigo-400" size={20} />
-                    <h3 className="text-lg font-black text-white">Classe : <span className="text-indigo-400">{selectedClass?.className}</span></h3>
+                    <h3 className="text-lg font-black text-white">Classe : <span className="text-indigo-400">{getClassDisplayName(selectedClass, "Inconnue")}</span></h3>
                  </div>
                  <div className="flex gap-3">
                     <Button onClick={handleSyncCursus} className="h-9 rounded-xl bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-black border border-emerald-500/20 font-black text-[10px] gap-2 px-6">

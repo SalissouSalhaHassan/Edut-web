@@ -12,10 +12,19 @@ import { Button } from "@/components/ui/button";
 import { Search, Loader2, Filter } from "lucide-react";
 
 import { getFilterOptions } from "../actions/academics.actions";
+import { getClassDisplayName } from "@/domains/academics/utils/class-name";
 
 interface AcademicFiltersProps {
   onLoad: (filters: any) => void;
   loading?: boolean;
+}
+
+function getAcademicLevels(data: any) {
+  const values = data?.levels && data.levels.length > 0
+    ? data.levels.map((l: any) => l.levelName)
+    : Array.from(new Set((data?.sections || []).map((s: any) => s.educationalLevel || "Lycée"))) as string[];
+
+  return values.length > 0 ? values : ["Lycée"];
 }
 
 export default function AcademicFilters({ onLoad, loading }: AcademicFiltersProps) {
@@ -31,7 +40,7 @@ export default function AcademicFilters({ onLoad, loading }: AcademicFiltersProp
   });
 
   const [session, setSession] = useState("");
-  const [level, setLevel] = useState("Lycée");
+  const [level, setLevel] = useState("");
   const [sectionId, setSectionId] = useState("");
   const [classId, setClassId] = useState("");
   const [subjectId, setSubjectId] = useState("");
@@ -48,6 +57,8 @@ export default function AcademicFilters({ onLoad, loading }: AcademicFiltersProp
           if (cachedData.sessions?.length > 0 && !session) {
             setSession(cachedData.sessions[0].id.toString());
           }
+          const cachedLevels = getAcademicLevels(cachedData);
+          setLevel((current) => current && cachedLevels.includes(current) ? current : String(cachedLevels[0]));
         } catch (e) {
           console.error("Failed to parse cached options", e);
         }
@@ -63,6 +74,8 @@ export default function AcademicFilters({ onLoad, loading }: AcademicFiltersProp
         if (data.sessions.length > 0 && !session) {
           setSession(data.sessions[0].id.toString());
         }
+        const freshLevels = getAcademicLevels(data);
+        setLevel((current) => current && freshLevels.includes(current) ? current : String(freshLevels[0]));
       }
     }
     loadOptions();
@@ -131,11 +144,7 @@ export default function AcademicFilters({ onLoad, loading }: AcademicFiltersProp
     }
   }, [classId, filteredSubjects]);
 
-  const levels = options.levels && options.levels.length > 0 
-    ? options.levels.map((l: any) => l.levelName)
-    : Array.from(new Set(options.sections.map((s: any) => s.educationalLevel || "Lycée"))) as string[];
-    
-  if (levels.length === 0) levels.push("Lycée");
+  const levels = useMemo(() => getAcademicLevels(options), [options]);
 
   const handleLoad = () => {
     if (!session || !level || !sectionId || !classId || !subjectId || !period) {
@@ -152,7 +161,7 @@ export default function AcademicFilters({ onLoad, loading }: AcademicFiltersProp
       level,
       sectionId: parseInt(sectionId),
       classId: parseInt(classId),
-      className: selectedClass?.className || "",
+      className: getClassDisplayName(selectedClass, ""),
       subjectId: parseInt(subjectId),
       period
     });
@@ -246,7 +255,10 @@ export default function AcademicFilters({ onLoad, loading }: AcademicFiltersProp
           label="Classe"
           value={classId}
           onChange={setClassId}
-          options={mapToOptions(filteredClasses, "className", "class_name")}
+          options={filteredClasses.map((c: any) => ({
+            id: c.id.toString(),
+            name: getClassDisplayName(c)
+          }))}
         />
 
         <FilterGroup

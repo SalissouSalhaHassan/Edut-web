@@ -10,6 +10,7 @@ import {
   Zap, Info, Star, Landmark, Library
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getClassDisplayName } from "@/domains/academics/utils/class-name";
 
 type TimetableEntry = {
   id: number;
@@ -237,7 +238,7 @@ export default function ModernTimetable({ mode, title, subTitle, entries, settin
                                   </h4>
                                   <p className="text-[10px] font-bold text-slate-600 mt-1 flex items-center gap-1 uppercase tracking-widest opacity-80">
                                     <User size={10} className="opacity-50" />
-                                    {mode === "class" ? cell.teacher?.nom : cell.class?.className}
+                                    {mode === "class" ? cell.teacher?.nom : getClassDisplayName(cell.class)}
                                   </p>
                                 </div>
                               </div>
