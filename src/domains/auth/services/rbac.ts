@@ -146,21 +146,22 @@ export function normalizeLevel(level: string): string {
 
 export function getCompatibleLevels(level: string): string[] {
   const norm = normalizeLevel(level);
+  let baseLevels: string[] = [];
   
   if (norm === "primaire" || norm === "maternelle" || norm === "elementaire") {
-    return ["Primaire", "Maternelle", "primaire", "maternelle", "Elémentaire", "elementaire"];
+    baseLevels = ["Primaire", "Maternelle", "primaire", "maternelle", "Elémentaire", "elementaire"];
+  } else if (norm === "college" || norm === "moyen") {
+    baseLevels = ["Collège", "College", "collège", "college", "Moyen", "moyen"];
+  } else if (norm === "lycee" || norm === "secondaire") {
+    baseLevels = ["Lycée", "Lycee", "lycée", "lycee", "Secondaire", "secondaire"];
+  } else if (["university", "universite", "licence", "master", "doctorat", "superieur"].includes(norm)) {
+    baseLevels = ["Université", "Universite", "Licence", "Master", "université", "universite", "licence", "master", "Supérieur", "superieur"];
+  } else {
+    baseLevels = [level, level.toLowerCase(), level.toUpperCase(), level.charAt(0).toUpperCase() + level.slice(1).toLowerCase()];
   }
-  if (norm === "college" || norm === "moyen") {
-    return ["Collège", "College", "collège", "college", "Moyen", "moyen"];
-  }
-  if (norm === "lycee" || norm === "secondaire") {
-    return ["Lycée", "Lycee", "lycée", "lycee", "Secondaire", "secondaire"];
-  }
-  if (["university", "universite", "licence", "master", "doctorat", "superieur"].includes(norm)) {
-    return ["Université", "Universite", "Licence", "Master", "université", "universite", "licence", "master", "Supérieur", "superieur"];
-  }
-  
-  return [level, level.toLowerCase(), level.toUpperCase(), level.charAt(0).toUpperCase() + level.slice(1).toLowerCase()];
+
+  // Always include global levels to make sure global staff/resources are visible
+  return [...baseLevels, "Tous", "All", "tous", "all", ""];
 }
 
 export async function getActiveEducationalLevel(user: any): Promise<string | null> {
@@ -217,6 +218,7 @@ export function checkEducationalLevelAccess(user: any, resourceLevel: string | n
   const normResource = normalizeLevel(resourceLevel);
   
   if (normUser === normResource) return true;
+  if (normResource === "tous" || normResource === "all" || normResource === "") return true;
   
   // Handlers for groupings
   const universityTerms = ["university", "universite", "licence", "master", "doctorat", "superieur"];

@@ -418,7 +418,13 @@ export async function getHRReportCenterData(
     let empWhere = eq(employees.schoolId, schoolId);
     if (roleType === "level_director") {
       const compatibleLevels = getCompatibleLevels(user.educationalLevel);
-      empWhere = and(empWhere, inArray(employees.educationalLevel, compatibleLevels)) as any;
+      empWhere = and(
+        empWhere,
+        or(
+          inArray(employees.educationalLevel, compatibleLevels),
+          isNull(employees.educationalLevel)
+        )
+      ) as any;
     }
 
     // Get all employees

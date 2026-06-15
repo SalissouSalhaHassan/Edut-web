@@ -71,6 +71,7 @@ function checkEducationalLevelAccessLocal(user: any, resourceLevel: string | nul
   const normResource = resourceLevel.toLowerCase().trim();
   
   if (normUser === normResource) return true;
+  if (normResource === "tous" || normResource === "all" || normResource === "") return true;
   
   const primaryTerms = ["primaire", "maternelle", "elementaire"];
   if (primaryTerms.includes(normUser) && primaryTerms.includes(normResource)) return true;

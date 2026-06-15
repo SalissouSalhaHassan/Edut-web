@@ -2,7 +2,7 @@
 
 import { db } from "@/infrastructure/database";
 import { employees, employeeAttendance } from "@/infrastructure/database/schema/hr";
-import { eq, desc, and, sql, inArray } from "drizzle-orm";
+import { eq, desc, and, sql, inArray, or, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { employeeSchema, EmployeeFormData } from "../validators/employee.schema";
 import { protectedDbAction } from "@/lib/protected-action";
@@ -22,7 +22,13 @@ export async function getEmployees() {
 
     if (roleType === "level_director") {
       const compatibleLevels = getCompatibleLevels(user.educationalLevel);
-      whereClause = and(whereClause, inArray(employees.educationalLevel, compatibleLevels)) as any;
+      whereClause = and(
+        whereClause,
+        or(
+          inArray(employees.educationalLevel, compatibleLevels),
+          isNull(employees.educationalLevel)
+        )
+      ) as any;
     }
 
     const data = await db.query.employees.findMany({
@@ -142,7 +148,13 @@ export async function getEmployeeAttendance(dateStr: string) {
     let empWhere = eq(employees.schoolId, schoolId);
     if (roleType === "level_director") {
       const compatibleLevels = getCompatibleLevels(user.educationalLevel);
-      empWhere = and(empWhere, inArray(employees.educationalLevel, compatibleLevels)) as any;
+      empWhere = and(
+        empWhere,
+        or(
+          inArray(employees.educationalLevel, compatibleLevels),
+          isNull(employees.educationalLevel)
+        )
+      ) as any;
     }
 
     const matchedEmployees = await db.query.employees.findMany({

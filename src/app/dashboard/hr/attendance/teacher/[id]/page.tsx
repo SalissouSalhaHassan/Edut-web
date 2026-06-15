@@ -1,9 +1,9 @@
 import { db } from "@/infrastructure/database";
 import { employees } from "@/infrastructure/database/schema/hr";
 import { getCurrentUser } from "@/domains/auth/services/session";
-import { getUserRoleType, getTeacherEmployee, getCompatibleLevels } from "@/domains/auth/services/rbac";
+import { getUserRoleType, getTeacherEmployee, getCompatibleLevels, checkEducationalLevelAccess } from "@/domains/auth/services/rbac";
 import { getTeacherScheduleAttendance } from "@/domains/hr/actions/teacher-attendance.actions";
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and, inArray, or, isNull } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import TeacherAttendanceDetail from "../teacher-attendance-detail-client";
 import { getActiveSchoolId } from "@/domains/auth/services/school";
@@ -49,8 +49,7 @@ export default async function TeacherAttendanceDetailPage({
 
   // Level director access restriction check
   if (roleType === "level_director") {
-    const compatibleLevels = getCompatibleLevels(currentUser.educationalLevel || "Primaire");
-    if (!teacher.educationalLevel || !compatibleLevels.includes(teacher.educationalLevel)) {
+    if (!checkEducationalLevelAccess(currentUser, teacher.educationalLevel)) {
       redirect("/dashboard/hr?error=unauthorized_level");
     }
   }
@@ -70,7 +69,13 @@ export default async function TeacherAttendanceDetailPage({
     let empWhere = eq(employees.schoolId, schoolId);
     if (roleType === "level_director") {
       const compatibleLevels = getCompatibleLevels(currentUser.educationalLevel || "Primaire");
-      empWhere = and(empWhere, inArray(employees.educationalLevel, compatibleLevels)) as any;
+      empWhere = and(
+        empWhere,
+        or(
+          inArray(employees.educationalLevel, compatibleLevels),
+          isNull(employees.educationalLevel)
+        )
+      ) as any;
     }
     teachersList = await db.query.employees.findMany({
       where: empWhere,
