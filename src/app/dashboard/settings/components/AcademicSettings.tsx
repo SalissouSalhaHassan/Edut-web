@@ -296,6 +296,7 @@ export function AcademicSettings({
                       const res = await deleteSession(s.id);
                       if (res.success) {
                         toast.success("Année scolaire supprimée avec succès");
+                        router.refresh();
                       } else {
                         toast.error(res.error || "Erreur lors de la suppression");
                       }
