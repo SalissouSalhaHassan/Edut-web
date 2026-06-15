@@ -67,7 +67,7 @@ export const studentFees = pgTable("student_fees", {
   id: serial("id").primaryKey(),
   schoolId: integer("school_id").references(() => schools.id),
   studentId: integer("student_id").references(() => students.id, { onDelete: "cascade" }),
-  sessionId: integer("session_id").references(() => schoolSessions.id),
+  sessionId: integer("session_id").references(() => schoolSessions.id, { onDelete: "cascade" }),
   totalExpected: doublePrecision("total_expected").notNull(),
   totalPaid: doublePrecision("total_paid").default(0),
   totalReduction: doublePrecision("total_reduction").default(0),

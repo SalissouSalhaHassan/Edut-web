@@ -247,7 +247,7 @@ export const teacherConstraints = pgTable("teacher_constraints", {
 
 export const timetableEntries = pgTable("timetable_entries", {
   id: serial("id").primaryKey(),
-  sessionId: integer("session_id").references(() => schoolSessions.id),
+  sessionId: integer("session_id").references(() => schoolSessions.id, { onDelete: "cascade" }),
   classId: integer("class_id").references(() => schoolClasses.id, { onDelete: "cascade" }),
   subjectId: integer("subject_id").references(() => schoolSubjects.id, { onDelete: "cascade" }),
   employeeId: integer("employee_id").references(() => employees.id, { onDelete: "cascade" }),
