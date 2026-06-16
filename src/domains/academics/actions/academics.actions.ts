@@ -341,8 +341,27 @@ export async function getGradingAppreciations() {
 }
 
 export async function getSubjectsForClass(classId: number) {
-  return protectedDbAction("Academics", "canView", async () => {
+  return protectedDbAction("Academics", "canView", async (user) => {
     const schoolId = await getActiveSchoolId();
+    const roleType = await getUserRoleType(user);
+
+    // Teachers only see subjects they teach in this class
+    if (roleType === "teacher") {
+      const emp = await getTeacherEmployee(user);
+      if (!emp) return [];
+
+      const links = await db.query.classSubjects.findMany({
+        where: and(
+          eq(classSubjects.classId, classId),
+          eq(classSubjects.schoolId, schoolId),
+          eq(classSubjects.employeeId, emp.id)
+        ),
+        with: { subject: true, teacher: true }
+      });
+      return links;
+    }
+
+    // Admin/Director sees all subjects for the class
     const links = await db.query.classSubjects.findMany({
       where: and(
         eq(classSubjects.classId, classId),
@@ -511,7 +530,13 @@ export async function deleteSection(id: number) {
 
 // Grading Grid
 export async function getGradingGrid(params: { classId: number, subjectId: number, sessionId: number, term: string }) {
-  return protectedDbAction("Academics", "canView", async () => {
+  return protectedDbAction("Academics", "canView", async (user) => {
+    // Verify teacher has access to this class
+    const hasAccess = await verifyTeacherClassAccess(user, params.classId);
+    if (!hasAccess) {
+      return { error: "Accès refusé. Vous n'êtes pas autorisé pour cette classe." };
+    }
+
     const cls = await readDb.query.schoolClasses.findFirst({ where: eq(schoolClasses.id, params.classId), with: { section: true } });
     if (!cls) return { error: "Classe non trouvée" };
 
@@ -588,10 +613,17 @@ export async function getGradingGrid(params: { classId: number, subjectId: numbe
 
 // Save Grades
 export async function saveStudentGrades(resultsData: any[]) {
-  return protectedDbAction("Academics", "canEdit", async () => {
+  return protectedDbAction("Academics", "canEdit", async (user) => {
     if (resultsData.length === 0) return { success: true };
 
     const first = resultsData[0];
+
+    // Verify teacher has access to this class
+    const hasAccess = await verifyTeacherClassAccess(user, first.classId);
+    if (!hasAccess) {
+      return { error: "Accès refusé. Vous n'êtes pas autorisé pour cette classe." };
+    }
+
     const existing = await db.query.studentResults.findMany({
       where: and(
         eq(studentResults.classId, first.classId),
@@ -638,7 +670,13 @@ export async function saveStudentGrades(resultsData: any[]) {
 
 // Devoir Grid
 export async function getDevoirGrid(params: { classId: number, subjectId: number, sessionId: number, term: string }) {
-  return protectedDbAction("Academics", "canView", async () => {
+  return protectedDbAction("Academics", "canView", async (user) => {
+    // Verify teacher has access to this class
+    const hasAccess = await verifyTeacherClassAccess(user, params.classId);
+    if (!hasAccess) {
+      return { error: "Accès refusé. Vous n'êtes pas autorisé pour cette classe." };
+    }
+
     const cls = await readDb.query.schoolClasses.findFirst({ where: eq(schoolClasses.id, params.classId), with: { section: true } });
     if (!cls) return { error: "Classe non trouvée" };
 
@@ -681,10 +719,17 @@ export async function getDevoirGrid(params: { classId: number, subjectId: number
 
 // Save Devoir Grades
 export async function saveDevoirGrades(payload: any[]) {
-  return protectedDbAction("Academics", "canEdit", async () => {
+  return protectedDbAction("Academics", "canEdit", async (user) => {
     if (payload.length === 0) return { success: true };
 
     const first = payload[0];
+
+    // Verify teacher has access to this class
+    const hasAccess = await verifyTeacherClassAccess(user, first.classId);
+    if (!hasAccess) {
+      return { error: "Accès refusé. Vous n'êtes pas autorisé pour cette classe." };
+    }
+
     const existing = await db.query.studentResults.findMany({
       where: and(
         eq(studentResults.classId, first.classId),

@@ -34,7 +34,10 @@ export const getUserRoleType = cache(async (user: any): Promise<UserRoleType> =>
     return "general_director";
   }
   
-  if (roleName === "Professeur" || roleName === "Enseignant") {
+  if (roleName === "Professeur" || roleName === "Enseignant" ||
+      roleName?.toLowerCase() === "teacher" ||
+      roleName?.toLowerCase() === "enseignant" ||
+      roleName?.toLowerCase() === "professeur") {
     return "teacher";
   }
   
