@@ -8,6 +8,7 @@ import {
   getTeacherClassIds,
   getTeacherEmployee,
   getUserRoleType,
+  verifyTeacherClassAccess,
 } from "@/domains/auth/services/rbac";
 import { 
   schoolClasses, 
