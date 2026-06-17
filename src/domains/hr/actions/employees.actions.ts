@@ -26,7 +26,8 @@ export async function getEmployees() {
         whereClause,
         or(
           inArray(employees.educationalLevel, compatibleLevels),
-          isNull(employees.educationalLevel)
+          isNull(employees.educationalLevel),
+          sql`string_to_array(${employees.educationalLevel}, ',') && ${compatibleLevels}::text[]`
         )
       ) as any;
     }
@@ -152,7 +153,8 @@ export async function getEmployeeAttendance(dateStr: string) {
         empWhere,
         or(
           inArray(employees.educationalLevel, compatibleLevels),
-          isNull(employees.educationalLevel)
+          isNull(employees.educationalLevel),
+          sql`string_to_array(${employees.educationalLevel}, ',') && ${compatibleLevels}::text[]`
         )
       ) as any;
     }

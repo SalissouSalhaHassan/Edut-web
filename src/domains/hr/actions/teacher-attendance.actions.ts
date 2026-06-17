@@ -422,7 +422,8 @@ export async function getHRReportCenterData(
         empWhere,
         or(
           inArray(employees.educationalLevel, compatibleLevels),
-          isNull(employees.educationalLevel)
+          isNull(employees.educationalLevel),
+          sql`string_to_array(${employees.educationalLevel}, ',') && ${compatibleLevels}::text[]`
         )
       ) as any;
     }

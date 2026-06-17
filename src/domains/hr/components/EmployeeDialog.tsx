@@ -141,7 +141,10 @@ export default function EmployeeDialog({
       banqueNom: (form.get("banqueNom") as string) || undefined,
       banqueCompte: (form.get("banqueCompte") as string) || undefined,
       statut: (form.get("statut") as string) || "Actif",
-      educationalLevel: (form.get("educationalLevel") as string) || undefined,
+      educationalLevel: (() => {
+        const levels = form.getAll("educationalLevels") as string[];
+        return levels.length === 5 || levels.length === 0 ? "Tous" : levels.join(",");
+      })(),
     };
 
     let result;
@@ -342,21 +345,38 @@ export default function EmployeeDialog({
                     className={inputCls}
                   />
                 </FieldGroup>
-                <FieldGroup label="Niveau Éducatif / Secteur">
-                  <select
-                    name="educationalLevel"
-                    defaultValue={initialData?.educationalLevel ?? "Tous"}
-                    className={selectCls}
-                  >
-                    <option value="Tous">Tous les niveaux</option>
-                    <option value="Maternelle">🌱 Maternelle</option>
-                    <option value="Primaire">📚 Primaire</option>
-                    <option value="Collège">🏫 Collège</option>
-                    <option value="Lycée">🎓 Lycée</option>
-                    <option value="Supérieur">🎓 Supérieur</option>
-                  </select>
+                <FieldGroup label="Niveau Éducatif / Secteur" span="lg:col-span-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 mt-1">
+                    {[
+                      { id: "Maternelle", label: "🌱 Maternelle" },
+                      { id: "Primaire", label: "📚 Primaire" },
+                      { id: "Collège", label: "🏫 Collège" },
+                      { id: "Lycée", label: "🎓 Lycée" },
+                      { id: "Supérieur", label: "🎓 Supérieur" },
+                    ].map((level) => {
+                      const selectedLevels = initialData?.educationalLevel
+                        ? initialData.educationalLevel.split(",")
+                        : ["Tous"];
+                      const isChecked = selectedLevels.includes(level.id) || selectedLevels.includes("Tous");
+                      return (
+                        <label
+                          key={level.id}
+                          className="relative flex items-center justify-center gap-2 h-11 rounded-xl border border-slate-200 bg-white cursor-pointer text-xs font-semibold text-slate-700 hover:border-indigo-300 hover:bg-indigo-50/50 transition-all has-[:checked]:border-indigo-500 has-[:checked]:bg-indigo-50 has-[:checked]:text-indigo-700 has-[:checked]:shadow-sm"
+                        >
+                          <input
+                            type="checkbox"
+                            name="educationalLevels"
+                            value={level.id}
+                            defaultChecked={isChecked}
+                            className="sr-only"
+                          />
+                          {level.label}
+                        </label>
+                      );
+                    })}
+                  </div>
                 </FieldGroup>
-                <FieldGroup label="Statut du contrat" span="sm:col-span-2">
+                <FieldGroup label="Statut du contrat" span="lg:col-span-3">
                   <div className="flex gap-3">
                     {(["Actif", "Inactif", "En Attente"] as const).map((s) => (
                       <label
