@@ -2,26 +2,37 @@
 
 import { db } from "@/infrastructure/database";
 import { homework } from "@/infrastructure/database/schema/homework";
-import { eq, desc, inArray } from "drizzle-orm";
+import { eq, desc, inArray, and, or } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { homeworkSchema, HomeworkFormData } from "../validators/homework.schema";
 import { protectedDbAction } from "@/lib/protected-action";
-import { getUserRoleType, getTeacherEmployee, getTeacherClassIds, verifyTeacherClassAccess } from "@/domains/auth/services/rbac";
+import { getUserRoleType, getTeacherEmployee, getTeacherClassIds, verifyTeacherClassAccess, verifyTeacherClassSubjectAccess } from "@/domains/auth/services/rbac";
+import { classSubjects } from "@/infrastructure/database/schema/academics";
 
 export async function getHomeworks() {
   return protectedDbAction("Academics", "canView", async (user) => {
     const roleType = await getUserRoleType(user);
 
-    // Teachers only see homework for their assigned classes
+    // Teachers only see homework for their assigned class-subject combinations
     if (roleType === "teacher") {
       const emp = await getTeacherEmployee(user);
       if (!emp) return { data: [] };
 
-      const classIds = await getTeacherClassIds(emp.id);
-      if (classIds.length === 0) return { data: [] };
+      const teacherSubjects = await db.select({
+        classId: classSubjects.classId,
+        subjectId: classSubjects.subjectId
+      })
+      .from(classSubjects)
+      .where(eq(classSubjects.employeeId, emp.id));
+
+      if (teacherSubjects.length === 0) return { data: [] };
+
+      const orConditions = teacherSubjects.map(pair => 
+        and(eq(homework.classId, pair.classId!), eq(homework.subjectId, pair.subjectId!))
+      );
 
       const data = await db.query.homework.findMany({
-        where: inArray(homework.classId, classIds),
+        where: or(...orConditions),
         with: { class: true, subject: true },
         orderBy: [desc(homework.dateAssigned)],
       });
@@ -44,11 +55,15 @@ export async function createHomework(formData: HomeworkFormData) {
   }
 
   return protectedDbAction("Academics", "canEdit", async (user) => {
-    // Verify teacher has access to this class
-    if (validation.data.classId) {
-      const hasAccess = await verifyTeacherClassAccess(user, validation.data.classId);
+    // Verify teacher has access to this class and subject
+    if (validation.data.classId && validation.data.subjectId) {
+      const hasAccess = await verifyTeacherClassSubjectAccess(
+        user, 
+        validation.data.classId, 
+        validation.data.subjectId
+      );
       if (!hasAccess) {
-        return { error: "Accès refusé. Vous n'êtes pas autorisé pour cette classe." };
+        return { error: "Accès refusé. Vous n'êtes pas autorisé pour cette classe et cette matière." };
       }
     }
 
@@ -68,11 +83,15 @@ export async function updateHomework(id: number, formData: HomeworkFormData) {
   }
 
   return protectedDbAction("Academics", "canEdit", async (user) => {
-    // Verify teacher has access to the target class
-    if (validation.data.classId) {
-      const hasAccess = await verifyTeacherClassAccess(user, validation.data.classId);
+    // Verify teacher has access to the target class and subject
+    if (validation.data.classId && validation.data.subjectId) {
+      const hasAccess = await verifyTeacherClassSubjectAccess(
+        user, 
+        validation.data.classId, 
+        validation.data.subjectId
+      );
       if (!hasAccess) {
-        return { error: "Accès refusé. Vous n'êtes pas autorisé pour cette classe." };
+        return { error: "Accès refusé. Vous n'êtes pas autorisé pour cette classe et cette matière." };
       }
     }
 
@@ -89,12 +108,12 @@ export async function updateHomework(id: number, formData: HomeworkFormData) {
 
 export async function deleteHomework(id: number) {
   return protectedDbAction("Academics", "canDelete", async (user) => {
-    // Verify teacher owns the homework's class before deleting
+    // Verify teacher owns the homework's class and subject before deleting
     const existing = await db.query.homework.findFirst({ where: eq(homework.id, id) });
-    if (existing?.classId) {
-      const hasAccess = await verifyTeacherClassAccess(user, existing.classId);
+    if (existing?.classId && existing?.subjectId) {
+      const hasAccess = await verifyTeacherClassSubjectAccess(user, existing.classId, existing.subjectId);
       if (!hasAccess) {
-        return { error: "Accès refusé. Vous n'êtes pas autorisé pour cette classe." };
+        return { error: "Accès refusé. Vous n'êtes pas autorisé pour cette classe et cette matière." };
       }
     }
 

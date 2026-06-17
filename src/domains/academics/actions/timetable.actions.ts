@@ -7,6 +7,7 @@ import { schoolBranches } from "@/infrastructure/database/schema/settings";
 import { eq, and, isNull, inArray, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { protectedDbAction } from "@/lib/protected-action";
+import { getUserRoleType, getTeacherEmployee, verifyTeacherClassAccess } from "@/domains/auth/services/rbac";
 
 export async function getTimetableSettings(classId?: number) {
   return protectedDbAction("Academics", "canView", async () => {
@@ -48,7 +49,7 @@ export async function saveTimetableSettings(data: any, classId?: number) {
 }
 
 export async function getTimetableEntries(modeOrId: "class" | "teacher" | number, id?: number) {
-  return protectedDbAction("Academics", "canView", async () => {
+  return protectedDbAction("Academics", "canView", async (user) => {
     let finalMode: "class" | "teacher" = "class";
     let finalId: number | undefined = id;
 
@@ -60,6 +61,19 @@ export async function getTimetableEntries(modeOrId: "class" | "teacher" | number
     }
 
     if (!finalId) return [];
+
+    const roleType = await getUserRoleType(user);
+    if (roleType === "teacher") {
+      const emp = await getTeacherEmployee(user);
+      if (!emp) return [];
+
+      if (finalMode === "teacher") {
+        finalId = emp.id;
+      } else if (finalMode === "class") {
+        const hasAccess = await verifyTeacherClassAccess(user, finalId);
+        if (!hasAccess) return [];
+      }
+    }
 
     const entries = await db.query.timetableEntries.findMany({
       where: finalMode === "class" ? eq(timetableEntries.classId, finalId) : eq(timetableEntries.employeeId, finalId),
@@ -211,7 +225,13 @@ export async function saveTeacherConstraints(employeeId: number, data: any) {
 }
 
 export async function getClassAssignments(classId: number) {
-  return protectedDbAction("Academics", "canView", async () => {
+  return protectedDbAction("Academics", "canView", async (user) => {
+    const roleType = await getUserRoleType(user);
+    if (roleType === "teacher") {
+      const hasAccess = await verifyTeacherClassAccess(user, classId);
+      if (!hasAccess) return [];
+    }
+
     const assignments = await db.query.classSubjects.findMany({
       where: eq(classSubjects.classId, classId),
       with: {

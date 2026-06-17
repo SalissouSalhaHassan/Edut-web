@@ -252,8 +252,8 @@ export const getCurrentUser = cache(async (): Promise<SessionUserRecord | null> 
         }
       }
 
-      // If found by email but supabaseId is missing, link them now
-      if (resolvedUser && !resolvedUser.supabaseId) {
+      // If found by email but supabaseId is missing or doesn't match the current user ID, link/fix them now
+      if (resolvedUser && resolvedUser.supabaseId !== user.id) {
         await db.update(users)
           .set({ supabaseId: user.id })
           .where(eq(users.id, resolvedUser.id));

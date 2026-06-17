@@ -3,7 +3,7 @@ import { rolePermissions, users, roles } from "@/infrastructure/database/schema/
 import { schoolBranches } from "@/infrastructure/database/schema/settings";
 import { schoolClasses, classSubjects } from "@/infrastructure/database/schema/academics";
 import { employees } from "@/infrastructure/database/schema/hr";
-import { eq, sql, or, inArray } from "drizzle-orm";
+import { eq, sql, or, inArray, and } from "drizzle-orm";
 import { cache } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -286,6 +286,40 @@ export async function verifyTeacherClassAccess(user: any, classId: number): Prom
     if (!emp) return false;
     const classIds = await getTeacherClassIds(emp.id);
     return classIds.includes(classId);
+  }
+  
+  return false;
+}
+
+// Verify teacher access to a specific class and subject
+export async function verifyTeacherClassSubjectAccess(user: any, classId: number, subjectId: number): Promise<boolean> {
+  const roleType = await getUserRoleType(user);
+  if (roleType === "super_admin" || roleType === "general_director") {
+    return true;
+  }
+  
+  if (roleType === "level_director") {
+    const cls = await db.query.schoolClasses.findFirst({
+      where: eq(schoolClasses.id, classId),
+      with: { section: true }
+    });
+    if (!cls?.section?.educationalLevel) return true;
+    return checkEducationalLevelAccess(user, cls.section.educationalLevel);
+  }
+  
+  if (roleType === "teacher") {
+    const emp = await getTeacherEmployee(user);
+    if (!emp) return false;
+    
+    const assignment = await db.query.classSubjects.findFirst({
+      where: and(
+        eq(classSubjects.classId, classId),
+        eq(classSubjects.subjectId, subjectId),
+        eq(classSubjects.employeeId, emp.id)
+      )
+    });
+    
+    return !!assignment;
   }
   
   return false;

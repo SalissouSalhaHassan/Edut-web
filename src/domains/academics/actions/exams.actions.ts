@@ -1,13 +1,13 @@
 "use server";
 
 import { db } from "@/infrastructure/database";
-import { exams, examResults, schoolClasses, schoolSubjects, academicPeriods, schoolSections } from "@/infrastructure/database/schema/academics";
+import { exams, examResults, schoolClasses, schoolSubjects, academicPeriods, schoolSections, classSubjects } from "@/infrastructure/database/schema/academics";
 import { students } from "@/infrastructure/database/schema/students";
-import { eq, desc, and, inArray, sql } from "drizzle-orm";
+import { eq, desc, and, inArray, sql, or } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { examSchema, batchExamResultSchema, ExamFormData, BatchExamResultFormData } from "../validators/exams.schema";
 import { protectedDbAction } from "@/lib/protected-action";
-import { getUserRoleType, getCompatibleLevels, getTeacherEmployee, getTeacherClassIds, verifyTeacherClassAccess } from "@/domains/auth/services/rbac";
+import { getUserRoleType, getCompatibleLevels, getTeacherEmployee, getTeacherClassIds, verifyTeacherClassAccess, verifyTeacherClassSubjectAccess } from "@/domains/auth/services/rbac";
 
 // --- Exams ---
 export async function getExams(filters?: { classId?: number; subjectId?: number; periodName?: string }) {
@@ -53,9 +53,18 @@ export async function getExams(filters?: { classId?: number; subjectId?: number;
     } else if (roleType === "teacher") {
       const emp = await getTeacherEmployee(user);
       if (emp) {
-        const classIds = await getTeacherClassIds(emp.id);
-        if (classIds.length > 0) {
-          conditions.push(inArray(exams.classId, classIds));
+        const teacherSubjects = await db.select({
+          classId: classSubjects.classId,
+          subjectId: classSubjects.subjectId
+        })
+        .from(classSubjects)
+        .where(eq(classSubjects.employeeId, emp.id));
+
+        if (teacherSubjects.length > 0) {
+          const orConditions = teacherSubjects.map(pair => 
+            and(eq(exams.classId, pair.classId!), eq(exams.subjectId, pair.subjectId!))
+          );
+          conditions.push(or(...orConditions));
         } else {
           conditions.push(sql`FALSE`);
         }
@@ -81,11 +90,11 @@ export async function createExam(formData: ExamFormData) {
   }
 
   return protectedDbAction("Exams", "canEdit", async (user) => {
-    const { classId } = validation.data;
+    const { classId, subjectId } = validation.data;
     
-    const hasAccess = await verifyTeacherClassAccess(user, classId);
+    const hasAccess = await verifyTeacherClassSubjectAccess(user, classId, subjectId);
     if (!hasAccess) {
-      return { error: "Accès refusé. Vous n'êtes pas autorisé à créer un examen pour cette classe." };
+      return { error: "Accès refusé. Vous n'êtes pas autorisé à créer un examen pour cette classe et cette matière." };
     }
 
     await db.insert(exams).values({
@@ -100,9 +109,9 @@ export async function createExam(formData: ExamFormData) {
 export async function deleteExam(id: number) {
   return protectedDbAction("Exams", "canDelete", async (user) => {
     const exam = await db.query.exams.findFirst({ where: eq(exams.id, id) });
-    if (!exam || !exam.classId) return { error: "Examen non trouvé." };
+    if (!exam || !exam.classId || !exam.subjectId) return { error: "Examen non trouvé." };
     
-    const hasAccess = await verifyTeacherClassAccess(user, exam.classId);
+    const hasAccess = await verifyTeacherClassSubjectAccess(user, exam.classId, exam.subjectId);
     if (!hasAccess) {
       return { error: "Accès refusé. Vous n'êtes pas autorisé à supprimer cet examen." };
     }
@@ -117,9 +126,9 @@ export async function deleteExam(id: number) {
 export async function getExamResults(examId: number) {
   return protectedDbAction("Exams", "canView", async (user) => {
     const exam = await db.query.exams.findFirst({ where: eq(exams.id, examId) });
-    if (!exam || !exam.classId) return { error: "Examen non trouvé." };
+    if (!exam || !exam.classId || !exam.subjectId) return { error: "Examen non trouvé." };
     
-    const hasAccess = await verifyTeacherClassAccess(user, exam.classId);
+    const hasAccess = await verifyTeacherClassSubjectAccess(user, exam.classId, exam.subjectId);
     if (!hasAccess) {
       return { error: "Accès refusé. Vous n'êtes pas autorisé à voir ces résultats." };
     }
@@ -152,9 +161,9 @@ export async function saveBatchExamResults(formData: BatchExamResultFormData) {
   return protectedDbAction("Exams", "canEdit", async (user) => {
     const { examId, results } = validation.data;
     const exam = await db.query.exams.findFirst({ where: eq(exams.id, examId) });
-    if (!exam || !exam.classId) return { error: "Examen non trouvé." };
+    if (!exam || !exam.classId || !exam.subjectId) return { error: "Examen non trouvé." };
     
-    const hasAccess = await verifyTeacherClassAccess(user, exam.classId);
+    const hasAccess = await verifyTeacherClassSubjectAccess(user, exam.classId, exam.subjectId);
     if (!hasAccess) {
       return { error: "Accès refusé. Vous n'êtes pas autorisé à modifier ces résultats." };
     }

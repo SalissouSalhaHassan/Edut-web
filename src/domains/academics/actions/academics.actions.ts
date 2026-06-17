@@ -9,6 +9,7 @@ import {
   getTeacherEmployee,
   getUserRoleType,
   verifyTeacherClassAccess,
+  verifyTeacherClassSubjectAccess,
 } from "@/domains/auth/services/rbac";
 import { 
   schoolClasses, 
@@ -52,7 +53,12 @@ function getLevelFilter() {
   };
 }
 
-const fetchFilterOptions = (schoolId: number, activeLevel: string | null, restrictedClassIds: number[] | null) =>
+const fetchFilterOptions = (
+  schoolId: number,
+  activeLevel: string | null,
+  restrictedClassIds: number[] | null,
+  employeeId: number | null = null
+) =>
   unstable_cache(
     async () => {
       const compatibleLevels = activeLevel ? getCompatibleLevels(activeLevel) : null;
@@ -120,7 +126,9 @@ const fetchFilterOptions = (schoolId: number, activeLevel: string | null, restri
           : Promise.resolve([]),
         sectionIds.length > 0
           ? db.query.classSubjects.findMany({
-              where: eq(classSubjects.schoolId, schoolId)
+              where: employeeId
+                ? and(eq(classSubjects.schoolId, schoolId), eq(classSubjects.employeeId, employeeId))
+                : eq(classSubjects.schoolId, schoolId)
             })
           : Promise.resolve([]),
         sectionIds.length > 0
@@ -142,10 +150,11 @@ const fetchFilterOptions = (schoolId: number, activeLevel: string | null, restri
       };
     },
     [
-      'academic-filter-options-v2',
+      'academic-filter-options-v3',
       String(schoolId),
       activeLevel || 'all-levels',
-      restrictedClassIds ? restrictedClassIds.join(',') || 'no-classes' : 'all-classes'
+      restrictedClassIds ? restrictedClassIds.join(',') || 'no-classes' : 'all-classes',
+      employeeId ? String(employeeId) : 'no-employee'
     ],
     { tags: [ACADEMICS_CACHE_TAG], revalidate: 3600 }
   )();
@@ -157,15 +166,17 @@ export async function getFilterOptions() {
   const roleType = await getUserRoleType(user);
   let activeLevel = await getActiveEducationalLevel(user);
   let restrictedClassIds: number[] | null = null;
+  let employeeId: number | null = null;
 
   if (roleType === "teacher") {
     const employee = await getTeacherEmployee(user);
     restrictedClassIds = employee ? await getTeacherClassIds(employee.id) : [];
+    employeeId = employee ? employee.id : null;
     activeLevel = null;
   }
   
   return protectedDbAction("Academics", "canView", async () => {
-    return await fetchFilterOptions(schoolId, activeLevel, restrictedClassIds);
+    return await fetchFilterOptions(schoolId, activeLevel, restrictedClassIds, employeeId);
   });
 }
 
@@ -532,10 +543,10 @@ export async function deleteSection(id: number) {
 // Grading Grid
 export async function getGradingGrid(params: { classId: number, subjectId: number, sessionId: number, term: string }) {
   return protectedDbAction("Academics", "canView", async (user) => {
-    // Verify teacher has access to this class
-    const hasAccess = await verifyTeacherClassAccess(user, params.classId);
+    // Verify teacher has access to this class and subject
+    const hasAccess = await verifyTeacherClassSubjectAccess(user, params.classId, params.subjectId);
     if (!hasAccess) {
-      return { error: "Accès refusé. Vous n'êtes pas autorisé pour cette classe." };
+      return { error: "Accès refusé. Vous n'êtes pas autorisé pour cette classe et cette matière." };
     }
 
     const cls = await readDb.query.schoolClasses.findFirst({ where: eq(schoolClasses.id, params.classId), with: { section: true } });
@@ -619,10 +630,10 @@ export async function saveStudentGrades(resultsData: any[]) {
 
     const first = resultsData[0];
 
-    // Verify teacher has access to this class
-    const hasAccess = await verifyTeacherClassAccess(user, first.classId);
+    // Verify teacher has access to this class and subject
+    const hasAccess = await verifyTeacherClassSubjectAccess(user, first.classId, first.subjectId);
     if (!hasAccess) {
-      return { error: "Accès refusé. Vous n'êtes pas autorisé pour cette classe." };
+      return { error: "Accès refusé. Vous n'êtes pas autorisé pour cette classe et cette matière." };
     }
 
     const existing = await db.query.studentResults.findMany({
@@ -672,10 +683,10 @@ export async function saveStudentGrades(resultsData: any[]) {
 // Devoir Grid
 export async function getDevoirGrid(params: { classId: number, subjectId: number, sessionId: number, term: string }) {
   return protectedDbAction("Academics", "canView", async (user) => {
-    // Verify teacher has access to this class
-    const hasAccess = await verifyTeacherClassAccess(user, params.classId);
+    // Verify teacher has access to this class and subject
+    const hasAccess = await verifyTeacherClassSubjectAccess(user, params.classId, params.subjectId);
     if (!hasAccess) {
-      return { error: "Accès refusé. Vous n'êtes pas autorisé pour cette classe." };
+      return { error: "Accès refusé. Vous n'êtes pas autorisé pour cette classe et cette matière." };
     }
 
     const cls = await readDb.query.schoolClasses.findFirst({ where: eq(schoolClasses.id, params.classId), with: { section: true } });
@@ -725,10 +736,10 @@ export async function saveDevoirGrades(payload: any[]) {
 
     const first = payload[0];
 
-    // Verify teacher has access to this class
-    const hasAccess = await verifyTeacherClassAccess(user, first.classId);
+    // Verify teacher has access to this class and subject
+    const hasAccess = await verifyTeacherClassSubjectAccess(user, first.classId, first.subjectId);
     if (!hasAccess) {
-      return { error: "Accès refusé. Vous n'êtes pas autorisé pour cette classe." };
+      return { error: "Accès refusé. Vous n'êtes pas autorisé pour cette classe et cette matière." };
     }
 
     const existing = await db.query.studentResults.findMany({
@@ -907,8 +918,63 @@ const fetchBroadsheetMatrix = (params: { classId: number, sessionId: number, ter
   )();
 
 export async function getBroadsheetMatrix(params: { classId: number, sessionId: number, term: string }) {
-  return protectedDbAction("Academics", "canView", async () => {
-    return await fetchBroadsheetMatrix(params);
+  return protectedDbAction("Academics", "canView", async (user) => {
+    // 1. Get raw matrix
+    const matrix = await fetchBroadsheetMatrix(params);
+    if ('error' in matrix) return matrix;
+
+    // 2. Filter if user is teacher
+    const roleType = await getUserRoleType(user);
+    if (roleType === "teacher") {
+      const hasClassAccess = await verifyTeacherClassAccess(user, params.classId);
+      if (!hasClassAccess) {
+        return { error: "Accès refusé. Vous n'êtes pas autorisé pour cette classe." };
+      }
+
+      const employee = await getTeacherEmployee(user);
+      if (!employee) return { students: [], subjects: [] };
+
+      const teacherSubjects = await db.select({ subjectId: classSubjects.subjectId })
+        .from(classSubjects)
+        .where(and(
+          eq(classSubjects.classId, params.classId),
+          eq(classSubjects.employeeId, employee.id)
+        ));
+      
+      const teacherSubIds = new Set(teacherSubjects.map(ts => ts.subjectId));
+
+      // Filter subjects list
+      const filteredSubjectsList = matrix.subjects.filter(sub => teacherSubIds.has(sub.id));
+
+      // Filter students' grades details in results object
+      const filteredStudents = matrix.students.map(stud => {
+        const resultsObj: Record<number, any> = {};
+        let totalWeighted = 0;
+        let totalCoef = 0;
+        
+        filteredSubjectsList.forEach(sub => {
+          const res = stud.results[sub.id];
+          if (res) {
+            resultsObj[sub.id] = res;
+            totalWeighted += (res.totalScore || 0) * (res.coefficient || 1);
+            totalCoef += (res.coefficient || 1);
+          }
+        });
+
+        const newAverage = totalCoef > 0 ? totalWeighted / totalCoef : 0;
+
+        return {
+          ...stud,
+          results: resultsObj,
+          average: newAverage,
+          rank: "-", // Rank cannot be determined for a subset of subjects
+        };
+      });
+
+      return { students: filteredStudents, subjects: filteredSubjectsList };
+    }
+
+    return matrix;
   });
 }
 
