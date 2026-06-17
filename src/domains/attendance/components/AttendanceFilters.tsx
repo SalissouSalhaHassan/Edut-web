@@ -73,9 +73,15 @@ export function AttendanceFilters({ date, classId, subjectId, classes, subjects 
           className="w-full px-6 h-14 rounded-2xl border border-slate-100 bg-slate-50/50 font-bold text-slate-700 focus:ring-2 focus:ring-primary/20 outline-none transition-all appearance-none"
         >
           <option value="">-- Appel Global --</option>
-          {subjects.map(s => (
-            <option key={s.id} value={s.id}>{s.subjectName}</option>
-          ))}
+          {subjects.map(s => {
+            const id = s.subject?.id || s.subjectId || s.id;
+            const name = s.subject?.subjectName || s.subjectName || "Matière inconnue";
+            return (
+              <option key={s.id} value={id}>
+                {name}
+              </option>
+            );
+          })}
         </select>
       </div>
     </div>
