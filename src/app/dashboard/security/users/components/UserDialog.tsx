@@ -251,11 +251,18 @@ export default function UserDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       {renderTrigger()}
       <DialogPortal>
-        {/* Overlay */}
-        <DialogOverlay className="fixed inset-0 z-[100] bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200" />
+        {/* Overlay — click to close */}
+        <DialogOverlay
+          onClick={() => setOpen(false)}
+          className="fixed inset-0 z-[100] bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200 cursor-pointer"
+        />
 
-        {/* Panel */}
-        <div className="fixed left-1/2 top-1/2 z-[101] -translate-x-1/2 -translate-y-1/2 w-full max-w-[1100px] px-4 animate-in zoom-in-95 fade-in duration-200">
+        {/* Panel — stopPropagation so clicks inside don't bubble to overlay */}
+        <div
+          className="fixed left-1/2 top-1/2 z-[101] -translate-x-1/2 -translate-y-1/2 w-full max-w-[1100px] px-4 animate-in zoom-in-95 fade-in duration-200"
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.key === "Escape" && setOpen(false)}
+        >
           <div className="bg-white rounded-3xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
 
             {/* ── Sticky Header ─────────────────────────────────────────── */}
