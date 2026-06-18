@@ -1,15 +1,15 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { createStudent, updateStudent } from "@/domains/students/actions/students.actions";
 import { createNotification } from "@/domains/messaging/actions/notifications.actions";
 import { StudentFormData } from "../validators/student.schema";
 import { getClasses, getSections, getEducationalLevels, getSessions } from "@/domains/academics/actions/academics.actions";
-import { Edit, Camera, Upload, Zap, X, Check, User } from "lucide-react";
+import { Camera, Upload, Zap, X, Check, User, ChevronLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 interface StudentDialogProps {
@@ -25,6 +25,8 @@ export default function StudentDialog({ mode = "add", initialData, trigger }: St
   const [error, setError] = useState("");
   const [cameraError, setCameraError] = useState("");
   const [step, setStep] = useState(1);
+
+  const close = useCallback(() => { setOpen(false); setStep(1); }, []);
 
   // ── Cascading select state ────────────────────────────────────────────────
   const [selectedLevel,   setSelectedLevel]   = useState(initialData?.educationalLevel || "");
@@ -109,6 +111,20 @@ export default function StudentDialog({ mode = "add", initialData, trigger }: St
   useEffect(() => {
     setPreview(initialData?.photoPath || null);
   }, [initialData]);
+
+  // Close on Escape
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") close(); };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [open, close]);
+
+  // Lock body scroll
+  useEffect(() => {
+    document.body.style.overflow = open ? "hidden" : "";
+    return () => { document.body.style.overflow = ""; };
+  }, [open]);
 
   // Photo states
   const [preview, setPreview] = useState<string | null>(initialData?.photoPath || null);
@@ -261,79 +277,106 @@ export default function StudentDialog({ mode = "add", initialData, trigger }: St
   const nextStep = () => setStep(prev => Math.min(prev + 1, 3));
   const prevStep = () => setStep(prev => Math.max(prev - 1, 1));
 
-  return (
-    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if(!v) setStep(1); }}>
-      <div onClick={() => setOpen(true)} className="inline-block cursor-pointer">
-        {trigger || (
+  const STEPS = [
+    { n: 1, t: "Profil Élève",    d: "Identité & Photo",  color: "bg-indigo-500",  ring: "ring-indigo-300" },
+    { n: 2, t: "Dossier Famille", d: "Parents & Contact", color: "bg-violet-500",  ring: "ring-violet-300" },
+    { n: 3, t: "Plan Financier",  d: "Scolarité & Bourse",color: "bg-emerald-500", ring: "ring-emerald-300" },
+  ];
 
-        <button className="rounded-2xl px-6 py-4 bg-slate-900 text-white hover:bg-slate-800 shadow-xl shadow-slate-200 transition-all font-bold gap-2 flex items-center justify-center group">
-          <Zap size={18} className="text-amber-400 group-hover:scale-125 transition-transform" />
-          Ajouter un étudiant
-        </button>
-      
-        )}
-      </div>
-      <DialogContent 
-        className="sm:max-w-5xl p-0 rounded-[2.5rem] border-none shadow-2xl bg-white"
-        style={{ height: '90vh', maxHeight: '90vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
+  const modal = open ? (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" aria-modal="true" role="dialog">
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={close} aria-hidden="true" />
+
+      {/* Panel */}
+      <div
+        className="relative w-full max-w-5xl bg-white rounded-[2.5rem] shadow-2xl flex overflow-hidden animate-in zoom-in-95 fade-in duration-200"
+        style={{ height: "90vh", maxHeight: "90vh" }}
+        onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex h-full min-h-0 overflow-hidden">
-          {/* Sidebar Navigation */}
-          <div className="w-64 bg-slate-900 p-8 flex flex-col justify-between hidden md:flex shrink-0">
-            <div className="space-y-10">
-              <div>
-                <h2 className="text-white text-3xl font-black tracking-tighter leading-tight italic">GS PRO<br/><span className="text-indigo-400 not-italic">STUDENT</span></h2>
-                <div className="h-1.5 w-12 bg-indigo-500 mt-4 rounded-full" />
-              </div>
+        {/* ── Sidebar ─────────────────────────────────────────────────── */}
+        <div className="w-64 bg-slate-900 flex flex-col justify-between shrink-0 hidden md:flex">
+          {/* Top branding */}
+          <div className="p-8 space-y-10">
+            <div>
+              <h2 className="text-white text-3xl font-black tracking-tighter leading-tight italic">
+                GS PRO<br /><span className="text-indigo-400 not-italic">STUDENT</span>
+              </h2>
+              <div className="h-1.5 w-12 bg-indigo-500 mt-4 rounded-full" />
+            </div>
 
-              <nav className="space-y-6">
-                {[
-                  { n: 1, t: "Profil Élève", i: "🪪", d: "Identité & Photo" },
-                  { n: 2, t: "Dossier Famille", i: "👨‍👩‍👦", d: "Parents & Contact" },
-                  { n: 3, t: "Plan Financier", i: "💰", d: "Scolارité & Bourse" }
-                ].map((s) => (
-                  <div key={s.n} className={`flex items-center gap-4 transition-all duration-500 ${step === s.n ? "translate-x-2" : "opacity-30 hover:opacity-50"}`}>
-                    <div className={`h-11 w-11 rounded-[1.25rem] flex items-center justify-center font-black text-base transition-all ${step === s.n ? "bg-indigo-500 text-white shadow-xl shadow-indigo-500/40 rotate-6" : "bg-slate-800 text-slate-500"}`}>
-                      {s.n}
+            {/* Step navigation */}
+            <nav className="space-y-5">
+              {STEPS.map((s) => {
+                const done = step > s.n;
+                const active = step === s.n;
+                return (
+                  <div key={s.n} className={`flex items-center gap-4 transition-all duration-300 ${active ? "translate-x-2" : "opacity-40 hover:opacity-60"}`}>
+                    <div className={`h-11 w-11 rounded-2xl flex items-center justify-center font-black text-sm transition-all
+                      ${active ? `${s.color} text-white shadow-lg ${s.ring} ring-4 ring-offset-slate-900 ring-offset-2 rotate-6`
+                        : done  ? "bg-emerald-500 text-white"
+                        : "bg-slate-800 text-slate-500"}`}>
+                      {done ? <Check size={16} /> : s.n}
                     </div>
                     <div>
                       <p className="text-white font-bold text-sm leading-tight">{s.t}</p>
-                      <p className="text-[9px] uppercase font-black tracking-widest text-indigo-400/60 mt-0.5">{s.d}</p>
+                      <p className="text-[9px] uppercase font-black tracking-widest text-slate-500 mt-0.5">{s.d}</p>
                     </div>
                   </div>
-                ))}
-              </nav>
-            </div>
-
-            <div className="p-6 bg-gradient-to-br from-slate-800 to-slate-900 rounded-[2.5rem] border border-slate-700/50 shadow-inner">
-               <div className="flex items-center gap-3 mb-2">
-                  <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <p className="text-[9px] text-slate-300 font-black uppercase tracking-widest">Connecté</p>
-               </div>
-              <p className="text-[10px] text-slate-500 font-bold leading-relaxed">Admin v2.4.0</p>
-            </div>
+                );
+              })}
+            </nav>
           </div>
 
-          {/* Main Content Area */}
-          <div className="flex-1 grid grid-rows-[auto_1fr_auto] bg-white overflow-hidden min-w-0 h-full relative">
-            {/* Fixed Header */}
-            <div className="px-8 pt-8 pb-6 border-b border-slate-50 bg-white z-10">
-              <DialogHeader>
-                <div className="flex justify-between items-end">
-                   <div>
-                      <p className="text-indigo-500 font-black text-[10px] uppercase tracking-[0.3em] mb-1">Administration Scolaire</p>
-                      <DialogTitle className="text-4xl font-black text-slate-900 tracking-tighter leading-none italic">
-                        {mode === "edit" ? "MODIFICATION" : "INSCRIPTION"}<br/>
-                        <span className="text-indigo-600 not-italic uppercase tracking-widest text-lg">Dossier Élève</span>
-                      </DialogTitle>
-                   </div>
-                   <div className="flex flex-col items-end">
-                      <span className="text-xs font-black text-slate-300 uppercase tracking-widest mb-1">Étape</span>
-                      <div className="text-5xl font-black text-slate-100 italic leading-none">{step}/3</div>
-                   </div>
-                </div>
-              </DialogHeader>
+          {/* Bottom status */}
+          <div className="p-6">
+            <div className="p-5 bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl border border-slate-700/50">
+              <div className="flex items-center gap-2 mb-1.5">
+                <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                <p className="text-[9px] text-slate-300 font-black uppercase tracking-widest">Connecté</p>
+              </div>
+              <p className="text-[10px] text-slate-500 font-bold">Admin v2.4.0</p>
             </div>
+          </div>
+        </div>
+
+        {/* ── Main content ────────────────────────────────────────────── */}
+        <div className="flex-1 grid grid-rows-[auto_1fr_auto] overflow-hidden min-w-0">
+
+          {/* Header */}
+          <div className="shrink-0">
+            {/* Coloured progress bar */}
+            <div className="h-1.5 w-full bg-slate-100">
+              <div
+                className="h-full bg-gradient-to-r from-indigo-500 via-violet-500 to-emerald-500 transition-all duration-500"
+                style={{ width: `${(step / 3) * 100}%` }}
+              />
+            </div>
+            <div className="px-8 pt-6 pb-5 border-b border-slate-100 flex justify-between items-end">
+              <div>
+                <p className="text-indigo-500 font-black text-[10px] uppercase tracking-[0.3em] mb-1">Administration Scolaire</p>
+                <h2 className="text-4xl font-black text-slate-900 tracking-tighter leading-none italic">
+                  {mode === "edit" ? "MODIFICATION" : "INSCRIPTION"}
+                </h2>
+                <p className="text-indigo-600 font-black uppercase tracking-widest text-sm mt-1">Dossier Élève</p>
+              </div>
+              <div className="flex items-end gap-4">
+                <div className="text-right">
+                  <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Étape</span>
+                  <div className="text-5xl font-black text-slate-100 italic leading-none">{step}/3</div>
+                </div>
+                {/* Close X */}
+                <button
+                  type="button"
+                  onClick={close}
+                  aria-label="Fermer"
+                  className="mb-1 w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+          </div>
 
             {/* Scrollable Form Body */}
             <div className="overflow-y-auto custom-scrollbar px-8 py-8 min-h-0 bg-white">
@@ -680,34 +723,65 @@ export default function StudentDialog({ mode = "add", initialData, trigger }: St
               </form>
             </div>
 
-            {/* Fixed Footer Navigation */}
-            <div className="px-8 py-6 border-t border-slate-50 flex justify-between items-center bg-slate-50/50 z-10">
-               <div className="flex gap-4">
-                  {step > 1 && (
-                    <Button onClick={prevStep} type="button" variant="ghost" className="h-12 px-8 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-white transition-all border border-transparent hover:border-slate-100">
-                      ← Précédent
-                    </Button>
-                  )}
-               </div>
-               <div className="flex gap-4">
-                  <Button type="button" variant="ghost" onClick={() => setOpen(false)} className="h-12 px-8 rounded-xl font-black uppercase tracking-widest text-[10px] text-slate-400 hover:text-slate-600">
-                    Quitter
-                  </Button>
-                  {step < 3 ? (
-                    <Button type="button" onClick={nextStep} className="h-12 px-12 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-black uppercase tracking-widest text-[10px] shadow-lg transition-all hover:scale-105 active:scale-95 group">
-                      Suivant <Zap size={12} className="ml-3 text-amber-400 group-hover:rotate-12 transition-transform" />
-                    </Button>
-                  ) : (
-                    <Button onClick={handleFinalSubmit} disabled={loading} className="h-12 px-12 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest text-[10px] shadow-lg shadow-indigo-200 transition-all hover:scale-105 active:scale-95">
-                      {loading ? "TRAITEMENT..." : mode === "edit" ? "METTRE À JOUR" : "VALIDER L'INSCRIPTION"}
-                    </Button>
-                  )}
-               </div>
+          {/* Footer */}
+          <div className="shrink-0 px-8 py-5 border-t border-slate-100 bg-slate-50/50 flex justify-between items-center">
+            <div>
+              {step > 1 && (
+                <Button
+                  onClick={prevStep}
+                  type="button"
+                  variant="ghost"
+                  className="h-11 px-6 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-white border border-transparent hover:border-slate-200 flex items-center gap-2"
+                >
+                  <ChevronLeft size={14} /> Précédent
+                </Button>
+              )}
+            </div>
+            <div className="flex gap-3">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={close}
+                className="h-11 px-6 rounded-xl font-black uppercase tracking-widest text-[10px] text-slate-400 hover:text-slate-600"
+              >
+                Quitter
+              </Button>
+              {step < 3 ? (
+                <Button
+                  type="button"
+                  onClick={nextStep}
+                  className="h-11 px-10 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-black uppercase tracking-widest text-[10px] shadow-lg transition-all hover:scale-105 active:scale-95 group flex items-center gap-2"
+                >
+                  Suivant <Zap size={12} className="text-amber-400 group-hover:rotate-12 transition-transform" />
+                </Button>
+              ) : (
+                <Button
+                  onClick={handleFinalSubmit}
+                  disabled={loading}
+                  className="h-11 px-10 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-black uppercase tracking-widest text-[10px] shadow-lg shadow-indigo-200 transition-all hover:scale-105 active:scale-95"
+                >
+                  {loading ? "TRAITEMENT..." : mode === "edit" ? "METTRE À JOUR" : "VALIDER L'INSCRIPTION"}
+                </Button>
+              )}
             </div>
           </div>
         </div>
-        <canvas ref={canvasRef} className="hidden" />
-      </DialogContent>
-    </Dialog>
+      </div>
+      <canvas ref={canvasRef} className="hidden" />
+    </div>
+  ) : null;
+
+  return (
+    <>
+      <div onClick={() => setOpen(true)} className="inline-block cursor-pointer">
+        {trigger || (
+          <button className="rounded-2xl px-6 py-4 bg-slate-900 text-white hover:bg-slate-800 shadow-xl shadow-slate-200 transition-all font-bold gap-2 flex items-center justify-center group">
+            <Zap size={18} className="text-amber-400 group-hover:scale-125 transition-transform" />
+            Ajouter un étudiant
+          </button>
+        )}
+      </div>
+      {typeof window !== "undefined" && createPortal(modal, document.body)}
+    </>
   );
 }
