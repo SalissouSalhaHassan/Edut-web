@@ -5,9 +5,20 @@ import {
   updateSchoolStatus,
   updateSchoolPlan,
   impersonateSchool,
+  updateSchoolCustomDomain,
 } from "@/domains/platform/actions/platform.actions";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import {
   Settings,
   Eye,
@@ -20,6 +31,7 @@ import {
   Filter,
   ExternalLink,
   Loader2,
+  Globe,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -74,6 +86,10 @@ export function SchoolManagerNew({ schools: initialSchools }: { schools: SchoolR
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [page, setPage] = useState(1);
+  const [selectedSchoolForDomain, setSelectedSchoolForDomain] = useState<SchoolRecord | null>(null);
+  const [domainInput, setDomainInput] = useState("");
+  const [isDomainOpen, setIsDomainOpen] = useState(false);
+  const [isDomainSaving, setIsDomainSaving] = useState(false);
 
   const hostConfig = useMemo<{ baseDomain: string; mode: HostMode }>(() => {
     if (typeof window === "undefined") {
@@ -384,6 +400,19 @@ export function SchoolManagerNew({ schools: initialSchools }: { schools: SchoolR
                               </div>
                               {school.status === "active" ? "Suspendre" : "Rétablir"}
                             </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setSelectedSchoolForDomain(school);
+                                setDomainInput(school.customDomain || "");
+                                setIsDomainOpen(true);
+                              }}
+                              className="rounded-xl font-semibold gap-3 p-3 focus:bg-indigo-50 focus:text-indigo-600 cursor-pointer text-sm"
+                            >
+                              <div className="size-7 rounded-lg bg-indigo-100 flex items-center justify-center text-indigo-600 shrink-0">
+                                <Globe className="w-3.5 h-3.5" />
+                              </div>
+                              Domaine Perso
+                            </DropdownMenuItem>
                           </DropdownMenuGroup>
                           <DropdownMenuSeparator className="my-1 bg-slate-50" />
                           <DropdownMenuGroup>
@@ -485,6 +514,93 @@ export function SchoolManagerNew({ schools: initialSchools }: { schools: SchoolR
           </button>
         </div>
       </div>
+
+      {/* Dialog for editing custom domain */}
+      <Dialog open={isDomainOpen} onOpenChange={setIsDomainOpen}>
+        <DialogContent className="max-w-md rounded-[2.5rem] p-8 border-none shadow-2xl">
+          <DialogHeader className="mb-4">
+            <div className="w-16 h-16 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-4 shadow-sm">
+              <Globe size={32} />
+            </div>
+            <DialogTitle className="text-3xl font-black text-slate-900 tracking-tight">Domaine Personnalisé</DialogTitle>
+            <DialogDescription className="text-slate-500 font-medium italic">
+              Configurez le nom de domaine personnalisé pour {selectedSchoolForDomain?.name}.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="domain" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+                Nom de Domaine
+              </Label>
+              <Input
+                id="domain"
+                placeholder="Ex: portal.schoolname.edu"
+                className="h-14 rounded-2xl border-slate-100 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 transition-all font-bold"
+                value={domainInput}
+                onChange={(e) => setDomainInput(e.target.value)}
+              />
+              <p className="text-[10px] text-slate-400 mt-1 leading-normal pl-1">
+                Laissez vide pour supprimer le domaine personnalisé et utiliser le sous-domaine par défaut.
+              </p>
+            </div>
+
+            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-2 text-xs text-slate-600 leading-relaxed">
+              <p className="font-bold text-slate-800">⚠️ Configuration DNS requise :</p>
+              <p>L'établissement doit configurer ces enregistrements chez son fournisseur de nom de domaine :</p>
+              <ul className="list-disc pl-4 space-y-1">
+                <li><strong>Enregistrement CNAME</strong> : pointe vers <code className="bg-slate-200 px-1 py-0.5 rounded text-[11px] font-mono">cname.vercel-dns.com</code></li>
+                <li><strong>Ou Enregistrement A</strong> : pointe vers l'adresse IP <code className="bg-slate-200 px-1 py-0.5 rounded text-[11px] font-mono">76.76.21.21</code></li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="flex gap-3 pt-6">
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1 h-14 rounded-2xl font-bold"
+              onClick={() => setIsDomainOpen(false)}
+            >
+              Annuler
+            </Button>
+            <Button
+              type="button"
+              disabled={isDomainSaving}
+              className="flex-1 h-14 rounded-2xl bg-slate-900 hover:bg-indigo-600 text-white font-black uppercase tracking-widest transition-all"
+              onClick={async () => {
+                if (!selectedSchoolForDomain) return;
+                setIsDomainSaving(true);
+                try {
+                  const res = await updateSchoolCustomDomain(
+                    selectedSchoolForDomain.id,
+                    domainInput.trim() === "" ? null : domainInput.trim()
+                  );
+                  if (res.success) {
+                    setSchools((prev) =>
+                      prev.map((s) =>
+                        s.id === selectedSchoolForDomain.id
+                          ? { ...s, customDomain: domainInput.trim() === "" ? null : domainInput.trim() }
+                          : s
+                      )
+                    );
+                    toast.success("Domaine personnalisé mis à jour avec succès !");
+                    setIsDomainOpen(false);
+                  } else {
+                    toast.error("Une erreur est survenue lors de la mise à jour.");
+                  }
+                } catch (error: any) {
+                  toast.error(error.message || "Erreur de connexion.");
+                } finally {
+                  setIsDomainSaving(false);
+                }
+              }}
+            >
+              {isDomainSaving ? <Loader2 className="animate-spin size-5" /> : "Enregistrer"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

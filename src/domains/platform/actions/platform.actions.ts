@@ -9,6 +9,7 @@ import { eq, sql, desc, count } from "drizzle-orm";
 import { superAdminAction } from "@/lib/protected-action";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
+import { addDomainToVercel, removeDomainFromVercel } from "../services/vercel";
 
 /**
  * Global stats across all schools
@@ -145,5 +146,52 @@ export async function getGlobalAuditLogs() {
       orderBy: [desc(auditLogs.timestamp)],
       limit: 50,
     });
+  });
+}
+
+/**
+ * Update school custom domain and sync with Vercel API
+ */
+export async function updateSchoolCustomDomain(id: number, customDomain: string | null) {
+  return superAdminAction(async () => {
+    // 1. Fetch current school state to check if customDomain is changing
+    const school = await readDb.query.schools.findFirst({
+      where: eq(schools.id, id),
+    });
+
+    if (!school) {
+      throw new Error("École non trouvée.");
+    }
+
+    const normalizedDomain = customDomain?.trim().toLowerCase() || null;
+
+    if (school.customDomain !== normalizedDomain) {
+      // a. If there was an old domain, remove it from Vercel
+      if (school.customDomain) {
+        try {
+          console.log(`[Platform Actions] Removing old domain from Vercel: ${school.customDomain}`);
+          await removeDomainFromVercel(school.customDomain);
+        } catch (err) {
+          console.error(`[Platform Actions] Failed to remove domain ${school.customDomain} from Vercel:`, err);
+        }
+      }
+
+      // b. If there is a new domain, add it to Vercel
+      if (normalizedDomain) {
+        console.log(`[Platform Actions] Adding new domain to Vercel: ${normalizedDomain}`);
+        const vercelRes = await addDomainToVercel(normalizedDomain);
+        if (!vercelRes.success) {
+          throw new Error(`Erreur Vercel : ${vercelRes.error || "Impossible d'ajouter le domaine."}`);
+        }
+      }
+
+      // c. Save to DB
+      await db.update(schools)
+        .set({ customDomain: normalizedDomain })
+        .where(eq(schools.id, id));
+    }
+
+    revalidatePath("/platform-admin");
+    return { success: true };
   });
 }
