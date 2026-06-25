@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useMemo } from "react";
+import { useState, useTransition, useMemo, useEffect } from "react";
 import {
   updateSchoolStatus,
   updateSchoolPlan,
@@ -82,6 +82,12 @@ function planBadge(plan: string | null | undefined) {
 
 export function SchoolManagerNew({ schools: initialSchools }: { schools: SchoolRecord[] }) {
   const [schools, setSchools] = useState(initialSchools);
+
+  // Sync state with props when server-side data reloads (e.g. after adding a new school)
+  useEffect(() => {
+    setSchools(initialSchools);
+  }, [initialSchools]);
+
   const [isPending, startTransition] = useTransition();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
