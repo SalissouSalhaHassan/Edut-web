@@ -593,7 +593,7 @@ export function SchoolManagerNew({ schools: initialSchools }: { schools: SchoolR
                     toast.success("Domaine personnalisé mis à jour avec succès !");
                     setIsDomainOpen(false);
                   } else {
-                    toast.error("Une erreur est survenue lors de la mise à jour.");
+                    toast.error(res.error || "Une erreur est survenue lors de la mise à jour.");
                   }
                 } catch (error: any) {
                   toast.error(error.message || "Erreur de connexion.");
