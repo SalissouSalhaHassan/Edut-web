@@ -49,7 +49,7 @@ function UserAvatar({ size = 24, className }: any) {
 export default async function HRPage({ searchParams }: { searchParams: Promise<{ search?: string; view?: "grid" | "list"; page?: string }> }) {
   const params = await searchParams;
   const search = params.search || "";
-  const viewMode = params.view || "list";
+  const viewMode = params.view || "grid";
   const page = Number(params.page) || 1;
   const itemsPerPage = 8;
 
@@ -87,7 +87,7 @@ export default async function HRPage({ searchParams }: { searchParams: Promise<{
   const createPageUrl = (newPage: number, newSearch?: string, newView?: "grid" | "list") => {
     const p = new URLSearchParams();
     if (newSearch && newSearch !== "") p.set("search", newSearch);
-    if (newView && newView !== "list") p.set("view", newView);
+    if (newView && newView !== "grid") p.set("view", newView);
     if (newPage > 1) p.set("page", newPage.toString());
     return p.toString() ? `?${p.toString()}` : "";
   };
@@ -227,180 +227,259 @@ export default async function HRPage({ searchParams }: { searchParams: Promise<{
         </div>
       </div>
 
-      {/* ─── Employee Table ─── */}
-      <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40 overflow-x-auto w-full scrollbar-thin">
-        <table className="min-w-[1800px] text-left border-collapse table-fixed">
-          <thead>
-            <tr className="bg-slate-50 border-b border-slate-200 text-slate-700">
-              <th rowSpan={2} className="w-[60px] px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center border-r border-slate-100">
-                N°
-              </th>
-              <th colSpan={7} className="px-4 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest text-center border-r border-slate-100 bg-indigo-50/20">
-                IDENTIFICATION DE L'AGENT <span className="text-[9px] font-bold text-slate-400 font-arabic ml-1">(تعريف الوكيل)</span>
-              </th>
-              <th colSpan={4} className="px-4 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest text-center border-r border-slate-100 bg-amber-50/20">
-                GRADE DE L'AGENT <span className="text-[9px] font-bold text-slate-400 font-arabic ml-1">(درجة الوكيل)</span>
-              </th>
-              <th colSpan={2} className="px-4 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest text-center border-r border-slate-100 bg-blue-50/20">
-                POSTE OCCUPÉ <span className="text-[9px] font-bold text-slate-400 font-arabic ml-1">(الوظيفة الشاغرة)</span>
-              </th>
-              <th colSpan={5} className="px-4 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest text-center border-r border-slate-100 bg-emerald-50/20">
-                AFFECTATION <span className="text-[9px] font-bold text-slate-400 font-arabic ml-1">(التعيين)</span>
-              </th>
-              <th rowSpan={2} className="w-[120px] px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center border-r border-slate-100">
-                salaireBase
-              </th>
-              <th rowSpan={2} className="w-[100px] px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center border-r border-slate-100">
-                Statut
-              </th>
-              <th rowSpan={2} className="w-[110px] px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right pr-8">
-                Actions
-              </th>
-            </tr>
-            <tr className="bg-slate-50 border-b border-slate-100 text-slate-600">
-              {/* Identification */}
-              <th className="w-[120px] px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-center border-r border-slate-100">MATRICULE</th>
-              <th className="w-[200px] px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-center border-r border-slate-100">NOM ET PRÉNOM</th>
-              <th className="w-[120px] px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-center border-r border-slate-100">DATE DE NAIS.</th>
-              <th className="w-[120px] px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-center border-r border-slate-100">LIEU DE NAIS.</th>
-              <th className="w-[70px] px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-center border-r border-slate-100">sexe</th>
-              <th className="w-[120px] px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-center border-r border-slate-100">MOBILE</th>
-              <th className="w-[160px] px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-center border-r border-slate-100">EMAIL</th>
-              
-              {/* Grade */}
-              <th className="w-[100px] px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-center border-r border-slate-100">CODE GRADE</th>
-              <th className="w-[100px] px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-center border-r border-slate-100">CATÉGORIE</th>
-              <th className="w-[100px] px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-center border-r border-slate-100">CLASSE</th>
-              <th className="w-[100px] px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-center border-r border-slate-100">ÉCHELON</th>
-              
-              {/* Poste */}
-              <th className="w-[140px] px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-center border-r border-slate-100">FONCTION</th>
-              <th className="w-[120px] px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-center border-r border-slate-100">DATE NOMIN.</th>
-              
-              {/* Affectation */}
-              <th className="w-[160px] px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-center border-r border-slate-100">LIEU D’AFFEC.</th>
-              <th className="w-[110px] px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-center border-r border-slate-100">COMMUNE</th>
-              <th className="w-[120px] px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-center border-r border-slate-100">DÉPARTEMENT</th>
-              <th className="w-[110px] px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-center border-r border-slate-100">RÉGION</th>
-              <th className="w-[120px] px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-center border-r border-slate-100">DATE AFFEC.</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-50">
-            {paginatedEmployees.length > 0 ? (
-              paginatedEmployees.map((employee: any, idx: number) => (
-                <tr key={employee.id} className="group hover:bg-slate-50/50 transition-all text-xs text-slate-700">
-                  <td className="px-4 py-4 text-center border-r border-slate-100 font-bold text-slate-400">
-                    {start + idx + 1}
-                  </td>
-                  <td className="px-4 py-4 text-center border-r border-slate-100 font-semibold text-slate-800">
-                    {employee.empId}
-                  </td>
-                  <td className="px-4 py-4 border-r border-slate-100 font-black text-slate-900 uppercase truncate">
-                    {employee.nom}
-                  </td>
-                  <td className="px-4 py-4 text-center border-r border-slate-100">
-                    {employee.dateNaissance || "-"}
-                  </td>
-                  <td className="px-4 py-4 text-center border-r border-slate-100 truncate">
-                    {employee.lieuNaissance || "-"}
-                  </td>
-                  <td className="px-4 py-4 text-center border-r border-slate-100">
-                    {employee.sexe || "-"}
-                  </td>
-                  <td className="px-4 py-4 text-center border-r border-slate-100">
-                    {employee.mobile || "-"}
-                  </td>
-                  <td className="px-4 py-4 border-r border-slate-100 text-slate-500 truncate">
-                    {employee.email || "-"}
-                  </td>
+      {/* ─── Employee Grid / Table ─── */}
+      {viewMode === "grid" ? (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {paginatedEmployees.length > 0 ? (
+            paginatedEmployees.map((employee: any) => (
+              <div key={employee.id} className="bg-white p-5 rounded-[1.5rem] border border-slate-100 shadow-sm hover:shadow-md transition-all flex items-center gap-4">
+                {/* Photo / Avatar */}
+                <div className="w-14 h-14 rounded-2xl bg-indigo-50 overflow-hidden shrink-0 border border-slate-100 flex items-center justify-center">
+                  {employee.photoPath ? (
+                    <img src={employee.photoPath} alt={employee.nom} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-indigo-300">
+                      <UserAvatar size={24} className="text-indigo-400" />
+                    </div>
+                  )}
+                </div>
+
+                {/* Info details */}
+                <div className="flex-1 min-w-0 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <h3 className="font-black text-sm text-slate-900 truncate uppercase">{employee.nom}</h3>
+                    <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-wider">ID: {employee.empId}</p>
+                  </div>
                   
-                  {/* Grade */}
-                  <td className="px-4 py-4 text-center border-r border-slate-100">
-                    {employee.codeGrade || "-"}
-                  </td>
-                  <td className="px-4 py-4 text-center border-r border-slate-100">
-                    {employee.categorie || "-"}
-                  </td>
-                  <td className="px-4 py-4 text-center border-r border-slate-100">
-                    {employee.classe || "-"}
-                  </td>
-                  <td className="px-4 py-4 text-center border-r border-slate-100">
-                    {employee.echelon || "-"}
-                  </td>
-                  
-                  {/* Poste */}
-                  <td className="px-4 py-4 text-center border-r border-slate-100 font-semibold truncate">
-                    {employee.fonction || employee.poste || "-"}
-                  </td>
-                  <td className="px-4 py-4 text-center border-r border-slate-100">
-                    {employee.dateNomination || "-"}
-                  </td>
-                  
-                  {/* Affectation */}
-                  <td className="px-4 py-4 text-center border-r border-slate-100 truncate">
-                    {employee.lieuAffectation || "-"}
-                  </td>
-                  <td className="px-4 py-4 text-center border-r border-slate-100 truncate">
-                    {employee.commune || "-"}
-                  </td>
-                  <td className="px-4 py-4 text-center border-r border-slate-100 truncate">
-                    {employee.departement || "-"}
-                  </td>
-                  <td className="px-4 py-4 text-center border-r border-slate-100 truncate">
-                    {employee.region || "-"}
-                  </td>
-                  <td className="px-4 py-4 text-center border-r border-slate-100">
-                    {employee.dateAffectation || "-"}
-                  </td>
-                  
-                  {/* Autre / salaireBase */}
-                  <td className="px-4 py-4 text-center border-r border-slate-100 font-bold text-slate-800">
-                    {employee.salaireBase ? `${Math.round(employee.salaireBase).toLocaleString("fr-FR")} CFA` : "0 CFA"}
-                  </td>
-                  
-                  {/* Statut */}
-                  <td className="px-4 py-4 text-center border-r border-slate-100">
-                    <StatusBadge status={employee.statut || "Actif"} />
-                  </td>
-                  
-                  {/* Actions */}
-                  <td className="px-4 py-4 text-right pr-8">
-                    <div className="flex items-center justify-end gap-2">
-                      {canEdit && (
-                        <EmployeeDialog
-                          mode="edit"
-                          initialData={employee}
-                          trigger={
-                            <button className="h-8 w-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50 transition-colors">
-                              <Edit size={14} />
-                            </button>
-                          }
-                        />
+                  <div className="flex flex-col gap-1 justify-center">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[11px] font-bold text-slate-700">{employee.fonction || employee.poste || "Personnel"}</span>
+                      {employee.departement && (
+                        <span className="text-[9px] px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded font-semibold truncate max-w-[100px]">{employee.departement}</span>
                       )}
-                      <div className="inline-block">
-                        <ActionMenu
-                          title={`Gérer ${employee.nom}`}
-                          onDelete={canDelete ? deleteEmployee.bind(null, employee.id) : undefined}
-                          canEdit={canEdit}
-                        />
+                    </div>
+                    <div className="flex items-center gap-4">
+                      {employee.codeGrade && (
+                        <span className="text-[11px] font-semibold text-slate-500">Grade: {employee.codeGrade}</span>
+                      )}
+                      <span className="text-[11px] font-semibold flex items-center gap-1">
+                        {employee.sexe?.toLowerCase() === 'femme' ? (
+                          <><span className="text-pink-500">♀</span> <span className="text-slate-500">Femme</span></>
+                        ) : (
+                          <><span className="text-blue-500">♂</span> <span className="text-slate-500">Homme</span></>
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Status & Action */}
+                <div className="flex items-center gap-3 pl-2">
+                  <StatusBadge status={employee.statut || "Actif"} />
+                  
+                  <ActionMenu 
+                    title={`Gérer ${employee.nom}`}
+                    onDelete={canDelete ? deleteEmployee.bind(null, employee.id) : undefined}
+                    canEdit={canEdit}
+                    canDelete={canDelete}
+                    editDialog={
+                      <EmployeeDialog 
+                        mode="edit" 
+                        initialData={employee} 
+                        trigger={
+                          <button className="flex items-center gap-2 p-3 rounded-xl cursor-pointer hover:bg-indigo-50 hover:text-indigo-600 transition-colors w-full text-left">
+                            <Edit size={16} />
+                            <span className="font-semibold text-sm">Modifier</span>
+                          </button>
+                        }
+                      />
+                    }
+                  />
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="col-span-full py-20 text-center bg-white rounded-[2rem] border border-slate-100 border-dashed">
+              <Users size={48} className="mx-auto text-slate-300 mb-4" />
+              <p className="text-lg font-bold text-slate-500">Aucun employé trouvé</p>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40 overflow-x-auto w-full scrollbar-thin">
+          <table className="min-w-[1800px] text-left border-collapse table-fixed">
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-200 text-slate-700">
+                <th rowSpan={2} className="w-[60px] px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center border-r border-slate-100">
+                  N°
+                </th>
+                <th colSpan={7} className="px-4 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest text-center border-r border-slate-100 bg-indigo-50/20">
+                  IDENTIFICATION DE L'AGENT <span className="text-[9px] font-bold text-slate-400 font-arabic ml-1">(تعريف الوكيل)</span>
+                </th>
+                <th colSpan={4} className="px-4 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest text-center border-r border-slate-100 bg-amber-50/20">
+                  GRADE DE L'AGENT <span className="text-[9px] font-bold text-slate-400 font-arabic ml-1">(درجة الوكيل)</span>
+                </th>
+                <th colSpan={2} className="px-4 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest text-center border-r border-slate-100 bg-blue-50/20">
+                  POSTE OCCUPÉ <span className="text-[9px] font-bold text-slate-400 font-arabic ml-1">(الوظيفة الشاغرة)</span>
+                </th>
+                <th colSpan={5} className="px-4 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest text-center border-r border-slate-100 bg-emerald-50/20">
+                  AFFECTATION <span className="text-[9px] font-bold text-slate-400 font-arabic ml-1">(التعيين)</span>
+                </th>
+                <th rowSpan={2} className="w-[120px] px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center border-r border-slate-100">
+                  salaireBase
+                </th>
+                <th rowSpan={2} className="w-[100px] px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center border-r border-slate-100">
+                  Statut
+                </th>
+                <th rowSpan={2} className="w-[110px] px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right pr-8">
+                  Actions
+                </th>
+              </tr>
+              <tr className="bg-slate-50 border-b border-slate-100 text-slate-600">
+                {/* Identification */}
+                <th className="w-[120px] px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-center border-r border-slate-100">MATRICULE</th>
+                <th className="w-[200px] px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-center border-r border-slate-100">NOM ET PRÉNOM</th>
+                <th className="w-[120px] px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-center border-r border-slate-100">DATE DE NAIS.</th>
+                <th className="w-[120px] px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-center border-r border-slate-100">LIEU DE NAIS.</th>
+                <th className="w-[70px] px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-center border-r border-slate-100">sexe</th>
+                <th className="w-[120px] px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-center border-r border-slate-100">MOBILE</th>
+                <th className="w-[160px] px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-center border-r border-slate-100">EMAIL</th>
+                
+                {/* Grade */}
+                <th className="w-[100px] px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-center border-r border-slate-100">CODE GRADE</th>
+                <th className="w-[100px] px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-center border-r border-slate-100">CATÉGORIE</th>
+                <th className="w-[100px] px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-center border-r border-slate-100">CLASSE</th>
+                <th className="w-[100px] px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-center border-r border-slate-100">ÉCHELON</th>
+                
+                {/* Poste */}
+                <th className="w-[140px] px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-center border-r border-slate-100">FONCTION</th>
+                <th className="w-[120px] px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-center border-r border-slate-100">DATE NOMIN.</th>
+                
+                {/* Affectation */}
+                <th className="w-[160px] px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-center border-r border-slate-100">LIEU D’AFFEC.</th>
+                <th className="w-[110px] px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-center border-r border-slate-100">COMMUNE</th>
+                <th className="w-[120px] px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-center border-r border-slate-100">DÉPARTEMENT</th>
+                <th className="w-[110px] px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-center border-r border-slate-100">RÉGION</th>
+                <th className="w-[120px] px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-center border-r border-slate-100">DATE AFFEC.</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50">
+              {paginatedEmployees.length > 0 ? (
+                paginatedEmployees.map((employee: any, idx: number) => (
+                  <tr key={employee.id} className="group hover:bg-slate-50/50 transition-all text-xs text-slate-700">
+                    <td className="px-4 py-4 text-center border-r border-slate-100 font-bold text-slate-400">
+                      {start + idx + 1}
+                    </td>
+                    <td className="px-4 py-4 text-center border-r border-slate-100 font-semibold text-slate-800">
+                      {employee.empId}
+                    </td>
+                    <td className="px-4 py-4 border-r border-slate-100 font-black text-slate-900 uppercase truncate">
+                      {employee.nom}
+                    </td>
+                    <td className="px-4 py-4 text-center border-r border-slate-100">
+                      {employee.dateNaissance || "-"}
+                    </td>
+                    <td className="px-4 py-4 text-center border-r border-slate-100 truncate">
+                      {employee.lieuNaissance || "-"}
+                    </td>
+                    <td className="px-4 py-4 text-center border-r border-slate-100">
+                      {employee.sexe || "-"}
+                    </td>
+                    <td className="px-4 py-4 text-center border-r border-slate-100">
+                      {employee.mobile || "-"}
+                    </td>
+                    <td className="px-4 py-4 border-r border-slate-100 text-slate-500 truncate">
+                      {employee.email || "-"}
+                    </td>
+                    
+                    {/* Grade */}
+                    <td className="px-4 py-4 text-center border-r border-slate-100">
+                      {employee.codeGrade || "-"}
+                    </td>
+                    <td className="px-4 py-4 text-center border-r border-slate-100">
+                      {employee.categorie || "-"}
+                    </td>
+                    <td className="px-4 py-4 text-center border-r border-slate-100">
+                      {employee.classe || "-"}
+                    </td>
+                    <td className="px-4 py-4 text-center border-r border-slate-100">
+                      {employee.echelon || "-"}
+                    </td>
+                    
+                    {/* Poste */}
+                    <td className="px-4 py-4 text-center border-r border-slate-100 font-semibold truncate">
+                      {employee.fonction || employee.poste || "-"}
+                    </td>
+                    <td className="px-4 py-4 text-center border-r border-slate-100">
+                      {employee.dateNomination || "-"}
+                    </td>
+                    
+                    {/* Affectation */}
+                    <td className="px-4 py-4 text-center border-r border-slate-100 truncate">
+                      {employee.lieuAffectation || "-"}
+                    </td>
+                    <td className="px-4 py-4 text-center border-r border-slate-100 truncate">
+                      {employee.commune || "-"}
+                    </td>
+                    <td className="px-4 py-4 text-center border-r border-slate-100 truncate">
+                      {employee.departement || "-"}
+                    </td>
+                    <td className="px-4 py-4 text-center border-r border-slate-100 truncate">
+                      {employee.region || "-"}
+                    </td>
+                    <td className="px-4 py-4 text-center border-r border-slate-100">
+                      {employee.dateAffectation || "-"}
+                    </td>
+                    
+                    {/* Autre / salaireBase */}
+                    <td className="px-4 py-4 text-center border-r border-slate-100 font-bold text-slate-800">
+                      {employee.salaireBase ? `${Math.round(employee.salaireBase).toLocaleString("fr-FR")} CFA` : "0 CFA"}
+                    </td>
+                    
+                    {/* Statut */}
+                    <td className="px-4 py-4 text-center border-r border-slate-100">
+                      <StatusBadge status={employee.statut || "Actif"} />
+                    </td>
+                    
+                    {/* Actions */}
+                    <td className="px-4 py-4 text-right pr-8">
+                      <div className="flex items-center justify-end gap-2">
+                        {canEdit && (
+                          <EmployeeDialog
+                            mode="edit"
+                            initialData={employee}
+                            trigger={
+                              <button className="h-8 w-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50 transition-colors">
+                                <Edit size={14} />
+                              </button>
+                            }
+                          />
+                        )}
+                        <div className="inline-block">
+                          <ActionMenu
+                            title={`Gérer ${employee.nom}`}
+                            onDelete={canDelete ? deleteEmployee.bind(null, employee.id) : undefined}
+                            canEdit={canEdit}
+                          />
+                        </div>
                       </div>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={23} className="px-8 py-20 text-center">
+                    <div className="flex flex-col items-center gap-4 opacity-20">
+                      <Users size={64} />
+                      <p className="text-xl font-bold">Aucun employé trouvé</p>
                     </div>
                   </td>
                 </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan={23} className="px-8 py-20 text-center">
-                  <div className="flex flex-col items-center gap-4 opacity-20">
-                    <Users size={64} />
-                    <p className="text-xl font-bold">Aucun employé trouvé</p>
-                  </div>
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* ─── Pagination ─── */}
       {filteredEmployees.length > 0 && (
