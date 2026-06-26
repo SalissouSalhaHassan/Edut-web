@@ -16,6 +16,11 @@ export async function addDomainToVercel(domain: string): Promise<VercelResponse>
 
   if (!projectId || !token) {
     console.warn("[Vercel Service] VERCEL_PROJECT_ID or VERCEL_API_TOKEN is missing in environment variables.");
+    const isDev = process.env.NODE_ENV === "development" || process.env.NEXT_PUBLIC_DEMO_MODE === "true";
+    if (isDev) {
+      console.log(`[Vercel Service] Bypassing Vercel domain addition in development mode for: ${domain}`);
+      return { success: true };
+    }
     return { success: false, error: "Configuration Vercel manquante sur le serveur." };
   }
 
@@ -53,6 +58,11 @@ export async function removeDomainFromVercel(domain: string): Promise<VercelResp
 
   if (!projectId || !token) {
     console.warn("[Vercel Service] VERCEL_PROJECT_ID or VERCEL_API_TOKEN is missing in environment variables.");
+    const isDev = process.env.NODE_ENV === "development" || process.env.NEXT_PUBLIC_DEMO_MODE === "true";
+    if (isDev) {
+      console.log(`[Vercel Service] Bypassing Vercel domain removal in development mode for: ${domain}`);
+      return { success: true };
+    }
     return { success: false, error: "Configuration Vercel manquante sur le serveur." };
   }
 
