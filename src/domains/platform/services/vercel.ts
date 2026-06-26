@@ -15,13 +15,8 @@ export async function addDomainToVercel(domain: string): Promise<VercelResponse>
   const teamId = process.env.VERCEL_TEAM_ID;
 
   if (!projectId || !token) {
-    console.warn("[Vercel Service] VERCEL_PROJECT_ID or VERCEL_API_TOKEN is missing in environment variables.");
-    const isDev = process.env.NODE_ENV === "development" || process.env.NEXT_PUBLIC_DEMO_MODE === "true";
-    if (isDev) {
-      console.log(`[Vercel Service] Bypassing Vercel domain addition in development mode for: ${domain}`);
-      return { success: true };
-    }
-    return { success: false, error: "Configuration Vercel manquante sur le serveur." };
+    console.warn("[Vercel Service] VERCEL_PROJECT_ID or VERCEL_API_TOKEN is missing. Bypassing Vercel domain addition (domain will only be saved in database).");
+    return { success: true };
   }
 
   const url = `${VERCEL_API_URL}/v9/projects/${projectId}/domains${teamId ? `?teamId=${teamId}` : ""}`;
@@ -57,13 +52,8 @@ export async function removeDomainFromVercel(domain: string): Promise<VercelResp
   const teamId = process.env.VERCEL_TEAM_ID;
 
   if (!projectId || !token) {
-    console.warn("[Vercel Service] VERCEL_PROJECT_ID or VERCEL_API_TOKEN is missing in environment variables.");
-    const isDev = process.env.NODE_ENV === "development" || process.env.NEXT_PUBLIC_DEMO_MODE === "true";
-    if (isDev) {
-      console.log(`[Vercel Service] Bypassing Vercel domain removal in development mode for: ${domain}`);
-      return { success: true };
-    }
-    return { success: false, error: "Configuration Vercel manquante sur le serveur." };
+    console.warn("[Vercel Service] VERCEL_PROJECT_ID or VERCEL_API_TOKEN is missing. Bypassing Vercel domain removal (domain will only be removed from database).");
+    return { success: true };
   }
 
   const url = `${VERCEL_API_URL}/v9/projects/${projectId}/domains/${domain}${teamId ? `?teamId=${teamId}` : ""}`;
