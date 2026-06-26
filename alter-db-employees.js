@@ -2,11 +2,16 @@ const postgres = require('postgres');
 require('dotenv').config({ path: '.env.local' });
 
 const localConnectionString = process.env.DATABASE_URL;
-const remoteConnectionString = "postgres://postgres.gkarotahjtyvmhjqejts:salissou1994S@aws-1-eu-central-2.pooler.supabase.com:6543/postgres";
+const remoteConnectionString = process.env.REMOTE_DATABASE_URL;
 
 const connectionStrings = [];
 if (localConnectionString) connectionStrings.push({ name: "Local Database", url: localConnectionString });
-connectionStrings.push({ name: "Remote Supabase Database", url: remoteConnectionString });
+if (remoteConnectionString) connectionStrings.push({ name: "Remote Supabase Database", url: remoteConnectionString });
+
+if (connectionStrings.length === 0) {
+  console.error("❌ No database connection strings found. Please check your .env.local file.");
+  process.exit(1);
+}
 
 async function runMigrationFor(dbInfo) {
   console.log(`\n🚀 Running migration for: ${dbInfo.name}...`);

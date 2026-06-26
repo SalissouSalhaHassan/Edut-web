@@ -393,3 +393,173 @@ export async function createExpense(formData: ExpenseFormData) {
     return { success: true };
   });
 }
+
+export async function getAdvancedFinanceStats() {
+  return protectedDbAction("Finance", "canView", async (user) => {
+    const roleType = await getUserRoleType(user);
+    if (roleType === "teacher") {
+      return { data: null };
+    }
+
+    const schoolId = await getActiveSchoolId();
+    const activeLevel = await getActiveEducationalLevel(user);
+
+    const activeSession = await db.query.schoolSessions.findFirst({
+      where: (s, { eq, or, and }) => and(
+        eq(s.schoolId, schoolId),
+        or(eq(s.isActive, true), eq(s.status, "Actif"))
+      ),
+      orderBy: [desc(schoolSessions.id)]
+    });
+
+    if (!activeSession) {
+      return { data: null };
+    }
+
+    // Base where clause for student fees
+    let feesWhere = and(eq(studentFees.sessionId, activeSession.id), eq(studentFees.schoolId, schoolId));
+
+    // Level director isolation
+    const needsJoin = roleType === "level_director" && !!activeLevel;
+
+    // Get all fees with payments for this session
+    const allFees = await db.query.studentFees.findMany({
+      where: feesWhere,
+      with: {
+        student: true,
+        payments: { orderBy: [desc(feePayments.datePaid)] }
+      }
+    });
+
+    // Filter by level director if needed
+    let fees = allFees;
+    if (needsJoin && activeLevel) {
+      const compatibleLevels = getCompatibleLevels(activeLevel).map(l => l.toLowerCase());
+      fees = fees.filter(f => f.student?.educationalLevel && compatibleLevels.includes(f.student.educationalLevel.toLowerCase()));
+    }
+
+    // 1. Core financials
+    const totalExpected = fees.reduce((s, f) => s + (f.totalExpected || 0), 0);
+    const totalPaid = fees.reduce((s, f) => s + (f.totalPaid || 0), 0);
+    const totalDebts = fees.reduce((s, f) => s + Math.max(0, f.balance || 0), 0);
+    const totalReductions = fees.reduce((s, f) => s + (f.totalReduction || 0), 0);
+
+    // 2. Counts
+    const countPaid = fees.filter(f => f.status === "Soldé").length;
+    const countPartial = fees.filter(f => f.status === "Partiel").length;
+    const countUnpaid = fees.filter(f => f.status === "Impayé").length;
+    const totalStudents = fees.length;
+
+    // 3. Recovery rate
+    const recoveryRate = totalExpected > 0 ? Math.round((totalPaid / totalExpected) * 100) : 0;
+
+    // 4. All payments flat list for temporal stats
+    const allPayments = fees.flatMap(f => f.payments || []);
+    const totalPaymentsCount = allPayments.length;
+
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const weekStart = new Date(now);
+    weekStart.setDate(now.getDate() - now.getDay());
+    weekStart.setHours(0, 0, 0, 0);
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const yearStart = new Date(now.getFullYear(), 0, 1);
+
+    const revenueToday = allPayments
+      .filter(p => p.datePaid && new Date(p.datePaid) >= todayStart)
+      .reduce((s, p) => s + (p.amount || 0), 0);
+
+    const revenueWeek = allPayments
+      .filter(p => p.datePaid && new Date(p.datePaid) >= weekStart)
+      .reduce((s, p) => s + (p.amount || 0), 0);
+
+    const revenueMonth = allPayments
+      .filter(p => p.datePaid && new Date(p.datePaid) >= monthStart)
+      .reduce((s, p) => s + (p.amount || 0), 0);
+
+    const revenueYear = allPayments
+      .filter(p => p.datePaid && new Date(p.datePaid) >= yearStart)
+      .reduce((s, p) => s + (p.amount || 0), 0);
+
+    // 5. Monthly breakdown for charts (school year: Sep to Jun)
+    const schoolMonths = [8, 9, 10, 11, 0, 1, 2, 3, 4, 5]; // Sept=8 ... Jun=5
+    const monthNames = ["Sept", "Oct", "Nov", "Déc", "Jan", "Fév", "Mar", "Avr", "Mai", "Juin"];
+    // For school year: Sept-Dec belong to current year (if now >= Sept) or previous year
+    const isAfterAug = now.getMonth() >= 8;
+    const schoolYearStartYear = isAfterAug ? now.getFullYear() : now.getFullYear() - 1;
+    const monthlyData = schoolMonths.map((m, i) => {
+      // Sept(8)-Dec(11) = schoolYearStartYear, Jan(0)-Jun(5) = schoolYearStartYear + 1
+      const targetYear = m >= 8 ? schoolYearStartYear : schoolYearStartYear + 1;
+      const monthPayments = allPayments.filter(p => {
+        if (!p.datePaid) return false;
+        const d = new Date(p.datePaid);
+        return d.getMonth() === m && d.getFullYear() === targetYear;
+      });
+      return {
+        month: monthNames[i],
+        amount: monthPayments.reduce((s, p) => s + (p.amount || 0), 0),
+        count: monthPayments.length
+      };
+    });
+
+    // 6. Class breakdown for reports
+    const classMap = new Map<string, { expected: number; paid: number; unpaid: number; count: number }>();
+    for (const fee of fees) {
+      const cls = fee.student?.classe || "Inconnue";
+      if (!classMap.has(cls)) classMap.set(cls, { expected: 0, paid: 0, unpaid: 0, count: 0 });
+      const entry = classMap.get(cls)!;
+      entry.expected += fee.totalExpected || 0;
+      entry.paid += fee.totalPaid || 0;
+      entry.unpaid += Math.max(0, fee.balance || 0);
+      entry.count += 1;
+    }
+    const classSummary = Array.from(classMap.entries())
+      .map(([className, data]) => ({ className, ...data, rate: data.expected > 0 ? Math.round((data.paid / data.expected) * 100) : 0 }))
+      .sort((a, b) => b.paid - a.paid);
+
+    // 7. Unpaid alerts (balance > 0, sorted by balance desc)
+    const unpaidAlerts = fees
+      .filter(f => (f.balance || 0) > 0)
+      .map(f => ({
+        id: f.id,
+        studentName: f.student?.nomEtudiant || "Inconnu",
+        classe: f.student?.classe || "-",
+        photoPath: f.student?.photoPath,
+        balance: f.balance || 0,
+        totalExpected: f.totalExpected || 0,
+        totalPaid: f.totalPaid || 0,
+        status: f.status,
+        lastPayment: f.payments?.[0]?.datePaid
+      }))
+      .sort((a, b) => b.balance - a.balance)
+      .slice(0, 50);
+
+    return {
+      data: {
+        // Core
+        totalExpected,
+        totalPaid,
+        totalDebts,
+        totalReductions,
+        currentBalance: totalPaid - totalReductions,
+        // Rates
+        recoveryRate,
+        totalPaymentsCount,
+        countPaid,
+        countPartial,
+        countUnpaid,
+        totalStudents,
+        // Temporal
+        revenueToday,
+        revenueWeek,
+        revenueMonth,
+        revenueYear,
+        // Charts
+        monthlyData,
+        classSummary,
+        // Alerts
+        unpaidAlerts,
+      }
+    };
+  });
+}

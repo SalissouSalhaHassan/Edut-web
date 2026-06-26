@@ -1,4 +1,4 @@
-import { getStudentFees, getFinanceStats, syncStudentFees } from "@/domains/finance/actions/finance.actions";
+import { getStudentFees, getFinanceStats, syncStudentFees, getAdvancedFinanceStats } from "@/domains/finance/actions/finance.actions";
 import { getClasses } from "@/domains/academics/actions/academics.actions";
 import { getCurrentUser } from "@/domains/auth/services/session";
 import FinanceClient from "./finance-client";
@@ -8,7 +8,6 @@ export default async function FinancePage({
 }: { 
   searchParams: Promise<{ search?: string, class?: string, status?: string }> 
 }) {
-  // throw new Error("Testing if FinancePage is reached");
   console.log("FinancePage: Starting render...");
   const params = await searchParams;
 
@@ -16,10 +15,10 @@ export default async function FinancePage({
     // 1. Sync data first to ensure everything is up to date
     await syncStudentFees(false);
 
-    // 2. Fetch all required data in parallel with a timeout
+    // 2. Fetch all required data in parallel
     console.log("FinancePage: Fetching data in parallel...");
     
-    const [feesRes, statsRes, classesRes, currentUser] = await Promise.all([
+    const [feesRes, statsRes, classesRes, currentUser, advancedStatsRes] = await Promise.all([
       getStudentFees({
         search: params.search,
         class: params.class,
@@ -27,7 +26,8 @@ export default async function FinancePage({
       }),
       getFinanceStats(),
       getClasses(),
-      getCurrentUser()
+      getCurrentUser(),
+      getAdvancedFinanceStats(),
     ]);
 
     const user = currentUser as any;
@@ -41,6 +41,7 @@ export default async function FinancePage({
         fees={((feesRes?.data ?? []) as unknown) as any[]}
         stats={(statsRes?.data ?? {}) as any}
         classes={((classesRes?.data ?? []) as unknown) as any[]}
+        advancedStats={(advancedStatsRes?.data ?? null) as any}
         canEdit={!!canEdit}
         canDelete={!!canDelete}
       />
