@@ -149,6 +149,17 @@ export async function importEmployeeRow(data: any) {
       banqueCompte: data.banqueCompte ? String(data.banqueCompte).trim() : null,
       statut: data.statut ? String(data.statut).trim() : "Actif",
       educationalLevel: data.educationalLevel ? String(data.educationalLevel).trim() : null,
+      lieuNaissance: data.lieuNaissance ? String(data.lieuNaissance).trim() : null,
+      codeGrade: data.codeGrade ? String(data.codeGrade).trim() : null,
+      categorie: data.categorie ? String(data.categorie).trim() : null,
+      classe: data.classe ? String(data.classe).trim() : null,
+      echelon: data.echelon ? String(data.echelon).trim() : null,
+      fonction: data.fonction ? String(data.fonction).trim() : null,
+      dateNomination: formatDate(data.dateNomination),
+      lieuAffectation: data.lieuAffectation ? String(data.lieuAffectation).trim() : null,
+      commune: data.commune ? String(data.commune).trim() : null,
+      region: data.region ? String(data.region).trim() : null,
+      dateAffectation: formatDate(data.dateAffectation),
     };
 
     const existing = await db.query.employees.findFirst({

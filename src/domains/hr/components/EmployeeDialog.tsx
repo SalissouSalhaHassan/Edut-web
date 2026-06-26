@@ -145,6 +145,17 @@ export default function EmployeeDialog({
         const levels = form.getAll("educationalLevels") as string[];
         return levels.length === 5 || levels.length === 0 ? "Tous" : levels.join(",");
       })(),
+      lieuNaissance: (form.get("lieuNaissance") as string) || undefined,
+      codeGrade: (form.get("codeGrade") as string) || undefined,
+      categorie: (form.get("categorie") as string) || undefined,
+      classe: (form.get("classe") as string) || undefined,
+      echelon: (form.get("echelon") as string) || undefined,
+      fonction: (form.get("fonction") as string) || undefined,
+      dateNomination: (form.get("dateNomination") as string) || undefined,
+      lieuAffectation: (form.get("lieuAffectation") as string) || undefined,
+      commune: (form.get("commune") as string) || undefined,
+      region: (form.get("region") as string) || undefined,
+      dateAffectation: (form.get("dateAffectation") as string) || undefined,
     };
 
     let result;
@@ -256,12 +267,20 @@ export default function EmployeeDialog({
                   </select>
                 </FieldGroup>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
                 <FieldGroup label="Date de naissance">
                   <Input
                     type="date"
                     name="dateNaissance"
                     defaultValue={initialData?.dateNaissance ?? ""}
+                    className={inputCls}
+                  />
+                </FieldGroup>
+                <FieldGroup label="Lieu de naissance">
+                  <Input
+                    name="lieuNaissance"
+                    defaultValue={initialData?.lieuNaissance ?? ""}
+                    placeholder="Ville, Pays"
                     className={inputCls}
                   />
                 </FieldGroup>
@@ -313,19 +332,105 @@ export default function EmployeeDialog({
               </FieldGroup>
             </section>
 
-            {/* ════ 3. POSTE & CONTRAT ════ */}
+            {/* ════ 3. CLASSIFICATION & GRADE ════ */}
             <section className="space-y-5">
               <SectionHeader
                 icon={<Briefcase size={16} className="text-amber-600" />}
-                label="Poste & Contrat"
+                label="Classification & Grade (Grade de l'Agent)"
                 color="bg-amber-50"
               />
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                <FieldGroup label="Poste / Fonction">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                <FieldGroup label="Code Grade">
+                  <Input
+                    name="codeGrade"
+                    defaultValue={initialData?.codeGrade ?? ""}
+                    placeholder="G1, G2..."
+                    className={inputCls}
+                  />
+                </FieldGroup>
+                <FieldGroup label="Catégorie">
+                  <Input
+                    name="categorie"
+                    defaultValue={initialData?.categorie ?? ""}
+                    placeholder="A, B, C..."
+                    className={inputCls}
+                  />
+                </FieldGroup>
+                <FieldGroup label="Classe">
+                  <Input
+                    name="classe"
+                    defaultValue={initialData?.classe ?? ""}
+                    placeholder="1ère, 2ème..."
+                    className={inputCls}
+                  />
+                </FieldGroup>
+                <FieldGroup label="Échelon">
+                  <Input
+                    name="echelon"
+                    defaultValue={initialData?.echelon ?? ""}
+                    placeholder="E1, E2..."
+                    className={inputCls}
+                  />
+                </FieldGroup>
+              </div>
+            </section>
+
+            {/* ════ 4. POSTE OCCUPÉ ════ */}
+            <section className="space-y-5">
+              <SectionHeader
+                icon={<Briefcase size={16} className="text-indigo-600" />}
+                label="Poste Occupé"
+                color="bg-indigo-50"
+              />
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+                <FieldGroup label="Poste / Titre">
                   <Input
                     name="poste"
                     defaultValue={initialData?.poste ?? ""}
-                    placeholder="Directeur, Professeur..."
+                    placeholder="Enseignant, Comptable..."
+                    className={inputCls}
+                  />
+                </FieldGroup>
+                <FieldGroup label="Fonction">
+                  <Input
+                    name="fonction"
+                    defaultValue={initialData?.fonction ?? ""}
+                    placeholder="Directeur, Prof Principal..."
+                    className={inputCls}
+                  />
+                </FieldGroup>
+                <FieldGroup label="Date de Nomination">
+                  <Input
+                    type="date"
+                    name="dateNomination"
+                    defaultValue={initialData?.dateNomination ?? ""}
+                    className={inputCls}
+                  />
+                </FieldGroup>
+              </div>
+            </section>
+
+            {/* ════ 5. AFFECTATION ════ */}
+            <section className="space-y-5">
+              <SectionHeader
+                icon={<Briefcase size={16} className="text-emerald-600" />}
+                label="Affectation"
+                color="bg-emerald-50"
+              />
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                <FieldGroup label="Lieu d'Affectation">
+                  <Input
+                    name="lieuAffectation"
+                    defaultValue={initialData?.lieuAffectation ?? ""}
+                    placeholder="Nom du campus / école"
+                    className={inputCls}
+                  />
+                </FieldGroup>
+                <FieldGroup label="Commune">
+                  <Input
+                    name="commune"
+                    defaultValue={initialData?.commune ?? ""}
+                    placeholder="Nom de la commune"
                     className={inputCls}
                   />
                 </FieldGroup>
@@ -333,7 +438,23 @@ export default function EmployeeDialog({
                   <Input
                     name="departement"
                     defaultValue={initialData?.departement ?? ""}
-                    placeholder="Pédagogie, Admin..."
+                    placeholder="Département ou Service"
+                    className={inputCls}
+                  />
+                </FieldGroup>
+                <FieldGroup label="Région">
+                  <Input
+                    name="region"
+                    defaultValue={initialData?.region ?? ""}
+                    placeholder="Région"
+                    className={inputCls}
+                  />
+                </FieldGroup>
+                <FieldGroup label="Date d'Affectation">
+                  <Input
+                    type="date"
+                    name="dateAffectation"
+                    defaultValue={initialData?.dateAffectation ?? ""}
                     className={inputCls}
                   />
                 </FieldGroup>
@@ -345,7 +466,10 @@ export default function EmployeeDialog({
                     className={inputCls}
                   />
                 </FieldGroup>
-                <FieldGroup label="Niveau Éducatif / Secteur" span="lg:col-span-3">
+              </div>
+              
+              <div className="grid grid-cols-1 gap-5 mt-4">
+                <FieldGroup label="Niveau Éducatif / Secteur">
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 mt-1">
                     {[
                       { id: "Maternelle", label: "🌱 Maternelle" },
@@ -376,7 +500,7 @@ export default function EmployeeDialog({
                     })}
                   </div>
                 </FieldGroup>
-                <FieldGroup label="Statut du contrat" span="lg:col-span-3">
+                <FieldGroup label="Statut du contrat">
                   <div className="flex gap-3">
                     {(["Actif", "Inactif", "En Attente"] as const).map((s) => (
                       <label

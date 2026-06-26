@@ -228,73 +228,143 @@ export default async function HRPage({ searchParams }: { searchParams: Promise<{
       </div>
 
       {/* ─── Employee Table ─── */}
-      <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40 overflow-hidden">
-        <table className="w-full text-left border-collapse">
+      <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40 overflow-x-auto w-full scrollbar-thin">
+        <table className="min-w-[1800px] text-left border-collapse table-fixed">
           <thead>
-            <tr className="bg-white border-b border-slate-100">
-              <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                Employé <span className="text-slate-300 ml-1 font-arabic">الموظف</span>
+            <tr className="bg-slate-50 border-b border-slate-200 text-slate-700">
+              <th rowSpan={2} className="w-[60px] px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center border-r border-slate-100">
+                N°
               </th>
-              <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                Poste &amp; Dép. <span className="text-slate-300 ml-1 font-arabic">المنصب والقسم</span>
+              <th colSpan={7} className="px-4 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest text-center border-r border-slate-100 bg-indigo-50/20">
+                IDENTIFICATION DE L'AGENT <span className="text-[9px] font-bold text-slate-400 font-arabic ml-1">(تعريف الوكيل)</span>
               </th>
-              <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                Contact <span className="text-slate-300 ml-1 font-arabic">التواصل</span>
+              <th colSpan={4} className="px-4 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest text-center border-r border-slate-100 bg-amber-50/20">
+                GRADE DE L'AGENT <span className="text-[9px] font-bold text-slate-400 font-arabic ml-1">(درجة الوكيل)</span>
               </th>
-              <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                Statut <span className="text-slate-300 ml-1 font-arabic">الحالة</span>
+              <th colSpan={2} className="px-4 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest text-center border-r border-slate-100 bg-blue-50/20">
+                POSTE OCCUPÉ <span className="text-[9px] font-bold text-slate-400 font-arabic ml-1">(الوظيفة الشاغرة)</span>
               </th>
-              <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">
+              <th colSpan={5} className="px-4 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest text-center border-r border-slate-100 bg-emerald-50/20">
+                AFFECTATION <span className="text-[9px] font-bold text-slate-400 font-arabic ml-1">(التعيين)</span>
+              </th>
+              <th rowSpan={2} className="w-[120px] px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center border-r border-slate-100">
+                salaireBase
+              </th>
+              <th rowSpan={2} className="w-[100px] px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center border-r border-slate-100">
+                Statut
+              </th>
+              <th rowSpan={2} className="w-[110px] px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right pr-8">
                 Actions
               </th>
+            </tr>
+            <tr className="bg-slate-50 border-b border-slate-100 text-slate-600">
+              {/* Identification */}
+              <th className="w-[120px] px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-center border-r border-slate-100">MATRICULE</th>
+              <th className="w-[200px] px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-center border-r border-slate-100">NOM ET PRÉNOM</th>
+              <th className="w-[120px] px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-center border-r border-slate-100">DATE DE NAIS.</th>
+              <th className="w-[120px] px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-center border-r border-slate-100">LIEU DE NAIS.</th>
+              <th className="w-[70px] px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-center border-r border-slate-100">sexe</th>
+              <th className="w-[120px] px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-center border-r border-slate-100">MOBILE</th>
+              <th className="w-[160px] px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-center border-r border-slate-100">EMAIL</th>
+              
+              {/* Grade */}
+              <th className="w-[100px] px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-center border-r border-slate-100">CODE GRADE</th>
+              <th className="w-[100px] px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-center border-r border-slate-100">CATÉGORIE</th>
+              <th className="w-[100px] px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-center border-r border-slate-100">CLASSE</th>
+              <th className="w-[100px] px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-center border-r border-slate-100">ÉCHELON</th>
+              
+              {/* Poste */}
+              <th className="w-[140px] px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-center border-r border-slate-100">FONCTION</th>
+              <th className="w-[120px] px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-center border-r border-slate-100">DATE NOMIN.</th>
+              
+              {/* Affectation */}
+              <th className="w-[160px] px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-center border-r border-slate-100">LIEU D’AFFEC.</th>
+              <th className="w-[110px] px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-center border-r border-slate-100">COMMUNE</th>
+              <th className="w-[120px] px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-center border-r border-slate-100">DÉPARTEMENT</th>
+              <th className="w-[110px] px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-center border-r border-slate-100">RÉGION</th>
+              <th className="w-[120px] px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-center border-r border-slate-100">DATE AFFEC.</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
             {paginatedEmployees.length > 0 ? (
-              paginatedEmployees.map((employee: any) => (
-                <tr key={employee.id} className="group hover:bg-slate-50/50 transition-all">
-                  <td className="px-8 py-5">
-                    <div className="flex items-center gap-4">
-                      <div className="h-12 w-12 rounded-2xl bg-indigo-50/50 flex items-center justify-center text-indigo-500 border border-indigo-100/50">
-                        <UserAvatar size={20} />
-                      </div>
-                      <div>
-                        <p className="text-sm font-black text-slate-900 uppercase tracking-wide">{employee.nom}</p>
-                        <p className="text-[11px] text-slate-400 mt-1 font-bold italic tracking-wider">ID: {employee.empId || "EMP_0000"}</p>
-                      </div>
-                    </div>
+              paginatedEmployees.map((employee: any, idx: number) => (
+                <tr key={employee.id} className="group hover:bg-slate-50/50 transition-all text-xs text-slate-700">
+                  <td className="px-4 py-4 text-center border-r border-slate-100 font-bold text-slate-400">
+                    {start + idx + 1}
                   </td>
-                  <td className="px-8 py-5">
-                    <div className="flex flex-col gap-1.5">
-                      <span className="text-xs font-black text-slate-800">{employee.poste || "Non assigné"}</span>
-                      <span className="text-[11px] font-semibold text-slate-500">{employee.departement || "Général"}</span>
-                      <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1 mt-0.5">
-                        <Lock size={10} /> {new Date(employee.dateEmbauche || Date.now()).getFullYear() || "2025"} - Présent
-                      </span>
-                    </div>
+                  <td className="px-4 py-4 text-center border-r border-slate-100 font-semibold text-slate-800">
+                    {employee.empId}
                   </td>
-                  <td className="px-8 py-5">
-                    <div className="flex flex-col gap-2">
-                      <span className="text-[11px] font-bold text-slate-600 flex items-center gap-2">
-                        <Phone size={12} className="text-slate-400" /> {employee.mobile || "Non renseigné"}
-                      </span>
-                      <span className="text-[11px] font-semibold text-slate-500 flex items-center gap-2">
-                        <Mail size={12} className="text-slate-400" /> {employee.email || "Non renseigné"}
-                      </span>
-                    </div>
+                  <td className="px-4 py-4 border-r border-slate-100 font-black text-slate-900 uppercase truncate">
+                    {employee.nom}
                   </td>
-                  <td className="px-8 py-5">
-                    <div className="flex flex-col gap-2 items-start">
-                      <StatusBadge status={employee.statut || "Actif"} />
-                      <Link
-                        href={`/dashboard/hr/attendance?date=${today}`}
-                        className="text-[10px] font-bold text-indigo-500 hover:text-indigo-700 flex items-center gap-1 transition-colors"
-                      >
-                        <ClipboardCheck size={11} /> Voir présence
-                      </Link>
-                    </div>
+                  <td className="px-4 py-4 text-center border-r border-slate-100">
+                    {employee.dateNaissance || "-"}
                   </td>
-                  <td className="px-8 py-5 text-right">
+                  <td className="px-4 py-4 text-center border-r border-slate-100 truncate">
+                    {employee.lieuNaissance || "-"}
+                  </td>
+                  <td className="px-4 py-4 text-center border-r border-slate-100">
+                    {employee.sexe || "-"}
+                  </td>
+                  <td className="px-4 py-4 text-center border-r border-slate-100">
+                    {employee.mobile || "-"}
+                  </td>
+                  <td className="px-4 py-4 border-r border-slate-100 text-slate-500 truncate">
+                    {employee.email || "-"}
+                  </td>
+                  
+                  {/* Grade */}
+                  <td className="px-4 py-4 text-center border-r border-slate-100">
+                    {employee.codeGrade || "-"}
+                  </td>
+                  <td className="px-4 py-4 text-center border-r border-slate-100">
+                    {employee.categorie || "-"}
+                  </td>
+                  <td className="px-4 py-4 text-center border-r border-slate-100">
+                    {employee.classe || "-"}
+                  </td>
+                  <td className="px-4 py-4 text-center border-r border-slate-100">
+                    {employee.echelon || "-"}
+                  </td>
+                  
+                  {/* Poste */}
+                  <td className="px-4 py-4 text-center border-r border-slate-100 font-semibold truncate">
+                    {employee.fonction || employee.poste || "-"}
+                  </td>
+                  <td className="px-4 py-4 text-center border-r border-slate-100">
+                    {employee.dateNomination || "-"}
+                  </td>
+                  
+                  {/* Affectation */}
+                  <td className="px-4 py-4 text-center border-r border-slate-100 truncate">
+                    {employee.lieuAffectation || "-"}
+                  </td>
+                  <td className="px-4 py-4 text-center border-r border-slate-100 truncate">
+                    {employee.commune || "-"}
+                  </td>
+                  <td className="px-4 py-4 text-center border-r border-slate-100 truncate">
+                    {employee.departement || "-"}
+                  </td>
+                  <td className="px-4 py-4 text-center border-r border-slate-100 truncate">
+                    {employee.region || "-"}
+                  </td>
+                  <td className="px-4 py-4 text-center border-r border-slate-100">
+                    {employee.dateAffectation || "-"}
+                  </td>
+                  
+                  {/* Autre / salaireBase */}
+                  <td className="px-4 py-4 text-center border-r border-slate-100 font-bold text-slate-800">
+                    {employee.salaireBase ? `${Math.round(employee.salaireBase).toLocaleString("fr-FR")} CFA` : "0 CFA"}
+                  </td>
+                  
+                  {/* Statut */}
+                  <td className="px-4 py-4 text-center border-r border-slate-100">
+                    <StatusBadge status={employee.statut || "Actif"} />
+                  </td>
+                  
+                  {/* Actions */}
+                  <td className="px-4 py-4 text-right pr-8">
                     <div className="flex items-center justify-end gap-2">
                       {canEdit && (
                         <EmployeeDialog
@@ -320,7 +390,7 @@ export default async function HRPage({ searchParams }: { searchParams: Promise<{
               ))
             ) : (
               <tr>
-                <td colSpan={5} className="px-8 py-20 text-center">
+                <td colSpan={23} className="px-8 py-20 text-center">
                   <div className="flex flex-col items-center gap-4 opacity-20">
                     <Users size={64} />
                     <p className="text-xl font-bold">Aucun employé trouvé</p>
