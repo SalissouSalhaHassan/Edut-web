@@ -15,6 +15,7 @@ async function run() {
   try {
     console.log("Adding new columns to employees table...");
     
+    await sql`ALTER TABLE "employees" ADD COLUMN IF NOT EXISTS "educational_level" varchar(50) DEFAULT 'Tous'`;
     await sql`ALTER TABLE "employees" ADD COLUMN IF NOT EXISTS "lieu_naissance" varchar(100)`;
     await sql`ALTER TABLE "employees" ADD COLUMN IF NOT EXISTS "code_grade" varchar(50)`;
     await sql`ALTER TABLE "employees" ADD COLUMN IF NOT EXISTS "categorie" varchar(50)`;
