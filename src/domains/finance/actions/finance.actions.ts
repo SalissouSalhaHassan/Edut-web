@@ -235,7 +235,9 @@ export async function syncStudentFees(revalidate: boolean = true) {
       const monthly = Number(s.fraisMensuels || 0);
       const inscr = Number(s.fraisInscription || 0);
       const oldBal = Number(s.ancienSolde || 0);
-      const expected = inscr + oldBal + (monthly * 9);
+      const cogesCard = Number(s.fraisCogesCard || 0);
+      const transpInternat = Number(s.fraisTransportInternat || 0);
+      const expected = inscr + oldBal + cogesCard + transpInternat + (monthly * 9);
 
       const existing = feeMap.get(s.id);
 

@@ -145,6 +145,8 @@ export default function PaymentDialog({ feeData, trigger }: PaymentDialogProps) 
                     className="w-full rounded-2xl border border-slate-100 bg-slate-50/50 px-4 h-14 text-sm font-bold text-slate-700 outline-none appearance-none focus:ring-2 focus:ring-indigo-500/10"
                   >
                     <option value="Frais d'inscription">Frais d'inscription</option>
+                    <option value="Frais COGES & Carte ID">Frais COGES & Carte ID</option>
+                    <option value="Frais Transport & Internat">Frais Transport & Internat</option>
                     {periods.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
                     {months.map(m => <option key={m} value={m}>{m}</option>)}
                   </select>

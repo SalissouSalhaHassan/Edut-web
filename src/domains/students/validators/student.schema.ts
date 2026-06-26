@@ -29,6 +29,8 @@ export const studentSchema = z.object({
   fraisMensuels: z.number().min(0).default(0),
   ancienSolde: z.number().min(0).default(0),
   fraisInscription: z.number().min(0).default(0),
+  fraisCogesCard: z.number().min(0).default(0),
+  fraisTransportInternat: z.number().min(0).default(0),
   
   // Statut
   statut: z.string().default("Actif"),

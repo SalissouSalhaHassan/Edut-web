@@ -236,6 +236,8 @@ export default function StudentDialog({ mode = "add", initialData, trigger }: St
       fraisMensuels: Number(form.get("fraisMensuels")) || 0,
       ancienSolde: Number(form.get("ancienSolde")) || 0,
       fraisInscription: Number(form.get("fraisInscription")) || 0,
+      fraisCogesCard: Number(form.get("fraisCogesCard")) || 0,
+      fraisTransportInternat: Number(form.get("fraisTransportInternat")) || 0,
 
       statut: (form.get("statut") as string) || "Actif",
       behaviorScore: Number(form.get("behaviorScore")) || 0,
@@ -670,6 +672,27 @@ export default function StudentDialog({ mode = "add", initialData, trigger }: St
                               <Input name="fraisInscription" type="number" defaultValue={initialData?.fraisInscription} className="h-16 pl-20 rounded-2xl border-slate-100 bg-slate-50/50 font-black text-3xl text-indigo-600" />
                               <div className="absolute left-4 top-1/2 -translate-y-1/2 h-8 px-2 rounded-lg bg-indigo-100 flex items-center justify-center">
                                  <span className="font-black text-[10px] text-indigo-700">FCFA</span>
+                              </div>
+                            </div>
+                          </div>
+                       </div>
+
+                       <div className="grid grid-cols-2 gap-8">
+                          <div className="space-y-3">
+                            <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">COGES & Carte ID</Label>
+                            <div className="relative group">
+                              <Input name="fraisCogesCard" type="number" defaultValue={initialData?.fraisCogesCard} className="h-16 pl-20 rounded-2xl border-slate-100 bg-slate-50/50 font-black text-3xl text-amber-600" />
+                              <div className="absolute left-4 top-1/2 -translate-y-1/2 h-8 px-2 rounded-lg bg-amber-100 flex items-center justify-center">
+                                 <span className="font-black text-[10px] text-amber-700">FCFA</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="space-y-3">
+                            <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Transport & Internat</Label>
+                            <div className="relative group">
+                              <Input name="fraisTransportInternat" type="number" defaultValue={initialData?.fraisTransportInternat} className="h-16 pl-20 rounded-2xl border-slate-100 bg-slate-50/50 font-black text-3xl text-blue-600" />
+                              <div className="absolute left-4 top-1/2 -translate-y-1/2 h-8 px-2 rounded-lg bg-blue-100 flex items-center justify-center">
+                                 <span className="font-black text-[10px] text-blue-700">FCFA</span>
                               </div>
                             </div>
                           </div>

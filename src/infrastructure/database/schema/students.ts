@@ -35,6 +35,8 @@ export const students = pgTable("students", {
   fraisCantine: doublePrecision("frais_cantine").default(0.0),
   fraisAssurance: doublePrecision("frais_assurance").default(0.0),
   bourse: doublePrecision("bourse").default(0.0),
+  fraisCogesCard: doublePrecision("frais_coges_card").default(0.0),
+  fraisTransportInternat: doublePrecision("frais_transport_internat").default(0.0),
   frequencePaiement: varchar("frequence_paiement", { length: 100 }),
   
   statut: varchar("statut", { length: 20 }).default("Actif"),
