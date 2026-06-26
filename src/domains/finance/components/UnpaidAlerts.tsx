@@ -60,7 +60,7 @@ export default function UnpaidAlerts({ alerts, isMounted, canEdit = true, fees }
 
   const fmt = (v: number) => isMounted ? `${Math.round(v).toLocaleString("fr-FR")} CFA` : "—";
 
-  const criticalCount = alerts.filter(a => a.expected > 0 && (a.balance / a.expected) >= 0.8).length;
+  const criticalCount = alerts.filter(a => a.totalExpected > 0 && (a.balance / a.totalExpected) >= 0.8).length;
   const totalUnpaid = alerts.reduce((s, a) => s + a.balance, 0);
 
   return (
