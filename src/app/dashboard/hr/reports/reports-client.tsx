@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { 
   BarChart3, Calendar, Search, Printer, ChevronLeft, ChevronRight,
-  TrendingUp, BookOpen, Clock, Users, Eye, ClipboardCheck, ArrowUpRight
+  TrendingUp, BookOpen, Clock, Users, Eye, ClipboardCheck, ArrowUpRight, ArrowLeft
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -112,6 +112,12 @@ export default function ReportsClient({
       {/* Header (Hidden in Print) */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 no-print">
         <div>
+          <Link 
+            href="/dashboard/hr" 
+            className="inline-flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-indigo-600 transition-colors mb-2 block"
+          >
+            <ArrowLeft size={14} /> Retour à l'Annuaire
+          </Link>
           <div className="flex items-center gap-4 mb-2">
             <h1 className="text-3xl font-black text-slate-900 tracking-tight">Centre de Rapports (RH)</h1>
             <span className="text-xl font-bold text-slate-400 font-arabic">مركز التقارير</span>
