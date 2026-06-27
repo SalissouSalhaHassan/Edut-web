@@ -9,7 +9,7 @@ const sql = postgres(connectionString, {
 
 async function run() {
   try {
-    console.log("Running diagnostic insert query...");
+    console.log("Running second diagnostic insert query...");
     await sql`
       insert into "employees" (
         "id", "school_id", "emp_id", "nom", "poste", "departement", "mobile", "email", 
@@ -18,10 +18,10 @@ async function run() {
         "lieu_naissance", "code_grade", "categorie", "classe", "echelon", "fonction", 
         "date_nomination", "lieu_affectation", "commune", "region", "date_affectation", "created_at"
       ) values (
-        default, 1, 'REG_00000111', 'TASSIOU SALISSOU', default, 'DAKORO', '+22799425298', 
+        default, 1, 'REG_000001113', 'TASSIOU SALISSOU', default, 'DAKORO', '+22799425298', 
         'salissousalhahassan@gmail.com', '2026-07-10', 10000, 'Homme', '2026-06-05', 
-        '6666676666', 'MARADI ALI DON SOPO', 'salisssou salha hassan', default, 'Actif', 
-        default, 'Primaire,Collège,Lycée,Supérieur', '01-02-1995', 'IEFA', 'A2', '2ème', 
+        '6666676666', default, 'salisssou salha hassan', default, 'Actif', 
+        default, 'Tous', '01-02-1995', 'IEFA', 'A2', '2ème', 
         '3ème', 'Inspecteur', '2026-06-26', 'IEFA DAKORO', 'MARDI', 'ISLAM', '2026-06-26', default
       )
     `;
