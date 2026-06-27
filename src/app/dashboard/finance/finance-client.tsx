@@ -165,10 +165,10 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, can
   ];
 
   return (
-    <div className="min-h-screen bg-[#f7f9fc] font-sans text-slate-950 lg:grid lg:grid-cols-[260px_1fr]">
-      <aside className="hidden min-h-screen flex-col border-r border-slate-200/70 bg-white/95 px-4 py-5 shadow-[12px_0_40px_rgba(15,23,42,0.04)] lg:flex">
-        <div className="mb-6 flex items-center gap-3 rounded-2xl px-2">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-200">
+    <div className="min-h-screen bg-[#f7f9fc] font-sans text-slate-950 lg:grid lg:grid-cols-[220px_minmax(0,1fr)]">
+      <aside className="hidden min-h-screen flex-col border-r border-slate-200/70 bg-white/95 px-3 py-5 shadow-[12px_0_40px_rgba(15,23,42,0.04)] lg:flex">
+        <div className="mb-5 flex items-center gap-2 rounded-2xl px-2">
+          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-200">
             <Wallet size={22} />
           </div>
           <div>
@@ -213,7 +213,26 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, can
         </div>
       </aside>
 
-      <main className="min-w-0 space-y-6 p-4 md:p-6 xl:p-8">
+      <main className="min-w-0 space-y-6 p-4 md:p-6 xl:p-8 2xl:p-10">
+      <div className="flex flex-col gap-3 rounded-[24px] border border-indigo-100 bg-white px-5 py-4 shadow-sm md:flex-row md:items-center md:justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-100">
+            <Wallet size={23} />
+          </div>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-lg font-black uppercase tracking-tight text-slate-950">École Excellence</h2>
+              <span className="rounded-full bg-indigo-50 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-indigo-600">Année 2024 - 2025</span>
+            </div>
+            <p className="mt-0.5 text-xs font-bold text-slate-500">Centre de Reporting Financier Intelligent</p>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 text-[11px] font-black uppercase tracking-widest text-slate-500">
+          <span className="rounded-xl bg-slate-50 px-3 py-2">Total élèves: {advancedStats?.totalStudents || fees.length}</span>
+          <span className="rounded-xl bg-emerald-50 px-3 py-2 text-emerald-700">Recouvrement: {advancedStats?.recoveryRate || 0}%</span>
+          <span className="rounded-xl bg-rose-50 px-3 py-2 text-rose-700">Alertes: {alertCount}</span>
+        </div>
+      </div>
       
       {/* ── HEADER ── */}
       <div className="flex flex-col gap-5 rounded-[28px] border border-slate-200/70 bg-white/85 p-5 shadow-sm backdrop-blur md:flex-row md:items-center md:justify-between">

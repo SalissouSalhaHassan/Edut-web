@@ -30,7 +30,30 @@ interface FinanceReportsProps {
   isMounted: boolean;
 }
 
+const ADVANCED_REPORTS = [
+  "Rapport Journalier",
+  "Rapport Hebdomadaire",
+  "Rapport Mensuel",
+  "Rapport Annuel",
+  "Rapport des Élèves",
+  "Rapport des Classes",
+  "Rapport des Niveaux",
+  "Rapport des Secteurs",
+  "Rapport des Modes de Paiement",
+  "Rapport des Retards",
+  "Rapport des Soldes",
+  "Rapport des Annulations",
+  "Rapport des Remises",
+  "Rapport des Bourses",
+  "Rapport des Encaissements",
+  "Rapport Comptable",
+  "Grand Livre",
+  "Balance Financière",
+  "Rapport de Trésorerie",
+];
+
 export default function FinanceReports({ classSummary, stats, isMounted }: FinanceReportsProps) {
+  const [activeReport, setActiveReport] = React.useState("Rapport Mensuel");
   const fmt = (v: number) => isMounted ? `${Math.round(v).toLocaleString("fr-FR")} CFA` : "—";
   const today = isMounted ? new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" }) : "";
 
@@ -150,7 +173,31 @@ export default function FinanceReports({ classSummary, stats, isMounted }: Finan
   };
 
   return (
-    <div className="space-y-6" id="finance-report-content">
+    <div className="grid gap-6 xl:grid-cols-[300px_minmax(0,1fr)]" id="finance-report-content">
+      <aside className="rounded-[28px] border border-slate-100 bg-white p-4 shadow-sm">
+        <div className="mb-4 rounded-2xl bg-indigo-600 p-4 text-white">
+          <p className="text-[10px] font-black uppercase tracking-widest text-indigo-100">Centre de Reporting</p>
+          <h2 className="mt-1 text-lg font-black">Rapports Avancés</h2>
+        </div>
+        <div className="max-h-[calc(100vh-260px)] space-y-1 overflow-auto pr-1">
+          {ADVANCED_REPORTS.map((report) => (
+            <button
+              key={report}
+              onClick={() => setActiveReport(report)}
+              className={cn(
+                "flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-[12px] font-black transition-all",
+                activeReport === report
+                  ? "bg-indigo-50 text-indigo-700 ring-1 ring-indigo-100"
+                  : "text-slate-600 hover:bg-slate-50 hover:text-indigo-600"
+              )}
+            >
+              <FileText size={15} />
+              <span className="min-w-0 flex-1 truncate">{report}</span>
+            </button>
+          ))}
+        </div>
+      </aside>
+      <section className="min-w-0 space-y-6">
       {/* Action bar */}
       <div className="flex items-center justify-between">
         <div>
@@ -317,6 +364,7 @@ export default function FinanceReports({ classSummary, stats, isMounted }: Finan
           </div>
         )}
       </div>
+      </section>
     </div>
   );
 }
