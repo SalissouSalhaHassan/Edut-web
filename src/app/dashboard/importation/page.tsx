@@ -95,7 +95,12 @@ const FIELDS: Record<ImportType, FieldInfo[]> = {
   subject: [
     { key: "subjectName", label: "Nom de la Matière *", required: true },
     { key: "subjectCode", label: "Code Matière", required: false },
-    { key: "category", label: "Catégorie (Littéraire/Scientifique)", required: false }
+    { key: "category", label: "Catégorie (Littéraire/Scientifique)", required: false },
+    { key: "sectionName", label: "Section / Filière (ex: Terminale D)", required: false },
+    { key: "educationalLevel", label: "Niveau Éducatif (ex: Lycée, Collège)", required: false },
+    { key: "coefficient", label: "Coefficient", required: false },
+    { key: "credits", label: "Crédits", required: false },
+    { key: "term", label: "Semestre / Période (Optionnel)", required: false }
   ]
 };
 
@@ -106,12 +111,12 @@ const KEYWORDS: Record<string, string[]> = {
   sexe: ["sexe", "gender", "genre"],
   religion: ["religion", "foi"],
   dateNaissance: ["naissance", "birth", "dob", "date_naissance", "datenaissance"],
-  lieuNaissance: ["lieu", "lieu_naissance", "place", "lieunaissance", "lieu naissance", "lieu de naissance"],
+  lieuNaissance: ["lieu", "lieu_naissance", "place", "lieunaissance", "lieu name", "lieu de naissance"],
   cnic: ["cnic", "nin", "carte", "identite"],
   groupeSanguin: ["sanguin", "blood", "groupe_sanguin", "groupesanguin"],
   session: ["session", "annee", "annee_scolaire", "session_scolaire"],
-  educationalLevel: ["cycle", "niveau_educatif", "educational_level", "educationallevel"],
-  classe: ["classe", "class", "niveau"],
+  educationalLevel: ["cycle", "niveau_educatif", "educational_level", "educationallevel", "niveau"],
+  classe: ["classe", "class", "niveau_classe"],
   section: ["section", "filiere", "serie"],
   categorie: ["categorie", "category"],
   nomPere: ["pere", "tuteur", "parent", "father", "nompere"],
@@ -146,7 +151,11 @@ const KEYWORDS: Record<string, string[]> = {
 
   subjectName: ["matiere", "subject", "cours", "course", "nom_matiere", "subjectname"],
   subjectCode: ["code", "subject_code", "code_matiere", "subjectcode"],
-  category: ["categorie", "category", "type"]
+  category: ["categorie", "category", "type"],
+  sectionName: ["section_name", "section", "filiere", "sectionname", "nom_section", "serie"],
+  coefficient: ["coefficient", "coef", "default_coef", "defaultcoef", "coef_matiere"],
+  credits: ["credits", "credit", "nbr_credit"],
+  term: ["term", "semestre", "periode", "trimestre"]
 };
 
 export default function ImportationPage() {

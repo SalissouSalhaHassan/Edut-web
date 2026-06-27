@@ -46,3 +46,5 @@ next-env.d.ts
 git-push.ps1
 git-push.bat
 test_insert.js
+wipe-db-data.js
+
