@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   AlertTriangle,
   BarChart3,
@@ -162,9 +163,9 @@ export default function CanevasDashboardPage() {
               <option>Année scolaire 2025 - 2026</option>
               <option>Année scolaire 2024 - 2025</option>
             </select>
-            <button className="flex h-11 items-center gap-2 rounded-xl bg-indigo-600 px-4 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-indigo-100">
+            <Link href="/dashboard/canevas/import" className="flex h-11 items-center gap-2 rounded-xl bg-indigo-600 px-4 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-indigo-100">
               <Upload size={16} /> Importer Excel
-            </button>
+            </Link>
             <button className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700">
               <Plus size={16} /> Nouveau Canevas
             </button>
