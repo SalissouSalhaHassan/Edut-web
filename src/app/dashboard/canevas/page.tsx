@@ -183,7 +183,7 @@ export default function CanevasDashboardPage() {
         {kpis.map((kpi) => {
           const Icon = kpi.icon;
           return (
-            <div key={kpi.label} className="rounded-[24px] border border-slate-100 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
+            <Link href={kpi.label.includes("tablissements") ? "/dashboard/canevas/etablissements" : "/dashboard/canevas"} key={kpi.label} className="rounded-[24px] border border-slate-100 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
               <div className="flex items-start justify-between gap-3">
                 <div className={cn("flex h-11 w-11 items-center justify-center rounded-2xl border", colorClasses(kpi.color))}>
                   <Icon size={20} />
@@ -192,7 +192,7 @@ export default function CanevasDashboardPage() {
               <p className="mt-5 text-[10px] font-black uppercase tracking-widest text-slate-400">{kpi.label}</p>
               <p className="mt-1 text-2xl font-black text-slate-950">{kpi.value}</p>
               <p className="mt-1 text-xs font-bold text-slate-500">{kpi.sub}</p>
-            </div>
+            </Link>
           );
         })}
       </section>
