@@ -1,8 +1,10 @@
+import * as React from "react";
 import DashboardSidebar from "./sidebar";
 import { DashboardLoadingBar } from "./loading-bar";
 import { getCurrentUser } from "@/domains/auth/services/session";
 import { getActiveBranchData } from "@/domains/auth/services/school";
 import { getUnreadNotificationsCount } from "@/domains/messaging/actions/notifications.actions";
+import { NavigationProgressProvider } from "@/components/providers/navigation-progress";
 
 export default async function DashboardLayout({
   children,
@@ -30,24 +32,26 @@ export default async function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-background gradient-bg font-sans relative" dir="ltr">
-      <DashboardLoadingBar />
+      <React.Suspense fallback={null}>
+        <NavigationProgressProvider>
+          <DashboardLoadingBar />
 
-      <div className="flex min-h-screen gap-4 p-4">
-        <DashboardSidebar 
-          user={user} 
-          branch={branchData} 
-          branding={branding}
-          allBranches={allBranches}
-          unreadNotificationsCount={unreadCount} 
-        />
-        <main className="flex-1 min-w-0 overflow-y-auto">
-          <div className="min-h-[calc(100vh-32px)] rounded-[32px] bg-transparent">
-            {children}
+          <div className="flex min-h-screen gap-4 p-4">
+            <DashboardSidebar 
+              user={user} 
+              branch={branchData} 
+              branding={branding}
+              allBranches={allBranches}
+              unreadNotificationsCount={unreadCount} 
+            />
+            <main className="flex-1 min-w-0 overflow-y-auto">
+              <div className="min-h-[calc(100vh-32px)] rounded-[32px] bg-transparent">
+                {children}
+              </div>
+            </main>
           </div>
-        </main>
-      </div>
+        </NavigationProgressProvider>
+      </React.Suspense>
     </div>
   );
 }
-
-

@@ -3,6 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useNavigationProgress } from "@/components/providers/navigation-progress";
 import {
   Backpack,
   BarChart3,
@@ -155,6 +156,7 @@ export default function DashboardSidebar({
   const showBranchSwitcher = isAdmin && allBranches && allBranches.length > 1;
   const pathname = usePathname();
   const [pendingHref, setPendingHref] = React.useState<string | null>(null);
+  const { startNavigation } = useNavigationProgress();
 
   const dynamicSections = React.useMemo(() => {
     const isSuperAdmin = Boolean(user?.superAdmin === true || user?.superAdmin === 1);
@@ -360,7 +362,10 @@ export default function DashboardSidebar({
                     href={item.href}
                     scroll={true}
                     prefetch={false}
-                    onClick={() => setPendingHref(item.href)}
+                    onClick={() => {
+                        setPendingHref(item.href);
+                        startNavigation();
+                      }}
                     className={cn(
                       "group relative flex items-center justify-between gap-3 rounded-2xl px-3 py-3 transition-all duration-300",
                       active
