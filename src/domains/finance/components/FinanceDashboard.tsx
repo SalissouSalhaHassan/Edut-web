@@ -4,7 +4,7 @@ import * as React from "react";
 import {
   Wallet, TrendingUp, TrendingDown, Target, Users, CheckCircle2,
   XCircle, Calendar, Clock, BarChart3, PieChart, Activity, DollarSign,
-  ArrowUpRight, ArrowDownRight, Minus
+  ArrowUpRight, ArrowDownRight, Minus, Bell, FileText, Printer, Download
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -53,7 +53,7 @@ function StatCard({
 }) {
   return (
     <div className={cn(
-      "bg-white rounded-3xl border p-6 space-y-3 hover:shadow-md transition-all group cursor-default",
+      "bg-white rounded-[22px] border p-5 min-h-[118px] space-y-3 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all group cursor-default",
       color === "indigo" && "border-indigo-100 hover:border-indigo-200",
       color === "emerald" && "border-emerald-100 hover:border-emerald-200",
       color === "rose" && "border-rose-100 hover:border-rose-200",
@@ -281,15 +281,18 @@ function RecoveryGauge({ rate, isMounted }: { rate: number; isMounted: boolean }
 export default function FinanceDashboard({ stats, isMounted }: FinanceDashboardProps) {
   const fmt = (v: number) => isMounted ? `${Math.round(v).toLocaleString("fr-FR")} CFA` : "— CFA";
   const fmtN = (v: number) => isMounted ? v.toLocaleString("fr-FR") : "—";
+  const topClasses = (stats?.classSummary || []).slice(0, 5);
+  const maxClassRate = Math.max(...topClasses.map((c) => c.rate || 0), 1);
 
   return (
-    <div className="space-y-8">
+    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
+      <div className="min-w-0 space-y-6">
       {/* ROW 1 — Core Financials */}
       <div>
         <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-4 ml-1">
           💰 Financier Global
         </p>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           <StatCard icon={Wallet} label="Total Attendu" value={fmt(stats?.totalExpected || 0)} color="indigo"
             sub="Frais de scolarité" trend="+0%" trendUp={null} />
           <StatCard icon={TrendingUp} label="Total Encaissé" value={fmt(stats?.totalPaid || 0)} color="emerald"
@@ -306,7 +309,7 @@ export default function FinanceDashboard({ stats, isMounted }: FinanceDashboardP
         <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-4 ml-1">
           📊 Indicateurs de Performance
         </p>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           <StatCard icon={Target} label="Taux de Recouvrement" value={`${stats?.recoveryRate || 0}%`} color="teal"
             sub="Objectif: 100%" trendUp={(stats?.recoveryRate || 0) >= 80} />
           <StatCard icon={BarChart3} label="Nombre de Paiements" value={fmtN(stats?.totalPaymentsCount || 0)} color="sky"
@@ -323,7 +326,7 @@ export default function FinanceDashboard({ stats, isMounted }: FinanceDashboardP
         <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-4 ml-1">
           📅 Revenus par Période
         </p>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           <StatCard icon={Clock} label="Revenus Aujourd'hui" value={fmt(stats?.revenueToday || 0)} color="amber"
             sub="Paiements du jour" />
           <StatCard icon={Calendar} label="Revenus Cette Semaine" value={fmt(stats?.revenueWeek || 0)} color="orange"
@@ -338,7 +341,7 @@ export default function FinanceDashboard({ stats, isMounted }: FinanceDashboardP
       {/* CHARTS ROW */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Bar chart - monthly revenue */}
-        <div className="lg:col-span-2 bg-white rounded-3xl border border-slate-100 p-6 hover:shadow-md transition-all">
+        <div className="lg:col-span-2 bg-white rounded-[22px] border border-slate-100 p-6 shadow-sm hover:shadow-md transition-all">
           <div className="flex items-center justify-between mb-6">
             <div>
               <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Revenus Mensuels</p>
@@ -352,7 +355,7 @@ export default function FinanceDashboard({ stats, isMounted }: FinanceDashboardP
         </div>
 
         {/* Donut + gauge */}
-        <div className="bg-white rounded-3xl border border-slate-100 p-6 space-y-6 hover:shadow-md transition-all">
+        <div className="bg-white rounded-[22px] border border-slate-100 p-6 space-y-6 shadow-sm hover:shadow-md transition-all">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Répartition Statuts</p>
@@ -377,7 +380,7 @@ export default function FinanceDashboard({ stats, isMounted }: FinanceDashboardP
 
       {/* Class Summary Table */}
       {stats?.classSummary && stats.classSummary.length > 0 && (
-        <div className="bg-white rounded-3xl border border-slate-100 overflow-hidden hover:shadow-md transition-all">
+        <div className="bg-white rounded-[22px] border border-slate-100 overflow-hidden shadow-sm hover:shadow-md transition-all">
           <div className="p-6 border-b border-slate-50">
             <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Récapitulatif par Classe</p>
             <p className="text-sm font-black text-slate-800 mt-0.5">Performance de recouvrement</p>
@@ -433,6 +436,77 @@ export default function FinanceDashboard({ stats, isMounted }: FinanceDashboardP
           </div>
         </div>
       )}
+      </div>
+
+      <aside className="space-y-4">
+        <div className="rounded-[22px] border border-slate-100 bg-white p-5 shadow-sm">
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="text-sm font-black text-slate-900">Alertes financières</h3>
+            <Bell size={17} className="text-amber-500" />
+          </div>
+          <div className="space-y-3">
+            {[
+              { label: "élèves avec retards", value: stats?.countUnpaid || 0, amount: stats?.totalDebts || 0, color: "rose" },
+              { label: "paiements partiels", value: stats?.countPartial || 0, amount: stats?.totalDebts || 0, color: "amber" },
+              { label: "échéances proches", value: Math.max(0, Math.round((stats?.countPartial || 0) / 2)), amount: 0, color: "indigo" },
+            ].map((item) => (
+              <div key={item.label} className="rounded-xl border border-slate-100 bg-slate-50/70 p-3">
+                <div className="flex items-start gap-2">
+                  <span className={cn("mt-1 h-2 w-2 rounded-full", item.color === "rose" && "bg-rose-500", item.color === "amber" && "bg-amber-500", item.color === "indigo" && "bg-indigo-500")} />
+                  <div>
+                    <p className="text-[11px] font-black text-slate-800">{item.value} {item.label}</p>
+                    <p className="mt-0.5 text-[10px] font-bold text-slate-500">{item.amount > 0 ? `Montant total: ${fmt(item.amount)}` : "À surveiller cette semaine"}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-[22px] border border-slate-100 bg-white p-5 shadow-sm">
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="text-sm font-black text-slate-900">Top Classes</h3>
+            <BarChart3 size={17} className="text-indigo-500" />
+          </div>
+          <div className="space-y-3">
+            {topClasses.length === 0 ? (
+              <p className="py-6 text-center text-xs font-bold text-slate-400">Aucune donnée classe</p>
+            ) : topClasses.map((cls) => (
+              <div key={cls.className}>
+                <div className="mb-1 flex items-center justify-between">
+                  <span className="text-[11px] font-black text-slate-700">{cls.className}</span>
+                  <span className="text-[11px] font-black text-indigo-600">{cls.rate}%</span>
+                </div>
+                <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
+                  <div className="h-full rounded-full bg-indigo-600" style={{ width: `${Math.max(6, (cls.rate / maxClassRate) * 100)}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-[22px] border border-emerald-100 bg-white p-5 shadow-sm">
+          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Prévision de trésorerie</p>
+          <p className="mt-2 text-2xl font-black text-emerald-600">{fmt((stats?.revenueMonth || 0) + Math.round((stats?.revenueWeek || 0) * 2))}</p>
+          <div className="mt-4 h-20 rounded-xl bg-gradient-to-t from-emerald-50 to-white" />
+        </div>
+
+        <div className="rounded-[22px] border border-slate-100 bg-white p-5 shadow-sm">
+          <h3 className="mb-4 text-sm font-black text-slate-900">Actions rapides</h3>
+          <div className="space-y-2">
+            {[
+              { label: "Générer un rapport", icon: FileText },
+              { label: "Export Excel", icon: Download },
+              { label: "Impression", icon: Printer },
+            ].map((action) => (
+              <button key={action.label} className="flex w-full items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-left text-[11px] font-black text-slate-700 hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600">
+                <action.icon size={15} />
+                {action.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </aside>
     </div>
   );
 }

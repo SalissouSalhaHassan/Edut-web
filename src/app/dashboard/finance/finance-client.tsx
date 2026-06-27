@@ -157,11 +157,66 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, can
     ? (advancedStats.countUnpaid || 0) + (advancedStats.countPartial || 0)
     : 0;
 
+  const sideItems = [
+    { label: "Tableau de bord", tab: "dashboard" as TabId, icon: LayoutDashboard },
+    { label: "Paiements", tab: "payments" as TabId, icon: CardIcon },
+    { label: "Rapports avancés", tab: "reports" as TabId, icon: BarChart3 },
+    { label: "Alertes & Notifications", tab: "alerts" as TabId, icon: AlertTriangle, badge: alertCount },
+  ];
+
   return (
-    <div className="p-6 lg:p-8 space-y-8 bg-[#fdfdff] min-h-screen font-sans">
+    <div className="min-h-screen bg-[#f7f9fc] font-sans text-slate-950 lg:grid lg:grid-cols-[260px_1fr]">
+      <aside className="hidden min-h-screen flex-col border-r border-slate-200/70 bg-white/95 px-4 py-5 shadow-[12px_0_40px_rgba(15,23,42,0.04)] lg:flex">
+        <div className="mb-6 flex items-center gap-3 rounded-2xl px-2">
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-200">
+            <Wallet size={22} />
+          </div>
+          <div>
+            <p className="text-sm font-black uppercase tracking-tight text-slate-900">École Excellence</p>
+            <p className="text-[11px] font-bold text-slate-500">Année 2024 - 2025</p>
+          </div>
+        </div>
+
+        <nav className="space-y-1.5">
+          {sideItems.map((item) => {
+            const Icon = item.icon;
+            const active = activeTab === item.tab;
+            return (
+              <button
+                key={item.label}
+                onClick={() => setActiveTab(item.tab)}
+                className={cn(
+                  "flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-[12px] font-black transition-all",
+                  active
+                    ? "bg-indigo-600 text-white shadow-lg shadow-indigo-100"
+                    : "text-slate-600 hover:bg-slate-50 hover:text-indigo-600"
+                )}
+              >
+                <Icon size={17} />
+                <span className="flex-1">{item.label}</span>
+                {!!item.badge && (
+                  <span className={cn("rounded-full px-2 py-0.5 text-[10px]", active ? "bg-white text-indigo-600" : "bg-rose-500 text-white")}>
+                    {item.badge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </nav>
+
+        <div className="mt-auto rounded-2xl bg-indigo-600 p-5 text-white shadow-xl shadow-indigo-100">
+          <p className="text-[10px] font-black uppercase tracking-widest text-indigo-100">Taux de recouvrement</p>
+          <p className="mt-2 text-3xl font-black">{advancedStats?.recoveryRate || 0}%</p>
+          <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-white/20">
+            <div className="h-full rounded-full bg-white" style={{ width: `${Math.min(100, advancedStats?.recoveryRate || 0)}%` }} />
+          </div>
+        </div>
+      </aside>
+
+      <main className="min-w-0 space-y-6 p-4 md:p-6 xl:p-8">
       
       {/* ── HEADER ── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div className="flex flex-col gap-5 rounded-[28px] border border-slate-200/70 bg-white/85 p-5 shadow-sm backdrop-blur md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 shadow-sm">
             <Wallet size={24} />
@@ -196,7 +251,7 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, can
       </div>
 
       {/* ── TAB NAVIGATION ── */}
-      <div className="flex items-center gap-1 bg-white border border-slate-100 rounded-2xl p-1.5 w-fit shadow-sm">
+      <div className="flex w-full items-center gap-1 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm lg:hidden">
         {TABS.map((tab) => {
           const Icon = tab.icon;
           const badge = tab.badge ? tab.badge(advancedStats) : null;
@@ -511,6 +566,7 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, can
         onOpenChange={(open) => !open && setPreviewFee(null)} 
         feeData={previewFee} 
       />
+      </main>
     </div>
   );
 }
