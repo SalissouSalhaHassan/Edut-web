@@ -196,6 +196,8 @@ export default function IdentificationPage() {
                 ["Identification", "/dashboard/canevas/etablissements/ETB-2026-001/identification", FileText],
                 ["Groupes pedagogiques", "/dashboard/canevas/etablissements/ETB-2026-001/groupes-pedagogiques", Table2],
                 ["Effectifs eleves", "/dashboard/canevas/etablissements/ETB-2026-001/effectifs-eleves", Users],
+                ["Redoublants", "/dashboard/canevas/etablissements/ETB-2026-001/redoublants", Users],
+                ["Personnel enseignant", "/dashboard/canevas/etablissements/ETB-2026-001/personnel-enseignant", UserRound],
                 ["Localisation", "#", MapPin],
                 ["Responsables", "#", UserRound],
                 ["Infrastructure", "#", Home],
