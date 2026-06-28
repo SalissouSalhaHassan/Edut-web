@@ -28,6 +28,24 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+// Helper to render Arabic text as an image for jsPDF to avoid Unicode/RTL issues
+const renderArabicText = (text: string, fontSize: number, color: string = "#1e3a8a", width: number = 300, height: number = 50): string => {
+  if (typeof window === "undefined") return "";
+  const canvas = document.createElement("canvas");
+  canvas.width = width * 4; // high DPI
+  canvas.height = height * 4;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return "";
+  ctx.scale(4, 4);
+  ctx.clearRect(0, 0, width, height);
+  ctx.font = `bold ${fontSize}px "Amiri", "Arial", "Segoe UI", "Tahoma", sans-serif`;
+  ctx.fillStyle = color;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, width / 2, height / 2);
+  return canvas.toDataURL("image/png");
+};
+
 // Mock database for students & staff
 const mockStudents = [
   { id: "STD-2026-0104", name: "BOUBACAR ISSA", class: "3ème M1", dob: "22/11/2010", pob: "Zinder", year: "2025 / 2026", level: "Moyen", sector: "Public", gpa: "14.50 / 20", mention: "Bien", status: "PROMU(E) – ADMIS(E) AVEC MENTION BIEN", regDate: "15/09/2025" },
@@ -96,17 +114,14 @@ export default function AdminDocsPage() {
       doc.setFont("helvetica", "bold");
       doc.text("Direction Régionale de Niamey", 20, 26);
 
-      // Right Header: Arabic Text
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(9.5);
-      doc.setTextColor(30, 58, 138);
-      doc.text("الجمهورية النيجر", pageWidth - 20, 16, { align: "right" });
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(8.5);
-      doc.setTextColor(51, 65, 85);
-      doc.text("وزارة التربية الوطنية", pageWidth - 20, 21, { align: "right" });
-      doc.setFont("helvetica", "bold");
-      doc.text("المديرية الجهوية لنيامي", pageWidth - 20, 26, { align: "right" });
+      // Right Header: Arabic Text (Rendered as high-res images to support Unicode and RTL)
+      const arHeader1 = renderArabicText("الجمهورية النيجر", 13, "#1e3a8a", 160, 24);
+      const arHeader2 = renderArabicText("وزارة التربية الوطنية", 11, "#334155", 160, 24);
+      const arHeader3 = renderArabicText("المديرية الجهوية لنيامي", 11, "#334155", 160, 24);
+      
+      if (arHeader1) doc.addImage(arHeader1, "PNG", pageWidth - 60, 12, 40, 6);
+      if (arHeader2) doc.addImage(arHeader2, "PNG", pageWidth - 60, 17, 40, 6);
+      if (arHeader3) doc.addImage(arHeader3, "PNG", pageWidth - 60, 22, 40, 6);
 
       // Center logo placeholder (Circle)
       doc.setDrawColor(203, 213, 225);
@@ -130,11 +145,11 @@ export default function AdminDocsPage() {
       const titleText = activeDoc.label.toUpperCase();
       doc.text(`— • ${titleText} • —`, pageWidth / 2, titleY, { align: "center" });
 
-      // Arabic title under french title
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(12);
-      doc.setTextColor(99, 102, 241);
-      doc.text(`* ${activeDoc.arLabel} *`, pageWidth / 2, titleY + 7, { align: "center" });
+      // Arabic title under french title (Rendered as high-res image to support Unicode and RTL)
+      const arTitleImg = renderArabicText(`* ${activeDoc.arLabel} *`, 15, "#6366f1", 300, 30);
+      if (arTitleImg) {
+        doc.addImage(arTitleImg, "PNG", pageWidth / 2 - 40, titleY + 4, 80, 8);
+      }
 
       // Body text introduction
       let bodyY = 70;
