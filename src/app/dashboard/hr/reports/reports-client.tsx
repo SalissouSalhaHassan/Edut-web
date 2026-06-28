@@ -5,9 +5,12 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { 
   BarChart3, Calendar, Search, Printer, ChevronLeft, ChevronRight,
-  TrendingUp, BookOpen, Clock, Users, Eye, ClipboardCheck, ArrowUpRight, ArrowLeft
+  TrendingUp, BookOpen, Clock, Users, Eye, ClipboardCheck, ArrowUpRight, ArrowLeft, Info
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
 
 interface ReportsClientProps {
   teachers: any[];
@@ -59,6 +62,182 @@ export default function ReportsClient({
     t.departement.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const handleExportPDF = () => {
+    try {
+      toast.success("Génération du rapport PDF officiel...");
+      const doc = new jsPDF({
+        orientation: "landscape",
+        unit: "mm",
+        format: "a4"
+      });
+
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+
+      // Header block
+      doc.setFillColor(248, 250, 252);
+      doc.rect(10, 10, pageWidth - 20, 35, "F");
+      doc.setDrawColor(226, 232, 240);
+      doc.rect(10, 10, pageWidth - 20, 35, "S");
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8);
+      doc.setTextColor(37, 99, 235);
+      doc.text("RESSOURCES HUMAINES & PAYROLL", 15, 17);
+
+      doc.setFontSize(14);
+      doc.setTextColor(15, 23, 42);
+      doc.text("RAPPORT DE PERFORMANCE ET D'ASSIDUITÉ", 15, 24);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(100, 116, 139);
+      doc.text(`Période : ${getFilterLabel()}`, 15, 29);
+      doc.text("Année scolaire : 2025 - 2026", 15, 34);
+
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "bold");
+      doc.text("INFORMATIONS DOCUMENT", pageWidth - 80, 17);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Date d'édition : ${new Date().toLocaleDateString("fr-FR")} ${new Date().toLocaleTimeString("fr-FR", { hour: '2-digit', minute: '2-digit' })}`, pageWidth - 80, 22);
+      doc.text("Édité par : Admin Super", pageWidth - 80, 27);
+      doc.text("Réf Rapport : RPT-HR-2026-0001", pageWidth - 80, 32);
+
+      // KPI boxes
+      let currentY = 52;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(15, 23, 42);
+      doc.text("RÉSUMÉ DES INDICATEURS CLÉS", 10, currentY);
+      doc.setDrawColor(226, 232, 240);
+      doc.line(10, currentY + 2, pageWidth - 10, currentY + 2);
+      currentY += 8;
+
+      const kpiItems = [
+        { label: "Enseignants Actifs", value: globalStats.totalTeachers },
+        { label: "Heures Programmées", value: `${globalStats.totalScheduled}h` },
+        { label: "Heures Assurées", value: `${globalStats.totalAttended}h` },
+        { label: "Taux de Présence", value: `${globalStats.overallRate}%` }
+      ];
+
+      const boxWidth = (pageWidth - 20 - 12) / 4;
+      kpiItems.forEach((kpi, idx) => {
+        const startX = 10 + idx * (boxWidth + 4);
+        doc.setFillColor(255, 255, 255);
+        doc.setDrawColor(241, 245, 249);
+        doc.rect(startX, currentY, boxWidth, 20, "DF");
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(7);
+        doc.setTextColor(100, 116, 139);
+        doc.text(kpi.label.toUpperCase(), startX + 3, currentY + 5);
+
+        doc.setFontSize(12);
+        doc.setTextColor(37, 99, 235);
+        doc.text(String(kpi.value), startX + 3, currentY + 12);
+
+        doc.setFontSize(7);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(148, 163, 184);
+        doc.text("Données RH validées", startX + 3, currentY + 17);
+      });
+
+      currentY += 26;
+
+      // Table
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(15, 23, 42);
+      doc.text("SUIVI DÉTAILLÉ DE L'ASSIDUITÉ", 10, currentY);
+      doc.line(10, currentY + 2, pageWidth - 10, currentY + 2);
+      currentY += 6;
+
+      const tableHeaders = ["N°", "Code ID", "Enseignant", "Département", "Heures Programmées", "Heures Assurées", "Absences", "Taux de Présence"];
+      const tableBody = filteredTeachers.map((t, idx) => [
+        idx + 1,
+        t.empId,
+        t.nom,
+        t.departement,
+        `${t.scheduled}h`,
+        `${t.attended}h`,
+        `${t.absent}h`,
+        `${t.rate}%`
+      ]);
+
+      autoTable(doc, {
+        startY: currentY,
+        head: [tableHeaders],
+        body: tableBody,
+        theme: "striped",
+        headStyles: {
+          fillColor: [37, 99, 235],
+          textColor: [255, 255, 255],
+          fontSize: 8,
+          fontStyle: "bold"
+        },
+        bodyStyles: {
+          fontSize: 7.5,
+          textColor: [51, 65, 85]
+        },
+        margin: { left: 10, right: 10 },
+        didDrawPage: (data) => {
+          const pageCount = (doc as any).internal.getNumberOfPages();
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(7);
+          doc.setTextColor(148, 163, 184);
+          doc.text("Edut Pro - Gestion Scolaire", 10, pageHeight - 8);
+          doc.text("CONFIDENTIEL - Suivi d'assiduité du personnel", pageWidth / 2 - 35, pageHeight - 8);
+          doc.text(`Page ${pageCount}`, pageWidth - 20, pageHeight - 8);
+        }
+      });
+
+      currentY = (doc as any).lastAutoTable.finalY + 12;
+
+      // Signatures
+      if (currentY + 30 > pageHeight) {
+        doc.addPage();
+        currentY = 20;
+      }
+
+      doc.setDrawColor(226, 232, 240);
+      doc.line(10, currentY, pageWidth - 10, currentY);
+      currentY += 6;
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8);
+      doc.setTextColor(100, 116, 139);
+      doc.text("CONTRÔLE & SIGNATURES", 10, currentY);
+      currentY += 8;
+
+      const columnWidth = (pageWidth - 20) / 3;
+
+      doc.text("LE CLIENT (Inspecteur / IEFA)", 15, currentY);
+      doc.setDrawColor(203, 213, 225);
+      doc.rect(15, currentY + 3, columnWidth - 10, 16, "S");
+
+      doc.setFillColor(239, 246, 255);
+      doc.setDrawColor(191, 219, 254);
+      doc.rect(columnWidth + 15, currentY + 3, columnWidth - 10, 16, "DF");
+      doc.setFontSize(7);
+      doc.setTextColor(37, 99, 235);
+      doc.text("SYSTEME DE GESTION", columnWidth + 20, currentY + 9);
+      doc.text("EDUT PRO SCOLAIRE", columnWidth + 22, currentY + 13);
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8);
+      doc.setTextColor(100, 116, 139);
+      doc.text("LA DIRECTION GENERALE", columnWidth * 2 + 15, currentY);
+      doc.setDrawColor(203, 213, 225);
+      doc.rect(columnWidth * 2 + 15, currentY + 3, columnWidth - 10, 16, "S");
+
+      doc.save(`Rapport_RH_${Date.now()}.pdf`);
+      toast.success("Rapport PDF exporté avec succès !");
+    } catch (e: any) {
+      console.error(e);
+      toast.error("Erreur lors de l'export PDF.");
+    }
+  };
+
   const getFilterLabel = () => {
     const d = new Date(date);
     if (filterType === "day") {
@@ -109,8 +288,9 @@ export default function ReportsClient({
         }
       `}</style>
 
-      {/* Header (Hidden in Print) */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 no-print">
+      <div className="space-y-8 print:hidden">
+        {/* Header (Hidden in Print) */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div>
           <Link 
             href="/dashboard/hr" 
@@ -134,7 +314,7 @@ export default function ReportsClient({
             Gérer les QR Codes
           </Link>
           <button
-            onClick={() => window.print()}
+            onClick={handleExportPDF}
             className="h-11 px-5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold flex items-center gap-2 shadow-lg shadow-indigo-100 hover:shadow-indigo-200 transition-all text-sm"
           >
             <BarChart3 size={16} /> Exporter le Rapport
@@ -339,6 +519,232 @@ export default function ReportsClient({
             )}
           </tbody>
         </table>
+      </div>
+
+      </div>
+
+      {/* ─── PRINT LAYOUT (Visible only on print) ─── */}
+      <div className="hidden print:block bg-white text-black font-sans w-full space-y-8">
+        
+        {/* PAGE 1: RÉSUMÉ GÉNÉRAL */}
+        <div className="min-h-screen flex flex-col justify-between py-10 px-8 border-b-2 border-slate-200" style={{ pageBreakAfter: "always" }}>
+          <div className="space-y-8">
+            {/* Header */}
+            <div className="flex justify-between items-start border-b-2 border-indigo-600 pb-5">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-black text-xl shadow-lg shrink-0">
+                  EP
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-indigo-600">RESSOURCES HUMAINES & PAYROLL</p>
+                  <h1 className="text-3xl font-black tracking-tight text-slate-950 uppercase">RAPPORT D'ASSIDUITÉ RH</h1>
+                  <p className="text-xs font-bold text-slate-500 mt-0.5">Suivi de présence et performance du personnel</p>
+                </div>
+              </div>
+              
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4 min-w-[280px] space-y-1 text-xs font-bold text-slate-600">
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Date d'édition :</span>
+                  <span className="text-slate-800">{new Date().toLocaleDateString("fr-FR")} {new Date().toLocaleTimeString("fr-FR", { hour: '2-digit', minute: '2-digit' })}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Année scolaire :</span>
+                  <span className="text-slate-800">2025 - 2026</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Période :</span>
+                  <span className="text-slate-800">{getFilterLabel()}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* General Summary */}
+            <div className="space-y-4">
+              <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-indigo-600" /> Résumé Général
+              </h3>
+              <div className="grid gap-4 grid-cols-4">
+                {[
+                  { label: "Enseignants Actifs", value: globalStats.totalTeachers },
+                  { label: "Heures Programmées", value: `${globalStats.totalScheduled}h` },
+                  { label: "Heures Assurées", value: `${globalStats.totalAttended}h` },
+                  { label: "Assiduité Globale", value: `${globalStats.overallRate}%` },
+                ].map((item, idx) => (
+                  <div key={idx} className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">{item.label}</span>
+                      <span className="text-2xl font-black text-slate-950 mt-1 block">{item.value}</span>
+                      <span className="text-[9px] font-bold text-slate-400 block mt-0.5">Performance validée</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Info Box */}
+            <div className="rounded-[24px] border border-slate-100 bg-slate-50/50 p-6 flex justify-between items-center gap-4">
+              <div className="space-y-1">
+                <p className="text-[10px] font-black uppercase tracking-widest text-indigo-600 flex items-center gap-1.5">
+                  <Info size={13} /> À propos de ce rapport
+                </p>
+                <p className="text-xs font-bold leading-relaxed text-slate-500 max-w-2xl">
+                  Ce rapport RH synthétise l'assiduité, les absences et les heures effectives de cours assurées par le personnel enseignant de l'établissement.
+                </p>
+              </div>
+              <div className="flex items-center gap-3 shrink-0">
+                <div className="text-right">
+                  <p className="text-[9px] font-black text-slate-400">VÉRIFICATION D'AUTHENTICITÉ</p>
+                  <p className="text-[10px] font-mono font-bold text-slate-700 mt-0.5">RPT-HR-2026-0001</p>
+                </div>
+                <div className="w-14 h-14 border border-slate-300 rounded-lg bg-slate-50 flex items-center justify-center text-[8px] font-mono text-slate-400 select-none">
+                  [QR CODE]
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Signatures & Stamp */}
+          <div className="space-y-6 pt-10 border-t border-slate-100 mt-auto">
+            <div className="grid grid-cols-3 gap-6 items-center text-center">
+              <div>
+                <p className="text-xs font-black uppercase tracking-wider text-slate-500">Le Client</p>
+                <div className="mt-2 h-20 w-44 border border-dashed border-slate-200 rounded-2xl mx-auto flex items-center justify-center text-[10px] text-slate-400 italic">Signature & Cachet</div>
+              </div>
+              <div className="flex flex-col items-center">
+                <div className="w-20 h-20 rounded-full border-4 border-double border-indigo-200 bg-indigo-50/30 flex flex-col items-center justify-center text-center p-2">
+                  <span className="text-[8px] font-black text-indigo-600 uppercase tracking-widest leading-none">Edut Pro</span>
+                  <span className="text-[7px] font-bold text-slate-500 uppercase leading-normal">Système</span>
+                  <span className="text-[7px] font-bold text-slate-500 uppercase leading-none">Gestion Scolaire</span>
+                  <span className="text-[8px] text-indigo-500 mt-1">★</span>
+                </div>
+              </div>
+              <div>
+                <p className="text-xs font-black uppercase tracking-wider text-slate-500">La Direction</p>
+                <div className="mt-2 h-20 w-44 border border-dashed border-slate-200 rounded-2xl mx-auto flex items-center justify-center text-[10px] text-slate-400 italic">Signature & Cachet</div>
+              </div>
+            </div>
+            
+            {/* Footer Page 1 */}
+            <div className="flex justify-between items-center text-[9px] text-slate-400 font-bold uppercase tracking-widest border-t border-slate-200 pt-4 mt-6">
+              <span>Edut Pro - Gestion Scolaire</span>
+              <span className="text-indigo-600 italic">Merci pour votre confiance</span>
+              <span>Page 1 / 2</span>
+            </div>
+          </div>
+        </div>
+
+        {/* PAGE 2: TABLEAU D'ASSIDUITÉ */}
+        <div className="min-h-screen flex flex-col justify-between py-10 px-8">
+          <div className="space-y-8">
+            {/* Header */}
+            <div className="flex justify-between items-start border-b-2 border-indigo-600 pb-5">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-black text-xl shadow-lg shrink-0">
+                  EP
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-indigo-600">RESSOURCES HUMAINES & PAYROLL</p>
+                  <h1 className="text-3xl font-black tracking-tight text-slate-950 uppercase">RAPPORT D'ASSIDUITÉ RH</h1>
+                  <p className="text-xs font-bold text-slate-500 mt-0.5">Suivi de présence et performance du personnel</p>
+                </div>
+              </div>
+              
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4 min-w-[280px] space-y-1 text-xs font-bold text-slate-600">
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Date d'édition :</span>
+                  <span className="text-slate-800">{new Date().toLocaleDateString("fr-FR")} {new Date().toLocaleTimeString("fr-FR", { hour: '2-digit', minute: '2-digit' })}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Année scolaire :</span>
+                  <span className="text-slate-800">2025 - 2026</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Période :</span>
+                  <span className="text-slate-800">{getFilterLabel()}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Table */}
+            <div className="space-y-4">
+              <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-indigo-600" /> Tableau d'Assiduité des Enseignants
+              </h3>
+              
+              <div className="overflow-x-auto rounded-[24px] border border-slate-200">
+                <table className="w-full border-collapse text-left text-xs">
+                  <thead>
+                    <tr className="bg-indigo-600 font-black uppercase tracking-widest text-white">
+                      <th className="px-4 py-3">N°</th>
+                      <th className="px-4 py-3">ID Enseignant</th>
+                      <th className="px-4 py-3">Nom complet</th>
+                      <th className="px-4 py-3">Département</th>
+                      <th className="px-4 py-3 text-center">Heures Programmées</th>
+                      <th className="px-4 py-3 text-center">Heures Assurées</th>
+                      <th className="px-4 py-3 text-center">Absences</th>
+                      <th className="px-4 py-3 text-center">Taux Présence</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-bold text-slate-700">
+                    {filteredTeachers.map((t, index) => (
+                      <tr key={t.id} className="hover:bg-slate-50/50 transition-colors odd:bg-white even:bg-slate-50/30">
+                        <td className="px-4 py-3 text-slate-400">{index + 1}</td>
+                        <td className="px-4 py-3 font-mono font-black">{t.empId}</td>
+                        <td className="px-4 py-3 text-slate-900 uppercase">{t.nom}</td>
+                        <td className="px-4 py-3">{t.departement}</td>
+                        <td className="px-4 py-3 text-center">{t.scheduled}h</td>
+                        <td className="px-4 py-3 text-center text-emerald-600">{t.attended}h</td>
+                        <td className="px-4 py-3 text-center text-rose-600">{t.absent}h</td>
+                        <td className="px-4 py-3 text-center font-black text-indigo-600">{t.rate}%</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Recap Summary */}
+              <div className="rounded-[20px] border border-slate-200 bg-slate-50/50 p-4 flex gap-6 items-center justify-between text-[11px] font-black text-slate-700">
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Récapitulatif</span>
+                <div className="flex gap-6">
+                  <span>Enseignants : <span className="text-slate-900">{filteredTeachers.length}</span></span>
+                  <span>Total Heures Prog : <span className="text-slate-900">{globalStats.totalScheduled}h</span></span>
+                  <span>Total Heures Assurées : <span className="text-slate-900">{globalStats.totalAttended}h</span></span>
+                  <span>Taux Global : <span className="text-slate-900">{globalStats.overallRate}%</span></span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Signatures & Stamp */}
+          <div className="space-y-6 pt-10 border-t border-slate-100 mt-auto">
+            <div className="grid grid-cols-3 gap-6 items-center text-center">
+              <div>
+                <p className="text-xs font-black uppercase tracking-wider text-slate-500">Le Client</p>
+                <div className="mt-2 h-20 w-44 border border-dashed border-slate-200 rounded-2xl mx-auto flex items-center justify-center text-[10px] text-slate-400 italic">Signature & Cachet</div>
+              </div>
+              <div className="flex flex-col items-center">
+                <div className="w-20 h-20 rounded-full border-4 border-double border-indigo-200 bg-indigo-50/30 flex flex-col items-center justify-center text-center p-2">
+                  <span className="text-[8px] font-black text-indigo-600 uppercase tracking-widest leading-none">Edut Pro</span>
+                  <span className="text-[7px] font-bold text-slate-500 uppercase leading-normal">Système</span>
+                  <span className="text-[7px] font-bold text-slate-500 uppercase leading-none">Gestion Scolaire</span>
+                  <span className="text-[8px] text-indigo-500 mt-1">★</span>
+                </div>
+              </div>
+              <div>
+                <p className="text-xs font-black uppercase tracking-wider text-slate-500">La Direction</p>
+                <div className="mt-2 h-20 w-44 border border-dashed border-slate-200 rounded-2xl mx-auto flex items-center justify-center text-[10px] text-slate-400 italic">Signature & Cachet</div>
+              </div>
+            </div>
+            
+            {/* Footer Page 2 */}
+            <div className="flex justify-between items-center text-[9px] text-slate-400 font-bold uppercase tracking-widest border-t border-slate-200 pt-4 mt-6">
+              <span>Edut Pro - Gestion Scolaire</span>
+              <span className="text-indigo-600 italic">Merci pour votre confiance</span>
+              <span>Page 2 / 2</span>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
   );

@@ -3,28 +3,16 @@
 import { useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import * as XLSX from "xlsx";
 import {
   FileText,
-  Download,
-  Printer,
-  Mail,
-  Search,
-  Filter,
   ArrowLeft,
   Building2,
   Users,
-  GraduationCap,
   CheckCircle2,
-  FileSpreadsheet,
-  X,
-  MapPin,
-  FileDown,
-  Info,
-  Calendar,
-  User,
+  Filter,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import UniversalReport, { UniversalReportKpi } from "@/components/reporting/universal-report";
 
 // List of 16 required reports
 const reportTypes = [
@@ -46,14 +34,6 @@ const reportTypes = [
   { id: "non_mappe", label: "Rapport données non mappées", desc: "Champs bruts conservés lors des imports Excel" },
 ];
 
-const mockResults = [
-  { code: "REP-001", name: "Rapport Synthèse Régionale", type: "Global", year: "2025 - 2026", zone: "Urbaine", status: "Prêt", date: "28/06/2026" },
-  { code: "REP-002", name: "Indicateurs d'Infrastructure", type: "Infrastructures", year: "2025 - 2026", zone: "Rurale", status: "Prêt", date: "27/06/2026" },
-  { code: "REP-003", name: "Répartition Filles/Garçons", type: "Genre", year: "2025 - 2026", zone: "Toutes", status: "Prêt", date: "26/06/2026" },
-  { code: "REP-004", name: "Besoins en Mobilier Scolaire", type: "Besoins", year: "2025 - 2026", zone: "Toutes", status: "En cours", date: "25/06/2026" },
-  { code: "REP-005", name: "Contrôle Qualité Saisie", type: "Qualité", year: "2024 - 2025", zone: "Urbaine", status: "Prêt", date: "14/06/2026" },
-];
-
 export default function ReportingCentrePage() {
   const [selectedReport, setSelectedReport] = useState("global");
   
@@ -69,163 +49,177 @@ export default function ReportingCentrePage() {
   const [cycle, setCycle] = useState("Tous");
   const [level, setLevel] = useState("Tous");
 
-  const [emailModalOpen, setEmailModalOpen] = useState(false);
-  const [recipientEmail, setRecipientEmail] = useState("");
-
   const activeReport = reportTypes.find((r) => r.id === selectedReport) || reportTypes[0];
 
-  const handleExport = (format: "pdf" | "excel" | "csv") => {
-    toast.success(`Exportation du "${activeReport.label}" au format ${format.toUpperCase()} en cours...`);
-    
-    if (format === "excel" || format === "csv") {
-      const worksheet = XLSX.utils.json_to_sheet(mockResults.map(r => ({
-        "Code": r.code,
-        "Intitule": r.name,
-        "Type": r.type,
-        "Annee Scolaire": r.year,
-        "Zone": r.zone,
-        "Statut": r.status,
-        "Date": r.date
-      })));
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, activeReport.label.substring(0, 30));
-      
-      if (format === "excel") {
-        const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
-        const blob = new Blob([excelBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = `${activeReport.id}_report_${Date.now()}.xlsx`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      } else {
-        const csvContent = XLSX.write(workbook, { bookType: "csv", type: "string" });
-        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = `${activeReport.id}_report_${Date.now()}.csv`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      }
-    } else if (format === "pdf") {
-      const pdfContent = `%PDF-1.4
-1 0 obj
-<< /Type /Catalog /Pages 2 0 R >>
-endobj
-2 0 obj
-<< /Type /Pages /Kids [3 0 R] /Count 1 >>
-endobj
-3 0 obj
-<< /Type /Page /Parent 2 0 R /Resources << /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >> /F2 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> >> >> /MediaBox [0 0 595 842] /Contents 4 0 R >>
-endobj
-4 0 obj
-<< /Length 280 >>
-stream
-BT
-/F1 16 Tf
-70 780 Td
-(Edut Pro - Centre de Reporting) Tj
-ET
-BT
-/F1 14 Tf
-70 745 Td
-(Rapport: ${activeReport.label}) Tj
-ET
-BT
-/F2 11 Tf
-70 710 Td
-(Annee Scolaire: ${year}) Tj
-ET
-BT
-/F2 11 Tf
-70 690 Td
-(Region: ${region} - Inspection: ${inspection}) Tj
-ET
-BT
-/F2 11 Tf
-70 670 Td
-(Statut des donnees: Valid) Tj
-ET
-BT
-/F2 10 Tf
-70 630 Td
-(Ce document PDF factice a ete genere avec succes.) Tj
-ET
-BT
-/F2 10 Tf
-70 610 Td
-(Pour imprimer le rapport complet avec mise en page officielle, utilisez le bouton Imprimer.) Tj
-ET
-endstream
-endobj
-xref
-0 5
-0000000000 65535 f 
-0000000009 00000 n 
-0000000059 00000 n 
-0000000116 00000 n 
-0000000322 00000 n 
-trailer
-<< /Size 5 /Root 1 0 R >>
-startxref
-640
-%%EOF`;
-      const blob = new Blob([pdfContent], { type: "application/pdf" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `${activeReport.id}_report_${Date.now()}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+  // Helper to generate dynamic mock data for each report type
+  const getReportData = (id: string) => {
+    switch (id) {
+      case "identification":
+        return {
+          title: "RAPPORT D'IDENTIFICATION",
+          subtitle: "Données administratives et géographiques des structures",
+          description: "Ce rapport répertorie les coordonnées géographiques, codes officiels, contacts et types d'accès de tous les établissements.",
+          kpis: [
+            { label: "Total Écoles", value: "5", subtext: "100% gérées", icon: <Building2 />, color: "text-indigo-600", bgColor: "bg-indigo-50" },
+            { label: "Mise à jour", value: "100%", subtext: "Aucun retard", icon: <CheckCircle2 />, color: "text-emerald-600", bgColor: "bg-emerald-50" },
+          ],
+          table: {
+            headers: ["Code", "Établissement", "Statut Légal", "Région", "Commune", "Quartier", "Contact"],
+            rows: [
+              ["ETB-001", "Ecole Excellence", "Privé Agréé", "Niamey", "Commune IV", "Yantala", "+227 96 00 11 22"],
+              ["ETB-018", "Ecole Primaire Bobiel", "Public Officiel", "Niamey", "Commune I", "Bobiel", "+227 90 33 44 55"],
+              ["ETB-043", "Complexe Scolaire Sahel", "Privé Agréé", "Niamey", "Commune II", "Plateau", "+227 89 22 33 44"],
+              ["ETB-067", "Ecole Publique Lazaret", "Public Officiel", "Niamey", "Commune III", "Lazaret", "+227 94 44 55 66"],
+              ["ETB-104", "Lycee Municipal Est", "Public Officiel", "Niamey", "Commune V", "Aeroport", "+227 91 55 66 77"],
+            ],
+            summary: [
+              { label: "Écoles Publiques", value: "3", color: "text-indigo-600" },
+              { label: "Écoles Privées", value: "2", color: "text-violet-600" }
+            ]
+          }
+        };
+
+      case "effectifs":
+        return {
+          title: "RAPPORT DES EFFECTIFS ÉLÈVES",
+          subtitle: "Répartition des inscriptions scolaires par cycle",
+          description: "Indicateurs détaillés sur le nombre d'élèves par cycle et par classe dans l'ensemble des établissements d'inspection.",
+          kpis: [
+            { label: "Total Élèves", value: "3 663", subtext: "Inscrits validés", icon: <Users />, color: "text-indigo-600", bgColor: "bg-indigo-50" },
+            { label: "Filles Inscrites", value: "1 789", subtext: "48.8% de l'effectif", icon: <Users />, color: "text-pink-600", bgColor: "bg-pink-50" },
+            { label: "Garçons Inscrits", value: "1 874", subtext: "51.2% de l'effectif", icon: <Users />, color: "text-blue-600", bgColor: "bg-blue-50" },
+          ],
+          table: {
+            headers: ["Code", "Établissement", "Cycle", "Garçons", "Filles", "Total Éléves"],
+            rows: [
+              ["ETB-001", "Ecole Excellence", "Primaire", "324", "318", "642"],
+              ["ETB-018", "Ecole Primaire Bobiel", "Primaire", "245", "236", "481"],
+              ["ETB-043", "Complexe Scolaire Sahel", "Collège", "482", "452", "934"],
+              ["ETB-067", "Ecole Publique Lazaret", "Primaire", "198", "190", "388"],
+              ["ETB-104", "Lycee Municipal Est", "Lycée", "625", "593", "1 218"],
+            ],
+            summary: [
+              { label: "Cumul Garçons", value: "1 874", color: "text-blue-600" },
+              { label: "Cumul Filles", value: "1 789", color: "text-pink-600" },
+              { label: "Cumul Général", value: "3 663", color: "text-indigo-600" }
+            ]
+          }
+        };
+
+      case "filles_garcons":
+        return {
+          title: "RAPPORT FILLES / GARÇONS",
+          subtitle: "Indice de parité de genre par établissement",
+          description: "Analyse comparative du taux de scolarisation des filles par rapport aux garçons pour identifier les écarts régionaux.",
+          kpis: [
+            { label: "Indice Parité", value: "0.95", subtext: "Objectif national 1.00", icon: <Users />, color: "text-indigo-600", bgColor: "bg-indigo-50" },
+            { label: "Taux Scolarité Filles", value: "48.8%", subtext: "+1.2% vs l'an dernier", icon: <Users />, color: "text-pink-600", bgColor: "bg-pink-50" },
+          ],
+          table: {
+            headers: ["Établissement", "Effectif Filles", "Taux Filles (%)", "Effectif Garçons", "Taux Garçons (%)", "Indice Parité"],
+            rows: [
+              ["Ecole Excellence", "318", "49.5%", "324", "50.5%", "0.98"],
+              ["Ecole Primaire Bobiel", "236", "49.0%", "245", "51.0%", "0.96"],
+              ["Complexe Scolaire Sahel", "452", "48.4%", "482", "51.6%", "0.94"],
+              ["Ecole Publique Lazaret", "190", "49.0%", "198", "51.0%", "0.96"],
+              ["Lycee Municipal Est", "593", "48.7%", "625", "51.3%", "0.95"],
+            ],
+            summary: [
+              { label: "Moyenne Indice Parité", value: "0.95", color: "text-emerald-600" }
+            ]
+          }
+        };
+
+      case "personnel":
+        return {
+          title: "RAPPORT DU PERSONNEL ENSEIGNANT",
+          subtitle: "Répartition et encadrement pédagogique",
+          description: "Synthèse des ressources humaines enseignantes, taux de qualification et ratios élèves par enseignant.",
+          kpis: [
+            { label: "Total Staff", value: "151", subtext: "Enseignants actifs", icon: <Users />, color: "text-indigo-600", bgColor: "bg-indigo-50" },
+            { label: "Ratio Élèves/Prof", value: "24", subtext: "Moyenne nationale : 35", icon: <CheckCircle2 />, color: "text-emerald-600", bgColor: "bg-emerald-50" },
+          ],
+          table: {
+            headers: ["Établissement", "Directeur", "Profs Titulaires", "Profs Contractuels", "Total Personnel", "Ratio Élèves/Prof"],
+            rows: [
+              ["Ecole Excellence", "M. Kazi", "18", "6", "24", "27"],
+              ["Ecole Primaire Bobiel", "Mme Sani", "10", "6", "16", "30"],
+              ["Complexe Scolaire Sahel", "M. Issa", "28", "13", "41", "23"],
+              ["Ecole Publique Lazaret", "Mme Ouma", "8", "5", "13", "30"],
+              ["Lycee Municipal Est", "M. Bako", "42", "16", "58", "21"],
+            ],
+            summary: [
+              { label: "Titulaires", value: "106", color: "text-indigo-600" },
+              { label: "Contractuels", value: "46", color: "text-violet-600" }
+            ]
+          }
+        };
+
+      case "infrastructures":
+        return {
+          title: "RAPPORT DES INFRASTRUCTURES",
+          subtitle: "État des locaux et équipements scolaires",
+          description: "Diagnostic de la structure matérielle des écoles : salles de classe disponibles, alimentation eau/électricité.",
+          kpis: [
+            { label: "Total Salles", value: "94", subtext: "Salles de classe", icon: <Building2 />, color: "text-indigo-600", bgColor: "bg-indigo-50" },
+            { label: "Accès Eau", value: "80%", subtext: "4/5 Établissements", icon: <CheckCircle2 />, color: "text-emerald-600", bgColor: "bg-emerald-50" },
+            { label: "Accès Électricité", value: "80%", subtext: "4/5 Établissements", icon: <CheckCircle2 />, color: "text-emerald-600", bgColor: "bg-emerald-50" },
+          ],
+          table: {
+            headers: ["Établissement", "Salles de classe", "État général", "Point d'eau", "Électricité", "Latrines"],
+            rows: [
+              ["Ecole Excellence", "18", "Excellent", "Oui", "Oui", "Disponible (12)"],
+              ["Ecole Primaire Bobiel", "12", "Bon", "Non", "Oui", "Disponible (6)"],
+              ["Complexe Scolaire Sahel", "26", "Très Bon", "Oui", "Oui", "Disponible (18)"],
+              ["Ecole Publique Lazaret", "9", "À rénover", "Oui", "Non", "Inexistant"],
+              ["Lycee Municipal Est", "34", "Excellent", "Oui", "Oui", "Disponible (24)"],
+            ],
+            summary: [
+              { label: "Total Salles", value: "94", color: "text-indigo-600" }
+            ]
+          }
+        };
+
+      // Default fallback (Rapport Global)
+      default:
+        return {
+          title: "RAPPORT GLOBAL DES ÉTABLISSEMENTS",
+          subtitle: "Synthèse générale des canevas scolaires",
+          description: "Ce rapport récapitule l'ensemble des données clés des écoles pour l'inspection académique active.",
+          kpis: [
+            { label: "Établissements", value: "5", subtext: "Registre actif", icon: <Building2 />, color: "text-indigo-600", bgColor: "bg-indigo-50" },
+            { label: "Publics", value: "3", subtext: "Secteur d'État", icon: <CheckCircle2 />, color: "text-emerald-600", bgColor: "bg-emerald-50" },
+            { label: "Privés", value: "2", subtext: "Secteur Libre", icon: <Building2 />, color: "text-violet-600", bgColor: "bg-violet-50" },
+            { label: "Total Élèves", value: "3 663", subtext: "Effectif global", icon: <Users />, color: "text-blue-600", bgColor: "bg-blue-50" },
+          ],
+          table: {
+            headers: ["Code", "Établissement", "Type", "Cycle", "Région", "Commune", "Élèves", "Statut"],
+            rows: [
+              ["ETB-2026-001", "Ecole Excellence", "Prive", "Primaire", "Niamey", "Niamey IV", "642", "Valide"],
+              ["ETB-2026-018", "Ecole Primaire Bobiel", "Public", "Primaire", "Niamey", "Niamey I", "481", "A verifier"],
+              ["ETB-2026-043", "Complexe Scolaire Sahel", "Prive", "College", "Niamey", "Niamey II", "934", "Valide"],
+              ["ETB-2026-067", "Ecole Publique Lazaret", "Public", "Primaire", "Niamey", "Niamey III", "388", "Incomplet"],
+              ["ETB-2026-104", "Lycee Municipal Est", "Public", "Lycee", "Niamey", "Niamey V", "1218", "Valide"],
+            ],
+            summary: [
+              { label: "Nombre d'établissements", value: "5", color: "text-slate-500" },
+              { label: "Effectif cumulé", value: "3 663", color: "text-indigo-600" }
+            ]
+          }
+        };
     }
   };
 
-  const handleSendEmail = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!recipientEmail) return;
-    toast.success(`Rapport "${activeReport.label}" envoyé avec succès à ${recipientEmail}`);
-    setEmailModalOpen(false);
-    setRecipientEmail("");
+  const reportData = getReportData(selectedReport);
+
+  const handleSendEmailDone = (email: string) => {
+    toast.success(`Rapport envoyé par email à : ${email}`);
+    return true;
   };
 
   return (
-    <div className="min-h-screen space-y-6 p-4 text-slate-950 md:p-6 xl:p-8 print:bg-white print:p-0 print:text-black">
+    <div className="min-h-screen space-y-6 p-4 text-slate-950 md:p-6 xl:p-8 print:bg-white print:p-0">
       
-      {/* ─── OFFICIAL PRINT HEADER (Visible only on print) ─── */}
-      <div className="hidden print:block w-full border-b-2 border-slate-900 pb-6 mb-8">
-        <div className="flex justify-between items-start text-xs font-bold uppercase">
-          <div className="text-center space-y-1">
-            <p>République du Niger</p>
-            <p>Ministère de l'Éducation Nationale</p>
-            <p>Secrétariat Général</p>
-            <p>Direction des Statistiques</p>
-          </div>
-          <div className="text-center space-y-1">
-            <p>Année Scolaire: {year}</p>
-            <p>Région: {region}</p>
-            <p>Inspection: {inspection}</p>
-          </div>
-        </div>
-        
-        <div className="text-center mt-8">
-          <h1 className="text-2xl font-black uppercase tracking-wide decoration-double underline decoration-1">
-            {activeReport.label}
-          </h1>
-          <p className="text-sm font-bold text-slate-700 mt-2 lowercase first-letter:uppercase">{activeReport.desc}</p>
-        </div>
-
-        <div className="grid grid-cols-3 gap-4 mt-6 text-xs font-bold">
-          <div>Date d'impression: {new Date().toLocaleDateString("fr-FR")}</div>
-          <div className="text-center">Généré par: Administrateur</div>
-          <div className="text-right">Statut des données: Validé</div>
-        </div>
-      </div>
-
       {/* ─── WEB HEADER (Hidden on print) ─── */}
       <header className="rounded-[30px] border border-slate-200 bg-white p-5 shadow-sm print:hidden">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
@@ -239,74 +233,17 @@ startxref
             <div>
               <p className="text-[11px] font-black uppercase tracking-[0.18em] text-indigo-600">Gestion des Canevas Scolaires</p>
               <h1 className="text-3xl font-black tracking-tight text-slate-950">Centre de Reporting</h1>
-              <p className="mt-1 text-sm font-bold text-slate-500">Générez des rapports synthétiques sur mesure</p>
+              <p className="mt-1 text-sm font-bold text-slate-500">Générez et exportez des rapports administratifs d'impression A4</p>
             </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <button 
-              onClick={() => handleExport("pdf")}
-              className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 active:scale-95 transition-all"
-            >
-              <FileDown size={15} /> PDF
-            </button>
-            <button 
-              onClick={() => handleExport("excel")}
-              className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 active:scale-95 transition-all"
-            >
-              <FileSpreadsheet size={15} /> Excel
-            </button>
-            <button 
-              onClick={() => handleExport("csv")}
-              className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 active:scale-95 transition-all"
-            >
-              <Download size={15} /> CSV
-            </button>
-            <button 
-              onClick={() => setEmailModalOpen(true)}
-              className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 active:scale-95 transition-all"
-            >
-              <Mail size={15} /> Email
-            </button>
-            <button 
-              onClick={() => window.print()}
-              className="flex h-11 items-center gap-2 rounded-xl bg-indigo-600 px-4 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-indigo-100 hover:bg-indigo-700 active:scale-95 transition-all"
-            >
-              <Printer size={15} /> Imprimer
-            </button>
           </div>
         </div>
       </header>
 
-      {/* ─── STATISTICAL CARDS ─── */}
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {[
-          { label: "Rapports configurés", value: "16 types", sub: "100% complets", icon: FileText, color: "text-indigo-600", bg: "bg-indigo-50" },
-          { label: "Données analysées", value: "806 structures", sub: "Écoles publiques + privées", icon: Building2, color: "text-emerald-600", bg: "bg-emerald-50" },
-          { label: "Taux de complétude", value: "87%", sub: "Objectif national 95%", icon: CheckCircle2, color: "text-blue-600", bg: "bg-blue-50" },
-          { label: "Élèves comptabilisés", value: "142 416", sub: "Effectif cumulé", icon: Users, color: "text-pink-600", bg: "bg-pink-50" },
-        ].map((c) => {
-          const Icon = c.icon;
-          return (
-            <div key={c.label} className="rounded-[24px] border border-slate-100 bg-white p-5 shadow-sm print:border-slate-300">
-              <div className="flex items-center justify-between">
-                <div className={cn("flex h-12 w-12 items-center justify-center rounded-2xl", c.bg, c.color)}>
-                  <Icon size={22} />
-                </div>
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest print:hidden">2025-2026</span>
-              </div>
-              <p className="mt-5 text-[10px] font-black uppercase tracking-widest text-slate-400">{c.label}</p>
-              <p className="mt-1 text-2xl font-black text-slate-950">{c.value}</p>
-              <p className="mt-1 text-xs font-bold text-slate-500">{c.sub}</p>
-            </div>
-          );
-        })}
-      </section>
-
-      {/* ─── FILTERS PANEL ─── */}
+      {/* ─── FILTERS PANEL (Hidden on print) ─── */}
       <section className="rounded-[28px] border border-slate-100 bg-white p-5 shadow-sm print:hidden">
         <div className="flex items-center gap-2 mb-4">
           <Filter size={17} className="text-indigo-600" />
-          <h2 className="text-sm font-black text-slate-900">Filtres du rapport</h2>
+          <h2 className="text-sm font-black text-slate-990">Filtres Généraux</h2>
         </div>
         <div className="grid gap-3 grid-cols-2 md:grid-cols-5">
           <div className="space-y-1">
@@ -344,59 +281,17 @@ startxref
           </div>
           <div className="space-y-1">
             <span className="text-[9px] font-black text-slate-400 uppercase block">Établissement</span>
-            <input value={establishment} onChange={(e) => setEstablishment(e.target.value)} placeholder="Ex: Bobiel" className="w-full h-11 px-3 border border-slate-200 rounded-xl outline-none font-semibold text-slate-700 text-xs bg-white" />
-          </div>
-          <div className="space-y-1">
-            <span className="text-[9px] font-black text-slate-400 uppercase block">Statut Canevas</span>
-            <select value={status} onChange={(e) => setStatus(e.target.value)} className="w-full h-11 px-3 border border-slate-200 rounded-xl outline-none font-semibold text-slate-700 text-xs bg-white">
-              <option value="Toutes">Tous</option>
-              <option value="Valide">Validé</option>
-              <option value="A verifier">A vérifier</option>
-            </select>
-          </div>
-          <div className="space-y-1">
-            <span className="text-[9px] font-black text-slate-400 uppercase block">Type Établissement</span>
-            <select value={type} onChange={(e) => setType(e.target.value)} className="w-full h-11 px-3 border border-slate-200 rounded-xl outline-none font-semibold text-slate-700 text-xs bg-white">
-              <option value="Tous">Tous</option>
-              <option value="Public">Public</option>
-              <option value="Prive">Privé</option>
-            </select>
-          </div>
-          <div className="space-y-1">
-            <span className="text-[9px] font-black text-slate-400 uppercase block">Zone</span>
-            <select value={zone} onChange={(e) => setZone(e.target.value)} className="w-full h-11 px-3 border border-slate-200 rounded-xl outline-none font-semibold text-slate-700 text-xs bg-white">
-              <option value="Toutes">Toutes</option>
-              <option value="Urbaine">Urbaine</option>
-              <option value="Rurale">Rurale</option>
-            </select>
-          </div>
-          <div className="space-y-1">
-            <span className="text-[9px] font-black text-slate-400 uppercase block">Cycle</span>
-            <select value={cycle} onChange={(e) => setCycle(e.target.value)} className="w-full h-11 px-3 border border-slate-200 rounded-xl outline-none font-semibold text-slate-700 text-xs bg-white">
-              <option value="Tous">Tous</option>
-              <option value="Prescolaire">Préscolaire</option>
-              <option value="Primaire">Primaire</option>
-              <option value="Secondaire">Secondaire</option>
-            </select>
-          </div>
-          <div className="space-y-1">
-            <span className="text-[9px] font-black text-slate-400 uppercase block">Niveau d'étude</span>
-            <select value={level} onChange={(e) => setLevel(e.target.value)} className="w-full h-11 px-3 border border-slate-200 rounded-xl outline-none font-semibold text-slate-700 text-xs bg-white">
-              <option value="Tous">Tous</option>
-              <option value="CI">CI</option>
-              <option value="CP">CP</option>
-              <option value="CE1">CE1</option>
-            </select>
+            <input value={establishment} onChange={(e) => setEstablishment(e.target.value)} placeholder="Ex: Excellence" className="w-full h-11 px-3 border border-slate-200 rounded-xl outline-none font-semibold text-slate-700 text-xs bg-white" />
           </div>
         </div>
       </section>
 
-      {/* ─── MAIN CONTENT GRID ─── */}
+      {/* ─── MAIN LAYOUT ─── */}
       <section className="grid gap-5 xl:grid-cols-[280px_1fr]">
         
         {/* Left pane: Report selector (Hidden on print) */}
-        <div className="rounded-[28px] border border-slate-100 bg-white p-4 shadow-sm print:hidden max-h-[700px] overflow-y-auto custom-scrollbar">
-          <h2 className="text-xs font-black uppercase text-slate-400 tracking-wider mb-4 px-2">Liste des rapports</h2>
+        <div className="rounded-[28px] border border-slate-100 bg-white p-4 shadow-sm print:hidden max-h-[780px] overflow-y-auto custom-scrollbar">
+          <h2 className="text-xs font-black uppercase text-slate-400 tracking-wider mb-4 px-2">Types de Rapports</h2>
           <div className="space-y-1.5">
             {reportTypes.map((r) => (
               <button
@@ -418,122 +313,27 @@ startxref
           </div>
         </div>
 
-        {/* Right pane: Report visualization / table */}
-        <div className="rounded-[28px] border border-slate-100 bg-white p-6 shadow-sm print:border-none print:shadow-none">
-          <div className="mb-6 flex items-start justify-between">
-            <div>
-              <h2 className="text-xl font-black text-slate-900">{activeReport.label}</h2>
-              <p className="text-xs font-bold text-slate-400 mt-1">{activeReport.desc}</p>
-            </div>
-            <div className="flex items-center gap-2 text-xs font-bold text-slate-500 bg-slate-50 p-2 rounded-xl border border-slate-100 print:hidden">
-              <Info size={14} className="text-indigo-600" />
-              <span>Aperçu en temps réel</span>
-            </div>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[700px] border-collapse text-left text-sm print:border print:border-slate-300">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-black uppercase tracking-widest text-slate-400 print:bg-slate-100 print:border-slate-300 print:text-black">
-                  <th className="px-4 py-3.5">Code</th>
-                  <th className="px-4 py-3.5">Intitulé du rapport</th>
-                  <th className="px-4 py-3.5">Type</th>
-                  <th className="px-4 py-3.5">Année Scolaire</th>
-                  <th className="px-4 py-3.5">Zone géographique</th>
-                  <th className="px-4 py-3.5">Statut</th>
-                  <th className="px-4 py-3.5">Dernière génération</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50 print:divide-slate-300">
-                {mockResults.map((row) => (
-                  <tr key={row.code} className="hover:bg-slate-50/50 transition font-bold text-slate-700 print:text-black">
-                    <td className="px-4 py-4 text-indigo-600 font-black">{row.code}</td>
-                    <td className="px-4 py-4 text-slate-900">{row.name}</td>
-                    <td className="px-4 py-4 font-normal text-xs text-slate-500">{row.type}</td>
-                    <td className="px-4 py-4">{row.year}</td>
-                    <td className="px-4 py-4 text-xs">{row.zone}</td>
-                    <td className="px-4 py-4">
-                      <span className={cn(
-                        "rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wider border",
-                        row.status === "Prêt" ? "bg-emerald-50 border-emerald-100 text-emerald-700" : "bg-amber-50 border-amber-100 text-amber-700"
-                      )}>
-                        {row.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 text-xs font-normal text-slate-400">{row.date}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-5 text-xs text-slate-400 font-bold print:hidden">
-            <span>Affichage de 1 à 5 sur 24 versions</span>
-            <div className="flex gap-1.5">
-              <button disabled className="h-8 px-3 rounded-lg border border-slate-200 text-slate-400">Précédent</button>
-              <button className="h-8 w-8 rounded-lg bg-indigo-600 text-white">1</button>
-              <button className="h-8 w-8 rounded-lg border border-slate-200 text-slate-600">2</button>
-              <button className="h-8 px-3 rounded-lg border border-slate-200 text-slate-600">Suivant</button>
-            </div>
-          </div>
+        {/* Right pane: UniversalReport component */}
+        <div className="w-full">
+          <UniversalReport
+            metadata={{
+              title: reportData.title,
+              subtitle: reportData.subtitle,
+              moduleName: "GESTION DES CANEVAS SCOLAIRES",
+              reportId: `RPT-${selectedReport.toUpperCase()}-2026-0001`,
+              academicYear: year,
+              editorName: "Admin Super",
+              description: reportData.description,
+              isLandscape: true,
+            }}
+            kpis={reportData.kpis}
+            table={reportData.table}
+            onSendEmail={handleSendEmailDone}
+          />
         </div>
+        
       </section>
 
-      {/* ─── PRINT FOOTER & SIGNATURES ─── */}
-      <div className="hidden print:block w-full mt-24 pt-8 border-t border-dashed border-slate-400">
-        <div className="grid grid-cols-3 gap-8 text-center text-xs font-bold">
-          <div>
-            <p className="underline mb-12">Signature du Directeur d'Établissement</p>
-            <div className="h-20 w-44 border border-dashed border-slate-300 mx-auto flex items-center justify-center text-[10px] text-slate-400 italic">Signature & Cachet</div>
-          </div>
-          <div>
-            <p className="underline mb-12">Cachet de l'Inspection IEFA</p>
-            <div className="h-20 w-44 border border-dashed border-slate-300 mx-auto flex items-center justify-center text-[10px] text-slate-400 italic">Cachet de conformité</div>
-          </div>
-          <div>
-            <p className="underline mb-12">Vérification QR Code</p>
-            <div className="w-20 h-20 border border-slate-300 mx-auto flex items-center justify-center bg-slate-50 text-[10px] font-mono text-slate-500">
-              [QR CODE]
-            </div>
-            <p className="text-[9px] text-slate-400 mt-2 font-mono">ID: {activeReport.id}-2026-NGR</p>
-          </div>
-        </div>
-      </div>
-
-      {/* ─── EMAIL DIALOG MODAL ─── */}
-      {emailModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-[2.2rem] border border-slate-100 shadow-2xl max-w-md w-full p-8 relative">
-            <button 
-              onClick={() => setEmailModalOpen(false)}
-              className="absolute right-6 top-6 w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors"
-            >
-              <X size={20} />
-            </button>
-            <h3 className="text-xl font-black text-slate-950 mb-2">Envoyer le rapport par Email</h3>
-            <p className="text-xs text-slate-400 font-bold mb-5">Destinataire recevra un rapport PDF conforme à l'année {year}.</p>
-            
-            <form onSubmit={handleSendEmail} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase">Adresse Email du destinataire *</label>
-                <input 
-                  required 
-                  type="email"
-                  value={recipientEmail} 
-                  onChange={e => setRecipientEmail(e.target.value)} 
-                  placeholder="inspecteur@ministere.gouv.ne" 
-                  className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 font-semibold text-slate-800 text-sm" 
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-                <button type="button" onClick={() => setEmailModalOpen(false)} className="h-11 px-5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs">Annuler</button>
-                <button type="submit" className="h-11 px-5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md shadow-indigo-100">Envoyer le mail</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
