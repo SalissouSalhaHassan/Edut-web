@@ -73,6 +73,11 @@ export async function saveBranch(data: any) {
     const schoolId = await getActiveSchoolId();
     const { id, createdAt, ...rest } = data;
     
+    // Sanitize workingDays array to a comma-separated string
+    if (rest.workingDays && Array.isArray(rest.workingDays)) {
+      rest.workingDays = rest.workingDays.join(",");
+    }
+    
     if (id) {
       await db.update(schoolBranches)
         .set(rest)
