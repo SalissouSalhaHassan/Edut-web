@@ -27,8 +27,11 @@ import {
   Lightbulb,
   Check,
   Info,
+  FileText,
+  FileSpreadsheet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import * as XLSX from "xlsx";
 
 interface SchoolRow {
   code: string;
@@ -303,6 +306,41 @@ export default function EtablissementsPage() {
   const handleValidate = (code: string) => {
     setSchoolsList(schoolsList.map(s => s.code === code ? { ...s, statut: "Valide", completion: 100 } : s));
     toast.success(`Établissement ${code} validé avec succès.`);
+  };
+
+  const handleExportExcel = () => {
+    try {
+      toast.success("Exportation Excel en cours...");
+      const data = filteredSchools.map((s, idx) => ({
+        "N°": idx + 1,
+        "Code": s.code,
+        "Nom": s.name,
+        "Type": s.type,
+        "Cycle": s.cycle,
+        "Région": s.region,
+        "Commune": s.commune,
+        "Quartier": s.quartier,
+        "Statut": s.statut,
+        "Élèves": s.eleves,
+        "Filles": s.filles,
+        "Garçons": s.garcons,
+        "Enseignants": s.enseignants,
+        "Salles": s.salles,
+        "Eau": s.eau,
+        "Électricité": s.electricite,
+        "Complétude (%)": s.completion,
+        "Dernière M.J.": s.lastUpdate
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(data);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Établissements");
+      XLSX.writeFile(workbook, `Liste_Etablissements_${Date.now()}.xlsx`);
+      toast.success("Fichier Excel exporté avec succès !");
+    } catch (e: any) {
+      console.error(e);
+      toast.error("Erreur lors de l'exportation Excel.");
+    }
   };
 
   // Export to PDF
@@ -639,7 +677,13 @@ export default function EtablissementsPage() {
                 onClick={handleExport}
                 className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 transition-colors"
               >
-                <Download size={16} /> Exporter
+                <FileText size={16} className="text-rose-500" /> PDF
+              </button>
+              <button 
+                onClick={handleExportExcel}
+                className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                <FileSpreadsheet size={16} className="text-emerald-600" /> Excel
               </button>
               <button onClick={() => window.print()} className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 transition-colors">
                 <Printer size={16} /> Imprimer
