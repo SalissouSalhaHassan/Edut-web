@@ -82,10 +82,9 @@ export default function TransportClient({ initialRoutes, initialSubscriptions }:
     const timer = setTimeout(async () => {
       setIsSearchingStudents(true);
       try {
-        const res = await searchStudentsAction(studentSearch);
-        if (res.data) {
-          setSearchResults(res.data);
-        }
+        const res = await searchStudentsAction(studentSearch) as any;
+        const list = res?.data?.data || res?.data || [];
+        setSearchResults(Array.isArray(list) ? list : []);
       } catch {
         toast.error("Erreur lors de la recherche des élèves");
       }
