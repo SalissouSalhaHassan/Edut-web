@@ -204,22 +204,6 @@ export default function CanevasDashboardPage() {
     setNewDesc("");
   };
 
-  const handleExportKPIs = () => {
-    toast.success("Génération du rapport d'exportation en cours...");
-    let csv = "Indicateur,Valeur,Description\n";
-    activeData.kpis.forEach((k) => {
-      csv += `"${k.label}","${k.value}","${k.sub}"\n`;
-    });
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", `canevas_kpis_${selectedYear.replace(/\s+/g, "")}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
   return (
     <div className="min-h-screen space-y-6 p-4 text-slate-950 md:p-6 xl:p-8 print:bg-white print:p-0">
       <header className="rounded-[30px] border border-slate-200 bg-white p-5 shadow-sm print:border-b print:shadow-none">
@@ -249,17 +233,17 @@ export default function CanevasDashboardPage() {
             <Link href="/dashboard/canevas/etablissements" className="flex h-11 items-center gap-2 rounded-xl border border-indigo-100 bg-indigo-50 px-4 text-xs font-black uppercase tracking-widest text-indigo-700 hover:bg-indigo-100 transition-colors">
               <School size={16} /> Établissements
             </Link>
+            <Link href="/dashboard/canevas/reporting" className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 active:scale-95 transition-all">
+              <BarChart3 size={16} /> Reporting
+            </Link>
+            <Link href="/dashboard/canevas/export" className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 active:scale-95 transition-all">
+              <Download size={16} /> Exporter
+            </Link>
             <button 
               onClick={() => setIsNewOpen(true)}
               className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 active:scale-95 transition-all"
             >
               <Plus size={16} /> Nouveau Canevas
-            </button>
-            <button 
-              onClick={handleExportKPIs}
-              className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 active:scale-95 transition-all"
-            >
-              <Download size={16} /> Exporter
             </button>
             <button onClick={() => window.print()} className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 active:scale-95 transition-all">
               <Printer size={16} /> Imprimer
@@ -287,6 +271,7 @@ export default function CanevasDashboardPage() {
         })}
       </section>
 
+      {/* Access links */}
       <section className="rounded-[30px] border border-slate-100 bg-white p-5 shadow-sm print:hidden">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
@@ -294,20 +279,17 @@ export default function CanevasDashboardPage() {
             <p className="mt-1 text-xs font-bold text-slate-500">Fiche établissement, saisies détaillées, mapping Excel et contrôle qualité</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Link href="/dashboard/canevas/etablissements/ETB-2026-001" className="flex h-11 items-center gap-2 rounded-xl bg-indigo-600 px-4 text-xs font-black uppercase tracking-widest text-white">
-              <School size={16} /> Fiche ERP
+            <Link href="/dashboard/canevas/etablissements" className="flex h-11 items-center gap-2 rounded-xl bg-indigo-600 px-4 text-xs font-black uppercase tracking-widest text-white">
+              <School size={16} /> Établissements
             </Link>
-            <Link href="/dashboard/canevas/etablissements/ETB-2026-001/identification" className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700">
-              <FileSpreadsheet size={16} /> Identification
+            <Link href="/dashboard/canevas/reporting" className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700">
+              <BarChart3 size={16} /> Centre de Reporting
             </Link>
-            <Link href="/dashboard/canevas/excel-preview" className="flex h-11 items-center gap-2 rounded-xl border border-indigo-100 bg-indigo-50 px-4 text-xs font-black uppercase tracking-widest text-indigo-700">
-              <Upload size={16} /> Excel brut
+            <Link href="/dashboard/canevas/export" className="flex h-11 items-center gap-2 rounded-xl border border-indigo-100 bg-indigo-50 px-4 text-xs font-black uppercase tracking-widest text-indigo-700">
+              <Download size={16} /> Exporter Canevas
             </Link>
-            <Link href="/dashboard/canevas/mapping-excel" className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700">
-              <GitCompareArrows size={16} /> Mapping
-            </Link>
-            <Link href="/dashboard/canevas/controle-qualite" className="flex h-11 items-center gap-2 rounded-xl border border-amber-100 bg-amber-50 px-4 text-xs font-black uppercase tracking-widest text-amber-700">
-              <ShieldCheck size={16} /> Qualité
+            <Link href="/dashboard/canevas/import" className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700">
+              <Upload size={16} /> Importer Excel
             </Link>
           </div>
         </div>

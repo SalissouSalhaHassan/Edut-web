@@ -18,6 +18,7 @@ import {
   UploadCloud,
   XCircle,
   Trash2,
+  BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -295,6 +296,12 @@ export default function CanevasImportPage() {
             <Link href="/dashboard/canevas/controle-qualite" className="flex h-11 items-center gap-2 rounded-xl border border-amber-100 bg-amber-50 px-4 text-xs font-black uppercase tracking-widest text-amber-700 hover:bg-amber-100 transition-all">
               <AlertTriangle size={16} /> Qualité
             </Link>
+            <Link href="/dashboard/canevas/reporting" className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 active:scale-95 transition-all">
+              <BarChart3 size={16} /> Reporting
+            </Link>
+            <Link href="/dashboard/canevas/export" className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 active:scale-95 transition-all">
+              <Download size={16} /> Exporter
+            </Link>
             <button 
               onClick={handleDownloadTemplate}
               className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 active:scale-95 transition-all"
@@ -445,7 +452,7 @@ export default function CanevasImportPage() {
 
       {/* Historical imports table */}
       <section className="rounded-[30px] border border-slate-100 bg-white shadow-sm">
-        <div className="flex flex-col gap-2 border-b border-slate-100 p-5 md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-col gap-2 border-b border-slate-100 p-5 md:flex-row md:items-center md:justify-between print:hidden">
           <div>
             <h2 className="text-lg font-black text-slate-950">Résultat des imports</h2>
             <p className="mt-1 text-xs font-bold text-slate-500">Historique des fichiers importés et statut de traitement</p>

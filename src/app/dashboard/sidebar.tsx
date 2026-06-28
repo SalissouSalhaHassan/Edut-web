@@ -41,7 +41,8 @@ import {
   ChevronDown,
   Bell,
   HelpCircle,
-  Info
+  Info,
+  Download,
 } from "lucide-react";
 import { logout } from "@/domains/auth/actions/login";
 
@@ -103,6 +104,8 @@ const sections: Array<{ title: string; dotColor: string; items: NavItem[] }> = [
       { href: "/dashboard/finance", label: "Finances", icon: <Wallet className="size-[18px]" />, color: "text-emerald-500" },
       { href: "/dashboard/canevas", label: "Canevas Scolaires", icon: <FileBarChart2 className="size-[18px]" />, color: "text-indigo-500" },
       { href: "/dashboard/canevas/etablissements", label: "Établissements", icon: <Building2 className="size-[18px]" />, color: "text-blue-500" },
+      { href: "/dashboard/canevas/reporting", label: "Centre de Reporting", icon: <BarChart3 className="size-[18px]" />, color: "text-indigo-500" },
+      { href: "/dashboard/canevas/export", label: "Export Canevas", icon: <Download className="size-[18px]" />, color: "text-slate-500" },
       { href: "/dashboard/coges", label: "Paiement COGES", icon: <BriefcaseBusiness className="size-[18px]" />, color: "text-indigo-500" },
       { href: "/dashboard/hr", label: "Personnel HR", icon: <UserRound className="size-[18px]" />, color: "text-blue-500" },
       { href: "/dashboard/importation", label: "Importation", icon: <Package className="size-[18px]" />, color: "text-indigo-600" },
