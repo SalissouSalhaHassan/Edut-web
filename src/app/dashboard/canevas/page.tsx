@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
+import { toast } from "sonner";
 import {
   AlertTriangle,
   BarChart3,
@@ -16,24 +18,60 @@ import {
   Upload,
   Users,
   UserRoundCheck,
+  X,
+  Check,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const kpis = [
-  { label: "Établissements", value: "806", sub: "Toutes structures", icon: School, color: "indigo" },
-  { label: "Écoles publiques", value: "612", sub: "Secteur public", icon: Building2, color: "emerald" },
-  { label: "Écoles privées", value: "194", sub: "Secteur privé", icon: Building2, color: "violet" },
-  { label: "Total élèves", value: "142 416", sub: "Primaire + préscolaire", icon: GraduationCap, color: "blue" },
-  { label: "Total filles", value: "70 258", sub: "49,3% des effectifs", icon: Users, color: "pink" },
-  { label: "Total garçons", value: "72 158", sub: "50,7% des effectifs", icon: Users, color: "cyan" },
-  { label: "Enseignants", value: "4 382", sub: "Tous statuts", icon: UserRoundCheck, color: "amber" },
-  { label: "Salles de classe", value: "3 946", sub: "Toutes catégories", icon: Building2, color: "slate" },
-  { label: "Salles utilisées", value: "3 621", sub: "91,8% exploitées", icon: BarChart3, color: "emerald" },
-  { label: "Sans point d’eau", value: "83", sub: "Alerte infrastructure", icon: Droplets, color: "rose" },
-  { label: "Sans électricité", value: "126", sub: "Besoin prioritaire", icon: Lightbulb, color: "orange" },
-  { label: "Besoins critiques", value: "214", sub: "À traiter", icon: AlertTriangle, color: "rose" },
-  { label: "Complétude", value: "87%", sub: "Données validées", icon: BarChart3, color: "indigo" },
-];
+interface KpiData {
+  label: string;
+  value: string;
+  sub: string;
+  icon: any;
+  color: string;
+}
+
+// Mock data representing different academic years to simulate dynamic loading
+const academicYearsData: Record<string, { kpis: KpiData[]; publicValue: number; privateValue: number }> = {
+  "2025 - 2026": {
+    publicValue: 612,
+    privateValue: 194,
+    kpis: [
+      { label: "Établissements", value: "806", sub: "Toutes structures", icon: School, color: "indigo" },
+      { label: "Écoles publiques", value: "612", sub: "Secteur public", icon: Building2, color: "emerald" },
+      { label: "Écoles privées", value: "194", sub: "Secteur privé", icon: Building2, color: "violet" },
+      { label: "Total élèves", value: "142 416", sub: "Primaire + préscolaire", icon: GraduationCap, color: "blue" },
+      { label: "Total filles", value: "70 258", sub: "49,3% des effectifs", icon: Users, color: "pink" },
+      { label: "Total garçons", value: "72 158", sub: "50,7% des effectifs", icon: Users, color: "cyan" },
+      { label: "Enseignants", value: "4 382", sub: "Tous statuts", icon: UserRoundCheck, color: "amber" },
+      { label: "Salles de classe", value: "3 946", sub: "Toutes catégories", icon: Building2, color: "slate" },
+      { label: "Salles utilisées", value: "3 621", sub: "91,8% exploitées", icon: BarChart3, color: "emerald" },
+      { label: "Sans point d’eau", value: "83", sub: "Alerte infrastructure", icon: Droplets, color: "rose" },
+      { label: "Sans électricité", value: "126", sub: "Besoin prioritaire", icon: Lightbulb, color: "orange" },
+      { label: "Besoins critiques", value: "214", sub: "À traiter", icon: AlertTriangle, color: "rose" },
+      { label: "Complétude", value: "87%", sub: "Données validées", icon: BarChart3, color: "indigo" },
+    ]
+  },
+  "2024 - 2025": {
+    publicValue: 590,
+    privateValue: 182,
+    kpis: [
+      { label: "Établissements", value: "772", sub: "Toutes structures", icon: School, color: "indigo" },
+      { label: "Écoles publiques", value: "590", sub: "Secteur public", icon: Building2, color: "emerald" },
+      { label: "Écoles privées", value: "182", sub: "Secteur privé", icon: Building2, color: "violet" },
+      { label: "Total élèves", value: "135 120", sub: "Primaire + préscolaire", icon: GraduationCap, color: "blue" },
+      { label: "Total filles", value: "66 210", sub: "49,0% des effectifs", icon: Users, color: "pink" },
+      { label: "Total garçons", value: "68 910", sub: "51,0% des effectifs", icon: Users, color: "cyan" },
+      { label: "Enseignants", value: "4 120", sub: "Tous statuts", icon: UserRoundCheck, color: "amber" },
+      { label: "Salles de classe", value: "3 810", sub: "Toutes catégories", icon: Building2, color: "slate" },
+      { label: "Salles utilisées", value: "3 502", sub: "91,9% exploitées", icon: BarChart3, color: "emerald" },
+      { label: "Sans point d’eau", value: "95", sub: "Alerte infrastructure", icon: Droplets, color: "rose" },
+      { label: "Sans électricité", value: "140", sub: "Besoin prioritaire", icon: Lightbulb, color: "orange" },
+      { label: "Besoins critiques", value: "245", sub: "À traiter", icon: AlertTriangle, color: "rose" },
+      { label: "Complétude", value: "100%", sub: "Données validées", icon: BarChart3, color: "indigo" },
+    ]
+  }
+};
 
 const communeData = [
   { name: "NY I", value: 236 },
@@ -144,6 +182,42 @@ function LevelChart() {
 }
 
 export default function CanevasDashboardPage() {
+  const [selectedYear, setSelectedYear] = useState("2025 - 2026");
+  
+  // Modal for new canevas
+  const [isNewOpen, setIsNewOpen] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newCycle, setNewCycle] = useState("Primaire");
+  const [newDesc, setNewDesc] = useState("");
+
+  const activeData = academicYearsData[selectedYear] || academicYearsData["2025 - 2026"];
+
+  const handleCreateCanevas = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newName) return;
+    
+    toast.success(`Canevas "${newName}" (${newCycle}) créé avec succès !`);
+    setIsNewOpen(false);
+    setNewName("");
+    setNewDesc("");
+  };
+
+  const handleExportKPIs = () => {
+    toast.success("Génération du rapport d'exportation en cours...");
+    let csv = "Indicateur,Valeur,Description\n";
+    activeData.kpis.forEach((k) => {
+      csv += `"${k.label}","${k.value}","${k.sub}"\n`;
+    });
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `canevas_kpis_${selectedYear.replace(/\s+/g, "")}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="min-h-screen space-y-6 p-4 text-slate-950 md:p-6 xl:p-8 print:bg-white print:p-0">
       <header className="rounded-[30px] border border-slate-200 bg-white p-5 shadow-sm print:border-b print:shadow-none">
@@ -159,31 +233,42 @@ export default function CanevasDashboardPage() {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 print:hidden">
-            <select className="h-11 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black text-slate-700 outline-none">
-              <option>Année scolaire 2025 - 2026</option>
-              <option>Année scolaire 2024 - 2025</option>
+            <select 
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(e.target.value)}
+              className="h-11 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black text-slate-700 outline-none cursor-pointer"
+            >
+              <option value="2025 - 2026">Année scolaire 2025 - 2026</option>
+              <option value="2024 - 2025">Année scolaire 2024 - 2025</option>
             </select>
-            <Link href="/dashboard/canevas/import" className="flex h-11 items-center gap-2 rounded-xl bg-indigo-600 px-4 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-indigo-100">
+            <Link href="/dashboard/canevas/import" className="flex h-11 items-center gap-2 rounded-xl bg-indigo-600 px-4 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-colors">
               <Upload size={16} /> Importer Excel
             </Link>
-            <Link href="/dashboard/canevas/etablissements" className="flex h-11 items-center gap-2 rounded-xl border border-indigo-100 bg-indigo-50 px-4 text-xs font-black uppercase tracking-widest text-indigo-700">
+            <Link href="/dashboard/canevas/etablissements" className="flex h-11 items-center gap-2 rounded-xl border border-indigo-100 bg-indigo-50 px-4 text-xs font-black uppercase tracking-widest text-indigo-700 hover:bg-indigo-100 transition-colors">
               <School size={16} /> Établissements
             </Link>
-            <button className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700">
+            <button 
+              onClick={() => setIsNewOpen(true)}
+              className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 active:scale-95 transition-all"
+            >
               <Plus size={16} /> Nouveau Canevas
             </button>
-            <button className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700">
+            <button 
+              onClick={handleExportKPIs}
+              className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 active:scale-95 transition-all"
+            >
               <Download size={16} /> Exporter
             </button>
-            <button onClick={() => window.print()} className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700">
+            <button onClick={() => window.print()} className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 active:scale-95 transition-all">
               <Printer size={16} /> Imprimer
             </button>
           </div>
         </div>
       </header>
 
+      {/* KPI Section */}
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5">
-        {kpis.map((kpi) => {
+        {activeData.kpis.map((kpi) => {
           const Icon = kpi.icon;
           return (
             <Link href={kpi.label.includes("tablissements") ? "/dashboard/canevas/etablissements" : "/dashboard/canevas"} key={kpi.label} className="rounded-[24px] border border-slate-100 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
@@ -200,6 +285,7 @@ export default function CanevasDashboardPage() {
         })}
       </section>
 
+      {/* Graphs and Alert Panels */}
       <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="space-y-5">
           <div className="grid gap-5 xl:grid-cols-3">
@@ -211,7 +297,7 @@ export default function CanevasDashboardPage() {
             <div className="rounded-[26px] border border-slate-100 bg-white p-5 shadow-sm">
               <h2 className="text-sm font-black text-slate-900">Public vs Privé</h2>
               <p className="mb-4 mt-1 text-xs font-bold text-slate-500">Répartition des statuts</p>
-              <Donut publicValue={612} privateValue={194} />
+              <Donut publicValue={activeData.publicValue} privateValue={activeData.privateValue} />
             </div>
             <div className="rounded-[26px] border border-slate-100 bg-white p-5 shadow-sm">
               <h2 className="text-sm font-black text-slate-900">Filles / Garçons</h2>
@@ -296,15 +382,57 @@ export default function CanevasDashboardPage() {
             <h2 className="text-sm font-black text-slate-900">Qualité des données</h2>
             <p className="mt-1 text-xs font-bold text-slate-500">Complétude globale des canevas</p>
             <div className="mt-5 flex items-end justify-between">
-              <span className="text-5xl font-black text-indigo-600">87%</span>
+              <span className="text-5xl font-black text-indigo-600">{selectedYear === "2024 - 2025" ? "100%" : "87%"}</span>
               <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">Bon niveau</span>
             </div>
             <div className="mt-5 h-2 overflow-hidden rounded-full bg-slate-100">
-              <div className="h-full rounded-full bg-indigo-600" style={{ width: "87%" }} />
+              <div className="h-full rounded-full bg-indigo-600 transition-all duration-500" style={{ width: selectedYear === "2024 - 2025" ? "100%" : "87%" }} />
             </div>
           </div>
         </aside>
       </section>
+
+      {/* ─── MODAL: NEW CANEVAS TEMPLATE ─── */}
+      {isNewOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-2xl max-w-md w-full p-8 relative">
+            <button 
+              onClick={() => setIsNewOpen(false)}
+              className="absolute right-6 top-6 w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors"
+            >
+              <X size={20} />
+            </button>
+            <h3 className="text-2xl font-black text-slate-950 mb-6">Nouveau Canevas</h3>
+            
+            <form onSubmit={handleCreateCanevas} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-slate-400 uppercase">Désignation du canevas *</label>
+                <input required value={newName} onChange={e => setNewName(e.target.value)} placeholder="Ex: Canevas Lycée 2025-2026" className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 font-semibold text-slate-800 text-sm" />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-slate-400 uppercase">Cycle scolaire</label>
+                <select value={newCycle} onChange={e => setNewCycle(e.target.value)} className="w-full h-12 px-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-semibold text-slate-800 text-xs">
+                  <option value="Prescolaire">Prescolaire</option>
+                  <option value="Primaire">Primaire</option>
+                  <option value="College">College</option>
+                  <option value="Lycee">Lycee</option>
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-slate-400 uppercase">Description / Notes</label>
+                <textarea value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder="Ex: Données d'infrastructure de Niamey" rows={3} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 font-semibold text-slate-800 text-sm" />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                <button type="button" onClick={() => setIsNewOpen(false)} className="h-12 px-6 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-sm">Annuler</button>
+                <button type="submit" className="h-12 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-md shadow-indigo-100">Créer</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
