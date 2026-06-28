@@ -304,7 +304,7 @@ export default function EtablissementsPage() {
                   <td className="px-5 py-4">{school.lastUpdate}</td>
                   <td className="px-5 py-4 print:hidden">
                     <div className="flex items-center gap-2">
-                      <button className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-indigo-600"><Eye size={16} /></button>
+                      <Link href={`/dashboard/canevas/etablissements/${school.code}`} className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-indigo-600"><Eye size={16} /></Link>
                       <button className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-amber-600"><Edit3 size={16} /></button>
                       <button className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-emerald-600"><CheckCircle2 size={16} /></button>
                       <button className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-500"><MoreVertical size={16} /></button>
