@@ -111,6 +111,9 @@ export default function FicheEtablissementPage() {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 print:hidden">
+            <Link href="/dashboard/canevas/etablissements/ETB-2026-001/identification" className="flex h-11 items-center gap-2 rounded-xl border border-indigo-100 bg-indigo-50 px-4 text-xs font-black uppercase tracking-widest text-indigo-700">
+              <FileText size={16} /> Identification
+            </Link>
             <button className="flex h-11 items-center gap-2 rounded-xl bg-indigo-600 px-4 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-indigo-100">
               <Edit3 size={16} /> Modifier
             </button>
