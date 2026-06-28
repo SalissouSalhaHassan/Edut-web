@@ -198,6 +198,8 @@ export default function IdentificationPage() {
                 ["Effectifs eleves", "/dashboard/canevas/etablissements/ETB-2026-001/effectifs-eleves", Users],
                 ["Redoublants", "/dashboard/canevas/etablissements/ETB-2026-001/redoublants", Users],
                 ["Personnel enseignant", "/dashboard/canevas/etablissements/ETB-2026-001/personnel-enseignant", UserRound],
+                ["Infrastructures", "/dashboard/canevas/etablissements/ETB-2026-001/infrastructures", Home],
+                ["Mobilier", "/dashboard/canevas/etablissements/ETB-2026-001/mobilier", Building2],
                 ["Localisation", "#", MapPin],
                 ["Responsables", "#", UserRound],
                 ["Infrastructure", "#", Home],
