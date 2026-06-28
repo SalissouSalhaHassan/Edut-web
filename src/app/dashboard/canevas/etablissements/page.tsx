@@ -598,7 +598,15 @@ export default function EtablissementsPage() {
   };
 
   return (
-    <div className="min-h-screen space-y-6 p-4 text-slate-950 md:p-6 xl:p-8 print:bg-white print:p-0">
+    <div className="min-h-screen space-y-6 p-4 text-slate-950 md:p-6 xl:p-8 print:bg-white print:p-0 print:w-[297mm] print:h-[210mm]">
+      <style dangerouslySetInnerHTML={{__html: `
+        @media print {
+          @page {
+            size: landscape !important;
+            margin: 10mm !important;
+          }
+        }
+      `}} />
       
       {/* ─── WEB LAYOUT (Hidden on print) ─── */}
       <div className="space-y-6 print:hidden">

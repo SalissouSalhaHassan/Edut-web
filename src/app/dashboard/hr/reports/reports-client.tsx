@@ -262,6 +262,10 @@ export default function ReportsClient({
       {/* Print-only layout stylesheet */}
       <style jsx global>{`
         @media print {
+          @page {
+            size: landscape !important;
+            margin: 10mm !important;
+          }
           nav, aside, header, footer, button, .no-print, input, select, .breadcrumbs {
             display: none !important;
           }

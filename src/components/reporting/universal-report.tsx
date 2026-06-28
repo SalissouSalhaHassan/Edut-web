@@ -362,6 +362,16 @@ export default function UniversalReport({ metadata, kpis = [], table, onSendEmai
 
   return (
     <div className={cn("space-y-6 text-slate-900 w-full", metadata.isLandscape && "print:w-[297mm] print:h-[210mm]")}>
+      {metadata.isLandscape && (
+        <style dangerouslySetInnerHTML={{__html: `
+          @media print {
+            @page {
+              size: landscape !important;
+              margin: 10mm !important;
+            }
+          }
+        `}} />
+      )}
       
       {/* ─── WEB CONTROLS HEADER (Hidden on print) ─── */}
       <header className="rounded-[30px] border border-slate-200 bg-white p-5 shadow-sm print:hidden">
