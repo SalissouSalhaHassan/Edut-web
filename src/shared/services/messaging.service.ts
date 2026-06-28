@@ -44,8 +44,9 @@ export class MessagingService {
     // 2. Log and "Send" WhatsApp
     const whatsappNumber = whatsapp || to;
     if (sendWhatsApp && whatsappNumber && whatsappNumber !== "N/A") {
-      await this.logMessage("WHATSAPP", `${studentName} (${whatsappNumber})`, fullMessage, "Envoyé");
-      console.log(`[WHATSAPP SENT] to ${whatsappNumber}: ${fullMessage}`);
+      const success = await this.sendViaWhatsAppAPI(whatsappNumber, fullMessage);
+      await this.logMessage("WHATSAPP", `${studentName} (${whatsappNumber})`, fullMessage, success ? "Envoyé" : "Échec");
+      console.log(`[WHATSAPP ${success ? 'SENT' : 'FAILED'}] to ${whatsappNumber}: ${fullMessage}`);
     }
   }
 
@@ -75,8 +76,48 @@ export class MessagingService {
     // 2. Log and "Send" WhatsApp
     const whatsappNumber = whatsapp || to;
     if (sendWhatsApp && whatsappNumber && whatsappNumber !== "N/A" && whatsappNumber.trim() !== "") {
-      await this.logMessage("WHATSAPP", `${studentName} (${whatsappNumber})`, fullMessage, "Envoyé");
-      console.log(`[WHATSAPP SENT] to ${whatsappNumber}: ${fullMessage}`);
+      const success = await this.sendViaWhatsAppAPI(whatsappNumber, fullMessage);
+      await this.logMessage("WHATSAPP", `${studentName} (${whatsappNumber})`, fullMessage, success ? "Envoyé" : "Échec");
+      console.log(`[WHATSAPP ${success ? 'SENT' : 'FAILED'}] to ${whatsappNumber}: ${fullMessage}`);
+    }
+  }
+
+  private static async sendViaWhatsAppAPI(phone: string, message: string): Promise<boolean> {
+    try {
+      const token = process.env.WHATSAPP_API_TOKEN;
+      const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+      
+      if (!token || !phoneNumberId) {
+        // Fallback or custom local gateway (e.g. Baileys / Evolution API)
+        const localGatewayUrl = process.env.WHATSAPP_GATEWAY_URL || "http://192.168.1.100:9000/send-message";
+        const response = await fetch(localGatewayUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ to: phone, message }),
+        });
+        return response.ok;
+      }
+
+      // Meta Cloud API call
+      const url = `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messaging_product: "whatsapp",
+          recipient_type: "individual",
+          to: phone,
+          type: "text",
+          text: { body: message }
+        }),
+      });
+      return response.ok;
+    } catch (err) {
+      console.error("WhatsApp Gateway Error:", err);
+      return false;
     }
   }
 

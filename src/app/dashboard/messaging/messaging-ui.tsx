@@ -22,7 +22,7 @@ import {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Tab = "composer" | "modeles" | "planifie" | "historique";
-type Channel = "SMS" | "Email";
+type Channel = "SMS" | "Email" | "WhatsApp";
 type TargetKey = "parents" | "classe" | "staff" | "all";
 
 interface Template {
@@ -131,11 +131,13 @@ function StatCard({ icon, bg, label, value, sub, trend, trendUp, sparkData, spar
 
 function Badge({ type }: { type: string }) {
   const colors: Record<string, string> = {
-    SMS: "bg-indigo-50 text-indigo-600", Email: "bg-purple-50 text-purple-600",
+    SMS: "bg-indigo-50 text-indigo-600",
+    Email: "bg-purple-50 text-purple-600",
+    WhatsApp: "bg-emerald-50 text-emerald-600",
   };
   return (
     <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black", colors[type] || "bg-slate-50 text-slate-500")}>
-      {type === "SMS" ? <MessageSquare size={9} /> : <Mail size={9} />}
+      {type === "SMS" ? <MessageSquare size={9} /> : type === "Email" ? <Mail size={9} /> : <MessageCircle size={9} />}
       {type}
     </span>
   );
@@ -453,8 +455,8 @@ export default function MessagerieUI({ templates: initTemplates, logs, stats, sc
                 <Send size={13} className="text-slate-400" />
                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Canal de communication</span>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                {(["SMS", "Email"] as Channel[]).map(c => (
+              <div className="grid grid-cols-3 gap-3">
+                {(["SMS", "Email", "WhatsApp"] as Channel[]).map(c => (
                   <button
                     key={c}
                     onClick={() => setChannel(c)}
@@ -466,10 +468,10 @@ export default function MessagerieUI({ templates: initTemplates, logs, stats, sc
                     )}
                   >
                     {channel === c && <CheckCircle2 size={12} className="absolute top-2 right-2 text-white/80" />}
-                    {c === "SMS" ? <MessageSquare size={22} /> : <Mail size={22} />}
+                    {c === "SMS" ? <MessageSquare size={22} /> : c === "Email" ? <Mail size={22} /> : <MessageCircle size={22} />}
                     <span className="text-sm font-black">{c}</span>
                     <span className={cn("text-[10px]", channel === c ? "text-indigo-200" : "text-slate-400")}>
-                      {c === "SMS" ? "Rapide & direct" : "Détaillé & formel"}
+                      {c === "SMS" ? "Rapide & direct" : c === "Email" ? "Détaillé & formel" : "Instantané & gratuit"}
                     </span>
                   </button>
                 ))}
@@ -717,7 +719,7 @@ export default function MessagerieUI({ templates: initTemplates, logs, stats, sc
                 <div>
                   <label className="text-xs font-bold text-slate-500 mb-1 block">Type</label>
                   <div className="flex gap-2">
-                    {(["SMS", "Email"] as Channel[]).map(c => (
+                    {(["SMS", "Email", "WhatsApp"] as Channel[]).map(c => (
                       <button key={c} onClick={() => setTplType(c)}
                         className={cn("flex-1 py-2.5 rounded-xl text-xs font-bold border-2 transition-all",
                           tplType === c ? "bg-indigo-600 text-white border-indigo-600" : "border-slate-200 text-slate-500 hover:border-indigo-200")}>
@@ -779,8 +781,8 @@ export default function MessagerieUI({ templates: initTemplates, logs, stats, sc
               <div key={t.id} className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-lg hover:shadow-slate-100 transition-all group flex flex-col">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-2">
-                    <div className={cn("p-2 rounded-xl", t.msgType === "SMS" ? "bg-indigo-50 text-indigo-500" : "bg-purple-50 text-purple-500")}>
-                      {t.msgType === "SMS" ? <MessageSquare size={15} /> : <Mail size={15} />}
+                    <div className={cn("p-2 rounded-xl", t.msgType === "SMS" ? "bg-indigo-50 text-indigo-500" : t.msgType === "Email" ? "bg-purple-50 text-purple-500" : "bg-emerald-50 text-emerald-500")}>
+                      {t.msgType === "SMS" ? <MessageSquare size={15} /> : t.msgType === "Email" ? <Mail size={15} /> : <MessageCircle size={15} />}
                     </div>
                     <Badge type={t.msgType} />
                   </div>
@@ -835,8 +837,8 @@ export default function MessagerieUI({ templates: initTemplates, logs, stats, sc
               {scheduled.map(msg => (
                 <div key={msg.id} className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 flex items-center gap-4 hover:shadow-md transition-shadow">
                   <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0",
-                    msg.msgType === "SMS" ? "bg-indigo-50 text-indigo-500" : "bg-purple-50 text-purple-500")}>
-                    {msg.msgType === "SMS" ? <MessageSquare size={20} /> : <Mail size={20} />}
+                    msg.msgType === "SMS" ? "bg-indigo-50 text-indigo-500" : msg.msgType === "Email" ? "bg-purple-50 text-purple-500" : "bg-emerald-50 text-emerald-500")}>
+                    {msg.msgType === "SMS" ? <MessageSquare size={20} /> : msg.msgType === "Email" ? <Mail size={20} /> : <MessageCircle size={20} />}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">
@@ -885,7 +887,7 @@ export default function MessagerieUI({ templates: initTemplates, logs, stats, sc
             </div>
             <div className="flex items-center gap-2">
               <Filter size={14} className="text-slate-400" />
-              {["Tous", "SMS", "Email"].map(f => (
+              {["Tous", "SMS", "Email", "WhatsApp"].map(f => (
                 <button key={f} onClick={() => setFilterType(f)}
                   className={cn("px-4 py-2 rounded-xl text-xs font-bold transition-all border",
                     filterType === f ? "bg-indigo-600 text-white border-indigo-600" : "border-slate-200 text-slate-500 hover:border-indigo-200")}>
