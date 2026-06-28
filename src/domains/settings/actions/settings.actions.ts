@@ -3,7 +3,7 @@
 import { db } from "@/infrastructure/database";
 import { settings, schoolBranches } from "@/infrastructure/database/schema/settings";
 import { schools } from "@/infrastructure/database/schema/auth";
-import { eq, desc, ilike, and } from "drizzle-orm";
+import { eq, desc, ilike, and, sql } from "drizzle-orm";
 import { protectedDbAction } from "@/lib/protected-action";
 import { revalidatePath, unstable_cache, revalidateTag as nextRevalidateTag } from "next/cache";
 const revalidateTag = nextRevalidateTag as any;
@@ -72,6 +72,17 @@ export async function saveBranch(data: any) {
   return protectedDbAction("Settings", "canEdit", async () => {
     const schoolId = await getActiveSchoolId();
     const { id, createdAt, ...rest } = data;
+    
+    // Automatically alter database column types to support longer prefixes, padding, and ports
+    try {
+      await db.execute(sql`ALTER TABLE "school_branches" ALTER COLUMN "adm_prefix" TYPE varchar(100)`);
+      await db.execute(sql`ALTER TABLE "school_branches" ALTER COLUMN "adm_padding" TYPE varchar(100)`);
+      await db.execute(sql`ALTER TABLE "school_branches" ALTER COLUMN "smtp_port" TYPE varchar(100)`);
+      await db.execute(sql`ALTER TABLE "school_branches" ALTER COLUMN "working_days" TYPE varchar(255)`);
+      console.log("Database schema altered successfully inside saveBranch action.");
+    } catch (err) {
+      console.error("Error altering database columns inside saveBranch:", err);
+    }
     
     // Sanitize workingDays array to a comma-separated string
     if (rest.workingDays && Array.isArray(rest.workingDays)) {
