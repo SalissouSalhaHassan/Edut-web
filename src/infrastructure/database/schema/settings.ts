@@ -25,14 +25,14 @@ export const schoolBranches = pgTable("school_branches", {
   officeNo: varchar("office_no", { length: 50 }),
   timezone: varchar("timezone", { length: 50 }),
   address: text("address"),
-  admPrefix: varchar("adm_prefix", { length: 10 }),
-  admPadding: varchar("adm_padding", { length: 10 }),
+  admPrefix: varchar("adm_prefix", { length: 100 }),
+  admPadding: varchar("adm_padding", { length: 100 }),
   smtpUrl: varchar("smtp_url", { length: 100 }),
-  smtpPort: varchar("smtp_port", { length: 10 }),
+  smtpPort: varchar("smtp_port", { length: 100 }),
   smtpEmail: varchar("smtp_email", { length: 100 }),
   smtpPassword: varchar("smtp_password", { length: 100 }),
   logoPath: text("logo_path"),
-  workingDays: varchar("working_days", { length: 100 }),
+  workingDays: varchar("working_days", { length: 255 }),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
