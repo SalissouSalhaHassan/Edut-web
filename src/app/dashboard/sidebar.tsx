@@ -119,7 +119,7 @@ const sections: Array<{ title: string; dotColor: string; items: NavItem[] }> = [
       { href: "/dashboard/canteen", label: "Cantine", icon: <Store className="size-[18px]" />, color: "text-amber-500" },
       { href: "/dashboard/pos", label: "POS", icon: <UsersRound className="size-[18px]" />, color: "text-indigo-500" },
       { href: "/dashboard/id-cards", label: "Cartes ID", icon: <IdCard className="size-[18px]" />, color: "text-blue-500" },
-      { href: "/dashboard/admin-docs", label: "الأوراق الرسمية", icon: <FileText className="size-[18px]" />, color: "text-indigo-500" },
+      { href: "/dashboard/admin-docs", label: "\u0627\u0644\u0623\u0648\u0631\u0627\u0642 \u0627\u0644\u0631\u0633\u0645\u064a\u0629", icon: <FileText className="size-[18px]" />, color: "text-indigo-500" },
       { href: "/dashboard/lms", label: "LMS", icon: <BookOpen className="size-[18px]" />, color: "text-indigo-500" },
       { href: "/dashboard/print-demo", label: "Impression", icon: <Printer className="size-[18px]" />, color: "text-slate-500" },
     ],

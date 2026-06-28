@@ -60,10 +60,10 @@ const mockStaff = [
 ];
 
 const docTypes = [
-  { id: "reussite", label: "Attestation de Réussite", arLabel: "شهادة نجاح مؤقتة", desc: "Attestation provisoire après délibération de fin d'année.", icon: Award, color: "text-indigo-600", bg: "bg-indigo-50" },
-  { id: "scolarite", label: "Attestation de Scolarité", arLabel: "شهادة مدرسية", desc: "Attestation officielle prouvant la scolarisation régulière de l'élève.", icon: FileText, color: "text-blue-600", bg: "bg-blue-50" },
-  { id: "inscription", label: "Attestation d'Inscription", arLabel: "شهادة تسجيل", desc: "Prouve l'inscription administrative de l'élève pour l'année scolaire.", icon: CheckCircle2, color: "text-emerald-600", bg: "bg-emerald-50" },
-  { id: "travail", label: "Attestation de Travail", arLabel: "شهادة عمل", desc: "Destinée au personnel enseignant et administratif actif.", icon: Clock, color: "text-rose-600", bg: "bg-rose-50" },
+  { id: "reussite", label: "Attestation de Réussite", arLabel: "\u0634\u0647\u0627\u062f\u0629 \u0646\u062c\u0627\u062d \u0645\u0624\u0642\u062a\u0629", desc: "Attestation provisoire après délibération de fin d'année.", icon: Award, color: "text-indigo-600", bg: "bg-indigo-50" },
+  { id: "scolarite", label: "Attestation de Scolarité", arLabel: "\u0634\u0647\u0627\u062f\u0629 \u0645\u062f\u0631\u0633\u064a\u0629", desc: "Attestation officielle prouvant la scolarisation régulière de l'élève.", icon: FileText, color: "text-blue-600", bg: "bg-blue-50" },
+  { id: "inscription", label: "Attestation d'Inscription", arLabel: "\u0634\u0647\u0627\u062f\u0629 \u062a\u0633\u062c\u064a\u0644", desc: "Prouve l'inscription administrative de l'élève pour l'année scolaire.", icon: CheckCircle2, color: "text-emerald-600", bg: "bg-emerald-50" },
+  { id: "travail", label: "Attestation de Travail", arLabel: "\u0634\u0647\u0627\u062f\u0629 \u0639\u0645\u0644", desc: "Destinée au personnel enseignant et administratif actif.", icon: Clock, color: "text-rose-600", bg: "bg-rose-50" },
 ];
 
 export default function AdminDocsPage() {
@@ -115,9 +115,9 @@ export default function AdminDocsPage() {
       doc.text("Direction Régionale de Niamey", 20, 26);
 
       // Right Header: Arabic Text (Rendered as high-res images to support Unicode and RTL)
-      const arHeader1 = renderArabicText("الجمهورية النيجر", 13, "#1e3a8a", 160, 24);
-      const arHeader2 = renderArabicText("وزارة التربية الوطنية", 11, "#334155", 160, 24);
-      const arHeader3 = renderArabicText("المديرية الجهوية لنيامي", 11, "#334155", 160, 24);
+      const arHeader1 = renderArabicText("\u0627\u0644\u062c\u0645\u0647\u0648\u0631\u064a\u0629 \u0627\u0644\u0646\u064a\u062c\u0631", 13, "#1e3a8a", 160, 24);
+      const arHeader2 = renderArabicText("\u0648\u0632\u0627\u0631\u0629 \u0627\u0644\u062a\u0631\u0628\u064a\u0629 \u0627\u0644\u0648\u0637\u0646\u064a\u0629", 11, "#334155", 160, 24);
+      const arHeader3 = renderArabicText("\u0627\u0644\u0645\u062f\u064a\u0631\u064a\u0629 \u0627\u0644\u062c\u0647\u0648\u064a\u0629 \u0644\u0646\u064a\u0627\u0645\u064a", 11, "#334155", 160, 24);
       
       if (arHeader1) doc.addImage(arHeader1, "PNG", pageWidth - 60, 12, 40, 6);
       if (arHeader2) doc.addImage(arHeader2, "PNG", pageWidth - 60, 17, 40, 6);
@@ -415,7 +415,7 @@ export default function AdminDocsPage() {
           </div>
           <div>
             <p className="text-[11px] font-black uppercase tracking-[0.18em] text-indigo-600 font-sans">Administration & Attestations</p>
-            <h1 className="text-2xl font-black tracking-tight text-slate-950">الأوراق الرسمية والشهادات</h1>
+            <h1 className="text-2xl font-black tracking-tight text-slate-950">{"\u0627\u0644\u0623\u0648\u0631\u0627\u0642 \u0627\u0644\u0631\u0633\u0645\u064a\u0629 \u0648\u0627\u0644\u0634\u0647\u0627\u062f\u0627\u062a"}</h1>
             <p className="mt-1 text-sm font-bold text-slate-500">Générez et imprimez des attestations officielles bilingues premium</p>
           </div>
         </div>
@@ -600,9 +600,9 @@ export default function AdminDocsPage() {
 
                 {/* Right: Arabic Header */}
                 <div className="text-right space-y-1 text-slate-800">
-                  <p className="font-extrabold text-blue-900 text-xs">الجمهورية النيجر</p>
-                  <p className="text-[8px] font-bold text-slate-500">وزارة التربية الوطنية</p>
-                  <p className="text-[9px] font-extrabold text-slate-800">المديرية الجهوية لنيامي</p>
+                  <p className="font-extrabold text-blue-900 text-xs">{"\u0627\u0644\u062c\u0645\u0647\u0648\u0631\u064a\u0629 \u0627\u0644\u0646\u064a\u062c\u0631"}</p>
+                  <p className="text-[8px] font-bold text-slate-500">{"\u0648\u0632\u0627\u0631\u0629 \u0627\u0644\u062a\u0631\u0628\u064a\u0629 \u0627\u0644\u0648\u0637\u0646\u064a\u0629"}</p>
+                  <p className="text-[9px] font-extrabold text-slate-800">{"\u0627\u0644\u0645\u062f\u064a\u0631\u064a\u0629 \u0627\u0644\u062c\u0647\u0648\u064a\u0629 \u0644\u0646\u064a\u0627\u0645\u064a"}</p>
                 </div>
               </div>
             </div>
