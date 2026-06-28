@@ -4,7 +4,7 @@ import { db } from "@/infrastructure/database";
 import { timetableEntries, timetableSettings, teacherConstraints, schoolClasses, schoolSubjects, classSubjects, sectionSubjects } from "@/infrastructure/database/schema/academics";
 import { employees } from "@/infrastructure/database/schema/hr";
 import { schoolBranches } from "@/infrastructure/database/schema/settings";
-import { eq, and, isNull, inArray, sql } from "drizzle-orm";
+import { eq, and, isNull, inArray, sql, or } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { protectedDbAction } from "@/lib/protected-action";
 import { getUserRoleType, getTeacherEmployee, verifyTeacherClassAccess } from "@/domains/auth/services/rbac";
@@ -132,19 +132,25 @@ export async function getGlobalOccupancy() {
 
 export async function saveTimetableEntry(data: any) {
   return protectedDbAction("Academics", "canEdit", async () => {
-    // Check for conflicts
+    // Check for conflicts: either class is busy OR teacher is busy at the same day/period
     const conflict = await db.query.timetableEntries.findFirst({
       where: and(
         eq(timetableEntries.dayName, data.dayName),
         eq(timetableEntries.periodNumber, data.periodNumber),
-        inArray(timetableEntries.classId, [data.classId]), // Simple class conflict
-        // Or teacher conflict
-        eq(timetableEntries.employeeId, data.employeeId)
+        or(
+          eq(timetableEntries.classId, data.classId),
+          eq(timetableEntries.employeeId, data.employeeId)
+        )
       )
     });
 
     if (conflict && conflict.id !== data.id) {
-       throw new Error("Conflict detected: Teacher or Class is already busy at this time.");
+       // Identify which conflict occurred for better error message
+       const isClassBusy = conflict.classId === data.classId;
+       const msg = isClassBusy 
+         ? "Cette classe a déjà un cours programmé à cette heure."
+         : "Ce enseignant a déjà un cours programmé à cette heure.";
+       throw new Error(`Conflit détecté : ${msg}`);
     }
 
     if (data.id) {
