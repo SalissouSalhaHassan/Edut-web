@@ -470,7 +470,7 @@ export default function TransportClient({ initialRoutes, initialSubscriptions }:
               {/* 2. Route Selection Dropdown */}
               <div className="space-y-2">
                 <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Ligne & Trajet de Bus</Label>
-                <Select onValueChange={setSelectedRouteId} value={selectedRouteId}>
+                <Select onValueChange={(val) => setSelectedRouteId(val || "")} value={selectedRouteId}>
                   <SelectTrigger className="h-12 rounded-xl border-slate-200 text-xs font-bold text-slate-700">
                     <SelectValue placeholder="Sélectionner une ligne active..." />
                   </SelectTrigger>
