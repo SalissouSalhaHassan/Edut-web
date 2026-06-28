@@ -482,8 +482,13 @@ export default function EtablissementsPage() {
                         <Building2 size={18} />
                       </div>
                       <div>
-                        <p className="font-black text-slate-950">{school.name}</p>
+                        <Link href={`/dashboard/canevas/etablissements/${school.code}`} className="font-black text-slate-950 underline-offset-4 transition hover:text-indigo-600 hover:underline">
+                          {school.name}
+                        </Link>
                         <p className="mt-0.5 flex items-center gap-1 text-xs font-bold text-slate-400"><MapPin size={12} /> {school.quartier}</p>
+                        <Link href={`/dashboard/canevas/etablissements/${school.code}`} className="mt-2 inline-flex rounded-full bg-indigo-50 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-indigo-700">
+                          Ouvrir Fiche ERP
+                        </Link>
                       </div>
                     </div>
                   </td>
@@ -511,6 +516,13 @@ export default function EtablissementsPage() {
                   <td className="px-5 py-4">{school.lastUpdate}</td>
                   <td className="px-5 py-4 print:hidden">
                     <div className="flex items-center gap-1.5">
+                      <Link
+                        href={`/dashboard/canevas/etablissements/${school.code}`}
+                        title="Ouvrir Fiche ERP"
+                        className="flex h-9 items-center justify-center rounded-xl border border-indigo-100 bg-indigo-50 px-3 text-[10px] font-black uppercase tracking-widest text-indigo-700 hover:bg-indigo-100 transition-colors"
+                      >
+                        Fiche
+                      </Link>
                       <button 
                         onClick={() => setSelectedSchool(school)}
                         title="Voir détails"

@@ -10,10 +10,12 @@ import {
   Download,
   Droplets,
   FileSpreadsheet,
+  GitCompareArrows,
   GraduationCap,
   Lightbulb,
   Plus,
   Printer,
+  ShieldCheck,
   School,
   Upload,
   Users,
@@ -283,6 +285,32 @@ export default function CanevasDashboardPage() {
             </Link>
           );
         })}
+      </section>
+
+      <section className="rounded-[30px] border border-slate-100 bg-white p-5 shadow-sm print:hidden">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h2 className="text-base font-black text-slate-950">Accès rapide aux nouvelles interfaces</h2>
+            <p className="mt-1 text-xs font-bold text-slate-500">Fiche établissement, saisies détaillées, mapping Excel et contrôle qualité</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/dashboard/canevas/etablissements/ETB-2026-001" className="flex h-11 items-center gap-2 rounded-xl bg-indigo-600 px-4 text-xs font-black uppercase tracking-widest text-white">
+              <School size={16} /> Fiche ERP
+            </Link>
+            <Link href="/dashboard/canevas/etablissements/ETB-2026-001/identification" className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700">
+              <FileSpreadsheet size={16} /> Identification
+            </Link>
+            <Link href="/dashboard/canevas/excel-preview" className="flex h-11 items-center gap-2 rounded-xl border border-indigo-100 bg-indigo-50 px-4 text-xs font-black uppercase tracking-widest text-indigo-700">
+              <Upload size={16} /> Excel brut
+            </Link>
+            <Link href="/dashboard/canevas/mapping-excel" className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700">
+              <GitCompareArrows size={16} /> Mapping
+            </Link>
+            <Link href="/dashboard/canevas/controle-qualite" className="flex h-11 items-center gap-2 rounded-xl border border-amber-100 bg-amber-50 px-4 text-xs font-black uppercase tracking-widest text-amber-700">
+              <ShieldCheck size={16} /> Qualité
+            </Link>
+          </div>
+        </div>
       </section>
 
       {/* Graphs and Alert Panels */}

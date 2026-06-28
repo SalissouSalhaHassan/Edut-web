@@ -286,6 +286,15 @@ export default function CanevasImportPage() {
               <option value="2025 - 2026">Année scolaire 2025 - 2026</option>
               <option value="2024 - 2025">Année scolaire 2024 - 2025</option>
             </select>
+            <Link href="/dashboard/canevas/excel-preview" className="flex h-11 items-center gap-2 rounded-xl border border-indigo-100 bg-indigo-50 px-4 text-xs font-black uppercase tracking-widest text-indigo-700 hover:bg-indigo-100 transition-all">
+              <Eye size={16} /> Aperçu brut
+            </Link>
+            <Link href="/dashboard/canevas/mapping-excel" className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 transition-all">
+              <ShieldCheck size={16} /> Mapping
+            </Link>
+            <Link href="/dashboard/canevas/controle-qualite" className="flex h-11 items-center gap-2 rounded-xl border border-amber-100 bg-amber-50 px-4 text-xs font-black uppercase tracking-widest text-amber-700 hover:bg-amber-100 transition-all">
+              <AlertTriangle size={16} /> Qualité
+            </Link>
             <button 
               onClick={handleDownloadTemplate}
               className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 active:scale-95 transition-all"
