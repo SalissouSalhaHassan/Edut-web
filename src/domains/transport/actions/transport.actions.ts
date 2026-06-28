@@ -52,3 +52,20 @@ export async function removeSubscription(id: number) {
     return { success: true };
   });
 }
+
+import { students } from "@/infrastructure/database/schema/students";
+import { ilike, or } from "drizzle-orm";
+
+export async function searchStudentsAction(query: string) {
+  return protectedDbAction("Transport", "canView", async () => {
+    if (!query || query.trim() === "") return { data: [] };
+    const data = await db.query.students.findMany({
+      where: or(
+        ilike(students.nomEtudiant, `%${query}%`),
+        ilike(students.numAdmission, `%${query}%`)
+      ),
+      limit: 10
+    });
+    return { data };
+  });
+}
