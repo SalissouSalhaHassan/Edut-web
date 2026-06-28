@@ -14,6 +14,7 @@ import {
   ClipboardCheck,
   ClipboardList,
   FileBarChart2,
+  FileText,
   CalendarCheck2,
   Globe,
   GraduationCap,
