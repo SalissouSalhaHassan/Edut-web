@@ -117,7 +117,7 @@ export async function sendMessage(data: {
       if (data.targetAudience === "Tout le Personnel" || data.targetAudience === "Tous (Parents + Staff)") {
         const activeStaff = await db.query.employees.findMany();
         for (const emp of activeStaff) {
-          const num = emp.phone;
+          const num = emp.mobile;
           if (num && num !== "N/A" && num.trim() !== "") {
             if (data.msgType === "SMS") {
               await MessagingService["sendViaAndroidGateway"](num, data.content);
