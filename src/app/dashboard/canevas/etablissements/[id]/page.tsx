@@ -17,6 +17,7 @@ import {
   Phone,
   Printer,
   ShieldCheck,
+  Table2,
   UserRoundCheck,
   Users,
 } from "lucide-react";
@@ -113,6 +114,12 @@ export default function FicheEtablissementPage() {
           <div className="flex flex-wrap items-center gap-2 print:hidden">
             <Link href="/dashboard/canevas/etablissements/ETB-2026-001/identification" className="flex h-11 items-center gap-2 rounded-xl border border-indigo-100 bg-indigo-50 px-4 text-xs font-black uppercase tracking-widest text-indigo-700">
               <FileText size={16} /> Identification
+            </Link>
+            <Link href="/dashboard/canevas/etablissements/ETB-2026-001/groupes-pedagogiques" className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700">
+              <Table2 size={16} /> Groupes
+            </Link>
+            <Link href="/dashboard/canevas/etablissements/ETB-2026-001/effectifs-eleves" className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700">
+              <Users size={16} /> Effectifs
             </Link>
             <button className="flex h-11 items-center gap-2 rounded-xl bg-indigo-600 px-4 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-indigo-100">
               <Edit3 size={16} /> Modifier

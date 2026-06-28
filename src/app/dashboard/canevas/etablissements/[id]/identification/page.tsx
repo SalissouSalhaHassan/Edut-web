@@ -17,7 +17,9 @@ import {
   Printer,
   Save,
   ShieldCheck,
+  Table2,
   UserRound,
+  Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -192,6 +194,8 @@ export default function IdentificationPage() {
               {[
                 ["Fiche complete", "/dashboard/canevas/etablissements/ETB-2026-001", Building2],
                 ["Identification", "/dashboard/canevas/etablissements/ETB-2026-001/identification", FileText],
+                ["Groupes pedagogiques", "/dashboard/canevas/etablissements/ETB-2026-001/groupes-pedagogiques", Table2],
+                ["Effectifs eleves", "/dashboard/canevas/etablissements/ETB-2026-001/effectifs-eleves", Users],
                 ["Localisation", "#", MapPin],
                 ["Responsables", "#", UserRound],
                 ["Infrastructure", "#", Home],
