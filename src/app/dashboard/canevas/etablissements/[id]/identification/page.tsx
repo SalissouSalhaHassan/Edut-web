@@ -200,6 +200,8 @@ export default function IdentificationPage() {
                 ["Personnel enseignant", "/dashboard/canevas/etablissements/ETB-2026-001/personnel-enseignant", UserRound],
                 ["Infrastructures", "/dashboard/canevas/etablissements/ETB-2026-001/infrastructures", Home],
                 ["Mobilier", "/dashboard/canevas/etablissements/ETB-2026-001/mobilier", Building2],
+                ["Manuels & guides", "/dashboard/canevas/etablissements/ETB-2026-001/manuels-guides", FileText],
+                ["Besoins", "/dashboard/canevas/etablissements/ETB-2026-001/besoins", ShieldCheck],
                 ["Localisation", "#", MapPin],
                 ["Responsables", "#", UserRound],
                 ["Infrastructure", "#", Home],

@@ -133,6 +133,12 @@ export default function FicheEtablissementPage() {
             <Link href="/dashboard/canevas/etablissements/ETB-2026-001/mobilier" className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700">
               <Building2 size={16} /> Mobilier
             </Link>
+            <Link href="/dashboard/canevas/etablissements/ETB-2026-001/manuels-guides" className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700">
+              <FileText size={16} /> Manuels
+            </Link>
+            <Link href="/dashboard/canevas/etablissements/ETB-2026-001/besoins" className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700">
+              <AlertTriangle size={16} /> Besoins
+            </Link>
             <button className="flex h-11 items-center gap-2 rounded-xl bg-indigo-600 px-4 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-indigo-100">
               <Edit3 size={16} /> Modifier
             </button>
