@@ -23,7 +23,7 @@ import {
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Tab = "composer" | "modeles" | "planifie" | "historique";
 type Channel = "SMS" | "Email" | "WhatsApp";
-type TargetKey = "parents" | "classe" | "staff" | "all";
+type TargetKey = "parents" | "classe" | "staff" | "all" | "test";
 
 interface Template {
   id: number; title: string; msgType: string;
@@ -55,6 +55,7 @@ const TARGETS: { key: TargetKey; label: string; sub: string; icon: React.ReactNo
   { key: "classe",  label: "Classe Spécifique", sub: "Sélectionner une classe", icon: <GraduationCap size={18} />, color: "violet" },
   { key: "staff",   label: "Tout le Personnel", sub: "Envoyer à tout le staff", icon: <Briefcase size={18} />, color: "blue" },
   { key: "all",     label: "Tous (Parents + Staff)", sub: "Diffusion générale", icon: <Users size={18} />, color: "purple" },
+  { key: "test",    label: "Numéro de Test", sub: "Envoi de test individuel", icon: <CheckCircle2 size={18} />, color: "emerald" },
 ];
 const SMART_TEMPLATES = [
   { icon: "💰", title: "Rappel de frais", category: "Finance", content: "Cher(e) parent de {nom},\n\nNous vous informons qu'un solde de frais scolaires est en attente de règlement.\n\nMerci de vous rapprocher de l'administration.\n\n{ecole}" },
@@ -158,6 +159,7 @@ export default function MessagerieUI({ templates: initTemplates, logs, stats, sc
   const [tab, setTab] = useState<Tab>("composer");
   const [channel, setChannel] = useState<Channel>("SMS");
   const [targetKey, setTargetKey] = useState<TargetKey>("parents");
+  const [testRecipient, setTestRecipient] = useState("");
   const [message, setMessage] = useState("");
   const [subject, setSubject] = useState("");
   const [sending, setSending] = useState(false);
@@ -190,6 +192,7 @@ export default function MessagerieUI({ templates: initTemplates, logs, stats, sc
   const targetLabel = targetObj.label;
 
   const estimatedRecipients = (() => {
+    if (targetKey === "test") return 1;
     if (targetKey === "parents") return stats.studentCount || 0;
     if (targetKey === "staff") return stats.staffCount || 0;
     if (targetKey === "all") return (stats.studentCount || 0) + (stats.staffCount || 0);
@@ -202,9 +205,30 @@ export default function MessagerieUI({ templates: initTemplates, logs, stats, sc
     if (!ta) { setMessage(m => m + v); return; }
     const s = ta.selectionStart ?? message.length;
     const e = ta.selectionEnd ?? message.length;
-    const next = message.slice(0, s) + v + message.slice(e);
+    
+    const isWrap = v === "**" || v === "_" || v === "*";
+    let next = "";
+    let cursorPosition = s + v.length;
+
+    if (isWrap) {
+      const selectedText = message.slice(s, e);
+      if (selectedText) {
+        next = message.slice(0, s) + v + selectedText + v + message.slice(e);
+        cursorPosition = e + (v.length * 2);
+      } else {
+        next = message.slice(0, s) + v + v + message.slice(e);
+        cursorPosition = s + v.length;
+      }
+    } else {
+      next = message.slice(0, s) + v + message.slice(e);
+      cursorPosition = s + v.length;
+    }
+
     setMessage(next);
-    setTimeout(() => { ta.focus(); ta.selectionStart = ta.selectionEnd = s + v.length; }, 0);
+    setTimeout(() => { 
+      ta.focus(); 
+      ta.selectionStart = ta.selectionEnd = cursorPosition; 
+    }, 0);
     setShowVars(false);
   };
 
@@ -212,17 +236,19 @@ export default function MessagerieUI({ templates: initTemplates, logs, stats, sc
   const handleSend = async () => {
     if (!message.trim()) { toast.error("Le message est vide !"); return; }
     if (channel === "Email" && !subject.trim()) { toast.error("L'objet de l'email est requis."); return; }
+    if (targetKey === "test" && !testRecipient.trim()) { toast.error("Le destinataire de test est requis."); return; }
     setSending(true);
     try {
       const res = await sendMessage({
         msgType: channel, targetAudience: targetLabel,
         content: message, subject: subject || undefined,
         recipientCount: estimatedRecipients,
+        testRecipient: targetKey === "test" ? testRecipient : undefined,
       });
       if ((res as any)?.error) { toast.error((res as any).error); }
       else {
         toast.success(`✅ ${channel} envoyé à ${estimatedRecipients} destinataires !`);
-        setMessage(""); setSubject(""); setShowPreview(false);
+        setMessage(""); setSubject(""); setTestRecipient(""); setShowPreview(false);
       }
     } catch { toast.error("Erreur lors de l'envoi."); }
     setSending(false);
@@ -439,6 +465,18 @@ export default function MessagerieUI({ templates: initTemplates, logs, stats, sc
                   {targetKey === key && <CheckCircle2 size={15} className="text-indigo-500 flex-shrink-0" />}
                 </button>
               ))}
+
+              {targetKey === "test" && (
+                <div className="space-y-1.5 p-3 rounded-2xl bg-indigo-50/40 border border-indigo-100">
+                  <label className="text-[10px] font-black text-indigo-700 uppercase tracking-widest block">Numéro / Email de Test</label>
+                  <input
+                    value={testRecipient}
+                    onChange={e => setTestRecipient(e.target.value)}
+                    placeholder={channel === "Email" ? "exemple@mail.com" : "+227 90 00 00 00"}
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-200 bg-white"
+                  />
+                </div>
+              )}
 
               {/* Recipient count */}
               <div className="flex items-center gap-2 p-3 rounded-xl bg-slate-50 border border-slate-100">

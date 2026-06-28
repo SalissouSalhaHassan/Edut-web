@@ -82,24 +82,67 @@ export async function sendMessage(data: {
   content: string;
   subject?: string;
   recipientCount?: number;
+  testRecipient?: string;
 }) {
   return protectedDbAction("Messaging", "canEdit", async () => {
-    // Simulate gateway call (replace with real SMS/Email API)
-    // e.g. await twilioClient.messages.create(...)
-    // e.g. await nodemailer.sendMail(...)
+    let sentCount = 0;
+    
+    // 1. If it's a test recipient, send directly
+    if (data.testRecipient && data.testRecipient.trim() !== "") {
+      const recipient = data.testRecipient.trim();
+      if (data.msgType === "SMS") {
+        await MessagingService["sendViaAndroidGateway"](recipient, data.content);
+      } else if (data.msgType === "WhatsApp") {
+        await MessagingService["sendViaWhatsAppAPI"](recipient, data.content);
+      }
+      sentCount = 1;
+    } else {
+      // 2. Fetch real numbers and send
+      if (data.targetAudience === "Tous les Parents" || data.targetAudience === "Tous (Parents + Staff)") {
+        const activeStudents = await db.query.students.findMany();
+        for (const std of activeStudents) {
+          const num = std.mobile || std.parentPhone;
+          if (num && num !== "N/A" && num.trim() !== "") {
+            if (data.msgType === "SMS") {
+              await MessagingService["sendViaAndroidGateway"](num, data.content);
+              sentCount++;
+            } else if (data.msgType === "WhatsApp") {
+              await MessagingService["sendViaWhatsAppAPI"](std.whatsapp || num, data.content);
+              sentCount++;
+            }
+          }
+        }
+      }
+      
+      if (data.targetAudience === "Tout le Personnel" || data.targetAudience === "Tous (Parents + Staff)") {
+        const activeStaff = await db.query.employees.findMany();
+        for (const emp of activeStaff) {
+          const num = emp.phone;
+          if (num && num !== "N/A" && num.trim() !== "") {
+            if (data.msgType === "SMS") {
+              await MessagingService["sendViaAndroidGateway"](num, data.content);
+              sentCount++;
+            } else if (data.msgType === "WhatsApp") {
+              await MessagingService["sendViaWhatsAppAPI"](num, data.content);
+              sentCount++;
+            }
+          }
+        }
+      }
+    }
 
     await db.insert(messageLogs).values({
       msgType: data.msgType,
       targetAudience: data.targetAudience,
       subject: data.subject || null,
       content: data.content,
-      recipientCount: data.recipientCount || 0,
+      recipientCount: sentCount || data.recipientCount || 0,
       status: "Envoyé",
       sentBy: "Admin",
     });
 
     revalidatePath("/dashboard/messaging");
-    return { success: true, message: "Message envoyé avec succès !" };
+    return { success: true, message: `Message envoyé avec succès à ${sentCount} destinataire(s) !` };
   });
 }
 
