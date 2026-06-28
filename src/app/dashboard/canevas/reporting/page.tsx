@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
+import * as XLSX from "xlsx";
 import {
   FileText,
   Download,
@@ -76,16 +77,112 @@ export default function ReportingCentrePage() {
   const handleExport = (format: "pdf" | "excel" | "csv") => {
     toast.success(`Exportation du "${activeReport.label}" au format ${format.toUpperCase()} en cours...`);
     
-    // Simulate file generation
-    const content = `Rapport: ${activeReport.label}\nAnnée: ${year}\nRégion: ${region}\nGénéré le: ${new Date().toLocaleDateString()}`;
-    const blob = new Blob([content], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${activeReport.id}_report.${format}`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    if (format === "excel" || format === "csv") {
+      const worksheet = XLSX.utils.json_to_sheet(mockResults.map(r => ({
+        "Code": r.code,
+        "Intitule": r.name,
+        "Type": r.type,
+        "Annee Scolaire": r.year,
+        "Zone": r.zone,
+        "Statut": r.status,
+        "Date": r.date
+      })));
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, activeReport.label.substring(0, 30));
+      
+      if (format === "excel") {
+        const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+        const blob = new Blob([excelBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `${activeReport.id}_report_${Date.now()}.xlsx`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else {
+        const csvContent = XLSX.write(workbook, { bookType: "csv", type: "string" });
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `${activeReport.id}_report_${Date.now()}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    } else if (format === "pdf") {
+      const pdfContent = `%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /Resources << /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >> /F2 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> >> >> /MediaBox [0 0 595 842] /Contents 4 0 R >>
+endobj
+4 0 obj
+<< /Length 280 >>
+stream
+BT
+/F1 16 Tf
+70 780 Td
+(Edut Pro - Centre de Reporting) Tj
+ET
+BT
+/F1 14 Tf
+70 745 Td
+(Rapport: ${activeReport.label}) Tj
+ET
+BT
+/F2 11 Tf
+70 710 Td
+(Annee Scolaire: ${year}) Tj
+ET
+BT
+/F2 11 Tf
+70 690 Td
+(Region: ${region} - Inspection: ${inspection}) Tj
+ET
+BT
+/F2 11 Tf
+70 670 Td
+(Statut des donnees: Valid) Tj
+ET
+BT
+/F2 10 Tf
+70 630 Td
+(Ce document PDF factice a ete genere avec succes.) Tj
+ET
+BT
+/F2 10 Tf
+70 610 Td
+(Pour imprimer le rapport complet avec mise en page officielle, utilisez le bouton Imprimer.) Tj
+ET
+endstream
+endobj
+xref
+0 5
+0000000000 65535 f 
+0000000009 00000 n 
+0000000059 00000 n 
+0000000116 00000 n 
+0000000322 00000 n 
+trailer
+<< /Size 5 /Root 1 0 R >>
+startxref
+640
+%%EOF`;
+      const blob = new Blob([pdfContent], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${activeReport.id}_report_${Date.now()}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
   };
 
   const handleSendEmail = (e: React.FormEvent) => {

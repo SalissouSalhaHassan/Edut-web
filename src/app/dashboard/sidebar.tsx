@@ -302,7 +302,7 @@ export default function DashboardSidebar({
   }, [pathname, sortedPlatformItems]);
 
   return (
-    <aside className="w-[300px] shrink-0 rounded-[32px] bg-white border border-indigo-200/50 shadow-[0_0_40px_-10px_rgba(99,102,241,0.08)] overflow-hidden flex flex-col h-full relative">
+    <aside className="w-[300px] shrink-0 rounded-[32px] bg-white border border-indigo-200/50 shadow-[0_0_40px_-10px_rgba(99,102,241,0.08)] overflow-hidden flex flex-col h-full relative print:hidden">
       {/* HEADER */}
       <div className="p-6 shrink-0 flex flex-col gap-3">
         <div className="flex items-center justify-between">

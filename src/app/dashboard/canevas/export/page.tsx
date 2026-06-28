@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
+import * as XLSX from "xlsx";
 import {
   ArrowLeft,
   Download,
@@ -100,21 +101,91 @@ export default function CanevasExportPage() {
       setHistory([newExport, ...history]);
       toast.success(`${typeName} exporté avec succès !`);
 
-      // Trigger automatic mock file download
-      const content = `Type: ${typeName}\nDate: ${newExport.date}\nEcoles: 806`;
-      const blob = new Blob([content], { type: "text/plain" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = newExport.fileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      generateAndDownloadFile(newExport.fileName, typeName);
     }, 1800);
   };
 
-  const downloadHistoryFile = (fileName: string) => {
+  const generateAndDownloadFile = (fileName: string, typeName: string) => {
+    const format = fileName.split('.').pop() || "txt";
+    let blob: Blob;
+
+    if (format === "xlsx" || format === "xls") {
+      const worksheet = XLSX.utils.json_to_sheet([
+        { "ID Export": fileName.split('_')[2]?.split('.')[0] || "1", "Nom du Document": typeName, "Date": new Date().toLocaleDateString(), "Structures Concernees": 806 }
+      ]);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Export Info");
+      const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+      blob = new Blob([excelBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    } else if (format === "pdf") {
+      const pdfContent = `%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /Resources << /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >> /F2 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> >> >> /MediaBox [0 0 595 842] /Contents 4 0 R >>
+endobj
+4 0 obj
+<< /Length 210 >>
+stream
+BT
+/F1 16 Tf
+70 780 Td
+(Edut Pro - Canevas Export) Tj
+ET
+BT
+/F1 12 Tf
+70 740 Td
+(Fichier: ${fileName}) Tj
+ET
+BT
+/F2 11 Tf
+70 715 Td
+(Exportation: ${typeName}) Tj
+ET
+BT
+/F2 10 Tf
+70 680 Td
+(Ce document PDF officiel a ete genere par la plateforme avec succes.) Tj
+ET
+endstream
+endobj
+xref
+0 5
+0000000000 65535 f 
+0000000009 00000 n 
+0000000059 00000 n 
+0000000116 00000 n 
+0000000282 00000 n 
+trailer
+<< /Size 5 /Root 1 0 R >>
+startxref
+498
+%%EOF`;
+      blob = new Blob([pdfContent], { type: "application/pdf" });
+    } else if (format === "csv") {
+      blob = new Blob([`ID,Type,Date,Ecoles\nEXP,${typeName},${new Date().toLocaleDateString()},806`], { type: "text/csv;charset=utf-8;" });
+    } else if (format === "json") {
+      blob = new Blob([JSON.stringify({ id: "EXP", type: typeName, date: new Date().toLocaleDateString(), schools: 806 }, null, 2)], { type: "application/json" });
+    } else {
+      blob = new Blob([`Type: ${typeName}\nFichier: ${fileName}`], { type: "text/plain" });
+    }
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const downloadHistoryFile = (fileName: string, typeName: string) => {
     toast.success(`Téléchargement de ${fileName}...`);
+    generateAndDownloadFile(fileName, typeName);
   };
 
   const deleteHistory = (id: string) => {
@@ -334,7 +405,7 @@ export default function CanevasExportPage() {
                   <td className="px-5 py-4 print:hidden">
                     <div className="flex items-center gap-2">
                       <button 
-                        onClick={() => downloadHistoryFile(row.fileName)}
+                        onClick={() => downloadHistoryFile(row.fileName, row.type)}
                         disabled={row.status !== "success"}
                         title="Télécharger"
                         className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-indigo-600 hover:bg-indigo-50 transition-colors disabled:opacity-30"
