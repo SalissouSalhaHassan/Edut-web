@@ -543,7 +543,7 @@ export default function GraduationClient({ initialProjects, teachers }: Graduati
               {/* Supervisor */}
               <div className="space-y-2">
                 <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Encadrant Académique *</Label>
-                <Select onValueChange={setSupervisorId} value={supervisorId}>
+                <Select onValueChange={(val) => setSupervisorId(val || "")} value={supervisorId}>
                   <SelectTrigger className="h-12 rounded-xl border-slate-200 text-xs font-bold text-slate-700">
                     <SelectValue placeholder="Sélectionner un enseignant..." />
                   </SelectTrigger>
@@ -619,7 +619,7 @@ export default function GraduationClient({ initialProjects, teachers }: Graduati
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Président du Jury</Label>
-                  <Select onValueChange={setPresidentId} value={presidentId}>
+                  <Select onValueChange={(val) => setPresidentId(val || "")} value={presidentId}>
                     <SelectTrigger className="h-12 rounded-xl border-slate-200 text-xs font-bold text-slate-700">
                       <SelectValue placeholder="Choisir le président..." />
                     </SelectTrigger>
@@ -634,7 +634,7 @@ export default function GraduationClient({ initialProjects, teachers }: Graduati
                 </div>
                 <div className="space-y-2">
                   <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Membre / Examinateur</Label>
-                  <Select onValueChange={setExaminerId} value={examinerId}>
+                  <Select onValueChange={(val) => setExaminerId(val || "")} value={examinerId}>
                     <SelectTrigger className="h-12 rounded-xl border-slate-200 text-xs font-bold text-slate-700">
                       <SelectValue placeholder="Choisir l'examinateur..." />
                     </SelectTrigger>
@@ -705,7 +705,7 @@ export default function GraduationClient({ initialProjects, teachers }: Graduati
                 </div>
                 <div className="space-y-2">
                   <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Décision Finale *</Label>
-                  <Select onValueChange={setProjectStatus} value={projectStatus}>
+                  <Select onValueChange={(val) => setProjectStatus(val || "")} value={projectStatus}>
                     <SelectTrigger className="h-12 rounded-xl border-slate-200 text-xs font-bold text-slate-700">
                       <SelectValue />
                     </SelectTrigger>
