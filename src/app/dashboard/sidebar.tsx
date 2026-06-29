@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useNavigationProgress } from "@/components/providers/navigation-progress";
 import {
+  Award,
   Backpack,
   BarChart3,
   BookOpen,
@@ -85,6 +86,7 @@ const sections: Array<{ title: string; dotColor: string; items: NavItem[] }> = [
       { href: "/dashboard/academics/exams", label: "Examens", icon: <ClipboardList className="size-[18px]" />, color: "text-indigo-500" },
       { href: "/dashboard/academics/grades", label: "Notes & Résultats", icon: <ClipboardCheck className="size-[18px]" />, color: "text-emerald-500" },
       { href: "/dashboard/academics/timetable", label: "Emploi du Temps", icon: <CalendarCheck2 className="size-[18px]" />, color: "text-amber-500" },
+      { href: "/dashboard/academics/research-graduation", label: "Graduation & Recherche", icon: <Award className="size-[18px]" />, color: "text-purple-500" },
       { href: "/dashboard/hr/attendance/teacher/me", label: "Ma Présence", icon: <ClipboardCheck className="size-[18px]" />, color: "text-emerald-500" },
       { href: "/dashboard/academics/homework", label: "Devoirs", icon: <FileBarChart2 className="size-[18px]" />, color: "text-blue-500" },
       { href: "/dashboard/academics/devoirs", label: "Devoirs (AI)", icon: <BriefcaseBusiness className="size-[18px]" />, color: "text-indigo-500" },

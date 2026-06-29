@@ -366,3 +366,40 @@ export const studentTermSummariesRelations = relations(studentTermSummaries, ({ 
 export const employeesRelations = relations(employees, ({ many }) => ({
   constraints: many(teacherConstraints),
 }));
+
+export const graduationProjects = pgTable("graduation_projects", {
+  id: serial("id").primaryKey(),
+  schoolId: integer("school_id").references(() => schools.id),
+  title: varchar("title", { length: 255 }).notNull(),
+  studentId: integer("student_id").references(() => students.id, { onDelete: "cascade" }),
+  supervisorId: integer("supervisor_id").references(() => employees.id, { onDelete: "cascade" }),
+  defenseDate: timestamp("defense_date"),
+  roomName: varchar("room_name", { length: 100 }),
+  status: varchar("status", { length: 50 }).default("En cours"), // "En cours", "Prêt", "Soutenu", "Refusé"
+  grade: doublePrecision("grade"),
+  presidentId: integer("president_id").references(() => employees.id),
+  examinerId: integer("examiner_id").references(() => employees.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const graduationProjectsRelations = relations(graduationProjects, ({ one }) => ({
+  student: one(students, {
+    fields: [graduationProjects.studentId],
+    references: [students.id],
+  }),
+  supervisor: one(employees, {
+    fields: [graduationProjects.supervisorId],
+    references: [employees.id],
+    relationName: "supervisor",
+  }),
+  president: one(employees, {
+    fields: [graduationProjects.presidentId],
+    references: [employees.id],
+    relationName: "president",
+  }),
+  examiner: one(employees, {
+    fields: [graduationProjects.examinerId],
+    references: [employees.id],
+    relationName: "examiner",
+  }),
+}));
