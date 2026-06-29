@@ -413,8 +413,7 @@ export default function CanevasDashboardPage() {
                 </div>
               </div>
             </div>
-          </div>
-        </div>
+
 
         <aside className="space-y-5">
           <div className="rounded-[26px] border border-slate-100 bg-white p-5 shadow-sm">
