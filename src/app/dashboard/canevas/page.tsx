@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import {
@@ -22,8 +22,22 @@ import {
   UserRoundCheck,
   X,
   Check,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getCanevasStats } from "@/domains/academics/actions/academics.actions";
+
+const ICON_MAP: Record<string, any> = {
+  School,
+  Building2,
+  GraduationCap,
+  Users,
+  UserRoundCheck,
+  BarChart3,
+  Droplets,
+  Lightbulb,
+  AlertTriangle
+};
 
 interface KpiData {
   label: string;
@@ -33,7 +47,6 @@ interface KpiData {
   color: string;
 }
 
-// Mock data representing different academic years to simulate dynamic loading
 const academicYearsData: Record<string, { kpis: KpiData[]; publicValue: number; privateValue: number }> = {
   "2025 - 2026": {
     publicValue: 612,
@@ -135,7 +148,7 @@ function BarMiniChart() {
   );
 }
 
-function Donut({ publicValue, privateValue }: { publicValue: number; privateValue: number }) {
+function Donut({ publicValue, privateValue, labelWord = "écoles" }: { publicValue: number; privateValue: number; labelWord?: string }) {
   const total = publicValue + privateValue;
   const publicPct = total ? publicValue / total : 0;
   const circle = 2 * Math.PI * 42;
@@ -145,12 +158,12 @@ function Donut({ publicValue, privateValue }: { publicValue: number; privateValu
         <circle cx="55" cy="55" r="42" fill="none" stroke="#f1f5f9" strokeWidth="16" />
         <circle cx="55" cy="55" r="42" fill="none" stroke="#10b981" strokeWidth="16" strokeDasharray={`${circle * publicPct} ${circle}`} strokeDashoffset={circle / 4} strokeLinecap="round" />
         <circle cx="55" cy="55" r="42" fill="none" stroke="#7c3aed" strokeWidth="16" strokeDasharray={`${circle * (1 - publicPct)} ${circle}`} strokeDashoffset={circle / 4 - circle * publicPct} strokeLinecap="round" />
-        <text x="55" y="52" textAnchor="middle" className="fill-slate-900 text-lg font-black">{total}</text>
-        <text x="55" y="67" textAnchor="middle" className="fill-slate-400 text-[9px] font-bold">écoles</text>
+        <text x="55" y="52" textAnchor="middle" className="fill-slate-900 text-lg font-black">{total.toLocaleString()}</text>
+        <text x="55" y="67" textAnchor="middle" className="fill-slate-400 text-[9px] font-bold">{labelWord}</text>
       </svg>
       <div className="flex-1 space-y-3">
-        <LegendDot color="bg-emerald-500" label="Public" value={publicValue} />
-        <LegendDot color="bg-violet-500" label="Privé" value={privateValue} />
+        <LegendDot color="bg-emerald-500" label="Public / G." value={publicValue} />
+        <LegendDot color="bg-violet-500" label="Privé / F." value={privateValue} />
       </div>
     </div>
   );
@@ -161,16 +174,17 @@ function LegendDot({ color, label, value }: { color: string; label: string; valu
     <div className="flex items-center gap-2">
       <span className={cn("h-2.5 w-2.5 rounded-full", color)} />
       <span className="text-xs font-black text-slate-600">{label}</span>
-      <span className="ml-auto text-xs font-black text-slate-900">{value}</span>
+      <span className="ml-auto text-xs font-black text-slate-900">{value.toLocaleString()}</span>
     </div>
   );
 }
 
-function LevelChart() {
-  const max = Math.max(...levels.map((d) => d.total));
+function LevelChart({ levelsData }: { levelsData?: Array<{ name: string; total: number; girls: number }> }) {
+  const data = levelsData || levels;
+  const max = Math.max(...data.map((d) => d.total), 1);
   return (
     <div className="grid h-full grid-cols-6 items-end gap-3 pt-6">
-      {levels.map((level) => (
+      {data.map((level) => (
         <div key={level.name} className="flex h-64 flex-col items-center justify-end gap-2">
           <div className="flex w-full flex-1 items-end justify-center gap-1">
             <div className="w-5 rounded-t-lg bg-indigo-500" style={{ height: `${Math.max(8, (level.total / max) * 100)}%` }} />
@@ -186,13 +200,33 @@ function LevelChart() {
 export default function CanevasDashboardPage() {
   const [selectedYear, setSelectedYear] = useState("2025 - 2026");
   
+  // Real database stats
+  const [stats, setStats] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
   // Modal for new canevas
   const [isNewOpen, setIsNewOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [newCycle, setNewCycle] = useState("Primaire");
   const [newDesc, setNewDesc] = useState("");
 
-  const activeData = academicYearsData[selectedYear] || academicYearsData["2025 - 2026"];
+  useEffect(() => {
+    async function loadStats() {
+      try {
+        const res = await getCanevasStats();
+        if (res.data) {
+          setStats(res.data);
+        }
+      } catch (e) {
+        console.error("Failed to load Canevas statistics:", e);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadStats();
+  }, []);
+
+  const activeData = stats || academicYearsData[selectedYear] || academicYearsData["2025 - 2026"];
 
   const handleCreateCanevas = (e: React.FormEvent) => {
     e.preventDefault();
@@ -254,8 +288,8 @@ export default function CanevasDashboardPage() {
 
       {/* KPI Section */}
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5">
-        {activeData.kpis.map((kpi) => {
-          const Icon = kpi.icon;
+        {activeData.kpis.map((kpi: any) => {
+          const Icon = typeof kpi.icon === "string" ? (ICON_MAP[kpi.icon] || School) : kpi.icon;
           return (
             <Link href={kpi.label.includes("tablissements") ? "/dashboard/canevas/etablissements" : "/dashboard/canevas"} key={kpi.label} className="rounded-[24px] border border-slate-100 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
               <div className="flex items-start justify-between gap-3">
@@ -296,72 +330,87 @@ export default function CanevasDashboardPage() {
       </section>
 
       {/* Graphs and Alert Panels */}
-      <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
-        <div className="space-y-5">
-          <div className="grid gap-5 xl:grid-cols-3">
-            <div className="rounded-[26px] border border-slate-100 bg-white p-5 shadow-sm">
-              <h2 className="text-sm font-black text-slate-900">Établissements par commune</h2>
-              <p className="mb-5 mt-1 text-xs font-bold text-slate-500">Répartition géographique</p>
-              <BarMiniChart />
-            </div>
-            <div className="rounded-[26px] border border-slate-100 bg-white p-5 shadow-sm">
-              <h2 className="text-sm font-black text-slate-900">Public vs Privé</h2>
-              <p className="mb-4 mt-1 text-xs font-bold text-slate-500">Répartition des statuts</p>
-              <Donut publicValue={activeData.publicValue} privateValue={activeData.privateValue} />
-            </div>
-            <div className="rounded-[26px] border border-slate-100 bg-white p-5 shadow-sm">
-              <h2 className="text-sm font-black text-slate-900">Filles / Garçons</h2>
-              <p className="mb-4 mt-1 text-xs font-bold text-slate-500">Composition globale</p>
-              <Donut publicValue={70258} privateValue={72158} />
-            </div>
-          </div>
-          <div className="rounded-[26px] border border-slate-100 bg-white p-6 shadow-sm">
-            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-              <div>
-                <h2 className="text-sm font-black text-slate-900">Effectifs par niveau</h2>
-                <p className="mt-1 text-xs font-bold text-slate-500">Barres indigo: total, barres roses: filles</p>
+      {(() => {
+        const girlsVal = parseInt((activeData.kpis.find((k: any) => k.label.toLowerCase().includes("filles"))?.value || "70258").replace(/\s/g, ""), 10);
+        const boysVal = parseInt((activeData.kpis.find((k: any) => k.label.toLowerCase().includes("garçons"))?.value || "72158").replace(/\s/g, ""), 10);
+        const totalStudentsVal = parseInt((activeData.kpis.find((k: any) => k.label.toLowerCase().includes("élèves"))?.value || "142416").replace(/\s/g, ""), 10);
+
+        return (
+          <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
+            <div className="space-y-5">
+              <div className="grid gap-5 xl:grid-cols-3">
+                <div className="rounded-[26px] border border-slate-100 bg-white p-5 shadow-sm">
+                  <h2 className="text-sm font-black text-slate-900">Établissements par commune</h2>
+                  <p className="mb-5 mt-1 text-xs font-bold text-slate-500">Répartition géographique</p>
+                  <BarMiniChart />
+                </div>
+                <div className="rounded-[26px] border border-slate-100 bg-white p-5 shadow-sm">
+                  <h2 className="text-sm font-black text-slate-900">Public vs Privé</h2>
+                  <p className="mb-4 mt-1 text-xs font-bold text-slate-500">Répartition des statuts</p>
+                  <Donut 
+                    publicValue={activeData.publicSchools ?? activeData.publicValue} 
+                    privateValue={activeData.privateSchools ?? activeData.privateValue} 
+                  />
+                </div>
+                <div className="rounded-[26px] border border-slate-100 bg-white p-5 shadow-sm">
+                  <h2 className="text-sm font-black text-slate-900">Filles / Garçons</h2>
+                  <p className="mb-4 mt-1 text-xs font-bold text-slate-500">Composition globale</p>
+                  <Donut 
+                    publicValue={boysVal} 
+                    privateValue={girlsVal} 
+                    labelWord="élèves" 
+                  />
+                </div>
               </div>
-              <div className="flex items-center gap-4 text-xs font-black text-slate-500">
-                <LegendDot color="bg-indigo-500" label="Total" value={142416} />
-                <LegendDot color="bg-pink-400" label="Filles" value={70258} />
-              </div>
-            </div>
-            <LevelChart />
-          </div>
-          <div className="grid gap-5 lg:grid-cols-2">
-            <div className="rounded-[26px] border border-slate-100 bg-white p-5 shadow-sm">
-              <h2 className="text-sm font-black text-slate-900">Besoins par type</h2>
-              <div className="mt-5 space-y-3">
-                {[
-                  ["Salles de classe", 74, "bg-rose-500"],
-                  ["Tables bancs", 62, "bg-amber-500"],
-                  ["Enseignants", 48, "bg-indigo-500"],
-                  ["Armoires", 30, "bg-emerald-500"],
-                ].map(([label, value, color]) => (
-                  <div key={String(label)}>
-                    <div className="mb-1 flex justify-between text-xs font-black">
-                      <span>{label}</span><span>{value}</span>
-                    </div>
-                    <div className="h-2 rounded-full bg-slate-100"><div className={cn("h-2 rounded-full", String(color))} style={{ width: `${Number(value)}%` }} /></div>
+              <div className="rounded-[26px] border border-slate-100 bg-white p-6 shadow-sm">
+                <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <h2 className="text-sm font-black text-slate-900">Effectifs par niveau</h2>
+                    <p className="mt-1 text-xs font-bold text-slate-500">Barres indigo: total, barres roses: filles</p>
                   </div>
-                ))}
-              </div>
-            </div>
-            <div className="rounded-[26px] border border-slate-100 bg-white p-5 shadow-sm">
-              <h2 className="text-sm font-black text-slate-900">Infrastructures par état</h2>
-              <div className="mt-5 space-y-3">
-                {[
-                  ["Fonctionnelles", 78, "bg-emerald-500"],
-                  ["À réparer", 14, "bg-amber-500"],
-                  ["Critiques", 8, "bg-rose-500"],
-                ].map(([label, value, color]) => (
-                  <div key={String(label)}>
-                    <div className="mb-1 flex justify-between text-xs font-black">
-                      <span>{label}</span><span>{value}%</span>
-                    </div>
-                    <div className="h-2 rounded-full bg-slate-100"><div className={cn("h-2 rounded-full", String(color))} style={{ width: `${Number(value)}%` }} /></div>
+                  <div className="flex items-center gap-4 text-xs font-black text-slate-500">
+                    <LegendDot color="bg-indigo-500" label="Total" value={totalStudentsVal} />
+                    <LegendDot color="bg-pink-400" label="Filles" value={girlsVal} />
                   </div>
-                ))}
+                </div>
+                <LevelChart levelsData={activeData.levels} />
+              </div>
+              <div className="grid gap-5 lg:grid-cols-2">
+                <div className="rounded-[26px] border border-slate-100 bg-white p-5 shadow-sm">
+                  <h2 className="text-sm font-black text-slate-900">Besoins par type</h2>
+                  <div className="mt-5 space-y-3">
+                    {[
+                      ["Salles de classe", 74, "bg-rose-500"],
+                      ["Tables bancs", 62, "bg-amber-500"],
+                      ["Enseignants", 48, "bg-indigo-500"],
+                      ["Armoires", 30, "bg-emerald-500"],
+                    ].map(([label, value, color]) => (
+                      <div key={String(label)}>
+                        <div className="mb-1 flex justify-between text-xs font-black">
+                          <span>{label}</span><span>{value}</span>
+                        </div>
+                        <div className="h-2 rounded-full bg-slate-100"><div className={cn("h-2 rounded-full", String(color))} style={{ width: `${Number(value)}%` }} /></div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="rounded-[26px] border border-slate-100 bg-white p-5 shadow-sm">
+                  <h2 className="text-sm font-black text-slate-900">Infrastructures par état</h2>
+                  <div className="mt-5 space-y-3">
+                    {[
+                      ["Fonctionnelles", 78, "bg-emerald-500"],
+                      ["À réparer", 14, "bg-amber-500"],
+                      ["Critiques", 8, "bg-rose-500"],
+                    ].map(([label, value, color]) => (
+                      <div key={String(label)}>
+                        <div className="mb-1 flex justify-between text-xs font-black">
+                          <span>{label}</span><span>{value}%</span>
+                        </div>
+                        <div className="h-2 rounded-full bg-slate-100"><div className={cn("h-2 rounded-full", String(color))} style={{ width: `${Number(value)}%` }} /></div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -401,6 +450,8 @@ export default function CanevasDashboardPage() {
           </div>
         </aside>
       </section>
+        );
+      })()}
 
       {/* ─── MODAL: NEW CANEVAS TEMPLATE ─── */}
       {isNewOpen && (
