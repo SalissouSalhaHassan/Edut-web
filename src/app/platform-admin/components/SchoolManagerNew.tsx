@@ -386,54 +386,20 @@ export function SchoolManagerNew({ schools: initialSchools }: { schools: SchoolR
                         </DropdownMenuTrigger>
                         <DropdownMenuContent
                           align="end"
-                          className="w-64 rounded-2xl p-2 shadow-2xl border-slate-100 animate-in fade-in zoom-in-95 duration-200"
+                          className="w-64 rounded-2xl p-2 bg-white shadow-2xl border border-slate-100/80 animate-in fade-in zoom-in-95 duration-200"
                         >
                           <DropdownMenuGroup>
-                            <DropdownMenuLabel className="text-[10px] font-black uppercase text-slate-400 px-3 py-2 tracking-widest">
-                              Options
+                            <DropdownMenuLabel className="text-[9px] font-black uppercase text-slate-400 px-3 py-1.5 tracking-widest">
+                              Actions Principales
                             </DropdownMenuLabel>
                             <DropdownMenuItem
                               onClick={() => handleImpersonate(school.id)}
-                              className="rounded-xl font-semibold gap-3 p-3 focus:bg-indigo-50 focus:text-indigo-600 cursor-pointer text-sm"
+                              className="rounded-xl font-semibold gap-3 p-2.5 focus:bg-indigo-50 focus:text-indigo-600 cursor-pointer text-xs"
                             >
-                              <div className="size-7 rounded-lg bg-indigo-100 flex items-center justify-center text-indigo-600 shrink-0">
+                              <div className="size-6 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
                                 <Eye className="w-3.5 h-3.5" />
                               </div>
                               Accès Administrateur
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => handleToggleStatus(school.id, school.status || "active")}
-                              className={cn(
-                                "rounded-xl font-semibold gap-3 p-3 cursor-pointer text-sm",
-                                school.status === "active"
-                                  ? "text-rose-600 focus:bg-rose-50 focus:text-rose-600"
-                                  : "text-emerald-600 focus:bg-emerald-50 focus:text-emerald-600"
-                              )}
-                            >
-                              <div
-                                className={cn(
-                                  "size-7 rounded-lg flex items-center justify-center shrink-0",
-                                  school.status === "active"
-                                    ? "bg-rose-100 text-rose-600"
-                                    : "bg-emerald-100 text-emerald-600"
-                                )}
-                              >
-                                <Power className="w-3.5 h-3.5" />
-                              </div>
-                              {school.status === "active" ? "Suspendre" : "Rétablir"}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => {
-                                setSelectedSchoolForDomain(school);
-                                setDomainInput(school.customDomain || "");
-                                setIsDomainOpen(true);
-                              }}
-                              className="rounded-xl font-semibold gap-3 p-3 focus:bg-indigo-50 focus:text-indigo-600 cursor-pointer text-sm"
-                            >
-                              <div className="size-7 rounded-lg bg-indigo-100 flex items-center justify-center text-indigo-600 shrink-0">
-                                <Globe className="w-3.5 h-3.5" />
-                              </div>
-                              Domaine Perso
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() => {
@@ -442,29 +408,73 @@ export function SchoolManagerNew({ schools: initialSchools }: { schools: SchoolR
                                 setEditSlugInput(school.slug);
                                 setIsEditOpen(true);
                               }}
-                              className="rounded-xl font-semibold gap-3 p-3 focus:bg-amber-50 focus:text-amber-600 cursor-pointer text-sm"
+                              className="rounded-xl font-semibold gap-3 p-2.5 focus:bg-amber-50 focus:text-amber-600 cursor-pointer text-xs"
                             >
-                              <div className="size-7 rounded-lg bg-amber-100 flex items-center justify-center text-amber-600 shrink-0">
+                              <div className="size-6 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
                                 <Edit2 className="w-3.5 h-3.5" />
                               </div>
                               Modifier l'École
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() => {
+                                setSelectedSchoolForDomain(school);
+                                setDomainInput(school.customDomain || "");
+                                setIsDomainOpen(true);
+                              }}
+                              className="rounded-xl font-semibold gap-3 p-2.5 focus:bg-indigo-50 focus:text-indigo-600 cursor-pointer text-xs"
+                            >
+                              <div className="size-6 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+                                <Globe className="w-3.5 h-3.5" />
+                              </div>
+                              Domaine Perso
+                            </DropdownMenuItem>
+                          </DropdownMenuGroup>
+
+                          <DropdownMenuSeparator className="my-1.5 bg-slate-100" />
+
+                          <DropdownMenuGroup>
+                            <DropdownMenuLabel className="text-[9px] font-black uppercase text-slate-400 px-3 py-1.5 tracking-widest">
+                              Sécurité & Statut
+                            </DropdownMenuLabel>
+                            <DropdownMenuItem
+                              onClick={() => handleToggleStatus(school.id, school.status || "active")}
+                              className={cn(
+                                "rounded-xl font-semibold gap-3 p-2.5 cursor-pointer text-xs",
+                                school.status === "active"
+                                  ? "text-rose-600 focus:bg-rose-50 focus:text-rose-600"
+                                  : "text-emerald-600 focus:bg-emerald-50 focus:text-emerald-600"
+                              )}
+                            >
+                              <div
+                                className={cn(
+                                  "size-6 rounded-lg flex items-center justify-center shrink-0",
+                                  school.status === "active"
+                                    ? "bg-rose-50 text-rose-600"
+                                    : "bg-emerald-50 text-emerald-600"
+                                )}
+                              >
+                                <Power className="w-3.5 h-3.5" />
+                              </div>
+                              {school.status === "active" ? "Suspendre l'Établissement" : "Rétablir l'Établissement"}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => {
                                 setSelectedSchoolForDelete(school);
                                 setIsDeleteOpen(true);
                               }}
-                              className="rounded-xl font-semibold gap-3 p-3 text-rose-600 focus:bg-rose-50 focus:text-rose-600 cursor-pointer text-sm"
+                              className="rounded-xl font-semibold gap-3 p-2.5 text-rose-600 focus:bg-rose-50 focus:text-rose-600 cursor-pointer text-xs"
                             >
-                              <div className="size-7 rounded-lg bg-rose-100 flex items-center justify-center text-rose-600 shrink-0">
+                              <div className="size-6 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
                                 <Trash2 className="w-3.5 h-3.5" />
                               </div>
                               Supprimer l'École
                             </DropdownMenuItem>
                           </DropdownMenuGroup>
-                          <DropdownMenuSeparator className="my-1 bg-slate-50" />
+
+                          <DropdownMenuSeparator className="my-1.5 bg-slate-100" />
+
                           <DropdownMenuGroup>
-                            <DropdownMenuLabel className="text-[10px] font-black uppercase text-slate-400 px-3 py-2 tracking-widest">
+                            <DropdownMenuLabel className="text-[9px] font-black uppercase text-slate-400 px-3 py-1.5 tracking-widest">
                               Changer de Forfait
                             </DropdownMenuLabel>
                             {["basic", "premium", "enterprise"].map((plan) => (
@@ -482,14 +492,14 @@ export function SchoolManagerNew({ schools: initialSchools }: { schools: SchoolR
                                     }
                                   });
                                 }}
-                                className="rounded-xl font-semibold gap-3 p-3 cursor-pointer text-xs focus:bg-slate-50 capitalize"
+                                className="rounded-xl font-semibold gap-3 p-2 cursor-pointer text-[11px] focus:bg-slate-50 capitalize"
                               >
                                 <div
                                   className={cn(
-                                    "size-7 rounded-lg flex items-center justify-center transition-colors shrink-0",
+                                    "size-5 rounded-md flex items-center justify-center transition-colors shrink-0",
                                     school.plan === plan
-                                      ? "bg-emerald-100 text-emerald-600"
-                                      : "bg-slate-100 text-slate-400"
+                                      ? "bg-emerald-50 text-emerald-600"
+                                      : "bg-slate-50 text-slate-400"
                                   )}
                                 >
                                   {school.plan === plan ? (
