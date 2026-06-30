@@ -12,6 +12,7 @@ import {
   FileArchive,
   FileSpreadsheet,
   FileText,
+  ImagePlus,
   IdCard,
   Mail,
   MoreVertical,
@@ -31,6 +32,7 @@ type Template = {
   orientation: string;
   size: string;
   background: string;
+  backgroundImage?: string;
   status: "Actif" | "Brouillon" | "Archive";
   generated: number;
   createdAt: string;
@@ -116,6 +118,41 @@ function downloadFile(filename: string, content: string, type: string) {
   URL.revokeObjectURL(url);
 }
 
+function isImageSource(value?: string): value is string {
+  return Boolean(value?.startsWith("data:image/"));
+}
+
+function createAiBackground(label: string) {
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="840" height="1188" viewBox="0 0 840 1188">
+      <defs>
+        <linearGradient id="g" x1="0" x2="1" y1="0" y2="1">
+          <stop stop-color="#eef2ff"/>
+          <stop offset="0.55" stop-color="#ffffff"/>
+          <stop offset="1" stop-color="#ecfdf5"/>
+        </linearGradient>
+        <pattern id="p" width="72" height="72" patternUnits="userSpaceOnUse">
+          <path d="M0 72 72 0" stroke="#c7d2fe" stroke-width="1" opacity=".38"/>
+        </pattern>
+      </defs>
+      <rect width="840" height="1188" fill="url(#g)"/>
+      <rect x="34" y="34" width="772" height="1120" rx="34" fill="none" stroke="#4f46e5" stroke-width="5"/>
+      <rect x="58" y="58" width="724" height="1072" rx="24" fill="url(#p)" opacity=".8"/>
+      <circle cx="100" cy="106" r="34" fill="#4f46e5" opacity=".95"/>
+      <rect x="156" y="86" width="360" height="18" rx="9" fill="#1e293b" opacity=".85"/>
+      <rect x="156" y="118" width="260" height="12" rx="6" fill="#64748b" opacity=".75"/>
+      <text x="420" y="360" text-anchor="middle" font-family="Arial" font-size="42" font-weight="800" fill="#312e81">CARTE D'ADMISSION</text>
+      <text x="420" y="412" text-anchor="middle" font-family="Arial" font-size="22" font-weight="700" fill="#475569">${label}</text>
+      <rect x="108" y="496" width="624" height="264" rx="28" fill="#ffffff" opacity=".78" stroke="#cbd5e1"/>
+      <rect x="124" y="918" width="168" height="168" rx="18" fill="#ffffff" stroke="#4f46e5" stroke-width="3"/>
+      <text x="208" y="1010" text-anchor="middle" font-family="Arial" font-size="24" font-weight="800" fill="#4f46e5">QR</text>
+      <rect x="448" y="1010" width="250" height="3" fill="#334155"/>
+      <text x="573" y="1042" text-anchor="middle" font-family="Arial" font-size="18" font-weight="700" fill="#334155">Signature</text>
+    </svg>
+  `;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
 export default function AdmitCardsPage() {
   const [activeTab, setActiveTab] = useState("Liste des cartes");
   const [query, setQuery] = useState("");
@@ -124,6 +161,17 @@ export default function AdmitCardsPage() {
   const [modalMode, setModalMode] = useState<"preview" | "edit" | "more" | null>(null);
   const [notice, setNotice] = useState("Interface prete. Tous les boutons sont actifs.");
   const [hiddenColumns, setHiddenColumns] = useState<string[]>([]);
+  const [draftImage, setDraftImage] = useState("");
+
+  const readImageFile = (file: File, callback: (dataUrl: string) => void) => {
+    if (!file.type.startsWith("image/")) {
+      setNotice("Le fichier choisi n'est pas une image.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => callback(String(reader.result));
+    reader.readAsDataURL(file);
+  };
 
   const filteredTemplates = useMemo(() => {
     return templates.filter((item) =>
@@ -313,7 +361,6 @@ export default function AdmitCardsPage() {
                 ["Type document", "Carte d'admission"],
                 ["Format page", "A4"],
                 ["Orientation", "Portrait"],
-                ["Image de fond", "Choisir une image"],
                 ["Cree par", "Admin"],
               ].map(([label, placeholder]) => (
                 <label key={label} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
@@ -321,11 +368,45 @@ export default function AdmitCardsPage() {
                   <input placeholder={placeholder} className="mt-2 w-full bg-transparent text-sm font-black text-slate-900 outline-none" />
                 </label>
               ))}
+              <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 md:col-span-2">
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Image de fond</span>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <label className="flex h-11 cursor-pointer items-center gap-2 rounded-xl bg-white px-4 text-xs font-black uppercase tracking-widest text-indigo-700 ring-1 ring-indigo-100">
+                    <ImagePlus size={16} /> Importer image
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        if (file) readImageFile(file, (dataUrl) => {
+                          setDraftImage(dataUrl);
+                          setNotice(`Image importee: ${file.name}`);
+                        });
+                      }}
+                    />
+                  </label>
+                  <button
+                    onClick={() => {
+                      setDraftImage(createAiBackground("Modele IA officiel"));
+                      setNotice("Image IA generee et prete a utiliser.");
+                    }}
+                    className="flex h-11 items-center gap-2 rounded-xl bg-indigo-600 px-4 text-xs font-black uppercase tracking-widest text-white"
+                  >
+                    <IdCard size={16} /> Generer image IA
+                  </button>
+                  {draftImage && (
+                    <button onClick={() => setDraftImage("")} className="h-11 rounded-xl border border-rose-100 bg-white px-4 text-xs font-black uppercase tracking-widest text-rose-600">
+                      Retirer
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
             <div className="rounded-[24px] border border-indigo-100 bg-indigo-50 p-5">
               <p className="text-sm font-black text-indigo-900">Apercu du modele</p>
-              <div className="mt-4 flex aspect-[0.7] items-center justify-center rounded-2xl bg-white text-indigo-500 shadow-sm">
-                <IdCard size={56} />
+              <div className="mt-4 flex aspect-[0.7] items-center justify-center overflow-hidden rounded-2xl bg-white text-indigo-500 shadow-sm">
+                {draftImage ? <img src={draftImage} alt="Fond du modele" className="h-full w-full object-cover" /> : <IdCard size={56} />}
               </div>
               <button
                 onClick={() => {
@@ -336,13 +417,15 @@ export default function AdmitCardsPage() {
                     format: "A4",
                     orientation: "Portrait",
                     size: "210mm x 297mm",
-                    background: "Choisir une image",
+                    background: draftImage ? "Image importee" : "Choisir une image",
+                    backgroundImage: draftImage || undefined,
                     status: "Brouillon",
                     generated: 0,
                     createdAt: "30 Juin 2026",
                     createdBy: "Admin",
                   };
                   setTemplates((current) => [newTemplate, ...current]);
+                  setDraftImage("");
                   setActiveTab("Liste des cartes");
                   setNotice(`Nouveau modele cree: ${newTemplate.name}`);
                 }}
@@ -397,8 +480,8 @@ export default function AdmitCardsPage() {
                       <td className="px-5 py-4">{template.orientation}</td>
                       {!hiddenColumns.includes("background") && (
                         <td className="px-5 py-4">
-                          <div className="flex h-11 w-14 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-indigo-500">
-                            <IdCard size={22} />
+                          <div className="flex h-11 w-14 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-slate-50 text-indigo-500">
+                            {isImageSource(template.backgroundImage) ? <img src={template.backgroundImage} alt={template.background} className="h-full w-full object-cover" /> : <IdCard size={22} />}
                           </div>
                         </td>
                       )}
@@ -452,12 +535,43 @@ export default function AdmitCardsPage() {
                     <input value={String(selectedTemplate[field])} onChange={(event) => setSelectedTemplate({ ...selectedTemplate, [field]: event.target.value })} className="mt-2 w-full bg-transparent text-sm font-black outline-none" />
                   </label>
                 ))}
+                <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 md:col-span-2">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Image de fond</span>
+                  <div className="mt-3 grid gap-3 md:grid-cols-[140px_minmax(0,1fr)]">
+                    <div className="flex aspect-[0.7] items-center justify-center overflow-hidden rounded-xl bg-white text-indigo-500 ring-1 ring-slate-200">
+                      {isImageSource(selectedTemplate.backgroundImage) ? <img src={selectedTemplate.backgroundImage} alt="Fond actuel" className="h-full w-full object-cover" /> : <IdCard size={38} />}
+                    </div>
+                    <div className="flex flex-wrap content-start gap-2">
+                      <label className="flex h-11 cursor-pointer items-center gap-2 rounded-xl bg-white px-4 text-xs font-black uppercase tracking-widest text-indigo-700 ring-1 ring-indigo-100">
+                        <ImagePlus size={16} /> Importer image
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(event) => {
+                            const file = event.target.files?.[0];
+                            if (file) readImageFile(file, (dataUrl) => setSelectedTemplate({ ...selectedTemplate, background: "Image importee", backgroundImage: dataUrl }));
+                          }}
+                        />
+                      </label>
+                      <button
+                        onClick={() => setSelectedTemplate({ ...selectedTemplate, background: "Image IA", backgroundImage: createAiBackground(selectedTemplate.name) })}
+                        className="flex h-11 items-center gap-2 rounded-xl bg-indigo-600 px-4 text-xs font-black uppercase tracking-widest text-white"
+                      >
+                        <IdCard size={16} /> Generer image IA
+                      </button>
+                      <button onClick={() => setSelectedTemplate({ ...selectedTemplate, background: "Sans fond", backgroundImage: undefined })} className="h-11 rounded-xl border border-rose-100 bg-white px-4 text-xs font-black uppercase tracking-widest text-rose-600">
+                        Retirer
+                      </button>
+                    </div>
+                  </div>
+                </div>
                 <button onClick={saveEdit} className="md:col-span-2 h-11 rounded-xl bg-indigo-600 text-xs font-black uppercase tracking-widest text-white">Enregistrer les modifications</button>
               </div>
             ) : (
               <div className="grid gap-5 py-5 md:grid-cols-[220px_minmax(0,1fr)]">
-                <div className="flex aspect-[0.7] items-center justify-center rounded-2xl border border-indigo-100 bg-indigo-50 text-indigo-600">
-                  <IdCard size={64} />
+                <div className="flex aspect-[0.7] items-center justify-center overflow-hidden rounded-2xl border border-indigo-100 bg-indigo-50 text-indigo-600">
+                  {isImageSource(selectedTemplate.backgroundImage) ? <img src={selectedTemplate.backgroundImage} alt="Fond carte" className="h-full w-full object-cover" /> : <IdCard size={64} />}
                 </div>
                 <div className="space-y-3 text-sm font-bold text-slate-700">
                   <p><span className="text-slate-400">Reference:</span> {selectedTemplate.id}</p>
