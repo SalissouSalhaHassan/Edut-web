@@ -421,6 +421,12 @@ export default function AdminDocsPage() {
         </div>
         
         <div className="flex items-center gap-2">
+          <Link
+            href="/dashboard/admin-docs/admit-cards"
+            className="flex h-11 items-center gap-2 rounded-xl border border-indigo-100 bg-indigo-50 px-5 text-xs font-black uppercase tracking-widest text-indigo-700 hover:bg-indigo-100 active:scale-95 transition-all"
+          >
+            <IdCard size={15} /> Cartes d’admission
+          </Link>
           <button 
             onClick={handleExportPDF}
             className="flex h-11 items-center gap-2 rounded-xl bg-indigo-600 px-5 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-indigo-100 hover:bg-indigo-700 active:scale-95 transition-all"
