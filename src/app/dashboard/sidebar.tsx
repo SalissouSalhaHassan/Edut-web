@@ -90,6 +90,7 @@ const sections: Array<{ title: string; dotColor: string; items: NavItem[] }> = [
       { href: "/dashboard/hr/attendance/teacher/me", label: "Ma Présence", icon: <ClipboardCheck className="size-[18px]" />, color: "text-emerald-500" },
       { href: "/dashboard/academics/homework", label: "Devoirs", icon: <FileBarChart2 className="size-[18px]" />, color: "text-blue-500" },
       { href: "/dashboard/academics/devoirs", label: "Devoirs (AI)", icon: <BriefcaseBusiness className="size-[18px]" />, color: "text-indigo-500" },
+      { href: "/dashboard/academics/research-graduation", label: "Mémoires & PFE", icon: <GraduationCap className="size-[18px]" />, color: "text-purple-500" },
     ],
   },
   {
