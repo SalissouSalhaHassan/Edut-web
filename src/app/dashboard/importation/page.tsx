@@ -17,17 +17,19 @@ import {
   Briefcase,
   Play,
   RotateCcw,
-  Sparkles
+  Sparkles,
+  Award
 } from "lucide-react";
 import { toast } from "sonner";
 import {
   importStudentRow,
   importEmployeeRow,
-  importSubjectRow
+  importSubjectRow,
+  importExamResultRow
 } from "@/domains/importation/actions/import.actions";
 import { cn } from "@/lib/utils";
 
-type ImportType = "student" | "employee" | "subject";
+type ImportType = "student" | "employee" | "subject" | "exam_result";
 
 interface FieldInfo {
   key: string;
@@ -101,6 +103,17 @@ const FIELDS: Record<ImportType, FieldInfo[]> = {
     { key: "coefficient", label: "Coefficient", required: false },
     { key: "credits", label: "Crédits", required: false },
     { key: "term", label: "Semestre / Période (Optionnel)", required: false }
+  ],
+  exam_result: [
+    { key: "examName", label: "Nom de l'Examen *", required: true },
+    { key: "className", label: "Nom de la Classe *", required: true },
+    { key: "subjectName", label: "Nom de la Matière *", required: true },
+    { key: "numAdmission", label: "Matricule de l'Élève *", required: true },
+    { key: "marksObtained", label: "Note Obtenue (décimal) *", required: true },
+    { key: "periodName", label: "Trimestre / Semestre", required: false },
+    { key: "maxMarks", label: "Note Maximale (ex: 20)", required: false },
+    { key: "remarks", label: "Appréciation / Remarques", required: false },
+    { key: "examDate", label: "Date de l'Examen", required: false }
   ]
 };
 
@@ -155,7 +168,14 @@ const KEYWORDS: Record<string, string[]> = {
   sectionName: ["section_name", "section", "filiere", "sectionname", "nom_section", "serie"],
   coefficient: ["coefficient", "coef", "default_coef", "defaultcoef", "coef_matiere"],
   credits: ["credits", "credit", "nbr_credit"],
-  term: ["term", "semestre", "periode", "trimestre"]
+  term: ["term", "semestre", "periode", "trimestre"],
+  examName: ["examen", "exam", "examname", "nom_examen", "titre_examen"],
+  className: ["classe", "class", "classname", "nom_classe"],
+  marksObtained: ["note", "marks", "obtained", "marksobtained", "note_obtenue", "note_sur", "resultat", "result"],
+  periodName: ["trimestre", "semestre", "periode", "period", "periodname", "nom_periode"],
+  maxMarks: ["max", "note_max", "maxmarks", "bareme", "note_maximale"],
+  remarks: ["remarques", "appreciation", "remarks", "commentaire", "obs", "observation"],
+  examDate: ["date", "date_examen", "examdate"]
 };
 
 export default function ImportationPage() {
@@ -287,6 +307,33 @@ export default function ImportationPage() {
         { subjectName: "Anglais", subjectCode: "ANG01", category: "Langue" }
       ];
       filename = "Modele_Import_Matieres.xlsx";
+    } else if (type === "exam_result") {
+      cols = ["examName", "className", "subjectName", "numAdmission", "marksObtained", "periodName", "maxMarks", "remarks", "examDate"];
+      sample = [
+        {
+          examName: "Contrôle Continu 1",
+          className: "6ème A",
+          subjectName: "Physique-Chimie",
+          numAdmission: "2026-0001",
+          marksObtained: 15.5,
+          periodName: "1er Trimestre",
+          maxMarks: 20,
+          remarks: "Très bon travail",
+          examDate: "12/10/2025"
+        },
+        {
+          examName: "Contrôle Continu 1",
+          className: "6ème A",
+          subjectName: "Physique-Chimie",
+          numAdmission: "2026-0002",
+          marksObtained: 9.0,
+          periodName: "1er Trimestre",
+          maxMarks: 20,
+          remarks: "Insuffisant",
+          examDate: "12/10/2025"
+        }
+      ];
+      filename = "Modele_Import_Notes.xlsx";
     }
 
     const worksheet = XLSX.utils.json_to_sheet(sample, { header: cols });
@@ -432,8 +479,10 @@ export default function ImportationPage() {
             res = await importStudentRow(payload);
           } else if (activeTab === "employee") {
             res = await importEmployeeRow(payload);
-          } else {
+          } else if (activeTab === "subject") {
             res = await importSubjectRow(payload);
+          } else {
+            res = await importExamResultRow(payload);
           }
 
           if (res?.success) {
@@ -512,7 +561,7 @@ export default function ImportationPage() {
 
       {/* MODE SELECTOR (Only active at step 1) */}
       {step === 1 && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[
             {
               id: "student" as ImportType,
@@ -534,6 +583,13 @@ export default function ImportationPage() {
               desc: "Importation des matières, codes et départements...",
               icon: <BookOpen className="size-6 text-blue-600" />,
               color: "border-blue-500/20 bg-blue-500/5 hover:bg-blue-500/10"
+            },
+            {
+              id: "exam_result" as ImportType,
+              title: "Notes & Résultats (الدرجات)",
+              desc: "Importation des notes d'examen et appréciations...",
+              icon: <Award className="size-6 text-amber-600" />,
+              color: "border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10"
             }
           ].map(tab => (
             <button

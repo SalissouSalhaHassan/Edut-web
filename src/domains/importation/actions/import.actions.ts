@@ -3,7 +3,7 @@
 import { db } from "@/infrastructure/database";
 import { students } from "@/infrastructure/database/schema/students";
 import { employees } from "@/infrastructure/database/schema/hr";
-import { schoolSubjects, schoolSections, sectionSubjects } from "@/infrastructure/database/schema/academics";
+import { schoolSubjects, schoolSections, sectionSubjects, schoolClasses, exams, examResults, academicPeriods } from "@/infrastructure/database/schema/academics";
 import { eq, and } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { protectedDbAction } from "@/lib/protected-action";
@@ -277,5 +277,135 @@ export async function importSubjectRow(data: any) {
     revalidatePath("/dashboard/settings");
     revalidatePath("/dashboard/academics");
     return { success: true, id: subjectId };
+  });
+}
+
+export async function importExamResultRow(data: any) {
+  return protectedDbAction("Exams", "canEdit", async (user) => {
+    const schoolId = await getActiveSchoolId();
+    const roleType = await getUserRoleType(user);
+
+    const examName = String(data.examName || "").trim();
+    const className = String(data.className || "").trim();
+    const subjectName = String(data.subjectName || "").trim();
+    const numAdmission = String(data.numAdmission || "").trim();
+    const marksObtainedStr = String(data.marksObtained ?? "").trim();
+
+    if (!examName || !className || !subjectName || !numAdmission || !marksObtainedStr) {
+      return { error: "Colonnes obligatoires manquantes pour cette ligne." };
+    }
+
+    const marksObtained = Number(marksObtainedStr);
+    if (isNaN(marksObtained)) {
+      return { error: `La note obtenue '${marksObtainedStr}' n'est pas un nombre valide.` };
+    }
+
+    // 1. Find Class
+    const cls = await db.query.schoolClasses.findFirst({
+      where: and(
+        eq(schoolClasses.schoolId, schoolId),
+        eq(schoolClasses.className, className)
+      )
+    });
+    if (!cls) {
+      return { error: `La classe '${className}' n'existe pas dans le système.` };
+    }
+
+    // 2. Find or Create Subject
+    let subject = await db.query.schoolSubjects.findFirst({
+      where: and(
+        eq(schoolSubjects.schoolId, schoolId),
+        eq(schoolSubjects.subjectName, subjectName)
+      )
+    });
+    if (!subject) {
+      const [newSub] = await db.insert(schoolSubjects).values({
+        schoolId,
+        subjectName,
+      }).returning();
+      subject = newSub;
+    }
+
+    // 3. Find Student
+    const student = await db.query.students.findFirst({
+      where: and(
+        eq(students.schoolId, schoolId),
+        eq(students.numAdmission, numAdmission)
+      )
+    });
+    if (!student) {
+      return { error: `L'élève avec le matricule '${numAdmission}' n'a pas été trouvé.` };
+    }
+
+    // 4. Find Period if provided
+    let periodId: number | null = null;
+    const periodName = data.periodName ? String(data.periodName).trim() : null;
+    if (periodName) {
+      const period = await db.query.academicPeriods.findFirst({
+        where: and(
+          eq(academicPeriods.schoolId, schoolId),
+          eq(academicPeriods.name, periodName)
+        )
+      });
+      if (period) {
+        periodId = period.id;
+      }
+    }
+
+    // 5. Find or Create Exam
+    let exam = await db.query.exams.findFirst({
+      where: and(
+        eq(exams.schoolId, schoolId),
+        eq(exams.examName, examName),
+        eq(exams.classId, cls.id),
+        eq(exams.subjectId, subject.id),
+        periodId ? eq(exams.periodId, periodId) : undefined
+      )
+    });
+
+    const maxMarksVal = data.maxMarks !== undefined ? Number(data.maxMarks) : 20;
+
+    if (!exam) {
+      const examDateObj = data.examDate ? new Date(formatDate(data.examDate) || new Date()) : null;
+      const [newExam] = await db.insert(exams).values({
+        schoolId,
+        examName,
+        classId: cls.id,
+        subjectId: subject.id,
+        periodId,
+        maxMarks: isNaN(maxMarksVal) ? 20 : maxMarksVal,
+        examDate: examDateObj,
+      }).returning();
+      exam = newExam;
+    }
+
+    // 6. Save or Update Result
+    const existingResult = await db.query.examResults.findFirst({
+      where: and(
+        eq(examResults.schoolId, schoolId),
+        eq(examResults.examId, exam.id),
+        eq(examResults.studentId, student.id)
+      )
+    });
+
+    const resultData = {
+      schoolId,
+      examId: exam.id,
+      studentId: student.id,
+      marksObtained,
+      remarks: data.remarks ? String(data.remarks).trim() : null,
+    };
+
+    if (existingResult) {
+      await db.update(examResults)
+        .set(resultData)
+        .where(and(eq(examResults.id, existingResult.id), eq(examResults.schoolId, schoolId)));
+      revalidatePath(`/dashboard/academics/exams/${exam.id}/results`);
+      return { success: true, action: "update", id: existingResult.id };
+    } else {
+      const [newRes] = await db.insert(examResults).values(resultData).returning({ id: examResults.id });
+      revalidatePath(`/dashboard/academics/exams/${exam.id}/results`);
+      return { success: true, action: "insert", id: newRes.id };
+    }
   });
 }
