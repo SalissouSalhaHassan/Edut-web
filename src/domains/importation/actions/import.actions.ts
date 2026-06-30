@@ -3,7 +3,7 @@
 import { db } from "@/infrastructure/database";
 import { students } from "@/infrastructure/database/schema/students";
 import { employees } from "@/infrastructure/database/schema/hr";
-import { schoolSubjects, schoolSections, sectionSubjects, schoolClasses, exams, examResults, academicPeriods } from "@/infrastructure/database/schema/academics";
+import { schoolSubjects, schoolSections, sectionSubjects, schoolClasses, exams, examResults, academicPeriods, schoolSessions, classSubjects, studentResults } from "@/infrastructure/database/schema/academics";
 import { eq, and } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { protectedDbAction } from "@/lib/protected-action";
@@ -41,6 +41,22 @@ function normalizeSexeEmployee(val: any): "Homme" | "Femme" {
   const s = String(val).trim().toLowerCase();
   if (s.startsWith("f") || s.includes("femme") || s === "f" || s.startsWith("w")) return "Femme";
   return "Homme";
+}
+
+function parseOptionalNumber(val: any): number | null {
+  if (val === undefined || val === null || val === "") return null;
+  const normalized = String(val).trim().replace(",", ".");
+  if (!normalized) return null;
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function getAppreciationFromAverage(average: number): string {
+  if (average >= 16) return "Excellent";
+  if (average >= 14) return "Très bien";
+  if (average >= 12) return "Bien";
+  if (average >= 10) return "Passable";
+  return "Insuffisant";
 }
 
 export async function importStudentRow(data: any) {
@@ -289,15 +305,29 @@ export async function importExamResultRow(data: any) {
     const className = String(data.className || "").trim();
     const subjectName = String(data.subjectName || "").trim();
     const numAdmission = String(data.numAdmission || "").trim();
-    const marksObtainedStr = String(data.marksObtained ?? "").trim();
+    const classWorkScore = parseOptionalNumber(data.classWorkScore);
+    const examScoreInput = parseOptionalNumber(data.examScore);
+    const marksObtainedInput = parseOptionalNumber(data.marksObtained);
 
-    if (!examName || !className || !subjectName || !numAdmission || !marksObtainedStr) {
+    if (!examName || !className || !subjectName || !numAdmission) {
       return { error: "Colonnes obligatoires manquantes pour cette ligne." };
     }
 
-    const marksObtained = Number(marksObtainedStr);
-    if (isNaN(marksObtained)) {
-      return { error: `La note obtenue '${marksObtainedStr}' n'est pas un nombre valide.` };
+    if (classWorkScore === null && examScoreInput === null && marksObtainedInput === null) {
+      return { error: "Veuillez fournir MOY. CLASSE + NOTE COMPO ou une note finale." };
+    }
+
+    if ((classWorkScore !== null || examScoreInput !== null) && (classWorkScore === null || examScoreInput === null)) {
+      return { error: "MOY. CLASSE et NOTE COMPO doivent être renseignées ensemble." };
+    }
+
+    const effectiveClassWorkScore = classWorkScore ?? marksObtainedInput ?? 0;
+    const examScore = examScoreInput ?? marksObtainedInput ?? 0;
+    const totalScore = effectiveClassWorkScore + examScore;
+    const marksObtained = totalScore / 2;
+
+    if ([classWorkScore ?? 0, examScore, marksObtained].some((score) => score < 0 || score > 20)) {
+      return { error: "Les notes doivent être comprises entre 0 et 20." };
     }
 
     // 1. Find Class
@@ -339,6 +369,7 @@ export async function importExamResultRow(data: any) {
 
     // 4. Find Period if provided
     let periodId: number | null = null;
+    let sessionId: number | null = null;
     const periodName = data.periodName ? String(data.periodName).trim() : null;
     if (periodName) {
       const period = await db.query.academicPeriods.findFirst({
@@ -349,7 +380,29 @@ export async function importExamResultRow(data: any) {
       });
       if (period) {
         periodId = period.id;
+        sessionId = period.sessionId ?? null;
       }
+    }
+
+    const sessionName = data.sessionName ? String(data.sessionName).trim() : null;
+    if (!sessionId && sessionName) {
+      const session = await db.query.schoolSessions.findFirst({
+        where: and(
+          eq(schoolSessions.schoolId, schoolId),
+          eq(schoolSessions.sessionName, sessionName)
+        )
+      });
+      sessionId = session?.id ?? null;
+    }
+
+    if (!sessionId) {
+      const activeSession = await db.query.schoolSessions.findFirst({
+        where: and(
+          eq(schoolSessions.schoolId, schoolId),
+          eq(schoolSessions.isActive, true)
+        )
+      });
+      sessionId = activeSession?.id ?? null;
     }
 
     // 5. Find or Create Exam
@@ -401,10 +454,94 @@ export async function importExamResultRow(data: any) {
         .set(resultData)
         .where(and(eq(examResults.id, existingResult.id), eq(examResults.schoolId, schoolId)));
       revalidatePath(`/dashboard/academics/exams/${exam.id}/results`);
+      if (sessionId && periodName) {
+        const classSubject = await db.query.classSubjects.findFirst({
+          where: and(
+            eq(classSubjects.schoolId, schoolId),
+            eq(classSubjects.classId, cls.id),
+            eq(classSubjects.subjectId, subject.id)
+          )
+        });
+        const coefficient = Number(classSubject?.coefficient || 1);
+        const weightedScore = marksObtained * coefficient;
+        const detailedResult = {
+          studentId: student.id,
+          subjectId: subject.id,
+          classId: cls.id,
+          sessionId,
+          term: periodName,
+          classWorkScore: effectiveClassWorkScore,
+          examScore,
+          totalScore,
+          coefficient,
+          weightedScore,
+          absences: 0,
+          observation: data.remarks ? String(data.remarks).trim() : null,
+          appreciation: getAppreciationFromAverage(marksObtained),
+          rank: null,
+        };
+        const existingDetailed = await db.query.studentResults.findFirst({
+          where: and(
+            eq(studentResults.studentId, student.id),
+            eq(studentResults.subjectId, subject.id),
+            eq(studentResults.classId, cls.id),
+            eq(studentResults.sessionId, sessionId),
+            eq(studentResults.term, periodName)
+          )
+        });
+        if (existingDetailed) {
+          await db.update(studentResults).set(detailedResult).where(eq(studentResults.id, existingDetailed.id));
+        } else {
+          await db.insert(studentResults).values(detailedResult);
+        }
+        revalidatePath("/dashboard/academics/grades");
+      }
       return { success: true, action: "update", id: existingResult.id };
     } else {
       const [newRes] = await db.insert(examResults).values(resultData).returning({ id: examResults.id });
       revalidatePath(`/dashboard/academics/exams/${exam.id}/results`);
+      if (sessionId && periodName) {
+        const classSubject = await db.query.classSubjects.findFirst({
+          where: and(
+            eq(classSubjects.schoolId, schoolId),
+            eq(classSubjects.classId, cls.id),
+            eq(classSubjects.subjectId, subject.id)
+          )
+        });
+        const coefficient = Number(classSubject?.coefficient || 1);
+        const weightedScore = marksObtained * coefficient;
+        const detailedResult = {
+          studentId: student.id,
+          subjectId: subject.id,
+          classId: cls.id,
+          sessionId,
+          term: periodName,
+          classWorkScore: effectiveClassWorkScore,
+          examScore,
+          totalScore,
+          coefficient,
+          weightedScore,
+          absences: 0,
+          observation: data.remarks ? String(data.remarks).trim() : null,
+          appreciation: getAppreciationFromAverage(marksObtained),
+          rank: null,
+        };
+        const existingDetailed = await db.query.studentResults.findFirst({
+          where: and(
+            eq(studentResults.studentId, student.id),
+            eq(studentResults.subjectId, subject.id),
+            eq(studentResults.classId, cls.id),
+            eq(studentResults.sessionId, sessionId),
+            eq(studentResults.term, periodName)
+          )
+        });
+        if (existingDetailed) {
+          await db.update(studentResults).set(detailedResult).where(eq(studentResults.id, existingDetailed.id));
+        } else {
+          await db.insert(studentResults).values(detailedResult);
+        }
+        revalidatePath("/dashboard/academics/grades");
+      }
       return { success: true, action: "insert", id: newRes.id };
     }
   });

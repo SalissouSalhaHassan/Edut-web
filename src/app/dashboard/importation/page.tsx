@@ -109,8 +109,11 @@ const FIELDS: Record<ImportType, FieldInfo[]> = {
     { key: "className", label: "Nom de la Classe *", required: true },
     { key: "subjectName", label: "Nom de la Matière *", required: true },
     { key: "numAdmission", label: "Matricule de l'Élève *", required: true },
-    { key: "marksObtained", label: "Note Obtenue (décimal) *", required: true },
+    { key: "classWorkScore", label: "MOY. CLASSE", required: false },
+    { key: "examScore", label: "NOTE COMPO", required: false },
+    { key: "marksObtained", label: "Note Obtenue / Moyenne finale", required: false },
     { key: "periodName", label: "Trimestre / Semestre", required: false },
+    { key: "sessionName", label: "Année scolaire / Session", required: false },
     { key: "maxMarks", label: "Note Maximale (ex: 20)", required: false },
     { key: "remarks", label: "Appréciation / Remarques", required: false },
     { key: "examDate", label: "Date de l'Examen", required: false }
@@ -171,8 +174,11 @@ const KEYWORDS: Record<string, string[]> = {
   term: ["term", "semestre", "periode", "trimestre"],
   examName: ["examen", "exam", "examname", "nom_examen", "titre_examen"],
   className: ["classe", "class", "classname", "nom_classe"],
-  marksObtained: ["note", "marks", "obtained", "marksobtained", "note_obtenue", "note_sur", "resultat", "result"],
+  classWorkScore: ["moy. classe", "moy classe", "moyenne classe", "moyenne_classe", "moy_classe", "classwork", "class_work", "classworkscore", "class_work_score", "moyenne ds", "moyenne devoirs"],
+  examScore: ["note compo", "note_compo", "composition", "compo", "exam_score", "examscore", "note composition", "note_composition"],
+  marksObtained: ["note obtenue", "note finale", "moyenne finale", "moyenne", "marks", "obtained", "marksobtained", "note_obtenue", "note_sur", "resultat", "result"],
   periodName: ["trimestre", "semestre", "periode", "period", "periodname", "nom_periode"],
+  sessionName: ["session", "annee", "année", "annee scolaire", "année scolaire", "annee_scolaire", "sessionname", "session_name"],
   maxMarks: ["max", "note_max", "maxmarks", "bareme", "note_maximale"],
   remarks: ["remarques", "appreciation", "remarks", "commentaire", "obs", "observation"],
   examDate: ["date", "date_examen", "examdate"]
@@ -308,26 +314,32 @@ export default function ImportationPage() {
       ];
       filename = "Modele_Import_Matieres.xlsx";
     } else if (type === "exam_result") {
-      cols = ["examName", "className", "subjectName", "numAdmission", "marksObtained", "periodName", "maxMarks", "remarks", "examDate"];
+      cols = ["examName", "className", "subjectName", "numAdmission", "classWorkScore", "examScore", "marksObtained", "periodName", "sessionName", "maxMarks", "remarks", "examDate"];
       sample = [
         {
-          examName: "Contrôle Continu 1",
+          examName: "Composition 1",
           className: "6ème A",
           subjectName: "Physique-Chimie",
           numAdmission: "2026-0001",
+          classWorkScore: 14.5,
+          examScore: 16.5,
           marksObtained: 15.5,
           periodName: "1er Trimestre",
+          sessionName: "2025-2026",
           maxMarks: 20,
           remarks: "Très bon travail",
           examDate: "12/10/2025"
         },
         {
-          examName: "Contrôle Continu 1",
+          examName: "Composition 1",
           className: "6ème A",
           subjectName: "Physique-Chimie",
           numAdmission: "2026-0002",
+          classWorkScore: 8.5,
+          examScore: 9.5,
           marksObtained: 9.0,
           periodName: "1er Trimestre",
+          sessionName: "2025-2026",
           maxMarks: 20,
           remarks: "Insuffisant",
           examDate: "12/10/2025"
