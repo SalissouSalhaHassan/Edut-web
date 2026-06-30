@@ -195,3 +195,49 @@ export async function updateSchoolCustomDomain(id: number, customDomain: string 
     return { success: true };
   });
 }
+
+/**
+ * Update school name and slug
+ */
+export async function updateSchool(id: number, data: { name: string; slug: string }) {
+  return superAdminAction(async () => {
+    const existing = await readDb.query.schools.findFirst({
+      where: sql`slug = ${data.slug.toLowerCase()} AND id != ${id}`,
+    });
+
+    if (existing) {
+      throw new Error("Ce nom de domaine (slug) est déjà utilisé.");
+    }
+
+    await db.update(schools)
+      .set({
+        name: data.name,
+        slug: data.slug.toLowerCase(),
+      })
+      .where(eq(schools.id, id));
+
+    revalidatePath("/platform-admin");
+    return { success: true };
+  });
+}
+
+/**
+ * Delete a school and its associated data
+ */
+export async function deleteSchool(id: number) {
+  return superAdminAction(async () => {
+    // Delete related records in all tables referencing school_id
+    try {
+      await db.execute(sql`DELETE FROM audit_logs WHERE school_id = ${id}`);
+    } catch {}
+    try {
+      await db.execute(sql`DELETE FROM users WHERE school_id = ${id}`);
+    } catch {}
+    
+    await db.delete(schools).where(eq(schools.id, id));
+
+    revalidatePath("/platform-admin");
+    return { success: true };
+  });
+}
+

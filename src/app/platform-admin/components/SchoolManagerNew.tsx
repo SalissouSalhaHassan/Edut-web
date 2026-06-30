@@ -6,6 +6,8 @@ import {
   updateSchoolPlan,
   impersonateSchool,
   updateSchoolCustomDomain,
+  updateSchool,
+  deleteSchool,
 } from "@/domains/platform/actions/platform.actions";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -32,6 +34,8 @@ import {
   ExternalLink,
   Loader2,
   Globe,
+  Edit2,
+  Trash2,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -96,6 +100,18 @@ export function SchoolManagerNew({ schools: initialSchools }: { schools: SchoolR
   const [domainInput, setDomainInput] = useState("");
   const [isDomainOpen, setIsDomainOpen] = useState(false);
   const [isDomainSaving, setIsDomainSaving] = useState(false);
+
+  // Edit School States
+  const [selectedSchoolForEdit, setSelectedSchoolForEdit] = useState<SchoolRecord | null>(null);
+  const [editNameInput, setEditNameInput] = useState("");
+  const [editSlugInput, setEditSlugInput] = useState("");
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isEditSaving, setIsEditSaving] = useState(false);
+
+  // Delete School States
+  const [selectedSchoolForDelete, setSelectedSchoolForDelete] = useState<SchoolRecord | null>(null);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isDeleteSaving, setIsDeleteSaving] = useState(false);
 
   const hostConfig = useMemo<{ baseDomain: string; mode: HostMode }>(() => {
     if (typeof window === "undefined") {
@@ -419,6 +435,32 @@ export function SchoolManagerNew({ schools: initialSchools }: { schools: SchoolR
                               </div>
                               Domaine Perso
                             </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setSelectedSchoolForEdit(school);
+                                setEditNameInput(school.name);
+                                setEditSlugInput(school.slug);
+                                setIsEditOpen(true);
+                              }}
+                              className="rounded-xl font-semibold gap-3 p-3 focus:bg-amber-50 focus:text-amber-600 cursor-pointer text-sm"
+                            >
+                              <div className="size-7 rounded-lg bg-amber-100 flex items-center justify-center text-amber-600 shrink-0">
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </div>
+                              Modifier l'École
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setSelectedSchoolForDelete(school);
+                                setIsDeleteOpen(true);
+                              }}
+                              className="rounded-xl font-semibold gap-3 p-3 text-rose-600 focus:bg-rose-50 focus:text-rose-600 cursor-pointer text-sm"
+                            >
+                              <div className="size-7 rounded-lg bg-rose-100 flex items-center justify-center text-rose-600 shrink-0">
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </div>
+                              Supprimer l'École
+                            </DropdownMenuItem>
                           </DropdownMenuGroup>
                           <DropdownMenuSeparator className="my-1 bg-slate-50" />
                           <DropdownMenuGroup>
@@ -603,6 +645,149 @@ export function SchoolManagerNew({ schools: initialSchools }: { schools: SchoolR
               }}
             >
               {isDomainSaving ? <Loader2 className="animate-spin size-5" /> : "Enregistrer"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog for editing school details */}
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent className="max-w-md rounded-[2.5rem] p-8 border-none shadow-2xl">
+          <DialogHeader className="mb-4">
+            <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mb-4 shadow-sm">
+              <Edit2 size={32} />
+            </div>
+            <DialogTitle className="text-3xl font-black text-slate-900 tracking-tight">Modifier l'École</DialogTitle>
+            <DialogDescription className="text-slate-500 font-medium italic">
+              Modifiez le nom et le slug (sous-domaine) de {selectedSchoolForEdit?.name}.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="editName" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+                Nom de l'École
+              </Label>
+              <Input
+                id="editName"
+                placeholder="Ex: Groupe Scolaire..."
+                className="h-14 rounded-2xl border-slate-100 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-amber-500/20 transition-all font-bold"
+                value={editNameInput}
+                onChange={(e) => setEditNameInput(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="editSlug" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+                Sous-domaine / Slug
+              </Label>
+              <Input
+                id="editSlug"
+                placeholder="Ex: cslome"
+                className="h-14 rounded-2xl border-slate-100 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-amber-500/20 transition-all font-bold"
+                value={editSlugInput}
+                onChange={(e) => setEditSlugInput(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="flex gap-3 pt-6">
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1 h-14 rounded-2xl font-bold"
+              onClick={() => setIsEditOpen(false)}
+            >
+              Annuler
+            </Button>
+            <Button
+              type="button"
+              disabled={isEditSaving}
+              className="flex-1 h-14 rounded-2xl bg-slate-900 hover:bg-amber-600 text-white font-black uppercase tracking-widest transition-all"
+              onClick={async () => {
+                if (!selectedSchoolForEdit) return;
+                if (!editNameInput.trim() || !editSlugInput.trim()) {
+                  toast.error("Veuillez remplir tous les champs.");
+                  return;
+                }
+                setIsEditSaving(true);
+                try {
+                  const res = await updateSchool(selectedSchoolForEdit.id, {
+                    name: editNameInput.trim(),
+                    slug: editSlugInput.trim().toLowerCase(),
+                  });
+                  if (res.success) {
+                    setSchools((prev) =>
+                      prev.map((s) =>
+                        s.id === selectedSchoolForEdit.id
+                          ? { ...s, name: editNameInput.trim(), slug: editSlugInput.trim().toLowerCase() }
+                          : s
+                      )
+                    );
+                    toast.success("École mise à jour avec succès !");
+                    setIsEditOpen(false);
+                  } else {
+                    toast.error(res.error || "Une erreur est survenue lors de la mise à jour.");
+                  }
+                } catch (error: any) {
+                  toast.error(error.message || "Erreur de connexion.");
+                } finally {
+                  setIsEditSaving(false);
+                }
+              }}
+            >
+              {isEditSaving ? <Loader2 className="animate-spin size-5" /> : "Enregistrer"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog for deleting school */}
+      <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+        <DialogContent className="max-w-md rounded-[2.5rem] p-8 border-none shadow-2xl">
+          <DialogHeader className="mb-4">
+            <div className="w-16 h-16 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mb-4 shadow-sm">
+              <Trash2 size={32} />
+            </div>
+            <DialogTitle className="text-3xl font-black text-slate-900 tracking-tight text-rose-600">Supprimer l'École</DialogTitle>
+            <DialogDescription className="text-slate-500 font-medium italic">
+              Êtes-vous sûr de vouloir supprimer {selectedSchoolForDelete?.name} ? Cette action supprimera tous les utilisateurs et données associés de manière définitive.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex gap-3 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1 h-14 rounded-2xl font-bold"
+              onClick={() => setIsDeleteOpen(false)}
+            >
+              Annuler
+            </Button>
+            <Button
+              type="button"
+              disabled={isDeleteSaving}
+              className="flex-1 h-14 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-black uppercase tracking-widest transition-all"
+              onClick={async () => {
+                if (!selectedSchoolForDelete) return;
+                setIsDeleteSaving(true);
+                try {
+                  const res = await deleteSchool(selectedSchoolForDelete.id);
+                  if (res.success) {
+                    setSchools((prev) => prev.filter((s) => s.id !== selectedSchoolForDelete.id));
+                    toast.success("École supprimée avec succès !");
+                    setIsDeleteOpen(false);
+                  } else {
+                    toast.error(res.error || "Une erreur est survenue lors de la suppression.");
+                  }
+                } catch (error: any) {
+                  toast.error(error.message || "Erreur de connexion.");
+                } finally {
+                  setIsDeleteSaving(false);
+                }
+              }}
+            >
+              {isDeleteSaving ? <Loader2 className="animate-spin size-5" /> : "Supprimer"}
             </Button>
           </div>
         </DialogContent>
