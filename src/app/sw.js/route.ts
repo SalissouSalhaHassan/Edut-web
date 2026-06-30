@@ -2,14 +2,35 @@ import { NextResponse } from 'next/server';
 
 export async function GET() {
   const swCode = `
-const CACHE_NAME = 'edut-cache-v2';
+const CACHE_NAME = 'edut-cache-v3';
+const PRECACHE_URLS = [
+  '/dashboard',
+  '/dashboard/students',
+  '/dashboard/importation',
+  '/login',
+  '/favicon.ico'
+];
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(self.skipWaiting());
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then((cache) => cache.addAll(PRECACHE_URLS))
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          if (cacheName !== CACHE_NAME) {
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    }).then(() => self.clients.claim())
+  );
 });
 
 self.addEventListener('fetch', (event) => {
