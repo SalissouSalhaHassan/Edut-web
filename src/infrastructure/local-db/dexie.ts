@@ -1,0 +1,86 @@
+import Dexie, { type Table } from 'dexie';
+
+export interface LocalStudent {
+  id?: number;
+  numAdmission: string;
+  nomEtudiant: string;
+  nomArabe?: string | null;
+  sexe?: string | null;
+  religion?: string | null;
+  dateNaissance?: string | null;
+  lieuNaissance?: string | null;
+  cnic?: string | null;
+  groupeSanguin?: string | null;
+  session?: string | null;
+  educationalLevel?: string | null;
+  classe?: string | null;
+  section?: string | null;
+  categorie?: string | null;
+  nomPere?: string | null;
+  cnicPere?: string | null;
+  mobile?: string | null;
+  whatsapp?: string | null;
+  fraisMensuels?: number;
+  ancienSolde?: number;
+  fraisInscription?: number;
+  statut?: string;
+  behaviorScore?: number;
+  updatedAt?: number;
+}
+
+export interface LocalExam {
+  id?: number;
+  examName: string;
+  classId: number;
+  subjectId: number;
+  examDate?: string | null;
+  periodId?: number | null;
+  maxMarks?: number;
+  updatedAt?: number;
+}
+
+export interface LocalExamResult {
+  id?: number;
+  examId: number;
+  studentId: number;
+  marksObtained: number;
+  remarks?: string | null;
+  updatedAt?: number;
+}
+
+export interface LocalSubject {
+  id?: number;
+  subjectName: string;
+  subjectCode?: string | null;
+  category?: string | null;
+  updatedAt?: number;
+}
+
+export interface OutboxAction {
+  id?: number;
+  actionType: 'INSERT' | 'UPDATE' | 'DELETE';
+  targetTable: string;
+  payload: any;
+  timestamp: number;
+}
+
+class EdutLocalDatabase extends Dexie {
+  students!: Table<LocalStudent>;
+  exams!: Table<LocalExam>;
+  examResults!: Table<LocalExamResult>;
+  subjects!: Table<LocalSubject>;
+  outbox!: Table<OutboxAction>;
+
+  constructor() {
+    super('EdutLocalDatabase');
+    this.version(1).stores({
+      students: '++id, numAdmission, nomEtudiant, classe, status, updatedAt',
+      exams: '++id, examName, classId, subjectId, updatedAt',
+      examResults: '++id, examId, studentId, updatedAt',
+      subjects: '++id, subjectName, updatedAt',
+      outbox: '++id, actionType, targetTable, timestamp',
+    });
+  }
+}
+
+export const localDb = new EdutLocalDatabase();

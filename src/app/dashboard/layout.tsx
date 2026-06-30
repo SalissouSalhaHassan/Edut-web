@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/domains/auth/services/session";
 import { getActiveBranchData } from "@/domains/auth/services/school";
 import { getUnreadNotificationsCount } from "@/domains/messaging/actions/notifications.actions";
 import { NavigationProgressProvider } from "@/components/providers/navigation-progress";
+import SyncStatus from "@/components/common/SyncStatus";
 
 export default async function DashboardLayout({
   children,
@@ -35,6 +36,7 @@ export default async function DashboardLayout({
       <React.Suspense fallback={null}>
         <NavigationProgressProvider>
           <DashboardLoadingBar />
+          <SyncStatus />
 
           <div className="flex min-h-screen gap-4 p-4">
             <DashboardSidebar 
