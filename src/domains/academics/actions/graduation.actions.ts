@@ -18,103 +18,124 @@ import { employees } from "@/infrastructure/database/schema/hr";
 
 // ─── Inline DB migration (runs on first action call) ──────────────────────────
 
+let migrationPromise: Promise<void> | null = null;
+
 async function ensureMigrations() {
-  try {
-    await db.execute(sql`
-      ALTER TABLE graduation_projects
-        ADD COLUMN IF NOT EXISTS project_code VARCHAR(50),
-        ADD COLUMN IF NOT EXISTS summary TEXT,
-        ADD COLUMN IF NOT EXISTS keywords VARCHAR(500),
-        ADD COLUMN IF NOT EXISTS department VARCHAR(100),
-        ADD COLUMN IF NOT EXISTS filiere VARCHAR(100),
-        ADD COLUMN IF NOT EXISTS niveau VARCHAR(50),
-        ADD COLUMN IF NOT EXISTS language VARCHAR(30) DEFAULT 'Français',
-        ADD COLUMN IF NOT EXISTS academic_year VARCHAR(20),
-        ADD COLUMN IF NOT EXISTS rapporteur_id INTEGER,
-        ADD COLUMN IF NOT EXISTS secretary_id INTEGER,
-        ADD COLUMN IF NOT EXISTS defense_end_time TIMESTAMP,
-        ADD COLUMN IF NOT EXISTS defense_duration_mins INTEGER DEFAULT 60,
-        ADD COLUMN IF NOT EXISTS progress_percent INTEGER DEFAULT 0,
-        ADD COLUMN IF NOT EXISTS start_date TIMESTAMP,
-        ADD COLUMN IF NOT EXISTS end_date TIMESTAMP,
-        ADD COLUMN IF NOT EXISTS mention VARCHAR(50),
-        ADD COLUMN IF NOT EXISTS decision VARCHAR(50),
-        ADD COLUMN IF NOT EXISTS archive_ref VARCHAR(100),
-        ADD COLUMN IF NOT EXISTS archive_url VARCHAR(500),
-        ADD COLUMN IF NOT EXISTS is_distinguished BOOLEAN DEFAULT false,
-        ADD COLUMN IF NOT EXISTS is_published BOOLEAN DEFAULT false,
-        ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()
-    `);
-    await db.execute(sql`
-      CREATE TABLE IF NOT EXISTS graduation_documents (
-        id SERIAL PRIMARY KEY,
-        project_id INTEGER REFERENCES graduation_projects(id) ON DELETE CASCADE,
-        school_id INTEGER,
-        doc_type VARCHAR(50) NOT NULL,
-        title VARCHAR(255) NOT NULL,
-        file_url VARCHAR(1000),
-        version VARCHAR(20) DEFAULT 'v1.0',
-        uploaded_at TIMESTAMP DEFAULT NOW(),
-        notes TEXT
-      )
-    `);
-    await db.execute(sql`
-      CREATE TABLE IF NOT EXISTS graduation_defense_rooms (
-        id SERIAL PRIMARY KEY,
-        school_id INTEGER,
-        room_name VARCHAR(100) NOT NULL,
-        capacity INTEGER DEFAULT 30,
-        equipment TEXT,
-        location VARCHAR(255),
-        is_available BOOLEAN DEFAULT true,
-        created_at TIMESTAMP DEFAULT NOW()
-      )
-    `);
-    await db.execute(sql`
-      CREATE TABLE IF NOT EXISTS graduation_jury_evaluations (
-        id SERIAL PRIMARY KEY,
-        project_id INTEGER REFERENCES graduation_projects(id) ON DELETE CASCADE,
-        school_id INTEGER,
-        science_quality DOUBLE PRECISION,
-        methodology DOUBLE PRECISION,
-        presentation DOUBLE PRECISION,
-        innovation DOUBLE PRECISION,
-        questions DOUBLE PRECISION,
-        average DOUBLE PRECISION,
-        mention VARCHAR(50),
-        decision VARCHAR(50),
-        jury_comments TEXT,
-        evaluated_at TIMESTAMP DEFAULT NOW()
-      )
-    `);
-    await db.execute(sql`
-      CREATE TABLE IF NOT EXISTS graduation_workflow_logs (
-        id SERIAL PRIMARY KEY,
-        project_id INTEGER REFERENCES graduation_projects(id) ON DELETE CASCADE,
-        from_status VARCHAR(50),
-        to_status VARCHAR(50),
-        changed_at TIMESTAMP DEFAULT NOW(),
-        notes TEXT
-      )
-    `);
-    await db.execute(sql`
-      CREATE TABLE IF NOT EXISTS graduation_archives (
-        id SERIAL PRIMARY KEY,
-        project_id INTEGER REFERENCES graduation_projects(id) ON DELETE CASCADE,
-        school_id INTEGER,
-        archive_ref VARCHAR(100) NOT NULL,
-        qr_code_url VARCHAR(500),
-        permanent_link VARCHAR(500),
-        report_url VARCHAR(500),
-        presentation_url VARCHAR(500),
-        code_url VARCHAR(500),
-        archived_at TIMESTAMP DEFAULT NOW()
-      )
-    `);
-  } catch (e) {
-    console.error("[GraduationMigration] Non-fatal:", e);
-  }
+  if (migrationPromise) return migrationPromise;
+
+  migrationPromise = (async () => {
+    try {
+      // Create base table first if not exists
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS graduation_projects (
+          id SERIAL PRIMARY KEY,
+          school_id INTEGER,
+          title VARCHAR(255) NOT NULL,
+          status VARCHAR(50) DEFAULT 'Proposition'
+        )
+      `);
+
+      await db.execute(sql`
+        ALTER TABLE graduation_projects
+          ADD COLUMN IF NOT EXISTS project_code VARCHAR(50),
+          ADD COLUMN IF NOT EXISTS summary TEXT,
+          ADD COLUMN IF NOT EXISTS keywords VARCHAR(500),
+          ADD COLUMN IF NOT EXISTS department VARCHAR(100),
+          ADD COLUMN IF NOT EXISTS filiere VARCHAR(100),
+          ADD COLUMN IF NOT EXISTS niveau VARCHAR(50),
+          ADD COLUMN IF NOT EXISTS language VARCHAR(30) DEFAULT 'Français',
+          ADD COLUMN IF NOT EXISTS academic_year VARCHAR(20),
+          ADD COLUMN IF NOT EXISTS rapporteur_id INTEGER,
+          ADD COLUMN IF NOT EXISTS secretary_id INTEGER,
+          ADD COLUMN IF NOT EXISTS defense_end_time TIMESTAMP,
+          ADD COLUMN IF NOT EXISTS defense_duration_mins INTEGER DEFAULT 60,
+          ADD COLUMN IF NOT EXISTS progress_percent INTEGER DEFAULT 0,
+          ADD COLUMN IF NOT EXISTS start_date TIMESTAMP,
+          ADD COLUMN IF NOT EXISTS end_date TIMESTAMP,
+          ADD COLUMN IF NOT EXISTS mention VARCHAR(50),
+          ADD COLUMN IF NOT EXISTS decision VARCHAR(50),
+          ADD COLUMN IF NOT EXISTS archive_ref VARCHAR(100),
+          ADD COLUMN IF NOT EXISTS archive_url VARCHAR(500),
+          ADD COLUMN IF NOT EXISTS is_distinguished BOOLEAN DEFAULT false,
+          ADD COLUMN IF NOT EXISTS is_published BOOLEAN DEFAULT false,
+          ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()
+      `);
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS graduation_documents (
+          id SERIAL PRIMARY KEY,
+          project_id INTEGER REFERENCES graduation_projects(id) ON DELETE CASCADE,
+          school_id INTEGER,
+          doc_type VARCHAR(50) NOT NULL,
+          title VARCHAR(255) NOT NULL,
+          file_url VARCHAR(1000),
+          version VARCHAR(20) DEFAULT 'v1.0',
+          uploaded_at TIMESTAMP DEFAULT NOW(),
+          notes TEXT
+        )
+      `);
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS graduation_defense_rooms (
+          id SERIAL PRIMARY KEY,
+          school_id INTEGER,
+          room_name VARCHAR(100) NOT NULL,
+          capacity INTEGER DEFAULT 30,
+          equipment TEXT,
+          location VARCHAR(255),
+          is_available BOOLEAN DEFAULT true,
+          created_at TIMESTAMP DEFAULT NOW()
+        )
+      `);
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS graduation_jury_evaluations (
+          id SERIAL PRIMARY KEY,
+          project_id INTEGER REFERENCES graduation_projects(id) ON DELETE CASCADE,
+          school_id INTEGER,
+          science_quality DOUBLE PRECISION,
+          methodology DOUBLE PRECISION,
+          presentation DOUBLE PRECISION,
+          innovation DOUBLE PRECISION,
+          questions DOUBLE PRECISION,
+          average DOUBLE PRECISION,
+          mention VARCHAR(50),
+          decision VARCHAR(50),
+          jury_comments TEXT,
+          evaluated_at TIMESTAMP DEFAULT NOW()
+        )
+      `);
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS graduation_workflow_logs (
+          id SERIAL PRIMARY KEY,
+          project_id INTEGER REFERENCES graduation_projects(id) ON DELETE CASCADE,
+          from_status VARCHAR(50),
+          to_status VARCHAR(50),
+          changed_at TIMESTAMP DEFAULT NOW(),
+          notes TEXT
+        )
+      `);
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS graduation_archives (
+          id SERIAL PRIMARY KEY,
+          project_id INTEGER REFERENCES graduation_projects(id) ON DELETE CASCADE,
+          school_id INTEGER,
+          archive_ref VARCHAR(100) NOT NULL,
+          qr_code_url VARCHAR(500),
+          permanent_link VARCHAR(500),
+          report_url VARCHAR(500),
+          presentation_url VARCHAR(500),
+          code_url VARCHAR(500),
+          archived_at TIMESTAMP DEFAULT NOW()
+        )
+      `);
+    } catch (e) {
+      console.error("[GraduationMigration] Non-fatal:", e);
+      // Reset promise on failure so next call can try again
+      migrationPromise = null;
+    }
+  })();
+
+  return migrationPromise;
 }
+
 
 // ─── KPI Stats ────────────────────────────────────────────────────────────────
 
