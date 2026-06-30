@@ -370,19 +370,114 @@ export const employeesRelations = relations(employees, ({ many }) => ({
 export const graduationProjects = pgTable("graduation_projects", {
   id: serial("id").primaryKey(),
   schoolId: integer("school_id").references(() => schools.id),
+  projectCode: varchar("project_code", { length: 50 }),
   title: varchar("title", { length: 255 }).notNull(),
+  summary: text("summary"),
+  keywords: varchar("keywords", { length: 500 }),
+  department: varchar("department", { length: 100 }),
+  filiere: varchar("filiere", { length: 100 }),
+  niveau: varchar("niveau", { length: 50 }), // Licence, Master, Doctorat
+  language: varchar("language", { length: 30 }).default("Français"),
+  academicYear: varchar("academic_year", { length: 20 }),
   studentId: integer("student_id").references(() => students.id, { onDelete: "cascade" }),
-  supervisorId: integer("supervisor_id").references(() => employees.id, { onDelete: "cascade" }),
-  defenseDate: timestamp("defense_date"),
-  roomName: varchar("room_name", { length: 100 }),
-  status: varchar("status", { length: 50 }).default("En cours"), // "En cours", "Prêt", "Soutenu", "Refusé"
-  grade: doublePrecision("grade"),
+  supervisorId: integer("supervisor_id").references(() => employees.id, { onDelete: "set null" }),
+  // Jury
   presidentId: integer("president_id").references(() => employees.id),
   examinerId: integer("examiner_id").references(() => employees.id),
+  rapporteurId: integer("rapporteur_id").references(() => employees.id),
+  secretaryId: integer("secretary_id").references(() => employees.id),
+  // Defense scheduling
+  defenseDate: timestamp("defense_date"),
+  defenseEndTime: timestamp("defense_end_time"),
+  roomName: varchar("room_name", { length: 100 }),
+  defenseDurationMins: integer("defense_duration_mins").default(60),
+  // Workflow: Proposition|Validation|Encadrement|Pré-soutenance|Correction|Soutenance|Délibération|Validation Finale|Archivage
+  status: varchar("status", { length: 50 }).default("Proposition"),
+  progressPercent: integer("progress_percent").default(0),
+  startDate: timestamp("start_date"),
+  endDate: timestamp("end_date"),
+  // Evaluation
+  grade: doublePrecision("grade"),
+  mention: varchar("mention", { length: 50 }), // Très Bien, Bien, Assez Bien, Passable, Insuffisant
+  decision: varchar("decision", { length: 50 }), // Validé, Refusé, Ajourné
+  // Archive
+  archiveRef: varchar("archive_ref", { length: 100 }),
+  archiveUrl: varchar("archive_url", { length: 500 }),
+  isDistinguished: boolean("is_distinguished").default(false),
+  isPublished: boolean("is_published").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Documents liés à chaque projet
+export const graduationDocuments = pgTable("graduation_documents", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").references(() => graduationProjects.id, { onDelete: "cascade" }),
+  schoolId: integer("school_id").references(() => schools.id),
+  docType: varchar("doc_type", { length: 50 }).notNull(), // Proposition, Cahier des charges, Rapport PDF, Présentation PPT, Annexes, Code Source, Dataset, Vidéo
+  title: varchar("title", { length: 255 }).notNull(),
+  fileUrl: varchar("file_url", { length: 1000 }),
+  version: varchar("version", { length: 20 }).default("v1.0"),
+  uploadedAt: timestamp("uploaded_at").defaultNow(),
+  notes: text("notes"),
+});
+
+// Salles de soutenance
+export const graduationDefenseRooms = pgTable("graduation_defense_rooms", {
+  id: serial("id").primaryKey(),
+  schoolId: integer("school_id").references(() => schools.id),
+  roomName: varchar("room_name", { length: 100 }).notNull(),
+  capacity: integer("capacity").default(30),
+  equipment: text("equipment"),
+  location: varchar("location", { length: 255 }),
+  isAvailable: boolean("is_available").default(true),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const graduationProjectsRelations = relations(graduationProjects, ({ one }) => ({
+// Évaluations détaillées du jury par critère
+export const graduationJuryEvaluations = pgTable("graduation_jury_evaluations", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").references(() => graduationProjects.id, { onDelete: "cascade" }),
+  schoolId: integer("school_id").references(() => schools.id),
+  scienceQuality: doublePrecision("science_quality"), // /20
+  methodology: doublePrecision("methodology"),        // /20
+  presentation: doublePrecision("presentation"),      // /20
+  innovation: doublePrecision("innovation"),           // /20
+  questions: doublePrecision("questions"),             // /20
+  average: doublePrecision("average"),                 // moyenne calculée
+  mention: varchar("mention", { length: 50 }),
+  decision: varchar("decision", { length: 50 }),
+  juryComments: text("jury_comments"),
+  evaluatedAt: timestamp("evaluated_at").defaultNow(),
+});
+
+// Journal de workflow (historique des changements de statut)
+export const graduationWorkflowLogs = pgTable("graduation_workflow_logs", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").references(() => graduationProjects.id, { onDelete: "cascade" }),
+  fromStatus: varchar("from_status", { length: 50 }),
+  toStatus: varchar("to_status", { length: 50 }),
+  changedAt: timestamp("changed_at").defaultNow(),
+  notes: text("notes"),
+});
+
+// Archives numériques
+export const graduationArchives = pgTable("graduation_archives", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").references(() => graduationProjects.id, { onDelete: "cascade" }),
+  schoolId: integer("school_id").references(() => schools.id),
+  archiveRef: varchar("archive_ref", { length: 100 }).notNull(),
+  qrCodeUrl: varchar("qr_code_url", { length: 500 }),
+  permanentLink: varchar("permanent_link", { length: 500 }),
+  reportUrl: varchar("report_url", { length: 500 }),
+  presentationUrl: varchar("presentation_url", { length: 500 }),
+  codeUrl: varchar("code_url", { length: 500 }),
+  archivedAt: timestamp("archived_at").defaultNow(),
+});
+
+// ─── RELATIONS ───────────────────────────────────────────────────────────────
+
+export const graduationProjectsRelations = relations(graduationProjects, ({ one, many }) => ({
   student: one(students, {
     fields: [graduationProjects.studentId],
     references: [students.id],
@@ -390,16 +485,69 @@ export const graduationProjectsRelations = relations(graduationProjects, ({ one 
   supervisor: one(employees, {
     fields: [graduationProjects.supervisorId],
     references: [employees.id],
-    relationName: "supervisor",
+    relationName: "gp_supervisor",
   }),
   president: one(employees, {
     fields: [graduationProjects.presidentId],
     references: [employees.id],
-    relationName: "president",
+    relationName: "gp_president",
   }),
   examiner: one(employees, {
     fields: [graduationProjects.examinerId],
     references: [employees.id],
-    relationName: "examiner",
+    relationName: "gp_examiner",
+  }),
+  rapporteur: one(employees, {
+    fields: [graduationProjects.rapporteurId],
+    references: [employees.id],
+    relationName: "gp_rapporteur",
+  }),
+  secretary: one(employees, {
+    fields: [graduationProjects.secretaryId],
+    references: [employees.id],
+    relationName: "gp_secretary",
+  }),
+  documents: many(graduationDocuments),
+  evaluations: many(graduationJuryEvaluations),
+  workflowLogs: many(graduationWorkflowLogs),
+  archive: one(graduationArchives, {
+    fields: [graduationProjects.id],
+    references: [graduationArchives.projectId],
   }),
 }));
+
+export const graduationDocumentsRelations = relations(graduationDocuments, ({ one }) => ({
+  project: one(graduationProjects, {
+    fields: [graduationDocuments.projectId],
+    references: [graduationProjects.id],
+  }),
+}));
+
+export const graduationJuryEvaluationsRelations = relations(graduationJuryEvaluations, ({ one }) => ({
+  project: one(graduationProjects, {
+    fields: [graduationJuryEvaluations.projectId],
+    references: [graduationProjects.id],
+  }),
+}));
+
+export const graduationWorkflowLogsRelations = relations(graduationWorkflowLogs, ({ one }) => ({
+  project: one(graduationProjects, {
+    fields: [graduationWorkflowLogs.projectId],
+    references: [graduationProjects.id],
+  }),
+}));
+
+export const graduationArchivesRelations = relations(graduationArchives, ({ one }) => ({
+  project: one(graduationProjects, {
+    fields: [graduationArchives.projectId],
+    references: [graduationProjects.id],
+  }),
+}));
+
+export const graduationDefenseRoomsRelations = relations(graduationDefenseRooms, ({ one }) => ({
+  school: one(schools, {
+    fields: [graduationDefenseRooms.schoolId],
+    references: [schools.id],
+  }),
+}));
+
