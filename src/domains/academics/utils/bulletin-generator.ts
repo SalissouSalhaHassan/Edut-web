@@ -1,6 +1,31 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
+async function fetchQRCodeBase64(data: string): Promise<string> {
+  const url = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(data)}`;
+  return new Promise((resolve) => {
+    if (typeof window === 'undefined') {
+      resolve("");
+      return;
+    }
+    const img = new Image();
+    img.crossOrigin = 'Anonymous';
+    img.src = url;
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      ctx?.drawImage(img, 0, 0);
+      const dataUrl = canvas.toDataURL('image/png');
+      resolve(dataUrl);
+    };
+    img.onerror = () => {
+      resolve("");
+    };
+  });
+}
+
 export async function generateBulletinPDF(data: any) {
   const doc = new jsPDF();
   const { student, session, term, results, summary, totalStudents, branchInfo } = data;
@@ -276,6 +301,19 @@ export async function generateBulletinPDF(data: any) {
     },
     margin: { left: 10, right: 10 }
   });
+
+  const lastY = (doc as any).lastAutoTable.finalY;
+
+  // Draw QR Code
+  try {
+    const qrData = `ELEVE: ${student?.nomEtudiant || student?.name || "N/A"} | MATRICULE: ${student?.numAdmission || student?.matricule || "N/A"} | MOYENNE: ${displayAverage.toFixed(2)}/20 | CLASSE: ${student?.classe || student?.className || "N/A"}`;
+    const qrBase64 = await fetchQRCodeBase64(qrData);
+    if (qrBase64) {
+      doc.addImage(qrBase64, 'PNG', 170, lastY + 5, 20, 20);
+    }
+  } catch (e) {
+    console.warn("Failed to load QR code for Bulletin:", e);
+  }
 
   // Open in new window for preview
   const blob = doc.output("blob");
@@ -602,6 +640,17 @@ export async function generateReleveNotesPDF(data: any) {
   doc.setFont("helvetica", "italic");
   doc.setFontSize(7);
   doc.text("Il ne sera pas délivré de duplicata de ce relevé. Il vous appartient d'en faire des copies et de les faire certifier conformes.", 105, pageHeight - 5, { align: "center" });
+
+  // Draw QR Code
+  try {
+    const qrData = `RELEVE: ${student?.nomEtudiant || student?.name || "N/A"} | MATRICULE: ${student?.numAdmission || student?.matricule || "N/A"} | DECISION: ${displayDecision2} | ANNEE: ${session || "2024-2025"}`;
+    const qrBase64 = await fetchQRCodeBase64(qrData);
+    if (qrBase64) {
+      doc.addImage(qrBase64, 'PNG', 170, finalY2 - 10, 25, 25);
+    }
+  } catch (e) {
+    console.warn("Failed to load QR code for Releve:", e);
+  }
 
   const blob = doc.output("blob");
   const url = URL.createObjectURL(blob);

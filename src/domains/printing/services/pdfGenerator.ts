@@ -60,10 +60,10 @@ export class PDFGenerator {
 
     switch (type) {
       case 'PaymentReceipt':
-        this.drawReceipt(payload);
+        await this.drawReceipt(payload);
         break;
       case 'StudentCard':
-        this.drawStudentCard(payload);
+        await this.drawStudentCard(payload);
         break;
       // Add other cases here
       default:
@@ -90,7 +90,7 @@ export class PDFGenerator {
     }
   }
 
-  private drawReceipt(payload: any) {
+  private async drawReceipt(payload: any) {
     const { school, payment, student } = payload;
     
     // Header
@@ -106,6 +106,16 @@ export class PDFGenerator {
     // Receipt Content
     this.doc.setFontSize(16);
     this.doc.text('REÇU DE PAIEMENT', 105, 35, { align: 'center' });
+
+    // Draw QR Code
+    try {
+      const qrData = `RECU: ${payment.reference} | ELEVE: ${student.name} | CLASSE: ${student.class} | MONTANT: ${payment.amount} F CFA | DATE: ${payment.date}`;
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrData)}`;
+      const qrBase64 = await this.loadImage(qrUrl);
+      this.doc.addImage(qrBase64, 'PNG', 170, 30, 25, 25);
+    } catch (e) {
+      console.warn("Failed to load QR code for PaymentReceipt:", e);
+    }
     
     this.doc.setFontSize(12);
     this.doc.text(`Référence: ${payment.reference}`, 20, 50);
@@ -128,7 +138,7 @@ export class PDFGenerator {
     });
   }
 
-  private drawStudentCard(payload: any) {
+  private async drawStudentCard(payload: any) {
     const { student, school, primaryColor = '#1e3a8a' } = payload;
     const W = 54;
     const H = 86;
@@ -171,6 +181,16 @@ export class PDFGenerator {
     this.doc.setFontSize(7);
     this.doc.text(`ID: ${student.id}`, x + 5, py + phH + 14);
     this.doc.text(`CLASSE: ${student.class}`, x + 5, py + phH + 19);
+
+    // Draw QR Code
+    try {
+      const qrData = student.numAdmission || student.id || "";
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrData)}`;
+      const qrBase64 = await this.loadImage(qrUrl);
+      this.doc.addImage(qrBase64, 'PNG', x + W - 17, py + phH + 10, 12, 12);
+    } catch (e) {
+      console.warn("Failed to load QR code for StudentCard:", e);
+    }
     
     // Footer
     this.doc.setFillColor(primaryColor);
