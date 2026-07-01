@@ -17,7 +17,7 @@ async function fetchQRCodeBase64(data: string): Promise<string> {
       canvas.height = img.height;
       const ctx = canvas.getContext('2d');
       ctx?.drawImage(img, 0, 0);
-      const dataUrl = canvas.toUrl || canvas.toDataURL('image/png');
+      const dataUrl = canvas.toDataURL('image/png');
       resolve(dataUrl);
     };
     img.onerror = () => {
