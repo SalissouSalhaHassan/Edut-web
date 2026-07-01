@@ -17,6 +17,34 @@ async function fetchQRCodeBase64(data: string): Promise<string> {
       canvas.height = img.height;
       const ctx = canvas.getContext('2d');
       ctx?.drawImage(img, 0, 0);
+      const dataUrl = canvas.toUrl || canvas.toDataURL('image/png');
+      resolve(dataUrl);
+    };
+    img.onerror = () => {
+      resolve("");
+    };
+  });
+}
+
+async function fetchTransparentLogoBase64(url: string, opacity: number = 0.08): Promise<string> {
+  return new Promise((resolve) => {
+    if (typeof window === 'undefined') {
+      resolve("");
+      return;
+    }
+    const img = new Image();
+    img.crossOrigin = 'Anonymous';
+    img.src = url;
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.globalAlpha = opacity;
+        ctx.drawImage(img, 0, 0);
+      }
       const dataUrl = canvas.toDataURL('image/png');
       resolve(dataUrl);
     };
@@ -61,6 +89,18 @@ export async function generateBulletinPDF(data: any) {
 
   doc.setLineWidth(0.5);
   doc.line(10, 40, 200, 40);
+
+  // Background logo watermark
+  if (branchInfo?.logoPath) {
+    try {
+      const logoWatermark = await fetchTransparentLogoBase64(branchInfo.logoPath, 0.05);
+      if (logoWatermark) {
+        doc.addImage(logoWatermark, 'PNG', 55, 110, 100, 100);
+      }
+    } catch (e) {
+      console.warn("Failed to load watermark for bulletin:", e);
+    }
+  }
 
   doc.setFontSize(14);
   doc.setFont("helvetica", "bolditalic");
@@ -403,6 +443,18 @@ export async function generateReleveNotesPDF(data: any) {
   doc.circle(185, 25, 12);
 
   // --- 2. TITLE BAR ---
+  // Background logo watermark
+  if (branchInfo?.logoPath) {
+    try {
+      const logoWatermark = await fetchTransparentLogoBase64(branchInfo.logoPath, 0.05);
+      if (logoWatermark) {
+        doc.addImage(logoWatermark, 'PNG', 55, 110, 100, 100);
+      }
+    } catch (e) {
+      console.warn("Failed to load watermark for releve:", e);
+    }
+  }
+
   doc.setFillColor(210, 230, 210);
   doc.rect(10, 45, 190, 8, "F");
   doc.setFontSize(12);

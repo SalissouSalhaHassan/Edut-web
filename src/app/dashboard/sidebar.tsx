@@ -83,6 +83,7 @@ const sections: Array<{ title: string; dotColor: string; items: NavItem[] }> = [
       { href: "/dashboard/attendance", label: "Présence", icon: <CalendarCheck2 className="size-[18px]" />, color: "text-emerald-500" },
       { href: "/dashboard/academics", label: "Académique", icon: <BookOpen className="size-[18px]" />, color: "text-blue-500" },
       { href: "/dashboard/academics/sections", label: "Sections / Filières", icon: <Bookmark className="size-[18px]" />, color: "text-amber-500" },
+      { href: "/dashboard/academics/pedagogical-units", label: "Unités Pédagogiques (UP)", icon: <UsersRound className="size-[18px]" />, color: "text-indigo-500" },
       { href: "/dashboard/academics/exams", label: "Examens", icon: <ClipboardList className="size-[18px]" />, color: "text-indigo-500" },
       { href: "/dashboard/academics/grades", label: "Notes & Résultats", icon: <ClipboardCheck className="size-[18px]" />, color: "text-emerald-500" },
       { href: "/dashboard/academics/timetable", label: "Emploi du Temps", icon: <CalendarCheck2 className="size-[18px]" />, color: "text-amber-500" },
@@ -198,7 +199,8 @@ export default function DashboardSidebar({
             "/dashboard/academics/grades",
             "/dashboard/academics/timetable",
             "/dashboard/hr/attendance/teacher/me",
-            "/dashboard/academics/homework"
+            "/dashboard/academics/homework",
+            "/dashboard/academics/pedagogical-units"
           ].includes(item.href));
         } else if (section.title === "GESTION") {
           items = []; // Hide all management tabs

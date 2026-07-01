@@ -55,6 +55,32 @@ export class PDFGenerator {
     });
   }
 
+  private async loadTransparentImage(url: string, opacity: number = 0.08): Promise<string> {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = 'Anonymous';
+      img.src = url;
+      img.onload = () => {
+        const canvas = getCanvas();
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.globalAlpha = opacity;
+          ctx.drawImage(img, 0, 0);
+        }
+        const dataUrl = canvas.toDataURL('image/png');
+        releaseCanvas(canvas);
+        resolve(dataUrl);
+      };
+      img.onerror = () => {
+        resolve("");
+      };
+      img.onload = img.onload || (() => {});
+    });
+  }
+
   public async generate(data: DocumentData): Promise<string> {
     const { type, payload } = data;
 
@@ -102,6 +128,18 @@ export class PDFGenerator {
     this.doc.text(`Tel: ${school.phone} | Email: ${school.email}`, 105, 22, { align: 'center' });
     
     this.doc.line(10, 25, 200, 25);
+    
+    // Draw School Logo Watermark in background
+    if (school.logoPath) {
+      try {
+        const logoWatermark = await this.loadTransparentImage(school.logoPath, 0.06);
+        if (logoWatermark) {
+          this.doc.addImage(logoWatermark, 'PNG', 55, 60, 100, 100);
+        }
+      } catch (e) {
+        console.warn("Failed to load logo watermark for receipt:", e);
+      }
+    }
     
     // Receipt Content
     this.doc.setFontSize(16);

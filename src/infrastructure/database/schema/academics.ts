@@ -551,3 +551,44 @@ export const graduationDefenseRoomsRelations = relations(graduationDefenseRooms,
   }),
 }));
 
+// --- PEDAGOGICAL UNITS (UP) ---
+export const pedagogicalUnits = pgTable("pedagogical_units", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  subjectId: integer("subject_id").references(() => schoolSubjects.id, { onDelete: "set null" }),
+  educationalLevel: varchar("educational_level", { length: 100 }),
+  leadTeacherId: integer("lead_teacher_id").references(() => employees.id, { onDelete: "set null" }),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const pedagogicalUnitMembers = pgTable("pedagogical_unit_members", {
+  id: serial("id").primaryKey(),
+  unitId: integer("unit_id").references(() => pedagogicalUnits.id, { onDelete: "cascade" }),
+  employeeId: integer("employee_id").references(() => employees.id, { onDelete: "cascade" }),
+  joinedAt: timestamp("joined_at").defaultNow(),
+});
+
+export const pedagogicalUnitsRelations = relations(pedagogicalUnits, ({ one, many }) => ({
+  subject: one(schoolSubjects, {
+    fields: [pedagogicalUnits.subjectId],
+    references: [schoolSubjects.id],
+  }),
+  leadTeacher: one(employees, {
+    fields: [pedagogicalUnits.leadTeacherId],
+    references: [employees.id],
+  }),
+  members: many(pedagogicalUnitMembers),
+}));
+
+export const pedagogicalUnitMembersRelations = relations(pedagogicalUnitMembers, ({ one }) => ({
+  unit: one(pedagogicalUnits, {
+    fields: [pedagogicalUnitMembers.unitId],
+    references: [pedagogicalUnits.id],
+  }),
+  teacher: one(employees, {
+    fields: [pedagogicalUnitMembers.employeeId],
+    references: [employees.id],
+  }),
+}));
+
