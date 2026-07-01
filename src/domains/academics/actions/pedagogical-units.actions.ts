@@ -136,7 +136,7 @@ export async function getPedagogicalUnitTimetable(unitId: number) {
       where: eq(pedagogicalUnitMembers.unitId, unitId)
     });
     
-    const teacherIds = members.map(m => m.employeeId).filter(Boolean);
+    const teacherIds = members.map(m => m.employeeId).filter(Boolean) as number[];
     if (teacherIds.length === 0) return [];
 
     // 2. Fetch all entries for these teachers
