@@ -318,7 +318,7 @@ function TimetableCell({
   onDelete,
   onOpen,
 }: {
-  mode: "class" | "teacher" | "global";
+  mode: "class" | "teacher" | "global" | "up";
   cell?: TimetableEntry | null;
   onDelete: (id: number) => void;
   onOpen: () => void;
@@ -353,7 +353,11 @@ function TimetableCell({
             {cell.subject?.subjectName || "Cours"}
           </span>
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest opacity-70">
-            {mode === "teacher" ? getClassDisplayName(cell.class) : cell.teacher?.nom || "Prof"}
+            {mode === "teacher"
+              ? getClassDisplayName(cell.class)
+              : mode === "up"
+              ? `${cell.teacher?.nom || "Prof"} • ${getClassDisplayName(cell.class)}`
+              : cell.teacher?.nom || "Prof"}
           </span>
           <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest opacity-60">
             {cell.roomName ? `Salle ${cell.roomName}` : "Salle —"}
