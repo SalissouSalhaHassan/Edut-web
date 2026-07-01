@@ -1,9 +1,9 @@
 "use server";
 
 import { db } from "@/infrastructure/database";
-import { pedagogicalUnits, pedagogicalUnitMembers, schoolSubjects } from "@/infrastructure/database/schema/academics";
+import { pedagogicalUnits, pedagogicalUnitMembers, schoolSubjects, timetableEntries } from "@/infrastructure/database/schema/academics";
 import { employees } from "@/infrastructure/database/schema/hr";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { protectedDbAction } from "@/lib/protected-action";
 
@@ -124,5 +124,31 @@ export async function removeTeacherFromUnit(unitId: number, employeeId: number) 
     );
     revalidatePath("/dashboard/academics/pedagogical-units");
     return { success: true };
+  });
+}
+
+export async function getPedagogicalUnitTimetable(unitId: number) {
+  return protectedDbAction("Academics", "canView", async () => {
+    await ensureTablesExist();
+
+    // 1. Get member teacher IDs
+    const members = await db.query.pedagogicalUnitMembers.findMany({
+      where: eq(pedagogicalUnitMembers.unitId, unitId)
+    });
+    
+    const teacherIds = members.map(m => m.employeeId).filter(Boolean);
+    if (teacherIds.length === 0) return [];
+
+    // 2. Fetch all entries for these teachers
+    const entries = await db.query.timetableEntries.findMany({
+      where: inArray(timetableEntries.employeeId, teacherIds),
+      with: {
+        subject: true,
+        teacher: true,
+        class: true
+      }
+    });
+
+    return entries;
   });
 }

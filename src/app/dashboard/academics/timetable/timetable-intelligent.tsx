@@ -44,6 +44,7 @@ import {
   runAISolver,
   saveTimetableEntry,
 } from "@/domains/academics/actions/timetable.actions";
+import { getPedagogicalUnitTimetable } from "@/domains/academics/actions/pedagogical-units.actions";
 import {
   AssignmentsDialog,
   ConstraintsDialog,
@@ -89,6 +90,7 @@ type Props = {
   teachers: Array<{ id: number; nom: string }>;
   subjects: Array<{ id: number; subjectName: string }>;
   currentSession: { id: number; sessionName: string };
+  pedagogicalUnits?: any[];
 };
 
 const DEFAULT_SETTINGS: TimetableSettings = {
@@ -384,11 +386,12 @@ function TimetableCell({
   );
 }
 
-export default function IntelligentTimetable({ classes, teachers, subjects, currentSession }: Props) {
-  const [viewMode, setViewMode] = React.useState<"class" | "teacher" | "global">("class");
+export default function IntelligentTimetable({ classes, teachers, subjects, currentSession, pedagogicalUnits = [] }: Props) {
+  const [viewMode, setViewMode] = React.useState<"class" | "teacher" | "global" | "up">("class");
   const [selectedId, setSelectedId] = React.useState<number | null>(classes[0]?.id || null);
   const [lastClassId, setLastClassId] = React.useState<number | null>(classes[0]?.id || null);
   const [lastTeacherId, setLastTeacherId] = React.useState<number | null>(teachers[0]?.id || null);
+  const [lastUpId, setLastUpId] = React.useState<number | null>(pedagogicalUnits[0]?.id || null);
   const [entries, setEntries] = React.useState<TimetableEntry[]>([]);
   const [settings, setSettings] = React.useState<TimetableSettings>(DEFAULT_SETTINGS);
   const [globalData, setGlobalData] = React.useState<{ entries: TimetableEntry[]; totalClasses: number } | null>(null);
@@ -420,7 +423,7 @@ export default function IntelligentTimetable({ classes, teachers, subjects, curr
   } | null>(null);
 
   const setMode = React.useCallback(
-    (mode: "class" | "teacher" | "global") => {
+    (mode: "class" | "teacher" | "global" | "up") => {
       setViewMode(mode);
       if (mode === "global") {
         setSelectedId(null);
@@ -431,10 +434,15 @@ export default function IntelligentTimetable({ classes, teachers, subjects, curr
         setSelectedId(next);
         return;
       }
-      const next = lastTeacherId ?? teachers[0]?.id ?? null;
+      if (mode === "teacher") {
+        const next = lastTeacherId ?? teachers[0]?.id ?? null;
+        setSelectedId(next);
+        return;
+      }
+      const next = lastUpId ?? pedagogicalUnits[0]?.id ?? null;
       setSelectedId(next);
     },
-    [classes, teachers, lastClassId, lastTeacherId]
+    [classes, teachers, pedagogicalUnits, lastClassId, lastTeacherId, lastUpId]
   );
 
   const days = React.useMemo(() => (settings.days || DEFAULT_SETTINGS.days).split(",").map((d) => d.trim()).filter(Boolean), [settings.days]);
@@ -452,8 +460,24 @@ export default function IntelligentTimetable({ classes, teachers, subjects, curr
       return;
     }
 
-    if (!selectedId) return;
-    const eRes = await getTimetableEntries(viewMode, selectedId);
+    if (viewMode === "up") {
+      if (selectedId) {
+        const upRes = await getPedagogicalUnitTimetable(selectedId);
+        if (upRes.success) setEntries(coerceEntries(upRes.data));
+      } else {
+        setEntries([]);
+      }
+      setLastUpdated(new Date());
+      return;
+    }
+
+    if (!selectedId) {
+      setEntries([]);
+      setLastUpdated(new Date());
+      return;
+    }
+
+    const eRes = await getTimetableEntries(viewMode as "class" | "teacher", selectedId);
     if (eRes.success) setEntries(coerceEntries(eRes.data));
     setLastUpdated(new Date());
   }, [viewMode, selectedId]);
@@ -574,7 +598,7 @@ export default function IntelligentTimetable({ classes, teachers, subjects, curr
 
   const openEntryDialog = React.useCallback(
     (dayName: string, periodNumber: number, cell: TimetableEntry | null) => {
-      if (viewMode === "global") return;
+      if (viewMode === "global" || viewMode === "up") return;
 
       const fallbackClassId = lastClassId ?? classes[0]?.id ?? null;
       const fallbackTeacherId = lastTeacherId ?? teachers[0]?.id ?? null;
@@ -776,7 +800,7 @@ export default function IntelligentTimetable({ classes, teachers, subjects, curr
 
         <div className="flex items-center gap-4 bg-black/40 p-3 rounded-[2rem] border border-white/5 shadow-inner">
           <div className="flex bg-white/5 rounded-2xl p-1.5 gap-1">
-            {(["class", "teacher", "global"] as const).map((mode) => (
+            {(["class", "teacher", "up", "global"] as const).map((mode) => (
               <button
                 key={mode}
                 type="button"
@@ -788,7 +812,7 @@ export default function IntelligentTimetable({ classes, teachers, subjects, curr
                     : "text-slate-500 hover:text-slate-300 hover:bg-white/5"
                 )}
               >
-                {mode === "class" ? "Classe" : mode === "teacher" ? "Prof" : "Global"}
+                {mode === "class" ? "Classe" : mode === "teacher" ? "Prof" : mode === "up" ? "UP" : "Global"}
               </button>
             ))}
           </div>
@@ -801,26 +825,45 @@ export default function IntelligentTimetable({ classes, teachers, subjects, curr
                 setSelectedId(next);
                 if (viewMode === "class") setLastClassId(next);
                 if (viewMode === "teacher") setLastTeacherId(next);
+                if (viewMode === "up") setLastUpId(next);
               }}
-              disabled={viewMode === "class" ? classes.length === 0 : teachers.length === 0}
+              disabled={
+                viewMode === "class" ? classes.length === 0 :
+                viewMode === "teacher" ? teachers.length === 0 :
+                (pedagogicalUnits || []).length === 0
+              }
               className="bg-black/60 border border-white/5 rounded-2xl px-6 py-2.5 text-xs font-black text-slate-300 outline-none focus:ring-2 focus:ring-indigo-500/30 min-w-[220px] appearance-none cursor-pointer"
             >
-              {(viewMode === "class" ? classes.length === 0 : teachers.length === 0) ? (
-                <option value="">
-                  {viewMode === "class" ? "Aucune classe" : "Aucun professeur"}
-                </option>
-              ) : viewMode === "class" ? (
-                classes.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {getClassDisplayName(c)}
-                  </option>
-                ))
+              {viewMode === "class" ? (
+                classes.length === 0 ? (
+                  <option value="">Aucune classe</option>
+                ) : (
+                  classes.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {getClassDisplayName(c)}
+                    </option>
+                  ))
+                )
+              ) : viewMode === "teacher" ? (
+                teachers.length === 0 ? (
+                  <option value="">Aucun professeur</option>
+                ) : (
+                  teachers.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.nom}
+                    </option>
+                  ))
+                )
               ) : (
-                teachers.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.nom}
-                  </option>
-                ))
+                (pedagogicalUnits || []).length === 0 ? (
+                  <option value="">Aucune UP</option>
+                ) : (
+                  (pedagogicalUnits || []).map((up) => (
+                    <option key={up.id} value={up.id}>
+                      {up.name}
+                    </option>
+                  ))
+                )
               )}
             </select>
           ) : null}
@@ -999,7 +1042,9 @@ export default function IntelligentTimetable({ classes, teachers, subjects, curr
                         mode={viewMode}
                         title={viewMode === "class"
                         ? getClassDisplayName(classes.find(c => c.id === selectedId), "Inconnue")
-                        : teachers.find(t => t.id === selectedId)?.nom || "Inconnu"
+                        : viewMode === "teacher"
+                        ? teachers.find(t => t.id === selectedId)?.nom || "Inconnu"
+                        : (pedagogicalUnits || []).find(up => up.id === selectedId)?.name || "Unité Pédagogique"
                       }
                       entries={entries}
                       settings={settings}
@@ -1034,7 +1079,7 @@ export default function IntelligentTimetable({ classes, teachers, subjects, curr
                             </div>
 
                             {days.map((d) => {
-                              const cell = viewMode === "global" ? null : getCellData(d, pNum);
+                              const cells = viewMode === "global" ? [] : getCellData(d, pNum);
                               const occ = viewMode === "global" && globalOccupancyMap ? globalOccupancyMap.get(`${d}_${pNum}`) || 0 : 0;
                               const total = globalData?.totalClasses || 1;
                               const occPct = viewMode === "global" ? Math.round((occ / total) * 100) : 0;
@@ -1068,12 +1113,32 @@ export default function IntelligentTimetable({ classes, teachers, subjects, curr
                                         {occPct}% <span className="text-xs text-slate-500 font-bold">occup.</span>
                                       </div>
                                     </div>
+                                  ) : viewMode === "up" ? (
+                                    <div className="flex flex-col gap-2">
+                                      {cells.map((cell) => (
+                                        <TimetableCell
+                                          key={cell.id}
+                                          mode={viewMode}
+                                          cell={cell}
+                                          onDelete={handleDelete}
+                                          onOpen={() => openEntryDialog(d, pNum, cell)}
+                                        />
+                                      ))}
+                                      {cells.length === 0 && (
+                                        <TimetableCell
+                                          mode={viewMode}
+                                          cell={null}
+                                          onDelete={handleDelete}
+                                          onOpen={() => openEntryDialog(d, pNum, null)}
+                                        />
+                                      )}
+                                    </div>
                                   ) : (
                                     <TimetableCell
                                       mode={viewMode}
-                                      cell={cell}
+                                      cell={cells[0] || null}
                                       onDelete={handleDelete}
-                                      onOpen={() => openEntryDialog(d, pNum, cell)}
+                                      onOpen={() => openEntryDialog(d, pNum, cells[0] || null)}
                                     />
                                   )}
                                 </div>

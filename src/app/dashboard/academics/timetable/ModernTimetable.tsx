@@ -32,7 +32,7 @@ type TimetableSettings = {
 };
 
 interface ModernTimetableProps {
-  mode: "class" | "teacher";
+  mode: "class" | "teacher" | "up";
   title: string;
   subTitle?: string;
   entries: TimetableEntry[];
@@ -96,7 +96,7 @@ export default function ModernTimetable({ mode, title, subTitle, entries, settin
   };
 
   const getCellData = (day: string, pNum: number) => {
-    return entries.find(e => e.dayName === day && e.periodNumber === pNum);
+    return entries.filter(e => e.dayName === day && e.periodNumber === pNum);
   };
 
   return (
@@ -106,7 +106,7 @@ export default function ModernTimetable({ mode, title, subTitle, entries, settin
         <div className="flex items-center gap-6">
           <div className="w-20 h-20 relative">
              <img src="/logo_niger.png" alt="Coat of Arms" className="w-full h-full object-contain" onError={(e) => {
-               (e.target as any).src = "https://upload.wikimedia.org/wikipedia/commons/thumb/0/03/Coat_of_arms_of_Niger.svg/1200px-Coat_of_arms_of_Niger.svg.png";
+                (e.target as any).src = "https://upload.wikimedia.org/wikipedia/commons/thumb/0/03/Coat_of_arms_of_Niger.svg/1200px-Coat_of_arms_of_Niger.svg.png";
              }} />
           </div>
           <div>
@@ -123,7 +123,7 @@ export default function ModernTimetable({ mode, title, subTitle, entries, settin
           </div>
           <div className="inline-flex items-center px-8 py-2.5 rounded-full bg-indigo-600 text-white shadow-xl shadow-indigo-100">
             <span className="text-xs font-black uppercase tracking-widest">
-              {mode === "class" ? "Classe" : "Enseignant"} : {title}
+              {mode === "class" ? "Classe" : mode === "teacher" ? "Enseignant" : "Unité Pédagogique (UP)"} : {title}
             </span>
           </div>
         </div>
@@ -215,32 +215,38 @@ export default function ModernTimetable({ mode, title, subTitle, entries, settin
                         </div>
                       </td>
                       {days.map(day => {
-                        const cell = getCellData(day, pNum);
-                        const theme = getSubjectTheme(cell?.subject?.subjectName || "");
-                        const Icon = theme.icon;
+                        const cells = getCellData(day, pNum);
 
                         return (
                           <td key={day} className="p-2 border-r border-slate-50 align-top">
-                            {cell ? (
-                              <div className={cn(
-                                "h-full rounded-2xl p-4 flex flex-col gap-2 transition-all duration-300 hover:shadow-lg relative overflow-hidden group/cell",
-                                theme.bg
-                              )}>
-                                <div className={cn("absolute top-0 left-0 w-1.5 h-full opacity-60", theme.color.replace('text-', 'bg-'))} />
-                                <div className="flex items-start justify-between">
-                                  <div className={cn("p-2 rounded-xl bg-white shadow-sm", theme.color)}>
-                                    <Icon size={16} />
-                                  </div>
-                                </div>
-                                <div className="mt-1">
-                                  <h4 className={cn("text-xs font-black leading-tight uppercase tracking-tight", theme.color)}>
-                                    {cell.subject?.subjectName}
-                                  </h4>
-                                  <p className="text-[10px] font-bold text-slate-600 mt-1 flex items-center gap-1 uppercase tracking-widest opacity-80">
-                                    <User size={10} className="opacity-50" />
-                                    {mode === "class" ? cell.teacher?.nom : getClassDisplayName(cell.class)}
-                                  </p>
-                                </div>
+                            {cells.length > 0 ? (
+                              <div className="flex flex-col gap-2">
+                                {cells.map((cell) => {
+                                  const theme = getSubjectTheme(cell?.subject?.subjectName || "");
+                                  const Icon = theme.icon;
+                                  return (
+                                    <div key={cell.id} className={cn(
+                                      "rounded-2xl p-4 flex flex-col gap-2 transition-all duration-300 hover:shadow-lg relative overflow-hidden group/cell",
+                                      theme.bg
+                                    )}>
+                                      <div className={cn("absolute top-0 left-0 w-1.5 h-full opacity-60", theme.color.replace('text-', 'bg-'))} />
+                                      <div className="flex items-start justify-between">
+                                        <div className={cn("p-2 rounded-xl bg-white shadow-sm", theme.color)}>
+                                          <Icon size={16} />
+                                        </div>
+                                      </div>
+                                      <div className="mt-1">
+                                        <h4 className={cn("text-xs font-black leading-tight uppercase tracking-tight", theme.color)}>
+                                          {cell.subject?.subjectName}
+                                        </h4>
+                                        <p className="text-[10px] font-bold text-slate-600 mt-1 flex items-center gap-1 uppercase tracking-widest opacity-80">
+                                          <User size={10} className="opacity-50" />
+                                          {mode === "class" ? cell.teacher?.nom : `${cell.teacher?.nom || "Prof"} • ${getClassDisplayName(cell.class)}`}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
                               </div>
                             ) : (
                               <div className="h-24 rounded-2xl border border-dashed border-slate-100 bg-slate-50/30" />
