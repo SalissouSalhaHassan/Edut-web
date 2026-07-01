@@ -6,16 +6,23 @@ type OfflineTable = "students" | "exams" | "examResults" | "subjects";
 
 interface MutationOptions<T> {
   targetTable: OfflineTable;
-  onlineAction: (payload: T) => Promise<{ success: boolean; error?: string; action?: string; id?: number }>;
+  onlineAction: (payload: T) => Promise<{ success?: boolean; error?: string; action?: string; id?: number }>;
   onSuccess?: (res: { success: boolean; action?: string; id?: number }) => void;
 }
 
 const SYNC_SUPPORTED_TABLES = new Set<OfflineTable>(["students", "exams", "examResults"]);
 
+type OfflineMutationResult = {
+  success: boolean;
+  error?: string;
+  fromCloud?: boolean;
+  fromLocal?: boolean;
+};
+
 export function useOfflineMutation<T>() {
   const isOnline = useOnlineStatus();
 
-  const mutate = async (payload: T, options: MutationOptions<T>) => {
+  const mutate = async (payload: T, options: MutationOptions<T>): Promise<OfflineMutationResult> => {
     const { targetTable, onlineAction, onSuccess } = options;
 
     if (isOnline) {
@@ -30,7 +37,7 @@ export function useOfflineMutation<T>() {
 
           await localDb[targetTable].put(localPayload as any);
 
-          onSuccess?.(res);
+          onSuccess?.({ success: true, action: res.action, id: res.id });
           return { success: true, fromCloud: true };
         }
 

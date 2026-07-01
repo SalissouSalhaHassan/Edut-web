@@ -11,6 +11,8 @@ import { StudentFormData } from "../validators/student.schema";
 import { getClasses, getSections, getEducationalLevels, getSessions } from "@/domains/academics/actions/academics.actions";
 import { Camera, Upload, Zap, X, Check, User, ChevronLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useOfflineMutation } from "@/hooks/use-offline-mutation";
+import { useOnlineStatus } from "@/hooks/use-online-status";
 
 interface StudentDialogProps {
   mode?: "add" | "edit";
@@ -20,6 +22,8 @@ interface StudentDialogProps {
 
 export default function StudentDialog({ mode = "add", initialData, trigger }: StudentDialogProps) {
   const router = useRouter();
+  const isOnline = useOnlineStatus();
+  const { mutate } = useOfflineMutation<StudentFormData & { id?: number }>();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -196,8 +200,8 @@ export default function StudentDialog({ mode = "add", initialData, trigger }: St
     
     let photoPath = preview || "";
 
-    // If we have a new photo (base64 data URL), upload it to Supabase
-    if (preview && preview.startsWith("data:image")) {
+    // If online, upload the new photo to Supabase. Offline mode keeps the data URL locally.
+    if (isOnline && preview && preview.startsWith("data:image")) {
       try {
         const { uploadStudentPhoto } = await import("@/shared/utils/supabase/storage");
         const fileName = `${numAdmission}_${Date.now()}.jpg`;
@@ -244,12 +248,14 @@ export default function StudentDialog({ mode = "add", initialData, trigger }: St
       photoPath: photoPath,
     };
 
-    let result;
-    if (mode === "edit" && initialData?.id) {
-      result = await updateStudent(initialData.id, data);
-    } else {
-      result = await createStudent(data);
-    }
+    const payload = mode === "edit" && initialData?.id ? { ...data, id: initialData.id } : data;
+    const result = await mutate(payload, {
+      targetTable: "students",
+      onlineAction: async (studentPayload) => {
+        const { id, ...studentData } = studentPayload;
+        return id ? updateStudent(id, studentData) : createStudent(studentData);
+      },
+    });
 
     setLoading(false);
 

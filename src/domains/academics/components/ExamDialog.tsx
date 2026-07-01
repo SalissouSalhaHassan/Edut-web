@@ -10,8 +10,10 @@ import { getClasses, getSubjects, getPeriods } from "@/domains/academics/actions
 import { ExamFormData } from "../validators/exams.schema";
 import { PlusCircle } from "lucide-react";
 import { getClassDisplayName } from "@/domains/academics/utils/class-name";
+import { useOfflineMutation } from "@/hooks/use-offline-mutation";
 
 export default function ExamDialog() {
+  const { mutate } = useOfflineMutation<ExamFormData>();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -42,7 +44,10 @@ export default function ExamDialog() {
       maxMarks: Number(form.get("maxMarks")) || 20,
     };
 
-    const result = await createExam(data);
+    const result = await mutate(data, {
+      targetTable: "exams",
+      onlineAction: createExam,
+    });
     setLoading(false);
 
     if (result.success) {

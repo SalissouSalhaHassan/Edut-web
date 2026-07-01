@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { saveBatchExamResults } from "@/domains/academics/actions/exams.actions";
 import { Save, AlertCircle, CheckCircle2 } from "lucide-react";
+import { useOfflineMutation } from "@/hooks/use-offline-mutation";
 
 interface Student {
   id: number;
@@ -20,6 +21,7 @@ interface ResultsEntryGridProps {
 }
 
 export default function ResultsEntryGrid({ examId, maxMarks, students, initialResults = [] }: ResultsEntryGridProps) {
+  const { mutate } = useOfflineMutation<{ examId: number; studentId: number; marksObtained: number; remarks: string }>();
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [results, setResults] = useState<Record<number, { marks: string; remark: string }>>(
@@ -67,18 +69,37 @@ export default function ResultsEntryGrid({ examId, maxMarks, students, initialRe
     setLoading(true);
     setSuccess(false);
 
-    const data = {
-      examId,
-      results: Object.entries(results)
-        .filter(([_, val]) => val.marks !== "") // Only save students with marks
-        .map(([id, val]) => ({
-          studentId: Number(id),
-          marksObtained: parseFloat(val.marks),
-          remarks: val.remark,
-        })),
-    };
+    const rows = Object.entries(results)
+      .filter(([_, val]) => val.marks !== "")
+      .map(([id, val]) => ({
+        examId,
+        studentId: Number(id),
+        marksObtained: parseFloat(val.marks),
+        remarks: val.remark,
+      }));
 
-    const result = await saveBatchExamResults(data as any);
+    let result: { success: boolean; error?: string } = { success: true };
+    for (const row of rows) {
+      const rowResult = await mutate(row, {
+        targetTable: "examResults",
+        onlineAction: async (payload) => saveBatchExamResults({
+          examId: payload.examId,
+          results: [
+            {
+              studentId: payload.studentId,
+              marksObtained: payload.marksObtained,
+              remarks: payload.remarks,
+            },
+          ],
+        } as any),
+      });
+
+      if (!rowResult.success) {
+        result = { success: false, error: rowResult.error };
+        break;
+      }
+    }
+
     setLoading(false);
     if (result.success) {
       setSuccess(true);
