@@ -2,13 +2,8 @@ import { NextResponse } from 'next/server';
 
 export async function GET() {
   const swCode = `
-const CACHE_NAME = 'edut-cache-v4';
+const CACHE_NAME = 'edut-cache-v5';
 const PRECACHE_URLS = [
-  '/dashboard',
-  '/dashboard/students',
-  '/dashboard/importation',
-  '/dashboard/security/users',
-  '/dashboard/academics/research-graduation',
   '/login',
   '/favicon.ico'
 ];
@@ -63,11 +58,11 @@ self.addEventListener('fetch', (event) => {
         return response;
       })
       .catch(() => {
-        return caches.match(request).then((cachedResponse) => {
+        return caches.match(request, { ignoreSearch: true }).then((cachedResponse) => {
           if (cachedResponse) {
             return cachedResponse;
           }
-          return new Response('Hors-ligne : cette ressource n\\'est pas disponible en cache.', {
+          return new Response('Hors-ligne : cette ressource n\'est pas disponible en cache.', {
             status: 503,
             headers: { 'Content-Type': 'text/plain; charset=utf-8' }
           });
