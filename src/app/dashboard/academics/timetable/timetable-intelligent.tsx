@@ -571,7 +571,9 @@ export default function IntelligentTimetable({ classes, teachers, subjects, curr
   };
 
   const handlePrintCurrent = async () => {
-    if (viewMode === "global") return alert("Sélectionnez une classe ou un enseignant pour imprimer.");
+    if (viewMode === "global" || viewMode === "up") {
+      return alert("L'impression PDF n'est pas disponible pour la vue Globale ou UP.");
+    }
     if (!selectedId) return alert("Aucune sélection active.");
     
     try {
@@ -579,7 +581,7 @@ export default function IntelligentTimetable({ classes, teachers, subjects, curr
       await generateTimetablePDF({
         type: 'current',
         id: selectedId,
-        mode: viewMode
+        mode: viewMode as 'class' | 'teacher'
       });
     } catch (error) {
       console.error(error);
@@ -587,7 +589,7 @@ export default function IntelligentTimetable({ classes, teachers, subjects, curr
     }
   };
 
-  const getCellData = (day: string, periodNumber: number) => entries.find((e) => e.dayName === day && e.periodNumber === periodNumber) || null;
+  const getCellData = (day: string, periodNumber: number) => entries.filter((e) => e.dayName === day && e.periodNumber === periodNumber);
 
   const handleDelete = (id: number) => {
     startTransition(async () => {
