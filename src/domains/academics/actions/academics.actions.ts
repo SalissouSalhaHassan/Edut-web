@@ -1427,7 +1427,7 @@ const fetchCachedStudentBulletinData = (sId: number, sessionId: number, term: st
             .from(students)
             .where(
               and(
-                eq(students.schoolId, student.schoolId),
+                eq(students.schoolId, student.schoolId || 0),
                 ilike(students.classe, className.trim())
               )
             );
