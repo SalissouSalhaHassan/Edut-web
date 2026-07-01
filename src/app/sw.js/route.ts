@@ -2,11 +2,13 @@ import { NextResponse } from 'next/server';
 
 export async function GET() {
   const swCode = `
-const CACHE_NAME = 'edut-cache-v3';
+const CACHE_NAME = 'edut-cache-v4';
 const PRECACHE_URLS = [
   '/dashboard',
   '/dashboard/students',
   '/dashboard/importation',
+  '/dashboard/security/users',
+  '/dashboard/academics/research-graduation',
   '/login',
   '/favicon.ico'
 ];
@@ -40,12 +42,11 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(request.url);
 
-  // Skip external APIs, chrome extensions, next dev, and api requests
+  // Skip external APIs, chrome extensions, and api requests
   if (
     url.origin !== self.location.origin ||
     url.pathname.includes('/_next/webpack-hmr') ||
-    url.pathname.startsWith('/api/') ||
-    url.pathname.startsWith('/_next/data/')
+    url.pathname.startsWith('/api/')
   ) {
     return;
   }
