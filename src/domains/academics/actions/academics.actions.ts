@@ -1257,7 +1257,7 @@ const fetchCachedStudentBulletinData = (sId: number, sessionId: number, term: st
           
           const classStudentsList = await db.select({ id: students.id })
             .from(students)
-            .where(eq(students.classe, student.classe));
+            .where(eq(students.classe, student.classe || ""));
           const classStudentIds = classStudentsList.map(cs => cs.id);
           
           const classCurrentResults = await db.query.studentResults.findMany({
