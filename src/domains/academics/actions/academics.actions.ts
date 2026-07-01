@@ -1119,8 +1119,165 @@ const fetchCachedStudentBulletinData = (sId: number, sessionId: number, term: st
 
       let summary = summaries.find(s => s.term === term) || null;
 
-      // Dynamic Rank Calculation
+      const resultsS1 = allResults.filter(r => r.term?.toLowerCase().includes("1") || r.term?.toLowerCase().includes("première") || r.term === "F1" || r.term?.toLowerCase().includes("a1") || r.term?.toLowerCase().includes("d1"));
+      const resultsS2 = allResults.filter(r => r.term?.toLowerCase().includes("2") || r.term?.toLowerCase().includes("deuxième") || r.term === "F2" || r.term?.toLowerCase().includes("a2") || r.term?.toLowerCase().includes("d2"));
+      const resultsS3 = allResults.filter(r => r.term?.toLowerCase().includes("3") || r.term?.toLowerCase().includes("troisième") || r.term === "F3" || r.term?.toLowerCase().includes("a3") || r.term?.toLowerCase().includes("d3"));
+      const resultsS4 = allResults.filter(r => r.term?.toLowerCase().includes("4") || r.term?.toLowerCase().includes("quatrième") || r.term === "F4" || r.term?.toLowerCase().includes("a4") || r.term?.toLowerCase().includes("d4"));
+      const resultsS5 = allResults.filter(r => r.term?.toLowerCase().includes("5") || r.term?.toLowerCase().includes("cinquième") || r.term === "F5" || r.term?.toLowerCase().includes("a5") || r.term?.toLowerCase().includes("d5"));
+      const resultsS6 = allResults.filter(r => r.term?.toLowerCase().includes("6") || r.term?.toLowerCase().includes("sixième") || r.term === "F6" || r.term?.toLowerCase().includes("a6") || r.term?.toLowerCase().includes("d6"));
+
+      let summaryS1 = summaries.find(s => s.term?.toLowerCase().includes("1") || s.term?.toLowerCase().includes("première") || s.term === "F1" || s.term?.toLowerCase().includes("a1") || s.term?.toLowerCase().includes("d1")) || null;
+      let summaryS2 = summaries.find(s => s.term?.toLowerCase().includes("2") || s.term?.toLowerCase().includes("deuxième") || s.term === "F2" || s.term?.toLowerCase().includes("a2") || s.term?.toLowerCase().includes("d2")) || null;
+      let summaryS3 = summaries.find(s => s.term?.toLowerCase().includes("3") || s.term?.toLowerCase().includes("troisième") || s.term === "F3" || s.term?.toLowerCase().includes("a3") || s.term?.toLowerCase().includes("d3")) || null;
+      let summaryS4 = summaries.find(s => s.term?.toLowerCase().includes("4") || s.term?.toLowerCase().includes("quatrième") || s.term === "F4" || s.term?.toLowerCase().includes("a4") || s.term?.toLowerCase().includes("d4")) || null;
+      let summaryS5 = summaries.find(s => s.term?.toLowerCase().includes("5") || s.term?.toLowerCase().includes("cinquième") || s.term === "F5" || s.term?.toLowerCase().includes("a5") || s.term?.toLowerCase().includes("d5")) || null;
+      let summaryS6 = summaries.find(s => s.term?.toLowerCase().includes("6") || s.term?.toLowerCase().includes("sixième") || s.term === "F6" || s.term?.toLowerCase().includes("a6") || s.term?.toLowerCase().includes("d6")) || null;
+
       const classId = results[0]?.classId;
+
+      // Dynamic S1 summary generation if not present in DB
+      if (!summaryS1 && resultsS1.length > 0) {
+        let totalWeightedS1 = 0;
+        let totalCoefS1 = 0;
+        resultsS1.forEach(r => {
+          const cw = parseFloat(r.classWorkScore as any) || 0;
+          const ex = parseFloat(r.examScore as any) || 0;
+          const coef = parseFloat(r.coefficient as any) || 1;
+          totalWeightedS1 += ((cw + ex) / 2) * coef;
+          totalCoefS1 += coef;
+        });
+        const averageS1 = totalCoefS1 > 0 ? (totalWeightedS1 / totalCoefS1) : 0;
+        
+        let rankS1 = "-";
+        if (classId) {
+          try {
+            const allClassResultsS1 = await db.query.studentResults.findMany({
+              where: and(
+                eq(studentResults.classId, classId),
+                eq(studentResults.sessionId, Number(sessionId)),
+                or(
+                  ilike(studentResults.term, "%1%"),
+                  ilike(studentResults.term, "%première%"),
+                  eq(studentResults.term, "F1"),
+                  ilike(studentResults.term, "%a1%"),
+                  ilike(studentResults.term, "%d1%")
+                )
+              )
+            });
+
+            const studentAveragesS1 = new Map<number, { totalWeighted: number; totalCoef: number }>();
+            allClassResultsS1.forEach(r => {
+              if (!studentAveragesS1.has(r.studentId as number)) {
+                studentAveragesS1.set(r.studentId as number, { totalWeighted: 0, totalCoef: 0 });
+              }
+              const sData = studentAveragesS1.get(r.studentId as number)!;
+              const cw = parseFloat(r.classWorkScore as any) || 0;
+              const ex = parseFloat(r.examScore as any) || 0;
+              const coef = parseFloat(r.coefficient as any) || 1;
+              sData.totalWeighted += ((cw + ex) / 2) * coef;
+              sData.totalCoef += coef;
+            });
+
+            const averagesListS1 = Array.from(studentAveragesS1.entries()).map(([id, sData]) => ({
+              studentId: id,
+              average: sData.totalCoef > 0 ? (sData.totalWeighted / sData.totalCoef) : 0
+            }));
+            averagesListS1.sort((a, b) => b.average - a.average);
+
+            let sRank = 1;
+            for (let i = 0; i < averagesListS1.length; i++) {
+              if (i > 0 && averagesListS1[i].average < averagesListS1[i - 1].average) {
+                sRank = i + 1;
+              }
+              if (averagesListS1[i].studentId === sId) {
+                rankS1 = String(sRank);
+                break;
+              }
+            }
+          } catch (err) {
+            console.warn("⚠️ Failed to calculate dynamic S1 rank", err);
+          }
+        }
+
+        summaryS1 = {
+          average: averageS1,
+          rank: rankS1,
+          term: "1er Semester"
+        } as any;
+      }
+
+      // Dynamic S2 summary generation if not present in DB
+      if (!summaryS2 && resultsS2.length > 0) {
+        let totalWeightedS2 = 0;
+        let totalCoefS2 = 0;
+        resultsS2.forEach(r => {
+          const cw = parseFloat(r.classWorkScore as any) || 0;
+          const ex = parseFloat(r.examScore as any) || 0;
+          const coef = parseFloat(r.coefficient as any) || 1;
+          totalWeightedS2 += ((cw + ex) / 2) * coef;
+          totalCoefS2 += coef;
+        });
+        const averageS2 = totalCoefS2 > 0 ? (totalWeightedS2 / totalCoefS2) : 0;
+        
+        let rankS2 = "-";
+        if (classId) {
+          try {
+            const allClassResultsS2 = await db.query.studentResults.findMany({
+              where: and(
+                eq(studentResults.classId, classId),
+                eq(studentResults.sessionId, Number(sessionId)),
+                or(
+                  ilike(studentResults.term, "%2%"),
+                  ilike(studentResults.term, "%deuxième%"),
+                  eq(studentResults.term, "F2"),
+                  ilike(studentResults.term, "%a2%"),
+                  ilike(studentResults.term, "%d2%")
+                )
+              )
+            });
+
+            const studentAveragesS2 = new Map<number, { totalWeighted: number; totalCoef: number }>();
+            allClassResultsS2.forEach(r => {
+              if (!studentAveragesS2.has(r.studentId as number)) {
+                studentAveragesS2.set(r.studentId as number, { totalWeighted: 0, totalCoef: 0 });
+              }
+              const sData = studentAveragesS2.get(r.studentId as number)!;
+              const cw = parseFloat(r.classWorkScore as any) || 0;
+              const ex = parseFloat(r.examScore as any) || 0;
+              const coef = parseFloat(r.coefficient as any) || 1;
+              sData.totalWeighted += ((cw + ex) / 2) * coef;
+              sData.totalCoef += coef;
+            });
+
+            const averagesListS2 = Array.from(studentAveragesS2.entries()).map(([id, sData]) => ({
+              studentId: id,
+              average: sData.totalCoef > 0 ? (sData.totalWeighted / sData.totalCoef) : 0
+            }));
+            averagesListS2.sort((a, b) => b.average - a.average);
+
+            let sRank = 1;
+            for (let i = 0; i < averagesListS2.length; i++) {
+              if (i > 0 && averagesListS2[i].average < averagesListS2[i - 1].average) {
+                sRank = i + 1;
+              }
+              if (averagesListS2[i].studentId === sId) {
+                rankS2 = String(sRank);
+                break;
+              }
+            }
+          } catch (err) {
+            console.warn("⚠️ Failed to calculate dynamic S2 rank", err);
+          }
+        }
+
+        summaryS2 = {
+          average: averageS2,
+          rank: rankS2,
+          term: "2ème Semester"
+        } as any;
+      }
+
+      // Dynamic Rank Calculation
       let computedGeneralRank = summary?.rank || "-";
 
       if (classId) {
@@ -1227,13 +1384,19 @@ const fetchCachedStudentBulletinData = (sId: number, sessionId: number, term: st
       summary.travail = (summary.travail && summary.travail !== "-") ? summary.travail : defaultTravail;
       summary.tableauHonneur = summary.tableauHonneur || (generalAverage >= 14);
 
-      // Calculate annualAverage and annualRank
-      const termAverages = summaries.map(sum => sum.average || 0);
-      const hasCurrentSummary = summaries.some(sum => sum.term === term);
-      if (!hasCurrentSummary) {
-        termAverages.push(generalAverage);
+      // Calculate annualAverage and annualRank using synthesized S1 & S2 values
+      const termAveragesList: number[] = [];
+      if (summaryS1) termAveragesList.push(summaryS1.average || 0);
+      if (summaryS2) termAveragesList.push(summaryS2.average || 0);
+      
+      const currentIsS1 = term.toLowerCase().includes("1") || term.toLowerCase().includes("première");
+      const currentIsS2 = term.toLowerCase().includes("2") || term.toLowerCase().includes("deuxième");
+      
+      if (!currentIsS1 && !currentIsS2) {
+        termAveragesList.push(generalAverage);
       }
-      const annualAverage = termAverages.length > 0 ? (termAverages.reduce((sum, v) => sum + v, 0) / termAverages.length) : generalAverage;
+      
+      const annualAverage = termAveragesList.length > 0 ? (termAveragesList.reduce((sum, v) => sum + v, 0) / termAveragesList.length) : generalAverage;
       
       let annualRank = "-";
       if (classId) {
@@ -1260,39 +1423,91 @@ const fetchCachedStudentBulletinData = (sId: number, sessionId: number, term: st
             .where(eq(students.classe, student.classe || ""));
           const classStudentIds = classStudentsList.map(cs => cs.id);
           
-          const classCurrentResults = await db.query.studentResults.findMany({
+          // S1 dynamic averages for class
+          const classResultsS1 = await db.query.studentResults.findMany({
             where: and(
               inArray(studentResults.studentId, classStudentIds),
               eq(studentResults.sessionId, Number(sessionId)),
-              eq(studentResults.term, term)
+              or(
+                ilike(studentResults.term, "%1%"),
+                ilike(studentResults.term, "%première%"),
+                eq(studentResults.term, "F1"),
+                ilike(studentResults.term, "%a1%"),
+                ilike(studentResults.term, "%d1%")
+              )
             )
           });
           
-          const classStudentCurrentAverages = new Map<number, { totalWeighted: number; totalCoef: number }>();
-          classCurrentResults.forEach(r => {
-            if (!classStudentCurrentAverages.has(r.studentId as number)) {
-              classStudentCurrentAverages.set(r.studentId as number, { totalWeighted: 0, totalCoef: 0 });
+          const classAveragesS1 = new Map<number, { totalWeighted: number; totalCoef: number }>();
+          classResultsS1.forEach(r => {
+            if (!classAveragesS1.has(r.studentId as number)) {
+              classAveragesS1.set(r.studentId as number, { totalWeighted: 0, totalCoef: 0 });
             }
-            const sData = classStudentCurrentAverages.get(r.studentId as number)!;
+            const sData = classAveragesS1.get(r.studentId as number)!;
             const cw = parseFloat(r.classWorkScore as any) || 0;
             const ex = parseFloat(r.examScore as any) || 0;
             const coef = parseFloat(r.coefficient as any) || 1;
             sData.totalWeighted += ((cw + ex) / 2) * coef;
             sData.totalCoef += coef;
           });
+
+          // S2 dynamic averages for class
+          const classResultsS2 = await db.query.studentResults.findMany({
+            where: and(
+              inArray(studentResults.studentId, classStudentIds),
+              eq(studentResults.sessionId, Number(sessionId)),
+              or(
+                ilike(studentResults.term, "%2%"),
+                ilike(studentResults.term, "%deuxième%"),
+                eq(studentResults.term, "F2"),
+                ilike(studentResults.term, "%a2%"),
+                ilike(studentResults.term, "%d2%")
+              )
+            )
+          });
           
-          const classAnnualAverages: { studentId: number; avg: number }[] = classStudentIds.map(sid => {
-            const list = [...(summariesByStudentMap.get(sid) || [])];
-            const hasCurr = allSummariesForClass.some(cs => cs.studentId === sid && cs.term === term);
-            if (!hasCurr) {
-              const sData = classStudentCurrentAverages.get(sid);
-              const currAvg = sData && sData.totalCoef > 0 ? (sData.totalWeighted / sData.totalCoef) : 0;
-              list.push(currAvg);
+          const classAveragesS2 = new Map<number, { totalWeighted: number; totalCoef: number }>();
+          classResultsS2.forEach(r => {
+            if (!classAveragesS2.has(r.studentId as number)) {
+              classAveragesS2.set(r.studentId as number, { totalWeighted: 0, totalCoef: 0 });
             }
+            const sData = classAveragesS2.get(r.studentId as number)!;
+            const cw = parseFloat(r.classWorkScore as any) || 0;
+            const ex = parseFloat(r.examScore as any) || 0;
+            const coef = parseFloat(r.coefficient as any) || 1;
+            sData.totalWeighted += ((cw + ex) / 2) * coef;
+            sData.totalCoef += coef;
+          });
+
+          const classAnnualAverages = classStudentIds.map(sid => {
+            const list: number[] = [];
+            
+            const hasS1Summary = allSummariesForClass.some(cs => cs.studentId === sid && (cs.term?.toLowerCase().includes("1") || cs.term?.toLowerCase().includes("première")));
+            if (hasS1Summary) {
+              const s1s = allSummariesForClass.find(cs => cs.studentId === sid && (cs.term?.toLowerCase().includes("1") || cs.term?.toLowerCase().includes("première")));
+              list.push(s1s?.average || 0);
+            } else {
+              const sData = classAveragesS1.get(sid);
+              if (sData && sData.totalCoef > 0) {
+                list.push(sData.totalWeighted / sData.totalCoef);
+              }
+            }
+
+            const hasS2Summary = allSummariesForClass.some(cs => cs.studentId === sid && (cs.term?.toLowerCase().includes("2") || cs.term?.toLowerCase().includes("deuxième")));
+            if (hasS2Summary) {
+              const s2s = allSummariesForClass.find(cs => cs.studentId === sid && (cs.term?.toLowerCase().includes("2") || cs.term?.toLowerCase().includes("deuxième")));
+              list.push(s2s?.average || 0);
+            } else {
+              const sData = classAveragesS2.get(sid);
+              if (sData && sData.totalCoef > 0) {
+                list.push(sData.totalWeighted / sData.totalCoef);
+              }
+            }
+
             const avg = list.length > 0 ? (list.reduce((sum, v) => sum + v, 0) / list.length) : 0;
             return { studentId: sid, avg };
           });
-          
+
           classAnnualAverages.sort((a, b) => b.avg - a.avg);
           let rank = 1;
           for (let i = 0; i < classAnnualAverages.length; i++) {
@@ -1343,20 +1558,6 @@ const fetchCachedStudentBulletinData = (sId: number, sessionId: number, term: st
         address: branchRecord?.address || "",
         logoPath: branchRecord?.logoPath || ""
       };
-
-      const resultsS1 = allResults.filter(r => r.term?.toLowerCase().includes("1") || r.term?.toLowerCase().includes("première") || r.term === "F1" || r.term?.toLowerCase().includes("a1") || r.term?.toLowerCase().includes("d1"));
-      const resultsS2 = allResults.filter(r => r.term?.toLowerCase().includes("2") || r.term?.toLowerCase().includes("deuxième") || r.term === "F2" || r.term?.toLowerCase().includes("a2") || r.term?.toLowerCase().includes("d2"));
-      const resultsS3 = allResults.filter(r => r.term?.toLowerCase().includes("3") || r.term?.toLowerCase().includes("troisième") || r.term === "F3" || r.term?.toLowerCase().includes("a3") || r.term?.toLowerCase().includes("d3"));
-      const resultsS4 = allResults.filter(r => r.term?.toLowerCase().includes("4") || r.term?.toLowerCase().includes("quatrième") || r.term === "F4" || r.term?.toLowerCase().includes("a4") || r.term?.toLowerCase().includes("d4"));
-      const resultsS5 = allResults.filter(r => r.term?.toLowerCase().includes("5") || r.term?.toLowerCase().includes("cinquième") || r.term === "F5" || r.term?.toLowerCase().includes("a5") || r.term?.toLowerCase().includes("d5"));
-      const resultsS6 = allResults.filter(r => r.term?.toLowerCase().includes("6") || r.term?.toLowerCase().includes("sixième") || r.term === "F6" || r.term?.toLowerCase().includes("a6") || r.term?.toLowerCase().includes("d6"));
-
-      const summaryS1 = summaries.find(s => s.term?.toLowerCase().includes("1") || s.term?.toLowerCase().includes("première") || s.term === "F1" || s.term?.toLowerCase().includes("a1") || s.term?.toLowerCase().includes("d1")) || null;
-      const summaryS2 = summaries.find(s => s.term?.toLowerCase().includes("2") || s.term?.toLowerCase().includes("deuxième") || s.term === "F2" || s.term?.toLowerCase().includes("a2") || s.term?.toLowerCase().includes("d2")) || null;
-      const summaryS3 = summaries.find(s => s.term?.toLowerCase().includes("3") || s.term?.toLowerCase().includes("troisième") || s.term === "F3" || s.term?.toLowerCase().includes("a3") || s.term?.toLowerCase().includes("d3")) || null;
-      const summaryS4 = summaries.find(s => s.term?.toLowerCase().includes("4") || s.term?.toLowerCase().includes("quatrième") || s.term === "F4" || s.term?.toLowerCase().includes("a4") || s.term?.toLowerCase().includes("d4")) || null;
-      const summaryS5 = summaries.find(s => s.term?.toLowerCase().includes("5") || s.term?.toLowerCase().includes("cinquième") || s.term === "F5" || s.term?.toLowerCase().includes("a5") || s.term?.toLowerCase().includes("d5")) || null;
-      const summaryS6 = summaries.find(s => s.term?.toLowerCase().includes("6") || s.term?.toLowerCase().includes("sixième") || s.term === "F6" || s.term?.toLowerCase().includes("a6") || s.term?.toLowerCase().includes("d6")) || null;
 
       return {
         student,
