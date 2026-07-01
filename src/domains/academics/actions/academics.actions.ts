@@ -1076,10 +1076,8 @@ export async function saveTermSummaries(summaries: any[]) {
 
 // ─── Cached Data Fetchers ───────────────────────────────────────────────────
 
-const fetchCachedStudentBulletinData = (sId: number, sessionId: number, term: string) =>
-  unstable_cache(
-    async () => {
-      console.log(`🔄 [Cache Miss] Fetching bulletin data for Student ${sId}, Term ${term}...`);
+export async function fetchStudentBulletinDataRaw(sId: number, sessionId: number, term: string) {
+      console.log(`🔄 [Raw Fetch] Fetching bulletin data for Student ${sId}, Term ${term}...`);
       
       // 1. Fetch Student with current class info
       const student = await db.query.students.findFirst({
@@ -1597,14 +1595,11 @@ const fetchCachedStudentBulletinData = (sId: number, sessionId: number, term: st
         totalStudents,
         branchInfo
       };
-    },
-    ["bulletin-data", String(sId), String(sessionId), term],
-    { tags: [ACADEMICS_CACHE_TAG], revalidate: 600 } // Cache for 10 minutes
-  )();
+    };
 
 export async function getStudentBulletinData(sId: number, sessionId: number, term: string) {
   return protectedDbAction("Academics", "canView", async () => {
-    return await fetchCachedStudentBulletinData(sId, sessionId, term);
+    return await fetchStudentBulletinDataRaw(sId, sessionId, term);
   });
 }
 
@@ -1711,15 +1706,72 @@ export async function getBatchBulletinData(classId: number, sessionId: number, t
       }
     });
 
+    // Pre-calculate S1 dynamic averages for all students
+    const s1AveragesMap = new Map<number, number>();
+    const resultsS1List = allResults.filter(r => r.term?.toLowerCase().includes("1") || r.term?.toLowerCase().includes("première") || r.term === "F1" || r.term?.toLowerCase().includes("a1") || r.term?.toLowerCase().includes("d1"));
+    const s1Grouped = new Map<number, { totalWeighted: number; totalCoef: number }>();
+    
+    resultsS1List.forEach(r => {
+      if (r.studentId) {
+        if (!s1Grouped.has(r.studentId)) s1Grouped.set(r.studentId, { totalWeighted: 0, totalCoef: 0 });
+        const g = s1Grouped.get(r.studentId)!;
+        const cw = parseFloat(r.classWorkScore as any) || 0;
+        const ex = parseFloat(r.examScore as any) || 0;
+        const coef = parseFloat(r.coefficient as any) || 1;
+        g.totalWeighted += ((cw + ex) / 2) * coef;
+        g.totalCoef += coef;
+      }
+    });
+    s1Grouped.forEach((g, sid) => {
+      if (g.totalCoef > 0) s1AveragesMap.set(sid, g.totalWeighted / g.totalCoef);
+    });
+
+    // Pre-calculate S2 dynamic averages for all students
+    const s2AveragesMap = new Map<number, number>();
+    const resultsS2List = allResults.filter(r => r.term?.toLowerCase().includes("2") || r.term?.toLowerCase().includes("deuxième") || r.term === "F2" || r.term?.toLowerCase().includes("a2") || r.term?.toLowerCase().includes("d2"));
+    const s2Grouped = new Map<number, { totalWeighted: number; totalCoef: number }>();
+    
+    resultsS2List.forEach(r => {
+      if (r.studentId) {
+        if (!s2Grouped.has(r.studentId)) s2Grouped.set(r.studentId, { totalWeighted: 0, totalCoef: 0 });
+        const g = s2Grouped.get(r.studentId)!;
+        const cw = parseFloat(r.classWorkScore as any) || 0;
+        const ex = parseFloat(r.examScore as any) || 0;
+        const coef = parseFloat(r.coefficient as any) || 1;
+        g.totalWeighted += ((cw + ex) / 2) * coef;
+        g.totalCoef += coef;
+      }
+    });
+    s2Grouped.forEach((g, sid) => {
+      if (g.totalCoef > 0) s2AveragesMap.set(sid, g.totalWeighted / g.totalCoef);
+    });
+
     // Pre-calculate annual averages and annual ranks for all students
     const annualAveragesList = studentList.map(s => {
       const studentSummaries = summariesByStudent.get(s.id) || [];
-      const termAverages = studentSummaries.filter(sum => sum.term !== term).map(sum => sum.average || 0);
-      const sData = studentAverages.get(s.id);
-      const currAvg = sData && sData.totalCoef > 0 ? (sData.totalWeighted / sData.totalCoef) : 0;
-      termAverages.push(currAvg);
+      const list: number[] = [];
       
-      const annualAvg = termAverages.length > 0 ? (termAverages.reduce((sum, v) => sum + v, 0) / termAverages.length) : 0;
+      const s1s = studentSummaries.find(sum => sum.term?.toLowerCase().includes("1") || sum.term?.toLowerCase().includes("première"));
+      if (s1s) {
+        list.push(s1s.average || 0);
+      } else if (s1AveragesMap.has(s.id)) {
+        list.push(s1AveragesMap.get(s.id)!);
+      }
+
+      const s2s = studentSummaries.find(sum => sum.term?.toLowerCase().includes("2") || sum.term?.toLowerCase().includes("deuxième"));
+      if (s2s) {
+        list.push(s2s.average || 0);
+      } else if (s2AveragesMap.has(s.id)) {
+        list.push(s2AveragesMap.get(s.id)!);
+      }
+
+      if (list.length === 0) {
+        const sData = studentAverages.get(s.id);
+        const currAvg = sData && sData.totalCoef > 0 ? (sData.totalWeighted / sData.totalCoef) : 0;
+        list.push(currAvg);
+      }
+
+      const annualAvg = list.reduce((sum, v) => sum + v, 0) / list.length;
       return { studentId: s.id, avg: annualAvg };
     });
 
@@ -1757,12 +1809,44 @@ export async function getBatchBulletinData(classId: number, sessionId: number, t
       const resultsS5 = studentAllResults.filter(r => r.term?.toLowerCase().includes("5") || r.term?.toLowerCase().includes("cinquième") || r.term === "F5" || r.term?.toLowerCase().includes("a5") || r.term?.toLowerCase().includes("d5"));
       const resultsS6 = studentAllResults.filter(r => r.term?.toLowerCase().includes("6") || r.term?.toLowerCase().includes("sixième") || r.term === "F6" || r.term?.toLowerCase().includes("a6") || r.term?.toLowerCase().includes("d6"));
 
-      const summaryS1 = studentAllSummaries.find(sum => sum.term?.toLowerCase().includes("1") || sum.term?.toLowerCase().includes("première") || sum.term === "F1" || sum.term?.toLowerCase().includes("a1") || sum.term?.toLowerCase().includes("d1")) || null;
-      const summaryS2 = studentAllSummaries.find(sum => sum.term?.toLowerCase().includes("2") || sum.term?.toLowerCase().includes("deuxième") || sum.term === "F2" || sum.term?.toLowerCase().includes("a2") || sum.term?.toLowerCase().includes("d2")) || null;
+      let summaryS1 = studentAllSummaries.find(sum => sum.term?.toLowerCase().includes("1") || sum.term?.toLowerCase().includes("première") || sum.term === "F1" || sum.term?.toLowerCase().includes("a1") || sum.term?.toLowerCase().includes("d1")) || null;
+      let summaryS2 = studentAllSummaries.find(sum => sum.term?.toLowerCase().includes("2") || sum.term?.toLowerCase().includes("deuxième") || sum.term === "F2" || sum.term?.toLowerCase().includes("a2") || sum.term?.toLowerCase().includes("d2")) || null;
       const summaryS3 = studentAllSummaries.find(sum => sum.term?.toLowerCase().includes("3") || sum.term?.toLowerCase().includes("troisième") || sum.term === "F3" || sum.term?.toLowerCase().includes("a3") || sum.term?.toLowerCase().includes("d3")) || null;
       const summaryS4 = studentAllSummaries.find(sum => sum.term?.toLowerCase().includes("4") || sum.term?.toLowerCase().includes("quatrième") || sum.term === "F4" || sum.term?.toLowerCase().includes("a4") || sum.term?.toLowerCase().includes("d4")) || null;
       const summaryS5 = studentAllSummaries.find(sum => sum.term?.toLowerCase().includes("5") || sum.term?.toLowerCase().includes("cinquième") || sum.term === "F5" || sum.term?.toLowerCase().includes("a5") || sum.term?.toLowerCase().includes("d5")) || null;
       const summaryS6 = studentAllSummaries.find(sum => sum.term?.toLowerCase().includes("6") || sum.term?.toLowerCase().includes("sixième") || sum.term === "F6" || sum.term?.toLowerCase().includes("a6") || sum.term?.toLowerCase().includes("d6")) || null;
+
+      // Synthesize missing summaryS1
+      if (!summaryS1 && resultsS1.length > 0) {
+        const avgS1 = s1AveragesMap.get(s.id) || 0;
+        let rankS1 = "-";
+        const sortedS1 = Array.from(s1AveragesMap.entries()).sort((a, b) => b[1] - a[1]);
+        let sRank = 1;
+        for (let i = 0; i < sortedS1.length; i++) {
+          if (i > 0 && sortedS1[i][1] < sortedS1[i-1][1]) sRank = i + 1;
+          if (sortedS1[i][0] === s.id) {
+            rankS1 = String(sRank);
+            break;
+          }
+        }
+        summaryS1 = { average: avgS1, rank: rankS1, term: "1er Semester" } as any;
+      }
+
+      // Synthesize missing summaryS2
+      if (!summaryS2 && resultsS2.length > 0) {
+        const avgS2 = s2AveragesMap.get(s.id) || 0;
+        let rankS2 = "-";
+        const sortedS2 = Array.from(s2AveragesMap.entries()).sort((a, b) => b[1] - a[1]);
+        let sRank = 1;
+        for (let i = 0; i < sortedS2.length; i++) {
+          if (i > 0 && sortedS2[i][1] < sortedS2[i-1][1]) sRank = i + 1;
+          if (sortedS2[i][0] === s.id) {
+            rankS2 = String(sRank);
+            break;
+          }
+        }
+        summaryS2 = { average: avgS2, rank: rankS2, term: "2ème Semester" } as any;
+      }
 
       return {
         student: s,
