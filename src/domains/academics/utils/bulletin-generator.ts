@@ -134,6 +134,15 @@ export async function generateBulletinPDF(data: any) {
   
   const displayRank = formatRank(rawRank);
 
+  // Load QR Code early to place inside the box
+  let qrBase64: string | null = null;
+  try {
+    const qrData = `ELEVE: ${student?.nomEtudiant || student?.name || "N/A"} | MATRICULE: ${student?.numAdmission || student?.matricule || "N/A"} | MOYENNE: ${displayAverage.toFixed(2)}/20 | CLASSE: ${student?.classe || student?.className || "N/A"}`;
+    qrBase64 = await fetchQRCodeBase64(qrData);
+  } catch (e) {
+    console.warn("Failed to load QR code for Bulletin:", e);
+  }
+
   doc.setFontSize(10);
   doc.setFont("helvetica", "bold");
   doc.text("ÉLÈVE:", 15, 62);
@@ -159,6 +168,10 @@ export async function generateBulletinPDF(data: any) {
   doc.text("MOYENNE:", 130, 69);
   doc.setFont("helvetica", "bold");
   doc.text(`${displayAverage.toFixed(2)} / 20`, 150, 69);
+
+  if (qrBase64) {
+    doc.addImage(qrBase64, 'PNG', 178, 57, 18, 18);
+  }
 
   // Results Table
   const tableData = (results || []).map((r: any) => {
@@ -366,17 +379,6 @@ export async function generateBulletinPDF(data: any) {
   });
 
   const lastY = (doc as any).lastAutoTable.finalY;
-
-  // Draw QR Code
-  try {
-    const qrData = `ELEVE: ${student?.nomEtudiant || student?.name || "N/A"} | MATRICULE: ${student?.numAdmission || student?.matricule || "N/A"} | MOYENNE: ${displayAverage.toFixed(2)}/20 | CLASSE: ${student?.classe || student?.className || "N/A"}`;
-    const qrBase64 = await fetchQRCodeBase64(qrData);
-    if (qrBase64) {
-      doc.addImage(qrBase64, 'PNG', 170, lastY + 5, 20, 20);
-    }
-  } catch (e) {
-    console.warn("Failed to load QR code for Bulletin:", e);
-  }
 
   // Open in new window for preview
   const blob = doc.output("blob");
