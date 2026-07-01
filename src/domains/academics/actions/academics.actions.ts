@@ -819,8 +819,7 @@ const fetchBroadsheetMatrix = (params: { classId: number, sessionId: number, ter
         readDb.query.studentTermSummaries.findMany({
           where: and(
             eq(studentTermSummaries.classId, classIdNum),
-            eq(studentTermSummaries.sessionId, sessionIdNum),
-            eq(studentTermSummaries.term, params.term)
+            eq(studentTermSummaries.sessionId, sessionIdNum)
           )
         }).catch(e => {
           console.error("[getBroadsheetMatrix] Error fetching summaries:", e);
@@ -851,9 +850,14 @@ const fetchBroadsheetMatrix = (params: { classId: number, sessionId: number, ter
       }
 
       // 4. Map data for UI using efficient Lookups
-      const summariesMap = new Map(summaries.map(s => [s.studentId, s]));
+      const summariesByStudent = new Map<number, any[]>();
+      summaries.forEach(s => {
+        if (s.studentId) {
+          if (!summariesByStudent.has(s.studentId)) summariesByStudent.set(s.studentId, []);
+          summariesByStudent.get(s.studentId)!.push(s);
+        }
+      });
       
-      // Create a result map for O(1) lookup inside studentList.map
       const resultsByStudent = new Map<number, any[]>();
       results.forEach(r => {
         if (r.studentId) {
@@ -861,22 +865,60 @@ const fetchBroadsheetMatrix = (params: { classId: number, sessionId: number, ter
           resultsByStudent.get(r.studentId)!.push(r);
         }
       });
+
+      // Pre-compute current averages for all students
+      const currentAveragesMap = new Map<number, number>();
+      studentList.forEach(s => {
+        const studentRes = resultsByStudent.get(s.id) || [];
+        const summary = (summariesByStudent.get(s.id) || []).find(sum => sum.term === params.term);
+        if (summary) {
+          currentAveragesMap.set(s.id, summary.average || 0);
+        } else {
+          let totalWeighted = 0;
+          let totalCoef = 0;
+          studentRes.forEach(r => {
+            const cw = parseFloat(String(r.classWorkScore ?? "0")) || 0;
+            const ex = parseFloat(String(r.examScore ?? "0")) || 0;
+            const coef = parseFloat(String(r.coefficient ?? "1")) || 1;
+            totalWeighted += ((cw + ex) / 2) * coef;
+            totalCoef += coef;
+          });
+          currentAveragesMap.set(s.id, totalCoef > 0 ? totalWeighted / totalCoef : 0);
+        }
+      });
+
+      // Pre-compute annual averages and annual ranks
+      const annualAveragesList = studentList.map(s => {
+        const studentSummaries = summariesByStudent.get(s.id) || [];
+        const termAverages = studentSummaries.filter(sum => sum.term !== params.term).map(sum => sum.average || 0);
+        termAverages.push(currentAveragesMap.get(s.id) || 0);
+        
+        const annualAvg = termAverages.length > 0 ? (termAverages.reduce((sum, v) => sum + v, 0) / termAverages.length) : 0;
+        return { studentId: s.id, annualAverage: annualAvg };
+      });
+
+      annualAveragesList.sort((a, b) => b.annualAverage - a.annualAverage);
+      const annualRanksMap = new Map<number, number>();
+      let currentAnnualRank = 1;
+      for (let i = 0; i < annualAveragesList.length; i++) {
+        if (i > 0 && annualAveragesList[i].annualAverage < annualAveragesList[i-1].annualAverage) {
+          currentAnnualRank = i + 1;
+        }
+        annualRanksMap.set(annualAveragesList[i].studentId, currentAnnualRank);
+      }
       
       const data = studentList.map(s => {
         const studentRes = resultsByStudent.get(s.id) || [];
-        const summary = summariesMap.get(s.id);
+        const studentSummaries = summariesByStudent.get(s.id) || [];
+        const summary = studentSummaries.find(sum => sum.term === params.term);
         
         const resultsObj: Record<number, any> = {};
-        let totalWeighted = 0;
-        let totalCoef = 0;
-
         studentRes.forEach(r => {
           if (r.subjectId) {
             const cw = parseFloat(String(r.classWorkScore ?? "0")) || 0;
             const ex = parseFloat(String(r.examScore ?? "0")) || 0;
             const coef = parseFloat(String(r.coefficient ?? "1")) || 1;
             const avg = (cw + ex) / 2;
-            const weighted = avg * coef;
 
             resultsObj[r.subjectId] = {
               n1: r.classWorkScore !== null ? String(r.classWorkScore) : "-",
@@ -885,14 +927,20 @@ const fetchBroadsheetMatrix = (params: { classId: number, sessionId: number, ter
               moy: avg.toFixed(2),
               rank: r.rank !== null ? String(r.rank) : "-"
             };
-            totalWeighted += weighted;
-            totalCoef += coef;
           }
         });
 
-        const average = summary?.average ?? (totalCoef > 0 ? totalWeighted / totalCoef : 0);
+        const average = currentAveragesMap.get(s.id) || 0;
         const decision = summary?.decision ?? (average >= 10 ? "ADMIS ✅" : "REDOUBLE ❌");
         const rank = summary?.rank ?? "N/A";
+        const annualAverage = annualAveragesList.find(a => a.studentId === s.id)?.annualAverage || average;
+        const annualRank = annualRanksMap.get(s.id) || 1;
+
+        const studentHistory = studentSummaries.map(h => ({
+          term: h.term,
+          average: h.average,
+          rank: h.rank
+        }));
 
         return {
           id: s.id,
@@ -902,16 +950,20 @@ const fetchBroadsheetMatrix = (params: { classId: number, sessionId: number, ter
           average,
           decision,
           rank,
-          totalCoef,
+          annualAverage,
+          annualRank,
+          totalCoef: studentRes.reduce((acc, r) => acc + (parseFloat(String(r.coefficient ?? "1")) || 1), 0),
           behaviorScore: s.behaviorScore || 20.0,
           conduite: summary?.conduite || 0.0,
           travail: summary?.travail || "-",
           tableauHonneur: summary?.tableauHonneur || false,
-          history: []
+          history: studentHistory
         };
       });
 
-      return { students: data, subjects: subjectsList };
+      const isCumulative = params.term.toLowerCase().includes("2") || params.term.toLowerCase().includes("3") || params.term.toLowerCase().includes("deuxième") || params.term.toLowerCase().includes("troisième");
+
+      return { students: data, subjects: subjectsList, isCumulative };
     },
     ['broadsheet-matrix', String(params.classId), String(params.sessionId), params.term],
     { tags: [ACADEMICS_CACHE_TAG], revalidate: 3600 }
@@ -1175,6 +1227,91 @@ const fetchCachedStudentBulletinData = (sId: number, sessionId: number, term: st
       summary.travail = (summary.travail && summary.travail !== "-") ? summary.travail : defaultTravail;
       summary.tableauHonneur = summary.tableauHonneur || (generalAverage >= 14);
 
+      // Calculate annualAverage and annualRank
+      const termAverages = summaries.map(sum => sum.average || 0);
+      const hasCurrentSummary = summaries.some(sum => sum.term === term);
+      if (!hasCurrentSummary) {
+        termAverages.push(generalAverage);
+      }
+      const annualAverage = termAverages.length > 0 ? (termAverages.reduce((sum, v) => sum + v, 0) / termAverages.length) : generalAverage;
+      
+      let annualRank = "-";
+      if (classId) {
+        try {
+          const allSummariesForClass = await db.query.studentTermSummaries.findMany({
+            where: and(
+              eq(studentTermSummaries.classId, classId),
+              eq(studentTermSummaries.sessionId, Number(sessionId))
+            )
+          });
+          
+          const summariesByStudentMap = new Map<number, number[]>();
+          allSummariesForClass.forEach(cs => {
+            if (cs.studentId) {
+              if (!summariesByStudentMap.has(cs.studentId)) {
+                summariesByStudentMap.set(cs.studentId, []);
+              }
+              summariesByStudentMap.get(cs.studentId)!.push(cs.average || 0);
+            }
+          });
+          
+          const classStudentsList = await db.select({ id: students.id })
+            .from(students)
+            .where(eq(students.classe, student.classe));
+          const classStudentIds = classStudentsList.map(cs => cs.id);
+          
+          const classCurrentResults = await db.query.studentResults.findMany({
+            where: and(
+              inArray(studentResults.studentId, classStudentIds),
+              eq(studentResults.sessionId, Number(sessionId)),
+              eq(studentResults.term, term)
+            )
+          });
+          
+          const classStudentCurrentAverages = new Map<number, { totalWeighted: number; totalCoef: number }>();
+          classCurrentResults.forEach(r => {
+            if (!classStudentCurrentAverages.has(r.studentId as number)) {
+              classStudentCurrentAverages.set(r.studentId as number, { totalWeighted: 0, totalCoef: 0 });
+            }
+            const sData = classStudentCurrentAverages.get(r.studentId as number)!;
+            const cw = parseFloat(r.classWorkScore as any) || 0;
+            const ex = parseFloat(r.examScore as any) || 0;
+            const coef = parseFloat(r.coefficient as any) || 1;
+            sData.totalWeighted += ((cw + ex) / 2) * coef;
+            sData.totalCoef += coef;
+          });
+          
+          const classAnnualAverages: { studentId: number; avg: number }[] = classStudentIds.map(sid => {
+            const list = [...(summariesByStudentMap.get(sid) || [])];
+            const hasCurr = allSummariesForClass.some(cs => cs.studentId === sid && cs.term === term);
+            if (!hasCurr) {
+              const sData = classStudentCurrentAverages.get(sid);
+              const currAvg = sData && sData.totalCoef > 0 ? (sData.totalWeighted / sData.totalCoef) : 0;
+              list.push(currAvg);
+            }
+            const avg = list.length > 0 ? (list.reduce((sum, v) => sum + v, 0) / list.length) : 0;
+            return { studentId: sid, avg };
+          });
+          
+          classAnnualAverages.sort((a, b) => b.avg - a.avg);
+          let rank = 1;
+          for (let i = 0; i < classAnnualAverages.length; i++) {
+            if (i > 0 && classAnnualAverages[i].avg < classAnnualAverages[i-1].avg) {
+              rank = i + 1;
+            }
+            if (classAnnualAverages[i].studentId === sId) {
+              annualRank = String(rank);
+              break;
+            }
+          }
+        } catch (err) {
+          console.warn("⚠️ Failed to calculate annual rank", err);
+        }
+      }
+
+      summary.annualAverage = annualAverage;
+      summary.annualRank = annualRank;
+
       const sessionRecord = await db.query.schoolSessions.findFirst({
         where: eq(schoolSessions.id, sessionId)
       });
@@ -1289,30 +1426,30 @@ export async function getBatchBulletinData(classId: number, sessionId: number, t
 
     if (studentList.length === 0) return { data: [] };
 
-    // 3. Fetch all results and summaries for these students
+    // 3. Fetch all results and summaries for these students across ALL terms of the session
     const studentIds = studentList.map(s => s.id);
-    const allResults = await db.query.studentResults.findMany({
-      where: and(
-        inArray(studentResults.studentId, studentIds),
-        eq(studentResults.sessionId, Number(sessionId)),
-        eq(studentResults.term, term)
-      ),
-      with: { subject: true }
-    });
+    
+    const [allResults, allSummaries] = await Promise.all([
+      db.query.studentResults.findMany({
+        where: and(
+          inArray(studentResults.studentId, studentIds),
+          eq(studentResults.sessionId, Number(sessionId))
+        ),
+        with: { subject: true }
+      }),
+      db.query.studentTermSummaries.findMany({
+        where: and(
+          inArray(studentTermSummaries.studentId, studentIds),
+          eq(studentTermSummaries.sessionId, Number(sessionId))
+        )
+      })
+    ]);
 
-    const allSummaries = await db.query.studentTermSummaries.findMany({
-      where: and(
-        inArray(studentTermSummaries.studentId, studentIds),
-        eq(studentTermSummaries.sessionId, Number(sessionId)),
-        eq(studentTermSummaries.term, term)
-      )
-    });
-
-    // 4. Pre-calculate Ranks for all students
+    // 4. Pre-calculate current term averages for all students (to determine current term rank)
     const studentAverages = new Map<number, { totalWeighted: number; totalCoef: number }>();
-    const subjectGroups = new Map<number, { studentId: number; avg: number }[]>();
-
-    allResults.forEach(r => {
+    const currentTermResults = allResults.filter(r => r.term === term);
+    
+    currentTermResults.forEach(r => {
       if (!studentAverages.has(r.studentId as number)) {
         studentAverages.set(r.studentId as number, { totalWeighted: 0, totalCoef: 0 });
       }
@@ -1323,11 +1460,6 @@ export async function getBatchBulletinData(classId: number, sessionId: number, t
       const avg = (cw + ex) / 2;
       sData.totalWeighted += (avg * coef);
       sData.totalCoef += coef;
-
-      if (r.subjectId) {
-        if (!subjectGroups.has(r.subjectId)) subjectGroups.set(r.subjectId, []);
-        subjectGroups.get(r.subjectId)!.push({ studentId: r.studentId as number, avg });
-      }
     });
 
     const averagesList = Array.from(studentAverages.entries()).map(([id, sData]) => ({
@@ -1343,11 +1475,76 @@ export async function getBatchBulletinData(classId: number, sessionId: number, t
       generalRanks.set(averagesList[i].studentId, currentRank);
     }
 
+    // Group summaries by studentId
+    const summariesByStudent = new Map<number, any[]>();
+    allSummaries.forEach(s => {
+      if (s.studentId) {
+        if (!summariesByStudent.has(s.studentId)) summariesByStudent.set(s.studentId, []);
+        summariesByStudent.get(s.studentId)!.push(s);
+      }
+    });
+
+    // Group results by studentId
+    const resultsByStudent = new Map<number, any[]>();
+    allResults.forEach(r => {
+      if (r.studentId) {
+        if (!resultsByStudent.has(r.studentId)) resultsByStudent.set(r.studentId, []);
+        resultsByStudent.get(r.studentId)!.push(r);
+      }
+    });
+
+    // Pre-calculate annual averages and annual ranks for all students
+    const annualAveragesList = studentList.map(s => {
+      const studentSummaries = summariesByStudent.get(s.id) || [];
+      const termAverages = studentSummaries.filter(sum => sum.term !== term).map(sum => sum.average || 0);
+      const sData = studentAverages.get(s.id);
+      const currAvg = sData && sData.totalCoef > 0 ? (sData.totalWeighted / sData.totalCoef) : 0;
+      termAverages.push(currAvg);
+      
+      const annualAvg = termAverages.length > 0 ? (termAverages.reduce((sum, v) => sum + v, 0) / termAverages.length) : 0;
+      return { studentId: s.id, avg: annualAvg };
+    });
+
+    annualAveragesList.sort((a, b) => b.avg - a.avg);
+    const annualRanksMap = new Map<number, number>();
+    let currentAnnualRank = 1;
+    for (let i = 0; i < annualAveragesList.length; i++) {
+      if (i > 0 && annualAveragesList[i].avg < annualAveragesList[i-1].avg) {
+        currentAnnualRank = i + 1;
+      }
+      annualRanksMap.set(annualAveragesList[i].studentId, currentAnnualRank);
+    }
+
     // 5. Assemble data for each student
     const batchData = studentList.map(s => {
-      const results = allResults.filter(r => r.studentId === s.id);
-      const summary = allSummaries.find(sum => sum.studentId === s.id) || { rank: String(generalRanks.get(s.id) || "-") } as any;
+      const studentAllResults = resultsByStudent.get(s.id) || [];
+      const studentAllSummaries = summariesByStudent.get(s.id) || [];
+      
+      const results = studentAllResults.filter(r => r.term === term);
+      const summary = studentAllSummaries.find(sum => sum.term === term) || { rank: String(generalRanks.get(s.id) || "-") } as any;
       summary.rank = String(generalRanks.get(s.id) || "-");
+
+      const sData = studentAverages.get(s.id);
+      const currentAvg = sData && sData.totalCoef > 0 ? (sData.totalWeighted / sData.totalCoef) : 0;
+      const annualAverage = annualAveragesList.find(a => a.studentId === s.id)?.avg || currentAvg;
+      const annualRank = String(annualRanksMap.get(s.id) || "-");
+
+      summary.annualAverage = annualAverage;
+      summary.annualRank = annualRank;
+
+      const resultsS1 = studentAllResults.filter(r => r.term?.toLowerCase().includes("1") || r.term?.toLowerCase().includes("première") || r.term === "F1" || r.term?.toLowerCase().includes("a1") || r.term?.toLowerCase().includes("d1"));
+      const resultsS2 = studentAllResults.filter(r => r.term?.toLowerCase().includes("2") || r.term?.toLowerCase().includes("deuxième") || r.term === "F2" || r.term?.toLowerCase().includes("a2") || r.term?.toLowerCase().includes("d2"));
+      const resultsS3 = studentAllResults.filter(r => r.term?.toLowerCase().includes("3") || r.term?.toLowerCase().includes("troisième") || r.term === "F3" || r.term?.toLowerCase().includes("a3") || r.term?.toLowerCase().includes("d3"));
+      const resultsS4 = studentAllResults.filter(r => r.term?.toLowerCase().includes("4") || r.term?.toLowerCase().includes("quatrième") || r.term === "F4" || r.term?.toLowerCase().includes("a4") || r.term?.toLowerCase().includes("d4"));
+      const resultsS5 = studentAllResults.filter(r => r.term?.toLowerCase().includes("5") || r.term?.toLowerCase().includes("cinquième") || r.term === "F5" || r.term?.toLowerCase().includes("a5") || r.term?.toLowerCase().includes("d5"));
+      const resultsS6 = studentAllResults.filter(r => r.term?.toLowerCase().includes("6") || r.term?.toLowerCase().includes("sixième") || r.term === "F6" || r.term?.toLowerCase().includes("a6") || r.term?.toLowerCase().includes("d6"));
+
+      const summaryS1 = studentAllSummaries.find(sum => sum.term?.toLowerCase().includes("1") || sum.term?.toLowerCase().includes("première") || sum.term === "F1" || sum.term?.toLowerCase().includes("a1") || sum.term?.toLowerCase().includes("d1")) || null;
+      const summaryS2 = studentAllSummaries.find(sum => sum.term?.toLowerCase().includes("2") || sum.term?.toLowerCase().includes("deuxième") || sum.term === "F2" || sum.term?.toLowerCase().includes("a2") || sum.term?.toLowerCase().includes("d2")) || null;
+      const summaryS3 = studentAllSummaries.find(sum => sum.term?.toLowerCase().includes("3") || sum.term?.toLowerCase().includes("troisième") || sum.term === "F3" || sum.term?.toLowerCase().includes("a3") || sum.term?.toLowerCase().includes("d3")) || null;
+      const summaryS4 = studentAllSummaries.find(sum => sum.term?.toLowerCase().includes("4") || sum.term?.toLowerCase().includes("quatrième") || sum.term === "F4" || sum.term?.toLowerCase().includes("a4") || sum.term?.toLowerCase().includes("d4")) || null;
+      const summaryS5 = studentAllSummaries.find(sum => sum.term?.toLowerCase().includes("5") || sum.term?.toLowerCase().includes("cinquième") || sum.term === "F5" || sum.term?.toLowerCase().includes("a5") || sum.term?.toLowerCase().includes("d5")) || null;
+      const summaryS6 = studentAllSummaries.find(sum => sum.term?.toLowerCase().includes("6") || sum.term?.toLowerCase().includes("sixième") || sum.term === "F6" || sum.term?.toLowerCase().includes("a6") || sum.term?.toLowerCase().includes("d6")) || null;
 
       return {
         student: s,
@@ -1355,6 +1552,18 @@ export async function getBatchBulletinData(classId: number, sessionId: number, t
         term,
         results,
         summary,
+        resultsS1,
+        resultsS2,
+        resultsS3,
+        resultsS4,
+        resultsS5,
+        resultsS6,
+        summaryS1,
+        summaryS2,
+        summaryS3,
+        summaryS4,
+        summaryS5,
+        summaryS6,
         totalStudents: studentList.length,
         branchInfo
       };

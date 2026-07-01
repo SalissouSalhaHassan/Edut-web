@@ -56,7 +56,7 @@ async function fetchTransparentLogoBase64(url: string, opacity: number = 0.08): 
 
 export async function generateBulletinPDF(data: any) {
   const doc = new jsPDF();
-  const { student, session, term, results, summary, totalStudents, branchInfo } = data;
+  const { student, session, term, results, summary, summaryS1, summaryS2, totalStudents, branchInfo } = data;
   const safeTerm = (term || "Semestre").toUpperCase();
   const eduLevel = (student?.educationalLevel || "Lycée").toUpperCase();
   
@@ -181,6 +181,29 @@ export async function generateBulletinPDF(data: any) {
     ];
   });
 
+  // Determine semesters' averages and ranks cleanly
+  const isS1Active = safeTerm.includes("1") || safeTerm.includes("PREMIÈRE") || safeTerm.includes("1ER");
+  const isS2Active = safeTerm.includes("2") || safeTerm.includes("DEUXIÈME") || safeTerm.includes("2ÈME");
+
+  const avgS1 = isS1Active ? displayAverage : (summaryS1?.average || null);
+  const rankS1 = isS1Active ? displayRank : formatRank(summaryS1?.rank);
+
+  const avgS2 = isS2Active ? displayAverage : (summaryS2?.average || null);
+  const rankS2 = isS2Active ? displayRank : formatRank(summaryS2?.rank);
+
+  const annualAvg = (summary?.annualAverage !== undefined && summary?.annualAverage !== null)
+    ? summary.annualAverage
+    : (avgS1 !== null && avgS2 !== null ? (avgS1 + avgS2) / 2 : null);
+
+  const annualRank = formatRank(summary?.annualRank);
+
+  const displayAvgS1 = avgS1 !== null && avgS1 !== undefined ? (typeof avgS1 === 'number' ? avgS1.toFixed(2) : String(avgS1)) : "";
+  const displayRankS1 = rankS1 || "";
+  const displayAvgS2 = avgS2 !== null && avgS2 !== undefined ? (typeof avgS2 === 'number' ? avgS2.toFixed(2) : String(avgS2)) : "";
+  const displayRankS2 = rankS2 || "";
+  const displayAnnualAvg = annualAvg !== null && annualAvg !== undefined ? (typeof annualAvg === 'number' ? annualAvg.toFixed(2) : String(annualAvg)) : "";
+  const displayAnnualRank = annualRank || "";
+
   const footerRows: any[] = [
     [
       { content: "Conduite", colSpan: 4, styles: { halign: "left", fontStyle: "bold", fillColor: [255, 255, 255] } },
@@ -201,7 +224,7 @@ export async function generateBulletinPDF(data: any) {
     ],
     [
       { content: "Moy. Annuelle", colSpan: 5, styles: { halign: "left", fontStyle: "bold", fillColor: [255, 255, 255] } },
-      { content: summary?.annualAverage?.toFixed(2) || "-", styles: { halign: "center", fontStyle: "bold", fillColor: [240, 240, 240] } },
+      { content: displayAnnualAvg || "-", styles: { halign: "center", fontStyle: "bold", fillColor: [240, 240, 240] } },
       { content: "", colSpan: 3, styles: { fillColor: [255, 255, 255] } }
     ]
   ];
@@ -246,12 +269,12 @@ export async function generateBulletinPDF(data: any) {
     ],
     body: [
       [
-        { content: safeTerm.includes("1") ? displayAverage.toFixed(2) : "", styles: { halign: "center", fontStyle: "bold" } },
-        { content: safeTerm.includes("1") ? displayRank : "", styles: { halign: "center", fontStyle: "bold" } },
-        { content: safeTerm.includes("2") ? displayAverage.toFixed(2) : "", styles: { halign: "center", fontStyle: "bold" } },
-        { content: safeTerm.includes("2") ? displayRank : "", styles: { halign: "center", fontStyle: "bold", fillColor: safeTerm.includes("2") ? [255, 255, 0] : [255, 255, 255] } },
-        { content: summary?.annualAverage?.toFixed(2) || "", styles: { halign: "center", fontStyle: "bold" } },
-        { content: summary?.annualRank || "", styles: { halign: "center", fontStyle: "bold" } }
+        { content: displayAvgS1, styles: { halign: "center", fontStyle: "bold" } },
+        { content: displayRankS1, styles: { halign: "center", fontStyle: "bold" } },
+        { content: displayAvgS2, styles: { halign: "center", fontStyle: "bold" } },
+        { content: displayRankS2, styles: { halign: "center", fontStyle: "bold", fillColor: isS2Active ? [255, 255, 0] : [255, 255, 255] } },
+        { content: displayAnnualAvg, styles: { halign: "center", fontStyle: "bold", fillColor: [245, 245, 245] } },
+        { content: displayAnnualRank, styles: { halign: "center", fontStyle: "bold", fillColor: [245, 245, 245] } }
       ]
     ],
     theme: "grid",

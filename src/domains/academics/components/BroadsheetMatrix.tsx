@@ -300,9 +300,9 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
             </thead>
             <tbody className="divide-y divide-slate-100">
               {students.map((student: any, idx: number) => {
-                const t1 = student.history?.find((h: any) => h.term && h.term.includes("1er"));
+                const t1 = student.history?.find((h: any) => h.term && (h.term.includes("1er") || h.term.toLowerCase().includes("1") || h.term.toLowerCase().includes("première")));
                 const safeAvg = typeof student.average === 'number' && !isNaN(student.average) ? student.average : 0;
-                const annualAvg = t1 ? (t1.average + safeAvg) / 2 : safeAvg;
+                const annualAvg = typeof student.annualAverage === 'number' ? student.annualAverage : (t1 ? (t1.average + safeAvg) / 2 : safeAvg);
                 const computedRank = studentRanks[student.id] || 0;
                 const totalStudents = students.length;
 
@@ -397,7 +397,7 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
                         <td className="px-6 py-4 text-center border-r border-slate-50 bg-yellow-50/10">
                           <div className="flex items-center justify-center gap-4 text-[10px] font-black">
                             <span className={`w-10 ${annualAvg >= 10 ? 'text-emerald-600' : 'text-rose-600'}`}>{annualAvg.toFixed(2)}</span>
-                            <span className="text-amber-500 w-8">-</span>
+                            <span className="text-amber-500 w-8">{student.annualRank || "-"}</span>
                           </div>
                         </td>
                       </>
