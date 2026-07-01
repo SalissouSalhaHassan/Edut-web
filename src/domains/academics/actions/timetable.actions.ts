@@ -178,19 +178,25 @@ export async function moveTimetableEntry(id: number, dayName: string, periodNumb
     });
     if (!entry) throw new Error("Séance introuvable.");
 
+    const classId = entry.classId;
+    const employeeId = entry.employeeId;
+    if (!classId || !employeeId) {
+      throw new Error("Séance incomplète (classe ou enseignant manquant).");
+    }
+
     const conflict = await db.query.timetableEntries.findFirst({
       where: and(
         eq(timetableEntries.dayName, dayName),
         eq(timetableEntries.periodNumber, periodNumber),
         or(
-          eq(timetableEntries.classId, entry.classId),
-          eq(timetableEntries.employeeId, entry.employeeId)
+          eq(timetableEntries.classId, classId),
+          eq(timetableEntries.employeeId, employeeId)
         )
       )
     });
 
     if (conflict && conflict.id !== id) {
-       const isClassBusy = conflict.classId === entry.classId;
+       const isClassBusy = conflict.classId === classId;
        const msg = isClassBusy 
          ? "Cette classe a déjà un cours programmé à cette heure."
          : "Ce enseignant a déjà un cours programmé à cette heure.";
