@@ -1418,10 +1418,23 @@ const fetchCachedStudentBulletinData = (sId: number, sessionId: number, term: st
             }
           });
           
+          const cls = await db.query.schoolClasses.findFirst({
+            where: eq(schoolClasses.id, classId)
+          });
+          const className = cls?.className || student.classe || "";
+          
           const classStudentsList = await db.select({ id: students.id })
             .from(students)
-            .where(eq(students.classe, student.classe || ""));
+            .where(
+              and(
+                eq(students.schoolId, student.schoolId),
+                ilike(students.classe, className.trim())
+              )
+            );
           const classStudentIds = classStudentsList.map(cs => cs.id);
+          if (!classStudentIds.includes(sId)) {
+            classStudentIds.push(sId);
+          }
           
           // S1 dynamic averages for class
           const classResultsS1 = await db.query.studentResults.findMany({
@@ -1440,17 +1453,19 @@ const fetchCachedStudentBulletinData = (sId: number, sessionId: number, term: st
           
           const classAveragesS1 = new Map<number, { totalWeighted: number; totalCoef: number }>();
           classResultsS1.forEach(r => {
-            if (!classAveragesS1.has(r.studentId as number)) {
-              classAveragesS1.set(r.studentId as number, { totalWeighted: 0, totalCoef: 0 });
+            if (r.studentId) {
+              if (!classAveragesS1.has(r.studentId as number)) {
+                classAveragesS1.set(r.studentId as number, { totalWeighted: 0, totalCoef: 0 });
+              }
+              const sData = classAveragesS1.get(r.studentId as number)!;
+              const cw = parseFloat(r.classWorkScore as any) || 0;
+              const ex = parseFloat(r.examScore as any) || 0;
+              const coef = parseFloat(r.coefficient as any) || 1;
+              sData.totalWeighted += ((cw + ex) / 2) * coef;
+              sData.totalCoef += coef;
             }
-            const sData = classAveragesS1.get(r.studentId as number)!;
-            const cw = parseFloat(r.classWorkScore as any) || 0;
-            const ex = parseFloat(r.examScore as any) || 0;
-            const coef = parseFloat(r.coefficient as any) || 1;
-            sData.totalWeighted += ((cw + ex) / 2) * coef;
-            sData.totalCoef += coef;
           });
-
+ 
           // S2 dynamic averages for class
           const classResultsS2 = await db.query.studentResults.findMany({
             where: and(
@@ -1468,17 +1483,19 @@ const fetchCachedStudentBulletinData = (sId: number, sessionId: number, term: st
           
           const classAveragesS2 = new Map<number, { totalWeighted: number; totalCoef: number }>();
           classResultsS2.forEach(r => {
-            if (!classAveragesS2.has(r.studentId as number)) {
-              classAveragesS2.set(r.studentId as number, { totalWeighted: 0, totalCoef: 0 });
+            if (r.studentId) {
+              if (!classAveragesS2.has(r.studentId as number)) {
+                classAveragesS2.set(r.studentId as number, { totalWeighted: 0, totalCoef: 0 });
+              }
+              const sData = classAveragesS2.get(r.studentId as number)!;
+              const cw = parseFloat(r.classWorkScore as any) || 0;
+              const ex = parseFloat(r.examScore as any) || 0;
+              const coef = parseFloat(r.coefficient as any) || 1;
+              sData.totalWeighted += ((cw + ex) / 2) * coef;
+              sData.totalCoef += coef;
             }
-            const sData = classAveragesS2.get(r.studentId as number)!;
-            const cw = parseFloat(r.classWorkScore as any) || 0;
-            const ex = parseFloat(r.examScore as any) || 0;
-            const coef = parseFloat(r.coefficient as any) || 1;
-            sData.totalWeighted += ((cw + ex) / 2) * coef;
-            sData.totalCoef += coef;
           });
-
+ 
           const classAnnualAverages = classStudentIds.map(sid => {
             const list: number[] = [];
             
@@ -1492,7 +1509,7 @@ const fetchCachedStudentBulletinData = (sId: number, sessionId: number, term: st
                 list.push(sData.totalWeighted / sData.totalCoef);
               }
             }
-
+ 
             const hasS2Summary = allSummariesForClass.some(cs => cs.studentId === sid && (cs.term?.toLowerCase().includes("2") || cs.term?.toLowerCase().includes("deuxième")));
             if (hasS2Summary) {
               const s2s = allSummariesForClass.find(cs => cs.studentId === sid && (cs.term?.toLowerCase().includes("2") || cs.term?.toLowerCase().includes("deuxième")));
@@ -1503,11 +1520,11 @@ const fetchCachedStudentBulletinData = (sId: number, sessionId: number, term: st
                 list.push(sData.totalWeighted / sData.totalCoef);
               }
             }
-
+ 
             const avg = list.length > 0 ? (list.reduce((sum, v) => sum + v, 0) / list.length) : 0;
             return { studentId: sid, avg };
           });
-
+ 
           classAnnualAverages.sort((a, b) => b.avg - a.avg);
           let rank = 1;
           for (let i = 0; i < classAnnualAverages.length; i++) {
@@ -1519,8 +1536,8 @@ const fetchCachedStudentBulletinData = (sId: number, sessionId: number, term: st
               break;
             }
           }
-        } catch (err) {
-          console.warn("⚠️ Failed to calculate annual rank", err);
+        } catch (err: any) {
+          console.error("⚠️ Failed to calculate annual rank", err);
         }
       }
 
