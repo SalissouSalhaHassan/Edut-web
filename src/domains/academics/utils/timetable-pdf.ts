@@ -225,43 +225,43 @@ function drawTimetablePage(
   }
 
   (doc as any).autoTable({
-    startY: 52,
+    startY: 50,
     head: [['HEURES', ...days.map((d: string) => (d || "").toUpperCase())]],
     body: tableBody,
     theme: 'grid',
     styles: { 
-      fontSize: 9, 
+      fontSize: 8.5, 
       halign: 'center', 
       valign: 'middle', 
-      cellPadding: 4, 
+      cellPadding: 2, 
       overflow: 'linebreak', 
       lineColor: [226, 232, 240], 
       lineWidth: 0.5,
-      minCellHeight: 16
+      minCellHeight: 11
     },
     headStyles: { 
       fillColor: [30, 41, 59], 
       textColor: 255, 
       fontStyle: 'bold', 
-      fontSize: 10,
+      fontSize: 9.5,
       halign: 'center'
     },
     alternateRowStyles: { },
-    margin: { top: 52, bottom: 30, left: 15, right: 15 },
+    margin: { top: 50, bottom: 15, left: 15, right: 15 },
   });
 
   // Signatures
-  const finalY = (doc as any).lastAutoTable.finalY + 15;
-  doc.setFontSize(10);
+  const finalY = (doc as any).lastAutoTable.finalY + 10;
+  doc.setFontSize(9);
   doc.setTextColor(30, 41, 59);
   doc.setFont("helvetica", "bold");
   doc.text("Le Censeur", 40, finalY);
   doc.text("Le Directeur", 257, finalY, { align: 'right' });
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
+  doc.setFontSize(7.5);
   doc.setTextColor(100);
-  doc.text("(Cachet et Signature)", 40, finalY + 5);
-  doc.text("(Cachet et Signature)", 257, finalY + 5, { align: 'right' });
+  doc.text("(Cachet et Signature)", 40, finalY + 4);
+  doc.text("(Cachet et Signature)", 257, finalY + 4, { align: 'right' });
 }
 
 function drawMiniTimetable(
