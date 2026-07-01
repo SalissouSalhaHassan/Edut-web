@@ -204,7 +204,7 @@ export async function moveTimetableEntry(id: number, dayName: string, periodNumb
     }
 
     await db.update(timetableEntries)
-      .set({ dayName, periodNumber, updatedAt: new Date() })
+      .set({ dayName, periodNumber })
       .where(eq(timetableEntries.id, id));
 
     revalidatePath("/dashboard/academics/timetable");
