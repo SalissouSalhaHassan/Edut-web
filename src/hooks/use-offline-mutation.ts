@@ -1,12 +1,16 @@
-import { useOnlineStatus } from './use-online-status';
-import { localDb } from '@/infrastructure/local-db/dexie';
-import { toast } from 'sonner';
+import { localDb } from "@/infrastructure/local-db/dexie";
+import { toast } from "sonner";
+import { useOnlineStatus } from "./use-online-status";
+
+type OfflineTable = "students" | "exams" | "examResults" | "subjects";
 
 interface MutationOptions<T> {
-  targetTable: 'students' | 'exams' | 'examResults' | 'subjects';
+  targetTable: OfflineTable;
   onlineAction: (payload: T) => Promise<{ success: boolean; error?: string; action?: string; id?: number }>;
   onSuccess?: (res: { success: boolean; action?: string; id?: number }) => void;
 }
+
+const SYNC_SUPPORTED_TABLES = new Set<OfflineTable>(["students", "exams", "examResults"]);
 
 export function useOfflineMutation<T>() {
   const isOnline = useOnlineStatus();
@@ -23,27 +27,34 @@ export function useOfflineMutation<T>() {
             id: res.id,
             updatedAt: Date.now(),
           };
-          
+
           await localDb[targetTable].put(localPayload as any);
 
-          if (onSuccess) onSuccess(res);
+          onSuccess?.(res);
           return { success: true, fromCloud: true };
-        } else {
-          toast.error(res?.error || "Erreur sur le serveur.");
-          return { success: false, error: res?.error };
         }
-      } catch (err: any) {
-        console.warn("[useOfflineMutation] Server action failed, falling back to local queue:", err);
-        return await queueOffline(payload, options);
+
+        toast.error(res?.error || "Erreur sur le serveur.");
+        return { success: false, error: res?.error };
+      } catch (error) {
+        console.warn("[useOfflineMutation] Server action failed, falling back to local queue:", error);
+        return queueOffline(payload, options);
       }
-    } else {
-      return await queueOffline(payload, options);
     }
+
+    return queueOffline(payload, options);
   };
 
   const queueOffline = async (payload: T, options: MutationOptions<T>) => {
     const { targetTable, onSuccess } = options;
+
     try {
+      if (!SYNC_SUPPORTED_TABLES.has(targetTable)) {
+        const message = `La table ${targetTable} n'est pas encore synchronisable hors-ligne.`;
+        toast.error(message);
+        return { success: false, error: message };
+      }
+
       const localId = (payload as any).id || Math.floor(Math.random() * 1000000);
       const localPayload = {
         ...payload,
@@ -54,24 +65,26 @@ export function useOfflineMutation<T>() {
       await localDb[targetTable].put(localPayload as any);
 
       await localDb.outbox.add({
-        actionType: (payload as any).id ? 'UPDATE' : 'INSERT',
+        actionType: (payload as any).id ? "UPDATE" : "INSERT",
         targetTable,
         payload: {
           ...payload,
           id: localId,
         },
         timestamp: Date.now(),
+        retryCount: 0,
+        lastError: null,
       });
 
-      toast.warning("Modifications enregistrées localement (Hors-ligne).");
-      
-      const res = { success: true, action: (payload as any).id ? 'update' : 'insert', id: localId };
-      if (onSuccess) onSuccess(res);
+      toast.warning("Modifications enregistrees localement (hors-ligne).");
+
+      const res = { success: true, action: (payload as any).id ? "update" : "insert", id: localId };
+      onSuccess?.(res);
       return { success: true, fromLocal: true };
-    } catch (err: any) {
-      console.error("[useOfflineMutation] IndexedDB error:", err);
-      toast.error("Impossible d'enregistrer localement: " + err.message);
-      return { success: false, error: err.message };
+    } catch (error: any) {
+      console.error("[useOfflineMutation] IndexedDB error:", error);
+      toast.error("Impossible d'enregistrer localement: " + error.message);
+      return { success: false, error: error.message };
     }
   };
 

@@ -62,6 +62,8 @@ export interface OutboxAction {
   targetTable: string;
   payload: any;
   timestamp: number;
+  retryCount?: number;
+  lastError?: string | null;
 }
 
 class EdutLocalDatabase extends Dexie {
@@ -74,11 +76,19 @@ class EdutLocalDatabase extends Dexie {
   constructor() {
     super('EdutLocalDatabase');
     this.version(1).stores({
-      students: '++id, numAdmission, nomEtudiant, classe, status, updatedAt',
+      students: '++id, numAdmission, nomEtudiant, classe, statut, updatedAt',
       exams: '++id, examName, classId, subjectId, updatedAt',
       examResults: '++id, examId, studentId, updatedAt',
       subjects: '++id, subjectName, updatedAt',
       outbox: '++id, actionType, targetTable, timestamp',
+    });
+
+    this.version(2).stores({
+      students: '++id, numAdmission, nomEtudiant, classe, statut, updatedAt',
+      exams: '++id, examName, classId, subjectId, updatedAt',
+      examResults: '++id, examId, studentId, updatedAt',
+      subjects: '++id, subjectName, updatedAt',
+      outbox: '++id, actionType, targetTable, timestamp, retryCount',
     });
   }
 }

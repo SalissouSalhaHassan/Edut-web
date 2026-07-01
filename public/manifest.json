@@ -1,8 +1,9 @@
 {
   "name": "Edut Pro - School Management",
   "short_name": "Edut Pro",
-  "description": "Système de Gestion Scolaire Avancé",
+  "description": "Systeme de Gestion Scolaire Avance",
   "start_url": "/dashboard",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#2563eb",
