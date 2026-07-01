@@ -56,6 +56,19 @@ export interface LocalSubject {
   updatedAt?: number;
 }
 
+export interface LocalFeePayment {
+  id?: number;
+  feeId: number;
+  amount: number;
+  reduction?: number;
+  paymentMode?: string;
+  reference?: string;
+  monthConcerned?: string;
+  notes?: string;
+  datePaid?: string;
+  updatedAt?: number;
+}
+
 export interface OutboxAction {
   id?: number;
   actionType: 'INSERT' | 'UPDATE' | 'DELETE';
@@ -71,6 +84,7 @@ class EdutLocalDatabase extends Dexie {
   exams!: Table<LocalExam>;
   examResults!: Table<LocalExamResult>;
   subjects!: Table<LocalSubject>;
+  feePayments!: Table<LocalFeePayment>;
   outbox!: Table<OutboxAction>;
 
   constructor() {
@@ -88,6 +102,15 @@ class EdutLocalDatabase extends Dexie {
       exams: '++id, examName, classId, subjectId, updatedAt',
       examResults: '++id, examId, studentId, updatedAt',
       subjects: '++id, subjectName, updatedAt',
+      outbox: '++id, actionType, targetTable, timestamp, retryCount',
+    });
+
+    this.version(3).stores({
+      students: '++id, numAdmission, nomEtudiant, classe, statut, updatedAt',
+      exams: '++id, examName, classId, subjectId, updatedAt',
+      examResults: '++id, examId, studentId, updatedAt',
+      subjects: '++id, subjectName, updatedAt',
+      feePayments: '++id, feeId, reference, datePaid, updatedAt',
       outbox: '++id, actionType, targetTable, timestamp, retryCount',
     });
   }

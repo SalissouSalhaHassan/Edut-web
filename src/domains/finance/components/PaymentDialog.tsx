@@ -10,6 +10,7 @@ import { getPeriods } from "@/domains/academics/actions/academics.actions";
 import { PaymentFormData } from "../validators/finance.schema";
 import { CreditCard, Banknote, TrendingUp, TrendingDown, Info, AlertCircle, CheckCircle2, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useOfflineMutation } from "@/hooks/use-offline-mutation";
 
 interface PaymentDialogProps {
   feeData: any;
@@ -19,6 +20,7 @@ interface PaymentDialogProps {
 const months = ["Septembre", "Octobre", "Novembre", "Décembre", "Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août"];
 
 export default function PaymentDialog({ feeData, trigger }: PaymentDialogProps) {
+  const { mutate, isOnline } = useOfflineMutation<PaymentFormData>();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -84,7 +86,11 @@ export default function PaymentDialog({ feeData, trigger }: PaymentDialogProps) 
       datePaid: form.get("datePaid") as string,
     };
 
-    const result = await recordPayment(data);
+    const result = await mutate(data, {
+      targetTable: "feePayments",
+      onlineAction: recordPayment,
+      onSuccess: () => setOpen(false),
+    });
     setLoading(false);
 
     if (result.success) {
@@ -131,6 +137,13 @@ export default function PaymentDialog({ feeData, trigger }: PaymentDialogProps) 
             <div className="bg-rose-50 border border-rose-100 text-rose-600 px-6 py-4 rounded-2xl text-sm font-bold flex items-center gap-3 animate-shake">
               <AlertCircle size={18} />
               {error}
+            </div>
+          )}
+
+          {!isOnline && (
+            <div className="bg-amber-50 border border-amber-100 text-amber-700 px-6 py-4 rounded-2xl text-sm font-bold flex items-center gap-3">
+              <AlertCircle size={18} />
+              Mode hors-ligne: le paiement sera enregistré localement puis synchronisé automatiquement.
             </div>
           )}
 

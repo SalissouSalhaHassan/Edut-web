@@ -2,7 +2,7 @@ import { localDb } from "@/infrastructure/local-db/dexie";
 import { toast } from "sonner";
 import { useOnlineStatus } from "./use-online-status";
 
-type OfflineTable = "students" | "exams" | "examResults" | "subjects";
+type OfflineTable = "students" | "exams" | "examResults" | "subjects" | "feePayments";
 
 interface MutationOptions<T> {
   targetTable: OfflineTable;
@@ -10,7 +10,7 @@ interface MutationOptions<T> {
   onSuccess?: (res: { success: boolean; action?: string; id?: number }) => void;
 }
 
-const SYNC_SUPPORTED_TABLES = new Set<OfflineTable>(["students", "exams", "examResults"]);
+const SYNC_SUPPORTED_TABLES = new Set<OfflineTable>(["students", "exams", "examResults", "feePayments"]);
 
 type OfflineMutationResult = {
   success: boolean;

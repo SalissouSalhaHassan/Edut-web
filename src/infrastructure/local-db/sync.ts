@@ -44,6 +44,12 @@ export async function syncOutbox() {
           });
           success = !!res?.success;
           error = res?.error || "Unknown error";
+        } else if (item.targetTable === "feePayments") {
+          const { recordPayment } = await import("@/domains/finance/actions/finance.actions");
+          const { id: _localId, updatedAt: _updatedAt, ...paymentPayload } = item.payload;
+          const res = await recordPayment(paymentPayload);
+          success = !!res?.success;
+          error = res?.error || "Unknown error";
         } else {
           error = `Table hors-ligne non supportee: ${item.targetTable}`;
         }
