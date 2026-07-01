@@ -218,17 +218,47 @@ export default function ModernTimetable({ mode, title, subTitle, entries, settin
                         const cells = getCellData(day, pNum);
 
                         return (
-                          <td key={day} className="p-2 border-r border-slate-50 align-top">
+                          <td 
+                            key={day} 
+                            onDragOver={(e) => {
+                              if (mode !== "up") e.preventDefault();
+                            }}
+                            onDrop={async (e) => {
+                              if (mode === "up") return;
+                              const entryIdStr = e.dataTransfer.getData("text/plain");
+                              if (!entryIdStr) return;
+                              const entryId = Number(entryIdStr);
+                              try {
+                                const { moveTimetableEntry } = await import("@/domains/academics/actions/timetable.actions");
+                                const res = await moveTimetableEntry(entryId, day, pNum);
+                                if (!res.success) {
+                                  alert(res.error || "Erreur lors du déplacement.");
+                                } else if (onRefresh) {
+                                  onRefresh();
+                                }
+                              } catch (err: any) {
+                                alert(err.message || "Erreur lors du déplacement.");
+                              }
+                            }}
+                            className="p-2 border-r border-slate-50 align-top transition-colors hover:bg-indigo-50/20"
+                          >
                             {cells.length > 0 ? (
                               <div className="flex flex-col gap-2">
                                 {cells.map((cell) => {
                                   const theme = getSubjectTheme(cell?.subject?.subjectName || "");
                                   const Icon = theme.icon;
                                   return (
-                                    <div key={cell.id} className={cn(
-                                      "rounded-2xl p-4 flex flex-col gap-2 transition-all duration-300 hover:shadow-lg relative overflow-hidden group/cell",
-                                      theme.bg
-                                    )}>
+                                    <div 
+                                      key={cell.id} 
+                                      draggable={mode !== "up"}
+                                      onDragStart={(e) => {
+                                        e.dataTransfer.setData("text/plain", String(cell.id));
+                                      }}
+                                      className={cn(
+                                        "rounded-2xl p-4 flex flex-col gap-2 transition-all duration-300 hover:shadow-lg relative overflow-hidden group/cell cursor-grab active:cursor-grabbing",
+                                        theme.bg
+                                      )}
+                                    >
                                       <div className={cn("absolute top-0 left-0 w-1.5 h-full opacity-60", theme.color.replace('text-', 'bg-'))} />
                                       <div className="flex items-start justify-between">
                                         <div className={cn("p-2 rounded-xl bg-white shadow-sm", theme.color)}>

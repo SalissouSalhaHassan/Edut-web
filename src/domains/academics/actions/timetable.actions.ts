@@ -171,6 +171,41 @@ export async function deleteTimetableEntry(id: number) {
   });
 }
 
+export async function moveTimetableEntry(id: number, dayName: string, periodNumber: number) {
+  return protectedDbAction("Academics", "canEdit", async () => {
+    const entry = await db.query.timetableEntries.findFirst({
+      where: eq(timetableEntries.id, id)
+    });
+    if (!entry) throw new Error("Séance introuvable.");
+
+    const conflict = await db.query.timetableEntries.findFirst({
+      where: and(
+        eq(timetableEntries.dayName, dayName),
+        eq(timetableEntries.periodNumber, periodNumber),
+        or(
+          eq(timetableEntries.classId, entry.classId),
+          eq(timetableEntries.employeeId, entry.employeeId)
+        )
+      )
+    });
+
+    if (conflict && conflict.id !== id) {
+       const isClassBusy = conflict.classId === entry.classId;
+       const msg = isClassBusy 
+         ? "Cette classe a déjà un cours programmé à cette heure."
+         : "Ce enseignant a déjà un cours programmé à cette heure.";
+       throw new Error(`Conflit détecté : ${msg}`);
+    }
+
+    await db.update(timetableEntries)
+      .set({ dayName, periodNumber, updatedAt: new Date() })
+      .where(eq(timetableEntries.id, id));
+
+    revalidatePath("/dashboard/academics/timetable");
+    return { success: true };
+  });
+}
+
 export async function getTeacherConstraints(employeeId: number) {
   return protectedDbAction("Academics", "canView", async () => {
     const constraints = await db.query.teacherConstraints.findFirst({

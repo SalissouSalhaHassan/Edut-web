@@ -332,6 +332,10 @@ function TimetableCell({
     <div
       role="button"
       tabIndex={0}
+      draggable={!!cell && mode !== "up"}
+      onDragStart={(e) => {
+        if (cell) e.dataTransfer.setData("text/plain", String(cell.id));
+      }}
       onClick={onOpen}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") onOpen();
@@ -339,7 +343,7 @@ function TimetableCell({
       className={cn(
         "group relative h-28 rounded-[24px] border transition-all duration-500 flex flex-col items-center justify-center p-5 gap-2 overflow-hidden",
         cell
-          ? "bg-indigo-500/10 border-indigo-500/30 shadow-[0_10px_30px_rgba(99,102,241,0.10)] hover:bg-indigo-500/15 hover:border-indigo-500/50 hover:scale-[1.02]"
+          ? "bg-indigo-500/10 border-indigo-500/30 shadow-[0_10px_30px_rgba(99,102,241,0.10)] hover:bg-indigo-500/15 hover:border-indigo-500/50 hover:scale-[1.02] cursor-grab active:cursor-grabbing"
           : "bg-white/[0.03] border-white/[0.07] hover:bg-white/[0.06] hover:border-white/[0.15]"
       )}
     >
@@ -1091,7 +1095,30 @@ export default function IntelligentTimetable({ classes, teachers, subjects, curr
                               const occPct = viewMode === "global" ? Math.round((occ / total) * 100) : 0;
 
                               return (
-                                <div key={`${d}_${pNum}`} className="relative">
+                                <div 
+                                  key={`${d}_${pNum}`} 
+                                  onDragOver={(e) => {
+                                    if (viewMode !== "up") e.preventDefault();
+                                  }}
+                                  onDrop={async (e) => {
+                                    if (viewMode === "up") return;
+                                    const entryIdStr = e.dataTransfer.getData("text/plain");
+                                    if (!entryIdStr) return;
+                                    const entryId = Number(entryIdStr);
+                                    try {
+                                      const { moveTimetableEntry } = await import("@/domains/academics/actions/timetable.actions");
+                                      const res = await moveTimetableEntry(entryId, d, pNum);
+                                      if (!res.success) {
+                                        alert(res.error || "Erreur lors du déplacement.");
+                                      } else {
+                                        await refresh();
+                                      }
+                                    } catch (err: any) {
+                                      alert(err.message || "Erreur lors du déplacement.");
+                                    }
+                                  }}
+                                  className="relative transition-all duration-300 hover:bg-indigo-500/5 rounded-[24px]"
+                                >
                                   {viewMode === "global" ? (
                                     <div
                                       className={cn(
