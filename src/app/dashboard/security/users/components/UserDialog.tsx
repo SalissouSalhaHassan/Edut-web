@@ -52,6 +52,15 @@ const EDUCATION_LEVELS = [
 ];
 
 // ─── Chip option ──────────────────────────────────────────────────────────────
+function parseSelectedLevels(value: string) {
+  if (!value || value === "Tous" || value === "All") return [];
+  return value.split(",").map((item) => item.trim()).filter(Boolean);
+}
+
+function formatSelectedLevels(levels: string[]) {
+  return levels.length > 0 ? levels.join(",") : "Tous";
+}
+
 type ChipColor = "indigo" | "violet" | "emerald" | "amber" | "rose";
 
 const COLOR_MAP: Record<ChipColor, { bg: string; border: string; text: string }> = {
@@ -199,6 +208,15 @@ export default function UserDialog({
     !formData.utilisateur.trim() ||
     !formData.nomPrenom.trim()   ||
     (!user && !formData.motDePasse.trim());
+
+  const selectedLevels = parseSelectedLevels(formData.educationalLevel);
+  const hasAllLevels = selectedLevels.length === 0;
+  const toggleEducationalLevel = (level: string) => {
+    const next = selectedLevels.includes(level)
+      ? selectedLevels.filter((item) => item !== level)
+      : [...selectedLevels, level];
+    setFormData({ ...formData, educationalLevel: formatSelectedLevels(next) });
+  };
 
   // ── Trigger ────────────────────────────────────────────────────────────────
   const renderTrigger = () => {
@@ -418,11 +436,18 @@ export default function UserDialog({
               iconBg="bg-gradient-to-br from-emerald-500 to-teal-600"
             />
             <div className="flex flex-wrap gap-2">
+              <ChipOption
+                selected={hasAllLevels}
+                onClick={() => setFormData({ ...formData, educationalLevel: "Tous" })}
+                color="indigo"
+              >
+                Toutes les étapes
+              </ChipOption>
               {EDUCATION_LEVELS.map((lvl) => (
                 <ChipOption
                   key={lvl.value}
-                  selected={formData.educationalLevel === lvl.value}
-                  onClick={() => setFormData({ ...formData, educationalLevel: lvl.value })}
+                  selected={!hasAllLevels && selectedLevels.includes(lvl.value)}
+                  onClick={() => toggleEducationalLevel(lvl.value)}
                   color="emerald"
                 >
                   <span>{lvl.icon}</span>

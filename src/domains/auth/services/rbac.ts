@@ -24,8 +24,7 @@ export const getUserRoleType = cache(async (user: any): Promise<UserRoleType> =>
   }
   
   const isAdmin = user.admin === true;
-  const level = user.educationalLevel;
-  const hasRestrictedLevel = level && level !== "Tous" && level !== "All" && level !== "";
+  const hasRestrictedLevel = !hasAllEducationalLevels(user.educationalLevel);
 
   if (isAdmin) {
     if (hasRestrictedLevel) {
@@ -147,7 +146,25 @@ export function normalizeLevel(level: string): string {
     .trim();
 }
 
+export function parseEducationalLevels(level: string | null | undefined): string[] {
+  if (!level) return [];
+  return level.split(",").map((item) => item.trim()).filter(Boolean);
+}
+
+export function hasAllEducationalLevels(level: string | null | undefined): boolean {
+  const levels = parseEducationalLevels(level);
+  return levels.length === 0 || levels.some((item) => {
+    const norm = normalizeLevel(item);
+    return norm === "tous" || norm === "all";
+  });
+}
+
 export function getCompatibleLevels(level: string): string[] {
+  const selectedLevels = parseEducationalLevels(level);
+  if (selectedLevels.length > 1) {
+    return Array.from(new Set(selectedLevels.flatMap((item) => getCompatibleLevels(item))));
+  }
+
   const norm = normalizeLevel(level);
   let baseLevels: string[] = [];
   
@@ -208,7 +225,7 @@ export function checkEducationalLevelAccess(user: any, resourceLevel: string | n
   if (!user) return false;
   if (user.superAdmin) return true;
   
-  const hasRestrictedLevel = user.educationalLevel && user.educationalLevel !== "Tous" && user.educationalLevel !== "All" && user.educationalLevel !== "";
+  const hasRestrictedLevel = !hasAllEducationalLevels(user.educationalLevel);
   
   // General Director has access to all levels in school
   if (user.admin === true && !hasRestrictedLevel) {
@@ -217,26 +234,25 @@ export function checkEducationalLevelAccess(user: any, resourceLevel: string | n
   
   if (!resourceLevel) return true;
   
-  const normUser = normalizeLevel(user.educationalLevel || "");
   const normResource = normalizeLevel(resourceLevel);
   
-  if (normUser === normResource) return true;
   if (normResource === "tous" || normResource === "all" || normResource === "") return true;
+  const userLevels = parseEducationalLevels(user.educationalLevel);
+  if (userLevels.some((level) => normalizeLevel(level) === normResource)) return true;
   
   // Handlers for groupings
   const universityTerms = ["university", "universite", "licence", "master", "doctorat", "superieur"];
-  if (universityTerms.includes(normUser) && universityTerms.includes(normResource)) return true;
-
   const primaryTerms = ["primaire", "maternelle", "elementaire"];
-  if (primaryTerms.includes(normUser) && primaryTerms.includes(normResource)) return true;
-
   const middleTerms = ["college", "moyen"];
-  if (middleTerms.includes(normUser) && middleTerms.includes(normResource)) return true;
-
   const secondaryTerms = ["lycee", "secondaire"];
-  if (secondaryTerms.includes(normUser) && secondaryTerms.includes(normResource)) return true;
-
-  return false;
+  return userLevels.some((level) => {
+    const normUser = normalizeLevel(level);
+    if (universityTerms.includes(normUser) && universityTerms.includes(normResource)) return true;
+    if (primaryTerms.includes(normUser) && primaryTerms.includes(normResource)) return true;
+    if (middleTerms.includes(normUser) && middleTerms.includes(normResource)) return true;
+    if (secondaryTerms.includes(normUser) && secondaryTerms.includes(normResource)) return true;
+    return false;
+  });
 }
 
 // Get Teacher Employee record matching user's username or email

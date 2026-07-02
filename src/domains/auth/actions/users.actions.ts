@@ -160,9 +160,11 @@ export async function getUsers() {
 
     if (roleType === "level_director" && user.educationalLevel) {
       const compatibleLevels = getCompatibleLevels(user.educationalLevel);
+      const compatibleLevelsSql = sql`ARRAY[${sql.join(compatibleLevels.map((level) => sql`${level}`), sql`, `)}]::text[]`;
+      const levelWhere = sql`string_to_array(coalesce(${users.educationalLevel}, ''), ',') && ${compatibleLevelsSql}`;
       whereClause = whereClause 
-        ? and(whereClause, inArray(users.educationalLevel, compatibleLevels))
-        : inArray(users.educationalLevel, compatibleLevels);
+        ? and(whereClause, levelWhere)
+        : levelWhere;
     }
 
     const data = await db.query.users.findMany({
