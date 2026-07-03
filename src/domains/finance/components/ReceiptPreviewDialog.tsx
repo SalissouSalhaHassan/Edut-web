@@ -32,6 +32,8 @@ import { cn } from "@/lib/utils";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { getBranchByLevel } from "../../settings/actions/settings.actions";
+import OfficialDocumentHeader from "@/domains/printing/components/OfficialDocumentHeader";
+import type { DocumentHeaderConfig } from "@/domains/printing/document-header";
 
 interface ReceiptPreviewDialogProps {
   open: boolean;
@@ -154,6 +156,19 @@ export default function ReceiptPreviewDialog({
   const schoolAddress = branchInfo?.address || "Secteur 5, Niamey, Niger";
   const schoolPhone = branchInfo?.contactNo || "+227 90 12 34 56";
   const schoolEmail = branchInfo?.email || "contact@edutacademy.ne";
+  const receiptHeaderConfig: Partial<DocumentHeaderConfig> = {
+    style: "classic_dual_logo",
+    schoolName,
+    address: schoolAddress,
+    phone: schoolPhone,
+    email: schoolEmail,
+    schoolYear: feeData.session?.sessionName || "2024 - 2025",
+    leftLogo: branchInfo?.logoPath || "",
+    rightLogo: branchInfo?.logoPath || "",
+    centerLogo: branchInfo?.logoPath || "",
+    ministry: "Ministère de l'Éducation Nationale",
+    service: "Service de la Scolarité",
+  };
 
   // ---------- PRINT ----------
   const handlePrint = () => {
@@ -485,6 +500,10 @@ export default function ReceiptPreviewDialog({
 
                 {/* ── HEADER: Logo | Title | Contact ── */}
                 <div className="px-10 pt-7 pb-6 border-b border-slate-100">
+                  <OfficialDocumentHeader config={receiptHeaderConfig} title={`Reçu de paiement - ${refNumber}`} variant="compact" />
+                </div>
+
+                <div className="hidden px-10 pt-7 pb-6 border-b border-slate-100">
                   <div className="flex items-center justify-between gap-6">
 
                     {/* Left — Shield logo + school name */}

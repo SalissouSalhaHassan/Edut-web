@@ -8,6 +8,11 @@ import { protectedDbAction } from "@/lib/protected-action";
 import { revalidatePath, unstable_cache, revalidateTag as nextRevalidateTag } from "next/cache";
 const revalidateTag = nextRevalidateTag as any;
 import { getActiveSchoolId } from "@/domains/auth/services/school";
+import {
+  DOCUMENT_HEADER_SETTING_KEY,
+  mergeDocumentHeaderConfig,
+  type DocumentHeaderConfig,
+} from "@/domains/printing/document-header";
 
 const SETTINGS_TAG = "settings-cache";
 const BRANCHES_TAG = "branches-cache";
@@ -164,6 +169,55 @@ export async function updateSetting(key: string, value: string) {
         key,
         value,
         schoolId: schoolId
+      });
+    }
+
+    revalidateTag(SETTINGS_TAG);
+    revalidatePath("/dashboard/settings");
+    return { success: true };
+  });
+}
+
+export async function getDocumentHeaderConfig() {
+  return protectedDbAction("Settings", "canView", async () => {
+    const schoolId = await getActiveSchoolId();
+    const existing = await db.query.settings.findFirst({
+      where: and(
+        eq(settings.key, DOCUMENT_HEADER_SETTING_KEY),
+        eq(settings.schoolId, schoolId)
+      )
+    });
+
+    if (!existing?.value) return { data: mergeDocumentHeaderConfig() };
+
+    try {
+      return { data: mergeDocumentHeaderConfig(JSON.parse(existing.value)) };
+    } catch {
+      return { data: mergeDocumentHeaderConfig() };
+    }
+  });
+}
+
+export async function saveDocumentHeaderConfig(config: DocumentHeaderConfig) {
+  return protectedDbAction("Settings", "canEdit", async () => {
+    const schoolId = await getActiveSchoolId();
+    const value = JSON.stringify(mergeDocumentHeaderConfig(config));
+    const existing = await db.query.settings.findFirst({
+      where: and(
+        eq(settings.key, DOCUMENT_HEADER_SETTING_KEY),
+        eq(settings.schoolId, schoolId)
+      )
+    });
+
+    if (existing) {
+      await db.update(settings)
+        .set({ value, updatedAt: new Date() })
+        .where(eq(settings.id, existing.id));
+    } else {
+      await db.insert(settings).values({
+        key: DOCUMENT_HEADER_SETTING_KEY,
+        value,
+        schoolId,
       });
     }
 

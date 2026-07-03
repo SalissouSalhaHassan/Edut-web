@@ -1,4 +1,4 @@
-import { getSettings, getBranches, updateSchoolDomain } from "@/domains/settings/actions/settings.actions";
+import { getDocumentHeaderConfig, getSettings, getBranches, updateSchoolDomain } from "@/domains/settings/actions/settings.actions";
 import { getCurrentSchool } from "@/domains/auth/services/school";
 import { 
   getSessions, getClasses, getSections, getSubjects, getSectionSubjects, 
@@ -6,7 +6,7 @@ import {
 } from "@/domains/academics/actions/academics.actions";
 import { getEmployees } from "@/domains/hr/actions/employees.actions";
 import { getCurrentUser } from "@/domains/auth/services/session";
-import { Settings, Shield, CreditCard, BookOpen, Database, Bell, Globe, School, Building2, DollarSign, Lock, Server, AlertCircle, LayoutGrid, Calendar, MapPin } from "lucide-react";
+import { Settings, Shield, CreditCard, BookOpen, Database, Bell, Globe, School, Building2, DollarSign, Lock, Server, AlertCircle, LayoutGrid, Calendar, MapPin, FileText } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { SettingsForm } from "./components/SettingsForm";
@@ -14,6 +14,7 @@ import { AcademicSettings } from "./components/AcademicSettings";
 import { CurriculumMatrix } from "./components/CurriculumMatrix";
 import TimetableManager from "./components/TimetableManager";
 import { CampusSetup } from "./components/CampusSetup";
+import DocumentHeaderManager from "@/domains/settings/components/DocumentHeaderManager";
 
 export default async function SettingsPage({
   searchParams,
@@ -49,6 +50,8 @@ export default async function SettingsPage({
   const employees = employeesRes.data?.data || employeesRes.data || [];
   const currentUser = await getCurrentUser();
   const currentSchool = await getCurrentSchool();
+  const headerConfigRes = await getDocumentHeaderConfig() as any;
+  const documentHeaderConfig = headerConfigRes.data?.data || headerConfigRes.data || null;
 
   const canEditAcademics = currentUser?.admin || currentUser?.role?.permissions?.some((p: any) => p.moduleName?.toLowerCase() === "academics" && p.canEdit);
 
@@ -69,6 +72,7 @@ export default async function SettingsPage({
                   { v: 'security', l: 'Sécurité', i: <Shield size={18} /> },
                   { v: 'notifications', l: 'Alertes', i: <Bell size={18} /> },
                   { v: 'system', l: 'Système', i: <Database size={18} /> },
+                  { v: 'headers', l: 'En-têtes', i: <FileText size={18} /> },
                 ].map((t) => (
                   <TabsTrigger 
                     key={t.v} 
@@ -213,6 +217,10 @@ export default async function SettingsPage({
                 />
              </TabsContent>
 
+
+             <TabsContent value="headers" className="m-0 animate-in slide-in-from-right-4 duration-500">
+                <DocumentHeaderManager initialConfig={documentHeaderConfig} />
+             </TabsContent>
 
              <TabsContent value="security" className="m-0 animate-in slide-in-from-right-4 duration-500 space-y-8">
                 <div className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-sm space-y-10">

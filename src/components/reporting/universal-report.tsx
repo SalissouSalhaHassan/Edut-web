@@ -21,6 +21,8 @@ import {
   Building,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import OfficialDocumentHeader from "@/domains/printing/components/OfficialDocumentHeader";
+import type { DocumentHeaderConfig } from "@/domains/printing/document-header";
 
 export interface UniversalReportKpi {
   label: string;
@@ -42,6 +44,7 @@ export interface UniversalReportProps {
     description?: string;
     qrValue?: string;
     isLandscape?: boolean;
+    documentHeaderConfig?: Partial<DocumentHeaderConfig> | null;
   };
   kpis?: UniversalReportKpi[];
   table?: {
@@ -426,6 +429,9 @@ export default function UniversalReport({ metadata, kpis = [], table, onSendEmai
       <article className="bg-white rounded-[32px] border border-slate-100 shadow-sm p-8 print:p-0 print:border-none print:shadow-none space-y-8 print:bg-white print:text-black">
         
         {/* ─── PRINTABLE OFFICIAL HEADER ─── */}
+        {metadata.documentHeaderConfig ? (
+          <OfficialDocumentHeader config={metadata.documentHeaderConfig} title={metadata.title} />
+        ) : (
         <div className="w-full border-b-2 border-indigo-600 pb-5">
           <div className="flex flex-col md:flex-row justify-between items-start gap-4">
             
@@ -463,6 +469,7 @@ export default function UniversalReport({ metadata, kpis = [], table, onSendEmai
 
           </div>
         </div>
+        )}
 
         {/* ─── GENERAL SUMMARY SECTION ─── */}
         {kpis && kpis.length > 0 && (
