@@ -6,7 +6,7 @@ import {
   ChevronDown, BookOpen, Clock, AlertCircle, CheckCircle2, ClipboardList,
   CalendarDays, ChevronLeft, ChevronRight, BookMarked, FolderUp, Share2,
   FileCode, PlayCircle, Music, Monitor, Image as ImageIcon, Link2, ExternalLink,
-  Table, Grid, Check, HelpCircle, Loader2
+  Table, Grid, Check, HelpCircle, Loader2, RotateCcw
 } from "lucide-react";
 import {
   createRessource, updateRessource, deleteRessource,
