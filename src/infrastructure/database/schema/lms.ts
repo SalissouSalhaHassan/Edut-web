@@ -238,7 +238,7 @@ export const lmsSubmissionsRelations = relations(lmsSubmissions, ({ one }) => ({
 }));
 
 export const lmsQuizzesRelations = relations(lmsQuizzes, ({ one, many }) => ({
-  course: one(lmsQuizzes, { fields: [lmsQuizzes.courseId], references: [lmsQuizzes.id] }),
+  course: one(lmsCourses, { fields: [lmsQuizzes.courseId], references: [lmsCourses.id] }),
   questions: many(lmsQuestions),
 }));
 
@@ -248,7 +248,7 @@ export const lmsQuestionsRelations = relations(lmsQuestions, ({ one, many }) => 
 }));
 
 export const lmsAnswersRelations = relations(lmsAnswers, ({ one }) => ({
-  question: one(lmsAnswers, { fields: [lmsAnswers.questionId], references: [lmsQuestions.id] }),
+  question: one(lmsQuestions, { fields: [lmsAnswers.questionId], references: [lmsQuestions.id] }),
 }));
 
 export const lmsDiscussionsRelations = relations(lmsDiscussions, ({ one }) => ({
@@ -259,6 +259,6 @@ export const lmsDiscussionsRelations = relations(lmsDiscussions, ({ one }) => ({
 }));
 
 export const lmsCertificatesRelations = relations(lmsCertificates, ({ one }) => ({
-  course: one(lmsCertificates, { fields: [lmsCertificates.courseId], references: [lmsCourses.id] }),
+  course: one(lmsCourses, { fields: [lmsCertificates.courseId], references: [lmsCourses.id] }),
   student: one(students, { fields: [lmsCertificates.studentId], references: [students.id] }),
 }));
