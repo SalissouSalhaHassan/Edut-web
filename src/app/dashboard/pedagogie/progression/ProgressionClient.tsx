@@ -11,6 +11,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from "recharts";
 import { toast } from "sonner";
+import { canExportPedagogieReports } from "@/domains/pedagogie/permissions";
 
 interface Props {
   currentUser: any;
@@ -27,6 +28,7 @@ const PAGE_SIZE = 15;
 export default function ProgressionClient({
   currentUser, classes, subjects, employees, plans, seances
 }: Props) {
+  const canExport = canExportPedagogieReports(currentUser);
   const [search, setSearch] = useState("");
   const [filterClass, setFilterClass] = useState("");
   const [filterSubject, setFilterSubject] = useState("");
@@ -270,12 +272,16 @@ export default function ProgressionClient({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => window.print()} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-bold hover:bg-slate-50 transition-all shadow-sm">
-            <Printer size={14} /> Imprimer
-          </button>
-          <button onClick={handleExport} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-bold hover:bg-slate-50 transition-all shadow-sm">
-            <Download size={14} /> Générer rapport
-          </button>
+          {canExport && (
+            <>
+              <button onClick={() => window.print()} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-bold hover:bg-slate-50 transition-all shadow-sm">
+                <Printer size={14} /> Imprimer
+              </button>
+              <button onClick={handleExport} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-bold hover:bg-slate-50 transition-all shadow-sm">
+                <Download size={14} /> Générer rapport
+              </button>
+            </>
+          )}
         </div>
       </div>
 

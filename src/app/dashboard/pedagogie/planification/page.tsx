@@ -4,6 +4,9 @@ import { getEmployees } from "@/domains/hr/actions/employees.actions";
 import { initPlanificationTable, getPlanifications } from "@/domains/pedagogie/actions/planification.actions";
 import PlanificationClient from "./PlanificationClient";
 
+import { getPedagogieRole } from "@/domains/pedagogie/permissions";
+import { X } from "lucide-react";
+
 export const metadata = {
   title: "Planification pédagogique | Pédagogie | Edut",
   description: "Gestion des planifications pédagogiques annuelles, mensuelles et hebdomadaires",
@@ -15,6 +18,23 @@ export default async function PlanificationPage() {
 
   // 2. Fetch current user context
   const currentUser = await getCurrentUser();
+
+  const role = getPedagogieRole(currentUser);
+  if (role === "eleve" || role === "parent" || role === "guest" || role === "consultation") {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center p-5">
+        <div className="bg-white rounded-3xl p-8 border border-slate-150 max-w-md text-center space-y-4 shadow-sm">
+          <div className="w-12 h-12 rounded-full bg-rose-50 flex items-center justify-center text-rose-500 mx-auto">
+            <X size={24} />
+          </div>
+          <h2 className="text-lg font-black text-slate-800">Accès non autorisé</h2>
+          <p className="text-slate-500 text-sm font-medium">
+            Vous ne disposez pas des permissions nécessaires pour accéder à la Planification pédagogique.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   // 3. Parallel fetch of reference data
   const [classesRes, subjectsRes, employeesRes, plansRes] = await Promise.all([

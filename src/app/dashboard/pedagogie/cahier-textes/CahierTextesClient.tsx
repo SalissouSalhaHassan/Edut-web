@@ -11,6 +11,12 @@ import {
   createSeance, updateSeance, validerSeance, deleteSeance,
   type SeanceFormData,
 } from "@/domains/pedagogie/actions/cahier-textes.actions";
+import {
+  canManageCahierTextes,
+  canValidateCahierTextes,
+  isReadOnlyPedagogie,
+  getPedagogieRole
+} from "@/domains/pedagogie/permissions";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 interface Props {
@@ -35,6 +41,11 @@ export default function CahierTextesClient({
 }: Props) {
   const [seances,   setSeances]   = useState<any[]>(initialSeances);
   const [isPending, startTransition] = useTransition();
+
+  const canManage = canManageCahierTextes(currentUser);
+  const canValidate = canValidateCahierTextes(currentUser);
+  const isReadOnly = isReadOnlyPedagogie(currentUser);
+  const userRole = getPedagogieRole(currentUser);
 
   // ── Filters state ──────────────────────────────────────────────────────
   const [search,        setSearch]        = useState("");
@@ -238,9 +249,11 @@ export default function CahierTextesClient({
         <div className="flex items-center gap-2 flex-wrap">
           <button onClick={handlePrint}    className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-bold hover:bg-slate-50 transition-all shadow-sm"><Printer size={14} /> Imprimer</button>
           <button onClick={handleExportCSV} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-bold hover:bg-slate-50 transition-all shadow-sm"><Download size={14} /> Export CSV</button>
-          <button onClick={openNew} className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white text-xs font-black shadow-lg shadow-indigo-200 hover:opacity-90 transition-all">
-            <Plus size={15} /> Nouvelle séance
-          </button>
+          {canManage && (
+            <button onClick={openNew} className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white text-xs font-black shadow-lg shadow-indigo-200 hover:opacity-90 transition-all">
+              <Plus size={15} /> Nouvelle séance
+            </button>
+          )}
         </div>
       </div>
 
@@ -352,12 +365,16 @@ export default function CahierTextesClient({
                     <td className="px-4 py-3 whitespace-nowrap">
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <ActionBtn icon={<Eye size={13}/>}     title="Voir"       color="bg-slate-100 text-slate-600 hover:bg-slate-200"   onClick={() => openView(s)} />
-                        <ActionBtn icon={<Pencil size={13}/>}  title="Modifier"   color="bg-indigo-50 text-indigo-600 hover:bg-indigo-100" onClick={() => openEdit(s)} />
-                        {s.statut !== "Validé" && (
+                        {canManage && (userRole !== "enseignant" || s.employeeId === currentUser.employeeId) && s.statut !== "Validé" && (
+                          <ActionBtn icon={<Pencil size={13}/>}  title="Modifier"   color="bg-indigo-50 text-indigo-600 hover:bg-indigo-100" onClick={() => openEdit(s)} />
+                        )}
+                        {canValidate && s.statut !== "Validé" && (
                           <ActionBtn icon={isPending ? <Loader2 size={13} className="animate-spin"/> : <Check size={13}/>} title="Valider" color="bg-emerald-50 text-emerald-600 hover:bg-emerald-100" onClick={() => handleValider(s)} />
                         )}
                         <ActionBtn icon={<Printer size={13}/>} title="Imprimer"   color="bg-violet-50 text-violet-600 hover:bg-violet-100" onClick={handlePrint} />
-                        <ActionBtn icon={<Trash2 size={13}/>}  title="Supprimer"  color="bg-rose-50 text-rose-600 hover:bg-rose-100"       onClick={() => handleDelete(s)} />
+                        {canManage && (userRole !== "enseignant" || s.employeeId === currentUser.employeeId) && s.statut !== "Validé" && (
+                          <ActionBtn icon={<Trash2 size={13}/>}  title="Supprimer"  color="bg-rose-50 text-rose-600 hover:bg-rose-100"       onClick={() => handleDelete(s)} />
+                        )}
                       </div>
                     </td>
                   </tr>

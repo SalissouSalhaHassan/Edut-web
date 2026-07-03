@@ -290,12 +290,11 @@ export default function DashboardSidebar({
             "/dashboard/academics/homework"
           ].includes(item.href));
         } else if (section.id === "pedagogie") {
-          // Students see logbook, planner, materials, homework
+          // Students see only: ressources, devoirs, progression
           items = items.filter((item) => [
-            "/dashboard/pedagogie/cahier-textes",
-            "/dashboard/pedagogie/planification",
             "/dashboard/pedagogie/ressources",
-            "/dashboard/pedagogie/devoirs"
+            "/dashboard/pedagogie/devoirs",
+            "/dashboard/pedagogie/progression"
           ].includes(item.href));
         } else if (["finance", "administration", "canevas", "resources", "system"].includes(section.id)) {
           items = [];
@@ -311,13 +310,10 @@ export default function DashboardSidebar({
             "/dashboard/academics/homework"
           ].includes(item.href));
         } else if (section.id === "pedagogie") {
-          // Parents see logbook, planner, materials, homework, remediation
+          // Parents see only: progression, devoirs
           items = items.filter((item) => [
-            "/dashboard/pedagogie/cahier-textes",
-            "/dashboard/pedagogie/planification",
-            "/dashboard/pedagogie/ressources",
-            "/dashboard/pedagogie/devoirs",
-            "/dashboard/pedagogie/remediation"
+            "/dashboard/pedagogie/progression",
+            "/dashboard/pedagogie/devoirs"
           ].includes(item.href));
         } else if (["finance", "administration", "canevas", "resources", "system"].includes(section.id)) {
           items = [];

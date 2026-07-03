@@ -10,6 +10,9 @@ import {
 } from "@/domains/pedagogie/actions/analytics.actions";
 import PedagogieDashboardClient from "./PedagogieDashboardClient";
 
+import { getPedagogieRole } from "@/domains/pedagogie/permissions";
+import { X } from "lucide-react";
+
 export const metadata = {
   title: "Pédagogie & Enseignement | Edut",
   description: "Tableau de bord pédagogique - suivi progression, devoirs, ressources et rapports",
@@ -17,6 +20,23 @@ export const metadata = {
 
 export default async function PedagogiePage() {
   const currentUser = await getCurrentUser();
+
+  const role = getPedagogieRole(currentUser);
+  if (role === "eleve" || role === "parent" || role === "guest" || role === "consultation") {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center p-5">
+        <div className="bg-white rounded-3xl p-8 border border-slate-150 max-w-md text-center space-y-4 shadow-sm">
+          <div className="w-12 h-12 rounded-full bg-rose-50 flex items-center justify-center text-rose-500 mx-auto">
+            <X size={24} />
+          </div>
+          <h2 className="text-lg font-black text-slate-800">Accès non autorisé</h2>
+          <p className="text-slate-500 text-sm font-medium">
+            Vous ne disposez pas des permissions nécessaires pour accéder au Tableau de bord pédagogique.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   const [
     classesRes,

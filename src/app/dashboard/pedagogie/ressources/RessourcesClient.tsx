@@ -13,6 +13,11 @@ import {
   type RessourceFormData
 } from "@/domains/pedagogie/actions/ressources.actions";
 import { toast } from "sonner";
+import {
+  canManageRessources,
+  isReadOnlyPedagogie,
+  getPedagogieRole
+} from "@/domains/pedagogie/permissions";
 
 interface Props {
   currentUser: any;
@@ -40,6 +45,10 @@ export default function RessourcesClient({
   const [resources, setResources] = useState<any[]>(initialResources);
   const [viewType, setViewType] = useState<"grid" | "table">("grid");
   const [isPending, startTransition] = useTransition();
+
+  const canManage = canManageRessources(currentUser);
+  const isReadOnly = isReadOnlyPedagogie(currentUser);
+  const userRole = getPedagogieRole(currentUser);
 
   // ─── Filter State ──────────────────────────────────────────────────────────
   const [search, setSearch] = useState("");
@@ -280,9 +289,11 @@ export default function RessourcesClient({
           <button onClick={handlePrint} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-bold hover:bg-slate-50 transition-all shadow-sm">
             <Printer size={14} /> Imprimer
           </button>
-          <button onClick={openNew} className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white text-xs font-black shadow-lg shadow-indigo-200 hover:opacity-90 transition-all">
-            <Plus size={15} /> Ajouter ressource
-          </button>
+          {canManage && (
+            <button onClick={openNew} className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white text-xs font-black shadow-lg shadow-indigo-200 hover:opacity-90 transition-all">
+              <Plus size={15} /> Ajouter ressource
+            </button>
+          )}
         </div>
       </div>
 
@@ -443,8 +454,12 @@ export default function RessourcesClient({
                       </a>
                     )}
                     <button onClick={() => handleShare(r)} className="p-2 rounded-xl bg-emerald-50 text-emerald-600 hover:bg-emerald-100" title="Partager"><Share2 size={13} /></button>
-                    <button onClick={() => openEdit(r)} className="p-2 rounded-xl bg-amber-50 text-amber-600 hover:bg-amber-100" title="Modifier"><Pencil size={13} /></button>
-                    <button onClick={() => handleDelete(r)} className="p-2 rounded-xl bg-rose-50 text-rose-600 hover:bg-rose-100" title="Supprimer"><Trash2 size={13} /></button>
+                    {canManage && (userRole !== "enseignant" || r.employeeId === currentUser?.employeeId) && (
+                      <button onClick={() => openEdit(r)} className="p-2 rounded-xl bg-amber-50 text-amber-600 hover:bg-amber-100" title="Modifier"><Pencil size={13} /></button>
+                    )}
+                    {canManage && (userRole !== "enseignant" || r.employeeId === currentUser?.employeeId) && (
+                      <button onClick={() => handleDelete(r)} className="p-2 rounded-xl bg-rose-50 text-rose-600 hover:bg-rose-100" title="Supprimer"><Trash2 size={13} /></button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -503,8 +518,12 @@ export default function RessourcesClient({
                             <a href={r.fileUrl || r.externalUrl} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded bg-indigo-50 text-indigo-600 hover:bg-indigo-100" title="Télécharger"><Download size={13} /></a>
                           )}
                           <button onClick={() => handleShare(r)} className="p-1.5 rounded bg-emerald-50 text-emerald-600 hover:bg-emerald-100" title="Partager"><Share2 size={13} /></button>
-                          <button onClick={() => openEdit(r)} className="p-1.5 rounded bg-amber-50 text-amber-600 hover:bg-amber-100" title="Modifier"><Pencil size={13} /></button>
-                          <button onClick={() => handleDelete(r)} className="p-1.5 rounded bg-rose-50 text-rose-600 hover:bg-rose-100" title="Supprimer"><Trash2 size={13} /></button>
+                          {canManage && (userRole !== "enseignant" || r.employeeId === currentUser?.employeeId) && (
+                            <button onClick={() => openEdit(r)} className="p-1.5 rounded bg-amber-50 text-amber-600 hover:bg-amber-100" title="Modifier"><Pencil size={13} /></button>
+                          )}
+                          {canManage && (userRole !== "enseignant" || r.employeeId === currentUser?.employeeId) && (
+                            <button onClick={() => handleDelete(r)} className="p-1.5 rounded bg-rose-50 text-rose-600 hover:bg-rose-100" title="Supprimer"><Trash2 size={13} /></button>
+                          )}
                         </div>
                       </td>
                     </tr>

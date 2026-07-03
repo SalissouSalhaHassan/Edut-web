@@ -11,6 +11,11 @@ import {
   createPlanification, updatePlanification, deletePlanification,
   type PlanFormData
 } from "@/domains/pedagogie/actions/planification.actions";
+import {
+  canManagePlanification,
+  isReadOnlyPedagogie,
+  getPedagogieRole
+} from "@/domains/pedagogie/permissions";
 
 interface Props {
   currentUser: any;
@@ -43,6 +48,10 @@ export default function PlanificationClient({
   const [plans, setPlans] = useState<any[]>(initialPlans);
   const [activeTab, setActiveTab] = useState<string>("Annuel");
   const [isPending, startTransition] = useTransition();
+
+  const canManage = canManagePlanification(currentUser);
+  const isReadOnly = isReadOnlyPedagogie(currentUser);
+  const userRole = getPedagogieRole(currentUser);
 
   // ─── Filter State ──────────────────────────────────────────────────────────
   const [search, setSearch] = useState("");
@@ -290,9 +299,11 @@ export default function PlanificationClient({
           <button onClick={handlePrint} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-bold hover:bg-slate-50 transition-all shadow-sm">
             <Printer size={14} /> Imprimer
           </button>
-          <button onClick={openNew} className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white text-xs font-black shadow-lg shadow-indigo-200 hover:opacity-90 transition-all">
-            <Plus size={15} /> Nouveau plan
-          </button>
+          {canManage && (
+            <button onClick={openNew} className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white text-xs font-black shadow-lg shadow-indigo-200 hover:opacity-90 transition-all">
+              <Plus size={15} /> Nouveau plan
+            </button>
+          )}
         </div>
       </div>
 
@@ -514,8 +525,12 @@ export default function PlanificationClient({
                     <td className="px-4 py-3.5 whitespace-nowrap">
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button onClick={() => openView(p)} className="p-1.5 rounded bg-slate-100 text-slate-600 hover:bg-slate-200" title="Voir"><Eye size={13} /></button>
-                        <button onClick={() => openEdit(p)} className="p-1.5 rounded bg-indigo-50 text-indigo-600 hover:bg-indigo-100" title="Modifier"><Pencil size={13} /></button>
-                        <button onClick={() => handleDelete(p)} className="p-1.5 rounded bg-rose-50 text-rose-600 hover:bg-rose-100" title="Supprimer"><Trash2 size={13} /></button>
+                        {canManage && (userRole !== "enseignant" || p.employeeId === currentUser.employeeId) && p.statut !== "Réalisé" && (
+                          <button onClick={() => openEdit(p)} className="p-1.5 rounded bg-indigo-50 text-indigo-600 hover:bg-indigo-100" title="Modifier"><Pencil size={13} /></button>
+                        )}
+                        {canManage && (userRole !== "enseignant" || p.employeeId === currentUser.employeeId) && p.statut !== "Réalisé" && (
+                          <button onClick={() => handleDelete(p)} className="p-1.5 rounded bg-rose-50 text-rose-600 hover:bg-rose-100" title="Supprimer"><Trash2 size={13} /></button>
+                        )}
                       </div>
                     </td>
                   </tr>
