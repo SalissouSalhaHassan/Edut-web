@@ -372,7 +372,7 @@ export default function ProgressionClient({
         </select>
         <select value={filterStatus} onChange={e => { setFilterStatus(e.target.value); setPage(1); }} className={fSel}>
           <option value="">Statut (Tous)</option>
-          <option value="Excellent">Excellent (>=80%)</option>
+          <option value="Excellent">Excellent (&gt;=80%)</option>
           <option value="En cours">En cours (40-79%)</option>
           <option value="En retard">En retard (&lt;40%)</option>
         </select>
