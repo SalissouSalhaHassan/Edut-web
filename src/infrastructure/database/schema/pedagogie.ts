@@ -2,6 +2,7 @@ import { pgTable, serial, varchar, text, timestamp, integer, boolean, date, time
 import { relations } from "drizzle-orm";
 import { schools } from "./auth";
 import { employees } from "./hr";
+import { students } from "./students";
 import { schoolClasses, schoolSubjects } from "./academics";
 
 // ─── Cahier de textes (lesson logbook) ────────────────────────────────────────
