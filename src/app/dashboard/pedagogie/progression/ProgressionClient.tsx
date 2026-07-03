@@ -22,6 +22,7 @@ interface Props {
 }
 
 const COLORS = ["#6366f1", "#10b981", "#3b82f6", "#f59e0b", "#ec4899", "#8b5cf6", "#06b6d4"];
+const PAGE_SIZE = 15;
 
 export default function ProgressionClient({
   currentUser, classes, subjects, employees, plans, seances
