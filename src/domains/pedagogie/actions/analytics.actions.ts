@@ -9,7 +9,8 @@ import { studentAttendance, teacherSessionAttendance } from "@/infrastructure/da
 import { lmsAssignments, lmsSubmissions } from "@/infrastructure/database/schema/lms";
 import { employees } from "@/infrastructure/database/schema/hr";
 import { students } from "@/infrastructure/database/schema/students";
-import { and, eq, gte, lte, sql } from "drizzle-orm";
+import { and, eq, gte, lte, sql, or } from "drizzle-orm";
+import { getPedagogieScope } from "@/domains/pedagogie/permissions";
 
 const startOfDay = (date: Date) => {
   const value = new Date(date);
@@ -27,10 +28,18 @@ export async function getPedagogieOverview() {
     const user = await getCurrentUser();
     if (!user) return { success: false, error: "Non autorisé", data: null };
 
+    const scope = getPedagogieScope(user);
+    if (scope.role === "guest") {
+      return { success: false, error: "Accès non autorisé", data: null };
+    }
+
     const schoolId = await getActiveSchoolId();
     const today = startOfDay(new Date());
     const nextWeek = new Date(today);
     nextWeek.setDate(today.getDate() + 7);
+
+    // Build conditions for teacher filter
+    const isTeach = scope.role === "enseignant" && scope.teacherId;
 
     const [
       totalClassesRows,
@@ -53,65 +62,111 @@ export async function getPedagogieOverview() {
       db.select({ count: sql<number>`count(*)::int` }).from(schoolSubjects).where(eq(schoolSubjects.schoolId, schoolId)),
       db.select({ count: sql<number>`count(*)::int` }).from(students).where(eq(students.schoolId, schoolId)),
       db.select({ count: sql<number>`count(*)::int` }).from(employees).where(eq(employees.schoolId, schoolId)),
-      db.select({ count: sql<number>`count(*)::int` }).from(pedagogiePlanification).where(eq(pedagogiePlanification.schoolId, schoolId)),
-      db.select({ count: sql<number>`count(*)::int` }).from(cahierTextes).where(eq(cahierTextes.schoolId, schoolId)),
-      db
-        .select({ count: sql<number>`count(*)::int` })
+      
+      db.select({ count: sql<number>`count(*)::int` })
+        .from(pedagogiePlanification)
+        .where(
+          and(
+            eq(pedagogiePlanification.schoolId, schoolId),
+            isTeach ? eq(pedagogiePlanification.employeeId, scope.teacherId!) : undefined
+          )
+        ),
+
+      db.select({ count: sql<number>`count(*)::int` })
+        .from(cahierTextes)
+        .where(
+          and(
+            eq(cahierTextes.schoolId, schoolId),
+            isTeach ? eq(cahierTextes.employeeId, scope.teacherId!) : undefined
+          )
+        ),
+
+      db.select({ count: sql<number>`count(*)::int` })
         .from(lmsAssignments)
         .leftJoin(schoolClasses, eq(lmsAssignments.classId, schoolClasses.id))
-        .where(and(eq(schoolClasses.schoolId, schoolId), eq(lmsAssignments.status, "Active"))),
-      db
-        .select({ count: sql<number>`count(*)::int` })
+        .where(
+          and(
+            eq(schoolClasses.schoolId, schoolId),
+            eq(lmsAssignments.status, "Active"),
+            isTeach ? eq(lmsAssignments.employeeId, scope.teacherId!) : undefined
+          )
+        ),
+
+      db.select({ count: sql<number>`count(*)::int` })
         .from(lmsAssignments)
         .leftJoin(schoolClasses, eq(lmsAssignments.classId, schoolClasses.id))
-        .where(and(eq(schoolClasses.schoolId, schoolId), lte(lmsAssignments.dueDate, today), eq(lmsAssignments.status, "Active"))),
-      db
-        .select({ count: sql<number>`count(*)::int` })
+        .where(
+          and(
+            eq(schoolClasses.schoolId, schoolId),
+            lte(lmsAssignments.dueDate, today),
+            eq(lmsAssignments.status, "Active"),
+            isTeach ? eq(lmsAssignments.employeeId, scope.teacherId!) : undefined
+          )
+        ),
+
+      db.select({ count: sql<number>`count(*)::int` })
         .from(lmsSubmissions)
         .leftJoin(lmsAssignments, eq(lmsSubmissions.assignmentId, lmsAssignments.id))
         .leftJoin(schoolClasses, eq(lmsAssignments.classId, schoolClasses.id))
-        .where(and(eq(schoolClasses.schoolId, schoolId), eq(lmsSubmissions.isGraded, false))),
-      db
-        .select({
+        .where(
+          and(
+            eq(schoolClasses.schoolId, schoolId),
+            eq(lmsSubmissions.isGraded, false),
+            isTeach ? eq(lmsAssignments.employeeId, scope.teacherId!) : undefined
+          )
+        ),
+
+      db.select({
           count: sql<number>`count(*)::int`,
           average: sql<number>`coalesce(avg(${lmsSubmissions.score}), 0)::float`,
         })
         .from(lmsSubmissions)
         .leftJoin(lmsAssignments, eq(lmsSubmissions.assignmentId, lmsAssignments.id))
         .leftJoin(schoolClasses, eq(lmsAssignments.classId, schoolClasses.id))
-        .where(and(eq(schoolClasses.schoolId, schoolId), eq(lmsSubmissions.isGraded, true))),
-      db
-        .select({
+        .where(
+          and(
+            eq(schoolClasses.schoolId, schoolId),
+            eq(lmsSubmissions.isGraded, true),
+            isTeach ? eq(lmsAssignments.employeeId, scope.teacherId!) : undefined
+          )
+        ),
+
+      db.select({
           count: sql<number>`count(*)::int`,
           average: sql<number>`coalesce(avg(${studentResults.totalScore}), 0)::float`,
         })
         .from(studentResults)
         .leftJoin(schoolClasses, eq(studentResults.classId, schoolClasses.id))
         .where(eq(schoolClasses.schoolId, schoolId)),
-      db
-        .select({ count: sql<number>`count(distinct ${studentResults.studentId})::int` })
+
+      db.select({ count: sql<number>`count(distinct ${studentResults.studentId})::int` })
         .from(studentResults)
         .leftJoin(schoolClasses, eq(studentResults.classId, schoolClasses.id))
         .where(and(eq(schoolClasses.schoolId, schoolId), lte(studentResults.totalScore, 10))),
-      db
-        .select({
+
+      db.select({
           total: sql<number>`count(*)::int`,
           presents: sql<number>`sum(case when lower(${studentAttendance.status}) like 'pr%' or lower(${studentAttendance.status}) = 'present' then 1 else 0 end)::int`,
         })
         .from(studentAttendance)
         .leftJoin(schoolClasses, eq(studentAttendance.classId, schoolClasses.id))
         .where(and(eq(schoolClasses.schoolId, schoolId), gte(studentAttendance.date, today))),
-      db
-        .select({
+
+      db.select({
           total: sql<number>`count(*)::int`,
           presents: sql<number>`sum(case when lower(${teacherSessionAttendance.status}) like 'pr%' or lower(${teacherSessionAttendance.status}) = 'present' then 1 else 0 end)::int`,
         })
         .from(teacherSessionAttendance)
         .where(and(eq(teacherSessionAttendance.schoolId, schoolId), gte(teacherSessionAttendance.date, today))),
-      db
-        .select({ count: sql<number>`count(*)::int` })
+
+      db.select({ count: sql<number>`count(*)::int` })
         .from(pedagogieRemediation)
-        .where(eq(pedagogieRemediation.schoolId, schoolId)),
+        .where(
+          and(
+            eq(pedagogieRemediation.schoolId, schoolId),
+            isTeach ? eq(pedagogieRemediation.employeeId, scope.teacherId!) : undefined
+          )
+        ),
     ]);
 
     const plannedLessons = Number(plansRows[0]?.count || 0);
@@ -177,7 +232,14 @@ export async function getPedagogieClassOverview() {
     const user = await getCurrentUser();
     if (!user) return { success: false, error: "Non autorisé", data: [] };
 
+    const scope = getPedagogieScope(user);
+    if (scope.role === "guest") {
+      return { success: false, error: "Accès non autorisé", data: [] };
+    }
+
     const schoolId = await getActiveSchoolId();
+    const isTeach = scope.role === "enseignant" && scope.teacherId;
+
     const rows = await db
       .select({
         classId: schoolClasses.id,
@@ -192,7 +254,15 @@ export async function getPedagogieClassOverview() {
       .leftJoin(pedagogiePlanification, eq(pedagogiePlanification.classId, schoolClasses.id))
       .leftJoin(cahierTextes, eq(cahierTextes.classId, schoolClasses.id))
       .leftJoin(studentResults, eq(studentResults.classId, schoolClasses.id))
-      .where(eq(schoolClasses.schoolId, schoolId))
+      .where(
+        and(
+          eq(schoolClasses.schoolId, schoolId),
+          isTeach ? or(
+            eq(pedagogiePlanification.employeeId, scope.teacherId!),
+            eq(cahierTextes.employeeId, scope.teacherId!)
+          ) : undefined
+        )
+      )
       .groupBy(schoolClasses.id, schoolClasses.className)
       .limit(12);
 
@@ -214,7 +284,14 @@ export async function getPedagogieSubjectOverview() {
     const user = await getCurrentUser();
     if (!user) return { success: false, error: "Non autorisé", data: [] };
 
+    const scope = getPedagogieScope(user);
+    if (scope.role === "guest") {
+      return { success: false, error: "Accès non autorisé", data: [] };
+    }
+
     const schoolId = await getActiveSchoolId();
+    const isTeach = scope.role === "enseignant" && scope.teacherId;
+
     const rows = await db
       .select({
         subjectId: schoolSubjects.id,
@@ -227,7 +304,15 @@ export async function getPedagogieSubjectOverview() {
       .leftJoin(pedagogiePlanification, eq(pedagogiePlanification.subjectId, schoolSubjects.id))
       .leftJoin(cahierTextes, eq(cahierTextes.subjectId, schoolSubjects.id))
       .leftJoin(studentResults, eq(studentResults.subjectId, schoolSubjects.id))
-      .where(eq(schoolSubjects.schoolId, schoolId))
+      .where(
+        and(
+          eq(schoolSubjects.schoolId, schoolId),
+          isTeach ? or(
+            eq(pedagogiePlanification.employeeId, scope.teacherId!),
+            eq(cahierTextes.employeeId, scope.teacherId!)
+          ) : undefined
+        )
+      )
       .groupBy(schoolSubjects.id, schoolSubjects.subjectName)
       .limit(12);
 

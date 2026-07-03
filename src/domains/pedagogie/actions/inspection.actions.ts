@@ -6,6 +6,11 @@ import { eq, and, desc } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/domains/auth/services/session";
 import { getActiveSchoolId } from "@/domains/auth/services/school";
+import {
+  getPedagogieRole,
+  getPedagogieScope,
+  canManageInspection,
+} from "@/domains/pedagogie/permissions";
 
 export type InspectionFormData = {
   visitDate: string;
@@ -57,6 +62,11 @@ export async function createInspectionVisit(data: InspectionFormData) {
   try {
     const user = await getCurrentUser();
     if (!user) return { success: false, error: "Non autorisé" };
+
+    if (!canManageInspection(user)) {
+      return { success: false, error: "Accès non autorisé" };
+    }
+
     const schoolId = await getActiveSchoolId();
 
     const [visit] = await db.insert(pedagogieInspection).values({
@@ -87,10 +97,33 @@ export async function getInspectionVisits() {
   try {
     const user = await getCurrentUser();
     if (!user) return { success: false, error: "Non autorisé", data: [] };
+
+    const scope = getPedagogieScope(user);
+    // Students, parents and guests are blocked from seeing inspections entirely
+    if (["eleve", "parent", "guest"].includes(scope.role)) {
+      return { success: false, error: "Accès non autorisé", data: [] };
+    }
+
     const schoolId = await getActiveSchoolId();
 
     const data = await db.query.pedagogieInspection.findMany({
-      where: (t, { eq: _eq }) => _eq(t.schoolId, schoolId),
+      where: (t, { and: _and, eq: _eq }) => {
+        const conds: any[] = [];
+
+        // Scope filter
+        if (!scope.allSchools && scope.schoolId) {
+          conds.push(_eq(t.schoolId, scope.schoolId));
+        } else {
+          conds.push(_eq(t.schoolId, schoolId));
+        }
+
+        // Teachers only see their own inspections
+        if (scope.role === "enseignant" && scope.teacherId) {
+          conds.push(_eq(t.employeeId, scope.teacherId));
+        }
+
+        return _and(...conds);
+      },
       with: {
         class: true,
         subject: true,
@@ -111,6 +144,10 @@ export async function updateInspectionVisit(id: number, data: Partial<Inspection
     const user = await getCurrentUser();
     if (!user) return { success: false, error: "Non autorisé" };
 
+    if (!canManageInspection(user)) {
+      return { success: false, error: "Accès non autorisé" };
+    }
+
     await db.update(pedagogieInspection)
       .set({ ...data, updatedAt: new Date() })
       .where(eq(pedagogieInspection.id, id));
@@ -127,6 +164,10 @@ export async function deleteInspectionVisit(id: number) {
   try {
     const user = await getCurrentUser();
     if (!user) return { success: false, error: "Non autorisé" };
+
+    if (!canManageInspection(user)) {
+      return { success: false, error: "Accès non autorisé" };
+    }
 
     await db.delete(pedagogieInspection).where(eq(pedagogieInspection.id, id));
     revalidatePath("/dashboard/pedagogie/inspection");

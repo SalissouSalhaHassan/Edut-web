@@ -6,6 +6,11 @@ import { eq, and, desc } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/domains/auth/services/session";
 import { getActiveSchoolId } from "@/domains/auth/services/school";
+import {
+  getPedagogieRole,
+  getPedagogieScope,
+  canManageRessources,
+} from "@/domains/pedagogie/permissions";
 
 export type RessourceFormData = {
   title: string;
@@ -61,6 +66,18 @@ export async function createRessource(data: RessourceFormData) {
   try {
     const user = await getCurrentUser();
     if (!user) return { success: false, error: "Non autorisé" };
+
+    if (!canManageRessources(user)) {
+      return { success: false, error: "Accès non autorisé" };
+    }
+
+    const scope = getPedagogieScope(user);
+    if (scope.role === "enseignant") {
+      if (scope.teacherId && data.employeeId !== scope.teacherId) {
+        return { success: false, error: "Accès non autorisé: Vous ne pouvez ajouter des ressources que pour vous-même." };
+      }
+    }
+
     const schoolId = await getActiveSchoolId();
 
     const [ressource] = await db.insert(pedagogieRessources).values({
@@ -89,16 +106,40 @@ export async function getRessources(filters: RessourceFilters = {}) {
   try {
     const user = await getCurrentUser();
     if (!user) return { success: false, error: "Non autorisé", data: [] };
+
+    const scope = getPedagogieScope(user);
+    if (scope.role === "guest") {
+      return { success: false, error: "Accès non autorisé", data: [] };
+    }
+
     const schoolId = await getActiveSchoolId();
 
     const data = await db.query.pedagogieRessources.findMany({
       where: (t, { and: _and, eq: _eq }) => {
-        const conds: any[] = [_eq(t.schoolId, schoolId)];
+        const conds: any[] = [];
+
+        // Scope filter
+        if (!scope.allSchools && scope.schoolId) {
+          conds.push(_eq(t.schoolId, scope.schoolId));
+        } else {
+          conds.push(_eq(t.schoolId, schoolId));
+        }
+
+        if (scope.role === "enseignant" && scope.teacherId) {
+          conds.push(_eq(t.employeeId, scope.teacherId));
+        } else if (scope.role === "eleve" && user.classId) {
+          conds.push(_eq(t.classId, user.classId));
+        } else if (scope.role === "parent" && user.classId) {
+          conds.push(_eq(t.classId, user.classId));
+        }
+
+        // Apply filters
         if (filters.classId) conds.push(_eq(t.classId, filters.classId));
         if (filters.subjectId) conds.push(_eq(t.subjectId, filters.subjectId));
         if (filters.type) conds.push(_eq(t.type, filters.type));
         if (filters.statut) conds.push(_eq(t.statut, filters.statut));
-        if (filters.employeeId) conds.push(_eq(t.employeeId, filters.employeeId));
+        if (filters.employeeId && scope.role !== "enseignant") conds.push(_eq(t.employeeId, filters.employeeId));
+
         return _and(...conds);
       },
       with: {
@@ -121,6 +162,25 @@ export async function updateRessource(id: number, data: Partial<RessourceFormDat
     const user = await getCurrentUser();
     if (!user) return { success: false, error: "Non autorisé" };
 
+    if (!canManageRessources(user)) {
+      return { success: false, error: "Accès non autorisé" };
+    }
+
+    const scope = getPedagogieScope(user);
+    const existing = await db.query.pedagogieRessources.findFirst({
+      where: eq(pedagogieRessources.id, id)
+    });
+
+    if (!existing) {
+      return { success: false, error: "Ressource introuvable" };
+    }
+
+    if (scope.role === "enseignant") {
+      if (existing.employeeId !== scope.teacherId) {
+        return { success: false, error: "Accès non autorisé: Vous ne pouvez modifier que vos propres ressources." };
+      }
+    }
+
     await db.update(pedagogieRessources)
       .set({ ...data, updatedAt: new Date() })
       .where(eq(pedagogieRessources.id, id));
@@ -137,6 +197,25 @@ export async function deleteRessource(id: number) {
   try {
     const user = await getCurrentUser();
     if (!user) return { success: false, error: "Non autorisé" };
+
+    if (!canManageRessources(user)) {
+      return { success: false, error: "Accès non autorisé" };
+    }
+
+    const scope = getPedagogieScope(user);
+    const existing = await db.query.pedagogieRessources.findFirst({
+      where: eq(pedagogieRessources.id, id)
+    });
+
+    if (!existing) {
+      return { success: false, error: "Ressource introuvable" };
+    }
+
+    if (scope.role === "enseignant") {
+      if (existing.employeeId !== scope.teacherId) {
+        return { success: false, error: "Accès non autorisé: Vous ne pouvez supprimer que vos propres ressources." };
+      }
+    }
 
     await db.delete(pedagogieRessources).where(eq(pedagogieRessources.id, id));
     revalidatePath("/dashboard/pedagogie/ressources");

@@ -2,10 +2,16 @@
 
 import { db } from "@/infrastructure/database";
 import { cahierTextes } from "@/infrastructure/database/schema/pedagogie";
-import { eq, and, gte, lte, desc, ilike } from "drizzle-orm";
+import { eq, and, gte, lte, desc } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/domains/auth/services/session";
 import { getActiveSchoolId } from "@/domains/auth/services/school";
+import {
+  getPedagogieRole,
+  getPedagogieScope,
+  canManageCahierTextes,
+  canValidateCahierTextes,
+} from "@/domains/pedagogie/permissions";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 export type SeanceFormData = {
@@ -74,6 +80,18 @@ export async function createSeance(data: SeanceFormData) {
   try {
     const user = await getCurrentUser();
     if (!user) return { success: false, error: "Non autorisé" };
+
+    if (!canManageCahierTextes(user)) {
+      return { success: false, error: "Accès non autorisé" };
+    }
+
+    const scope = getPedagogieScope(user);
+    if (scope.role === "enseignant") {
+      if (scope.teacherId && data.employeeId !== scope.teacherId) {
+        return { success: false, error: "Accès non autorisé: Vous ne pouvez créer de séance que pour vous-même." };
+      }
+    }
+
     const schoolId = await getActiveSchoolId();
 
     const [seance] = await db.insert(cahierTextes).values({
@@ -106,18 +124,42 @@ export async function getSeances(filters: SeanceFilters = {}) {
   try {
     const user = await getCurrentUser();
     if (!user) return { success: false, error: "Non autorisé", data: [] };
+
+    const scope = getPedagogieScope(user);
+    if (scope.role === "guest") {
+      return { success: false, error: "Accès non autorisé", data: [] };
+    }
+
     const schoolId = await getActiveSchoolId();
 
     const seances = await db.query.cahierTextes.findMany({
       where: (t, { and: _and, eq: _eq, gte: _gte, lte: _lte }) => {
-        const conds: any[] = [_eq(t.schoolId, schoolId)];
+        const conds: any[] = [];
+
+        // Scope limitations
+        if (!scope.allSchools && scope.schoolId) {
+          conds.push(_eq(t.schoolId, scope.schoolId));
+        } else {
+          conds.push(_eq(t.schoolId, schoolId));
+        }
+
+        if (scope.role === "enseignant" && scope.teacherId) {
+          conds.push(_eq(t.employeeId, scope.teacherId));
+        } else if (scope.role === "eleve" && user.classId) {
+          conds.push(_eq(t.classId, user.classId));
+        } else if (scope.role === "parent" && user.classId) {
+          conds.push(_eq(t.classId, user.classId));
+        }
+
+        // Apply dynamic filters
         if (filters.classId)       conds.push(_eq(t.classId, filters.classId));
         if (filters.subjectId)     conds.push(_eq(t.subjectId, filters.subjectId));
-        if (filters.employeeId)    conds.push(_eq(t.employeeId, filters.employeeId));
+        if (filters.employeeId && scope.role !== "enseignant") conds.push(_eq(t.employeeId, filters.employeeId));
         if (filters.statut)        conds.push(_eq(t.statut, filters.statut));
         if (filters.anneeScolaire) conds.push(_eq(t.anneeScolaire, filters.anneeScolaire));
         if (filters.dateDebut)     conds.push(_gte(t.sessionDate, filters.dateDebut));
         if (filters.dateFin)       conds.push(_lte(t.sessionDate, filters.dateFin));
+
         return _and(...conds);
       },
       with: {
@@ -141,6 +183,28 @@ export async function updateSeance(id: number, data: Partial<SeanceFormData>) {
     const user = await getCurrentUser();
     if (!user) return { success: false, error: "Non autorisé" };
 
+    if (!canManageCahierTextes(user)) {
+      return { success: false, error: "Accès non autorisé" };
+    }
+
+    const scope = getPedagogieScope(user);
+    const existing = await db.query.cahierTextes.findFirst({
+      where: eq(cahierTextes.id, id)
+    });
+
+    if (!existing) {
+      return { success: false, error: "Séance introuvable" };
+    }
+
+    if (scope.role === "enseignant") {
+      if (existing.employeeId !== scope.teacherId) {
+        return { success: false, error: "Accès non autorisé: Vous ne pouvez modifier que vos propres séances." };
+      }
+      if (existing.statut === "Validé") {
+        return { success: false, error: "Accès non autorisé: Impossible de modifier une séance validée." };
+      }
+    }
+
     await db.update(cahierTextes)
       .set({ ...data, updatedAt: new Date() })
       .where(eq(cahierTextes.id, id));
@@ -157,6 +221,10 @@ export async function validerSeance(id: number, valideParId: number) {
   try {
     const user = await getCurrentUser();
     if (!user) return { success: false, error: "Non autorisé" };
+
+    if (!canValidateCahierTextes(user)) {
+      return { success: false, error: "Accès non autorisé" };
+    }
 
     await db.update(cahierTextes)
       .set({ statut: "Validé", valideParId, valideAt: new Date(), updatedAt: new Date() })
@@ -175,6 +243,10 @@ export async function rejeterSeance(id: number, observation: string) {
     const user = await getCurrentUser();
     if (!user) return { success: false, error: "Non autorisé" };
 
+    if (!canValidateCahierTextes(user)) {
+      return { success: false, error: "Accès non autorisé" };
+    }
+
     await db.update(cahierTextes)
       .set({ statut: "Rejeté", observation, updatedAt: new Date() })
       .where(eq(cahierTextes.id, id));
@@ -191,6 +263,28 @@ export async function deleteSeance(id: number) {
   try {
     const user = await getCurrentUser();
     if (!user) return { success: false, error: "Non autorisé" };
+
+    if (!canManageCahierTextes(user)) {
+      return { success: false, error: "Accès non autorisé" };
+    }
+
+    const scope = getPedagogieScope(user);
+    const existing = await db.query.cahierTextes.findFirst({
+      where: eq(cahierTextes.id, id)
+    });
+
+    if (!existing) {
+      return { success: false, error: "Séance introuvable" };
+    }
+
+    if (scope.role === "enseignant") {
+      if (existing.employeeId !== scope.teacherId) {
+        return { success: false, error: "Accès non autorisé: Vous ne pouvez supprimer que vos propres séances." };
+      }
+      if (existing.statut === "Validé") {
+        return { success: false, error: "Accès non autorisé: Les enseignants ne peuvent pas supprimer des données validées." };
+      }
+    }
 
     await db.delete(cahierTextes).where(eq(cahierTextes.id, id));
     revalidatePath("/dashboard/pedagogie/cahier-textes");

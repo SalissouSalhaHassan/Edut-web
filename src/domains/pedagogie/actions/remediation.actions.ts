@@ -6,6 +6,11 @@ import { eq, and, desc, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/domains/auth/services/session";
 import { getActiveSchoolId } from "@/domains/auth/services/school";
+import {
+  getPedagogieRole,
+  getPedagogieScope,
+  canManageRemediation,
+} from "@/domains/pedagogie/permissions";
 
 export type RemediationFormData = {
   studentId: number;
@@ -57,6 +62,11 @@ export async function createRemediationPlan(data: RemediationFormData) {
   try {
     const user = await getCurrentUser();
     if (!user) return { success: false, error: "Non autorisé" };
+
+    if (!canManageRemediation(user)) {
+      return { success: false, error: "Accès non autorisé" };
+    }
+
     const schoolId = await getActiveSchoolId();
 
     const [plan] = await db.insert(pedagogieRemediation).values({
@@ -87,10 +97,35 @@ export async function getRemediationPlans() {
   try {
     const user = await getCurrentUser();
     if (!user) return { success: false, error: "Non autorisé", data: [] };
+
+    const scope = getPedagogieScope(user);
+    if (scope.role === "guest") {
+      return { success: false, error: "Accès non autorisé", data: [] };
+    }
+
     const schoolId = await getActiveSchoolId();
 
     const data = await db.query.pedagogieRemediation.findMany({
-      where: (t, { eq: _eq }) => _eq(t.schoolId, schoolId),
+      where: (t, { and: _and, eq: _eq }) => {
+        const conds: any[] = [];
+
+        // Scope filter
+        if (!scope.allSchools && scope.schoolId) {
+          conds.push(_eq(t.schoolId, scope.schoolId));
+        } else {
+          conds.push(_eq(t.schoolId, schoolId));
+        }
+
+        if (scope.role === "enseignant" && scope.teacherId) {
+          conds.push(_eq(t.employeeId, scope.teacherId));
+        } else if (scope.role === "eleve" && scope.studentId) {
+          conds.push(_eq(t.studentId, scope.studentId));
+        } else if (scope.role === "parent" && user.studentId) {
+          conds.push(_eq(t.studentId, user.studentId));
+        }
+
+        return _and(...conds);
+      },
       with: {
         student: true,
         class: true,
@@ -112,6 +147,10 @@ export async function updateRemediationPlan(id: number, data: Partial<Remediatio
     const user = await getCurrentUser();
     if (!user) return { success: false, error: "Non autorisé" };
 
+    if (!canManageRemediation(user)) {
+      return { success: false, error: "Accès non autorisé" };
+    }
+
     await db.update(pedagogieRemediation)
       .set({ ...data, updatedAt: new Date() })
       .where(eq(pedagogieRemediation.id, id));
@@ -128,6 +167,10 @@ export async function addRemediationSession(id: number) {
   try {
     const user = await getCurrentUser();
     if (!user) return { success: false, error: "Non autorisé" };
+
+    if (!canManageRemediation(user)) {
+      return { success: false, error: "Accès non autorisé" };
+    }
 
     await db.update(pedagogieRemediation)
       .set({
@@ -149,6 +192,10 @@ export async function closeRemediationPlan(id: number) {
     const user = await getCurrentUser();
     if (!user) return { success: false, error: "Non autorisé" };
 
+    if (!canManageRemediation(user)) {
+      return { success: false, error: "Accès non autorisé" };
+    }
+
     await db.update(pedagogieRemediation)
       .set({
         status: "Clôturé",
@@ -168,6 +215,10 @@ export async function deleteRemediationPlan(id: number) {
   try {
     const user = await getCurrentUser();
     if (!user) return { success: false, error: "Non autorisé" };
+
+    if (!canManageRemediation(user)) {
+      return { success: false, error: "Accès non autorisé" };
+    }
 
     await db.delete(pedagogieRemediation).where(eq(pedagogieRemediation.id, id));
     revalidatePath("/dashboard/pedagogie/remediation");

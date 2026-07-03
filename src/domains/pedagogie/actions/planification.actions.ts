@@ -2,10 +2,15 @@
 
 import { db } from "@/infrastructure/database";
 import { pedagogiePlanification } from "@/infrastructure/database/schema/pedagogie";
-import { eq, and, gte, lte, desc } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/domains/auth/services/session";
 import { getActiveSchoolId } from "@/domains/auth/services/school";
+import {
+  getPedagogieRole,
+  getPedagogieScope,
+  canManagePlanification,
+} from "@/domains/pedagogie/permissions";
 
 export type PlanFormData = {
   classId: number;
@@ -66,6 +71,18 @@ export async function createPlanification(data: PlanFormData) {
   try {
     const user = await getCurrentUser();
     if (!user) return { success: false, error: "Non autorisé" };
+
+    if (!canManagePlanification(user)) {
+      return { success: false, error: "Accès non autorisé" };
+    }
+
+    const scope = getPedagogieScope(user);
+    if (scope.role === "enseignant") {
+      if (scope.teacherId && data.employeeId !== scope.teacherId) {
+        return { success: false, error: "Accès non autorisé: Vous ne pouvez planifier que pour vous-même." };
+      }
+    }
+
     const schoolId = await getActiveSchoolId();
 
     const [plan] = await db.insert(pedagogiePlanification).values({
@@ -96,17 +113,41 @@ export async function getPlanifications(filters: PlanFilters = {}) {
   try {
     const user = await getCurrentUser();
     if (!user) return { success: false, error: "Non autorisé", data: [] };
+
+    const scope = getPedagogieScope(user);
+    if (scope.role === "guest") {
+      return { success: false, error: "Accès non autorisé", data: [] };
+    }
+
     const schoolId = await getActiveSchoolId();
 
     const plans = await db.query.pedagogiePlanification.findMany({
       where: (t, { and: _and, eq: _eq }) => {
-        const conds: any[] = [_eq(t.schoolId, schoolId)];
+        const conds: any[] = [];
+
+        // Scope filter
+        if (!scope.allSchools && scope.schoolId) {
+          conds.push(_eq(t.schoolId, scope.schoolId));
+        } else {
+          conds.push(_eq(t.schoolId, schoolId));
+        }
+
+        if (scope.role === "enseignant" && scope.teacherId) {
+          conds.push(_eq(t.employeeId, scope.teacherId));
+        } else if (scope.role === "eleve" && user.classId) {
+          conds.push(_eq(t.classId, user.classId));
+        } else if (scope.role === "parent" && user.classId) {
+          conds.push(_eq(t.classId, user.classId));
+        }
+
+        // Apply filters
         if (filters.classId) conds.push(_eq(t.classId, filters.classId));
         if (filters.subjectId) conds.push(_eq(t.subjectId, filters.subjectId));
-        if (filters.employeeId) conds.push(_eq(t.employeeId, filters.employeeId));
+        if (filters.employeeId && scope.role !== "enseignant") conds.push(_eq(t.employeeId, filters.employeeId));
         if (filters.statut) conds.push(_eq(t.statut, filters.statut));
         if (filters.typePlan) conds.push(_eq(t.typePlan, filters.typePlan));
         if (filters.anneeScolaire) conds.push(_eq(t.anneeScolaire, filters.anneeScolaire));
+
         return _and(...conds);
       },
       with: {
@@ -129,6 +170,28 @@ export async function updatePlanification(id: number, data: Partial<PlanFormData
     const user = await getCurrentUser();
     if (!user) return { success: false, error: "Non autorisé" };
 
+    if (!canManagePlanification(user)) {
+      return { success: false, error: "Accès non autorisé" };
+    }
+
+    const scope = getPedagogieScope(user);
+    const existing = await db.query.pedagogiePlanification.findFirst({
+      where: eq(pedagogiePlanification.id, id)
+    });
+
+    if (!existing) {
+      return { success: false, error: "Planification introuvable" };
+    }
+
+    if (scope.role === "enseignant") {
+      if (existing.employeeId !== scope.teacherId) {
+        return { success: false, error: "Accès non autorisé: Vous ne pouvez modifier que vos propres planifications." };
+      }
+      if (existing.statut === "Réalisé") {
+        return { success: false, error: "Accès non autorisé: Impossible de modifier un plan déjà réalisé." };
+      }
+    }
+
     await db.update(pedagogiePlanification)
       .set({ ...data, updatedAt: new Date() })
       .where(eq(pedagogiePlanification.id, id));
@@ -145,6 +208,28 @@ export async function deletePlanification(id: number) {
   try {
     const user = await getCurrentUser();
     if (!user) return { success: false, error: "Non autorisé" };
+
+    if (!canManagePlanification(user)) {
+      return { success: false, error: "Accès non autorisé" };
+    }
+
+    const scope = getPedagogieScope(user);
+    const existing = await db.query.pedagogiePlanification.findFirst({
+      where: eq(pedagogiePlanification.id, id)
+    });
+
+    if (!existing) {
+      return { success: false, error: "Planification introuvable" };
+    }
+
+    if (scope.role === "enseignant") {
+      if (existing.employeeId !== scope.teacherId) {
+        return { success: false, error: "Accès non autorisé: Vous ne pouvez supprimer que vos propres planifications." };
+      }
+      if (existing.statut === "Réalisé") {
+        return { success: false, error: "Accès non autorisé: Les enseignants ne peuvent pas supprimer des données réalisées." };
+      }
+    }
 
     await db.delete(pedagogiePlanification).where(eq(pedagogiePlanification.id, id));
     revalidatePath("/dashboard/pedagogie/planification");
