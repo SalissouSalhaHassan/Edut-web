@@ -65,3 +65,29 @@ export const pedagogiePlanificationRelations = relations(pedagogiePlanification,
   employee: one(employees,      { fields: [pedagogiePlanification.employeeId], references: [employees.id] }),
 }));
 
+// ─── Ressources pédagogiques ─────────────────────────────────────────
+export const pedagogieRessources = pgTable("pedagogie_ressources", {
+  id:          serial("id").primaryKey(),
+  schoolId:    integer("school_id").references(() => schools.id),
+  title:       varchar("title", { length: 255 }).notNull(),
+  type:        varchar("type", { length: 50 }).notNull(), // PDF | Vidéo | Audio | Présentation | Exercice | Corrigé | Lien externe | Image
+  classId:     integer("class_id").references(() => schoolClasses.id),
+  subjectId:   integer("subject_id").references(() => schoolSubjects.id),
+  chapitre:    varchar("chapitre", { length: 255 }),
+  lecon:       varchar("lecon", { length: 255 }),
+  fileUrl:     varchar("file_url", { length: 255 }),
+  externalUrl: varchar("external_url", { length: 255 }),
+  employeeId:  integer("employee_id").references(() => employees.id),
+  statut:      varchar("statut", { length: 30 }).default("Publié"), // Publié | Brouillon | Archivé
+  createdAt:   timestamp("created_at").defaultNow(),
+  updatedAt:   timestamp("updated_at").defaultNow(),
+});
+
+export const pedagogieRessourcesRelations = relations(pedagogieRessources, ({ one }) => ({
+  school:   one(schools,        { fields: [pedagogieRessources.schoolId],   references: [schools.id] }),
+  class:    one(schoolClasses,  { fields: [pedagogieRessources.classId],    references: [schoolClasses.id] }),
+  subject:  one(schoolSubjects, { fields: [pedagogieRessources.subjectId],  references: [schoolSubjects.id] }),
+  employee: one(employees,      { fields: [pedagogieRessources.employeeId], references: [employees.id] }),
+}));
+
+
