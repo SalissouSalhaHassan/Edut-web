@@ -24,13 +24,16 @@ interface Props {
   teachers: any[];
   students: any[];
   assignments: any[];
+  overview?: any;
+  classOverview?: any[];
+  subjectOverview?: any[];
 }
 
 // ─── Quick Links Config ────────────────────────────────────────────────────
 const quickLinks = [
   {
     label: "Cahier de textes",
-    href: "/dashboard/academics",
+    href: "/dashboard/pedagogie/cahier-textes",
     icon: PenLine,
     color: "from-blue-500 to-blue-600",
     bg: "bg-blue-50",
@@ -39,7 +42,7 @@ const quickLinks = [
   },
   {
     label: "Planification pédagogique",
-    href: "/dashboard/academics/timetable",
+    href: "/dashboard/pedagogie/planification",
     icon: Calendar,
     color: "from-indigo-500 to-indigo-600",
     bg: "bg-indigo-50",
@@ -48,7 +51,7 @@ const quickLinks = [
   },
   {
     label: "Suivi de progression",
-    href: "/dashboard/academics/grades",
+    href: "/dashboard/pedagogie/progression",
     icon: TrendingUp,
     color: "from-emerald-500 to-emerald-600",
     bg: "bg-emerald-50",
@@ -57,7 +60,7 @@ const quickLinks = [
   },
   {
     label: "Ressources pédagogiques",
-    href: "/dashboard/lms",
+    href: "/dashboard/pedagogie/ressources",
     icon: Library,
     color: "from-violet-500 to-violet-600",
     bg: "bg-violet-50",
@@ -66,7 +69,7 @@ const quickLinks = [
   },
   {
     label: "Devoirs & corrections",
-    href: "/dashboard/academics/homework",
+    href: "/dashboard/pedagogie/devoirs",
     icon: ClipboardList,
     color: "from-amber-500 to-amber-600",
     bg: "bg-amber-50",
@@ -75,7 +78,7 @@ const quickLinks = [
   },
   {
     label: "Remédiation",
-    href: "/dashboard/academics/grades",
+    href: "/dashboard/pedagogie/remediation",
     icon: Brain,
     color: "from-rose-500 to-rose-600",
     bg: "bg-rose-50",
@@ -84,7 +87,7 @@ const quickLinks = [
   },
   {
     label: "Inspection pédagogique",
-    href: "/dashboard/academics/pedagogical-units",
+    href: "/dashboard/pedagogie/inspection",
     icon: Microscope,
     color: "from-cyan-500 to-cyan-600",
     bg: "bg-cyan-50",
@@ -93,7 +96,7 @@ const quickLinks = [
   },
   {
     label: "Rapports pédagogiques",
-    href: "/dashboard/reports",
+    href: "/dashboard/pedagogie/rapports",
     icon: FileBarChart2,
     color: "from-slate-600 to-slate-700",
     bg: "bg-slate-50",
@@ -107,65 +110,82 @@ const COLORS = ["#6366f1", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4"
 
 // ─── Component ─────────────────────────────────────────────────────────────
 export default function PedagogieDashboardClient({
-  currentUser, classes, subjects, teachers, students, assignments,
+  currentUser, classes, subjects, teachers, students, assignments, overview, classOverview = [], subjectOverview = [],
 }: Props) {
   const [activeTab, setActiveTab] = useState<"overview" | "progression" | "devoirs" | "alertes">("overview");
   const [searchQuery, setSearchQuery] = useState("");
 
   // ── Computed KPIs ──────────────────────────────────────────────────────
   const kpis = useMemo(() => {
-    const totalClasses    = classes.length;
-    const totalTeachers   = teachers.length;
-    const totalStudents   = students.length;
-    const activeAssign    = assignments.filter((a: any) => a.status !== "closed").length;
+    const totalClasses = overview?.totals?.classes ?? classes.length;
+    const totalTeachers = overview?.totals?.teachers ?? teachers.length;
+    const totalStudents = overview?.totals?.students ?? students.length;
+    const activeAssign = overview?.assignments?.active ?? assignments.filter((a: any) => a.status !== "closed").length;
     const dueAssign       = assignments.filter((a: any) => {
       if (!a.dueDate) return false;
       return new Date(a.dueDate) < new Date();
     }).length;
 
-    // Simulated progression (real data needs grade queries — use a placeholder)
-    const avgProgression  = Math.round(62 + Math.random() * 25);
-    const struggling      = Math.round(totalStudents * 0.12);
-    const alerts          = dueAssign + Math.round(totalClasses * 0.08);
+    const plannedLessons = overview?.planning?.plannedLessons ?? 0;
+    const realisedLessons = overview?.planning?.realisedLessons ?? 0;
+    const avgProgression = overview?.planning?.progressRate ?? 0;
+    const struggling = overview?.results?.weakStudents ?? 0;
+    const pendingCorrections = overview?.assignments?.pendingCorrections ?? 0;
+    const studentAttendanceRate = overview?.attendance?.studentRate ?? 0;
+    const teacherAttendanceRate = overview?.attendance?.teacherRate ?? 0;
+    const averageScore = overview?.results?.averageScore ?? 0;
+    const alerts = overview?.alerts?.total ?? (dueAssign + Math.round(totalClasses * 0.08));
 
-    return { totalClasses, totalTeachers, totalStudents, activeAssign, dueAssign, avgProgression, struggling, alerts };
-  }, [classes, teachers, students, assignments]);
+    return {
+      totalClasses,
+      totalTeachers,
+      totalStudents,
+      activeAssign,
+      dueAssign: overview?.assignments?.overdue ?? dueAssign,
+      avgProgression,
+      struggling,
+      alerts,
+      plannedLessons,
+      realisedLessons,
+      pendingCorrections,
+      studentAttendanceRate,
+      teacherAttendanceRate,
+      averageScore,
+    };
+  }, [classes, teachers, students, assignments, overview]);
 
   // ── Chart Data ─────────────────────────────────────────────────────────
-  const subjectProgressData = useMemo(() =>
-    subjects.slice(0, 8).map((s: any, i: number) => ({
-      name: s.subjectName?.substring(0, 10) || `Mat.${i + 1}`,
-      planifie: Math.round(70 + Math.random() * 25),
-      realise:  Math.round(50 + Math.random() * 40),
-    })),
-    [subjects]
-  );
+  const subjectProgressData = useMemo(() => {
+    const source = subjectOverview.length > 0 ? subjectOverview : subjects.slice(0, 8);
+    return source.map((subject: any, i: number) => ({
+      name: (subject.subjectName || `Mat.${i + 1}`).substring(0, 14),
+      planifie: subject.planned ? 100 : 0,
+      realise: subject.progressRate ?? 0,
+      average: subject.average ?? 0,
+    }));
+  }, [subjects, subjectOverview]);
 
-  const classDistData = useMemo(() =>
-    classes.slice(0, 6).map((c: any, i: number) => ({
-      name: c.className || `Cl.${i + 1}`,
-      value: Math.round(15 + Math.random() * 25),
-    })),
-    [classes]
-  );
+  const classDistData = useMemo(() => {
+    const source = classOverview.length > 0 ? classOverview : classes.slice(0, 6);
+    return source.map((classe: any, i: number) => ({
+      name: classe.className || `Cl.${i + 1}`,
+      value: classe.students ?? 0,
+      progressRate: classe.progressRate ?? 0,
+      average: classe.average ?? 0,
+    }));
+  }, [classes, classOverview]);
 
   const weeklyActivityData = [
-    { day: "Lun", cours: 12, devoirs: 4 },
-    { day: "Mar", cours: 18, devoirs: 6 },
-    { day: "Mer", cours: 15, devoirs: 3 },
-    { day: "Jeu", cours: 20, devoirs: 8 },
-    { day: "Ven", cours: 16, devoirs: 5 },
-    { day: "Sam", cours: 8,  devoirs: 2 },
+    { day: "Planifiés", cours: kpis.plannedLessons, devoirs: kpis.activeAssign },
+    { day: "Réalisés", cours: kpis.realisedLessons, devoirs: assignments.length },
+    { day: "À corriger", cours: kpis.pendingCorrections, devoirs: kpis.pendingCorrections },
+    { day: "Retards", cours: kpis.dueAssign, devoirs: kpis.dueAssign },
   ];
 
-  const radarData = [
-    { subject: "Mathématiques", A: 85 },
-    { subject: "Français",      A: 72 },
-    { subject: "Sciences",      A: 68 },
-    { subject: "Histoire",      A: 78 },
-    { subject: "Anglais",       A: 63 },
-    { subject: "Arabe",         A: 81 },
-  ];
+  const radarData = subjectProgressData.slice(0, 6).map((subject: any) => ({
+    subject: subject.name,
+    A: subject.average || subject.realise || 0,
+  }));
 
   const tabs = [
     { id: "overview",    label: "Vue globale",     icon: LayoutDashboardIcon },
@@ -237,12 +257,12 @@ export default function PedagogieDashboardClient({
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KpiCard icon={Layers}       label="Classes suivies"        value={kpis.totalClasses}    color="bg-indigo-50 text-indigo-600"  trend={+5} />
         <KpiCard icon={Users}        label="Enseignants actifs"      value={kpis.totalTeachers}   color="bg-blue-50 text-blue-600"      trend={+2} />
-        <KpiCard icon={Calendar}     label="Cours planifiés"         value={kpis.totalClasses * 6} color="bg-violet-50 text-violet-600"  sub="Cette semaine" />
-        <KpiCard icon={CheckCircle2} label="Cours réalisés"          value={Math.round(kpis.totalClasses * 4.8)} color="bg-emerald-50 text-emerald-600" trend={+8} />
-        <KpiCard icon={Activity}     label="Taux prog. programme"    value={`${kpis.avgProgression}%`} color="bg-cyan-50 text-cyan-600"   sub="Moyenne générale" />
+        <KpiCard icon={Calendar}     label="Cours planifiés"         value={kpis.plannedLessons} color="bg-violet-50 text-violet-600"  sub="Planification pédagogique" />
+        <KpiCard icon={CheckCircle2} label="Cours réalisés"          value={kpis.realisedLessons} color="bg-emerald-50 text-emerald-600" trend={kpis.avgProgression > 0 ? +kpis.avgProgression : undefined} />
+        <KpiCard icon={Activity}     label="Taux prog. programme"    value={`${kpis.avgProgression}%`} color="bg-cyan-50 text-cyan-600"   sub={`Moyenne résultats: ${kpis.averageScore}/20`} />
         <KpiCard icon={ClipboardList} label="Devoirs actifs"         value={kpis.activeAssign}    color="bg-amber-50 text-amber-600"    sub={`${kpis.dueAssign} en retard`} />
         <KpiCard icon={Brain}        label="Élèves en difficulté"    value={kpis.struggling}      color="bg-rose-50 text-rose-600"       trend={-3} />
-        <KpiCard icon={Bell}         label="Alertes pédagogiques"    value={kpis.alerts}          color="bg-orange-50 text-orange-600"  sub="Nécessitent attention" />
+        <KpiCard icon={Bell}         label="Alertes pédagogiques"    value={kpis.alerts}          color="bg-orange-50 text-orange-600"  sub={`Présence élèves: ${kpis.studentAttendanceRate}%`} />
       </div>
 
       {/* ── TABS ── */}
