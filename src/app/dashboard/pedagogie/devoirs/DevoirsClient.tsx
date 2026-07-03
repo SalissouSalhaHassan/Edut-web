@@ -128,6 +128,11 @@ export default function DevoirsClient({
   const activeListLength = activeTab === "devoirs" ? filteredAssignments.length : activeTab === "soumissions" ? filteredSubmissions.length : filteredCorrections.length;
   const totalPages = Math.max(1, Math.ceil(activeListLength / PAGE_SIZE));
 
+  const openView = (row: any) => {
+    setSelectedRow(row);
+    setModal("view_devoir");
+  };
+
   // ─── Form Actions ───
   const handleCreateDevoir = () => {
     if (!devoirForm.title || !devoirForm.classId || !devoirForm.subjectId) {
