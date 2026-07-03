@@ -106,14 +106,15 @@ const sections: NavSection[] = [
     title: "PÉDAGOGIE",
     dotColor: "bg-violet-500",
     items: [
-      { href: "/dashboard/pedagogie", label: "Tableau de bord pédagogique", icon: <Brain className="size-[18px]" />, color: "text-violet-600" },
-      { href: "/dashboard/academics", label: "Cahier de textes", icon: <BookMarked className="size-[18px]" />, color: "text-violet-500" },
-      { href: "/dashboard/academics/timetable", label: "Planification", icon: <CalendarCheck2 className="size-[18px]" />, color: "text-indigo-500" },
-      { href: "/dashboard/academics/grades", label: "Suivi de progression", icon: <ClipboardCheck className="size-[18px]" />, color: "text-emerald-500" },
-      { href: "/dashboard/lms", label: "Ressources pédagogiques", icon: <LibraryBig className="size-[18px]" />, color: "text-violet-500" },
-      { href: "/dashboard/academics/homework", label: "Devoirs & corrections", icon: <ClipboardList className="size-[18px]" />, color: "text-amber-500" },
-      { href: "/dashboard/academics/pedagogical-units", label: "Inspection pédagogique", icon: <Microscope className="size-[18px]" />, color: "text-cyan-500" },
-      { href: "/dashboard/reports", label: "Rapports pédagogiques", icon: <FileBarChart2 className="size-[18px]" />, color: "text-slate-600" },
+      { href: "/dashboard/pedagogie", label: "Tableau de bord pédagogique", icon: <LayoutDashboard className="size-[18px]" />, color: "text-violet-600" },
+      { href: "/dashboard/pedagogie/cahier-textes", label: "Cahier de textes", icon: <BookMarked className="size-[18px]" />, color: "text-violet-500" },
+      { href: "/dashboard/pedagogie/planification", label: "Planification pédagogique", icon: <CalendarCheck2 className="size-[18px]" />, color: "text-indigo-500" },
+      { href: "/dashboard/pedagogie/progression", label: "Suivi de progression", icon: <FileBarChart2 className="size-[18px]" />, color: "text-emerald-500" },
+      { href: "/dashboard/pedagogie/ressources", label: "Ressources pédagogiques", icon: <LibraryBig className="size-[18px]" />, color: "text-violet-500" },
+      { href: "/dashboard/pedagogie/devoirs", label: "Devoirs & corrections", icon: <ClipboardList className="size-[18px]" />, color: "text-amber-500" },
+      { href: "/dashboard/pedagogie/remediation", label: "Remédiation pédagogique", icon: <GraduationCap className="size-[18px]" />, color: "text-rose-500" },
+      { href: "/dashboard/pedagogie/inspection", label: "Inspection pédagogique", icon: <Microscope className="size-[18px]" />, color: "text-cyan-500" },
+      { href: "/dashboard/pedagogie/rapports", label: "Rapports pédagogiques", icon: <FileText className="size-[18px]" />, color: "text-slate-600" },
     ],
   },
   {
@@ -229,7 +230,14 @@ export default function DashboardSidebar({
 
   const dynamicSections = React.useMemo(() => {
     const isSuperAdmin = Boolean(user?.superAdmin === true || user?.superAdmin === 1);
-    const isTeacher = user?.role?.roleName === "Professeur" || user?.role?.roleName === "Enseignant";
+    const roleNameLower = (user?.role?.roleName || "").toLowerCase();
+
+    const isDirecteur = user?.admin === true || isSuperAdmin || roleNameLower.includes("directeur") || roleNameLower.includes("dirigeant");
+    const isPedago = roleNameLower.includes("responsable pédagogique") || roleNameLower.includes("inspecteur") || roleNameLower.includes("censeur") || roleNameLower.includes("études");
+    const isTeacher = roleNameLower.includes("professeur") || roleNameLower.includes("enseignant") || roleNameLower.includes("teacher");
+    const isStudent = roleNameLower.includes("élève") || roleNameLower.includes("etudiant") || roleNameLower.includes("student");
+    const isParent = roleNameLower.includes("parent") || roleNameLower.includes("tuteur") || roleNameLower.includes("famille");
+
     const isLevelDirector = !isSuperAdmin && user?.admin === true && user?.educationalLevel && user?.educationalLevel !== "Tous" && user?.educationalLevel !== "All";
 
     let filtered = sections.map((section) => {
@@ -260,10 +268,62 @@ export default function DashboardSidebar({
         } else if (["finance", "administration", "canevas", "resources", "system"].includes(section.id)) {
           items = [];
         } else if (section.id === "pedagogie") {
-          // Teachers see the full pedagogie section
-          items = items;
+          // Teachers see their pedagogical dashboards/actions (exclude inspection & reports)
+          items = items.filter((item) => [
+            "/dashboard/pedagogie",
+            "/dashboard/pedagogie/cahier-textes",
+            "/dashboard/pedagogie/planification",
+            "/dashboard/pedagogie/progression",
+            "/dashboard/pedagogie/ressources",
+            "/dashboard/pedagogie/devoirs",
+            "/dashboard/pedagogie/remediation"
+          ].includes(item.href));
+        }
+      } else if (isStudent) {
+        if (section.id === "general") {
+          items = items.filter((item) => item.href === "/dashboard");
+        } else if (section.id === "schooling") {
+          items = items.filter((item) => [
+            "/dashboard/attendance",
+            "/dashboard/academics/grades",
+            "/dashboard/academics/timetable",
+            "/dashboard/academics/homework"
+          ].includes(item.href));
+        } else if (section.id === "pedagogie") {
+          // Students see logbook, planner, materials, homework
+          items = items.filter((item) => [
+            "/dashboard/pedagogie/cahier-textes",
+            "/dashboard/pedagogie/planification",
+            "/dashboard/pedagogie/ressources",
+            "/dashboard/pedagogie/devoirs"
+          ].includes(item.href));
+        } else if (["finance", "administration", "canevas", "resources", "system"].includes(section.id)) {
+          items = [];
+        }
+      } else if (isParent) {
+        if (section.id === "general") {
+          items = items.filter((item) => item.href === "/dashboard");
+        } else if (section.id === "schooling") {
+          items = items.filter((item) => [
+            "/dashboard/attendance",
+            "/dashboard/academics/grades",
+            "/dashboard/academics/timetable",
+            "/dashboard/academics/homework"
+          ].includes(item.href));
+        } else if (section.id === "pedagogie") {
+          // Parents see logbook, planner, materials, homework, remediation
+          items = items.filter((item) => [
+            "/dashboard/pedagogie/cahier-textes",
+            "/dashboard/pedagogie/planification",
+            "/dashboard/pedagogie/ressources",
+            "/dashboard/pedagogie/devoirs",
+            "/dashboard/pedagogie/remediation"
+          ].includes(item.href));
+        } else if (["finance", "administration", "canevas", "resources", "system"].includes(section.id)) {
+          items = [];
         }
       } else {
+        // Administration / Directeur / Responsable pédagogique (Admin permissions)
         items = items.filter((item) => item.href !== "/dashboard/hr/attendance/teacher/me");
 
         if (isLevelDirector && section.id === "system") {
