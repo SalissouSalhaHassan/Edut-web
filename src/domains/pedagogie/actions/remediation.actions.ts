@@ -121,7 +121,7 @@ export async function getRemediationPlans() {
         } else if (scope.role === "eleve" && scope.studentId) {
           conds.push(_eq(t.studentId, scope.studentId));
         } else if (scope.role === "parent" && user.studentId) {
-          conds.push(_eq(t.studentId, user.studentId));
+          conds.push(_eq(t.studentId, Number(user.studentId)));
         }
 
         return _and(...conds);
