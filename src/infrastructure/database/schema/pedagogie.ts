@@ -119,5 +119,33 @@ export const pedagogieRemediationRelations = relations(pedagogieRemediation, ({ 
   employee: one(employees,      { fields: [pedagogieRemediation.employeeId], references: [employees.id] }),
 }));
 
+// ─── Inspection pédagogique ───────────────────────────────────────────
+export const pedagogieInspection = pgTable("pedagogie_inspections", {
+  id:              serial("id").primaryKey(),
+  schoolId:        integer("school_id").references(() => schools.id),
+  visitDate:       date("visit_date").notNull(),
+  employeeId:      integer("employee_id").references(() => employees.id), // Enseignant inspecté
+  classId:         integer("class_id").references(() => schoolClasses.id),
+  subjectId:       integer("subject_id").references(() => schoolSubjects.id),
+  leconObservee:   varchar("lecon_observee", { length: 255 }).notNull(),
+  ponctualite:     varchar("ponctualite", { length: 50 }).default("Satisfaisant"), // Excellent | Satisfaisant | A améliorer
+  methodologie:    varchar("methodologie", { length: 50 }).default("Satisfaisant"), // Excellent | Satisfaisant | A améliorer
+  gestionClasse:   varchar("gestion_classe", { length: 50 }).default("Satisfaisant"), // Excellent | Satisfaisant | A améliorer
+  supportsUtilises: text("supports_utilises"),
+  noteInspection:  doublePrecision("note_inspection"),
+  recommandations: text("recommandations"),
+  status:          varchar("status", { length: 30 }).default("Ouvert"), // Ouvert | En attente | Clôturé
+  createdAt:       timestamp("created_at").defaultNow(),
+  updatedAt:       timestamp("updated_at").defaultNow(),
+});
+
+export const pedagogieInspectionRelations = relations(pedagogieInspection, ({ one }) => ({
+  school:   one(schools,        { fields: [pedagogieInspection.schoolId],   references: [schools.id] }),
+  class:    one(schoolClasses,  { fields: [pedagogieInspection.classId],    references: [schoolClasses.id] }),
+  subject:  one(schoolSubjects, { fields: [pedagogieInspection.subjectId],  references: [schoolSubjects.id] }),
+  employee: one(employees,      { fields: [pedagogieInspection.employeeId], references: [employees.id] }),
+}));
+
+
 
 
