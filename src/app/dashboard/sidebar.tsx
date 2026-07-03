@@ -9,6 +9,8 @@ import {
   Backpack,
   BarChart3,
   BookOpen,
+  BookMarked,
+  Brain,
   BriefcaseBusiness,
   Bus,
   Building2,
@@ -25,6 +27,7 @@ import {
   Mail,
   LayoutDashboard,
   MessageSquare,
+  Microscope,
   Package,
   MapPin,
   Printer,
@@ -96,6 +99,21 @@ const sections: NavSection[] = [
       { href: "/dashboard/academics/homework", label: "Devoirs", icon: <FileBarChart2 className="size-[18px]" />, color: "text-blue-500" },
       { href: "/dashboard/academics/devoirs", label: "Devoirs IA", icon: <BriefcaseBusiness className="size-[18px]" />, color: "text-indigo-500" },
       { href: "/dashboard/academics/research-graduation", label: "Mémoires & PFE", icon: <GraduationCap className="size-[18px]" />, color: "text-purple-500" },
+    ],
+  },
+  {
+    id: "pedagogie",
+    title: "PÉDAGOGIE",
+    dotColor: "bg-violet-500",
+    items: [
+      { href: "/dashboard/pedagogie", label: "Tableau de bord pédagogique", icon: <Brain className="size-[18px]" />, color: "text-violet-600" },
+      { href: "/dashboard/academics", label: "Cahier de textes", icon: <BookMarked className="size-[18px]" />, color: "text-violet-500" },
+      { href: "/dashboard/academics/timetable", label: "Planification", icon: <CalendarCheck2 className="size-[18px]" />, color: "text-indigo-500" },
+      { href: "/dashboard/academics/grades", label: "Suivi de progression", icon: <ClipboardCheck className="size-[18px]" />, color: "text-emerald-500" },
+      { href: "/dashboard/lms", label: "Ressources pédagogiques", icon: <LibraryBig className="size-[18px]" />, color: "text-violet-500" },
+      { href: "/dashboard/academics/homework", label: "Devoirs & corrections", icon: <ClipboardList className="size-[18px]" />, color: "text-amber-500" },
+      { href: "/dashboard/academics/pedagogical-units", label: "Inspection pédagogique", icon: <Microscope className="size-[18px]" />, color: "text-cyan-500" },
+      { href: "/dashboard/reports", label: "Rapports pédagogiques", icon: <FileBarChart2 className="size-[18px]" />, color: "text-slate-600" },
     ],
   },
   {
@@ -241,6 +259,9 @@ export default function DashboardSidebar({
           ].includes(item.href));
         } else if (["finance", "administration", "canevas", "resources", "system"].includes(section.id)) {
           items = [];
+        } else if (section.id === "pedagogie") {
+          // Teachers see the full pedagogie section
+          items = items;
         }
       } else {
         items = items.filter((item) => item.href !== "/dashboard/hr/attendance/teacher/me");
@@ -392,6 +413,7 @@ export default function DashboardSidebar({
                 className={cn(
                   section.id === "general" ? "text-indigo-600" :
                   section.id === "schooling" ? "text-blue-500" :
+                  section.id === "pedagogie" ? "text-violet-600" :
                   section.id === "finance" ? "text-emerald-600" :
                   section.id === "administration" ? "text-violet-600" :
                   section.id === "canevas" ? "text-cyan-600" :

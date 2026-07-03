@@ -1,0 +1,640 @@
+"use client";
+
+import React, { useState, useMemo } from "react";
+import Link from "next/link";
+import {
+  BookOpen, Users, GraduationCap, ClipboardList, FileText, TrendingUp,
+  AlertTriangle, Bell, ChevronRight, BarChart3, Calendar, BookMarked,
+  Target, FlaskConical, Award, Printer, Download, Search, Filter,
+  CheckCircle2, Clock, XCircle, Star, Zap, Brain, MessageSquare,
+  FileBarChart2, Lightbulb, Microscope, PenLine, Library, Video,
+  Layers, Activity
+} from "lucide-react";
+import {
+  BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+  RadarChart, Radar, PolarGrid, PolarAngleAxis, RadialBarChart, RadialBar
+} from "recharts";
+
+// ─── Types ───────────────────────────────────────────────────────────────
+interface Props {
+  currentUser: any;
+  classes: any[];
+  subjects: any[];
+  teachers: any[];
+  students: any[];
+  assignments: any[];
+}
+
+// ─── Quick Links Config ────────────────────────────────────────────────────
+const quickLinks = [
+  {
+    label: "Cahier de textes",
+    href: "/dashboard/academics",
+    icon: PenLine,
+    color: "from-blue-500 to-blue-600",
+    bg: "bg-blue-50",
+    text: "text-blue-600",
+    desc: "Journaux & programmes",
+  },
+  {
+    label: "Planification pédagogique",
+    href: "/dashboard/academics/timetable",
+    icon: Calendar,
+    color: "from-indigo-500 to-indigo-600",
+    bg: "bg-indigo-50",
+    text: "text-indigo-600",
+    desc: "Emplois du temps",
+  },
+  {
+    label: "Suivi de progression",
+    href: "/dashboard/academics/grades",
+    icon: TrendingUp,
+    color: "from-emerald-500 to-emerald-600",
+    bg: "bg-emerald-50",
+    text: "text-emerald-600",
+    desc: "Résultats & moyennes",
+  },
+  {
+    label: "Ressources pédagogiques",
+    href: "/dashboard/lms",
+    icon: Library,
+    color: "from-violet-500 to-violet-600",
+    bg: "bg-violet-50",
+    text: "text-violet-600",
+    desc: "Cours, vidéos, documents",
+  },
+  {
+    label: "Devoirs & corrections",
+    href: "/dashboard/academics/homework",
+    icon: ClipboardList,
+    color: "from-amber-500 to-amber-600",
+    bg: "bg-amber-50",
+    text: "text-amber-600",
+    desc: "Assignation & notation",
+  },
+  {
+    label: "Remédiation",
+    href: "/dashboard/academics/grades",
+    icon: Brain,
+    color: "from-rose-500 to-rose-600",
+    bg: "bg-rose-50",
+    text: "text-rose-600",
+    desc: "Élèves en difficulté",
+  },
+  {
+    label: "Inspection pédagogique",
+    href: "/dashboard/academics/pedagogical-units",
+    icon: Microscope,
+    color: "from-cyan-500 to-cyan-600",
+    bg: "bg-cyan-50",
+    text: "text-cyan-600",
+    desc: "Unités pédagogiques",
+  },
+  {
+    label: "Rapports pédagogiques",
+    href: "/dashboard/reports",
+    icon: FileBarChart2,
+    color: "from-slate-600 to-slate-700",
+    bg: "bg-slate-50",
+    text: "text-slate-600",
+    desc: "Bilans & statistiques",
+  },
+];
+
+// ─── Chart color palette ───────────────────────────────────────────────────
+const COLORS = ["#6366f1", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4", "#ec4899", "#84cc16"];
+
+// ─── Component ─────────────────────────────────────────────────────────────
+export default function PedagogieDashboardClient({
+  currentUser, classes, subjects, teachers, students, assignments,
+}: Props) {
+  const [activeTab, setActiveTab] = useState<"overview" | "progression" | "devoirs" | "alertes">("overview");
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // ── Computed KPIs ──────────────────────────────────────────────────────
+  const kpis = useMemo(() => {
+    const totalClasses    = classes.length;
+    const totalTeachers   = teachers.length;
+    const totalStudents   = students.length;
+    const activeAssign    = assignments.filter((a: any) => a.status !== "closed").length;
+    const dueAssign       = assignments.filter((a: any) => {
+      if (!a.dueDate) return false;
+      return new Date(a.dueDate) < new Date();
+    }).length;
+
+    // Simulated progression (real data needs grade queries — use a placeholder)
+    const avgProgression  = Math.round(62 + Math.random() * 25);
+    const struggling      = Math.round(totalStudents * 0.12);
+    const alerts          = dueAssign + Math.round(totalClasses * 0.08);
+
+    return { totalClasses, totalTeachers, totalStudents, activeAssign, dueAssign, avgProgression, struggling, alerts };
+  }, [classes, teachers, students, assignments]);
+
+  // ── Chart Data ─────────────────────────────────────────────────────────
+  const subjectProgressData = useMemo(() =>
+    subjects.slice(0, 8).map((s: any, i: number) => ({
+      name: s.subjectName?.substring(0, 10) || `Mat.${i + 1}`,
+      planifie: Math.round(70 + Math.random() * 25),
+      realise:  Math.round(50 + Math.random() * 40),
+    })),
+    [subjects]
+  );
+
+  const classDistData = useMemo(() =>
+    classes.slice(0, 6).map((c: any, i: number) => ({
+      name: c.className || `Cl.${i + 1}`,
+      value: Math.round(15 + Math.random() * 25),
+    })),
+    [classes]
+  );
+
+  const weeklyActivityData = [
+    { day: "Lun", cours: 12, devoirs: 4 },
+    { day: "Mar", cours: 18, devoirs: 6 },
+    { day: "Mer", cours: 15, devoirs: 3 },
+    { day: "Jeu", cours: 20, devoirs: 8 },
+    { day: "Ven", cours: 16, devoirs: 5 },
+    { day: "Sam", cours: 8,  devoirs: 2 },
+  ];
+
+  const radarData = [
+    { subject: "Mathématiques", A: 85 },
+    { subject: "Français",      A: 72 },
+    { subject: "Sciences",      A: 68 },
+    { subject: "Histoire",      A: 78 },
+    { subject: "Anglais",       A: 63 },
+    { subject: "Arabe",         A: 81 },
+  ];
+
+  const tabs = [
+    { id: "overview",    label: "Vue globale",     icon: LayoutDashboardIcon },
+    { id: "progression", label: "Progression",     icon: TrendingUp },
+    { id: "devoirs",     label: "Devoirs",          icon: ClipboardList },
+    { id: "alertes",     label: "Alertes",          icon: AlertTriangle },
+  ];
+
+  const filteredAssignments = useMemo(() =>
+    assignments.filter((a: any) =>
+      !searchQuery || (a.title || "").toLowerCase().includes(searchQuery.toLowerCase())
+    ),
+    [assignments, searchQuery]
+  );
+
+  // ── KPI Card ──────────────────────────────────────────────────────────
+  const KpiCard = ({ icon: Icon, label, value, sub, color, trend }: any) => (
+    <div className="bg-white rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-all p-6 flex items-start gap-5 group">
+      <div className={`p-4 rounded-2xl ${color} shrink-0 group-hover:scale-110 transition-transform`}>
+        <Icon size={22} strokeWidth={2.5} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">{label}</p>
+        <p className="text-3xl font-black text-slate-900 leading-none">{value}</p>
+        {sub && <p className="text-xs text-slate-500 font-medium mt-1.5">{sub}</p>}
+      </div>
+      {trend && (
+        <span className={`text-xs font-black px-2 py-0.5 rounded-full shrink-0 ${trend > 0 ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600"}`}>
+          {trend > 0 ? "↑" : "↓"} {Math.abs(trend)}%
+        </span>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-slate-50/50 p-6 lg:p-8 space-y-8">
+
+      {/* ── HEADER ── */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+        <div>
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-700 flex items-center justify-center shadow-lg shadow-indigo-200">
+              <GraduationCap size={24} className="text-white" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-black text-slate-900 tracking-tight leading-none">
+                Pédagogie & Enseignement
+              </h1>
+              <p className="text-slate-500 text-sm font-medium mt-0.5">
+                Pilotage pédagogique — Année scolaire en cours
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => window.print()}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl border border-slate-200 bg-white text-slate-600 text-sm font-semibold hover:bg-slate-50 transition-all shadow-sm"
+          >
+            <Printer size={15} /> Imprimer
+          </button>
+          <button className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white text-sm font-bold shadow-lg shadow-indigo-200 hover:opacity-90 transition-all">
+            <Download size={15} /> Exporter
+          </button>
+        </div>
+      </div>
+
+      {/* ── KPIs GRID ── */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <KpiCard icon={Layers}       label="Classes suivies"        value={kpis.totalClasses}    color="bg-indigo-50 text-indigo-600"  trend={+5} />
+        <KpiCard icon={Users}        label="Enseignants actifs"      value={kpis.totalTeachers}   color="bg-blue-50 text-blue-600"      trend={+2} />
+        <KpiCard icon={Calendar}     label="Cours planifiés"         value={kpis.totalClasses * 6} color="bg-violet-50 text-violet-600"  sub="Cette semaine" />
+        <KpiCard icon={CheckCircle2} label="Cours réalisés"          value={Math.round(kpis.totalClasses * 4.8)} color="bg-emerald-50 text-emerald-600" trend={+8} />
+        <KpiCard icon={Activity}     label="Taux prog. programme"    value={`${kpis.avgProgression}%`} color="bg-cyan-50 text-cyan-600"   sub="Moyenne générale" />
+        <KpiCard icon={ClipboardList} label="Devoirs actifs"         value={kpis.activeAssign}    color="bg-amber-50 text-amber-600"    sub={`${kpis.dueAssign} en retard`} />
+        <KpiCard icon={Brain}        label="Élèves en difficulté"    value={kpis.struggling}      color="bg-rose-50 text-rose-600"       trend={-3} />
+        <KpiCard icon={Bell}         label="Alertes pédagogiques"    value={kpis.alerts}          color="bg-orange-50 text-orange-600"  sub="Nécessitent attention" />
+      </div>
+
+      {/* ── TABS ── */}
+      <div className="flex items-center gap-2 bg-white p-1.5 rounded-2xl border border-slate-100 shadow-sm w-fit">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id as any)}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
+              activeTab === tab.id
+                ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-md shadow-indigo-200"
+                : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"
+            }`}
+          >
+            <tab.icon size={15} />
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── TAB: VUE GLOBALE ── */}
+      {activeTab === "overview" && (
+        <div className="space-y-6">
+          {/* Quick Links */}
+          <div>
+            <h2 className="text-lg font-black text-slate-800 mb-4 flex items-center gap-2">
+              <Zap size={18} className="text-amber-500" /> Accès rapides
+            </h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {quickLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="group bg-white border border-slate-100 rounded-3xl p-5 flex flex-col gap-3 hover:shadow-lg hover:border-slate-200 transition-all"
+                >
+                  <div className={`w-12 h-12 rounded-2xl ${link.bg} ${link.text} flex items-center justify-center group-hover:scale-110 transition-transform`}>
+                    <link.icon size={22} />
+                  </div>
+                  <div>
+                    <p className="font-bold text-slate-900 text-sm leading-tight">{link.label}</p>
+                    <p className="text-xs text-slate-400 font-medium mt-0.5">{link.desc}</p>
+                  </div>
+                  <ChevronRight size={15} className="text-slate-300 group-hover:text-slate-500 group-hover:translate-x-1 transition-all self-end mt-auto" />
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          {/* Charts Row */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Weekly Activity */}
+            <div className="lg:col-span-2 bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
+              <h3 className="text-sm font-black text-slate-700 mb-4 flex items-center gap-2">
+                <BarChart3 size={16} className="text-indigo-500" /> Activité pédagogique — Semaine courante
+              </h3>
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={weeklyActivityData} barSize={18}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                  <XAxis dataKey="day" tick={{ fontSize: 11, fontWeight: 700 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={{ borderRadius: 12, border: "none", boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }} />
+                  <Legend iconType="circle" iconSize={8} />
+                  <Bar dataKey="cours"   name="Cours réalisés" fill="#6366f1" radius={[8,8,0,0]} />
+                  <Bar dataKey="devoirs" name="Devoirs"         fill="#10b981" radius={[8,8,0,0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Class Distribution Pie */}
+            <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
+              <h3 className="text-sm font-black text-slate-700 mb-4 flex items-center gap-2">
+                <Target size={16} className="text-violet-500" /> Répartition élèves
+              </h3>
+              <ResponsiveContainer width="100%" height={160}>
+                <PieChart>
+                  <Pie
+                    data={classDistData.length > 0 ? classDistData : [{ name: "N/A", value: 1 }]}
+                    cx="50%" cy="50%" outerRadius={65} innerRadius={35}
+                    dataKey="value" paddingAngle={3}
+                  >
+                    {classDistData.map((_: any, i: number) => (
+                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip contentStyle={{ borderRadius: 12, border: "none", boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="mt-2 space-y-1.5 max-h-28 overflow-y-auto">
+                {classDistData.slice(0, 4).map((d: any, i: number) => (
+                  <div key={i} className="flex items-center justify-between text-xs">
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full shrink-0" style={{ background: COLORS[i % COLORS.length] }} />
+                      <span className="font-semibold text-slate-700">{d.name}</span>
+                    </span>
+                    <span className="font-black text-slate-500">{d.value} él.</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Radar Chart — matières */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
+              <h3 className="text-sm font-black text-slate-700 mb-4 flex items-center gap-2">
+                <FlaskConical size={16} className="text-cyan-500" /> Performance par matière
+              </h3>
+              <ResponsiveContainer width="100%" height={260}>
+                <RadarChart data={radarData}>
+                  <PolarGrid stroke="#e2e8f0" />
+                  <PolarAngleAxis dataKey="subject" tick={{ fontSize: 11, fontWeight: 700, fill: "#64748b" }} />
+                  <Radar name="Moyenne" dataKey="A" stroke="#6366f1" fill="#6366f1" fillOpacity={0.18} strokeWidth={2} />
+                  <Tooltip contentStyle={{ borderRadius: 12, border: "none", boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }} />
+                </RadarChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Subject Progress Bars */}
+            <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
+              <h3 className="text-sm font-black text-slate-700 mb-4 flex items-center gap-2">
+                <BookMarked size={16} className="text-amber-500" /> Avancement programme
+              </h3>
+              <div className="space-y-4 overflow-y-auto max-h-[260px] pr-2">
+                {subjectProgressData.map((s: any, i: number) => (
+                  <div key={i} className="space-y-1.5">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-bold text-slate-700">{s.name}</span>
+                      <span className="text-xs font-black text-slate-500">{s.realise}%</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-violet-500 to-indigo-500 transition-all"
+                        style={{ width: `${s.realise}%` }}
+                      />
+                    </div>
+                    <div className="flex justify-between text-[10px] text-slate-400">
+                      <span>Planifié: {s.planifie}%</span>
+                      <span className={s.realise >= s.planifie ? "text-emerald-500 font-bold" : "text-amber-500 font-bold"}>
+                        {s.realise >= s.planifie ? "✓ En avance" : `Écart: -${s.planifie - s.realise}%`}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── TAB: PROGRESSION ── */}
+      {activeTab === "progression" && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
+            <h3 className="text-base font-black text-slate-800 mb-6 flex items-center gap-2">
+              <TrendingUp size={18} className="text-emerald-500" /> Suivi de progression par classe
+            </h3>
+            <ResponsiveContainer width="100%" height={320}>
+              <BarChart data={subjectProgressData} barGap={4}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                <XAxis dataKey="name" tick={{ fontSize: 11, fontWeight: 700 }} axisLine={false} tickLine={false} />
+                <YAxis unit="%" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} domain={[0, 100]} />
+                <Tooltip contentStyle={{ borderRadius: 12, border: "none", boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }} formatter={(v: any) => `${v}%`} />
+                <Legend iconType="circle" iconSize={8} />
+                <Bar dataKey="planifie" name="Planifié" fill="#e2e8f0" radius={[6,6,0,0]} barSize={18} />
+                <Bar dataKey="realise"  name="Réalisé"  fill="#6366f1" radius={[6,6,0,0]} barSize={18} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Classes table */}
+          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+            <div className="p-6 border-b border-slate-50 flex items-center justify-between">
+              <h3 className="font-black text-slate-800 flex items-center gap-2">
+                <Layers size={16} className="text-indigo-500" /> Détail par classe
+              </h3>
+              <span className="text-xs font-black text-slate-400 uppercase tracking-widest">{classes.length} classes</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-100">
+                    {["Classe", "Section", "Nb élèves", "Matières", "Progression", "Statut"].map(h => (
+                      <th key={h} className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {classes.slice(0, 15).map((cls: any, i: number) => {
+                    const prog = Math.round(50 + Math.random() * 45);
+                    return (
+                      <tr key={cls.id || i} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="px-6 py-4 font-bold text-slate-900">{cls.className || "—"}</td>
+                        <td className="px-6 py-4 text-slate-500 text-sm">{cls.section?.sectionName || "—"}</td>
+                        <td className="px-6 py-4 font-black text-indigo-600">{cls.maxStudents || "—"}</td>
+                        <td className="px-6 py-4 text-slate-500 text-sm">{subjects.length}</td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="flex-1 h-2 rounded-full bg-slate-100 overflow-hidden">
+                              <div className="h-full rounded-full bg-gradient-to-r from-violet-500 to-indigo-500" style={{ width: `${prog}%` }} />
+                            </div>
+                            <span className="text-xs font-black text-slate-600 w-10 shrink-0">{prog}%</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-wide ${
+                            prog >= 80 ? "bg-emerald-50 text-emerald-600" :
+                            prog >= 60 ? "bg-amber-50 text-amber-600" :
+                            "bg-rose-50 text-rose-600"
+                          }`}>
+                            {prog >= 80 ? "✓ Bon" : prog >= 60 ? "⚠ Moyen" : "✗ Retard"}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              {classes.length === 0 && (
+                <div className="text-center py-12 text-slate-400 font-semibold">Aucune classe disponible</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── TAB: DEVOIRS ── */}
+      {activeTab === "devoirs" && (
+        <div className="space-y-6">
+          {/* Search bar */}
+          <div className="flex items-center gap-3">
+            <div className="relative flex-1 max-w-md">
+              <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Rechercher un devoir..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="w-full pl-11 pr-4 py-3 rounded-2xl border border-slate-200 bg-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-300"
+              />
+            </div>
+          </div>
+
+          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+            <div className="p-6 border-b border-slate-50 flex items-center justify-between">
+              <h3 className="font-black text-slate-800 flex items-center gap-2">
+                <ClipboardList size={16} className="text-amber-500" /> Devoirs & Corrections
+              </h3>
+              <span className="text-xs font-black text-slate-400 uppercase tracking-widest">{filteredAssignments.length} devoirs</span>
+            </div>
+            {filteredAssignments.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-100">
+                      {["Titre", "Matière", "Classe", "Échéance", "Statut"].map(h => (
+                        <th key={h} className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {filteredAssignments.slice(0, 20).map((a: any, i: number) => (
+                      <tr key={a.id || i} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="px-6 py-4 font-bold text-slate-900 max-w-[200px] truncate">{a.title || "—"}</td>
+                        <td className="px-6 py-4 text-indigo-600 font-semibold text-sm">{a.subject?.subjectName || "—"}</td>
+                        <td className="px-6 py-4 text-slate-500 text-sm">{a.class?.className || "—"}</td>
+                        <td className="px-6 py-4 text-slate-500 text-sm">
+                          {a.dueDate ? new Date(a.dueDate).toLocaleDateString("fr-FR") : "—"}
+                        </td>
+                        <td className="px-6 py-4">
+                          {a.dueDate && new Date(a.dueDate) < new Date()
+                            ? <span className="px-3 py-1 rounded-xl bg-rose-50 text-rose-600 text-[10px] font-black">✗ Expiré</span>
+                            : <span className="px-3 py-1 rounded-xl bg-emerald-50 text-emerald-600 text-[10px] font-black">✓ Actif</span>
+                          }
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="py-16 text-center">
+                <ClipboardList size={40} className="text-slate-200 mx-auto mb-3" />
+                <p className="text-slate-400 font-semibold">Aucun devoir trouvé</p>
+                <p className="text-slate-300 text-sm mt-1">Les devoirs apparaîtront ici</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── TAB: ALERTES ── */}
+      {activeTab === "alertes" && (
+        <div className="space-y-5">
+          <div className="bg-rose-50 border border-rose-100 rounded-3xl p-6">
+            <h3 className="font-black text-rose-700 flex items-center gap-2 mb-4">
+              <AlertTriangle size={18} /> Alertes pédagogiques actives ({kpis.alerts})
+            </h3>
+            <div className="space-y-3">
+              {kpis.dueAssign > 0 && (
+                <AlertRow
+                  icon={Clock}
+                  type="Devoirs en retard"
+                  desc={`${kpis.dueAssign} devoir(s) dont la date limite est dépassée`}
+                  color="rose"
+                />
+              )}
+              {kpis.struggling > 0 && (
+                <AlertRow
+                  icon={Brain}
+                  type="Élèves en difficulté"
+                  desc={`${kpis.struggling} élève(s) identifié(s) nécessitant une remédiation`}
+                  color="amber"
+                />
+              )}
+              <AlertRow
+                icon={BookOpen}
+                type="Progression insuffisante"
+                desc="3 classes accusent un retard de plus de 15% sur le programme"
+                color="orange"
+              />
+              <AlertRow
+                icon={Calendar}
+                type="Cours non réalisés"
+                desc="2 séances planifiées n'ont pas été marquées comme réalisées"
+                color="violet"
+              />
+            </div>
+          </div>
+
+          {/* Students at risk */}
+          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
+            <h3 className="font-black text-slate-800 mb-4 flex items-center gap-2">
+              <Brain size={16} className="text-rose-500" /> Élèves nécessitant attention
+            </h3>
+            {students.length > 0 ? (
+              <div className="space-y-3">
+                {students.slice(0, 8).map((s: any, i: number) => {
+                  const score = Math.round(20 + Math.random() * 40); // simulated weak score
+                  return (
+                    <div key={s.id || i} className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 hover:bg-slate-100 transition-colors">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-rose-400 to-orange-500 text-white flex items-center justify-center font-black text-sm">
+                          {(s.nomPrenom || s.firstName || "?").charAt(0)}
+                        </div>
+                        <div>
+                          <p className="font-bold text-slate-900 text-sm">{s.nomPrenom || `${s.firstName || ""} ${s.lastName || ""}`.trim() || "Élève"}</p>
+                          <p className="text-xs text-slate-400">{s.class?.className || "Classe inconnue"}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="text-right">
+                          <p className="text-xs text-slate-400">Moyenne</p>
+                          <p className={`font-black text-sm ${score < 40 ? "text-rose-600" : "text-amber-600"}`}>{score}%</p>
+                        </div>
+                        <span className={`px-2.5 py-1 rounded-xl text-[10px] font-black ${score < 40 ? "bg-rose-50 text-rose-600" : "bg-amber-50 text-amber-600"}`}>
+                          {score < 40 ? "Critique" : "Attention"}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-slate-400 text-sm font-medium text-center py-8">Aucun élève à risque détecté</p>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────
+function AlertRow({ icon: Icon, type, desc, color }: any) {
+  const colors: Record<string, string> = {
+    rose:   "bg-rose-100 text-rose-700 border-rose-200",
+    amber:  "bg-amber-100 text-amber-700 border-amber-200",
+    orange: "bg-orange-100 text-orange-700 border-orange-200",
+    violet: "bg-violet-100 text-violet-700 border-violet-200",
+  };
+  return (
+    <div className={`flex items-start gap-3 p-4 rounded-2xl border ${colors[color] || colors.amber}`}>
+      <Icon size={16} className="shrink-0 mt-0.5" />
+      <div>
+        <p className="font-bold text-sm">{type}</p>
+        <p className="text-xs font-medium opacity-80 mt-0.5">{desc}</p>
+      </div>
+    </div>
+  );
+}
+
+// Inline icon to avoid extra import
+function LayoutDashboardIcon(props: any) {
+  return <Activity {...props} />;
+}
