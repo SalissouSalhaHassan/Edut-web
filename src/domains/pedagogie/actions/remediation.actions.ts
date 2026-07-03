@@ -1,0 +1,178 @@
+"use server";
+
+import { db } from "@/infrastructure/database";
+import { pedagogieRemediation } from "@/infrastructure/database/schema/pedagogie";
+import { eq, and, desc, sql } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
+import { getCurrentUser } from "@/domains/auth/services/session";
+import { getActiveSchoolId } from "@/domains/auth/services/school";
+
+export type RemediationFormData = {
+  studentId: number;
+  classId: number;
+  subjectId: number;
+  employeeId: number;
+  difficulties: string;
+  currentGrade?: number;
+  targetGrade?: number;
+  remediationPlan: string;
+  sessionsPlanned?: number;
+  sessionsCompleted?: number;
+  status?: string; // "Actif" | "Clôturé"
+  alertLevel?: string; // "Critique" | "Moyen" | "Faible"
+};
+
+// ─── Initialize table ────────────────────────────────────────────────────────
+export async function initRemediationTable() {
+  try {
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS pedagogie_remediations (
+        id SERIAL PRIMARY KEY,
+        school_id INTEGER REFERENCES schools(id),
+        student_id INTEGER REFERENCES students(id),
+        class_id INTEGER REFERENCES school_classes(id),
+        subject_id INTEGER REFERENCES school_subjects(id),
+        employee_id INTEGER REFERENCES employees(id),
+        difficulties TEXT NOT NULL,
+        current_grade DOUBLE PRECISION,
+        target_grade DOUBLE PRECISION,
+        remediation_plan TEXT NOT NULL,
+        sessions_planned INTEGER DEFAULT 4,
+        sessions_completed INTEGER DEFAULT 0,
+        status VARCHAR(30) DEFAULT 'Actif',
+        alert_level VARCHAR(20) DEFAULT 'Moyen',
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    return { success: true };
+  } catch (e: any) {
+    console.error("initRemediationTable:", e.message);
+    return { success: false, error: e.message };
+  }
+}
+
+// ─── CREATE ──────────────────────────────────────────────────────────────────
+export async function createRemediationPlan(data: RemediationFormData) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) return { success: false, error: "Non autorisé" };
+    const schoolId = await getActiveSchoolId();
+
+    const [plan] = await db.insert(pedagogieRemediation).values({
+      schoolId,
+      studentId: data.studentId,
+      classId: data.classId,
+      subjectId: data.subjectId,
+      employeeId: data.employeeId,
+      difficulties: data.difficulties,
+      currentGrade: data.currentGrade != null ? data.currentGrade : null,
+      targetGrade: data.targetGrade != null ? data.targetGrade : null,
+      remediationPlan: data.remediationPlan,
+      sessionsPlanned: data.sessionsPlanned ?? 4,
+      sessionsCompleted: data.sessionsCompleted ?? 0,
+      status: "Actif",
+      alertLevel: data.alertLevel || "Moyen",
+    }).returning();
+
+    revalidatePath("/dashboard/pedagogie/remediation");
+    return { success: true, data: plan };
+  } catch (e: any) {
+    return { success: false, error: e.message };
+  }
+}
+
+// ─── READ ────────────────────────────────────────────────────────────────────
+export async function getRemediationPlans() {
+  try {
+    const user = await getCurrentUser();
+    if (!user) return { success: false, error: "Non autorisé", data: [] };
+    const schoolId = await getActiveSchoolId();
+
+    const data = await db.query.pedagogieRemediation.findMany({
+      where: (t, { eq: _eq }) => _eq(t.schoolId, schoolId),
+      with: {
+        student: true,
+        class: true,
+        subject: true,
+        employee: true,
+      },
+      orderBy: (t) => [desc(t.createdAt)],
+    });
+
+    return { success: true, data };
+  } catch (e: any) {
+    return { success: false, error: e.message, data: [] };
+  }
+}
+
+// ─── UPDATE ──────────────────────────────────────────────────────────────────
+export async function updateRemediationPlan(id: number, data: Partial<RemediationFormData>) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) return { success: false, error: "Non autorisé" };
+
+    await db.update(pedagogieRemediation)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(pedagogieRemediation.id, id));
+
+    revalidatePath("/dashboard/pedagogie/remediation");
+    return { success: true };
+  } catch (e: any) {
+    return { success: false, error: e.message };
+  }
+}
+
+// ─── ADD SESSION (Séance de soutien) ─────────────────────────────────────────
+export async function addRemediationSession(id: number) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) return { success: false, error: "Non autorisé" };
+
+    await db.update(pedagogieRemediation)
+      .set({
+        sessionsCompleted: sql`sessions_completed + 1`,
+        updatedAt: new Date()
+      })
+      .where(eq(pedagogieRemediation.id, id));
+
+    revalidatePath("/dashboard/pedagogie/remediation");
+    return { success: true };
+  } catch (e: any) {
+    return { success: false, error: e.message };
+  }
+}
+
+// ─── CLOSE PLAN (Clôturer) ───────────────────────────────────────────────────
+export async function closeRemediationPlan(id: number) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) return { success: false, error: "Non autorisé" };
+
+    await db.update(pedagogieRemediation)
+      .set({
+        status: "Clôturé",
+        updatedAt: new Date()
+      })
+      .where(eq(pedagogieRemediation.id, id));
+
+    revalidatePath("/dashboard/pedagogie/remediation");
+    return { success: true };
+  } catch (e: any) {
+    return { success: false, error: e.message };
+  }
+}
+
+// ─── DELETE ──────────────────────────────────────────────────────────────────
+export async function deleteRemediationPlan(id: number) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) return { success: false, error: "Non autorisé" };
+
+    await db.delete(pedagogieRemediation).where(eq(pedagogieRemediation.id, id));
+    revalidatePath("/dashboard/pedagogie/remediation");
+    return { success: true };
+  } catch (e: any) {
+    return { success: false, error: e.message };
+  }
+}

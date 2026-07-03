@@ -1,4 +1,4 @@
-import { pgTable, serial, varchar, text, timestamp, integer, boolean, date, time } from "drizzle-orm/pg-core";
+import { pgTable, serial, varchar, text, timestamp, integer, boolean, date, time, doublePrecision } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { schools } from "./auth";
 import { employees } from "./hr";
@@ -89,5 +89,34 @@ export const pedagogieRessourcesRelations = relations(pedagogieRessources, ({ on
   subject:  one(schoolSubjects, { fields: [pedagogieRessources.subjectId],  references: [schoolSubjects.id] }),
   employee: one(employees,      { fields: [pedagogieRessources.employeeId], references: [employees.id] }),
 }));
+
+// ─── Réhabilitation et Remédiation ───────────────────────────────────
+export const pedagogieRemediation = pgTable("pedagogie_remediations", {
+  id:                serial("id").primaryKey(),
+  schoolId:          integer("school_id").references(() => schools.id),
+  studentId:         integer("student_id").references(() => students.id),
+  classId:           integer("class_id").references(() => schoolClasses.id),
+  subjectId:         integer("subject_id").references(() => schoolSubjects.id),
+  employeeId:        integer("employee_id").references(() => employees.id),
+  difficulties:      text("difficulties").notNull(),
+  currentGrade:      doublePrecision("current_grade"),
+  targetGrade:       doublePrecision("target_grade"),
+  remediationPlan:   text("remediation_plan").notNull(),
+  sessionsPlanned:   integer("sessions_planned").default(4),
+  sessionsCompleted: integer("sessions_completed").default(0),
+  status:            varchar("status", { length: 30 }).default("Actif"), // Actif | Clôturé
+  alertLevel:        varchar("alert_level", { length: 20 }).default("Moyen"), // Critique | Moyen | Faible
+  createdAt:         timestamp("created_at").defaultNow(),
+  updatedAt:         timestamp("updated_at").defaultNow(),
+});
+
+export const pedagogieRemediationRelations = relations(pedagogieRemediation, ({ one }) => ({
+  school:   one(schools,        { fields: [pedagogieRemediation.schoolId],   references: [schools.id] }),
+  student:  one(students,       { fields: [pedagogieRemediation.studentId],  references: [students.id] }),
+  class:    one(schoolClasses,  { fields: [pedagogieRemediation.classId],    references: [schoolClasses.id] }),
+  subject:  one(schoolSubjects, { fields: [pedagogieRemediation.subjectId],  references: [schoolSubjects.id] }),
+  employee: one(employees,      { fields: [pedagogieRemediation.employeeId], references: [employees.id] }),
+}));
+
 
 
