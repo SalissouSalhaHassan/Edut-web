@@ -87,8 +87,7 @@ export async function getPedagogieOverview() {
         .where(
           and(
             eq(schoolClasses.schoolId, schoolId),
-            eq(lmsAssignments.status, "Active"),
-            isTeach ? eq(lmsAssignments.employeeId, scope.teacherId!) : undefined
+            eq(lmsAssignments.status, "Active")
           )
         ),
 
@@ -99,8 +98,7 @@ export async function getPedagogieOverview() {
           and(
             eq(schoolClasses.schoolId, schoolId),
             lte(lmsAssignments.dueDate, today),
-            eq(lmsAssignments.status, "Active"),
-            isTeach ? eq(lmsAssignments.employeeId, scope.teacherId!) : undefined
+            eq(lmsAssignments.status, "Active")
           )
         ),
 
@@ -111,8 +109,7 @@ export async function getPedagogieOverview() {
         .where(
           and(
             eq(schoolClasses.schoolId, schoolId),
-            eq(lmsSubmissions.isGraded, false),
-            isTeach ? eq(lmsAssignments.employeeId, scope.teacherId!) : undefined
+            eq(lmsSubmissions.isGraded, false)
           )
         ),
 
@@ -126,8 +123,7 @@ export async function getPedagogieOverview() {
         .where(
           and(
             eq(schoolClasses.schoolId, schoolId),
-            eq(lmsSubmissions.isGraded, true),
-            isTeach ? eq(lmsAssignments.employeeId, scope.teacherId!) : undefined
+            eq(lmsSubmissions.isGraded, true)
           )
         ),
 
