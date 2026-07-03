@@ -146,9 +146,9 @@ export async function getSeances(filters: SeanceFilters = {}) {
         if (scope.role === "enseignant" && scope.teacherId) {
           conds.push(_eq(t.employeeId, scope.teacherId));
         } else if (scope.role === "eleve" && user.classId) {
-          conds.push(_eq(t.classId, user.classId));
+          conds.push(_eq(t.classId, Number(user.classId)));
         } else if (scope.role === "parent" && user.classId) {
-          conds.push(_eq(t.classId, user.classId));
+          conds.push(_eq(t.classId, Number(user.classId)));
         }
 
         // Apply dynamic filters
