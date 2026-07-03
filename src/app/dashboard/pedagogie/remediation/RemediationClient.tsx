@@ -608,6 +608,18 @@ export default function RemediationClient({
   );
 }
 
+// ─── KPI Card Helper ──────────────────────────────────────────────────
+const KpiCard = ({ icon, label, value, color, sub }: any) => (
+  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex items-center gap-4">
+    <div className={`p-3.5 rounded-xl ${color} shrink-0`}>{icon}</div>
+    <div>
+      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</p>
+      <p className="text-2xl font-black text-slate-900 leading-none mt-0.5">{value}</p>
+      {sub && <p className="text-xs text-slate-400 font-medium mt-1">{sub}</p>}
+    </div>
+  </div>
+);
+
 // ─── Tailwind Styles ───
 const fInp = "w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-300";
 const fSel = "w-full rounded-xl border border-slate-200 bg-white text-xs font-bold px-3 py-2 focus:outline-none cursor-pointer";
