@@ -108,9 +108,22 @@ export default function HelpPage() {
         <div className="space-y-6">
           <div className="bg-gradient-to-br from-indigo-900 to-indigo-950 p-1 rounded-3xl text-white shadow-xl shadow-indigo-100 relative overflow-hidden">
             <div className="bg-white/[0.02] backdrop-blur-sm rounded-[22px] p-6 space-y-6">
-              <div>
-                <h4 className="text-lg font-black tracking-tight">Support Technique</h4>
-                <p className="text-indigo-200 text-xs mt-1">Notre équipe est à votre disposition pour vous accompagner au quotidien.</p>
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-2xl border-2 border-indigo-500/50 overflow-hidden shrink-0 bg-indigo-950 flex items-center justify-center">
+                  <img 
+                    src="/salissou.jpg" 
+                    alt="Salissou Salha Hassan" 
+                    className="w-full h-full object-cover object-top"
+                    onError={(e) => {
+                      (e.target as HTMLElement).style.display = 'none';
+                    }}
+                  />
+                </div>
+                <div>
+                  <h4 className="text-sm font-black tracking-tight text-white leading-tight">Salissou Salha Hassan</h4>
+                  <p className="text-indigo-300 text-[10px] font-bold uppercase tracking-widest mt-0.5">Admin & Support</p>
+                  <p className="text-indigo-200 text-[11px] font-medium mt-1">À votre écoute 24/7</p>
+                </div>
               </div>
 
               <div className="space-y-4">
