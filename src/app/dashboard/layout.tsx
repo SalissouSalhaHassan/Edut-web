@@ -25,20 +25,21 @@ export default async function DashboardLayout({
   const { branchData, allBranches } = await getActiveBranchData(user);
 
   // Final branding fallback: if no branch data found, use school data from user object
+  const isGeneralAdmin = !branchData && allBranches && allBranches.length > 0;
   const branding = {
     name: branchData?.branchName || user?.school?.name || "Edut Pro",
     logoPath: branchData?.logoPath || user?.school?.logoPath || null,
-    level: branchData?.instType || user?.educationalLevel || "Gestion Scolaire"
+    level: isGeneralAdmin ? "Administration Générale" : (branchData?.instType || user?.educationalLevel || "Gestion Scolaire")
   };
 
   return (
-    <div className="min-h-screen bg-background gradient-bg font-sans relative" dir="ltr">
+    <div className="h-screen max-h-screen overflow-hidden bg-background gradient-bg font-sans relative" dir="ltr">
       <React.Suspense fallback={null}>
         <NavigationProgressProvider>
           <DashboardLoadingBar />
           <SyncStatus />
 
-          <div className="flex min-h-screen gap-4 p-4">
+          <div className="flex h-full max-h-full gap-4 p-4 overflow-hidden">
             <DashboardSidebar 
               user={user} 
               branch={branchData} 
@@ -46,8 +47,8 @@ export default async function DashboardLayout({
               allBranches={allBranches}
               unreadNotificationsCount={unreadCount} 
             />
-            <main className="flex-1 min-w-0 overflow-y-auto">
-              <div className="min-h-[calc(100vh-32px)] rounded-[32px] bg-transparent">
+            <main className="flex-1 min-w-0 overflow-y-auto h-full rounded-[32px]">
+              <div className="min-h-full bg-transparent">
                 {children}
               </div>
             </main>
