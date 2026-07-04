@@ -39,6 +39,7 @@ interface ReceiptPreviewDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   feeData: any;
+  headerConfig?: any | null;
 }
 
 const fmt = (val: number) => `${val.toLocaleString("fr-FR")} F CFA`;
@@ -90,6 +91,7 @@ export default function ReceiptPreviewDialog({
   open,
   onOpenChange,
   feeData,
+  headerConfig,
 }: ReceiptPreviewDialogProps) {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [phoneError, setPhoneError] = useState("");
@@ -152,22 +154,22 @@ export default function ReceiptPreviewDialog({
         year: "numeric",
       });
 
-  const schoolName = branchInfo?.branchName || "EDUT ACADEMY";
-  const schoolAddress = branchInfo?.address || "Secteur 5, Niamey, Niger";
-  const schoolPhone = branchInfo?.contactNo || "+227 90 12 34 56";
-  const schoolEmail = branchInfo?.email || "contact@edutacademy.ne";
+  const schoolName = headerConfig?.schoolName || branchInfo?.branchName || "EDUT ACADEMY";
+  const schoolAddress = headerConfig?.address || branchInfo?.address || "Secteur 5, Niamey, Niger";
+  const schoolPhone = headerConfig?.phone || branchInfo?.contactNo || "+227 90 12 34 56";
+  const schoolEmail = headerConfig?.email || branchInfo?.email || "contact@edutacademy.ne";
   const receiptHeaderConfig: Partial<DocumentHeaderConfig> = {
-    style: "classic_dual_logo",
+    style: headerConfig?.style || "classic_dual_logo",
     schoolName,
     address: schoolAddress,
     phone: schoolPhone,
     email: schoolEmail,
-    schoolYear: feeData.session?.sessionName || "2024 - 2025",
-    leftLogo: branchInfo?.logoPath || "",
-    rightLogo: branchInfo?.logoPath || "",
-    centerLogo: branchInfo?.logoPath || "",
-    ministry: "Ministère de l'Éducation Nationale",
-    service: "Service de la Scolarité",
+    schoolYear: headerConfig?.schoolYear || feeData?.session?.sessionName || "2024 - 2025",
+    leftLogo: headerConfig?.leftLogo || branchInfo?.logoPath || "",
+    rightLogo: headerConfig?.rightLogo || branchInfo?.logoPath || "",
+    centerLogo: headerConfig?.centerLogo || branchInfo?.logoPath || "",
+    ministry: headerConfig?.ministry || "Ministère de l'Éducation Nationale",
+    service: headerConfig?.service || "Service de la Scolarité",
   };
 
   // ---------- PRINT ----------

@@ -1,14 +1,9 @@
-- [x] Étape 1 : Créer les actions serveur prédictives [bi.actions.ts]
-    - [x] Définir la fonction `getPredictiveAnalyticsData`
-    - [x] Implémenter le calcul de risque de décrochage scolaire basé sur les absences
-    - [x] Implémenter le calcul de régression des fessées académiques (classes / matières)
-- [x] Étape 2 : Créer la page de routage [app/dashboard/analytics/page.tsx]
-    - [x] Charger les données prédictives côté serveur
-    - [x] Passer les statistiques et alertes au client
-- [x] Étape 3 : Créer l'interface client interactive [BIClient.tsx]
-    - [x] Créer les cartes de synthèse (KPIs)
-    - [x] Créer la section "Décrochage Scolaire" avec indicateurs visuels de risque
-    - [x] Créer la section "Régression des Classes" avec graphiques de comparaison
-    - [x] Ajouter le lien "Analyses prédictives & BI" dans la barre latérale [sidebar.tsx]
-- [/] Étape 4 : Validation et tests
-    - [ ] Vérifier qu'aucun bug TypeScript ou compilation n'intervient
+- [x] Étape 1 : Connecter la configuration aux Reçus de Paiement (Finance)
+    - [x] Modifier `src/app/dashboard/finance/page.tsx` pour charger `getDocumentHeaderConfig` et le passer à `<FinanceClient>`
+    - [x] Modifier `src/app/dashboard/finance/finance-client.tsx` pour recevoir `headerConfig` et le passer à `<ReceiptPreviewDialog>`
+    - [x] Modifier `src/domains/finance/components/ReceiptPreviewDialog.tsx` pour fusionner `receiptHeaderConfig` avec `headerConfig`
+- [x] Étape 2 : Connecter la configuration au Centre de Reporting (Canevas)
+    - [x] Modifier `src/app/dashboard/canevas/reporting/page.tsx` pour charger `getDocumentHeaderConfig` et le passer à `<ReportingClient>`
+    - [x] Modifier `src/app/dashboard/canevas/reporting/ReportingClient.tsx` pour injecter la configuration dans `metadata`
+- [x] Étape 3 : Validation et tests
+    - [x] Confirmer qu'aucun bug TypeScript ou compilation n'intervient

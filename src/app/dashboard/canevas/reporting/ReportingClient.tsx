@@ -37,11 +37,13 @@ const reportTypes = [
 interface ReportingClientProps {
   sessions?: any[];
   activeSessionName?: string;
+  headerConfig?: any | null;
 }
 
 export default function ReportingClient({
   sessions = [],
-  activeSessionName
+  activeSessionName,
+  headerConfig
 }: ReportingClientProps) {
   const [selectedReport, setSelectedReport] = useState("global");
   
@@ -337,6 +339,7 @@ export default function ReportingClient({
               editorName: "Admin Super",
               description: reportData.description,
               isLandscape: true,
+              documentHeaderConfig: headerConfig,
             }}
             kpis={reportData.kpis}
             table={reportData.table}

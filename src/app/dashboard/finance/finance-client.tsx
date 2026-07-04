@@ -46,6 +46,7 @@ interface FinanceClientProps {
   stats: any;
   classes: any[];
   advancedStats: any | null;
+  headerConfig?: any | null;
   canEdit?: boolean;
   canDelete?: boolean;
 }
@@ -99,7 +100,7 @@ const getStatusBadge = (status: string) => {
   }
 };
 
-export default function FinanceClient({ fees, stats, classes, advancedStats, canEdit = true, canDelete = true }: FinanceClientProps) {
+export default function FinanceClient({ fees, stats, classes, advancedStats, headerConfig, canEdit = true, canDelete = true }: FinanceClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = React.useState<TabId>("dashboard");
@@ -584,6 +585,7 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, can
         open={!!previewFee} 
         onOpenChange={(open) => !open && setPreviewFee(null)} 
         feeData={previewFee} 
+        headerConfig={headerConfig}
       />
       </main>
     </div>

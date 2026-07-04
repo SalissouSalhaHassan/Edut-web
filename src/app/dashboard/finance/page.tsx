@@ -1,6 +1,7 @@
 import { getStudentFees, getFinanceStats, syncStudentFees, getAdvancedFinanceStats } from "@/domains/finance/actions/finance.actions";
 import { getClasses } from "@/domains/academics/actions/academics.actions";
 import { getCurrentUser } from "@/domains/auth/services/session";
+import { getDocumentHeaderConfig } from "@/domains/settings/actions/settings.actions";
 import FinanceClient from "./finance-client";
 
 export default async function FinancePage({ 
@@ -18,7 +19,7 @@ export default async function FinancePage({
     // 2. Fetch all required data in parallel
     console.log("FinancePage: Fetching data in parallel...");
     
-    const [feesRes, statsRes, classesRes, currentUser, advancedStatsRes] = await Promise.all([
+    const [feesRes, statsRes, classesRes, currentUser, advancedStatsRes, headerConfigRes] = await Promise.all([
       getStudentFees({
         search: params.search,
         class: params.class,
@@ -28,6 +29,7 @@ export default async function FinancePage({
       getClasses(),
       getCurrentUser(),
       getAdvancedFinanceStats(),
+      getDocumentHeaderConfig(),
     ]);
 
     const user = currentUser as any;
@@ -42,6 +44,7 @@ export default async function FinancePage({
         stats={(statsRes?.data ?? {}) as any}
         classes={((classesRes?.data ?? []) as unknown) as any[]}
         advancedStats={(advancedStatsRes?.data ?? null) as any}
+        headerConfig={(headerConfigRes?.data ?? null) as any}
         canEdit={!!canEdit}
         canDelete={!!canDelete}
       />
