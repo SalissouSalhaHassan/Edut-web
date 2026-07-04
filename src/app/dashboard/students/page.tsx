@@ -11,7 +11,6 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Guard } from "@/components/rbac/guard";
-import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 
 function Plus({ size = 24, className }: any) {
   return (
@@ -273,6 +272,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
                   onDelete={deleteStudent.bind(null, student.id)}
                   canEdit={canEdit}
                   canDelete={canDelete}
+                  studentId={student.id}
                   editDialog={
                     <StudentDialog 
                       mode="edit" 
@@ -284,17 +284,6 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
                         </button>
                       }
                     />
-                  }
-                  customActions={
-                    <DropdownMenuItem 
-                      onClick={() => {
-                        window.location.href = `/dashboard/students/${student.id}/profile`;
-                      }}
-                      className="flex items-center gap-2 p-3 rounded-xl cursor-pointer hover:bg-indigo-50 text-slate-700 hover:text-indigo-650 transition-colors w-full text-left"
-                    >
-                      <UserCheck size={16} className="text-indigo-500" />
-                      <span className="font-semibold text-sm">Profil & Notes</span>
-                    </DropdownMenuItem>
                   }
                 />
               </div>

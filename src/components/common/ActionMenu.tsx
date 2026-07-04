@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MoreHorizontal, Edit, Trash2, Loader2 } from "lucide-react";
+import { MoreHorizontal, Edit, Trash2, Loader2, UserCheck } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,9 +29,20 @@ interface ActionMenuProps {
   canEdit?: boolean;
   canDelete?: boolean;
   customActions?: React.ReactNode;
+  studentId?: number;
 }
 
-export default function ActionMenu({ onDelete, onEdit, editDialog, title, description, canEdit = true, canDelete = true, customActions }: ActionMenuProps) {
+export default function ActionMenu({ 
+  onDelete, 
+  onEdit, 
+  editDialog, 
+  title, 
+  description, 
+  canEdit = true, 
+  canDelete = true, 
+  customActions,
+  studentId
+}: ActionMenuProps) {
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -68,6 +79,18 @@ export default function ActionMenu({ onDelete, onEdit, editDialog, title, descri
             ) : editDialog
           )}
           
+          {studentId && (
+            <DropdownMenuItem
+              onClick={() => {
+                window.location.href = `/dashboard/students/${studentId}/profile`;
+              }}
+              className="flex items-center gap-2 p-3 rounded-xl cursor-pointer hover:bg-indigo-50 text-slate-700 hover:text-indigo-650 transition-colors w-full text-left"
+            >
+              <UserCheck size={16} className="text-indigo-500" />
+              <span className="font-semibold text-sm">Profil & Notes</span>
+            </DropdownMenuItem>
+          )}
+
           {customActions}
 
           {canDelete && (
