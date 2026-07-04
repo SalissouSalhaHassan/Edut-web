@@ -543,13 +543,13 @@ export default function UserDialog({
                     <select
                       value={formData.studentId}
                       onChange={(e) => setFormData({ ...formData, studentId: e.target.value })}
-                      style={{ color: '#1e293b' }}
-                      className="w-full h-11 pl-3 pr-10 rounded-xl border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-200 appearance-auto"
+                      style={{ color: '#1e293b', backgroundColor: '#f8fafc' }}
+                      className="w-full h-11 pl-3 pr-10 rounded-xl border border-slate-200 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-200 appearance-auto"
                     >
-                      <option value="" style={{ color: '#64748b' }}>— Aucun élève sélectionné —</option>
+                      <option value="" style={{ color: '#64748b', backgroundColor: '#ffffff' }}>— Aucun élève sélectionné —</option>
                       {students.map((s: any) => (
-                        <option key={s.id} value={s.id} style={{ color: '#1e293b' }}>
-                          {s.firstName || s.prenom || ""} {s.lastName || s.nom || ""} {s.className ? `(${s.className})` : ""}
+                        <option key={s.id} value={s.id} style={{ color: '#1e293b', backgroundColor: '#ffffff' }}>
+                          {s.nomEtudiant} {s.classe ? `(${s.classe})` : ""}
                         </option>
                       ))}
                     </select>
@@ -570,13 +570,13 @@ export default function UserDialog({
                     <select
                       value={formData.employeeId}
                       onChange={(e) => setFormData({ ...formData, employeeId: e.target.value })}
-                      style={{ color: '#1e293b' }}
-                      className="w-full h-11 pl-3 pr-10 rounded-xl border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-200 appearance-auto"
+                      style={{ color: '#1e293b', backgroundColor: '#f8fafc' }}
+                      className="w-full h-11 pl-3 pr-10 rounded-xl border border-slate-200 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-200 appearance-auto"
                     >
-                      <option value="" style={{ color: '#64748b' }}>— Aucun enseignant sélectionné —</option>
+                      <option value="" style={{ color: '#64748b', backgroundColor: '#ffffff' }}>— Aucun enseignant sélectionné —</option>
                       {employees.map((e: any) => (
-                        <option key={e.id} value={e.id} style={{ color: '#1e293b' }}>
-                          {e.prenom || e.firstName || ""} {e.nom || e.lastName || ""} {e.specialite ? `(${e.specialite})` : ""}
+                        <option key={e.id} value={e.id} style={{ color: '#1e293b', backgroundColor: '#ffffff' }}>
+                          {e.nom} {e.poste ? `(${e.poste})` : ""}
                         </option>
                       ))}
                     </select>
