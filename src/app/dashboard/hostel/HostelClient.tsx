@@ -490,7 +490,7 @@ export default function HostelClient({ rooms: initialRooms, allocations: initial
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Type de Chambre</label>
-                <Select value={roomType} onValueChange={setRoomType}>
+                <Select value={roomType} onValueChange={(val) => setRoomType(val || "Garçons")}>
                   <SelectTrigger className="rounded-xl border-slate-200">
                     <SelectValue />
                   </SelectTrigger>
@@ -547,7 +547,7 @@ export default function HostelClient({ rooms: initialRooms, allocations: initial
             
             <div className="space-y-1">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Élève *</label>
-              <Select value={selectedStudentId} onValueChange={setSelectedStudentId}>
+              <Select value={selectedStudentId} onValueChange={(val) => setSelectedStudentId(val || "")}>
                 <SelectTrigger className="rounded-xl border-slate-200">
                   <SelectValue placeholder="Choisir un élève..." />
                 </SelectTrigger>
@@ -568,7 +568,7 @@ export default function HostelClient({ rooms: initialRooms, allocations: initial
 
             <div className="space-y-1">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Chambre Disponible *</label>
-              <Select value={selectedRoomId} onValueChange={setSelectedRoomId}>
+              <Select value={selectedRoomId} onValueChange={(val) => setSelectedRoomId(val || "")}>
                 <SelectTrigger className="rounded-xl border-slate-200">
                   <SelectValue placeholder="Choisir une chambre..." />
                 </SelectTrigger>
