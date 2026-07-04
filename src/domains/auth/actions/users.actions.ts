@@ -137,6 +137,14 @@ export async function getUsers() {
     const user = await getCurrentUser();
     if (!user) return { error: "Non autorisé", success: false };
 
+    // Migration guard — ensure new columns exist before querying
+    try {
+      await db.execute(sql`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "student_id" integer`);
+      await db.execute(sql`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "employee_id" integer`);
+    } catch (_migErr) {
+      // Columns likely already exist — safe to ignore
+    }
+
     const schoolId = await getActiveSchoolId();
     const roleType = await getUserRoleType(user);
 
