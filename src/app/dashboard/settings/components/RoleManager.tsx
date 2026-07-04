@@ -40,6 +40,7 @@ const MODULE_CONFIG = [
   { name: "Inventory",  label: "Inventory",  icon: Package,        color: "bg-amber-100 text-amber-600" },
   { name: "Security",   label: "Security",   icon: ShieldCheck,    color: "bg-red-100 text-red-600" },
   { name: "Messaging",  label: "Messaging",  icon: MessageSquare,  color: "bg-teal-100 text-teal-600" },
+  { name: "Pedagogy",   label: "Pédagogie",  icon: BookOpen,       color: "bg-purple-100 text-purple-600" },
 ];
 
 const ROLE_ICONS = [
