@@ -23,6 +23,7 @@ interface Props {
   inspections: any[];
   sessions?: any[];
   activeSessionName?: string;
+  periods?: any[];
 }
 
 const REPORT_TYPES = [
@@ -43,7 +44,7 @@ const REPORT_TYPES = [
 export default function RapportsClient({
   currentUser, classes, subjects, employees, students,
   seances, plans, assignments, submissions, remediations, inspections,
-  sessions = [], activeSessionName
+  sessions = [], activeSessionName, periods = []
 }: Props) {
   const [selectedReport, setSelectedReport] = useState<string>("cahier");
   const [isGenerated, setIsGenerated] = useState<boolean>(false);
@@ -475,9 +476,16 @@ export default function RapportsClient({
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Période</label>
                 <select value={filterPeriode} onChange={e => { setFilterPeriode(e.target.value); setIsGenerated(false); }} className={fSel}>
                   <option value="">Toute l'année</option>
-                  <option value="Trimestre 1">Trimestre 1</option>
-                  <option value="Trimestre 2">Trimestre 2</option>
-                  <option value="Trimestre 3">Trimestre 3</option>
+                  {periods.map((p: any) => (
+                    <option key={p.id} value={p.name}>{p.name}</option>
+                  ))}
+                  {periods.length === 0 && (
+                    <>
+                      <option value="Trimestre 1">Trimestre 1</option>
+                      <option value="Trimestre 2">Trimestre 2</option>
+                      <option value="Trimestre 3">Trimestre 3</option>
+                    </>
+                  )}
                 </select>
               </div>
             </div>

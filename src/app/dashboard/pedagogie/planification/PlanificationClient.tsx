@@ -25,6 +25,7 @@ interface Props {
   employees: any[];
   sessions?: any[];
   activeSessionName?: string;
+  periods?: any[];
 }
 
 const STATUT_CONFIG: Record<string, { label: string; bg: string; text: string; dot: string }> = {
@@ -45,7 +46,7 @@ const TABS = [
 const PAGE_SIZE = 12;
 
 export default function PlanificationClient({
-  currentUser, initialPlans, classes, subjects, employees, sessions = [], activeSessionName
+  currentUser, initialPlans, classes, subjects, employees, sessions = [], activeSessionName, periods = []
 }: Props) {
   const [plans, setPlans] = useState<any[]>(initialPlans);
   const [activeTab, setActiveTab] = useState<string>("Annuel");
@@ -76,13 +77,15 @@ export default function PlanificationClient({
   const [formError, setFormError] = useState("");
   const [formSuccess, setFormSuccess] = useState("");
 
+  const defaultPeriodName = periods.length > 0 ? periods[0].name : "Trimestre 1";
+
   // ─── Form State ────────────────────────────────────────────────────────────
   const emptyForm: PlanFormData = {
     classId: 0,
     subjectId: 0,
     employeeId: 0,
     typePlan: "Annuel",
-    periode: "Trimestre 1",
+    periode: defaultPeriodName,
     chapitre: "",
     leconPrevue: "",
     competenceVisee: "",
@@ -101,6 +104,9 @@ export default function PlanificationClient({
 
   const periodOptions = useMemo(() => {
     if (activeTab === "Annuel") {
+      if (periods.length > 0) {
+        return periods.map((p: any) => p.name);
+      }
       return ["Trimestre 1", "Trimestre 2", "Trimestre 3", "Semestre 1", "Semestre 2"];
     }
     if (activeTab === "Mensuel") {
@@ -110,7 +116,7 @@ export default function PlanificationClient({
       ];
     }
     return []; // For Hebdomadaire/Officiel users can type manually
-  }, [activeTab]);
+  }, [activeTab, periods]);
 
   // ─── Filter & Search Logic ────────────────────────────────────────────────
   const filtered = useMemo(() => {

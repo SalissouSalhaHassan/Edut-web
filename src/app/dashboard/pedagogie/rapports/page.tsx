@@ -40,7 +40,7 @@ export default async function RapportsPage() {
   const [
     classesRes, subjectsRes, employeesRes, studentsRes,
     seancesRes, plansRes, assignmentsRes, remediationsRes, inspectionsRes,
-    sessionsRes
+    sessionsRes, periodsRes
   ] = await Promise.all([
     getClasses(true),
     getSubjects(),
@@ -52,6 +52,7 @@ export default async function RapportsPage() {
     getRemediationPlans(),
     getInspectionVisits(),
     getSessions(),
+    getPeriods(),
   ]);
 
   const classes = (classesRes as any).data?.data || (classesRes as any).data || classesRes || [];
@@ -65,6 +66,7 @@ export default async function RapportsPage() {
   const remediations = (remediationsRes as any).data || [];
   const inspections = (inspectionsRes as any).data || [];
   const sessions = (sessionsRes as any).data || sessionsRes || [];
+  const periods = (periodsRes as any).data || periodsRes || [];
 
   const activeSession = sessions.find((s: any) => s.isActive) || sessions[0];
   const activeSessionName = activeSession?.sessionName || (new Date().getFullYear() + "-" + (new Date().getFullYear() + 1));
@@ -97,6 +99,7 @@ export default async function RapportsPage() {
       inspections={inspections}
       sessions={sessions}
       activeSessionName={activeSessionName}
+      periods={periods}
     />
   );
 }
