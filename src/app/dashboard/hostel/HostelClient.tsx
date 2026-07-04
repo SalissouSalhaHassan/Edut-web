@@ -58,6 +58,7 @@ export default function HostelClient({ rooms: initialRooms, allocations: initial
   const [roomNumber, setRoomNumber] = useState("");
   const [buildingName, setBuildingName] = useState("");
   const [roomType, setRoomType] = useState("Garçons");
+  const [studentSearch, setStudentSearch] = useState("");
   const [capacity, setCapacity] = useState("4");
   const [cost, setCost] = useState("50000");
 
@@ -111,6 +112,17 @@ export default function HostelClient({ rooms: initialRooms, allocations: initial
     );
     return students.filter((s) => !allocatedStudentIds.has(s.id));
   }, [students, allocations]);
+
+  const filteredAvailableStudents = useMemo(() => {
+    if (!studentSearch) return availableStudents;
+    const query = studentSearch.toLowerCase();
+    return availableStudents.filter((s) => {
+      const name = (s.nomEtudiant || "").toLowerCase();
+      const matricule = (s.numAdmission || "").toLowerCase();
+      const className = (s.classe || "").toLowerCase();
+      return name.includes(query) || matricule.includes(query) || className.includes(query);
+    });
+  }, [availableStudents, studentSearch]);
 
   // Get rooms with available capacity
   const availableRooms = useMemo(() => {
@@ -167,6 +179,7 @@ export default function HostelClient({ rooms: initialRooms, allocations: initial
         setIsAllocateModalOpen(false);
         setSelectedStudentId("");
         setSelectedRoomId("");
+        setStudentSearch("");
         window.location.reload();
       } else {
         toast.error(res.error || "Erreur lors de l'affectation.");
@@ -556,25 +569,40 @@ export default function HostelClient({ rooms: initialRooms, allocations: initial
           </DialogHeader>
           <form onSubmit={handleAllocate} className="space-y-4 pt-4">
             
-            <div className="space-y-1">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Élève *</label>
-              <Select value={selectedStudentId} onValueChange={(val) => setSelectedStudentId(val || "")}>
-                <SelectTrigger className="rounded-xl border-slate-200">
-                  <SelectValue placeholder="Choisir un élève..." />
-                </SelectTrigger>
-                <SelectContent className="bg-white rounded-xl max-h-[250px]">
-                  {availableStudents.map((s: any) => (
-                    <SelectItem key={s.id} value={s.id.toString()}>
-                      {s.nomEtudiant} ({s.classe || "Sans classe"})
-                    </SelectItem>
-                  ))}
-                  {availableStudents.length === 0 && (
-                    <div className="p-4 text-xs text-center text-slate-400 font-medium">
-                      Aucun élève libre trouvé
-                    </div>
-                  )}
-                </SelectContent>
-              </Select>
+             <div className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Rechercher l'Élève</label>
+                <div className="relative">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                  <Input 
+                    value={studentSearch}
+                    onChange={(e) => setStudentSearch(e.target.value)}
+                    placeholder="Filtrer par nom ou classe..."
+                    className="pl-9 rounded-xl border-slate-200 h-10 text-xs focus-visible:ring-indigo-500/20 bg-slate-50/50"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Élève *</label>
+                <Select value={selectedStudentId} onValueChange={(val) => setSelectedStudentId(val || "")}>
+                  <SelectTrigger className="rounded-xl border-slate-200">
+                    <SelectValue placeholder="Choisir un élève..." />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white rounded-xl max-h-[250px]">
+                    {filteredAvailableStudents.map((s: any) => (
+                      <SelectItem key={s.id} value={s.id.toString()}>
+                        {s.nomEtudiant} ({s.classe || "Sans classe"})
+                      </SelectItem>
+                    ))}
+                    {filteredAvailableStudents.length === 0 && (
+                      <div className="p-4 text-xs text-center text-slate-400 font-medium">
+                        {studentSearch ? "Aucun élève correspondant" : "Aucun élève libre trouvé"}
+                      </div>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <div className="space-y-1">
