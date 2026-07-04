@@ -1,5 +1,5 @@
 import { getCurrentUser } from "@/domains/auth/services/session";
-import { getClasses, getSubjects, getSessions } from "@/domains/academics/actions/academics.actions";
+import { getClasses, getSubjects, getSessions, getPeriods } from "@/domains/academics/actions/academics.actions";
 import { getEmployees } from "@/domains/hr/actions/employees.actions";
 import { getStudents } from "@/domains/students/actions/students.actions";
 import { getSeances } from "@/domains/pedagogie/actions/cahier-textes.actions";
