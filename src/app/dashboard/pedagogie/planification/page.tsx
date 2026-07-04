@@ -1,5 +1,5 @@
 import { getCurrentUser } from "@/domains/auth/services/session";
-import { getClasses, getSubjects } from "@/domains/academics/actions/academics.actions";
+import { getClasses, getSubjects, getSessions } from "@/domains/academics/actions/academics.actions";
 import { getEmployees } from "@/domains/hr/actions/employees.actions";
 import { initPlanificationTable, getPlanifications } from "@/domains/pedagogie/actions/planification.actions";
 import PlanificationClient from "./PlanificationClient";
@@ -37,17 +37,22 @@ export default async function PlanificationPage() {
   }
 
   // 3. Parallel fetch of reference data
-  const [classesRes, subjectsRes, employeesRes, plansRes] = await Promise.all([
+  const [classesRes, subjectsRes, employeesRes, plansRes, sessionsRes] = await Promise.all([
     getClasses(true),
     getSubjects(),
     getEmployees(),
     getPlanifications(),
+    getSessions(),
   ]);
 
   const classes = (classesRes as any).data?.data || (classesRes as any).data || classesRes || [];
   const subjects = (subjectsRes as any).data?.data || (subjectsRes as any).data || subjectsRes || [];
   const employees = (employeesRes as any).data?.data || (employeesRes as any).data || employeesRes || [];
   const plans = (plansRes as any).data || [];
+  const sessions = (sessionsRes as any).data || sessionsRes || [];
+
+  const activeSession = sessions.find((s: any) => s.isActive) || sessions[0];
+  const activeSessionName = activeSession?.sessionName || (new Date().getFullYear() + "-" + (new Date().getFullYear() + 1));
 
   return (
     <PlanificationClient
@@ -56,6 +61,8 @@ export default async function PlanificationPage() {
       classes={classes}
       subjects={subjects}
       employees={employees}
+      sessions={sessions}
+      activeSessionName={activeSessionName}
     />
   );
 }

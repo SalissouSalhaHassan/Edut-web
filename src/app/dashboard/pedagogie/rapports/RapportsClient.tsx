@@ -21,6 +21,8 @@ interface Props {
   submissions: any[];
   remediations: any[];
   inspections: any[];
+  sessions?: any[];
+  activeSessionName?: string;
 }
 
 const REPORT_TYPES = [
@@ -40,14 +42,18 @@ const REPORT_TYPES = [
 
 export default function RapportsClient({
   currentUser, classes, subjects, employees, students,
-  seances, plans, assignments, submissions, remediations, inspections
+  seances, plans, assignments, submissions, remediations, inspections,
+  sessions = [], activeSessionName
 }: Props) {
   const [selectedReport, setSelectedReport] = useState<string>("cahier");
   const [isGenerated, setIsGenerated] = useState<boolean>(false);
   const [isPending, setIsPending] = useState<boolean>(false);
 
+  // Fallback default session calculation
+  const defaultSession = activeSessionName || (new Date().getFullYear() + "-" + (new Date().getFullYear() + 1));
+
   // ─── Filter States ─────────────────────────────────────────────────────────
-  const [anneeScolaire, setAnneeScolaire] = useState("2025-2026");
+  const [anneeScolaire, setAnneeScolaire] = useState(defaultSession);
   const [filterPeriode, setFilterPeriode] = useState("");
   const [filterNiveau, setFilterNiveau] = useState("");
   const [filterClass, setFilterClass] = useState("");
@@ -405,8 +411,16 @@ export default function RapportsClient({
               <div className="space-y-1">
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Année scolaire</label>
                 <select value={anneeScolaire} onChange={e => { setAnneeScolaire(e.target.value); setIsGenerated(false); }} className={fSel}>
-                  <option value="2025-2026">2025-2026</option>
-                  <option value="2026-2027">2026-2027</option>
+                  {sessions.map((s: any) => (
+                    <option key={s.id} value={s.sessionName}>{s.sessionName}</option>
+                  ))}
+                  {sessions.length === 0 && (
+                    <>
+                      <option value="2024-2025">2024-2025</option>
+                      <option value="2025-2026">2025-2026</option>
+                      <option value="2026-2027">2026-2027</option>
+                    </>
+                  )}
                 </select>
               </div>
 

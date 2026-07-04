@@ -35,6 +35,8 @@ interface LmsDashboardClientProps {
   subjects: any[];
   employees: any[];
   students: any[];
+  academicSessions?: any[];
+  activeSessionName?: string;
 }
 
 export default function LmsDashboardClient({
@@ -49,12 +51,18 @@ export default function LmsDashboardClient({
   classes,
   subjects,
   employees,
-  students
+  students,
+  academicSessions = [],
+  activeSessionName
 }: LmsDashboardClientProps) {
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState("dashboard");
   const [userRole, setUserRole] = useState("super_admin");
-  const [schoolYear, setSchoolYear] = useState("2025-2026");
+
+  // Fallback default session calculation
+  const defaultSession = activeSessionName || (new Date().getFullYear() + "-" + (new Date().getFullYear() + 1));
+
+  const [schoolYear, setSchoolYear] = useState(defaultSession);
   const [isOnline, setIsOnline] = useState(true);
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
 
@@ -607,8 +615,16 @@ export default function LmsDashboardClient({
               onChange={(e) => setSchoolYear(e.target.value)} 
               className="bg-transparent border-none outline-none font-bold text-indigo-600 cursor-pointer"
             >
-              <option value="2025-2026">2025-2026</option>
-              <option value="2026-2027">2026-2027</option>
+              {academicSessions.map((s: any) => (
+                <option key={s.id} value={s.sessionName}>{s.sessionName}</option>
+              ))}
+              {academicSessions.length === 0 && (
+                <>
+                  <option value="2024-2025">2024-2025</option>
+                  <option value="2025-2026">2025-2026</option>
+                  <option value="2026-2027">2026-2027</option>
+                </>
+              )}
             </select>
           </div>
 

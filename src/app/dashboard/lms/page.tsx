@@ -6,7 +6,7 @@ import {
   getAssignments, 
   getQuizzes 
 } from "@/domains/lms/actions/lms.actions";
-import { getClasses, getSubjects } from "@/domains/academics/actions/academics.actions";
+import { getClasses, getSubjects, getSessions } from "@/domains/academics/actions/academics.actions";
 import { getEmployees } from "@/domains/hr/actions/employees.actions";
 import { getStudents } from "@/domains/students/actions/students.actions";
 import { getCurrentUser } from "@/domains/auth/services/session";
@@ -28,10 +28,13 @@ export default async function LmsPage() {
   const quizzesRes = await getQuizzes();
 
   // 4. Fetch reference lists
-  const classesRes = await getClasses(true);
-  const subjectsRes = await getSubjects();
-  const employeesRes = await getEmployees();
-  const studentsRes = await getStudents();
+  const [classesRes, subjectsRes, employeesRes, studentsRes, acadSessionsRes] = await Promise.all([
+    getClasses(true),
+    getSubjects(),
+    getEmployees(),
+    getStudents(),
+    getSessions(),
+  ]);
 
   // 5. Unpack responses
   const courses = (coursesRes as any).data?.data || (coursesRes as any).data || [];
@@ -44,6 +47,10 @@ export default async function LmsPage() {
   const schoolSubjects = (subjectsRes as any).data?.data || (subjectsRes as any).data || subjectsRes || [];
   const schoolEmployees = (employeesRes as any).data?.data || (employeesRes as any).data || employeesRes || [];
   const schoolStudents = (studentsRes as any).data?.data || (studentsRes as any).data || studentsRes || [];
+  const academicSessions = (acadSessionsRes as any).data || acadSessionsRes || [];
+
+  const activeSession = academicSessions.find((s: any) => s.isActive) || academicSessions[0];
+  const activeSessionName = activeSession?.sessionName || (new Date().getFullYear() + "-" + (new Date().getFullYear() + 1));
 
   // 6. Direct queries for joins and progress logs
   const submissions = await db.query.lmsSubmissions.findMany();
@@ -63,6 +70,8 @@ export default async function LmsPage() {
       subjects={schoolSubjects}
       employees={schoolEmployees}
       students={schoolStudents}
+      academicSessions={academicSessions}
+      activeSessionName={activeSessionName}
     />
   );
 }

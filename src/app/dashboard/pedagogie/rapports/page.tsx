@@ -1,5 +1,5 @@
 import { getCurrentUser } from "@/domains/auth/services/session";
-import { getClasses, getSubjects } from "@/domains/academics/actions/academics.actions";
+import { getClasses, getSubjects, getSessions } from "@/domains/academics/actions/academics.actions";
 import { getEmployees } from "@/domains/hr/actions/employees.actions";
 import { getStudents } from "@/domains/students/actions/students.actions";
 import { getSeances } from "@/domains/pedagogie/actions/cahier-textes.actions";
@@ -39,7 +39,8 @@ export default async function RapportsPage() {
 
   const [
     classesRes, subjectsRes, employeesRes, studentsRes,
-    seancesRes, plansRes, assignmentsRes, remediationsRes, inspectionsRes
+    seancesRes, plansRes, assignmentsRes, remediationsRes, inspectionsRes,
+    sessionsRes
   ] = await Promise.all([
     getClasses(true),
     getSubjects(),
@@ -50,6 +51,7 @@ export default async function RapportsPage() {
     getAssignments(),
     getRemediationPlans(),
     getInspectionVisits(),
+    getSessions(),
   ]);
 
   const classes = (classesRes as any).data?.data || (classesRes as any).data || classesRes || [];
@@ -62,6 +64,10 @@ export default async function RapportsPage() {
   const assignments = (assignmentsRes as any).data || [];
   const remediations = (remediationsRes as any).data || [];
   const inspections = (inspectionsRes as any).data || [];
+  const sessions = (sessionsRes as any).data || sessionsRes || [];
+
+  const activeSession = sessions.find((s: any) => s.isActive) || sessions[0];
+  const activeSessionName = activeSession?.sessionName || (new Date().getFullYear() + "-" + (new Date().getFullYear() + 1));
 
   // Fetch all submissions for Devoir reporting
   const submissions = await db.query.lmsSubmissions.findMany({
@@ -89,6 +95,8 @@ export default async function RapportsPage() {
       submissions={submissions}
       remediations={remediations}
       inspections={inspections}
+      sessions={sessions}
+      activeSessionName={activeSessionName}
     />
   );
 }

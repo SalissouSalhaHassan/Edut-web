@@ -23,6 +23,8 @@ interface Props {
   classes: any[];
   subjects: any[];
   employees: any[];
+  sessions?: any[];
+  activeSessionName?: string;
 }
 
 const STATUT_CONFIG: Record<string, { label: string; bg: string; text: string; dot: string }> = {
@@ -43,7 +45,7 @@ const TABS = [
 const PAGE_SIZE = 12;
 
 export default function PlanificationClient({
-  currentUser, initialPlans, classes, subjects, employees
+  currentUser, initialPlans, classes, subjects, employees, sessions = [], activeSessionName
 }: Props) {
   const [plans, setPlans] = useState<any[]>(initialPlans);
   const [activeTab, setActiveTab] = useState<string>("Annuel");
@@ -53,6 +55,9 @@ export default function PlanificationClient({
   const isReadOnly = isReadOnlyPedagogie(currentUser);
   const userRole = getPedagogieRole(currentUser);
 
+  // Fallback default session calculation
+  const defaultSession = activeSessionName || (new Date().getFullYear() + "-" + (new Date().getFullYear() + 1));
+
   // ─── Filter State ──────────────────────────────────────────────────────────
   const [search, setSearch] = useState("");
   const [filterClass, setFilterClass] = useState("");
@@ -61,9 +66,7 @@ export default function PlanificationClient({
   const [filterStatut, setFilterStatut] = useState("");
   const [filterNiveau, setFilterNiveau] = useState("");
   const [filterPeriode, setFilterPeriode] = useState(""); // Trimestre or Mois depending on context
-  const [anneeScolaire, setAnneeScolaire] = useState(
-    new Date().getFullYear() + "-" + (new Date().getFullYear() + 1)
-  );
+  const [anneeScolaire, setAnneeScolaire] = useState(defaultSession);
   const [showFilters, setShowFilters] = useState(false);
   const [page, setPage] = useState(1);
 
@@ -86,7 +89,7 @@ export default function PlanificationClient({
     datePrevue: new Date().toISOString().split("T")[0],
     statut: "Planifié",
     observation: "",
-    anneeScolaire: new Date().getFullYear() + "-" + (new Date().getFullYear() + 1),
+    anneeScolaire: defaultSession,
   };
   const [form, setForm] = useState<PlanFormData>(emptyForm);
 
@@ -379,8 +382,16 @@ export default function PlanificationClient({
             onChange={(e) => { setAnneeScolaire(e.target.value); setPage(1); }}
             className="rounded-xl border border-slate-200 bg-white text-xs font-bold px-3 py-2 focus:ring-2 focus:ring-indigo-300 outline-none cursor-pointer"
           >
-            <option value="2025-2026">2025-2026</option>
-            <option value="2026-2027">2026-2027</option>
+            {sessions.map((s: any) => (
+              <option key={s.id} value={s.sessionName}>{s.sessionName}</option>
+            ))}
+            {sessions.length === 0 && (
+              <>
+                <option value="2024-2025">2024-2025</option>
+                <option value="2025-2026">2025-2026</option>
+                <option value="2026-2027">2026-2027</option>
+              </>
+            )}
           </select>
         </div>
       </div>
