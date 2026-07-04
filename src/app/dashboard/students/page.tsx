@@ -286,14 +286,14 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
                     />
                   }
                   customActions={
-                    <DropdownMenuItem asChild>
-                      <Link 
-                        href={`/dashboard/students/${student.id}/profile`}
-                        className="flex items-center gap-2 p-3 rounded-xl cursor-pointer hover:bg-indigo-50 text-slate-700 hover:text-indigo-650 transition-colors w-full text-left"
-                      >
-                        <UserCheck size={16} className="text-indigo-500" />
-                        <span className="font-semibold text-sm">Profil & Notes</span>
-                      </Link>
+                    <DropdownMenuItem 
+                      onClick={() => {
+                        window.location.href = `/dashboard/students/${student.id}/profile`;
+                      }}
+                      className="flex items-center gap-2 p-3 rounded-xl cursor-pointer hover:bg-indigo-50 text-slate-700 hover:text-indigo-650 transition-colors w-full text-left"
+                    >
+                      <UserCheck size={16} className="text-indigo-500" />
+                      <span className="font-semibold text-sm">Profil & Notes</span>
                     </DropdownMenuItem>
                   }
                 />
