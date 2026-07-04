@@ -1,17 +1,14 @@
-- [x] Étape 1 : Mettre à jour les schémas de la base de données
-    - [x] Ajouter `studentId` dans `lmsAssignments` dans `src/infrastructure/database/schema/lms.ts`
-    - [x] Créer les tables `behavior_rewards` et `counselor_notes` dans `src/infrastructure/database/schema/discipline.ts`
-    - [x] Mettre à jour les exports de schéma dans `src/infrastructure/database/index.ts` si nécessaire
-- [x] Étape 2 : Développer le déclencheur automatique de remédiation
-    - [x] Modifier la soumission des notes dans `src/domains/academics/actions/exams.actions.ts`
-    - [x] Ajouter la création d'un plan de remédiation et d'un devoir LMS individuel
-- [x] Étape 3 : Développer les actions serveur pour le comportement et le conseiller
-    - [x] Créer/compléter `src/domains/students/actions/discipline.actions.ts`
-    - [x] Implémenter l'ajout de récompenses (avec mise à jour du behaviorScore) et de notes secrètes
-- [x] Étape 4 : Développer l'interface utilisateur Profil 360°
-    - [x] Créer la page de profil élève [students/[id]/profile/page.tsx]
-    - [x] Créer le client [StudentProfileClient.tsx] avec les onglets Académique, Comportement et Conseiller
-    - [x] Ajouter le lien "Profil & Notes" dans le menu d'actions de la liste des étudiants [src/app/dashboard/students/page.tsx]
-- [/] Étape 5 : Validation et tests
-    - [ ] Exécuter un test d'insertion de note basse et vérifier la création automatique de la remédiation et du devoir LMS
-    - [ ] Vérifier la sécurité d'accès aux notes confidentielles du conseiller
+- [x] Étape 1 : Créer les actions serveur prédictives [bi.actions.ts]
+    - [x] Définir la fonction `getPredictiveAnalyticsData`
+    - [x] Implémenter le calcul de risque de décrochage scolaire basé sur les absences
+    - [x] Implémenter le calcul de régression des fessées académiques (classes / matières)
+- [x] Étape 2 : Créer la page de routage [app/dashboard/analytics/page.tsx]
+    - [x] Charger les données prédictives côté serveur
+    - [x] Passer les statistiques et alertes au client
+- [x] Étape 3 : Créer l'interface client interactive [BIClient.tsx]
+    - [x] Créer les cartes de synthèse (KPIs)
+    - [x] Créer la section "Décrochage Scolaire" avec indicateurs visuels de risque
+    - [x] Créer la section "Régression des Classes" avec graphiques de comparaison
+    - [x] Ajouter le lien "Analyses prédictives & BI" dans la barre latérale [sidebar.tsx]
+- [/] Étape 4 : Validation et tests
+    - [ ] Vérifier qu'aucun bug TypeScript ou compilation n'intervient
