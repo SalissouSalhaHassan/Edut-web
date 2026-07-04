@@ -135,7 +135,7 @@ export default function HostelClient({ rooms: initialRooms, allocations: initial
         // Reload state (since it's a server action, database was updated)
         window.location.reload();
       } else {
-        toast.error("Erreur lors de la création de la chambre.");
+        toast.error(res.error || "Erreur lors de la création de la chambre.");
       }
     });
   };
