@@ -31,11 +31,23 @@ interface Props {
 }
 
 export default function HostelClient({ rooms: initialRooms, allocations: initialAllocations, students }: Props) {
-  const [rooms, setRooms] = useState<any[]>(initialRooms);
-  const [allocations, setAllocations] = useState<any[]>(initialAllocations);
   const [activeTab, setActiveTab] = useState<string>("residents");
   const [searchQuery, setSearchQuery] = useState("");
   const [isPending, startTransition] = useTransition();
+
+  // Dynamically compute occupied beds count and cost fields for each room based on active allocations
+  const rooms = useMemo(() => {
+    return initialRooms.map((r) => {
+      const activeCount = initialAllocations.filter((a) => a.roomId === r.id && a.status === "Occupé").length;
+      return {
+        ...r,
+        occupiedBeds: activeCount,
+        cost: r.costPerTerm ?? r.cost ?? 0
+      };
+    });
+  }, [initialRooms, initialAllocations]);
+
+  const allocations = initialAllocations;
 
   // Modals state
   const [isRoomModalOpen, setIsRoomModalOpen] = useState(false);
@@ -119,8 +131,7 @@ export default function HostelClient({ rooms: initialRooms, allocations: initial
         buildingName,
         roomType,
         capacity: parseInt(capacity),
-        cost: parseFloat(cost) || 0,
-        occupiedBeds: 0
+        costPerTerm: parseFloat(cost) || 0,
       });
 
       if (res.success) {

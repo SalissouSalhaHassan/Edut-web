@@ -2,20 +2,23 @@
 
 import { db } from "@/infrastructure/database";
 import { hostelRooms, hostelAllocations } from "@/infrastructure/database/schema/hostel";
-import { eq, desc, sql } from "drizzle-orm";
+import { eq, desc, sql, and } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { protectedDbAction } from "@/lib/protected-action";
 
 export async function getHostelRooms() {
-  return protectedDbAction("Hostel", "canView", async () => {
-    const data = await db.query.hostelRooms.findMany();
+  return protectedDbAction("Hostel", "canView", async (user) => {
+    const data = await db.query.hostelRooms.findMany({
+      where: eq(hostelRooms.schoolId, user.schoolId)
+    });
     return { data };
   });
 }
 
 export async function getHostelAllocations() {
-  return protectedDbAction("Hostel", "canView", async () => {
+  return protectedDbAction("Hostel", "canView", async (user) => {
     const data = await db.query.hostelAllocations.findMany({
+      where: eq(hostelAllocations.schoolId, user.schoolId),
       with: {
         student: true,
         room: true
@@ -26,11 +29,15 @@ export async function getHostelAllocations() {
 }
 
 export async function saveHostelRoom(data: any, id?: number) {
-  return protectedDbAction("Hostel", "canEdit", async () => {
+  return protectedDbAction("Hostel", "canEdit", async (user) => {
+    const payload = {
+      ...data,
+      schoolId: user.schoolId
+    };
     if (id) {
-      await db.update(hostelRooms).set(data).where(eq(hostelRooms.id, id));
+      await db.update(hostelRooms).set(payload).where(eq(hostelRooms.id, id));
     } else {
-      await db.insert(hostelRooms).values(data);
+      await db.insert(hostelRooms).values(payload);
     }
     revalidatePath("/dashboard/hostel");
     return { success: true };
@@ -38,22 +45,35 @@ export async function saveHostelRoom(data: any, id?: number) {
 }
 
 export async function allocateRoom(studentId: number, roomId: number) {
-  return protectedDbAction("Hostel", "canEdit", async () => {
+  return protectedDbAction("Hostel", "canEdit", async (user) => {
     const room = await db.query.hostelRooms.findFirst({
       where: eq(hostelRooms.id, roomId)
     });
 
-    if (!room || (room.occupiedBeds || 0) >= room.capacity) {
+    if (!room) {
+      return { error: "Chambre introuvable" };
+    }
+
+    // Count active allocations for this room to determine occupancy
+    const activeAllocations = await db.query.hostelAllocations.findMany({
+      where: and(
+        eq(hostelAllocations.roomId, roomId),
+        eq(hostelAllocations.status, "Occupé")
+      )
+    });
+
+    if (activeAllocations.length >= (room.capacity || 1)) {
       return { error: "Chambre complète" };
     }
 
-    // 1. Allocate
-    await db.insert(hostelAllocations).values({ studentId, roomId, status: "Occupé" });
-
-    // 2. Update occupancy
-    await db.update(hostelRooms)
-      .set({ occupiedBeds: (room.occupiedBeds || 0) + 1 })
-      .where(eq(hostelRooms.id, roomId));
+    // Allocate
+    await db.insert(hostelAllocations).values({ 
+      studentId, 
+      roomId, 
+      status: "Occupé",
+      joinDate: new Date(),
+      schoolId: user.schoolId
+    });
 
     revalidatePath("/dashboard/hostel");
     return { success: true };
@@ -64,22 +84,14 @@ export async function vacateRoom(allocationId: number) {
   return protectedDbAction("Hostel", "canEdit", async () => {
     const alloc = await db.query.hostelAllocations.findFirst({
       where: eq(hostelAllocations.id, allocationId),
-      with: { room: true }
     });
 
     if (!alloc || alloc.status === "Libéré") return { error: "Déjà libéré" };
 
-    // 1. Mark as vacated
+    // Mark as vacated
     await db.update(hostelAllocations)
       .set({ status: "Libéré", leaveDate: new Date() })
       .where(eq(hostelAllocations.id, allocationId));
-
-    // 2. Update occupancy
-    if (alloc.room) {
-      await db.update(hostelRooms)
-        .set({ occupiedBeds: Math.max(0, (alloc.room.occupiedBeds || 0) - 1) })
-        .where(eq(hostelRooms.id, alloc.roomId!));
-    }
 
     revalidatePath("/dashboard/hostel");
     return { success: true };
