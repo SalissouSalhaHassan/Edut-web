@@ -539,18 +539,21 @@ export default function UserDialog({
                   <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">
                     {isParentRole ? "Sélectionner l'élève (enfant)" : "Associer à un élève"}
                   </Label>
-                  <select
-                    value={formData.studentId}
-                    onChange={(e) => setFormData({ ...formData, studentId: e.target.value })}
-                    className="w-full h-11 px-3 rounded-xl border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-200"
-                  >
-                    <option value="">— Aucun élève sélectionné —</option>
-                    {students.map((s: any) => (
-                      <option key={s.id} value={s.id}>
-                        {s.firstName || s.prenom || ""} {s.lastName || s.nom || ""} {s.className ? `(${s.className})` : ""}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="relative">
+                    <select
+                      value={formData.studentId}
+                      onChange={(e) => setFormData({ ...formData, studentId: e.target.value })}
+                      style={{ color: '#1e293b' }}
+                      className="w-full h-11 pl-3 pr-10 rounded-xl border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-200 appearance-auto"
+                    >
+                      <option value="" style={{ color: '#64748b' }}>— Aucun élève sélectionné —</option>
+                      {students.map((s: any) => (
+                        <option key={s.id} value={s.id} style={{ color: '#1e293b' }}>
+                          {s.firstName || s.prenom || ""} {s.lastName || s.nom || ""} {s.className ? `(${s.className})` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                   {formData.studentId && (
                     <p className="text-[10px] text-teal-600 font-semibold flex items-center gap-1">
                       <CheckCircle2 size={10} /> Compte lié à l'élève sélectionné
@@ -563,18 +566,21 @@ export default function UserDialog({
                   <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">
                     Associer à un enseignant
                   </Label>
-                  <select
-                    value={formData.employeeId}
-                    onChange={(e) => setFormData({ ...formData, employeeId: e.target.value })}
-                    className="w-full h-11 px-3 rounded-xl border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-200"
-                  >
-                    <option value="">— Aucun enseignant sélectionné —</option>
-                    {employees.map((e: any) => (
-                      <option key={e.id} value={e.id}>
-                        {e.prenom || e.firstName || ""} {e.nom || e.lastName || ""} {e.specialite ? `(${e.specialite})` : ""}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="relative">
+                    <select
+                      value={formData.employeeId}
+                      onChange={(e) => setFormData({ ...formData, employeeId: e.target.value })}
+                      style={{ color: '#1e293b' }}
+                      className="w-full h-11 pl-3 pr-10 rounded-xl border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-200 appearance-auto"
+                    >
+                      <option value="" style={{ color: '#64748b' }}>— Aucun enseignant sélectionné —</option>
+                      {employees.map((e: any) => (
+                        <option key={e.id} value={e.id} style={{ color: '#1e293b' }}>
+                          {e.prenom || e.firstName || ""} {e.nom || e.lastName || ""} {e.specialite ? `(${e.specialite})` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                   {formData.employeeId && (
                     <p className="text-[10px] text-teal-600 font-semibold flex items-center gap-1">
                       <CheckCircle2 size={10} /> Compte lié à l'enseignant sélectionné
