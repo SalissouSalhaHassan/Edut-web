@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useTransition, useMemo } from "react";
+import React, { useState, useTransition, useMemo, useRef, useEffect } from "react";
 import { 
   Building, Bed, Users, ShieldCheck, DoorOpen, Plus, Search, MapPin, 
   Trash2, X, Check, DollarSign, RefreshCw, UserCheck, AlertTriangle
@@ -65,6 +65,20 @@ export default function HostelClient({ rooms: initialRooms, allocations: initial
   // Form states - Allocate Student
   const [selectedStudentId, setSelectedStudentId] = useState("");
   const [selectedRoomId, setSelectedRoomId] = useState("");
+  const [isStudentDropdownOpen, setIsStudentDropdownOpen] = useState(false);
+  const studentDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (studentDropdownRef.current && !studentDropdownRef.current.contains(event.target as Node)) {
+        setIsStudentDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   // Statistics recalculation
   const totalCapacity = useMemo(() => rooms.reduce((acc, r) => acc + (r.capacity || 0), 0), [rooms]);
@@ -569,40 +583,66 @@ export default function HostelClient({ rooms: initialRooms, allocations: initial
           </DialogHeader>
           <form onSubmit={handleAllocate} className="space-y-4 pt-4">
             
-             <div className="space-y-3">
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Rechercher l'Élève</label>
-                <div className="relative">
-                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                  <Input 
-                    value={studentSearch}
-                    onChange={(e) => setStudentSearch(e.target.value)}
-                    placeholder="Filtrer par nom ou classe..."
-                    className="pl-9 rounded-xl border-slate-200 h-10 text-xs focus-visible:ring-indigo-500/20 bg-slate-50/50"
-                  />
-                </div>
+             <div className="space-y-1 relative" ref={studentDropdownRef}>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Élève *</label>
+              <div className="relative">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <Input 
+                  value={studentSearch}
+                  onChange={(e) => {
+                    setStudentSearch(e.target.value);
+                    setIsStudentDropdownOpen(true);
+                    // clear ID if user typed away
+                    if (selectedStudentId) setSelectedStudentId("");
+                  }}
+                  onFocus={() => setIsStudentDropdownOpen(true)}
+                  placeholder="Rechercher un élève par nom..."
+                  className="pl-10 pr-10 rounded-xl border-slate-200 h-12 text-sm focus-visible:ring-indigo-500/20 bg-slate-50/50 font-semibold"
+                />
+                {(selectedStudentId || studentSearch) && (
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      setSelectedStudentId("");
+                      setStudentSearch("");
+                      setIsStudentDropdownOpen(false);
+                    }}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-650"
+                  >
+                    <X size={16} />
+                  </button>
+                )}
               </div>
 
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Élève *</label>
-                <Select value={selectedStudentId} onValueChange={(val) => setSelectedStudentId(val || "")}>
-                  <SelectTrigger className="rounded-xl border-slate-200">
-                    <SelectValue placeholder="Choisir un élève..." />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white rounded-xl max-h-[250px]">
-                    {filteredAvailableStudents.map((s: any) => (
-                      <SelectItem key={s.id} value={s.id.toString()}>
-                        {s.nomEtudiant} ({s.classe || "Sans classe"})
-                      </SelectItem>
-                    ))}
-                    {filteredAvailableStudents.length === 0 && (
-                      <div className="p-4 text-xs text-center text-slate-400 font-medium">
-                        {studentSearch ? "Aucun élève correspondant" : "Aucun élève libre trouvé"}
+              {/* Student Dropdown Overlay */}
+              {isStudentDropdownOpen && (
+                <div className="absolute z-50 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-2xl shadow-xl max-h-[220px] overflow-y-auto divide-y divide-slate-50">
+                  {filteredAvailableStudents.map((s: any) => (
+                    <div 
+                      key={s.id}
+                      onClick={() => {
+                        setSelectedStudentId(s.id.toString());
+                        setStudentSearch(s.nomEtudiant);
+                        setIsStudentDropdownOpen(false);
+                      }}
+                      className="px-4 py-3.5 hover:bg-indigo-50/50 cursor-pointer transition-colors text-left flex justify-between items-center"
+                    >
+                      <div>
+                        <p className="font-bold text-slate-900 text-sm">{s.nomEtudiant}</p>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{s.classe || "Sans classe"}</p>
                       </div>
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
+                      {selectedStudentId === s.id.toString() && (
+                        <Check size={16} className="text-indigo-650 font-black" />
+                      )}
+                    </div>
+                  ))}
+                  {filteredAvailableStudents.length === 0 && (
+                    <div className="p-4 text-xs text-center text-slate-400 font-medium bg-slate-50/50">
+                      Aucun élève libre correspondant
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="space-y-1">
