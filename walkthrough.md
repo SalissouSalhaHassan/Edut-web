@@ -14,6 +14,9 @@ Désormais, les choix effectués dans le panneau **"Gestion des En-têtes Offici
   * **[finance-client.tsx](file:///c:/Users/User/Desktop/Edut/web/src/app/dashboard/finance/finance-client.tsx)** et **[ReceiptPreviewDialog.tsx](file:///c:/Users/User/Desktop/Edut/web/src/domains/finance/components/ReceiptPreviewDialog.tsx)** : Injection de la configuration dans la génération du reçu HTML (pour l'impression) et jsPDF (pour les téléchargements).
 * **Canevas & Rapports Administratifs :**
   * **[page.tsx (Reporting)](file:///c:/Users/User/Desktop/Edut/web/src/app/dashboard/canevas/reporting/page.tsx)** et **[ReportingClient.tsx](file:///c:/Users/User/Desktop/Edut/web/src/app/dashboard/canevas/reporting/ReportingClient.tsx)** : Récupération et transmission de l'en-tête officiel à la structure de rapport universel (`UniversalReport`).
+* **Bulletins de notes & Relevés de notes (Notes & Résultats) :**
+  * **[bulletin-generator.ts](file:///c:/Users/User/Desktop/Edut/web/src/domains/academics/utils/bulletin-generator.ts)** : Modification des fonctions de dessin PDF `generateBulletinPDF` et `generateReleveNotesPDF` pour dessiner les logos, ministères, agréments et textes d'en-tête en fonction de la configuration de l'utilisateur.
+  * **[page.tsx (Grades)](file:///c:/Users/User/Desktop/Edut/web/src/app/dashboard/academics/grades/page.tsx)** : Récupération au montage de `getDocumentHeaderConfig()` et injection dans le générateur de PDF lors des impressions (simples ou groupées).
 
 ### 2. Déclencheur Automatique de Remédiation (Grade listener)
 * **[exams.actions.ts](file:///c:/Users/User/Desktop/Edut/web/src/domains/academics/actions/exams.actions.ts)** : Si une note est inférieure à **50%** de la note maximale (ex: < 10/20) :
@@ -28,7 +31,7 @@ Désormais, les choix effectués dans le panneau **"Gestion des En-têtes Offici
 
 ## 🧪 Plan de Vérification
 
-1. **Vérification de l'En-tête Officiel :**
-   * Naviguer dans **Paramètres** -> **En-têtes** et configurer un style (ex: *Bilingue centre logo* avec un nom de ministère personnalisé).
-   * Aller dans **Finances**, ouvrir un reçu de paiement et cliquer sur **Imprimer** ou **Télécharger le PDF** : vérifier que l'en-tête correspond exactement à votre configuration.
-   * Aller dans **Canevas**, afficher n'importe quel rapport administratif et vérifier que la partie supérieure affiche fièrement votre en-tête officiel configuré.
+1. **Vérification de l'En-tête Officiel sur les Bulletins :**
+   * Configurer la têtes de documents (ex: Modifier le nom de l'école dans **Paramètres** -> **En-têtes**).
+   * Naviguer vers **Gestion académique** -> **Notes & résultats**.
+   * Cliquer sur le bouton d'impression d'un bulletin (Carnet/Relevé de notes) : l'en-tête officiel reflétera vos modifications à 100%.

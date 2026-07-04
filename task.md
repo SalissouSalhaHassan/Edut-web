@@ -5,5 +5,8 @@
 - [x] Étape 2 : Connecter la configuration au Centre de Reporting (Canevas)
     - [x] Modifier `src/app/dashboard/canevas/reporting/page.tsx` pour charger `getDocumentHeaderConfig` et le passer à `<ReportingClient>`
     - [x] Modifier `src/app/dashboard/canevas/reporting/ReportingClient.tsx` pour injecter la configuration dans `metadata`
-- [x] Étape 3 : Validation et tests
+- [x] Étape 3 : Connecter la configuration aux Bulletins et Relevés de Notes (Notes & Résultats)
+    - [x] Modifier `src/domains/academics/utils/bulletin-generator.ts` pour utiliser `headerConfig` lors du dessin du PDF des bulletins et relevés
+    - [x] Modifier `src/app/dashboard/academics/grades/page.tsx` pour charger `headerConfig` et l'injecter lors de l'impression
+- [x] Étape 4 : Validation et tests
     - [x] Confirmer qu'aucun bug TypeScript ou compilation n'intervient

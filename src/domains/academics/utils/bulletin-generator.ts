@@ -56,7 +56,7 @@ async function fetchTransparentLogoBase64(url: string, opacity: number = 0.08): 
 
 export async function generateBulletinPDF(data: any) {
   const doc = new jsPDF();
-  const { student, session, term, results, summary, summaryS1, summaryS2, totalStudents, branchInfo } = data;
+  const { student, session, term, results, summary, summaryS1, summaryS2, totalStudents, branchInfo, headerConfig } = data;
   const safeTerm = (term || "Semestre").toUpperCase();
   const eduLevel = (student?.educationalLevel || "Lycée").toUpperCase();
   
@@ -66,9 +66,10 @@ export async function generateBulletinPDF(data: any) {
   if (eduLevel.includes("UNIVERSITÉ") || eduLevel.includes("SUPÉRIEUR")) mainTitle = "RELEVÉ DE NOTES";
 
   // Header
-  if (branchInfo?.logoPath) {
+  const logoToUse = headerConfig?.leftLogo || headerConfig?.centerLogo || branchInfo?.logoPath;
+  if (logoToUse) {
     try {
-      doc.addImage(branchInfo.logoPath, 'PNG', 10, 8, 25, 25);
+      doc.addImage(logoToUse, 'PNG', 10, 8, 25, 25);
     } catch (e) {
       doc.setDrawColor(200);
       doc.rect(10, 8, 25, 25);
@@ -77,15 +78,15 @@ export async function generateBulletinPDF(data: any) {
 
   doc.setFontSize(16);
   doc.setFont("helvetica", "bold");
-  doc.text(branchInfo?.branchName || "ÉCOLE GESTION PRO", 105, 15, { align: "center" });
+  doc.text(headerConfig?.schoolName || branchInfo?.branchName || "ÉCOLE GESTION PRO", 105, 15, { align: "center" });
 
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
-  doc.text(`Agrément: ${branchInfo?.registrationNo || "N/A"}`, 40, 22);
+  doc.text(`Agrément: ${headerConfig?.registrationNo || branchInfo?.registrationNo || "N/A"}`, 40, 22);
   doc.text(`Niveau Educatif: ${eduLevel}`, 40, 27);
-  doc.text(`Année Scolaire: ${session || "2024-2025"}`, 195, 22, { align: "right" });
-  doc.text(`Tél: ${branchInfo?.contactNo || ""} | Email: ${branchInfo?.email || ""}`, 105, 32, { align: "center" });
-  doc.text(`Adresse: ${branchInfo?.address || ""}`, 105, 37, { align: "center" });
+  doc.text(`Année Scolaire: ${headerConfig?.schoolYear || session || "2024-2025"}`, 195, 22, { align: "right" });
+  doc.text(`Tél: ${headerConfig?.phone || branchInfo?.contactNo || ""} | Email: ${headerConfig?.email || branchInfo?.email || ""}`, 105, 32, { align: "center" });
+  doc.text(`Adresse: ${headerConfig?.address || branchInfo?.address || ""}`, 105, 37, { align: "center" });
 
   doc.setLineWidth(0.5);
   doc.line(10, 40, 200, 40);
@@ -430,12 +431,13 @@ export async function generatePVMatrixPDF(matrixData: any, classInfo: any, filte
 
 export async function generateReleveNotesPDF(data: any) {
   const doc = new jsPDF();
-  const { student, session, term, results, summary, resultsS1, resultsS2, resultsS3, resultsS4, resultsS5, resultsS6, summaryS1, summaryS2, summaryS3, summaryS4, summaryS5, summaryS6, branchInfo } = data;
+  const { student, session, term, results, summary, resultsS1, resultsS2, resultsS3, resultsS4, resultsS5, resultsS6, summaryS1, summaryS2, summaryS3, summaryS4, summaryS5, summaryS6, branchInfo, headerConfig } = data;
 
   // --- 1. HEADER SECTION ---
-  if (branchInfo?.logoPath) {
+  const logoToUse = headerConfig?.leftLogo || headerConfig?.centerLogo || branchInfo?.logoPath;
+  if (logoToUse) {
     try {
-      doc.addImage(branchInfo.logoPath, 'PNG', 10, 8, 25, 25);
+      doc.addImage(logoToUse, 'PNG', 10, 8, 25, 25);
     } catch (e) {
       doc.setDrawColor(200);
       doc.rect(10, 8, 25, 25);
@@ -444,22 +446,22 @@ export async function generateReleveNotesPDF(data: any) {
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
-  doc.text("REPUBLIQUE DU NIGER", 105, 12, { align: "center" });
+  doc.text(headerConfig?.ministry || "REPUBLIQUE DU NIGER", 105, 12, { align: "center" });
   
   doc.setFontSize(10);
-  doc.text(branchInfo?.branchName || "Université Privée Internationale Aboubacar Ibrahim", 105, 17, { align: "center" });
+  doc.text(headerConfig?.schoolName || branchInfo?.branchName || "Université Privée Internationale Aboubacar Ibrahim", 105, 17, { align: "center" });
   
   doc.setFontSize(9);
-  doc.text(branchInfo?.branchAlias || "Faculté des Sciences Administratives, Juridiques et Economiques", 105, 21, { align: "center" });
+  doc.text(headerConfig?.service || branchInfo?.branchAlias || "Faculté des Sciences Administratives, Juridiques et Economiques", 105, 21, { align: "center" });
   doc.text("Service de la Scolarité", 105, 25, { align: "center" });
   
   doc.setFont("helvetica", "normal");
-  doc.text(`BP : ${branchInfo?.address || "370 Maradi-Niger"}, Tél. ${branchInfo?.contactNo || "(+227) 96 06 92 66"}`, 105, 29, { align: "center" });
-  doc.text(`Email : ${branchInfo?.email || "university@gmail.com"}`, 105, 33, { align: "center" });
+  doc.text(`BP : ${headerConfig?.address || branchInfo?.address || "370 Maradi-Niger"}, Tél. ${headerConfig?.phone || branchInfo?.contactNo || "(+227) 96 06 92 66"}`, 105, 29, { align: "center" });
+  doc.text(`Email : ${headerConfig?.email || branchInfo?.email || "university@gmail.com"}`, 105, 33, { align: "center" });
   
   doc.setFontSize(8);
   doc.setFont("helvetica", "bold");
-  doc.text(`AGREMENT N°: ${branchInfo?.registrationNo || "00172/MESR/I/SG/DGE/DL/DESPRI"}`, 105, 38, { align: "center" });
+  doc.text(`AGREMENT N°: ${headerConfig?.registrationNo || branchInfo?.registrationNo || "00172/MESR/I/SG/DGE/DL/DESPRI"}`, 105, 38, { align: "center" });
   doc.text(`NIVEAU: ${(student?.educationalLevel || "Université").toUpperCase()}`, 105, 42, { align: "center" });
 
   // Draw Logos (Decoration)

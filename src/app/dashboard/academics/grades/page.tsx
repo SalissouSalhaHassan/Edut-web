@@ -23,6 +23,7 @@ import {
   getBatchBulletinData,
 } from "@/domains/academics/actions/academics.actions";
 import { generateBulletinPDF, generatePVMatrixPDF, generateReleveNotesPDF } from "@/domains/academics/utils/bulletin-generator";
+import { getDocumentHeaderConfig } from "@/domains/settings/actions/settings.actions";
 import { useEffect } from "react";
 
 export default function AcademicResultsPage() {
@@ -37,6 +38,7 @@ export default function AcademicResultsPage() {
   const [activeCoef, setActiveCoef] = useState(1);
   const [previewData, setPreviewData] = useState<any>(null);
   const [showPreview, setShowPreview] = useState(false);
+  const [headerConfig, setHeaderConfig] = useState<any>(null);
 
   useEffect(() => {
     async function loadScale() {
@@ -45,6 +47,16 @@ export default function AcademicResultsPage() {
       if (data) setGradingScale(data);
     }
     loadScale();
+  }, []);
+
+  useEffect(() => {
+    async function loadHeaderConfig() {
+      const res = await getDocumentHeaderConfig();
+      if (res?.data) {
+        setHeaderConfig(res.data);
+      }
+    }
+    loadHeaderConfig();
   }, []);
 
   // Auto-load matrix data when switching to broadsheet if filters are set but matrix not loaded
@@ -202,10 +214,9 @@ export default function AcademicResultsPage() {
 
         toast.success(`Préparation de ${batchData.length} bulletins...`);
         
-        // Use a sequential generation to avoid browser crash/hang
         for (const studentData of batchData) {
           if (studentData.results && studentData.results.length > 0) {
-            await generateBulletinPDF(studentData);
+            await generateBulletinPDF({ ...studentData, headerConfig });
           }
         }
         
@@ -391,9 +402,9 @@ export default function AcademicResultsPage() {
                   onClick={() => {
                     const isHigherEd = ["Licence", "Master", "Doctorat", "Supérieur", "Université"].includes(activeFilters?.level || "Lycée");
                     if (isHigherEd) {
-                      generateReleveNotesPDF(previewData);
+                      generateReleveNotesPDF({ ...previewData, headerConfig });
                     } else {
-                      generateBulletinPDF(previewData);
+                      generateBulletinPDF({ ...previewData, headerConfig });
                     }
                     setShowPreview(false);
                   }}
