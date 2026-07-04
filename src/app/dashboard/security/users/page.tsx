@@ -2,6 +2,8 @@ import { getUsers } from "@/domains/auth/actions/users.actions";
 import { getRoles } from "@/domains/auth/actions/roles.actions";
 import { getCurrentUser } from "@/domains/auth/services/session";
 import { getAllSchools } from "@/domains/auth/actions/super-admin.actions";
+import { getStudents } from "@/domains/students/actions/students.actions";
+import { getEmployees } from "@/domains/hr/actions/employees.actions";
 import UserManager from "./components/UserManager";
 import { Users, ShieldAlert, Bell, ChevronDown, UserPlus, Shield, ShieldCheck } from "lucide-react";
 import Link from "next/link";
@@ -10,15 +12,19 @@ import { Button } from "@/components/ui/button";
 export default async function UsersPage() {
   const currentUser = await getCurrentUser();
   
-  const [usersRes, rolesRes, schoolsRes] = await Promise.all([
+  const [usersRes, rolesRes, schoolsRes, studentsRes, employeesRes] = await Promise.all([
     getUsers(),
     getRoles(),
-    currentUser?.superAdmin ? getAllSchools() : Promise.resolve({ data: [] })
+    currentUser?.superAdmin ? getAllSchools() : Promise.resolve({ data: [] }),
+    getStudents(),
+    getEmployees(),
   ]);
 
   const users = (usersRes as any)?.data || [];
   const roles = (rolesRes as any)?.data || [];
   const schools = (schoolsRes as any)?.data || [];
+  const students = (studentsRes as any)?.data?.data || (studentsRes as any)?.data || [];
+  const employees = (employeesRes as any)?.data?.data || (employeesRes as any)?.data || [];
 
   console.log("Users in Page:", users.length);
 
@@ -107,7 +113,7 @@ export default async function UsersPage() {
       </div>
 
       {/* User Manager Component */}
-      <UserManager initialUsers={users} roles={roles} currentUser={currentUser} schools={schools} />
+      <UserManager initialUsers={users} roles={roles} currentUser={currentUser} schools={schools} students={students} employees={employees} />
     </div>
   );
 }

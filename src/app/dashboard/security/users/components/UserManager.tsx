@@ -19,9 +19,11 @@ interface UserManagerProps {
   roles: any[];
   currentUser: any;
   schools?: any[];
+  students?: any[];
+  employees?: any[];
 }
 
-export default function UserManager({ initialUsers, roles, currentUser, schools = [] }: UserManagerProps) {
+export default function UserManager({ initialUsers, roles, currentUser, schools = [], students = [], employees = [] }: UserManagerProps) {
   const [usersList, setUsersList] = useState(initialUsers);
   const [searchQuery, setSearchQuery] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -52,6 +54,8 @@ export default function UserManager({ initialUsers, roles, currentUser, schools 
         user={editingUser} 
         roles={roles} 
         schools={schools}
+        students={students}
+        employees={employees}
         currentUser={currentUser}
         onSuccess={() => window.location.reload()} 
         openOverride={!!editingUser}
@@ -69,7 +73,7 @@ export default function UserManager({ initialUsers, roles, currentUser, schools 
             className="pl-10 h-12 rounded-2xl border-slate-100 bg-white shadow-sm focus:ring-2 focus:ring-indigo-100 transition-all font-medium"
           />
         </div>
-        <UserDialog roles={roles} schools={schools} currentUser={currentUser} onSuccess={() => window.location.reload()} />
+        <UserDialog roles={roles} schools={schools} students={students} employees={employees} currentUser={currentUser} onSuccess={() => window.location.reload()} />
       </div>
 
       {/* Users Grid */}

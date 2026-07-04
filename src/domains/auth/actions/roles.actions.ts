@@ -44,6 +44,36 @@ export const createRole = async (roleName: string, description?: string) => {
   });
 };
 
+/** Inline version — returns the created role directly (no page revalidation needed for modal use) */
+export const createRoleInline = async (roleName: string) => {
+  "use server";
+  try {
+    const user = await getCurrentUser();
+    if (!user) return { success: false as const, error: "Non autorisé" };
+
+    const trimmed = roleName.trim();
+    if (!trimmed) return { success: false as const, error: "Nom de rôle requis" };
+
+    const [newRole] = await db.execute(sql`
+      INSERT INTO "roles" ("role_name")
+      VALUES (${trimmed})
+      ON CONFLICT ("role_name") DO UPDATE SET "role_name" = EXCLUDED."role_name"
+      RETURNING "id", "role_name" AS "roleName"
+    `) as any;
+
+    const role = Array.isArray(newRole) ? newRole[0] : newRole;
+    revalidatePath("/dashboard/security");
+    revalidatePath("/dashboard/security/users");
+    return { success: true as const, data: { id: Number(role.id), roleName: String(role.roleName) } };
+  } catch (error: any) {
+    const msg: string = error?.message || "Erreur lors de la création du rôle";
+    if (msg.includes("unique") || msg.includes("duplicate")) {
+      return { success: false as const, error: "Ce nom de rôle existe déjà" };
+    }
+    return { success: false as const, error: msg };
+  }
+};
+
 export const deleteRole = async (roleId: number) => {
   return protectedDbAction("Security", "canDelete", async () => {
     await db.delete(rolePermissions).where(eq(rolePermissions.roleId, roleId));

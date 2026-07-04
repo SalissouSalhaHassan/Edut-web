@@ -1,4 +1,6 @@
 import { pgTable, serial, varchar, text, timestamp, boolean, integer } from "drizzle-orm/pg-core";
+import { employees } from "./hr";
+import { students } from "./students";
 
 export const roles = pgTable("roles", {
   id: serial("id").primaryKey(),
@@ -42,6 +44,9 @@ export const users = pgTable("users", {
   emplacement: varchar("emplacement", { length: 100 }),
   depots: text("depots"),
   educationalLevel: varchar("educational_level", { length: 50 }).default("Primaire"),
+  // Liaison identité — pour Élève, Enseignant, Parent
+  studentId: integer("student_id").references(() => students.id),
+  employeeId: integer("employee_id").references(() => employees.id),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -67,6 +72,14 @@ export const usersRelations = relations(users, ({ one }) => ({
   school: one(schools, {
     fields: [users.schoolId],
     references: [schools.id],
+  }),
+  student: one(students, {
+    fields: [users.studentId],
+    references: [students.id],
+  }),
+  employee: one(employees, {
+    fields: [users.employeeId],
+    references: [employees.id],
   }),
 }));
 

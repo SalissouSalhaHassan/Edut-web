@@ -19,8 +19,12 @@ import {
   Languages,
   GraduationCap,
   Users,
+  Plus,
+  Link2,
+  Loader2,
 } from "lucide-react";
 import { saveUser } from "@/domains/auth/actions/users.actions";
+import { createRoleInline } from "@/domains/auth/actions/roles.actions";
 import { toast } from "sonner";
 import { useSpeech } from "@/hooks/use-speech";
 
@@ -29,6 +33,8 @@ interface UserDialogProps {
   user?: any;
   roles: any[];
   schools?: any[];
+  students?: any[];
+  employees?: any[];
   currentUser?: any;
   onSuccess?: () => void;
   trigger?: React.ReactNode;
@@ -118,6 +124,8 @@ export default function UserDialog({
   user,
   roles,
   schools = [],
+  students = [],
+  employees = [],
   currentUser,
   onSuccess,
   trigger,
@@ -140,11 +148,29 @@ export default function UserDialog({
     admin: false, superAdmin: false,
     roleId: "", langue: "FR", educationalLevel: "Primaire",
     supabaseId: "", schoolId: "",
+    studentId: "", employeeId: "",
   });
+
+  // Inline role creation state
+  const [rolesList, setRolesList] = useState<any[]>(roles);
+  const [showNewRoleInput, setShowNewRoleInput] = useState(false);
+  const [newRoleName, setNewRoleName] = useState("");
+  const [creatingRole, setCreatingRole] = useState(false);
+
+  // Determine if liaison section should appear
+  const selectedRole = rolesList.find(r => r.id.toString() === formData.roleId);
+  const selectedRoleName = (selectedRole?.roleName || "").toLowerCase();
+  const isEleveRole   = selectedRoleName.includes("élève") || selectedRoleName.includes("etudiant") || selectedRoleName.includes("student");
+  const isParentRole  = selectedRoleName.includes("parent") || selectedRoleName.includes("tuteur");
+  const isTeacherRole = selectedRoleName.includes("professeur") || selectedRoleName.includes("enseignant") || selectedRoleName.includes("teacher");
+  const showLiaison   = isEleveRole || isParentRole || isTeacherRole;
 
   // Reset + announce on open
   useEffect(() => {
     if (!open) return;
+    setRolesList(roles);
+    setShowNewRoleInput(false);
+    setNewRoleName("");
     setFormData({
       utilisateur:      user?.utilisateur      || "",
       nomPrenom:        user?.nomPrenom        || "",
@@ -156,6 +182,8 @@ export default function UserDialog({
       educationalLevel: user?.educationalLevel || "Primaire",
       supabaseId:       user?.supabaseId       || "",
       schoolId:         user?.schoolId?.toString()  || "",
+      studentId:        user?.studentId?.toString()  || "",
+      employeeId:       user?.employeeId?.toString() || "",
     });
     speak(
       user
@@ -163,7 +191,7 @@ export default function UserDialog({
         : "Ajout d'un nouvel utilisateur.",
       "fr-FR",
     );
-  }, [open, user, speak]);
+  }, [open, user, speak, roles]);
 
   // Close on Escape key
   useEffect(() => {
@@ -187,6 +215,8 @@ export default function UserDialog({
       roleId:           formData.roleId           === "" ? null : formData.roleId,
       langue:           formData.langue           || "FR",
       educationalLevel: formData.educationalLevel || "Primaire",
+      studentId:        formData.studentId  === "" ? null : formData.studentId,
+      employeeId:       formData.employeeId === "" ? null : formData.employeeId,
     };
     try {
       const res = await saveUser(submissionData, user?.id);
@@ -201,6 +231,26 @@ export default function UserDialog({
       toast.error(err.message || "Une erreur inattendue est survenue");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCreateRole = async () => {
+    if (!newRoleName.trim()) return;
+    setCreatingRole(true);
+    try {
+      const res = await createRoleInline(newRoleName);
+      if (res.success && res.data) {
+        const created = res.data;
+        setRolesList(prev => [...prev, created]);
+        setFormData(prev => ({ ...prev, roleId: created.id.toString() }));
+        setShowNewRoleInput(false);
+        setNewRoleName("");
+        toast.success(`Rôle "${created.roleName}" créé et sélectionné`);
+      } else {
+        toast.error(res.error || "Erreur lors de la création du rôle");
+      }
+    } finally {
+      setCreatingRole(false);
     }
   };
 
@@ -393,13 +443,13 @@ export default function UserDialog({
           </div>
 
           {/* RÔLE */}
-          {roles.length > 0 && (
-            <div>
-              <SectionHeader
-                icon={<Users size={14} />}
-                label="Rôle"
-                iconBg="bg-gradient-to-br from-violet-500 to-purple-600"
-              />
+          <div>
+            <SectionHeader
+              icon={<Users size={14} />}
+              label="Rôle"
+              iconBg="bg-gradient-to-br from-violet-500 to-purple-600"
+            />
+            <div className="space-y-3">
               <div className="flex flex-wrap gap-2">
                 <ChipOption
                   selected={formData.roleId === ""}
@@ -408,7 +458,7 @@ export default function UserDialog({
                 >
                   — Aucun rôle —
                 </ChipOption>
-                {roles.map((role) => (
+                {rolesList.map((role) => (
                   <ChipOption
                     key={role.id}
                     selected={formData.roleId === role.id.toString()}
@@ -424,7 +474,119 @@ export default function UserDialog({
                     {role.roleName}
                   </ChipOption>
                 ))}
+
+                {/* ── Inline Role Creator ── */}
+                {!showNewRoleInput ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowNewRoleInput(true)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-indigo-300 text-indigo-600 text-xs font-bold hover:bg-indigo-50 transition-all"
+                  >
+                    <Plus size={12} /> Créer un rôle
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-2 mt-1 w-full">
+                    <input
+                      autoFocus
+                      type="text"
+                      value={newRoleName}
+                      onChange={(e) => setNewRoleName(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleCreateRole(); } if (e.key === "Escape") setShowNewRoleInput(false); }}
+                      placeholder="Nom du nouveau rôle (ex: Élève)"
+                      className="flex-1 h-9 px-3 rounded-xl border border-indigo-200 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleCreateRole}
+                      disabled={creatingRole || !newRoleName.trim()}
+                      className="h-9 px-4 rounded-xl bg-indigo-600 text-white text-xs font-black hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-1.5"
+                    >
+                      {creatingRole ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
+                      {creatingRole ? "..." : "Créer"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setShowNewRoleInput(false); setNewRoleName(""); }}
+                      className="h-9 px-3 rounded-xl border border-slate-200 text-slate-500 text-xs font-bold hover:bg-slate-50"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                )}
               </div>
+
+              {selectedRole && (
+                <p className="text-[10px] text-indigo-500 font-semibold flex items-center gap-1">
+                  <Shield size={10} /> Rôle sélectionné : <span className="font-black">{selectedRole.roleName}</span>
+                  {(isEleveRole || isParentRole || isTeacherRole) && (
+                    <span className="ml-2 px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-100">Liaison requise ↓</span>
+                  )}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* LIAISON — Élève / Parent / Enseignant */}
+          {showLiaison && (
+            <div>
+              <SectionHeader
+                icon={<Link2 size={14} />}
+                label={isTeacherRole ? "Liaison Enseignant" : isParentRole ? "Liaison Parent → Élève" : "Liaison Élève"}
+                iconBg="bg-gradient-to-br from-teal-500 to-emerald-600"
+              />
+              {(isEleveRole || isParentRole) && students.length > 0 && (
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">
+                    {isParentRole ? "Sélectionner l'élève (enfant)" : "Associer à un élève"}
+                  </Label>
+                  <select
+                    value={formData.studentId}
+                    onChange={(e) => setFormData({ ...formData, studentId: e.target.value })}
+                    className="w-full h-11 px-3 rounded-xl border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-200"
+                  >
+                    <option value="">— Aucun élève sélectionné —</option>
+                    {students.map((s: any) => (
+                      <option key={s.id} value={s.id}>
+                        {s.firstName || s.prenom || ""} {s.lastName || s.nom || ""} {s.className ? `(${s.className})` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  {formData.studentId && (
+                    <p className="text-[10px] text-teal-600 font-semibold flex items-center gap-1">
+                      <CheckCircle2 size={10} /> Compte lié à l'élève sélectionné
+                    </p>
+                  )}
+                </div>
+              )}
+              {isTeacherRole && employees.length > 0 && (
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">
+                    Associer à un enseignant
+                  </Label>
+                  <select
+                    value={formData.employeeId}
+                    onChange={(e) => setFormData({ ...formData, employeeId: e.target.value })}
+                    className="w-full h-11 px-3 rounded-xl border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-200"
+                  >
+                    <option value="">— Aucun enseignant sélectionné —</option>
+                    {employees.map((e: any) => (
+                      <option key={e.id} value={e.id}>
+                        {e.prenom || e.firstName || ""} {e.nom || e.lastName || ""} {e.specialite ? `(${e.specialite})` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  {formData.employeeId && (
+                    <p className="text-[10px] text-teal-600 font-semibold flex items-center gap-1">
+                      <CheckCircle2 size={10} /> Compte lié à l'enseignant sélectionné
+                    </p>
+                  )}
+                </div>
+              )}
+              {showLiaison && students.length === 0 && employees.length === 0 && (
+                <p className="text-xs text-amber-600 font-medium bg-amber-50 rounded-xl p-3 border border-amber-100">
+                  ⚠ Aucun élève/enseignant disponible. Ajoutez-les d'abord dans les modules correspondants.
+                </p>
+              )}
             </div>
           )}
 

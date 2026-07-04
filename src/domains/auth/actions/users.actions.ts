@@ -20,6 +20,8 @@ type SaveUserFormData = {
   educationalLevel?: string;
   supabaseId?: string;
   schoolId?: unknown;
+  studentId?: unknown;   // Liaison Élève
+  employeeId?: unknown;  // Liaison Enseignant
 };
 
 type RoleLookupRow = {
@@ -203,7 +205,11 @@ export async function saveUser(formData: SaveUserFormData, id?: number) {
       }
     }
 
-    const { utilisateur, nomPrenom, motDePasse, admin, superAdmin, roleId, langue, educationalLevel, supabaseId, schoolId } = formData;
+    const { utilisateur, nomPrenom, motDePasse, admin, superAdmin, roleId, langue, educationalLevel, supabaseId, schoolId, studentId, employeeId } = formData;
+
+    // Runtime migration guard
+    await db.execute(sql`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "student_id" integer REFERENCES "students"("id")`);
+    await db.execute(sql`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "employee_id" integer REFERENCES "employees"("id")`);
     const utilisateurValue = typeof utilisateur === "string" ? utilisateur.trim() : "";
     const nomPrenomValue = typeof nomPrenom === "string" ? nomPrenom.trim() : "";
     const passwordValue = typeof motDePasse === "string" ? motDePasse : "";
@@ -236,6 +242,8 @@ export async function saveUser(formData: SaveUserFormData, id?: number) {
       educationalLevel: string;
       supabaseId: string | null;
       schoolId: number | null;
+      studentId: number | null;
+      employeeId: number | null;
     } = {
       utilisateur: utilisateurValue,
       nomPrenom: nomPrenomValue,
@@ -247,6 +255,9 @@ export async function saveUser(formData: SaveUserFormData, id?: number) {
       supabaseId: supabaseId?.trim() || null,
       // Multi-tenancy: set schoolId.
       schoolId: isSuperAdmin ? selectedSchoolId : currentSchoolId,
+      // Identity links
+      studentId: parseOptionalId(studentId),
+      employeeId: parseOptionalId(employeeId),
     };
 
     if (roleType === "level_director") {
