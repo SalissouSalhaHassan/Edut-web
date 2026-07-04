@@ -34,6 +34,7 @@ const FAQS = [
 export default function HelpPage() {
   const [search, setSearch] = useState("");
   const [openIndex, setOpenIndex] = useState<number | null>(null);
+  const [zoomImage, setZoomImage] = useState(false);
 
   const filteredFaqs = FAQS.filter(
     (faq) =>
@@ -42,7 +43,7 @@ export default function HelpPage() {
   );
 
   return (
-    <div className="p-10 space-y-10 animate-in fade-in duration-500">
+    <div className="p-10 space-y-10 animate-in fade-in duration-500 relative">
       {/* Header */}
       <div className="flex items-center gap-5">
         <div className="w-14 h-14 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-xl shadow-indigo-200">
@@ -104,8 +105,9 @@ export default function HelpPage() {
           </div>
         </div>
 
-        {/* Contact Support */}
+        {/* Contact Support & ID Card */}
         <div className="space-y-6">
+          {/* Card Contact Support */}
           <div className="bg-gradient-to-br from-indigo-900 to-indigo-950 p-1 rounded-3xl text-white shadow-xl shadow-indigo-100 relative overflow-hidden">
             <div className="bg-white/[0.02] backdrop-blur-sm rounded-[22px] p-6 space-y-6">
               <div className="flex items-center gap-4">
@@ -164,8 +166,53 @@ export default function HelpPage() {
               </div>
             </div>
           </div>
+
+          {/* Large Visible ID Card Container */}
+          <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-4">
+            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Document d'identité officiel</h4>
+            <div 
+              onClick={() => setZoomImage(true)}
+              className="relative rounded-2xl overflow-hidden border border-slate-100 hover:shadow-md hover:border-slate-200 transition-all duration-300 group cursor-zoom-in bg-slate-50 flex items-center justify-center"
+            >
+              <img 
+                src="/salissou.jpg" 
+                alt="Document Officiel" 
+                className="w-full h-auto max-h-[220px] object-contain group-hover:scale-102 transition-transform duration-300"
+              />
+              <div className="absolute inset-0 bg-slate-900/0 group-hover:bg-slate-900/5 transition-colors flex items-center justify-center">
+                <span className="opacity-0 group-hover:opacity-100 bg-white/90 text-slate-800 text-[10px] font-bold px-3 py-1.5 rounded-full shadow-sm transition-all duration-300 scale-95 group-hover:scale-100">
+                  Cliquez pour zoomer
+                </span>
+              </div>
+            </div>
+            <div className="text-center text-[10px] font-bold text-slate-400">
+              Cliquer sur l'image pour agrandir et lire les détails
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* Lightbox / Fullscreen Modal */}
+      {zoomImage && (
+        <div 
+          className="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-50 flex items-center justify-center p-4 md:p-8 animate-in fade-in duration-300 cursor-zoom-out"
+          onClick={() => setZoomImage(false)}
+        >
+          <div className="relative max-w-4xl max-h-[90vh] overflow-hidden flex flex-col items-center justify-center">
+            <button 
+              onClick={() => setZoomImage(false)}
+              className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors z-10"
+            >
+              ✕
+            </button>
+            <img 
+              src="/salissou.jpg" 
+              alt="Carte d'identité en grand" 
+              className="max-w-full max-h-[85vh] rounded-2xl object-contain shadow-2xl animate-in zoom-in-95 duration-300"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
