@@ -103,6 +103,7 @@ export const lmsAssignments = pgTable("lms_assignments", {
   courseId: integer("course_id").references(() => lmsCourses.id, { onDelete: "cascade" }),
   classId: integer("class_id").references(() => schoolClasses.id, { onDelete: "set null" }),
   subjectId: integer("subject_id").references(() => schoolSubjects.id, { onDelete: "set null" }),
+  studentId: integer("student_id").references(() => students.id, { onDelete: "cascade" }), // Nullable: for individual remediation homework
   title: varchar("title", { length: 255 }).notNull(),
   description: text("description"),
   fileSujetPath: text("file_sujet_path"),

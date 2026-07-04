@@ -3,6 +3,8 @@
 import { db } from "@/infrastructure/database";
 import { exams, examResults, schoolClasses, schoolSubjects, academicPeriods, schoolSections, classSubjects } from "@/infrastructure/database/schema/academics";
 import { students } from "@/infrastructure/database/schema/students";
+import { pedagogieRemediation } from "@/infrastructure/database/schema/pedagogie";
+import { lmsAssignments } from "@/infrastructure/database/schema/lms";
 import { eq, desc, and, inArray, sql, or } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { examSchema, batchExamResultSchema, ExamFormData, BatchExamResultFormData } from "../validators/exams.schema";
@@ -191,9 +193,95 @@ export async function saveBatchExamResults(formData: BatchExamResultFormData) {
           remarks: res.remarks,
         });
       }
+
+      // Check for low grades (< 50% of maxMarks) to trigger automated remediation
+      const maxMarks = exam.maxMarks || 20;
+      if (res.marksObtained !== null && res.marksObtained !== undefined) {
+        const percentage = (res.marksObtained / maxMarks) * 100;
+        if (percentage < 50) {
+          await triggerAutomatedRemediation(
+            user.schoolId,
+            res.studentId,
+            exam.classId,
+            exam.subjectId,
+            res.marksObtained,
+            maxMarks,
+            user.employeeId || null
+          );
+        }
+      }
     }
 
     revalidatePath("/dashboard/academics/exams");
     return { success: true };
   });
+}
+
+/**
+ * Automatically creates an active pedagogical remediation record and assigns a targetted
+ * LMS homework assignment to help a struggling student catch up.
+ */
+async function triggerAutomatedRemediation(
+  schoolId: number,
+  studentId: number,
+  classId: number,
+  subjectId: number,
+  marksObtained: number,
+  maxMarks: number,
+  employeeId: number | null
+) {
+  try {
+    // 1. Check if an active remediation plan already exists for this student and subject
+    const existing = await db.query.pedagogieRemediation.findFirst({
+      where: and(
+        eq(pedagogieRemediation.studentId, studentId),
+        eq(pedagogieRemediation.subjectId, subjectId),
+        eq(pedagogieRemediation.status, "Actif")
+      )
+    });
+
+    if (existing) {
+      // Just update current grade/score
+      await db.update(pedagogieRemediation)
+        .set({ currentGrade: marksObtained, updatedAt: new Date() })
+        .where(eq(pedagogieRemediation.id, existing.id));
+      return;
+    }
+
+    // 2. Create new Active Remediation Plan
+    await db.insert(pedagogieRemediation).values({
+      schoolId,
+      studentId,
+      classId,
+      subjectId,
+      employeeId,
+      currentGrade: marksObtained,
+      targetGrade: maxMarks * 0.7, // Target is 70% of max marks
+      difficulties: `Score faible obtenu lors de l'évaluation (${marksObtained}/${maxMarks}).`,
+      remediationPlan: "Planification automatique : Révisions fondamentales guidées et exercices d'application pratiques sur le LMS.",
+      status: "Actif",
+      alertLevel: "Critique",
+      sessionsPlanned: 3,
+      sessionsCompleted: 0
+    });
+
+    // 3. Create a customized individual LMS homework assignment for this student
+    const dueDate = new Date();
+    dueDate.setDate(dueDate.getDate() + 7); // Due in 7 days
+
+    await db.insert(lmsAssignments).values({
+      classId,
+      subjectId,
+      studentId, // Assigned individually!
+      title: "Exercices de Renforcement (Remédiation)",
+      description: `Devoir personnalisé suite aux résultats récents. Veuillez effectuer ces exercices pour corriger les lacunes identifiées.`,
+      dueDate,
+      maxScore: maxMarks,
+      status: "Active"
+    });
+
+    console.log(`🤖 [Remediation Trigger] Successfully generated plan & LMS assignment for student ID ${studentId}`);
+  } catch (error) {
+    console.error("❌ Error triggering automated remediation:", error);
+  }
 }

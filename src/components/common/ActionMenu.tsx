@@ -28,9 +28,10 @@ interface ActionMenuProps {
   description?: string;
   canEdit?: boolean;
   canDelete?: boolean;
+  customActions?: React.ReactNode;
 }
 
-export default function ActionMenu({ onDelete, onEdit, editDialog, title, description, canEdit = true, canDelete = true }: ActionMenuProps) {
+export default function ActionMenu({ onDelete, onEdit, editDialog, title, description, canEdit = true, canDelete = true, customActions }: ActionMenuProps) {
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -54,7 +55,7 @@ export default function ActionMenu({ onDelete, onEdit, editDialog, title, descri
             <MoreHorizontal className="h-5 w-5 text-slate-400" />
           </button>
         } />
-        <DropdownMenuContent align="end" className="w-40 rounded-2xl p-2 shadow-xl border-slate-100">
+        <DropdownMenuContent align="end" className="w-48 rounded-2xl p-2 shadow-xl border-slate-100 bg-white">
           {canEdit && (
             onEdit ? (
               <DropdownMenuItem
@@ -66,6 +67,9 @@ export default function ActionMenu({ onDelete, onEdit, editDialog, title, descri
               </DropdownMenuItem>
             ) : editDialog
           )}
+          
+          {customActions}
+
           {canDelete && (
             <DropdownMenuItem
               onClick={() => setIsAlertOpen(true)}

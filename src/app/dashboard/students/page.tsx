@@ -7,7 +7,7 @@ import ActionMenu from "@/components/common/ActionMenu";
 import Link from "next/link";
 import { 
   Users, UserPlus, GraduationCap, LayoutGrid, List, Search, Filter, 
-  MoreVertical, Edit, Bell, ChevronDown, ChevronLeft, ChevronRight
+  MoreVertical, Edit, Bell, ChevronDown, ChevronLeft, ChevronRight, UserCheck
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Guard } from "@/components/rbac/guard";
@@ -277,12 +277,21 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
                       mode="edit" 
                       initialData={student} 
                       trigger={
-                        <button className="flex items-center gap-2 p-3 rounded-xl cursor-pointer hover:bg-indigo-50 hover:text-indigo-600 transition-colors w-full text-left">
-                          <Edit size={16} />
+                        <button className="flex items-center gap-2 p-3 rounded-xl cursor-pointer hover:bg-slate-50 text-slate-700 transition-colors w-full text-left">
+                          <Edit size={16} className="text-slate-400" />
                           <span className="font-semibold text-sm">Modifier</span>
                         </button>
                       }
                     />
+                  }
+                  customActions={
+                    <Link 
+                      href={`/dashboard/students/${student.id}/profile`}
+                      className="flex items-center gap-2 p-3 rounded-xl cursor-pointer hover:bg-indigo-50 text-slate-700 hover:text-indigo-650 transition-colors w-full text-left"
+                    >
+                      <UserCheck size={16} className="text-indigo-500" />
+                      <span className="font-semibold text-sm">Profil & Notes</span>
+                    </Link>
                   }
                 />
               </div>
