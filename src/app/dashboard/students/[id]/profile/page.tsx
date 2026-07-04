@@ -16,17 +16,17 @@ export default async function StudentProfilePage({ params }: { params: Promise<{
 
   // 1. Fetch academic profile data
   const profileResult = await getStudentProfile(studentId);
-  if (profileResult.error || !profileResult.student) {
+  if (profileResult.error || !profileResult.data?.student) {
     redirect("/dashboard/students");
   }
 
   // 2. Fetch behavior rewards
   const rewardsResult = await getStudentBehaviorRewards(studentId);
-  const rewards = rewardsResult?.data || [];
+  const rewards = rewardsResult?.data?.data || [];
 
   // 3. Fetch discipline incidents (filter for this student)
   const incidentsResult = await getIncidents();
-  const allIncidents = incidentsResult?.data || [];
+  const allIncidents = incidentsResult?.data?.data || [];
   const studentIncidents = allIncidents.filter((inc: any) => inc.studentId === studentId);
 
   // 4. Fetch session and roles for counselor notes permission
@@ -37,7 +37,7 @@ export default async function StudentProfilePage({ params }: { params: Promise<{
   try {
     const notesResult = await getStudentCounselorNotes(studentId);
     if (notesResult && !notesResult.error) {
-      counselorNotes = notesResult.data || [];
+      counselorNotes = notesResult.data?.data || [];
     }
   } catch (e) {
     // Suppress error if not authorized (we handle showing/hiding tab in UI)
@@ -46,10 +46,10 @@ export default async function StudentProfilePage({ params }: { params: Promise<{
   return (
     <StudentProfileClient
       currentUser={currentUser}
-      student={profileResult.student}
-      grades={profileResult.grades || []}
-      remediations={profileResult.remediations || []}
-      assignments={profileResult.assignments || []}
+      student={profileResult.data.student}
+      grades={profileResult.data.grades || []}
+      remediations={profileResult.data.remediations || []}
+      assignments={profileResult.data.assignments || []}
       rewards={rewards}
       incidents={studentIncidents}
       counselorNotes={counselorNotes}
