@@ -107,6 +107,8 @@ function createPlatformOwnerFallback(authUser: SupabaseAuthUser, email: string):
     depots: null,
     educationalLevel: "Tous",
     createdAt: null,
+    studentId: null,
+    employeeId: null,
     role: {
       roleName: "Super Admin",
       permissions: [],
