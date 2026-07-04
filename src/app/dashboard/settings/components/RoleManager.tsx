@@ -5,7 +5,8 @@ import {
   Shield, Plus, Trash2, Save, Search,
   ChevronRight, Users, Eye, Edit, Trash,
   GraduationCap, Wallet, UserRound, CalendarCheck2,
-  BookOpen, Package, ShieldCheck, MessageSquare
+  BookOpen, Package, ShieldCheck, MessageSquare,
+  Bus, Home, Store, FileText, LibraryBig
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -41,6 +42,11 @@ const MODULE_CONFIG = [
   { name: "Security",   label: "Security",   icon: ShieldCheck,    color: "bg-red-100 text-red-600" },
   { name: "Messaging",  label: "Messaging",  icon: MessageSquare,  color: "bg-teal-100 text-teal-600" },
   { name: "Pedagogy",   label: "Pédagogie",  icon: BookOpen,       color: "bg-purple-100 text-purple-600" },
+  { name: "Transport",  label: "Transport",  icon: Bus,            color: "bg-blue-100 text-blue-600" },
+  { name: "Library",    label: "Bibliothèque",icon: LibraryBig,    color: "bg-sky-100 text-sky-700" },
+  { name: "Hostel",     label: "Internat",    icon: Home,          color: "bg-emerald-100 text-emerald-600" },
+  { name: "Canteen",    label: "Cantine",     icon: Store,         color: "bg-amber-100 text-amber-700" },
+  { name: "Canevas",    label: "Canevas Scolaires", icon: FileText, color: "bg-cyan-100 text-cyan-600" },
 ];
 
 const ROLE_ICONS = [
