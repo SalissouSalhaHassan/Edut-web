@@ -114,23 +114,23 @@ export default function HelpPage() {
               </div>
 
               <div className="space-y-4">
-                <a href="mailto:support@edut.pro" className="flex items-center gap-3 p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 transition-colors">
+                <a href="mailto:salissousalhahasan@gmail.com" className="flex items-center gap-3 p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 transition-colors">
                   <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-white shrink-0">
                     <Mail size={18} />
                   </div>
                   <div>
                     <p className="text-[10px] font-black text-indigo-300 uppercase tracking-widest leading-none">Email</p>
-                    <p className="text-sm font-bold mt-1 text-white">support@edut.pro</p>
+                    <p className="text-sm font-bold mt-1 text-white">salissousalhahasan@gmail.com</p>
                   </div>
                 </a>
 
-                <a href="https://wa.me/22790000000" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 transition-colors">
+                <a href="https://wa.me/22799425298" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 transition-colors">
                   <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
                     <MessageSquare size={18} />
                   </div>
                   <div>
                     <p className="text-[10px] font-black text-indigo-300 uppercase tracking-widest leading-none">WhatsApp Support</p>
-                    <p className="text-sm font-bold mt-1 text-white">+227 90 00 00 00</p>
+                    <p className="text-sm font-bold mt-1 text-white">+227 99 42 52 98</p>
                   </div>
                 </a>
 
@@ -140,7 +140,7 @@ export default function HelpPage() {
                   </div>
                   <div>
                     <p className="text-[10px] font-black text-indigo-300 uppercase tracking-widest leading-none">Téléphone Direct</p>
-                    <p className="text-sm font-bold mt-1 text-white">+227 20 73 00 00</p>
+                    <p className="text-sm font-bold mt-1 text-white">+227 99 42 52 98</p>
                   </div>
                 </div>
               </div>
