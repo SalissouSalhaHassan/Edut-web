@@ -2,7 +2,9 @@
 
 import { db } from "@/infrastructure/database";
 import { students } from "@/infrastructure/database/schema/students";
-import { schoolClasses } from "@/infrastructure/database/schema/academics";
+import { schoolClasses, schoolSubjects, exams, examResults } from "@/infrastructure/database/schema/academics";
+import { pedagogieRemediation } from "@/infrastructure/database/schema/pedagogie";
+import { lmsAssignments } from "@/infrastructure/database/schema/lms";
 import { eq, desc, and, or, inArray, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { studentSchema, StudentFormData } from "../validators/student.schema";
@@ -246,5 +248,78 @@ export async function fixStudentLevels() {
 
     revalidatePath("/dashboard/students");
     return { success: true, fixedCount };
+  });
+}
+
+export async function getStudentProfile(studentId: number) {
+  return protectedDbAction("Students", "canView", async (user) => {
+    // 1. Fetch student
+    const student = await db.query.students.findFirst({
+      where: and(
+        eq(students.id, studentId),
+        eq(students.schoolId, user.schoolId)
+      )
+    });
+
+    if (!student) return { error: "Étudiant non trouvé." };
+
+    // 2. Fetch grades/exam results
+    const gradesData = await db.select({
+      id: examResults.id,
+      marksObtained: examResults.marksObtained,
+      remarks: examResults.remarks,
+      examName: exams.examName,
+      maxMarks: exams.maxMarks,
+      examDate: exams.examDate,
+      subjectName: schoolSubjects.subjectName
+    })
+    .from(examResults)
+    .innerJoin(exams, eq(examResults.examId, exams.id))
+    .innerJoin(schoolSubjects, eq(exams.subjectId, schoolSubjects.id))
+    .where(eq(examResults.studentId, studentId))
+    .orderBy(desc(exams.examDate));
+
+    // 3. Fetch active/closed remediation plans
+    const remediationsData = await db.select({
+      id: pedagogieRemediation.id,
+      difficulties: pedagogieRemediation.difficulties,
+      currentGrade: pedagogieRemediation.currentGrade,
+      targetGrade: pedagogieRemediation.targetGrade,
+      remediationPlan: pedagogieRemediation.remediationPlan,
+      sessionsPlanned: pedagogieRemediation.sessionsPlanned,
+      sessionsCompleted: pedagogieRemediation.sessionsCompleted,
+      status: pedagogieRemediation.status,
+      alertLevel: pedagogieRemediation.alertLevel,
+      createdAt: pedagogieRemediation.createdAt,
+      subjectName: schoolSubjects.subjectName
+    })
+    .from(pedagogieRemediation)
+    .innerJoin(schoolSubjects, eq(pedagogieRemediation.subjectId, schoolSubjects.id))
+    .where(eq(pedagogieRemediation.studentId, studentId))
+    .orderBy(desc(pedagogieRemediation.createdAt));
+
+    // 4. Fetch individual LMS assignments
+    const lmsAssignmentsData = await db.select({
+      id: lmsAssignments.id,
+      title: lmsAssignments.title,
+      description: lmsAssignments.description,
+      dueDate: lmsAssignments.dueDate,
+      maxScore: lmsAssignments.maxScore,
+      status: lmsAssignments.status,
+      subjectName: schoolSubjects.subjectName
+    })
+    .from(lmsAssignments)
+    .innerJoin(schoolSubjects, eq(lmsAssignments.subjectId, schoolSubjects.id))
+    .where(
+      eq(lmsAssignments.studentId, studentId)
+    )
+    .orderBy(desc(lmsAssignments.dueDate));
+
+    return {
+      student,
+      grades: gradesData,
+      remediations: remediationsData,
+      assignments: lmsAssignmentsData
+    };
   });
 }
