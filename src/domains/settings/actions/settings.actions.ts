@@ -260,15 +260,3 @@ export async function saveSettings(data: Record<string, string>) {
     return { success: true };
   });
 }
-
-import { downloadArabicFontIfNeeded } from "@/domains/printing/utils/font-downloader";
-
-export async function downloadArabicFontAction() {
-  try {
-    await downloadArabicFontIfNeeded();
-    return { success: true };
-  } catch (e) {
-    console.error(e);
-    return { success: false };
-  }
-}
