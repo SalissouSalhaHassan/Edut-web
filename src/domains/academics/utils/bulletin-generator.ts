@@ -62,8 +62,7 @@ function drawPDFHeader(
   session: string
 ) {
   const style = headerConfig?.style || "classic_dual_logo";
-  const schoolName = headerConfig?.schoolName || branchInfo?.branchName || "ÉCOLE GESTION PRO";
-  const schoolNameAr = headerConfig?.schoolNameAr || "";
+  const schoolName = headerConfig?.schoolName || branchInfo?.branchName || "ÉCOLE EXCELLENCE";
   const address = headerConfig?.address || branchInfo?.address || "";
   const phone = headerConfig?.phone || branchInfo?.contactNo || "";
   const email = headerConfig?.email || branchInfo?.email || "";
@@ -71,7 +70,7 @@ function drawPDFHeader(
   const schoolYear = headerConfig?.schoolYear || session || "";
   const ministry = headerConfig?.ministry || "Ministère de l'Éducation Nationale";
   const service = headerConfig?.service || "Service de la Scolarité";
-  const bp = headerConfig?.bp || branchInfo?.address || "";
+  const bp = headerConfig?.bp || "";
   const motto = headerConfig?.motto || "";
   
   const leftLogo = headerConfig?.leftLogo || branchInfo?.logoPath;
@@ -110,23 +109,49 @@ function drawPDFHeader(
       } catch (e) {}
     }
     
+    const leftLines = [
+      headerConfig?.country || branchInfo?.country || "RÉPUBLIQUE DU NIGER",
+      ministry,
+      headerConfig?.regionalDirection || branchInfo?.regionalDirection || "",
+      headerConfig?.departmentalDirection || branchInfo?.departmentalDirection || "",
+      headerConfig?.inspection || branchInfo?.inspection || "",
+      schoolName,
+      service,
+      address,
+      bp ? `BP : ${bp}` : "",
+      phone ? `Tél: ${phone}` : "",
+      email ? `Email: ${email}` : "",
+    ].filter(Boolean);
+
+    let leftY = 12;
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
     doc.setTextColor(0, 0, 0);
-    doc.text(ministry, 10, 12);
-    doc.text(schoolName, 10, 17);
-    doc.text(`Tél: ${phone}`, 10, 22);
-    doc.text(`Email: ${email}`, 10, 27);
+    for (const line of leftLines) {
+      doc.text(line, 10, leftY);
+      leftY += 4.5;
+    }
     
-    const arName = schoolNameAr || schoolName;
-    doc.text(arName, 200, 12, { align: "right" });
-    doc.text(ministry ? "وزارة التربية الوطنية" : "", 200, 17, { align: "right" });
-    doc.text(`Année: ${schoolYear}`, 200, 22, { align: "right" });
-    doc.text(`Adresse: ${address}`, 200, 27, { align: "right" });
+    const rightLines = [
+      schoolName,
+      headerConfig?.country || branchInfo?.country || "RÉPUBLIQUE DU NIGER",
+      ministry,
+      headerConfig?.regionalDirection || branchInfo?.regionalDirection || "",
+      headerConfig?.inspection || branchInfo?.inspection || "",
+      phone ? `Tél: ${phone}` : "",
+      email ? `Email: ${email}` : "",
+    ].filter(Boolean);
+
+    let rightY = 12;
+    for (const line of rightLines) {
+      doc.text(line, 200, rightY, { align: "right" });
+      rightY += 4.5;
+    }
     
+    const maxY = Math.max(leftY, rightY);
     doc.setLineWidth(0.5);
-    doc.line(10, 36, 200, 36);
-    return 38;
+    doc.line(10, maxY + 2, 200, maxY + 2);
+    return maxY + 4;
   }
   
   if (style === "university_formal") {
@@ -141,22 +166,35 @@ function drawPDFHeader(
       } catch (e) {}
     }
     
+    const centerLines = [
+      headerConfig?.country || branchInfo?.country || "REPUBLIQUE DU NIGER",
+      schoolName,
+      service,
+      [bp && `BP : ${bp}`, address, phone && `Tél. ${phone}`].filter(Boolean).join(" | "),
+      email ? `Email : ${email}` : "",
+      registrationNo ? `Agrément N°: ${registrationNo}` : "",
+    ].filter(Boolean);
+
+    let centerY = 12;
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
-    doc.text(ministry.toUpperCase(), 105, 12, { align: "center" });
+    doc.text(centerLines[0].toUpperCase(), 105, centerY, { align: "center" });
     
     doc.setFontSize(12);
-    doc.text(schoolName, 105, 17, { align: "center" });
-    
-    doc.setFontSize(9);
+    centerY += 5;
+    doc.text(centerLines[1], 105, centerY, { align: "center" });
+
+    doc.setFontSize(8.5);
     doc.setFont("helvetica", "normal");
-    doc.text(service, 105, 22, { align: "center" });
-    doc.text(`BP : ${bp} | Tél. ${phone} | Email : ${email}`, 105, 27, { align: "center" });
-    doc.text(`Agrément N°: ${registrationNo}`, 105, 32, { align: "center" });
+    for (let i = 2; i < centerLines.length; i++) {
+      centerY += 4.5;
+      doc.text(centerLines[i], 105, centerY, { align: "center" });
+    }
     
+    const finalY = Math.max(centerY + 3, 32);
     doc.setLineWidth(0.5);
-    doc.line(10, 36, 200, 36);
-    return 38;
+    doc.line(10, finalY, 200, finalY);
+    return finalY + 2;
   }
   
   if (style === "minimal_administrative") {
@@ -166,19 +204,33 @@ function drawPDFHeader(
       } catch (e) {}
     }
     
+    const leftLines = [
+      schoolName,
+      headerConfig?.country || branchInfo?.country || "RÉPUBLIQUE DU NIGER",
+      ministry,
+      headerConfig?.regionalDirection || branchInfo?.regionalDirection || "",
+      headerConfig?.inspection || branchInfo?.inspection || "",
+      registrationNo ? `Agrément: ${registrationNo}` : "",
+      [address, phone && `Tél: ${phone}`].filter(Boolean).join(" | "),
+      email ? `Email: ${email}` : "",
+    ].filter(Boolean);
+
+    let leftY = 12;
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(13);
-    doc.text(schoolName, 10, 14);
-    
+    doc.setFontSize(12);
+    doc.text(leftLines[0], 10, leftY);
+
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8.5);
-    doc.text(`Agrément: ${registrationNo} | Année: ${schoolYear}`, 10, 20);
-    doc.text(`Adresse: ${address} | Tél: ${phone}`, 10, 25);
-    doc.text(`Email: ${email}`, 10, 30);
+    for (let i = 1; i < leftLines.length; i++) {
+      leftY += 4.5;
+      doc.text(leftLines[i], 10, leftY);
+    }
     
+    const finalY = Math.max(leftY + 3, 32);
     doc.setLineWidth(0.3);
-    doc.line(10, 34, 200, 34);
-    return 36;
+    doc.line(10, finalY, 200, finalY);
+    return finalY + 2;
   }
   
   if (leftLogo) {
@@ -192,26 +244,37 @@ function drawPDFHeader(
     } catch (e) {}
   }
   
+  const centerLines = [
+    schoolName,
+    motto ? `"${motto}"` : "",
+    [registrationNo && `Agrément: ${registrationNo}`, eduLevel && `Niveau: ${eduLevel}`].filter(Boolean).join(" | "),
+    `Année Scolaire: ${schoolYear}`,
+    [phone && `Tél: ${phone}`, email && `Email: ${email}`].filter(Boolean).join(" | "),
+    address ? `Adresse: ${address}` : "",
+  ].filter(Boolean);
+
+  let centerY = 12;
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(14);
-  doc.text(schoolName, 105, 14, { align: "center" });
-  
-  if (motto) {
-    doc.setFont("helvetica", "italic");
-    doc.setFontSize(8);
-    doc.text(motto, 105, 18, { align: "center" });
+  doc.setFontSize(13);
+  doc.text(centerLines[0], 105, centerY, { align: "center" });
+
+  doc.setFontSize(8.5);
+  doc.setFont("helvetica", "normal");
+  for (let i = 1; i < centerLines.length; i++) {
+    centerY += 4.5;
+    if (i === 1 && motto) {
+      doc.setFont("helvetica", "italic");
+      doc.text(centerLines[i], 105, centerY, { align: "center" });
+      doc.setFont("helvetica", "normal");
+    } else {
+      doc.text(centerLines[i], 105, centerY, { align: "center" });
+    }
   }
   
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8.5);
-  doc.text(`Agrément: ${registrationNo} | Niveau: ${eduLevel}`, 105, 23, { align: "center" });
-  doc.text(`Année Scolaire: ${schoolYear}`, 105, 27, { align: "center" });
-  doc.text(`Tél: ${phone} | Email: ${email}`, 105, 31, { align: "center" });
-  doc.text(`Adresse: ${address}`, 105, 35, { align: "center" });
-  
+  const finalY = Math.max(centerY + 3, 32);
   doc.setLineWidth(0.5);
-  doc.line(10, 38, 200, 38);
-  return 40;
+  doc.line(10, finalY, 200, finalY);
+  return finalY + 2;
 }
 
 export async function generateBulletinPDF(data: any) {
@@ -226,7 +289,7 @@ export async function generateBulletinPDF(data: any) {
   if (eduLevel.includes("UNIVERSITÉ") || eduLevel.includes("SUPÉRIEUR")) mainTitle = "RELEVÉ DE NOTES";
 
   // Header
-  drawPDFHeader(doc, headerConfig, branchInfo, eduLevel, session);
+  const headerEndY = drawPDFHeader(doc, headerConfig, branchInfo, eduLevel, session);
 
   // Background logo watermark
   if (branchInfo?.logoPath) {
@@ -240,14 +303,21 @@ export async function generateBulletinPDF(data: any) {
     }
   }
 
+  const titleY = headerEndY + 10;
+  const infoBoxY = headerEndY + 15;
+  const textRow1Y = infoBoxY + 7;
+  const textRow2Y = infoBoxY + 14;
+  const textRow3Y = infoBoxY + 21;
+  const tableY = infoBoxY + 30;
+
   doc.setFontSize(14);
   doc.setFont("helvetica", "bolditalic");
-  doc.text(`${mainTitle} - ${safeTerm}`, 105, 52, { align: "center" });
+  doc.text(`${mainTitle} - ${safeTerm}`, 105, titleY, { align: "center" });
 
   // Student Info Box
   doc.setDrawColor(0);
   doc.setLineWidth(0.3);
-  doc.rect(10, 55, 190, 22);
+  doc.rect(10, infoBoxY, 190, 22);
   
   // Extract and compute data robustly
   const totalCoef = (results || []).reduce((acc: number, r: any) => acc + (parseFloat(r.coefficient) || 1), 0);
@@ -283,32 +353,32 @@ export async function generateBulletinPDF(data: any) {
 
   doc.setFontSize(10);
   doc.setFont("helvetica", "bold");
-  doc.text("ÉLÈVE:", 15, 62);
+  doc.text("ÉLÈVE:", 15, textRow1Y);
   doc.setFont("helvetica", "normal");
-  doc.text(student?.nomEtudiant || student?.name || "N/A", 40, 62);
+  doc.text(student?.nomEtudiant || student?.name || "N/A", 40, textRow1Y);
 
   doc.setFont("helvetica", "bold");
-  doc.text("MATRICULE:", 15, 69);
+  doc.text("MATRICULE:", 15, textRow2Y);
   doc.setFont("helvetica", "normal");
-  doc.text(student?.numAdmission || student?.matricule || "N/A", 40, 69);
+  doc.text(student?.numAdmission || student?.matricule || "N/A", 40, textRow2Y);
 
   doc.setFont("helvetica", "bold");
-  doc.text("CLASSE:", 15, 76);
+  doc.text("CLASSE:", 15, textRow3Y);
   doc.setFont("helvetica", "normal");
-  doc.text(student?.classe || student?.className || "N/A", 40, 76);
+  doc.text(student?.classe || student?.className || "N/A", 40, textRow3Y);
 
   doc.setFont("helvetica", "bold");
-  doc.text("RANG:", 130, 62);
+  doc.text("RANG:", 130, textRow1Y);
   doc.setFont("helvetica", "normal");
-  doc.text(`${displayRank} / ${totalStudents || 0}`, 150, 62);
+  doc.text(`${displayRank} / ${totalStudents || 0}`, 150, textRow1Y);
 
   doc.setFont("helvetica", "bold");
-  doc.text("MOYENNE:", 130, 69);
+  doc.text("MOYENNE:", 130, textRow2Y);
   doc.setFont("helvetica", "bold");
-  doc.text(`${displayAverage.toFixed(2)} / 20`, 150, 69);
+  doc.text(`${displayAverage.toFixed(2)} / 20`, 150, textRow2Y);
 
   if (qrBase64) {
-    doc.addImage(qrBase64, 'PNG', 178, 57, 18, 18);
+    doc.addImage(qrBase64, 'PNG', 178, infoBoxY + 2, 18, 18);
   }
 
   // Results Table
@@ -381,7 +451,7 @@ export async function generateBulletinPDF(data: any) {
   ];
 
   autoTable(doc, {
-    startY: 85,
+    startY: tableY,
     head: [["Discipline", "Moy. CC", "Compo", "Moyenne", "Coef", "Moy x Coef", "Rang", "Appréciation", "Sign Prof"]],
     body: tableData,
     foot: footerRows,
@@ -571,7 +641,7 @@ export async function generateReleveNotesPDF(data: any) {
   const { student, session, term, results, summary, resultsS1, resultsS2, resultsS3, resultsS4, resultsS5, resultsS6, summaryS1, summaryS2, summaryS3, summaryS4, summaryS5, summaryS6, branchInfo, headerConfig } = data;
 
   // --- 1. HEADER SECTION ---
-  drawPDFHeader(doc, headerConfig, branchInfo, (student?.educationalLevel || "Université").toUpperCase(), session);
+  const headerEndY = drawPDFHeader(doc, headerConfig, branchInfo, (student?.educationalLevel || "Université").toUpperCase(), session);
 
   // --- 2. TITLE BAR ---
   // Background logo watermark
@@ -586,32 +656,38 @@ export async function generateReleveNotesPDF(data: any) {
     }
   }
 
+  const titleBarY = headerEndY + 5;
+  const studentInfoY = titleBarY + 14;
+  const s1SectionY = studentInfoY + 18;
+  const s1TitleY = studentInfoY + 23;
+  const table1StartY = studentInfoY + 25;
+
   doc.setFillColor(210, 230, 210);
-  doc.rect(10, 45, 190, 8, "F");
+  doc.rect(10, titleBarY, 190, 8, "F");
   doc.setFontSize(12);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(0, 50, 0);
-  doc.text("RELEVE DE NOTES", 105, 51, { align: "center" });
+  doc.text("RELEVE DE NOTES", 105, titleBarY + 6, { align: "center" });
   doc.setTextColor(0, 0, 0);
 
   // --- 3. STUDENT INFO ---
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
-  doc.text("Etudiant:", 10, 59);
-  doc.text("Matricule:", 10, 64);
-  doc.text("Parcours:", 10, 69);
+  doc.text("Etudiant:", 10, studentInfoY);
+  doc.text("Matricule:", 10, studentInfoY + 5);
+  doc.text("Parcours:", 10, studentInfoY + 10);
   
   doc.setFont("helvetica", "bold");
-  doc.text(student?.nomEtudiant || student?.name || "ADIATULLAHI RABIU AHMAD Nigeria", 30, 59);
-  doc.text(student?.numAdmission || student?.matricule || "20 D 004", 30, 64);
-  doc.text(student?.classe || student?.className || "Première année de licence en Shari'a and Law", 30, 69);
+  doc.text(student?.nomEtudiant || student?.name || "ADIATULLAHI RABIU AHMAD Nigeria", 30, studentInfoY);
+  doc.text(student?.numAdmission || student?.matricule || "20 D 004", 30, studentInfoY + 5);
+  doc.text(student?.classe || student?.className || "Première année de licence en Shari'a and Law", 30, studentInfoY + 10);
 
   doc.setDrawColor(0);
   doc.setLineWidth(0.3);
-  doc.rect(175, 55, 18, 18);
+  doc.rect(175, studentInfoY - 4, 18, 18);
   doc.setFontSize(6);
   doc.setFont("helvetica", "normal");
-  doc.text("QR Code", 178, 64);
+  doc.text("QR Code", 178, studentInfoY + 5);
 
   // --- 4. DETERMINE SEMESTER PAIR ---
   const isDoctorate = student?.educationalLevel?.toLowerCase().includes("doc") || student?.classe?.toLowerCase().includes("doc") || term?.toLowerCase().includes("ann") || term?.toLowerCase().includes("annee");
@@ -651,11 +727,11 @@ export async function generateReleveNotesPDF(data: any) {
   // --- 5. SEMESTRE 1 SECTION ---
   doc.setFontSize(9);
   doc.setFont("helvetica", "bold");
-  doc.text(`Première session`, 10, 77);
-  doc.text(`${session || "2022/2023"}`, 40, 77);
+  doc.text(`Première session`, 10, s1SectionY);
+  doc.text(`${session || "2022/2023"}`, 40, s1SectionY);
   
   doc.setFontSize(11);
-  doc.text(firstSemesterName, 105, 82, { align: "center" });
+  doc.text(firstSemesterName, 105, s1TitleY, { align: "center" });
 
   const defaultS1List = [
     ["INTR 1", "Introduction au droit 1", "3", "16.00", "T.bien"],
@@ -695,7 +771,7 @@ export async function generateReleveNotesPDF(data: any) {
   }
 
   autoTable(doc, {
-    startY: 84,
+    startY: table1StartY,
     head: [["Code", "Matières", "Crédits", "Notes/20", "Mention"]],
     body: tableData1,
     foot: [
