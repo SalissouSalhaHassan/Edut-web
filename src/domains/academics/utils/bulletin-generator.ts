@@ -7,7 +7,7 @@ function drawTextBilingual(doc: jsPDF, text: string, x: number, y: number, optio
   if (hasArabicCharacters(text) && amiriFontBase64) {
     try {
       doc.addFileToVFS("Amiri-Regular.ttf", amiriFontBase64);
-      doc.addFont("Amiri-Regular.ttf", "Amiri", "normal");
+      doc.addFont("Amiri-Regular.ttf", "Amiri", "normal", "Identity-H");
       
       const reshaped = reshapeArabicText(text);
       const activeFont = doc.getFont();
@@ -380,17 +380,17 @@ export async function generateBulletinPDF(data: any) {
   doc.setFont("helvetica", "bold");
   doc.text("ÉLÈVE:", 15, textRow1Y);
   doc.setFont("helvetica", "normal");
-  doc.text(student?.nomEtudiant || student?.name || "N/A", 40, textRow1Y);
+  drawTextBilingual(doc, student?.nomEtudiant || student?.name || "N/A", 40, textRow1Y);
 
   doc.setFont("helvetica", "bold");
   doc.text("MATRICULE:", 15, textRow2Y);
   doc.setFont("helvetica", "normal");
-  doc.text(student?.numAdmission || student?.matricule || "N/A", 40, textRow2Y);
+  drawTextBilingual(doc, student?.numAdmission || student?.matricule || "N/A", 40, textRow2Y);
 
   doc.setFont("helvetica", "bold");
   doc.text("CLASSE:", 15, textRow3Y);
   doc.setFont("helvetica", "normal");
-  doc.text(student?.classe || student?.className || "N/A", 40, textRow3Y);
+  drawTextBilingual(doc, student?.classe || student?.className || "N/A", 40, textRow3Y);
 
   doc.setFont("helvetica", "bold");
   doc.text("RANG:", 130, textRow1Y);
@@ -703,9 +703,9 @@ export async function generateReleveNotesPDF(data: any) {
   doc.text("Parcours:", 10, studentInfoY + 10);
   
   doc.setFont("helvetica", "bold");
-  doc.text(student?.nomEtudiant || student?.name || "ADIATULLAHI RABIU AHMAD Nigeria", 30, studentInfoY);
-  doc.text(student?.numAdmission || student?.matricule || "20 D 004", 30, studentInfoY + 5);
-  doc.text(student?.classe || student?.className || "Première année de licence en Shari'a and Law", 30, studentInfoY + 10);
+  drawTextBilingual(doc, student?.nomEtudiant || student?.name || "ADIATULLAHI RABIU AHMAD Nigeria", 30, studentInfoY);
+  drawTextBilingual(doc, student?.numAdmission || student?.matricule || "20 D 004", 30, studentInfoY + 5);
+  drawTextBilingual(doc, student?.classe || student?.className || "Première année de licence en Shari'a and Law", 30, studentInfoY + 10);
 
   doc.setDrawColor(0);
   doc.setLineWidth(0.3);

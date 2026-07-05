@@ -41,7 +41,7 @@ function drawTextBilingual(doc: jsPDF, text: string, x: number, y: number, optio
   if (hasArabicCharacters(text) && amiriFontBase64) {
     try {
       doc.addFileToVFS("Amiri-Regular.ttf", amiriFontBase64);
-      doc.addFont("Amiri-Regular.ttf", "Amiri", "normal");
+      doc.addFont("Amiri-Regular.ttf", "Amiri", "normal", "Identity-H");
       
       const reshaped = reshapeArabicText(text);
       const activeFont = doc.getFont();
