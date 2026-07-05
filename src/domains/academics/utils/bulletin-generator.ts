@@ -54,6 +54,166 @@ async function fetchTransparentLogoBase64(url: string, opacity: number = 0.08): 
   });
 }
 
+function drawPDFHeader(
+  doc: jsPDF,
+  headerConfig: any,
+  branchInfo: any,
+  eduLevel: string,
+  session: string
+) {
+  const style = headerConfig?.style || "classic_dual_logo";
+  const schoolName = headerConfig?.schoolName || branchInfo?.branchName || "ÉCOLE GESTION PRO";
+  const schoolNameAr = headerConfig?.schoolNameAr || "";
+  const address = headerConfig?.address || branchInfo?.address || "";
+  const phone = headerConfig?.phone || branchInfo?.contactNo || "";
+  const email = headerConfig?.email || branchInfo?.email || "";
+  const registrationNo = headerConfig?.registrationNo || branchInfo?.registrationNo || "";
+  const schoolYear = headerConfig?.schoolYear || session || "";
+  const ministry = headerConfig?.ministry || "Ministère de l'Éducation Nationale";
+  const service = headerConfig?.service || "Service de la Scolarité";
+  const bp = headerConfig?.bp || branchInfo?.address || "";
+  const motto = headerConfig?.motto || "";
+  
+  const leftLogo = headerConfig?.leftLogo || branchInfo?.logoPath;
+  const rightLogo = headerConfig?.rightLogo || leftLogo;
+  const centerLogo = headerConfig?.centerLogo || leftLogo;
+
+  if (style === "modern_card") {
+    doc.setFillColor(79, 70, 229);
+    doc.roundedRect(10, 8, 190, 26, 2, 2, "F");
+    
+    if (leftLogo) {
+      try {
+        doc.addImage(leftLogo, 'PNG', 14, 11, 20, 20);
+      } catch (e) {}
+    }
+    
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
+    doc.text(schoolName, 38, 17);
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(220, 225, 255);
+    doc.text(`Année Scolaire: ${schoolYear} | Niveau: ${eduLevel}`, 38, 23);
+    doc.text(`${address} ${phone ? '| Tél: ' + phone : ''}`, 38, 28);
+    
+    doc.setTextColor(0, 0, 0);
+    return 38;
+  }
+  
+  if (style === "bilingual_center_logo") {
+    if (centerLogo) {
+      try {
+        doc.addImage(centerLogo, 'PNG', 92, 8, 26, 26);
+      } catch (e) {}
+    }
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(0, 0, 0);
+    doc.text(ministry, 10, 12);
+    doc.text(schoolName, 10, 17);
+    doc.text(`Tél: ${phone}`, 10, 22);
+    doc.text(`Email: ${email}`, 10, 27);
+    
+    const arName = schoolNameAr || schoolName;
+    doc.text(arName, 200, 12, { align: "right" });
+    doc.text(ministry ? "وزارة التربية الوطنية" : "", 200, 17, { align: "right" });
+    doc.text(`Année: ${schoolYear}`, 200, 22, { align: "right" });
+    doc.text(`Adresse: ${address}`, 200, 27, { align: "right" });
+    
+    doc.setLineWidth(0.5);
+    doc.line(10, 36, 200, 36);
+    return 38;
+  }
+  
+  if (style === "university_formal") {
+    if (leftLogo) {
+      try {
+        doc.addImage(leftLogo, 'PNG', 10, 8, 22, 22);
+      } catch (e) {}
+    }
+    if (rightLogo) {
+      try {
+        doc.addImage(rightLogo, 'PNG', 178, 8, 22, 22);
+      } catch (e) {}
+    }
+    
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.text(ministry.toUpperCase(), 105, 12, { align: "center" });
+    
+    doc.setFontSize(12);
+    doc.text(schoolName, 105, 17, { align: "center" });
+    
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.text(service, 105, 22, { align: "center" });
+    doc.text(`BP : ${bp} | Tél. ${phone} | Email : ${email}`, 105, 27, { align: "center" });
+    doc.text(`Agrément N°: ${registrationNo}`, 105, 32, { align: "center" });
+    
+    doc.setLineWidth(0.5);
+    doc.line(10, 36, 200, 36);
+    return 38;
+  }
+  
+  if (style === "minimal_administrative") {
+    if (centerLogo || leftLogo) {
+      try {
+        doc.addImage(centerLogo || leftLogo, 'PNG', 175, 8, 22, 22);
+      } catch (e) {}
+    }
+    
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
+    doc.text(schoolName, 10, 14);
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
+    doc.text(`Agrément: ${registrationNo} | Année: ${schoolYear}`, 10, 20);
+    doc.text(`Adresse: ${address} | Tél: ${phone}`, 10, 25);
+    doc.text(`Email: ${email}`, 10, 30);
+    
+    doc.setLineWidth(0.3);
+    doc.line(10, 34, 200, 34);
+    return 36;
+  }
+  
+  if (leftLogo) {
+    try {
+      doc.addImage(leftLogo, 'PNG', 10, 8, 22, 22);
+    } catch (e) {}
+  }
+  if (rightLogo && rightLogo !== leftLogo) {
+    try {
+      doc.addImage(rightLogo, 'PNG', 178, 8, 22, 22);
+    } catch (e) {}
+  }
+  
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(14);
+  doc.text(schoolName, 105, 14, { align: "center" });
+  
+  if (motto) {
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(8);
+    doc.text(motto, 105, 18, { align: "center" });
+  }
+  
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8.5);
+  doc.text(`Agrément: ${registrationNo} | Niveau: ${eduLevel}`, 105, 23, { align: "center" });
+  doc.text(`Année Scolaire: ${schoolYear}`, 105, 27, { align: "center" });
+  doc.text(`Tél: ${phone} | Email: ${email}`, 105, 31, { align: "center" });
+  doc.text(`Adresse: ${address}`, 105, 35, { align: "center" });
+  
+  doc.setLineWidth(0.5);
+  doc.line(10, 38, 200, 38);
+  return 40;
+}
+
 export async function generateBulletinPDF(data: any) {
   const doc = new jsPDF();
   const { student, session, term, results, summary, summaryS1, summaryS2, totalStudents, branchInfo, headerConfig } = data;
@@ -66,30 +226,7 @@ export async function generateBulletinPDF(data: any) {
   if (eduLevel.includes("UNIVERSITÉ") || eduLevel.includes("SUPÉRIEUR")) mainTitle = "RELEVÉ DE NOTES";
 
   // Header
-  const logoToUse = headerConfig?.leftLogo || headerConfig?.centerLogo || branchInfo?.logoPath;
-  if (logoToUse) {
-    try {
-      doc.addImage(logoToUse, 'PNG', 10, 8, 25, 25);
-    } catch (e) {
-      doc.setDrawColor(200);
-      doc.rect(10, 8, 25, 25);
-    }
-  }
-
-  doc.setFontSize(16);
-  doc.setFont("helvetica", "bold");
-  doc.text(headerConfig?.schoolName || branchInfo?.branchName || "ÉCOLE GESTION PRO", 105, 15, { align: "center" });
-
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "normal");
-  doc.text(`Agrément: ${headerConfig?.registrationNo || branchInfo?.registrationNo || "N/A"}`, 40, 22);
-  doc.text(`Niveau Educatif: ${eduLevel}`, 40, 27);
-  doc.text(`Année Scolaire: ${headerConfig?.schoolYear || session || "2024-2025"}`, 195, 22, { align: "right" });
-  doc.text(`Tél: ${headerConfig?.phone || branchInfo?.contactNo || ""} | Email: ${headerConfig?.email || branchInfo?.email || ""}`, 105, 32, { align: "center" });
-  doc.text(`Adresse: ${headerConfig?.address || branchInfo?.address || ""}`, 105, 37, { align: "center" });
-
-  doc.setLineWidth(0.5);
-  doc.line(10, 40, 200, 40);
+  drawPDFHeader(doc, headerConfig, branchInfo, eduLevel, session);
 
   // Background logo watermark
   if (branchInfo?.logoPath) {
@@ -434,40 +571,7 @@ export async function generateReleveNotesPDF(data: any) {
   const { student, session, term, results, summary, resultsS1, resultsS2, resultsS3, resultsS4, resultsS5, resultsS6, summaryS1, summaryS2, summaryS3, summaryS4, summaryS5, summaryS6, branchInfo, headerConfig } = data;
 
   // --- 1. HEADER SECTION ---
-  const logoToUse = headerConfig?.leftLogo || headerConfig?.centerLogo || branchInfo?.logoPath;
-  if (logoToUse) {
-    try {
-      doc.addImage(logoToUse, 'PNG', 10, 8, 25, 25);
-    } catch (e) {
-      doc.setDrawColor(200);
-      doc.rect(10, 8, 25, 25);
-    }
-  }
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
-  doc.text(headerConfig?.ministry || "REPUBLIQUE DU NIGER", 105, 12, { align: "center" });
-  
-  doc.setFontSize(10);
-  doc.text(headerConfig?.schoolName || branchInfo?.branchName || "Université Privée Internationale Aboubacar Ibrahim", 105, 17, { align: "center" });
-  
-  doc.setFontSize(9);
-  doc.text(headerConfig?.service || branchInfo?.branchAlias || "Faculté des Sciences Administratives, Juridiques et Economiques", 105, 21, { align: "center" });
-  doc.text("Service de la Scolarité", 105, 25, { align: "center" });
-  
-  doc.setFont("helvetica", "normal");
-  doc.text(`BP : ${headerConfig?.address || branchInfo?.address || "370 Maradi-Niger"}, Tél. ${headerConfig?.phone || branchInfo?.contactNo || "(+227) 96 06 92 66"}`, 105, 29, { align: "center" });
-  doc.text(`Email : ${headerConfig?.email || branchInfo?.email || "university@gmail.com"}`, 105, 33, { align: "center" });
-  
-  doc.setFontSize(8);
-  doc.setFont("helvetica", "bold");
-  doc.text(`AGREMENT N°: ${headerConfig?.registrationNo || branchInfo?.registrationNo || "00172/MESR/I/SG/DGE/DL/DESPRI"}`, 105, 38, { align: "center" });
-  doc.text(`NIVEAU: ${(student?.educationalLevel || "Université").toUpperCase()}`, 105, 42, { align: "center" });
-
-  // Draw Logos (Decoration)
-  doc.setDrawColor(0);
-  doc.setLineWidth(0.5);
-  doc.circle(185, 25, 12);
+  drawPDFHeader(doc, headerConfig, branchInfo, (student?.educationalLevel || "Université").toUpperCase(), session);
 
   // --- 2. TITLE BAR ---
   // Background logo watermark

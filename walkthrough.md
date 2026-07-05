@@ -1,22 +1,21 @@
-# Walkthrough : Automatisation de la Remédiation, Profil comportemental 360° et En-têtes Officiels Dynamiques
+# Walkthrough : Automatisation de la Remédiation, Profil comportemental 360° et En-têtes Officiels Dynamiques dans toute l'application
 
-Toutes les étapes d'intégration de l'automatisation pédagogique, du suivi comportemental, de la لوحة تحكم ذكاء الأعمال (BI Dashboard) et de la liaison des En-têtes Officiels ont été réalisées.
+Toutes les étapes d'intégration de l'automatisation pédagogique, du suivi comportemental, de la لوحة تحكم ذكاء الأعمال (BI Dashboard) et de la liaison des En-têtes Officiels (HTML, imprimés et téléchargements PDF jsPDF) ont été réalisées.
 
 ---
 
 ## 🛠️ Modifications réalisées
 
-### 1. Liaison des En-têtes Officiels (Gestion des En-têtes Officiels)
-Désormais, les choix effectués dans le panneau **"Gestion des En-têtes Officiels"** (style, logos, libellés de ministères et de services) sont dynamiquement appliqués partout dans l'application :
+### 1. Liaison Complète & Styles Dynamiques des En-têtes Officiels
+Désormais, le style d'en-tête sélectionné dans **"Gestion des En-têtes Officiels"** est dessiné dynamiquement lors de la génération de tous les documents PDF de l'application :
 
-* **Finance & Reçus de paiement :**
-  * **[page.tsx (Finance)](file:///c:/Users/User/Desktop/Edut/web/src/app/dashboard/finance/page.tsx)** : Récupération de la configuration d'en-tête depuis la base de données.
-  * **[finance-client.tsx](file:///c:/Users/User/Desktop/Edut/web/src/app/dashboard/finance/finance-client.tsx)** et **[ReceiptPreviewDialog.tsx](file:///c:/Users/User/Desktop/Edut/web/src/domains/finance/components/ReceiptPreviewDialog.tsx)** : Injection de la configuration dans la génération du reçu HTML (pour l'impression) et jsPDF (pour les téléchargements).
-* **Canevas & Rapports Administratifs :**
-  * **[page.tsx (Reporting)](file:///c:/Users/User/Desktop/Edut/web/src/app/dashboard/canevas/reporting/page.tsx)** et **[ReportingClient.tsx](file:///c:/Users/User/Desktop/Edut/web/src/app/dashboard/canevas/reporting/ReportingClient.tsx)** : Récupération et transmission de l'en-tête officiel à la structure de rapport universel (`UniversalReport`).
-* **Bulletins de notes & Relevés de notes (Notes & Résultats) :**
-  * **[bulletin-generator.ts](file:///c:/Users/User/Desktop/Edut/web/src/domains/academics/utils/bulletin-generator.ts)** : Modification des fonctions de dessin PDF `generateBulletinPDF` et `generateReleveNotesPDF` pour dessiner les logos, ministères, agréments et textes d'en-tête en fonction de la configuration de l'utilisateur.
-  * **[page.tsx (Grades)](file:///c:/Users/User/Desktop/Edut/web/src/app/dashboard/academics/grades/page.tsx)** : Récupération au montage de `getDocumentHeaderConfig()` et injection dans le générateur de PDF lors des impressions (simples ou groupées).
+* **Moteur de Dessin PDF jsPDF (`bulletin-generator.ts` et `ReceiptPreviewDialog.tsx`) :**
+  * Création de fonctions d'aide (`drawPDFHeader` et `drawReceiptPDFHeader`) pour implémenter les 5 styles d'en-têtes officiels dans le repérage de coordonnées jsPDF.
+  * **classic_dual_logo** : 2 logos latéraux et texte centré.
+  * **bilingual_center_logo** : Logo central, informations françaises à gauche et traduction arabe à droite (ex: "وزارة التربية الوطنية").
+  * **university_formal** : Logos latéraux, république et service centrés.
+  * **modern_card** : Bannière colorée en arrière-plan avec logo et détails textuels en blanc.
+  * **minimal_administrative** : Alignement à gauche avec logo compact à droite.
 
 ### 2. Déclencheur Automatique de Remédiation (Grade listener)
 * **[exams.actions.ts](file:///c:/Users/User/Desktop/Edut/web/src/domains/academics/actions/exams.actions.ts)** : Si une note est inférieure à **50%** de la note maximale (ex: < 10/20) :
@@ -31,7 +30,7 @@ Désormais, les choix effectués dans le panneau **"Gestion des En-têtes Offici
 
 ## 🧪 Plan de Vérification
 
-1. **Vérification de l'En-tête Officiel sur les Bulletins :**
-   * Configurer la têtes de documents (ex: Modifier le nom de l'école dans **Paramètres** -> **En-têtes**).
-   * Naviguer vers **Gestion académique** -> **Notes & résultats**.
-   * Cliquer sur le bouton d'impression d'un bulletin (Carnet/Relevé de notes) : l'en-tête officiel reflétera vos modifications à 100%.
+1. **Vérification du Style d'En-tête dans les PDF :**
+   * Configurer le style de l'en-tête dans **Paramètres** -> **En-têtes** (ex: Choisir *Modern Card* ou *Bilingual Center Logo*).
+   * Naviguer vers **Gestion académique** -> **Notes & résultats**, générer un bulletin PDF. Le PDF téléchargé arborera fièrement la structure exacte du style sélectionné !
+   * Naviguer vers **Finances**, générer un reçu PDF. Le PDF téléchargé arborera également la même structure stylisée.

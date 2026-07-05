@@ -192,23 +192,134 @@ export default function ReceiptPreviewDialog({
     }, 1500);
   };
 
-  // ---------- PDF ----------
-  const generatePDF = async (save = true): Promise<jsPDF> => {
-    setIsGenerating(true);
-    setPdfSuccess(false);
+  function drawReceiptPDFHeader(
+    doc: jsPDF,
+    headerConfig: any,
+    branchInfo: any,
+    schoolName: string,
+    schoolAddress: string,
+    schoolPhone: string,
+    schoolEmail: string,
+    schoolYear: string,
+    receiptDate: string,
+    margin: number,
+    W: number
+  ) {
+    const style = headerConfig?.style || "classic_dual_logo";
+    const ministry = headerConfig?.ministry || "Ministère de l'Éducation Nationale";
+    const service = headerConfig?.service || "Service de la Scolarité";
+    const bp = headerConfig?.bp || "";
+    const registrationNo = headerConfig?.registrationNo || branchInfo?.registrationNo || "";
+    
+    const leftLogo = headerConfig?.leftLogo || branchInfo?.logoPath;
+    const rightLogo = headerConfig?.rightLogo || leftLogo;
+    const centerLogo = headerConfig?.centerLogo || leftLogo;
 
-    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-    const W = 210;
-    const H = 297;
-    const margin = 14;
-
-    doc.setFillColor(249, 250, 252);
-    doc.rect(0, 0, W, H, "F");
-    doc.setFillColor(15, 23, 42);
-    doc.rect(0, 0, W, 2, "F");
-    doc.setFillColor(79, 70, 229);
-    doc.rect(0, 2, 60, 1, "F");
-
+    if (style === "modern_card") {
+      doc.setFillColor(79, 70, 229);
+      doc.roundedRect(margin, 8, W - 2 * margin, 24, 2, 2, "F");
+      
+      if (leftLogo) {
+        try {
+          doc.addImage(leftLogo, 'PNG', margin + 4, 10, 20, 20);
+        } catch (e) {}
+      }
+      
+      doc.setTextColor(255, 255, 255);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(13);
+      doc.text(schoolName, margin + 28, 17);
+      
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(220, 225, 255);
+      doc.text(`Année: ${schoolYear} | Date: ${receiptDate}`, margin + 28, 23);
+      doc.text(`${schoolAddress} | Tél: ${schoolPhone}`, margin + 28, 28);
+      
+      doc.setTextColor(0, 0, 0);
+      return 36;
+    }
+    
+    if (style === "bilingual_center_logo") {
+      if (centerLogo) {
+        try {
+          doc.addImage(centerLogo, 'PNG', W / 2 - 12, 8, 24, 24);
+        } catch (e) {}
+      }
+      
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7.5);
+      doc.setTextColor(15, 23, 42);
+      doc.text(ministry, margin, 12);
+      doc.text(schoolName, margin, 17);
+      doc.text(`Tél: ${schoolPhone}`, margin, 22);
+      doc.text(`Email: ${schoolEmail}`, margin, 27);
+      
+      const arName = headerConfig?.schoolNameAr || schoolName;
+      doc.text(arName, W - margin, 12, { align: "right" });
+      doc.text(ministry ? "وزارة التربية الوطنية" : "", W - margin, 17, { align: "right" });
+      doc.text(`Année: ${schoolYear}`, W - margin, 22, { align: "right" });
+      doc.text(`Date: ${receiptDate}`, W - margin, 27, { align: "right" });
+      
+      doc.setDrawColor(220, 225, 240);
+      doc.setLineWidth(0.3);
+      doc.line(margin, 34, W - margin, 34);
+      return 34;
+    }
+    
+    if (style === "university_formal") {
+      if (leftLogo) {
+        try {
+          doc.addImage(leftLogo, 'PNG', margin, 8, 20, 20);
+        } catch (e) {}
+      }
+      if (rightLogo) {
+        try {
+          doc.addImage(rightLogo, 'PNG', W - margin - 20, 8, 20, 20);
+        } catch (e) {}
+      }
+      
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.text(ministry.toUpperCase(), W / 2, 12, { align: "center" });
+      
+      doc.setFontSize(11);
+      doc.text(schoolName, W / 2, 17, { align: "center" });
+      
+      doc.setFontSize(8.5);
+      doc.setFont("helvetica", "normal");
+      doc.text(service, W / 2, 22, { align: "center" });
+      doc.text(`BP : ${bp || "N/A"} | Tél. ${schoolPhone} | Email : ${schoolEmail}`, W / 2, 27, { align: "center" });
+      
+      doc.setDrawColor(220, 225, 240);
+      doc.setLineWidth(0.3);
+      doc.line(margin, 34, W - margin, 34);
+      return 34;
+    }
+    
+    if (style === "minimal_administrative") {
+      if (centerLogo || leftLogo) {
+        try {
+          doc.addImage(centerLogo || leftLogo, 'PNG', W - margin - 20, 8, 20, 20);
+        } catch (e) {}
+      }
+      
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(12);
+      doc.text(schoolName, margin, 14);
+      
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.text(`Agrément: ${registrationNo} | Année: ${schoolYear}`, margin, 20);
+      doc.text(`Adresse: ${schoolAddress} | Tél: ${schoolPhone}`, margin, 25);
+      doc.text(`Email: ${schoolEmail} | Date: ${receiptDate}`, margin, 30);
+      
+      doc.setDrawColor(220, 225, 240);
+      doc.setLineWidth(0.3);
+      doc.line(margin, 34, W - margin, 34);
+      return 34;
+    }
+    
     doc.setFillColor(241, 245, 255);
     doc.setDrawColor(210, 218, 255);
     doc.roundedRect(margin, 8, 22, 22, 3, 3, "FD");
@@ -232,12 +343,45 @@ export default function ReceiptPreviewDialog({
 
     doc.setFontSize(7);
     doc.setTextColor(120, 130, 150);
-    doc.text(`Année: ${feeData.session?.sessionName || "2024-2025"}`, W - margin, 10, { align: "right" });
+    doc.text(`Année: ${schoolYear}`, W - margin, 10, { align: "right" });
     doc.text(`Date: ${receiptDate}`, W - margin, 15, { align: "right" });
 
     doc.setDrawColor(220, 225, 240);
     doc.setLineWidth(0.3);
     doc.line(margin, 34, W - margin, 34);
+    return 34;
+  }
+
+  // ---------- PDF ----------
+  const generatePDF = async (save = true): Promise<jsPDF> => {
+    setIsGenerating(true);
+    setPdfSuccess(false);
+
+    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    const W = 210;
+    const H = 297;
+    const margin = 14;
+
+    doc.setFillColor(249, 250, 252);
+    doc.rect(0, 0, W, H, "F");
+    doc.setFillColor(15, 23, 42);
+    doc.rect(0, 0, W, 2, "F");
+    doc.setFillColor(79, 70, 229);
+    doc.rect(0, 2, 60, 1, "F");
+
+    drawReceiptPDFHeader(
+      doc,
+      headerConfig,
+      branchInfo,
+      schoolName,
+      schoolAddress,
+      schoolPhone,
+      schoolEmail,
+      feeData.session?.sessionName || "2024-2025",
+      receiptDate,
+      margin,
+      W
+    );
 
     doc.setFillColor(15, 23, 42);
     doc.roundedRect(margin, 38, W - 2 * margin, 14, 2, 2, "F");
