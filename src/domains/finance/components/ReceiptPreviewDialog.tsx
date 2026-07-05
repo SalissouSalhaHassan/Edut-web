@@ -40,9 +40,6 @@ import { hasArabicCharacters, reshapeArabicText } from "@/domains/printing/utils
 function drawTextBilingual(doc: jsPDF, text: string, x: number, y: number, options?: any) {
   if (hasArabicCharacters(text) && amiriFontBase64) {
     try {
-      doc.addFileToVFS("Amiri-Regular.ttf", amiriFontBase64);
-      doc.addFont("Amiri-Regular.ttf", "Amiri", "normal", "Identity-H");
-      
       const reshaped = reshapeArabicText(text);
       const activeFont = doc.getFont();
       const activeStyle = activeFont.fontStyle;
@@ -383,6 +380,16 @@ export default function ReceiptPreviewDialog({
     setPdfSuccess(false);
 
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    
+    if (amiriFontBase64) {
+      try {
+        doc.addFileToVFS("Amiri-Regular.ttf", amiriFontBase64);
+        doc.addFont("Amiri-Regular.ttf", "Amiri", "normal", "Identity-H");
+      } catch (e) {
+        console.warn("Error registering Amiri font for receipt PDF:", e);
+      }
+    }
+
     const W = 210;
     const H = 297;
     const margin = 14;

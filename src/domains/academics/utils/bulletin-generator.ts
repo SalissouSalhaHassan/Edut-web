@@ -6,9 +6,6 @@ import { hasArabicCharacters, reshapeArabicText } from "@/domains/printing/utils
 function drawTextBilingual(doc: jsPDF, text: string, x: number, y: number, options?: any) {
   if (hasArabicCharacters(text) && amiriFontBase64) {
     try {
-      doc.addFileToVFS("Amiri-Regular.ttf", amiriFontBase64);
-      doc.addFont("Amiri-Regular.ttf", "Amiri", "normal", "Identity-H");
-      
       const reshaped = reshapeArabicText(text);
       const activeFont = doc.getFont();
       const activeStyle = activeFont.fontStyle;
@@ -305,6 +302,16 @@ function drawPDFHeader(
 export async function generateBulletinPDF(data: any) {
   const doc = new jsPDF();
   const { student, session, term, results, summary, summaryS1, summaryS2, totalStudents, branchInfo, headerConfig } = data;
+  
+  if (amiriFontBase64) {
+    try {
+      doc.addFileToVFS("Amiri-Regular.ttf", amiriFontBase64);
+      doc.addFont("Amiri-Regular.ttf", "Amiri", "normal", "Identity-H");
+    } catch (e) {
+      console.warn("Error registering Amiri font for bulletin:", e);
+    }
+  }
+
   const safeTerm = (term || "Semestre").toUpperCase();
   const eduLevel = (student?.educationalLevel || "Lycée").toUpperCase();
   
@@ -664,6 +671,15 @@ export async function generatePVMatrixPDF(matrixData: any, classInfo: any, filte
 export async function generateReleveNotesPDF(data: any) {
   const doc = new jsPDF();
   const { student, session, term, results, summary, resultsS1, resultsS2, resultsS3, resultsS4, resultsS5, resultsS6, summaryS1, summaryS2, summaryS3, summaryS4, summaryS5, summaryS6, branchInfo, headerConfig } = data;
+
+  if (amiriFontBase64) {
+    try {
+      doc.addFileToVFS("Amiri-Regular.ttf", amiriFontBase64);
+      doc.addFont("Amiri-Regular.ttf", "Amiri", "normal", "Identity-H");
+    } catch (e) {
+      console.warn("Error registering Amiri font for releve:", e);
+    }
+  }
 
   // --- 1. HEADER SECTION ---
   const headerEndY = drawPDFHeader(doc, headerConfig, branchInfo, (student?.educationalLevel || "Université").toUpperCase(), session);
