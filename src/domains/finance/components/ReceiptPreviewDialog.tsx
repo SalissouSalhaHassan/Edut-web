@@ -29,11 +29,36 @@ import {
   User,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import jsPDF from "jspdf";
+import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { getBranchByLevel } from "../../settings/actions/settings.actions";
 import OfficialDocumentHeader from "@/domains/printing/components/OfficialDocumentHeader";
 import type { DocumentHeaderConfig } from "@/domains/printing/document-header";
+import { amiriFontBase64 } from "@/domains/printing/utils/amiri-font";
+import { hasArabicCharacters, reshapeArabicText } from "@/domains/printing/utils/arabic-reshaper";
+
+function drawTextBilingual(doc: jsPDF, text: string, x: number, y: number, options?: any) {
+  if (hasArabicCharacters(text) && amiriFontBase64) {
+    try {
+      doc.addFileToVFS("Amiri-Regular.ttf", amiriFontBase64);
+      doc.addFont("Amiri-Regular.ttf", "Amiri", "normal");
+      
+      const reshaped = reshapeArabicText(text);
+      const activeFont = doc.getFont();
+      const activeStyle = activeFont.fontStyle;
+      const activeName = activeFont.fontName;
+      
+      doc.setFont("Amiri", "normal");
+      doc.text(reshaped, x, y, options);
+      doc.setFont(activeName, activeStyle);
+    } catch (e) {
+      console.warn("Error rendering Arabic text with Amiri font:", e);
+      doc.text(text, x, y, options);
+    }
+  } else {
+    doc.text(text, x, y, options);
+  }
+}
 
 interface ReceiptPreviewDialogProps {
   open: boolean;
@@ -228,13 +253,13 @@ export default function ReceiptPreviewDialog({
       doc.setTextColor(255, 255, 255);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(13);
-      doc.text(schoolName, margin + 28, 17);
+      drawTextBilingual(doc, schoolName, margin + 28, 17);
       
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8);
       doc.setTextColor(220, 225, 255);
-      doc.text(`Année: ${schoolYear} | Date: ${receiptDate}`, margin + 28, 23);
-      doc.text(`${schoolAddress} | Tél: ${schoolPhone}`, margin + 28, 28);
+      drawTextBilingual(doc, `Année: ${schoolYear} | Date: ${receiptDate}`, margin + 28, 23);
+      drawTextBilingual(doc, `${schoolAddress} | Tél: ${schoolPhone}`, margin + 28, 28);
       
       doc.setTextColor(0, 0, 0);
       return 36;
@@ -250,16 +275,16 @@ export default function ReceiptPreviewDialog({
       doc.setFont("helvetica", "normal");
       doc.setFontSize(7.5);
       doc.setTextColor(15, 23, 42);
-      doc.text(ministry, margin, 12);
-      doc.text(schoolName, margin, 17);
-      doc.text(`Tél: ${schoolPhone}`, margin, 22);
-      doc.text(`Email: ${schoolEmail}`, margin, 27);
+      drawTextBilingual(doc, ministry, margin, 12);
+      drawTextBilingual(doc, schoolName, margin, 17);
+      drawTextBilingual(doc, `Tél: ${schoolPhone}`, margin, 22);
+      drawTextBilingual(doc, `Email: ${schoolEmail}`, margin, 27);
       
       const arName = headerConfig?.schoolNameAr || schoolName;
-      doc.text(arName, W - margin, 12, { align: "right" });
-      doc.text(ministry ? "وزارة التربية الوطنية" : "", W - margin, 17, { align: "right" });
-      doc.text(`Année: ${schoolYear}`, W - margin, 22, { align: "right" });
-      doc.text(`Date: ${receiptDate}`, W - margin, 27, { align: "right" });
+      drawTextBilingual(doc, arName, W - margin, 12, { align: "right" });
+      drawTextBilingual(doc, ministry ? "وزارة التربية الوطنية" : "", W - margin, 17, { align: "right" });
+      drawTextBilingual(doc, `Année: ${schoolYear}`, W - margin, 22, { align: "right" });
+      drawTextBilingual(doc, `Date: ${receiptDate}`, W - margin, 27, { align: "right" });
       
       doc.setDrawColor(220, 225, 240);
       doc.setLineWidth(0.3);
@@ -281,15 +306,15 @@ export default function ReceiptPreviewDialog({
       
       doc.setFont("helvetica", "bold");
       doc.setFontSize(9);
-      doc.text(ministry.toUpperCase(), W / 2, 12, { align: "center" });
+      drawTextBilingual(doc, ministry.toUpperCase(), W / 2, 12, { align: "center" });
       
       doc.setFontSize(11);
-      doc.text(schoolName, W / 2, 17, { align: "center" });
+      drawTextBilingual(doc, schoolName, W / 2, 17, { align: "center" });
       
       doc.setFontSize(8.5);
       doc.setFont("helvetica", "normal");
-      doc.text(service, W / 2, 22, { align: "center" });
-      doc.text(`BP : ${bp || "N/A"} | Tél. ${schoolPhone} | Email : ${schoolEmail}`, W / 2, 27, { align: "center" });
+      drawTextBilingual(doc, service, W / 2, 22, { align: "center" });
+      drawTextBilingual(doc, `BP : ${bp || "N/A"} | Tél. ${schoolPhone} | Email : ${schoolEmail}`, W / 2, 27, { align: "center" });
       
       doc.setDrawColor(220, 225, 240);
       doc.setLineWidth(0.3);
@@ -306,13 +331,13 @@ export default function ReceiptPreviewDialog({
       
       doc.setFont("helvetica", "bold");
       doc.setFontSize(12);
-      doc.text(schoolName, margin, 14);
+      drawTextBilingual(doc, schoolName, margin, 14);
       
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8);
-      doc.text(`Agrément: ${registrationNo} | Année: ${schoolYear}`, margin, 20);
-      doc.text(`Adresse: ${schoolAddress} | Tél: ${schoolPhone}`, margin, 25);
-      doc.text(`Email: ${schoolEmail} | Date: ${receiptDate}`, margin, 30);
+      drawTextBilingual(doc, `Agrément: ${registrationNo} | Année: ${schoolYear}`, margin, 20);
+      drawTextBilingual(doc, `Adresse: ${schoolAddress} | Tél: ${schoolPhone}`, margin, 25);
+      drawTextBilingual(doc, `Email: ${schoolEmail} | Date: ${receiptDate}`, margin, 30);
       
       doc.setDrawColor(220, 225, 240);
       doc.setLineWidth(0.3);
@@ -326,25 +351,25 @@ export default function ReceiptPreviewDialog({
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(79, 70, 229);
-    doc.text("EDUT", margin + 11, 19, { align: "center" });
+    drawTextBilingual(doc, "EDUT", margin + 11, 19, { align: "center" });
     doc.setFontSize(6);
-    doc.text("ACADEMY", margin + 11, 24, { align: "center" });
+    drawTextBilingual(doc, "ACADEMY", margin + 11, 24, { align: "center" });
 
     doc.setFontSize(15);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(15, 23, 42);
-    doc.text(schoolName, margin + 26, 16);
+    drawTextBilingual(doc, schoolName, margin + 26, 16);
 
     doc.setFontSize(7.5);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(120, 130, 150);
-    doc.text(schoolAddress, margin + 26, 21);
-    doc.text(`Tél: ${schoolPhone}  |  ${schoolEmail}`, margin + 26, 26);
+    drawTextBilingual(doc, schoolAddress, margin + 26, 21);
+    drawTextBilingual(doc, `Tél: ${schoolPhone}  |  ${schoolEmail}`, margin + 26, 26);
 
     doc.setFontSize(7);
     doc.setTextColor(120, 130, 150);
-    doc.text(`Année: ${schoolYear}`, W - margin, 10, { align: "right" });
-    doc.text(`Date: ${receiptDate}`, W - margin, 15, { align: "right" });
+    drawTextBilingual(doc, `Année: ${schoolYear}`, W - margin, 10, { align: "right" });
+    drawTextBilingual(doc, `Date: ${receiptDate}`, W - margin, 15, { align: "right" });
 
     doc.setDrawColor(220, 225, 240);
     doc.setLineWidth(0.3);

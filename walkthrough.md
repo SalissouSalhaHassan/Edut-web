@@ -1,6 +1,6 @@
-# Walkthrough : Automatisation de la Remédiation, Profil comportemental 360° et En-têtes Officiels Dynamiques dans toute l'application
+# Walkthrough : Automatisation de la Remédiation, Profil comportemental 360°, En-têtes Officiels Dynamiques et Support de la Langue Arabe (RTL)
 
-Toutes les étapes d'intégration de l'automatisation pédagogique, du suivi comportemental, de la لوحة تحكم ذكاء الأعمال (BI Dashboard) et de la liaison des En-têtes Officiels (HTML, imprimés et téléchargements PDF jsPDF) ont été réalisées.
+Toutes les étapes d'intégration de l'automatisation pédagogique, du suivi comportemental, de la لوحة تحكم ذكاء الأعمال (BI Dashboard), de la liaison des En-têtes Officiels (HTML, imprimés et téléchargements PDF jsPDF) et du support de la langue arabe (RTL) ont été réalisées avec succès.
 
 ---
 
@@ -17,20 +17,23 @@ Désormais, le style d'en-tête sélectionné dans **"Gestion des En-têtes Offi
   * **modern_card** : Bannière colorée en arrière-plan avec logo et détails textuels en blanc.
   * **minimal_administrative** : Alignement à gauche avec logo compact à droite.
 
-### 2. Déclencheur Automatique de Remédiation (Grade listener)
+### 2. Support natif de la langue arabe (RTL & Reshaping) dans les PDF
+Pour corriger l'affichage des caractères corrompus (ex: `þòþ’þ®...`) lors de l'impression de textes arabes (comme le nom de l'école ou les ministères) :
+* **Algorithme de façonnage arabe (`arabic-reshaper.ts`) :** Remplacement dynamique des caractères arabes par leurs formes de présentation (initiale, médiane, finale, isolée) et gestion des ligatures (Lam-Alef).
+* **Inverseur RTL :** Inversement automatique des segments arabes façonnés pour s'afficher de droite à gauche dans le moteur jsPDF (qui est nativement de gauche à droite).
+* **Intégration de police (`font-downloader.ts` & `amiri-font.ts`) :** Téléchargement automatique côté serveur de la police Amiri depuis Google Fonts au premier démarrage et intégration en Base64 dans le projet pour une disponibilité hors-ligne.
+* **Fonction `drawTextBilingual` :** Détection automatique de la présence de caractères arabes pour appliquer la police Amiri et le façonnage de manière transparente.
+
+### 3. Déclencheur Automatique de Remédiation (Grade listener)
 * **[exams.actions.ts](file:///c:/Users/User/Desktop/Edut/web/src/domains/academics/actions/exams.actions.ts)** : Si une note est inférieure à **50%** de la note maximale (ex: < 10/20) :
   1. Un plan de remédiation actif est créé dans `pedagogie_remediations`.
   2. Un devoir de renforcement LMS est automatiquement généré pour cet élève.
-
-### 3. Actions Serveur & BI
-* **[bi.actions.ts](file:///c:/Users/User/Desktop/Edut/web/src/domains/analytics/actions/bi.actions.ts)** : Calcul prédictif du risque de décrochage scolaire et des baisses de performances par classe/matière.
-* **[BIClient.tsx](file:///c:/Users/User/Desktop/Edut/web/src/app/dashboard/analytics/BIClient.tsx)** : لوحة تحكم ذكاء الأعمال (BI Dashboard) premium interactive.
 
 ---
 
 ## 🧪 Plan de Vérification
 
-1. **Vérification du Style d'En-tête dans les PDF :**
-   * Configurer le style de l'en-tête dans **Paramètres** -> **En-têtes** (ex: Choisir *Modern Card* ou *Bilingual Center Logo*).
-   * Naviguer vers **Gestion académique** -> **Notes & résultats**, générer un bulletin PDF. Le PDF téléchargé arborera fièrement la structure exacte du style sélectionné !
-   * Naviguer vers **Finances**, générer un reçu PDF. Le PDF téléchargé arborera également la même structure stylisée.
+1. **Vérification de l'affichage Arabe :**
+   * Configurer le nom de l'école ou de la branche en arabe dans les paramètres.
+   * Générer un reçu ou un bulletin de notes en PDF.
+   * Les textes en arabe s'afficheront désormais parfaitement reliés, de droite à gauche, avec la police Amiri officielle !

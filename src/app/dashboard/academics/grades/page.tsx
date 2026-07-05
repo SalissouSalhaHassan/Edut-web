@@ -23,7 +23,7 @@ import {
   getBatchBulletinData,
 } from "@/domains/academics/actions/academics.actions";
 import { generateBulletinPDF, generatePVMatrixPDF, generateReleveNotesPDF } from "@/domains/academics/utils/bulletin-generator";
-import { getDocumentHeaderConfig } from "@/domains/settings/actions/settings.actions";
+import { getDocumentHeaderConfig, downloadArabicFontAction } from "@/domains/settings/actions/settings.actions";
 import { useEffect } from "react";
 
 export default function AcademicResultsPage() {
@@ -55,6 +55,8 @@ export default function AcademicResultsPage() {
       if (res?.data) {
         setHeaderConfig(res.data);
       }
+      // Download the Arabic font in the background on the server
+      downloadArabicFontAction().catch(console.error);
     }
     loadHeaderConfig();
   }, []);
