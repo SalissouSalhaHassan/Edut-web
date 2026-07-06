@@ -4,7 +4,15 @@ import { amiriFontBase64 } from "@/domains/printing/utils/amiri-font";
 import { hasArabicCharacters, reshapeArabicText } from "@/domains/printing/utils/arabic-reshaper";
 
 function drawTextBilingual(doc: jsPDF, text: string, x: number, y: number, options?: any) {
-  if (hasArabicCharacters(text) && amiriFontBase64) {
+  if (hasArabicCharacters(text)) {
+    if (!amiriFontBase64) {
+      doc.setFontSize(8);
+      doc.setTextColor(255, 0, 0);
+      doc.text("ERR: amiriFontBase64 empty!", x, y - 4);
+      doc.setTextColor(0, 0, 0);
+      doc.text(text, x, y, options);
+      return;
+    }
     try {
       const reshaped = reshapeArabicText(text);
       const activeFont = doc.getFont();
@@ -14,8 +22,12 @@ function drawTextBilingual(doc: jsPDF, text: string, x: number, y: number, optio
       doc.setFont("Amiri", "normal");
       doc.text(reshaped, x, y, options);
       doc.setFont(activeName, activeStyle);
-    } catch (e) {
-      console.warn("Error rendering Arabic text with Amiri font, falling back to default:", e);
+    } catch (e: any) {
+      console.warn("Error rendering Arabic text with Amiri font:", e);
+      doc.setFontSize(8);
+      doc.setTextColor(255, 0, 0);
+      doc.text(`ERR: ${e?.message || String(e)}`, x, y - 4);
+      doc.setTextColor(0, 0, 0);
       doc.text(text, x, y, options);
     }
   } else {
