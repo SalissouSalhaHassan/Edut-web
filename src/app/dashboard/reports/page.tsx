@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { getUnifiedReportsData } from "@/domains/reports/actions/reports.actions";
 import { getCurrentUser } from "@/domains/auth/services/session";
 import { getActiveBranchData } from "@/domains/auth/services/school";

@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { getAuditLogs } from "@/domains/auth/actions/audit.actions";
 import { Shield } from "lucide-react";
 import { AuditLogsManager } from "./components/AuditLogsManager";

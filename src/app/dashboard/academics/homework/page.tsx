@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { getHomeworks, deleteHomework } from "@/domains/academics/actions/homework.actions";
 import HomeworkDialog from "@/domains/academics/components/HomeworkDialog";
 import ActionMenu from "@/components/common/ActionMenu";

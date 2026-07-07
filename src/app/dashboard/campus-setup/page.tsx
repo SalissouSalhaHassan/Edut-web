@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { getBranches } from "@/domains/settings/actions/settings.actions";
 import { CampusSetup } from "../settings/components/CampusSetup";
 import { MapPin, Building2, CheckCircle2 } from "lucide-react";

@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { getDocumentHeaderConfig, getSettings, getBranches, updateSchoolDomain } from "@/domains/settings/actions/settings.actions";
 import { getCurrentSchool } from "@/domains/auth/services/school";
 import { 

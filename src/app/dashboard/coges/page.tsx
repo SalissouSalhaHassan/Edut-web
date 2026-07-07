@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import React from "react";
 import CogesUI from "./coges-ui";
 import { getCogesPayments, getCogesStudentLedger } from "@/domains/finance/actions/coges.actions";

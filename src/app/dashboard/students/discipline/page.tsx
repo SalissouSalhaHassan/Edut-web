@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { getIncidents, deleteIncident } from "@/domains/students/actions/discipline.actions";
 import IncidentDialog from "@/domains/students/components/IncidentDialog";
 import ActionMenu from "@/components/common/ActionMenu";

@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { getHRReportCenterData } from "@/domains/hr/actions/teacher-attendance.actions";
 import { getCurrentUser } from "@/domains/auth/services/session";
 import { getUserRoleType } from "@/domains/auth/services/rbac";

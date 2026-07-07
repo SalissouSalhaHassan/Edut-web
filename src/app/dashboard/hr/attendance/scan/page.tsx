@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { db } from "@/infrastructure/database";
 import { schoolClasses } from "@/infrastructure/database/schema/academics";
 import { getCurrentUser } from "@/domains/auth/services/session";

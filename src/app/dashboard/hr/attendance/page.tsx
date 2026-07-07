@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { getEmployees, getEmployeeAttendance } from "@/domains/hr/actions/employees.actions";
 import { getCurrentUser } from "@/domains/auth/services/session";
 import EmployeeAttendanceClient from "./employee-attendance-client";

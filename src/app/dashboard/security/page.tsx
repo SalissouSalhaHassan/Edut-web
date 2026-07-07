@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { getRoles } from "@/domains/auth/actions/roles.actions";
 import { getCurrentUser } from "@/domains/auth/services/session";
 import RoleManager from "../settings/components/RoleManager";

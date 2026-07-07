@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { getEmployees, deleteEmployee } from "@/domains/hr/actions/employees.actions";
 import { getCurrentUser } from "@/domains/auth/services/session";
 import EmployeeDialog from "@/domains/hr/components/EmployeeDialog";

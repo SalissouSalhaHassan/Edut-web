@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { getVisitors, getEnquiries, getPostalRecords, checkoutVisitor, deleteVisitor } from "@/domains/front-office/actions/front-office.actions";
 import VisitorDialog from "@/domains/front-office/components/VisitorDialog";
 import ActionMenu from "@/components/common/ActionMenu";

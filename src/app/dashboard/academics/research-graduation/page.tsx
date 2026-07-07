@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { getGraduationProjects, getGraduationStats, getDefenseRooms } from "@/domains/academics/actions/graduation.actions";
 import { getEmployees } from "@/domains/hr/actions/employees.actions";
 import GraduationClient from "./GraduationClient";

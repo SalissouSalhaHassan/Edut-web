@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/domains/auth/services/session";
 import { getNotifications } from "@/domains/messaging/actions/notifications.actions";

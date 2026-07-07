@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { getSubjects } from "@/domains/academics/actions/academics.actions";
 import { getEmployees } from "@/domains/hr/actions/employees.actions";
 import { getPedagogicalUnits } from "@/domains/academics/actions/pedagogical-units.actions";

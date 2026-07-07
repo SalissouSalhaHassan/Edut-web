@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { getPayrollDashboard, getSalaryRecords, getPayrollRules } from "@/domains/hr/actions/payroll.actions";
 import { getEmployees } from "@/domains/hr/actions/employees.actions";
 import { getCurrentUser } from "@/domains/auth/services/session";

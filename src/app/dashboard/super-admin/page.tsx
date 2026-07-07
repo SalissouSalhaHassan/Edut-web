@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { getAllSchools, getPlatformStats } from "@/domains/auth/actions/super-admin.actions";
 import { getCurrentUser } from "@/domains/auth/services/session";
 import { redirect } from "next/navigation";

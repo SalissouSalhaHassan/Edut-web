@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { getCanteenItems } from "@/domains/canteen/actions/canteen.actions";
 import CanteenPOS from "@/domains/canteen/components/CanteenPOS";
 import { Coffee, Settings2, History } from "lucide-react";

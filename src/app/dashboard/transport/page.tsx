@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { getTransportRoutes, getTransportSubscriptions } from "@/domains/transport/actions/transport.actions";
 import TransportClient from "./TransportClient";
 

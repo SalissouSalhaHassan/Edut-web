@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { getHostelRooms, getHostelAllocations } from "@/domains/hostel/actions/hostel.actions";
 import { getStudents } from "@/domains/students/actions/students.actions";
 import HostelClient from "./HostelClient";

@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { getInventoryItems, getInventoryAssignments, getInventoryCategories, deleteInventoryItem } from "@/domains/inventory/actions/inventory.actions";
 import { getCurrentUser } from "@/domains/auth/services/session";
 import ActionMenu from "@/components/common/ActionMenu";

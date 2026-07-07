@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { db, readDb } from "@/infrastructure/database";
 import { students } from "@/infrastructure/database/schema/students";
 import { employees } from "@/infrastructure/database/schema/hr";

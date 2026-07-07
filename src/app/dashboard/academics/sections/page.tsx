@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { getSections, deleteSection } from "@/domains/academics/actions/academics.actions";
 import SectionDialog from "@/domains/academics/components/SectionDialog";
 import ActionMenu from "@/components/common/ActionMenu";

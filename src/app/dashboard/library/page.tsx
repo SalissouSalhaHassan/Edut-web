@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { getLibraryBooks, getLibraryIssues, deleteLibraryBook } from "@/domains/library/actions/library.actions";
 import BookDialog from "@/domains/library/components/BookDialog";
 import IssueBookDialog from "@/domains/library/components/IssueBookDialog";

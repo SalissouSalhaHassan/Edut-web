@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { getSessions } from "@/domains/academics/actions/academics.actions";
 import { getDocumentHeaderConfig } from "@/domains/settings/actions/settings.actions";
 import ReportingClient from "./ReportingClient";

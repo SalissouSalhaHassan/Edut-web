@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { getStudents } from "@/domains/students/actions/students.actions";
 import { getClasses, getSessions } from "@/domains/academics/actions/academics.actions";
 import { db } from "@/infrastructure/database";

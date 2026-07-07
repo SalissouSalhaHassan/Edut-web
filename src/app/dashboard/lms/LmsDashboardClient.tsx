@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { 
   Plus, Search, Calendar, Clock, ExternalLink, BookOpen, Video, Globe, Play, 
   FileText, Trash2, Edit, CheckCircle2, XCircle, AlertCircle, Download, Upload, 
@@ -239,85 +239,116 @@ export default function LmsDashboardClient({
     }
   };
 
-  if (!mounted) return null;
+  const subjectNameMap = useMemo(() => new Map(subjects.map((s: any) => [s.id, s.subjectName])), [subjects]);
+  const classNameMap = useMemo(() => new Map(classes.map((c: any) => [c.id, c.className])), [classes]);
+  const teacherNameMap = useMemo(() => new Map(employees.map((e: any) => [e.id, e.nomPrenom])), [employees]);
+  const studentNameMap = useMemo(() => new Map(students.map((s: any) => [s.id, s.nomEtudiant])), [students]);
 
   // Helpers
-  const getSubjectName = (id: number) => subjects.find(s => s.id === id)?.subjectName || "Matière inconnue";
-  const getClassName = (id: number) => classes.find(c => c.id === id)?.className || "Classe inconnue";
-  const getTeacherName = (id: number) => employees.find(e => e.id === id)?.nomPrenom || "Enseignant inconnu";
-  const getStudentName = (id: number) => students.find(s => s.id === id)?.nomEtudiant || "Étudiant inconnu";
+  const getSubjectName = (id: number) => subjectNameMap.get(id) || "Matière inconnue";
+  const getClassName = (id: number) => classNameMap.get(id) || "Classe inconnue";
+  const getTeacherName = (id: number) => teacherNameMap.get(id) || "Enseignant inconnu";
+  const getStudentName = (id: number) => studentNameMap.get(id) || "Étudiant inconnu";
 
   // Data calculations & KPIs
-  const totalCourses = courses.length;
-  const totalLessons = lessons.length;
-  const videoSupports = lessons.filter(l => l.videoUrl).length;
-  const pdfSupports = lessons.filter(l => l.contentType === "PDF" || l.filePath).length;
-  const upcomingVirtualClasses = virtualClasses.filter(v => v.status === "À venir").length;
-  const enrolledStudentsCount = students.length; // Simplified
-  const devoirsToCorrect = submissions.filter(s => !s.isGraded).length;
-  const activeQuizzes = quizzes.filter(q => q.status === "Active").length;
-  const progressRate = 65; // Simulated overall progression rate
-  const lastConnections = 12; // Simulated recent connections count
+  const lmsKpis = useMemo(() => {
+    const videoSupports = lessons.filter(l => l.videoUrl).length;
+    const pdfSupports = lessons.filter(l => l.contentType === "PDF" || l.filePath).length;
+    const upcomingVirtualClasses = virtualClasses.filter(v => v.status === "À venir").length;
+    const devoirsToCorrect = submissions.filter(s => !s.isGraded).length;
+    const activeQuizzes = quizzes.filter(q => q.status === "Active").length;
+
+    return {
+      totalCourses: courses.length,
+      totalLessons: lessons.length,
+      videoSupports,
+      pdfSupports,
+      upcomingVirtualClasses,
+      enrolledStudentsCount: students.length,
+      devoirsToCorrect,
+      activeQuizzes,
+      progressRate: 65,
+      lastConnections: 12,
+    };
+  }, [courses.length, lessons, virtualClasses, submissions, quizzes, students.length]);
+
+  const {
+    totalCourses,
+    totalLessons,
+    videoSupports,
+    pdfSupports,
+    upcomingVirtualClasses,
+    enrolledStudentsCount,
+    devoirsToCorrect,
+    activeQuizzes,
+    progressRate,
+    lastConnections,
+  } = lmsKpis;
 
   // Charts datasets
-  const progressionByClassData = [
+  const progressionByClassData = useMemo(() => [
     { name: "CP", Progression: 75 },
     { name: "CE1", Progression: 80 },
     { name: "CE2", Progression: 62 },
     { name: "CM1", Progression: 90 },
     { name: "CM2", Progression: 70 },
-  ];
+  ], []);
 
-  const activityBySubjectData = [
+  const activityBySubjectData = useMemo(() => [
     { name: "Maths", Cours: 12, Devoirs: 8 },
     { name: "Français", Cours: 15, Devoirs: 10 },
     { name: "Sciences", Cours: 8, Devoirs: 5 },
     { name: "Histoire", Cours: 6, Devoirs: 4 },
     { name: "Anglais", Cours: 10, Devoirs: 7 },
-  ];
+  ], []);
 
-  const virtualPresenceData = [
+  const virtualPresenceData = useMemo(() => [
     { name: "Présents", value: 125, color: "#10b981" },
     { name: "Absents", value: 15, color: "#ef4444" },
     { name: "Retard", value: 10, color: "#f59e0b" },
-  ];
+  ], []);
 
-  const devoirsSubmissionData = [
+  const devoirsSubmissionData = useMemo(() => [
     { name: "Rendus", value: 85, color: "#3b82f6" },
     { name: "Non rendus", value: 25, color: "#cbd5e1" },
-  ];
+  ], []);
 
-  const quizResultsData = [
+  const quizResultsData = useMemo(() => [
     { name: "Maths Q1", Moyenne: 14.5 },
-    { name: "Français Q2", Moyenne: 16.2 },
+    { name: "Francais Q2", Moyenne: 16.2 },
     { name: "Sciences Q1", Moyenne: 11.8 },
     { name: "Anglais Q3", Moyenne: 15.0 },
-  ];
+  ], []);
 
-  const popularCoursesData = [
+  const popularCoursesData = useMemo(() => [
     { name: "Algèbre 1", Inscrits: 45 },
     { name: "Grammaire FR", Inscrits: 38 },
     { name: "Astronomie", Inscrits: 52 },
     { name: "Grammaire EN", Inscrits: 30 },
-  ];
+  ], []);
 
   // Filters for tables
-  const filteredCourses = courses.filter(c => {
-    const matchesSearch = c.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          (c.courseCode && c.courseCode.toLowerCase().includes(searchQuery.toLowerCase()));
-    const matchesClass = classFilter === "all" || c.classId === parseInt(classFilter);
-    const matchesSubject = subjectFilter === "all" || c.subjectId === parseInt(subjectFilter);
-    return matchesSearch && matchesClass && matchesSubject;
-  });
+  const filteredCourses = useMemo(() => {
+    const normalizedSearch = searchQuery.toLowerCase();
+    return courses.filter(c => {
+      const matchesSearch = c.title.toLowerCase().includes(normalizedSearch) ||
+                            (c.courseCode && c.courseCode.toLowerCase().includes(normalizedSearch));
+      const matchesClass = classFilter === "all" || c.classId === parseInt(classFilter);
+      const matchesSubject = subjectFilter === "all" || c.subjectId === parseInt(subjectFilter);
+      return matchesSearch && matchesClass && matchesSubject;
+    });
+  }, [courses, searchQuery, classFilter, subjectFilter]);
 
   // Course reader specific calculations
-  const courseLessons = selectedCourseId ? lessons.filter(l => l.courseId === selectedCourseId) : [];
-  const selectedLesson = lessons.find(l => l.id === selectedLessonId);
+  const courseLessons = useMemo(() => selectedCourseId ? lessons.filter(l => l.courseId === selectedCourseId) : [], [lessons, selectedCourseId]);
+  const selectedLesson = useMemo(() => lessons.find(l => l.id === selectedLessonId), [lessons, selectedLessonId]);
 
   // Current Student details & progress (Simulating an active student for Student Space)
   const currentStudentId = students[0]?.id || 1; 
-  const currentStudentProgress = progress.filter(p => p.studentId === currentStudentId);
-  const completedLessonsCount = currentStudentProgress.filter(p => p.isCompleted).length;
+  const currentStudentProgress = useMemo(() => progress.filter(p => p.studentId === currentStudentId), [progress, currentStudentId]);
+  const completedLessonsCount = useMemo(() => currentStudentProgress.filter(p => p.isCompleted).length, [currentStudentProgress]);
+
+  if (!mounted) return null;
 
   // Actions
   const handleSaveCourse = async (e: React.FormEvent<HTMLFormElement>) => {

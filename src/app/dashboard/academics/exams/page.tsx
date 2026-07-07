@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import React from "react";
 import { getClasses, getSessions, getSubjects } from "@/domains/academics/actions/academics.actions";
 import ExamsDashboardClient from "./exams-dashboard-client";
