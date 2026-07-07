@@ -171,6 +171,7 @@ export default function ReceiptPreviewDialog({
   const allPayments = feeData.payments || [];
   const isDataComplete = !!feeData.student && totalExpected > 0;
   const isSolde = balance <= 0;
+  const isProvisoire = !!lastPayment?.isProvisoire;
 
   const refNumber =
     lastPayment?.reference ||
@@ -470,6 +471,16 @@ export default function ReceiptPreviewDialog({
     doc.setTextColor(79, 70, 229);
     doc.text(`RÉF : ${refNumber}`, W / 2, 61.5, { align: "center" });
 
+    if (isProvisoire) {
+      doc.setFillColor(254, 243, 199);
+      doc.setDrawColor(251, 191, 36);
+      doc.roundedRect(margin, 65, W - 2 * margin, 4, 0.5, 0.5, "FD");
+      doc.setFontSize(6.5);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(180, 83, 9);
+      doc.text("REÇU PROVISOIRE - NON SYNCHRONISÉ", W / 2, 68, { align: "center" });
+    }
+
     doc.setFillColor(255, 255, 255);
     doc.setDrawColor(220, 225, 240);
     doc.roundedRect(margin, 70, W - 2 * margin, 36, 2, 2, "FD");
@@ -720,6 +731,19 @@ export default function ReceiptPreviewDialog({
                 <div className="px-10 pt-7 pb-6 border-b border-slate-100">
                   <OfficialDocumentHeader config={receiptHeaderConfig} title={`Reçu de paiement - ${refNumber}`} variant="compact" />
                 </div>
+
+                {isProvisoire && (
+                  <div className="mx-10 mt-6 bg-amber-500/10 border border-amber-500/20 text-amber-600 p-4 rounded-2xl flex items-center justify-between gap-4 animate-pulse no-print">
+                    <div className="flex items-center gap-3">
+                      <AlertCircle size={20} className="text-amber-500 shrink-0" />
+                      <div>
+                        <p className="text-xs font-black uppercase tracking-wider">Reçu provisoire - Non synchronisé</p>
+                        <p className="text-[10px] font-semibold mt-0.5">Ce versement a été enregistré localement et sera synchronisé dès le retour de la connexion.</p>
+                      </div>
+                    </div>
+                    <span className="px-3 py-1 bg-amber-500/20 text-amber-600 rounded-xl text-[10px] font-black uppercase shrink-0">PROVISOIRE</span>
+                  </div>
+                )}
 
                 <div className="hidden px-10 pt-7 pb-6 border-b border-slate-100">
                   <div className="flex items-center justify-between gap-6">
@@ -1090,6 +1114,11 @@ export default function ReceiptPreviewDialog({
                         <div>
                           <div className="flex items-center gap-2 mb-1">
                             <p className="text-sm font-black text-slate-800">{fmt(payment.amount || 0)}</p>
+                            {payment.isProvisoire && (
+                              <span className="px-2 py-0.5 bg-amber-500/10 text-amber-600 rounded-full text-[9px] font-black border border-amber-500/20 animate-pulse">
+                                Provisoire (en attente)
+                              </span>
+                            )}
                             {payment.reduction > 0 && (
                               <span className="px-2 py-0.5 bg-purple-50 text-purple-600 rounded-full text-[9px] font-black border border-purple-100">
                                 -{fmt(payment.reduction)} réduc.
@@ -1165,13 +1194,22 @@ export default function ReceiptPreviewDialog({
                 <><Download size={15} /> PDF</>
               )}
             </Button>
-            <Button
-              onClick={handlePrint}
-              disabled={!isDataComplete}
-              className="h-11 px-7 rounded-2xl bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white font-black text-xs uppercase tracking-widest flex items-center gap-2 shadow-xl shadow-slate-200 transition-all"
-            >
-              <Printer size={15} /> Imprimer
-            </Button>
+            {isProvisoire ? (
+              <Button
+                onClick={handlePrint}
+                className="h-11 px-7 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-black text-xs uppercase tracking-widest flex items-center gap-2 shadow-xl shadow-amber-200 transition-all cursor-pointer"
+              >
+                <Printer size={15} /> Imprimer reçu provisoire
+              </Button>
+            ) : (
+              <Button
+                onClick={handlePrint}
+                disabled={!isDataComplete}
+                className="h-11 px-7 rounded-2xl bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white font-black text-xs uppercase tracking-widest flex items-center gap-2 shadow-xl shadow-slate-200 transition-all cursor-pointer"
+              >
+                <Printer size={15} /> Imprimer
+              </Button>
+            )}
           </div>
         </div>
       </DialogContent>

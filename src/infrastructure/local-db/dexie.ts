@@ -75,6 +75,7 @@ export interface LocalFeePayment {
   monthConcerned?: string;
   notes?: string;
   datePaid?: string;
+  isProvisoire?: boolean;
   updatedAt?: number;
 }
 

@@ -53,9 +53,29 @@ export async function syncOutbox() {
         } else if (item.targetTable === "feePayments") {
           const { recordPayment } = await import("@/domains/finance/actions/finance.actions");
           const { id: _localId, updatedAt: _updatedAt, ...paymentPayload } = item.payload;
-          const res = await recordPayment(paymentPayload);
+          const res = (await recordPayment(paymentPayload)) as any;
           success = !!res?.success;
           error = res?.error || "Unknown error";
+          if (success && res?.id) {
+            // Bind the local payment to the real server-returned ID
+            try {
+              const localId = item.payload.id;
+              if (localId && localId !== res.id) {
+                const localPayment = await localDb.feePayments.get(localId);
+                if (localPayment) {
+                  await localDb.feePayments.delete(localId);
+                  await localDb.feePayments.put({
+                    ...localPayment,
+                    id: res.id,
+                    isProvisoire: false,
+                    updatedAt: Date.now()
+                  });
+                }
+              }
+            } catch (e) {
+              console.warn("Failed to map local payment ID to server ID:", e);
+            }
+          }
         } else if (item.targetTable === "attendanceBatches") {
           const { saveBatchAttendance } = await import("@/domains/attendance/actions/attendance.actions");
           const { id: _localId, updatedAt: _updatedAt, idempotencyKey: _key, ...attendancePayload } = item.payload;
@@ -75,15 +95,29 @@ export async function syncOutbox() {
           });
           processedCount++;
         } else {
+          const errLower = (error || "").toLowerCase();
+          const isConflict = errLower.includes("dépasse") || 
+                             errLower.includes("solde") ||
+                             errLower.includes("duplicate") ||
+                             errLower.includes("déjà") ||
+                             errLower.includes("conflit") ||
+                             errLower.includes("double") ||
+                             errLower.includes("insuffisant");
+
           await localDb.outbox.update(item.id!, {
-            status: "failed",
+            status: isConflict ? "conflict" : "failed",
             updatedAt: Date.now(),
             retryCount: (item.retryCount || 0) + 1,
             lastError: error,
           });
+
           console.error(`[Sync] Error syncing item ${item.id}: ${error}`);
           toast.error(`Erreur de synchronisation : ${error}`);
-          break;
+          
+          if (!isConflict) {
+            // Terminate loop on connection/server crash, but CONTINUE on user conflicts!
+            break;
+          }
         }
       } catch (error: any) {
         await localDb.outbox.update(item.id!, {

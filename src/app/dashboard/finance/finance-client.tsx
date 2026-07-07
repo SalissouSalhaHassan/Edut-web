@@ -39,6 +39,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useRouter, useSearchParams } from "next/navigation";
 import { deleteStudentFee } from "@/domains/finance/actions/finance.actions";
 import { toast } from "sonner";
+import { localDb } from "@/infrastructure/local-db/dexie";
 
 // --- Types ---
 interface FinanceClientProps {
@@ -128,18 +129,73 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, hea
         }
       }
 
+      let baseFees = fees;
+      let isUsingLocal = false;
+
       if (!fees || fees.length === 0 || !navigator.onLine) {
         try {
           const { getCachedStudentFees } = await import("@/infrastructure/local-db/cache");
           const cached = await getCachedStudentFees();
           if (cached && cached.length > 0) {
-            setLocalFees(cached);
-            setIsLocal(true);
+            baseFees = cached;
+            isUsingLocal = true;
           }
         } catch (e) {
           console.warn("Failed to read cached studentFees:", e);
         }
       }
+
+      try {
+        const outboxItems = await localDb.outbox
+          .where("targetTable")
+          .equals("feePayments")
+          .toArray();
+
+        const unsyncedPayments = outboxItems.filter(
+          (item) => item.status !== "synced" && item.status !== "cancelled"
+        );
+
+        if (unsyncedPayments.length > 0 && baseFees?.length > 0) {
+          const updatedFees = baseFees.map((fee: any) => {
+            const studentOfflinePayments = unsyncedPayments
+              .filter((item: any) => item.payload.feeId === fee.id)
+              .map((item: any) => ({
+                ...item.payload,
+                isProvisoire: true,
+                recordedBy: "Local Offline",
+              }));
+
+            if (studentOfflinePayments.length > 0) {
+              const totalOfflinePaid = studentOfflinePayments.reduce((acc, p) => acc + p.amount, 0);
+              const totalOfflineReduc = studentOfflinePayments.reduce((acc, p) => acc + (p.reduction || 0), 0);
+
+              const mergedPayments = [...studentOfflinePayments, ...(fee.payments || [])];
+              const updatedPaid = (fee.totalPaid || 0) + totalOfflinePaid;
+              const updatedReduction = (fee.totalReduction || 0) + totalOfflineReduc;
+              const updatedBalance = Math.max(0, fee.totalExpected - updatedPaid - updatedReduction);
+
+              return {
+                ...fee,
+                payments: mergedPayments,
+                totalPaid: updatedPaid,
+                totalReduction: updatedReduction,
+                balance: updatedBalance,
+                status: updatedBalance <= 0 ? "Soldé" : "Partiel",
+              };
+            }
+            return fee;
+          });
+
+          setLocalFees(updatedFees);
+          setIsLocal(true);
+          return;
+        }
+      } catch (e) {
+        console.warn("Failed to merge offline outbox payments:", e);
+      }
+
+      setLocalFees(baseFees || []);
+      setIsLocal(isUsingLocal);
     }
     loadData();
   }, [fees]);
