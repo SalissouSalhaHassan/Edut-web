@@ -11,6 +11,8 @@ interface MutationOptions<T> {
   entity?: string;
   entityId?: string | number | null;
   idempotencyKey?: string;
+  userId?: string | number | null;
+  schoolId?: string | number | null;
 }
 
 const SYNC_SUPPORTED_TABLES = new Set<OfflineTable>(["students", "exams", "examResults", "feePayments", "attendanceBatches"]);
@@ -65,6 +67,26 @@ export function useOfflineMutation<T>() {
         return { success: false, error: message };
       }
 
+      // 1. Resolve userId and schoolId
+      let userId: string | number | null = options.userId || null;
+      let schoolId: string | number | null = options.schoolId || null;
+
+      if (!userId || !schoolId) {
+        try {
+          const { createClient } = await import("@/shared/utils/supabase/client");
+          const supabase = createClient();
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.user) {
+            if (!userId) userId = session.user.id;
+            if (!schoolId) {
+              schoolId = session.user.user_metadata?.schoolId || session.user.user_metadata?.school_id || null;
+            }
+          }
+        } catch (e) {
+          console.warn("[useOfflineMutation] Failed to fetch session from Supabase client Component", e);
+        }
+      }
+
       const now = Date.now();
       const idempotencyKey =
         options.idempotencyKey ||
@@ -96,25 +118,29 @@ export function useOfflineMutation<T>() {
           status: "pending",
           updatedAt: now,
           lastError: null,
+          userId,
+          schoolId,
         });
       } else {
-      await localDb.outbox.add({
-        actionType: (payload as any).id ? "UPDATE" : "INSERT",
-        targetTable,
-        entity: options.entity || targetTable,
-        entityId: options.entityId || (payload as any).id || localId,
-        payload: {
-          ...payload,
-          id: localId,
+        await localDb.outbox.add({
+          actionType: (payload as any).id ? "UPDATE" : "INSERT",
+          targetTable,
+          entity: options.entity || targetTable,
+          entityId: options.entityId || (payload as any).id || localId,
+          payload: {
+            ...payload,
+            id: localId,
+            idempotencyKey,
+          },
+          status: "pending",
+          timestamp: now,
+          updatedAt: now,
+          retryCount: 0,
           idempotencyKey,
-        },
-        status: "pending",
-        timestamp: now,
-        updatedAt: now,
-        retryCount: 0,
-        idempotencyKey,
-        lastError: null,
-      });
+          lastError: null,
+          userId,
+          schoolId,
+        });
       }
 
       toast.warning("Modifications enregistrees localement (hors-ligne).");

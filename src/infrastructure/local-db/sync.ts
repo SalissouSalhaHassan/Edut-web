@@ -67,7 +67,12 @@ export async function syncOutbox() {
         }
 
         if (success) {
-          await localDb.outbox.delete(item.id!);
+          await localDb.outbox.update(item.id!, {
+            status: "synced",
+            syncedAt: Date.now(),
+            updatedAt: Date.now(),
+            lastError: null,
+          });
           processedCount++;
         } else {
           await localDb.outbox.update(item.id!, {
