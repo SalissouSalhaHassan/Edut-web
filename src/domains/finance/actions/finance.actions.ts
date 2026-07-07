@@ -15,10 +15,6 @@ import { getActiveEducationalLevel, getCompatibleLevels, getUserRoleType, checkE
 export async function getStudentFees(params?: { search?: string, class?: string, status?: string }) {
   return protectedDbAction("Finance", "canView", async (user) => {
     const roleType = await getUserRoleType(user);
-    if (roleType === "teacher") {
-      return { data: [] };
-    }
-
     const activeLevel = await getActiveEducationalLevel(user);
     const schoolId = await getActiveSchoolId();
     const { search, class: className, status } = params || {};
@@ -86,10 +82,6 @@ export async function recordPayment(formData: PaymentFormData) {
 
   return protectedDbAction("Finance", "canEdit", async (user) => {
     const roleType = await getUserRoleType(user);
-    if (roleType === "teacher") {
-      return { error: "Non autorisé" };
-    }
-
     const { feeId, amount, reduction, paymentMode, reference, monthConcerned, notes, datePaid } = validation.data;
     const schoolId = await getActiveSchoolId();
 
@@ -161,10 +153,6 @@ export async function recordPayment(formData: PaymentFormData) {
 export async function deleteStudentFee(id: number) {
   return protectedDbAction("Finance", "canDelete", async (user) => {
     const roleType = await getUserRoleType(user);
-    if (roleType === "teacher") {
-      return { error: "Non autorisé" };
-    }
-
     const schoolId = await getActiveSchoolId();
 
     if (roleType === "level_director") {
@@ -186,10 +174,6 @@ export async function deleteStudentFee(id: number) {
 export async function syncStudentFees(revalidate: boolean = true) {
   return protectedDbAction("Finance", "canEdit", async (user) => {
     const roleType = await getUserRoleType(user);
-    if (roleType === "teacher") {
-      return { error: "Non autorisé" };
-    }
-
     const schoolId = await getActiveSchoolId();
     console.log("Starting syncStudentFees...");
     
@@ -306,10 +290,6 @@ export async function syncStudentFees(revalidate: boolean = true) {
 export async function getFinanceStats() {
   return protectedDbAction("Finance", "canView", async (user) => {
     const roleType = await getUserRoleType(user);
-    if (roleType === "teacher") {
-      return { data: { totalExpected: 0, totalCollected: 0, totalDebts: 0 } };
-    }
-
     const activeLevel = await getActiveEducationalLevel(user);
     const schoolId = await getActiveSchoolId();
     
@@ -353,11 +333,6 @@ export async function getExpenses() {
   return protectedDbAction("Finance", "canView", async (user) => {
     const schoolId = await getActiveSchoolId();
     const roleType = await getUserRoleType(user);
-
-    if (roleType === "teacher") {
-      return { data: [] };
-    }
-
     let whereClause = eq(expenses.schoolId, schoolId);
     
     if (roleType === "level_director") {
@@ -383,11 +358,6 @@ export async function createExpense(formData: ExpenseFormData) {
   return protectedDbAction("Finance", "canEdit", async (user) => {
     const schoolId = await getActiveSchoolId();
     const roleType = await getUserRoleType(user);
-
-    if (roleType === "teacher") {
-      return { error: "Non autorisé" };
-    }
-
     const expenseData: any = {
       ...validation.data,
       schoolId,
@@ -407,10 +377,6 @@ export async function createExpense(formData: ExpenseFormData) {
 export async function getAdvancedFinanceStats() {
   return protectedDbAction("Finance", "canView", async (user) => {
     const roleType = await getUserRoleType(user);
-    if (roleType === "teacher") {
-      return { data: null };
-    }
-
     const schoolId = await getActiveSchoolId();
     const activeLevel = await getActiveEducationalLevel(user);
 

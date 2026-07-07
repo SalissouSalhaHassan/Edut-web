@@ -57,14 +57,84 @@ export const hasPermission = cache(async (
   if (!userBase) return false;
 
   const roleType = await getUserRoleType(userBase);
+  const roleNameLower = (userBase.role?.roleName || "").toLowerCase().trim();
 
-  // 1. super_admin and general_director have full access
-  if (roleType === "super_admin" || roleType === "general_director") return true;
+  // 1. super_admin has full access to all schools and modules
+  if (roleType === "super_admin") return true;
 
-  // 2. level_director has full module access (filtered at query/action level)
-  if (roleType === "level_director") return true;
+  // 2. Directeur / General Director has full access to all school modules
+  if (roleType === "general_director" || roleNameLower.includes("directeur") || roleNameLower.includes("dirigeant")) {
+    return true;
+  }
 
-  // 3. teacher and regular_user are governed by role permissions
+  // 3. Consultation: Read-only access to all modules
+  if (roleNameLower.includes("consultation") || roleNameLower.includes("lecteur") || roleNameLower.includes("viewer")) {
+    return action === "canView";
+  }
+
+  // 4. Comptable: Finance & COGES modules only
+  if (roleNameLower.includes("comptable")) {
+    const isFinance = ["finance", "coges"].includes(moduleName.toLowerCase());
+    if (!isFinance) return false;
+  }
+
+  // 5. Caissier: Finance (payments/receipts) only
+  if (roleNameLower.includes("caissier")) {
+    const isFinance = ["finance"].includes(moduleName.toLowerCase());
+    if (!isFinance) return false;
+  }
+
+  // 6. Surveillant: Attendance, Discipline, Students modules only. Student is view-only.
+  if (roleNameLower.includes("surveillant")) {
+    const isAllowedModule = ["attendance", "discipline", "students"].includes(moduleName.toLowerCase());
+    if (!isAllowedModule) return false;
+    if (moduleName.toLowerCase() === "students" && action !== "canView") {
+      return false; // Surveillant has read-only access to student profiles
+    }
+  }
+
+  // 7. Censeur / Responsable Pédagogique: Pedagogy, Academics, HR, Attendance, Discipline, Students
+  if (roleNameLower.includes("censeur") || roleNameLower.includes("responsable") || roleNameLower.includes("etudes")) {
+    const isAllowedModule = ["pedagogie", "pedagogy", "academics", "hr", "attendance", "discipline", "students"].includes(moduleName.toLowerCase());
+    if (!isAllowedModule) return false;
+  }
+
+  // 8. Professeur: Pedagogy, Academics, Attendance, LMS only. Other modules (like Finance) require explicit DB permissions.
+  if (roleNameLower.includes("professeur") || roleNameLower.includes("enseignant") || roleNameLower.includes("teacher")) {
+    const isAllowedModule = ["pedagogie", "pedagogy", "academics", "attendance", "lms"].includes(moduleName.toLowerCase());
+    if (!isAllowedModule) {
+      const userWithPerms = await db.query.users.findFirst({
+        where: eq(users.id, userId),
+        with: {
+          role: {
+            with: {
+              permissions: {
+                where: sql`LOWER(${rolePermissions.moduleName}) = LOWER(${moduleName})`,
+              },
+            },
+          },
+        },
+      });
+      const permission = userWithPerms?.role?.permissions?.[0];
+      return permission ? (permission[action] ?? false) : false;
+    }
+  }
+
+  // 9. Élève: Academics (results), Homework (devoirs), Attendance, LMS only. Read-only.
+  if (roleNameLower.includes("eleve") || roleNameLower.includes("etudiant") || roleNameLower.includes("student")) {
+    const isAllowedModule = ["academics", "homework", "devoirs", "attendance", "lms"].includes(moduleName.toLowerCase());
+    if (!isAllowedModule) return false;
+    return action === "canView";
+  }
+
+  // 10. Parent: Academics, Homework, Attendance, LMS only. Read-only.
+  if (roleNameLower.includes("parent") || roleNameLower.includes("tuteur")) {
+    const isAllowedModule = ["academics", "homework", "devoirs", "attendance", "lms"].includes(moduleName.toLowerCase());
+    if (!isAllowedModule) return false;
+    return action === "canView";
+  }
+
+  // Fallback to database-configured role permissions
   const userWithPerms = await db.query.users.findFirst({
     where: eq(users.id, userId),
     with: {

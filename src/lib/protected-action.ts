@@ -23,6 +23,11 @@ export async function protectedDbAction<T>(
       return { error: "Non autorisé. Veuillez vous connecter.", success: false };
     }
 
+    // Tenant Isolation: Non-super-admins must be locked to a school ID
+    if (!user.superAdmin && !user.schoolId) {
+      return { error: "Accès refusé. Aucune école associée à cet utilisateur.", success: false };
+    }
+
     const permitted = await hasPermission(user.id, moduleName, actionType);
 
     if (!permitted) {
@@ -35,8 +40,9 @@ export async function protectedDbAction<T>(
       console.warn(`🐢 [protectedDbAction] ${moduleName}:${actionType} took ${duration}ms`);
     }
 
-    // Audit logging if requested
-    if (auditInfo && result.success) {
+    // Audit logging: Automatically log any successful sensitive modifications (canEdit/canDelete) or explicit audit logs
+    const isSensitive = actionType === "canEdit" || actionType === "canDelete";
+    if ((auditInfo || isSensitive) && result.success) {
       try {
         const headerList = await headers();
         const ip = headerList.get("x-forwarded-for") || "unknown";
@@ -46,16 +52,16 @@ export async function protectedDbAction<T>(
           schoolId: user.schoolId,
           userId: user.id,
           action: actionType.toUpperCase(),
-          tableName: auditInfo.tableName,
-          recordId: auditInfo.recordId,
-          oldData: auditInfo.oldData ? JSON.stringify(auditInfo.oldData) : null,
+          tableName: auditInfo?.tableName || moduleName,
+          recordId: auditInfo?.recordId || "n/a",
+          oldData: auditInfo?.oldData ? JSON.stringify(auditInfo.oldData) : null,
           newData: result.data ? JSON.stringify(result.data) : null,
           ipAddress: ip,
           userAgent: userAgent,
         });
       } catch (auditError) {
         console.error("Audit Logging Failed:", auditError);
-        // We don't fail the main action if audit logging fails, but it should be fixed
+        // We don't fail the main action if audit logging fails
       }
     }
 

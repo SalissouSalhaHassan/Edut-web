@@ -15,19 +15,38 @@ import { getUserRoleType, getCompatibleLevels, getTeacherEmployee, getTeacherCla
 
 export async function getAttendanceRecords(classId: number, date: string, subjectId?: number) {
   return protectedDbAction("Attendance", "canView", async (user) => {
-    const hasAccess = await verifyTeacherClassAccess(user, classId);
-    if (!hasAccess) {
-      return { data: [] };
+    const roleNameLower = (user.role?.roleName || "").toLowerCase().trim();
+    const isStudentOrParent = 
+      roleNameLower.includes("eleve") || 
+      roleNameLower.includes("etudiant") || 
+      roleNameLower.includes("student") || 
+      roleNameLower.includes("parent") || 
+      roleNameLower.includes("tuteur");
+
+    if (!isStudentOrParent) {
+      const hasAccess = await verifyTeacherClassAccess(user, classId);
+      if (!hasAccess) {
+        return { data: [] };
+      }
     }
 
     const targetDate = new Date(date);
+    let queryCond = and(
+      eq(studentAttendance.classId, classId),
+      subjectId ? eq(studentAttendance.subjectId, subjectId) : sql`TRUE`,
+      sql`DATE(${studentAttendance.date}) = DATE(${targetDate.toISOString()})`
+    );
+
+    if (isStudentOrParent) {
+      if (user.studentId) {
+        queryCond = and(queryCond, eq(studentAttendance.studentId, Number(user.studentId))) as any;
+      } else {
+        queryCond = and(queryCond, sql`FALSE`) as any;
+      }
+    }
     
     const data = await db.query.studentAttendance.findMany({
-      where: and(
-        eq(studentAttendance.classId, classId),
-        subjectId ? eq(studentAttendance.subjectId, subjectId) : sql`TRUE`,
-        sql`DATE(${studentAttendance.date}) = DATE(${targetDate.toISOString()})`
-      ),
+      where: queryCond,
       with: {
         student: true,
       }
@@ -138,10 +157,23 @@ export async function getAttendanceStats(date: string, classId?: number | null, 
   return protectedDbAction("Attendance", "canView", async (user) => {
     const targetDate = new Date(date);
     const roleType = await getUserRoleType(user);
+    const roleNameLower = (user.role?.roleName || "").toLowerCase().trim();
+    const isStudentOrParent = 
+      roleNameLower.includes("eleve") || 
+      roleNameLower.includes("etudiant") || 
+      roleNameLower.includes("student") || 
+      roleNameLower.includes("parent") || 
+      roleNameLower.includes("tuteur");
     
     let whereClause = sql`DATE(${studentAttendance.date}) = DATE(${targetDate.toISOString()})`;
     
-    if (classId) {
+    if (isStudentOrParent) {
+      if (user.studentId) {
+        whereClause = and(whereClause, eq(studentAttendance.studentId, Number(user.studentId))) as any;
+      } else {
+        return { data: { presents: 0, absents: 0, lates: 0, excused: 0, total: 0 } };
+      }
+    } else if (classId) {
       const hasAccess = await verifyTeacherClassAccess(user, classId);
       if (!hasAccess) return { data: { presents: 0, absents: 0, lates: 0, excused: 0, total: 0 } };
       whereClause = and(whereClause, eq(studentAttendance.classId, classId)) as any;

@@ -8,9 +8,12 @@ import {
   lmsQuizzes, lmsQuestions, lmsAnswers, lmsDiscussions, 
   lmsCertificates 
 } from "@/infrastructure/database/schema/lms";
-import { eq, desc, and, sql, asc } from "drizzle-orm";
+import { eq, desc, and, sql, asc, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { protectedDbAction } from "@/lib/protected-action";
+import { students } from "@/infrastructure/database/schema/students";
+import { schoolClasses } from "@/infrastructure/database/schema/academics";
+import { getUserRoleType, getTeacherEmployee, getTeacherClassIds } from "@/domains/auth/services/rbac";
 
 export async function initLmsDatabaseTables() {
   return protectedDbAction("LMS", "canView", async () => {
@@ -240,8 +243,49 @@ export async function initLmsDatabaseTables() {
 
 // --- Courses ---
 export async function getCourses() {
-  return protectedDbAction("LMS", "canView", async () => {
+  return protectedDbAction("LMS", "canView", async (user) => {
+    const roleType = await getUserRoleType(user);
+    const roleNameLower = (user.role?.roleName || "").toLowerCase().trim();
+    
+    let whereClause = undefined;
+    
+    if (roleType === "teacher") {
+      const emp = await getTeacherEmployee(user);
+      if (emp) {
+        whereClause = eq(lmsCourses.teacherId, emp.id);
+      } else {
+        whereClause = sql`FALSE`;
+      }
+    } else if (
+      roleNameLower.includes("eleve") || 
+      roleNameLower.includes("etudiant") || 
+      roleNameLower.includes("student") || 
+      roleNameLower.includes("parent") || 
+      roleNameLower.includes("tuteur")
+    ) {
+      if (user.studentId) {
+        const std = await db.query.students.findFirst({
+          where: eq(students.id, Number(user.studentId))
+        });
+        if (std?.classe) {
+          const cls = await db.query.schoolClasses.findFirst({
+            where: and(eq(schoolClasses.className, std.classe), eq(schoolClasses.schoolId, user.schoolId))
+          });
+          if (cls) {
+            whereClause = eq(lmsCourses.classId, cls.id);
+          } else {
+            whereClause = sql`FALSE`;
+          }
+        } else {
+          whereClause = sql`FALSE`;
+        }
+      } else {
+        whereClause = sql`FALSE`;
+      }
+    }
+
     const data = await db.query.lmsCourses.findMany({
+      where: whereClause,
       with: {
         class: true,
         subject: true,
@@ -459,8 +503,54 @@ export async function deleteVirtualClass(id: number) {
 
 // --- Assignments & Submissions ---
 export async function getAssignments() {
-  return protectedDbAction("LMS", "canView", async () => {
+  return protectedDbAction("LMS", "canView", async (user) => {
+    const roleType = await getUserRoleType(user);
+    const roleNameLower = (user.role?.roleName || "").toLowerCase().trim();
+    
+    let whereClause = undefined;
+    
+    if (roleType === "teacher") {
+      const emp = await getTeacherEmployee(user);
+      if (emp) {
+        const classIds = await getTeacherClassIds(emp.id);
+        if (classIds.length > 0) {
+          whereClause = inArray(lmsAssignments.classId, classIds);
+        } else {
+          whereClause = sql`FALSE`;
+        }
+      } else {
+        whereClause = sql`FALSE`;
+      }
+    } else if (
+      roleNameLower.includes("eleve") || 
+      roleNameLower.includes("etudiant") || 
+      roleNameLower.includes("student") || 
+      roleNameLower.includes("parent") || 
+      roleNameLower.includes("tuteur")
+    ) {
+      if (user.studentId) {
+        const std = await db.query.students.findFirst({
+          where: eq(students.id, Number(user.studentId))
+        });
+        if (std?.classe) {
+          const cls = await db.query.schoolClasses.findFirst({
+            where: and(eq(schoolClasses.className, std.classe), eq(schoolClasses.schoolId, user.schoolId))
+          });
+          if (cls) {
+            whereClause = eq(lmsAssignments.classId, cls.id);
+          } else {
+            whereClause = sql`FALSE`;
+          }
+        } else {
+          whereClause = sql`FALSE`;
+        }
+      } else {
+        whereClause = sql`FALSE`;
+      }
+    }
+
     const data = await db.query.lmsAssignments.findMany({
+      where: whereClause,
       with: {
         course: true,
         class: true,

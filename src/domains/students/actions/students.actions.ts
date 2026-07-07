@@ -16,6 +16,7 @@ export async function getStudents() {
   return protectedDbAction("Students", "canView", async (user) => {
     const schoolId = await getActiveSchoolId();
     const roleType = await getUserRoleType(user);
+    const roleNameLower = (user.role?.roleName || "").toLowerCase().trim();
     
     let whereClause = eq(students.schoolId, schoolId);
     
@@ -42,6 +43,18 @@ export async function getStudents() {
         } else {
           whereClause = and(whereClause, sql`FALSE`) as any;
         }
+      } else {
+        whereClause = and(whereClause, sql`FALSE`) as any;
+      }
+    } else if (
+      roleNameLower.includes("eleve") || 
+      roleNameLower.includes("etudiant") || 
+      roleNameLower.includes("student") || 
+      roleNameLower.includes("parent") || 
+      roleNameLower.includes("tuteur")
+    ) {
+      if (user.studentId) {
+        whereClause = and(whereClause, eq(students.id, Number(user.studentId))) as any;
       } else {
         whereClause = and(whereClause, sql`FALSE`) as any;
       }
@@ -201,6 +214,7 @@ export async function getStudentsByClass(className: string) {
   return protectedDbAction("Students", "canView", async (user) => {
     const schoolId = await getActiveSchoolId();
     const roleType = await getUserRoleType(user);
+    const roleNameLower = (user.role?.roleName || "").toLowerCase().trim();
     
     let whereClause = and(
       eq(students.classe, className),
@@ -229,6 +243,19 @@ export async function getStudentsByClass(className: string) {
         }
       } else {
         return { data: [] };
+      }
+    } else if (
+      roleNameLower.includes("eleve") || 
+      roleNameLower.includes("etudiant") || 
+      roleNameLower.includes("student") || 
+      roleNameLower.includes("parent") || 
+      roleNameLower.includes("tuteur")
+    ) {
+      const std = await db.query.students.findFirst({
+        where: and(eq(students.id, Number(user.studentId)), eq(students.schoolId, schoolId))
+      });
+      if (!std || std.classe !== className) {
+        return { data: [] }; // Access denied to other classes
       }
     }
 
@@ -276,6 +303,18 @@ export async function fixStudentLevels() {
 
 export async function getStudentProfile(studentId: number) {
   return protectedDbAction("Students", "canView", async (user) => {
+    const roleNameLower = (user.role?.roleName || "").toLowerCase().trim();
+    const isStudentOrParent = 
+      roleNameLower.includes("eleve") || 
+      roleNameLower.includes("etudiant") || 
+      roleNameLower.includes("student") || 
+      roleNameLower.includes("parent") || 
+      roleNameLower.includes("tuteur");
+
+    if (isStudentOrParent && Number(user.studentId) !== Number(studentId)) {
+      return { error: "Accès non autorisé à ce profil." };
+    }
+
     // 1. Fetch student
     const student = await db.query.students.findFirst({
       where: and(
