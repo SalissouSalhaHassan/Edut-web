@@ -646,6 +646,8 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, hea
       {/* REPORTS TAB */}
       {activeTab === "reports" && (
         <FinanceReports
+          fees={localFees}
+          classes={classes}
           classSummary={advancedStats?.classSummary || []}
           stats={advancedStats || {
             totalExpected: stats?.totalExpected || 0,

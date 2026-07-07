@@ -75,23 +75,37 @@ export default function PaymentDialog({ feeData, trigger }: PaymentDialogProps) 
     setError("");
 
     const form = new FormData(e.currentTarget);
+    const reference = (form.get("reference") as string)?.trim() || `PAY-IDEM-${Date.now()}-${Math.random().toString(36).substring(2, 11).toUpperCase()}`;
     const data: PaymentFormData = {
       feeId: feeData.id,
       amount: Number(form.get("amount")),
       reduction: Number(form.get("reduction")) || 0,
       paymentMode: form.get("paymentMode") as string,
       monthConcerned: form.get("monthConcerned") as string,
-      reference: form.get("reference") as string,
+      reference: reference,
       notes: form.get("notes") as string,
       datePaid: form.get("datePaid") as string,
     };
+
+    // Client-side double payment check
+    const hasDuplicate = feeData.payments?.some((p: any) => {
+      const sameRef = reference && p.reference && p.reference.toLowerCase() === reference.toLowerCase();
+      const sameAmountAndDate = p.amount === data.amount && p.datePaid && new Date(p.datePaid).toDateString() === new Date(data.datePaid || new Date()).toDateString();
+      return sameRef || sameAmountAndDate;
+    });
+
+    if (hasDuplicate) {
+      setError("Attention : Un paiement avec la même référence ou le même montant pour cette date existe déjà (protection double paiement).");
+      setLoading(false);
+      return;
+    }
 
     const result = await mutate(data, {
       targetTable: "feePayments",
       onlineAction: recordPayment,
       entity: "payment",
-      entityId: data.reference,
-      idempotencyKey: data.reference || undefined,
+      entityId: reference,
+      idempotencyKey: reference,
       onSuccess: () => setOpen(false),
     });
     setLoading(false);

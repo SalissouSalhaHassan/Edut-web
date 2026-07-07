@@ -35,6 +35,22 @@ function drawTextBilingual(doc: jsPDF, text: string, x: number, y: number, optio
   }
 }
 
+function drawOfflineWatermark(doc: jsPDF, text: string = "PROVISOIRE - HORS LIGNE") {
+  const pageCount = doc.getNumberOfPages();
+  doc.saveGraphicsState();
+  doc.setTextColor(252, 165, 165); // Soft red/pink
+  doc.setFontSize(40);
+  doc.setFont("helvetica", "bold");
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.text(text, 105, 148, {
+      align: "center",
+      angle: 45,
+    });
+  }
+  doc.restoreGraphicsState();
+}
+
 async function fetchQRCodeBase64(data: string): Promise<string> {
   const url = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(data)}`;
   return new Promise((resolve) => {
@@ -864,11 +880,12 @@ export async function generateResultsPedagogicalReportPDF(payload: any) {
   doc.text("Visa de la direction", 148, pageHeight - 8, { align: "center" });
   doc.text("Cachet de l'etablissement", 252, pageHeight - 8, { align: "center" });
 
-  if (isOffline) {
+  if (isOffline || (typeof navigator !== "undefined" && !navigator.onLine)) {
     doc.setFillColor(254, 243, 199);
     doc.setTextColor(180, 83, 9);
     doc.roundedRect(93, pageHeight - 28, 112, 7, 1.5, 1.5, "F");
     doc.text("DOCUMENT GENERE HORS LIGNE - SYNCHRONISATION EN ATTENTE", 149, pageHeight - 23.2, { align: "center" });
+    drawOfflineWatermark(doc, "BULLETIN PROVISOIRE");
   }
 
   const pageCount = (doc as any).internal.getNumberOfPages?.() || 1;
@@ -1168,7 +1185,7 @@ export async function generateReleveNotesPDF(data: any) {
     console.warn("Failed to load QR code for Releve:", e);
   }
 
-  if (data.isOffline) {
+  if (data.isOffline || (typeof navigator !== "undefined" && !navigator.onLine)) {
     doc.saveGraphicsState();
     doc.setFillColor(254, 243, 199); // light amber background
     doc.setDrawColor(245, 158, 11);   // amber border
@@ -1179,6 +1196,7 @@ export async function generateReleveNotesPDF(data: any) {
     doc.setTextColor(180, 83, 9);     // dark amber text
     doc.text("⚠️ DOCUMENT GÉNÉRÉ HORS LIGNE - EN ATTENTE DE SYNCHRONISATION", 105, doc.internal.pageSize.getHeight() - 9.5, { align: "center" });
     doc.restoreGraphicsState();
+    drawOfflineWatermark(doc, "RELEVÉ PROVISOIRE");
   }
 
   const blob = doc.output("blob");
@@ -1252,12 +1270,13 @@ export async function generateClassReportPDF(payload: any) {
     styles: { fontSize: 8 }
   });
 
-  if (isOffline) {
+  if (isOffline || (typeof navigator !== "undefined" && !navigator.onLine)) {
     const pageHeight = doc.internal.pageSize.getHeight();
     doc.setFillColor(254, 243, 199);
     doc.setTextColor(180, 83, 9);
     doc.setFontSize(8);
     doc.text("⚠️ DOCUMENT GÉNÉRÉ HORS LIGNE - EN ATTENTE DE SYNCHRONISATION", 105, pageHeight - 10, { align: "center" });
+    drawOfflineWatermark(doc, "RAPPORT PROVISOIRE");
   }
 
   const blob = doc.output("blob");
@@ -1330,6 +1349,15 @@ export async function generateSubjectReportPDF(payload: any) {
     styles: { fontSize: 8 }
   });
 
+  if (isOffline || (typeof navigator !== "undefined" && !navigator.onLine)) {
+    const pageHeight = doc.internal.pageSize.getHeight();
+    doc.setFillColor(254, 243, 199);
+    doc.setTextColor(180, 83, 9);
+    doc.setFontSize(8);
+    doc.text("⚠️ DOCUMENT GÉNÉRÉ HORS LIGNE - EN ATTENTE DE SYNCHRONISATION", 105, pageHeight - 10, { align: "center" });
+    drawOfflineWatermark(doc, "RAPPORT PROVISOIRE");
+  }
+
   const blob = doc.output("blob");
   const url = URL.createObjectURL(blob);
   window.open(url, "_blank");
@@ -1395,6 +1423,15 @@ export async function generateTeacherReportPDF(payload: any) {
     styles: { fontSize: 8 }
   });
 
+  if (isOffline || (typeof navigator !== "undefined" && !navigator.onLine)) {
+    const pageHeight = doc.internal.pageSize.getHeight();
+    doc.setFillColor(254, 243, 199);
+    doc.setTextColor(180, 83, 9);
+    doc.setFontSize(8);
+    doc.text("⚠️ DOCUMENT GÉNÉRÉ HORS LIGNE - EN ATTENTE DE SYNCHRONISATION", 105, pageHeight - 10, { align: "center" });
+    drawOfflineWatermark(doc, "RAPPORT PROVISOIRE");
+  }
+
   const blob = doc.output("blob");
   const url = URL.createObjectURL(blob);
   window.open(url, "_blank");
@@ -1454,6 +1491,15 @@ export async function generateWeakStudentsReportPDF(payload: any) {
     headStyles: { fillColor: [225, 29, 72] },
     styles: { fontSize: 8 }
   });
+
+  if (isOffline || (typeof navigator !== "undefined" && !navigator.onLine)) {
+    const pageHeight = doc.internal.pageSize.getHeight();
+    doc.setFillColor(254, 243, 199);
+    doc.setTextColor(180, 83, 9);
+    doc.setFontSize(8);
+    doc.text("⚠️ DOCUMENT GÉNÉRÉ HORS LIGNE - EN ATTENTE DE SYNCHRONISATION", 105, pageHeight - 10, { align: "center" });
+    drawOfflineWatermark(doc, "RAPPORT PROVISOIRE");
+  }
 
   const blob = doc.output("blob");
   const url = URL.createObjectURL(blob);
@@ -1525,6 +1571,15 @@ export async function generateClassCouncilReportPDF(payload: any) {
   doc.setFont("helvetica", "bold");
   doc.text("Le Professeur Principal", 40, finalY, { align: "center" });
   doc.text("Le Proviseur / Directeur", 150, finalY, { align: "center" });
+
+  if (isOffline || (typeof navigator !== "undefined" && !navigator.onLine)) {
+    const pageHeight = doc.internal.pageSize.getHeight();
+    doc.setFillColor(254, 243, 199);
+    doc.setTextColor(180, 83, 9);
+    doc.setFontSize(8);
+    doc.text("⚠️ DOCUMENT GÉNÉRÉ HORS LIGNE - EN ATTENTE DE SYNCHRONISATION", 105, pageHeight - 10, { align: "center" });
+    drawOfflineWatermark(doc, "PROVISOIRE - HORS LIGNE");
+  }
 
   const blob = doc.output("blob");
   const url = URL.createObjectURL(blob);

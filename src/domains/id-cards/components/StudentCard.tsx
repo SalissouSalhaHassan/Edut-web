@@ -70,6 +70,8 @@ export const StudentCard: React.FC<StudentCardProps> = ({
   const website = branchInfo?.branchAlias || "www.uabi.ne"; // Using branchAlias for website as fallback
   const logoPath = branchInfo?.logoPath;
 
+  const isProvisoire = !student.id || String(student.id).includes("local-") || Number(student.id) < 0 || (typeof navigator !== "undefined" && !navigator.onLine);
+
   const qr = JSON.stringify({ id: student.id, num: student.numAdmission, nom: student.nomEtudiant });
   const issued = new Date().toLocaleDateString("fr-FR");
   const expiry = `31/10/${parseInt(academicYear.split("-")[1] || "2025")}`;
@@ -143,6 +145,13 @@ export const StudentCard: React.FC<StudentCardProps> = ({
             </div>
           ))}
         </div>
+        {isProvisoire && (
+          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyItems: "center", justifyContent: "center", pointerEvents: "none", zIndex: 99, transform: "rotate(-25deg)", opacity: 0.12 }}>
+            <span style={{ fontSize: 48, fontWeight: 900, color: "#EF4444", border: "5px solid #EF4444", padding: "10px 28px", borderRadius: 16, letterSpacing: 4, textTransform: "uppercase" }}>
+              CARTE PROVISOIRE
+            </span>
+          </div>
+        )}
       </div>
     );
   }
@@ -281,6 +290,13 @@ export const StudentCard: React.FC<StudentCardProps> = ({
           <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "flex-end", marginTop: 3 }}><span style={{ fontSize: 13 }}>🌐</span><span style={{ fontSize: 10.5, fontWeight: 800, color: W }}>{website}</span></div>
         </div>
       </div>
+      {isProvisoire && (
+        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyItems: "center", justifyContent: "center", pointerEvents: "none", zIndex: 99, transform: "rotate(-25deg)", opacity: 0.12 }}>
+          <span style={{ fontSize: 48, fontWeight: 900, color: "#EF4444", border: "5px solid #EF4444", padding: "10px 28px", borderRadius: 16, letterSpacing: 4, textTransform: "uppercase" }}>
+            CARTE PROVISOIRE
+          </span>
+        </div>
+      )}
     </div>
   );
 };

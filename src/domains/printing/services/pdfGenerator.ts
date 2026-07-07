@@ -147,14 +147,28 @@ export class PDFGenerator {
 
   private addWatermark() {
     const pageCount = this.doc.getNumberOfPages();
+    const isProvisional = 
+      (typeof navigator !== "undefined" && !navigator.onLine) ||
+      (this.options as any).isOffline ||
+      (this.options as any).isProvisoire;
+
     for (let i = 1; i <= pageCount; i++) {
       this.doc.setPage(i);
-      this.doc.setTextColor(240, 240, 240);
-      this.doc.setFontSize(60);
-      this.doc.text('OFFICIEL', 105, 148, {
-        align: 'center',
-        angle: 45,
-      });
+      if (isProvisional) {
+        this.doc.setTextColor(252, 165, 165); // Soft red
+        this.doc.setFontSize(40);
+        this.doc.text('PROVISOIRE - HORS LIGNE', 105, 148, {
+          align: 'center',
+          angle: 45,
+        });
+      } else {
+        this.doc.setTextColor(240, 240, 240);
+        this.doc.setFontSize(60);
+        this.doc.text('OFFICIEL', 105, 148, {
+          align: 'center',
+          angle: 45,
+        });
+      }
     }
   }
 
