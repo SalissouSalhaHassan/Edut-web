@@ -27,6 +27,24 @@ function LogoBox({ src, alt, size = 86 }: { src?: string; alt: string; size?: nu
   );
 }
 
+const mojibakeArabicMap: Record<string, string> = {
+  "ط¬ظ…ظ‡ظˆط±ظٹط© ط§ظ„ظ†ظٹط¬ط±": "جمهورية النيجر",
+  "ظˆط²ط§ط±ط© ط§ظ„طھط±ط¨ظٹط© ط§ظ„ظˆط·ظ†ظٹط©": "وزارة التربية الوطنية",
+  "ط§ظ„ظ…ط¯ظٹط±ظٹط© ط§ظ„ط¬ظ‡ظˆظٹط© ظ„ظ„طھط±ط¨ظٹط© ط§ظ„ظˆط·ظ†ظٹط©": "المديرية الجهوية للتربية الوطنية",
+  "ط§ظ„ظ…ط¯ظٹط±ظٹط© ط§ظ„ط¥ظ‚ظ„ظٹظ…ظٹط© ظ„ظ„طھط±ط¨ظٹط© ط§ظ„ظˆط·ظ†ظٹط©": "المديرية الإقليمية للتربية الوطنية",
+  "ظ…ظپطھط´ظٹط© ط§ظ„طھط±ط¨ظٹط© ط§ظ„ظˆط·ظ†ظٹط©": "مفتشية التربية الوطنية",
+  "ظ…طµظ„ط­ط© ط´ط¤ظˆظ† ط§ظ„ط·ظ„ط§ط¨": "مصلحة شؤون الطلاب",
+  "ظ…ط¯ط±ط³ط© ط§ظ„طھظ…ظٹط²": "مدرسة التميز",
+};
+
+function cleanHeaderText(value?: string | null) {
+  if (!value) return "";
+  return Object.entries(mojibakeArabicMap).reduce(
+    (text, [broken, fixed]) => text.split(broken).join(fixed),
+    value,
+  );
+}
+
 function MetaLines({ cfg, align = "left" }: { cfg: DocumentHeaderConfig; align?: "left" | "right" | "center" }) {
   const lines = [
     cfg.country,
@@ -43,7 +61,38 @@ function MetaLines({ cfg, align = "left" }: { cfg: DocumentHeaderConfig; align?:
 
   return (
     <div dir="ltr" lang="fr" className={`space-y-0.5 text-${align} text-[11px] font-bold leading-tight text-slate-950 print:text-black french-text`}>
-      {lines.map((line) => <p key={line}>{line}</p>)}
+      {lines.map((line) => <p key={line}>{cleanHeaderText(line)}</p>)}
+    </div>
+  );
+}
+
+function ArabicMetaLines({ cfg }: { cfg: DocumentHeaderConfig }) {
+  const schoolNameAr = cleanHeaderText(cfg.schoolNameAr);
+  const lines = [
+    cfg.countryAr,
+    cfg.ministryAr,
+    cfg.regionalDirectionAr,
+    cfg.departmentalDirectionAr,
+    cfg.inspectionAr,
+    schoolNameAr,
+    cfg.serviceAr,
+    cfg.addressAr,
+    cfg.bp ? `ص.ب: ${cfg.bp}` : "",
+    cfg.phone ? `الهاتف: ${cfg.phone}` : "",
+    cfg.email ? `البريد: ${cfg.email}` : "",
+  ].map(cleanHeaderText).filter(Boolean);
+
+  return (
+    <div
+      dir="rtl"
+      lang="ar"
+      className="arabic-text space-y-1 text-right text-[12px] font-bold leading-relaxed text-slate-950 print:text-black"
+    >
+      {lines.map((line, index) => (
+        <p key={`${line}-${index}`} className={line === schoolNameAr ? "text-[13px] font-black" : undefined}>
+          {line}
+        </p>
+      ))}
     </div>
   );
 }
@@ -77,29 +126,12 @@ export default function OfficialDocumentHeader({ config, title, variant = "full"
   if (cfg.style === "bilingual_center_logo") {
     return (
       <header className={`official-document-header border-b-2 border-slate-900 pb-3 print:border-black ${className}`}>
-        <div className="grid grid-cols-[1fr_auto_1fr] items-start gap-6">
+        <div className="official-document-header-grid grid grid-cols-[1fr_auto_1fr] items-start gap-6">
           <MetaLines cfg={cfg} />
           
           <LogoBox src={cfg.centerLogo || cfg.leftLogo} alt={cfg.schoolName} size={126} />
           
-          <div 
-            dir="rtl" 
-            lang="ar" 
-            className="space-y-0.5 text-right text-[11px] font-bold leading-tight text-slate-950 print:text-black arabic-text"
-            style={{ fontFamily: '"Noto Naskh Arabic", "Amiri", "Arial", sans-serif' }}
-          >
-            {cfg.countryAr && <p>{cfg.countryAr}</p>}
-            {cfg.ministryAr && <p>{cfg.ministryAr}</p>}
-            {cfg.regionalDirectionAr && <p>{cfg.regionalDirectionAr}</p>}
-            {cfg.departmentalDirectionAr && <p>{cfg.departmentalDirectionAr}</p>}
-            {cfg.inspectionAr && <p>{cfg.inspectionAr}</p>}
-            {cfg.schoolNameAr && <p className="text-xs font-black">{cfg.schoolNameAr}</p>}
-            {cfg.serviceAr && <p>{cfg.serviceAr}</p>}
-            {cfg.addressAr && <p>{cfg.addressAr}</p>}
-            {cfg.bp && <p>ص.ب: {cfg.bp}</p>}
-            {cfg.phone && <p>الهاتف: {cfg.phone}</p>}
-            {cfg.email && <p>البريد: {cfg.email}</p>}
-          </div>
+          <ArabicMetaLines cfg={cfg} />
         </div>
         {title && <h1 className="mt-3 text-center text-xl font-black uppercase tracking-wide">{title}</h1>}
       </header>
