@@ -188,7 +188,7 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
   // ─── FILTERING LOGIC ───
   
   // Resolve class name from class ID to support students table (which uses className string)
-  const selectedClassObj = data.classes.find(c => String(c.id) === selectedClassId);
+  const selectedClassObj = (data.classes || []).find(c => String(c.id) === selectedClassId);
   const selectedClassName = selectedClassObj?.className || "";
 
   // Dynamic helper to check if a date falls inside the selected period
@@ -238,7 +238,7 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
   };
 
   // Filter students
-  const filteredStudents = data.students.filter(s => {
+  const filteredStudents = (data.students || []).filter(s => {
     if (academicYear !== "All" && s.session && s.session !== academicYear) return false;
     if (selectedLevel !== "All" && s.educationalLevel !== selectedLevel) return false;
     if (selectedClassId !== "All" && s.classe !== selectedClassName) return false;
@@ -248,8 +248,8 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
   });
 
   // Filter finances
-  const filteredPayments = data.feePayments.filter(p => {
-    const student = data.students.find(s => s.id === p.studentId);
+  const filteredPayments = (data.feePayments || []).filter(p => {
+    const student = (data.students || []).find(s => s.id === p.studentId);
     if (academicYear !== "All" && student?.session && student?.session !== academicYear) return false;
     if (selectedClassId !== "All" && student?.classe !== selectedClassName) return false;
     if (selectedLevel !== "All" && student?.educationalLevel !== selectedLevel) return false;
@@ -260,7 +260,7 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
     return true;
   });
 
-  const filteredExpenses = data.expenses.filter(e => {
+  const filteredExpenses = (data.expenses || []).filter(e => {
     if (selectedLevel !== "All" && e.educationalLevel !== selectedLevel) return false;
     if (!isInPeriod(e.dateExpense)) return false;
     if (startDate && e.dateExpense && new Date(e.dateExpense) < new Date(startDate)) return false;
@@ -269,7 +269,7 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
   });
 
   // Filter pedagogy (seances & plans)
-  const filteredSeances = data.seances.filter(s => {
+  const filteredSeances = (data.seances || []).filter(s => {
     if (selectedClassId !== "All" && String(s.classId) !== selectedClassId) return false;
     if (selectedTeacherId !== "All" && String(s.employeeId) !== selectedTeacherId) return false;
     if (selectedStatus !== "All" && s.statut !== selectedStatus) return false;
@@ -279,7 +279,7 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
     return true;
   });
 
-  const filteredPlans = data.plans.filter(p => {
+  const filteredPlans = (data.plans || []).filter(p => {
     if (selectedClassId !== "All" && String(p.classId) !== selectedClassId) return false;
     if (selectedTeacherId !== "All" && String(p.employeeId) !== selectedTeacherId) return false;
     if (selectedStatus !== "All" && p.statut !== selectedStatus) return false;
@@ -287,8 +287,8 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
   });
 
   // Filter attendance
-  const filteredAttendance = data.attendance.filter(a => {
-    const student = data.students.find(s => s.id === a.studentId);
+  const filteredAttendance = (data.attendance || []).filter(a => {
+    const student = (data.students || []).find(s => s.id === a.studentId);
     if (academicYear !== "All" && student?.session && student?.session !== academicYear) return false;
     if (selectedClassId !== "All" && String(a.classId) !== selectedClassId) return false;
     if (selectedLevel !== "All" && student?.educationalLevel !== selectedLevel) return false;
@@ -301,20 +301,20 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
   });
 
   // Filter Employees (RH)
-  const filteredEmployees = data.employees.filter(e => {
+  const filteredEmployees = (data.employees || []).filter(e => {
     if (selectedStatus !== "All" && e.statut !== selectedStatus) return false;
     return true;
   });
 
   // Filter LMS
-  const filteredCourses = data.courses.filter(c => {
+  const filteredCourses = (data.courses || []).filter(c => {
     if (selectedClassId !== "All" && String(c.classId) !== selectedClassId) return false;
     if (selectedTeacherId !== "All" && String(c.teacherId) !== selectedTeacherId) return false;
     return true;
   });
 
   // Filter security audit logs
-  const filteredAuditLogs = data.auditLogs.filter(log => {
+  const filteredAuditLogs = (data.auditLogs || []).filter(log => {
     if (selectedTeacherId !== "All" && String(log.userId) !== selectedTeacherId) return false;
     if (!isInPeriod(log.timestamp)) return false;
     if (startDate && log.timestamp && new Date(log.timestamp) < new Date(startDate)) return false;
@@ -418,9 +418,9 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
         };
       }),
       ...filteredPlans.map(p => {
-        const teacher = data.employees.find(e => e.id === p.employeeId);
-        const subject = data.subjects.find(sub => sub.id === p.subjectId);
-        const cls = data.classes.find(c => c.id === p.classId);
+        const teacher = (data.employees || []).find(e => e.id === p.employeeId);
+        const subject = (data.subjects || []).find(sub => sub.id === p.subjectId);
+        const cls = (data.classes || []).find(c => c.id === p.classId);
         return {
           date: p.datePrevue ? new Date(p.datePrevue) : new Date(),
           cls: cls?.className || "Classe",
@@ -462,9 +462,9 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
     reportTable = {
       headers: ["Date", "Élève", "Classe", "Matière", "Statut", "Remarque / Enregistré par"],
       rows: filteredAttendance.map(a => {
-        const student = data.students.find(s => s.id === a.studentId);
-        const cls = data.classes.find(c => c.id === a.classId);
-        const subject = data.subjects.find(sub => sub.id === a.subjectId);
+        const student = (data.students || []).find(s => s.id === a.studentId);
+        const cls = (data.classes || []).find(c => c.id === a.classId);
+        const subject = (data.subjects || []).find(sub => sub.id === a.subjectId);
         return [
           a.date ? new Date(a.date).toLocaleDateString("fr-FR") : "-",
           student?.nomEtudiant || "Élève",
@@ -502,13 +502,13 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
   }
 
   else if (activeReport === "lms") {
-    const totalLessons = data.lessons.length;
-    const totalSubmissions = data.submissions.length;
-    const totalVirtual = data.virtualClasses.length;
+    const totalLessons = (data.lessons || []).length;
+    const totalSubmissions = (data.submissions || []).length;
+    const totalVirtual = (data.virtualClasses || []).length;
 
     reportKpis = [
       { label: "Cours E-Learning", value: filteredCourses.length, icon: <BookOpen size={18} />, color: "text-indigo-600", bgColor: "bg-indigo-50" },
-      { label: "Modules / Leçons", value: `${data.lessons.filter(l => filteredCourses.some(c => c.id === l.courseId)).length} leçons`, icon: <Layers size={18} />, color: "text-blue-600", bgColor: "bg-blue-50" },
+      { label: "Modules / Leçons", value: `${(data.lessons || []).filter(l => filteredCourses.some(c => c.id === l.courseId)).length} leçons`, icon: <Layers size={18} />, color: "text-blue-600", bgColor: "bg-blue-50" },
       { label: "Devoirs Soumis", value: totalSubmissions, icon: <Clock size={18} />, color: "text-amber-600", bgColor: "bg-amber-50" },
       { label: "Classes Virtuelles", value: totalVirtual, icon: <Activity size={18} />, color: "text-emerald-600", bgColor: "bg-emerald-50" }
     ];
@@ -516,9 +516,9 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
     reportTable = {
       headers: ["Cours", "Classe", "Matière", "Enseignant", "Statut", "Date de Création"],
       rows: filteredCourses.map(c => {
-        const cls = data.classes.find(cl => cl.id === c.classId);
-        const subject = data.subjects.find(sub => sub.id === c.subjectId);
-        const teacher = data.employees.find(emp => emp.id === c.teacherId);
+        const cls = (data.classes || []).find(cl => cl.id === c.classId);
+        const subject = (data.subjects || []).find(sub => sub.id === c.subjectId);
+        const teacher = (data.employees || []).find(emp => emp.id === c.teacherId);
         return [
           c.title,
           cls?.className || "Classe",
@@ -532,8 +532,8 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
   }
 
   else if (activeReport === "canevas") {
-    const totalStudents = data.students.length;
-    const totalTeachers = data.employees.filter(e => (e.poste || "").toLowerCase().includes("prof") || (e.fonction || "").toLowerCase().includes("prof")).length;
+    const totalStudents = (data.students || []).length;
+    const totalTeachers = (data.employees || []).filter(e => (e.poste || "").toLowerCase().includes("prof") || (e.fonction || "").toLowerCase().includes("prof")).length;
     const publicCount = 1;
     const privateCount = 0;
 
@@ -545,15 +545,15 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
     ];
 
     const groups = [
-      { level: "Primaire", effectif: data.students.filter(s => (s.educationalLevel || "").toLowerCase().includes("prim")).length, teacherCount: Math.round(totalTeachers * 0.6) || 1 },
-      { level: "Collège", effectif: data.students.filter(s => (s.educationalLevel || "").toLowerCase().includes("coll")).length, teacherCount: Math.round(totalTeachers * 0.3) || 1 },
-      { level: "Lycée", effectif: data.students.filter(s => (s.educationalLevel || "").toLowerCase().includes("lyc")).length, teacherCount: Math.round(totalTeachers * 0.1) || 1 }
+      { level: "Primaire", effectif: (data.students || []).filter(s => (s.educationalLevel || "").toLowerCase().includes("prim")).length, teacherCount: Math.round(totalTeachers * 0.6) || 1 },
+      { level: "Collège", effectif: (data.students || []).filter(s => (s.educationalLevel || "").toLowerCase().includes("coll")).length, teacherCount: Math.round(totalTeachers * 0.3) || 1 },
+      { level: "Lycée", effectif: (data.students || []).filter(s => (s.educationalLevel || "").toLowerCase().includes("lyc")).length, teacherCount: Math.round(totalTeachers * 0.1) || 1 }
     ];
 
     reportTable = {
       headers: ["Niveau / Cycle d'enseignement", "Effectif Élèves", "Filles", "Garçons", "Enseignants", "Ratio Élèves / Professeur"],
       rows: groups.map(g => {
-        const cycleStudents = data.students.filter(s => {
+        const cycleStudents = (data.students || []).filter(s => {
           const l = (s.educationalLevel || "").toLowerCase();
           if (g.level === "Primaire") return l.includes("prim");
           if (g.level === "Collège") return l.includes("coll");
@@ -773,7 +773,7 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
                   className="w-full bg-slate-50 border border-slate-200 p-3 rounded-2xl text-xs font-bold outline-none"
                 >
                   <option value="All">Tous les élèves</option>
-                  {data.students
+                  {((data && data.students) || [])
                     .filter(s => {
                       if (academicYear !== "All" && s.session && s.session !== academicYear) return false;
                       if (selectedLevel !== "All" && s.educationalLevel !== selectedLevel) return false;
@@ -792,7 +792,7 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
                   className="w-full bg-slate-50 border border-slate-200 p-3 rounded-2xl text-xs font-bold outline-none"
                 >
                   <option value="All">Tout le personnel</option>
-                  {data.employees.map(emp => <option key={emp.id} value={String(emp.id)}>{emp.nomPrenom}</option>)}
+                  {((data && data.employees) || []).map(emp => <option key={emp.id} value={String(emp.id)}>{emp.nomPrenom}</option>)}
                 </select>
               </div>
 

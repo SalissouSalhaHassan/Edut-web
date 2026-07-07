@@ -7,10 +7,11 @@ import ReportsDashboard from "./reports-dashboard";
 
 export default async function ReportsPage() {
   const user = await getCurrentUser();
-  const [unifiedRes, { branchData }] = await Promise.all([
+  const [unifiedRes, branchRes] = await Promise.all([
     getUnifiedReportsData(),
     getActiveBranchData(user)
   ]);
+  const branchData = (branchRes as any)?.branchData || null;
 
   const unifiedData = (unifiedRes as any)?.data || {
     students: [],
