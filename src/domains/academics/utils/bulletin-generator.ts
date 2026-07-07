@@ -1185,3 +1185,348 @@ export async function generateReleveNotesPDF(data: any) {
   const url = URL.createObjectURL(blob);
   window.open(url, "_blank");
 }
+
+export async function generateClassReportPDF(payload: any) {
+  const doc = new jsPDF();
+  const { matrixData, students = [], filters, headerConfig, isOffline } = payload || {};
+  const rows = Array.isArray(matrixData?.students) && matrixData.students.length ? matrixData.students : students;
+  const subjects = Array.isArray(matrixData?.subjects) ? matrixData.subjects : [];
+
+  const getAverage = (row: any) => Number(row?.average ?? row?.moyenne ?? row?.weighted ?? row?.total ?? row?.totalScore ?? 0) || 0;
+  const getName = (row: any) => row?.studentName || row?.name || row?.nomEtudiant || row?.student?.nomEtudiant || "Élève";
+  
+  const averages = rows.map(getAverage).filter((v: number) => v > 0);
+  const evaluated = averages.length;
+  const passed = averages.filter((v: number) => v >= 10).length;
+  const failed = evaluated - passed;
+  const classAvg = evaluated ? averages.reduce((sum: number, v: number) => sum + v, 0) / evaluated : 0;
+  const successRate = evaluated ? (passed / evaluated) * 100 : 0;
+
+  const headerEndY = drawPDFHeader(doc, headerConfig, {}, (filters?.level || "Lycée").toUpperCase(), filters?.sessionName || "");
+  const startY = Math.max(headerEndY + 8, 45);
+
+  // Title
+  doc.setFillColor(79, 70, 229);
+  doc.rect(10, startY, 190, 8, "F");
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(255, 255, 255);
+  doc.text(`RAPPORT DE CLASSE - ${filters?.className || "CLASSE"}`, 105, startY + 5.5, { align: "center" });
+  doc.setTextColor(0, 0, 0);
+
+  // Summary Table
+  autoTable(doc, {
+    startY: startY + 12,
+    head: [["Élèves évalues", "Moyenne Générale", "Taux de Réussite", "Taux d'Échec", "Admis", "Ajournés"]],
+    body: [[
+      evaluated.toString(),
+      `${classAvg.toFixed(2)}/20`,
+      `${successRate.toFixed(2)}%`,
+      `${(100 - successRate).toFixed(2)}%`,
+      passed.toString(),
+      failed.toString()
+    ]],
+    theme: "grid",
+    headStyles: { fillColor: [15, 23, 42], textColor: 255, halign: "center", fontSize: 8 },
+    bodyStyles: { halign: "center", fontStyle: "bold", fontSize: 9 }
+  });
+
+  // Students Table
+  const tableRows = [...rows]
+    .sort((a, b) => getAverage(b) - getAverage(a))
+    .map((row, idx) => [
+      (idx + 1).toString(),
+      row.matricule || row.numAdmission || "—",
+      getName(row),
+      row.sexe || "—",
+      `${getAverage(row).toFixed(2)}/20`,
+      getAverage(row) >= 10 ? "Admis" : "Ajourné"
+    ]);
+
+  autoTable(doc, {
+    startY: (doc as any).lastAutoTable.finalY + 8,
+    head: [["Rang", "Matricule", "Nom de l'élève", "Genre", "Moyenne", "Décision"]],
+    body: tableRows,
+    theme: "striped",
+    headStyles: { fillColor: [79, 70, 229] },
+    styles: { fontSize: 8 }
+  });
+
+  if (isOffline) {
+    const pageHeight = doc.internal.pageSize.getHeight();
+    doc.setFillColor(254, 243, 199);
+    doc.setTextColor(180, 83, 9);
+    doc.setFontSize(8);
+    doc.text("⚠️ DOCUMENT GÉNÉRÉ HORS LIGNE - EN ATTENTE DE SYNCHRONISATION", 105, pageHeight - 10, { align: "center" });
+  }
+
+  const blob = doc.output("blob");
+  const url = URL.createObjectURL(blob);
+  window.open(url, "_blank");
+}
+
+export async function generateSubjectReportPDF(payload: any) {
+  const doc = new jsPDF();
+  const { matrixData, students = [], filters, headerConfig, isOffline } = payload || {};
+  const rows = Array.isArray(matrixData?.students) && matrixData.students.length ? matrixData.students : students;
+  const subjects = Array.isArray(matrixData?.subjects) ? matrixData.subjects : [];
+  
+  const currentSubjectId = filters?.subjectId;
+  const currentSubject = subjects.find((s: any) => s.id === currentSubjectId || s.subjectId === currentSubjectId) || { subjectName: "Matière" };
+  const getSubjectScore = (row: any) => {
+    const res = row?.results?.[currentSubjectId];
+    return res ? Number(res.total || res.totalScore || res.moy || 0) : 0;
+  };
+  const getName = (row: any) => row?.studentName || row?.name || row?.nomEtudiant || row?.student?.nomEtudiant || "Élève";
+  
+  const scores = rows.map(getSubjectScore).filter((v: number) => v > 0);
+  const evaluated = scores.length;
+  const passed = scores.filter((v: number) => v >= 10).length;
+  const subjectAvg = evaluated ? scores.reduce((sum: number, v: number) => sum + v, 0) / evaluated : 0;
+  const successRate = evaluated ? (passed / evaluated) * 100 : 0;
+
+  const headerEndY = drawPDFHeader(doc, headerConfig, {}, (filters?.level || "Lycée").toUpperCase(), filters?.sessionName || "");
+  const startY = Math.max(headerEndY + 8, 45);
+
+  doc.setFillColor(16, 185, 129);
+  doc.rect(10, startY, 190, 8, "F");
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(255, 255, 255);
+  doc.text(`RAPPORT PAR MATIÈRE - ${currentSubject.subjectName.toUpperCase()}`, 105, startY + 5.5, { align: "center" });
+  doc.setTextColor(0, 0, 0);
+
+  autoTable(doc, {
+    startY: startY + 12,
+    head: [["Matière", "Enseignant", "Élèves évalués", "Moyenne Matière", "Taux de Réussite"]],
+    body: [[
+      currentSubject.subjectName,
+      currentSubject.teacherName || "—",
+      evaluated.toString(),
+      `${subjectAvg.toFixed(2)}/20`,
+      `${successRate.toFixed(2)}%`
+    ]],
+    theme: "grid",
+    headStyles: { fillColor: [15, 23, 42], halign: "center" },
+    bodyStyles: { halign: "center", fontStyle: "bold" }
+  });
+
+  const tableRows = [...rows]
+    .sort((a, b) => getSubjectScore(b) - getSubjectScore(a))
+    .map((row, idx) => [
+      (idx + 1).toString(),
+      row.matricule || row.numAdmission || "—",
+      getName(row),
+      `${getSubjectScore(row).toFixed(2)}/20`,
+      getSubjectScore(row) >= 10 ? "Acquis" : "Non acquis"
+    ]);
+
+  autoTable(doc, {
+    startY: (doc as any).lastAutoTable.finalY + 8,
+    head: [["Rang", "Matricule", "Nom de l'élève", "Note obtenue", "Statut"]],
+    body: tableRows,
+    theme: "striped",
+    headStyles: { fillColor: [16, 185, 129] },
+    styles: { fontSize: 8 }
+  });
+
+  const blob = doc.output("blob");
+  const url = URL.createObjectURL(blob);
+  window.open(url, "_blank");
+}
+
+export async function generateTeacherReportPDF(payload: any) {
+  const doc = new jsPDF();
+  const { matrixData, students = [], filters, headerConfig, isOffline } = payload || {};
+  const rows = Array.isArray(matrixData?.students) && matrixData.students.length ? matrixData.students : students;
+  const subjects = Array.isArray(matrixData?.subjects) ? matrixData.subjects : [];
+
+  // Group by teacher name
+  const teacherStatsMap = new Map<string, { subjectNames: string[], totalStudents: number, scoreSum: number, count: number }>();
+  subjects.forEach((subj: any) => {
+    const tName = subj.teacherName || "Non affecté";
+    const scores = rows.map((r: any) => {
+      const res = r?.results?.[subj.id];
+      return res ? Number(res.total || res.totalScore || res.moy || 0) : 0;
+    }).filter((v: number) => v > 0);
+    
+    if (scores.length > 0) {
+      const sum = scores.reduce((a: number, b: number) => a + b, 0);
+      if (!teacherStatsMap.has(tName)) {
+        teacherStatsMap.set(tName, { subjectNames: [], totalStudents: 0, scoreSum: 0, count: 0 });
+      }
+      const data = teacherStatsMap.get(tName)!;
+      data.subjectNames.push(subj.subjectName);
+      data.totalStudents += scores.length;
+      data.scoreSum += sum;
+      data.count += scores.length;
+    }
+  });
+
+  const headerEndY = drawPDFHeader(doc, headerConfig, {}, (filters?.level || "Lycée").toUpperCase(), filters?.sessionName || "");
+  const startY = Math.max(headerEndY + 8, 45);
+
+  doc.setFillColor(245, 158, 11);
+  doc.rect(10, startY, 190, 8, "F");
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(255, 255, 255);
+  doc.text(`RAPPORT DE PERFORMANCE DES ENSEIGNANTS`, 105, startY + 5.5, { align: "center" });
+  doc.setTextColor(0, 0, 0);
+
+  const tableRows: any[] = [];
+  teacherStatsMap.forEach((val, key) => {
+    const avg = val.count > 0 ? val.scoreSum / val.count : 0;
+    tableRows.push([
+      key,
+      val.subjectNames.join(", "),
+      val.totalStudents.toString(),
+      `${avg.toFixed(2)}/20`,
+      avg >= 10 ? "Objectifs Pédagogiques Atteints" : "Soutien Recommandé"
+    ]);
+  });
+
+  autoTable(doc, {
+    startY: startY + 12,
+    head: [["Nom de l'Enseignant", "Matières enseignées", "Élèves évalués", "Moyenne Générale", "Diagnostic"]],
+    body: tableRows.length ? tableRows : [["Non disponible", "—", "—", "—", "—"]],
+    theme: "striped",
+    headStyles: { fillColor: [245, 158, 11] },
+    styles: { fontSize: 8 }
+  });
+
+  const blob = doc.output("blob");
+  const url = URL.createObjectURL(blob);
+  window.open(url, "_blank");
+}
+
+export async function generateWeakStudentsReportPDF(payload: any) {
+  const doc = new jsPDF();
+  const { matrixData, students = [], filters, headerConfig, isOffline } = payload || {};
+  const rows = Array.isArray(matrixData?.students) && matrixData.students.length ? matrixData.students : students;
+  const subjects = Array.isArray(matrixData?.subjects) ? matrixData.subjects : [];
+
+  const getAverage = (row: any) => Number(row?.average ?? row?.moyenne ?? row?.weighted ?? row?.total ?? row?.totalScore ?? 0) || 0;
+  const getName = (row: any) => row?.studentName || row?.name || row?.nomEtudiant || row?.student?.nomEtudiant || "Élève";
+
+  // Filter students with average < 10
+  const weakList = [...rows]
+    .filter(r => getAverage(r) > 0 && getAverage(r) < 10)
+    .sort((a, b) => getAverage(a) - getAverage(b));
+
+  const headerEndY = drawPDFHeader(doc, headerConfig, {}, (filters?.level || "Lycée").toUpperCase(), filters?.sessionName || "");
+  const startY = Math.max(headerEndY + 8, 45);
+
+  doc.setFillColor(225, 29, 72);
+  doc.rect(10, startY, 190, 8, "F");
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(255, 255, 255);
+  doc.text(`RAPPORT DES ÉLÈVES EN DIFFICULTÉ - ${filters?.className || "CLASSE"}`, 105, startY + 5.5, { align: "center" });
+  doc.setTextColor(0, 0, 0);
+
+  const tableRows = weakList.map((row: any, idx: number) => {
+    // Find weak subjects for this student
+    const weakSubjs: string[] = [];
+    subjects.forEach((subj: any) => {
+      const res = row?.results?.[subj.id];
+      const score = res ? Number(res.total || res.totalScore || res.moy || 0) : 0;
+      if (score > 0 && score < 10) {
+        weakSubjs.push(subj.subjectName);
+      }
+    });
+
+    return [
+      (idx + 1).toString(),
+      row.matricule || row.numAdmission || "—",
+      getName(row),
+      `${getAverage(row).toFixed(2)}/20`,
+      weakSubjs.length > 0 ? weakSubjs.join(", ") : "Général",
+      "Plan de soutien à activer"
+    ];
+  });
+
+  autoTable(doc, {
+    startY: startY + 12,
+    head: [["N°", "Matricule", "Nom de l'élève", "Moyenne", "Matières à renforcer", "Action Recommandée"]],
+    body: tableRows.length ? tableRows : [["—", "—", "Aucun élève en difficulté détecté", "—", "—", "—"]],
+    theme: "grid",
+    headStyles: { fillColor: [225, 29, 72] },
+    styles: { fontSize: 8 }
+  });
+
+  const blob = doc.output("blob");
+  const url = URL.createObjectURL(blob);
+  window.open(url, "_blank");
+}
+
+export async function generateClassCouncilReportPDF(payload: any) {
+  const doc = new jsPDF();
+  const { matrixData, students = [], filters, headerConfig, isOffline } = payload || {};
+  const rows = Array.isArray(matrixData?.students) && matrixData.students.length ? matrixData.students : students;
+
+  const getAverage = (row: any) => Number(row?.average ?? row?.moyenne ?? row?.weighted ?? row?.total ?? row?.totalScore ?? 0) || 0;
+  const getName = (row: any) => row?.studentName || row?.name || row?.nomEtudiant || row?.student?.nomEtudiant || "Élève";
+
+  const averages = rows.map(getAverage).filter((v: number) => v > 0);
+  const total = averages.length;
+  const felicitations = rows.filter((r: any) => getAverage(r) >= 16).map(getName);
+  const tableauHonneur = rows.filter((r: any) => getAverage(r) >= 14 && getAverage(r) < 16).map(getName);
+  const encouragements = rows.filter((r: any) => getAverage(r) >= 12 && getAverage(r) < 14).map(getName);
+  const warnings = rows.filter((r: any) => getAverage(r) < 10).map(getName);
+
+  const headerEndY = drawPDFHeader(doc, headerConfig, {}, (filters?.level || "Lycée").toUpperCase(), filters?.sessionName || "");
+  const startY = Math.max(headerEndY + 8, 45);
+
+  doc.setFillColor(79, 70, 229);
+  doc.rect(10, startY, 190, 8, "F");
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(255, 255, 255);
+  doc.text(`PROCES VERBAL DU CONSEIL DE CLASSE - ${filters?.className || "CLASSE"}`, 105, startY + 5.5, { align: "center" });
+  doc.setTextColor(0, 0, 0);
+
+  // Statistics Summary
+  autoTable(doc, {
+    startY: startY + 12,
+    head: [["Nombre total d'élèves", "Félicitations (>=16)", "Tableau d'Honneur (>=14)", "Encouragements (>=12)", "Mises en garde (<10)"]],
+    body: [[
+      total.toString(),
+      felicitations.length.toString(),
+      tableauHonneur.length.toString(),
+      encouragements.length.toString(),
+      warnings.length.toString()
+    ]],
+    theme: "grid",
+    headStyles: { fillColor: [15, 23, 42], halign: "center" },
+    bodyStyles: { halign: "center", fontStyle: "bold" }
+  });
+
+  // Details Table
+  const bodyData = [
+    ["Félicitations", felicitations.length > 0 ? felicitations.join(", ") : "Aucun"],
+    ["Tableau d'Honneur", tableauHonneur.length > 0 ? tableauHonneur.join(", ") : "Aucun"],
+    ["Encouragements", encouragements.length > 0 ? encouragements.join(", ") : "Aucun"],
+    ["Mises en garde / Difficultés", warnings.length > 0 ? warnings.join(", ") : "Aucun"]
+  ];
+
+  autoTable(doc, {
+    startY: (doc as any).lastAutoTable.finalY + 8,
+    head: [["Distinction / Catégorie", "Liste des élèves"]],
+    body: bodyData,
+    theme: "grid",
+    headStyles: { fillColor: [79, 70, 229] },
+    columnStyles: { 0: { cellWidth: 50, fontStyle: "bold" }, 1: { cellWidth: 140 } },
+    styles: { fontSize: 8.5 }
+  });
+
+  const finalY = (doc as any).lastAutoTable.finalY + 20;
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "bold");
+  doc.text("Le Professeur Principal", 40, finalY, { align: "center" });
+  doc.text("Le Proviseur / Directeur", 150, finalY, { align: "center" });
+
+  const blob = doc.output("blob");
+  const url = URL.createObjectURL(blob);
+  window.open(url, "_blank");
+}

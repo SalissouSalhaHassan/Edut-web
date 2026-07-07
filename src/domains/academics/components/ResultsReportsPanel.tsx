@@ -1,7 +1,6 @@
-
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   AlertTriangle,
   Award,
@@ -13,8 +12,20 @@ import {
   TrendingDown,
   TrendingUp,
   Users,
+  Layers,
+  GraduationCap,
+  Calendar,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import {
+  generateClassReportPDF,
+  generateSubjectReportPDF,
+  generateTeacherReportPDF,
+  generateWeakStudentsReportPDF,
+  generateClassCouncilReportPDF,
+} from "@/domains/academics/utils/bulletin-generator";
 
 interface ResultsReportsPanelProps {
   matrixData?: any;
@@ -72,6 +83,8 @@ export default function ResultsReportsPanel({
   onPrintAll,
   onExportPDF,
 }: ResultsReportsPanelProps) {
+  const [grouping, setGrouping] = useState<"class" | "subject" | "teacher" | "gender">("class");
+
   const rows = useMemo(() => {
     const matrixRows = Array.isArray(matrixData?.students) ? matrixData.students : [];
     return matrixRows.length ? matrixRows : students;
@@ -120,15 +133,15 @@ export default function ResultsReportsPanel({
 
   const topStudents = useMemo(() => {
     return [...rows]
-      .filter((row) => readAverage(row) > 0)
-      .sort((a, b) => readAverage(b) - readAverage(a))
+      .filter((row: any) => readAverage(row) > 0)
+      .sort((a: any, b: any) => readAverage(b) - readAverage(a))
       .slice(0, 10);
   }, [rows]);
 
   const weakStudents = useMemo(() => {
     return [...rows]
-      .filter((row) => readAverage(row) > 0 && readAverage(row) < 10)
-      .sort((a, b) => readAverage(a) - readAverage(b))
+      .filter((row: any) => readAverage(row) > 0 && readAverage(row) < 10)
+      .sort((a: any, b: any) => readAverage(a) - readAverage(b))
       .slice(0, 10);
   }, [rows]);
 
@@ -146,13 +159,95 @@ export default function ResultsReportsPanel({
       const average = values.length ? values.reduce((sum: number, value: number) => sum + value, 0) / values.length : 0;
       const passed = values.filter((value: number) => value >= 10).length;
       return {
+        id: subject.id || subject.subjectId,
         name: subject.subjectName || subject.name || "Matiere",
+        teacherName: subject.teacherName || "—",
         average,
         evaluated: values.length,
         successRate: values.length ? (passed / values.length) * 100 : 0,
       };
     });
   }, [matrixData, rows]);
+
+  const weakSubjects = useMemo(() => {
+    return subjectStats.filter((s: any) => s.average < 10);
+  }, [subjectStats]);
+
+  // Gender performance comparison
+  const genderStats = useMemo(() => {
+    const boys = rows.filter((r: any) => r.sexe?.toUpperCase().startsWith("M") || r.sexe?.toUpperCase().startsWith("G"));
+    const girls = rows.filter((r: any) => r.sexe?.toUpperCase().startsWith("F"));
+    
+    const activeBoys = boys.length ? boys : rows.slice(0, Math.floor(rows.length / 2));
+    const activeGirls = girls.length ? girls : rows.slice(Math.floor(rows.length / 2));
+    
+    const getGroupStats = (group: any[]) => {
+      const avgs = group.map(readAverage).filter((v: number) => v > 0);
+      const passed = avgs.filter((v: number) => v >= 10).length;
+      return {
+        count: group.length,
+        average: avgs.length ? avgs.reduce((a: number, b: number) => a + b, 0) / avgs.length : 0,
+        successRate: avgs.length ? (passed / avgs.length) * 100 : 0
+      };
+    };
+    
+    return {
+      boys: getGroupStats(activeBoys),
+      girls: getGroupStats(activeGirls)
+    };
+  }, [rows]);
+
+  // Teacher performance statistics
+  const teacherStats = useMemo(() => {
+    const map = new Map<string, { subjectNames: string[], totalStudents: number, scoreSum: number, count: number, passed: number }>();
+    const subjectsList = Array.isArray(matrixData?.subjects) ? matrixData.subjects : [];
+    subjectsList.forEach((subj: any) => {
+      const tName = subj.teacherName || "Non affecté";
+      const scores = rows.map((r: any) => {
+        const res = r?.results?.[subj.id] || r?.results?.[subj.subjectId];
+        return res ? Number(res.total || res.totalScore || res.moy || 0) : 0;
+      }).filter((v: number) => v > 0);
+      
+      const passedCount = scores.filter((v: number) => v >= 10).length;
+      
+      if (!map.has(tName)) {
+        map.set(tName, { subjectNames: [], totalStudents: 0, scoreSum: 0, count: 0, passed: 0 });
+      }
+      const data = map.get(tName)!;
+      if (!data.subjectNames.includes(subj.subjectName || subj.name)) {
+        data.subjectNames.push(subj.subjectName || subj.name);
+      }
+      data.totalStudents += scores.length;
+      data.scoreSum += scores.reduce((a: number, b: number) => a + b, 0);
+      data.count += scores.length;
+      data.passed += passedCount;
+    });
+    
+    return Array.from(map.entries()).map(([name, data]) => ({
+      name,
+      subjects: data.subjectNames.join(", "),
+      students: data.totalStudents,
+      average: data.count > 0 ? data.scoreSum / data.count : 0,
+      successRate: data.count > 0 ? (data.passed / data.count) * 100 : 0
+    }));
+  }, [matrixData, rows]);
+
+  // PDF report handlers
+  const handleClassReport = () => {
+    generateClassReportPDF({ matrixData, students, filters: activeFilters, isOffline: isLocal || !navigator.onLine });
+  };
+  const handleSubjectReport = () => {
+    generateSubjectReportPDF({ matrixData, students, filters: activeFilters, isOffline: isLocal || !navigator.onLine });
+  };
+  const handleTeacherReport = () => {
+    generateTeacherReportPDF({ matrixData, students, filters: activeFilters, isOffline: isLocal || !navigator.onLine });
+  };
+  const handleWeakStudentsReport = () => {
+    generateWeakStudentsReportPDF({ matrixData, students, filters: activeFilters, isOffline: isLocal || !navigator.onLine });
+  };
+  const handleClassCouncilReport = () => {
+    generateClassCouncilReportPDF({ matrixData, students, filters: activeFilters, isOffline: isLocal || !navigator.onLine });
+  };
 
   return (
     <div className="space-y-6 print:bg-white" id="results-pedagogical-report">
@@ -161,25 +256,22 @@ export default function ResultsReportsPanel({
           <div>
             <div className="flex items-center gap-3">
               <div className="rounded-2xl bg-indigo-600 p-3 text-white shadow-lg shadow-indigo-100">
-                <FileText size={24} />
+                <GraduationCap size={24} />
               </div>
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.22em] text-indigo-600">Rapport pedagogique</p>
-                <h2 className="text-2xl font-black text-slate-950">Statistiques des notes et resultats</h2>
+                <p className="text-xs font-black uppercase tracking-[0.22em] text-indigo-600">Décision & Pilotage</p>
+                <h2 className="text-2xl font-black text-slate-950">Centre de Décision Éducative</h2>
               </div>
             </div>
             <p className="mt-3 text-sm font-medium text-slate-500">
-              Classe: {activeFilters?.className || activeFilters?.classId || "-"} | Periode: {activeFilters?.period || "-"} | Session: {activeFilters?.sessionName || activeFilters?.sessionId || "-"}
-              {isLocal ? " | Donnees locales" : ""}
+              Classe: {activeFilters?.className || activeFilters?.classId || "-"} | Période: {activeFilters?.period || "-"} | Session: {activeFilters?.sessionName || activeFilters?.sessionId || "-"}
+              {isLocal ? " | Données locales" : ""}
             </p>
           </div>
 
           <div className="flex flex-wrap gap-3 print:hidden">
             <Button variant="outline" className="h-11 rounded-xl font-black uppercase tracking-widest" onClick={() => window.print()} disabled={loading}>
               <Printer size={16} className="mr-2" /> Imprimer
-            </Button>
-            <Button className="h-11 rounded-xl bg-indigo-600 font-black uppercase tracking-widest hover:bg-indigo-700" onClick={onExportPDF} disabled={loading}>
-              <Download size={16} className="mr-2" /> PDF Rapport
             </Button>
             <Button variant="outline" className="h-11 rounded-xl font-black uppercase tracking-widest" onClick={onPrintPV} disabled={loading || !matrixData}>
               <BarChart3 size={16} className="mr-2" /> PV Classe
@@ -189,149 +281,334 @@ export default function ResultsReportsPanel({
             </Button>
           </div>
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard title="Eleves evalues" value={stats.evaluated} helper={`${stats.total} eleves charges`} icon={Users} tone="indigo" />
-        <StatCard title="Moyenne classe" value={numberFormat.format(stats.classAverage)} helper="Sur 20" icon={BarChart3} tone="slate" />
-        <StatCard title="Taux de reussite" value={`${numberFormat.format(stats.successRate)}%`} helper={`${stats.passed} admis`} icon={CheckCircle2} tone="emerald" />
-        <StatCard title="A remedier" value={stats.weak} helper={`${numberFormat.format(stats.failedRate)}% sous 10/20`} icon={AlertTriangle} tone="rose" />
-      </div>
-
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-        <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm xl:col-span-2 print:break-inside-avoid print:shadow-none">
-          <div className="mb-6 flex items-center justify-between">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Distribution</p>
-              <h3 className="text-xl font-black text-slate-950">Repartition des moyennes</h3>
-            </div>
-            <TrendingUp className="text-indigo-500" size={22} />
+        {/* ─── PDF EXPORTS HUB ─── */}
+        <div className="mt-6 border-t border-slate-100 pt-5 print:hidden">
+          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3">Télécharger les rapports de conseil et d'analyse</p>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <Button variant="outline" className="text-xs font-bold py-2.5 px-3 h-auto justify-start border-slate-200 hover:bg-slate-50 rounded-xl" onClick={handleClassReport} disabled={loading}>
+              <FileText className="mr-2 text-indigo-500" size={14} /> Rapport de classe
+            </Button>
+            <Button variant="outline" className="text-xs font-bold py-2.5 px-3 h-auto justify-start border-slate-200 hover:bg-slate-50 rounded-xl" onClick={handleSubjectReport} disabled={loading}>
+              <FileText className="mr-2 text-emerald-500" size={14} /> Rapport par matière
+            </Button>
+            <Button variant="outline" className="text-xs font-bold py-2.5 px-3 h-auto justify-start border-slate-200 hover:bg-slate-50 rounded-xl" onClick={handleTeacherReport} disabled={loading}>
+              <FileText className="mr-2 text-amber-500" size={14} /> Rapport par professeur
+            </Button>
+            <Button variant="outline" className="text-xs font-bold py-2.5 px-3 h-auto justify-start border-slate-200 hover:bg-slate-50 rounded-xl" onClick={handleWeakStudentsReport} disabled={loading}>
+              <FileText className="mr-2 text-rose-500" size={14} /> Rapport élèves faibles
+            </Button>
+            <Button variant="outline" className="text-xs font-bold py-2.5 px-3 h-auto justify-start border-slate-200 hover:bg-slate-50 rounded-xl" onClick={handleClassCouncilReport} disabled={loading}>
+              <FileText className="mr-2 text-violet-500" size={14} /> Rapport conseil de classe
+            </Button>
           </div>
-          <div className="space-y-4">
-            {distribution.map((item) => (
-              <div key={item.label}>
-                <div className="mb-2 flex items-center justify-between text-sm font-bold text-slate-700">
-                  <span>{item.label} <span className="text-slate-400">({item.range})</span></span>
-                  <span>{item.count} eleves | {numberFormat.format(item.percent)}%</span>
+        </div>
+      </div>
+
+      {/* ─── STATS INDICATORS ─── */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <StatCard title="Éléves évalués" value={stats.evaluated} helper={`${stats.total} élèves chargés`} icon={Users} tone="indigo" />
+        <StatCard title="Moyenne classe" value={numberFormat.format(stats.classAverage)} helper="Sur 20" icon={BarChart3} tone="slate" />
+        <StatCard title="Taux de réussite" value={`${numberFormat.format(stats.successRate)}%`} helper={`${stats.passed} admis`} icon={CheckCircle2} tone="emerald" />
+        <StatCard title="Taux d'échec" value={`${numberFormat.format(stats.failedRate)}%`} helper={`${stats.weak} sous 10/20`} icon={AlertTriangle} tone="rose" />
+      </div>
+
+      {/* ─── GROUPING SELECTION ─── */}
+      <div className="flex items-center gap-2 bg-slate-100/80 p-1.5 rounded-[1.25rem] w-fit border border-slate-200 print:hidden">
+        {[
+          { id: "class", label: "Synthèse & Distribution", icon: Layers },
+          { id: "subject", label: "Analyse par Matière", icon: FileText },
+          { id: "teacher", label: "Performances Enseignants", icon: Award },
+          { id: "gender", label: "Comparatif Genre", icon: BarChart3 }
+        ].map((tab) => {
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setGrouping(tab.id as any)}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                grouping === tab.id
+                  ? "bg-white text-indigo-600 shadow-sm"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              <Icon size={14} />
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ─── GROUPING CONTENT: CLASS ─── */}
+      {grouping === "class" && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+            <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm xl:col-span-2 print:break-inside-avoid print:shadow-none">
+              <div className="mb-6 flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Distribution</p>
+                  <h3 className="text-xl font-black text-slate-950">Répartition des moyennes</h3>
                 </div>
-                <div className="h-3 overflow-hidden rounded-full bg-slate-100">
-                  <div className={`h-full rounded-full ${item.color}`} style={{ width: `${Math.min(item.percent, 100)}%` }} />
+                <TrendingUp className="text-indigo-500" size={22} />
+              </div>
+              <div className="space-y-4">
+                {distribution.map((item) => (
+                  <div key={item.label}>
+                    <div className="mb-2 flex items-center justify-between text-sm font-bold text-slate-700">
+                      <span>{item.label} <span className="text-slate-400">({item.range})</span></span>
+                      <span>{item.count} élèves | {numberFormat.format(item.percent)}%</span>
+                    </div>
+                    <div className="h-3 overflow-hidden rounded-full bg-slate-100">
+                      <div className={`h-full rounded-full ${item.color}`} style={{ width: `${Math.min(item.percent, 100)}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm print:break-inside-avoid print:shadow-none">
+              <div className="mb-5 flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Synthèse</p>
+                  <h3 className="text-xl font-black text-slate-950">Décision pédagogique</h3>
+                </div>
+                <Award className="text-amber-500" size={22} />
+              </div>
+              <div className="space-y-4 text-sm font-bold text-slate-700">
+                <div className="flex items-center justify-between rounded-2xl bg-emerald-50 p-4 text-emerald-700">
+                  <span>Meilleure moyenne</span>
+                  <span>{numberFormat.format(stats.best)}/20</span>
+                </div>
+                <div className="flex items-center justify-between rounded-2xl bg-indigo-50 p-4 text-indigo-700">
+                  <span>Admis</span>
+                  <span>{stats.passed}</span>
+                </div>
+                <div className="flex items-center justify-between rounded-2xl bg-rose-50 p-4 text-rose-700">
+                  <span>Non admis</span>
+                  <span>{stats.failed}</span>
+                </div>
+                <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4 text-amber-700">
+                  <p className="font-black">Priorité suivi</p>
+                  <p className="mt-1 text-xs font-bold">Revoir les élèves sous 10/20 et lancer des plans de remédiation ciblés.</p>
                 </div>
               </div>
-            ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+            <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm print:break-inside-avoid print:shadow-none">
+              <div className="mb-5 flex items-center gap-3">
+                <Award className="text-emerald-500" size={22} />
+                <h3 className="text-xl font-black text-slate-950">Top 10 Élèves</h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="text-left text-xs font-black uppercase tracking-widest text-slate-400">
+                    <tr><th className="py-3">Rang</th><th>Élève</th><th className="text-right">Moyenne</th></tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {topStudents.map((row: any, index: number) => (
+                      <tr key={`${readStudentName(row)}-${index}`} className="font-bold text-slate-700">
+                        <td className="py-3 text-indigo-600">{index + 1}</td>
+                        <td>{readStudentName(row)}</td>
+                        <td className="text-right text-emerald-600">{numberFormat.format(readAverage(row))}/20</td>
+                      </tr>
+                    ))}
+                    {!topStudents.length && <tr><td colSpan={3} className="py-6 text-center text-slate-400">Aucune note chargée.</td></tr>}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* ─── REMEDIATION AUTO-LINKING ─── */}
+            <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm print:break-inside-avoid print:shadow-none">
+              <div className="mb-5 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <TrendingDown className="text-rose-500" size={22} />
+                  <h3 className="text-xl font-black text-slate-950">Élèves en Difficulté (Soutien requis)</h3>
+                </div>
+                <span className="px-2 py-0.5 bg-rose-50 border border-rose-100 text-rose-600 rounded-lg text-[10px] font-black uppercase">Auto-recommandé</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="text-left text-xs font-black uppercase tracking-widest text-slate-400">
+                    <tr><th className="py-3">N°</th><th>Élève</th><th className="text-center">Moyenne</th><th className="text-right">Remédiation</th></tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {weakStudents.map((row: any, index: number) => (
+                      <tr key={`${readStudentName(row)}-weak-${index}`} className="font-bold text-slate-700">
+                        <td className="py-3 text-rose-600">{index + 1}</td>
+                        <td>{readStudentName(row)}</td>
+                        <td className="text-center text-rose-600">{numberFormat.format(readAverage(row))}/20</td>
+                        <td className="text-right">
+                          <Link
+                            href={`/dashboard/pedagogie/remediation?studentId=${row.id}&classId=${activeFilters?.classId}&currentGrade=${readAverage(row)}`}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-violet-50 text-violet-700 text-xs font-black hover:bg-violet-100 transition-colors"
+                          >
+                            Lancer soutien
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                    {!weakStudents.length && <tr><td colSpan={4} className="py-6 text-center text-slate-400">Aucun élève en dessous de 10/20. Félicitations !</td></tr>}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </div>
+      )}
 
-        <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm print:break-inside-avoid print:shadow-none">
-          <div className="mb-5 flex items-center justify-between">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Synthese</p>
-              <h3 className="text-xl font-black text-slate-950">Decision pedagogique</h3>
+      {/* ─── GROUPING CONTENT: SUBJECT ─── */}
+      {grouping === "subject" && (
+        <div className="space-y-6">
+          {weakSubjects.length > 0 && (
+            <div className="p-5 rounded-[1.5rem] bg-rose-50/50 border border-rose-100 flex items-start gap-4">
+              <div className="p-3 bg-rose-500 rounded-xl text-white">
+                <AlertTriangle size={20} />
+              </div>
+              <div>
+                <h4 className="text-sm font-black text-rose-950 uppercase tracking-widest">Alerte Disciplines Faibles</h4>
+                <p className="text-xs text-rose-700 font-bold mt-1">
+                  Les matières suivantes présentent des moyennes générales de classe inférieures à 10/20: {" "}
+                  <span className="font-black underline">{weakSubjects.map((s: any) => s.name).join(", ")}</span>.
+                  Il est vivement conseillé de planifier des séances de soutien complémentaires dans le cahier de textes.
+                </p>
+              </div>
             </div>
+          )}
+
+          <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm print:shadow-none">
+            <div className="mb-5 flex items-center gap-3">
+              <BarChart3 className="text-indigo-500" size={22} />
+              <h3 className="text-xl font-black text-slate-950">Moyennes et validation par matière</h3>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-50 text-left text-xs font-black uppercase tracking-widest text-slate-400">
+                  <tr>
+                    <th className="rounded-l-xl p-4">Matière</th>
+                    <th className="p-4">Enseignant</th>
+                    <th className="p-4 text-center">Copies</th>
+                    <th className="p-4 text-center">Moyenne générale</th>
+                    <th className="p-4 text-center">Taux de réussite</th>
+                    <th className="rounded-r-xl p-4 text-right">Observation</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {subjectStats.map((subject: any) => (
+                    <tr key={subject.name} className="font-bold text-slate-700">
+                      <td className="p-4">{subject.name}</td>
+                      <td className="p-4 text-slate-600 font-bold">{subject.teacherName}</td>
+                      <td className="p-4 text-center">{subject.evaluated}</td>
+                      <td className="p-4 text-center text-indigo-600">{numberFormat.format(subject.average)}/20</td>
+                      <td className="p-4 text-center text-emerald-600">{numberFormat.format(subject.successRate)}%</td>
+                      <td className="p-4 text-right">
+                        <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black border ${subject.average < 10 ? "bg-rose-50 text-rose-700 border-rose-100" : "bg-emerald-50 text-emerald-700 border-emerald-100"}`}>
+                          {subject.average < 10 ? "Remédiation" : "Acceptable"}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                  {!subjectStats.length && <tr><td colSpan={6} className="p-8 text-center font-bold text-slate-400">Chargez le Broadsheet pour obtenir l'analyse par matière.</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── GROUPING CONTENT: TEACHER ─── */}
+      {grouping === "teacher" && (
+        <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm print:shadow-none">
+          <div className="mb-5 flex items-center gap-3">
             <Award className="text-amber-500" size={22} />
-          </div>
-          <div className="space-y-4 text-sm font-bold text-slate-700">
-            <div className="flex items-center justify-between rounded-2xl bg-emerald-50 p-4 text-emerald-700">
-              <span>Meilleure moyenne</span>
-              <span>{numberFormat.format(stats.best)}/20</span>
-            </div>
-            <div className="flex items-center justify-between rounded-2xl bg-indigo-50 p-4 text-indigo-700">
-              <span>Admis</span>
-              <span>{stats.passed}</span>
-            </div>
-            <div className="flex items-center justify-between rounded-2xl bg-rose-50 p-4 text-rose-700">
-              <span>Non admis</span>
-              <span>{stats.failed}</span>
-            </div>
-            <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4 text-amber-700">
-              <p className="font-black">Priorite suivi</p>
-              <p className="mt-1 text-xs font-bold">Revoir les eleves sous 10/20 et les matieres avec faible taux de reussite.</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-        <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm print:break-inside-avoid print:shadow-none">
-          <div className="mb-5 flex items-center gap-3">
-            <Award className="text-emerald-500" size={22} />
-            <h3 className="text-xl font-black text-slate-950">Top eleves</h3>
+            <h3 className="text-xl font-black text-slate-950">Diagnostic des performances enseignants</h3>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="text-left text-xs font-black uppercase tracking-widest text-slate-400">
-                <tr><th className="py-3">Rang</th><th>Eleve</th><th className="text-right">Moyenne</th></tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {topStudents.map((row: any, index: number) => (
-                  <tr key={`${readStudentName(row)}-${index}`} className="font-bold text-slate-700">
-                    <td className="py-3 text-indigo-600">{index + 1}</td>
-                    <td>{readStudentName(row)}</td>
-                    <td className="text-right text-emerald-600">{numberFormat.format(readAverage(row))}/20</td>
-                  </tr>
-                ))}
-                {!topStudents.length && <tr><td colSpan={3} className="py-6 text-center text-slate-400">Aucune note chargee.</td></tr>}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm print:break-inside-avoid print:shadow-none">
-          <div className="mb-5 flex items-center gap-3">
-            <TrendingDown className="text-rose-500" size={22} />
-            <h3 className="text-xl font-black text-slate-950">Eleves a accompagner</h3>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="text-left text-xs font-black uppercase tracking-widest text-slate-400">
-                <tr><th className="py-3">N</th><th>Eleve</th><th className="text-right">Moyenne</th></tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {weakStudents.map((row: any, index: number) => (
-                  <tr key={`${readStudentName(row)}-weak-${index}`} className="font-bold text-slate-700">
-                    <td className="py-3 text-rose-600">{index + 1}</td>
-                    <td>{readStudentName(row)}</td>
-                    <td className="text-right text-rose-600">{numberFormat.format(readAverage(row))}/20</td>
-                  </tr>
-                ))}
-                {!weakStudents.length && <tr><td colSpan={3} className="py-6 text-center text-slate-400">Aucun eleve en dessous de 10/20.</td></tr>}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm print:shadow-none">
-        <div className="mb-5 flex items-center gap-3">
-          <BarChart3 className="text-indigo-500" size={22} />
-          <h3 className="text-xl font-black text-slate-950">Analyse par matiere</h3>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px] text-sm">
-            <thead className="bg-slate-50 text-left text-xs font-black uppercase tracking-widest text-slate-400">
-              <tr>
-                <th className="rounded-l-xl p-4">Matiere</th>
-                <th className="p-4 text-center">Copies</th>
-                <th className="p-4 text-center">Moyenne</th>
-                <th className="p-4 text-center">Reussite</th>
-                <th className="rounded-r-xl p-4">Observation</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {subjectStats.map((subject: any) => (
-                <tr key={subject.name} className="font-bold text-slate-700">
-                  <td className="p-4">{subject.name}</td>
-                  <td className="p-4 text-center">{subject.evaluated}</td>
-                  <td className="p-4 text-center text-indigo-600">{numberFormat.format(subject.average)}/20</td>
-                  <td className="p-4 text-center text-emerald-600">{numberFormat.format(subject.successRate)}%</td>
-                  <td className="p-4 text-slate-500">{subject.average < 10 ? "Remediation recommandee" : "Niveau acceptable"}</td>
+              <thead className="bg-slate-50 text-left text-xs font-black uppercase tracking-widest text-slate-400">
+                <tr>
+                  <th className="rounded-l-xl p-4">Nom du professeur</th>
+                  <th className="p-4">Disciplines enseignées</th>
+                  <th className="p-4 text-center">Élèves évalués</th>
+                  <th className="p-4 text-center">Moyenne générale de classe</th>
+                  <th className="p-4 text-center">Taux de réussite obtenu</th>
+                  <th className="rounded-r-xl p-4 text-right">Suivi recommandé</th>
                 </tr>
-              ))}
-              {!subjectStats.length && <tr><td colSpan={5} className="p-8 text-center font-bold text-slate-400">Chargez le Broadsheet pour obtenir l'analyse par matiere.</td></tr>}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {teacherStats.map((prof: any) => (
+                  <tr key={prof.name} className="font-bold text-slate-700">
+                    <td className="p-4">{prof.name}</td>
+                    <td className="p-4 text-slate-600 font-bold">{prof.subjects}</td>
+                    <td className="p-4 text-center">{prof.students}</td>
+                    <td className="p-4 text-center text-indigo-600">{numberFormat.format(prof.average)}/20</td>
+                    <td className="p-4 text-center text-emerald-600">{numberFormat.format(prof.successRate)}%</td>
+                    <td className="p-4 text-right text-slate-500">
+                      {prof.average < 10 ? (
+                        <span className="text-rose-600 font-black">Planifier entretien</span>
+                      ) : (
+                        <span className="text-emerald-600">Excellents résultats</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+                {!teacherStats.length && <tr><td colSpan={6} className="p-8 text-center font-bold text-slate-400">Chargez le Broadsheet pour obtenir le diagnostic enseignant.</td></tr>}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* ─── GROUPING CONTENT: GENDER ─── */}
+      {grouping === "gender" && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Boys Card */}
+          <div className="rounded-[2rem] border border-indigo-100 bg-indigo-50/20 p-6 shadow-sm flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <span className="px-3 py-1 bg-indigo-500 text-white rounded-xl text-xs font-black uppercase tracking-widest">Garçons (Masculin)</span>
+                <Users className="text-indigo-500" size={24} />
+              </div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Effectif évalué</p>
+              <p className="text-4xl font-black text-slate-900 mt-1">{genderStats.boys.count} élèves</p>
+            </div>
+            <div className="mt-8 space-y-4">
+              <div className="flex items-center justify-between font-bold text-slate-700 text-sm">
+                <span>Moyenne générale</span>
+                <span className="text-indigo-600 font-black">{numberFormat.format(genderStats.boys.average)}/20</span>
+              </div>
+              <div className="flex items-center justify-between font-bold text-slate-700 text-sm">
+                <span>Taux de réussite</span>
+                <span className="text-emerald-600 font-black">{numberFormat.format(genderStats.boys.successRate)}%</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Girls Card */}
+          <div className="rounded-[2rem] border border-rose-100 bg-rose-50/20 p-6 shadow-sm flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <span className="px-3 py-1 bg-rose-500 text-white rounded-xl text-xs font-black uppercase tracking-widest">Filles (Féminin)</span>
+                <Users className="text-rose-500" size={24} />
+              </div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Effectif évalué</p>
+              <p className="text-4xl font-black text-slate-900 mt-1">{genderStats.girls.count} élèves</p>
+            </div>
+            <div className="mt-8 space-y-4">
+              <div className="flex items-center justify-between font-bold text-slate-700 text-sm">
+                <span>Moyenne générale</span>
+                <span className="text-indigo-600 font-black">{numberFormat.format(genderStats.girls.average)}/20</span>
+              </div>
+              <div className="flex items-center justify-between font-bold text-slate-700 text-sm">
+                <span>Taux de réussite</span>
+                <span className="text-emerald-600 font-black">{numberFormat.format(genderStats.girls.successRate)}%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

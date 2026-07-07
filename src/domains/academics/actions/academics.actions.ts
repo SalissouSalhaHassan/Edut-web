@@ -28,6 +28,7 @@ import {
 import { students } from "@/infrastructure/database/schema/students";
 import { studentAttendance } from "@/infrastructure/database/schema/attendance";
 import { schoolBranches } from "@/infrastructure/database/schema/settings";
+import { employees } from "@/infrastructure/database/schema/hr";
 import { eq, and, or, ilike, isNull, sql, inArray, desc } from "drizzle-orm";
 import { revalidatePath, unstable_cache, revalidateTag as nextRevalidateTag } from "next/cache";
 const revalidateTag = nextRevalidateTag as any;
@@ -844,9 +845,35 @@ const fetchBroadsheetMatrix = (params: { classId: number, sessionId: number, ter
       const subjectIds = Array.from(new Set(results.map(r => r.subjectId).filter((id): id is number => id !== null)));
       let subjectsList: any[] = [];
       if (subjectIds.length > 0) {
-        subjectsList = await readDb.query.schoolSubjects.findMany({
+        const rawSubjects = await readDb.query.schoolSubjects.findMany({
           where: inArray(schoolSubjects.id, subjectIds)
         });
+
+        // Fetch teachers for these classSubjects
+        let classSubjs: any[] = [];
+        try {
+          classSubjs = await readDb.select({
+            subjectId: classSubjects.subjectId,
+            teacherName: employees.nom,
+          })
+          .from(classSubjects)
+          .leftJoin(employees, eq(classSubjects.employeeId, employees.id))
+          .where(eq(classSubjects.classId, classIdNum));
+        } catch (e) {
+          console.warn("Failed to fetch classSubjects with teacher name:", e);
+        }
+
+        const teacherMap = new Map<number, string>();
+        classSubjs.forEach(cs => {
+          if (cs.subjectId && cs.teacherName) {
+            teacherMap.set(cs.subjectId, cs.teacherName);
+          }
+        });
+
+        subjectsList = rawSubjects.map(sub => ({
+          ...sub,
+          teacherName: teacherMap.get(sub.id) || "—"
+        }));
       }
 
       // 4. Map data for UI using efficient Lookups
@@ -957,7 +984,8 @@ const fetchBroadsheetMatrix = (params: { classId: number, sessionId: number, ter
           conduite: summary?.conduite || 0.0,
           travail: summary?.travail || "-",
           tableauHonneur: summary?.tableauHonneur || false,
-          history: studentHistory
+          history: studentHistory,
+          sexe: s.sexe
         };
       });
 
@@ -2243,8 +2271,6 @@ export async function applyStandardCurriculumTemplate() {
     };
   });
 }
-
-import { employees } from "@/infrastructure/database/schema/hr";
 
 export async function getCanevasStats() {
   return protectedDbAction("Academics", "canView", async () => {
