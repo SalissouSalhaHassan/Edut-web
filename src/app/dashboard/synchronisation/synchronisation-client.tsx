@@ -1,8 +1,10 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
+  Activity,
   AlertTriangle,
   CheckCircle2,
   Clock,
@@ -142,6 +144,13 @@ export default function SynchronisationClient() {
               {isOnline ? <Wifi className="mr-2 h-4 w-4" /> : <WifiOff className="mr-2 h-4 w-4" />}
               {isOnline ? "En ligne" : "Hors ligne"}
             </Badge>
+            <Link
+              href="/dashboard/synchronisation/diagnostic"
+              className="flex items-center gap-2 h-10 px-5 rounded-2xl border border-slate-200 bg-white text-slate-700 text-sm font-black hover:bg-slate-50 transition"
+            >
+              <Activity className="h-4 w-4 text-indigo-500" />
+              Diagnostic
+            </Link>
             <Button onClick={handleSync} disabled={!isOnline || isPending} className="rounded-2xl bg-indigo-600 font-black text-white">
               <RefreshCw className={cn("mr-2 h-4 w-4", isPending && "animate-spin")} />
               Synchroniser maintenant
