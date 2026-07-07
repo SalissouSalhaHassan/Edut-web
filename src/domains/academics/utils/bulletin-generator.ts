@@ -657,26 +657,35 @@ export async function generateBulletinPDF(data: any) {
 
 export async function generatePVMatrixPDF(matrixData: any, classInfo: any, filters: any) {
   const doc = new jsPDF({ orientation: "landscape" });
-  const { students, subjects } = matrixData;
-  const safePeriod = (filters?.period || "Période").toUpperCase();
+  const { students, subjects } = matrixData || {};
+  const safePeriod = String(filters?.period || "Periode").toUpperCase();
+  const toDisplayNumber = (value: any, digits = 1) => {
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric.toFixed(digits) : "-";
+  };
+  const readResultTotal = (result: any) => {
+    if (!result) return null;
+    return result.total ?? result.totalScore ?? result.moy ?? result.average ?? result.weightedScore ?? result.note ?? null;
+  };
 
   doc.setFontSize(16);
-  doc.text(`PROCÈS VERBAL DES RÉSULTATS - ${classInfo?.className || "CLASSE"}`, 148, 15, { align: "center" });
+  doc.text(`PROCES VERBAL DES RESULTATS - ${classInfo?.className || "CLASSE"}`, 148, 15, { align: "center" });
   doc.setFontSize(11);
-  doc.text(`Période: ${safePeriod} | Session: ${filters?.sessionName || ""}`, 148, 22, { align: "center" });
+  doc.text(`Periode: ${safePeriod} | Session: ${filters?.sessionName || ""}`, 148, 22, { align: "center" });
 
-  const headers = ["Matricule", "Nom de l'élève", ...(subjects || []).map((s: any) => s.subjectName), "Moyenne", "Rang", "Décision"];
+  const headers = ["Matricule", "Nom de l'eleve", ...(subjects || []).map((s: any) => s.subjectName || s.name || "Matiere"), "Moyenne", "Rang", "Decision"];
   
   const body = (students || []).map((s: any) => [
-    s.matricule,
-    s.name,
+    s.matricule || s.numAdmission || "-",
+    s.name || s.studentName || s.nomEtudiant || "-",
     ...(subjects || []).map((subj: any) => {
-      const res = s.results[subj.id];
-      return res ? res.total.toFixed(1) : "-";
+      const resultMap = s.results || {};
+      const res = resultMap[subj.id] || resultMap[subj.subjectId] || resultMap[subj.subjectName] || resultMap[subj.name];
+      return toDisplayNumber(readResultTotal(res), 1);
     }),
-    s.average.toFixed(2),
+    toDisplayNumber(s.average ?? s.moyenne ?? s.weighted ?? s.total, 2),
     s.rank || "-",
-    s.decision
+    s.decision || (Number(s.average ?? s.moyenne ?? 0) >= 10 ? "Admis" : "A remedier")
   ]);
 
   autoTable(doc, {

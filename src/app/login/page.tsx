@@ -62,7 +62,7 @@ export default function LoginPage() {
 
       // Friendly message for Next.js internal Server Action errors
       if (err.message?.toLowerCase().includes("unexpected response")) {
-        setError("Le serveur a mis trop de temps à répondre. يرجى التأكد من اتصال الإنترنت والمحاولة مرة أخرى.");
+        setError("Le serveur a mis trop de temps à répondre. Veuillez vérifier votre connexion Internet et réessayer.");
       } else {
         setError("Erreur inattendue. Veuillez réessayer. (Vérifiez la console pour plus de détails)");
       }

@@ -39,7 +39,7 @@ export default function DocumentHeaderManager({ initialConfig }: { initialConfig
     startTransition(async () => {
       const res = await saveDocumentHeaderConfig(config);
       if (res?.success) {
-        toast.success("Tرويسة الوثائق محفوظة بنجاح");
+        toast.success("تم حفظ ترويسة الوثائق بنجاح");
       } else {
         toast.error((res as any)?.error || "Impossible d'enregistrer l'en-tête");
       }

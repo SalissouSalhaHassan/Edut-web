@@ -26,7 +26,7 @@ export async function protectedDbAction<T>(
     const permitted = await hasPermission(user.id, moduleName, actionType);
 
     if (!permitted) {
-      return { error: `Accès refusé. Vous n'avez ليس لديك الصلاحية لـ ${actionType} في موديول ${moduleName}.`, success: false };
+      return { error: `Accès refusé. Vous n'avez pas la permission pour l'action ${actionType} dans le module ${moduleName}.`, success: false };
     }
 
     const result = await safeDbAction(() => action(user));
