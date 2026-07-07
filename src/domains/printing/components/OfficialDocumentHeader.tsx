@@ -97,15 +97,66 @@ function ArabicMetaLines({ cfg }: { cfg: DocumentHeaderConfig }) {
   );
 }
 
-export default function OfficialDocumentHeader({ config, title, variant = "full", className = "" }: OfficialDocumentHeaderProps) {
+type OfficialDocumentHeaderProps = {
+  config?: Partial<DocumentHeaderConfig> | null;
+  title?: string;
+  variant?: "full" | "compact";
+  className?: string;
+  operatorName?: string;
+  printDate?: string;
+  qrData?: string;
+  showSignatureArea?: boolean;
+};
+
+export default function OfficialDocumentHeader({
+  config,
+  title,
+  variant = "full",
+  className = "",
+  operatorName,
+  printDate,
+  qrData,
+  showSignatureArea,
+}: OfficialDocumentHeaderProps) {
   const cfg = mergeDocumentHeaderConfig(config);
   const primary = cfg.primaryColor || "#4f46e5";
   const secondary = cfg.secondaryColor || "#10b981";
   const titleSize = variant === "compact" ? Math.max(18, (cfg.titleSize || 26) - 8) : cfg.titleSize || 26;
 
+  const metaFooter = (printDate || operatorName) && (
+    <div className="mt-2 flex justify-between border-t border-slate-100 pt-2 text-[10px] text-slate-400 font-bold">
+      {printDate && <p>Imprimé le : {printDate}</p>}
+      {operatorName && <p>Opérateur : {operatorName}</p>}
+    </div>
+  );
+
+  const qrSection = qrData && (
+    <div className="absolute top-5 right-5 print:top-4 print:right-4 z-10 flex flex-col items-center gap-1 bg-white p-2 rounded-xl border border-slate-150 shadow-sm print:shadow-none">
+      <img
+        src={`https://api.qrserver.com/v1/create-qr-code/?size=72x72&data=${encodeURIComponent(qrData)}`}
+        alt="Vérification QR"
+        className="w-14 h-14"
+      />
+      <span className="text-[7px] font-black uppercase tracking-widest text-slate-400">Vérification</span>
+    </div>
+  );
+
+  const sigArea = showSignatureArea && (
+    <div className="mt-8 grid grid-cols-2 gap-8 print:mt-6">
+      <div className="rounded-2xl border border-dashed border-slate-200 p-4 text-center print:border-black print:border">
+        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Cachet de l'établissement</p>
+        <div className="h-16 flex items-center justify-center text-[10px] italic text-slate-300">Emplacement cachet</div>
+      </div>
+      <div className="rounded-2xl border border-dashed border-slate-200 p-4 text-center print:border-black print:border">
+        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Signature autorisée</p>
+        <div className="h-16 flex items-center justify-center text-[10px] italic text-slate-300">Emplacement signature</div>
+      </div>
+    </div>
+  );
+
   if (cfg.style === "modern_card") {
     return (
-      <header className={`official-document-header overflow-hidden rounded-2xl text-white print:rounded-none ${className}`} style={{ background: primary }}>
+      <header className={`official-document-header relative overflow-hidden rounded-2xl text-white print:rounded-none ${className}`} style={{ background: primary }}>
         <div className="relative flex items-center justify-between gap-6 px-6 py-5">
           <div className="flex items-center gap-4">
             <LogoBox src={cfg.leftLogo || cfg.centerLogo} alt={cfg.schoolName} size={58} />
@@ -113,19 +164,26 @@ export default function OfficialDocumentHeader({ config, title, variant = "full"
               <p className="text-[9px] font-black uppercase tracking-[0.25em] opacity-80">{cfg.country || "République"}</p>
               <h2 className="text-2xl font-black leading-tight">{cfg.schoolName}</h2>
               <p className="text-xs font-bold text-amber-200">Année Scolaire {cfg.schoolYear}</p>
+              {(printDate || operatorName) && (
+                <p className="text-[9px] opacity-75 mt-1 font-bold">
+                  {printDate && `Le ${printDate}`} {operatorName && `| Par ${operatorName}`}
+                </p>
+              )}
             </div>
           </div>
           <div className="rounded-full px-5 py-2 text-xs font-black uppercase tracking-widest" style={{ background: secondary }}>
             {title || "Document officiel"}
           </div>
         </div>
+        {sigArea}
       </header>
     );
   }
 
   if (cfg.style === "bilingual_center_logo") {
     return (
-      <header className={`official-document-header border-b-2 border-slate-900 pb-3 print:border-black ${className}`}>
+      <header className={`official-document-header relative border-b-2 border-slate-900 pb-3 print:border-black ${className}`}>
+        {qrSection}
         <div className="official-document-header-grid grid grid-cols-[1fr_auto_1fr] items-start gap-6">
           <MetaLines cfg={cfg} />
           
@@ -134,13 +192,16 @@ export default function OfficialDocumentHeader({ config, title, variant = "full"
           <ArabicMetaLines cfg={cfg} />
         </div>
         {title && <h1 className="mt-3 text-center text-xl font-black uppercase tracking-wide">{title}</h1>}
+        {metaFooter}
+        {sigArea}
       </header>
     );
   }
 
   if (cfg.style === "university_formal") {
     return (
-      <header className={`official-document-header text-center ${className}`}>
+      <header className={`official-document-header relative text-center ${className}`}>
+        {qrSection}
         <div className="grid grid-cols-[110px_1fr_110px] items-center gap-5">
           <LogoBox src={cfg.leftLogo || cfg.centerLogo} alt={cfg.schoolName} size={104} />
           <div className="space-y-1">
@@ -156,13 +217,16 @@ export default function OfficialDocumentHeader({ config, title, variant = "full"
           <LogoBox src={cfg.rightLogo || cfg.leftLogo || cfg.centerLogo} alt={cfg.schoolName} size={104} />
         </div>
         {title && <h1 className="mt-3 text-lg font-black uppercase">{title}</h1>}
+        {metaFooter}
+        {sigArea}
       </header>
     );
   }
 
   if (cfg.style === "minimal_administrative") {
     return (
-      <header className={`official-document-header border-b border-slate-300 pb-3 ${className}`}>
+      <header className={`official-document-header relative border-b border-slate-300 pb-3 ${className}`}>
+        {qrSection}
         <div className="flex items-center justify-between gap-6">
           <div>
             <h2 className="text-xl font-black uppercase" style={{ color: primary }}>{cfg.schoolName}</h2>
@@ -171,12 +235,15 @@ export default function OfficialDocumentHeader({ config, title, variant = "full"
           <LogoBox src={cfg.centerLogo || cfg.leftLogo} alt={cfg.schoolName} size={72} />
         </div>
         {title && <h1 className="mt-3 text-center text-lg font-black uppercase">{title}</h1>}
+        {metaFooter}
+        {sigArea}
       </header>
     );
   }
 
   return (
-    <header className={`official-document-header border-b-2 border-slate-900 pb-3 print:border-black ${className}`}>
+    <header className={`official-document-header relative border-b-2 border-slate-900 pb-3 print:border-black ${className}`}>
+      {qrSection}
       <div className="grid grid-cols-[120px_1fr_120px] items-center gap-6 text-center">
         <LogoBox src={cfg.leftLogo || cfg.centerLogo} alt={cfg.schoolName} size={104} />
         <div>
@@ -197,6 +264,8 @@ export default function OfficialDocumentHeader({ config, title, variant = "full"
           {title && <p className="mt-2 uppercase">{title}</p>}
         </div>
       </div>
+      {metaFooter}
+      {sigArea}
     </header>
   );
 }

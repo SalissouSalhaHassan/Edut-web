@@ -1,6 +1,8 @@
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import { PrintOptions, DocumentData } from '../types';
+import { amiriFontBase64 } from '../utils/amiri-font';
+import { hasArabicCharacters, reshapeArabicText } from '../utils/arabic-reshaper';
 
 // Canvas pool for reuse to avoid memory leaks
 const canvasPool: HTMLCanvasElement[] = [];
@@ -29,6 +31,35 @@ export class PDFGenerator {
       unit: 'mm',
       format: options.format === 'Ticket' ? [80, 297] : options.format.toLowerCase(),
     });
+    
+    // Register Amiri font for Arabic support
+    if (amiriFontBase64) {
+      try {
+        this.doc.addFileToVFS("Amiri.ttf", amiriFontBase64);
+        this.doc.addFont("Amiri.ttf", "Amiri", "normal");
+      } catch (e) {
+        console.warn("Failed to load Amiri font in PDFGenerator:", e);
+      }
+    }
+  }
+
+  private drawTextBilingual(text: string, x: number, y: number, options?: any) {
+    if (hasArabicCharacters(text)) {
+      try {
+        const reshaped = reshapeArabicText(text);
+        const activeFont = this.doc.getFont();
+        const activeStyle = activeFont.fontStyle;
+        const activeName = activeFont.fontName;
+        
+        this.doc.setFont("Amiri", "normal");
+        this.doc.text(reshaped, x, y, options);
+        this.doc.setFont(activeName, activeStyle);
+      } catch (e) {
+        this.doc.text(text, x, y, options);
+      }
+    } else {
+      this.doc.text(text, x, y, options);
+    }
   }
 
   private async loadImage(url: string): Promise<string> {
@@ -91,7 +122,18 @@ export class PDFGenerator {
       case 'StudentCard':
         await this.drawStudentCard(payload);
         break;
-      // Add other cases here
+      case 'SchoolReport':
+        await this.drawSchoolReport(payload);
+        break;
+      case 'Certificate':
+        await this.drawCertificate(payload);
+        break;
+      case 'Timetable':
+        await this.drawTimetable(payload);
+        break;
+      case 'Invoice':
+        await this.drawInvoice(payload);
+        break;
       default:
         console.warn(`No generator for document type: ${type}`);
     }
@@ -116,18 +158,270 @@ export class PDFGenerator {
     }
   }
 
+  private async drawOfficialHeader(school: any, title?: string): Promise<number> {
+    let headerConfig: any = null;
+    try {
+      const { localDb } = await import('@/infrastructure/local-db/dexie');
+      const record = await localDb.references
+        .where('type')
+        .equals('official_document_header')
+        .first();
+      if (record?.payload) {
+        headerConfig = record.payload;
+      }
+    } catch {}
+
+    const style = headerConfig?.style || "classic_dual_logo";
+    const schoolName = headerConfig?.schoolName || school?.name || school?.branchName || "ÉCOLE EXCELLENCE";
+    const address = headerConfig?.address || school?.address || "";
+    const phone = headerConfig?.phone || school?.phone || school?.contactNo || "";
+    const email = headerConfig?.email || school?.email || "";
+    const schoolYear = headerConfig?.schoolYear || "2024 - 2025";
+    const ministry = headerConfig?.ministry || "Ministère de l'Éducation Nationale";
+    const service = headerConfig?.service || "Service de la Scolarité";
+    const bp = headerConfig?.bp || "";
+    const motto = headerConfig?.motto || "";
+    
+    const leftLogo = headerConfig?.leftLogo || school?.logoPath;
+    const rightLogo = headerConfig?.rightLogo || leftLogo;
+    const centerLogo = headerConfig?.centerLogo || leftLogo;
+
+    if (style === "modern_card") {
+      this.doc.setFillColor(79, 70, 229);
+      this.doc.roundedRect(10, 8, 190, 26, 2, 2, "F");
+      
+      if (leftLogo) {
+        try {
+          const base64 = await this.loadImage(leftLogo);
+          this.doc.addImage(base64, 'PNG', 14, 11, 20, 20);
+        } catch (e) {}
+      }
+      
+      this.doc.setTextColor(255, 255, 255);
+      this.doc.setFont("helvetica", "bold");
+      this.doc.setFontSize(13);
+      this.drawTextBilingual(schoolName, 38, 17);
+      
+      this.doc.setFont("helvetica", "normal");
+      this.doc.setFontSize(8);
+      this.doc.setTextColor(220, 225, 255);
+      this.drawTextBilingual(`Année Scolaire: ${schoolYear}`, 38, 23);
+      this.drawTextBilingual(`${address} ${phone ? '| Tél: ' + phone : ''}`, 38, 28);
+      
+      this.doc.setTextColor(0, 0, 0);
+      return 38;
+    }
+    
+    if (style === "bilingual_center_logo") {
+      if (centerLogo) {
+        try {
+          const base64 = await this.loadImage(centerLogo);
+          this.doc.addImage(base64, 'PNG', 92, 8, 26, 26);
+        } catch (e) {}
+      }
+      
+      const leftLines = [
+        headerConfig?.country || "RÉPUBLIQUE DU NIGER",
+        ministry,
+        headerConfig?.regionalDirection || "",
+        headerConfig?.departmentalDirection || "",
+        headerConfig?.inspection || "",
+        schoolName,
+        service,
+        address,
+        bp ? `BP : ${bp}` : "",
+        phone ? `Tél: ${phone}` : "",
+        email ? `Email: ${email}` : "",
+      ].filter(Boolean);
+
+      let leftY = 12;
+      this.doc.setFont("helvetica", "normal");
+      this.doc.setFontSize(8);
+      this.doc.setTextColor(0, 0, 0);
+      for (const line of leftLines) {
+        this.drawTextBilingual(line, 10, leftY);
+        leftY += 4.5;
+      }
+      
+      const rightLines = [
+        headerConfig?.countryAr || "جمهورية النيجر",
+        headerConfig?.ministryAr || "وزارة التربية الوطنية",
+        headerConfig?.regionalDirectionAr || "",
+        headerConfig?.departmentalDirectionAr || "",
+        headerConfig?.inspectionAr || "",
+        headerConfig?.schoolNameAr || schoolName,
+        headerConfig?.serviceAr || "",
+        headerConfig?.addressAr || "",
+        bp ? `ص.ب: ${bp}` : "",
+        phone ? `الهاتف: ${phone}` : "",
+        email ? `البريد: ${email}` : "",
+      ].filter(Boolean);
+
+      let rightY = 12;
+      for (const line of rightLines) {
+        this.drawTextBilingual(line, 200, rightY, { align: "right" });
+        rightY += 4.5;
+      }
+      
+      const maxY = Math.max(leftY, rightY);
+      this.doc.setLineWidth(0.5);
+      this.doc.line(10, maxY + 2, 200, maxY + 2);
+      if (title) {
+        this.doc.setFont("helvetica", "bold");
+        this.doc.setFontSize(14);
+        this.drawTextBilingual(title.toUpperCase(), 105, maxY + 10, { align: "center" });
+        return maxY + 15;
+      }
+      return maxY + 4;
+    }
+    
+    if (style === "university_formal") {
+      if (leftLogo) {
+        try {
+          const base64 = await this.loadImage(leftLogo);
+          this.doc.addImage(base64, 'PNG', 10, 8, 22, 22);
+        } catch (e) {}
+      }
+      if (rightLogo) {
+        try {
+          const base64 = await this.loadImage(rightLogo);
+          this.doc.addImage(base64, 'PNG', 178, 8, 22, 22);
+        } catch (e) {}
+      }
+      
+      const centerLines = [
+        headerConfig?.country || "REPUBLIQUE DU NIGER",
+        schoolName,
+        service,
+        [bp && `BP : ${bp}`, address, phone && `Tél. ${phone}`].filter(Boolean).join(" | "),
+        email ? `Email : ${email}` : "",
+      ].filter(Boolean);
+
+      let centerY = 12;
+      this.doc.setFont("helvetica", "bold");
+      this.doc.setFontSize(10);
+      this.drawTextBilingual(centerLines[0].toUpperCase(), 105, centerY, { align: "center" });
+      
+      this.doc.setFontSize(12);
+      centerY += 5;
+      this.drawTextBilingual(centerLines[1], 105, centerY, { align: "center" });
+
+      this.doc.setFontSize(8.5);
+      this.doc.setFont("helvetica", "normal");
+      for (let i = 2; i < centerLines.length; i++) {
+        centerY += 4.5;
+        this.drawTextBilingual(centerLines[i], 105, centerY, { align: "center" });
+      }
+      
+      const finalY = Math.max(centerY + 3, 32);
+      this.doc.setLineWidth(0.5);
+      this.doc.line(10, finalY, 200, finalY);
+      if (title) {
+        this.doc.setFont("helvetica", "bold");
+        this.doc.setFontSize(14);
+        this.drawTextBilingual(title.toUpperCase(), 105, finalY + 8, { align: "center" });
+        return finalY + 14;
+      }
+      return finalY + 2;
+    }
+    
+    if (style === "minimal_administrative") {
+      if (centerLogo || leftLogo) {
+        try {
+          const base64 = await this.loadImage(centerLogo || leftLogo);
+          this.doc.addImage(base64, 'PNG', 175, 8, 22, 22);
+        } catch (e) {}
+      }
+      
+      const leftLines = [
+        schoolName,
+        headerConfig?.country || "RÉPUBLIQUE DU NIGER",
+        ministry,
+        headerConfig?.regionalDirection || "",
+        headerConfig?.inspection || "",
+        [address, phone && `Tél: ${phone}`].filter(Boolean).join(" | "),
+        email ? `Email: ${email}` : "",
+      ].filter(Boolean);
+
+      let leftY = 12;
+      this.doc.setFont("helvetica", "bold");
+      this.doc.setFontSize(12);
+      this.drawTextBilingual(leftLines[0], 10, leftY);
+
+      this.doc.setFont("helvetica", "normal");
+      this.doc.setFontSize(8.5);
+      for (let i = 1; i < leftLines.length; i++) {
+        leftY += 4.5;
+        this.drawTextBilingual(leftLines[i], 10, leftY);
+      }
+      
+      const finalY = Math.max(leftY + 3, 32);
+      this.doc.setLineWidth(0.3);
+      this.doc.line(10, finalY, 200, finalY);
+      if (title) {
+        this.doc.setFont("helvetica", "bold");
+        this.doc.setFontSize(14);
+        this.drawTextBilingual(title.toUpperCase(), 105, finalY + 8, { align: "center" });
+        return finalY + 14;
+      }
+      return finalY + 2;
+    }
+    
+    // Classic dual logo style (default)
+    if (leftLogo) {
+      try {
+        const base64 = await this.loadImage(leftLogo);
+        this.doc.addImage(base64, 'PNG', 10, 8, 22, 22);
+      } catch (e) {}
+    }
+    if (rightLogo && rightLogo !== leftLogo) {
+      try {
+        const base64 = await this.loadImage(rightLogo);
+        this.doc.addImage(base64, 'PNG', 178, 8, 22, 22);
+      } catch (e) {}
+    }
+    
+    const centerLines = [
+      schoolName,
+      motto ? `"${motto}"` : "",
+      `Année Scolaire: ${schoolYear}`,
+      [phone && `Tél: ${phone}`, email && `Email: ${email}`].filter(Boolean).join(" | "),
+      address ? `Adresse: ${address}` : "",
+    ].filter(Boolean);
+
+    let centerY = 12;
+    this.doc.setFont("helvetica", "bold");
+    this.doc.setFontSize(13);
+    this.drawTextBilingual(centerLines[0], 105, centerY, { align: "center" });
+
+    this.doc.setFontSize(8.5);
+    this.doc.setFont("helvetica", "normal");
+    for (let i = 1; i < centerLines.length; i++) {
+      centerY += 4.5;
+      if (i === 1 && motto) {
+        this.doc.setFont("helvetica", "italic");
+        this.drawTextBilingual(centerLines[i], 105, centerY, { align: "center" });
+        this.doc.setFont("helvetica", "normal");
+      } else {
+        this.drawTextBilingual(centerLines[i], 105, centerY, { align: "center" });
+      }
+    }
+    
+    const finalY = Math.max(centerY + 3, 32);
+    this.doc.setLineWidth(0.5);
+    this.doc.line(10, finalY, 200, finalY);
+    if (title) {
+      this.doc.setFont("helvetica", "bold");
+      this.doc.setFontSize(14);
+      this.drawTextBilingual(title.toUpperCase(), 105, finalY + 8, { align: "center" });
+      return finalY + 14;
+    }
+    return finalY + 2;
+  }
+
   private async drawReceipt(payload: any) {
     const { school, payment, student } = payload;
-    
-    // Header
-    this.doc.setFontSize(14);
-    this.doc.setTextColor(40, 44, 52);
-    this.doc.text(school.name.toUpperCase(), 105, 15, { align: 'center' });
-    
-    this.doc.setFontSize(10);
-    this.doc.text(`Tel: ${school.phone} | Email: ${school.email}`, 105, 22, { align: 'center' });
-    
-    this.doc.line(10, 25, 200, 25);
+    const startY = await this.drawOfficialHeader(school, 'REÇU DE PAIEMENT');
     
     // Draw School Logo Watermark in background
     if (school.logoPath) {
@@ -140,39 +434,35 @@ export class PDFGenerator {
         console.warn("Failed to load logo watermark for receipt:", e);
       }
     }
-    
-    // Receipt Content
-    this.doc.setFontSize(16);
-    this.doc.text('REÇU DE PAIEMENT', 105, 35, { align: 'center' });
 
     // Draw QR Code
     try {
       const qrData = `RECU: ${payment.reference} | ELEVE: ${student.name} | CLASSE: ${student.class} | MONTANT: ${payment.amount} F CFA | DATE: ${payment.date}`;
       const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrData)}`;
       const qrBase64 = await this.loadImage(qrUrl);
-      this.doc.addImage(qrBase64, 'PNG', 170, 30, 25, 25);
+      this.doc.addImage(qrBase64, 'PNG', 170, startY - 12, 22, 22);
     } catch (e) {
       console.warn("Failed to load QR code for PaymentReceipt:", e);
     }
     
-    this.doc.setFontSize(12);
-    this.doc.text(`Référence: ${payment.reference}`, 20, 50);
-    this.doc.text(`Date: ${payment.date}`, 150, 50);
+    this.doc.setFontSize(11);
+    this.doc.text(`Référence: ${payment.reference}`, 20, startY + 8);
+    this.doc.text(`Date: ${payment.date}`, 150, startY + 8);
     
-    this.doc.text(`Étudiant: ${student.name}`, 20, 65);
-    this.doc.text(`Classe: ${student.class}`, 20, 72);
+    this.doc.text(`Étudiant: ${student.name}`, 20, startY + 18);
+    this.doc.text(`Classe: ${student.class}`, 20, startY + 24);
     
     // Table
     (this.doc as any).autoTable({
-      startY: 85,
+      startY: startY + 32,
       head: [['Description', 'Montant']],
       body: [
         [payment.description || 'Frais de scolarité', `${payment.amount} F CFA`],
         ['Réduction', `${payment.reduction || 0} F CFA`],
         ['Total Payé', `${payment.amount - (payment.reduction || 0)} F CFA`],
       ],
-      theme: 'striped',
-      headStyles: { fillGray: 40, textColor: 255 },
+      theme: 'grid',
+      headStyles: { fillColor: [79, 70, 229], textColor: 255 },
     });
   }
 
@@ -180,7 +470,7 @@ export class PDFGenerator {
     const { student, school, primaryColor = '#1e3a8a' } = payload;
     const W = 54;
     const H = 86;
-    const x = 78; // Center on A4 for single card or handle batch
+    const x = 78; // Center on A4 for single card
     const y = 20;
 
     // Background & Border
@@ -237,28 +527,19 @@ export class PDFGenerator {
     this.doc.text(`ANNÉE: ${payload.year || '2024-2025'}`, x + W / 2, y + H - 3, { align: 'center' });
   }
 
-  private drawSchoolReport(payload: any) {
+  private async drawSchoolReport(payload: any) {
     const { student, school, results, stats } = payload;
-    
-    // Header (A4)
-    this.doc.setFontSize(18);
-    this.doc.setFont('helvetica', 'bold');
-    this.doc.text(school.name.toUpperCase(), 105, 15, { align: 'center' });
-    
-    this.doc.setFontSize(10);
-    this.doc.text(`BULLETIN DE NOTES - ${payload.term.toUpperCase()}`, 105, 22, { align: 'center' });
-    
-    this.doc.setLineWidth(0.5);
-    this.doc.line(10, 25, 200, 25);
+    const startY = await this.drawOfficialHeader(school, `BULLETIN DE NOTES - ${payload.term?.toUpperCase() || 'TRIMESTRE'}`);
     
     // Student Info Box
     this.doc.setFontSize(11);
-    this.doc.text(`NOM: ${student.name}`, 15, 35);
-    this.doc.text(`CLASSE: ${student.class}`, 150, 35);
+    this.doc.setFont('helvetica', 'bold');
+    this.doc.text(`NOM: ${student.name}`, 15, startY + 8);
+    this.doc.text(`CLASSE: ${student.class}`, 150, startY + 8);
     
     // Results Table
     (this.doc as any).autoTable({
-      startY: 45,
+      startY: startY + 16,
       head: [['DISCIPLINES', 'MOY/20', 'COEF', 'MOY x COEF', 'RANG', 'APPRÉCIATION']],
       body: results.map((r: any) => [
         r.subject,
@@ -269,7 +550,7 @@ export class PDFGenerator {
         r.appreciation
       ]),
       theme: 'grid',
-      headStyles: { fillGray: 50, textColor: 255, fontStyle: 'bold' },
+      headStyles: { fillColor: [79, 70, 229], textColor: 255, fontStyle: 'bold' },
       styles: { fontSize: 9 },
     });
     
@@ -282,4 +563,80 @@ export class PDFGenerator {
     this.doc.text(`RANG: ${stats.rank} sur ${stats.total}`, 100, finalY + 18);
     this.doc.text(`DÉCISION: ${stats.decision}`, 20, finalY + 25);
   }
+
+  private async drawCertificate(payload: any) {
+    const { student, school, certificateText, date = new Date().toLocaleDateString() } = payload;
+    const startY = await this.drawOfficialHeader(school, "ATTESTATION DE SCOLARITÉ");
+
+    this.doc.setFontSize(11);
+    this.doc.setFont('helvetica', 'normal');
+    
+    const textWidth = 170;
+    const splitText = this.doc.splitTextToSize(
+      certificateText || `Nous soussignés, attestons par la présente que l'élève ${student.name} est inscrit(e) au sein de notre établissement pour l'année scolaire.`,
+      textWidth
+    );
+    
+    this.doc.text(splitText, 20, startY + 20);
+
+    // Signature Area
+    const sigY = startY + 80;
+    this.doc.text(`Fait le : ${date}`, 130, sigY);
+    this.doc.setFont('helvetica', 'bold');
+    this.doc.text("Le Directeur", 130, sigY + 10);
+    this.doc.line(130, sigY + 12, 170, sigY + 12);
+  }
+
+  private async drawTimetable(payload: any) {
+    const { school, targetName, days = [], slots = [], schedule = {} } = payload;
+    const startY = await this.drawOfficialHeader(school, `EMPLOI DU TEMPS - ${targetName}`);
+
+    // Generate table format for autoTable
+    const headers = ['Heures', ...days];
+    const body = slots.map((slot: string) => {
+      const row = [slot];
+      days.forEach((day: string) => {
+        const item = schedule[day]?.[slot] || '';
+        row.push(item);
+      });
+      return row;
+    });
+
+    (this.doc as any).autoTable({
+      startY: startY + 12,
+      head: [headers],
+      body: body,
+      theme: 'grid',
+      headStyles: { fillColor: [79, 70, 229], textColor: 255 },
+      styles: { fontSize: 8 },
+    });
+  }
+
+  private async drawInvoice(payload: any) {
+    const { school, invoiceNumber, clientName, items = [], total, date = new Date().toLocaleDateString() } = payload;
+    const startY = await this.drawOfficialHeader(school, `FACTURE N° ${invoiceNumber}`);
+
+    this.doc.setFontSize(10);
+    this.doc.setFont('helvetica', 'bold');
+    this.doc.text(`Client: ${clientName}`, 20, startY + 8);
+    this.doc.text(`Date d'émission: ${date}`, 140, startY + 8);
+
+    (this.doc as any).autoTable({
+      startY: startY + 16,
+      head: [['Désignation', 'Quantité', 'Prix Unitaire', 'Total']],
+      body: items.map((i: any) => [
+        i.designation,
+        i.quantity,
+        `${i.unitPrice} F CFA`,
+        `${i.quantity * i.unitPrice} F CFA`
+      ]),
+      theme: 'striped',
+      headStyles: { fillColor: [79, 70, 229], textColor: 255 },
+    });
+
+    const finalY = (this.doc as any).lastAutoTable.finalY;
+    this.doc.setFontSize(11);
+    this.doc.text(`NET À PAYER: ${total} F CFA`, 140, finalY + 15);
+  }
+}
 }
