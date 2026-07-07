@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { GraduationCap, LayoutGrid, FileCheck, ClipboardCheck, BarChart3, Sparkles } from "lucide-react";
+import { GraduationCap, LayoutGrid, FileCheck, ClipboardCheck, BarChart3, Sparkles, FileText } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import { toast } from "sonner";
 const AcademicFilters = dynamic(() => import("@/domains/academics/components/AcademicFilters"), { ssr: false });
 const GradesEntryGrid = dynamic(() => import("@/domains/academics/components/GradesEntryGrid"), { ssr: false });
 const BroadsheetMatrix = dynamic(() => import("@/domains/academics/components/BroadsheetMatrix"), { ssr: false });
+const ResultsReportsPanel = dynamic(() => import("@/domains/academics/components/ResultsReportsPanel"), { ssr: false });
 
 import {
   getGradingGrid,
@@ -22,13 +23,13 @@ import {
   getStudentBulletinData,
   getBatchBulletinData,
 } from "@/domains/academics/actions/academics.actions";
-import { generateBulletinPDF, generatePVMatrixPDF, generateReleveNotesPDF } from "@/domains/academics/utils/bulletin-generator";
+import { generateBulletinPDF, generatePVMatrixPDF, generateReleveNotesPDF, generateResultsPedagogicalReportPDF } from "@/domains/academics/utils/bulletin-generator";
 import { getDocumentHeaderConfig } from "@/domains/settings/actions/settings.actions";
 import { useEffect } from "react";
 
 export default function AcademicResultsPage() {
   const [loading, setLoading] = useState(false);
-  const [view, setView] = useState("entry"); // "entry" or "matrix"
+  const [view, setView] = useState("entry"); // "entry", "matrix" or "reports"
   const [students, setStudents] = useState<any[]>([]);
   const [subjects, setSubjects] = useState<any[]>([]);
   const [level, setLevel] = useState("Lycée");
@@ -62,7 +63,7 @@ export default function AcademicResultsPage() {
 
   // Auto-load matrix data when switching to broadsheet if filters are set but matrix not loaded
   useEffect(() => {
-    if (view === "matrix" && activeFilters && !matrixData) {
+    if ((view === "matrix" || view === "reports") && activeFilters && !matrixData) {
       (async () => {
         setLoading(true);
         try {
@@ -144,7 +145,7 @@ export default function AcademicResultsPage() {
       }
 
       // 2. Fetch the heavy matrix data if needed
-      if (view === "matrix") {
+      if (view === "matrix" || view === "reports") {
         let matrixResult: any = null;
         if (navigator.onLine) {
           try {
@@ -301,6 +302,40 @@ export default function AcademicResultsPage() {
     }
   };
 
+  const handleExportResultsReport = async () => {
+    if (!activeFilters) {
+      toast.warning("Veuillez charger une classe avant de g?n?rer le rapport.");
+      return;
+    }
+    if (!matrixData && students.length === 0) {
+      toast.warning("Aucune donn?e disponible pour le rapport.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await generateResultsPedagogicalReportPDF({
+        matrixData,
+        students,
+        filters: activeFilters,
+        headerConfig,
+        isOffline: isLocal || !navigator.onLine,
+      });
+      toast.success("Rapport p?dagogique g?n?r? avec succ?s !");
+    } catch (err: any) {
+      toast.error("Erreur PDF", { description: err.message });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+  const hasLoadedData = view === "entry"
+    ? students.length > 0
+    : view === "reports"
+      ? Boolean(matrixData || students.length > 0 || loading)
+      : Boolean(matrixData || loading);
+
   return (
     <div className="p-8 space-y-8 animate-in fade-in duration-700">
       {/* Header */}
@@ -349,6 +384,12 @@ export default function AcademicResultsPage() {
               >
                 <BarChart3 size={16} /> Broadsheet
               </TabsTrigger>
+              <TabsTrigger
+                value="reports"
+                className="rounded-xl px-5 h-10 data-[state=active]:bg-white data-[state=active]:text-indigo-600 data-[state=active]:shadow-sm font-bold flex items-center gap-2 text-sm"
+              >
+                <FileText size={16} /> Rapports
+              </TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
@@ -357,7 +398,7 @@ export default function AcademicResultsPage() {
       <AcademicFilters onLoad={handleLoad} loading={loading} />
 
       <AnimatePresence mode="wait">
-        {(view === "entry" ? students.length > 0 : (!!matrixData || loading)) ? (
+        {hasLoadedData ? (
           <motion.div
             key={view}
             initial={{ opacity: 0, y: 20 }}
@@ -374,13 +415,24 @@ export default function AcademicResultsPage() {
                 level={level}
                 coefficient={activeCoef}
               />
-            ) : (
+            ) : view === "matrix" ? (
               <BroadsheetMatrix
                 data={matrixData}
                 onPrintBulletin={handlePrintBulletin}
                 onPrintAll={handlePrintAllBulletins}
                 onPrintPV={handlePrintPV}
                 activeFilters={activeFilters}
+              />
+            ) : (
+              <ResultsReportsPanel
+                matrixData={matrixData}
+                students={students}
+                activeFilters={activeFilters}
+                isLocal={isLocal}
+                loading={loading}
+                onPrintPV={handlePrintPV}
+                onPrintAll={handlePrintAllBulletins}
+                onExportPDF={handleExportResultsReport}
               />
             )}
           </motion.div>
