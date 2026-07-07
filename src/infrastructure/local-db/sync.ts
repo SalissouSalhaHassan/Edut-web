@@ -8,7 +8,8 @@ export async function syncOutbox() {
   syncInProgress = true;
 
   try {
-    const items = await localDb.outbox.orderBy("timestamp").toArray();
+    const items = (await localDb.outbox.orderBy("timestamp").toArray())
+      .filter((item) => !item.status || item.status === "pending" || item.status === "failed");
     if (items.length === 0) return false;
 
     console.log(`[Sync] Starting sync for ${items.length} outbox items.`);
@@ -19,6 +20,11 @@ export async function syncOutbox() {
       try {
         let success = false;
         let error = "";
+        await localDb.outbox.update(item.id!, {
+          status: "syncing",
+          updatedAt: Date.now(),
+          lastError: null,
+        });
 
         if (item.targetTable === "students") {
           const { importStudentRow } = await import("@/domains/importation/actions/import.actions");
@@ -50,6 +56,12 @@ export async function syncOutbox() {
           const res = await recordPayment(paymentPayload);
           success = !!res?.success;
           error = res?.error || "Unknown error";
+        } else if (item.targetTable === "attendanceBatches") {
+          const { saveBatchAttendance } = await import("@/domains/attendance/actions/attendance.actions");
+          const { id: _localId, updatedAt: _updatedAt, idempotencyKey: _key, ...attendancePayload } = item.payload;
+          const res = await saveBatchAttendance(attendancePayload);
+          success = !!res?.success;
+          error = res?.error || "Unknown error";
         } else {
           error = `Table hors-ligne non supportee: ${item.targetTable}`;
         }
@@ -59,6 +71,8 @@ export async function syncOutbox() {
           processedCount++;
         } else {
           await localDb.outbox.update(item.id!, {
+            status: "failed",
+            updatedAt: Date.now(),
             retryCount: (item.retryCount || 0) + 1,
             lastError: error,
           });
@@ -68,6 +82,8 @@ export async function syncOutbox() {
         }
       } catch (error: any) {
         await localDb.outbox.update(item.id!, {
+          status: "failed",
+          updatedAt: Date.now(),
           retryCount: (item.retryCount || 0) + 1,
           lastError: error?.message || "Erreur de connexion au serveur.",
         });

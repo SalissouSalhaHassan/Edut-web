@@ -13,6 +13,7 @@ import { Camera, Upload, Zap, X, Check, User, ChevronLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useOfflineMutation } from "@/hooks/use-offline-mutation";
 import { useOnlineStatus } from "@/hooks/use-online-status";
+import { resolveOnlineOrCached } from "@/infrastructure/local-db/references";
 
 interface StudentDialogProps {
   mode?: "add" | "edit";
@@ -52,11 +53,7 @@ export default function StudentDialog({ mode = "add", initialData, trigger }: St
     if (!open) return;
 
     // 1. Sessions from school_sessions table
-    getSessions().then(res => {
-      if (res.success && res.data) {
-        setSessionsList(Array.isArray(res.data) ? res.data : []);
-      }
-    });
+    resolveOnlineOrCached("session", () => getSessions(), "sessionName").then(setSessionsList);
 
     // 2. Levels — ignoreActiveFilter=true → ALL levels from Paramètres → Académique
     getEducationalLevels(true).then(res => {
@@ -66,21 +63,15 @@ export default function StudentDialog({ mode = "add", initialData, trigger }: St
     });
 
     // 3. All classes (with optional section.educationalLevel field)
-    getClasses(true).then(res => {
-      if (res.success && res.data) {
-        const raw = Array.isArray(res.data) ? res.data : (res.data as any)?.data || [];
-        setAllClassesList(raw);
-        setClassesList(raw); // show all before a level is chosen
-      }
+    resolveOnlineOrCached("class", () => getClasses(true), "className").then(raw => {
+      setAllClassesList(raw);
+      setClassesList(raw); // show all before a level is chosen
     });
 
     // 4. All sections
-    getSections(true).then(res => {
-      if (res.success && res.data) {
-        const raw = Array.isArray(res.data) ? res.data : (res.data as any)?.data || [];
-        setAllSectionsList(raw);
-        setSectionsList(raw);
-      }
+    resolveOnlineOrCached("section", () => getSections(true), "sectionName").then(raw => {
+      setAllSectionsList(raw);
+      setSectionsList(raw);
     });
   }, [open]);
 

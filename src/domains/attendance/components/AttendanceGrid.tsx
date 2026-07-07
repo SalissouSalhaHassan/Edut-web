@@ -11,6 +11,8 @@ import { toast } from "sonner";
 import { AttendanceScanner } from "./AttendanceScanner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { useOfflineMutation } from "@/hooks/use-offline-mutation";
+import { useOnlineStatus } from "@/hooks/use-online-status";
 
 interface Student {
   id: number;
@@ -29,6 +31,8 @@ interface AttendanceGridProps {
 }
 
 export default function AttendanceGrid({ students, classId, subjectId, employeeId, date, initialRecords = [], canEdit = true }: AttendanceGridProps) {
+  const isOnline = useOnlineStatus();
+  const { mutate } = useOfflineMutation<any>();
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [sendSMS, setSendSMS] = useState(false);
@@ -124,10 +128,16 @@ export default function AttendanceGrid({ students, classId, subjectId, employeeI
       sendWhatsApp,
     };
 
-    const result = await saveBatchAttendance(data as any);
+    const result = await mutate(data as any, {
+      targetTable: "attendanceBatches",
+      onlineAction: saveBatchAttendance as any,
+      entity: "attendance",
+      entityId: `${classId}:${subjectId || "all"}:${date}`,
+      idempotencyKey: `attendance:${classId}:${subjectId || "all"}:${date}`,
+    });
     setLoading(false);
     if (result.success) {
-      toast.success("Présence enregistrée avec succès !");
+      toast.success(isOnline ? "Présence enregistrée avec succès !" : "Présence enregistrée localement.");
     } else {
       toast.error("Erreur: " + result.error);
     }

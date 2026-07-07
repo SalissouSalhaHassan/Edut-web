@@ -11,6 +11,7 @@ import { ExamFormData } from "../validators/exams.schema";
 import { PlusCircle } from "lucide-react";
 import { getClassDisplayName } from "@/domains/academics/utils/class-name";
 import { useOfflineMutation } from "@/hooks/use-offline-mutation";
+import { resolveOnlineOrCached } from "@/infrastructure/local-db/references";
 
 export default function ExamDialog() {
   const { mutate } = useOfflineMutation<ExamFormData>();
@@ -23,9 +24,9 @@ export default function ExamDialog() {
 
   useEffect(() => {
     if (open) {
-      getClasses().then(res => { if (res.data) setClasses(res.data as any as any[]); });
-      getSubjects().then(res => { if (res.data) setSubjects(res.data as any as any[]); });
-      getPeriods().then(res => { if (res.data) setPeriods(res.data as any as any[]); });
+      resolveOnlineOrCached("class", () => getClasses(), "className").then(setClasses);
+      resolveOnlineOrCached("subject", () => getSubjects(), "subjectName").then(setSubjects);
+      resolveOnlineOrCached("period", () => getPeriods(), "name").then(setPeriods);
     }
   }, [open]);
 

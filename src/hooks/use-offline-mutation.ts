@@ -2,15 +2,18 @@ import { localDb } from "@/infrastructure/local-db/dexie";
 import { toast } from "sonner";
 import { useOnlineStatus } from "./use-online-status";
 
-type OfflineTable = "students" | "exams" | "examResults" | "subjects" | "feePayments";
+type OfflineTable = "students" | "exams" | "examResults" | "subjects" | "feePayments" | "attendanceBatches";
 
 interface MutationOptions<T> {
   targetTable: OfflineTable;
   onlineAction: (payload: T) => Promise<{ success?: boolean; error?: string; action?: string; id?: number }>;
   onSuccess?: (res: { success: boolean; action?: string; id?: number }) => void;
+  entity?: string;
+  entityId?: string | number | null;
+  idempotencyKey?: string;
 }
 
-const SYNC_SUPPORTED_TABLES = new Set<OfflineTable>(["students", "exams", "examResults", "feePayments"]);
+const SYNC_SUPPORTED_TABLES = new Set<OfflineTable>(["students", "exams", "examResults", "feePayments", "attendanceBatches"]);
 
 type OfflineMutationResult = {
   success: boolean;
@@ -62,26 +65,57 @@ export function useOfflineMutation<T>() {
         return { success: false, error: message };
       }
 
+      const now = Date.now();
+      const idempotencyKey =
+        options.idempotencyKey ||
+        (payload as any).idempotencyKey ||
+        (payload as any).reference ||
+        `${targetTable}:${options.entityId || (payload as any).id || crypto.randomUUID?.() || now}`;
       const localId = (payload as any).id || Math.floor(Math.random() * 1000000);
       const localPayload = {
         ...payload,
         id: localId,
-        updatedAt: Date.now(),
+        idempotencyKey,
+        updatedAt: now,
       };
 
       await localDb[targetTable].put(localPayload as any);
 
+      const existingQueued = await localDb.outbox
+        .where("idempotencyKey")
+        .equals(idempotencyKey)
+        .first();
+
+      if (existingQueued && existingQueued.status !== "synced" && existingQueued.status !== "cancelled") {
+        await localDb.outbox.update(existingQueued.id!, {
+          payload: {
+            ...payload,
+            id: localId,
+            idempotencyKey,
+          },
+          status: "pending",
+          updatedAt: now,
+          lastError: null,
+        });
+      } else {
       await localDb.outbox.add({
         actionType: (payload as any).id ? "UPDATE" : "INSERT",
         targetTable,
+        entity: options.entity || targetTable,
+        entityId: options.entityId || (payload as any).id || localId,
         payload: {
           ...payload,
           id: localId,
+          idempotencyKey,
         },
-        timestamp: Date.now(),
+        status: "pending",
+        timestamp: now,
+        updatedAt: now,
         retryCount: 0,
+        idempotencyKey,
         lastError: null,
       });
+      }
 
       toast.warning("Modifications enregistrees localement (hors-ligne).");
 

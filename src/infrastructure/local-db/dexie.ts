@@ -56,6 +56,15 @@ export interface LocalSubject {
   updatedAt?: number;
 }
 
+export interface LocalReferenceItem {
+  id?: number;
+  type: "class" | "subject" | "session" | "period" | "section";
+  remoteId?: number | string | null;
+  label: string;
+  payload: any;
+  updatedAt?: number;
+}
+
 export interface LocalFeePayment {
   id?: number;
   feeId: number;
@@ -69,14 +78,35 @@ export interface LocalFeePayment {
   updatedAt?: number;
 }
 
+export interface LocalAttendanceBatch {
+  id?: number;
+  classId: number;
+  subjectId?: number | null;
+  employeeId?: number | null;
+  date: string;
+  records: any[];
+  sendSMS?: boolean;
+  sendWhatsApp?: boolean;
+  updatedAt?: number;
+}
+
 export interface OutboxAction {
   id?: number;
   actionType: 'INSERT' | 'UPDATE' | 'DELETE';
   targetTable: string;
+  entity?: string;
+  entityId?: string | number | null;
   payload: any;
+  status?: "pending" | "syncing" | "synced" | "failed" | "conflict" | "cancelled";
   timestamp: number;
+  updatedAt?: number;
+  syncedAt?: number | null;
   retryCount?: number;
   lastError?: string | null;
+  idempotencyKey?: string;
+  userId?: number | string | null;
+  schoolId?: number | string | null;
+  conflict?: any;
 }
 
 class EdutLocalDatabase extends Dexie {
@@ -84,7 +114,9 @@ class EdutLocalDatabase extends Dexie {
   exams!: Table<LocalExam>;
   examResults!: Table<LocalExamResult>;
   subjects!: Table<LocalSubject>;
+  references!: Table<LocalReferenceItem>;
   feePayments!: Table<LocalFeePayment>;
+  attendanceBatches!: Table<LocalAttendanceBatch>;
   outbox!: Table<OutboxAction>;
 
   constructor() {
@@ -112,6 +144,17 @@ class EdutLocalDatabase extends Dexie {
       subjects: '++id, subjectName, updatedAt',
       feePayments: '++id, feeId, reference, datePaid, updatedAt',
       outbox: '++id, actionType, targetTable, timestamp, retryCount',
+    });
+
+    this.version(4).stores({
+      students: '++id, numAdmission, nomEtudiant, classe, statut, updatedAt',
+      exams: '++id, examName, classId, subjectId, updatedAt',
+      examResults: '++id, examId, studentId, updatedAt',
+      subjects: '++id, subjectName, updatedAt',
+      references: '++id, type, remoteId, label, updatedAt',
+      feePayments: '++id, feeId, reference, datePaid, updatedAt',
+      attendanceBatches: '++id, classId, subjectId, date, updatedAt',
+      outbox: '++id, actionType, targetTable, status, timestamp, updatedAt, syncedAt, retryCount, idempotencyKey, userId, schoolId',
     });
   }
 }

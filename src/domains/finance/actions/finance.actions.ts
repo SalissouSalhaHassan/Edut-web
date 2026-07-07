@@ -93,6 +93,16 @@ export async function recordPayment(formData: PaymentFormData) {
     const { feeId, amount, reduction, paymentMode, reference, monthConcerned, notes, datePaid } = validation.data;
     const schoolId = await getActiveSchoolId();
 
+    if (reference) {
+      const existingPayment = await db.query.feePayments.findFirst({
+        where: and(eq(feePayments.schoolId, schoolId), eq(feePayments.reference, reference)),
+      });
+
+      if (existingPayment) {
+        return { success: true, id: existingPayment.id, action: "duplicate_ignored" };
+      }
+    }
+
     // 1. Get current fee state
     const fee = await db.query.studentFees.findFirst({
       where: and(eq(studentFees.id, feeId), eq(studentFees.schoolId, schoolId)),
@@ -116,7 +126,7 @@ export async function recordPayment(formData: PaymentFormData) {
     }
 
     // 2. Record the payment
-    await db.insert(feePayments).values({
+    const [payment] = await db.insert(feePayments).values({
       schoolId,
       feeId,
       amount,
@@ -126,7 +136,7 @@ export async function recordPayment(formData: PaymentFormData) {
       monthConcerned,
       datePaid: datePaid ? new Date(datePaid) : new Date(),
       recordedBy: user.nomPrenom || user.utilisateur || "Admin",
-    });
+    }).returning({ id: feePayments.id });
 
     // 3. Update the student fee totals
     const newPaid = currentPaid + amount;
@@ -144,7 +154,7 @@ export async function recordPayment(formData: PaymentFormData) {
       .where(eq(studentFees.id, feeId));
 
     revalidatePath("/dashboard/finance");
-    return { success: true };
+    return { success: true, id: payment?.id };
   });
 }
 

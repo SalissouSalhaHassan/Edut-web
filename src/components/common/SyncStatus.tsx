@@ -14,7 +14,10 @@ export default function SyncStatus() {
   const [showStatus, setShowStatus] = useState(true);
   const wasOnline = useRef(isOnline);
 
-  const outboxCount = useLiveQuery(() => localDb.outbox.count()) ?? 0;
+  const outboxCount = useLiveQuery(async () => {
+    const items = await localDb.outbox.toArray();
+    return items.filter((item) => !item.status || item.status === "pending" || item.status === "failed" || item.status === "conflict").length;
+  }) ?? 0;
 
   useEffect(() => {
     const cameBackOnline = !wasOnline.current && isOnline;

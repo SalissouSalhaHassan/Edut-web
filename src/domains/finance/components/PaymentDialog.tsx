@@ -89,6 +89,9 @@ export default function PaymentDialog({ feeData, trigger }: PaymentDialogProps) 
     const result = await mutate(data, {
       targetTable: "feePayments",
       onlineAction: recordPayment,
+      entity: "payment",
+      entityId: data.reference,
+      idempotencyKey: data.reference || undefined,
       onSuccess: () => setOpen(false),
     });
     setLoading(false);
