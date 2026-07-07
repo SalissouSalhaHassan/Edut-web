@@ -2,9 +2,14 @@
 
 import { db, readDb } from "@/infrastructure/database";
 import { studentAttendance } from "@/infrastructure/database/schema/attendance";
-import { studentTermSummaries, studentResults, schoolSubjects } from "@/infrastructure/database/schema/academics";
+import { studentTermSummaries, studentResults, schoolSubjects, schoolClasses } from "@/infrastructure/database/schema/academics";
 import { students } from "@/infrastructure/database/schema/students";
-import { eq, and, sql, inArray } from "drizzle-orm";
+import { feePayments, expenses } from "@/infrastructure/database/schema/finance";
+import { employees } from "@/infrastructure/database/schema/hr";
+import { lmsCourses, lmsLessons, lmsAssignments, lmsSubmissions, lmsProgress, lmsQuizzes, lmsVirtualClasses } from "@/infrastructure/database/schema/lms";
+import { cahierTextes, pedagogiePlanification, pedagogieRessources } from "@/infrastructure/database/schema/pedagogie";
+import { auditLogs } from "@/infrastructure/database/schema/audit";
+import { eq, and, sql, inArray, desc } from "drizzle-orm";
 import { protectedDbAction } from "@/lib/protected-action";
 import { getActiveSchoolId } from "@/domains/auth/services/school";
 import { getActiveEducationalLevel, getCompatibleLevels } from "@/domains/auth/services/rbac";
@@ -292,4 +297,122 @@ function getDefaultMockData() {
       ]
     }
   };
+}
+
+export async function getUnifiedReportsData() {
+  return protectedDbAction("Reports", "canView", async (user) => {
+    const schoolId = await getActiveSchoolId();
+
+    // 1. Fetch Students
+    const allStudents = await readDb.query.students.findMany({
+      where: eq(students.schoolId, schoolId)
+    });
+    const studentIds = allStudents.map(s => s.id);
+
+    // 2. Fetch Classes and Subjects
+    const classes = await readDb.query.schoolClasses.findMany({
+      where: eq(schoolClasses.schoolId, schoolId)
+    });
+    const subjects = await readDb.query.schoolSubjects.findMany({
+      where: eq(schoolSubjects.schoolId, schoolId)
+    });
+    const classIds = classes.map(c => c.id);
+
+    // 3. Fetch Employees
+    const allEmployees = await readDb.query.employees.findMany({
+      where: eq(employees.schoolId, schoolId)
+    });
+
+    // 4. Fetch Finances
+    const allFeePayments = await readDb.query.feePayments.findMany({
+      where: eq(feePayments.schoolId, schoolId)
+    });
+    const allExpenses = await readDb.query.expenses.findMany({
+      where: eq(expenses.schoolId, schoolId)
+    });
+
+    // 5. Fetch Attendance
+    let attendance: any[] = [];
+    if (studentIds.length > 0) {
+      attendance = await readDb.query.studentAttendance.findMany({
+        where: inArray(studentAttendance.studentId, studentIds)
+      });
+    }
+
+    // 6. Fetch Pédagogie (Cahiers de textes, Planifications, Ressources)
+    const seances = await readDb.query.cahierTextes.findMany({
+      where: eq(cahierTextes.schoolId, schoolId)
+    });
+    const plans = await readDb.query.pedagogiePlanification.findMany({
+      where: eq(pedagogiePlanification.schoolId, schoolId)
+    });
+    const resources = await readDb.query.pedagogieRessources.findMany({
+      where: eq(pedagogieRessources.schoolId, schoolId)
+    });
+
+    // 7. Fetch LMS (Courses, Lessons, Submissions, Virtual Classes, Progress)
+    let courses: any[] = [];
+    let lessons: any[] = [];
+    let assignments: any[] = [];
+    let submissions: any[] = [];
+    let progress: any[] = [];
+    let virtualClasses: any[] = [];
+
+    if (classIds.length > 0) {
+      courses = await readDb.query.lmsCourses.findMany({
+        where: inArray(lmsCourses.classId, classIds)
+      });
+      const courseIds = courses.map(c => c.id);
+      if (courseIds.length > 0) {
+        lessons = await readDb.query.lmsLessons.findMany({
+          where: inArray(lmsLessons.courseId, courseIds)
+        });
+      }
+      assignments = await readDb.query.lmsAssignments.findMany({
+        where: inArray(lmsAssignments.classId, classIds)
+      });
+      virtualClasses = await readDb.query.lmsVirtualClasses.findMany({
+        where: inArray(lmsVirtualClasses.classId, classIds)
+      });
+    }
+
+    if (studentIds.length > 0) {
+      submissions = await readDb.query.lmsSubmissions.findMany({
+        where: inArray(lmsSubmissions.studentId, studentIds)
+      });
+      progress = await readDb.query.lmsProgress.findMany({
+        where: inArray(lmsProgress.studentId, studentIds)
+      });
+    }
+
+    // 8. Fetch Security Audit Logs
+    const audit = await readDb.query.auditLogs.findMany({
+      where: eq(auditLogs.schoolId, schoolId),
+      orderBy: [desc(auditLogs.timestamp)],
+      limit: 100
+    });
+
+    return {
+      success: true,
+      data: {
+        students: allStudents,
+        classes,
+        subjects,
+        employees: allEmployees,
+        feePayments: allFeePayments,
+        expenses: allExpenses,
+        attendance,
+        seances,
+        plans,
+        resources,
+        courses,
+        lessons,
+        assignments,
+        submissions,
+        progress,
+        virtualClasses,
+        auditLogs: audit
+      }
+    };
+  });
 }

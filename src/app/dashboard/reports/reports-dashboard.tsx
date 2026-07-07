@@ -1,1469 +1,747 @@
 "use client";
 
-import * as React from "react";
-import {
-  Area,
-  AreaChart,
-  CartesianGrid,
-  Cell,
-  Line,
-  Pie,
-  PieChart as RechartsPieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-  Bar,
-  ComposedChart,
-} from "recharts";
-import {
-  BarChart3,
-  Calendar as CalendarIcon,
-  ChevronRight,
-  Download,
-  DollarSign,
-  Filter,
-  Info,
-  PieChart as PieChartIcon,
-  TrendingDown,
-  TrendingUp,
-  Users,
-  Wallet,
+import React, { useState, useEffect } from "react";
+import { 
+  Users, DollarSign, BookOpen, Calendar, ShieldCheck, 
+  Download, Printer, Mail, Clock, Filter, Eye, RefreshCw,
+  Search, ShieldAlert, Award, FileSpreadsheet, Building2,
+  Droplets, Lightbulb, AlertTriangle, Layers, UserCheck, Activity
 } from "lucide-react";
-
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { jsPDF } from "jspdf";
-import autoTable from "jspdf-autotable";
 import { toast } from "sonner";
-import { sendBulkPaymentReminders } from "@/domains/messaging/actions/messaging.actions";
-import { Loader2 } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-} from "@/components/ui/dropdown-menu";
+import { localDb } from "@/infrastructure/local-db/dexie";
+import UniversalReport from "@/components/reporting/universal-report";
 
-type MonthlyPoint = {
-  month: string;
-  recettes: number;
-  depenses: number;
-  recouvrement: number;
-};
-
-type BreakdownItem = {
-  label: string;
-  amount: number;
-  percent: number;
-  color: string;
-};
-
-type KpiItem = {
-  label: string;
-  value: string;
-  delta: number;
-  tone: "good" | "bad" | "neutral";
-  icon: "recovery" | "cost" | "expense" | "revenue" | "excess";
-};
-
-export type ReportsDashboardProps = {
-  branding?: {
+interface ReportsDashboardProps {
+  unifiedData: {
+    students: any[];
+    classes: any[];
+    subjects: any[];
+    employees: any[];
+    feePayments: any[];
+    expenses: any[];
+    attendance: any[];
+    seances: any[];
+    plans: any[];
+    resources: any[];
+    courses: any[];
+    lessons: any[];
+    assignments: any[];
+    submissions: any[];
+    progress: any[];
+    virtualClasses: any[];
+    auditLogs: any[];
+  };
+  branding: {
     name: string;
     logoPath: string | null;
     level: string;
   };
-  dateRangeLabel: string;
-  totalStudents: number;
-  totalStudentsDelta: number;
-  recouvrementPercent: number;
-  recouvrementDelta: number;
-  expensesMonth: number;
-  expensesMonthDelta: number;
-  soldeDisponible: number;
-  soldeDisponibleDelta: number;
-  monthly: MonthlyPoint[];
-  revenueBreakdown: BreakdownItem[];
-  expenseBreakdown: BreakdownItem[];
-  revenueTotal: number;
-  expenseTotal: number;
-  kpis: KpiItem[];
-  attendanceKpis?: {
-    globalAttendanceRate: number;
-    unexcusedAbsences: number;
-    lateRate: number;
-    excusedAbsences: number;
-  };
-  dailyEvolution?: Array<{
-    day: string;
-    Presents: number;
-    Absents: number;
-    Lates: number;
-  }>;
-  attendanceByCycle?: Array<{
-    cycle: string;
-    Rate: number;
-  }>;
-  performanceKpis?: {
-    averageGrade: number;
-    successRate: number;
-    congratulatedStudents: number;
-    strugglingStudents: number;
-  };
-  gradeDistribution?: Array<{
-    tranche: string;
-    Count: number;
-  }>;
-  subjectAverages?: Array<{
-    subject: string;
-    Average: number;
-  }>;
-};
-
-function clamp(n: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, n));
+  currentUser: any;
 }
 
-function formatCompactCfa(amount: number) {
-  const abs = Math.abs(amount);
-  if (abs >= 1_000_000) return `${(amount / 1_000_000).toFixed(1)}M CFA`;
-  if (abs >= 1_000) return `${(amount / 1_000).toFixed(1)}K CFA`;
-  return `${Math.round(amount).toLocaleString("fr-FR")} CFA`;
-}
+export default function ReportsDashboard({ unifiedData: initialData, branding, currentUser }: ReportsDashboardProps) {
+  const [mounted, setMounted] = useState(false);
+  const [isOnline, setIsOnline] = useState(true);
+  const [data, setData] = useState(initialData);
+  const [activeReport, setActiveReport] = useState<
+    "students" | "finances" | "pedagogie" | "presence" | "rh" | "lms" | "canevas" | "security"
+  >("students");
 
-function formatCfa(amount: number) {
-  return `${Math.round(amount).toLocaleString("fr-FR")} CFA`;
-}
+  // General Filters States
+  const [academicYear, setAcademicYear] = useState("2025-2026");
+  const [period, setPeriod] = useState("All");
+  const [selectedClassId, setSelectedClassId] = useState<string>("All");
+  const [selectedLevel, setSelectedLevel] = useState<string>("All");
+  const [selectedStudentId, setSelectedStudentId] = useState<string>("All");
+  const [selectedTeacherId, setSelectedTeacherId] = useState<string>("All");
+  const [selectedStatus, setSelectedStatus] = useState<string>("All");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
-function formatPercent(p: number) {
-  const v = Number.isFinite(p) ? p : 0;
-  return `${Math.round(v)}%`;
-}
+  // Export History State
+  const [exportHistory, setExportHistory] = useState<any[]>([]);
 
-function DeltaPill({
-  delta,
-  suffix = "vs période précédente",
-}: {
-  delta: number;
-  suffix?: string;
-}) {
-  const up = delta > 0;
-  const down = delta < 0;
-  const tone = up ? "text-emerald-600" : down ? "text-rose-600" : "text-slate-500";
-  const icon = up ? <TrendingUp size={14} /> : down ? <TrendingDown size={14} /> : null;
-  const label = delta === 0 ? "0%" : `${delta > 0 ? "+" : ""}${delta.toFixed(1)}%`;
-  return (
-    <div className={cn("mt-3 flex items-center gap-2 text-xs font-semibold", tone)}>
-      <span className="inline-flex items-center gap-1.5">
-        {icon}
-        {label}
-      </span>
-      <span className="text-slate-400 font-medium">{suffix}</span>
-    </div>
-  );
-}
+  useEffect(() => {
+    setMounted(true);
+    setIsOnline(navigator.onLine);
 
-function Sparkline({
-  data,
-  color,
-}: {
-  data: number[];
-  color: string;
-}) {
-  const id = React.useId();
-  const chartData = React.useMemo(() => data.map((v, i) => ({ i, v })), [data]);
-  return (
-    <div className="h-12 w-28">
-      <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={chartData} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
-          <defs>
-            <linearGradient id={`spark-${id}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor={color} stopOpacity={0.35} />
-              <stop offset="95%" stopColor={color} stopOpacity={0} />
-            </linearGradient>
-          </defs>
-          <Area
-            type="monotone"
-            dataKey="v"
-            stroke={color}
-            strokeWidth={2}
-            fill={`url(#spark-${id})`}
-            dot={false}
-          />
-        </AreaChart>
-      </ResponsiveContainer>
-    </div>
-  );
-}
-
-function StatCard({
-  icon,
-  iconBg,
-  iconColor,
-  title,
-  value,
-  delta,
-  spark,
-  sparkColor,
-}: {
-  icon: React.ReactNode;
-  iconBg: string;
-  iconColor: string;
-  title: string;
-  value: React.ReactNode;
-  delta: number;
-  spark: number[];
-  sparkColor: string;
-}) {
-  return (
-    <div className="bg-white/90 backdrop-blur-sm rounded-[24px] border border-slate-100 shadow-sm p-7 flex items-center justify-between gap-6">
-      <div className="flex items-start gap-4">
-        <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center", iconBg, iconColor)}>
-          {icon}
-        </div>
-        <div>
-          <div className="flex items-center gap-2">
-            <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">{title}</p>
-            <Info size={14} className="text-slate-300" />
-          </div>
-          <div className="mt-2 text-3xl font-black text-slate-900 tracking-tight">{value}</div>
-          <DeltaPill delta={delta} />
-        </div>
-      </div>
-      <Sparkline data={spark} color={sparkColor} />
-    </div>
-  );
-}
-
-function LegendDot({ color }: { color: string }) {
-  return <span className="inline-block size-2 rounded-full" style={{ backgroundColor: color }} />;
-}
-
-function DonutCard({
-  title,
-  subtitle,
-  totalLabel,
-  totalValue,
-  items,
-  colors,
-  buttonLabel = "Voir le détail",
-}: {
-  title: string;
-  subtitle: string;
-  totalLabel: string;
-  totalValue: string;
-  items: BreakdownItem[];
-  colors: string[];
-  buttonLabel?: string;
-}) {
-  const pieData = items.map((i) => ({ name: i.label, value: i.amount }));
-  return (
-    <div className="bg-white/90 backdrop-blur-sm rounded-[24px] border border-slate-100 shadow-sm p-8">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h4 className="text-lg font-black text-slate-900 tracking-tight">{title}</h4>
-          <p className="text-xs text-slate-500 font-medium mt-1">{subtitle}</p>
-        </div>
-        <Button
-          variant="outline"
-          className="h-10 rounded-2xl px-4 text-xs font-bold text-slate-600 border-slate-200 hover:bg-slate-50"
-        >
-          <span className="inline-flex items-center gap-2">
-            {buttonLabel} <ChevronRight className="size-4 opacity-70" />
-          </span>
-        </Button>
-      </div>
-
-      <div className="mt-8 grid grid-cols-1 md:grid-cols-[240px_1fr] gap-10 items-center">
-        <div className="relative mx-auto w-[200px] h-[200px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <RechartsPieChart>
-              <Pie
-                data={pieData}
-                dataKey="value"
-                nameKey="name"
-                innerRadius={70}
-                outerRadius={95}
-                stroke="transparent"
-                startAngle={90}
-                endAngle={-270}
-              >
-                {pieData.map((_, idx) => (
-                  <Cell key={idx} fill={colors[idx % colors.length]} />
-                ))}
-              </Pie>
-            </RechartsPieChart>
-          </ResponsiveContainer>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-center">
-              <p className="text-xs font-bold text-slate-500">{totalLabel}</p>
-              <p className="text-xl font-black text-slate-900 leading-none mt-1">{totalValue}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-5">
-          {items.map((row) => (
-            <div key={row.label} className="grid grid-cols-[18px_1fr_auto_auto] items-center gap-3">
-              <span className="inline-flex items-center justify-center">
-                <span className="size-2 rounded-full" style={{ backgroundColor: row.color }} />
-              </span>
-              <span className="text-xs font-bold text-slate-700">{row.label}</span>
-              <span className="text-xs font-black text-slate-900 tabular-nums">
-                {formatCompactCfa(row.amount).replace(" CFA", "")}
-              </span>
-              <span className="text-xs font-bold text-slate-400 tabular-nums">{Math.round(row.percent)}%</span>
-              <div className="col-span-4 h-2 rounded-full bg-slate-100 overflow-hidden">
-                <div
-                  className="h-full rounded-full"
-                  style={{ width: `${clamp(row.percent, 0, 100)}%`, backgroundColor: row.color }}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function MonthlyChart({ data }: { data: MonthlyPoint[] }) {
-  const cRecettes = "#2563eb"; // blue-600
-  const cDepenses = "#ef4444"; // red-500
-  const cRecouv = "#16a34a"; // green-600
-
-  return (
-    <div className="bg-white/90 backdrop-blur-sm rounded-[24px] border border-slate-100 shadow-sm p-8">
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-        <div>
-          <h3 className="text-2xl font-black text-slate-900 tracking-tight">Évolution Mensuelle</h3>
-          <p className="text-sm text-slate-500 font-medium mt-1">
-            Aperçu de vos indicateurs financiers sur la période sélectionnée.
-          </p>
-        </div>
-
-        <div className="flex items-center justify-between lg:justify-end gap-4">
-          <div className="hidden md:flex items-center gap-6 text-xs font-bold text-slate-500">
-            <span className="inline-flex items-center gap-2">
-              <LegendDot color={cRecettes} /> Recettes
-            </span>
-            <span className="inline-flex items-center gap-2">
-              <LegendDot color={cDepenses} /> Dépenses
-            </span>
-            <span className="inline-flex items-center gap-2">
-              <LegendDot color={cRecouv} /> Recouvrement (%)
-            </span>
-          </div>
-
-          <div className="flex items-center bg-slate-50 border border-slate-100 rounded-2xl p-1">
-            {["12M", "6M", "3M", "1M"].map((t, idx) => (
-              <button
-                key={t}
-                type="button"
-                className={cn(
-                  "h-9 px-4 rounded-xl text-[11px] font-black tracking-widest",
-                  idx === 0 ? "bg-white text-primary shadow-sm" : "text-slate-500 hover:text-slate-900"
-                )}
-              >
-                {t}
-              </button>
-            ))}
-            <button
-              type="button"
-              className="h-9 w-10 rounded-xl text-slate-500 hover:text-slate-900 grid place-items-center"
-              aria-label="Options"
-              title="Options"
-            >
-              <span className="text-xl leading-none">⋯</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-8 h-[360px]">
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} margin={{ top: 10, right: 16, left: 10, bottom: 0 }}>
-            <defs>
-              <linearGradient id="fillRecettes" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={cRecettes} stopOpacity={0.15} />
-                <stop offset="95%" stopColor={cRecettes} stopOpacity={0} />
-              </linearGradient>
-              <linearGradient id="fillDepenses" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={cDepenses} stopOpacity={0.12} />
-                <stop offset="95%" stopColor={cDepenses} stopOpacity={0} />
-              </linearGradient>
-            </defs>
-
-            <CartesianGrid stroke="#e2e8f0" strokeDasharray="6 6" vertical={false} />
-            <XAxis dataKey="month" tickLine={false} axisLine={false} tick={{ fill: "#64748b", fontSize: 12 }} />
-            <YAxis
-              yAxisId="left"
-              tickLine={false}
-              axisLine={false}
-              tick={{ fill: "#64748b", fontSize: 12 }}
-              tickFormatter={(v) => (v === 0 ? "0" : `${Math.round(v / 1_000_000)}M`)}
-              domain={[0, (max: number) => Math.ceil(max / 1_000_000) * 1_000_000]}
-              label={{
-                value: "Montant (CFA)",
-                position: "insideTopLeft",
-                offset: 0,
-                fill: "#94a3b8",
-                fontSize: 12,
-              }}
-            />
-            <YAxis
-              yAxisId="right"
-              orientation="right"
-              tickLine={false}
-              axisLine={false}
-              tick={{ fill: "#64748b", fontSize: 12 }}
-              tickFormatter={(v) => `${v}%`}
-              domain={[0, 100]}
-              label={{
-                value: "Pourcentage (%)",
-                position: "insideTopRight",
-                offset: 0,
-                fill: "#94a3b8",
-                fontSize: 12,
-              }}
-            />
-
-            <Tooltip
-              cursor={{ stroke: "#e2e8f0", strokeWidth: 1 }}
-              contentStyle={{
-                borderRadius: 16,
-                border: "1px solid #e2e8f0",
-                boxShadow: "0 12px 40px rgba(15, 23, 42, 0.08)",
-              }}
-              formatter={(value: unknown, name: unknown) => {
-                const label = String(name);
-                if (label === "Recouvrement (%)") return [`${Number(value)}%`, label];
-                return [formatCompactCfa(Number(value)), label];
-              }}
-              labelStyle={{ fontWeight: 800 }}
-            />
-
-            <Area
-              yAxisId="left"
-              type="monotone"
-              dataKey="recettes"
-              name="Recettes"
-              stroke={cRecettes}
-              strokeWidth={2}
-              fill="url(#fillRecettes)"
-              dot={{ r: 3, strokeWidth: 2, fill: "#fff" }}
-              activeDot={{ r: 5 }}
-            />
-            <Area
-              yAxisId="left"
-              type="monotone"
-              dataKey="depenses"
-              name="Dépenses"
-              stroke={cDepenses}
-              strokeWidth={2}
-              fill="url(#fillDepenses)"
-              dot={{ r: 3, strokeWidth: 2, fill: "#fff" }}
-              activeDot={{ r: 5 }}
-            />
-            <Line
-              yAxisId="right"
-              type="monotone"
-              dataKey="recouvrement"
-              name="Recouvrement (%)"
-              stroke={cRecouv}
-              strokeWidth={2}
-              dot={{ r: 3, strokeWidth: 2, fill: "#fff" }}
-              activeDot={{ r: 5 }}
-            />
-          </AreaChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
-  );
-}
-
-export default function ReportsDashboard(props: ReportsDashboardProps) {
-  const [dateRange, setDateRange] = React.useState(props.dateRangeLabel);
-  const [niveau, setNiveau] = React.useState("Tous les niveaux");
-  const [periodicite, setPeriodicite] = React.useState("Mensuel");
-  const [isSendingReminders, setIsSendingReminders] = React.useState(false);
-  const [showExportMenu, setShowExportMenu] = React.useState(false);
-  const [isPending, startTransition] = React.useTransition();
-
-  const handleSendReminders = () => {
-    if (!confirm("Voulez-vous envoyer les relances de paiement à tous les parents d'élèves ayant des impayés ?")) return;
-    setIsSendingReminders(true);
-    startTransition(async () => {
+    // Load export history from local storage
+    const storedHistory = localStorage.getItem("reports_export_history");
+    if (storedHistory) {
       try {
-        const res = await sendBulkPaymentReminders();
-        if (res.success) {
-          const count = (res as any).count || 0;
-          toast.success(`${count} relances de paiement ont été envoyées avec succès par SMS !`);
-        } else {
-          toast.error(res.error || "Une erreur est survenue lors de l'envoi");
-        }
-      } catch (e: any) {
-        toast.error("Erreur de connexion avec le serveur.");
-      } finally {
-        setIsSendingReminders(false);
-      }
-    });
+        setExportHistory(JSON.parse(storedHistory));
+      } catch (e) {}
+    }
+
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    // Dexie Cache Management: If online, write to cache; if offline, read from cache
+    if (navigator.onLine) {
+      localDb.references.put({
+        type: "lmsCache",
+        label: "reporting_center_cache",
+        payload: initialData,
+        updatedAt: Date.now()
+      }).catch(() => {});
+    } else {
+      localDb.references.where("label").equals("reporting_center_cache").first()
+        .then(r => {
+          if (r?.payload) {
+            setData(r.payload);
+            toast.info("Données de reporting chargées depuis le cache hors-ligne.");
+          }
+        })
+        .catch(() => {});
+    }
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, [initialData]);
+
+  // Log export action to history helper
+  const logExportAction = (format: string) => {
+    const newLog = {
+      id: Date.now(),
+      reportName: getReportTitle(activeReport),
+      format: format.toUpperCase(),
+      date: new Date().toLocaleString("fr-FR"),
+      operator: currentUser?.nomPrenom || "Utilisateur"
+    };
+    const updated = [newLog, ...exportHistory].slice(0, 50); // Keep last 50 logs
+    setExportHistory(updated);
+    localStorage.setItem("reports_export_history", JSON.stringify(updated));
   };
 
-  const handleExportPDF = () => {
-    try {
-      toast.success("Génération du rapport PDF officiel...");
-      const doc = new jsPDF({
-        orientation: "landscape",
-        unit: "mm",
-        format: "a4"
-      });
-
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const pageHeight = doc.internal.pageSize.getHeight();
-      const schoolName = props.branding?.name || "Edut Pro";
-      const dateRange = props.dateRangeLabel || "2025 - 2026";
-
-      // PAGE 1: EXECUTIVE SUMMARY
-      // Header block
-      doc.setFillColor(248, 250, 252);
-      doc.rect(10, 10, pageWidth - 20, 35, "F");
-      doc.setDrawColor(226, 232, 240);
-      doc.rect(10, 10, pageWidth - 20, 35, "S");
-
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(8);
-      doc.setTextColor(37, 99, 235);
-      doc.text("GESTION ACADÉMIQUE & FINANCIÈRE", 15, 17);
-
-      doc.setFontSize(14);
-      doc.setTextColor(15, 23, 42);
-      doc.text("RAPPORT DE PERFORMANCE SCOLAIRE GLOBAL", 15, 24);
-
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(9);
-      doc.setTextColor(100, 116, 139);
-      doc.text(`Établissement : ${schoolName}`, 15, 29);
-      doc.text(`Période : ${dateRange}`, 15, 34);
-
-      doc.setFontSize(8);
-      doc.setFont("helvetica", "bold");
-      doc.text("INFORMATIONS DOCUMENT", pageWidth - 80, 17);
-      doc.setFont("helvetica", "normal");
-      doc.text(`Date d'édition : ${new Date().toLocaleDateString("fr-FR")} ${new Date().toLocaleTimeString("fr-FR", { hour: '2-digit', minute: '2-digit' })}`, pageWidth - 80, 22);
-      doc.text("Généré par : Directeur Général", pageWidth - 80, 27);
-      doc.text("Réf Rapport : RPT-GLOBAL-2026-0001", pageWidth - 80, 32);
-
-      // KPI boxes
-      let currentY = 52;
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(10);
-      doc.setTextColor(15, 23, 42);
-      doc.text("RÉSUMÉ DES INDICATEURS CLÉS", 10, currentY);
-      doc.setDrawColor(226, 232, 240);
-      doc.line(10, currentY + 2, pageWidth - 10, currentY + 2);
-      currentY += 8;
-
-      const attKpis = props.attendanceKpis || { globalAttendanceRate: 94.2, unexcusedAbsences: 24, excusedAbsences: 12, lateRate: 3.1 };
-      const perfKpis = props.performanceKpis || { averageGrade: 14.2, successRate: 88.7, congratulatedStudents: 145, strugglingStudents: 32 };
-
-      const kpiItems = [
-        { label: "Recouvrement", value: `${props.recouvrementPercent}%`, sub: "Taux de paiement" },
-        { label: "Solde Disponible", value: `${props.soldeDisponible.toLocaleString("fr-FR")} CFA`, sub: "Trésorerie nette" },
-        { label: "Présence Élèves", value: `${attKpis.globalAttendanceRate}%`, sub: "Assiduité globale" },
-        { label: "Moyenne Générale", value: `${perfKpis.averageGrade} / 20`, sub: "Moyenne académique" }
-      ];
-
-      const boxWidth = (pageWidth - 20 - 12) / 4;
-      kpiItems.forEach((kpi, idx) => {
-        const startX = 10 + idx * (boxWidth + 4);
-        doc.setFillColor(255, 255, 255);
-        doc.setDrawColor(241, 245, 249);
-        doc.rect(startX, currentY, boxWidth, 22, "DF");
-
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(7);
-        doc.setTextColor(100, 116, 139);
-        doc.text(kpi.label.toUpperCase(), startX + 3, currentY + 5);
-
-        doc.setFontSize(11);
-        doc.setTextColor(37, 99, 235);
-        doc.text(kpi.value, startX + 3, currentY + 12);
-
-        doc.setFontSize(7);
-        doc.setFont("helvetica", "normal");
-        doc.setTextColor(148, 163, 184);
-        doc.text(kpi.sub, startX + 3, currentY + 18);
-      });
-
-      currentY += 28;
-
-      // Information Block
-      doc.setFillColor(248, 250, 252);
-      doc.rect(10, currentY, pageWidth - 20, 25, "F");
-      doc.setDrawColor(226, 232, 240);
-      doc.rect(10, currentY, pageWidth - 20, 25, "S");
-
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(8);
-      doc.setTextColor(37, 99, 235);
-      doc.text("À PROPOS DE CE RAPPORT SCOLAIRE", 14, currentY + 6);
-      
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(8);
-      doc.setTextColor(71, 85, 105);
-      const aboutText = `Ce document constitue le rapport officiel consolidé pour l'établissement ${schoolName}. Il regroupe les indicateurs financiers de recouvrement des frais de scolarité, le suivi de l'assiduité des élèves et du personnel enseignant, ainsi que les moyennes de performance académique par cycle d'études pour la période de référence.`;
-      const splitAbout = doc.splitTextToSize(aboutText, pageWidth - 70);
-      doc.text(splitAbout, 14, currentY + 11);
-
-      // Authenticity QR placeholder
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(6);
-      doc.setTextColor(148, 163, 184);
-      doc.text("AUTHENTIFICATION", pageWidth - 42, currentY + 5);
-      doc.setDrawColor(203, 213, 225);
-      doc.rect(pageWidth - 42, currentY + 7, 14, 14);
-      doc.setFontSize(5);
-      doc.text("[QR CODE]", pageWidth - 39, currentY + 15);
-
-      // Signatures at the bottom of Page 1
-      currentY += 32;
-      doc.setDrawColor(226, 232, 240);
-      doc.line(10, currentY, pageWidth - 10, currentY);
-      currentY += 6;
-
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(8);
-      doc.setTextColor(100, 116, 139);
-      doc.text("CONTRÔLE ET VERIFICATION", 10, currentY);
-      currentY += 6;
-
-      const columnWidth = (pageWidth - 20) / 3;
-
-      doc.text("LE CLIENT (Parent d'élève / Inspecteur)", 15, currentY);
-      doc.setDrawColor(203, 213, 225);
-      doc.rect(15, currentY + 3, columnWidth - 10, 16, "S");
-
-      // Stamp
-      doc.setFillColor(239, 246, 255);
-      doc.setDrawColor(191, 219, 254);
-      doc.rect(columnWidth + 15, currentY + 3, columnWidth - 10, 16, "DF");
-      doc.setFontSize(7);
-      doc.setTextColor(37, 99, 235);
-      doc.text("EDUT PRO - GESTION GLOBALE", columnWidth + 18, currentY + 9);
-      doc.text("RAPPORT DE PERFORMANCE SCOLAIRE", columnWidth + 16, currentY + 13);
-
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(8);
-      doc.setTextColor(100, 116, 139);
-      doc.text("LA DIRECTION GENERALE", columnWidth * 2 + 15, currentY);
-      doc.setDrawColor(203, 213, 225);
-      doc.rect(columnWidth * 2 + 15, currentY + 3, columnWidth - 10, 16, "S");
-
-      // Footer Page 1
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(7);
-      doc.setTextColor(148, 163, 184);
-      doc.text("Edut Pro - Système de Gestion Scolaire", 10, pageHeight - 8);
-      doc.text("* Rapport officiel de performance *", pageWidth / 2 - 20, pageHeight - 8);
-      doc.text("Page 1 / 2", pageWidth - 20, pageHeight - 8);
-
-      // PAGE 2: DETAILED TABLES
-      doc.addPage();
-
-      // Header Page 2
-      doc.setFillColor(248, 250, 252);
-      doc.rect(10, 10, pageWidth - 20, 20, "F");
-      doc.setDrawColor(226, 232, 240);
-      doc.rect(10, 10, pageWidth - 20, 20, "S");
-      
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(8);
-      doc.setTextColor(37, 99, 235);
-      doc.text("RAPPORT GLOBAL DE PERFORMANCE SCOLAIRE", 15, 16);
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(8);
-      doc.setTextColor(100, 116, 139);
-      doc.text(`Année Scolaire : ${dateRange} | Établissement : ${schoolName}`, 15, 22);
-
-      currentY = 38;
-
-      // Table 1: Financial & Academic Performance metrics side by side or stacked
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(9);
-      doc.setTextColor(15, 23, 42);
-      doc.text("1. SUIVI DÉTAILLÉ DES COMPTES ET DE L'ASSIDUITÉ", 10, currentY);
-      doc.line(10, currentY + 2, pageWidth - 10, currentY + 2);
-      currentY += 6;
-
-      const detailHeaders = ["Catégorie", "Métrique Analysée", "Valeur / Ratio", "Statut & Conformité"];
-      const detailBody = [
-        ["FINANCES", "Taux de Recouvrement Général", `${props.recouvrementPercent}%`, "Validé"],
-        ["FINANCES", "Recettes Totales perçues", `${props.revenueTotal.toLocaleString("fr-FR")} CFA`, "Conforme"],
-        ["FINANCES", "Dépenses Totales engagées", `${props.expenseTotal.toLocaleString("fr-FR")} CFA`, "Conforme"],
-        ["ASSIDUITÉ", "Taux de Présence des Élèves", `${attKpis.globalAttendanceRate}%`, "Excellent"],
-        ["ASSIDUITÉ", "Retards Moyens Constatés", `${attKpis.lateRate}%`, "Tolérable"],
-        ["ACADÉMIQUE", "Moyenne Générale de l'Établissement", `${perfKpis.averageGrade} / 20`, "Bonne"],
-        ["ACADÉMIQUE", "Taux de Réussite Académique", `${perfKpis.successRate}%`, "Conforme"],
-      ];
-
-      autoTable(doc, {
-        startY: currentY,
-        head: [detailHeaders],
-        body: detailBody,
-        theme: "striped",
-        headStyles: {
-          fillColor: [37, 99, 235],
-          textColor: [255, 255, 255],
-          fontSize: 8,
-          fontStyle: "bold"
-        },
-        bodyStyles: {
-          fontSize: 7.5,
-          textColor: [51, 65, 85]
-        },
-        margin: { left: 10, right: 10 }
-      });
-
-      currentY = (doc as any).lastAutoTable.finalY + 8;
-
-      // Table 2: Subject Averages if available, else standard recap
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(9);
-      doc.setTextColor(15, 23, 42);
-      doc.text("2. MOYENNES CONSOLIDÉES PAR UNITÉ D'ENSEIGNEMENT", 10, currentY);
-      doc.line(10, currentY + 2, pageWidth - 10, currentY + 2);
-      currentY += 6;
-
-      const subjectHeaders = ["Matière / Discipline", "Moyenne Établissement", "Nombre d'évaluations", "Appréciation"];
-      const subjectBody = [
-        ["Mathématiques", "13.4 / 20", "24 évaluations", "Niveau satisfaisant"],
-        ["Français & Langues", "14.1 / 20", "30 évaluations", "Niveau satisfaisant"],
-        ["Sciences Physiques", "12.8 / 20", "18 évaluations", "Niveau moyen"],
-        ["Histoire & Géographie", "14.5 / 20", "15 évaluations", "Très bon niveau"],
-        ["Philosophie", "11.2 / 20", "8 évaluations", "Niveau moyen"],
-      ];
-
-      autoTable(doc, {
-        startY: currentY,
-        head: [subjectHeaders],
-        body: subjectBody,
-        theme: "striped",
-        headStyles: {
-          fillColor: [79, 70, 229],
-          textColor: [255, 255, 255],
-          fontSize: 8,
-          fontStyle: "bold"
-        },
-        bodyStyles: {
-          fontSize: 7.5,
-          textColor: [51, 65, 85]
-        },
-        margin: { left: 10, right: 10 }
-      });
-
-      // Signatures at the bottom of Page 2
-      currentY = (doc as any).lastAutoTable.finalY + 8;
-      if (currentY + 25 > pageHeight) {
-        doc.addPage();
-        currentY = 20;
-      }
-
-      doc.setDrawColor(226, 232, 240);
-      doc.line(10, currentY, pageWidth - 10, currentY);
-      currentY += 4;
-
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(8);
-      doc.setTextColor(100, 116, 139);
-      doc.text("SIGNATURES D'APPROBATION FINALE", 10, currentY);
-      currentY += 4;
-
-      doc.text("LE CLIENT (Parent d'élève / Inspecteur)", 15, currentY);
-      doc.setDrawColor(203, 213, 225);
-      doc.rect(15, currentY + 2, columnWidth - 10, 12, "S");
-
-      // Stamp
-      doc.setFillColor(239, 246, 255);
-      doc.setDrawColor(191, 219, 254);
-      doc.rect(columnWidth + 15, currentY + 2, columnWidth - 10, 12, "DF");
-      doc.setFontSize(6);
-      doc.setTextColor(37, 99, 235);
-      doc.text("EDUT PRO - GESTION GLOBALE", columnWidth + 18, currentY + 6);
-      doc.text("RAPPORT DE PERFORMANCE SCOLAIRE", columnWidth + 16, currentY + 9);
-
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(8);
-      doc.setTextColor(100, 116, 139);
-      doc.text("LA DIRECTION GENERALE", columnWidth * 2 + 15, currentY);
-      doc.setDrawColor(203, 213, 225);
-      doc.rect(columnWidth * 2 + 15, currentY + 2, columnWidth - 10, 12, "S");
-
-      // Footer Page 2
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(7);
-      doc.setTextColor(148, 163, 184);
-      doc.text("Edut Pro - Système de Gestion Scolaire", 10, pageHeight - 8);
-      doc.text("* Rapport officiel de performance *", pageWidth / 2 - 20, pageHeight - 8);
-      doc.text("Page 2 / 2", pageWidth - 20, pageHeight - 8);
-
-      doc.save(`Rapport_Performance_Global_${schoolName.replace(/\s+/g, "_")}.pdf`);
-      toast.success("Rapport PDF généré et téléchargé !");
-    } catch (e: any) {
-      console.error(e);
-      toast.error("Erreur lors de la génération du PDF");
+  const getReportTitle = (type: string) => {
+    switch (type) {
+      case "students": return "Rapport des Effectifs Étudiants";
+      case "finances": return "Rapport de Synthèse Financière";
+      case "pedagogie": return "Rapport de Suivi Pédagogique";
+      case "presence": return "Rapport d'Assiduité et de Présence";
+      case "rh": return "Rapport des Ressources Humaines";
+      case "lms": return "Rapport LMS & E-Learning";
+      case "canevas": return "Rapport Canevas & Structures";
+      case "security": return "Rapport d'Audit et Sécurité";
+      default: return "Rapport d'Établissement";
     }
   };
 
-  const handleExportExcel = () => {
-    try {
-      const schoolName = props.branding?.name || "Edut Pro";
-      let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
-      
-      // Metadata
-      csvContent += `RAPPORT DE PERFORMANCE GLOBAL - ${schoolName.toUpperCase()}\n`;
-      csvContent += `Période: ${props.dateRangeLabel}\n`;
-      csvContent += `Date d'exportation: ${new Date().toLocaleDateString("fr-FR")}\n\n`;
-
-      // 1. Financial KPIs
-      csvContent += "1. INDICATEURS FINANCIERS\n";
-      csvContent += "Métrique,Valeur\n";
-      csvContent += `Taux de Recouvrement,${props.recouvrementPercent}%\n`;
-      csvContent += `Dépenses du mois,${props.expensesMonth} CFA\n`;
-      csvContent += `Solde Disponible,${props.soldeDisponible} CFA\n`;
-      csvContent += `Recettes Totales,${props.revenueTotal} CFA\n`;
-      csvContent += `Dépenses Totales,${props.expenseTotal} CFA\n\n`;
-
-      // 2. Attendance KPIs
-      const attKpis = props.attendanceKpis || { globalAttendanceRate: 94.2, unexcusedAbsences: 24, excusedAbsences: 12, lateRate: 3.1 };
-      csvContent += "2. STATISTIQUES D'ASSIDUITÉ\n";
-      csvContent += "Métrique,Valeur\n";
-      csvContent += `Taux de Présence Global,${attKpis.globalAttendanceRate}%\n`;
-      csvContent += `Taux de Retard moyen,${attKpis.lateRate}%\n`;
-      csvContent += `Absences non justifiées,${attKpis.unexcusedAbsences}\n`;
-      csvContent += `Absences justifiées,${attKpis.excusedAbsences}\n\n`;
-
-      // 3. Performance KPIs
-      const perfKpis = props.performanceKpis || { averageGrade: 14.2, successRate: 88.7, congratulatedStudents: 145, strugglingStudents: 32 };
-      csvContent += "3. PERFORMANCE ACADÉMIQUE\n";
-      csvContent += "Métrique,Valeur\n";
-      csvContent += `Moyenne Générale,${perfKpis.averageGrade} / 20\n`;
-      csvContent += `Taux de Réussite,${perfKpis.successRate}%\n`;
-      csvContent += `Élèves félicités,${perfKpis.congratulatedStudents}\n`;
-      csvContent += `Élèves en difficulté,${perfKpis.strugglingStudents}\n\n`;
-
-      // 4. Subject Averages
-      csvContent += "4. MOYENNES GENERALES PAR MATIERE\n";
-      csvContent += "Matière,Moyenne\n";
-      const subjectAverages = props.subjectAverages || [];
-      subjectAverages.forEach(s => {
-        csvContent += `${s.subject},${s.Average} / 20\n`;
-      });
-
-      const encodedUri = encodeURI(csvContent);
-      const link = document.createElement("a");
-      link.setAttribute("href", encodedUri);
-      link.setAttribute("download", `Rapport_Performance_${schoolName.replace(/\s+/g, "_")}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      toast.success("Rapport CSV (Excel) téléchargé !");
-    } catch (e: any) {
-      console.error(e);
-      toast.error("Erreur lors de la génération du fichier Excel");
+  const getReportModuleName = (type: string) => {
+    switch (type) {
+      case "students": return "GESTION DES ÉLÈVES";
+      case "finances": return "COMPTABILITÉ & FINANCES";
+      case "pedagogie": return "SUPERVISION PÉDAGOGIQUE";
+      case "presence": return "CONTRÔLE DE PRÉSENCE";
+      case "rh": return "RESSOURCES HUMAINES";
+      case "lms": return "PLATEFORME LMS E-LEARNING";
+      case "canevas": return "CANEVAS & INFRASTRUCTURES";
+      case "security": return "SÉCURITÉ & AUDIT SYSTÈME";
+      default: return "CENTRE DE REPORTING SCOLAIRE";
     }
+  };
+
+  if (!mounted) return null;
+
+  // ─── FILTERING LOGIC ───
+  // Filter students
+  const filteredStudents = data.students.filter(s => {
+    if (selectedLevel !== "All" && s.educationalLevel !== selectedLevel) return false;
+    if (selectedClassId !== "All" && s.classe !== selectedClassId) return false;
+    if (selectedStatus !== "All" && s.statut !== selectedStatus) return false;
+    return true;
+  });
+
+  // Filter finances
+  const filteredPayments = data.feePayments.filter(p => {
+    const student = data.students.find(s => s.id === p.studentId);
+    if (selectedClassId !== "All" && student?.classe !== selectedClassId) return false;
+    if (selectedLevel !== "All" && student?.educationalLevel !== selectedLevel) return false;
+    if (selectedStudentId !== "All" && String(p.studentId) !== selectedStudentId) return false;
+    if (startDate && p.datePaid && new Date(p.datePaid) < new Date(startDate)) return false;
+    if (endDate && p.datePaid && new Date(p.datePaid) > new Date(endDate)) return false;
+    return true;
+  });
+
+  const filteredExpenses = data.expenses.filter(e => {
+    if (selectedLevel !== "All" && e.educationalLevel !== selectedLevel) return false;
+    if (startDate && e.dateExpense && new Date(e.dateExpense) < new Date(startDate)) return false;
+    if (endDate && e.dateExpense && new Date(e.dateExpense) > new Date(endDate)) return false;
+    return true;
+  });
+
+  // Filter pedagogy (seances & plans)
+  const filteredSeances = data.seances.filter(s => {
+    if (selectedClassId !== "All" && String(s.classId) !== selectedClassId) return false;
+    if (selectedTeacherId !== "All" && String(s.employeeId) !== selectedTeacherId) return false;
+    if (selectedStatus !== "All" && s.statut !== selectedStatus) return false;
+    if (startDate && s.sessionDate && new Date(s.sessionDate) < new Date(startDate)) return false;
+    if (endDate && s.sessionDate && new Date(s.sessionDate) > new Date(endDate)) return false;
+    return true;
+  });
+
+  const filteredPlans = data.plans.filter(p => {
+    if (selectedClassId !== "All" && String(p.classId) !== selectedClassId) return false;
+    if (selectedTeacherId !== "All" && String(p.employeeId) !== selectedTeacherId) return false;
+    if (selectedStatus !== "All" && p.statut !== selectedStatus) return false;
+    return true;
+  });
+
+  // Filter attendance
+  const filteredAttendance = data.attendance.filter(a => {
+    const student = data.students.find(s => s.id === a.studentId);
+    if (selectedClassId !== "All" && String(a.classId) !== selectedClassId) return false;
+    if (selectedLevel !== "All" && student?.educationalLevel !== selectedLevel) return false;
+    if (selectedStudentId !== "All" && String(a.studentId) !== selectedStudentId) return false;
+    if (selectedStatus !== "All" && a.status !== selectedStatus) return false;
+    if (startDate && a.date && new Date(a.date) < new Date(startDate)) return false;
+    if (endDate && a.date && new Date(a.date) > new Date(endDate)) return false;
+    return true;
+  });
+
+  // Filter Employees (RH)
+  const filteredEmployees = data.employees.filter(e => {
+    if (selectedStatus !== "All" && e.statut !== selectedStatus) return false;
+    return true;
+  });
+
+  // Filter LMS
+  const filteredCourses = data.courses.filter(c => {
+    if (selectedClassId !== "All" && String(c.classId) !== selectedClassId) return false;
+    if (selectedTeacherId !== "All" && String(c.teacherId) !== selectedTeacherId) return false;
+    return true;
+  });
+
+  // Filter security audit logs
+  const filteredAuditLogs = data.auditLogs.filter(log => {
+    if (selectedTeacherId !== "All" && String(log.userId) !== selectedTeacherId) return false;
+    if (startDate && log.timestamp && new Date(log.timestamp) < new Date(startDate)) return false;
+    if (endDate && log.timestamp && new Date(log.timestamp) > new Date(endDate)) return false;
+    return true;
+  });
+
+
+  // ─── REPORT DATA MAPPINGS FOR UNIVERSALREPORT ───
+  let reportKpis: any[] = [];
+  let reportTable: any = { headers: [], rows: [] };
+
+  if (activeReport === "students") {
+    const girls = filteredStudents.filter(s => (s.sexe || "").toLowerCase().startsWith("f")).length;
+    const boys = filteredStudents.length - girls;
+    const active = filteredStudents.filter(s => s.statut === "Actif").length;
+    reportKpis = [
+      { label: "Total Élèves", value: filteredStudents.length, icon: <Users size={18} />, color: "text-blue-600", bgColor: "bg-blue-50" },
+      { label: "Filles", value: `${girls} (${filteredStudents.length > 0 ? Math.round((girls/filteredStudents.length)*100) : 0}%)`, icon: <Users size={18} />, color: "text-pink-600", bgColor: "bg-pink-50" },
+      { label: "Garçons", value: `${boys} (${filteredStudents.length > 0 ? Math.round((boys/filteredStudents.length)*100) : 0}%)`, icon: <Users size={18} />, color: "text-indigo-600", bgColor: "bg-indigo-50" },
+      { label: "Inscrits Actifs", value: active, icon: <UserCheck size={18} />, color: "text-emerald-600", bgColor: "bg-emerald-50" }
+    ];
+    reportTable = {
+      headers: ["Num Admission", "Nom & Prénom", "Sexe", "Niveau", "Classe", "Statut"],
+      rows: filteredStudents.map(s => [s.numAdmission, s.nomEtudiant, s.sexe || "N/A", s.educationalLevel || "N/A", s.classe || "N/A", s.statut || "Actif"])
+    };
+  }
+
+  else if (activeReport === "finances") {
+    const expected = data.students.reduce((acc, s) => acc + (s.fraisMensuels || 0), 0);
+    const paid = filteredPayments.reduce((acc, p) => acc + (p.amount || 0), 0);
+    const spent = filteredExpenses.reduce((acc, e) => acc + (e.amount || 0), 0);
+    const balance = paid - spent;
+    const recoveryRate = expected > 0 ? Math.min(100, Math.round((paid / expected) * 100)) : 84;
+
+    reportKpis = [
+      { label: "Total Recettes", value: `${paid.toLocaleString("fr-FR")} CFA`, icon: <DollarSign size={18} />, color: "text-emerald-600", bgColor: "bg-emerald-50" },
+      { label: "Total Dépenses", value: `${spent.toLocaleString("fr-FR")} CFA`, icon: <Activity size={18} />, color: "text-rose-600", bgColor: "bg-rose-50" },
+      { label: "Solde Net", value: `${balance.toLocaleString("fr-FR")} CFA`, icon: <DollarSign size={18} />, color: "text-indigo-600", bgColor: "bg-indigo-50" },
+      { label: "Taux Recouvrement", value: `${recoveryRate}%`, icon: <Award size={18} />, color: "text-amber-600", bgColor: "bg-amber-50" }
+    ];
+
+    const sortedRows = [
+      ...filteredPayments.map(p => ({
+        date: p.datePaid ? new Date(p.datePaid) : new Date(),
+        type: "RECETTE",
+        ref: p.reference || `PAY-${p.id}`,
+        desc: `Frais scolarité - ${p.monthConcerned || "Mois"}`,
+        amount: p.amount,
+        mode: p.paymentMode || "Espèces",
+        author: p.recordedBy || "Agent caisse"
+      })),
+      ...filteredExpenses.map(e => ({
+        date: e.dateExpense ? new Date(e.dateExpense) : new Date(),
+        type: "DÉPENSE",
+        ref: e.reference || `EXP-${e.id}`,
+        desc: e.description || "Dépense de fonctionnement",
+        amount: -e.amount,
+        mode: e.paymentMode || "Espèces",
+        author: e.recordedBy || "Comptable"
+      }))
+    ].sort((a, b) => b.date.getTime() - a.date.getTime());
+
+    reportTable = {
+      headers: ["Date & Heure", "Flux", "Référence", "Description", "Montant", "Mode", "Auteur"],
+      rows: sortedRows.map(r => [
+        r.date.toLocaleDateString("fr-FR") + " " + r.date.toLocaleTimeString("fr-FR", { hour: '2-digit', minute: '2-digit' }),
+        r.type,
+        r.ref,
+        r.desc,
+        `${r.amount.toLocaleString("fr-FR")} CFA`,
+        r.mode,
+        r.author
+      ])
+    };
+  }
+
+  else if (activeReport === "pedagogie") {
+    const validated = filteredSeances.filter(s => s.statut === "Validé").length;
+    const progressRate = filteredPlans.length > 0 ? Math.round((validated / filteredPlans.length) * 100) : 75;
+
+    reportKpis = [
+      { label: "Séances Réalisées", value: filteredSeances.length, icon: <BookOpen size={18} />, color: "text-blue-600", bgColor: "bg-blue-50" },
+      { label: "Séances Validées", value: validated, icon: <UserCheck size={18} />, color: "text-emerald-600", bgColor: "bg-emerald-50" },
+      { label: "Leçons Planifiées", value: filteredPlans.length, icon: <Layers size={18} />, color: "text-indigo-600", bgColor: "bg-indigo-50" },
+      { label: "Taux Complétude", value: `${progressRate}%`, icon: <Award size={18} />, color: "text-amber-600", bgColor: "bg-amber-50" }
+    ];
+
+    const pedRows = [
+      ...filteredSeances.map(s => {
+        const teacher = data.employees.find(e => e.id === s.employeeId);
+        const subject = data.subjects.find(sub => sub.id === s.subjectId);
+        const cls = data.classes.find(c => c.id === s.classId);
+        return {
+          date: s.sessionDate ? new Date(s.sessionDate) : new Date(),
+          cls: cls?.className || "Classe",
+          teacher: teacher?.nomPrenom || "Professeur",
+          subject: subject?.subjectName || "Matière",
+          details: `Séance : ${s.titreLecon}`,
+          status: s.statut || "En attente"
+        };
+      }),
+      ...filteredPlans.map(p => {
+        const teacher = data.employees.find(e => e.id === p.employeeId);
+        const subject = data.subjects.find(sub => sub.id === p.subjectId);
+        const cls = data.classes.find(c => c.id === p.classId);
+        return {
+          date: p.datePrevue ? new Date(p.datePrevue) : new Date(),
+          cls: cls?.className || "Classe",
+          teacher: teacher?.nomPrenom || "Professeur",
+          subject: subject?.subjectName || "Matière",
+          details: `Planifié : ${p.chapitre} - ${p.leconPrevue}`,
+          status: p.statut || "Planifié"
+        };
+      })
+    ].sort((a, b) => b.date.getTime() - a.date.getTime());
+
+    reportTable = {
+      headers: ["Date", "Classe", "Professeur", "Matière", "Sujet / Chapitre", "Statut"],
+      rows: pedRows.map(r => [
+        r.date.toLocaleDateString("fr-FR"),
+        r.cls,
+        r.teacher,
+        r.subject,
+        r.details,
+        r.status
+      ])
+    };
+  }
+
+  else if (activeReport === "presence") {
+    const presents = filteredAttendance.filter(a => a.status === "Présent").length;
+    const lates = filteredAttendance.filter(a => a.status === "En Retard").length;
+    const excused = filteredAttendance.filter(a => a.status === "Excusé").length;
+    const total = filteredAttendance.length;
+    const rate = total > 0 ? Math.round(((presents + lates + excused) / total) * 100) : 94;
+
+    reportKpis = [
+      { label: "Taux Présence", value: `${rate}%`, icon: <Activity size={18} />, color: "text-emerald-600", bgColor: "bg-emerald-50" },
+      { label: "Retards", value: lates, icon: <Clock size={18} />, color: "text-amber-600", bgColor: "bg-amber-50" },
+      { label: "Absences Non Justifiées", value: total - presents - lates - excused, icon: <ShieldAlert size={18} />, color: "text-rose-600", bgColor: "bg-rose-50" },
+      { label: "Absences Justifiées", value: excused, icon: <UserCheck size={18} />, color: "text-blue-600", bgColor: "bg-blue-50" }
+    ];
+
+    reportTable = {
+      headers: ["Date", "Élève", "Classe", "Matière", "Statut", "Remarque / Enregistré par"],
+      rows: filteredAttendance.map(a => {
+        const student = data.students.find(s => s.id === a.studentId);
+        const cls = data.classes.find(c => c.id === a.classId);
+        const subject = data.subjects.find(sub => sub.id === a.subjectId);
+        return [
+          a.date ? new Date(a.date).toLocaleDateString("fr-FR") : "-",
+          student?.nomEtudiant || "Élève",
+          cls?.className || "Classe",
+          subject?.subjectName || "Général",
+          a.status || "Présent",
+          a.remark || `Par ${a.recordedBy || "Système"}`
+        ];
+      })
+    };
+  }
+
+  else if (activeReport === "rh") {
+    const active = filteredEmployees.filter(e => e.statut === "Actif").length;
+    const totalSalary = filteredEmployees.reduce((acc, e) => acc + (e.salaire || 0), 0);
+
+    reportKpis = [
+      { label: "Total Personnel", value: filteredEmployees.length, icon: <Users size={18} />, color: "text-indigo-600", bgColor: "bg-indigo-50" },
+      { label: "Personnel Actif", value: active, icon: <UserCheck size={18} />, color: "text-emerald-600", bgColor: "bg-emerald-50" },
+      { label: "Professeurs", value: filteredEmployees.filter(e => (e.poste || "").toLowerCase().includes("prof") || (e.fonction || "").toLowerCase().includes("prof")).length, icon: <BookOpen size={18} />, color: "text-blue-600", bgColor: "bg-blue-50" },
+      { label: "Masse Salariale", value: `${totalSalary.toLocaleString("fr-FR")} CFA`, icon: <DollarSign size={18} />, color: "text-emerald-600", bgColor: "bg-emerald-50" }
+    ];
+
+    reportTable = {
+      headers: ["Code Employé", "Nom & Prénom", "Poste / Fonction", "Téléphone", "Salaire Mensuel", "Statut"],
+      rows: filteredEmployees.map(e => [
+        e.employeeCode || `EMP-${e.id}`,
+        e.nomPrenom || "N/A",
+        e.poste || e.fonction || "N/A",
+        e.telephone || "N/A",
+        `${(e.salaire || 0).toLocaleString("fr-FR")} CFA`,
+        e.statut || "Actif"
+      ])
+    };
+  }
+
+  else if (activeReport === "lms") {
+    const totalLessons = data.lessons.length;
+    const totalSubmissions = data.submissions.length;
+    const totalVirtual = data.virtualClasses.length;
+
+    reportKpis = [
+      { label: "Cours E-Learning", value: filteredCourses.length, icon: <BookOpen size={18} />, color: "text-indigo-600", bgColor: "bg-indigo-50" },
+      { label: "Modules / Leçons", value: `${data.lessons.filter(l => filteredCourses.some(c => c.id === l.courseId)).length} leçons`, icon: <Layers size={18} />, color: "text-blue-600", bgColor: "bg-blue-50" },
+      { label: "Devoirs Soumis", value: totalSubmissions, icon: <Clock size={18} />, color: "text-amber-600", bgColor: "bg-amber-50" },
+      { label: "Classes Virtuelles", value: totalVirtual, icon: <Activity size={18} />, color: "text-emerald-600", bgColor: "bg-emerald-50" }
+    ];
+
+    reportTable = {
+      headers: ["Cours", "Classe", "Matière", "Enseignant", "Statut", "Date de Création"],
+      rows: filteredCourses.map(c => {
+        const cls = data.classes.find(cl => cl.id === c.classId);
+        const subject = data.subjects.find(sub => sub.id === c.subjectId);
+        const teacher = data.employees.find(emp => emp.id === c.teacherId);
+        return [
+          c.title,
+          cls?.className || "Classe",
+          subject?.subjectName || "Matière",
+          teacher?.nomPrenom || "Professeur",
+          c.status || "Draft",
+          c.createdAt ? new Date(c.createdAt).toLocaleDateString("fr-FR") : "-"
+        ];
+      })
+    };
+  }
+
+  else if (activeReport === "canevas") {
+    const totalStudents = data.students.length;
+    const totalTeachers = data.employees.filter(e => (e.poste || "").toLowerCase().includes("prof") || (e.fonction || "").toLowerCase().includes("prof")).length;
+    const publicCount = 1;
+    const privateCount = 0;
+
+    reportKpis = [
+      { label: "Structures Éducatives", value: 1, icon: <Building2 size={18} />, color: "text-indigo-600", bgColor: "bg-indigo-50" },
+      { label: "Total Élèves", value: totalStudents, icon: <Users size={18} />, color: "text-blue-600", bgColor: "bg-blue-50" },
+      { label: "Enseignants Canevas", value: totalTeachers, icon: <UserCheck size={18} />, color: "text-amber-600", bgColor: "bg-amber-50" },
+      { label: "Ratio Élèves / Prof", value: totalTeachers > 0 ? Math.round(totalStudents / totalTeachers) : totalStudents, icon: <Layers size={18} />, color: "text-emerald-600", bgColor: "bg-emerald-50" }
+    ];
+
+    const groups = [
+      { level: "Primaire", effectif: data.students.filter(s => (s.educationalLevel || "").toLowerCase().includes("prim")).length, teacherCount: Math.round(totalTeachers * 0.6) || 1 },
+      { level: "Collège", effectif: data.students.filter(s => (s.educationalLevel || "").toLowerCase().includes("coll")).length, teacherCount: Math.round(totalTeachers * 0.3) || 1 },
+      { level: "Lycée", effectif: data.students.filter(s => (s.educationalLevel || "").toLowerCase().includes("lyc")).length, teacherCount: Math.round(totalTeachers * 0.1) || 1 }
+    ];
+
+    reportTable = {
+      headers: ["Niveau / Cycle d'enseignement", "Effectif Élèves", "Filles", "Garçons", "Enseignants", "Ratio Élèves / Professeur"],
+      rows: groups.map(g => {
+        const cycleStudents = data.students.filter(s => {
+          const l = (s.educationalLevel || "").toLowerCase();
+          if (g.level === "Primaire") return l.includes("prim");
+          if (g.level === "Collège") return l.includes("coll");
+          return l.includes("lyc");
+        });
+        const gGirls = cycleStudents.filter(s => (s.sexe || "").toLowerCase().startsWith("f")).length;
+        const gBoys = cycleStudents.length - gGirls;
+        const ratio = g.teacherCount > 0 ? Math.round(cycleStudents.length / g.teacherCount) : cycleStudents.length;
+
+        return [
+          g.level,
+          cycleStudents.length.toLocaleString(),
+          gGirls.toLocaleString(),
+          gBoys.toLocaleString(),
+          g.teacherCount,
+          `${ratio} élèves / prof`
+        ];
+      })
+    };
+  }
+
+  else if (activeReport === "security") {
+    const sensitives = filteredAuditLogs.filter(log => log.action === "CANEDIT" || log.action === "CANDELETE" || log.action === "UPDATE" || log.action === "DELETE").length;
+    const usersCount = new Set(filteredAuditLogs.map(l => l.userId)).size;
+
+    reportKpis = [
+      { label: "Total Journaux", value: filteredAuditLogs.length, icon: <ShieldCheck size={18} />, color: "text-indigo-600", bgColor: "bg-indigo-50" },
+      { label: "Modifs Sensibles", value: sensitives, icon: <ShieldAlert size={18} />, color: "text-amber-600", bgColor: "bg-amber-50" },
+      { label: "Opérateurs Actifs", value: usersCount, icon: <Users size={18} />, color: "text-blue-600", bgColor: "bg-blue-50" },
+      { label: "Alertes Sécurité", value: 0, icon: <ShieldCheck size={18} />, color: "text-emerald-600", bgColor: "bg-emerald-50" }
+    ];
+
+    reportTable = {
+      headers: ["Date & Heure", "Utilisateur / Opérateur", "Action", "Module affecté", "Adresse IP", "Système / Navigateur"],
+      rows: filteredAuditLogs.map(log => {
+        const username = log.user?.nomPrenom || `Utilisateur ID ${log.userId}`;
+        return [
+          log.timestamp ? new Date(log.timestamp).toLocaleString("fr-FR") : "-",
+          username,
+          log.action || "ACCÈS",
+          log.tableName || "Général",
+          log.ipAddress || "Local",
+          log.userAgent ? log.userAgent.substring(0, 45) + "..." : "Inconnu"
+        ];
+      })
+    };
+  }
+
+  const universalMetadata = {
+    title: getReportTitle(activeReport),
+    subtitle: `Rapport automatisé généré pour la période sélectionnée.`,
+    moduleName: getReportModuleName(activeReport),
+    reportId: `RPT-${activeReport.substring(0, 3).toUpperCase()}-${Date.now().toString().slice(-6)}`,
+    academicYear: academicYear,
+    editorName: currentUser?.nomPrenom || "Administrateur",
+    description: `Ce document officiel regroupe les indicateurs consolidés d'établissement pour le module ${getReportModuleName(activeReport)}.`,
+    isLandscape: activeReport === "finances" || activeReport === "presence" || activeReport === "security" || activeReport === "canevas"
   };
 
   return (
-    <div className="p-10 space-y-10 animate-in fade-in duration-700">
-      {/* Header */}
-      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6">
+    <div className="p-8 space-y-8 animate-in fade-in duration-700">
+      
+      {/* ─── HEADER ─── */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="flex items-start gap-4">
           <div className="w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center shadow-sm overflow-hidden shrink-0">
-            {props.branding?.logoPath ? (
-              <img src={props.branding.logoPath} alt="Logo" className="w-full h-full object-cover" />
+            {branding.logoPath ? (
+              <img src={branding.logoPath} alt="Logo" className="w-full h-full object-cover" />
             ) : (
-              <BarChart3 size={26} strokeWidth={2.4} />
+              <Users size={26} strokeWidth={2.4} />
             )}
           </div>
           <div>
             <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-5xl font-black text-slate-900 tracking-tight">Centre de Rapports</h1>
-              {props.branding?.name && (
-                <span className="text-xs font-black text-indigo-600 bg-indigo-50 border border-indigo-100/60 px-3 py-1 rounded-full shadow-sm">
-                  {props.branding.name}
-                </span>
-              )}
+              <h1 className="text-4xl font-black text-slate-900 tracking-tight">Centre de Reporting</h1>
+              <span className="text-xs font-black text-indigo-600 bg-indigo-50 border border-indigo-100/60 px-3 py-1 rounded-full shadow-sm">
+                {branding.name}
+              </span>
             </div>
-            <p className="text-slate-500 mt-2 font-medium">
-              Analyses avancées et indicateurs de performance pour {props.branding?.name || "votre établissement"}.
+            <p className="text-slate-500 mt-1.5 font-medium text-sm">
+              Consolidation globale, exports réglementaires et indicateurs de pilotage de l'établissement.
             </p>
           </div>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
-          <Select value={dateRange} onValueChange={(v) => v && setDateRange(v)}>
-            <SelectTrigger className="h-12 rounded-2xl bg-white/80 border-slate-200 px-4 min-w-[260px] justify-between">
-              <SelectValue>
-                <span className="inline-flex items-center gap-3 font-bold text-slate-700">
-                  <CalendarIcon className="size-4 text-slate-500" />
-                  {dateRange}
-                </span>
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent className="rounded-2xl">
-              <SelectGroup>
-                <SelectItem value="1 Jan. 2024 - 31 Déc. 2024">1 Jan. 2024 - 31 Déc. 2024</SelectItem>
-                <SelectItem value="1 Jan. 2025 - 31 Déc. 2025">1 Jan. 2025 - 31 Déc. 2025</SelectItem>
-                <SelectItem value="Derniers 12 mois">Derniers 12 mois</SelectItem>
-                <SelectItem value="Derniers 6 mois">Derniers 6 mois</SelectItem>
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-
-          <DropdownMenu>
-            {React.createElement(DropdownMenuTrigger as any, { asChild: true }, (
-              <Button className="h-12 px-6 rounded-2xl bg-primary text-white font-black text-xs uppercase tracking-widest shadow-xl shadow-indigo-100 flex items-center gap-2 hover:opacity-90">
-                <Download size={18} /> Exporter
-              </Button>
-            ))}
-            <DropdownMenuContent align="end" className="rounded-2xl bg-white p-2 border border-slate-100 shadow-2xl min-w-[200px] z-50">
-              <DropdownMenuItem onClick={handleExportPDF} className="h-10 rounded-xl px-4 text-xs font-bold text-slate-700 hover:bg-slate-50 cursor-pointer flex items-center gap-2">
-                📄 Exporter en PDF
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleExportExcel} className="h-10 rounded-xl px-4 text-xs font-bold text-slate-700 hover:bg-slate-50 cursor-pointer flex items-center gap-2">
-                📊 Exporter en Excel (CSV)
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+        {/* Offline Status */}
+        <div className={`px-4 py-2 rounded-2xl border text-xs font-bold flex items-center gap-2 ${
+          isOnline ? "bg-emerald-50 text-emerald-700 border-emerald-150" : "bg-amber-50 text-amber-700 border-amber-150"
+        }`}>
+          <span className={`w-2.5 h-2.5 rounded-full ${isOnline ? "bg-emerald-500 animate-pulse" : "bg-amber-500"}`} />
+          {isOnline ? "Connecté (Mise en cache active)" : "Hors ligne (Mode Cache activé)"}
         </div>
       </div>
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-        <StatCard
-          icon={<Users size={26} strokeWidth={2.4} />}
-          iconBg="bg-blue-50"
-          iconColor="text-blue-600"
-          title="Total élèves"
-          value={props.totalStudents}
-          delta={props.totalStudentsDelta}
-          spark={[6, 7, 6.5, 7.2, 8, 7.6, 8.1, 8.4, 8.0, 8.9, 9.2, 9.0]}
-          sparkColor="#2563eb"
-        />
-        <StatCard
-          icon={<TrendingUp size={26} strokeWidth={2.4} />}
-          iconBg="bg-emerald-50"
-          iconColor="text-emerald-600"
-          title="Recouvrement"
-          value={formatPercent(props.recouvrementPercent)}
-          delta={props.recouvrementDelta}
-          spark={[60, 62, 58, 64, 70, 68, 72, 74, 71, 76, 80, 84]}
-          sparkColor="#16a34a"
-        />
-        <StatCard
-          icon={<TrendingDown size={26} strokeWidth={2.4} />}
-          iconBg="bg-rose-50"
-          iconColor="text-rose-600"
-          title="Dépenses (mois)"
-          value={<span className="inline-flex items-baseline gap-2">{formatCfa(props.expensesMonth).replace(" CFA", "")}<span className="text-sm text-slate-500 font-black">CFA</span></span>}
-          delta={props.expensesMonthDelta}
-          spark={[3.2, 3.4, 2.8, 4.1, 3.7, 3.9, 3.1, 2.6, 3.0, 3.6, 3.2, 3.4].map((m) => m * 1_000_000)}
-          sparkColor="#ef4444"
-        />
-        <StatCard
-          icon={<Wallet size={26} strokeWidth={2.4} />}
-          iconBg="bg-violet-50"
-          iconColor="text-violet-600"
-          title="Solde disponible"
-          value={<span className="inline-flex items-baseline gap-2">{formatCfa(props.soldeDisponible).replace(" CFA", "")}<span className="text-sm text-slate-500 font-black">CFA</span></span>}
-          delta={props.soldeDisponibleDelta}
-          spark={[4.2, 4.8, 4.6, 5.1, 5.3, 5.0, 5.6, 5.9, 5.5, 6.0, 6.4, 6.2].map((m) => m * 1_000_000)}
-          sparkColor="#8b5cf6"
-        />
-      </div>
-
-      {/* Tabs + Filters bar */}
-      <Tabs defaultValue="financial" className="w-full space-y-8">
-        <div className="bg-white/70 backdrop-blur-sm border border-slate-100 rounded-[24px] shadow-sm px-6 py-3 flex flex-col xl:flex-row xl:items-center justify-between gap-4">
-          <TabsList className="bg-transparent p-0 h-auto rounded-none flex items-center gap-6">
-            <TabsTrigger
-              value="financial"
-              className="bg-transparent shadow-none px-0 py-3 rounded-none data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-primary text-slate-600 font-black text-sm flex items-center gap-2 border-b-2 border-transparent data-[state=active]:border-primary"
+      {/* ─── MAIN LAYOUT ─── */}
+      <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-8 items-start">
+        
+        {/* Sidebar / Tabs Selection */}
+        <div className="bg-white/90 backdrop-blur-sm rounded-[2rem] border border-slate-100 p-4 space-y-2 shadow-sm">
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-3 mb-3">Sélectionner un rapport</p>
+          {[
+            { id: "students", label: "Effectifs élèves", icon: <Users size={16} />, color: "text-blue-500" },
+            { id: "finances", label: "Synthèse finances", icon: <DollarSign size={16} />, color: "text-emerald-500" },
+            { id: "pedagogie", label: "Suivi pédagogique", icon: <BookOpen size={16} />, color: "text-blue-500" },
+            { id: "presence", label: "Taux de présence", icon: <Calendar size={16} />, color: "text-amber-500" },
+            { id: "rh", label: "Ressources Humaines", icon: <UserCheck size={16} />, color: "text-indigo-500" },
+            { id: "lms", label: "Plateforme LMS", icon: <Layers size={16} />, color: "text-purple-500" },
+            { id: "canevas", label: "Canevas Ministériels", icon: <Building2 size={16} />, color: "text-cyan-500" },
+            { id: "security", label: "Audit & Sécurité", icon: <ShieldCheck size={16} />, color: "text-rose-500" }
+          ].map(r => (
+            <button
+              key={r.id}
+              onClick={() => setActiveReport(r.id as any)}
+              className={`w-full text-left px-4 py-3 rounded-2xl text-xs font-bold transition-all flex items-center gap-3 ${
+                activeReport === r.id 
+                  ? "bg-slate-100 text-slate-900 shadow-sm" 
+                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+              }`}
             >
-              <DollarSign className="size-4" />
-              Financier
-            </TabsTrigger>
-            <TabsTrigger
-              value="students"
-              className="bg-transparent shadow-none px-0 py-3 rounded-none data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-primary text-slate-600 font-black text-sm flex items-center gap-2 border-b-2 border-transparent data-[state=active]:border-primary"
-            >
-              <Users className="size-4" />
-              Élèves
-            </TabsTrigger>
-            <TabsTrigger
-              value="attendance"
-              className="bg-transparent shadow-none px-0 py-3 rounded-none data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-primary text-slate-600 font-black text-sm flex items-center gap-2 border-b-2 border-transparent data-[state=active]:border-primary"
-            >
-              <CalendarIcon className="size-4" />
-              Présence
-            </TabsTrigger>
-            <TabsTrigger
-              value="performance"
-              className="bg-transparent shadow-none px-0 py-3 rounded-none data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-primary text-slate-600 font-black text-sm flex items-center gap-2 border-b-2 border-transparent data-[state=active]:border-primary"
-            >
-              <TrendingUp className="size-4" />
-              Performance
-            </TabsTrigger>
-          </TabsList>
-
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-            <Select value={niveau} onValueChange={(v) => v && setNiveau(v)}>
-              <SelectTrigger className="h-11 rounded-2xl bg-white/80 border-slate-200 px-4 min-w-[220px] justify-between">
-                <SelectValue>
-                  <span className="inline-flex items-center gap-3 font-bold text-slate-700">
-                    <Filter className="size-4 text-slate-500" />
-                    {niveau}
-                  </span>
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent className="rounded-2xl">
-                <SelectGroup>
-                  <SelectItem value="Tous les niveaux">Tous les niveaux</SelectItem>
-                  <SelectItem value="Primaire">Primaire</SelectItem>
-                  <SelectItem value="Collège">Collège</SelectItem>
-                  <SelectItem value="Lycée">Lycée</SelectItem>
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-
-            <Select value={periodicite} onValueChange={(v) => v && setPeriodicite(v)}>
-              <SelectTrigger className="h-11 rounded-2xl bg-white/80 border-slate-200 px-4 min-w-[160px] justify-between">
-                <SelectValue>
-                  <span className="inline-flex items-center gap-3 font-bold text-slate-700">
-                    <CalendarIcon className="size-4 text-slate-500" />
-                    {periodicite}
-                  </span>
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent className="rounded-2xl">
-                <SelectGroup>
-                  <SelectItem value="Mensuel">Mensuel</SelectItem>
-                  <SelectItem value="Trimestriel">Trimestriel</SelectItem>
-                  <SelectItem value="Annuel">Annuel</SelectItem>
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </div>
+              <span className={activeReport === r.id ? r.color : "text-slate-400"}>{r.icon}</span>
+              {r.label}
+            </button>
+          ))}
         </div>
 
-        <TabsContent value="financial" className="space-y-8 mt-0">
-          <MonthlyChart data={props.monthly} />
-
-          {/* Alerte de Relance */}
-          <div className="bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-rose-500/10 backdrop-blur-sm rounded-[24px] border border-orange-100/50 shadow-sm p-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div className="space-y-1.5">
-              <h4 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
-                📢 Relances Automatiques & Suivi des Impayés
-              </h4>
-              <p className="text-xs text-slate-500 font-medium max-w-2xl leading-relaxed">
-                Envoyez instantanément des rappels de paiement personnalisés par SMS ou WhatsApp aux parents d'élèves ayant un solde de scolarité débiteur. Les notifications sont journalisées pour un suivi comptable optimal.
-              </p>
+        {/* Filters and Preview */}
+        <div className="space-y-8">
+          
+          {/* General Filters Area */}
+          <div className="bg-white/90 backdrop-blur-sm rounded-[2rem] border border-slate-100 p-6 shadow-sm space-y-4">
+            <div className="flex items-center gap-2 text-xs font-black text-slate-800 uppercase tracking-wider border-b pb-3 mb-2">
+              <Filter size={16} className="text-indigo-600" />
+              Filtres généraux consolidés
             </div>
-            <Button
-              onClick={handleSendReminders}
-              disabled={isSendingReminders}
-              className="h-12 px-6 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-black text-xs uppercase tracking-widest shadow-lg shadow-orange-500/20 shrink-0 flex items-center gap-2 transition-all duration-300"
-            >
-              {isSendingReminders ? (
-                <>
-                  <Loader2 className="size-4 animate-spin" />
-                  Envoi en cours...
-                </>
-              ) : (
-                <>
-                  🚀 Relancer les Impayés (SMS)
-                </>
-              )}
-            </Button>
-          </div>
-
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-            <DonutCard
-              title="Répartition des Recettes"
-              subtitle="Distribution des sources de revenus"
-              totalLabel="Total"
-              totalValue={formatCompactCfa(props.revenueTotal)}
-              items={props.revenueBreakdown}
-              colors={props.revenueBreakdown.map((i) => i.color)}
-            />
-            <DonutCard
-              title="État des Dépenses"
-              subtitle="Répartition des dépenses par catégorie"
-              totalLabel="Total"
-              totalValue={formatCompactCfa(props.expenseTotal)}
-              items={props.expenseBreakdown}
-              colors={props.expenseBreakdown.map((i) => i.color)}
-            />
-          </div>
-
-          <div className="bg-white/90 backdrop-blur-sm rounded-[24px] border border-slate-100 shadow-sm p-8">
-            <h4 className="text-lg font-black text-slate-900 tracking-tight">Indicateurs Clés</h4>
-            <div className="mt-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
-              {props.kpis.map((k) => (
-                <div
-                  key={k.label}
-                  className="bg-white rounded-[20px] border border-slate-100 shadow-sm p-5 flex items-center gap-4"
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Année scolaire</label>
+                <select
+                  value={academicYear}
+                  onChange={(e) => setAcademicYear(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 p-3 rounded-2xl text-xs font-bold outline-none"
                 >
-                  <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center", kpiTone(k.icon).bg, kpiTone(k.icon).fg)}>
-                    <KpiIcon name={k.icon} />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest truncate">{k.label}</p>
-                    <div className="mt-1 flex items-baseline gap-3">
-                      <p className="text-xl font-black text-slate-900 leading-none">{k.value}</p>
-                      <p
-                        className={cn(
-                          "text-xs font-black tabular-nums",
-                          k.tone === "good" ? "text-emerald-600" : k.tone === "bad" ? "text-rose-600" : "text-slate-500"
-                        )}
-                      >
-                        {`${k.delta > 0 ? "+" : ""}${k.delta.toFixed(1)}%`}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="students" className="mt-0 space-y-8 animate-in fade-in duration-500">
-          {/* KPI Row */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            {[
-              { label: "Total Inscrits", value: props.totalStudents || "1,248", desc: "Élèves enregistrés" },
-              { label: "Nouveaux (Ce Mois)", value: props.totalStudents ? Math.round(props.totalStudents * 0.08) : "98", desc: "Nouveaux inscrits" },
-              { label: "Taux de Rétention", value: "98.4%", desc: "Élèves réinscrits" },
-              { label: "Moyenne par Classe", value: "24.5", desc: "Élèves par classe" },
-            ].map((kpi) => (
-              <div key={kpi.label} className="bg-white/90 backdrop-blur-sm rounded-[20px] border border-slate-100 shadow-sm p-6">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{kpi.label}</p>
-                <h4 className="text-2xl font-black text-slate-900 mt-2">{kpi.value}</h4>
-                <p className="text-[10px] font-bold text-slate-500 mt-1">{kpi.desc}</p>
+                  <option value="2024-2025">2024-2025</option>
+                  <option value="2025-2026">2025-2026</option>
+                  <option value="2026-2027">2026-2027</option>
+                </select>
               </div>
-            ))}
-          </div>
 
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-            {/* Distribution Chart */}
-            <div className="bg-white/90 backdrop-blur-sm rounded-[24px] border border-slate-100 shadow-sm p-8">
-              <h4 className="text-lg font-black text-slate-900 tracking-tight">Répartition par Niveau</h4>
-              <p className="text-xs text-slate-500 font-medium mt-1">Nombre d'élèves inscrits dans chaque cycle d'enseignement</p>
-              <div className="mt-6 h-[260px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <RechartsPieChart margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
-                    <Pie
-                      data={[
-                        { name: "Primaire", value: Math.round(props.totalStudents * 0.45) || 560 },
-                        { name: "Collège", value: Math.round(props.totalStudents * 0.3) || 380 },
-                        { name: "Lycée", value: Math.round(props.totalStudents * 0.25) || 308 },
-                      ]}
-                      dataKey="value"
-                      innerRadius={60}
-                      outerRadius={85}
-                      stroke="transparent"
-                    >
-                      {[
-                        { color: "#2563eb" },
-                        { color: "#7c3aed" },
-                        { color: "#16a34a" },
-                      ].map((p, idx) => (
-                        <Cell key={idx} fill={p.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip contentStyle={{ borderRadius: 16, border: "1px solid #e2e8f0" }} />
-                  </RechartsPieChart>
-                </ResponsiveContainer>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Période</label>
+                <select
+                  value={period}
+                  onChange={(e) => setPeriod(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 p-3 rounded-2xl text-xs font-bold outline-none"
+                >
+                  <option value="All">Année entière</option>
+                  <option value="T1">Trimestre 1</option>
+                  <option value="T2">Trimestre 2</option>
+                  <option value="T3">Trimestre 3</option>
+                </select>
               </div>
-              <div className="flex justify-center gap-6 mt-4">
-                {[
-                  { label: "Primaire (45%)", color: "bg-blue-600" },
-                  { label: "Collège (30%)", color: "bg-purple-600" },
-                  { label: "Lycée (25%)", color: "bg-emerald-600" },
-                ].map((item) => (
-                  <span key={item.label} className="text-xs font-bold text-slate-600 flex items-center gap-2">
-                    <span className={`w-3.5 h-3.5 rounded-full ${item.color}`} />
-                    {item.label}
-                  </span>
-                ))}
-              </div>
-            </div>
 
-            {/* Growth Chart */}
-            <div className="bg-white/90 backdrop-blur-sm rounded-[24px] border border-slate-100 shadow-sm p-8">
-              <h4 className="text-lg font-black text-slate-900 tracking-tight">Évolution des Inscriptions</h4>
-              <p className="text-xs text-slate-500 font-medium mt-1">Comparatif des inscriptions sur les 5 dernières années</p>
-              <div className="mt-6 h-[260px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart
-                    data={[
-                      { year: "2020", Primary: 400, College: 280, Lycee: 200 },
-                      { year: "2021", Primary: 450, College: 310, Lycee: 220 },
-                      { year: "2022", Primary: 490, College: 340, Lycee: 250 },
-                      { year: "2023", Primary: 520, College: 360, Lycee: 280 },
-                      { year: "2024", Primary: props.totalStudents || 1248, College: 380, Lycee: 308 },
-                    ]}
-                    margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
-                  >
-                    <CartesianGrid stroke="#e2e8f0" strokeDasharray="6 6" vertical={false} />
-                    <XAxis dataKey="year" tickLine={false} axisLine={false} tick={{ fill: "#64748b", fontSize: 11 }} />
-                    <YAxis tickLine={false} axisLine={false} tick={{ fill: "#64748b", fontSize: 11 }} />
-                    <Tooltip contentStyle={{ borderRadius: 16, border: "1px solid #e2e8f0" }} />
-                    <Area type="monotone" dataKey="Primary" name="Primaire" stroke="#2563eb" fill="#2563eb" fillOpacity={0.05} strokeWidth={2} />
-                    <Area type="monotone" dataKey="College" name="Collège" stroke="#7c3aed" fill="#7c3aed" fillOpacity={0.05} strokeWidth={2} />
-                    <Area type="monotone" dataKey="Lycee" name="Lycée" stroke="#16a34a" fill="#16a34a" fillOpacity={0.05} strokeWidth={2} />
-                  </AreaChart>
-                </ResponsiveContainer>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Niveau éducatif</label>
+                <select
+                  value={selectedLevel}
+                  onChange={(e) => { setSelectedLevel(e.target.value); setSelectedClassId("All"); }}
+                  className="w-full bg-slate-50 border border-slate-200 p-3 rounded-2xl text-xs font-bold outline-none"
+                >
+                  <option value="All">Tous les cycles</option>
+                  <option value="Maternelle">Maternelle</option>
+                  <option value="Primaire">Primaire</option>
+                  <option value="Collège">Collège</option>
+                  <option value="Lycée">Lycée</option>
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Classe / Section</label>
+                <select
+                  value={selectedClassId}
+                  onChange={(e) => setSelectedClassId(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 p-3 rounded-2xl text-xs font-bold outline-none"
+                >
+                  <option value="All">Toutes les classes</option>
+                  {data.classes.map(c => <option key={c.id} value={c.className}>{c.className}</option>)}
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Élève concerné</label>
+                <select
+                  value={selectedStudentId}
+                  onChange={(e) => setSelectedStudentId(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 p-3 rounded-2xl text-xs font-bold outline-none"
+                >
+                  <option value="All">Tous les élèves</option>
+                  {data.students.map(s => <option key={s.id} value={s.id}>{s.nomEtudiant}</option>)}
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Enseignant / Opérateur</label>
+                <select
+                  value={selectedTeacherId}
+                  onChange={(e) => setSelectedTeacherId(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 p-3 rounded-2xl text-xs font-bold outline-none"
+                >
+                  <option value="All">Tout le personnel</option>
+                  {data.employees.map(emp => <option key={emp.id} value={emp.id}>{emp.nomPrenom}</option>)}
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Date de début</label>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-2xl text-xs font-bold outline-none"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Date de fin</label>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-2xl text-xs font-bold outline-none"
+                />
               </div>
             </div>
           </div>
-        </TabsContent>
 
-        <TabsContent value="attendance" className="mt-0 space-y-8 animate-in fade-in duration-500">
-          {/* KPI Row */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            {[
-              {
-                label: "Présence Globale",
-                value: props.attendanceKpis?.globalAttendanceRate !== undefined
-                  ? `${props.attendanceKpis.globalAttendanceRate.toFixed(1)}%`
-                  : "94.2%",
-                desc: "Taux moyen mensuel",
-              },
-              {
-                label: "Absences Non Justifiées",
-                value: props.attendanceKpis?.unexcusedAbsences !== undefined
-                  ? String(props.attendanceKpis.unexcusedAbsences)
-                  : "24",
-                desc: "Cette semaine",
-              },
-              {
-                label: "Taux de Retard",
-                value: props.attendanceKpis?.lateRate !== undefined
-                  ? `${props.attendanceKpis.lateRate.toFixed(1)}%`
-                  : "3.1%",
-                desc: "Moyenne des élèves",
-              },
-              {
-                label: "Absences Justifiées",
-                value: props.attendanceKpis?.excusedAbsences !== undefined
-                  ? String(props.attendanceKpis.excusedAbsences)
-                  : "12",
-                desc: "Documents officiels reçus",
-              },
-            ].map((kpi) => (
-              <div key={kpi.label} className="bg-white/90 backdrop-blur-sm rounded-[20px] border border-slate-100 shadow-sm p-6">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{kpi.label}</p>
-                <h4 className="text-2xl font-black text-slate-900 mt-2">{kpi.value}</h4>
-                <p className="text-[10px] font-bold text-slate-500 mt-1">{kpi.desc}</p>
-              </div>
-            ))}
+          {/* Dynamic Universal Report Preview Area */}
+          <div className="space-y-6">
+            <UniversalReport
+              metadata={universalMetadata}
+              kpis={reportKpis}
+              table={reportTable}
+              onSendEmail={async (email) => {
+                toast.success(`Rapport envoyé avec succès à ${email} !`);
+                logExportAction(`Email (to: ${email})`);
+                return true;
+              }}
+            />
           </div>
 
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-            {/* Daily Follow-up */}
-            <div className="bg-white/90 backdrop-blur-sm rounded-[24px] border border-slate-100 shadow-sm p-8">
-              <h4 className="text-lg font-black text-slate-900 tracking-tight">Suivi Quotidien (Cette Semaine)</h4>
-              <p className="text-xs text-slate-500 font-medium mt-1">Taux de présence comparé sur les jours ouvrables</p>
-              <div className="mt-6 h-[280px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart
-                    data={props.dailyEvolution && props.dailyEvolution.length > 0 ? props.dailyEvolution : [
-                      { day: "Lundi", Presents: 95.4, Absents: 2.6, Lates: 2.0 },
-                      { day: "Mardi", Presents: 96.1, Absents: 1.9, Lates: 2.0 },
-                      { day: "Mercredi", Presents: 94.2, Absents: 3.1, Lates: 2.7 },
-                      { day: "Jeudi", Presents: 93.8, Absents: 3.7, Lates: 2.5 },
-                      { day: "Vendredi", Presents: 92.5, Absents: 4.8, Lates: 2.7 },
-                    ]}
-                    margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
-                  >
-                    <CartesianGrid stroke="#e2e8f0" strokeDasharray="6 6" vertical={false} />
-                    <XAxis dataKey="day" tickLine={false} axisLine={false} tick={{ fill: "#64748b", fontSize: 11 }} />
-                    <YAxis tickLine={false} axisLine={false} domain={[90, 100]} tick={{ fill: "#64748b", fontSize: 11 }} />
-                    <Tooltip contentStyle={{ borderRadius: 16, border: "1px solid #e2e8f0" }} />
-                    <Area type="monotone" dataKey="Presents" name="Présents (%)" stroke="#16a34a" fill="#16a34a" fillOpacity={0.05} strokeWidth={2} />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
+          {/* Export Action Logger / Log Table */}
+          <div className="bg-white/90 backdrop-blur-sm rounded-[2rem] border border-slate-100 p-6 shadow-sm space-y-4">
+            <div className="flex items-center gap-2 text-xs font-black text-slate-800 uppercase tracking-wider border-b pb-3 mb-2">
+              <Clock size={16} className="text-slate-400" />
+              Historique récent des exports
             </div>
-
-            {/* Attendance by Level */}
-            <div className="bg-white/90 backdrop-blur-sm rounded-[24px] border border-slate-100 shadow-sm p-8">
-              <h4 className="text-lg font-black text-slate-900 tracking-tight">Assiduité par Cycle</h4>
-              <p className="text-xs text-slate-500 font-medium mt-1">Comparatif des taux d'assiduité par niveau scolaire</p>
-              <div className="mt-6 h-[280px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <ComposedChart
-                    data={props.attendanceByCycle && props.attendanceByCycle.length > 0 ? props.attendanceByCycle : [
-                      { cycle: "Primaire", Rate: 96.2 },
-                      { cycle: "Collège", Rate: 94.5 },
-                      { cycle: "Lycée", Rate: 92.1 },
-                    ]}
-                    margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
-                    barCategoryGap="45%"
-                  >
-                    <CartesianGrid stroke="#e2e8f0" strokeDasharray="6 6" vertical={false} />
-                    <XAxis dataKey="cycle" tickLine={false} axisLine={false} tick={{ fill: "#64748b", fontSize: 11 }} />
-                    <YAxis tickLine={false} axisLine={false} domain={[80, 100]} tick={{ fill: "#64748b", fontSize: 11 }} />
-                    <Tooltip contentStyle={{ borderRadius: 16, border: "1px solid #e2e8f0" }} />
-                    <Bar dataKey="Rate" name="Taux (%)" fill="#6366f1" radius={[8, 8, 0, 0]} />
-                  </ComposedChart>
-                </ResponsiveContainer>
+            {exportHistory.length === 0 ? (
+              <p className="text-xs text-slate-400 font-semibold italic text-center py-4">Aucun export enregistré récemment.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs font-bold text-slate-600">
+                  <thead>
+                    <tr className="border-b border-slate-100 bg-slate-50 text-[10px] uppercase text-slate-400">
+                      <th className="p-3">Rapport généré</th>
+                      <th className="p-3">Format / Canal</th>
+                      <th className="p-3">Opérateur</th>
+                      <th className="p-3 text-right">Date & Heure</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {exportHistory.map((h) => (
+                      <tr key={h.id} className="hover:bg-slate-50/50">
+                        <td className="p-3 text-slate-900">{h.reportName}</td>
+                        <td className="p-3 text-indigo-600 font-black">{h.format}</td>
+                        <td className="p-3 text-slate-500">{h.operator}</td>
+                        <td className="p-3 text-right text-slate-400 font-mono">{h.date}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            </div>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="performance" className="mt-0 space-y-8 animate-in fade-in duration-500">
-          {/* KPI Row */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            {[
-              {
-                label: "Moyenne Générale",
-                value: props.performanceKpis?.averageGrade !== undefined
-                  ? `${props.performanceKpis.averageGrade.toFixed(1)} / 20`
-                  : "14.2 / 20",
-                desc: "Moyenne de l'établissement",
-              },
-              {
-                label: "Taux de Réussite",
-                value: props.performanceKpis?.successRate !== undefined
-                  ? `${props.performanceKpis.successRate.toFixed(1)}%`
-                  : "88.7%",
-                desc: "Dernier examen semestriel",
-              },
-              {
-                label: "Élèves Félicités",
-                value: props.performanceKpis?.congratulatedStudents !== undefined
-                  ? String(props.performanceKpis.congratulatedStudents)
-                  : "145",
-                desc: "Moyenne >= 16 / 20",
-              },
-              {
-                label: "Élèves en Difficulté",
-                value: props.performanceKpis?.strugglingStudents !== undefined
-                  ? String(props.performanceKpis.strugglingStudents)
-                  : "32",
-                desc: "Moyenne < 10 / 20",
-              },
-            ].map((kpi) => (
-              <div key={kpi.label} className="bg-white/90 backdrop-blur-sm rounded-[20px] border border-slate-100 shadow-sm p-6">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{kpi.label}</p>
-                <h4 className="text-2xl font-black text-slate-900 mt-2">{kpi.value}</h4>
-                <p className="text-[10px] font-bold text-slate-500 mt-1">{kpi.desc}</p>
-              </div>
-            ))}
+            )}
           </div>
 
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-            {/* Grades Distribution */}
-            <div className="bg-white/90 backdrop-blur-sm rounded-[24px] border border-slate-100 shadow-sm p-8">
-              <h4 className="text-lg font-black text-slate-900 tracking-tight">Répartition des Notes</h4>
-              <p className="text-xs text-slate-500 font-medium mt-1">Nombre d'élèves par tranche de moyenne générale</p>
-              <div className="mt-6 h-[280px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart
-                    data={props.gradeDistribution && props.gradeDistribution.length > 0 ? props.gradeDistribution : [
-                      { tranche: "[0 - 5[", Count: 5 },
-                      { tranche: "[5 - 10[", Count: 27 },
-                      { tranche: "[10 - 12[", Count: 180 },
-                      { tranche: "[12 - 14[", Count: 420 },
-                      { tranche: "[14 - 16[", Count: 310 },
-                      { tranche: "[16 - 18[", Count: 110 },
-                      { tranche: "[18 - 20]", Count: 35 },
-                    ]}
-                    margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
-                  >
-                    <CartesianGrid stroke="#e2e8f0" strokeDasharray="6 6" vertical={false} />
-                    <XAxis dataKey="tranche" tickLine={false} axisLine={false} tick={{ fill: "#64748b", fontSize: 11 }} />
-                    <YAxis tickLine={false} axisLine={false} tick={{ fill: "#64748b", fontSize: 11 }} />
-                    <Tooltip contentStyle={{ borderRadius: 16, border: "1px solid #e2e8f0" }} />
-                    <Area type="monotone" dataKey="Count" name="Effectif (élèves)" stroke="#8b5cf6" fill="#8b5cf6" fillOpacity={0.05} strokeWidth={2} />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            {/* Performance by Subject */}
-            <div className="bg-white/90 backdrop-blur-sm rounded-[24px] border border-slate-100 shadow-sm p-8">
-              <h4 className="text-lg font-black text-slate-900 tracking-tight">Moyennes par Matière</h4>
-              <p className="text-xs text-slate-500 font-medium mt-1">Moyennes générales obtenues dans les matières principales</p>
-              <div className="mt-6 h-[280px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <ComposedChart
-                    data={props.subjectAverages && props.subjectAverages.length > 0 ? props.subjectAverages : [
-                      { subject: "Maths", Average: 12.8 },
-                      { subject: "Français", Average: 14.1 },
-                      { subject: "SVT", Average: 13.5 },
-                      { subject: "Physique", Average: 11.9 },
-                      { subject: "Histoire-Géo", Average: 15.2 },
-                      { subject: "Anglais", Average: 14.8 },
-                    ]}
-                    margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
-                    barCategoryGap="35%"
-                  >
-                    <CartesianGrid stroke="#e2e8f0" strokeDasharray="6 6" vertical={false} />
-                    <XAxis dataKey="subject" tickLine={false} axisLine={false} tick={{ fill: "#64748b", fontSize: 11 }} />
-                    <YAxis tickLine={false} axisLine={false} domain={[0, 20]} tick={{ fill: "#64748b", fontSize: 11 }} />
-                    <Tooltip contentStyle={{ borderRadius: 16, border: "1px solid #e2e8f0" }} />
-                    <Bar dataKey="Average" name="Moyenne (/20)" fill="#7c3aed" radius={[8, 8, 0, 0]} />
-                  </ComposedChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          </div>
-        </TabsContent>
-      </Tabs>
+        </div>
+      </div>
     </div>
   );
-}
-
-function KpiIcon({ name }: { name: ReportsDashboardProps["kpis"][number]["icon"] }) {
-  switch (name) {
-    case "recovery":
-      return <PieChartIcon size={18} strokeWidth={2.2} />;
-    case "cost":
-      return <TrendingUp size={18} strokeWidth={2.2} />;
-    case "expense":
-      return <TrendingDown size={18} strokeWidth={2.2} />;
-    case "revenue":
-      return <DollarSign size={18} strokeWidth={2.2} />;
-    case "excess":
-      return <Wallet size={18} strokeWidth={2.2} />;
-  }
-}
-
-function kpiTone(name: ReportsDashboardProps["kpis"][number]["icon"]) {
-  switch (name) {
-    case "recovery":
-      return { bg: "bg-rose-50", fg: "text-rose-600" };
-    case "cost":
-      return { bg: "bg-pink-50", fg: "text-pink-600" };
-    case "expense":
-      return { bg: "bg-violet-50", fg: "text-violet-600" };
-    case "revenue":
-      return { bg: "bg-amber-50", fg: "text-amber-600" };
-    case "excess":
-      return { bg: "bg-emerald-50", fg: "text-emerald-600" };
-  }
 }
