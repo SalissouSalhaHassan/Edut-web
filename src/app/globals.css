@@ -318,14 +318,7 @@
 
   /* Margins and page orientations */
   @page {
-    size: A4 portrait;
+    size: auto;
     margin: 15mm;
-  }
-
-  .landscape-print-mode {
-    @page {
-      size: A4 landscape;
-      margin: 15mm;
-    }
   }
 }

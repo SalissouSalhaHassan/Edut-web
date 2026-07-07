@@ -639,4 +639,3 @@ export class PDFGenerator {
     this.doc.text(`NET À PAYER: ${total} F CFA`, 140, finalY + 15);
   }
 }
-}

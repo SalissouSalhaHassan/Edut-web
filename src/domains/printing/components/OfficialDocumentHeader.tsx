@@ -3,13 +3,6 @@
 import Image from "next/image";
 import { mergeDocumentHeaderConfig, type DocumentHeaderConfig } from "../document-header";
 
-type OfficialDocumentHeaderProps = {
-  config?: Partial<DocumentHeaderConfig> | null;
-  title?: string;
-  variant?: "full" | "compact";
-  className?: string;
-};
-
 function LogoBox({ src, alt, size = 86 }: { src?: string; alt: string; size?: number }) {
   return (
     <div
