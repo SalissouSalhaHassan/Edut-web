@@ -29,7 +29,10 @@ export default async function ReportsPage() {
     submissions: [],
     progress: [],
     virtualClasses: [],
-    auditLogs: []
+    auditLogs: [],
+    grades: [],
+    sessions: [],
+    periods: []
   };
 
   const branding = {

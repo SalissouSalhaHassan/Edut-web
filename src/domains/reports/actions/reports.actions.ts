@@ -2,7 +2,7 @@
 
 import { db, readDb } from "@/infrastructure/database";
 import { studentAttendance } from "@/infrastructure/database/schema/attendance";
-import { studentTermSummaries, studentResults, schoolSubjects, schoolClasses } from "@/infrastructure/database/schema/academics";
+import { studentTermSummaries, studentResults, schoolSubjects, schoolClasses, schoolSessions, academicPeriods } from "@/infrastructure/database/schema/academics";
 import { students } from "@/infrastructure/database/schema/students";
 import { feePayments, expenses } from "@/infrastructure/database/schema/finance";
 import { employees } from "@/infrastructure/database/schema/hr";
@@ -311,12 +311,23 @@ export async function getUnifiedReportsData() {
 
     // 2. Fetch Classes and Subjects
     const classes = await readDb.query.schoolClasses.findMany({
-      where: eq(schoolClasses.schoolId, schoolId)
+      where: eq(schoolClasses.schoolId, schoolId),
+      with: {
+        section: true
+      }
     });
     const subjects = await readDb.query.schoolSubjects.findMany({
       where: eq(schoolSubjects.schoolId, schoolId)
     });
     const classIds = classes.map(c => c.id);
+
+    // Fetch school sessions and academic periods
+    const sessions = await readDb.query.schoolSessions.findMany({
+      where: eq(schoolSessions.schoolId, schoolId)
+    });
+    const periods = await readDb.query.academicPeriods.findMany({
+      where: eq(academicPeriods.schoolId, schoolId)
+    });
 
     // 3. Fetch Employees
     const allEmployees = await readDb.query.employees.findMany({
@@ -420,7 +431,9 @@ export async function getUnifiedReportsData() {
         progress,
         virtualClasses,
         auditLogs: audit,
-        grades
+        grades,
+        sessions,
+        periods
       }
     };
   });

@@ -30,6 +30,9 @@ interface ReportsDashboardProps {
     progress: any[];
     virtualClasses: any[];
     auditLogs: any[];
+    grades?: any[];
+    sessions?: any[];
+    periods?: any[];
   };
   branding: {
     name: string;
@@ -49,9 +52,30 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
 
   // Dynamic Academic Years (Sessions) extracted from real database students
   const uniqueSessions = React.useMemo(() => {
+    const dbSess = (data.sessions || []).map((s: any) => s.sessionName).filter(Boolean);
+    if (dbSess.length > 0) return Array.from(new Set(dbSess)).sort();
+
     const sess = Array.from(new Set(data.students.map(s => s.session).filter(Boolean))) as string[];
     return sess.length > 0 ? sess.sort() : ["2024-2025", "2025-2026", "2026-2027"];
-  }, [data.students]);
+  }, [data.sessions, data.students]);
+
+  // Filter periods based on selected academic year
+  const filteredPeriods = React.useMemo(() => {
+    const allPeriods = data.periods || [];
+    if (academicYear === "All") return allPeriods;
+    
+    // Find the session object
+    const sessionObj = (data.sessions || []).find((s: any) => s.sessionName === academicYear);
+    if (!sessionObj) return allPeriods;
+    
+    return allPeriods.filter((p: any) => p.sessionId === sessionObj.id);
+  }, [academicYear, data.periods, data.sessions]);
+
+  // Find the selected period object from the database periods
+  const selectedPeriodObj = React.useMemo(() => {
+    if (period === "All") return null;
+    return (data.periods || []).find((p: any) => String(p.id) === period);
+  }, [period, data.periods]);
 
   // General Filters States
   const [academicYear, setAcademicYear] = useState("2024-2025");
@@ -167,11 +191,30 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
   const selectedClassObj = data.classes.find(c => String(c.id) === selectedClassId);
   const selectedClassName = selectedClassObj?.className || "";
 
-  // Dynamic helper to check if a date falls inside the selected period (Trimester T1, T2, T3) for the current academic session
+  // Dynamic helper to check if a date falls inside the selected period
   const isInPeriod = (dateVal: string | Date | null) => {
     if (!dateVal) return true;
     const date = new Date(dateVal);
     if (isNaN(date.getTime())) return true;
+
+    // 1. If we have a real academic period from the database
+    if (selectedPeriodObj) {
+      const start = selectedPeriodObj.startDate ? new Date(selectedPeriodObj.startDate) : null;
+      const end = selectedPeriodObj.endDate ? new Date(selectedPeriodObj.endDate) : null;
+      if (start && date < start) return false;
+      if (end && date > end) return false;
+      return true;
+    }
+
+    // 2. Legacy fallback / month-based fallback if academicYear is "All" or matches standard trimesters
+    const month = date.getMonth(); // 0-indexed: 8 is Sept, 11 is Dec, etc.
+
+    if (academicYear === "All") {
+      if (period === "T1") return month >= 8 && month <= 11;
+      if (period === "T2") return month >= 0 && month <= 3;
+      if (period === "T3") return month >= 4 && month <= 7;
+      return true;
+    }
 
     // Parse starting year from session string (e.g., "2024-2025" -> 2024)
     const startYear = parseInt(academicYear.split("-")[0]) || 2024;
@@ -191,7 +234,7 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
       const end = new Date(startYear + 1, 7, 31, 23, 59, 59); // August 31st
       return date >= start && date <= end;
     }
-    return true; // "All" / Année entière
+    return true;
   };
 
   // Filter students
@@ -199,6 +242,7 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
     if (academicYear !== "All" && s.session && s.session !== academicYear) return false;
     if (selectedLevel !== "All" && s.educationalLevel !== selectedLevel) return false;
     if (selectedClassId !== "All" && s.classe !== selectedClassName) return false;
+    if (selectedStudentId !== "All" && String(s.id) !== selectedStudentId) return false;
     if (selectedStatus !== "All" && s.statut !== selectedStatus) return false;
     return true;
   });
@@ -558,9 +602,19 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
     };
   }
 
+  // Get active period name for display
+  const activePeriodName = React.useMemo(() => {
+    if (period === "All") return "Année entière";
+    if (selectedPeriodObj) return selectedPeriodObj.name;
+    if (period === "T1") return "Trimestre 1";
+    if (period === "T2") return "Trimestre 2";
+    if (period === "T3") return "Trimestre 3";
+    return period;
+  }, [period, selectedPeriodObj]);
+
   const universalMetadata = {
     title: getReportTitle(activeReport),
-    subtitle: `Rapport automatisé généré pour la période sélectionnée.`,
+    subtitle: `Période : ${activePeriodName} | Année scolaire : ${academicYear === "All" ? "Toutes" : academicYear}`,
     moduleName: getReportModuleName(activeReport),
     reportId: `RPT-${activeReport.substring(0, 3).toUpperCase()}-${Date.now().toString().slice(-6)}`,
     academicYear: academicYear,
@@ -666,9 +720,16 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
                   className="w-full bg-slate-50 border border-slate-200 p-3 rounded-2xl text-xs font-bold outline-none"
                 >
                   <option value="All">Année entière</option>
-                  <option value="T1">Trimestre 1</option>
-                  <option value="T2">Trimestre 2</option>
-                  <option value="T3">Trimestre 3</option>
+                  {filteredPeriods.map((p: any) => (
+                    <option key={p.id} value={String(p.id)}>{p.name}</option>
+                  ))}
+                  {filteredPeriods.length === 0 && (
+                    <>
+                      <option value="T1">Trimestre 1</option>
+                      <option value="T2">Trimestre 2</option>
+                      <option value="T3">Trimestre 3</option>
+                    </>
+                  )}
                 </select>
               </div>
 
@@ -695,7 +756,12 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
                   className="w-full bg-slate-50 border border-slate-200 p-3 rounded-2xl text-xs font-bold outline-none"
                 >
                   <option value="All">Toutes les classes</option>
-                  {data.classes.map(c => <option key={c.id} value={String(c.id)}>{c.className}</option>)}
+                  {data.classes
+                    .filter(c => {
+                      if (selectedLevel === "All") return true;
+                      return c.section?.educationalLevel === selectedLevel;
+                    })
+                    .map(c => <option key={c.id} value={String(c.id)}>{c.className}</option>)}
                 </select>
               </div>
 
