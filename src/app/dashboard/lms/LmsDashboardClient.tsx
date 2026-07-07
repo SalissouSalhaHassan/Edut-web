@@ -21,6 +21,8 @@ import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { useLiveQuery } from "dexie-react-hooks";
+import { localDb } from "@/infrastructure/local-db/dexie";
 
 interface LmsDashboardClientProps {
   currentUser: any;
@@ -64,7 +66,15 @@ export default function LmsDashboardClient({
 
   const [schoolYear, setSchoolYear] = useState(defaultSession);
   const [isOnline, setIsOnline] = useState(true);
-  const [pendingSyncCount, setPendingSyncCount] = useState(0);
+  const [lmsOfflineQueueLength, setLmsOfflineQueueLength] = useState(0);
+  const dexiePendingCount = useLiveQuery(async () => {
+    if (typeof window === "undefined") return 0;
+    return await localDb.outbox
+      .where("status")
+      .equals("pending")
+      .count();
+  }, []) ?? 0;
+  const pendingSyncCount = dexiePendingCount + lmsOfflineQueueLength;
 
   // Data states
   const [courses, setCourses] = useState(initialCourses);
@@ -141,7 +151,7 @@ export default function LmsDashboardClient({
     // Read pending sync queue length
     const queue = localStorage.getItem("lms_offline_queue");
     if (queue) {
-      setPendingSyncCount(JSON.parse(queue).length);
+      setLmsOfflineQueueLength(JSON.parse(queue).length);
     }
 
     // Try reading cache if offline
@@ -184,7 +194,7 @@ export default function LmsDashboardClient({
     const queue = JSON.parse(localStorage.getItem("lms_offline_queue") || "[]");
     queue.push({ actionType, payload, timestamp: Date.now() });
     localStorage.setItem("lms_offline_queue", JSON.stringify(queue));
-    setPendingSyncCount(queue.length);
+    setLmsOfflineQueueLength(queue.length);
     toast.warning("Action enregistrée hors ligne. Elle sera synchronisée au retour d'internet.");
   };
 
@@ -210,7 +220,7 @@ export default function LmsDashboardClient({
 
     const remaining = queue.slice(successfulCount);
     localStorage.setItem("lms_offline_queue", JSON.stringify(remaining));
-    setPendingSyncCount(remaining.length);
+    setLmsOfflineQueueLength(remaining.length);
 
     if (successfulCount > 0) {
       toast.success(`${successfulCount} actions synchronisées avec succès !`);
