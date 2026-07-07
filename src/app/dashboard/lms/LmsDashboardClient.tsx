@@ -15,7 +15,7 @@ import {
   saveCourse, deleteCourse, saveModule, deleteModule, saveLmsLesson, 
   deleteLmsLesson, saveVirtualClass, deleteVirtualClass, saveAssignment, 
   deleteAssignment, saveSubmission, gradeSubmission, saveQuiz, deleteQuiz, 
-  updateLessonProgress, enrollStudent
+  updateLessonProgress, enrollStudent, getDiscussions, postMessage
 } from "@/domains/lms/actions/lms.actions";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
@@ -66,15 +66,14 @@ export default function LmsDashboardClient({
 
   const [schoolYear, setSchoolYear] = useState(defaultSession);
   const [isOnline, setIsOnline] = useState(true);
-  const [lmsOfflineQueueLength, setLmsOfflineQueueLength] = useState(0);
-  const dexiePendingCount = useLiveQuery(async () => {
+  // Unified pending count — only from Dexie outbox
+  const pendingSyncCount = useLiveQuery(async () => {
     if (typeof window === "undefined") return 0;
     return await localDb.outbox
       .where("status")
-      .equals("pending")
+      .anyOf(["pending", "failed"])
       .count();
   }, []) ?? 0;
-  const pendingSyncCount = dexiePendingCount + lmsOfflineQueueLength;
 
   // Data states
   const [courses, setCourses] = useState(initialCourses);
@@ -97,6 +96,9 @@ export default function LmsDashboardClient({
   const [selectedAssignmentId, setSelectedAssignmentId] = useState<number | null>(null);
   const [selectedQuizId, setSelectedQuizId] = useState<number | null>(null);
   const [quizAttempt, setQuizAttempt] = useState<any>(null);
+  const [quizResult, setQuizResult] = useState<any>(null);
+  const [discussions, setDiscussions] = useState<any[]>([]);
+  const [newDiscussionMessage, setNewDiscussionMessage] = useState("");
 
   // Forms open states
   const [courseFormOpen, setCourseFormOpen] = useState(false);
@@ -148,20 +150,14 @@ export default function LmsDashboardClient({
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
 
-    // Read pending sync queue length
-    const queue = localStorage.getItem("lms_offline_queue");
-    if (queue) {
-      setLmsOfflineQueueLength(JSON.parse(queue).length);
-    }
-
-    // Try reading cache if offline
+    // Try reading IndexedDB cache if offline
     if (!navigator.onLine) {
-      const cachedCourses = localStorage.getItem("lms_courses_cache");
-      if (cachedCourses) setCourses(JSON.parse(cachedCourses));
-      const cachedLessons = localStorage.getItem("lms_lessons_cache");
-      if (cachedLessons) setLessons(JSON.parse(cachedLessons));
-      const cachedClasses = localStorage.getItem("lms_classes_cache");
-      if (cachedClasses) setVirtualClasses(JSON.parse(cachedClasses));
+      localDb.references.where("label").equals("lms_courses_cache").first()
+        .then(r => { if (r?.payload) setCourses(r.payload); }).catch(() => {});
+      localDb.references.where("label").equals("lms_lessons_cache").first()
+        .then(r => { if (r?.payload) setLessons(r.payload); }).catch(() => {});
+      localDb.references.where("label").equals("lms_classes_cache").first()
+        .then(r => { if (r?.payload) setVirtualClasses(r.payload); }).catch(() => {});
     }
 
     return () => {
@@ -170,61 +166,75 @@ export default function LmsDashboardClient({
     };
   }, [currentUser]);
 
+  // Dynamic Discussion fetching for class forum
+  useEffect(() => {
+    if (selectedCourseId) {
+      const fetchDiscussions = async () => {
+        try {
+          const res = await getDiscussions(selectedCourseId, selectedLessonId || undefined);
+          if (res?.data?.data) {
+            setDiscussions(res.data.data);
+          }
+        } catch (e) {
+          console.error("Error fetching discussions:", e);
+        }
+      };
+      fetchDiscussions();
+    } else {
+      setDiscussions([]);
+    }
+  }, [selectedCourseId, selectedLessonId]);
+
   // Caching courses and progress locally
+  // Cache to IndexedDB references table for offline reading
   useEffect(() => {
     if (mounted && courses.length > 0) {
-      localStorage.setItem("lms_courses_cache", JSON.stringify(courses));
+      localDb.references.put({ type: "lmsCache", label: "lms_courses_cache", payload: courses, updatedAt: Date.now() })
+        .catch(() => {});
     }
   }, [courses, mounted]);
 
   useEffect(() => {
     if (mounted && lessons.length > 0) {
-      localStorage.setItem("lms_lessons_cache", JSON.stringify(lessons));
+      localDb.references.put({ type: "lmsCache", label: "lms_lessons_cache", payload: lessons, updatedAt: Date.now() })
+        .catch(() => {});
     }
   }, [lessons, mounted]);
 
   useEffect(() => {
     if (mounted && virtualClasses.length > 0) {
-      localStorage.setItem("lms_classes_cache", JSON.stringify(virtualClasses));
+      localDb.references.put({ type: "lmsCache", label: "lms_classes_cache", payload: virtualClasses, updatedAt: Date.now() })
+        .catch(() => {});
     }
   }, [virtualClasses, mounted]);
 
-  // Offline Synchronization Manager
-  const addToOfflineQueue = (actionType: string, payload: any) => {
-    const queue = JSON.parse(localStorage.getItem("lms_offline_queue") || "[]");
-    queue.push({ actionType, payload, timestamp: Date.now() });
-    localStorage.setItem("lms_offline_queue", JSON.stringify(queue));
-    setLmsOfflineQueueLength(queue.length);
+  // ─── Dexie Outbox Offline Queue (replaces localStorage) ───────────────
+  const addToOfflineQueue = async (targetTable: string, payload: any, entityId?: number) => {
+    await localDb.outbox.add({
+      actionType: entityId ? "UPDATE" : "INSERT",
+      targetTable,
+      entityId: entityId ?? null,
+      payload,
+      status: "pending",
+      timestamp: Date.now(),
+      updatedAt: Date.now(),
+      retryCount: 0,
+      idempotencyKey: `${targetTable}_${Date.now()}_${Math.random()}`,
+    });
     toast.warning("Action enregistrée hors ligne. Elle sera synchronisée au retour d'internet.");
   };
 
   const triggerSync = async () => {
-    const queue = JSON.parse(localStorage.getItem("lms_offline_queue") || "[]");
-    if (queue.length === 0) return;
-
-    toast.info(`Synchronisation de ${queue.length} actions en attente...`);
-    let successfulCount = 0;
-
-    for (const item of queue) {
-      try {
-        if (item.actionType === "progress") {
-          await updateLessonProgress(item.payload);
-        } else if (item.actionType === "submission") {
-          await saveSubmission(item.payload);
-        }
-        successfulCount++;
-      } catch (err) {
-        console.error("Sync item failed:", err);
-      }
-    }
-
-    const remaining = queue.slice(successfulCount);
-    localStorage.setItem("lms_offline_queue", JSON.stringify(remaining));
-    setLmsOfflineQueueLength(remaining.length);
-
-    if (successfulCount > 0) {
-      toast.success(`${successfulCount} actions synchronisées avec succès !`);
-      // Refresh state from server if online
+    const pendingItems = await localDb.outbox
+      .where("status")
+      .anyOf(["pending", "failed"])
+      .count();
+    if (pendingItems === 0) return;
+    toast.info(`Synchronisation de ${pendingItems} actions en attente...`);
+    const { syncOutbox } = await import("@/infrastructure/local-db/sync");
+    const synced = await syncOutbox();
+    if (synced) {
+      toast.success("Synchronisation LMS terminée !");
       window.location.reload();
     }
   };
@@ -450,7 +460,7 @@ export default function LmsDashboardClient({
     const payload = { studentId: currentStudentId, lessonId, isCompleted, personalNotes: notes };
 
     if (!isOnline) {
-      addToOfflineQueue("progress", payload);
+      await addToOfflineQueue("lmsProgress", payload);
       // Optimistic update
       setProgress([...progress.filter(p => !(p.lessonId === lessonId && p.studentId === currentStudentId)), { ...payload, id: Math.random() }]);
       return;
@@ -468,7 +478,7 @@ export default function LmsDashboardClient({
     const payload = { studentId: currentStudentId, lessonId, isCompleted, personalNotes: notes };
 
     if (!isOnline) {
-      addToOfflineQueue("progress", payload);
+      await addToOfflineQueue("lmsProgress", payload);
       return;
     }
 
@@ -490,7 +500,7 @@ export default function LmsDashboardClient({
     };
 
     if (!isOnline) {
-      addToOfflineQueue("submission", payload);
+      await addToOfflineQueue("lmsSubmissions", payload);
       setStudentSubmissionFile("");
       return;
     }
@@ -500,6 +510,35 @@ export default function LmsDashboardClient({
       toast.success("Votre travail a été envoyé avec succès !");
       setStudentSubmissionFile("");
       window.location.reload();
+    }
+  };
+
+  const handlePostDiscussion = async () => {
+    if (!newDiscussionMessage.trim() || !selectedCourseId) return;
+    const payload = {
+      courseId: selectedCourseId,
+      lessonId: selectedLessonId || undefined,
+      message: newDiscussionMessage.trim(),
+      studentId: currentUser?.studentId ? Number(currentUser.studentId) : undefined,
+      employeeId: currentUser?.employeeId ? Number(currentUser.employeeId) : undefined,
+    };
+    if (!isOnline) {
+      await addToOfflineQueue("lmsDiscussions", payload);
+      setDiscussions([...discussions, { ...payload, id: Date.now(), createdAt: new Date() }]);
+      setNewDiscussionMessage("");
+      return;
+    }
+    const res = await postMessage(payload);
+    if (res?.success) {
+      toast.success("Message envoyé !");
+      setNewDiscussionMessage("");
+      // Re-fetch discussions
+      if (selectedCourseId) {
+        const fresh = await getDiscussions(selectedCourseId, selectedLessonId || undefined);
+        if (fresh?.data?.data) {
+          setDiscussions(fresh.data.data);
+        }
+      }
     }
   };
 
@@ -734,6 +773,12 @@ export default function LmsDashboardClient({
         >
           ❓ Quiz
         </button>
+        <button 
+          onClick={() => setActiveTab("forum")} 
+          className={`px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all ${activeTab === "forum" ? "bg-white text-primary shadow-sm" : "text-slate-500 hover:text-slate-800"}`}
+        >
+          💬 Forum
+        </button>
         {userRole !== "student" && (
           <>
             <button 
@@ -743,13 +788,25 @@ export default function LmsDashboardClient({
               👥 Suivi élèves
             </button>
             <button 
+              onClick={() => setActiveTab("participation")} 
+              className={`px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all ${activeTab === "participation" ? "bg-white text-primary shadow-sm" : "text-slate-500 hover:text-slate-800"}`}
+            >
+              📊 Participation
+            </button>
+            <button 
               onClick={() => setActiveTab("reports")} 
               className={`px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all ${activeTab === "reports" ? "bg-white text-primary shadow-sm" : "text-slate-500 hover:text-slate-800"}`}
             >
-              📁 Centre Rapports
+              📁 Rapports
             </button>
           </>
         )}
+        <button 
+          onClick={() => setActiveTab("certificates")} 
+          className={`px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all ${activeTab === "certificates" ? "bg-white text-primary shadow-sm" : "text-slate-500 hover:text-slate-800"}`}
+        >
+          🏆 Certificats
+        </button>
       </div>
 
       {/* -------------------- TAB 1: DASHBOARD -------------------- */}
@@ -1907,6 +1964,312 @@ export default function LmsDashboardClient({
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* -------------------- TAB: FORUM CLASSE -------------------- */}
+      {activeTab === "forum" && (
+        <div className="space-y-6 animate-in fade-in duration-300">
+          <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+            <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider mb-4">💬 Forum de classe — Discussions en direct</h3>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Course/Lesson selector */}
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sélectionner un cours</label>
+                <select
+                  value={selectedCourseId || ""}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setSelectedCourseId(val ? parseInt(val) : null);
+                    setSelectedLessonId(null);
+                  }}
+                  className="w-full bg-slate-50 border border-slate-200 p-3 rounded-2xl text-xs font-bold outline-none"
+                >
+                  <option value="">-- Choisir un cours --</option>
+                  {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+                </select>
+                {selectedCourseId && (
+                  <>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Leçon (optionnel)</label>
+                    <select
+                      value={selectedLessonId || ""}
+                      onChange={(e) => setSelectedLessonId(e.target.value ? parseInt(e.target.value) : null)}
+                      className="w-full bg-slate-50 border border-slate-200 p-3 rounded-2xl text-xs font-bold outline-none"
+                    >
+                      <option value="">-- Forum général du cours --</option>
+                      {lessons.filter(l => l.courseId === selectedCourseId).map(l => <option key={l.id} value={l.id}>{l.title}</option>)}
+                    </select>
+                  </>
+                )}
+                {/* Participants info */}
+                {selectedCourseId && (
+                  <div className="bg-indigo-50 p-4 rounded-2xl border border-indigo-100 mt-4">
+                    <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-2">Cours sélectionné</p>
+                    <p className="font-black text-indigo-900 text-sm">{courses.find(c => c.id === selectedCourseId)?.title}</p>
+                    <p className="text-xs text-indigo-500 mt-1">
+                      {getClassName(courses.find(c => c.id === selectedCourseId)?.classId)} — {getSubjectName(courses.find(c => c.id === selectedCourseId)?.subjectId)}
+                    </p>
+                    <p className="text-xs text-indigo-400 mt-1">
+                      Enseignant : {getTeacherName(courses.find(c => c.id === selectedCourseId)?.teacherId)}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Discussion thread */}
+              <div className="lg:col-span-2 flex flex-col gap-4">
+                <div className="bg-slate-50 rounded-3xl border border-slate-100 p-4 h-96 overflow-y-auto flex flex-col gap-3">
+                  {!selectedCourseId ? (
+                    <div className="flex flex-col items-center justify-center h-full text-slate-400 font-bold gap-3">
+                      <span className="text-4xl">💬</span>
+                      Sélectionnez un cours pour accéder au forum
+                    </div>
+                  ) : discussions.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-full text-slate-400 font-semibold gap-2">
+                      <span className="text-3xl">🌱</span>
+                      Aucun message pour l'instant. Soyez le premier à écrire !
+                    </div>
+                  ) : discussions.map((msg: any) => {
+                    const isTeacher = !!msg.employeeId;
+                    const authorName = isTeacher
+                      ? (employees.find((e: any) => e.id === msg.employeeId)?.nomPrenom || "Enseignant")
+                      : (students.find((s: any) => s.id === msg.studentId)?.nomEtudiant || "Élève");
+                    return (
+                      <div key={msg.id} className={`flex gap-3 ${isTeacher ? "flex-row-reverse" : ""}`}>
+                        <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white font-black text-xs shrink-0 ${isTeacher ? "bg-indigo-600" : "bg-emerald-500"}`}>
+                          {authorName.charAt(0).toUpperCase()}
+                        </div>
+                        <div className={`max-w-[75%] space-y-1 ${isTeacher ? "items-end flex flex-col" : ""}`}>
+                          <div className={`rounded-2xl p-3 text-xs font-semibold text-slate-800 ${isTeacher ? "bg-indigo-100" : "bg-white border border-slate-200"}`}>
+                            {msg.message}
+                          </div>
+                          <span className="text-[9px] text-slate-400 font-semibold px-1">
+                            {authorName} · {new Date(msg.createdAt).toLocaleString("fr-FR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Message input */}
+                {selectedCourseId && (
+                  <div className="flex gap-3">
+                    <input
+                      type="text"
+                      value={newDiscussionMessage}
+                      onChange={(e) => setNewDiscussionMessage(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handlePostDiscussion(); } }}
+                      placeholder="Écrire un message... (Entrée pour envoyer)"
+                      className="flex-1 bg-slate-50 border border-slate-200 px-5 py-3 rounded-2xl text-xs font-bold outline-none focus:border-indigo-500 transition-all"
+                    />
+                    <button
+                      onClick={handlePostDiscussion}
+                      disabled={!newDiscussionMessage.trim()}
+                      className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white font-black text-xs uppercase tracking-widest px-6 py-3 rounded-2xl transition-all"
+                    >
+                      Envoyer
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* -------------------- TAB: RAPPORT PARTICIPATION -------------------- */}
+      {activeTab === "participation" && userRole !== "student" && (
+        <div className="space-y-6 animate-in fade-in duration-300">
+          <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+            <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider mb-4">📊 Rapport de Participation — Classes Virtuelles</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse min-w-[900px]">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-100">
+                    <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Classe Virtuelle</th>
+                    <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Classe</th>
+                    <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Matière</th>
+                    <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Enseignant</th>
+                    <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Date</th>
+                    <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Présents</th>
+                    <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Taux</th>
+                    <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Statut</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50 text-sm font-semibold text-slate-700">
+                  {virtualClasses.map((vc: any) => {
+                    const present = (vc.attendance || []).filter((a: any) => a.status === "Present").length;
+                    const total = (vc.attendance || []).length;
+                    const rate = total > 0 ? Math.round((present / total) * 100) : 0;
+                    return (
+                      <tr key={vc.id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="px-6 py-4 font-bold text-slate-900">{vc.title}</td>
+                        <td className="px-6 py-4 text-indigo-600">{getClassName(vc.classId)}</td>
+                        <td className="px-6 py-4">{getSubjectName(vc.subjectId)}</td>
+                        <td className="px-6 py-4 text-slate-500">{getTeacherName(vc.teacherId)}</td>
+                        <td className="px-6 py-4 text-slate-400 text-xs">
+                          {vc.sessionDate ? new Date(vc.sessionDate).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" }) : "-"}
+                        </td>
+                        <td className="px-6 py-4 text-center font-black">{present} / {total || "?"}</td>
+                        <td className="px-6 py-4 text-center">
+                          <div className="flex items-center justify-center gap-2">
+                            <div className="w-24 h-2 bg-slate-100 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full ${rate >= 75 ? "bg-emerald-500" : rate >= 50 ? "bg-amber-400" : "bg-rose-500"}`}
+                                style={{ width: `${rate}%` }}
+                              />
+                            </div>
+                            <span className="text-xs font-black text-slate-600">{rate}%</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider ${
+                            vc.status === "Terminée" ? "bg-slate-100 text-slate-500" :
+                            vc.status === "Annulée" ? "bg-rose-50 text-rose-500" :
+                            "bg-emerald-50 text-emerald-600"
+                          }`}>
+                            {vc.status}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {virtualClasses.length === 0 && (
+                    <tr>
+                      <td colSpan={8} className="px-6 py-12 text-center text-slate-400 font-semibold">
+                        Aucune classe virtuelle enregistrée.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          {/* Participation KPIs */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[
+              {
+                label: "Total sessions",
+                value: virtualClasses.length,
+                sub: "Classes virtuelles organisées",
+                color: "text-indigo-600 bg-indigo-50"
+              },
+              {
+                label: "Sessions terminées",
+                value: virtualClasses.filter((v: any) => v.status === "Terminée").length,
+                sub: "Séances effectivement réalisées",
+                color: "text-emerald-600 bg-emerald-50"
+              },
+              {
+                label: "Sessions à venir",
+                value: virtualClasses.filter((v: any) => v.status === "À venir").length,
+                sub: "Planifiées et confirmées",
+                color: "text-amber-600 bg-amber-50"
+              },
+            ].map((kpi, i) => (
+              <div key={i} className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4">
+                <div className={`p-4 rounded-2xl text-2xl font-black ${kpi.color}`}>{kpi.value}</div>
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{kpi.label}</p>
+                  <p className="text-xs font-semibold text-slate-500 mt-0.5">{kpi.sub}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* -------------------- TAB: CERTIFICATS -------------------- */}
+      {activeTab === "certificates" && (
+        <div className="space-y-6 animate-in fade-in duration-300">
+          <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between">
+            <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">🏆 Certificats de complétion</h3>
+            <div className="text-xs font-semibold text-slate-400">
+              Générés automatiquement dès 100% de progression sur un cours
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {courses.map((course: any) => {
+              const courseLessonsList = lessons.filter((l: any) => l.courseId === course.id);
+              const totalL = courseLessonsList.length;
+              return students.slice(0, 6).map((student: any) => {
+                const studentProgress = progress.filter((p: any) => p.studentId === student.id && courseLessonsList.some((l: any) => l.id === p.lessonId));
+                const completedL = studentProgress.filter((p: any) => p.isCompleted).length;
+                const pct = totalL > 0 ? Math.round((completedL / totalL) * 100) : 0;
+                if (pct < 100) return null;
+                const certCode = `CERT-${course.id}-${student.id}-${new Date().getFullYear()}`;
+                return (
+                  <div key={`${course.id}-${student.id}`} className="bg-gradient-to-br from-amber-50 to-white border border-amber-100 rounded-[2rem] p-6 shadow-sm space-y-4 hover:shadow-md transition-all">
+                    <div className="flex items-center justify-between">
+                      <span className="text-3xl">🏆</span>
+                      <span className="text-[10px] font-black bg-amber-100 text-amber-700 px-3 py-1 rounded-full uppercase tracking-widest">
+                        Complété
+                      </span>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="font-black text-lg text-slate-900 leading-tight">{course.title}</p>
+                      <p className="text-sm text-slate-500 font-semibold">
+                        {getClassName(course.classId)} · {getSubjectName(course.subjectId)}
+                      </p>
+                    </div>
+                    <div className="border-t border-amber-100 pt-4 space-y-1">
+                      <p className="text-xs font-black text-slate-700">{student.nomEtudiant}</p>
+                      <p className="text-[9px] font-mono text-slate-400 uppercase">{certCode}</p>
+                      <p className="text-[9px] text-slate-400">Délivré le {new Date().toLocaleDateString("fr-FR")}</p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        const win = window.open("", "_blank");
+                        if (!win) return;
+                        win.document.write(`
+                          <html><head><title>Certificat ${course.title}</title>
+                          <style>
+                            body { font-family: Georgia, serif; background: #fffbeb; display:flex; align-items:center; justify-content:center; min-height:100vh; margin:0; }
+                            .cert { background: white; border: 4px solid #f59e0b; border-radius: 2rem; padding: 4rem; max-width: 700px; text-align:center; box-shadow: 0 25px 50px rgba(0,0,0,0.1); }
+                            h1 { color: #92400e; font-size: 2.5rem; margin-bottom: 0.5rem; }
+                            h2 { color: #1e293b; font-size: 1.8rem; margin: 1rem 0; }
+                            .sub { color: #64748b; font-size: 1rem; }
+                            .code { color: #94a3b8; font-family: monospace; font-size: 0.75rem; margin-top: 2rem; }
+                            .seal { font-size: 4rem; margin-bottom: 1.5rem; }
+                          </style></head>
+                          <body><div class="cert">
+                            <div class="seal">🏆</div>
+                            <h1>Certificat de Complétion</h1>
+                            <p class="sub">Ce certificat est décerné à</p>
+                            <h2>${student.nomEtudiant}</h2>
+                            <p class="sub">pour avoir complété avec succès le cours</p>
+                            <h2 style="color:#4f46e5">${course.title}</h2>
+                            <p class="sub">${getClassName(course.classId)} · ${getSubjectName(course.subjectId)}</p>
+                            <p class="code">${certCode}</p>
+                            <p class="sub" style="margin-top:1rem">Date : ${new Date().toLocaleDateString("fr-FR")}</p>
+                          </div></body></html>
+                        `);
+                        win.document.close();
+                        win.print();
+                      }}
+                      className="w-full bg-amber-500 hover:bg-amber-600 text-white font-black text-[10px] uppercase tracking-widest py-3 rounded-2xl transition-all flex items-center justify-center gap-2"
+                    >
+                      🖨️ Imprimer le certificat
+                    </button>
+                  </div>
+                );
+              }).filter(Boolean);
+            }).flat()}
+          </div>
+          {/* If no completed courses */}
+          {courses.every((course: any) => {
+            const cl = lessons.filter((l: any) => l.courseId === course.id);
+            return students.slice(0, 6).every((s: any) => {
+              const sp = progress.filter((p: any) => p.studentId === s.id && cl.some((l: any) => l.id === p.lessonId));
+              return cl.length === 0 || sp.filter((p: any) => p.isCompleted).length < cl.length;
+            });
+          }) && (
+            <div className="bg-white p-16 rounded-[2.5rem] border border-slate-100 shadow-sm text-center text-slate-400 font-semibold">
+              <div className="text-5xl mb-4">🎓</div>
+              Aucun certificat généré pour l'instant.<br />Les certificats apparaissent automatiquement dès qu'un élève complète 100% des leçons d'un cours.
+            </div>
+          )}
         </div>
       )}
 

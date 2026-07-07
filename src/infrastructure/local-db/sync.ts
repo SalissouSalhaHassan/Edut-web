@@ -193,6 +193,51 @@ export async function syncOutbox() {
           const res = await saveBatchAttendance(attendancePayload);
           success = !!res?.success;
           error = res?.error || "Unknown error";
+        } else if (item.targetTable === "lmsProgress") {
+          const { updateLessonProgress } = await import("@/domains/lms/actions/lms.actions");
+          const res = await updateLessonProgress(item.payload);
+          success = !!res?.success;
+          error = res?.error || "Unknown error";
+        } else if (item.targetTable === "lmsSubmissions") {
+          const { saveSubmission } = await import("@/domains/lms/actions/lms.actions");
+          const res = await saveSubmission(item.payload);
+          success = !!res?.success;
+          error = res?.error || "Unknown error";
+        } else if (item.targetTable === "lmsCourses") {
+          const { saveCourse } = await import("@/domains/lms/actions/lms.actions");
+          const res = await saveCourse(item.payload, item.entityId ? Number(item.entityId) : undefined);
+          success = !!res?.success;
+          error = res?.error || "Unknown error";
+        } else if (item.targetTable === "lmsModules") {
+          const { saveModule } = await import("@/domains/lms/actions/lms.actions");
+          const res = await saveModule(item.payload, item.entityId ? Number(item.entityId) : undefined);
+          success = !!res?.success;
+          error = res?.error || "Unknown error";
+        } else if (item.targetTable === "lmsLessons") {
+          const { saveLmsLesson } = await import("@/domains/lms/actions/lms.actions");
+          const res = await saveLmsLesson(item.payload, item.entityId ? Number(item.entityId) : undefined);
+          success = !!res?.success;
+          error = res?.error || "Unknown error";
+        } else if (item.targetTable === "lmsVirtualClasses") {
+          const { saveVirtualClass } = await import("@/domains/lms/actions/lms.actions");
+          const res = await saveVirtualClass(item.payload, item.entityId ? Number(item.entityId) : undefined);
+          success = !!res?.success;
+          error = res?.error || "Unknown error";
+        } else if (item.targetTable === "lmsAssignments") {
+          const { saveAssignment } = await import("@/domains/lms/actions/lms.actions");
+          const res = await saveAssignment(item.payload, item.entityId ? Number(item.entityId) : undefined);
+          success = !!res?.success;
+          error = res?.error || "Unknown error";
+        } else if (item.targetTable === "lmsQuizzes") {
+          const { saveQuiz } = await import("@/domains/lms/actions/lms.actions");
+          const res = await saveQuiz(item.payload, item.entityId ? Number(item.entityId) : undefined);
+          success = !!res?.success;
+          error = res?.error || "Unknown error";
+        } else if (item.targetTable === "lmsDiscussions") {
+          const { postMessage } = await import("@/domains/lms/actions/lms.actions");
+          const res = await postMessage(item.payload);
+          success = !!res?.success;
+          error = res?.error || "Unknown error";
         } else {
           error = `Table hors-ligne non supportee: ${item.targetTable}`;
         }
