@@ -58,7 +58,7 @@ export interface LocalSubject {
 
 export interface LocalReferenceItem {
   id?: number;
-  type: "class" | "subject" | "session" | "period" | "section";
+  type: "class" | "subject" | "session" | "period" | "section" | "studentFees" | "attendance" | "exams" | "examResults";
   remoteId?: number | string | null;
   label: string;
   payload: any;

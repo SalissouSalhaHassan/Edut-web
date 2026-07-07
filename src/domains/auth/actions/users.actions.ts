@@ -9,6 +9,15 @@ import bcrypt from "bcryptjs";
 import { getActiveSchoolId } from "@/domains/auth/services/school";
 import { getUserRoleType, getCompatibleLevels, checkEducationalLevelAccess } from "@/domains/auth/services/rbac";
 
+export async function getSessionUserAction() {
+  try {
+    const user = await getCurrentUser();
+    return { success: true, data: user };
+  } catch (e: any) {
+    return { success: false, error: e?.message || String(e) };
+  }
+}
+
 type SaveUserFormData = {
   utilisateur?: string;
   nomPrenom?: string;

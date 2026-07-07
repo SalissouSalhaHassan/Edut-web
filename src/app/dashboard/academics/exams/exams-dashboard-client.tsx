@@ -42,9 +42,44 @@ export default function ExamsDashboardClient({
   const [planningSubTab, setPlanningSubTab] = useState<"campaigns" | "rooms" | "schedule" | "ai_solver">("campaigns");
 
   // Local state initialized with server props or fallbacks
-  const [classes] = useState<any[]>(initialClasses || []);
-  const [sessions] = useState<any[]>(initialSessions || []);
-  const [subjects] = useState<any[]>(initialSubjects || []);
+  const [classes, setClasses] = useState<any[]>(initialClasses || []);
+  const [sessions, setSessions] = useState<any[]>(initialSessions || []);
+  const [subjects, setSubjects] = useState<any[]>(initialSubjects || []);
+  const [isLocal, setIsLocal] = useState(false);
+
+  useEffect(() => {
+    async function checkLocalCache() {
+      if (navigator.onLine) {
+        try {
+          const { cacheReferenceItems } = await import("@/infrastructure/local-db/references");
+          if (initialClasses?.length > 0) await cacheReferenceItems("class", initialClasses, "className");
+          if (initialSessions?.length > 0) await cacheReferenceItems("session", initialSessions, "sessionName");
+          if (initialSubjects?.length > 0) await cacheReferenceItems("subject", initialSubjects, "subjectName");
+        } catch (e) {
+          console.warn("Failed to cache exams reference data:", e);
+        }
+      }
+
+      if (!initialClasses || initialClasses.length === 0 || !navigator.onLine) {
+        try {
+          const { getCachedReferenceItems } = await import("@/infrastructure/local-db/references");
+          const cachedClasses = await getCachedReferenceItems("class");
+          const cachedSessions = await getCachedReferenceItems("session");
+          const cachedSubjects = await getCachedReferenceItems("subject");
+
+          if (cachedClasses?.length > 0) {
+            setClasses(cachedClasses);
+            setIsLocal(true);
+          }
+          if (cachedSessions?.length > 0) setSessions(cachedSessions);
+          if (cachedSubjects?.length > 0) setSubjects(cachedSubjects);
+        } catch (e) {
+          console.warn("Failed to load cached exams reference data:", e);
+        }
+      }
+    }
+    checkLocalCache();
+  }, [initialClasses, initialSessions, initialSubjects]);
   
   // States fetched dynamically from Python backend
   const [teachers, setTeachers] = useState<any[]>([]);
@@ -718,8 +753,13 @@ export default function ExamsDashboardClient({
               <Cpu size={14} className="animate-spin duration-3000" /> Module Propulsé par l'IA
             </span>
           </div>
-          <h1 className="text-4xl md:text-5xl font-black tracking-tight leading-none bg-gradient-to-r from-white via-slate-100 to-indigo-200 bg-clip-text text-transparent">
+          <h1 className="text-4xl md:text-5xl font-black tracking-tight leading-none bg-gradient-to-r from-white via-slate-100 to-indigo-200 bg-clip-text text-transparent flex items-center gap-3">
             Gestion des Examens
+            {isLocal && (
+              <span className="px-3 py-1 bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-black uppercase tracking-widest rounded-xl animate-pulse self-center">
+                Données locales
+              </span>
+            )}
           </h1>
           <p className="text-slate-400 font-semibold max-w-xl text-sm md:text-base">
             Générez des questions intelligentes avec Gemini, configurez le calendrier sans conflits d'invigilation et validez les admissions par QR Code en temps réel.

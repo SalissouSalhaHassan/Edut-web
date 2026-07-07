@@ -1,6 +1,7 @@
+export const dynamic = "force-dynamic";
+
 import { getStudentFees, getFinanceStats, syncStudentFees, getAdvancedFinanceStats } from "@/domains/finance/actions/finance.actions";
 import { getClasses } from "@/domains/academics/actions/academics.actions";
-import { getCurrentUser } from "@/domains/auth/services/session";
 import { getDocumentHeaderConfig } from "@/domains/settings/actions/settings.actions";
 import FinanceClient from "./finance-client";
 
@@ -12,50 +13,52 @@ export default async function FinancePage({
   console.log("FinancePage: Starting render...");
   const params = await searchParams;
 
+  let fees: any[] = [];
+  let stats: any = {};
+  let classes: any[] = [];
+  let advancedStats: any = null;
+  let headerConfig: any = null;
+
   try {
-    // 1. Sync data first to ensure everything is up to date
-    await syncStudentFees(false);
+    // 1. Sync data first safely
+    try {
+      await syncStudentFees(false);
+    } catch (e) {
+      console.warn("[FinancePage] Failed to sync student fees:", e);
+    }
 
     // 2. Fetch all required data in parallel
     console.log("FinancePage: Fetching data in parallel...");
     
-    const [feesRes, statsRes, classesRes, currentUser, advancedStatsRes, headerConfigRes] = await Promise.all([
+    const [feesRes, statsRes, classesRes, advancedStatsRes, headerConfigRes] = await Promise.all([
       getStudentFees({
         search: params.search,
         class: params.class,
         status: params.status
-      }),
-      getFinanceStats(),
-      getClasses(),
-      getCurrentUser(),
-      getAdvancedFinanceStats(),
-      getDocumentHeaderConfig(),
+      }).catch(() => ({ data: [] })),
+      getFinanceStats().catch(() => ({ data: {} })),
+      getClasses().catch(() => ({ data: [] })),
+      getAdvancedFinanceStats().catch(() => ({ data: null })),
+      getDocumentHeaderConfig().catch(() => ({ data: null })),
     ]);
 
-    const user = currentUser as any;
-    const canEdit = user?.admin || user?.role?.permissions?.some((p: any) => p.moduleName === "Finance" && p.canEdit);
-    const canDelete = user?.admin || user?.role?.permissions?.some((p: any) => p.moduleName === "Finance" && p.canDelete);
+    fees = ((feesRes?.data ?? []) as unknown) as any[];
+    stats = (statsRes?.data ?? {}) as any;
+    classes = ((classesRes?.data ?? []) as unknown) as any[];
+    advancedStats = (advancedStatsRes?.data ?? null) as any;
+    headerConfig = (headerConfigRes?.data ?? null) as any;
 
-    console.log("FinancePage: Data fetch complete.");
-
-    return (
-      <FinanceClient 
-        fees={((feesRes?.data ?? []) as unknown) as any[]}
-        stats={(statsRes?.data ?? {}) as any}
-        classes={((classesRes?.data ?? []) as unknown) as any[]}
-        advancedStats={(advancedStatsRes?.data ?? null) as any}
-        headerConfig={(headerConfigRes?.data ?? null) as any}
-        canEdit={!!canEdit}
-        canDelete={!!canDelete}
-      />
-    );
   } catch (error) {
-    console.error("FinancePage Error:", error);
-    return (
-      <div className="p-8 text-center text-rose-500">
-        <h2 className="text-xl font-bold">Erreur de chargement</h2>
-        <p>{error instanceof Error ? error.message : "Une erreur inconnue est survenue"}</p>
-      </div>
-    );
+    console.warn("FinancePage Parallel Fetch Warning - falling back to client cache:", error);
   }
+
+  return (
+    <FinanceClient 
+      fees={fees}
+      stats={stats}
+      classes={classes}
+      advancedStats={advancedStats}
+      headerConfig={headerConfig}
+    />
+  );
 }

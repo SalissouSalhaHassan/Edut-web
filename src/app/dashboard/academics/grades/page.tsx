@@ -39,6 +39,7 @@ export default function AcademicResultsPage() {
   const [previewData, setPreviewData] = useState<any>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [headerConfig, setHeaderConfig] = useState<any>(null);
+  const [isLocal, setIsLocal] = useState(false);
 
   useEffect(() => {
     async function loadScale() {
@@ -88,40 +89,95 @@ export default function AcademicResultsPage() {
     // Reset old data
     setStudents([]);
     setMatrixData(null);
+    setIsLocal(false);
+
+    const cacheKey = `${filters.classId}-${filters.subjectId}-${filters.sessionId}-${filters.period}`;
+    const matrixCacheKey = `matrix-${filters.classId}-${filters.sessionId}-${filters.period}`;
 
     try {
       // 1. First fetch ONLY the entry grid (smaller data)
-      const gridResult = await getGradingGrid({
-        classId: filters.classId,
-        subjectId: filters.subjectId,
-        sessionId: filters.sessionId,
-        term: filters.period,
-      });
-
-      console.log("[handleLoad] Grid result:", gridResult);
-
-      if (gridResult?.error) {
-        toast.error(gridResult.error);
-      } else if (gridResult?.data) {
-        const studentData = gridResult.data;
-        if (Array.isArray(studentData)) {
-          setStudents(studentData);
-          setLevel((gridResult as any)?.level || filters.level);
-          setActiveCoef((gridResult as any)?.activeCoefficient || 1);
+      let gridResult: any = null;
+      if (navigator.onLine) {
+        try {
+          gridResult = await getGradingGrid({
+            classId: filters.classId,
+            subjectId: filters.subjectId,
+            sessionId: filters.sessionId,
+            term: filters.period,
+          });
+        } catch (e) {
+          console.warn("Failed to get grading grid from server:", e);
         }
       }
 
-      // 2. Fetch the heavy matrix data in the background if needed
-      // This won't block the UI showing the grades entry grid
+      if (gridResult?.data) {
+        const studentData = gridResult.data;
+        if (Array.isArray(studentData)) {
+          setStudents(studentData);
+          setLevel(gridResult.level || filters.level);
+          setActiveCoef(gridResult.activeCoefficient || 1);
+          
+          try {
+            const { cacheReferenceItems } = await import("@/infrastructure/local-db/references");
+            await cacheReferenceItems("examResults" as any, [{ key: cacheKey, data: studentData, level: gridResult.level, activeCoef: gridResult.activeCoefficient }], "key");
+          } catch (e) {
+            console.warn("Failed to cache grading grid locally:", e);
+          }
+        }
+      } else {
+        try {
+          const { getCachedReferenceItems } = await import("@/infrastructure/local-db/references");
+          const cachedList = await getCachedReferenceItems<any>("examResults" as any);
+          const match = cachedList.find((c: any) => c.key === cacheKey);
+          if (match) {
+            setStudents(match.data);
+            setLevel(match.level || filters.level);
+            setActiveCoef(match.activeCoef || 1);
+            setIsLocal(true);
+            toast.info("Affichage des notes locales (hors-ligne).");
+          } else {
+            toast.warning("Aucune donnée locale en cache pour cette sélection.");
+          }
+        } catch (e) {
+          console.warn("Failed to load cached grading grid:", e);
+        }
+      }
+
+      // 2. Fetch the heavy matrix data if needed
       if (view === "matrix") {
-        const matrixResult = await getBroadsheetMatrix({
-          classId: filters.classId,
-          sessionId: filters.sessionId,
-          term: filters.period,
-        });
-        console.log("[handleLoad] Matrix result:", matrixResult);
+        let matrixResult: any = null;
+        if (navigator.onLine) {
+          try {
+            matrixResult = await getBroadsheetMatrix({
+              classId: filters.classId,
+              sessionId: filters.sessionId,
+              term: filters.period,
+            });
+          } catch (e) {
+            console.warn("Failed to get broadsheet matrix from server:", e);
+          }
+        }
+
         if (matrixResult?.data) {
           setMatrixData(matrixResult.data);
+          try {
+            const { cacheReferenceItems } = await import("@/infrastructure/local-db/references");
+            await cacheReferenceItems("examResults" as any, [{ key: matrixCacheKey, data: matrixResult.data }], "key");
+          } catch (e) {
+            console.warn("Failed to cache matrix locally:", e);
+          }
+        } else {
+          try {
+            const { getCachedReferenceItems } = await import("@/infrastructure/local-db/references");
+            const cachedList = await getCachedReferenceItems<any>("examResults" as any);
+            const match = cachedList.find((c: any) => c.key === matrixCacheKey);
+            if (match) {
+              setMatrixData(match.data);
+              setIsLocal(true);
+            }
+          } catch (e) {
+            console.warn("Failed to load cached matrix:", e);
+          }
         }
       }
     } catch (err) {
@@ -258,6 +314,11 @@ export default function AcademicResultsPage() {
               <h1 className="text-3xl font-black text-slate-900 tracking-tight">
                 Notes & Résultats
               </h1>
+              {isLocal && (
+                <span className="px-3 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-black uppercase tracking-widest rounded-xl animate-pulse">
+                  Données locales
+                </span>
+              )}
               <Sparkles size={20} className="text-indigo-500" />
             </div>
             <p className="text-slate-600 font-medium ml-1">

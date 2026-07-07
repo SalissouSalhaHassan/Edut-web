@@ -110,9 +110,39 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, hea
   const [isMounted, setIsMounted] = React.useState(false);
   const [previewFee, setPreviewFee] = React.useState<any>(null);
 
+  const [localFees, setLocalFees] = React.useState<any[]>(fees);
+  const [isLocal, setIsLocal] = React.useState(false);
+
   React.useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  React.useEffect(() => {
+    async function loadData() {
+      if (navigator.onLine && fees && fees.length > 0) {
+        try {
+          const { cacheStudentFees } = await import("@/infrastructure/local-db/cache");
+          await cacheStudentFees(fees);
+        } catch (e) {
+          console.warn("Failed to update studentFees local cache:", e);
+        }
+      }
+
+      if (!fees || fees.length === 0 || !navigator.onLine) {
+        try {
+          const { getCachedStudentFees } = await import("@/infrastructure/local-db/cache");
+          const cached = await getCachedStudentFees();
+          if (cached && cached.length > 0) {
+            setLocalFees(cached);
+            setIsLocal(true);
+          }
+        } catch (e) {
+          console.warn("Failed to read cached studentFees:", e);
+        }
+      }
+    }
+    loadData();
+  }, [fees]);
 
   const updateFilters = (newParams: Record<string, string>) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -229,7 +259,7 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, hea
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-[11px] font-black uppercase tracking-widest text-slate-500">
-          <span className="rounded-xl bg-slate-50 px-3 py-2">Total élèves: {advancedStats?.totalStudents || fees.length}</span>
+          <span className="rounded-xl bg-slate-50 px-3 py-2">Total élèves: {advancedStats?.totalStudents || localFees.length}</span>
           <span className="rounded-xl bg-emerald-50 px-3 py-2 text-emerald-700">Recouvrement: {advancedStats?.recoveryRate || 0}%</span>
           <span className="rounded-xl bg-rose-50 px-3 py-2 text-rose-700">Alertes: {alertCount}</span>
         </div>
@@ -242,7 +272,14 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, hea
             <Wallet size={24} />
           </div>
           <div>
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight">Gestion Financière</h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-3xl font-black text-slate-900 tracking-tight">Gestion Financière</h1>
+              {isLocal && (
+                <span className="px-3 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-black uppercase tracking-widest rounded-xl animate-pulse">
+                  Données locales
+                </span>
+              )}
+            </div>
             <p className="text-slate-500 font-medium text-sm mt-1">Centre de Reporting Financier Intelligent</p>
           </div>
         </div>
@@ -250,9 +287,9 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, hea
         <div className="flex items-center gap-3">
           {canEdit && (
             <PaymentDialog
-              feeData={fees[0] || { id: 0, balance: 0, totalExpected: 0, totalPaid: 0, student: null }}
+              feeData={localFees[0] || { id: 0, balance: 0, totalExpected: 0, totalPaid: 0, student: null }}
               trigger={
-                <Button className="h-12 px-6 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-indigo-100 transition-all">
+                <Button className="h-12 px-6 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-indigo-100 transition-all cursor-pointer">
                   <Plus size={18} /> Ajouter un paiement
                 </Button>
               }
@@ -317,7 +354,7 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, hea
             countPaid: 0,
             countPartial: 0,
             countUnpaid: 0,
-            totalStudents: fees.length,
+            totalStudents: localFees.length,
             revenueToday: 0,
             revenueWeek: 0,
             revenueMonth: 0,
@@ -416,8 +453,8 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, hea
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {fees.length > 0 ? (
-                  fees.map((fee) => {
+                {localFees.length > 0 ? (
+                  localFees.map((fee) => {
                     const lastPayment = fee.payments?.[0];
                     const date = lastPayment?.datePaid ? new Date(lastPayment.datePaid).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" }) : "-";
                     const mode = lastPayment?.paymentMode || "Non spécifié";
