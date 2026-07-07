@@ -34,6 +34,7 @@ import {
   Store,
   Settings,
   Shield,
+  ShieldAlert,
   UsersRound,
   UserRound,
   Users,
@@ -78,6 +79,7 @@ const sections: NavSection[] = [
     items: [
       { href: "/dashboard", label: "Tableau de bord", icon: <LayoutDashboard className="size-[18px]" />, color: "text-indigo-500" },
       { href: "/dashboard/reports", label: "Rapports généraux", icon: <BarChart3 className="size-[18px]" />, color: "text-indigo-500" },
+      { href: "/dashboard/data-quality", label: "Qualité des données", icon: <ShieldAlert className="size-[18px]" />, color: "text-rose-500" },
     ],
   },
   {
@@ -271,7 +273,6 @@ export default function DashboardSidebar({
         } else if (["finance", "administration", "canevas", "resources", "system"].includes(section.id)) {
           items = [];
         } else if (section.id === "pedagogie") {
-          // Teachers see their pedagogical dashboards/actions (exclude inspection & reports)
           items = items.filter((item) => [
             "/dashboard/pedagogie",
             "/dashboard/pedagogie/cahier-textes",
@@ -293,7 +294,6 @@ export default function DashboardSidebar({
             "/dashboard/academics/homework"
           ].includes(item.href));
         } else if (section.id === "pedagogie") {
-          // Students see only: ressources, devoirs, progression
           items = items.filter((item) => [
             "/dashboard/pedagogie/ressources",
             "/dashboard/pedagogie/devoirs",
@@ -313,7 +313,6 @@ export default function DashboardSidebar({
             "/dashboard/academics/homework"
           ].includes(item.href));
         } else if (section.id === "pedagogie") {
-          // Parents see only: progression, devoirs
           items = items.filter((item) => [
             "/dashboard/pedagogie/progression",
             "/dashboard/pedagogie/devoirs"
@@ -575,5 +574,3 @@ export default function DashboardSidebar({
     </aside>
   );
 }
-
-

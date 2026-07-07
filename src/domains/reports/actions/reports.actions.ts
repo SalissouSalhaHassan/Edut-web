@@ -392,6 +392,14 @@ export async function getUnifiedReportsData() {
       limit: 100
     });
 
+    // 9. Fetch Grades (studentResults)
+    let grades: any[] = [];
+    if (studentIds.length > 0) {
+      grades = await readDb.query.studentResults.findMany({
+        where: inArray(studentResults.studentId, studentIds)
+      });
+    }
+
     return {
       success: true,
       data: {
@@ -411,8 +419,30 @@ export async function getUnifiedReportsData() {
         submissions,
         progress,
         virtualClasses,
-        auditLogs: audit
+        auditLogs: audit,
+        grades
       }
     };
+  });
+}
+
+export async function quickFixStudentData(id: number, data: any) {
+  return protectedDbAction("Students", "canEdit", async () => {
+    await db.update(students).set(data).where(eq(students.id, id));
+    return { success: true };
+  });
+}
+
+export async function quickFixPaymentReference(id: number, reference: string) {
+  return protectedDbAction("Finance", "canEdit", async () => {
+    await db.update(feePayments).set({ reference }).where(eq(feePayments.id, id));
+    return { success: true };
+  });
+}
+
+export async function quickFixGrade(id: number, score: number) {
+  return protectedDbAction("Academics", "canEdit", async () => {
+    await db.update(studentResults).set({ totalScore: score }).where(eq(studentResults.id, id));
+    return { success: true };
   });
 }
