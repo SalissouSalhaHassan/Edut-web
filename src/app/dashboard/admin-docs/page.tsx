@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { jsPDF } from "jspdf";
@@ -73,12 +73,48 @@ export default function AdminDocsPage() {
   const [signatoryRole, setSignatoryRole] = useState("LE DIRECTEUR DE L'ÉTABLISSEMENT");
   const [signatoryName, setSignatoryName] = useState("M. BAKO SANI");
   const [customComment, setCustomComment] = useState("");
+  const [dbStudents, setDbStudents] = useState<any[]>([]);
 
   const activeDoc = docTypes.find((d) => d.id === selectedDoc) || docTypes[0];
 
+  // Load IndexedDB students on mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      async function loadDbStudents() {
+        try {
+          const { localDb } = await import("@/infrastructure/local-db/dexie");
+          const list = await localDb.students.toArray();
+          if (list.length > 0) {
+            const mapped = list.map(s => ({
+              id: s.id?.toString() || `local-${s.numAdmission}`,
+              numAdmission: s.numAdmission,
+              name: s.nomEtudiant,
+              class: s.classe || "Classe N/A",
+              dob: "10/10/2012",
+              pob: "Niamey",
+              year: "2025 / 2026",
+              level: "Secondaire",
+              sector: "Public",
+              gpa: "12.00 / 20",
+              mention: "Assez Bien",
+              status: s.statut === "Actif" ? "PROMU(E)" : "AJOURNÉ(E)",
+              regDate: "15/09/2025",
+              isProvisoire: s.id === undefined || typeof s.id === "string" || s.id < 0 || s.id?.toString().startsWith("temp-"),
+            }));
+            setDbStudents(mapped);
+            setSelectedEntityId(mapped[0].id);
+          }
+        } catch (e) {
+          console.warn("Failed to load db students:", e);
+        }
+      }
+      loadDbStudents();
+    }
+  }, []);
+
   // Resolve active student or staff member
   const isStaffDoc = selectedDoc === "travail";
-  const entities = isStaffDoc ? mockStaff : mockStudents;
+  const entities = isStaffDoc ? mockStaff : (dbStudents.length > 0 ? dbStudents : mockStudents);
   const filteredEntities = entities.filter((e) =>
     e.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     e.id.toLowerCase().includes(searchQuery.toLowerCase())
@@ -86,7 +122,7 @@ export default function AdminDocsPage() {
   
   const activeEntity = entities.find((e) => e.id === selectedEntityId) || entities[0];
 
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
     try {
       toast.success("Génération du document officiel en haute résolution...");
       const doc = new jsPDF({
@@ -137,8 +173,21 @@ export default function AdminDocsPage() {
       doc.setLineWidth(0.6);
       doc.line(20, 36, pageWidth - 20, 36);
 
+      // Offline watermark banner (shown only when student is not yet synced)
+      const isProvisoire = !!(activeEntity as any)?.isProvisoire;
+      if (isProvisoire) {
+        doc.setFillColor(254, 243, 199);
+        doc.setDrawColor(245, 158, 11);
+        doc.setLineWidth(0.4);
+        doc.roundedRect(20, 39, pageWidth - 40, 6, 1, 1, "FD");
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(7);
+        doc.setTextColor(180, 83, 9);
+        doc.text("Document généré hors ligne - en attente de synchronisation", pageWidth / 2, 43, { align: "center" });
+      }
+
       // Title Section
-      let titleY = 48;
+      let titleY = isProvisoire ? 54 : 48;
       doc.setFont("helvetica", "bold");
       doc.setFontSize(18);
       doc.setTextColor(30, 58, 138);
@@ -323,18 +372,46 @@ export default function AdminDocsPage() {
       doc.text("EDUT PRO", 35, sigY + 13, { align: "center" });
       doc.text("S.A.R.L", 35, sigY + 17, { align: "center" });
 
-      // Verification Center (QR code placeholder)
+      // Verification Center – Real QR code (reference + localId + syncStatus)
+      const refText = `Réf : DOC-${activeDoc.id.toUpperCase()}-${Date.now().toString().slice(-6)}`;
+      const qrPayload = `REF: ${refText} | LOCAL_ID: ${activeEntity.id} | STATUS: ${isProvisoire ? "provisoire" : "officiel"}`;
       doc.setFontSize(8);
       doc.setTextColor(100, 116, 139);
       doc.text("VÉRIFICATION EN LIGNE", pageWidth / 2, sigY + 28, { align: "center" });
-      
-      // Simple representation of QR code
-      doc.setDrawColor(148, 163, 184);
-      doc.rect(pageWidth / 2 - 8, sigY + 4, 16, 16);
-      doc.setFillColor(148, 163, 184);
-      doc.rect(pageWidth / 2 - 7, sigY + 5, 4, 4, "F");
-      doc.rect(pageWidth / 2 + 3, sigY + 5, 4, 4, "F");
-      doc.rect(pageWidth / 2 - 7, sigY + 15, 4, 4, "F");
+
+      // Fetch real QR code image
+      let qrBase64 = "";
+      try {
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrPayload)}`;
+        qrBase64 = await new Promise<string>((resolve) => {
+          const img = new Image();
+          img.crossOrigin = "Anonymous";
+          img.src = qrUrl;
+          img.onload = () => {
+            const canvas = document.createElement("canvas");
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext("2d");
+            ctx?.drawImage(img, 0, 0);
+            resolve(canvas.toDataURL("image/png"));
+          };
+          img.onerror = () => resolve("");
+        });
+      } catch (e) {
+        console.warn("Failed to load QR code for attestation PDF:", e);
+      }
+
+      if (qrBase64) {
+        try { doc.addImage(qrBase64, "PNG", pageWidth / 2 - 8, sigY + 4, 16, 16); } catch (e) {}
+      } else {
+        // Fallback: simple rectangle placeholder
+        doc.setDrawColor(148, 163, 184);
+        doc.rect(pageWidth / 2 - 8, sigY + 4, 16, 16);
+        doc.setFillColor(148, 163, 184);
+        doc.rect(pageWidth / 2 - 7, sigY + 5, 4, 4, "F");
+        doc.rect(pageWidth / 2 + 3, sigY + 5, 4, 4, "F");
+        doc.rect(pageWidth / 2 - 7, sigY + 15, 4, 4, "F");
+      }
 
       // Right: Director Signature
       doc.setFontSize(8);
@@ -363,8 +440,6 @@ export default function AdminDocsPage() {
       doc.setFontSize(7.5);
       doc.setTextColor(255, 255, 255);
       doc.text("Edut Pro – Centre d'Attestation Scolaire Officiel", 10, pageHeight - 3);
-      
-      const refText = `Réf : DOC-${activeDoc.id.toUpperCase()}-${Date.now().toString().slice(-6)}`;
       doc.text(refText, pageWidth - 10, pageHeight - 3, { align: "right" });
 
       doc.save(`Attestation_${activeDoc.id}_${activeEntity.name.replace(/\s+/g, "_")}.pdf`);

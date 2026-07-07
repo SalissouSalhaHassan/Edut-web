@@ -6,7 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { saveBatchAttendance } from "@/domains/attendance/actions/attendance.actions";
-import { Check, X, Clock, Info, Save, Scan, List, Search, MessageSquare, Phone } from "lucide-react";
+import { Check, X, Clock, Info, Save, Scan, List, Search, MessageSquare, Phone, Printer } from "lucide-react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import { toast } from "sonner";
 import { AttendanceScanner } from "./AttendanceScanner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -209,6 +211,101 @@ export default function AttendanceGrid({ students, classId, subjectId, employeeI
     setLoading(false);
   };
 
+  // Generate offline-printable attendance list PDF
+  const handlePrintList = async () => {
+    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    const W = 210, m = 14;
+    const isOffline = batchStatus === "Local";
+    const dateStr = new Date(date).toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
+
+    // Header bar
+    doc.setFillColor(30, 58, 138);
+    doc.rect(0, 0, W, 4, "F");
+    doc.setFillColor(79, 70, 229);
+    doc.rect(0, 4, 80, 1.5, "F");
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(15);
+    doc.setTextColor(15, 23, 42);
+    doc.text("LISTE DE PR\u00c9SENCE", W / 2, 18, { align: "center" });
+
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(71, 85, 105);
+    doc.text(`Date : ${dateStr}  |  Classe ID : ${classId}  |  Mati\u00e8re ID : ${subjectId || "N/A"}`, W / 2, 25, { align: "center" });
+
+    // Offline watermark
+    if (isOffline) {
+      doc.setFillColor(254, 243, 199);
+      doc.setDrawColor(245, 158, 11);
+      doc.setLineWidth(0.4);
+      doc.roundedRect(m, 29, W - 2 * m, 6, 1, 1, "FD");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7);
+      doc.setTextColor(180, 83, 9);
+      doc.text("Document g\u00e9n\u00e9r\u00e9 hors ligne - en attente de synchronisation", W / 2, 33, { align: "center" });
+    }
+
+    // Table
+    const tableStartY = isOffline ? 40 : 34;
+    const tableBody = filteredStudents.map((s, i) => {
+      const r = records[s.id];
+      return [
+        String(i + 1),
+        s.nomEtudiant,
+        s.numAdmission,
+        r?.status || "Pr\u00e9sent",
+        r?.remark || "",
+      ];
+    });
+
+    autoTable(doc, {
+      startY: tableStartY,
+      head: [["#", "Nom complet", "Matricule", "Statut", "Remarque"]],
+      body: tableBody,
+      theme: "grid",
+      headStyles: { fillColor: [15, 23, 42], textColor: 255, fontSize: 8, fontStyle: "bold" },
+      bodyStyles: { fontSize: 8 },
+      columnStyles: { 0: { cellWidth: 10 }, 2: { cellWidth: 28 }, 3: { cellWidth: 26 } },
+      margin: { left: m, right: m },
+    });
+
+    const tableBottom = (doc as any).lastAutoTable?.finalY || 100;
+
+    // Stats summary
+    const summaryY = tableBottom + 8;
+    doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor(30, 58, 138);
+    doc.text(`Pr\u00e9sents: ${stats.Presents}  |  Absents: ${stats.Absents}  |  Retards: ${stats.Lates}  |  Excus\u00e9s: ${stats.Excused}`, m, summaryY);
+
+    // Real QR code
+    const localId = `${classId}:${subjectId || "all"}:${date}`;
+    const qrPayload = `REF: ATTENDANCE-${localId} | DATE: ${date} | STATUS: ${isOffline ? "provisoire" : "officiel"}`;
+    let qrBase64 = "";
+    try {
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrPayload)}`;
+      qrBase64 = await new Promise<string>((resolve) => {
+        const img = new Image(); img.crossOrigin = "Anonymous"; img.src = qrUrl;
+        img.onload = () => { const c = document.createElement("canvas"); c.width = img.width; c.height = img.height; c.getContext("2d")?.drawImage(img, 0, 0); resolve(c.toDataURL("image/png")); };
+        img.onerror = () => resolve("");
+      });
+    } catch {}
+
+    if (qrBase64) {
+      try { doc.addImage(qrBase64, "PNG", W - m - 22, summaryY - 2, 22, 22); } catch {}
+    }
+    doc.setFontSize(6.5); doc.setTextColor(100, 116, 139);
+    doc.text("V\u00e9rification QR", W - m - 11, summaryY + 25, { align: "center" });
+
+    // Footer
+    const H = 297;
+    doc.setFillColor(79, 70, 229);
+    doc.rect(0, H - 6, W, 6, "F");
+    doc.setFont("helvetica", "bold"); doc.setFontSize(7); doc.setTextColor(255, 255, 255);
+    doc.text(`Edut Pro \u2013 Liste de pr\u00e9sence ${date}`, W / 2, H - 2, { align: "center" });
+
+    doc.save(`Presence_Classe${classId}_${date}.pdf`);
+  };
+
   return (
     <div className="space-y-6">
       <Tabs defaultValue="list" className="w-full">
@@ -270,6 +367,13 @@ export default function AttendanceGrid({ students, classId, subjectId, employeeI
                 className="rounded-xl font-bold bg-white h-11 flex-1 md:flex-none disabled:opacity-50"
               >
                 ✅ Tout Présent
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handlePrintList}
+                className="rounded-xl font-bold bg-white h-11 flex-1 md:flex-none flex items-center gap-2 border-indigo-200 text-indigo-600 hover:bg-indigo-50"
+              >
+                <Printer size={16} /> Imprimer
               </Button>
               <Button 
                 onClick={handleSubmit} 

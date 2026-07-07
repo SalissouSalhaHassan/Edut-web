@@ -478,7 +478,7 @@ export default function ReceiptPreviewDialog({
       doc.setFontSize(6.5);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(180, 83, 9);
-      doc.text("REÇU PROVISOIRE - NON SYNCHRONISÉ", W / 2, 68, { align: "center" });
+      doc.text("Document généré hors ligne - en attente de synchronisation", W / 2, 68, { align: "center" });
     }
 
     doc.setFillColor(255, 255, 255);
@@ -617,6 +617,35 @@ export default function ReceiptPreviewDialog({
 
     doc.setFillColor(79, 70, 229);
     doc.rect(0, H - 2, W, 2, "F");
+
+    // Fetch and append QR code containing reference, localId, and syncStatus
+    let qrBase64 = "";
+    try {
+      const qrData = `REF: ${refNumber} | LOCAL_ID: ${feeData.id || "N/A"} | STATUS: ${isProvisoire ? "provisoire" : "officiel"}`;
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrData)}`;
+      qrBase64 = await new Promise<string>((resolve) => {
+        const img = new Image();
+        img.crossOrigin = 'Anonymous';
+        img.src = qrUrl;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0);
+          resolve(canvas.toDataURL('image/png'));
+        };
+        img.onerror = () => resolve("");
+      });
+    } catch (e) {
+      console.warn("Failed to load QR code for receipt PDF:", e);
+    }
+
+    if (qrBase64) {
+      try {
+        doc.addImage(qrBase64, 'PNG', W - margin - 22, badgeY - 5, 22, 22);
+      } catch (e) {}
+    }
 
     if (save) {
       const name = feeData.student?.nomEtudiant?.replace(/\s+/g, "_") || "eleve";

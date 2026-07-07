@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import jsPDF from "jspdf";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -162,6 +163,121 @@ export default function AdmitCardsPage() {
   const [notice, setNotice] = useState("Interface prete. Tous les boutons sont actifs.");
   const [hiddenColumns, setHiddenColumns] = useState<string[]>([]);
   const [draftImage, setDraftImage] = useState("");
+  const [dbStudents, setDbStudents] = useState<any[]>([]);
+  const [selectedStudentIdx, setSelectedStudentIdx] = useState(0);
+
+  // Load students from IndexedDB on mount
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    async function load() {
+      try {
+        const { localDb } = await import("@/infrastructure/local-db/dexie");
+        const list = await localDb.students.toArray();
+        if (list.length > 0) {
+          setDbStudents(list.map(s => ({
+            id: s.id?.toString() || `local-${s.numAdmission}`,
+            numAdmission: s.numAdmission,
+            name: s.nomEtudiant,
+            classe: s.classe || "N/A",
+            isProvisoire: s.id === undefined || typeof s.id === "string" || s.id < 0 || s.id?.toString().startsWith("temp-"),
+          })));
+        }
+      } catch (e) { console.warn("Failed to load students for admit cards:", e); }
+    }
+    load();
+  }, []);
+
+  // Generate a printable admit card PDF for a student
+  const handlePrintCard = async (template: Template, student: any) => {
+    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    const W = 210, H = 297, m = 18;
+    const isProvisoire = !!student.isProvisoire;
+    const ref = `ADM-${template.id}-${student.numAdmission || student.id}`;
+
+    // Background
+    if (template.backgroundImage?.startsWith("data:image/")) {
+      try { doc.addImage(template.backgroundImage, "PNG", 0, 0, W, H); } catch {}
+    } else {
+      doc.setFillColor(238, 242, 255);
+      doc.rect(0, 0, W, H, "F");
+    }
+
+    // Header bar
+    doc.setFillColor(30, 58, 138);
+    doc.rect(0, 0, W, 4, "F");
+    doc.setFillColor(79, 70, 229);
+    doc.rect(0, 4, 80, 1.5, "F");
+
+    // Title
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.setTextColor(30, 58, 138);
+    doc.text("CARTE D'ADMISSION", W / 2, 22, { align: "center" });
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(71, 85, 105);
+    doc.text(template.name, W / 2, 29, { align: "center" });
+
+    // Offline watermark
+    if (isProvisoire) {
+      doc.setFillColor(254, 243, 199);
+      doc.setDrawColor(245, 158, 11);
+      doc.setLineWidth(0.4);
+      doc.roundedRect(m, 34, W - 2 * m, 6, 1, 1, "FD");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7);
+      doc.setTextColor(180, 83, 9);
+      doc.text("Document g\u00e9n\u00e9r\u00e9 hors ligne - en attente de synchronisation", W / 2, 38, { align: "center" });
+    }
+
+    // Info card
+    const cardY = isProvisoire ? 46 : 40;
+    doc.setFillColor(255, 255, 255);
+    doc.setDrawColor(226, 232, 240);
+    doc.roundedRect(m, cardY, W - 2 * m, 60, 3, 3, "FD");
+    doc.setFontSize(9.5);
+    let ly = cardY + 10;
+    ["NOM COMPLET", "MATRICULE", "CLASSE", "RÉFÉRENCE CARTE"].forEach((label, i) => {
+      const vals = [student.name, student.numAdmission || student.id, student.classe, ref];
+      doc.setFont("helvetica", "normal"); doc.setTextColor(100, 116, 139);
+      doc.text(label, m + 5, ly);
+      doc.setFont("helvetica", "bold"); doc.setTextColor(15, 23, 42);
+      doc.text(String(vals[i]), m + 55, ly);
+      if (i < 3) { doc.setDrawColor(241, 245, 249); doc.line(m + 5, ly + 3, W - m - 5, ly + 3); }
+      ly += 13;
+    });
+
+    // Signature line
+    const sigY = H - 60;
+    doc.setDrawColor(200, 210, 230);
+    doc.line(m, sigY + 18, m + 55, sigY + 18);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(100, 116, 139);
+    doc.text("Signature du directeur", m + 27, sigY + 23, { align: "center" });
+
+    // Real QR code
+    const qrPayload = `REF: ${ref} | LOCAL_ID: ${student.id} | STATUS: ${isProvisoire ? "provisoire" : "officiel"}`;
+    let qrBase64 = "";
+    try {
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrPayload)}`;
+      qrBase64 = await new Promise<string>((resolve) => {
+        const img = new Image(); img.crossOrigin = "Anonymous"; img.src = qrUrl;
+        img.onload = () => { const c = document.createElement("canvas"); c.width = img.width; c.height = img.height; c.getContext("2d")?.drawImage(img, 0, 0); resolve(c.toDataURL("image/png")); };
+        img.onerror = () => resolve("");
+      });
+    } catch {}
+    if (qrBase64) { try { doc.addImage(qrBase64, "PNG", W - m - 25, sigY + 2, 25, 25); } catch {} }
+    doc.setFontSize(6.5); doc.setTextColor(100, 116, 139);
+    doc.text("Vérification en ligne", W - m - 12, sigY + 30, { align: "center" });
+
+    // Footer
+    doc.setFillColor(79, 70, 229);
+    doc.rect(0, H - 6, W, 6, "F");
+    doc.setFont("helvetica", "bold"); doc.setFontSize(7); doc.setTextColor(255, 255, 255);
+    doc.text(`Edut Pro – ${ref}`, W / 2, H - 2, { align: "center" });
+
+    doc.save(`Carte_Admission_${student.numAdmission || student.id}_${template.id}.pdf`);
+    setNotice(`Carte PDF générée pour ${student.name}.`);
+  };
 
   const readImageFile = (file: File, callback: (dataUrl: string) => void) => {
     if (!file.type.startsWith("image/")) {
@@ -579,6 +695,29 @@ export default function AdmitCardsPage() {
                   <p><span className="text-slate-400">Page:</span> {selectedTemplate.format} - {selectedTemplate.size}</p>
                   <p><span className="text-slate-400">Orientation:</span> {selectedTemplate.orientation}</p>
                   <p><span className="text-slate-400">Cartes generees:</span> {selectedTemplate.generated}</p>
+                  {/* Student selector for offline card generation */}
+                  {dbStudents.length > 0 && (
+                    <div className="pt-2 space-y-2">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Élève (IndexedDB)</p>
+                      <select
+                        value={selectedStudentIdx}
+                        onChange={e => setSelectedStudentIdx(Number(e.target.value))}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold"
+                      >
+                        {dbStudents.map((s, i) => (
+                          <option key={s.id} value={i}>
+                            {s.name} – {s.numAdmission}{s.isProvisoire ? " ⚠️ hors ligne" : ""}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        onClick={() => handlePrintCard(selectedTemplate, dbStudents[selectedStudentIdx])}
+                        className="w-full h-10 rounded-xl bg-indigo-600 text-xs font-black uppercase tracking-widest text-white"
+                      >
+                        Générer carte élève PDF
+                      </button>
+                    </div>
+                  )}
                   <div className="flex flex-wrap gap-2 pt-3">
                     <button onClick={() => handleAction("generate", selectedTemplate)} className="h-10 rounded-xl bg-emerald-600 px-4 text-xs font-black uppercase tracking-widest text-white">Generer</button>
                     <button onClick={() => runExport("print")} className="h-10 rounded-xl border border-slate-200 px-4 text-xs font-black uppercase tracking-widest">Imprimer</button>
