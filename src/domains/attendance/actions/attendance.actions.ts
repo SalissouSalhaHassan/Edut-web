@@ -90,6 +90,7 @@ export async function saveBatchAttendance(data: BatchAttendanceFormData) {
     const flaggedRecords = records.filter(r => r.status === "Absent" || r.status === "En Retard");
     
     if (flaggedRecords.length > 0 && (sendSMS || sendWhatsApp)) {
+      console.log(`[Messaging Log] Processing deferred alerts for ${flaggedRecords.length} students (sendSMS: ${sendSMS}, sendWhatsApp: ${sendWhatsApp})`);
       try {
         const { MessagingService } = await import("@/shared/services/messaging.service");
         const studentIds = flaggedRecords.map(r => r.studentId);
@@ -109,6 +110,7 @@ export async function saveBatchAttendance(data: BatchAttendanceFormData) {
         for (const record of flaggedRecords) {
           const s = targetStudents.find(st => st.id === record.studentId);
           if (s && (s.mobile || s.whatsapp)) {
+            console.log(`[Messaging Log] Deferred Alert Sent: ${s.nomEtudiant} | Status: ${record.status} | Phone: ${s.mobile || s.whatsapp}`);
             await MessagingService.sendAttendanceAlert({
               to: s.mobile || "",
               whatsapp: s.whatsapp || s.mobile || "",
@@ -122,7 +124,7 @@ export async function saveBatchAttendance(data: BatchAttendanceFormData) {
           }
         }
       } catch (err) {
-        console.error("Failed to process smart alerts:", err);
+        console.error("[Messaging Log] Failed to process smart alerts:", err);
       }
     }
 

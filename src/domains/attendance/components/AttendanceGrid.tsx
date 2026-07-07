@@ -30,10 +30,49 @@ interface AttendanceGridProps {
   canEdit?: boolean;
 }
 
+function AttendanceStatusBadge({ status }: { status: "Local" | "Synced" | "Failed" }) {
+  if (status === "Local") {
+    return <span className="ml-2 px-2 py-0.5 bg-amber-500/10 text-amber-600 border border-amber-500/20 text-[9px] font-black uppercase tracking-widest rounded-full animate-pulse">Local</span>;
+  }
+  if (status === "Failed") {
+    return <span className="ml-2 px-2 py-0.5 bg-rose-500/10 text-rose-600 border border-rose-500/20 text-[9px] font-black uppercase tracking-widest rounded-full">Failed</span>;
+  }
+  return <span className="ml-2 px-2 py-0.5 bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 text-[9px] font-black uppercase tracking-widest rounded-full">Synced</span>;
+}
+
 export default function AttendanceGrid({ students, classId, subjectId, employeeId, date, initialRecords = [], canEdit = true }: AttendanceGridProps) {
   const isOnline = useOnlineStatus();
   const { mutate } = useOfflineMutation<any>();
   const [loading, setLoading] = useState(false);
+  const [batchStatus, setBatchStatus] = useState<"Local" | "Synced" | "Failed">("Synced");
+
+  useEffect(() => {
+    async function loadBatchStatus() {
+      try {
+        const { localDb } = await import("@/infrastructure/local-db/dexie");
+        const item = await localDb.outbox
+          .where("idempotencyKey")
+          .equals(`attendance:${classId}:${subjectId || "all"}:${date}`)
+          .first();
+
+        if (item) {
+          if (item.status === "failed") {
+            setBatchStatus("Failed");
+          } else if (item.status === "synced") {
+            setBatchStatus("Synced");
+          } else {
+            setBatchStatus("Local");
+          }
+        } else {
+          setBatchStatus("Synced");
+        }
+      } catch (e) {
+        console.warn("Failed to load attendance batch outbox status:", e);
+        setBatchStatus("Synced");
+      }
+    }
+    loadBatchStatus();
+  }, [classId, subjectId, date, loading]);
   const [searchQuery, setSearchQuery] = useState("");
   const [sendSMS, setSendSMS] = useState(false);
   const [sendWhatsApp, setSendWhatsApp] = useState(true);
@@ -114,16 +153,20 @@ export default function AttendanceGrid({ students, classId, subjectId, employeeI
 
   const handleSubmit = async () => {
     setLoading(true);
+    
+    // Deduplicate records list to be absolutely sure
+    const dedupedRecords = Object.entries(records).map(([id, val]) => ({
+      studentId: Number(id),
+      status: val.status,
+      remark: val.remark,
+    }));
+
     const data = {
       classId,
       subjectId: subjectId || null,
       employeeId: employeeId || null,
       date,
-      records: Object.entries(records).map(([id, val]) => ({
-        studentId: Number(id),
-        status: val.status,
-        remark: val.remark,
-      })),
+      records: dedupedRecords,
       sendSMS,
       sendWhatsApp,
     };
@@ -135,12 +178,35 @@ export default function AttendanceGrid({ students, classId, subjectId, employeeI
       entityId: `${classId}:${subjectId || "all"}:${date}`,
       idempotencyKey: `attendance:${classId}:${subjectId || "all"}:${date}`,
     });
-    setLoading(false);
+
     if (result.success) {
+      // Store flat studentAttendance locally to fulfill schema and prevent duplicates
+      try {
+        const { localDb } = await import("@/infrastructure/local-db/dexie");
+        for (const r of dedupedRecords) {
+          const existing = await localDb.studentAttendance
+            .filter(x => x.classId === classId && x.subjectId === (subjectId || null) && x.date === date && x.studentId === r.studentId)
+            .first();
+
+          await localDb.studentAttendance.put({
+            id: existing?.id,
+            classId,
+            subjectId: subjectId || null,
+            date,
+            studentId: r.studentId,
+            status: r.status,
+            remark: r.remark || "",
+            updatedAt: Date.now()
+          });
+        }
+      } catch (e) {
+        console.warn("Failed to update flat studentAttendance locally:", e);
+      }
       toast.success(isOnline ? "Présence enregistrée avec succès !" : "Présence enregistrée localement.");
     } else {
       toast.error("Erreur: " + result.error);
     }
+    setLoading(false);
   };
 
   return (
@@ -235,7 +301,10 @@ export default function AttendanceGrid({ students, classId, subjectId, employeeI
                         </span>
                       </td>
                       <td className="px-8 py-5">
-                        <p className="font-bold text-slate-900">{s.nomEtudiant}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-bold text-slate-900">{s.nomEtudiant}</p>
+                          <AttendanceStatusBadge status={batchStatus} />
+                        </div>
                       </td>
                       <td className="px-8 py-5">
                         <div className="flex items-center justify-center gap-1.5 bg-slate-100/50 p-1.5 rounded-2xl w-fit mx-auto border border-slate-100">
