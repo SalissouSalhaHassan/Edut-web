@@ -461,11 +461,12 @@ export default function AcademicResultsPage() {
                 </Button>
                 <Button
                   onClick={() => {
+                    const isOffline = !navigator.onLine;
                     const isHigherEd = ["Licence", "Master", "Doctorat", "Supérieur", "Université"].includes(activeFilters?.level || "Lycée");
                     if (isHigherEd) {
-                      generateReleveNotesPDF({ ...previewData, headerConfig });
+                      generateReleveNotesPDF({ ...previewData, headerConfig, isOffline });
                     } else {
-                      generateBulletinPDF({ ...previewData, headerConfig });
+                      generateBulletinPDF({ ...previewData, headerConfig, isOffline });
                     }
                     setShowPreview(false);
                   }}

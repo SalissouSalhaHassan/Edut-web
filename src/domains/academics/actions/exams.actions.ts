@@ -178,6 +178,18 @@ export async function saveBatchExamResults(formData: BatchExamResultFormData) {
         )
       });
 
+      if (res.originalMarksObtained !== undefined && res.originalMarksObtained !== null && existing) {
+        const hasConflict = 
+          existing.marksObtained !== res.originalMarksObtained ||
+          existing.remarks !== (res.originalRemarks || null);
+        if (hasConflict) {
+          return {
+            error: `Conflict: La note a été modifiée par un autre utilisateur (Note serveur: ${existing.marksObtained}, Saisie: ${res.marksObtained})`,
+            conflict: true
+          };
+        }
+      }
+
       if (existing) {
         await db.update(examResults)
           .set({

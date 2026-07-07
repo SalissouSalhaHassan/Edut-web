@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { saveBatchExamResults } from "@/domains/academics/actions/exams.actions";
 import { Save, AlertCircle, CheckCircle2 } from "lucide-react";
 import { useOfflineMutation } from "@/hooks/use-offline-mutation";
+import { localDb } from "@/infrastructure/local-db/dexie";
 
 interface Student {
   id: number;
@@ -20,10 +21,24 @@ interface ResultsEntryGridProps {
   initialResults?: any[];
 }
 
+function ResultStatusBadge({ status }: { status: "pending" | "conflict" | "synced" | null }) {
+  if (status === "pending") {
+    return <span className="ml-2 px-2 py-0.5 bg-amber-500/10 text-amber-600 border border-amber-500/20 text-[9px] font-black uppercase tracking-widest rounded-full animate-pulse">En attente</span>;
+  }
+  if (status === "conflict") {
+    return <span className="ml-2 px-2 py-0.5 bg-rose-500/10 text-rose-600 border border-rose-500/20 text-[9px] font-black uppercase tracking-widest rounded-full">Conflit</span>;
+  }
+  if (status === "synced") {
+    return <span className="ml-2 px-2 py-0.5 bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 text-[9px] font-black uppercase tracking-widest rounded-full">Synchronisé</span>;
+  }
+  return null;
+}
+
 export default function ResultsEntryGrid({ examId, maxMarks, students, initialResults = [] }: ResultsEntryGridProps) {
-  const { mutate } = useOfflineMutation<{ examId: number; studentId: number; marksObtained: number; remarks: string }>();
+  const { mutate } = useOfflineMutation<{ id?: number; examId: number; studentId: number; marksObtained: number; remarks: string; originalMarksObtained?: number | null; originalRemarks?: string | null }>();
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [outboxStatuses, setOutboxStatuses] = useState<Record<number, "pending" | "conflict" | "synced" | null>>({});
   const [results, setResults] = useState<Record<number, { marks: string; remark: string }>>(
     students.reduce((acc, s) => {
       const existing = initialResults.find(r => r.studentId === s.id);
@@ -35,6 +50,51 @@ export default function ResultsEntryGrid({ examId, maxMarks, students, initialRe
     }, {} as any)
   );
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    async function loadLocalResultsAndStatuses() {
+      try {
+        // Load local offline-edited results
+        const cached = await localDb.examResults.where("examId").equals(examId).toArray();
+        if (cached && cached.length > 0) {
+          setResults(prev => {
+            const updated = { ...prev };
+            for (const r of cached) {
+              updated[r.studentId] = {
+                marks: r.marksObtained?.toString() || "",
+                remark: r.remarks || "",
+              };
+            }
+            return updated;
+          });
+        }
+
+        // Load outbox sync statuses
+        const items = await localDb.outbox
+          .where("targetTable")
+          .equals("examResults")
+          .toArray();
+
+        const statuses: Record<number, "pending" | "conflict" | "synced" | null> = {};
+        for (const item of items) {
+          if (item.payload.examId === examId) {
+            const studId = item.payload.studentId;
+            if (item.status === "conflict") {
+              statuses[studId] = "conflict";
+            } else if (item.status === "synced") {
+              statuses[studId] = "synced";
+            } else {
+              statuses[studId] = "pending";
+            }
+          }
+        }
+        setOutboxStatuses(statuses);
+      } catch (e) {
+        console.warn("Failed to load local results/statuses:", e);
+      }
+    }
+    loadLocalResultsAndStatuses();
+  }, [examId, success, loading]);
 
   useEffect(() => {
     return () => {
@@ -69,44 +129,64 @@ export default function ResultsEntryGrid({ examId, maxMarks, students, initialRe
     setLoading(true);
     setSuccess(false);
 
-    const rows = Object.entries(results)
-      .filter(([_, val]) => val.marks !== "")
-      .map(([id, val]) => ({
-        examId,
-        studentId: Number(id),
-        marksObtained: parseFloat(val.marks),
-        remarks: val.remark,
-      }));
+    try {
+      const cached = await localDb.examResults.where("examId").equals(examId).toArray();
 
-    let result: { success: boolean; error?: string } = { success: true };
-    for (const row of rows) {
-      const rowResult = await mutate(row, {
-        targetTable: "examResults",
-        onlineAction: async (payload) => saveBatchExamResults({
-          examId: payload.examId,
-          results: [
-            {
-              studentId: payload.studentId,
-              marksObtained: payload.marksObtained,
-              remarks: payload.remarks,
-            },
-          ],
-        } as any),
-      });
+      const rows = Object.entries(results)
+        .filter(([_, val]) => val.marks !== "")
+        .map(([id, val]) => {
+          const studentId = Number(id);
+          const serverResult = initialResults.find(r => r.studentId === studentId);
+          const localResult = cached.find(r => r.studentId === studentId);
 
-      if (!rowResult.success) {
-        result = { success: false, error: rowResult.error };
-        break;
+          return {
+            id: localResult?.id,
+            examId,
+            studentId,
+            marksObtained: parseFloat(val.marks),
+            remarks: val.remark,
+            originalMarksObtained: serverResult ? serverResult.marksObtained : null,
+            originalRemarks: serverResult ? serverResult.remarks : null,
+          };
+        });
+
+      let result: { success: boolean; error?: string } = { success: true };
+      for (const row of rows) {
+        const rowResult = await mutate(row, {
+          targetTable: "examResults",
+          idempotencyKey: `examResults:${examId}:${row.studentId}`,
+          entityId: `${examId}:${row.studentId}`,
+          onlineAction: async (payload) => saveBatchExamResults({
+            examId: payload.examId,
+            results: [
+              {
+                studentId: payload.studentId,
+                marksObtained: payload.marksObtained,
+                remarks: payload.remarks,
+                originalMarksObtained: payload.originalMarksObtained,
+                originalRemarks: payload.originalRemarks,
+              },
+            ],
+          } as any),
+        });
+
+        if (!rowResult.success) {
+          result = { success: false, error: rowResult.error };
+          break;
+        }
       }
-    }
 
-    setLoading(false);
-    if (result.success) {
-      setSuccess(true);
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-      timeoutRef.current = setTimeout(() => setSuccess(false), 3000);
-    } else {
-      alert("Erreur: " + result.error);
+      setLoading(false);
+      if (result.success) {
+        setSuccess(true);
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        timeoutRef.current = setTimeout(() => setSuccess(false), 3000);
+      } else {
+        alert("Erreur: " + result.error);
+      }
+    } catch (err: any) {
+      setLoading(false);
+      alert("Erreur: " + err.message);
     }
   };
 
@@ -146,7 +226,10 @@ export default function ResultsEntryGrid({ examId, maxMarks, students, initialRe
             {students.map((s) => (
               <tr key={s.id} className="group hover:bg-slate-50/50 transition-colors">
                 <td className="px-10 py-6">
-                  <p className="font-bold text-slate-900">{s.nomEtudiant}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-bold text-slate-900">{s.nomEtudiant}</p>
+                    <ResultStatusBadge status={outboxStatuses[s.id] || (initialResults.find(r => r.studentId === s.id) ? "synced" : null)} />
+                  </div>
                   <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-1">Mat: {s.numAdmission || "N/A"}</p>
                 </td>
                 <td className="px-10 py-6 text-center">

@@ -22,6 +22,8 @@ export const batchExamResultSchema = z.object({
     studentId: z.number(),
     marksObtained: z.number().min(0),
     remarks: z.string().nullish(),
+    originalMarksObtained: z.number().min(0).nullish(),
+    originalRemarks: z.string().nullish(),
   })),
 });
 

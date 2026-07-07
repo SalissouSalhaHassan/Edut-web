@@ -144,18 +144,23 @@ export async function syncOutbox() {
           error = res?.error || "Unknown error";
         } else if (item.targetTable === "examResults") {
           const { saveBatchExamResults } = await import("@/domains/academics/actions/exams.actions");
-          const res = await saveBatchExamResults({
+          const res = (await saveBatchExamResults({
             examId: item.payload.examId,
             results: [
               {
                 studentId: item.payload.studentId,
                 marksObtained: item.payload.marksObtained,
                 remarks: item.payload.remarks || "",
+                originalMarksObtained: item.payload.originalMarksObtained,
+                originalRemarks: item.payload.originalRemarks,
               },
             ],
-          });
+          })) as any;
           success = !!res?.success;
           error = res?.error || "Unknown error";
+          if (res?.conflict) {
+            error = "conflict: " + error;
+          }
         } else if (item.targetTable === "feePayments") {
           const { recordPayment } = await import("@/domains/finance/actions/finance.actions");
           const { id: _localId, updatedAt: _updatedAt, ...paymentPayload } = item.payload;

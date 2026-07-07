@@ -636,6 +636,19 @@ export async function generateBulletinPDF(data: any) {
 
   const lastY = (doc as any).lastAutoTable.finalY;
 
+  if (data.isOffline) {
+    doc.saveGraphicsState();
+    doc.setFillColor(254, 243, 199); // light amber background
+    doc.setDrawColor(245, 158, 11);   // amber border
+    doc.setLineWidth(0.5);
+    doc.roundedRect(10, doc.internal.pageSize.getHeight() - 15, 190, 8, 1, 1, "FD");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.5);
+    doc.setTextColor(180, 83, 9);     // dark amber text
+    doc.text("⚠️ DOCUMENT GÉNÉRÉ HORS LIGNE - EN ATTENTE DE SYNCHRONISATION", 105, doc.internal.pageSize.getHeight() - 9.5, { align: "center" });
+    doc.restoreGraphicsState();
+  }
+
   // Open in new window for preview
   const blob = doc.output("blob");
   const url = URL.createObjectURL(blob);
@@ -966,6 +979,19 @@ export async function generateReleveNotesPDF(data: any) {
     }
   } catch (e) {
     console.warn("Failed to load QR code for Releve:", e);
+  }
+
+  if (data.isOffline) {
+    doc.saveGraphicsState();
+    doc.setFillColor(254, 243, 199); // light amber background
+    doc.setDrawColor(245, 158, 11);   // amber border
+    doc.setLineWidth(0.5);
+    doc.roundedRect(10, doc.internal.pageSize.getHeight() - 15, 190, 8, 1, 1, "FD");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.5);
+    doc.setTextColor(180, 83, 9);     // dark amber text
+    doc.text("⚠️ DOCUMENT GÉNÉRÉ HORS LIGNE - EN ATTENTE DE SYNCHRONISATION", 105, doc.internal.pageSize.getHeight() - 9.5, { align: "center" });
+    doc.restoreGraphicsState();
   }
 
   const blob = doc.output("blob");
