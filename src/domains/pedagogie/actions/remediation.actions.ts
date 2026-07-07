@@ -2,6 +2,10 @@
 
 import { db } from "@/infrastructure/database";
 import { pedagogieRemediation } from "@/infrastructure/database/schema/pedagogie";
+import { students } from "@/infrastructure/database/schema/students";
+import { studentResults, schoolClasses } from "@/infrastructure/database/schema/academics";
+import { studentAttendance } from "@/infrastructure/database/schema/attendance";
+import { lmsAssignments, lmsSubmissions } from "@/infrastructure/database/schema/lms";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/domains/auth/services/session";
@@ -225,5 +229,63 @@ export async function deleteRemediationPlan(id: number) {
     return { success: true };
   } catch (e: any) {
     return { success: false, error: e.message };
+  }
+}
+
+export async function getAtRiskStudents() {
+  try {
+    const user = await getCurrentUser();
+    if (!user) return { success: false, error: "Non autorisé", data: [] };
+
+    const schoolId = await getActiveSchoolId();
+
+    const result = await db.execute(sql`
+      WITH student_grades AS (
+        SELECT student_id, AVG(total_score) as avg_grade
+        FROM student_results
+        GROUP BY student_id
+      ),
+      student_absences AS (
+        SELECT student_id, COUNT(*) as absence_count
+        FROM student_attendance
+        WHERE lower(status) IN ('absent', 'absente', 'abs')
+        GROUP BY student_id
+      ),
+      student_unsubmitted AS (
+        SELECT s.id as student_id, COUNT(a.id) as missing_count
+        FROM students s
+        CROSS JOIN lms_assignments a
+        LEFT JOIN lms_submissions sub ON sub.assignment_id = a.id AND sub.student_id = s.id
+        WHERE a.due_date < NOW() AND a.status = 'Active' AND sub.id IS NULL
+        GROUP BY s.id
+      )
+      SELECT 
+        s.id,
+        s.nom_etudiant as "nomEtudiant",
+        s.classe,
+        sc.id as "classId",
+        coalesce(sg.avg_grade, 0) as "averageGrade",
+        coalesce(sa.absence_count, 0) as "absenceCount",
+        coalesce(su.missing_count, 0) as "missingHomeworkCount"
+      FROM students s
+      LEFT JOIN school_classes sc ON sc.class_name = s.classe
+      LEFT JOIN student_grades sg ON sg.student_id = s.id
+      LEFT JOIN student_absences sa ON sa.student_id = s.id
+      LEFT JOIN student_unsubmitted su ON su.student_id = s.id
+      WHERE s.school_id = ${schoolId} AND (
+        sg.avg_grade <= 10.0 OR
+        sa.absence_count >= 3 OR
+        su.missing_count >= 2
+      )
+      ORDER BY sg.avg_grade ASC, sa.absence_count DESC
+      LIMIT 20
+    `);
+
+    // Normalize output for client rendering
+    const rows = (result.rows || result || []) as any[];
+    return { success: true, data: rows };
+  } catch (e: any) {
+    console.error("getAtRiskStudents error:", e.message);
+    return { success: false, error: e.message, data: [] };
   }
 }

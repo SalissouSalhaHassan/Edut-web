@@ -17,6 +17,7 @@ import {
   isReadOnlyPedagogie,
   getPedagogieRole
 } from "@/domains/pedagogie/permissions";
+import { toast } from "sonner";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 interface Props {
@@ -25,6 +26,8 @@ interface Props {
   classes: any[];
   subjects: any[];
   employees: any[];
+  timetableSlots?: any[];
+  planifications?: any[];
 }
 
 const STATUT_CONFIG: Record<string, { label: string; bg: string; text: string; icon: React.ReactNode }> = {
@@ -38,6 +41,7 @@ const PAGE_SIZE = 15;
 // ─── Component ─────────────────────────────────────────────────────────────────
 export default function CahierTextesClient({
   currentUser, initialSeances, classes, subjects, employees,
+  timetableSlots = [], planifications = []
 }: Props) {
   const [seances,   setSeances]   = useState<any[]>(initialSeances);
   const [isPending, startTransition] = useTransition();
@@ -371,6 +375,20 @@ export default function CahierTextesClient({
                         {canValidate && s.statut !== "Validé" && (
                           <ActionBtn icon={isPending ? <Loader2 size={13} className="animate-spin"/> : <Check size={13}/>} title="Valider" color="bg-emerald-50 text-emerald-600 hover:bg-emerald-100" onClick={() => handleValider(s)} />
                         )}
+                        <ActionBtn
+                          icon={<Users size={13}/>}
+                          title="Présences"
+                          color="bg-amber-50 text-amber-600 hover:bg-amber-100"
+                          onClick={() => window.location.href = `/dashboard/attendance?classId=${s.classId}&subjectId=${s.subjectId}&date=${s.sessionDate}`}
+                        />
+                        {s.devoirDonne && (
+                          <ActionBtn
+                            icon={<FileBarChart2 size={13}/>}
+                            title="Devoirs LMS"
+                            color="bg-sky-50 text-sky-600 hover:bg-sky-100"
+                            onClick={() => window.location.href = `/dashboard/pedagogie/devoirs?classId=${s.classId}&subjectId=${s.subjectId}`}
+                          />
+                        )}
                         <ActionBtn icon={<Printer size={13}/>} title="Imprimer"   color="bg-violet-50 text-violet-600 hover:bg-violet-100" onClick={handlePrint} />
                         {canManage && (userRole !== "enseignant" || s.employeeId === currentUser.employeeId) && s.statut !== "Validé" && (
                           <ActionBtn icon={<Trash2 size={13}/>}  title="Supprimer"  color="bg-rose-50 text-rose-600 hover:bg-rose-100"       onClick={() => handleDelete(s)} />
@@ -449,6 +467,40 @@ export default function CahierTextesClient({
                 </FormField>
               </div>
 
+              {/* Timetable Link */}
+              {form.classId > 0 && (
+                <div className="p-3 bg-violet-50/50 rounded-xl border border-violet-100/50 flex flex-col gap-2">
+                  <label className="block text-[11px] font-black text-slate-500 uppercase tracking-widest">Créneaux de l'emploi du temps disponibles</label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {timetableSlots
+                      .filter((slot: any) => slot.classId === form.classId && (!form.employeeId || slot.employeeId === form.employeeId))
+                      .map((slot: any) => (
+                        <button
+                          key={slot.id}
+                          type="button"
+                          onClick={() => {
+                            if (slot.subjectId) {
+                              setForm(f => ({
+                                ...f,
+                                subjectId: slot.subjectId,
+                                heureDebut: slot.periodNumber === 1 ? "08:00" : slot.periodNumber === 2 ? "09:00" : slot.periodNumber === 3 ? "10:00" : slot.periodNumber === 4 ? "11:00" : "14:00",
+                                heureFin: slot.periodNumber === 1 ? "09:00" : slot.periodNumber === 2 ? "10:00" : slot.periodNumber === 3 ? "11:00" : slot.periodNumber === 4 ? "12:00" : "15:00",
+                              }));
+                              toast.info(`Créneau associé : Période ${slot.periodNumber} (${slot.dayName})`);
+                            }
+                          }}
+                          className="px-2 py-1 rounded bg-white border border-slate-200 text-[10px] font-bold text-slate-600 hover:border-violet-300 hover:bg-violet-50 transition-all"
+                        >
+                          {slot.dayName} - Période {slot.periodNumber} ({slot.subject?.subjectName || "Matière"})
+                        </button>
+                      ))}
+                    {timetableSlots.filter((slot: any) => slot.classId === form.classId).length === 0 && (
+                      <span className="text-[10px] text-slate-400 font-medium">Aucun créneau configuré pour cette classe.</span>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Row 3 — Hours */}
               <div className="grid grid-cols-3 gap-4">
                 <FormField label="Heure début">
@@ -462,10 +514,42 @@ export default function CahierTextesClient({
                 </FormField>
               </div>
 
-              {/* Titre */}
-              <FormField label="Titre de la leçon *">
+              {/* Titre & Progression Link */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest">Titre de la leçon *</label>
+                  {form.classId > 0 && form.subjectId > 0 && (
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10px] text-slate-400 font-medium">Charger depuis la planification :</span>
+                      <select
+                        onChange={e => {
+                          const val = e.target.value;
+                          if (val) {
+                            const selectedPlan = planifications.find((p: any) => String(p.id) === val);
+                            if (selectedPlan) {
+                              setForm(f => ({
+                                ...f,
+                                titreLecon: selectedPlan.leconPrevue,
+                                objectifs: selectedPlan.competenceVisee || "",
+                              }));
+                              toast.success("Leçon et objectifs préremplis !");
+                            }
+                          }
+                        }}
+                        className="rounded bg-indigo-50 text-[10px] text-indigo-700 font-bold border-none px-2 py-0.5 focus:outline-none"
+                      >
+                        <option value="">— Choisir une leçon prévue —</option>
+                        {planifications
+                          .filter((p: any) => p.classId === form.classId && p.subjectId === form.subjectId)
+                          .map((p: any) => (
+                            <option key={p.id} value={p.id}>{p.chapitre} : {p.leconPrevue}</option>
+                          ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
                 <input type="text" placeholder="Ex: Les fonctions linéaires" value={form.titreLecon} onChange={e => setForm(f => ({ ...f, titreLecon: e.target.value }))} className={fInp} />
-              </FormField>
+              </div>
 
               {/* Objectifs */}
               <FormField label="Objectifs pédagogiques">

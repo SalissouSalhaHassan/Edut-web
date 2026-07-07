@@ -465,37 +465,117 @@ export default function ProgressionClient({
       {/* ─── DETAILS MODAL ─── */}
       {showDetails && selectedProgress && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto p-6 space-y-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
-                <FileText size={18} className="text-indigo-600" /> Détails progression
+                <FileText size={18} className="text-indigo-600" /> Détails progression & Programme officiel
               </h2>
               <button onClick={() => setShowDetails(false)} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200">
                 <X size={16} />
               </button>
             </div>
 
-            <div className="space-y-3">
-              {[
-                { label: "Classe", val: selectedProgress.className },
-                { label: "Niveau", val: selectedProgress.niveau },
-                { label: "Matière", val: selectedProgress.subjectName },
-                { label: "Enseignant", val: selectedProgress.teacherName },
-                { label: "Total prévues", val: selectedProgress.totalPlanned },
-                { label: "Total réalisées", val: selectedProgress.totalRealised },
-                { label: "Leçons restantes", val: selectedProgress.remaining },
-                { label: "Taux progression", val: `${selectedProgress.rate}%` },
-                { label: "Dernière séance", val: selectedProgress.latestDate },
-                { label: "Statut", val: selectedProgress.status }
-              ].map((f, i) => (
-                <div key={i} className="flex border-b border-slate-50 py-2 text-xs">
-                  <span className="w-28 font-black text-slate-400 uppercase tracking-widest">{f.label}</span>
-                  <span className="text-slate-800 font-bold">{f.val}</span>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+              {/* Left Column: Stats and Delays */}
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Informations générales</h3>
+                  {[
+                    { label: "Classe", val: selectedProgress.className },
+                    { label: "Niveau", val: selectedProgress.niveau },
+                    { label: "Matière", val: selectedProgress.subjectName },
+                    { label: "Enseignant", val: selectedProgress.teacherName },
+                    { label: "Total prévues", val: selectedProgress.totalPlanned },
+                    { label: "Total réalisées", val: selectedProgress.totalRealised },
+                    { label: "Leçons restantes", val: selectedProgress.remaining },
+                    { label: "Taux progression", val: `${selectedProgress.rate}%` },
+                    { label: "Dernière séance", val: selectedProgress.latestDate },
+                    { label: "Statut", val: selectedProgress.status }
+                  ].map((f, i) => (
+                    <div key={i} className="flex border-b border-slate-50 py-1.5 text-xs">
+                      <span className="w-28 font-black text-slate-400 uppercase tracking-widest">{f.label}</span>
+                      <span className="text-slate-800 font-bold">{f.val}</span>
+                    </div>
+                  ))}
                 </div>
-              ))}
+
+                {/* Retards pédagogiques section */}
+                <div className="p-3.5 bg-rose-50/50 rounded-2xl border border-rose-100/50 space-y-2">
+                  <h4 className="text-xs font-black text-rose-700 flex items-center gap-1.5">
+                    <AlertTriangle size={14} /> Retards pédagogiques détectés
+                  </h4>
+                  <div className="space-y-1 max-h-[140px] overflow-y-auto pr-1">
+                    {plans
+                      .filter((p: any) => p.classId === selectedProgress.classId && p.subjectId === selectedProgress.subjectId)
+                      .filter((p: any) => {
+                        if (!p.datePrevue) return false;
+                        const isPast = new Date(p.datePrevue).getTime() < new Date().getTime();
+                        const isRealised = seances.some(s => s.classId === p.classId && s.subjectId === p.subjectId && s.titreLecon?.toLowerCase() === p.leconPrevue?.toLowerCase());
+                        return isPast && !isRealised;
+                      })
+                      .map((p: any) => (
+                        <div key={p.id} className="text-[10px] bg-white border border-rose-100 rounded-xl p-2 flex flex-col gap-0.5">
+                          <span className="font-bold text-rose-700">{p.leconPrevue}</span>
+                          <span className="text-slate-400">Prévu le : {new Date(p.datePrevue).toLocaleDateString("fr-FR")}</span>
+                        </div>
+                      ))}
+                    {plans
+                      .filter((p: any) => p.classId === selectedProgress.classId && p.subjectId === selectedProgress.subjectId)
+                      .filter((p: any) => {
+                        if (!p.datePrevue) return false;
+                        const isPast = new Date(p.datePrevue).getTime() < new Date().getTime();
+                        const isRealised = seances.some(s => s.classId === p.classId && s.subjectId === p.subjectId && s.titreLecon?.toLowerCase() === p.leconPrevue?.toLowerCase());
+                        return isPast && !isRealised;
+                      }).length === 0 && (
+                      <p className="text-[10px] text-slate-400 font-medium">Aucun retard de planification détecté.</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column: Programme Officiel & Objectifs */}
+              <div className="space-y-3">
+                <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Programme officiel & Objectifs</h3>
+                <div className="space-y-2 max-h-[350px] overflow-y-auto pr-1">
+                  {plans
+                    .filter((p: any) => p.classId === selectedProgress.classId && p.subjectId === selectedProgress.subjectId)
+                    .map((p: any) => {
+                      const isRealised = seances.some(s => s.classId === p.classId && s.subjectId === p.subjectId && s.titreLecon?.toLowerCase() === p.leconPrevue?.toLowerCase());
+                      return (
+                        <div key={p.id} className={`p-3 rounded-2xl border transition-all text-xs space-y-1 ${
+                          isRealised
+                            ? "bg-emerald-50/30 border-emerald-100"
+                            : "bg-slate-50/50 border-slate-100"
+                        }`}>
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-black text-slate-800">{p.chapitre}</span>
+                            <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black ${
+                              isRealised ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"
+                            }`}>
+                              {isRealised ? "Réalisé" : "Planifié"}
+                            </span>
+                          </div>
+                          <p className="text-slate-600 font-semibold">{p.leconPrevue}</p>
+                          {p.competenceVisee && (
+                            <p className="text-[10px] text-slate-400 italic">Objectif: {p.competenceVisee}</p>
+                          )}
+                          {p.datePrevue && (
+                            <p className="text-[9px] text-slate-400">Date planifiée: {new Date(p.datePrevue).toLocaleDateString("fr-FR")}</p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  {plans.filter((p: any) => p.classId === selectedProgress.classId && p.subjectId === selectedProgress.subjectId).length === 0 && (
+                    <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                      <BookOpen className="text-slate-300 mx-auto mb-2" size={24} />
+                      <p className="text-[11px] text-slate-400 font-semibold">Aucun plan enregistré pour cette matière.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
 
-            <div className="flex justify-end pt-3 gap-2">
+            <div className="flex justify-end pt-3 gap-2 border-t border-slate-100">
               {selectedProgress.status === "En retard" && (
                 <button
                   onClick={() => { handleRelance(selectedProgress.teacherName, selectedProgress.subjectName); setShowDetails(false); }}

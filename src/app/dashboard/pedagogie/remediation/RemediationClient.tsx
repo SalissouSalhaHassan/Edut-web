@@ -20,6 +20,7 @@ interface Props {
   subjects: any[];
   employees: any[];
   students: any[];
+  atRiskStudents?: any[];
 }
 
 const PAGE_SIZE = 15;
@@ -31,10 +32,11 @@ const ALERT_CONFIG: Record<string, { label: string; bg: string; text: string; bo
 };
 
 export default function RemediationClient({
-  currentUser, initialPlans, classes, subjects, employees, students
+  currentUser, initialPlans, classes, subjects, employees, students, atRiskStudents = []
 }: Props) {
   const [plans, setPlans] = useState<any[]>(initialPlans);
   const [isPending, startTransition] = useTransition();
+  const [activeTab, setActiveTab] = useState<"plans" | "atRisk">("plans");
 
   // ─── Filter States ─────────────────────────────────────────────────────────
   const [search, setSearch] = useState("");
@@ -257,6 +259,26 @@ export default function RemediationClient({
     setSearch("");
   };
 
+  const triggerRemediationForStudent = (stud: any) => {
+    setForm({
+      studentId: stud.id,
+      classId: stud.classId || 0,
+      subjectId: subjects[0]?.id || 0,
+      employeeId: currentUser?.employeeId || employees[0]?.id || 0,
+      difficulties: `Moyenne de ${stud.averageGrade > 0 ? stud.averageGrade.toFixed(1) : 0}/20, ${stud.absenceCount} absences, ${stud.missingHomeworkCount} devoirs non rendus.`,
+      currentGrade: stud.averageGrade || 8.0,
+      targetGrade: 12.0,
+      remediationPlan: "",
+      sessionsPlanned: 6,
+      sessionsCompleted: 0,
+      alertLevel: stud.averageGrade <= 8.5 ? "Critique" : "Moyen",
+    });
+    setSelectedRow(null);
+    setFormError("");
+    setFormSuccess("");
+    setModal("new_plan");
+  };
+
   return (
     <div className="min-h-screen bg-slate-50/60 p-5 lg:p-7 space-y-6">
 
@@ -293,165 +315,255 @@ export default function RemediationClient({
         <KpiCard icon={<ShieldAlert size={18} className="text-red-600" />} label="Alertes critiques" value={kpis.critical} color="bg-red-50" sub="Suivi prioritaire" />
       </div>
 
-      {/* ─── SEARCH & FILTERS ─── */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 space-y-3">
-        <div className="flex items-center gap-3">
-          <div className="relative flex-1">
-            <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Rechercher par élève, difficulté, plan..."
-              value={search}
-              onChange={e => { setSearch(e.target.value); setPage(1); }}
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-300"
-            />
-          </div>
-          <button
-            onClick={() => setShowFilters(f => !f)}
-            className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl border text-xs font-bold transition-all ${
-              showFilters ? "bg-indigo-50 border-indigo-200 text-indigo-700" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-            }`}
-          >
-            <Filter size={14} /> Filtres
-            <ChevronDown size={12} className={`transition-transform ${showFilters ? "rotate-180" : ""}`} />
-          </button>
-          {(filterClass || filterSubject || filterEmp || filterAlert || filterStatus) && (
-            <button onClick={resetFilters} className="flex items-center gap-1 px-3 py-2.5 rounded-xl border border-rose-200 bg-rose-50 text-rose-600 text-xs font-bold hover:bg-rose-100 transition-all">
-              <RefreshCw size={13} /> Recharger
-            </button>
+      {/* ─── TABS ─── */}
+      <div className="flex items-center gap-2 bg-white p-1.5 rounded-2xl border border-slate-100 shadow-sm w-fit print:hidden">
+        <button
+          onClick={() => setActiveTab("plans")}
+          className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all ${
+            activeTab === "plans"
+              ? "bg-gradient-to-r from-violet-600 to-indigo-700 text-white shadow-md"
+              : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"
+          }`}
+        >
+          Plans de remédiation
+        </button>
+        <button
+          onClick={() => setActiveTab("atRisk")}
+          className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+            activeTab === "atRisk"
+              ? "bg-gradient-to-r from-violet-600 to-indigo-700 text-white shadow-md"
+              : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"
+          }`}
+        >
+          <span>Élèves à risque détectés</span>
+          {atRiskStudents.length > 0 && (
+            <span className="px-1.5 py-0.5 rounded-full bg-rose-500 text-white text-[9px] font-black animate-pulse">
+              {atRiskStudents.length}
+            </span>
           )}
-        </div>
-
-        {showFilters && (
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 pt-3 border-t border-slate-50">
-            {/* Classe */}
-            <div>
-              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Classe</label>
-              <select value={filterClass} onChange={e => { setFilterClass(e.target.value); setPage(1); }} className={fSel}>
-                <option value="">Toutes</option>
-                {classes.map((c: any) => <option key={c.id} value={c.id}>{c.className}</option>)}
-              </select>
-            </div>
-            {/* Matière */}
-            <div>
-              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Matière</label>
-              <select value={filterSubject} onChange={e => { setFilterSubject(e.target.value); setPage(1); }} className={fSel}>
-                <option value="">Toutes</option>
-                {subjects.map((s: any) => <option key={s.id} value={s.id}>{s.subjectName}</option>)}
-              </select>
-            </div>
-            {/* Enseignant */}
-            <div>
-              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Enseignant</label>
-              <select value={filterEmp} onChange={e => { setFilterEmp(e.target.value); setPage(1); }} className={fSel}>
-                <option value="">Tous</option>
-                {employees.map((e: any) => <option key={e.id} value={e.id}>{e.nom}</option>)}
-              </select>
-            </div>
-            {/* Difficulté / Niveau alerte */}
-            <div>
-              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Niveau alerte</label>
-              <select value={filterAlert} onChange={e => { setFilterAlert(e.target.value); setPage(1); }} className={fSel}>
-                <option value="">Tous</option>
-                {Object.keys(ALERT_CONFIG).map(k => <option key={k} value={k}>{ALERT_CONFIG[k].label}</option>)}
-              </select>
-            </div>
-            {/* Statut */}
-            <div>
-              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Statut</label>
-              <select value={filterStatus} onChange={e => { setFilterStatus(e.target.value); setPage(1); }} className={fSel}>
-                <option value="">Tous</option>
-                <option value="Actif">Actif</option>
-                <option value="Clôturé">Clôturé</option>
-              </select>
-            </div>
-          </div>
-        )}
+        </button>
       </div>
 
-      {/* ─── DATA TABLE ─── */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="bg-slate-50/70 border-b border-slate-100">
-                {["N°", "Élève", "Classe", "Matière", "Enseignant", "Difficulté détectée", "Note", "Objectif", "Soutien", "Progression", "Niveau alerte", "Actions"].map(h => (
-                  <th key={h} className="px-4 py-3.5 text-[10px] font-black uppercase tracking-widest text-slate-400 whitespace-nowrap">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {paginated.length === 0 ? (
-                <tr>
-                  <td colSpan={12} className="text-center py-16 text-slate-400 font-bold">Aucun plan de remédiation actif</td>
-                </tr>
-              ) : paginated.map((p, idx) => {
-                const studentName = `${p.student?.firstName || ""} ${p.student?.lastName || ""}`;
-                const completionRate = p.sessionsPlanned ? Math.min(100, Math.round((p.sessionsCompleted / p.sessionsPlanned) * 100)) : 0;
-                const alert = ALERT_CONFIG[p.alertLevel] || ALERT_CONFIG["Moyen"];
-
-                return (
-                  <tr key={p.id} className="hover:bg-slate-50/50 transition-colors group">
-                    <td className="px-4 py-3.5 font-black text-slate-400 text-xs">{(page - 1) * PAGE_SIZE + idx + 1}</td>
-                    <td className="px-4 py-3.5 font-bold text-slate-900 whitespace-nowrap">{studentName}</td>
-                    <td className="px-4 py-3.5 font-bold text-indigo-700 whitespace-nowrap">{p.class?.className || "—"}</td>
-                    <td className="px-4 py-3.5 text-slate-700 whitespace-nowrap">{p.subject?.subjectName || "—"}</td>
-                    <td className="px-4 py-3.5 text-slate-600 whitespace-nowrap">{p.employee?.nom || "—"}</td>
-                    <td className="px-4 py-3.5 text-slate-500 max-w-[150px] truncate">{p.difficulties}</td>
-                    <td className="px-4 py-3.5 font-black text-rose-600">{p.currentGrade != null ? `${p.currentGrade}/20` : "—"}</td>
-                    <td className="px-4 py-3.5 font-black text-emerald-600">{p.targetGrade != null ? `${p.targetGrade}/20` : "—"}</td>
-                    <td className="px-4 py-3.5 font-bold text-slate-600 whitespace-nowrap">
-                      {p.sessionsCompleted} / {p.sessionsPlanned} séances
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-slate-700 text-xs">{completionRate}%</span>
-                        <div className="w-12 h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                          <div className="h-full rounded-full bg-violet-600" style={{ width: `${completionRate}%` }} />
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3.5 whitespace-nowrap">
-                      <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black border ${alert.bg} ${alert.text} ${alert.border}`}>
-                        {alert.label}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3.5 whitespace-nowrap">
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => openView(p)} className="p-1.5 rounded bg-slate-100 text-slate-600 hover:bg-slate-200" title="Voir détails"><Eye size={13} /></button>
-                        {p.status === "Actif" && (
-                          <>
-                            <button onClick={() => handleAddSession(p)} className="p-1.5 rounded bg-indigo-50 text-indigo-600 hover:bg-indigo-100" title="Ajouter séance"><Plus size={13} /></button>
-                            <button onClick={() => handleClosePlan(p)} className="p-1.5 rounded bg-rose-50 text-rose-600 hover:bg-rose-100" title="Clôturer le plan"><Ban size={13} /></button>
-                          </>
-                        )}
-                        <button onClick={() => openEdit(p)} className="p-1.5 rounded bg-amber-50 text-amber-600 hover:bg-amber-100" title="Modifier"><Pencil size={13} /></button>
-                        <button onClick={() => handleDelete(p)} className="p-1.5 rounded bg-slate-50 text-slate-400 hover:bg-rose-50 hover:text-rose-600" title="Supprimer"><Trash2 size={13} /></button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="p-4 border-t border-slate-50 flex items-center justify-between">
-            <button disabled={page <= 1} onClick={() => setPage(p => p - 1)} className="flex items-center gap-1 px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-bold disabled:opacity-40 hover:bg-slate-50">
-              <ChevronLeft size={13} /> Précédent
-            </button>
-            <div className="flex items-center gap-1">
-              {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map(p => (
-                <button key={p} onClick={() => setPage(p)} className={`w-8 h-8 rounded-lg text-xs font-black ${p === page ? "bg-indigo-600 text-white" : "bg-slate-50 text-slate-500 hover:bg-slate-100"}`}>{p}</button>
-              ))}
+      {activeTab === "plans" && (
+        <>
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="relative flex-1">
+                <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Rechercher par élève, difficulté, plan..."
+                  value={search}
+                  onChange={e => { setSearch(e.target.value); setPage(1); }}
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                />
+              </div>
+              <button
+                onClick={() => setShowFilters(f => !f)}
+                className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl border text-xs font-bold transition-all ${
+                  showFilters ? "bg-indigo-50 border-indigo-200 text-indigo-700" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                <Filter size={14} /> Filtres
+                <ChevronDown size={12} className={`transition-transform ${showFilters ? "rotate-180" : ""}`} />
+              </button>
+              {(filterClass || filterSubject || filterEmp || filterAlert || filterStatus) && (
+                <button onClick={resetFilters} className="flex items-center gap-1 px-3 py-2.5 rounded-xl border border-rose-200 bg-rose-50 text-rose-600 text-xs font-bold hover:bg-rose-100 transition-all">
+                  <RefreshCw size={13} /> Recharger
+                </button>
+              )}
             </div>
-            <button disabled={page >= totalPages} onClick={() => setPage(p => p + 1)} className="flex items-center gap-1 px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-bold disabled:opacity-40 hover:bg-slate-50">
-              Suivant <ChevronRight size={13} />
-            </button>
+
+            {showFilters && (
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3 pt-3 border-t border-slate-50">
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Classe</label>
+                  <select value={filterClass} onChange={e => { setFilterClass(e.target.value); setPage(1); }} className={fSel}>
+                    <option value="">Toutes</option>
+                    {classes.map((c: any) => <option key={c.id} value={c.id}>{c.className}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Matière</label>
+                  <select value={filterSubject} onChange={e => { setFilterSubject(e.target.value); setPage(1); }} className={fSel}>
+                    <option value="">Toutes</option>
+                    {subjects.map((s: any) => <option key={s.id} value={s.id}>{s.subjectName}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Enseignant</label>
+                  <select value={filterEmp} onChange={e => { setFilterEmp(e.target.value); setPage(1); }} className={fSel}>
+                    <option value="">Tous</option>
+                    {employees.map((e: any) => <option key={e.id} value={e.id}>{e.nom}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Niveau alerte</label>
+                  <select value={filterAlert} onChange={e => { setFilterAlert(e.target.value); setPage(1); }} className={fSel}>
+                    <option value="">Tous</option>
+                    {Object.keys(ALERT_CONFIG).map(k => <option key={k} value={k}>{ALERT_CONFIG[k].label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Statut</label>
+                  <select value={filterStatus} onChange={e => { setFilterStatus(e.target.value); setPage(1); }} className={fSel}>
+                    <option value="">Tous</option>
+                    <option value="Actif">Actif</option>
+                    <option value="Clôturé">Clôturé</option>
+                  </select>
+                </div>
+              </div>
+            )}
           </div>
-        )}
+
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="bg-slate-50/70 border-b border-slate-100">
+                    {["N°", "Élève", "Classe", "Matière", "Enseignant", "Difficulté détectée", "Note", "Objectif", "Soutien", "Progression", "Niveau alerte", "Actions"].map(h => (
+                      <th key={h} className="px-4 py-3.5 text-[10px] font-black uppercase tracking-widest text-slate-400 whitespace-nowrap">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {paginated.length === 0 ? (
+                    <tr>
+                      <td colSpan={12} className="text-center py-16 text-slate-400 font-bold">Aucun plan de remédiation actif</td>
+                    </tr>
+                  ) : paginated.map((p, idx) => {
+                    const studentName = p.student?.nomEtudiant || `${p.student?.firstName || ""} ${p.student?.lastName || ""}`;
+                    const completionRate = p.sessionsPlanned ? Math.min(100, Math.round((p.sessionsCompleted / p.sessionsPlanned) * 100)) : 0;
+                    const alert = ALERT_CONFIG[p.alertLevel] || ALERT_CONFIG["Moyen"];
+
+                    return (
+                      <tr key={p.id} className="hover:bg-slate-50/50 transition-colors group">
+                        <td className="px-4 py-3.5 font-black text-slate-400 text-xs">{(page - 1) * PAGE_SIZE + idx + 1}</td>
+                        <td className="px-4 py-3.5 font-bold text-slate-900 whitespace-nowrap">{studentName}</td>
+                        <td className="px-4 py-3.5 font-bold text-indigo-700 whitespace-nowrap">{p.class?.className || "—"}</td>
+                        <td className="px-4 py-3.5 text-slate-700 whitespace-nowrap">{p.subject?.subjectName || "—"}</td>
+                        <td className="px-4 py-3.5 text-slate-600 whitespace-nowrap">{p.employee?.nom || "—"}</td>
+                        <td className="px-4 py-3.5 text-slate-500 max-w-[150px] truncate">{p.difficulties}</td>
+                        <td className="px-4 py-3.5 font-black text-rose-600">{p.currentGrade != null ? `${p.currentGrade}/20` : "—"}</td>
+                        <td className="px-4 py-3.5 font-black text-emerald-600">{p.targetGrade != null ? `${p.targetGrade}/20` : "—"}</td>
+                        <td className="px-4 py-3.5 font-bold text-slate-600 whitespace-nowrap">
+                          {p.sessionsCompleted} / {p.sessionsPlanned} séances
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-slate-700 text-xs">{completionRate}%</span>
+                            <div className="w-12 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                              <div className="h-full rounded-full bg-violet-600" style={{ width: `${completionRate}%` }} />
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3.5 whitespace-nowrap">
+                          <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black border ${alert.bg} ${alert.text} ${alert.border}`}>
+                            {alert.label}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3.5 whitespace-nowrap">
+                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onClick={() => openView(p)} className="p-1.5 rounded bg-slate-100 text-slate-600 hover:bg-slate-200" title="Voir détails"><Eye size={13} /></button>
+                            {p.status === "Actif" && (
+                              <>
+                                <button onClick={() => handleAddSession(p)} className="p-1.5 rounded bg-indigo-50 text-indigo-600 hover:bg-indigo-100" title="Ajouter séance"><Plus size={13} /></button>
+                                <button onClick={() => handleClosePlan(p)} className="p-1.5 rounded bg-rose-50 text-rose-600 hover:bg-rose-100" title="Clôturer le plan"><Ban size={13} /></button>
+                              </>
+                            )}
+                            <button onClick={() => openEdit(p)} className="p-1.5 rounded bg-amber-50 text-amber-600 hover:bg-amber-100" title="Modifier"><Pencil size={13} /></button>
+                            <button onClick={() => handleDelete(p)} className="p-1.5 rounded bg-slate-50 text-slate-400 hover:bg-rose-50 hover:text-rose-600" title="Supprimer"><Trash2 size={13} /></button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {totalPages > 1 && (
+              <div className="p-4 border-t border-slate-50 flex items-center justify-between">
+                <button disabled={page <= 1} onClick={() => setPage(p => p - 1)} className="flex items-center gap-1 px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-bold disabled:opacity-40 hover:bg-slate-50">
+                  <ChevronLeft size={13} /> Précédent
+                </button>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map(p => (
+                    <button key={p} onClick={() => setPage(p)} className={`w-8 h-8 rounded-lg text-xs font-black ${p === page ? "bg-indigo-600 text-white" : "bg-slate-50 text-slate-500 hover:bg-slate-100"}`}>{p}</button>
+                  ))}
+                </div>
+                <button disabled={page >= totalPages} onClick={() => setPage(p => p + 1)} className="flex items-center gap-1 px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-bold disabled:opacity-40 hover:bg-slate-50">
+                  Suivant <ChevronRight size={13} />
+                </button>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {activeTab === "atRisk" && (
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+          <div className="p-4 border-b border-slate-50 flex items-center justify-between">
+            <span className="text-xs font-black text-slate-500 uppercase tracking-widest">
+              {atRiskStudents.length} élève(s) à risque identifié(s) par le système
+            </span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="bg-slate-50/70 border-b border-slate-100">
+                  {["N°", "Nom de l'élève", "Classe", "Moyenne Générale", "Absences", "Devoirs Non Rendus", "Niveau de Risque", "Actions"].map(h => (
+                    <th key={h} className="px-4 py-3.5 text-[10px] font-black uppercase tracking-widest text-slate-400 whitespace-nowrap">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {atRiskStudents.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="text-center py-16 text-slate-400 font-bold">Aucun élève à risque détecté actuellement. Félicitations !</td>
+                  </tr>
+                ) : atRiskStudents.map((stud: any, idx: number) => {
+                  let riskLevel = "Faible";
+                  let riskBadge = "bg-blue-50 text-blue-700 border-blue-100";
+                  if (stud.averageGrade <= 8.5 || stud.absenceCount >= 5 || stud.missingHomeworkCount >= 4) {
+                    riskLevel = "Critique";
+                    riskBadge = "bg-red-50 text-red-700 border-red-100";
+                  } else if (stud.averageGrade <= 10.0 || stud.absenceCount >= 3 || stud.missingHomeworkCount >= 2) {
+                    riskLevel = "Moyen";
+                    riskBadge = "bg-amber-50 text-amber-700 border-amber-100";
+                  }
+
+                  return (
+                    <tr key={stud.id} className="hover:bg-slate-50/50 transition-colors group">
+                      <td className="px-4 py-3.5 font-black text-slate-400 text-xs">{idx + 1}</td>
+                      <td className="px-4 py-3.5 font-bold text-slate-900">{stud.nomEtudiant}</td>
+                      <td className="px-4 py-3.5 font-bold text-indigo-700">{stud.classe}</td>
+                      <td className="px-4 py-3.5 font-bold text-rose-600">
+                        {stud.averageGrade > 0 ? `${stud.averageGrade.toFixed(1)}/20` : "Pas de notes"}
+                      </td>
+                      <td className="px-4 py-3.5 font-bold text-slate-700">{stud.absenceCount} absence(s)</td>
+                      <td className="px-4 py-3.5 font-bold text-slate-700">{stud.missingHomeworkCount} devoir(s)</td>
+                      <td className="px-4 py-3.5">
+                        <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black border ${riskBadge}`}>
+                          {riskLevel}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <button
+                          onClick={() => triggerRemediationForStudent(stud)}
+                          className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-violet-50 text-violet-700 font-bold text-xs hover:bg-violet-100 transition-colors"
+                        >
+                          <Plus size={13} /> Soutenir l'élève
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
       </div>
 
       {/* ─── MODAL: NEW / EDIT PLAN ─── */}
@@ -477,7 +589,7 @@ export default function RemediationClient({
                 <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest">Élève en difficulté *</label>
                 <select value={form.studentId || ""} onChange={e => setForm(f => ({ ...f, studentId: +e.target.value }))} className={fSel}>
                   <option value="">— Choisir l'élève —</option>
-                  {students.map((s: any) => <option key={s.id} value={s.id}>{s.firstName} {s.lastName}</option>)}
+                  {students.map((s: any) => <option key={s.id} value={s.id}>{s.nomEtudiant || `${s.firstName || ""} ${s.lastName || ""}`}</option>)}
                 </select>
               </div>
 

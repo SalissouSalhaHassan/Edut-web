@@ -1,7 +1,8 @@
 import { getCurrentUser } from "@/domains/auth/services/session";
 import { getClasses, getSubjects } from "@/domains/academics/actions/academics.actions";
 import { getEmployees } from "@/domains/hr/actions/employees.actions";
-import { initCahierTextesTable, getSeances } from "@/domains/pedagogie/actions/cahier-textes.actions";
+import { initCahierTextesTable, getSeances, getTimetableSlots } from "@/domains/pedagogie/actions/cahier-textes.actions";
+import { getPlanifications } from "@/domains/pedagogie/actions/planification.actions";
 import CahierTextesClient from "./CahierTextesClient";
 
 import { getPedagogieRole } from "@/domains/pedagogie/permissions";
@@ -37,17 +38,21 @@ export default async function CahierTextesPage() {
   }
 
   // 3. Fetch reference data in parallel
-  const [classesRes, subjectsRes, employeesRes, seancesRes] = await Promise.all([
+  const [classesRes, subjectsRes, employeesRes, seancesRes, slotsRes, plansRes] = await Promise.all([
     getClasses(true),
     getSubjects(),
     getEmployees(),
     getSeances(),
+    getTimetableSlots(),
+    getPlanifications(),
   ]);
 
   const classes   = (classesRes   as any).data?.data || (classesRes   as any).data || classesRes   || [];
   const subjects  = (subjectsRes  as any).data?.data || (subjectsRes  as any).data || subjectsRes  || [];
   const employees = (employeesRes as any).data?.data || (employeesRes as any).data || employeesRes || [];
   const seances   = (seancesRes   as any).data || [];
+  const slots     = (slotsRes     as any).data || [];
+  const plans     = (plansRes     as any).data || [];
 
   return (
     <CahierTextesClient
@@ -56,6 +61,8 @@ export default async function CahierTextesPage() {
       classes={classes}
       subjects={subjects}
       employees={employees}
+      timetableSlots={slots}
+      planifications={plans}
     />
   );
 }

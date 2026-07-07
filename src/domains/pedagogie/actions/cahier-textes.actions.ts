@@ -2,6 +2,7 @@
 
 import { db } from "@/infrastructure/database";
 import { cahierTextes } from "@/infrastructure/database/schema/pedagogie";
+import { timetableEntries } from "@/infrastructure/database/schema/timetable";
 import { eq, and, gte, lte, desc } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/domains/auth/services/session";
@@ -291,5 +292,25 @@ export async function deleteSeance(id: number) {
     return { success: true };
   } catch (e: any) {
     return { success: false, error: e.message };
+  }
+}
+
+export async function getTimetableSlots() {
+  try {
+    const user = await getCurrentUser();
+    if (!user) return { success: false, error: "Non autorisé", data: [] };
+
+    const slots = await db.query.timetableEntries.findMany({
+      with: {
+        class: true,
+        subject: true,
+        teacher: true,
+      }
+    });
+
+    return { success: true, data: slots };
+  } catch (e: any) {
+    console.error("getTimetableSlots error:", e.message);
+    return { success: false, error: e.message, data: [] };
   }
 }

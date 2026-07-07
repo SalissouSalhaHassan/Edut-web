@@ -2,7 +2,7 @@ import { getCurrentUser } from "@/domains/auth/services/session";
 import { getClasses, getSubjects } from "@/domains/academics/actions/academics.actions";
 import { getEmployees } from "@/domains/hr/actions/employees.actions";
 import { getStudents } from "@/domains/students/actions/students.actions";
-import { initRemediationTable, getRemediationPlans } from "@/domains/pedagogie/actions/remediation.actions";
+import { initRemediationTable, getRemediationPlans, getAtRiskStudents } from "@/domains/pedagogie/actions/remediation.actions";
 import RemediationClient from "./RemediationClient";
 import { getPedagogieRole } from "@/domains/pedagogie/permissions";
 import { X } from "lucide-react";
@@ -35,12 +35,13 @@ export default async function RemediationPage() {
     );
   }
 
-  const [classesRes, subjectsRes, employeesRes, studentsRes, plansRes] = await Promise.all([
+  const [classesRes, subjectsRes, employeesRes, studentsRes, plansRes, atRiskRes] = await Promise.all([
     getClasses(true),
     getSubjects(),
     getEmployees(),
     getStudents(),
     getRemediationPlans(),
+    getAtRiskStudents(),
   ]);
 
   const classes = (classesRes as any).data?.data || (classesRes as any).data || classesRes || [];
@@ -48,6 +49,7 @@ export default async function RemediationPage() {
   const employees = (employeesRes as any).data?.data || (employeesRes as any).data || employeesRes || [];
   const students = (studentsRes as any).data?.data || (studentsRes as any).data || studentsRes || [];
   const plans = (plansRes as any).data || [];
+  const atRisk = (atRiskRes as any).data || [];
 
   return (
     <RemediationClient
@@ -57,6 +59,7 @@ export default async function RemediationPage() {
       subjects={subjects}
       employees={employees}
       students={students}
+      atRiskStudents={atRisk}
     />
   );
 }
