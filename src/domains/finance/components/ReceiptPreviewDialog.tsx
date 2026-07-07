@@ -281,24 +281,52 @@ export default function ReceiptPreviewDialog({
         } catch (e) {}
       }
       
+      const leftLines = [
+        headerConfig?.country || branchInfo?.country || "RÉPUBLIQUE DU NIGER",
+        ministry,
+        headerConfig?.regionalDirection || branchInfo?.regionalDirection || "",
+        headerConfig?.departmentalDirection || branchInfo?.departmentalDirection || "",
+        schoolName,
+        service,
+        schoolAddress,
+        bp ? `BP : ${bp}` : "",
+        schoolPhone ? `Tél: ${schoolPhone}` : "",
+        schoolEmail ? `Email: ${schoolEmail}` : "",
+      ].filter(Boolean);
+
+      let leftY = 12;
       doc.setFont("helvetica", "normal");
       doc.setFontSize(7.5);
       doc.setTextColor(15, 23, 42);
-      drawTextBilingual(doc, ministry, margin, 12);
-      drawTextBilingual(doc, schoolName, margin, 17);
-      drawTextBilingual(doc, `Tél: ${schoolPhone}`, margin, 22);
-      drawTextBilingual(doc, `Email: ${schoolEmail}`, margin, 27);
+      for (const line of leftLines) {
+        drawTextBilingual(doc, line, margin, leftY);
+        leftY += 4.5;
+      }
       
-      const arName = headerConfig?.schoolNameAr || schoolName;
-      drawTextBilingual(doc, arName, W - margin, 12, { align: "right" });
-      drawTextBilingual(doc, ministry ? "وزارة التربية الوطنية" : "", W - margin, 17, { align: "right" });
-      drawTextBilingual(doc, `Année: ${schoolYear}`, W - margin, 22, { align: "right" });
-      drawTextBilingual(doc, `Date: ${receiptDate}`, W - margin, 27, { align: "right" });
+      const rightLines = [
+        headerConfig?.countryAr || "جمهورية النيجر",
+        headerConfig?.ministryAr || "وزارة التربية الوطنية",
+        headerConfig?.regionalDirectionAr || "",
+        headerConfig?.departmentalDirectionAr || "",
+        headerConfig?.schoolNameAr || schoolName,
+        headerConfig?.serviceAr || "",
+        headerConfig?.addressAr || "",
+        bp ? `ص.ب: ${bp}` : "",
+        schoolPhone ? `الهاتف: ${schoolPhone}` : "",
+        schoolEmail ? `البريد: ${schoolEmail}` : "",
+      ].filter(Boolean);
+
+      let rightY = 12;
+      for (const line of rightLines) {
+        drawTextBilingual(doc, line, W - margin, rightY, { align: "right" });
+        rightY += 4.5;
+      }
       
+      const maxY = Math.max(leftY, rightY);
       doc.setDrawColor(220, 225, 240);
       doc.setLineWidth(0.3);
-      doc.line(margin, 34, W - margin, 34);
-      return 34;
+      doc.line(margin, maxY + 2, W - margin, maxY + 2);
+      return maxY + 4;
     }
     
     if (style === "university_formal") {

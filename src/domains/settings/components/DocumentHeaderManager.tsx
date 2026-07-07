@@ -94,20 +94,54 @@ export default function DocumentHeaderManager({ initialConfig }: { initialConfig
             <section className="grid gap-4">
               <Field label="Nom établissement" value={config.schoolName} onChange={(v) => update("schoolName", v)} />
               <Field label="Nom arabe établissement" value={config.schoolNameAr || ""} onChange={(v) => update("schoolNameAr", v)} />
-              <Field label="République / Pays" value={config.country || ""} onChange={(v) => update("country", v)} />
-              <Field label="Ministère" value={config.ministry || ""} onChange={(v) => update("ministry", v)} />
-              <Field label="Direction régionale" value={config.regionalDirection || ""} onChange={(v) => update("regionalDirection", v)} />
-              <Field label="Direction départementale" value={config.departmentalDirection || ""} onChange={(v) => update("departmentalDirection", v)} />
-              <Field label="Inspection" value={config.inspection || ""} onChange={(v) => update("inspection", v)} />
-              <Field label="Service" value={config.service || ""} onChange={(v) => update("service", v)} />
-              <Field label="Adresse" value={config.address || ""} onChange={(v) => update("address", v)} />
+              
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="République / Pays" value={config.country || ""} onChange={(v) => update("country", v)} />
+                <Field label="République / Pays (Arabe)" value={config.countryAr || ""} onChange={(v) => update("countryAr", v)} />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Ministère" value={config.ministry || ""} onChange={(v) => update("ministry", v)} />
+                <Field label="Ministère (Arabe)" value={config.ministryAr || ""} onChange={(v) => update("ministryAr", v)} />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Direction régionale" value={config.regionalDirection || ""} onChange={(v) => update("regionalDirection", v)} />
+                <Field label="Direction régionale (Arabe)" value={config.regionalDirectionAr || ""} onChange={(v) => update("regionalDirectionAr", v)} />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Direction départementale" value={config.departmentalDirection || ""} onChange={(v) => update("departmentalDirection", v)} />
+                <Field label="Direction départementale (Arabe)" value={config.departmentalDirectionAr || ""} onChange={(v) => update("departmentalDirectionAr", v)} />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Inspection" value={config.inspection || ""} onChange={(v) => update("inspection", v)} />
+                <Field label="Inspection (Arabe)" value={config.inspectionAr || ""} onChange={(v) => update("inspectionAr", v)} />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Service" value={config.service || ""} onChange={(v) => update("service", v)} />
+                <Field label="Service (Arabe)" value={config.serviceAr || ""} onChange={(v) => update("serviceAr", v)} />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Adresse" value={config.address || ""} onChange={(v) => update("address", v)} />
+                <Field label="Adresse (Arabe)" value={config.addressAr || ""} onChange={(v) => update("addressAr", v)} />
+              </div>
+              
               <div className="grid grid-cols-2 gap-3">
                 <Field label="BP" value={config.bp || ""} onChange={(v) => update("bp", v)} />
                 <Field label="Téléphone" value={config.phone || ""} onChange={(v) => update("phone", v)} />
               </div>
               <Field label="Email" value={config.email || ""} onChange={(v) => update("email", v)} />
               <Field label="Année scolaire" value={config.schoolYear || ""} onChange={(v) => update("schoolYear", v)} />
-              <Field label="Devise" value={config.motto || ""} onChange={(v) => update("motto", v)} />
+              
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Devise" value={config.motto || ""} onChange={(v) => update("motto", v)} />
+                <Field label="Devise (Arabe)" value={config.mottoAr || ""} onChange={(v) => update("mottoAr", v)} />
+              </div>
+              
               <Field label="Autorisations / Arrêtés" value={config.authorizationText || ""} onChange={(v) => update("authorizationText", v)} />
               <Field label="Logo gauche URL" value={config.leftLogo || ""} onChange={(v) => update("leftLogo", v)} />
               <Field label="Logo centre URL" value={config.centerLogo || ""} onChange={(v) => update("centerLogo", v)} />

@@ -97,21 +97,22 @@ export const getActiveBranchData = cache(async (user: any) => {
     if (isAdmin) {
       const cookieStore = await cookies();
       const selectedBranchId = cookieStore.get("selected_branch_id")?.value;
-      if (selectedBranchId) {
+      if (selectedBranchId && selectedBranchId !== "all" && !isNaN(parseInt(selectedBranchId))) {
         branchData = allBranches.find(b => b.id.toString() === selectedBranchId) || null;
+      } else {
+        branchData = null; // represents General Administration / All Branches
       }
+    } else {
+      if (user.educationalLevel) {
+        const normalizedUserLevel = localNormalizeLevel(user.educationalLevel);
+        branchData = allBranches.find(
+          b => b.instType && localNormalizeLevel(b.instType) === normalizedUserLevel
+        ) || null;
+      }
+
       if (!branchData && allBranches.length > 0) {
         branchData = allBranches[0];
       }
-    } else if (user.educationalLevel) {
-      const normalizedUserLevel = localNormalizeLevel(user.educationalLevel);
-      branchData = allBranches.find(
-        b => b.instType && localNormalizeLevel(b.instType) === normalizedUserLevel
-      ) || null;
-    }
-
-    if (!branchData && allBranches.length > 0) {
-      branchData = allBranches[0];
     }
 
     return { branchData, allBranches };

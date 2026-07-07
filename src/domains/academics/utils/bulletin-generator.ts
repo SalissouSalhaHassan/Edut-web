@@ -167,13 +167,17 @@ function drawPDFHeader(
     }
     
     const rightLines = [
+      headerConfig?.countryAr || "جمهورية النيجر",
+      headerConfig?.ministryAr || "وزارة التربية الوطنية",
+      headerConfig?.regionalDirectionAr || "",
+      headerConfig?.departmentalDirectionAr || "",
+      headerConfig?.inspectionAr || "",
       headerConfig?.schoolNameAr || schoolName,
-      headerConfig?.country || branchInfo?.country || "RÉPUBLIQUE DU NIGER",
-      ministry,
-      headerConfig?.regionalDirection || branchInfo?.regionalDirection || "",
-      headerConfig?.inspection || branchInfo?.inspection || "",
-      phone ? `Tél: ${phone}` : "",
-      email ? `Email: ${email}` : "",
+      headerConfig?.serviceAr || "",
+      headerConfig?.addressAr || "",
+      bp ? `ص.ب: ${bp}` : "",
+      phone ? `الهاتف: ${phone}` : "",
+      email ? `البريد: ${email}` : "",
     ].filter(Boolean);
 
     let rightY = 12;

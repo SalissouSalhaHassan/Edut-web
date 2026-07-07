@@ -42,7 +42,7 @@ function MetaLines({ cfg, align = "left" }: { cfg: DocumentHeaderConfig; align?:
   ].filter(Boolean);
 
   return (
-    <div className={`space-y-0.5 text-${align} text-[11px] font-bold leading-tight text-slate-950 print:text-black`}>
+    <div dir="ltr" lang="fr" className={`space-y-0.5 text-${align} text-[11px] font-bold leading-tight text-slate-950 print:text-black french-text`}>
       {lines.map((line) => <p key={line}>{line}</p>)}
     </div>
   );
@@ -79,15 +79,26 @@ export default function OfficialDocumentHeader({ config, title, variant = "full"
       <header className={`official-document-header border-b-2 border-slate-900 pb-3 print:border-black ${className}`}>
         <div className="grid grid-cols-[1fr_auto_1fr] items-start gap-6">
           <MetaLines cfg={cfg} />
+          
           <LogoBox src={cfg.centerLogo || cfg.leftLogo} alt={cfg.schoolName} size={126} />
-          <div dir="rtl" className="space-y-0.5 text-right text-[13px] font-bold leading-tight text-slate-950 print:text-black">
-            <p>{cfg.schoolNameAr || cfg.schoolName}</p>
-            <p>{cfg.country}</p>
-            <p>{cfg.ministry}</p>
-            <p>{cfg.regionalDirection}</p>
-            <p>{cfg.inspection}</p>
-            <p>{cfg.phone ? `الهاتف: ${cfg.phone}` : ""}</p>
-            <p>{cfg.email ? `البريد: ${cfg.email}` : ""}</p>
+          
+          <div 
+            dir="rtl" 
+            lang="ar" 
+            className="space-y-0.5 text-right text-[11px] font-bold leading-tight text-slate-950 print:text-black arabic-text"
+            style={{ fontFamily: '"Noto Naskh Arabic", "Amiri", "Arial", sans-serif' }}
+          >
+            {cfg.countryAr && <p>{cfg.countryAr}</p>}
+            {cfg.ministryAr && <p>{cfg.ministryAr}</p>}
+            {cfg.regionalDirectionAr && <p>{cfg.regionalDirectionAr}</p>}
+            {cfg.departmentalDirectionAr && <p>{cfg.departmentalDirectionAr}</p>}
+            {cfg.inspectionAr && <p>{cfg.inspectionAr}</p>}
+            {cfg.schoolNameAr && <p className="text-xs font-black">{cfg.schoolNameAr}</p>}
+            {cfg.serviceAr && <p>{cfg.serviceAr}</p>}
+            {cfg.addressAr && <p>{cfg.addressAr}</p>}
+            {cfg.bp && <p>ص.ب: {cfg.bp}</p>}
+            {cfg.phone && <p>الهاتف: {cfg.phone}</p>}
+            {cfg.email && <p>البريد: {cfg.email}</p>}
           </div>
         </div>
         {title && <h1 className="mt-3 text-center text-xl font-black uppercase tracking-wide">{title}</h1>}

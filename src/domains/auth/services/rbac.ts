@@ -198,7 +198,7 @@ export async function getActiveEducationalLevel(user: any): Promise<string | nul
   try {
     const cookieStore = await cookies();
     const selectedBranchId = cookieStore.get("selected_branch_id")?.value;
-    if (selectedBranchId) {
+    if (selectedBranchId && selectedBranchId !== "all" && !isNaN(parseInt(selectedBranchId))) {
       const branch = await db.query.schoolBranches.findFirst({
         where: eq(schoolBranches.id, parseInt(selectedBranchId))
       });

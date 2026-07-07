@@ -1,35 +1,61 @@
 import { db, readDb } from "@/infrastructure/database";
 import { students } from "@/infrastructure/database/schema/students";
 import { employees } from "@/infrastructure/database/schema/hr";
-import { feePayments } from "@/infrastructure/database/schema/finance";
-import { sql, eq } from "drizzle-orm";
+import { feePayments, studentFees } from "@/infrastructure/database/schema/finance";
+import { sql, eq, and, inArray } from "drizzle-orm";
 import DashboardUI, { type DashboardUIProps } from "./dashboard-ui";
 import { getUnreadNotificationsCount } from "@/domains/messaging/actions/notifications.actions";
 import { cache as redisCache } from "@/lib/redis";
 import { getActiveSchoolId, getActiveBranchData } from "@/domains/auth/services/school";
 import { getCurrentUser } from "@/domains/auth/services/session";
+import { getActiveEducationalLevel, getCompatibleLevels } from "@/domains/auth/services/rbac";
 
-async function getStats() {
+async function getStats(user: any) {
   try {
     const schoolId = await getActiveSchoolId();
     if (!schoolId) {
       return { students: 0, employees: 0, revenue: 0, expense: 0, studentGrowth: 0, revenueGrowth: 0 };
     }
 
-    const cacheKey = `dashboard_stats:${schoolId}`;
+    const activeLevel = await getActiveEducationalLevel(user);
+    const cacheKey = `dashboard_stats:${schoolId}:${activeLevel || 'all'}`;
     
     // Try Redis Cache first
     const cachedStats = await redisCache.get<any>(cacheKey);
     if (cachedStats) {
-      console.log(`🚀 [Redis Hit] Dashboard stats for School ${schoolId}`);
+      console.log(`🚀 [Redis Hit] Dashboard stats for School ${schoolId} (${activeLevel || 'all'})`);
       return cachedStats;
+    }
+
+    let studentWhere = eq(students.schoolId, schoolId);
+    let employeeWhere = eq(employees.schoolId, schoolId);
+
+    let queryRevenue;
+
+    if (activeLevel) {
+      const compatibleLevels = getCompatibleLevels(activeLevel);
+      studentWhere = and(studentWhere, inArray(students.educationalLevel, compatibleLevels)) as any;
+      employeeWhere = and(employeeWhere, inArray(employees.educationalLevel, compatibleLevels)) as any;
+      
+      queryRevenue = readDb.select({ sum: sql<number>`coalesce(sum(${feePayments.amount}), 0)` })
+        .from(feePayments)
+        .innerJoin(studentFees, eq(feePayments.feeId, studentFees.id))
+        .innerJoin(students, eq(studentFees.studentId, students.id))
+        .where(and(
+          eq(feePayments.schoolId, schoolId),
+          inArray(students.educationalLevel, compatibleLevels)
+        ));
+    } else {
+      queryRevenue = readDb.select({ sum: sql<number>`coalesce(sum(amount), 0)` })
+        .from(feePayments)
+        .where(eq(feePayments.schoolId, schoolId));
     }
 
     // Parallelize database queries using readDb
     const [studentCountRes, employeeCountRes, totalRevenueRes] = await Promise.all([
-      readDb.select({ count: sql<number>`count(*)` }).from(students).where(eq(students.schoolId, schoolId)),
-      readDb.select({ count: sql<number>`count(*)` }).from(employees).where(eq(employees.schoolId, schoolId)).catch(() => [{ count: 0 }]),
-      readDb.select({ sum: sql<number>`coalesce(sum(amount), 0)` }).from(feePayments).where(eq(feePayments.schoolId, schoolId)).catch(() => [{ sum: 0 }])
+      readDb.select({ count: sql<number>`count(*)` }).from(students).where(studentWhere),
+      readDb.select({ count: sql<number>`count(*)` }).from(employees).where(employeeWhere).catch(() => [{ count: 0 }]),
+      queryRevenue.catch(() => [{ sum: 0 }])
     ]);
 
     const stats = {
@@ -89,7 +115,7 @@ function scaleBreakdown(total: number, items: Array<{ label: string; percent: nu
 export default async function DashboardPage() {
   const user = await getCurrentUser();
   const [stats, unreadCount, { branchData }] = await Promise.all([
-    getStats(),
+    getStats(user),
     getUnreadNotificationsCount().catch(() => 0),
     getActiveBranchData(user)
   ]);
