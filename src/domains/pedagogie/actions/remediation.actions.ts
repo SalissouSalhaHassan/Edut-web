@@ -282,7 +282,7 @@ export async function getAtRiskStudents() {
     `);
 
     // Normalize output for client rendering
-    const rows = (result.rows || result || []) as any[];
+    const rows = ((result as any).rows || result || []) as any[];
     return { success: true, data: rows };
   } catch (e: any) {
     console.error("getAtRiskStudents error:", e.message);

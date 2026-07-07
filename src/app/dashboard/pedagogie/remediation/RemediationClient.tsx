@@ -564,7 +564,6 @@ export default function RemediationClient({
           </div>
         </div>
       )}
-      </div>
 
       {/* ─── MODAL: NEW / EDIT PLAN ─── */}
       {(modal === "new_plan" || modal === "edit_plan") && (

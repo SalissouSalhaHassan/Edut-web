@@ -140,7 +140,7 @@ export default function PedagogieDashboardClient({
     const devoirsPlanifies = assignments.length || activeAssign;
     const cahierCompleted = realisedLessons || Math.round(plannedLessons * 0.8) || 12;
     const elevesARisque = struggling;
-    const remediationsOuvertes = overview?.remediation?.activePlans ?? Math.round(struggling * 0.6) || 4;
+    const remediationsOuvertes = (overview?.remediation?.activePlans ?? Math.round(struggling * 0.6)) || 4;
 
     return {
       totalClasses,
