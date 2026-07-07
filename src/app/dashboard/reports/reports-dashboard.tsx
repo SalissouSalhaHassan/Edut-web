@@ -47,8 +47,14 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
     "students" | "finances" | "pedagogie" | "presence" | "rh" | "lms" | "canevas" | "security"
   >("students");
 
+  // Dynamic Academic Years (Sessions) extracted from real database students
+  const uniqueSessions = React.useMemo(() => {
+    const sess = Array.from(new Set(data.students.map(s => s.session).filter(Boolean))) as string[];
+    return sess.length > 0 ? sess.sort() : ["2024-2025", "2025-2026", "2026-2027"];
+  }, [data.students]);
+
   // General Filters States
-  const [academicYear, setAcademicYear] = useState("2025-2026");
+  const [academicYear, setAcademicYear] = useState("2024-2025");
   const [period, setPeriod] = useState("All");
   const [selectedClassId, setSelectedClassId] = useState<string>("All");
   const [selectedLevel, setSelectedLevel] = useState<string>("All");
@@ -60,6 +66,13 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
 
   // Export History State
   const [exportHistory, setExportHistory] = useState<any[]>([]);
+
+  // Automatically default academicYear to the first available session in the database
+  useEffect(() => {
+    if (uniqueSessions.length > 0 && !uniqueSessions.includes(academicYear)) {
+      setAcademicYear(uniqueSessions[0]);
+    }
+  }, [uniqueSessions]);
 
   useEffect(() => {
     setMounted(true);
@@ -80,6 +93,7 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
 
     // Dexie Cache Management: If online, write to cache; if offline, read from cache
     if (navigator.onLine) {
+      setData(initialData);
       localDb.references.put({
         type: "lmsCache",
         label: "reporting_center_cache",
@@ -148,10 +162,43 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
   if (!mounted) return null;
 
   // ─── FILTERING LOGIC ───
+  
+  // Resolve class name from class ID to support students table (which uses className string)
+  const selectedClassObj = data.classes.find(c => String(c.id) === selectedClassId);
+  const selectedClassName = selectedClassObj?.className || "";
+
+  // Dynamic helper to check if a date falls inside the selected period (Trimester T1, T2, T3) for the current academic session
+  const isInPeriod = (dateVal: string | Date | null) => {
+    if (!dateVal) return true;
+    const date = new Date(dateVal);
+    if (isNaN(date.getTime())) return true;
+
+    // Parse starting year from session string (e.g., "2024-2025" -> 2024)
+    const startYear = parseInt(academicYear.split("-")[0]) || 2024;
+
+    if (period === "T1") {
+      const start = new Date(startYear, 8, 1); // Sept 1st
+      const end = new Date(startYear, 11, 31, 23, 59, 59); // Dec 31st
+      return date >= start && date <= end;
+    }
+    if (period === "T2") {
+      const start = new Date(startYear + 1, 0, 1); // Jan 1st
+      const end = new Date(startYear + 1, 3, 30, 23, 59, 59); // April 30th
+      return date >= start && date <= end;
+    }
+    if (period === "T3") {
+      const start = new Date(startYear + 1, 4, 1); // May 1st
+      const end = new Date(startYear + 1, 7, 31, 23, 59, 59); // August 31st
+      return date >= start && date <= end;
+    }
+    return true; // "All" / Année entière
+  };
+
   // Filter students
   const filteredStudents = data.students.filter(s => {
+    if (academicYear !== "All" && s.session && s.session !== academicYear) return false;
     if (selectedLevel !== "All" && s.educationalLevel !== selectedLevel) return false;
-    if (selectedClassId !== "All" && s.classe !== selectedClassId) return false;
+    if (selectedClassId !== "All" && s.classe !== selectedClassName) return false;
     if (selectedStatus !== "All" && s.statut !== selectedStatus) return false;
     return true;
   });
@@ -159,9 +206,11 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
   // Filter finances
   const filteredPayments = data.feePayments.filter(p => {
     const student = data.students.find(s => s.id === p.studentId);
-    if (selectedClassId !== "All" && student?.classe !== selectedClassId) return false;
+    if (academicYear !== "All" && student?.session && student?.session !== academicYear) return false;
+    if (selectedClassId !== "All" && student?.classe !== selectedClassName) return false;
     if (selectedLevel !== "All" && student?.educationalLevel !== selectedLevel) return false;
     if (selectedStudentId !== "All" && String(p.studentId) !== selectedStudentId) return false;
+    if (!isInPeriod(p.datePaid)) return false;
     if (startDate && p.datePaid && new Date(p.datePaid) < new Date(startDate)) return false;
     if (endDate && p.datePaid && new Date(p.datePaid) > new Date(endDate)) return false;
     return true;
@@ -169,6 +218,7 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
 
   const filteredExpenses = data.expenses.filter(e => {
     if (selectedLevel !== "All" && e.educationalLevel !== selectedLevel) return false;
+    if (!isInPeriod(e.dateExpense)) return false;
     if (startDate && e.dateExpense && new Date(e.dateExpense) < new Date(startDate)) return false;
     if (endDate && e.dateExpense && new Date(e.dateExpense) > new Date(endDate)) return false;
     return true;
@@ -179,6 +229,7 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
     if (selectedClassId !== "All" && String(s.classId) !== selectedClassId) return false;
     if (selectedTeacherId !== "All" && String(s.employeeId) !== selectedTeacherId) return false;
     if (selectedStatus !== "All" && s.statut !== selectedStatus) return false;
+    if (!isInPeriod(s.sessionDate)) return false;
     if (startDate && s.sessionDate && new Date(s.sessionDate) < new Date(startDate)) return false;
     if (endDate && s.sessionDate && new Date(s.sessionDate) > new Date(endDate)) return false;
     return true;
@@ -194,10 +245,12 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
   // Filter attendance
   const filteredAttendance = data.attendance.filter(a => {
     const student = data.students.find(s => s.id === a.studentId);
+    if (academicYear !== "All" && student?.session && student?.session !== academicYear) return false;
     if (selectedClassId !== "All" && String(a.classId) !== selectedClassId) return false;
     if (selectedLevel !== "All" && student?.educationalLevel !== selectedLevel) return false;
     if (selectedStudentId !== "All" && String(a.studentId) !== selectedStudentId) return false;
     if (selectedStatus !== "All" && a.status !== selectedStatus) return false;
+    if (!isInPeriod(a.date)) return false;
     if (startDate && a.date && new Date(a.date) < new Date(startDate)) return false;
     if (endDate && a.date && new Date(a.date) > new Date(endDate)) return false;
     return true;
@@ -219,6 +272,7 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
   // Filter security audit logs
   const filteredAuditLogs = data.auditLogs.filter(log => {
     if (selectedTeacherId !== "All" && String(log.userId) !== selectedTeacherId) return false;
+    if (!isInPeriod(log.timestamp)) return false;
     if (startDate && log.timestamp && new Date(log.timestamp) < new Date(startDate)) return false;
     if (endDate && log.timestamp && new Date(log.timestamp) > new Date(endDate)) return false;
     return true;
@@ -599,9 +653,8 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
                   onChange={(e) => setAcademicYear(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 p-3 rounded-2xl text-xs font-bold outline-none"
                 >
-                  <option value="2024-2025">2024-2025</option>
-                  <option value="2025-2026">2025-2026</option>
-                  <option value="2026-2027">2026-2027</option>
+                  <option value="All">Toutes les années</option>
+                  {uniqueSessions.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
 
@@ -623,7 +676,7 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Niveau éducatif</label>
                 <select
                   value={selectedLevel}
-                  onChange={(e) => { setSelectedLevel(e.target.value); setSelectedClassId("All"); }}
+                  onChange={(e) => { setSelectedLevel(e.target.value); setSelectedClassId("All"); setSelectedStudentId("All"); }}
                   className="w-full bg-slate-50 border border-slate-200 p-3 rounded-2xl text-xs font-bold outline-none"
                 >
                   <option value="All">Tous les cycles</option>
@@ -638,11 +691,11 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Classe / Section</label>
                 <select
                   value={selectedClassId}
-                  onChange={(e) => setSelectedClassId(e.target.value)}
+                  onChange={(e) => { setSelectedClassId(e.target.value); setSelectedStudentId("All"); }}
                   className="w-full bg-slate-50 border border-slate-200 p-3 rounded-2xl text-xs font-bold outline-none"
                 >
                   <option value="All">Toutes les classes</option>
-                  {data.classes.map(c => <option key={c.id} value={c.className}>{c.className}</option>)}
+                  {data.classes.map(c => <option key={c.id} value={String(c.id)}>{c.className}</option>)}
                 </select>
               </div>
 
@@ -654,7 +707,14 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
                   className="w-full bg-slate-50 border border-slate-200 p-3 rounded-2xl text-xs font-bold outline-none"
                 >
                   <option value="All">Tous les élèves</option>
-                  {data.students.map(s => <option key={s.id} value={s.id}>{s.nomEtudiant}</option>)}
+                  {data.students
+                    .filter(s => {
+                      if (academicYear !== "All" && s.session && s.session !== academicYear) return false;
+                      if (selectedLevel !== "All" && s.educationalLevel !== selectedLevel) return false;
+                      if (selectedClassId !== "All" && s.classe !== selectedClassName) return false;
+                      return true;
+                    })
+                    .map(s => <option key={s.id} value={String(s.id)}>{s.nomEtudiant}</option>)}
                 </select>
               </div>
 
@@ -666,7 +726,7 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
                   className="w-full bg-slate-50 border border-slate-200 p-3 rounded-2xl text-xs font-bold outline-none"
                 >
                   <option value="All">Tout le personnel</option>
-                  {data.employees.map(emp => <option key={emp.id} value={emp.id}>{emp.nomPrenom}</option>)}
+                  {data.employees.map(emp => <option key={emp.id} value={String(emp.id)}>{emp.nomPrenom}</option>)}
                 </select>
               </div>
 
