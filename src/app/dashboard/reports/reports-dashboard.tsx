@@ -59,6 +59,17 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
     return sess.length > 0 ? sess.sort() : ["2024-2025", "2025-2026", "2026-2027"];
   }, [data.sessions, data.students]);
 
+  // General Filters States
+  const [academicYear, setAcademicYear] = useState("2024-2025");
+  const [period, setPeriod] = useState("All");
+  const [selectedClassId, setSelectedClassId] = useState<string>("All");
+  const [selectedLevel, setSelectedLevel] = useState<string>("All");
+  const [selectedStudentId, setSelectedStudentId] = useState<string>("All");
+  const [selectedTeacherId, setSelectedTeacherId] = useState<string>("All");
+  const [selectedStatus, setSelectedStatus] = useState<string>("All");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+
   // Filter periods based on selected academic year
   const filteredPeriods = React.useMemo(() => {
     const allPeriods = data.periods || [];
@@ -76,17 +87,6 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
     if (period === "All") return null;
     return (data.periods || []).find((p: any) => String(p.id) === period);
   }, [period, data.periods]);
-
-  // General Filters States
-  const [academicYear, setAcademicYear] = useState("2024-2025");
-  const [period, setPeriod] = useState("All");
-  const [selectedClassId, setSelectedClassId] = useState<string>("All");
-  const [selectedLevel, setSelectedLevel] = useState<string>("All");
-  const [selectedStudentId, setSelectedStudentId] = useState<string>("All");
-  const [selectedTeacherId, setSelectedTeacherId] = useState<string>("All");
-  const [selectedStatus, setSelectedStatus] = useState<string>("All");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
 
   // Export History State
   const [exportHistory, setExportHistory] = useState<any[]>([]);
