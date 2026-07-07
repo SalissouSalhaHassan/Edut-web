@@ -3,13 +3,32 @@ import { cacheReferenceItems, getCachedReferenceItems } from "./references";
 
 // 1. Students Caching
 export async function cacheStudents(items: any[]) {
+  const unsyncedItems = await localDb.outbox
+    .where("targetTable")
+    .equals("students")
+    .toArray();
+  const unsynced = unsyncedItems.filter(item => item.status !== "synced" && item.status !== "cancelled");
+  const unsyncedAdmissions = new Set(unsynced.map(item => item.payload.numAdmission));
+
+  const currentStudents = await localDb.students.toArray();
+  const unsyncedStudents = currentStudents.filter(s => s.numAdmission && unsyncedAdmissions.has(s.numAdmission));
+
   await localDb.students.clear();
+
+  if (unsyncedStudents.length > 0) {
+    await localDb.students.bulkPut(unsyncedStudents);
+  }
+
   if (items.length > 0) {
-    const prepared = items.map((item) => ({
-      ...item,
-      updatedAt: Date.now(),
-    }));
-    await localDb.students.bulkPut(prepared);
+    const toPut = items
+      .filter(item => !unsyncedAdmissions.has(item.numAdmission))
+      .map((item) => ({
+        ...item,
+        updatedAt: Date.now(),
+      }));
+    if (toPut.length > 0) {
+      await localDb.students.bulkPut(toPut);
+    }
   }
 }
 

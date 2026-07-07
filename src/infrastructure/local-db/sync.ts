@@ -26,11 +26,117 @@ export async function syncOutbox() {
           lastError: null,
         });
 
+        let resId: number | undefined = undefined;
+
         if (item.targetTable === "students") {
-          const { importStudentRow } = await import("@/domains/importation/actions/import.actions");
-          const res = await importStudentRow(item.payload);
-          success = !!res?.success;
-          error = res?.error || "Unknown error";
+          if (item.actionType === "UPDATE") {
+            const { updateStudent } = await import("@/domains/students/actions/students.actions");
+            const { id, originalData, ...studentData } = item.payload;
+            const res = (await updateStudent(id, studentData, originalData)) as any;
+            success = !!res?.success;
+            error = res?.error || "Unknown error";
+            if (res?.conflict) {
+              error = "conflict: " + error;
+            }
+          } else {
+            const { createStudent } = await import("@/domains/students/actions/students.actions");
+            const { id: _localId, ...studentData } = item.payload;
+            const res = (await createStudent(studentData)) as any;
+            success = !!res?.success;
+            error = res?.error || "Unknown error";
+            if (success) {
+              resId = res?.id;
+            }
+          }
+
+          if (success) {
+            const targetId = resId || item.payload.id;
+            if (targetId && item.actionType !== "UPDATE") {
+              const localId = item.payload.id;
+              if (localId && localId !== targetId) {
+                try {
+                  const localStudent = await localDb.students.get(localId);
+                  if (localStudent) {
+                    await localDb.students.delete(localId);
+                    await localDb.students.put({
+                      ...localStudent,
+                      id: targetId,
+                      updatedAt: Date.now()
+                    });
+                  }
+
+                  const pendingOutbox = await localDb.outbox
+                    .filter(o => o.status !== "synced" && o.status !== "cancelled")
+                    .toArray();
+                  
+                  for (const pending of pendingOutbox) {
+                    let updated = false;
+                    const payload = pending.payload;
+                    
+                    if (pending.targetTable === "feePayments" && payload.studentId === localId) {
+                      payload.studentId = targetId;
+                      updated = true;
+                    }
+                    if (pending.targetTable === "examResults" && payload.studentId === localId) {
+                      payload.studentId = targetId;
+                      updated = true;
+                    }
+                    if (pending.targetTable === "examResults" && Array.isArray(payload.results)) {
+                      payload.results = payload.results.map((r: any) => {
+                        if (r.studentId === localId) return { ...r, studentId: targetId };
+                        return r;
+                      });
+                      updated = true;
+                    }
+                    if (pending.targetTable === "attendanceBatches" && Array.isArray(payload.records)) {
+                      payload.records = payload.records.map((r: any) => {
+                        if (r.studentId === localId) return { ...r, studentId: targetId };
+                        return r;
+                      });
+                      updated = true;
+                    }
+
+                    if (updated) {
+                      await localDb.outbox.update(pending.id!, {
+                        payload,
+                        updatedAt: Date.now()
+                      });
+                    }
+                  }
+                } catch (e) {
+                  console.warn("Failed to cascade student temporary ID mapping:", e);
+                }
+              }
+            }
+
+            const numAdmission = item.payload.numAdmission;
+            if (numAdmission) {
+              try {
+                const localPhoto = await localDb.studentPhotos.get(numAdmission);
+                if (localPhoto?.photoData) {
+                  const { uploadStudentPhoto } = await import("@/shared/utils/supabase/storage");
+                  const fileName = `${numAdmission}_${Date.now()}.jpg`;
+                  const uploadedUrl = await uploadStudentPhoto(localPhoto.photoData, fileName);
+                  
+                  const { updateStudent } = await import("@/domains/students/actions/students.actions");
+                  await updateStudent(targetId, { photoPath: uploadedUrl } as any);
+                  
+                  const cachedStud = await localDb.students.get(targetId);
+                  if (cachedStud) {
+                    await localDb.students.put({
+                      ...cachedStud,
+                      photoPath: uploadedUrl,
+                      updatedAt: Date.now()
+                    });
+                  }
+                  
+                  await localDb.studentPhotos.delete(numAdmission);
+                }
+              } catch (photoErr) {
+                console.warn("Failed to upload student photo during sync:", photoErr);
+              }
+            }
+          }
         } else if (item.targetTable === "exams") {
           const { createExam } = await import("@/domains/academics/actions/exams.actions");
           const res = await createExam(item.payload);
@@ -101,6 +207,7 @@ export async function syncOutbox() {
                              errLower.includes("duplicate") ||
                              errLower.includes("déjà") ||
                              errLower.includes("conflit") ||
+                             errLower.includes("conflict") ||
                              errLower.includes("double") ||
                              errLower.includes("insuffisant");
 

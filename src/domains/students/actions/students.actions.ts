@@ -87,9 +87,9 @@ export async function createStudent(formData: StudentFormData) {
       return { error: "Non autorisé à inscrire des élèves." };
     }
 
-    await db.insert(students).values(studentData);
+    const [newStudent] = await db.insert(students).values(studentData).returning({ id: students.id });
     revalidatePath("/dashboard/students");
-    return { success: true };
+    return { success: true, id: newStudent.id };
   });
 }
 
@@ -122,7 +122,7 @@ export async function deleteStudent(id: number) {
   });
 }
 
-export async function updateStudent(id: number, formData: StudentFormData) {
+export async function updateStudent(id: number, formData: StudentFormData, originalData?: any) {
   const validation = studentSchema.safeParse(formData);
   if (!validation.success) {
     return { error: validation.error.issues[0]?.message || "Erreur de validation" };
@@ -134,6 +134,29 @@ export async function updateStudent(id: number, formData: StudentFormData) {
 
     if (roleType === "teacher") {
       return { error: "Non autorisé" };
+    }
+
+    if (originalData) {
+      const current = await db.query.students.findFirst({
+        where: and(eq(students.id, id), eq(students.schoolId, schoolId))
+      });
+      if (!current) {
+        return { error: "Étudiant introuvable sur le serveur." };
+      }
+      const changed = 
+        current.nomEtudiant !== originalData.nomEtudiant ||
+        current.classe !== originalData.classe ||
+        current.statut !== originalData.statut ||
+        current.numAdmission !== originalData.numAdmission ||
+        current.educationalLevel !== originalData.educationalLevel ||
+        current.section !== originalData.section;
+
+      if (changed) {
+        return { 
+          error: "Conflit : Cet étudiant a été modifié sur le serveur par un autre utilisateur.", 
+          conflict: true 
+        };
+      }
     }
 
     // Check if admission number already exists for another student

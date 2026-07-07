@@ -25,6 +25,7 @@ export interface LocalStudent {
   fraisInscription?: number;
   statut?: string;
   behaviorScore?: number;
+  photoPath?: string | null;
   updatedAt?: number;
 }
 
@@ -91,6 +92,12 @@ export interface LocalAttendanceBatch {
   updatedAt?: number;
 }
 
+export interface LocalStudentPhoto {
+  numAdmission: string;
+  photoData: string;
+  updatedAt?: number;
+}
+
 export interface OutboxAction {
   id?: number;
   actionType: 'INSERT' | 'UPDATE' | 'DELETE';
@@ -118,6 +125,7 @@ class EdutLocalDatabase extends Dexie {
   references!: Table<LocalReferenceItem>;
   feePayments!: Table<LocalFeePayment>;
   attendanceBatches!: Table<LocalAttendanceBatch>;
+  studentPhotos!: Table<LocalStudentPhoto>;
   outbox!: Table<OutboxAction>;
 
   constructor() {
@@ -155,6 +163,18 @@ class EdutLocalDatabase extends Dexie {
       references: '++id, type, remoteId, label, updatedAt',
       feePayments: '++id, feeId, reference, datePaid, updatedAt',
       attendanceBatches: '++id, classId, subjectId, date, updatedAt',
+      outbox: '++id, actionType, targetTable, status, timestamp, updatedAt, syncedAt, retryCount, idempotencyKey, userId, schoolId',
+    });
+
+    this.version(5).stores({
+      students: '++id, numAdmission, nomEtudiant, classe, statut, updatedAt',
+      exams: '++id, examName, classId, subjectId, updatedAt',
+      examResults: '++id, examId, studentId, updatedAt',
+      subjects: '++id, subjectName, updatedAt',
+      references: '++id, type, remoteId, label, updatedAt',
+      feePayments: '++id, feeId, reference, datePaid, updatedAt',
+      attendanceBatches: '++id, classId, subjectId, date, updatedAt',
+      studentPhotos: 'numAdmission, updatedAt',
       outbox: '++id, actionType, targetTable, status, timestamp, updatedAt, syncedAt, retryCount, idempotencyKey, userId, schoolId',
     });
   }

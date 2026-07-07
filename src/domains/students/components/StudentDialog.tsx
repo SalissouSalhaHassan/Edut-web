@@ -24,7 +24,7 @@ interface StudentDialogProps {
 export default function StudentDialog({ mode = "add", initialData, trigger }: StudentDialogProps) {
   const router = useRouter();
   const isOnline = useOnlineStatus();
-  const { mutate } = useOfflineMutation<StudentFormData & { id?: number }>();
+  const { mutate } = useOfflineMutation<StudentFormData & { id?: number; originalData?: any }>();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -104,7 +104,15 @@ export default function StudentDialog({ mode = "add", initialData, trigger }: St
 
   // Sync photo preview when initialData changes
   useEffect(() => {
-    setPreview(initialData?.photoPath || null);
+    if (initialData?.photoPath?.startsWith("local:photo:")) {
+      import("@/infrastructure/local-db/dexie").then(({ localDb }) => {
+        localDb.studentPhotos.get(initialData.numAdmission).then(p => {
+          if (p?.photoData) setPreview(p.photoData);
+        });
+      });
+    } else {
+      setPreview(initialData?.photoPath || null);
+    }
   }, [initialData]);
 
   // Close on Escape
@@ -239,12 +247,38 @@ export default function StudentDialog({ mode = "add", initialData, trigger }: St
       photoPath: photoPath,
     };
 
-    const payload = mode === "edit" && initialData?.id ? { ...data, id: initialData.id } : data;
+    let payload: StudentFormData & { id?: number; originalData?: any } = 
+      mode === "edit" && initialData?.id ? { ...data, id: initialData.id } : data;
+
+    if (!isOnline && preview && preview.startsWith("data:image")) {
+      try {
+        const { localDb } = await import("@/infrastructure/local-db/dexie");
+        await localDb.studentPhotos.put({
+          numAdmission,
+          photoData: preview,
+          updatedAt: Date.now()
+        });
+        payload = {
+          ...payload,
+          photoPath: `local:photo:${numAdmission}`
+        };
+      } catch (e) {
+        console.warn("Failed to store student photo locally:", e);
+      }
+    }
+
+    if (mode === "edit") {
+      payload = {
+        ...payload,
+        originalData: initialData
+      };
+    }
+
     const result = await mutate(payload, {
       targetTable: "students",
       onlineAction: async (studentPayload) => {
-        const { id, ...studentData } = studentPayload;
-        return id ? updateStudent(id, studentData) : createStudent(studentData);
+        const { id, originalData, ...studentData } = studentPayload;
+        return id ? updateStudent(id, studentData, originalData) : createStudent(studentData);
       },
     });
 

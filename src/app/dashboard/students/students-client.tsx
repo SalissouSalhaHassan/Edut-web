@@ -45,6 +45,32 @@ function StatCard({ icon, bg, title, value, sub }: any) {
   );
 }
 
+function StudentAvatar({ photoPath, numAdmission, nomEtudiant }: { photoPath?: string; numAdmission?: string; nomEtudiant: string }) {
+  const [src, setSrc] = React.useState<string | undefined>(photoPath);
+
+  React.useEffect(() => {
+    if (photoPath?.startsWith("local:photo:") && numAdmission) {
+      import("@/infrastructure/local-db/dexie").then(({ localDb }) => {
+        localDb.studentPhotos.get(numAdmission).then(p => {
+          if (p?.photoData) setSrc(p.photoData);
+        });
+      });
+    } else {
+      setSrc(photoPath);
+    }
+  }, [photoPath, numAdmission]);
+
+  if (src) {
+    return <img src={src} alt={nomEtudiant} className="w-full h-full object-cover" />;
+  }
+
+  return (
+    <div className="w-full h-full flex items-center justify-center text-indigo-300">
+      <UserIcon size={24} />
+    </div>
+  );
+}
+
 function StatusBadge({ status }: { status: string }) {
   const normalized = status.toUpperCase();
   if (normalized === "ACTIF") {
@@ -66,6 +92,7 @@ interface StudentsClientProps {
 export default function StudentsClient({ initialStudents, currentUser, canEdit, canDelete }: StudentsClientProps) {
   const [allStudents, setAllStudents] = useState<any[]>(initialStudents);
   const [isLocal, setIsLocal] = useState(false);
+  const [unsyncedAdmissions, setUnsyncedAdmissions] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [page, setPage] = useState(1);
@@ -82,17 +109,29 @@ export default function StudentsClient({ initialStudents, currentUser, canEdit, 
         }
       }
 
-      if (!initialStudents || initialStudents.length === 0 || !navigator.onLine) {
-        try {
-          const { getCachedStudents } = await import("@/infrastructure/local-db/cache");
-          const cached = await getCachedStudents();
-          if (cached && cached.length > 0) {
-            setAllStudents(cached);
-            setIsLocal(true);
-          }
-        } catch (e) {
-          console.warn("Failed to read cached students:", e);
+      try {
+        const { getCachedStudents } = await import("@/infrastructure/local-db/cache");
+        const cached = await getCachedStudents();
+
+        const { localDb } = await import("@/infrastructure/local-db/dexie");
+        const outboxItems = await localDb.outbox
+          .where("targetTable")
+          .equals("students")
+          .toArray();
+        const unsynced = outboxItems.filter(item => item.status !== "synced" && item.status !== "cancelled");
+        setUnsyncedAdmissions(new Set(unsynced.map(item => item.payload.numAdmission)));
+
+        if (cached && cached.length > 0) {
+          setAllStudents(cached);
+          setIsLocal(!navigator.onLine || unsynced.length > 0);
+        } else {
+          setAllStudents(initialStudents || []);
+          setIsLocal(false);
         }
+      } catch (e) {
+        console.warn("Failed to read cached students:", e);
+        setAllStudents(initialStudents || []);
+        setIsLocal(false);
       }
     }
     loadData();
@@ -265,13 +304,11 @@ export default function StudentsClient({ initialStudents, currentUser, canEdit, 
           paginatedStudents.map((student: any) => (
             <div key={student.id} className="bg-white p-5 rounded-[1.5rem] border border-slate-100 shadow-sm hover:shadow-md transition-all flex items-center gap-4">
               <div className="w-14 h-14 rounded-2xl bg-indigo-50 overflow-hidden shrink-0 border border-slate-100">
-                {student.photoPath ? (
-                  <img src={student.photoPath} alt={student.nomEtudiant} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-indigo-300">
-                    <UserIcon size={24} />
-                  </div>
-                )}
+                <StudentAvatar 
+                  photoPath={student.photoPath} 
+                  numAdmission={student.numAdmission} 
+                  nomEtudiant={student.nomEtudiant} 
+                />
               </div>
               
               <div className="flex-1 min-w-0 grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -298,7 +335,14 @@ export default function StudentsClient({ initialStudents, currentUser, canEdit, 
               </div>
 
               <div className="flex items-center gap-3 pl-2">
-                <StatusBadge status={student.statut || "ACTIF"} />
+                <div className="flex flex-col items-end gap-1.5 shrink-0">
+                  <StatusBadge status={student.statut || "ACTIF"} />
+                  {unsyncedAdmissions.has(student.numAdmission) && (
+                    <span className="px-2 py-0.5 bg-amber-500/10 text-amber-600 border border-amber-500/20 text-[9px] font-black uppercase tracking-widest rounded-full animate-pulse">
+                      Non synchronisé
+                    </span>
+                  )}
+                </div>
                 
                 <ActionMenu 
                   title={`Gérer ${student.nomEtudiant}`}
