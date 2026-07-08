@@ -11,6 +11,7 @@ import { employees } from "@/infrastructure/database/schema/hr";
 import { students } from "@/infrastructure/database/schema/students";
 import { and, eq, gte, lte, sql, or } from "drizzle-orm";
 import { getPedagogieScope } from "@/domains/pedagogie/permissions";
+import { PedagogicalDataService, PedagogicalFilters } from "../services/pedagogical-data.service";
 
 const startOfDay = (date: Date) => {
   const value = new Date(date);
@@ -322,5 +323,20 @@ export async function getPedagogieSubjectOverview() {
     };
   } catch (error: any) {
     return { success: false, error: error.message, data: [] };
+  }
+}
+
+export async function getPedagogicalReportAction(filters: PedagogicalFilters) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) return { success: false, error: "Non autorisé", data: null };
+
+    const schoolId = await getActiveSchoolId();
+    const filtersWithSchool = { ...filters, schoolId };
+
+    const data = await PedagogicalDataService.getPedagogicalReportData(filtersWithSchool);
+    return { success: true, data };
+  } catch (error: any) {
+    return { success: false, error: error.message, data: null };
   }
 }

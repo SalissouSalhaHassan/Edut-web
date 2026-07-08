@@ -26,6 +26,7 @@ import {
 import { generateBulletinPDF, generatePVMatrixPDF, generateReleveNotesPDF, generateResultsPedagogicalReportPDF } from "@/domains/academics/utils/bulletin-generator";
 import { getDocumentHeaderConfig } from "@/domains/settings/actions/settings.actions";
 import { useEffect } from "react";
+import { getPedagogicalReportAction } from "@/domains/pedagogie/actions/analytics.actions";
 
 export default function AcademicResultsPage() {
   const [loading, setLoading] = useState(false);
@@ -41,6 +42,7 @@ export default function AcademicResultsPage() {
   const [showPreview, setShowPreview] = useState(false);
   const [headerConfig, setHeaderConfig] = useState<any>(null);
   const [isLocal, setIsLocal] = useState(false);
+  const [pedagogicalReportData, setPedagogicalReportData] = useState<any>(null);
 
   useEffect(() => {
     async function loadScale() {
@@ -179,6 +181,44 @@ export default function AcademicResultsPage() {
           } catch (e) {
             console.warn("Failed to load cached matrix:", e);
           }
+        }
+      }
+
+      // 3. Fetch Pedagogical Report Data if online
+      let pedReportResult: any = null;
+      const pedReportCacheKey = `pedReport-${filters.classId}-${filters.subjectId}-${filters.sessionId}-${filters.period}`;
+      if (navigator.onLine) {
+        try {
+          pedReportResult = await getPedagogicalReportAction({
+            classId: Number(filters.classId),
+            subjectId: filters.subjectId !== "All" && filters.subjectId ? Number(filters.subjectId) : undefined,
+            sessionId: Number(filters.sessionId),
+            period: filters.period,
+            level: filters.level
+          });
+        } catch (e) {
+          console.warn("Failed to get pedagogical report data from server:", e);
+        }
+      }
+
+      if (pedReportResult?.success && pedReportResult.data) {
+        setPedagogicalReportData(pedReportResult.data);
+        try {
+          const { cacheReferenceItems } = await import("@/infrastructure/local-db/references");
+          await cacheReferenceItems("examResults" as any, [{ key: pedReportCacheKey, data: pedReportResult.data }], "key");
+        } catch (e) {
+          console.warn("Failed to cache pedagogical report locally:", e);
+        }
+      } else {
+        try {
+          const { getCachedReferenceItems } = await import("@/infrastructure/local-db/references");
+          const cachedList = await getCachedReferenceItems<any>("examResults" as any);
+          const match = cachedList.find((c: any) => c.key === pedReportCacheKey);
+          if (match) {
+            setPedagogicalReportData(match.data);
+          }
+        } catch (e) {
+          console.warn("Failed to load cached pedagogical report:", e);
         }
       }
     } catch (err) {
@@ -433,6 +473,7 @@ export default function AcademicResultsPage() {
                 onPrintPV={handlePrintPV}
                 onPrintAll={handlePrintAllBulletins}
                 onExportPDF={handleExportResultsReport}
+                pedagogicalReportData={pedagogicalReportData}
               />
             )}
           </motion.div>

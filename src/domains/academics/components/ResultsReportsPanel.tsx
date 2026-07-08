@@ -36,6 +36,7 @@ interface ResultsReportsPanelProps {
   onPrintPV?: () => void;
   onPrintAll?: () => void;
   onExportPDF?: () => void;
+  pedagogicalReportData?: any;
 }
 
 const numberFormat = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 2 });
@@ -82,6 +83,7 @@ export default function ResultsReportsPanel({
   onPrintPV,
   onPrintAll,
   onExportPDF,
+  pedagogicalReportData,
 }: ResultsReportsPanelProps) {
   const [grouping, setGrouping] = useState<"class" | "subject" | "teacher" | "gender">("class");
 
@@ -312,6 +314,38 @@ export default function ResultsReportsPanel({
         <StatCard title="Taux de réussite" value={`${numberFormat.format(stats.successRate)}%`} helper={`${stats.passed} admis`} icon={CheckCircle2} tone="emerald" />
         <StatCard title="Taux d'échec" value={`${numberFormat.format(stats.failedRate)}%`} helper={`${stats.weak} sous 10/20`} icon={AlertTriangle} tone="rose" />
       </div>
+
+      {pedagogicalReportData && (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3 bg-indigo-50/20 p-5 rounded-[2rem] border border-indigo-100/50 print:hidden">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 bg-indigo-100/20 text-indigo-700 rounded-xl flex items-center justify-center font-bold">
+              <Calendar size={18} />
+            </div>
+            <div>
+              <p className="text-[10px] font-black text-indigo-400 uppercase tracking-wider">Taux d'assiduité</p>
+              <p className="text-base font-black text-indigo-900">{pedagogicalReportData.attendanceSummary?.attendanceRate}%</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 bg-indigo-100/20 text-indigo-700 rounded-xl flex items-center justify-center font-bold">
+              <TrendingUp size={18} />
+            </div>
+            <div>
+              <p className="text-[10px] font-black text-indigo-400 uppercase tracking-wider">Progression des leçons</p>
+              <p className="text-base font-black text-indigo-900">{pedagogicalReportData.planificationStats?.rate}% ({pedagogicalReportData.planificationStats?.realized}/{pedagogicalReportData.planificationStats?.planned} séances)</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 bg-indigo-100/20 text-indigo-700 rounded-xl flex items-center justify-center font-bold">
+              <AlertTriangle size={18} />
+            </div>
+            <div>
+              <p className="text-[10px] font-black text-indigo-400 uppercase tracking-wider">Élèves sous soutien (Remédiation)</p>
+              <p className="text-base font-black text-indigo-900">{pedagogicalReportData.remediationNeeds?.length || 0} élève(s)</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ─── GROUPING SELECTION ─── */}
       <div className="flex items-center gap-2 bg-slate-100/80 p-1.5 rounded-[1.25rem] w-fit border border-slate-200 print:hidden">
