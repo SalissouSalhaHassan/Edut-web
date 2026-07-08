@@ -19,6 +19,11 @@ import {
   openNewAcademicYear, 
   getArchiveDashboardStats 
 } from "@/domains/academics/actions/archive.actions";
+import { 
+  submitOfficialRectification, 
+  getOfficialRectifications 
+} from "@/domains/academics/actions/rectification.actions";
+
 
 type StepType = "preparation" | "verification" | "rapports" | "validation" | "verrouillage" | "snapshot" | "ouverture";
 
@@ -37,17 +42,19 @@ export default function ArchivesPage() {
     payments: 0
   });
 
-  const [bypassedEdits, setBypassedEdits] = useState<any[]>([
-    { id: 1, operator: "Admin Principal", justification: "Correction faute d'orthographe nom élève Aminata Souleymane", date: "08/07/2026 12:00", module: "students" }
-  ]);
+  const [bypassedEdits, setBypassedEdits] = useState<any[]>([]);
   const [showOverrideModal, setShowOverrideModal] = useState(false);
   const [overrideData, setOverrideData] = useState({ module: "students", recordId: "", field: "", value: "", pass: "" });
 
   async function loadStats() {
     setLoading(true);
     try {
-      const res = await getArchiveDashboardStats();
-      const data = (res as any)?.data || res;
+      const [statsRes, rectRes] = await Promise.all([
+        getArchiveDashboardStats(),
+        getOfficialRectifications()
+      ]);
+
+      const data = (statsRes as any)?.data || statsRes;
       if (data) {
         setStats({
           students: data.students || 0,
@@ -62,8 +69,17 @@ export default function ArchivesPage() {
           setCurrentStep("verrouillage");
         }
       }
+
+      const rectList = (rectRes as any)?.data || rectRes || [];
+      setBypassedEdits(rectList.map((r: any) => ({
+        id: r.id,
+        operator: `Admin ID: ${r.approvedBy || r.requestedBy}`,
+        justification: r.reason,
+        date: new Date(r.createdAt).toLocaleString("fr-FR"),
+        module: r.entityType
+      })));
     } catch (e) {
-      console.warn("Failed to load archive stats:", e);
+      console.warn("Failed to load archive stats or rectifications:", e);
     } finally {
       setLoading(false);
     }
@@ -146,30 +162,36 @@ export default function ArchivesPage() {
   };
 
   // Override Locked Data Submit
-  const handleOverrideSubmit = () => {
+  const handleOverrideSubmit = async () => {
     if (!overrideData.recordId || !overrideData.field || !overrideData.value || !justification) {
       toast.error("Veuillez remplir tous les champs et fournir une justification obligatoire.");
       return;
     }
-    if (overrideData.pass !== "SUPERADMIN2026") {
-      toast.error("Code d'accès administrateur incorrect.");
-      return;
-    }
+    setLoading(true);
+    try {
+      const res = await submitOfficialRectification({
+        entityType: overrideData.module === "students" ? "student" : "grade",
+        entityId: Number(overrideData.recordId) || 0,
+        fieldName: overrideData.field,
+        newValue: overrideData.value,
+        reason: justification,
+        bypassPasscode: overrideData.pass
+      });
 
-    setBypassedEdits(prev => [
-      ...prev,
-      {
-        id: Date.now(),
-        operator: "Super Administrateur (Bypass Code)",
-        justification: justification,
-        date: new Date().toLocaleString("fr-FR"),
-        module: overrideData.module
+      if (res && res.success) {
+        toast.success("Rectification officielle appliquée et enregistrée avec succès !");
+        setShowOverrideModal(false);
+        setJustification("");
+        setOverrideData({ module: "students", recordId: "", field: "", value: "", pass: "" });
+        loadStats();
+      } else {
+        toast.error("Erreur de rectification: " + ((res as any)?.error || "Autorisation refusée."));
       }
-    ]);
-    
-    setShowOverrideModal(false);
-    setJustification("");
-    toast.success("Modification forcée appliquée. Événement enregistré dans les Audit Logs de sécurité.");
+    } catch (e) {
+      toast.error("Erreur de connexion serveur.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   // EXPORTS

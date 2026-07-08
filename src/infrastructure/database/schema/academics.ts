@@ -678,3 +678,28 @@ export const resultsWorkflowsRelations = relations(resultsWorkflows, ({ one }) =
   }),
 }));
 
+export const officialRectifications = pgTable("official_rectifications", {
+  id: serial("id").primaryKey(),
+  schoolId: integer("school_id").references(() => schools.id),
+  sessionId: integer("session_id").references(() => schoolSessions.id, { onDelete: "cascade" }),
+  entityType: varchar("entity_type", { length: 50 }).notNull(),
+  entityId: integer("entity_id").notNull(),
+  reason: text("reason").notNull(),
+  oldValue: text("old_value"),
+  newValue: text("new_value"),
+  requestedBy: integer("requested_by"),
+  approvedBy: integer("approved_by"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const officialRectificationsRelations = relations(officialRectifications, ({ one }) => ({
+  school: one(schools, {
+    fields: [officialRectifications.schoolId],
+    references: [schools.id],
+  }),
+  session: one(schoolSessions, {
+    fields: [officialRectifications.sessionId],
+    references: [schoolSessions.id],
+  }),
+}));
+
