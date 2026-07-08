@@ -116,7 +116,7 @@ export interface OutboxAction {
   entity?: string;
   entityId?: string | number | null;
   payload: any;
-  status?: "pending" | "syncing" | "synced" | "failed" | "conflict" | "cancelled";
+  status?: "pending" | "syncing" | "synced" | "failed" | "conflict" | "cancelled" | "local draft" | "pending sync" | "validated" | "rejected";
   timestamp: number;
   updatedAt?: number;
   syncedAt?: number | null;

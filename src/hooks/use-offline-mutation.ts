@@ -2,7 +2,16 @@ import { localDb } from "@/infrastructure/local-db/dexie";
 import { toast } from "sonner";
 import { useOnlineStatus } from "./use-online-status";
 
-type OfflineTable = "students" | "exams" | "examResults" | "subjects" | "feePayments" | "attendanceBatches";
+type OfflineTable = 
+  | "students" 
+  | "exams" 
+  | "examResults" 
+  | "subjects" 
+  | "feePayments" 
+  | "attendanceBatches"
+  | "documents"
+  | "library"
+  | "canevas";
 
 interface MutationOptions<T> {
   targetTable: OfflineTable;
@@ -15,7 +24,16 @@ interface MutationOptions<T> {
   schoolId?: string | number | null;
 }
 
-const SYNC_SUPPORTED_TABLES = new Set<OfflineTable>(["students", "exams", "examResults", "feePayments", "attendanceBatches"]);
+const SYNC_SUPPORTED_TABLES = new Set<OfflineTable>([
+  "students", 
+  "exams", 
+  "examResults", 
+  "feePayments", 
+  "attendanceBatches",
+  "documents",
+  "library",
+  "canevas"
+]);
 
 type OfflineMutationResult = {
   success: boolean;
@@ -40,7 +58,9 @@ export function useOfflineMutation<T>() {
             updatedAt: Date.now(),
           };
 
-          await localDb[targetTable].put(localPayload as any);
+          if (targetTable in localDb) {
+            await (localDb as any)[targetTable].put(localPayload as any);
+          }
 
           onSuccess?.({ success: true, action: res.action, id: res.id });
           return { success: true, fromCloud: true };
@@ -101,7 +121,9 @@ export function useOfflineMutation<T>() {
         updatedAt: now,
       };
 
-      await localDb[targetTable].put(localPayload as any);
+      if (targetTable in localDb) {
+        await (localDb as any)[targetTable].put(localPayload as any);
+      }
 
       const existingQueued = await localDb.outbox
         .where("idempotencyKey")
@@ -115,7 +137,7 @@ export function useOfflineMutation<T>() {
             id: localId,
             idempotencyKey,
           },
-          status: "pending",
+          status: "pending sync",
           updatedAt: now,
           lastError: null,
           userId,
@@ -132,7 +154,7 @@ export function useOfflineMutation<T>() {
             id: localId,
             idempotencyKey,
           },
-          status: "pending",
+          status: "pending sync",
           timestamp: now,
           updatedAt: now,
           retryCount: 0,

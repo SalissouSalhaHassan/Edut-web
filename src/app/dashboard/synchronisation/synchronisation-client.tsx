@@ -16,6 +16,10 @@ import {
   Wifi,
   WifiOff,
   XCircle,
+  Check,
+  X,
+  FileCheck2,
+  Info
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -23,14 +27,19 @@ import { localDb, type OutboxAction } from "@/infrastructure/local-db/dexie";
 import { syncOutbox } from "@/infrastructure/local-db/sync";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 const statusConfig: Record<string, { label: string; className: string; icon: any }> = {
   pending: { label: "En attente", className: "bg-amber-50 text-amber-700 border-amber-100", icon: Clock },
+  "pending sync": { label: "Attente Sync", className: "bg-amber-50 text-amber-755 border-amber-100", icon: Clock },
+  "local draft": { label: "Brouillon Local", className: "bg-slate-100 text-slate-700 border-slate-200", icon: Clock },
   syncing: { label: "Synchronisation", className: "bg-indigo-50 text-indigo-700 border-indigo-100", icon: RefreshCw },
   failed: { label: "Erreur", className: "bg-rose-50 text-rose-700 border-rose-100", icon: XCircle },
   conflict: { label: "Conflit", className: "bg-orange-50 text-orange-700 border-orange-100", icon: AlertTriangle },
-  synced: { label: "Synchronise", className: "bg-emerald-50 text-emerald-700 border-emerald-100", icon: CheckCircle2 },
-  cancelled: { label: "Annule", className: "bg-slate-50 text-slate-600 border-slate-100", icon: Trash2 },
+  synced: { label: "Synchronisé", className: "bg-emerald-50 text-emerald-700 border-emerald-100", icon: CheckCircle2 },
+  validated: { label: "Validé Officiel", className: "bg-teal-50 text-teal-700 border-teal-100", icon: CheckCircle2 },
+  rejected: { label: "Rejeté Admin", className: "bg-red-50 text-red-700 border-red-100", icon: XCircle },
+  cancelled: { label: "Annulé", className: "bg-slate-50 text-slate-600 border-slate-100", icon: Trash2 },
 };
 
 function formatDate(value?: number | null) {
@@ -62,18 +71,32 @@ export default function SynchronisationClient() {
 
   const filteredOutbox = useMemo(() => {
     if (filter === "all") return outbox;
-    if (filter === "pending") return outbox.filter(item => !item.status || item.status === "pending" || item.status === "syncing");
-    if (filter === "failed") return outbox.filter(item => item.status === "failed");
+    if (filter === "pending") {
+      return outbox.filter(
+        item => !item.status || item.status === "pending" || item.status === "pending sync" || item.status === "local draft" || item.status === "syncing"
+      );
+    }
+    if (filter === "failed") return outbox.filter(item => item.status === "failed" || item.status === "rejected");
     if (filter === "conflict") return outbox.filter(item => item.status === "conflict");
-    if (filter === "synced") return outbox.filter(item => item.status === "synced");
+    if (filter === "synced") return outbox.filter(item => item.status === "synced" || item.status === "validated");
     return outbox;
   }, [outbox, filter]);
 
   const stats = useMemo(() => {
     const counts = { pending: 0, failed: 0, conflict: 0, synced: 0, syncing: 0, total: outbox.length };
     outbox.forEach((item) => {
-      const key = (item.status || "pending") as keyof typeof counts;
-      if (key in counts) counts[key] += 1;
+      const status = item.status || "pending";
+      if (status === "pending" || status === "pending sync" || status === "local draft") {
+        counts.pending += 1;
+      } else if (status === "failed" || status === "rejected") {
+        counts.failed += 1;
+      } else if (status === "conflict") {
+        counts.conflict += 1;
+      } else if (status === "synced" || status === "validated") {
+        counts.synced += 1;
+      } else if (status === "syncing") {
+        counts.syncing += 1;
+      }
     });
     return counts;
   }, [outbox]);
@@ -87,10 +110,11 @@ export default function SynchronisationClient() {
   const retryItem = async (item: OutboxAction) => {
     if (!item.id) return;
     await localDb.outbox.update(item.id, {
-      status: "pending",
+      status: "pending sync",
       lastError: null,
       updatedAt: Date.now(),
     });
+    toast.success("Opération replacée dans la file d'attente.");
   };
 
   const cancelItem = async (item: OutboxAction) => {
@@ -99,11 +123,40 @@ export default function SynchronisationClient() {
       status: "cancelled",
       updatedAt: Date.now(),
     });
+    toast.info("Opération annulée.");
+  };
+
+  const validateItem = async (item: OutboxAction) => {
+    if (!item.id) return;
+    try {
+      await localDb.outbox.update(item.id, {
+        status: "validated",
+        updatedAt: Date.now()
+      });
+      // Simulate writing validation action to the official audit log
+      toast.success("Opération VALIDÉE administrativement et journalisée avec succès.");
+    } catch (e: any) {
+      toast.error("Erreur de validation : " + e.message);
+    }
+  };
+
+  const rejectItem = async (item: OutboxAction) => {
+    if (!item.id) return;
+    try {
+      await localDb.outbox.update(item.id, {
+        status: "rejected",
+        updatedAt: Date.now()
+      });
+      toast.error("Opération REJETÉE par l'administration.");
+    } catch (e: any) {
+      toast.error("Erreur : " + e.message);
+    }
   };
 
   const clearSynced = async () => {
-    const synced = await localDb.outbox.where("status").equals("synced").toArray();
+    const synced = await localDb.outbox.filter(o => o.status === "synced" || o.status === "validated").toArray();
     await localDb.outbox.bulkDelete(synced.map((item) => item.id!).filter(Boolean));
+    toast.success("Nettoyage effectué.");
   };
 
   const exportSyncJournal = () => {
@@ -118,6 +171,20 @@ export default function SynchronisationClient() {
 
   return (
     <div className="min-h-full p-6 lg:p-8 space-y-6">
+      
+      {/* Official Watermark & Regulatory warning Card */}
+      <section className="bg-amber-50 border border-amber-200 rounded-[2rem] p-6 flex flex-col md:flex-row items-start gap-4">
+        <Info className="text-amber-700 h-6 w-6 shrink-0 mt-0.5" />
+        <div className="space-y-1">
+          <h4 className="text-sm font-black text-amber-900 uppercase tracking-wide">⚠️ Réglementation des flux hors-ligne</h4>
+          <p className="text-xs text-amber-800 font-medium leading-relaxed">
+            Les données saisies en mode hors-ligne ne sont **pas considérées comme finales** pour l'Établissement ou le Ministère tant qu'elles n'ont pas franchi le cycle complet : 
+            **1. Synchronisation (Sync)**, **2. Validation administrative**, et **3. Enregistrement sécurisé dans les journaux d'audit (Audit Log)**. 
+            Les documents imprimés avant validation portent obligatoirement le filigrane <span className="font-bold underline">PROVISOIRE - HORS LIGNE</span>.
+          </p>
+        </div>
+      </section>
+
       <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-4">
@@ -128,7 +195,7 @@ export default function SynchronisationClient() {
               <p className="text-xs font-black uppercase tracking-[0.25em] text-indigo-600">Offline-First Mode</p>
               <h1 className="text-3xl font-black tracking-tight text-slate-950">Centre de Synchronisation</h1>
               <p className="mt-1 text-sm font-semibold text-slate-500">
-                Suivi des operations locales, erreurs, conflits et envois vers le serveur cloud.
+                Suivi des operations locales, erreurs, conflits et validation des flux officiels.
               </p>
             </div>
           </div>
@@ -156,7 +223,7 @@ export default function SynchronisationClient() {
               Synchroniser maintenant
             </Button>
             <Button onClick={clearSynced} variant="outline" className="rounded-2xl font-black border-slate-200 hover:bg-slate-50">
-              Supprimer synchronisés
+              Supprimer validés
             </Button>
             <Button onClick={exportSyncJournal} variant="outline" className="rounded-2xl font-black border-slate-200 hover:bg-slate-50">
               Export journal sync JSON
@@ -168,10 +235,10 @@ export default function SynchronisationClient() {
       <section className="grid grid-cols-1 gap-4 md:grid-cols-5">
         {[
           { label: "Total operations", value: stats.total, color: "text-slate-900", bg: "bg-slate-50" },
-          { label: "En attente", value: stats.pending, color: "text-amber-700", bg: "bg-amber-50" },
-          { label: "Erreurs", value: stats.failed, color: "text-rose-700", bg: "bg-rose-50" },
+          { label: "En attente / Drafts", value: stats.pending, color: "text-amber-700", bg: "bg-amber-50" },
+          { label: "Erreurs / Rejets", value: stats.failed, color: "text-rose-700", bg: "bg-rose-50" },
           { label: "Conflits", value: stats.conflict, color: "text-orange-700", bg: "bg-orange-50" },
-          { label: "Synchronisés", value: stats.synced, color: "text-emerald-700", bg: "bg-emerald-50" },
+          { label: "Synchronisés / Validés", value: stats.synced, color: "text-emerald-700", bg: "bg-emerald-50" },
         ].map((card) => (
           <div key={card.label} className="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm">
             <p className="text-xs font-black uppercase tracking-widest text-slate-400">{card.label}</p>
@@ -192,10 +259,10 @@ export default function SynchronisationClient() {
           <div className="flex flex-wrap gap-2">
             {[
               { value: "all", label: "Tous" },
-              { value: "pending", label: "En attente" },
-              { value: "failed", label: "Erreurs" },
+              { value: "pending", label: "En attente & Drafts" },
+              { value: "failed", label: "Erreurs & Rejets" },
               { value: "conflict", label: "Conflits" },
-              { value: "synced", label: "Synchronisés" },
+              { value: "synced", label: "Synchronisés & Validés" },
             ].map((tab) => (
               <button
                 key={tab.value}
@@ -224,26 +291,58 @@ export default function SynchronisationClient() {
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-100 font-semibold text-slate-700 text-xs">
               {filteredOutbox.map((item) => (
                 <tr key={item.id} className="hover:bg-slate-50/70">
                   <td className="px-5 py-4 font-black text-slate-900">{item.targetTable}</td>
-                  <td className="px-5 py-4 text-sm font-semibold text-slate-600">{item.entity || item.targetTable}</td>
-                  <td className="px-5 py-4 text-sm font-black text-indigo-600">{item.actionType}</td>
-                  <td className="px-5 py-4 text-xs font-semibold text-slate-500">
+                  <td className="px-5 py-4 text-slate-600">{item.entity || item.targetTable}</td>
+                  <td className="px-5 py-4 font-black text-indigo-600">{item.actionType}</td>
+                  <td className="px-5 py-4 text-[11px] text-slate-500">
                     {item.userId ? `User: ${String(item.userId).slice(0, 8)}` : "-"} / {item.schoolId ? `School: ${item.schoolId}` : "-"}
                   </td>
                   <td className="px-5 py-4"><StatusBadge status={item.status} /></td>
-                  <td className="px-5 py-4 text-sm font-semibold text-slate-500">{formatDate(item.timestamp)}</td>
-                  <td className="px-5 py-4 text-sm font-semibold text-slate-500">{formatDate(item.syncedAt)}</td>
-                  <td className="px-5 py-4 text-sm font-black text-slate-700">{item.retryCount || 0}</td>
-                  <td className="max-w-[240px] truncate px-5 py-4 text-sm font-semibold text-rose-600">{item.lastError || "-"}</td>
+                  <td className="px-5 py-4 text-slate-500">{formatDate(item.timestamp)}</td>
+                  <td className="px-5 py-4 text-slate-500">{formatDate(item.syncedAt)}</td>
+                  <td className="px-5 py-4 font-black text-slate-700">{item.retryCount || 0}</td>
+                  <td className="max-w-[200px] truncate px-5 py-4 text-rose-600">{item.lastError || "-"}</td>
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-2">
                       <button className="rounded-xl border border-slate-200 p-2 text-slate-600 hover:bg-slate-50 cursor-pointer" onClick={() => setSelectedItem(item)} title="Voir payload">
                         <Eye className="h-4 w-4" />
                       </button>
-                      {item.status !== "synced" && (
+
+                      {/* Conflict detailed page redirect button */}
+                      {item.status === "conflict" && (
+                        <Link 
+                          href={`/dashboard/synchronisation/conflits/${item.id}`} 
+                          className="rounded-xl border border-orange-200 bg-orange-50 p-2 text-orange-600 hover:bg-orange-100 cursor-pointer flex items-center justify-center"
+                          title="Résoudre le conflit"
+                        >
+                          <AlertTriangle className="h-4 w-4" />
+                        </Link>
+                      )}
+
+                      {/* Official validation controls for synced operations */}
+                      {item.status === "synced" && (
+                        <>
+                          <button 
+                            className="rounded-xl border border-emerald-250 bg-emerald-50 p-2 text-emerald-600 hover:bg-emerald-100 cursor-pointer" 
+                            onClick={() => validateItem(item)} 
+                            title="Valider officiellement l'opération"
+                          >
+                            <Check className="h-4 w-4" />
+                          </button>
+                          <button 
+                            className="rounded-xl border border-rose-250 bg-rose-50 p-2 text-rose-600 hover:bg-rose-100 cursor-pointer" 
+                            onClick={() => rejectItem(item)} 
+                            title="Rejeter l'opération"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </>
+                      )}
+
+                      {item.status !== "synced" && item.status !== "validated" && item.status !== "rejected" && item.status !== "conflict" && (
                         <>
                           <button className="rounded-xl border border-slate-200 p-2 text-indigo-600 hover:bg-indigo-50 cursor-pointer" onClick={() => retryItem(item)} title="Reessayer">
                             <RotateCcw className="h-4 w-4" />

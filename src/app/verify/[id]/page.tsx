@@ -210,7 +210,7 @@ export default function DocumentVerificationPage() {
         badge: "bg-slate-500 text-white",
         text: "DOCUMENT GÉNÉRÉ HORS LIGNE",
         icon: <HelpCircle className="text-slate-500 size-16" />,
-        watermark: "HORS LIGNE",
+        watermark: "PROVISOIRE - HORS LIGNE",
         watermarkColor: "text-slate-400/5"
       }
     };
