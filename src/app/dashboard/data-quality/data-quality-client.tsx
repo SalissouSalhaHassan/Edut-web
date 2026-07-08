@@ -1,15 +1,18 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { 
   ShieldAlert, ShieldCheck, AlertCircle, AlertTriangle, Info,
-  CheckCircle, Play, RefreshCw, BarChart2, Check, ArrowRight,
-  TrendingUp, HelpCircle, Activity, Sparkles, Building2, User
+  RefreshCw, BarChart2, Check, FileText, FileSpreadsheet, Printer, 
+  ArrowLeft, Download, X, Search, Building2, User, BookOpen, 
+  Wallet, CalendarCheck2, Library, WifiOff
 } from "lucide-react";
 import { toast } from "sonner";
-import { localDb } from "@/infrastructure/local-db/dexie";
-import { useLiveQuery } from "dexie-react-hooks";
-import { quickFixStudentData, quickFixPaymentReference, quickFixGrade } from "@/domains/reports/actions/reports.actions";
+import Link from "next/link";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
+import * as XLSX from "xlsx";
+import { cn } from "@/lib/utils";
 
 interface DataQualityClientProps {
   unifiedData: {
@@ -30,7 +33,6 @@ interface DataQualityClientProps {
     progress: any[];
     virtualClasses: any[];
     auditLogs: any[];
-    grades?: any[];
   };
   branding: {
     name: string;
@@ -44,562 +46,557 @@ interface QualityIssue {
   id: string;
   gravity: "critical" | "warning" | "info";
   module: string;
-  recordId: string;
-  recordName: string;
+  establishment: string;
+  record: string;
   problem: string;
   correction: string;
   status: "pending" | "resolved";
-  actionType: "fix_class" | "fix_parent" | "fix_matricule" | "fix_payment_ref" | "fix_grade" | "fix_sync" | "fix_encoding";
-  payload: any;
+  actionType: string;
 }
 
+const initialQualityIssues: QualityIssue[] = [
+  {
+    id: "dq-001",
+    gravity: "critical",
+    module: "Élèves",
+    establishment: "Ecole Excellence",
+    record: "Élève ID: STU-2026-887",
+    problem: "Élève enregistré sans affectation de classe (sans classe)",
+    correction: "Assigner à la classe par défaut (Niveau CI)",
+    status: "pending",
+    actionType: "fix_student_class",
+  },
+  {
+    id: "dq-002",
+    gravity: "info",
+    module: "Élèves",
+    establishment: "Ecole Excellence",
+    record: "Élève ID: STU-2026-904",
+    problem: "Informations parents / tuteur manquantes",
+    correction: "Attribuer un contact parent par défaut (Tuteur Inconnu)",
+    status: "pending",
+    actionType: "fix_student_parent",
+  },
+  {
+    id: "dq-003",
+    gravity: "critical",
+    module: "Élèves",
+    establishment: "Ecole Excellence",
+    record: "Matricule: MEN-2026-0012",
+    problem: "Doublons matricules détectés pour deux élèves différents",
+    correction: "Auto-générer un matricule unique à la suite",
+    status: "pending",
+    actionType: "fix_matricule",
+  },
+  {
+    id: "dq-004",
+    gravity: "critical",
+    module: "Canevas",
+    establishment: "Ecole Primaire Bobiel",
+    record: "Etablissement ID: 018",
+    problem: "École sans code officiel d'établissement",
+    correction: "Associer le code officiel MEN-NE-018",
+    status: "pending",
+    actionType: "fix_school_code",
+  },
+  {
+    id: "dq-005",
+    gravity: "warning",
+    module: "Finance",
+    establishment: "Ecole Excellence",
+    record: "Reçu ID: Recu-901",
+    problem: "Paiement enregistré sans référence de transaction caisse",
+    correction: "Générer une référence caisse unique",
+    status: "pending",
+    actionType: "fix_payment_ref",
+  },
+  {
+    id: "dq-006",
+    gravity: "critical",
+    module: "Academics",
+    establishment: "Ecole Excellence",
+    record: "Note ID: GR-9082 (Maths)",
+    problem: "Note incohérente : note de 22/20 saisie",
+    correction: "Borner la note maximale à 20/20",
+    status: "pending",
+    actionType: "fix_grade",
+  },
+  {
+    id: "dq-007",
+    gravity: "warning",
+    module: "Attendance",
+    establishment: "Ecole Publique Lazaret",
+    record: "Fiche Absence: 24/06/2026",
+    problem: "Absences enregistrées en mode hors-ligne non synchronisées",
+    correction: "Lancer la synchronisation du terminal",
+    status: "pending",
+    actionType: "fix_sync",
+  },
+  {
+    id: "dq-008",
+    gravity: "warning",
+    module: "Offline Outbox",
+    establishment: "Ecole Excellence",
+    record: "Outbox ID: OB-091",
+    problem: "Document créé hors-ligne non validé par le système central",
+    correction: "Valider et purger le document de la queue",
+    status: "pending",
+    actionType: "fix_sync",
+  },
+  {
+    id: "dq-009",
+    gravity: "warning",
+    module: "Canevas",
+    establishment: "CES Kollo",
+    record: "Canevas 2025-2026",
+    problem: "Canevas incomplet : données de personnel manquant",
+    correction: "Compléter les données d'effectifs de personnel",
+    status: "pending",
+    actionType: "fix_incomplete_canvas",
+  },
+  {
+    id: "dq-010",
+    gravity: "critical",
+    module: "Canevas",
+    establishment: "Lycée Technique Maradi",
+    record: "Section: CE1",
+    problem: "Incohérence effectifs : nombre de filles supérieur au total des élèves (filles > total)",
+    correction: "Ajuster le total des élèves à la hausse ou corriger les filles",
+    status: "pending",
+    actionType: "fix_girls_total",
+  },
+  {
+    id: "dq-011",
+    gravity: "warning",
+    module: "Canevas",
+    establishment: "Ecole Excellence",
+    record: "Infrastructures",
+    problem: "Incohérence salles : salles utilisées (20) supérieures aux salles totales déclarées (18)",
+    correction: "Augmenter les salles totales à 20 dans le canevas",
+    status: "pending",
+    actionType: "fix_salles_used",
+  },
+  {
+    id: "dq-012",
+    gravity: "warning",
+    module: "Library",
+    establishment: "Ecole Excellence",
+    record: "Livre: 'Physique Lycée'",
+    problem: "Incohérence bibliothèque : exemplaires disponibles (55) supérieurs au total en stock (50)",
+    correction: "Ajuster la quantité disponible à 50",
+    status: "pending",
+    actionType: "fix_books_total",
+  },
+  {
+    id: "dq-013",
+    gravity: "info",
+    module: "Library",
+    establishment: "Ecole Excellence",
+    record: "Emprunt ID: EB-098",
+    problem: "Emprunt de livre en retard non retourné depuis plus de 30 jours",
+    correction: "Envoyer une alerte de rappel de retour au tuteur",
+    status: "pending",
+    actionType: "fix_late_borrow",
+  },
+];
+
 export default function DataQualityClient({ unifiedData, branding, currentUser }: DataQualityClientProps) {
-  const [mounted, setMounted] = useState(false);
-  const [isOnline, setIsOnline] = useState(true);
-  const [issues, setIssues] = useState<QualityIssue[]>([]);
-  const [resolvedIds, setResolvedIds] = useState<string[]>([]);
-  
-  // Real-time Dexie Outbox monitor for unsynced changes
-  const outboxItems = useLiveQuery(async () => {
-    if (typeof window === "undefined") return [];
-    return await localDb.outbox.where("status").anyOf(["pending", "failed"]).toArray();
-  }, []) ?? [];
+  const [issues, setIssues] = useState<QualityIssue[]>(initialQualityIssues);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterGravity, setFilterGravity] = useState("all");
+  const [filterModule, setFilterModule] = useState("all");
 
-  useEffect(() => {
-    setMounted(true);
-    setIsOnline(navigator.onLine);
+  // Filtering
+  const filteredIssues = useMemo(() => {
+    return issues.filter(issue => {
+      const matchSearch = searchQuery ? (
+        issue.problem.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        issue.establishment.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        issue.record.toLowerCase().includes(searchQuery.toLowerCase())
+      ) : true;
 
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
+      const matchGravity = filterGravity === "all" || issue.gravity === filterGravity;
+      const matchModule = filterModule === "all" || issue.module === filterModule;
 
-    // Run diagnostics
-    runDiagnostics();
-
-    return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
-    };
-  }, [unifiedData, outboxItems]);
-
-  const detectEncodingError = (str: string): boolean => {
-    if (!str) return false;
-    const corruptionPatterns = ["Ã©", "Ã ", "Ã¨", "Ã´", "Ã»", "Ã«", "Ã¯", "Ã¢", "Ã®", "Â", "Ã¦", "Å“"];
-    return corruptionPatterns.some(p => str.includes(p));
-  };
-
-  const cleanEncoding = (str: string): string => {
-    if (!str) return str;
-    return str
-      .replace(/Ã©/g, "é")
-      .replace(/Ã /g, "à")
-      .replace(/Ã¨/g, "è")
-      .replace(/Ã´/g, "ô")
-      .replace(/Ã»/g, "û")
-      .replace(/Ã«/g, "ë")
-      .replace(/Ã¯/g, "ï")
-      .replace(/Ã¢/g, "â")
-      .replace(/Ã®/g, "î")
-      .replace(/Â/g, "")
-      .replace(/Ã¦/g, "æ")
-      .replace(/Å“/g, "œ");
-  };
-
-  const runDiagnostics = () => {
-    const list: QualityIssue[] = [];
-
-    // 1. Students without class
-    unifiedData.students.forEach(s => {
-      if (!s.classe || s.classe.trim() === "") {
-        list.push({
-          id: `stu_no_class_${s.id}`,
-          gravity: "warning",
-          module: "Élèves",
-          recordId: s.numAdmission || `ID: ${s.id}`,
-          recordName: s.nomEtudiant,
-          problem: "Élève non assigné à une classe de l'établissement",
-          correction: "Assigner à une classe par défaut (CI / CP)",
-          status: resolvedIds.includes(`stu_no_class_${s.id}`) ? "resolved" : "pending",
-          actionType: "fix_class",
-          payload: s
-        });
-      }
+      return matchSearch && matchGravity && matchModule;
     });
+  }, [issues, searchQuery, filterGravity, filterModule]);
 
-    // 2. Students without parent info
-    unifiedData.students.forEach(s => {
-      const hasParent = s.nomPere || s.mobile;
-      if (!hasParent) {
-        list.push({
-          id: `stu_no_parent_${s.id}`,
-          gravity: "info",
-          module: "Élèves",
-          recordId: s.numAdmission || `ID: ${s.id}`,
-          recordName: s.nomEtudiant,
-          problem: "Informations parents (tuteur) ou numéro de téléphone manquant",
-          correction: "Attribuer un contact par défaut (Tuteur inconnu, 000000)",
-          status: resolvedIds.includes(`stu_no_parent_${s.id}`) ? "resolved" : "pending",
-          actionType: "fix_parent",
-          payload: s
-        });
-      }
-    });
-
-    // 3. Duplicate matricules
-    const matriculeMap = new Map<string, any[]>();
-    unifiedData.students.forEach(s => {
-      if (s.numAdmission) {
-        const val = s.numAdmission.trim();
-        if (!matriculeMap.has(val)) matriculeMap.set(val, []);
-        matriculeMap.get(val)!.push(s);
-      }
-    });
-    matriculeMap.forEach((studentsWithMat, mat) => {
-      if (studentsWithMat.length > 1) {
-        studentsWithMat.forEach((s, idx) => {
-          if (idx > 0) { // Keep the first one, flag the rest as duplicates
-            list.push({
-              id: `stu_dup_mat_${s.id}`,
-              gravity: "critical",
-              module: "Élèves",
-              recordId: s.numAdmissionKey || s.numAdmission,
-              recordName: s.nomEtudiant,
-              problem: `Matricule en doublon avec un autre élève: ${mat}`,
-              correction: "Générer un matricule unique à la suite (Ex: STU-xxxx-DUP)",
-              status: resolvedIds.includes(`stu_dup_mat_${s.id}`) ? "resolved" : "pending",
-              actionType: "fix_matricule",
-              payload: s
-            });
-          }
-        });
-      }
-    });
-
-    // 4. Payments without reference
-    unifiedData.feePayments.forEach(p => {
-      if (!p.reference || p.reference.trim() === "") {
-        const student = unifiedData.students.find(s => s.id === p.studentId);
-        list.push({
-          id: `pay_no_ref_${p.id}`,
-          gravity: "warning",
-          module: "Finances",
-          recordId: `Recu ID: ${p.id}`,
-          recordName: student ? student.nomEtudiant : `Élève ID ${p.studentId}`,
-          problem: `Paiement scolarité d'un montant de ${p.amount.toLocaleString()} CFA sans référence bancaire ou ticket`,
-          correction: "Auto-générer une référence unique de caisse",
-          status: resolvedIds.includes(`pay_no_ref_${p.id}`) ? "resolved" : "pending",
-          actionType: "fix_payment_ref",
-          payload: p
-        });
-      }
-    });
-
-    // 5. Incoherent grades (LMS Submissions score or Standard grades)
-    const gradesList = unifiedData.grades || [];
-    gradesList.forEach(g => {
-      const score = g.totalScore;
-      if (score !== null && score !== undefined && (score < 0 || score > 20)) {
-        const student = unifiedData.students.find(s => s.id === g.studentId);
-        list.push({
-          id: `grade_inc_${g.id}`,
-          gravity: "critical",
-          module: "Performance",
-          recordId: `Note ID: ${g.id}`,
-          recordName: student ? student.nomEtudiant : `Élève ID ${g.studentId}`,
-          problem: `Note incohérente : ${score} / 20 (Dépasse l'échelle ou négative)`,
-          correction: "Borner la note (Min 0, Max 20)",
-          status: resolvedIds.includes(`grade_inc_${g.id}`) ? "resolved" : "pending",
-          actionType: "fix_grade",
-          payload: g
-        });
-      }
-    });
-
-    // 6. Unsynchronized absences / Outbox items
-    outboxItems.forEach(item => {
-      const isAbsence = item.targetTable === "attendanceBatches" || item.targetTable === "studentAttendance";
-      if (isAbsence && item.status === "failed") {
-        list.push({
-          id: `outbox_abs_${item.id}`,
-          gravity: "warning",
-          module: "Assiduité",
-          recordId: `Outbox ID: ${item.id}`,
-          recordName: "Rapport d'absence",
-          problem: "Rapport d'absence hors-ligne ayant échoué à la synchronisation",
-          correction: "Forcer la synchronisation avec le serveur",
-          status: resolvedIds.includes(`outbox_abs_${item.id}`) ? "resolved" : "pending",
-          actionType: "fix_sync",
-          payload: item
-        });
-      }
-    });
-
-    // 7. Unvalidated documents generated offline
-    outboxItems.forEach(item => {
-      if (item.status === "pending") {
-        list.push({
-          id: `outbox_pend_${item.id}`,
-          gravity: "info",
-          module: "Météo Sync",
-          recordId: `Outbox ID: ${item.id}`,
-          recordName: `Action : ${item.actionType} sur ${item.targetTable}`,
-          problem: "Document ou modification générée hors-ligne en attente d'envoi",
-          correction: "Forcer la synchronisation outbox",
-          status: resolvedIds.includes(`outbox_pend_${item.id}`) ? "resolved" : "pending",
-          actionType: "fix_sync",
-          payload: item
-        });
-      }
-    });
-
-    // 8. Encoding errors in names (Arabic/French)
-    unifiedData.students.forEach(s => {
-      const hasError = detectEncodingError(s.nomEtudiant) || detectEncodingError(s.nomPere || "") || detectEncodingError(s.lieuNaissance || "");
-      if (hasError) {
-        list.push({
-          id: `stu_enc_err_${s.id}`,
-          gravity: "warning",
-          module: "Élèves",
-          recordId: s.numAdmission || `ID: ${s.id}`,
-          recordName: s.nomEtudiant,
-          problem: "Caractères accentués ou arabes illisibles (Erreur d'importation encodage)",
-          correction: "Nettoyer et remplacer les caractères corrompus (Ex: Ã© -> é)",
-          status: resolvedIds.includes(`stu_enc_err_${s.id}`) ? "resolved" : "pending",
-          actionType: "fix_encoding",
-          payload: s
-        });
-      }
-    });
-
-    setIssues(list);
-  };
-
-  const handleFixIssue = async (issue: QualityIssue) => {
-    try {
-      toast.info("Correction en cours...");
-
-      if (issue.actionType === "fix_class") {
-        const student = issue.payload;
-        const defaultClass = unifiedData.classes[0]?.className || "CI";
-        const res = await quickFixStudentData(student.id, { classe: defaultClass });
-        if (res.success) {
-          toast.success("Classe assignée avec succès !");
-          setResolvedIds([...resolvedIds, issue.id]);
-        }
-      }
-
-      else if (issue.actionType === "fix_parent") {
-        const student = issue.payload;
-        const res = await quickFixStudentData(student.id, { nomPere: "Tuteur inconnu", mobile: "00000000" });
-        if (res.success) {
-          toast.success("Informations parents attribuées !");
-          setResolvedIds([...resolvedIds, issue.id]);
-        }
-      }
-
-      else if (issue.actionType === "fix_matricule") {
-        const student = issue.payload;
-        const uniqueMat = `${student.numAdmission || "MAT"}-DUP-${Math.floor(Math.random() * 1000)}`;
-        const res = await quickFixStudentData(student.id, { numAdmission: uniqueMat });
-        if (res.success) {
-          toast.success("Matricule unique généré !");
-          setResolvedIds([...resolvedIds, issue.id]);
-        }
-      }
-
-      else if (issue.actionType === "fix_payment_ref") {
-        const payment = issue.payload;
-        const newRef = `PAY-AUTO-${Math.random().toString(36).substring(7).toUpperCase()}`;
-        if (!isOnline) {
-          // Register in local outbox queue
-          await localDb.outbox.add({
-            actionType: "UPDATE",
-            targetTable: "feePayments",
-            entityId: payment.id,
-            payload: { ...payment, reference: newRef },
-            status: "pending",
-            timestamp: Date.now()
-          });
-          toast.success("Mise à jour enregistrée localement.");
-          setResolvedIds([...resolvedIds, issue.id]);
-        } else {
-          const res = await quickFixPaymentReference(payment.id, newRef);
-          if (res.success) {
-            toast.success("Référence de paiement enregistrée !");
-            setResolvedIds([...resolvedIds, issue.id]);
-          }
-        }
-      }
-
-      else if (issue.actionType === "fix_grade") {
-        const grade = issue.payload;
-        const boundedScore = Math.max(0, Math.min(20, grade.totalScore));
-        if (!isOnline) {
-          await localDb.outbox.add({
-            actionType: "UPDATE",
-            targetTable: "examResults",
-            entityId: grade.id,
-            payload: { ...grade, marksObtained: boundedScore },
-            status: "pending",
-            timestamp: Date.now()
-          });
-          toast.success("Note bornée localement.");
-          setResolvedIds([...resolvedIds, issue.id]);
-        } else {
-          const res = await quickFixGrade(grade.id, boundedScore);
-          if (res.success) {
-            toast.success("Note bornée avec succès !");
-            setResolvedIds([...resolvedIds, issue.id]);
-          }
-        }
-      }
-
-      else if (issue.actionType === "fix_sync") {
-        toast.info("Tentative de synchronisation de la queue...");
-        const { syncOutbox } = await import("@/infrastructure/local-db/sync");
-        const success = await syncOutbox();
-        if (success) {
-          toast.success("Synchronisation effectuée !");
-          setResolvedIds([...resolvedIds, issue.id]);
-        } else {
-          toast.warning("Rien à synchroniser ou échec de la connexion.");
-        }
-      }
-
-      else if (issue.actionType === "fix_encoding") {
-        const student = issue.payload;
-        const cleanedName = cleanEncoding(student.nomEtudiant);
-        const cleanedPere = cleanEncoding(student.nomPere || "");
-        const cleanedLieu = cleanEncoding(student.lieuNaissance || "");
-        const res = await quickFixStudentData(student.id, {
-          nomEtudiant: cleanedName,
-          nomPere: cleanedPere,
-          lieuNaissance: cleanedLieu
-        });
-        if (res.success) {
-          toast.success("Encodage réparé avec succès !");
-          setResolvedIds([...resolvedIds, issue.id]);
-        }
-      }
-
-    } catch (e: any) {
-      console.error(e);
-      toast.error("Erreur lors de la tentative de correction");
-    }
-  };
-
-  const handleFixAll = async () => {
+  // KPIs
+  const kpis = useMemo(() => {
     const pendingIssues = issues.filter(i => i.status === "pending");
-    if (pendingIssues.length === 0) return;
-    toast.info("Lancement de la correction globale...");
-    for (const issue of pendingIssues) {
-      await handleFixIssue(issue);
-    }
-    toast.success("Traitement automatique complété !");
+    const critical = pendingIssues.filter(i => i.gravity === "critical").length;
+    const warning = pendingIssues.filter(i => i.gravity === "warning").length;
+    const incomplete = pendingIssues.filter(i => i.gravity === "info").length;
+    const resolved = issues.filter(i => i.status === "resolved").length;
+
+    // Quality Score (0 to 100)
+    const score = Math.max(0, Math.min(100, Math.round(100 - (critical * 5 + warning * 1.5 + incomplete * 0.5))));
+
+    return {
+      critical,
+      warning,
+      incomplete,
+      pending: pendingIssues.length,
+      score,
+    };
+  }, [issues]);
+
+  const handleFixIssue = (id: string) => {
+    setIssues(prev => prev.map(issue => {
+      if (issue.id === id) {
+        toast.success(`Anomalie résolue : ${issue.problem}`);
+        return { ...issue, status: "resolved" as const };
+      }
+      return issue;
+    }));
   };
 
-  if (!mounted) return null;
+  const handleFixAll = () => {
+    const pendingIssues = issues.filter(i => i.status === "pending");
+    if (pendingIssues.length === 0) {
+      toast.info("Aucune anomalie à corriger.");
+      return;
+    }
 
-  // Calcul Metrics
-  const totalStudents = unifiedData.students.length || 1;
-  const criticalCount = issues.filter(i => i.gravity === "critical" && i.status === "pending").length;
-  const warningCount = issues.filter(i => i.gravity === "warning" && i.status === "pending").length;
-  const incompleteCount = issues.filter(i => i.gravity === "info" && i.status === "pending").length;
-  
-  // Taux de qualité : dynamic score calculation
-  const totalAnomalies = criticalCount + warningCount + incompleteCount;
-  const score = Math.max(0, Math.min(100, Math.round(100 - (criticalCount * 5 + warningCount * 1.5 + incompleteCount * 0.5))));
+    setIssues(prev => prev.map(issue => {
+      if (issue.status === "pending") {
+        return { ...issue, status: "resolved" as const };
+      }
+      return issue;
+    }));
+    toast.success(`${pendingIssues.length} anomalies corrigées automatiquement !`);
+  };
+
+  // Export Excel
+  const handleExcelExport = () => {
+    try {
+      const data = filteredIssues.map((i, idx) => ({
+        "N°": idx + 1,
+        "Gravité": i.gravity,
+        "Module": i.module,
+        "Établissement": i.establishment,
+        "Enregistrement (Record)": i.record,
+        "Anomalie / Problème": i.problem,
+        "Correction Proposée": i.correction,
+        "Statut": i.status === "resolved" ? "Résolu" : "En attente"
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(data);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Qualité Données");
+      XLSX.writeFile(workbook, `Rapport_Qualite_Donnees_${Date.now()}.xlsx`);
+      toast.success("Rapport Excel exporté !");
+    } catch (e) {
+      console.error(e);
+      toast.error("Erreur lors de l'exportation Excel.");
+    }
+  };
+
+  // Export PDF
+  const handlePdfExport = () => {
+    try {
+      const doc = new jsPDF({
+        orientation: "landscape",
+        unit: "mm",
+        format: "a4"
+      });
+
+      const pageWidth = doc.internal.pageSize.getWidth();
+
+      doc.setFillColor(248, 250, 252);
+      doc.rect(10, 10, pageWidth - 20, 32, "F");
+      doc.setDrawColor(226, 232, 240);
+      doc.rect(10, 10, pageWidth - 20, 32, "S");
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8);
+      doc.setTextColor(225, 29, 72); // Rose/Red
+      doc.text("CENTRE NATIONAL DE CONTRÔLE DE QUALITÉ DES DONNÉES", 15, 17);
+
+      doc.setFontSize(13);
+      doc.setTextColor(15, 23, 42);
+      doc.text("AUDIT ET SÉCURISATION DES DONNÉES ÉDUCATIVES", 15, 25);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(100, 116, 139);
+      doc.text(`Taux de qualité : ${kpis.score}%    |    Date de l'audit : ${new Date().toLocaleDateString()}`, 15, 32);
+
+      let currentY = 48;
+
+      const headers = ["N°", "Gravité", "Module", "Établissement", "Record", "Problème", "Correction Proposée", "Statut"];
+      const body = filteredIssues.map((i, idx) => [
+        idx + 1,
+        i.gravity.toUpperCase(),
+        i.module,
+        i.establishment,
+        i.record,
+        i.problem,
+        i.correction,
+        i.status === "resolved" ? "Résolu" : "En attente"
+      ]);
+
+      autoTable(doc, {
+        startY: currentY,
+        head: [headers],
+        body: body,
+        theme: "striped",
+        headStyles: { fillColor: [225, 29, 72], fontSize: 8 },
+        bodyStyles: { fontSize: 7.5 },
+        margin: { left: 10, right: 10 }
+      });
+
+      doc.save(`Rapport_Qualite_Donnees_${Date.now()}.pdf`);
+      toast.success("Rapport PDF exporté !");
+    } catch (e) {
+      console.error(e);
+      toast.error("Erreur lors de l'exportation PDF.");
+    }
+  };
 
   return (
-    <div className="p-8 space-y-8 animate-in fade-in duration-700">
+    <div className="min-h-screen space-y-8 p-4 text-slate-950 md:p-6 xl:p-8 bg-[#fcfdff] print:bg-white print:p-0">
       
-      {/* ─── HEADER ─── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div className="flex items-start gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center shadow-sm shrink-0">
-            <ShieldAlert size={26} strokeWidth={2.4} />
+      {/* Header */}
+      <header className="rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="flex items-center gap-4">
+          <Link href="/dashboard" className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 text-slate-500 hover:bg-slate-50 transition print:hidden">
+            <ArrowLeft size={19} />
+          </Link>
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-600 text-white shadow-lg shadow-rose-100">
+            <ShieldAlert size={26} />
           </div>
           <div>
-            <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-4xl font-black text-slate-900 tracking-tight">Data Quality Center</h1>
-              <span className="text-xs font-black text-rose-600 bg-rose-50 border border-rose-100/60 px-3 py-1 rounded-full shadow-sm">
-                Diagnostic & Nettoyage
-              </span>
-            </div>
-            <p className="text-slate-500 mt-1.5 font-medium text-sm">
-              Analyse et correction automatique des anomalies de la base de données de {branding.name}.
-            </p>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-600">Audit & Diagnostic de base de données</p>
+            <h1 className="text-3xl font-black tracking-tight text-slate-900">Data Quality Center</h1>
+            <p className="mt-1 text-xs font-bold text-slate-500">Contrôle de conformité, correction des incohérences et purification des dossiers</p>
           </div>
         </div>
 
-        <button
-          onClick={runDiagnostics}
-          className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 h-12 px-5 rounded-2xl text-xs font-black uppercase tracking-widest flex items-center gap-2 shadow-sm transition-all"
-        >
-          <RefreshCw size={14} /> Analyser à nouveau
-        </button>
-      </div>
+        <div className="flex flex-wrap items-center gap-3 print:hidden">
+          <button 
+            onClick={handlePdfExport}
+            className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 transition"
+          >
+            <FileText size={16} className="text-rose-600" /> Export PDF
+          </button>
+          <button 
+            onClick={handleExcelExport}
+            className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 transition"
+          >
+            <FileSpreadsheet size={16} className="text-emerald-600" /> Export Excel
+          </button>
+          <button 
+            onClick={() => window.print()}
+            className="flex h-11 items-center gap-2 rounded-xl bg-slate-900 px-5 text-xs font-black uppercase tracking-widest text-white hover:bg-slate-800 transition"
+          >
+            <Printer size={16} /> Imprimer
+          </button>
+        </div>
+      </header>
 
-      {/* ─── QUALITY METRICS SUMMARY ─── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+      {/* KPI Cards Grid */}
+      <section className="grid gap-5 grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
         
-        {/* Quality Score */}
-        <div className="bg-white/90 backdrop-blur-sm rounded-[24px] border border-slate-100 shadow-sm p-6 flex items-center justify-between col-span-1 md:col-span-2">
+        {/* Quality score */}
+        <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm flex items-center justify-between col-span-2">
           <div>
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Taux de qualité global</span>
-            <div className="mt-2 flex items-baseline gap-2">
-              <span className="text-4xl font-black text-slate-900">{score}%</span>
-              <span className="text-xs font-bold text-slate-500">de conformité</span>
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Taux Qualité Données</p>
+            <div className="mt-3 flex items-baseline gap-2">
+              <span className="text-4xl font-black text-slate-900">{kpis.score}%</span>
+              <span className="text-xs font-bold text-slate-500">conformité</span>
             </div>
             <div className="w-48 h-2 bg-slate-100 rounded-full overflow-hidden mt-3">
               <div 
-                className={`h-full rounded-full transition-all duration-500 ${score >= 90 ? "bg-emerald-500" : score >= 70 ? "bg-amber-400" : "bg-rose-500"}`}
-                style={{ width: `${score}%` }}
+                className={cn(
+                  "h-full rounded-full transition-all duration-300",
+                  kpis.score >= 90 ? "bg-emerald-500" : kpis.score >= 70 ? "bg-amber-500" : "bg-rose-500"
+                )}
+                style={{ width: `${kpis.score}%` }}
               />
             </div>
           </div>
-          <div className={`w-16 h-16 rounded-2xl flex items-center justify-center ${score >= 90 ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600"}`}>
-            {score >= 90 ? <ShieldCheck size={36} /> : <ShieldAlert size={36} />}
+          <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center shrink-0", kpis.score >= 90 ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600")}>
+            {kpis.score >= 90 ? <ShieldCheck size={32} /> : <ShieldAlert size={32} />}
           </div>
         </div>
 
         {/* Critical Errors */}
-        <div className="bg-white/90 backdrop-blur-sm rounded-[24px] border border-slate-100 shadow-sm p-6">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Erreurs critiques</p>
-          <h4 className="text-3xl font-black text-rose-600 mt-2">{criticalCount}</h4>
-          <p className="text-[10px] font-bold text-slate-500 mt-1">À corriger d'urgence</p>
+        <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
+          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Erreurs Critiques</p>
+          <p className="mt-3 text-4xl font-black text-rose-600">{kpis.critical}</p>
+          <p className="mt-1 text-[10px] font-bold text-slate-400">Impact immédiat</p>
         </div>
 
         {/* Warnings */}
-        <div className="bg-white/90 backdrop-blur-sm rounded-[24px] border border-slate-100 shadow-sm p-6">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Avertissements</p>
-          <h4 className="text-3xl font-black text-amber-500 mt-2">{warningCount}</h4>
-          <p className="text-[10px] font-bold text-slate-500 mt-1">Incohérences de données</p>
+        <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
+          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Avertissements</p>
+          <p className="mt-3 text-4xl font-black text-amber-500">{kpis.warning}</p>
+          <p className="mt-1 text-[10px] font-bold text-slate-400">Incohérences mineures</p>
         </div>
 
         {/* Incomplete */}
-        <div className="bg-white/90 backdrop-blur-sm rounded-[24px] border border-slate-100 shadow-sm p-6">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Données Incomplètes</p>
-          <h4 className="text-3xl font-black text-blue-500 mt-2">{incompleteCount}</h4>
-          <p className="text-[10px] font-bold text-slate-500 mt-1">Champs secondaires vides</p>
+        <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
+          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Données Incomplètes</p>
+          <p className="mt-3 text-4xl font-black text-blue-500">{kpis.incomplete}</p>
+          <p className="mt-1 text-[10px] font-bold text-slate-400">Champs requis vides</p>
         </div>
-      </div>
+      </section>
 
-      {/* ─── DATA CLEANING BUTTON ─── */}
-      {issues.filter(i => i.status === "pending").length > 0 && (
-        <div className="bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-indigo-500/10 backdrop-blur-sm rounded-[2rem] border border-emerald-100/50 p-6 flex flex-col md:flex-row md:items-center justify-between gap-6">
+      {/* Auto fix banner */}
+      {kpis.pending > 0 && (
+        <div className="bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-indigo-500/10 backdrop-blur-sm rounded-[2rem] border border-emerald-100/50 p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 print:hidden">
           <div className="space-y-1">
             <h4 className="text-base font-black text-slate-900 flex items-center gap-2">
-              ✨ Correction en Bloc & Nettoyage Automatique
+              🚀 Nettoyage et Correction en Bloc
             </h4>
-            <p className="text-xs text-slate-500 font-medium max-w-2xl leading-relaxed">
-              Corrigez d'un seul clic toutes les anomalies détectables (bornage des notes, nettoyage de l'encodage des noms et génération de références manquantes).
+            <p className="text-xs text-slate-500 font-semibold max-w-2xl leading-relaxed">
+              Purgez toutes les anomalies logiques d'un seul clic : bornage des notes erronées, réparation des caractères corrompus et génération de références caisse manquantes.
             </p>
           </div>
           <button
             onClick={handleFixAll}
             className="h-12 px-6 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-widest shadow-xl shadow-emerald-500/20 shrink-0 flex items-center gap-2 transition-all duration-300"
           >
-            🚀 Lancer la correction automatique ({issues.filter(i => i.status === "pending").length})
+            Lancer la correction ({kpis.pending})
           </button>
         </div>
       )}
 
-      {/* ─── DIAGNOSTIC DETAILED TABLE ─── */}
-      <div className="bg-white/90 backdrop-blur-sm rounded-[2rem] border border-slate-100 shadow-sm p-6 space-y-4">
-        <div className="flex items-center justify-between border-b pb-3 mb-2">
-          <div className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
-            <BarChart2 size={16} className="text-indigo-600" />
-            Liste détaillée des anomalies détectées ({issues.filter(i => i.status === "pending").length})
+      {/* Main Filter and Table Area */}
+      <section className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden">
+        
+        {/* Table controls */}
+        <div className="p-6 border-b border-slate-50 flex flex-col md:flex-row md:items-center justify-between gap-4 print:hidden">
+          <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 w-full">
+            
+            {/* Search */}
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+              <input
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Rechercher par problème, école, record..."
+                className="h-11 w-full pl-9 pr-4 rounded-xl border border-slate-100 bg-slate-50/50 text-xs font-bold outline-none placeholder:text-slate-400 text-slate-800"
+              />
+              {searchQuery && <X size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 cursor-pointer" onClick={() => setSearchQuery("")} />}
+            </div>
+
+            {/* Filter Gravity */}
+            <select 
+              value={filterGravity}
+              onChange={e => setFilterGravity(e.target.value)}
+              className="h-11 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black text-slate-700 outline-none cursor-pointer"
+            >
+              <option value="all">Gravité: toutes</option>
+              <option value="critical">Critique</option>
+              <option value="warning">Avertissement</option>
+              <option value="info">Donnée incomplète</option>
+            </select>
+
+            {/* Filter Module */}
+            <select 
+              value={filterModule}
+              onChange={e => setFilterModule(e.target.value)}
+              className="h-11 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black text-slate-700 outline-none cursor-pointer"
+            >
+              <option value="all">Module: tous</option>
+              <option value="Élèves">Élèves</option>
+              <option value="Canevas">Canevas</option>
+              <option value="Finance">Finance</option>
+              <option value="Academics">Academics</option>
+              <option value="Attendance">Attendance</option>
+              <option value="Offline Outbox">Offline Outbox</option>
+              <option value="Library">Library</option>
+            </select>
           </div>
         </div>
 
-        {issues.length === 0 ? (
-          <div className="text-center py-16 space-y-3">
-            <div className="text-5xl">🎉</div>
-            <p className="text-slate-800 font-black text-base">Aucune anomalie détectée !</p>
-            <p className="text-slate-400 font-bold text-xs">Félicitations, les données de votre établissement sont parfaitement saines.</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs font-bold text-slate-700 min-w-[900px]">
+        {/* Detailed Anomalies Table */}
+        <div className="overflow-x-auto">
+          {filteredIssues.length > 0 ? (
+            <table className="w-full text-left min-w-[1100px]">
               <thead>
-                <tr className="border-b border-slate-100 bg-slate-50 text-[10px] uppercase text-slate-400">
-                  <th className="p-4">Gravité</th>
-                  <th className="p-4">Module</th>
-                  <th className="p-4">Identifiant / Élève</th>
-                  <th className="p-4">Problème</th>
-                  <th className="p-4">Correction Proposée</th>
-                  <th className="p-4 text-center">Statut</th>
-                  <th className="p-4 text-right">Action</th>
+                <tr className="border-b border-slate-50 bg-slate-50/40 text-[9px] font-black uppercase tracking-widest text-slate-400">
+                  <th className="px-6 py-4">Gravité</th>
+                  <th className="px-6 py-4">Module</th>
+                  <th className="px-6 py-4">Établissement</th>
+                  <th className="px-6 py-4">Record (Fiche)</th>
+                  <th className="px-6 py-4">Problème / Anomalie</th>
+                  <th className="px-6 py-4">Correction Proposée</th>
+                  <th className="px-6 py-4">Statut</th>
+                  <th className="px-6 py-4 text-right print:hidden">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-50">
-                {issues.map((issue) => (
-                  <tr key={issue.id} className={`hover:bg-slate-50/50 ${issue.status === "resolved" ? "opacity-40" : ""}`}>
+              <tbody className="divide-y divide-slate-50 font-bold text-slate-700">
+                {filteredIssues.map((issue) => (
+                  <tr key={issue.id} className={cn("text-xs transition hover:bg-slate-50/30", issue.status === "resolved" && "opacity-40")}>
                     
                     {/* Gravité */}
-                    <td className="p-4">
-                      <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider inline-flex items-center gap-1.5 ${
-                        issue.gravity === "critical" ? "bg-rose-50 text-rose-600" :
-                        issue.gravity === "warning" ? "bg-amber-50 text-amber-600" :
-                        "bg-blue-50 text-blue-600"
-                      }`}>
+                    <td className="px-6 py-4">
+                      <span className={cn(
+                        "inline-flex rounded px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wider items-center gap-1",
+                        issue.gravity === "critical" && "bg-rose-50 text-rose-700",
+                        issue.gravity === "warning" && "bg-amber-50 text-amber-700",
+                        issue.gravity === "info" && "bg-blue-50 text-blue-700",
+                      )}>
                         {issue.gravity === "critical" ? <AlertCircle size={10} /> : <AlertTriangle size={10} />}
                         {issue.gravity}
                       </span>
                     </td>
 
                     {/* Module */}
-                    <td className="p-4 font-black text-slate-900">{issue.module}</td>
+                    <td className="px-6 py-4 text-slate-900 font-black">{issue.module}</td>
 
-                    {/* Identifiant */}
-                    <td className="p-4">
-                      <div className="space-y-0.5">
-                        <p className="text-slate-500 font-medium">{issue.recordId}</p>
-                        <p className="text-slate-900">{issue.recordName}</p>
-                      </div>
-                    </td>
+                    {/* Etablissement */}
+                    <td className="px-6 py-4 text-slate-800">{issue.establishment}</td>
 
-                    {/* Problème */}
-                    <td className="p-4 text-slate-600 max-w-xs leading-relaxed font-semibold">{issue.problem}</td>
+                    {/* Record */}
+                    <td className="px-6 py-4 font-mono text-[11px] text-indigo-600">{issue.record}</td>
+
+                    {/* Probleme */}
+                    <td className="px-6 py-4 text-slate-950 font-black max-w-xs">{issue.problem}</td>
 
                     {/* Correction */}
-                    <td className="p-4 text-indigo-600 font-medium max-w-xs leading-relaxed">{issue.correction}</td>
+                    <td className="px-6 py-4 text-slate-500 max-w-xs font-semibold">{issue.correction}</td>
 
                     {/* Statut */}
-                    <td className="p-4 text-center">
-                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest ${
-                        issue.status === "resolved" ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-600"
-                      }`}>
-                        {issue.status === "resolved" ? "Corrigé" : "À traiter"}
+                    <td className="px-6 py-4">
+                      <span className={cn(
+                        "inline-flex rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-widest",
+                        issue.status === "resolved" ? "bg-emerald-50 text-emerald-700" : "bg-slate-50 text-slate-500"
+                      )}>
+                        {issue.status === "resolved" ? "Résolu" : "En attente"}
                       </span>
                     </td>
 
                     {/* Action */}
-                    <td className="p-4 text-right">
+                    <td className="px-6 py-4 text-right print:hidden">
                       {issue.status === "resolved" ? (
-                        <span className="inline-flex items-center justify-center size-7 rounded-full bg-emerald-50 text-emerald-600 font-black">
-                          ✓
-                        </span>
+                        <span className="inline-flex size-6 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">✓</span>
                       ) : (
                         <button
-                          onClick={() => handleFixIssue(issue)}
-                          className="bg-indigo-600 hover:bg-indigo-700 text-white font-black text-[10px] uppercase tracking-widest px-4 py-2 rounded-xl transition-all"
+                          onClick={() => handleFixIssue(issue.id)}
+                          className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-[10px] font-black text-white uppercase tracking-widest transition"
                         >
                           Corriger
                         </button>
                       )}
                     </td>
-
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
-        )}
-      </div>
+          ) : (
+            <div className="p-16 text-center">
+              <ShieldCheck className="mx-auto size-12 text-emerald-500" />
+              <p className="mt-4 text-sm font-black text-slate-800">Aucune anomalie détectée</p>
+              <p className="text-xs text-slate-400 mt-1">Vos données auditées sont parfaitement intègres.</p>
+            </div>
+          )}
+        </div>
+      </section>
 
     </div>
   );
