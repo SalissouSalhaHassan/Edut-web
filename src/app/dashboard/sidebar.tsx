@@ -97,7 +97,6 @@ const sections: NavSection[] = [
       { href: "/dashboard/academics/exams", label: "Examens", icon: <ClipboardList className="size-[18px]" />, color: "text-indigo-500" },
       { href: "/dashboard/academics/grades", label: "Notes & résultats", icon: <ClipboardCheck className="size-[18px]" />, color: "text-emerald-500" },
       { href: "/dashboard/academics/timetable", label: "Emploi du temps", icon: <CalendarCheck2 className="size-[18px]" />, color: "text-amber-500" },
-      { href: "/dashboard/academics/research-graduation", label: "Diplômes & recherche", icon: <Award className="size-[18px]" />, color: "text-purple-500" },
       { href: "/dashboard/hr/attendance/teacher/me", label: "Ma présence", icon: <ClipboardCheck className="size-[18px]" />, color: "text-emerald-500" },
       { href: "/dashboard/academics/homework", label: "Devoirs", icon: <FileBarChart2 className="size-[18px]" />, color: "text-blue-500" },
       { href: "/dashboard/academics/devoirs", label: "Devoirs IA", icon: <BriefcaseBusiness className="size-[18px]" />, color: "text-indigo-500" },
