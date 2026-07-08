@@ -62,7 +62,7 @@ const initialSchools: SchoolRow[] = [
     region: "Niamey",
     commune: "Niamey IV",
     quartier: "Yantala",
-    statut: "Valide",
+    statut: "Validé inspection",
     eleves: 642,
     filles: 318,
     garcons: 324,
@@ -81,7 +81,7 @@ const initialSchools: SchoolRow[] = [
     region: "Niamey",
     commune: "Niamey I",
     quartier: "Bobiel",
-    statut: "A verifier",
+    statut: "Brouillon",
     eleves: 481,
     filles: 236,
     garcons: 245,
@@ -100,7 +100,7 @@ const initialSchools: SchoolRow[] = [
     region: "Niamey",
     commune: "Niamey II",
     quartier: "Plateau",
-    statut: "Valide",
+    statut: "Validé école",
     eleves: 934,
     filles: 452,
     garcons: 482,
@@ -119,7 +119,7 @@ const initialSchools: SchoolRow[] = [
     region: "Niamey",
     commune: "Niamey III",
     quartier: "Lazaret",
-    statut: "Incomplet",
+    statut: "Rejeté inspection",
     eleves: 388,
     filles: 190,
     garcons: 198,
@@ -138,7 +138,7 @@ const initialSchools: SchoolRow[] = [
     region: "Niamey",
     commune: "Niamey V",
     quartier: "Aeroport",
-    statut: "Valide",
+    statut: "Transmis ministère",
     eleves: 1218,
     filles: 593,
     garcons: 625,
@@ -156,6 +156,16 @@ function StatusBadge({ status }: { status: string }) {
     Valide: "border-emerald-100 bg-emerald-50 text-emerald-700",
     "A verifier": "border-amber-100 bg-amber-50 text-amber-700",
     Incomplet: "border-rose-100 bg-rose-50 text-rose-700",
+    
+    // New Workflow Statuses
+    Brouillon: "border-slate-200 bg-slate-50 text-slate-500",
+    "En correction": "border-amber-100 bg-amber-50 text-amber-600",
+    "Validé école": "border-blue-100 bg-blue-50 text-blue-700",
+    "Rejeté inspection": "border-rose-100 bg-rose-50 text-rose-600",
+    "Validé inspection": "border-cyan-100 bg-cyan-50 text-cyan-700",
+    "Validé DREN": "border-violet-100 bg-violet-50 text-violet-700",
+    "Transmis ministère": "border-emerald-100 bg-emerald-50 text-emerald-600",
+    Archivé: "border-slate-300 bg-slate-100 text-slate-700",
   };
   return (
     <span className={cn("inline-flex rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-widest", styles[status] || "bg-slate-100")}>
@@ -304,8 +314,8 @@ export default function EtablissementsPage() {
   };
 
   const handleValidate = (code: string) => {
-    setSchoolsList(schoolsList.map(s => s.code === code ? { ...s, statut: "Valide", completion: 100 } : s));
-    toast.success(`Établissement ${code} validé avec succès.`);
+    setSchoolsList(schoolsList.map(s => s.code === code ? { ...s, statut: "Validé inspection", completion: 100 } : s));
+    toast.success(`Établissement ${code} validé par l'inspection.`);
   };
 
   const handleExportExcel = () => {
@@ -772,9 +782,14 @@ export default function EtablissementsPage() {
                 className="h-12 rounded-2xl border border-slate-200 bg-white px-4 text-xs font-black text-slate-700 outline-none cursor-pointer"
               >
                 <option value="Statut: tous">Statut: tous</option>
-                <option value="Valide">Valide</option>
-                <option value="A verifier">A verifier</option>
-                <option value="Incomplet">Incomplet</option>
+                <option value="Brouillon">Brouillon</option>
+                <option value="En correction">En correction</option>
+                <option value="Validé école">Validé école</option>
+                <option value="Rejeté inspection">Rejeté inspection</option>
+                <option value="Validé inspection">Validé inspection</option>
+                <option value="Validé DREN">Validé DREN</option>
+                <option value="Transmis ministère">Transmis ministère</option>
+                <option value="Archivé">Archivé</option>
               </select>
             </div>
           </div>
@@ -860,7 +875,7 @@ export default function EtablissementsPage() {
                         </button>
                         <button 
                           onClick={() => handleValidate(school.code)}
-                          disabled={school.statut === "Valide"}
+                          disabled={school.statut === "Validé inspection" || school.statut === "Validé DREN" || school.statut === "Transmis ministère" || school.statut === "Archivé"}
                           title="Valider"
                           className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-emerald-600 hover:bg-emerald-50 transition-colors disabled:opacity-30"
                         >
