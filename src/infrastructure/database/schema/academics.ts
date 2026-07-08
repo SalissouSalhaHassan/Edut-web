@@ -630,3 +630,51 @@ export const teacherClassSubjectsRelations = relations(teacherClassSubjects, ({ 
   }),
 }));
 
+// --- RESULTS WORKFLOWS ---
+export const resultsWorkflows = pgTable("results_workflows", {
+  id: serial("id").primaryKey(),
+  schoolId: integer("school_id").references(() => schools.id),
+  sessionId: integer("session_id").references(() => schoolSessions.id, { onDelete: "cascade" }),
+  period: varchar("period", { length: 100 }).notNull(), // e.g. "1er Trimestre"
+  classId: integer("class_id").references(() => schoolClasses.id, { onDelete: "cascade" }),
+  subjectId: integer("subject_id").references(() => schoolSubjects.id, { onDelete: "cascade" }), // optional
+  teacherId: integer("teacher_id").references(() => employees.id, { onDelete: "set null" }), // optional
+  status: varchar("status", { length: 50 }).notNull().default("BROUILLON"),
+  submittedBy: integer("submitted_by").references(() => employees.id),
+  submittedAt: timestamp("submitted_at"),
+  controlledBy: integer("controlled_by").references(() => employees.id),
+  controlledAt: timestamp("controlled_at"),
+  validatedBy: integer("validated_by").references(() => employees.id),
+  validatedAt: timestamp("validated_at"),
+  lockedBy: integer("locked_by").references(() => employees.id),
+  lockedAt: timestamp("locked_at"),
+  publishedBy: integer("published_by").references(() => employees.id),
+  publishedAt: timestamp("published_at"),
+  observation: text("observation"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const resultsWorkflowsRelations = relations(resultsWorkflows, ({ one }) => ({
+  school: one(schools, {
+    fields: [resultsWorkflows.schoolId],
+    references: [schools.id],
+  }),
+  session: one(schoolSessions, {
+    fields: [resultsWorkflows.sessionId],
+    references: [schoolSessions.id],
+  }),
+  class: one(schoolClasses, {
+    fields: [resultsWorkflows.classId],
+    references: [schoolClasses.id],
+  }),
+  subject: one(schoolSubjects, {
+    fields: [resultsWorkflows.subjectId],
+    references: [schoolSubjects.id],
+  }),
+  teacher: one(employees, {
+    fields: [resultsWorkflows.teacherId],
+    references: [employees.id],
+  }),
+}));
+
