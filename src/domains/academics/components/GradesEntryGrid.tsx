@@ -29,6 +29,7 @@ interface GradesEntryGridProps {
   gradingScale: GradingScale[];
   onSave: (data: any) => void;
   onPrintBulletin?: (studentId: number) => void;
+  readOnly?: boolean;
 }
 
 export default function GradesEntryGrid({
@@ -37,7 +38,8 @@ export default function GradesEntryGrid({
   coefficient,
   gradingScale,
   onSave,
-  onPrintBulletin
+  onPrintBulletin,
+  readOnly = false
 }: GradesEntryGridProps) {
   const isHigherEd = ["Licence", "Master", "Doctorat", "Supérieur", "Université"].includes(level);
 
@@ -305,6 +307,7 @@ export default function GradesEntryGrid({
                           value={row.classWork}
                           onChange={(v) => handleGradeInput(row.studentId, 'classWork', v)}
                           placeholder="Moy C"
+                          disabled={readOnly}
                         />
                       </td>
                       <td className="px-4 py-4 text-center">
@@ -312,6 +315,7 @@ export default function GradesEntryGrid({
                           value={row.examNote}
                           onChange={(v) => handleGradeInput(row.studentId, 'examNote', v)}
                           placeholder="Compo"
+                          disabled={readOnly}
                         />
                       </td>
                       <td className="px-4 py-4 text-center">
@@ -332,6 +336,7 @@ export default function GradesEntryGrid({
                         value={row.examNote}
                         onChange={(v) => handleGradeInput(row.studentId, 'examNote', v)}
                         placeholder="Note"
+                        disabled={readOnly}
                       />
                     </td>
                   )}
@@ -350,6 +355,7 @@ export default function GradesEntryGrid({
                       placeholder="Observation..."
                       value={row.observation}
                       onChange={(e) => updateRow(row.studentId, 'observation', e.target.value)}
+                      disabled={readOnly}
                       className="min-w-[150px] h-10 rounded-xl border-slate-100 bg-slate-50/30 focus:bg-white transition-all text-xs font-medium"
                     />
                   </td>
@@ -397,7 +403,7 @@ export default function GradesEntryGrid({
 
           <Button
             onClick={handleSaveInternal}
-            disabled={isSaving}
+            disabled={isSaving || readOnly}
             className="h-14 px-10 rounded-[1.25rem] bg-indigo-600 hover:bg-indigo-500 text-white font-black text-sm uppercase tracking-widest shadow-2xl shadow-indigo-500/40 transition-all hover:scale-105 active:scale-95 flex items-center gap-3 group"
           >
             {isSaving ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} className="group-hover:rotate-12 transition-transform" />}
@@ -446,12 +452,13 @@ function TableHead({ children, className }: any) {
   );
 }
 
-function GradeInput({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void, placeholder?: string }) {
+function GradeInput({ value, onChange, placeholder, disabled }: { value: string; onChange: (v: string) => void, placeholder?: string, disabled?: boolean }) {
   return (
     <Input
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder || "0.00"}
+      disabled={disabled}
       className="w-20 h-10 text-center rounded-xl bg-slate-50 border-slate-100 font-black text-slate-800 focus:bg-white focus:ring-indigo-500/10 focus:border-indigo-300 transition-all text-sm"
     />
   );

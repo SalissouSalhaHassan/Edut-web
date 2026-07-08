@@ -2,6 +2,7 @@
 
 import { db } from "@/infrastructure/database";
 import { resultsWorkflows } from "@/infrastructure/database/schema/academics";
+import { auditLogs } from "@/infrastructure/database/schema/audit";
 import { eq, and } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { getActiveSchoolId } from "@/domains/auth/services/school";
@@ -39,6 +40,24 @@ export async function initResultsWorkflowTable() {
   } catch (e: any) {
     console.error("initResultsWorkflowTable:", e.message);
     return { success: false, error: e.message };
+  }
+}
+
+async function writeAuditLog(user: any, action: string, recordId: string, newData: any) {
+  try {
+    const schoolId = user?.schoolId || await getActiveSchoolId();
+    await db.insert(auditLogs).values({
+      schoolId,
+      userId: user?.id || null,
+      action,
+      tableName: "results_workflows",
+      recordId,
+      newData: JSON.stringify(newData),
+      ipAddress: "127.0.0.1",
+      userAgent: "Server Action",
+    });
+  } catch (err) {
+    console.error("writeAuditLog error:", err);
   }
 }
 
@@ -107,7 +126,7 @@ export async function submitGrades(params: {
     const emp = await getTeacherEmployee(user);
     const empId = emp?.id || null;
 
-    return await setWorkflowStatus({
+    const res = await setWorkflowStatus({
       ...params,
       status: "SAISIE_TERMINEE",
       updateFields: {
@@ -115,6 +134,11 @@ export async function submitGrades(params: {
         submittedAt: new Date(),
       },
     });
+
+    if (res.success) {
+      await writeAuditLog(user, "SUBMIT_GRADES", `class-${params.classId}`, { ...params, status: "SAISIE_TERMINEE" });
+    }
+    return res;
   });
 }
 
@@ -127,12 +151,17 @@ export async function requestGradeCorrection(params: {
   teacherId?: number;
   observation: string;
 }) {
-  return protectedDbAction("Academics", "canEdit", async () => {
-    return await setWorkflowStatus({
+  return protectedDbAction("Academics", "canEdit", async (user) => {
+    const res = await setWorkflowStatus({
       ...params,
       status: "CORRECTION_DEMANDEE",
       updateFields: {},
     });
+
+    if (res.success) {
+      await writeAuditLog(user, "REQUEST_CORRECTION", `class-${params.classId}`, { ...params, status: "CORRECTION_DEMANDEE" });
+    }
+    return res;
   });
 }
 
@@ -149,7 +178,7 @@ export async function validateGradeControl(params: {
     const emp = await getTeacherEmployee(user);
     const empId = emp?.id || null;
 
-    return await setWorkflowStatus({
+    const res = await setWorkflowStatus({
       ...params,
       status: "CONTROLE_PEDAGOGIQUE",
       updateFields: {
@@ -157,6 +186,11 @@ export async function validateGradeControl(params: {
         controlledAt: new Date(),
       },
     });
+
+    if (res.success) {
+      await writeAuditLog(user, "VALIDATE_CONTROL", `class-${params.classId}`, { ...params, status: "CONTROLE_PEDAGOGIQUE" });
+    }
+    return res;
   });
 }
 
@@ -173,7 +207,7 @@ export async function validateClassCouncil(params: {
     const emp = await getTeacherEmployee(user);
     const empId = emp?.id || null;
 
-    return await setWorkflowStatus({
+    const res = await setWorkflowStatus({
       ...params,
       status: "VALIDATION_CONSEIL",
       updateFields: {
@@ -181,6 +215,11 @@ export async function validateClassCouncil(params: {
         validatedAt: new Date(),
       },
     });
+
+    if (res.success) {
+      await writeAuditLog(user, "VALIDATE_COUNCIL", `class-${params.classId}`, { ...params, status: "VALIDATION_CONSEIL" });
+    }
+    return res;
   });
 }
 
@@ -197,7 +236,7 @@ export async function lockResults(params: {
     const emp = await getTeacherEmployee(user);
     const empId = emp?.id || null;
 
-    return await setWorkflowStatus({
+    const res = await setWorkflowStatus({
       ...params,
       status: "VERROUILLE",
       updateFields: {
@@ -205,6 +244,11 @@ export async function lockResults(params: {
         lockedAt: new Date(),
       },
     });
+
+    if (res.success) {
+      await writeAuditLog(user, "LOCK_RESULTS", `class-${params.classId}`, { ...params, status: "VERROUILLE" });
+    }
+    return res;
   });
 }
 
@@ -221,7 +265,7 @@ export async function publishResults(params: {
     const emp = await getTeacherEmployee(user);
     const empId = emp?.id || null;
 
-    return await setWorkflowStatus({
+    const res = await setWorkflowStatus({
       ...params,
       status: "PUBLIE",
       updateFields: {
@@ -229,6 +273,11 @@ export async function publishResults(params: {
         publishedAt: new Date(),
       },
     });
+
+    if (res.success) {
+      await writeAuditLog(user, "PUBLISH_RESULTS", `class-${params.classId}`, { ...params, status: "PUBLIE" });
+    }
+    return res;
   });
 }
 
@@ -241,12 +290,45 @@ export async function archiveResultsStatus(params: {
   teacherId?: number;
   observation?: string;
 }) {
-  return protectedDbAction("Academics", "canEdit", async () => {
-    return await setWorkflowStatus({
+  return protectedDbAction("Academics", "canEdit", async (user) => {
+    const res = await setWorkflowStatus({
       ...params,
       status: "ARCHIVE",
       updateFields: {},
     });
+
+    if (res.success) {
+      await writeAuditLog(user, "ARCHIVE_STATUS", `class-${params.classId}`, { ...params, status: "ARCHIVE" });
+    }
+    return res;
+  });
+}
+
+// 8. Exceptional Unlock (BROUILLON) for Super Admin
+export async function unlockResultsException(params: {
+  sessionId: number;
+  period: string;
+  classId: number;
+  subjectId?: number;
+  teacherId?: number;
+  observation?: string;
+}) {
+  return protectedDbAction("Academics", "canEdit", async (user) => {
+    const res = await setWorkflowStatus({
+      ...params,
+      status: "BROUILLON",
+      updateFields: {
+        lockedBy: null,
+        lockedAt: null,
+        publishedBy: null,
+        publishedAt: null,
+      },
+    });
+
+    if (res.success) {
+      await writeAuditLog(user, "EXCEPTIONAL_UNLOCK_RESULTS", `class-${params.classId}`, { ...params, status: "BROUILLON" });
+    }
+    return res;
   });
 }
 

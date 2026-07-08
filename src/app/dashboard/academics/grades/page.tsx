@@ -27,6 +27,16 @@ import { generateBulletinPDF, generatePVMatrixPDF, generateReleveNotesPDF, gener
 import { getDocumentHeaderConfig } from "@/domains/settings/actions/settings.actions";
 import { useEffect } from "react";
 import { getPedagogicalReportAction } from "@/domains/pedagogie/actions/analytics.actions";
+import {
+  getResultsWorkflowStatus,
+  submitGrades,
+  requestGradeCorrection,
+  validateGradeControl,
+  lockResults,
+  publishResults,
+  unlockResultsException
+} from "@/domains/academics/actions/results-workflow.actions";
+import { getCurrentUserAction } from "@/domains/auth/actions/session.actions";
 
 export default function AcademicResultsPage() {
   const [loading, setLoading] = useState(false);
@@ -43,6 +53,26 @@ export default function AcademicResultsPage() {
   const [headerConfig, setHeaderConfig] = useState<any>(null);
   const [isLocal, setIsLocal] = useState(false);
   const [pedagogicalReportData, setPedagogicalReportData] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [workflowStatus, setWorkflowStatus] = useState<string>("BROUILLON");
+  const [workflowRow, setWorkflowRow] = useState<any>(null);
+
+  useEffect(() => {
+    async function loadUser() {
+      try {
+        const user = await getCurrentUserAction();
+        setCurrentUser(user);
+      } catch (e) {
+        console.warn("Failed to load user in client:", e);
+      }
+    }
+    loadUser();
+  }, []);
+
+  const isSuperAdmin = currentUser?.superAdmin === true || currentUser?.superAdmin === 1;
+  const isDirecteur = currentUser?.admin === true || currentUser?.role?.roleName?.toLowerCase().includes("directeur");
+  const isCenseur = currentUser?.role?.roleName?.toLowerCase().includes("censeur") || currentUser?.role?.roleName?.toLowerCase().includes("responsable") || currentUser?.role?.roleName?.toLowerCase().includes("censeur") || currentUser?.role?.roleName?.toLowerCase().includes("études");
+  const isEnseignant = currentUser?.role?.roleName?.toLowerCase().includes("enseignant") || currentUser?.role?.roleName?.toLowerCase().includes("professeur") || currentUser?.role?.roleName?.toLowerCase().includes("teacher");
 
   useEffect(() => {
     async function loadScale() {
@@ -221,6 +251,26 @@ export default function AcademicResultsPage() {
           console.warn("Failed to load cached pedagogical report:", e);
         }
       }
+
+      // 4. Fetch active workflow status
+      try {
+        const wfRes = await getResultsWorkflowStatus({
+          sessionId: Number(filters.sessionId),
+          period: filters.period,
+          classId: Number(filters.classId),
+          subjectId: filters.subjectId !== "All" && filters.subjectId ? Number(filters.subjectId) : undefined
+        });
+        const row = (wfRes as any)?.data?.data || (wfRes as any)?.data;
+        if (row && row.status) {
+          setWorkflowStatus(row.status);
+          setWorkflowRow(row);
+        } else {
+          setWorkflowStatus("BROUILLON");
+          setWorkflowRow(null);
+        }
+      } catch (e) {
+        console.warn("Failed to load results workflow status:", e);
+      }
     } catch (err) {
       console.error("[handleLoad] Execution error:", err);
       toast.error("Une erreur critique est survenue.");
@@ -231,6 +281,12 @@ export default function AcademicResultsPage() {
 
   const handleSave = async (data: any) => {
     if (!activeFilters) return;
+    if (workflowStatus === "VERROUILLE" || workflowStatus === "PUBLIE" || workflowStatus === "ARCHIVE") {
+      toast.error("Modification impossible", {
+        description: "Les notes sont verrouillées, publiées ou archivées pour cette période."
+      });
+      return;
+    }
     setLoading(true);
     const resultsToSave = data.map((r: any) => ({
       studentId: r.studentId,
@@ -395,6 +451,15 @@ export default function AcademicResultsPage() {
                 </span>
               )}
               <Sparkles size={20} className="text-indigo-500" />
+              {activeFilters && (
+                <span className={`ml-3 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider ${
+                  workflowStatus === "VERROUILLE" || workflowStatus === "PUBLIE" || workflowStatus === "ARCHIVE"
+                    ? "bg-rose-500/10 text-rose-600 border border-rose-500/20"
+                    : "bg-indigo-500/10 text-indigo-600 border border-indigo-500/20"
+                }`}>
+                  Statut: {workflowStatus.replace("_", " ")}
+                </span>
+              )}
             </div>
             <p className="text-slate-600 font-medium ml-1">
               Gestion académique, saisie des notes et matrice des résultats.
@@ -437,6 +502,186 @@ export default function AcademicResultsPage() {
 
       <AcademicFilters onLoad={handleLoad} loading={loading} />
 
+      {/* Workflow Status Action Bar */}
+      {activeFilters && (
+        <div className="bg-white border border-slate-200 p-5 rounded-[2rem] flex flex-col md:flex-row justify-between items-center gap-4 shadow-sm animate-in fade-in slide-in-from-top-4 duration-500">
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-black uppercase tracking-wider text-slate-400">Circuit Approbation:</span>
+            <span className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-widest border ${
+              workflowStatus === "BROUILLON" ? "bg-slate-100 text-slate-600 border-slate-200" :
+              workflowStatus === "SAISIE_TERMINEE" ? "bg-blue-50 text-blue-600 border-blue-100" :
+              workflowStatus === "CONTROLE_PEDAGOGIQUE" ? "bg-amber-50 text-amber-600 border-amber-100" :
+              workflowStatus === "CORRECTION_DEMANDEE" ? "bg-rose-50 text-rose-600 border-rose-100 animate-pulse" :
+              workflowStatus === "VALIDATION_CONSEIL" ? "bg-indigo-50 text-indigo-600 border-indigo-100" :
+              workflowStatus === "VERROUILLE" ? "bg-red-50 text-red-600 border-red-100 font-bold" :
+              workflowStatus === "PUBLIE" ? "bg-emerald-50 text-emerald-600 border-emerald-100 font-bold" :
+              "bg-violet-50 text-violet-600 border-violet-100"
+            }`}>
+              {workflowStatus.replace("_", " ")}
+            </span>
+            {workflowRow?.observation && (
+              <span className="text-xs text-slate-500 italic max-w-xs truncate" title={workflowRow.observation}>
+                ({workflowRow.observation})
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            {/* 1. Enseignant action */}
+            {isEnseignant && (workflowStatus === "BROUILLON" || workflowStatus === "CORRECTION_DEMANDEE") && (
+              <Button
+                onClick={async () => {
+                  if (confirm("Soumettre les notes pour contrôle ?")) {
+                    setLoading(true);
+                    const res = await submitGrades({
+                      sessionId: activeFilters.sessionId,
+                      period: activeFilters.period,
+                      classId: activeFilters.classId,
+                      subjectId: activeFilters.subjectId !== "All" && activeFilters.subjectId ? Number(activeFilters.subjectId) : undefined,
+                    });
+                    setLoading(false);
+                    if (res?.success) {
+                      toast.success("Notes soumises avec succès !");
+                      setWorkflowStatus("SAISIE_TERMINEE");
+                    }
+                  }
+                }}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-10 px-5 rounded-xl text-xs uppercase tracking-wider"
+              >
+                Soumettre les notes
+              </Button>
+            )}
+
+            {/* 2. Censeur action */}
+            {isCenseur && workflowStatus === "SAISIE_TERMINEE" && (
+              <>
+                <Button
+                  onClick={async () => {
+                    const obs = prompt("Motif de la demande de correction :");
+                    if (obs) {
+                      setLoading(true);
+                      const res = await requestGradeCorrection({
+                        sessionId: activeFilters.sessionId,
+                        period: activeFilters.period,
+                        classId: activeFilters.classId,
+                        subjectId: activeFilters.subjectId !== "All" && activeFilters.subjectId ? Number(activeFilters.subjectId) : undefined,
+                        observation: obs
+                      });
+                      setLoading(false);
+                      if (res?.success) {
+                        toast.success("Demande de correction transmise.");
+                        setWorkflowStatus("CORRECTION_DEMANDEE");
+                        setWorkflowRow({ observation: obs });
+                      }
+                    }
+                  }}
+                  className="bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 font-bold h-10 px-5 rounded-xl text-xs uppercase tracking-wider"
+                >
+                  Demander correction
+                </Button>
+                <Button
+                  onClick={async () => {
+                    if (confirm("Valider le contrôle pédagogique ?")) {
+                      setLoading(true);
+                      const res = await validateGradeControl({
+                        sessionId: activeFilters.sessionId,
+                        period: activeFilters.period,
+                        classId: activeFilters.classId,
+                        subjectId: activeFilters.subjectId !== "All" && activeFilters.subjectId ? Number(activeFilters.subjectId) : undefined,
+                      });
+                      setLoading(false);
+                      if (res?.success) {
+                        toast.success("Contrôle pédagogique validé.");
+                        setWorkflowStatus("CONTROLE_PEDAGOGIQUE");
+                      }
+                    }
+                  }}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-10 px-5 rounded-xl text-xs uppercase tracking-wider"
+                >
+                  Valider le contrôle
+                </Button>
+              </>
+            )}
+
+            {/* 3. Directeur action */}
+            {isDirecteur && (workflowStatus === "CONTROLE_PEDAGOGIQUE" || workflowStatus === "VALIDATION_CONSEIL" || workflowStatus === "SAISIE_TERMINEE") && (
+              <>
+                <Button
+                  onClick={async () => {
+                    if (confirm("Verrouiller les notes ? (Plus aucune modification possible)")) {
+                      setLoading(true);
+                      const res = await lockResults({
+                        sessionId: activeFilters.sessionId,
+                        period: activeFilters.period,
+                        classId: activeFilters.classId,
+                        subjectId: activeFilters.subjectId !== "All" && activeFilters.subjectId ? Number(activeFilters.subjectId) : undefined,
+                      });
+                      setLoading(false);
+                      if (res?.success) {
+                        toast.success("Notes verrouillées.");
+                        setWorkflowStatus("VERROUILLE");
+                      }
+                    }
+                  }}
+                  className="bg-red-600 hover:bg-red-700 text-white font-bold h-10 px-5 rounded-xl text-xs uppercase tracking-wider"
+                >
+                  Verrouiller
+                </Button>
+                <Button
+                  onClick={async () => {
+                    if (confirm("Publier les résultats ? (Visibles par les parents et élèves)")) {
+                      setLoading(true);
+                      const res = await publishResults({
+                        sessionId: activeFilters.sessionId,
+                        period: activeFilters.period,
+                        classId: activeFilters.classId,
+                        subjectId: activeFilters.subjectId !== "All" && activeFilters.subjectId ? Number(activeFilters.subjectId) : undefined,
+                      });
+                      setLoading(false);
+                      if (res?.success) {
+                        toast.success("Résultats publiés.");
+                        setWorkflowStatus("PUBLIE");
+                      }
+                    }
+                  }}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-10 px-5 rounded-xl text-xs uppercase tracking-wider"
+                >
+                  Publier
+                </Button>
+              </>
+            )}
+
+            {/* 4. Super Admin action */}
+            {isSuperAdmin && (workflowStatus === "VERROUILLE" || workflowStatus === "PUBLIE" || workflowStatus === "ARCHIVE") && (
+              <Button
+                onClick={async () => {
+                  if (confirm("Déverrouiller exceptionnellement pour ré-autorisation de saisie ?")) {
+                    setLoading(true);
+                    const res = await unlockResultsException({
+                      sessionId: activeFilters.sessionId,
+                      period: activeFilters.period,
+                      classId: activeFilters.classId,
+                      subjectId: activeFilters.subjectId !== "All" && activeFilters.subjectId ? Number(activeFilters.subjectId) : undefined,
+                    });
+                    setLoading(false);
+                    if (res?.success) {
+                      toast.success("Déverrouillage exceptionnel validé.");
+                      setWorkflowStatus("BROUILLON");
+                      setWorkflowRow(null);
+                    }
+                  }
+                }}
+                className="bg-amber-600 hover:bg-amber-700 text-white font-bold h-10 px-5 rounded-xl text-xs uppercase tracking-wider animate-bounce"
+              >
+                Déverrouillage exceptionnel
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+
+      <AcademicFilters onLoad={handleLoad} loading={loading} />
+
       <AnimatePresence mode="wait">
         {hasLoadedData ? (
           <motion.div
@@ -454,6 +699,7 @@ export default function AcademicResultsPage() {
                 onPrintBulletin={handlePrintBulletin}
                 level={level}
                 coefficient={activeCoef}
+                readOnly={workflowStatus === "VERROUILLE" || workflowStatus === "PUBLIE" || workflowStatus === "ARCHIVE"}
               />
             ) : view === "matrix" ? (
               <BroadsheetMatrix
