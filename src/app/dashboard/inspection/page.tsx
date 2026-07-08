@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { jsPDF } from "jspdf";
@@ -43,6 +43,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
+import { getSessions } from "@/domains/academics/actions/academics.actions";
 
 interface SchoolInspectionData {
   code: string;
@@ -185,9 +186,10 @@ const initialSchools: SchoolInspectionData[] = [
 
 export default function InspectionDashboardPage() {
   const [schools, setSchools] = useState<SchoolInspectionData[]>(initialSchools);
+  const [schoolSessions, setSchoolSessions] = useState<any[]>([]);
 
   // Filter States
-  const [selectedYear, setSelectedYear] = useState("2025-2026");
+  const [selectedYear, setSelectedYear] = useState("");
   const [selectedCommune, setSelectedCommune] = useState("all");
   const [selectedCycle, setSelectedCycle] = useState("all");
   const [selectedType, setSelectedType] = useState("all");
@@ -198,6 +200,41 @@ export default function InspectionDashboardPage() {
   const [selectedSchoolDetail, setSelectedSchoolDetail] = useState<SchoolInspectionData | null>(null);
   const [rejectingSchool, setRejectingSchool] = useState<SchoolInspectionData | null>(null);
   const [rejectionObservation, setRejectionObservation] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadSessions = async () => {
+      try {
+        const res = await getSessions();
+        const sessions = (res as any)?.data?.data || (res as any)?.data || [];
+        if (cancelled) return;
+
+        setSchoolSessions(sessions);
+        const activeSession = sessions.find((session: any) => session.isActive) || sessions[0];
+        setSelectedYear(activeSession?.sessionName || "2025-2026");
+      } catch {
+        if (!cancelled) {
+          setSchoolSessions([]);
+          setSelectedYear("2025-2026");
+        }
+      }
+    };
+
+    loadSessions();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const academicYearOptions = useMemo(() => {
+    const realSessions = schoolSessions
+      .map((session: any) => String(session.sessionName || "").trim())
+      .filter(Boolean);
+    const uniqueSessions = Array.from(new Set(realSessions));
+    return uniqueSessions.length > 0 ? uniqueSessions : ["2025-2026", "2024-2025"];
+  }, [schoolSessions]);
 
   // Late declaration date limit (older than June 1, 2026)
   const isDeclarationLate = (dateStr: string) => {
@@ -511,8 +548,9 @@ export default function InspectionDashboardPage() {
               onChange={e => setSelectedYear(e.target.value)}
               className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 text-xs font-bold outline-none cursor-pointer"
             >
-              <option value="2025-2026">2025-2026</option>
-              <option value="2024-2025">2024-2025</option>
+              {academicYearOptions.map((year) => (
+                <option key={year} value={year}>{year}</option>
+              ))}
             </select>
           </div>
 

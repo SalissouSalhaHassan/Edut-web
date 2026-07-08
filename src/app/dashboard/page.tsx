@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { db, readDb } from "@/infrastructure/database";
 import { students } from "@/infrastructure/database/schema/students";
+import { schoolSessions } from "@/infrastructure/database/schema/academics";
 import { employees } from "@/infrastructure/database/schema/hr";
 import { feePayments, studentFees } from "@/infrastructure/database/schema/finance";
 import { sql, eq, and, inArray } from "drizzle-orm";
@@ -11,6 +12,20 @@ import { cache as redisCache } from "@/lib/redis";
 import { getActiveSchoolId, getActiveBranchData } from "@/domains/auth/services/school";
 import { getCurrentUser } from "@/domains/auth/services/session";
 import { getActiveEducationalLevel, getCompatibleLevels } from "@/domains/auth/services/rbac";
+
+async function getActiveSessionLabel() {
+  try {
+    const schoolId = await getActiveSchoolId();
+    const session = await readDb.query.schoolSessions.findFirst({
+      where: schoolId ? eq(schoolSessions.schoolId, schoolId) : undefined,
+      orderBy: (sessions, { desc }) => [desc(sessions.isActive), desc(sessions.id)],
+    });
+
+    return session?.sessionName || `${new Date().getFullYear()} - ${new Date().getFullYear() + 1}`;
+  } catch (error) {
+    return `${new Date().getFullYear()} - ${new Date().getFullYear() + 1}`;
+  }
+}
 
 async function getStats(user: any) {
   try {
@@ -116,10 +131,11 @@ function scaleBreakdown(total: number, items: Array<{ label: string; percent: nu
 
 export default async function DashboardPage() {
   const user = await getCurrentUser();
-  const [stats, unreadCount, { branchData }] = await Promise.all([
+  const [stats, unreadCount, { branchData }, activeSessionLabel] = await Promise.all([
     getStats(user),
     getUnreadNotificationsCount().catch(() => 0),
-    getActiveBranchData(user)
+    getActiveBranchData(user),
+    getActiveSessionLabel()
   ]);
 
   const branding = {
@@ -134,7 +150,7 @@ export default async function DashboardPage() {
   const props: DashboardUIProps = {
     user,
     branding,
-    sessionLabel: "2024 - 2025",
+    sessionLabel: activeSessionLabel,
 
     notificationsCount: unreadCount,
     stats: {
