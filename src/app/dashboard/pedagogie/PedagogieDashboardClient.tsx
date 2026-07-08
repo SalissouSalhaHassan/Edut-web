@@ -95,6 +95,15 @@ const quickLinks = [
     desc: "Unités pédagogiques",
   },
   {
+    label: "Affectation Enseignants",
+    href: "/dashboard/pedagogie/assignments",
+    icon: Users,
+    color: "from-indigo-600 to-indigo-700",
+    bg: "bg-indigo-50",
+    text: "text-indigo-600",
+    desc: "Associer professeurs, classes & matières",
+  },
+  {
     label: "Rapports pédagogiques",
     href: "/dashboard/pedagogie/rapports",
     icon: FileBarChart2,

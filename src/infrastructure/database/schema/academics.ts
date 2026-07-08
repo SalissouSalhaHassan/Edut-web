@@ -592,3 +592,41 @@ export const pedagogicalUnitMembersRelations = relations(pedagogicalUnitMembers,
   }),
 }));
 
+// --- TEACHER CLASS SUBJECTS ---
+export const teacherClassSubjects = pgTable("teacher_class_subjects", {
+  id: serial("id").primaryKey(),
+  schoolId: integer("school_id").references(() => schools.id),
+  employeeId: integer("employee_id").references(() => employees.id, { onDelete: "cascade" }),
+  classId: integer("class_id").references(() => schoolClasses.id, { onDelete: "cascade" }),
+  subjectId: integer("subject_id").references(() => schoolSubjects.id, { onDelete: "cascade" }),
+  sessionId: integer("session_id").references(() => schoolSessions.id, { onDelete: "cascade" }),
+  isPrincipalTeacher: boolean("is_principal_teacher").default(false),
+  coefficient: integer("coefficient").default(1),
+  weeklyHours: doublePrecision("weekly_hours").default(0.0),
+  active: boolean("active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const teacherClassSubjectsRelations = relations(teacherClassSubjects, ({ one }) => ({
+  school: one(schools, {
+    fields: [teacherClassSubjects.schoolId],
+    references: [schools.id],
+  }),
+  employee: one(employees, {
+    fields: [teacherClassSubjects.employeeId],
+    references: [employees.id],
+  }),
+  class: one(schoolClasses, {
+    fields: [teacherClassSubjects.classId],
+    references: [schoolClasses.id],
+  }),
+  subject: one(schoolSubjects, {
+    fields: [teacherClassSubjects.subjectId],
+    references: [schoolSubjects.id],
+  }),
+  session: one(schoolSessions, {
+    fields: [teacherClassSubjects.sessionId],
+    references: [schoolSessions.id],
+  }),
+}));
+
