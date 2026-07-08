@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { jsPDF } from "jspdf";
@@ -44,6 +44,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
+import { getSessions } from "@/domains/academics/actions/academics.actions";
 
 interface SchoolData {
   code: string;
@@ -348,9 +349,10 @@ const initialSchools: SchoolData[] = [
 
 export default function MinistryDashboardPage() {
   const [schools] = useState<SchoolData[]>(initialSchools);
+  const [schoolSessions, setSchoolSessions] = useState<any[]>([]);
   
   // Filter States
-  const [selectedYear, setSelectedYear] = useState("2025-2026");
+  const [selectedYear, setSelectedYear] = useState("");
   const [selectedRegion, setSelectedRegion] = useState("all");
   const [selectedDept, setSelectedDept] = useState("all");
   const [selectedInsp, setSelectedInsp] = useState("all");
@@ -360,6 +362,41 @@ export default function MinistryDashboardPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
   const [selectedSchoolDetail, setSelectedSchoolDetail] = useState<SchoolData | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadSessions = async () => {
+      try {
+        const res = await getSessions();
+        const sessions = (res as any)?.data?.data || (res as any)?.data || [];
+        if (cancelled) return;
+
+        setSchoolSessions(sessions);
+        const activeSession = sessions.find((session: any) => session.isActive) || sessions[0];
+        setSelectedYear(activeSession?.sessionName || "2025-2026");
+      } catch (error) {
+        if (!cancelled) {
+          setSchoolSessions([]);
+          setSelectedYear("2025-2026");
+        }
+      }
+    };
+
+    loadSessions();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const academicYearOptions = useMemo(() => {
+    const realSessions = schoolSessions
+      .map((session: any) => String(session.sessionName || "").trim())
+      .filter(Boolean);
+    const uniqueSessions = Array.from(new Set(realSessions));
+    return uniqueSessions.length > 0 ? uniqueSessions : ["2025-2026", "2024-2025"];
+  }, [schoolSessions]);
 
   // Late declaration date limit (older than June 1, 2026)
   const isDeclarationLate = (dateStr: string) => {
@@ -774,8 +811,9 @@ export default function MinistryDashboardPage() {
               onChange={e => setSelectedYear(e.target.value)}
               className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 text-xs font-bold outline-none cursor-pointer"
             >
-              <option value="2025-2026">2025-2026</option>
-              <option value="2024-2025">2024-2025</option>
+              {academicYearOptions.map((year) => (
+                <option key={year} value={year}>{year}</option>
+              ))}
             </select>
           </div>
 
