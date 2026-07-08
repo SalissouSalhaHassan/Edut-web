@@ -1,7 +1,18 @@
 "use server";
 
 import { db } from "@/infrastructure/database";
-import { resultsWorkflows } from "@/infrastructure/database/schema/academics";
+import {
+  resultsWorkflows,
+  schoolSessions,
+  schoolClasses,
+  schoolSubjects,
+  teacherClassSubjects,
+  studentResults,
+  academicPeriods
+} from "@/infrastructure/database/schema/academics";
+import { employees } from "@/infrastructure/database/schema/hr";
+import { students } from "@/infrastructure/database/schema/students";
+import { studentAttendance } from "@/infrastructure/database/schema/attendance";
 import { auditLogs } from "@/infrastructure/database/schema/audit";
 import { eq, and } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
@@ -362,5 +373,53 @@ export async function getResultsWorkflowStatus(params: {
     });
 
     return { data: row || null };
+  });
+}
+
+// 9. Get Workflow Control Dashboard Data
+export async function getWorkflowControlData() {
+  return protectedDbAction("Academics", "canView", async () => {
+    const schoolId = await getActiveSchoolId();
+
+    const [
+      sessions,
+      periods,
+      classes,
+      subjects,
+      employeesList,
+      assignments,
+      workflows,
+      resultsData,
+      studentsList,
+      attendanceList
+    ] = await Promise.all([
+      db.query.schoolSessions.findMany(),
+      db.query.academicPeriods.findMany(),
+      db.query.schoolClasses.findMany({ where: eq(schoolClasses.schoolId, schoolId) }),
+      db.query.schoolSubjects.findMany({ where: eq(schoolSubjects.schoolId, schoolId) }),
+      db.query.employees.findMany({ where: eq(employees.schoolId, schoolId) }),
+      db.query.teacherClassSubjects.findMany({ where: eq(teacherClassSubjects.schoolId, schoolId) }),
+      db.query.resultsWorkflows.findMany({ where: eq(resultsWorkflows.schoolId, schoolId) }),
+      db.query.studentResults.findMany(),
+      db.query.students.findMany({ where: eq(students.schoolId, schoolId) }),
+      db.query.studentAttendance.findMany(),
+    ]);
+
+    const classIds = new Set(classes.map(c => c.id));
+    const filteredResults = (resultsData || []).filter(r => r.classId !== null && classIds.has(r.classId));
+    const filteredAttendance = (attendanceList || []).filter(a => a.classId !== null && classIds.has(a.classId));
+
+    return {
+      sessions: sessions || [],
+      periods: periods || [],
+      classes: classes || [],
+      subjects: subjects || [],
+      employees: employeesList || [],
+      assignments: assignments || [],
+      workflows: workflows || [],
+      resultsData: filteredResults,
+      studentsList: studentsList || [],
+      attendanceList: filteredAttendance,
+    };
   });
 }
