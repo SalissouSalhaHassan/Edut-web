@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Search, Loader2, Filter } from "lucide-react";
+import { toast } from "sonner";
 
 import { getFilterOptions } from "../actions/academics.actions";
 import { getClassDisplayName } from "@/domains/academics/utils/class-name";
@@ -25,6 +26,75 @@ function getAcademicLevels(data: any) {
     : Array.from(new Set((data?.sections || []).map((s: any) => s.educationalLevel || "Lycée"))) as string[];
 
   return values.length > 0 ? values : ["Lycée"];
+}
+
+
+const EMPTY_FILTER_OPTIONS: {
+  sessions: any[];
+  sections: any[];
+  classes: any[];
+  subjects: any[];
+  classSubjectLinks: any[];
+  sectionSubjectLinks: any[];
+  periods: any[];
+  levels: any[];
+} = {
+  sessions: [],
+  sections: [],
+  classes: [],
+  subjects: [],
+  classSubjectLinks: [],
+  sectionSubjectLinks: [],
+  periods: [],
+  levels: [],
+};
+
+type AcademicFilterOptions = typeof EMPTY_FILTER_OPTIONS;
+
+async function cacheAcademicFilterOptions(data: AcademicFilterOptions) {
+  const { cacheReferenceItems } = await import("@/infrastructure/local-db/references");
+  await Promise.all([
+    cacheReferenceItems("session", data.sessions || [], "sessionName"),
+    cacheReferenceItems("period", data.periods || [], "name"),
+    cacheReferenceItems("section", data.sections || [], "sectionName"),
+    cacheReferenceItems("class", data.classes || [], "className"),
+    cacheReferenceItems("subject", data.subjects || [], "subjectName"),
+    cacheReferenceItems("exams" as any, [{
+      id: "academic-filter-options",
+      label: "academic-filter-options",
+      classSubjectLinks: data.classSubjectLinks || [],
+      sectionSubjectLinks: data.sectionSubjectLinks || [],
+      levels: data.levels || [],
+      updatedAt: Date.now(),
+    }], "label"),
+  ]);
+}
+
+async function getCachedAcademicFilterOptions(): Promise<AcademicFilterOptions | null> {
+  const { getCachedReferenceItems } = await import("@/infrastructure/local-db/references");
+  const [sessions, periods, sections, classes, subjects, meta] = await Promise.all([
+    getCachedReferenceItems<any>("session"),
+    getCachedReferenceItems<any>("period"),
+    getCachedReferenceItems<any>("section"),
+    getCachedReferenceItems<any>("class"),
+    getCachedReferenceItems<any>("subject"),
+    getCachedReferenceItems<any>("exams" as any),
+  ]);
+
+  const filterMeta = meta.find((item: any) => item.id === "academic-filter-options" || item.label === "academic-filter-options") || {};
+  const cached = {
+    sessions,
+    periods,
+    sections,
+    classes,
+    subjects,
+    classSubjectLinks: filterMeta.classSubjectLinks || [],
+    sectionSubjectLinks: filterMeta.sectionSubjectLinks || [],
+    levels: filterMeta.levels || [],
+  };
+
+  const hasCoreData = cached.sessions.length > 0 || cached.sections.length > 0 || cached.classes.length > 0 || cached.subjects.length > 0;
+  return hasCoreData ? cached : null;
 }
 
 export default function AcademicFilters({ onLoad, loading }: AcademicFiltersProps) {
@@ -47,38 +117,71 @@ export default function AcademicFilters({ onLoad, loading }: AcademicFiltersProp
   const [period, setPeriod] = useState("");
 
   useEffect(() => {
+    let cancelled = false;
+
+    const applyOptions = (data: any, source: "session" | "local" | "server") => {
+      if (cancelled || !data) return;
+      const normalized = { ...EMPTY_FILTER_OPTIONS, ...data };
+      setOptions(normalized);
+
+      if (normalized.sessions?.length > 0) {
+        const activeSession = normalized.sessions.find((s: any) => s.isActive) || normalized.sessions[0];
+        setSession((current) => current || activeSession.id.toString());
+      }
+
+      const availableLevels = getAcademicLevels(normalized);
+      setLevel((current) => current && availableLevels.includes(current) ? current : String(availableLevels[0] || ""));
+
+      if (source === "local") {
+        toast.info("Filtres acad?miques charg?s depuis le cache hors-ligne.");
+      }
+    };
+
     async function loadOptions() {
-      // Try to load from session storage first for instant response
-      const cached = sessionStorage.getItem("academic_filter_options");
-      if (cached) {
+      const sessionCached = sessionStorage.getItem("academic_filter_options");
+      if (sessionCached) {
         try {
-          const cachedData = JSON.parse(cached);
-          setOptions(cachedData);
-          if (cachedData.sessions?.length > 0 && !session) {
-            setSession(cachedData.sessions[0].id.toString());
-          }
-          const cachedLevels = getAcademicLevels(cachedData);
-          setLevel((current) => current && cachedLevels.includes(current) ? current : String(cachedLevels[0]));
+          applyOptions(JSON.parse(sessionCached), "session");
         } catch (e) {
           console.error("Failed to parse cached options", e);
         }
       }
 
-      console.log("[AcademicFilters] Loading fresh options...");
-      const result = await getFilterOptions();
-      const data = (result as any)?.data || result;
+      const localCached = await getCachedAcademicFilterOptions();
+      if (localCached) {
+        applyOptions(localCached, "local");
+      }
 
-      if (data && data.sessions) {
-        setOptions(data);
-        sessionStorage.setItem("academic_filter_options", JSON.stringify(data));
-        if (data.sessions.length > 0 && !session) {
-          setSession(data.sessions[0].id.toString());
+      if (!navigator.onLine) {
+        if (!sessionCached && !localCached) {
+          toast.warning("Aucun cache local disponible pour les filtres Notes & R?sultats.");
         }
-        const freshLevels = getAcademicLevels(data);
-        setLevel((current) => current && freshLevels.includes(current) ? current : String(freshLevels[0]));
+        return;
+      }
+
+      try {
+        const result = await getFilterOptions();
+        const data = (result as any)?.data || result;
+
+        if (data && data.sessions) {
+          const normalized = { ...EMPTY_FILTER_OPTIONS, ...data };
+          applyOptions(normalized, "server");
+          sessionStorage.setItem("academic_filter_options", JSON.stringify(normalized));
+          await cacheAcademicFilterOptions(normalized);
+        }
+      } catch (error) {
+        console.warn("[AcademicFilters] Fresh options failed, keeping cached data:", error);
+        if (!localCached && !sessionCached) {
+          toast.error("Impossible de charger les filtres acad?miques.");
+        }
       }
     }
+
     loadOptions();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Calculate filtered sections
@@ -108,7 +211,7 @@ export default function AcademicFilters({ onLoad, loading }: AcademicFiltersProp
        }
     }
 
-    return options.subjects.filter((s: any) => subjectIds.includes(s.id.toString()));
+    return options.subjects.filter((s: any) => subjectIds.length === 0 ? Boolean(classId) : subjectIds.includes(s.id.toString()));
   }, [classId, sectionId, options.classSubjectLinks, options.sectionSubjectLinks, options.subjects]);
 
   // Handle Level -> Section auto-selection
