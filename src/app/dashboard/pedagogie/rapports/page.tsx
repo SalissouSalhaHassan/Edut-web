@@ -13,6 +13,9 @@ import { db } from "@/infrastructure/database";
 import RapportsClient from "./RapportsClient";
 import { getPedagogieRole } from "@/domains/pedagogie/permissions";
 import { X } from "lucide-react";
+import { teacherClassSubjects } from "@/infrastructure/database/schema/academics";
+import { eq } from "drizzle-orm";
+import { redirect } from "next/navigation";
 
 export const metadata = {
   title: "Centre de rapports pédagogiques | Pédagogie | Edut",
@@ -21,9 +24,12 @@ export const metadata = {
 
 export default async function RapportsPage() {
   const currentUser = await getCurrentUser();
+  if (!currentUser) {
+    redirect("/login");
+  }
 
   const role = getPedagogieRole(currentUser);
-  if (role === "enseignant" || role === "eleve" || role === "parent" || role === "guest" || role === "consultation") {
+  if (role === "eleve" || role === "parent" || role === "guest" || role === "consultation") {
     return (
       <div className="min-h-[70vh] flex items-center justify-center p-5">
         <div className="bg-white rounded-3xl p-8 border border-slate-150 max-w-md text-center space-y-4 shadow-sm">
@@ -32,7 +38,7 @@ export default async function RapportsPage() {
           </div>
           <h2 className="text-lg font-black text-slate-800">Accès non autorisé</h2>
           <p className="text-slate-500 text-sm font-medium">
-            L’accès au Centre de rapports pédagogiques est réservé aux administrateurs et responsables pédagogiques.
+            L’accès au Centre de rapports pédagogiques est réservé aux personnels autorisés.
           </p>
         </div>
       </div>
@@ -86,19 +92,68 @@ export default async function RapportsPage() {
     }
   });
 
+  // Filter data for teacher role
+  let filteredClasses = classes;
+  let filteredSubjects = subjects;
+  let filteredEmployees = employees;
+  let filteredStudents = students;
+  let filteredSeances = seances;
+  let filteredPlans = plans;
+  let filteredAssignments = assignments;
+  let filteredRemediations = remediations;
+  let filteredInspections = inspections;
+  let filteredSubmissions = submissions;
+
+  if (role === "enseignant") {
+    const emp = employees.find((e: any) => e.email === currentUser.email || e.email === currentUser.utilisateur);
+    if (emp) {
+      const assignmentsList = await db.query.teacherClassSubjects.findMany({
+        where: eq(teacherClassSubjects.employeeId, emp.id)
+      });
+      
+      const teacherClassIds = new Set(assignmentsList.map(a => a.classId).filter(Boolean));
+      const teacherSubjectIds = new Set(assignmentsList.map(a => a.subjectId).filter(Boolean));
+      
+      filteredClasses = classes.filter((c: any) => teacherClassIds.has(c.id));
+      filteredSubjects = subjects.filter((s: any) => teacherSubjectIds.has(s.id));
+      filteredEmployees = employees.filter((e: any) => e.id === emp.id);
+      
+      const targetClassNames = new Set(filteredClasses.map((c: any) => c.className.trim()));
+      filteredStudents = students.filter((s: any) => s.classe && targetClassNames.has(s.classe.trim()));
+      
+      filteredSeances = seances.filter((s: any) => s.employeeId === emp.id);
+      filteredPlans = plans.filter((p: any) => p.employeeId === emp.id);
+      filteredAssignments = assignments.filter((a: any) => teacherClassIds.has(a.classId));
+      filteredSubmissions = submissions.filter((sub: any) => sub.assignment?.classId && teacherClassIds.has(sub.assignment.classId));
+      filteredRemediations = remediations.filter((r: any) => r.employeeId === emp.id);
+      filteredInspections = inspections.filter((i: any) => i.employeeId === emp.id);
+    } else {
+      filteredClasses = [];
+      filteredSubjects = [];
+      filteredEmployees = [];
+      filteredStudents = [];
+      filteredSeances = [];
+      filteredPlans = [];
+      filteredAssignments = [];
+      filteredSubmissions = [];
+      filteredRemediations = [];
+      filteredInspections = [];
+    }
+  }
+
   return (
     <RapportsClient
       currentUser={currentUser}
-      classes={classes}
-      subjects={subjects}
-      employees={employees}
-      students={students}
-      seances={seances}
-      plans={plans}
-      assignments={assignments}
-      submissions={submissions}
-      remediations={remediations}
-      inspections={inspections}
+      classes={filteredClasses}
+      subjects={filteredSubjects}
+      employees={filteredEmployees}
+      students={filteredStudents}
+      seances={filteredSeances}
+      plans={filteredPlans}
+      assignments={filteredAssignments}
+      submissions={filteredSubmissions}
+      remediations={filteredRemediations}
+      inspections={filteredInspections}
       sessions={sessions}
       activeSessionName={activeSessionName}
       periods={periods}

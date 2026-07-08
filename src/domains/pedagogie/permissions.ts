@@ -192,8 +192,7 @@ export function canCorrectDevoirs(user: any): boolean {
 export function canManageRemediation(user: any): boolean {
   if (hasDbPedagogyPermission(user, "canEdit")) return true;
   const role = getPedagogieRole(user);
-  // Responsable Pédagogique, Directeur, and Super Admin can manage.
-  return ["super_admin", "directeur", "responsable_pedagogique"].includes(role);
+  return ["super_admin", "directeur", "responsable_pedagogique", "enseignant"].includes(role);
 }
 
 /**
@@ -211,7 +210,7 @@ export function canManageInspection(user: any): boolean {
 export function canViewPedagogieReports(user: any): boolean {
   if (hasDbPedagogyPermission(user, "canView")) return true;
   const role = getPedagogieRole(user);
-  return ["super_admin", "directeur", "responsable_pedagogique"].includes(role);
+  return ["super_admin", "directeur", "responsable_pedagogique", "enseignant"].includes(role);
 }
 
 /**
@@ -220,7 +219,7 @@ export function canViewPedagogieReports(user: any): boolean {
 export function canExportPedagogieReports(user: any): boolean {
   if (hasDbPedagogyPermission(user, "canView")) return true;
   const role = getPedagogieRole(user);
-  return ["super_admin", "directeur", "responsable_pedagogique"].includes(role);
+  return ["super_admin", "directeur", "responsable_pedagogique", "enseignant"].includes(role);
 }
 
 /**
