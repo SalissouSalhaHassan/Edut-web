@@ -23,7 +23,8 @@ import {
   classSubjects,
   sectionSubjects,
   studentResults,
-  studentTermSummaries
+  studentTermSummaries,
+  resultsWorkflows
 } from "@/infrastructure/database/schema/academics";
 import { students } from "@/infrastructure/database/schema/students";
 import { studentAttendance } from "@/infrastructure/database/schema/attendance";
@@ -34,8 +35,43 @@ import { revalidatePath, unstable_cache, revalidateTag as nextRevalidateTag } fr
 const revalidateTag = nextRevalidateTag as any;
 
 const ACADEMICS_CACHE_TAG = "academics-cache";
+const LOCKED_RESULT_WORKFLOW_STATUSES = ["VERROUILLE", "PUBLIE", "ARCHIVE"];
+const RESULT_WORKFLOW_LOCK_MESSAGE = "Les résultats sont verrouillés, publiés ou archivés. Modification interdite.";
 import { protectedDbAction } from "@/lib/protected-action";
 import { getActiveSchoolId } from "@/domains/auth/services/school";
+
+async function assertResultsWorkflowEditable(params: {
+  classId: number;
+  subjectId?: number | string | null;
+  sessionId: number;
+  period: string;
+}) {
+  const schoolId = await getActiveSchoolId();
+  const subjectId = params.subjectId === undefined || params.subjectId === null || params.subjectId === "All"
+    ? null
+    : Number(params.subjectId);
+
+  const conditions = [
+    eq(resultsWorkflows.schoolId, schoolId),
+    eq(resultsWorkflows.classId, Number(params.classId)),
+    eq(resultsWorkflows.sessionId, Number(params.sessionId)),
+    eq(resultsWorkflows.period, params.period),
+  ];
+
+  if (subjectId && !Number.isNaN(subjectId)) {
+    conditions.push(eq(resultsWorkflows.subjectId, subjectId));
+  }
+
+  const workflow = await db.query.resultsWorkflows.findFirst({
+    where: and(...conditions),
+  });
+
+  if (workflow?.status && LOCKED_RESULT_WORKFLOW_STATUSES.includes(workflow.status)) {
+    return { editable: false, error: RESULT_WORKFLOW_LOCK_MESSAGE };
+  }
+
+  return { editable: true };
+}
 
 // Helper to get educational level filter - admins see all
 function getLevelFilter() {
@@ -637,6 +673,16 @@ export async function saveStudentGrades(resultsData: any[]) {
       return { error: "Accès refusé. Vous n'êtes pas autorisé pour cette classe et cette matière." };
     }
 
+    const workflowGuard = await assertResultsWorkflowEditable({
+      classId: first.classId,
+      subjectId: first.subjectId,
+      sessionId: first.sessionId,
+      period: first.term,
+    });
+    if (!workflowGuard.editable) {
+      return { error: workflowGuard.error };
+    }
+
     const existing = await db.query.studentResults.findMany({
       where: and(
         eq(studentResults.classId, first.classId),
@@ -741,6 +787,16 @@ export async function saveDevoirGrades(payload: any[]) {
     const hasAccess = await verifyTeacherClassSubjectAccess(user, first.classId, first.subjectId);
     if (!hasAccess) {
       return { error: "Accès refusé. Vous n'êtes pas autorisé pour cette classe et cette matière." };
+    }
+
+    const workflowGuard = await assertResultsWorkflowEditable({
+      classId: first.classId,
+      subjectId: first.subjectId,
+      sessionId: first.sessionId,
+      period: first.term,
+    });
+    if (!workflowGuard.editable) {
+      return { error: workflowGuard.error };
     }
 
     const existing = await db.query.studentResults.findMany({
@@ -1064,6 +1120,15 @@ export async function saveTermSummaries(summaries: any[]) {
     if (summaries.length === 0) return { success: true };
 
     const first = summaries[0];
+    const workflowGuard = await assertResultsWorkflowEditable({
+      classId: first.classId,
+      sessionId: first.sessionId,
+      period: first.term,
+    });
+    if (!workflowGuard.editable) {
+      return { error: workflowGuard.error };
+    }
+
     const existing = await db.query.studentTermSummaries.findMany({
       where: and(
         eq(studentTermSummaries.classId, first.classId),

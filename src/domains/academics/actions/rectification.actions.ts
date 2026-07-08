@@ -1,13 +1,16 @@
 "use server";
 
 import { db } from "@/infrastructure/database";
-import { officialRectifications, schoolSessions, studentResults } from "@/infrastructure/database/schema/academics";
+import { officialRectifications, schoolSessions, studentResults, resultsWorkflows } from "@/infrastructure/database/schema/academics";
 import { students } from "@/infrastructure/database/schema/students";
 import { auditLogs } from "@/infrastructure/database/schema/audit";
 import { eq, and } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { getActiveSchoolId } from "@/domains/auth/services/school";
 import { protectedDbAction } from "@/lib/protected-action";
+
+const LOCKED_RESULT_WORKFLOW_STATUSES = ["VERROUILLE", "PUBLIE", "ARCHIVE"];
+const RESULT_WORKFLOW_LOCK_MESSAGE = "Les résultats sont verrouillés, publiés ou archivés. Modification interdite.";
 
 export async function submitOfficialRectification(params: {
   entityType: "student" | "grade";
@@ -57,6 +60,21 @@ export async function submitOfficialRectification(params: {
             where: eq(studentResults.id, params.entityId)
           });
           if (!grade) throw new Error("Grade record not found");
+
+          const workflow = await tx.query.resultsWorkflows.findFirst({
+            where: and(
+              eq(resultsWorkflows.schoolId, schoolId),
+              eq(resultsWorkflows.classId, Number(grade.classId)),
+              eq(resultsWorkflows.sessionId, Number(grade.sessionId)),
+              eq(resultsWorkflows.period, String(grade.term)),
+              eq(resultsWorkflows.subjectId, Number(grade.subjectId))
+            )
+          });
+
+          if (workflow?.status && LOCKED_RESULT_WORKFLOW_STATUSES.includes(workflow.status)) {
+            throw new Error(RESULT_WORKFLOW_LOCK_MESSAGE);
+          }
+
           oldValue = (grade as any)[params.fieldName] != null ? String((grade as any)[params.fieldName]) : "";
 
           await tx.update(studentResults)
