@@ -11,22 +11,16 @@ interface GuardProps {
 
 /**
  * Server Component to conditionally render children based on user permissions.
- * Also filters data scope based on educationalLevel for non-admin users.
+ * Evaluates access using the unified RBAC system.
  */
 export async function Guard({ module, action, children, fallback = null }: GuardProps) {
   const user = await getCurrentUser();
 
   if (!user) return fallback;
   
-  // Admin users have full access
-  if (user.admin) return children;
+  const permitted = await hasPermission(user.id, module, action);
 
-  // Check module permission
-  const permission = user.role?.permissions?.find((p: any) => p.moduleName === module);
-
-  if (!permission) return fallback;
-
-  if (permission[action]) {
+  if (permitted) {
     return children;
   }
 

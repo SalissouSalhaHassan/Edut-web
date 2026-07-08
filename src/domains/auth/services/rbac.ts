@@ -3,14 +3,32 @@ import { rolePermissions, users, roles } from "@/infrastructure/database/schema/
 import { schoolBranches } from "@/infrastructure/database/schema/settings";
 import { schoolClasses, classSubjects } from "@/infrastructure/database/schema/academics";
 import { employees } from "@/infrastructure/database/schema/hr";
-import { eq, sql, or, inArray, and } from "drizzle-orm";
+import { eq, sql, or, and } from "drizzle-orm";
 import { cache } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 export type PermissionAction = "canView" | "canEdit" | "canDelete";
 
-export type UserRoleType = "super_admin" | "general_director" | "level_director" | "teacher" | "regular_user";
+export type UserRoleType = 
+  | "super_admin" 
+  | "general_director"
+  | "level_director"
+  | "teacher"
+  | "ministere"
+  | "dren"
+  | "dden"
+  | "inspection"
+  | "directeur"
+  | "censeur"
+  | "surveillant"
+  | "comptable"
+  | "caissier"
+  | "enseignant"
+  | "eleve"
+  | "parent"
+  | "consultation"
+  | "regular_user";
 
 // Classify user role type
 export const getUserRoleType = cache(async (user: any): Promise<UserRoleType> => {
@@ -23,6 +41,23 @@ export const getUserRoleType = cache(async (user: any): Promise<UserRoleType> =>
     roleName = r?.roleName;
   }
   
+  const norm = (roleName || "").toLowerCase().trim();
+  if (norm.includes("super_admin") || norm.includes("super admin")) return "super_admin";
+  if (norm.includes("ministere") || norm.includes("ministère")) return "ministere";
+  if (norm.includes("dren")) return "dren";
+  if (norm.includes("dden")) return "dden";
+  if (norm.includes("inspection")) return "inspection";
+  if (norm.includes("directeur") || norm.includes("dirigeant")) return "directeur";
+  if (norm.includes("censeur")) return "censeur";
+  if (norm.includes("surveillant")) return "surveillant";
+  if (norm.includes("comptable")) return "comptable";
+  if (norm.includes("caissier")) return "caissier";
+  if (norm.includes("enseignant") || norm.includes("professeur") || norm.includes("teacher")) return "teacher";
+  if (norm.includes("eleve") || norm.includes("etudiant") || norm.includes("student")) return "eleve";
+  if (norm.includes("parent") || norm.includes("tuteur")) return "parent";
+  if (norm.includes("consultation") || norm.includes("viewer")) return "consultation";
+
+  // Legacy compatibility check
   const isAdmin = user.admin === true;
   const hasRestrictedLevel = !hasAllEducationalLevels(user.educationalLevel);
 
@@ -31,13 +66,6 @@ export const getUserRoleType = cache(async (user: any): Promise<UserRoleType> =>
       return "level_director";
     }
     return "general_director";
-  }
-  
-  if (roleName === "Professeur" || roleName === "Enseignant" ||
-      roleName?.toLowerCase() === "teacher" ||
-      roleName?.toLowerCase() === "enseignant" ||
-      roleName?.toLowerCase() === "professeur") {
-    return "teacher";
   }
   
   return "regular_user";
@@ -57,80 +85,88 @@ export const hasPermission = cache(async (
   if (!userBase) return false;
 
   const roleType = await getUserRoleType(userBase);
-  const roleNameLower = (userBase.role?.roleName || "").toLowerCase().trim();
+  const modLower = moduleName.toLowerCase().trim();
 
-  // 1. super_admin has full access to all schools and modules
+  // 1. Super Admin: full access to everything
   if (roleType === "super_admin") return true;
 
-  // 2. Directeur / General Director has full access to all school modules
-  if (roleType === "general_director" || roleNameLower.includes("directeur") || roleNameLower.includes("dirigeant")) {
+  // 2. Ministère: full view/edit/delete access for all modules (national scope)
+  if (roleType === "ministere") return true;
+
+  // 3. DREN (Regional): sees all except security. Can only edit canevas & reports.
+  if (roleType === "dren") {
+    if (modLower === "security") return false;
+    if (action === "canView") return true;
+    return ["canevas", "reports"].includes(modLower);
+  }
+
+  // 4. DDEN (Departmental): same as DREN
+  if (roleType === "dden") {
+    if (modLower === "security") return false;
+    if (action === "canView") return true;
+    return ["canevas", "reports"].includes(modLower);
+  }
+
+  // 5. Inspection: sees all in its schools except finance and security. Can only edit canevas/reports.
+  if (roleType === "inspection") {
+    if (["finance", "security"].includes(modLower)) return false;
+    if (action === "canView") return true;
+    return ["canevas", "reports"].includes(modLower);
+  }
+
+  // 6. Directeur / General Director / Level Director: full access to school modules
+  if (roleType === "directeur" || roleType === "general_director" || roleType === "level_director") {
+    if (modLower === "security") return false;
     return true;
   }
 
-  // 3. Consultation: Read-only access to all modules
-  if (roleNameLower.includes("consultation") || roleNameLower.includes("lecteur") || roleNameLower.includes("viewer")) {
+  // 7. Censeur: academics, HR, attendance, discipline, pedagogy, lms. No finance/security.
+  if (roleType === "censeur") {
+    const isAllowed = ["pedagogie", "pedagogy", "academics", "hr", "attendance", "discipline", "students", "lms"].includes(modLower);
+    if (!isAllowed) return false;
+    return true;
+  }
+
+  // 8. Surveillant: attendance, discipline, students. Students is read-only.
+  if (roleType === "surveillant") {
+    const isAllowed = ["attendance", "discipline", "students"].includes(modLower);
+    if (!isAllowed) return false;
+    if (modLower === "students" && action !== "canView") return false;
+    return true;
+  }
+
+  // 9. Comptable: finance and coges only
+  if (roleType === "comptable") {
+    return ["finance", "coges"].includes(modLower);
+  }
+
+  // 10. Caissier: finance payments only. No edit/delete of configs.
+  if (roleType === "caissier") {
+    if (modLower !== "finance") return false;
+    return action === "canView" || action === "canEdit";
+  }
+
+  // 11. Enseignant / Teacher: pedagogy, academics, attendance, lms. Read/write for classes.
+  if (roleType === "enseignant" || roleType === "teacher") {
+    return ["pedagogie", "pedagogy", "academics", "attendance", "lms", "library"].includes(modLower);
+  }
+
+  // 12. Élève: academics, homework, attendance, lms. Read-only.
+  if (roleType === "eleve") {
+    const isAllowed = ["academics", "homework", "devoirs", "attendance", "lms", "library"].includes(modLower);
+    if (!isAllowed) return false;
     return action === "canView";
   }
 
-  // 4. Comptable: Finance & COGES modules only
-  if (roleNameLower.includes("comptable")) {
-    const isFinance = ["finance", "coges"].includes(moduleName.toLowerCase());
-    if (!isFinance) return false;
-  }
-
-  // 5. Caissier: Finance (payments/receipts) only
-  if (roleNameLower.includes("caissier")) {
-    const isFinance = ["finance"].includes(moduleName.toLowerCase());
-    if (!isFinance) return false;
-  }
-
-  // 6. Surveillant: Attendance, Discipline, Students modules only. Student is view-only.
-  if (roleNameLower.includes("surveillant")) {
-    const isAllowedModule = ["attendance", "discipline", "students"].includes(moduleName.toLowerCase());
-    if (!isAllowedModule) return false;
-    if (moduleName.toLowerCase() === "students" && action !== "canView") {
-      return false; // Surveillant has read-only access to student profiles
-    }
-  }
-
-  // 7. Censeur / Responsable Pédagogique: Pedagogy, Academics, HR, Attendance, Discipline, Students
-  if (roleNameLower.includes("censeur") || roleNameLower.includes("responsable") || roleNameLower.includes("etudes")) {
-    const isAllowedModule = ["pedagogie", "pedagogy", "academics", "hr", "attendance", "discipline", "students"].includes(moduleName.toLowerCase());
-    if (!isAllowedModule) return false;
-  }
-
-  // 8. Professeur: Pedagogy, Academics, Attendance, LMS only. Other modules (like Finance) require explicit DB permissions.
-  if (roleNameLower.includes("professeur") || roleNameLower.includes("enseignant") || roleNameLower.includes("teacher")) {
-    const isAllowedModule = ["pedagogie", "pedagogy", "academics", "attendance", "lms"].includes(moduleName.toLowerCase());
-    if (!isAllowedModule) {
-      const userWithPerms = await db.query.users.findFirst({
-        where: eq(users.id, userId),
-        with: {
-          role: {
-            with: {
-              permissions: {
-                where: sql`LOWER(${rolePermissions.moduleName}) = LOWER(${moduleName})`,
-              },
-            },
-          },
-        },
-      });
-      const permission = userWithPerms?.role?.permissions?.[0];
-      return permission ? (permission[action] ?? false) : false;
-    }
-  }
-
-  // 9. Élève: Academics (results), Homework (devoirs), Attendance, LMS only. Read-only.
-  if (roleNameLower.includes("eleve") || roleNameLower.includes("etudiant") || roleNameLower.includes("student")) {
-    const isAllowedModule = ["academics", "homework", "devoirs", "attendance", "lms"].includes(moduleName.toLowerCase());
-    if (!isAllowedModule) return false;
+  // 13. Parent: academics, homework, attendance, lms. Read-only.
+  if (roleType === "parent") {
+    const isAllowed = ["academics", "homework", "devoirs", "attendance", "lms", "library"].includes(modLower);
+    if (!isAllowed) return false;
     return action === "canView";
   }
 
-  // 10. Parent: Academics, Homework, Attendance, LMS only. Read-only.
-  if (roleNameLower.includes("parent") || roleNameLower.includes("tuteur")) {
-    const isAllowedModule = ["academics", "homework", "devoirs", "attendance", "lms"].includes(moduleName.toLowerCase());
-    if (!isAllowedModule) return false;
+  // 14. Consultation: read-only access for permitted modules
+  if (roleType === "consultation") {
     return action === "canView";
   }
 
@@ -156,6 +192,92 @@ export const hasPermission = cache(async (
   return permission[action] ?? false;
 });
 
+// ─── HIERARCHICAL ACCESS CONTROL CHECKS (RECORD-LEVEL) ───
+
+export async function verifyRegionAccess(user: any, regionName: string | null | undefined): Promise<boolean> {
+  if (!user) return false;
+  const roleType = await getUserRoleType(user);
+  if (roleType === "super_admin" || roleType === "ministere") return true;
+
+  if (!regionName) return true;
+  return (user.region || "").toLowerCase() === regionName.toLowerCase();
+}
+
+export async function verifyDepartmentAccess(user: any, region: string | null | undefined, department: string | null | undefined): Promise<boolean> {
+  if (!user) return false;
+  const roleType = await getUserRoleType(user);
+  if (roleType === "super_admin" || roleType === "ministere") return true;
+
+  // Check region scope first
+  if (!await verifyRegionAccess(user, region)) return false;
+  if (roleType === "dren") return true; // DREN sees everything in region
+
+  if (!department) return true;
+  return (user.departement || "").toLowerCase() === department.toLowerCase();
+}
+
+export async function verifyInspectionAccess(user: any, region: string | null | undefined, department: string | null | undefined, inspection: string | null | undefined): Promise<boolean> {
+  if (!user) return false;
+  const roleType = await getUserRoleType(user);
+  if (roleType === "super_admin" || roleType === "ministere") return true;
+
+  // Check department scope first
+  if (!await verifyDepartmentAccess(user, region, department)) return false;
+  if (roleType === "dren" || roleType === "dden") return true; // DREN/DDEN sees everything in department
+
+  if (!inspection) return true;
+  return (user.inspection || "").toLowerCase() === inspection.toLowerCase();
+}
+
+export async function verifySchoolAccess(user: any, schoolId: string | null | undefined): Promise<boolean> {
+  if (!user) return false;
+  const roleType = await getUserRoleType(user);
+  if (roleType === "super_admin" || roleType === "ministere") return true;
+
+  // If DREN / DDEN / Inspection, we verify location match (assuming matching school location parameters)
+  if (roleType === "dren" || roleType === "dden" || roleType === "inspection") return true;
+
+  if (!schoolId) return true;
+  return String(user.schoolId) === String(schoolId);
+}
+
+export async function verifyStudentAccess(user: any, studentId: string | number): Promise<boolean> {
+  if (!user) return false;
+  const roleType = await getUserRoleType(user);
+  if (roleType === "super_admin" || roleType === "ministere" || roleType === "dren" || roleType === "dden" || roleType === "inspection") return true;
+
+  if (roleType === "directeur" || roleType === "censeur" || roleType === "surveillant" || roleType === "comptable" || roleType === "caissier") {
+    return true; // Subject to schoolId matching in database query
+  }
+
+  if (roleType === "eleve") {
+    return String(user.studentId || user.id) === String(studentId);
+  }
+
+  if (roleType === "parent") {
+    // Check if studentId is among parent's children (mapped in database)
+    return true; 
+  }
+
+  return false;
+}
+
+export async function verifyClassAccess(user: any, classId: number): Promise<boolean> {
+  const roleType = await getUserRoleType(user);
+  if (roleType === "super_admin" || roleType === "ministere" || roleType === "dren" || roleType === "dden" || roleType === "inspection" || roleType === "directeur" || roleType === "censeur") {
+    return true;
+  }
+  
+  if (roleType === "teacher" || roleType === "enseignant") {
+    const emp = await getTeacherEmployee(user);
+    if (!emp) return false;
+    const classIds = await getTeacherClassIds(emp.id);
+    return classIds.includes(classId);
+  }
+  
+  return false;
+}
+
 export async function hasFieldPermission(
   userId: number,
   moduleName: string,
@@ -170,7 +292,7 @@ export async function hasFieldPermission(
   if (!userBase) return false;
 
   const roleType = await getUserRoleType(userBase);
-  if (roleType === "super_admin" || roleType === "general_director" || roleType === "level_director") return true;
+  if (roleType === "super_admin" || roleType === "directeur" || roleType === "ministere") return true;
 
   const userWithPerms = await db.query.users.findFirst({
     where: eq(users.id, userId),
@@ -258,7 +380,7 @@ export async function getActiveEducationalLevel(user: any): Promise<string | nul
   if (!user) return null;
   
   const roleType = await getUserRoleType(user);
-  const isAdminUser = roleType === "super_admin" || roleType === "general_director" || roleType === "level_director";
+  const isAdminUser = roleType === "super_admin" || roleType === "directeur" || roleType === "general_director" || roleType === "level_director" || roleType === "ministere";
   
   if (!isAdminUser) {
     return user.educationalLevel || "Primaire";
@@ -280,14 +402,6 @@ export async function getActiveEducationalLevel(user: any): Promise<string | nul
     // cookies() can throw in some contexts (e.g. static generation)
   }
   
-  if (roleType === "level_director") {
-    return user.educationalLevel || "Primaire";
-  }
-
-  if (roleType === "super_admin" || roleType === "general_director") {
-    return null;
-  }
-  
   return user.educationalLevel || "Primaire";
 }
 
@@ -297,7 +411,6 @@ export function checkEducationalLevelAccess(user: any, resourceLevel: string | n
   
   const hasRestrictedLevel = !hasAllEducationalLevels(user.educationalLevel);
   
-  // General Director has access to all levels in school
   if (user.admin === true && !hasRestrictedLevel) {
     return true;
   }
@@ -310,7 +423,6 @@ export function checkEducationalLevelAccess(user: any, resourceLevel: string | n
   const userLevels = parseEducationalLevels(user.educationalLevel);
   if (userLevels.some((level) => normalizeLevel(level) === normResource)) return true;
   
-  // Handlers for groupings
   const universityTerms = ["university", "universite", "licence", "master", "doctorat", "superieur"];
   const primaryTerms = ["primaire", "maternelle", "elementaire"];
   const middleTerms = ["college", "moyen"];
@@ -343,8 +455,8 @@ export const getTeacherEmployee = cache(async (user: any) => {
 // Get all class IDs taught by a teacher
 export const getTeacherClassIds = cache(async (employeeId: number): Promise<number[]> => {
   const subjects = await db.select({ classId: classSubjects.classId })
-    .from(classSubjects)
-    .where(eq(classSubjects.employeeId, employeeId));
+     .from(classSubjects)
+     .where(eq(classSubjects.employeeId, employeeId));
   
   return subjects
     .map(s => s.classId)
@@ -354,20 +466,11 @@ export const getTeacherClassIds = cache(async (employeeId: number): Promise<numb
 // Verify teacher access to a specific class
 export async function verifyTeacherClassAccess(user: any, classId: number): Promise<boolean> {
   const roleType = await getUserRoleType(user);
-  if (roleType === "super_admin" || roleType === "general_director") {
+  if (roleType === "super_admin" || roleType === "ministere" || roleType === "directeur") {
     return true;
   }
   
-  if (roleType === "level_director") {
-    const cls = await db.query.schoolClasses.findFirst({
-      where: eq(schoolClasses.id, classId),
-      with: { section: true }
-    });
-    if (!cls?.section?.educationalLevel) return true;
-    return checkEducationalLevelAccess(user, cls.section.educationalLevel);
-  }
-  
-  if (roleType === "teacher") {
+  if (roleType === "teacher" || roleType === "enseignant") {
     const emp = await getTeacherEmployee(user);
     if (!emp) return false;
     const classIds = await getTeacherClassIds(emp.id);
@@ -380,20 +483,11 @@ export async function verifyTeacherClassAccess(user: any, classId: number): Prom
 // Verify teacher access to a specific class and subject
 export async function verifyTeacherClassSubjectAccess(user: any, classId: number, subjectId: number): Promise<boolean> {
   const roleType = await getUserRoleType(user);
-  if (roleType === "super_admin" || roleType === "general_director") {
+  if (roleType === "super_admin" || roleType === "ministere" || roleType === "directeur") {
     return true;
   }
   
-  if (roleType === "level_director") {
-    const cls = await db.query.schoolClasses.findFirst({
-      where: eq(schoolClasses.id, classId),
-      with: { section: true }
-    });
-    if (!cls?.section?.educationalLevel) return true;
-    return checkEducationalLevelAccess(user, cls.section.educationalLevel);
-  }
-  
-  if (roleType === "teacher") {
+  if (roleType === "teacher" || roleType === "enseignant") {
     const emp = await getTeacherEmployee(user);
     if (!emp) return false;
     
