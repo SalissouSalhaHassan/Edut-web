@@ -2,7 +2,7 @@
 
 import { db } from "@/infrastructure/database";
 import { students } from "@/infrastructure/database/schema/students";
-import { schoolClasses, schoolSubjects, exams, examResults } from "@/infrastructure/database/schema/academics";
+import { schoolClasses, schoolSubjects, exams, examResults, schoolSessions } from "@/infrastructure/database/schema/academics";
 import { pedagogieRemediation } from "@/infrastructure/database/schema/pedagogie";
 import { lmsAssignments } from "@/infrastructure/database/schema/lms";
 import { eq, desc, and, or, inArray, sql } from "drizzle-orm";
@@ -95,6 +95,16 @@ export async function createStudent(formData: StudentFormData) {
 
   return protectedDbAction("Students", "canEdit", async (user) => {
     const schoolId = await getActiveSchoolId();
+    const activeSession = await db.query.schoolSessions.findFirst({
+      where: and(
+        eq(schoolSessions.schoolId, schoolId),
+        eq(schoolSessions.isActive, true)
+      )
+    });
+    if (activeSession && (activeSession.status === "Clôturé" || activeSession.status === "Verrouillé")) {
+      return { error: "Action impossible : l'année scolaire est verrouillée." };
+    }
+
     const roleType = await getUserRoleType(user);
     
     // Check if admission number already exists for this school
@@ -128,6 +138,16 @@ export async function createStudent(formData: StudentFormData) {
 export async function deleteStudent(id: number) {
   return protectedDbAction("Students", "canDelete", async (user) => {
     const schoolId = await getActiveSchoolId();
+    const activeSession = await db.query.schoolSessions.findFirst({
+      where: and(
+        eq(schoolSessions.schoolId, schoolId),
+        eq(schoolSessions.isActive, true)
+      )
+    });
+    if (activeSession && (activeSession.status === "Clôturé" || activeSession.status === "Verrouillé")) {
+      return { error: "Action impossible : l'année scolaire est verrouillée." };
+    }
+
     const roleType = await getUserRoleType(user);
 
     if (roleType === "teacher") {
@@ -162,6 +182,16 @@ export async function updateStudent(id: number, formData: StudentFormData, origi
 
   return protectedDbAction("Students", "canEdit", async (user) => {
     const schoolId = await getActiveSchoolId();
+    const activeSession = await db.query.schoolSessions.findFirst({
+      where: and(
+        eq(schoolSessions.schoolId, schoolId),
+        eq(schoolSessions.isActive, true)
+      )
+    });
+    if (activeSession && (activeSession.status === "Clôturé" || activeSession.status === "Verrouillé")) {
+      return { error: "Action impossible : l'année scolaire est verrouillée." };
+    }
+
     const roleType = await getUserRoleType(user);
 
     if (roleType === "teacher") {
