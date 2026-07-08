@@ -36,6 +36,11 @@ import {
   AlertTriangle,
   Clock,
   ShieldAlert,
+  HelpCircle,
+  TrendingDown,
+  Layers,
+  BookOpen,
+  AlertCircle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
@@ -56,6 +61,11 @@ interface SchoolData {
   salles: number;
   eau: boolean;
   electricite: boolean;
+  latrines: boolean;
+  manqueEnseignants: number;
+  manqueSalles: number;
+  manqueLivres: number;
+  abandonRate: number;
   completion: number; // 0 to 100
   lastDeclaration: string; // YYYY-MM-DD
   successRate: number; // 0 to 100
@@ -80,6 +90,11 @@ const initialSchools: SchoolData[] = [
     salles: 18,
     eau: true,
     electricite: true,
+    latrines: true,
+    manqueEnseignants: 0,
+    manqueSalles: 0,
+    manqueLivres: 10,
+    abandonRate: 1.2,
     completion: 98,
     lastDeclaration: "2026-06-27",
     successRate: 88.5,
@@ -102,6 +117,11 @@ const initialSchools: SchoolData[] = [
     salles: 12,
     eau: false,
     electricite: true,
+    latrines: false,
+    manqueEnseignants: 3,
+    manqueSalles: 2,
+    manqueLivres: 85,
+    abandonRate: 8.2,
     completion: 76,
     lastDeclaration: "2026-06-26",
     successRate: 64.2,
@@ -124,6 +144,11 @@ const initialSchools: SchoolData[] = [
     salles: 26,
     eau: true,
     electricite: true,
+    latrines: true,
+    manqueEnseignants: 0,
+    manqueSalles: 0,
+    manqueLivres: 0,
+    abandonRate: 2.1,
     completion: 94,
     lastDeclaration: "2026-06-25",
     successRate: 82.1,
@@ -146,6 +171,11 @@ const initialSchools: SchoolData[] = [
     salles: 9,
     eau: true,
     electricite: false,
+    latrines: true,
+    manqueEnseignants: 1,
+    manqueSalles: 3,
+    manqueLivres: 120,
+    abandonRate: 5.4,
     completion: 61,
     lastDeclaration: "2026-06-24",
     successRate: 59.8,
@@ -168,6 +198,11 @@ const initialSchools: SchoolData[] = [
     salles: 34,
     eau: true,
     electricite: true,
+    latrines: true,
+    manqueEnseignants: 0,
+    manqueSalles: 1,
+    manqueLivres: 40,
+    abandonRate: 3.8,
     completion: 91,
     lastDeclaration: "2026-06-22",
     successRate: 74.5,
@@ -190,6 +225,11 @@ const initialSchools: SchoolData[] = [
     salles: 14,
     eau: true,
     electricite: false,
+    latrines: false,
+    manqueEnseignants: 2,
+    manqueSalles: 4,
+    manqueLivres: 95,
+    abandonRate: 9.6,
     completion: 85,
     lastDeclaration: "2026-05-15", // Late
     successRate: 61.2,
@@ -211,7 +251,12 @@ const initialSchools: SchoolData[] = [
     enseignants: 32,
     salles: 20,
     eau: false,
-    electricite: false, // Both missing
+    electricite: false,
+    latrines: false,
+    manqueEnseignants: 5,
+    manqueSalles: 4,
+    manqueLivres: 150,
+    abandonRate: 12.4,
     completion: 55,
     lastDeclaration: "2026-06-18",
     successRate: 54.3,
@@ -234,6 +279,11 @@ const initialSchools: SchoolData[] = [
     salles: 8,
     eau: true,
     electricite: true,
+    latrines: true,
+    manqueEnseignants: 0,
+    manqueSalles: 0,
+    manqueLivres: 15,
+    abandonRate: 0.8,
     completion: 97,
     lastDeclaration: "2026-06-28",
     successRate: 91.0,
@@ -256,6 +306,11 @@ const initialSchools: SchoolData[] = [
     salles: 28,
     eau: true,
     electricite: true,
+    latrines: true,
+    manqueEnseignants: 0,
+    manqueSalles: 0,
+    manqueLivres: 20,
+    abandonRate: 1.9,
     completion: 88,
     lastDeclaration: "2026-04-10", // Late
     successRate: 78.4,
@@ -278,6 +333,11 @@ const initialSchools: SchoolData[] = [
     salles: 4,
     eau: false,
     electricite: true,
+    latrines: true,
+    manqueEnseignants: 0,
+    manqueSalles: 0,
+    manqueLivres: 80,
+    abandonRate: 4.1,
     completion: 40,
     lastDeclaration: "2026-06-29",
     successRate: 95.0,
@@ -361,7 +421,12 @@ export default function MinistryDashboardPage() {
     let sumAttendance = 0;
     let noWater = 0;
     let noElec = 0;
-    let incomplete = 0;
+    let noLatrines = 0;
+    let missingTeachers = 0;
+    let missingSalles = 0;
+    let missingBooks = 0;
+    let sumAbandon = 0;
+    let sumCompletion = 0;
     let lateDeclaration = 0;
 
     filteredSchools.forEach(s => {
@@ -373,9 +438,19 @@ export default function MinistryDashboardPage() {
       sumAttendance += s.attendanceRate;
       if (!s.eau) noWater++;
       if (!s.electricite) noElec++;
-      if (s.completion < 80) incomplete++;
+      if (!s.latrines) noLatrines++;
+      missingTeachers += s.manqueEnseignants;
+      missingSalles += s.manqueSalles;
+      missingBooks += s.manqueLivres;
+      sumAbandon += s.abandonRate;
+      sumCompletion += s.completion;
       if (isDeclarationLate(s.lastDeclaration)) lateDeclaration++;
     });
+
+    const pupilTeacherRatio = totalEnseignants > 0 ? (totalEleves / totalEnseignants).toFixed(1) : "0";
+    const avgAbandon = totalSchools > 0 ? (sumAbandon / totalSchools).toFixed(1) : "0";
+    const avgCompletion = totalSchools > 0 ? (sumCompletion / totalSchools).toFixed(0) : "0";
+    const priorityZones = filteredSchools.filter(s => s.successRate < 65 || !s.eau || !s.electricite || s.abandonRate > 8).length;
 
     return {
       totalSchools,
@@ -383,12 +458,36 @@ export default function MinistryDashboardPage() {
       totalFilles,
       totalGarcons,
       totalEnseignants,
+      pupilTeacherRatio,
       avgSuccess: totalSchools > 0 ? (sumSuccess / totalSchools).toFixed(1) : "0",
       avgAttendance: totalSchools > 0 ? (sumAttendance / totalSchools).toFixed(1) : "0",
+      avgAbandon,
       noWater,
       noElec,
-      incomplete,
+      noLatrines,
+      missingTeachers,
+      missingSalles,
+      missingBooks,
+      avgCompletion,
+      priorityZones,
       lateDeclaration,
+    };
+  }, [filteredSchools]);
+
+  // Public/Private Breakdown
+  const publicPrivateRatio = useMemo(() => {
+    let pub = 0;
+    let priv = 0;
+    filteredSchools.forEach(s => {
+      if (s.type === "Public") pub++;
+      else priv++;
+    });
+    const total = pub + priv || 1;
+    return {
+      publicCount: pub,
+      privateCount: priv,
+      publicPct: ((pub / total) * 100).toFixed(0),
+      privatePct: ((priv / total) * 100).toFixed(0)
     };
   }, [filteredSchools]);
 
@@ -437,19 +536,31 @@ export default function MinistryDashboardPage() {
     const alerts: { school: string; code: string; type: string; severity: "critical" | "warning" }[] = [];
     filteredSchools.forEach(s => {
       if (!s.eau && !s.electricite) {
-        alerts.push({ school: s.name, code: s.code, type: "Pas d'eau ni d'électricité", severity: "critical" });
+        alerts.push({ school: s.name, code: s.code, type: "Manque d'eau et d'électricité critiques", severity: "critical" });
       } else if (!s.eau) {
-        alerts.push({ school: s.name, code: s.code, type: "Pas d'eau potable", severity: "warning" });
+        alerts.push({ school: s.name, code: s.code, type: "Absence d'alimentation en eau potable", severity: "warning" });
       } else if (!s.electricite) {
-        alerts.push({ school: s.name, code: s.code, type: "Pas d'électricité", severity: "warning" });
+        alerts.push({ school: s.name, code: s.code, type: "Pas d'électricité fonctionnelle", severity: "warning" });
+      }
+
+      if (!s.latrines) {
+        alerts.push({ school: s.name, code: s.code, type: "Absence de latrines opérationnelles", severity: "critical" });
+      }
+
+      if (s.manqueEnseignants > 2) {
+        alerts.push({ school: s.name, code: s.code, type: `Déficit de ${s.manqueEnseignants} enseignants`, severity: "critical" });
+      }
+
+      if (s.abandonRate > 8) {
+        alerts.push({ school: s.name, code: s.code, type: `Taux d'abandon élevé (${s.abandonRate}%)`, severity: "critical" });
       }
 
       if (isDeclarationLate(s.lastDeclaration)) {
-        alerts.push({ school: s.name, code: s.code, type: `Déclaration en retard (${s.lastDeclaration})`, severity: "critical" });
+        alerts.push({ school: s.name, code: s.code, type: `Fiche de déclaration en retard (${s.lastDeclaration})`, severity: "critical" });
       }
 
       if (s.completion < 60) {
-        alerts.push({ school: s.name, code: s.code, type: `Données incomplètes (${s.completion}%)`, severity: "warning" });
+        alerts.push({ school: s.name, code: s.code, type: `Fiche canevas incomplète (${s.completion}%)`, severity: "warning" });
       }
     });
     return alerts;
@@ -475,6 +586,11 @@ export default function MinistryDashboardPage() {
         "Salles": s.salles,
         "Eau": s.eau ? "Oui" : "Non",
         "Électricité": s.electricite ? "Oui" : "Non",
+        "Latrines": s.latrines ? "Oui" : "Non",
+        "Manque Enseignants": s.manqueEnseignants,
+        "Manque Salles": s.manqueSalles,
+        "Manque Livres": s.manqueLivres,
+        "Taux Abandon (%)": s.abandonRate,
         "Complétude (%)": s.completion,
         "Taux Réussite (%)": s.successRate,
         "Taux Présence (%)": s.attendanceRate,
@@ -483,12 +599,12 @@ export default function MinistryDashboardPage() {
 
       const worksheet = XLSX.utils.json_to_sheet(data);
       const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Établissements");
-      XLSX.writeFile(workbook, `Edut_Report_National_${Date.now()}.xlsx`);
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Rapport National");
+      XLSX.writeFile(workbook, `Edut_Indicateurs_Nationaux_${Date.now()}.xlsx`);
       toast.success("Rapport Excel généré et téléchargé !");
     } catch (e) {
       console.error(e);
-      toast.error("Erreur lors de la génération du fichier Excel");
+      toast.error("Erreur lors de l'export Excel");
     }
   };
 
@@ -502,7 +618,6 @@ export default function MinistryDashboardPage() {
       });
 
       const pageWidth = doc.internal.pageSize.getWidth();
-      const pageHeight = doc.internal.pageSize.getHeight();
 
       // Official Header
       doc.setFillColor(248, 250, 252);
@@ -518,12 +633,12 @@ export default function MinistryDashboardPage() {
 
       doc.setFontSize(14);
       doc.setTextColor(15, 23, 42);
-      doc.text("TABLEAU DE BORD STATISTIQUE NATIONAL", 15, 30);
+      doc.text("TABLEAU DE BORD STATISTIQUE SCOLAIRE OFFICIEL", 15, 30);
 
       doc.setFont("helvetica", "normal");
       doc.setFontSize(9);
       doc.setTextColor(100, 116, 139);
-      doc.text(`Année scolaire : ${selectedYear}    |    Date : ${new Date().toLocaleDateString()}`, 15, 36);
+      doc.text(`Année scolaire : ${selectedYear}    |    Date de génération : ${new Date().toLocaleDateString()}`, 15, 36);
 
       let currentY = 52;
 
@@ -531,19 +646,20 @@ export default function MinistryDashboardPage() {
       doc.setFont("helvetica", "bold");
       doc.setFontSize(10);
       doc.setTextColor(15, 23, 42);
-      doc.text("PRINCIPAUX INDICATEURS CLÉS", 10, currentY);
+      doc.text("PRINCIPAUX INDICATEURS CLÉS SCOLAIRES", 10, currentY);
       doc.line(10, currentY + 2, pageWidth - 10, currentY + 2);
       currentY += 8;
 
       const items = [
-        { label: "Établissements", value: kpis.totalSchools },
-        { label: "Total Élèves", value: kpis.totalEleves.toLocaleString("fr-FR") },
-        { label: "Enseignants", value: kpis.totalEnseignants.toLocaleString("fr-FR") },
+        { label: "Écoles", value: kpis.totalSchools },
+        { label: "Ratio Élève/Ens", value: kpis.pupilTeacherRatio },
         { label: "Taux Réussite", value: `${kpis.avgSuccess}%` },
-        { label: "Retard Décl.", value: kpis.lateDeclaration }
+        { label: "Taux Abandon", value: `${kpis.avgAbandon}%` },
+        { label: "Manque Livres", value: kpis.missingBooks },
+        { label: "Zones Prioritaires", value: kpis.priorityZones }
       ];
 
-      const boxWidth = (pageWidth - 20 - 16) / 5;
+      const boxWidth = (pageWidth - 20 - 20) / 6;
       items.forEach((item, idx) => {
         const startX = 10 + idx * (boxWidth + 4);
         doc.setFillColor(255, 255, 255);
@@ -555,7 +671,7 @@ export default function MinistryDashboardPage() {
         doc.setTextColor(100, 116, 139);
         doc.text(item.label.toUpperCase(), startX + 3, currentY + 5);
 
-        doc.setFontSize(11);
+        doc.setFontSize(10);
         doc.setTextColor(225, 29, 72);
         doc.text(String(item.value), startX + 3, currentY + 11);
       });
@@ -566,23 +682,23 @@ export default function MinistryDashboardPage() {
       doc.setFont("helvetica", "bold");
       doc.setFontSize(10);
       doc.setTextColor(15, 23, 42);
-      doc.text("LISTE DÉTAILLÉE DES ÉTABLISSEMENTS", 10, currentY);
+      doc.text("DONNÉES PAR ÉTABLISSEMENT", 10, currentY);
       doc.line(10, currentY + 2, pageWidth - 10, currentY + 2);
       currentY += 6;
 
-      const headers = ["N°", "Code", "Nom", "Type", "Cycle", "Région", "Élèves", "Réussite", "Eau", "Élec", "Statut"];
+      const headers = ["N°", "Code", "Nom", "Région", "Élèves", "Enseignants", "Ratio", "Réussite", "Abandon", "Eau", "Latrines"];
       const body = filteredSchools.map((s, idx) => [
         idx + 1,
         s.code,
         s.name,
-        s.type,
-        s.cycle,
         s.region,
         s.eleves.toLocaleString("fr-FR"),
+        s.enseignants,
+        (s.eleves / (s.enseignants || 1)).toFixed(0),
         `${s.successRate}%`,
+        `${s.abandonRate}%`,
         s.eau ? "Oui" : "Non",
-        s.electricite ? "Oui" : "Non",
-        s.status
+        s.latrines ? "Oui" : "Non"
       ]);
 
       autoTable(doc, {
@@ -595,7 +711,7 @@ export default function MinistryDashboardPage() {
         margin: { left: 10, right: 10 }
       });
 
-      doc.save(`Rapport_National_Edut_${Date.now()}.pdf`);
+      doc.save(`Rapport_MEN_National_${Date.now()}.pdf`);
       toast.success("Rapport PDF généré !");
     } catch (e) {
       console.error(e);
@@ -604,7 +720,7 @@ export default function MinistryDashboardPage() {
   };
 
   return (
-    <div className="min-h-screen space-y-8 p-4 text-slate-950 md:p-6 xl:p-8 bg-[#fcfdff] print:bg-white print:p-0">
+    <div className="min-h-screen space-y-8 p-4 text-slate-950 md:p-6 xl:p-8 bg-[#fcfdff] print:bg-white print:p-0 animate-in fade-in duration-300">
       
       {/* Header */}
       <header className="rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -618,7 +734,7 @@ export default function MinistryDashboardPage() {
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-600">Portail National Décisionnel</p>
             <h1 className="text-3xl font-black tracking-tight text-slate-900">Ministère de l'Éducation</h1>
-            <p className="mt-1 text-xs font-bold text-slate-500">Pilotage et suivi statistique des infrastructures et effectifs</p>
+            <p className="mt-1 text-xs font-bold text-slate-500">Tableau de Bord Réglementaire du Secteur Éducatif National</p>
           </div>
         </div>
 
@@ -766,28 +882,37 @@ export default function MinistryDashboardPage() {
       </section>
 
       {/* KPI Cards Grid */}
-      <section className="grid gap-5 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
+      <section className="grid gap-4 grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-9">
         {[
           { label: "Établissements", value: kpis.totalSchools, icon: Building2, color: "text-indigo-600", bg: "bg-indigo-50" },
           { label: "Total Élèves", value: kpis.totalEleves.toLocaleString("fr-FR"), icon: Users, color: "text-blue-600", bg: "bg-blue-50" },
           { label: "Total Filles", value: kpis.totalFilles.toLocaleString("fr-FR"), icon: Users, color: "text-pink-600", bg: "bg-pink-50" },
           { label: "Total Garçons", value: kpis.totalGarcons.toLocaleString("fr-FR"), icon: Users, color: "text-sky-600", bg: "bg-sky-50" },
           { label: "Total Enseignants", value: kpis.totalEnseignants.toLocaleString("fr-FR"), icon: Users, color: "text-emerald-600", bg: "bg-emerald-50" },
-          { label: "Taux Réussite Moyen", value: `${kpis.avgSuccess}%`, icon: Award, color: "text-amber-600", bg: "bg-amber-50" },
-          { label: "Taux Présence Moyen", value: `${kpis.avgAttendance}%`, icon: Activity, color: "text-teal-600", bg: "bg-teal-50" },
+          { label: "Ratio Élève/Ens", value: kpis.pupilTeacherRatio, icon: Layers, color: "text-slate-700", bg: "bg-slate-100" },
+          { label: "Taux Réussite", value: `${kpis.avgSuccess}%`, icon: Award, color: "text-amber-600", bg: "bg-amber-50" },
+          { label: "Taux Présence", value: `${kpis.avgAttendance}%`, icon: Activity, color: "text-teal-600", bg: "bg-teal-50" },
+          { label: "Taux Abandon", value: `${kpis.avgAbandon}%`, icon: TrendingDown, color: "text-rose-600", bg: "bg-rose-50" },
           { label: "Écoles Sans Eau", value: kpis.noWater, icon: Droplets, color: kpis.noWater > 0 ? "text-rose-600" : "text-slate-400", bg: kpis.noWater > 0 ? "bg-rose-50" : "bg-slate-50" },
           { label: "Écoles Sans Élec.", value: kpis.noElec, icon: Lightbulb, color: kpis.noElec > 0 ? "text-rose-600" : "text-slate-400", bg: kpis.noElec > 0 ? "bg-rose-50" : "bg-slate-50" },
-          { label: "Données Incomplètes", value: kpis.incomplete, icon: AlertTriangle, color: kpis.incomplete > 0 ? "text-amber-600" : "text-slate-400", bg: kpis.incomplete > 0 ? "bg-amber-50" : "bg-slate-50" },
-          { label: "Retards Déclaration", value: kpis.lateDeclaration, icon: Clock, color: kpis.lateDeclaration > 0 ? "text-rose-600" : "text-slate-400", bg: kpis.lateDeclaration > 0 ? "bg-rose-50" : "bg-slate-50" },
+          { label: "Sans Latrines", value: kpis.noLatrines, icon: AlertCircle, color: kpis.noLatrines > 0 ? "text-rose-600" : "text-slate-400", bg: kpis.noLatrines > 0 ? "bg-rose-50" : "bg-slate-50" },
+          { label: "Manque Enseignants", value: kpis.missingTeachers, icon: Users, color: kpis.missingTeachers > 0 ? "text-rose-600" : "text-slate-400", bg: kpis.missingTeachers > 0 ? "bg-rose-50" : "bg-slate-50" },
+          { label: "Manque Salles", value: kpis.missingSalles, icon: Building2, color: kpis.missingSalles > 0 ? "text-rose-600" : "text-slate-400", bg: kpis.missingSalles > 0 ? "bg-rose-50" : "bg-slate-50" },
+          { label: "Manque Livres", value: kpis.missingBooks, icon: BookOpen, color: kpis.missingBooks > 0 ? "text-rose-600" : "text-slate-400", bg: kpis.missingBooks > 0 ? "bg-rose-50" : "bg-slate-50" },
+          { label: "Complétude Données", value: `${kpis.avgCompletion}%`, icon: CheckCircle2, color: "text-emerald-700", bg: "bg-emerald-50" },
+          { label: "Zones Prioritaires", value: kpis.priorityZones, icon: ShieldAlert, color: kpis.priorityZones > 0 ? "text-rose-600" : "text-slate-400", bg: kpis.priorityZones > 0 ? "bg-rose-50" : "bg-slate-50" },
+          { label: "Retards Décl.", value: kpis.lateDeclaration, icon: Clock, color: kpis.lateDeclaration > 0 ? "text-rose-600" : "text-slate-400", bg: kpis.lateDeclaration > 0 ? "bg-rose-50" : "bg-slate-50" },
         ].map((item) => {
           const Icon = item.icon;
           return (
-            <div key={item.label} className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm hover:shadow-md transition">
-              <div className={cn("flex h-10 w-10 items-center justify-center rounded-2xl", item.bg, item.color)}>
-                <Icon size={20} />
+            <div key={item.label} className="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm hover:shadow-md transition flex flex-col justify-between">
+              <div className={cn("flex h-8 w-8 items-center justify-center rounded-xl", item.bg, item.color)}>
+                <Icon size={16} />
               </div>
-              <p className="mt-4 text-[9px] font-black uppercase tracking-widest text-slate-400">{item.label}</p>
-              <p className="mt-1 text-2xl font-black text-slate-900">{item.value}</p>
+              <div className="mt-3">
+                <p className="text-[9px] font-black uppercase tracking-widest text-slate-450 leading-snug">{item.label}</p>
+                <p className="mt-1 text-lg font-black text-slate-900">{item.value}</p>
+              </div>
             </div>
           );
         })}
@@ -814,7 +939,7 @@ export default function MinistryDashboardPage() {
                     value={searchQuery}
                     onChange={e => setSearchQuery(e.target.value)}
                     placeholder="Nom, code, commune..."
-                    className="h-10 w-full pl-9 pr-4 rounded-xl border border-slate-100 bg-slate-50/50 text-xs font-bold outline-none placeholder:text-slate-400 text-slate-800"
+                    className="h-10 w-full pl-9 pr-4 rounded-xl border border-slate-100 bg-slate-50/50 text-xs font-bold outline-none placeholder:text-slate-450 text-slate-850"
                   />
                   {searchQuery && <X size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 cursor-pointer" onClick={() => setSearchQuery("")} />}
                 </div>
@@ -845,16 +970,16 @@ export default function MinistryDashboardPage() {
                         <th className="px-6 py-4">Établissement</th>
                         <th className="px-6 py-4">Type/Cycle</th>
                         <th className="px-6 py-4">Localisation</th>
-                        <th className="px-6 py-4">Élèves</th>
-                        <th className="px-6 py-4">Réussite</th>
+                        <th className="px-6 py-4">Élèves / Ratio</th>
+                        <th className="px-6 py-4">Réussite / Abandon</th>
                         <th className="px-6 py-4">Infras</th>
                         <th className="px-6 py-4">Complétude</th>
                         <th className="px-6 py-4 text-right">Actions</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-50">
+                    <tbody className="divide-y divide-slate-50 font-bold text-slate-700 text-xs">
                       {filteredSchools.map((s) => (
-                        <tr key={s.code} className="text-xs font-bold text-slate-600 hover:bg-slate-50/50 transition">
+                        <tr key={s.code} className="hover:bg-slate-50/50 transition">
                           <td className="px-6 py-4">
                             <p className="font-black text-slate-900">{s.name}</p>
                             <p className="text-[10px] text-slate-400 mt-0.5">{s.code}</p>
@@ -870,16 +995,18 @@ export default function MinistryDashboardPage() {
                             <p className="text-[10px] text-slate-400 mt-0.5">{s.region} / {s.department}</p>
                           </td>
                           <td className="px-6 py-4">
-                            <p className="text-slate-950 font-black">{s.eleves}</p>
-                            <p className="text-[9px] text-slate-400 mt-0.5">F: {s.filles} | G: {s.garcons}</p>
+                            <p className="text-slate-950 font-black">{s.eleves} élèves</p>
+                            <p className="text-[9px] text-slate-400 mt-0.5">Ratio: {(s.eleves / (s.enseignants || 1)).toFixed(0)} E/E</p>
                           </td>
                           <td className="px-6 py-4">
-                            <span className="text-amber-600 font-black">{s.successRate}%</span>
+                            <p className="text-amber-600 font-black">Réussite: {s.successRate}%</p>
+                            <p className="text-[9px] text-rose-600 mt-0.5">Abandon: {s.abandonRate}%</p>
                           </td>
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-1.5">
-                              <Droplets className={cn("size-4", s.eau ? "text-blue-500" : "text-rose-500")} />
-                              <Lightbulb className={cn("size-4", s.electricite ? "text-amber-500" : "text-rose-500")} />
+                              <span title={s.eau ? "Eau potable" : "Pas d'eau"}><Droplets className={cn("size-4", s.eau ? "text-blue-500" : "text-rose-500")} /></span>
+                              <span title={s.electricite ? "Électricité" : "Pas d'élec"}><Lightbulb className={cn("size-4", s.electricite ? "text-amber-500" : "text-rose-500")} /></span>
+                              <span title={s.latrines ? "Latrines" : "Pas de latrines"}><HelpCircle className={cn("size-4", s.latrines ? "text-emerald-500" : "text-rose-500")} /></span>
                             </div>
                           </td>
                           <td className="px-6 py-4">
@@ -935,6 +1062,31 @@ export default function MinistryDashboardPage() {
         {/* Right Side: Stats breakdowns & Alerts */}
         <div className="xl:col-span-4 space-y-8">
           
+          {/* Public vs Private Breakdown */}
+          <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm space-y-4">
+            <div>
+              <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider">Répartition Secteurs</h3>
+              <p className="text-[10px] font-bold text-slate-400 mt-0.5">Ratio établissements Publics vs Privés</p>
+            </div>
+            
+            <div className="space-y-3">
+              <div className="flex justify-between text-xs font-black">
+                <span className="text-emerald-700">Public ({publicPrivateRatio.publicCount} éts)</span>
+                <span className="text-indigo-700">Privé ({publicPrivateRatio.privateCount} éts)</span>
+              </div>
+              
+              <div className="h-3 w-full bg-indigo-200 rounded-full overflow-hidden flex">
+                <div className="bg-emerald-500 h-full" style={{ width: `${publicPrivateRatio.publicPct}%` }} />
+                <div className="bg-indigo-600 h-full flex-1" style={{ width: `${publicPrivateRatio.privatePct}%` }} />
+              </div>
+              
+              <div className="flex justify-between text-[10px] text-slate-400 font-bold">
+                <span>{publicPrivateRatio.publicPct}% Public</span>
+                <span>{publicPrivateRatio.privatePct}% Privé</span>
+              </div>
+            </div>
+          </div>
+
           {/* Regional Statistics */}
           <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm space-y-6">
             <div>
@@ -988,8 +1140,8 @@ export default function MinistryDashboardPage() {
           {/* National Alerts */}
           <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm space-y-6">
             <div>
-              <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider">Alertes Nationales Critiques</h3>
-              <p className="text-[10px] font-bold text-slate-400 mt-0.5">Anomalies logistiques & déclarations</p>
+              <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider">Alertes Critiques Secteur</h3>
+              <p className="text-[10px] font-bold text-slate-400 mt-0.5">Logistiques, Ratios & anomalies de Fichiers</p>
             </div>
             
             <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
@@ -1066,16 +1218,16 @@ export default function MinistryDashboardPage() {
                 <p className="font-bold text-slate-800">{selectedSchoolDetail.enseignants} Ens. / {selectedSchoolDetail.salles} Salles</p>
               </div>
               <div className="space-y-1">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Réseaux & Eau</p>
-                <p className="font-bold text-slate-800">Eau: {selectedSchoolDetail.eau ? "Oui" : "Non"} | Élec: {selectedSchoolDetail.electricite ? "Oui" : "Non"}</p>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Eau, Élec & Latrines</p>
+                <p className="font-bold text-slate-800">Eau: {selectedSchoolDetail.eau ? "Oui" : "Non"} | Élec: {selectedSchoolDetail.electricite ? "Oui" : "Non"} | Latr: {selectedSchoolDetail.latrines ? "Oui" : "Non"}</p>
               </div>
               <div className="space-y-1">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Complétude Dossier</p>
-                <span className="font-bold text-slate-800">{selectedSchoolDetail.completion}% complété</span>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Manques Logistiques</p>
+                <p className="font-bold text-rose-600">Ens: {selectedSchoolDetail.manqueEnseignants} | Salles: {selectedSchoolDetail.manqueSalles} | Livres: {selectedSchoolDetail.manqueLivres}</p>
               </div>
               <div className="space-y-1">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Réussite Examens</p>
-                <span className="font-bold text-amber-600">{selectedSchoolDetail.successRate}% de réussite</span>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Complétude & Abandon</p>
+                <span className="font-bold text-slate-800">{selectedSchoolDetail.completion}% (Abandon: {selectedSchoolDetail.abandonRate}%)</span>
               </div>
               <div className="space-y-1">
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Dernière Déclaration</p>

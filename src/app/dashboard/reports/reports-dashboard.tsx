@@ -6,7 +6,7 @@ import {
   Download, Printer, Mail, Clock, Filter, Eye, RefreshCw,
   Search, ShieldAlert, Award, FileSpreadsheet, Building2,
   Droplets, Lightbulb, AlertTriangle, Layers, UserCheck, Activity,
-  Globe, Library, FileText
+  Globe, Library, FileText, TrendingDown, CheckCircle2
 } from "lucide-react";
 import { toast } from "sonner";
 import { localDb } from "@/infrastructure/local-db/dexie";
@@ -635,19 +635,38 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
 
   else if (activeReport === "ministry") {
     reportKpis = [
-      { label: "Établissements Nationaux", value: 806, icon: <Globe size={18} />, color: "text-rose-600", bgColor: "bg-rose-50" },
-      { label: "Total Éléves", value: "142 416", icon: <Users size={18} />, color: "text-blue-600", bgColor: "bg-blue-50" },
-      { label: "Enseignants", value: "4 382", icon: <UserCheck size={18} />, color: "text-indigo-600", bgColor: "bg-indigo-50" },
-      { label: "Taux Réussite Moyen", value: "74.5%", icon: <Award size={18} />, color: "text-amber-600", bgColor: "bg-amber-50" }
+      { label: "Écoles", value: 10, icon: <Building2 size={18} />, color: "text-indigo-650", bgColor: "bg-indigo-50" },
+      { label: "Total Élèves", value: 6303, icon: <Users size={18} />, color: "text-blue-655", bgColor: "bg-blue-50" },
+      { label: "Taux Réussite", value: "76.8%", icon: <Award size={18} />, color: "text-amber-655", bgColor: "bg-amber-50" },
+      { label: "Ratio Élève/Ens", value: "24.5", icon: <Layers size={18} />, color: "text-slate-655", bgColor: "bg-slate-50" },
+      { label: "Taux Abandon", value: "4.9%", icon: <TrendingDown size={18} />, color: "text-rose-655", bgColor: "bg-rose-50" },
+      { label: "Complétude Données", value: "83%", icon: <CheckCircle2 size={18} />, color: "text-emerald-655", bgColor: "bg-emerald-50" },
+      { label: "Zones Prioritaires", value: 3, icon: <ShieldAlert size={18} />, color: "text-rose-655", bgColor: "bg-rose-50" }
     ];
 
     reportTable = {
-      headers: ["Région", "Département", "Total Écoles", "Total Élèves", "Filles (%)", "Enseignants", "Classes", "Sans Eau", "Sans Élec"],
+      headers: [
+        "Indicateur MEN-NE", 
+        "Valeur Nationale Concl.", 
+        "Cible Sectorielle (ODD4)",
+        "Statut / Niveau d'Alerte"
+      ],
       rows: [
-        ["Niamey", "Niamey", 185, 42100, "49.5%", 1250, 940, 12, 18],
-        ["Tillabéri", "Kollo", 220, 38400, "48.2%", 1100, 890, 24, 35],
-        ["Maradi", "Madarounfa", 245, 39916, "49.1%", 1182, 1106, 32, 45],
-        ["Zinder", "Mirriah", 156, 22000, "50.8%", 850, 1010, 15, 28],
+        ["Nombre d'établissements", "10 écoles", "N/A", "Stable"],
+        ["Effectif Élèves total", "6 303 élèves (dont 3 041 filles)", "Parité 1.0", "Conforme"],
+        ["Effectif Enseignants", "249 enseignants", "N/A", "Stable"],
+        ["Ratio Élèves / Enseignant", "24.5 E/E", "40.0 maximum", "Optimal"],
+        ["Taux de Réussite Moyen", "76.8 %", "80.0 % minimum", "À surveiller"],
+        ["Taux de Présence Moyen", "90.1 %", "95.0 % minimum", "Conforme"],
+        ["Taux d'Abandon Moyen", "4.9 %", "5.0 % maximum", "Stable"],
+        ["Écoles sans accès eau potable", "2 écoles (20%)", "0 écoles", "Risque moyen"],
+        ["Écoles sans électricité", "3 écoles (30%)", "0 écoles", "Risque élevé"],
+        ["Écoles sans latrines séparées", "3 écoles (30%)", "0 écoles", "Critique"],
+        ["Déficit enseignants (Postes)", "11 postes", "0 postes", "À recruter"],
+        ["Déficit de salles de classe", "13 salles", "0 salles", "Déficit modéré"],
+        ["Déficit de manuels scolaires", "545 livres", "Ratio 1:1 élève/manuel", "Alerte logistique"],
+        ["Taux de complétude des données", "83.6 %", "100.0 %", "À valider"],
+        ["Zones d'intervention prioritaires", "3 zones prioritaires", "0 zones", "Intervention urgente"]
       ]
     };
   }
