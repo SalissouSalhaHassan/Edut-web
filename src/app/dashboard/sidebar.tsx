@@ -150,6 +150,7 @@ const sections: NavSection[] = [
       { href: "/dashboard/canevas", label: "Tableau de bord canevas", icon: <FileBarChart2 className="size-[18px]" />, color: "text-indigo-500" },
       { href: "/dashboard/canevas/etablissements", label: "Établissements", icon: <Building2 className="size-[18px]" />, color: "text-blue-500" },
       { href: "/dashboard/ministry", label: "Portail Ministère", icon: <Globe className="size-[18px]" />, color: "text-rose-500" },
+      { href: "/dashboard/inspection", label: "Portail Inspection", icon: <Shield className="size-[18px]" />, color: "text-cyan-500" },
       { href: "/dashboard/canevas/reporting", label: "Centre de reporting", icon: <BarChart3 className="size-[18px]" />, color: "text-indigo-500" },
       { href: "/dashboard/canevas/export", label: "Export canevas", icon: <Download className="size-[18px]" />, color: "text-slate-500" },
     ],
