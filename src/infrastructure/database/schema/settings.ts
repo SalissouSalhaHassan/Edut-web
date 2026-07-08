@@ -33,6 +33,14 @@ export const schoolBranches = pgTable("school_branches", {
   smtpPassword: varchar("smtp_password", { length: 100 }),
   logoPath: text("logo_path"),
   workingDays: varchar("working_days", { length: 255 }),
+  ministry: varchar("ministry", { length: 255 }),
+  region: varchar("region", { length: 100 }),
+  dren: varchar("dren", { length: 150 }),
+  department: varchar("department", { length: 100 }),
+  dden: varchar("dden", { length: 150 }),
+  inspection: varchar("inspection", { length: 150 }),
+  commune: varchar("commune", { length: 100 }),
+  schoolCode: varchar("school_code", { length: 50 }),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

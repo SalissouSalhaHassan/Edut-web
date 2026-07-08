@@ -51,6 +51,21 @@ const fetchCachedSettings = (schoolId: number) =>
 export async function getBranches() {
   return protectedDbAction("Settings", "canView", async () => {
     const schoolId = await getActiveSchoolId();
+    
+    // Automatically provision new administrative fields if they do not exist
+    try {
+      await db.execute(sql`ALTER TABLE "school_branches" ADD COLUMN IF NOT EXISTS "ministry" varchar(255)`);
+      await db.execute(sql`ALTER TABLE "school_branches" ADD COLUMN IF NOT EXISTS "region" varchar(100)`);
+      await db.execute(sql`ALTER TABLE "school_branches" ADD COLUMN IF NOT EXISTS "dren" varchar(150)`);
+      await db.execute(sql`ALTER TABLE "school_branches" ADD COLUMN IF NOT EXISTS "department" varchar(100)`);
+      await db.execute(sql`ALTER TABLE "school_branches" ADD COLUMN IF NOT EXISTS "dden" varchar(150)`);
+      await db.execute(sql`ALTER TABLE "school_branches" ADD COLUMN IF NOT EXISTS "inspection" varchar(150)`);
+      await db.execute(sql`ALTER TABLE "school_branches" ADD COLUMN IF NOT EXISTS "commune" varchar(100)`);
+      await db.execute(sql`ALTER TABLE "school_branches" ADD COLUMN IF NOT EXISTS "school_code" varchar(50)`);
+    } catch (err) {
+      console.error("Error migrating columns in getBranches:", err);
+    }
+
     const data = await fetchCachedBranches(schoolId);
     return { data };
   });
@@ -84,6 +99,17 @@ export async function saveBranch(data: any) {
       await db.execute(sql`ALTER TABLE "school_branches" ALTER COLUMN "adm_padding" TYPE varchar(100)`);
       await db.execute(sql`ALTER TABLE "school_branches" ALTER COLUMN "smtp_port" TYPE varchar(100)`);
       await db.execute(sql`ALTER TABLE "school_branches" ALTER COLUMN "working_days" TYPE varchar(255)`);
+      
+      // Ensure new administrative fields are created
+      await db.execute(sql`ALTER TABLE "school_branches" ADD COLUMN IF NOT EXISTS "ministry" varchar(255)`);
+      await db.execute(sql`ALTER TABLE "school_branches" ADD COLUMN IF NOT EXISTS "region" varchar(100)`);
+      await db.execute(sql`ALTER TABLE "school_branches" ADD COLUMN IF NOT EXISTS "dren" varchar(150)`);
+      await db.execute(sql`ALTER TABLE "school_branches" ADD COLUMN IF NOT EXISTS "department" varchar(100)`);
+      await db.execute(sql`ALTER TABLE "school_branches" ADD COLUMN IF NOT EXISTS "dden" varchar(150)`);
+      await db.execute(sql`ALTER TABLE "school_branches" ADD COLUMN IF NOT EXISTS "inspection" varchar(150)`);
+      await db.execute(sql`ALTER TABLE "school_branches" ADD COLUMN IF NOT EXISTS "commune" varchar(100)`);
+      await db.execute(sql`ALTER TABLE "school_branches" ADD COLUMN IF NOT EXISTS "school_code" varchar(50)`);
+      
       console.log("Database schema altered successfully inside saveBranch action.");
     } catch (err) {
       console.error("Error altering database columns inside saveBranch:", err);
@@ -181,6 +207,21 @@ export async function updateSetting(key: string, value: string) {
 export async function getDocumentHeaderConfig() {
   return protectedDbAction("Settings", "canView", async () => {
     const schoolId = await getActiveSchoolId();
+    
+    // Fetch first branch of the school for fallback values
+    let branchFallback: any = null;
+    try {
+      const branches = await db.query.schoolBranches.findMany({
+        where: eq(schoolBranches.schoolId, schoolId),
+        orderBy: [desc(schoolBranches.createdAt)]
+      });
+      if (branches && branches.length > 0) {
+        branchFallback = branches[0];
+      }
+    } catch (e) {
+      console.error("Error fetching branch fallback in getDocumentHeaderConfig:", e);
+    }
+
     const existing = await db.query.settings.findFirst({
       where: and(
         eq(settings.key, DOCUMENT_HEADER_SETTING_KEY),
@@ -188,13 +229,29 @@ export async function getDocumentHeaderConfig() {
       )
     });
 
-    if (!existing?.value) return { data: mergeDocumentHeaderConfig() };
-
-    try {
-      return { data: mergeDocumentHeaderConfig(JSON.parse(existing.value)) };
-    } catch {
-      return { data: mergeDocumentHeaderConfig() };
+    let configData: any;
+    if (!existing?.value) {
+      configData = mergeDocumentHeaderConfig();
+    } else {
+      try {
+        configData = mergeDocumentHeaderConfig(JSON.parse(existing.value));
+      } catch {
+        configData = mergeDocumentHeaderConfig();
+      }
     }
+
+    // Apply fallbacks from branch if header config fields are missing
+    if (branchFallback) {
+      if (!configData.schoolName) configData.schoolName = branchFallback.branchName || "";
+      if (!configData.ministry) configData.ministry = branchFallback.ministry || "";
+      if (!configData.regionalDirection) configData.regionalDirection = branchFallback.dren || branchFallback.region || "";
+      if (!configData.departmentalDirection) configData.departmentalDirection = branchFallback.dden || branchFallback.department || "";
+      if (!configData.inspection) configData.inspection = branchFallback.inspection || "";
+      if (!configData.commune) configData.commune = branchFallback.commune || "";
+      if (!configData.schoolCode) configData.schoolCode = branchFallback.schoolCode || "";
+    }
+
+    return { data: configData };
   });
 }
 

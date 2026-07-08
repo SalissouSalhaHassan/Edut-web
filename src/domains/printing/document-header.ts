@@ -19,6 +19,10 @@ export type DocumentHeaderConfig = {
   departmentalDirectionAr?: string;
   inspection?: string;
   inspectionAr?: string;
+  commune?: string;
+  communeAr?: string;
+  schoolCode?: string;
+  schoolCodeAr?: string;
   service?: string;
   serviceAr?: string;
   address?: string;
@@ -57,6 +61,9 @@ export const defaultDocumentHeaderConfig: DocumentHeaderConfig = {
   departmentalDirection: "Direction Départementale de l'Éducation Nationale",
   departmentalDirectionAr: "المديرية الإقليمية للتربية الوطنية",
   inspectionAr: "مفتشية التربية الوطنية",
+  commune: "Commune de Niamey IV",
+  communeAr: "بلدية نيامي 4",
+  schoolCode: "ETB-2026-001",
   service: "Service de la Scolarité",
   serviceAr: "مصلحة شؤون الطلاب",
   schoolYear: "2024 - 2025",

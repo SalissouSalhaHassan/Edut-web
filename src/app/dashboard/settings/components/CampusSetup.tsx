@@ -48,6 +48,14 @@ interface Branch {
   smtpPassword?: string;
   logoPath?: string;
   workingDays?: string;
+  ministry?: string;
+  region?: string;
+  dren?: string;
+  department?: string;
+  dden?: string;
+  inspection?: string;
+  commune?: string;
+  schoolCode?: string;
 }
 
 const DEFAULT_BRANCH_STATE: Branch = {
@@ -70,7 +78,15 @@ const DEFAULT_BRANCH_STATE: Branch = {
   smtpEmail: "",
   smtpPassword: "",
   logoPath: "",
-  workingDays: "Lundi,Mardi,Mercredi,Jeudi,Vendredi"
+  workingDays: "Lundi,Mardi,Mercredi,Jeudi,Vendredi",
+  ministry: "",
+  region: "",
+  dren: "",
+  department: "",
+  dden: "",
+  inspection: "",
+  commune: "",
+  schoolCode: ""
 };
 
 export function CampusSetup({ initialBranches }: { initialBranches: Branch[] }) {
@@ -128,7 +144,15 @@ export function CampusSetup({ initialBranches }: { initialBranches: Branch[] }) 
           smtpEmail: branch.smtpEmail || "",
           smtpPassword: branch.smtpPassword || "",
           logoPath: branch.logoPath || "",
-          workingDays: branch.workingDays || "Lundi,Mardi,Mercredi,Jeudi,Vendredi"
+          workingDays: branch.workingDays || "Lundi,Mardi,Mercredi,Jeudi,Vendredi",
+          ministry: branch.ministry || "",
+          region: branch.region || "",
+          dren: branch.dren || "",
+          department: branch.department || "",
+          dden: branch.dden || "",
+          inspection: branch.inspection || "",
+          commune: branch.commune || "",
+          schoolCode: branch.schoolCode || ""
         });
       }
     }
@@ -407,6 +431,121 @@ export function CampusSetup({ initialBranches }: { initialBranches: Branch[] }) 
                     <button className="absolute right-4 top-6 text-slate-300 hover:text-indigo-500 transition-colors">
                        <Pencil size={18} />
                     </button>
+                  </div>
+                </div>
+              </div>
+           </div>
+
+           {/* Section 2.5: Structure Administrative & Hiérarchie Éducative */}
+           <div className="bg-white p-10 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-8">
+              <h3 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-3">
+                 <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
+                    <Building2 size={20} />
+                 </div>
+                 Structure Administrative & Hiérarchie Éducative
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">MINISTÈRE DE TUTELLE</Label>
+                  <div className="relative">
+                    <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-500" size={18} />
+                    <Input 
+                      value={formData.ministry || ""}
+                      onChange={e => handleInputChange("ministry", e.target.value)}
+                      placeholder="Ministère de l'Éducation Nationale"
+                      className="h-14 pl-12 rounded-2xl border-slate-100 bg-slate-50/50 font-bold" 
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">RÉGION</Label>
+                  <div className="relative">
+                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-500" size={18} />
+                    <Input 
+                      value={formData.region || ""}
+                      onChange={e => handleInputChange("region", e.target.value)}
+                      placeholder="Niamey"
+                      className="h-14 pl-12 rounded-2xl border-slate-100 bg-slate-50/50 font-bold" 
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">DIRECTION RÉGIONALE (DREN)</Label>
+                  <div className="relative">
+                    <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-500" size={18} />
+                    <Input 
+                      value={formData.dren || ""}
+                      onChange={e => handleInputChange("dren", e.target.value)}
+                      placeholder="Direction Régionale de l'Éducation Nationale"
+                      className="h-14 pl-12 rounded-2xl border-slate-100 bg-slate-50/50 font-bold" 
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">DÉPARTEMENT</Label>
+                  <div className="relative">
+                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-500" size={18} />
+                    <Input 
+                      value={formData.department || ""}
+                      onChange={e => handleInputChange("department", e.target.value)}
+                      placeholder="Niamey"
+                      className="h-14 pl-12 rounded-2xl border-slate-100 bg-slate-50/50 font-bold" 
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">DIRECTION DÉPARTEMENTALE (DDEN)</Label>
+                  <div className="relative">
+                    <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-500" size={18} />
+                    <Input 
+                      value={formData.dden || ""}
+                      onChange={e => handleInputChange("dden", e.target.value)}
+                      placeholder="Direction Départementale de l'Éducation"
+                      className="h-14 pl-12 rounded-2xl border-slate-100 bg-slate-50/50 font-bold" 
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">INSPECTION</Label>
+                  <div className="relative">
+                    <ShieldCheck className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-500" size={18} />
+                    <Input 
+                      value={formData.inspection || ""}
+                      onChange={e => handleInputChange("inspection", e.target.value)}
+                      placeholder="Inspection de l'Enseignement Secondaire"
+                      className="h-14 pl-12 rounded-2xl border-slate-100 bg-slate-50/50 font-bold" 
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">COMMUNE</Label>
+                  <div className="relative">
+                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-500" size={18} />
+                    <Input 
+                      value={formData.commune || ""}
+                      onChange={e => handleInputChange("commune", e.target.value)}
+                      placeholder="Commune de Niamey IV"
+                      className="h-14 pl-12 rounded-2xl border-slate-100 bg-slate-50/50 font-bold" 
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">CODE ÉTABLISSEMENT</Label>
+                  <div className="relative">
+                    <Hash className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-500" size={18} />
+                    <Input 
+                      value={formData.schoolCode || ""}
+                      onChange={e => handleInputChange("schoolCode", e.target.value)}
+                      placeholder="ETB-2026-001"
+                      className="h-14 pl-12 rounded-2xl border-slate-100 bg-slate-50/50 font-bold" 
+                    />
                   </div>
                 </div>
               </div>
