@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createStudent, updateStudent } from "@/domains/students/actions/students.actions";
+import { createStudent, updateStudent, getStudentCategories } from "@/domains/students/actions/students.actions";
 import { createNotification } from "@/domains/messaging/actions/notifications.actions";
 import { StudentFormData } from "../validators/student.schema";
 import { getClasses, getSections, getEducationalLevels, getSessions } from "@/domains/academics/actions/academics.actions";
@@ -43,6 +43,7 @@ export default function StudentDialog({ mode = "add", initialData, trigger }: St
   const [levelsList,      setLevelsList]      = useState<any[]>([]);
   const [allClassesList,  setAllClassesList]  = useState<any[]>([]);
   const [allSectionsList, setAllSectionsList] = useState<any[]>([]);
+  const [categoriesList, setCategoriesList] = useState<any[]>([]);
 
   // ── Derived (filtered) lists ──────────────────────────────────────────────
   const [classesList,  setClassesList]  = useState<any[]>([]);
@@ -73,6 +74,9 @@ export default function StudentDialog({ mode = "add", initialData, trigger }: St
       setAllSectionsList(raw);
       setSectionsList(raw);
     });
+
+    // 5. Student categories from existing students, with offline cache
+    resolveOnlineOrCached("studentCategory", () => getStudentCategories(), "label").then(setCategoriesList);
   }, [open]);
 
   // ── Cascade filter when level changes → update classes & sections ─────────

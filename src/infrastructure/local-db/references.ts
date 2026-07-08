@@ -30,7 +30,7 @@ export async function resolveOnlineOrCached<T = any>(
 ): Promise<T[]> {
   try {
     const res = await loader();
-    const data = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+    const data = Array.isArray(res?.data?.data) ? res.data.data : Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
     if (data.length > 0) {
       await cacheReferenceItems(type, data, labelKey);
       return data as T[];

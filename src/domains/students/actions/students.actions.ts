@@ -68,6 +68,25 @@ export async function getStudents() {
   });
 }
 
+
+export async function getStudentCategories() {
+  return protectedDbAction("Students", "canView", async () => {
+    const schoolId = await getActiveSchoolId();
+    const rows = await db.query.students.findMany({
+      where: eq(students.schoolId, schoolId),
+      columns: { categorie: true },
+    });
+
+    const defaults = ["G?n?ral", "Boursier", "Fils d'employ?"];
+    const values = Array.from(new Set([
+      ...defaults,
+      ...rows.map((row) => row.categorie).filter((value): value is string => Boolean(value && value.trim()))
+    ])).sort((a, b) => a.localeCompare(b, "fr"));
+
+    return values.map((value, index) => ({ id: value || index, label: value, value }));
+  });
+}
+
 export async function createStudent(formData: StudentFormData) {
   const validation = studentSchema.safeParse(formData);
   if (!validation.success) {
