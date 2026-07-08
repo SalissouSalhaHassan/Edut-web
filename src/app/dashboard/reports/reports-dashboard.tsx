@@ -635,13 +635,13 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
 
   else if (activeReport === "ministry") {
     reportKpis = [
-      { label: "Écoles", value: 10, icon: <Building2 size={18} />, color: "text-indigo-650", bgColor: "bg-indigo-50" },
-      { label: "Total Élèves", value: 6303, icon: <Users size={18} />, color: "text-blue-655", bgColor: "bg-blue-50" },
-      { label: "Taux Réussite", value: "76.8%", icon: <Award size={18} />, color: "text-amber-655", bgColor: "bg-amber-50" },
-      { label: "Ratio Élève/Ens", value: "24.5", icon: <Layers size={18} />, color: "text-slate-655", bgColor: "bg-slate-50" },
-      { label: "Taux Abandon", value: "4.9%", icon: <TrendingDown size={18} />, color: "text-rose-655", bgColor: "bg-rose-50" },
-      { label: "Complétude Données", value: "83%", icon: <CheckCircle2 size={18} />, color: "text-emerald-655", bgColor: "bg-emerald-50" },
-      { label: "Zones Prioritaires", value: 3, icon: <ShieldAlert size={18} />, color: "text-rose-655", bgColor: "bg-rose-50" }
+      { label: "Écoles", value: 10, icon: <Building2 size={18} />, color: "text-indigo-600", bgColor: "bg-indigo-50" },
+      { label: "Total Élèves", value: 6303, icon: <Users size={18} />, color: "text-blue-600", bgColor: "bg-blue-50" },
+      { label: "Taux Réussite", value: "76.8%", icon: <Award size={18} />, color: "text-amber-600", bgColor: "bg-amber-50" },
+      { label: "Ratio Élève/Ens", value: "24.5", icon: <Layers size={18} />, color: "text-slate-600", bgColor: "bg-slate-50" },
+      { label: "Taux Abandon", value: "4.9%", icon: <TrendingDown size={18} />, color: "text-rose-600", bgColor: "bg-rose-50" },
+      { label: "Complétude Données", value: "83%", icon: <CheckCircle2 size={18} />, color: "text-emerald-600", bgColor: "bg-emerald-50" },
+      { label: "Zones Prioritaires", value: 3, icon: <ShieldAlert size={18} />, color: "text-rose-600", bgColor: "bg-rose-50" }
     ];
 
     reportTable = {

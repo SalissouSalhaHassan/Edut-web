@@ -300,68 +300,55 @@ function getDefaultMockData() {
 }
 
 export async function getUnifiedReportsData() {
-  return protectedDbAction("Reports", "canView", async (user) => {
+  return protectedDbAction("Reports", "canView", async () => {
     const schoolId = await getActiveSchoolId();
 
-    // 1. Fetch Students
-    const allStudents = await readDb.query.students.findMany({
-      where: eq(students.schoolId, schoolId)
-    });
-    const studentIds = allStudents.map(s => s.id);
-
-    // 2. Fetch Classes and Subjects
-    const classes = await readDb.query.schoolClasses.findMany({
-      where: eq(schoolClasses.schoolId, schoolId),
-      with: {
-        section: true
+    const safeQuery = async <T>(label: string, query: Promise<T[]>): Promise<T[]> => {
+      try {
+        return await query;
+      } catch (error) {
+        console.error(`Unified reports partial load failed: ${label}`, error);
+        return [];
       }
-    });
-    const subjects = await readDb.query.schoolSubjects.findMany({
-      where: eq(schoolSubjects.schoolId, schoolId)
-    });
-    const classIds = classes.map(c => c.id);
+    };
 
-    // Fetch school sessions and academic periods
-    const sessions = await readDb.query.schoolSessions.findMany({
-      where: eq(schoolSessions.schoolId, schoolId)
-    });
-    const periods = await readDb.query.academicPeriods.findMany({
-      where: eq(academicPeriods.schoolId, schoolId)
-    });
+    const allStudents = await safeQuery("students", readDb.query.students.findMany({
+      where: eq(students.schoolId, schoolId)
+    }));
+    const studentIds = allStudents.map((s: any) => s.id).filter(Boolean);
 
-    // 3. Fetch Employees
-    const allEmployees = await readDb.query.employees.findMany({
-      where: eq(employees.schoolId, schoolId)
-    });
+    const classes = await safeQuery("classes", readDb.query.schoolClasses.findMany({
+      where: eq(schoolClasses.schoolId, schoolId),
+      with: { section: true }
+    }));
+    const classIds = classes.map((c: any) => c.id).filter(Boolean);
 
-    // 4. Fetch Finances
-    const allFeePayments = await readDb.query.feePayments.findMany({
-      where: eq(feePayments.schoolId, schoolId)
-    });
-    const allExpenses = await readDb.query.expenses.findMany({
-      where: eq(expenses.schoolId, schoolId)
-    });
+    const [subjects, sessions, periods, allEmployees, allFeePayments, allExpenses] = await Promise.all([
+      safeQuery("subjects", readDb.query.schoolSubjects.findMany({ where: eq(schoolSubjects.schoolId, schoolId) })),
+      safeQuery("sessions", readDb.query.schoolSessions.findMany({ where: eq(schoolSessions.schoolId, schoolId) })),
+      safeQuery("periods", readDb.query.academicPeriods.findMany({ where: eq(academicPeriods.schoolId, schoolId) })),
+      safeQuery("employees", readDb.query.employees.findMany({ where: eq(employees.schoolId, schoolId) })),
+      safeQuery("fee payments", readDb.query.feePayments.findMany({ where: eq(feePayments.schoolId, schoolId) })),
+      safeQuery("expenses", readDb.query.expenses.findMany({ where: eq(expenses.schoolId, schoolId) })),
+    ]);
 
-    // 5. Fetch Attendance
-    let attendance: any[] = [];
-    if (studentIds.length > 0) {
-      attendance = await readDb.query.studentAttendance.findMany({
-        where: inArray(studentAttendance.studentId, studentIds)
-      });
-    }
+    const [attendance, seances, plans, resources, audit, grades] = await Promise.all([
+      studentIds.length > 0
+        ? safeQuery("attendance", readDb.query.studentAttendance.findMany({ where: inArray(studentAttendance.studentId, studentIds) }))
+        : Promise.resolve([]),
+      safeQuery("pedagogie cahier textes", readDb.query.cahierTextes.findMany({ where: eq(cahierTextes.schoolId, schoolId) })),
+      safeQuery("pedagogie planification", readDb.query.pedagogiePlanification.findMany({ where: eq(pedagogiePlanification.schoolId, schoolId) })),
+      safeQuery("pedagogie resources", readDb.query.pedagogieRessources.findMany({ where: eq(pedagogieRessources.schoolId, schoolId) })),
+      safeQuery("audit logs", readDb.query.auditLogs.findMany({
+        where: eq(auditLogs.schoolId, schoolId),
+        orderBy: [desc(auditLogs.timestamp)],
+        limit: 100
+      })),
+      studentIds.length > 0
+        ? safeQuery("grades", readDb.query.studentResults.findMany({ where: inArray(studentResults.studentId, studentIds) }))
+        : Promise.resolve([]),
+    ]);
 
-    // 6. Fetch Pédagogie (Cahiers de textes, Planifications, Ressources)
-    const seances = await readDb.query.cahierTextes.findMany({
-      where: eq(cahierTextes.schoolId, schoolId)
-    });
-    const plans = await readDb.query.pedagogiePlanification.findMany({
-      where: eq(pedagogiePlanification.schoolId, schoolId)
-    });
-    const resources = await readDb.query.pedagogieRessources.findMany({
-      where: eq(pedagogieRessources.schoolId, schoolId)
-    });
-
-    // 7. Fetch LMS (Courses, Lessons, Submissions, Virtual Classes, Progress)
     let courses: any[] = [];
     let lessons: any[] = [];
     let assignments: any[] = [];
@@ -370,45 +357,23 @@ export async function getUnifiedReportsData() {
     let virtualClasses: any[] = [];
 
     if (classIds.length > 0) {
-      courses = await readDb.query.lmsCourses.findMany({
-        where: inArray(lmsCourses.classId, classIds)
-      });
-      const courseIds = courses.map(c => c.id);
+      [courses, assignments, virtualClasses] = await Promise.all([
+        safeQuery("lms courses", readDb.query.lmsCourses.findMany({ where: inArray(lmsCourses.classId, classIds) })),
+        safeQuery("lms assignments", readDb.query.lmsAssignments.findMany({ where: inArray(lmsAssignments.classId, classIds) })),
+        safeQuery("lms virtual classes", readDb.query.lmsVirtualClasses.findMany({ where: inArray(lmsVirtualClasses.classId, classIds) })),
+      ]);
+
+      const courseIds = courses.map((c: any) => c.id).filter(Boolean);
       if (courseIds.length > 0) {
-        lessons = await readDb.query.lmsLessons.findMany({
-          where: inArray(lmsLessons.courseId, courseIds)
-        });
+        lessons = await safeQuery("lms lessons", readDb.query.lmsLessons.findMany({ where: inArray(lmsLessons.courseId, courseIds) }));
       }
-      assignments = await readDb.query.lmsAssignments.findMany({
-        where: inArray(lmsAssignments.classId, classIds)
-      });
-      virtualClasses = await readDb.query.lmsVirtualClasses.findMany({
-        where: inArray(lmsVirtualClasses.classId, classIds)
-      });
     }
 
     if (studentIds.length > 0) {
-      submissions = await readDb.query.lmsSubmissions.findMany({
-        where: inArray(lmsSubmissions.studentId, studentIds)
-      });
-      progress = await readDb.query.lmsProgress.findMany({
-        where: inArray(lmsProgress.studentId, studentIds)
-      });
-    }
-
-    // 8. Fetch Security Audit Logs
-    const audit = await readDb.query.auditLogs.findMany({
-      where: eq(auditLogs.schoolId, schoolId),
-      orderBy: [desc(auditLogs.timestamp)],
-      limit: 100
-    });
-
-    // 9. Fetch Grades (studentResults)
-    let grades: any[] = [];
-    if (studentIds.length > 0) {
-      grades = await readDb.query.studentResults.findMany({
-        where: inArray(studentResults.studentId, studentIds)
-      });
+      [submissions, progress] = await Promise.all([
+        safeQuery("lms submissions", readDb.query.lmsSubmissions.findMany({ where: inArray(lmsSubmissions.studentId, studentIds) })),
+        safeQuery("lms progress", readDb.query.lmsProgress.findMany({ where: inArray(lmsProgress.studentId, studentIds) })),
+      ]);
     }
 
     return {
