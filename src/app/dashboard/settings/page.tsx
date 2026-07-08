@@ -4,7 +4,7 @@ import { getDocumentHeaderConfig, getSettings, getBranches, updateSchoolDomain }
 import { getCurrentSchool } from "@/domains/auth/services/school";
 import { 
   getSessions, getClasses, getSections, getSubjects, getSectionSubjects, 
-  getClassSubjects, getGradingAppreciations, getSchoolRemarks, getPeriods, getEducationalLevels
+  getClassSubjects, getGradingAppreciations, getSchoolRemarks, getPeriods, getEducationalLevels, getCanevasReferenceLists
 } from "@/domains/academics/actions/academics.actions";
 import { getEmployees } from "@/domains/hr/actions/employees.actions";
 import { getCurrentUser } from "@/domains/auth/services/session";
@@ -48,6 +48,8 @@ export default async function SettingsPage({
   const periods = periodsRes.data?.data || periodsRes.data || [];
   const levelsRes = await getEducationalLevels(true) as any;
   const educationalLevels = levelsRes.data?.data || levelsRes.data || [];
+  const canevasReferencesRes = await getCanevasReferenceLists() as any;
+  const canevasReferences = canevasReferencesRes.data?.data || canevasReferencesRes.data || { type: [], cycle: [], commune: [] };
   const employeesRes = await getEmployees() as any;
   const employees = employeesRes.data?.data || employeesRes.data || [];
   const currentUser = await getCurrentUser();
@@ -201,6 +203,7 @@ export default async function SettingsPage({
                    initialSessions={sessions}
                    initialPeriods={periods}
                    initialEducationalLevels={educationalLevels}
+                   initialCanevasReferences={canevasReferences}
                    initialClasses={classes}
                    initialSections={sections}
                    initialSubjects={subjects}

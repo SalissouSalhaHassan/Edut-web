@@ -27,7 +27,7 @@ import {
 } from "@/infrastructure/database/schema/academics";
 import { students } from "@/infrastructure/database/schema/students";
 import { studentAttendance } from "@/infrastructure/database/schema/attendance";
-import { schoolBranches } from "@/infrastructure/database/schema/settings";
+import { schoolBranches, settings } from "@/infrastructure/database/schema/settings";
 import { employees } from "@/infrastructure/database/schema/hr";
 import { eq, and, or, ilike, isNull, sql, inArray, desc } from "drizzle-orm";
 import { revalidatePath, unstable_cache, revalidateTag as nextRevalidateTag } from "next/cache";
@@ -2018,6 +2018,98 @@ export async function deleteEducationalLevel(id: number) {
       and(
         eq(educationalLevels.id, id),
         eq(educationalLevels.schoolId, schoolId)
+      )
+    );
+    revalidatePath("/dashboard/settings");
+    return { success: true };
+  });
+}
+
+
+const CANEVAS_REFERENCE_PREFIX = "canevas_reference";
+const CANEVAS_REFERENCE_DEFAULTS: Record<string, string[]> = {
+  type: ["Public", "Priv?", "Communautaire", "Confessionnel"],
+  cycle: ["Pr?scolaire", "Primaire", "Coll?ge", "Lyc?e", "Technique", "Sup?rieur"],
+  commune: ["Niamey I", "Niamey II", "Niamey III", "Niamey IV", "Niamey V"],
+};
+
+function canevasReferenceKey(category: string) {
+  return `${CANEVAS_REFERENCE_PREFIX}:${category}`;
+}
+
+export async function getCanevasReferenceLists() {
+  return protectedDbAction("Academics", "canView", async () => {
+    const schoolId = await getActiveSchoolId();
+    const rows = await readDb.query.settings.findMany({
+      where: and(
+        eq(settings.schoolId, schoolId),
+        inArray(settings.key, Object.keys(CANEVAS_REFERENCE_DEFAULTS).map(canevasReferenceKey))
+      ),
+      orderBy: settings.value
+    });
+
+    const grouped: Record<string, any[]> = {
+      type: [],
+      cycle: [],
+      commune: [],
+    };
+
+    for (const row of rows) {
+      const category = row.key.replace(`${CANEVAS_REFERENCE_PREFIX}:`, "");
+      if (!grouped[category]) grouped[category] = [];
+      grouped[category].push(row);
+    }
+
+    for (const [category, defaults] of Object.entries(CANEVAS_REFERENCE_DEFAULTS)) {
+      if (grouped[category].length === 0) {
+        grouped[category] = defaults.map((value, index) => ({
+          id: `default-${category}-${index}`,
+          key: canevasReferenceKey(category),
+          value,
+          metadata: { category, source: "default" },
+        }));
+      }
+    }
+
+    return grouped;
+  });
+}
+
+export async function createCanevasReferenceItem(category: "type" | "cycle" | "commune", value: string) {
+  return protectedDbAction("Academics", "canEdit", async () => {
+    const schoolId = await getActiveSchoolId();
+    const cleanValue = value.trim();
+    if (!cleanValue) return { error: "Valeur obligatoire." };
+
+    const key = canevasReferenceKey(category);
+    const existing = await readDb.query.settings.findFirst({
+      where: and(
+        eq(settings.schoolId, schoolId),
+        eq(settings.key, key),
+        ilike(settings.value, cleanValue)
+      )
+    });
+    if (existing) return { error: "Cette valeur existe d?j?." };
+
+    await db.insert(settings).values({
+      schoolId,
+      key,
+      value: cleanValue,
+      metadata: { category, source: "settings" },
+    });
+
+    revalidatePath("/dashboard/settings");
+    return { success: true };
+  });
+}
+
+export async function deleteCanevasReferenceItem(id: number) {
+  return protectedDbAction("Academics", "canEdit", async () => {
+    const schoolId = await getActiveSchoolId();
+    await db.delete(settings).where(
+      and(
+        eq(settings.id, id),
+        eq(settings.schoolId, schoolId)
       )
     );
     revalidatePath("/dashboard/settings");

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
-import { Trash2, CalendarDays, GraduationCap, Bookmark, BookOpen, Link as LinkIcon, Loader2, Bell, FileUp, Search, Pencil } from "lucide-react";
+import { Trash2, CalendarDays, GraduationCap, Bookmark, BookOpen, Link as LinkIcon, Loader2, Bell, FileUp, Search, Pencil, Building2, Layers, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { 
@@ -15,7 +15,7 @@ import {
   createGradingAppreciation, deleteGradingAppreciation,
   createSchoolRemark, deleteSchoolRemark,
   createPeriod, deletePeriod, updatePeriod,
-  createEducationalLevel, deleteEducationalLevel
+  createEducationalLevel, deleteEducationalLevel, createCanevasReferenceItem, deleteCanevasReferenceItem
 } from "@/domains/academics/actions/academics.actions";
 
 export function AcademicSettings({ 
@@ -29,6 +29,7 @@ export function AcademicSettings({
   initialSchoolRemarks,
   initialPeriods,
   initialEducationalLevels,
+  initialCanevasReferences,
   canEdit = true
 }: any) {
   const [isPending, startTransition] = useTransition();
@@ -49,6 +50,9 @@ export function AcademicSettings({
   const [sectionLevel, setSectionLevel] = useState("");
   const [subjectName, setSubjectName] = useState("");
   const [levelName, setLevelName] = useState("");
+  const [canevasTypeName, setCanevasTypeName] = useState("");
+  const [canevasCycleName, setCanevasCycleName] = useState("");
+  const [canevasCommuneName, setCanevasCommuneName] = useState("");
   const [subjectSearch, setSubjectSearch] = useState("");
   const [subjectNiveau, setSubjectNiveau] = useState("");
   const [subjectSectionId, setSubjectSectionId] = useState("");
@@ -155,6 +159,20 @@ export function AcademicSettings({
         router.refresh();
       } else {
         toast.error(res.error || "Erreur lors de l'ajout du niveau");
+      }
+    });
+  };
+
+  const handleCreateCanevasReference = (category: "type" | "cycle" | "commune", value: string, reset: () => void) => {
+    if (!value.trim()) return;
+    startTransition(async () => {
+      const res = await createCanevasReferenceItem(category, value);
+      if (res.success) {
+        toast.success("R?f?rence canevas ajout?e avec succ?s");
+        reset();
+        router.refresh();
+      } else {
+        toast.error(res.error || "Erreur lors de l'ajout de la r?f?rence");
       }
     });
   };
