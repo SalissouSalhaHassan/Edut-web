@@ -400,11 +400,11 @@ export default function AcademicResultsPage() {
 
   const handleExportResultsReport = async () => {
     if (!activeFilters) {
-      toast.warning("Veuillez charger une classe avant de g?n?rer le rapport.");
+      toast.warning("Veuillez charger une classe avant de générer le rapport.");
       return;
     }
     if (!matrixData && students.length === 0) {
-      toast.warning("Aucune donn?e disponible pour le rapport.");
+      toast.warning("Aucune donnée disponible pour le rapport.");
       return;
     }
 
@@ -417,7 +417,7 @@ export default function AcademicResultsPage() {
         headerConfig,
         isOffline: isLocal || !navigator.onLine,
       });
-      toast.success("Rapport p?dagogique g?n?r? avec succ?s !");
+      toast.success("Rapport pédagogique généré avec succès !");
     } catch (err: any) {
       toast.error("Erreur PDF", { description: err.message });
     } finally {

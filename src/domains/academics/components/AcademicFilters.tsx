@@ -133,7 +133,7 @@ export default function AcademicFilters({ onLoad, loading }: AcademicFiltersProp
       setLevel((current) => current && availableLevels.includes(current) ? current : String(availableLevels[0] || ""));
 
       if (source === "local") {
-        toast.info("Filtres acad?miques charg?s depuis le cache hors-ligne.");
+        toast.info("Filtres académiques chargés depuis le cache hors-ligne.");
       }
     };
 
@@ -154,7 +154,7 @@ export default function AcademicFilters({ onLoad, loading }: AcademicFiltersProp
 
       if (!navigator.onLine) {
         if (!sessionCached && !localCached) {
-          toast.warning("Aucun cache local disponible pour les filtres Notes & R?sultats.");
+          toast.warning("Aucun cache local disponible pour les filtres Notes & Résultats.");
         }
         return;
       }
@@ -172,7 +172,7 @@ export default function AcademicFilters({ onLoad, loading }: AcademicFiltersProp
       } catch (error) {
         console.warn("[AcademicFilters] Fresh options failed, keeping cached data:", error);
         if (!localCached && !sessionCached) {
-          toast.error("Impossible de charger les filtres acad?miques.");
+          toast.error("Impossible de charger les filtres académiques.");
         }
       }
     }
