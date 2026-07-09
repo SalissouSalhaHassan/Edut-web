@@ -10,30 +10,18 @@ import {
   ArrowLeft,
   Building2,
   CheckCircle2,
-  Download,
-  Edit3,
-  Eye,
   Filter,
-  MapPin,
-  MoreVertical,
-  Plus,
   Printer,
   Search,
-  ShieldCheck,
-  Upload,
   Users,
-  Trash2,
   X,
   Droplets,
   Lightbulb,
-  Check,
-  Info,
   FileText,
   FileSpreadsheet,
   Globe,
   Award,
   Activity,
-  AlertTriangle,
   Clock,
   ShieldAlert,
   HelpCircle,
@@ -45,6 +33,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 import { getSessions } from "@/domains/academics/actions/academics.actions";
+import { getMinistrySchoolsData } from "@/domains/ministry/actions/ministry.actions";
 
 interface SchoolData {
   code: string;
@@ -74,282 +63,15 @@ interface SchoolData {
   status: "Valide" | "À vérifier" | "Incomplet";
 }
 
-const initialSchools: SchoolData[] = [
-  {
-    code: "ETB-2026-001",
-    name: "Ecole Excellence",
-    type: "Privé",
-    cycle: "Primaire",
-    region: "Niamey",
-    department: "Niamey",
-    inspection: "Niamey IV",
-    commune: "Niamey IV",
-    eleves: 642,
-    filles: 318,
-    garcons: 324,
-    enseignants: 24,
-    salles: 18,
-    eau: true,
-    electricite: true,
-    latrines: true,
-    manqueEnseignants: 0,
-    manqueSalles: 0,
-    manqueLivres: 10,
-    abandonRate: 1.2,
-    completion: 98,
-    lastDeclaration: "2026-06-27",
-    successRate: 88.5,
-    attendanceRate: 95.2,
-    status: "Valide",
-  },
-  {
-    code: "ETB-2026-018",
-    name: "Ecole Primaire Bobiel",
-    type: "Public",
-    cycle: "Primaire",
-    region: "Niamey",
-    department: "Niamey",
-    inspection: "Niamey I",
-    commune: "Niamey I",
-    eleves: 481,
-    filles: 236,
-    garcons: 245,
-    enseignants: 16,
-    salles: 12,
-    eau: false,
-    electricite: true,
-    latrines: false,
-    manqueEnseignants: 3,
-    manqueSalles: 2,
-    manqueLivres: 85,
-    abandonRate: 8.2,
-    completion: 76,
-    lastDeclaration: "2026-06-26",
-    successRate: 64.2,
-    attendanceRate: 88.4,
-    status: "À vérifier",
-  },
-  {
-    code: "ETB-2026-043",
-    name: "Complexe Scolaire Sahel",
-    type: "Privé",
-    cycle: "Collège",
-    region: "Niamey",
-    department: "Niamey",
-    inspection: "Niamey II",
-    commune: "Niamey II",
-    eleves: 934,
-    filles: 452,
-    garcons: 482,
-    enseignants: 41,
-    salles: 26,
-    eau: true,
-    electricite: true,
-    latrines: true,
-    manqueEnseignants: 0,
-    manqueSalles: 0,
-    manqueLivres: 0,
-    abandonRate: 2.1,
-    completion: 94,
-    lastDeclaration: "2026-06-25",
-    successRate: 82.1,
-    attendanceRate: 91.8,
-    status: "Valide",
-  },
-  {
-    code: "ETB-2026-067",
-    name: "Ecole Publique Lazaret",
-    type: "Public",
-    cycle: "Primaire",
-    region: "Niamey",
-    department: "Niamey",
-    inspection: "Niamey III",
-    commune: "Niamey III",
-    eleves: 388,
-    filles: 190,
-    garcons: 198,
-    enseignants: 13,
-    salles: 9,
-    eau: true,
-    electricite: false,
-    latrines: true,
-    manqueEnseignants: 1,
-    manqueSalles: 3,
-    manqueLivres: 120,
-    abandonRate: 5.4,
-    completion: 61,
-    lastDeclaration: "2026-06-24",
-    successRate: 59.8,
-    attendanceRate: 85.0,
-    status: "Incomplet",
-  },
-  {
-    code: "ETB-2026-104",
-    name: "Lycee Municipal Est",
-    type: "Public",
-    cycle: "Lycée",
-    region: "Niamey",
-    department: "Niamey",
-    inspection: "Niamey V",
-    commune: "Niamey V",
-    eleves: 1218,
-    filles: 593,
-    garcons: 625,
-    enseignants: 58,
-    salles: 34,
-    eau: true,
-    electricite: true,
-    latrines: true,
-    manqueEnseignants: 0,
-    manqueSalles: 1,
-    manqueLivres: 40,
-    abandonRate: 3.8,
-    completion: 91,
-    lastDeclaration: "2026-06-22",
-    successRate: 74.5,
-    attendanceRate: 89.2,
-    status: "Valide",
-  },
-  {
-    code: "ETB-2026-202",
-    name: "CES Kollo",
-    type: "Public",
-    cycle: "Collège",
-    region: "Tillabéri",
-    department: "Kollo",
-    inspection: "Kollo I",
-    commune: "Kollo",
-    eleves: 540,
-    filles: 250,
-    garcons: 290,
-    enseignants: 18,
-    salles: 14,
-    eau: true,
-    electricite: false,
-    latrines: false,
-    manqueEnseignants: 2,
-    manqueSalles: 4,
-    manqueLivres: 95,
-    abandonRate: 9.6,
-    completion: 85,
-    lastDeclaration: "2026-05-15", // Late
-    successRate: 61.2,
-    attendanceRate: 84.1,
-    status: "À vérifier",
-  },
-  {
-    code: "ETB-2026-305",
-    name: "Lycée Technique Maradi",
-    type: "Public",
-    cycle: "Lycée",
-    region: "Maradi",
-    department: "Madarounfa",
-    inspection: "Madarounfa I",
-    commune: "Madarounfa",
-    eleves: 710,
-    filles: 310,
-    garcons: 400,
-    enseignants: 32,
-    salles: 20,
-    eau: false,
-    electricite: false,
-    latrines: false,
-    manqueEnseignants: 5,
-    manqueSalles: 4,
-    manqueLivres: 150,
-    abandonRate: 12.4,
-    completion: 55,
-    lastDeclaration: "2026-06-18",
-    successRate: 54.3,
-    attendanceRate: 81.5,
-    status: "Incomplet",
-  },
-  {
-    code: "ETB-2026-412",
-    name: "Ecole Privée Franco-Arabe Nour",
-    type: "Privé",
-    cycle: "Primaire",
-    region: "Zinder",
-    department: "Mirriah",
-    inspection: "Mirriah I",
-    commune: "Mirriah",
-    eleves: 320,
-    filles: 170,
-    garcons: 150,
-    enseignants: 12,
-    salles: 8,
-    eau: true,
-    electricite: true,
-    latrines: true,
-    manqueEnseignants: 0,
-    manqueSalles: 0,
-    manqueLivres: 15,
-    abandonRate: 0.8,
-    completion: 97,
-    lastDeclaration: "2026-06-28",
-    successRate: 91.0,
-    attendanceRate: 96.8,
-    status: "Valide",
-  },
-  {
-    code: "ETB-2026-521",
-    name: "Complexe Scolaire Dan Kassmy",
-    type: "Privé",
-    cycle: "Lycée",
-    region: "Maradi",
-    department: "Madarounfa",
-    inspection: "Madarounfa I",
-    commune: "Madarounfa",
-    eleves: 890,
-    filles: 430,
-    garcons: 460,
-    enseignants: 45,
-    salles: 28,
-    eau: true,
-    electricite: true,
-    latrines: true,
-    manqueEnseignants: 0,
-    manqueSalles: 0,
-    manqueLivres: 20,
-    abandonRate: 1.9,
-    completion: 88,
-    lastDeclaration: "2026-04-10", // Late
-    successRate: 78.4,
-    attendanceRate: 90.6,
-    status: "Valide",
-  },
-  {
-    code: "ETB-2026-613",
-    name: "Ecole Maternelle Kollo",
-    type: "Public",
-    cycle: "Préscolaire",
-    region: "Tillabéri",
-    department: "Kollo",
-    inspection: "Kollo I",
-    commune: "Kollo",
-    eleves: 180,
-    filles: 92,
-    garcons: 88,
-    enseignants: 6,
-    salles: 4,
-    eau: false,
-    electricite: true,
-    latrines: true,
-    manqueEnseignants: 0,
-    manqueSalles: 0,
-    manqueLivres: 80,
-    abandonRate: 4.1,
-    completion: 40,
-    lastDeclaration: "2026-06-29",
-    successRate: 95.0,
-    attendanceRate: 92.5,
-    status: "Incomplet",
-  },
-];
+interface SessionOption {
+  sessionName?: string | null;
+  isActive?: boolean | null;
+}
 
 export default function MinistryDashboardPage() {
-  const [schools] = useState<SchoolData[]>(initialSchools);
-  const [schoolSessions, setSchoolSessions] = useState<any[]>([]);
+  const [schools, setSchools] = useState<SchoolData[]>([]);
+  const [loadingSchools, setLoadingSchools] = useState(true);
+  const [schoolSessions, setSchoolSessions] = useState<SessionOption[]>([]);
   
   // Filter States
   const [selectedYear, setSelectedYear] = useState("");
@@ -366,16 +88,49 @@ export default function MinistryDashboardPage() {
   useEffect(() => {
     let cancelled = false;
 
+    const loadSchools = async () => {
+      setLoadingSchools(true);
+      try {
+        const res = await getMinistrySchoolsData();
+        if (cancelled) return;
+
+        if (res.success) {
+          setSchools((res.data || []) as SchoolData[]);
+        } else {
+          setSchools([]);
+          toast.error(res.error || "Impossible de charger les données ministérielles.");
+        }
+      } catch {
+        if (!cancelled) {
+          setSchools([]);
+          toast.error("Impossible de charger les données ministérielles.");
+        }
+      } finally {
+        if (!cancelled) setLoadingSchools(false);
+      }
+    };
+
+    loadSchools();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
     const loadSessions = async () => {
       try {
         const res = await getSessions();
-        const sessions = (res as any)?.data?.data || (res as any)?.data || [];
+        const rawData = (res as { data?: { data?: SessionOption[] } | SessionOption[] })?.data;
+        const sessions = (Array.isArray(rawData) ? rawData : rawData?.data) || [];
         if (cancelled) return;
 
         setSchoolSessions(sessions);
-        const activeSession = sessions.find((session: any) => session.isActive) || sessions[0];
+        const activeSession = sessions.find((session) => session.isActive) || sessions[0];
         setSelectedYear(activeSession?.sessionName || "2025-2026");
-      } catch (error) {
+      } catch {
         if (!cancelled) {
           setSchoolSessions([]);
           setSelectedYear("2025-2026");
@@ -392,7 +147,7 @@ export default function MinistryDashboardPage() {
 
   const academicYearOptions = useMemo(() => {
     const realSessions = schoolSessions
-      .map((session: any) => String(session.sessionName || "").trim())
+      .map((session) => String(session.sessionName || "").trim())
       .filter(Boolean);
     const uniqueSessions = Array.from(new Set(realSessions));
     return uniqueSessions.length > 0 ? uniqueSessions : ["2025-2026", "2024-2025"];
@@ -770,7 +525,7 @@ export default function MinistryDashboardPage() {
           </div>
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-600">Portail National Décisionnel</p>
-            <h1 className="text-3xl font-black tracking-tight text-slate-900">Ministère de l'Éducation</h1>
+            <h1 className="text-3xl font-black tracking-tight text-slate-900">Ministère de l&apos;Éducation</h1>
             <p className="mt-1 text-xs font-bold text-slate-500">Tableau de Bord Réglementaire du Secteur Éducatif National</p>
           </div>
         </div>
@@ -1001,7 +756,13 @@ export default function MinistryDashboardPage() {
 
             {viewMode === "list" ? (
               <div className="overflow-x-auto">
-                {filteredSchools.length > 0 ? (
+                {loadingSchools ? (
+                  <div className="p-16 text-center">
+                    <Building2 className="mx-auto size-12 text-slate-200 animate-pulse" />
+                    <p className="mt-4 text-sm font-black text-slate-800">Chargement des établissements...</p>
+                    <p className="text-xs text-slate-400 mt-1">Lecture des données ministérielles depuis la base.</p>
+                  </div>
+                ) : filteredSchools.length > 0 ? (
                   <table className="w-full text-left min-w-[900px]">
                     <thead>
                       <tr className="border-b border-slate-50 bg-slate-50/40 text-[9px] font-black uppercase tracking-widest text-slate-400">
@@ -1089,7 +850,7 @@ export default function MinistryDashboardPage() {
                   <Globe className="size-20 text-indigo-500 opacity-90 animate-spin" style={{ animationDuration: '20s' }} />
                   <div className="mt-6 space-y-1">
                     <p className="text-base font-black text-slate-800">Carte Éducative Nationale Interactive</p>
-                    <p className="text-xs text-slate-500 max-w-sm">Géolocalisation des établissements et anomalies d'infrastructures en temps réel.</p>
+                    <p className="text-xs text-slate-500 max-w-sm">Géolocalisation des établissements et anomalies d&apos;infrastructures en temps réel.</p>
                   </div>
                 </div>
               </div>
