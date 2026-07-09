@@ -1,7 +1,7 @@
 import { db } from "@/infrastructure/database";
 import { rolePermissions, users, roles } from "@/infrastructure/database/schema/auth";
 import { schoolBranches } from "@/infrastructure/database/schema/settings";
-import { schoolClasses, classSubjects } from "@/infrastructure/database/schema/academics";
+import { classSubjects } from "@/infrastructure/database/schema/academics";
 import { employees } from "@/infrastructure/database/schema/hr";
 import { eq, sql, or, and } from "drizzle-orm";
 import { cache } from "react";
@@ -194,13 +194,43 @@ export const hasPermission = cache(async (
 
 // ─── HIERARCHICAL ACCESS CONTROL CHECKS (RECORD-LEVEL) ───
 
+function normalizeScopeValue(value: string | null | undefined): string {
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+}
+
+function scopeEquals(userValue: string | null | undefined, resourceValue: string | null | undefined): boolean {
+  const resource = normalizeScopeValue(resourceValue);
+  if (!resource) return true;
+  const userScope = normalizeScopeValue(userValue);
+  return Boolean(userScope) && userScope === resource;
+}
+
+type ScopedUser = {
+  region?: string | null;
+  departement?: string | null;
+  department?: string | null;
+  inspection?: string | null;
+  emplacement?: string | null;
+};
+
+function getUserScopeValue(user: ScopedUser, keys: Array<keyof ScopedUser>): string {
+  for (const key of keys) {
+    const value = user?.[key];
+    if (normalizeScopeValue(value)) return String(value);
+  }
+  return "";
+}
+
 export async function verifyRegionAccess(user: any, regionName: string | null | undefined): Promise<boolean> {
   if (!user) return false;
   const roleType = await getUserRoleType(user);
   if (roleType === "super_admin" || roleType === "ministere") return true;
 
-  if (!regionName) return true;
-  return (user.region || "").toLowerCase() === regionName.toLowerCase();
+  return scopeEquals(getUserScopeValue(user, ["region", "emplacement"]), regionName);
 }
 
 export async function verifyDepartmentAccess(user: any, region: string | null | undefined, department: string | null | undefined): Promise<boolean> {
@@ -212,8 +242,7 @@ export async function verifyDepartmentAccess(user: any, region: string | null | 
   if (!await verifyRegionAccess(user, region)) return false;
   if (roleType === "dren") return true; // DREN sees everything in region
 
-  if (!department) return true;
-  return (user.departement || "").toLowerCase() === department.toLowerCase();
+  return scopeEquals(getUserScopeValue(user, ["departement", "department", "emplacement"]), department);
 }
 
 export async function verifyInspectionAccess(user: any, region: string | null | undefined, department: string | null | undefined, inspection: string | null | undefined): Promise<boolean> {
@@ -225,8 +254,7 @@ export async function verifyInspectionAccess(user: any, region: string | null | 
   if (!await verifyDepartmentAccess(user, region, department)) return false;
   if (roleType === "dren" || roleType === "dden") return true; // DREN/DDEN sees everything in department
 
-  if (!inspection) return true;
-  return (user.inspection || "").toLowerCase() === inspection.toLowerCase();
+  return scopeEquals(getUserScopeValue(user, ["inspection", "emplacement"]), inspection);
 }
 
 export async function verifySchoolAccess(user: any, schoolId: string | null | undefined): Promise<boolean> {
@@ -234,10 +262,33 @@ export async function verifySchoolAccess(user: any, schoolId: string | null | un
   const roleType = await getUserRoleType(user);
   if (roleType === "super_admin" || roleType === "ministere") return true;
 
-  // If DREN / DDEN / Inspection, we verify location match (assuming matching school location parameters)
-  if (roleType === "dren" || roleType === "dden" || roleType === "inspection") return true;
-
   if (!schoolId) return true;
+
+  if (roleType === "dren" || roleType === "dden" || roleType === "inspection") {
+    const numericSchoolId = Number(schoolId);
+    if (!Number.isInteger(numericSchoolId)) return false;
+
+    const branch = await db.query.schoolBranches.findFirst({
+      where: eq(schoolBranches.schoolId, numericSchoolId),
+      orderBy: [schoolBranches.createdAt],
+    });
+
+    if (!branch) return false;
+
+    const region = branch.region || branch.dren;
+    const department = branch.department || branch.dden;
+
+    if (roleType === "dren") {
+      return await verifyRegionAccess(user, region);
+    }
+
+    if (roleType === "dden") {
+      return await verifyDepartmentAccess(user, region, department);
+    }
+
+    return await verifyInspectionAccess(user, region, department, branch.inspection);
+  }
+
   return String(user.schoolId) === String(schoolId);
 }
 
