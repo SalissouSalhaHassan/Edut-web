@@ -404,23 +404,71 @@ export async function getUnifiedReportsData() {
   });
 }
 
-export async function quickFixStudentData(id: number, data: any) {
+export async function quickFixStudentData(id: number, data: Partial<typeof students.$inferInsert>) {
   return protectedDbAction("Students", "canEdit", async () => {
-    await db.update(students).set(data).where(eq(students.id, id));
+    const schoolId = await getActiveSchoolId();
+    const safeData = { ...(data || {}) };
+    delete safeData.id;
+    delete safeData.schoolId;
+
+    const updated = await db
+      .update(students)
+      .set(safeData)
+      .where(and(eq(students.id, id), eq(students.schoolId, schoolId)))
+      .returning({ id: students.id });
+
+    if (updated.length === 0) {
+      return { success: false, error: "Étudiant introuvable pour cette école." };
+    }
+
     return { success: true };
   });
 }
 
 export async function quickFixPaymentReference(id: number, reference: string) {
   return protectedDbAction("Finance", "canEdit", async () => {
-    await db.update(feePayments).set({ reference }).where(eq(feePayments.id, id));
+    const schoolId = await getActiveSchoolId();
+    const updated = await db
+      .update(feePayments)
+      .set({ reference })
+      .where(and(eq(feePayments.id, id), eq(feePayments.schoolId, schoolId)))
+      .returning({ id: feePayments.id });
+
+    if (updated.length === 0) {
+      return { success: false, error: "Paiement introuvable pour cette école." };
+    }
+
     return { success: true };
   });
 }
 
 export async function quickFixGrade(id: number, score: number) {
   return protectedDbAction("Academics", "canEdit", async () => {
-    await db.update(studentResults).set({ totalScore: score }).where(eq(studentResults.id, id));
+    const schoolId = await getActiveSchoolId();
+    const updated = await db
+      .update(studentResults)
+      .set({ totalScore: score })
+      .where(and(
+        eq(studentResults.id, id),
+        sql`(
+          EXISTS (
+            SELECT 1 FROM students
+            WHERE students.id = ${studentResults.studentId}
+              AND students.school_id = ${schoolId}
+          )
+          OR EXISTS (
+            SELECT 1 FROM school_classes
+            WHERE school_classes.id = ${studentResults.classId}
+              AND school_classes.school_id = ${schoolId}
+          )
+        )`
+      ))
+      .returning({ id: studentResults.id });
+
+    if (updated.length === 0) {
+      return { success: false, error: "Note introuvable pour cette école." };
+    }
+
     return { success: true };
   });
 }
