@@ -680,8 +680,6 @@ export default function AcademicResultsPage() {
         </div>
       )}
 
-      <AcademicFilters onLoad={handleLoad} loading={loading} />
-
       <AnimatePresence mode="wait">
         {hasLoadedData ? (
           <motion.div

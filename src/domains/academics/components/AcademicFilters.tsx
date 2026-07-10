@@ -119,7 +119,7 @@ export default function AcademicFilters({ onLoad, loading }: AcademicFiltersProp
   useEffect(() => {
     let cancelled = false;
 
-    const applyOptions = (data: any, source: "session" | "local" | "server") => {
+    const applyOptions = (data: any) => {
       if (cancelled || !data) return;
       const normalized = { ...EMPTY_FILTER_OPTIONS, ...data };
       setOptions(normalized);
@@ -131,49 +131,55 @@ export default function AcademicFilters({ onLoad, loading }: AcademicFiltersProp
 
       const availableLevels = getAcademicLevels(normalized);
       setLevel((current) => current && availableLevels.includes(current) ? current : String(availableLevels[0] || ""));
-
-      if (source === "local") {
-        toast.info("Filtres académiques chargés depuis le cache hors-ligne.");
-      }
     };
 
     async function loadOptions() {
       const sessionCached = sessionStorage.getItem("academic_filter_options");
+      let hasSessionCache = false;
+
       if (sessionCached) {
         try {
-          applyOptions(JSON.parse(sessionCached), "session");
+          applyOptions(JSON.parse(sessionCached));
+          hasSessionCache = true;
         } catch (e) {
           console.error("Failed to parse cached options", e);
         }
       }
 
-      const localCached = await getCachedAcademicFilterOptions();
-      if (localCached) {
-        applyOptions(localCached, "local");
-      }
+      if (navigator.onLine) {
+        try {
+          const result = await getFilterOptions();
+          const data = (result as any)?.data || result;
 
-      if (!navigator.onLine) {
-        if (!sessionCached && !localCached) {
-          toast.warning("Aucun cache local disponible pour les filtres Notes & Résultats.");
+          if (data && data.sessions) {
+            const normalized = { ...EMPTY_FILTER_OPTIONS, ...data };
+            applyOptions(normalized);
+            sessionStorage.setItem("academic_filter_options", JSON.stringify(normalized));
+            await cacheAcademicFilterOptions(normalized);
+            return;
+          }
+        } catch (error) {
+          console.warn("[AcademicFilters] Fresh options failed, trying local cache:", error);
+        }
+
+        const localCached = await getCachedAcademicFilterOptions();
+        if (localCached) {
+          applyOptions(localCached);
+          toast.warning("Connexion active, mais les filtres centraux sont indisponibles; affichage du cache local.");
+        } else if (hasSessionCache) {
+          toast.warning("Impossible d'actualiser les filtres académiques; affichage temporaire du cache de session.");
+        } else {
+          toast.error("Impossible de charger les filtres académiques.");
         }
         return;
       }
 
-      try {
-        const result = await getFilterOptions();
-        const data = (result as any)?.data || result;
-
-        if (data && data.sessions) {
-          const normalized = { ...EMPTY_FILTER_OPTIONS, ...data };
-          applyOptions(normalized, "server");
-          sessionStorage.setItem("academic_filter_options", JSON.stringify(normalized));
-          await cacheAcademicFilterOptions(normalized);
-        }
-      } catch (error) {
-        console.warn("[AcademicFilters] Fresh options failed, keeping cached data:", error);
-        if (!localCached && !sessionCached) {
-          toast.error("Impossible de charger les filtres académiques.");
-        }
+      const localCached = await getCachedAcademicFilterOptions();
+      if (localCached) {
+        applyOptions(localCached);
+        toast.info("Filtres académiques chargés depuis le cache hors-ligne.");
+      } else if (!hasSessionCache) {
+        toast.warning("Aucun cache local disponible pour les filtres Notes & Résultats.");
       }
     }
 
