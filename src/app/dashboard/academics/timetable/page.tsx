@@ -6,7 +6,7 @@ import { getPedagogicalUnits } from "@/domains/academics/actions/pedagogical-uni
 import IntelligentTimetable from "./timetable-intelligent";
 
 export default async function TimetablePage() {
-  const classesRes = await getClasses();
+  const classesRes = await getClasses(true);
   const sessionsRes = await getSessions();
   const employeesRes = await getEmployees();
   const subjectsRes = await getSubjects();
