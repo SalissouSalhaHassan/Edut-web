@@ -3,6 +3,7 @@ import { rolePermissions, users, roles } from "@/infrastructure/database/schema/
 import { schoolBranches } from "@/infrastructure/database/schema/settings";
 import { classSubjects } from "@/infrastructure/database/schema/academics";
 import { employees } from "@/infrastructure/database/schema/hr";
+import { students } from "@/infrastructure/database/schema/students";
 import { eq, sql, or, and } from "drizzle-orm";
 import { cache } from "react";
 import { cookies } from "next/headers";
@@ -306,8 +307,23 @@ export async function verifyStudentAccess(user: any, studentId: string | number)
   }
 
   if (roleType === "parent") {
-    // Check if studentId is among parent's children (mapped in database)
-    return true; 
+    if (!user.studentId || String(user.studentId) !== String(studentId)) {
+      return false;
+    }
+
+    if (!user.schoolId) {
+      return true;
+    }
+
+    const child = await db.query.students.findFirst({
+      where: and(
+        eq(students.id, Number(studentId)),
+        eq(students.schoolId, user.schoolId)
+      ),
+      columns: { id: true },
+    });
+
+    return Boolean(child);
   }
 
   return false;
