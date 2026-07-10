@@ -36,9 +36,9 @@ export async function getReportsData() {
       });
       const studentIds = schoolStudents.map(s => s.id);
       
-      // If no students, return default mock datasets
+      // If no students exist, return an explicit empty report instead of synthetic values.
       if (studentIds.length === 0) {
-        return getDefaultMockData();
+        return getEmptyReportsData();
       }
 
       // 2. Fetch Attendance
@@ -51,10 +51,10 @@ export async function getReportsData() {
 
       // Compute Attendance KPIs
       const totalAtt = attRecords.length;
-      let globalAttendanceRate = 94.2; // default mock fallback
-      let unexcusedAbsences = 24;
-      let excusedAbsences = 12;
-      let lateRate = 3.1;
+      let globalAttendanceRate = 0;
+      let unexcusedAbsences = 0;
+      let excusedAbsences = 0;
+      let lateRate = 0;
 
       if (totalAtt > 0) {
         const presents = attRecords.filter(r => r.status === "Présent").length;
@@ -90,12 +90,12 @@ export async function getReportsData() {
       });
 
       const dailyEvolution = Object.entries(dayMap).map(([day, val]) => {
-        const total = val.total || 1;
+        const total = val.total;
         return {
           day,
-          Presents: Number(((val.Presents / total) * 100).toFixed(1)) || 95.0,
-          Absents: Number(((val.Absents / total) * 100).toFixed(1)) || 3.0,
-          Lates: Number(((val.Lates / total) * 100).toFixed(1)) || 2.0
+          Presents: total > 0 ? Number(((val.Presents / total) * 100).toFixed(1)) : 0,
+          Absents: total > 0 ? Number(((val.Absents / total) * 100).toFixed(1)) : 0,
+          Lates: total > 0 ? Number(((val.Lates / total) * 100).toFixed(1)) : 0
         };
       });
 
@@ -122,10 +122,10 @@ export async function getReportsData() {
       });
 
       const attendanceByCycle = Object.entries(cycleMap).map(([cycle, val]) => {
-        const total = val.total || 1;
+        const total = val.total;
         return {
           cycle,
-          Rate: Number(((val.presents / total) * 100).toFixed(1)) || (cycle === "Primaire" ? 96.2 : cycle === "Collège" ? 94.5 : 92.1)
+          Rate: total > 0 ? Number(((val.presents / total) * 100).toFixed(1)) : 0
         };
       });
 
@@ -137,10 +137,10 @@ export async function getReportsData() {
         });
       }
 
-      let averageGrade = 14.2;
-      let successRate = 88.7;
-      let congratulatedStudents = 145;
-      let strugglingStudents = 32;
+      let averageGrade = 0;
+      let successRate = 0;
+      let congratulatedStudents = 0;
+      let strugglingStudents = 0;
 
       const totalSummaries = summaries.length;
       if (totalSummaries > 0) {
@@ -171,20 +171,7 @@ export async function getReportsData() {
         if (t) t.Count++;
       });
 
-      // If no summaries, inject mock values that sum to student count
-      const totalTranchesCount = tranches.reduce((acc, t) => acc + t.Count, 0);
-      let gradeDistribution = tranches.map(t => ({ tranche: t.tranche, Count: t.Count }));
-      if (totalTranchesCount === 0) {
-        gradeDistribution = [
-          { tranche: "[0 - 5[", Count: Math.round(studentIds.length * 0.01) || 5 },
-          { tranche: "[5 - 10[", Count: Math.round(studentIds.length * 0.05) || 27 },
-          { tranche: "[10 - 12[", Count: Math.round(studentIds.length * 0.25) || 180 },
-          { tranche: "[12 - 14[", Count: Math.round(studentIds.length * 0.35) || 420 },
-          { tranche: "[14 - 16[", Count: Math.round(studentIds.length * 0.22) || 310 },
-          { tranche: "[16 - 18[", Count: Math.round(studentIds.length * 0.09) || 110 },
-          { tranche: "[18 - 20]", Count: Math.round(studentIds.length * 0.03) || 35 }
-        ];
-      }
+      const gradeDistribution = tranches.map(t => ({ tranche: t.tranche, Count: t.Count }));
 
       // Subject Averages
       let resultsRecords: any[] = [];
@@ -206,21 +193,10 @@ export async function getReportsData() {
         subjectAvgMap[name].count++;
       });
 
-      let subjectAverages = Object.entries(subjectAvgMap).map(([subject, val]) => ({
+      const subjectAverages = Object.entries(subjectAvgMap).map(([subject, val]) => ({
         subject,
         Average: Number((val.sum / val.count).toFixed(1))
       })).sort((a, b) => b.Average - a.Average);
-
-      if (subjectAverages.length === 0) {
-        subjectAverages = [
-          { subject: "Maths", Average: 12.8 },
-          { subject: "Français", Average: 14.1 },
-          { subject: "SVT", Average: 13.5 },
-          { subject: "Physique", Average: 11.9 },
-          { subject: "Histoire-Géo", Average: 15.2 },
-          { subject: "Anglais", Average: 14.8 }
-        ];
-      }
 
       return {
         success: true,
@@ -229,7 +205,8 @@ export async function getReportsData() {
             globalAttendanceRate: Number(globalAttendanceRate.toFixed(1)),
             unexcusedAbsences,
             lateRate: Number(lateRate.toFixed(1)),
-            excusedAbsences
+            excusedAbsences,
+            hasData: totalAtt > 0
           },
           dailyEvolution,
           attendanceByCycle,
@@ -237,64 +214,64 @@ export async function getReportsData() {
             averageGrade,
             successRate,
             congratulatedStudents,
-            strugglingStudents
+            strugglingStudents,
+            hasData: totalSummaries > 0
           },
           gradeDistribution,
-          subjectAverages
+          subjectAverages,
+          hasStudents: studentIds.length > 0,
+          hasGrades: totalSummaries > 0 || resultsRecords.length > 0
         }
       };
     } catch (e: any) {
       console.error("Error in getReportsData:", e);
-      return { success: false, error: e.message, data: getDefaultMockData().data };
+      return { success: false, error: e.message, data: getEmptyReportsData().data };
     }
   });
 }
 
-function getDefaultMockData() {
+function getEmptyReportsData() {
   return {
     success: true,
     data: {
       attendanceKpis: {
-        globalAttendanceRate: 94.2,
-        unexcusedAbsences: 24,
-        lateRate: 3.1,
-        excusedAbsences: 12
+        globalAttendanceRate: 0,
+        unexcusedAbsences: 0,
+        lateRate: 0,
+        excusedAbsences: 0,
+        hasData: false
       },
       dailyEvolution: [
-        { day: "Lundi", Presents: 95.4, Absents: 2.6, Lates: 2.0 },
-        { day: "Mardi", Presents: 96.1, Absents: 1.9, Lates: 2.0 },
-        { day: "Mercredi", Presents: 94.2, Absents: 3.1, Lates: 2.7 },
-        { day: "Jeudi", Presents: 93.8, Absents: 3.7, Lates: 2.5 },
-        { day: "Vendredi", Presents: 92.5, Absents: 4.8, Lates: 2.7 }
+        { day: "Lundi", Presents: 0, Absents: 0, Lates: 0 },
+        { day: "Mardi", Presents: 0, Absents: 0, Lates: 0 },
+        { day: "Mercredi", Presents: 0, Absents: 0, Lates: 0 },
+        { day: "Jeudi", Presents: 0, Absents: 0, Lates: 0 },
+        { day: "Vendredi", Presents: 0, Absents: 0, Lates: 0 }
       ],
       attendanceByCycle: [
-        { cycle: "Primaire", Rate: 96.2 },
-        { cycle: "Collège", Rate: 94.5 },
-        { cycle: "Lycée", Rate: 92.1 }
+        { cycle: "Primaire", Rate: 0 },
+        { cycle: "Collège", Rate: 0 },
+        { cycle: "Lycée", Rate: 0 }
       ],
       performanceKpis: {
-        averageGrade: 14.2,
-        successRate: 88.7,
-        congratulatedStudents: 145,
-        strugglingStudents: 32
+        averageGrade: 0,
+        successRate: 0,
+        congratulatedStudents: 0,
+        strugglingStudents: 0,
+        hasData: false
       },
       gradeDistribution: [
-        { tranche: "[0 - 5[", Count: 5 },
-        { tranche: "[5 - 10[", Count: 27 },
-        { tranche: "[10 - 12[", Count: 180 },
-        { tranche: "[12 - 14[", Count: 420 },
-        { tranche: "[14 - 16[", Count: 310 },
-        { tranche: "[16 - 18[", Count: 110 },
-        { tranche: "[18 - 20]", Count: 35 }
+        { tranche: "[0 - 5[", Count: 0 },
+        { tranche: "[5 - 10[", Count: 0 },
+        { tranche: "[10 - 12[", Count: 0 },
+        { tranche: "[12 - 14[", Count: 0 },
+        { tranche: "[14 - 16[", Count: 0 },
+        { tranche: "[16 - 18[", Count: 0 },
+        { tranche: "[18 - 20]", Count: 0 }
       ],
-      subjectAverages: [
-        { subject: "Maths", Average: 12.8 },
-        { subject: "Français", Average: 14.1 },
-        { subject: "SVT", Average: 13.5 },
-        { subject: "Physique", Average: 11.9 },
-        { subject: "Histoire-Géo", Average: 15.2 },
-        { subject: "Anglais", Average: 14.8 }
-      ]
+      subjectAverages: [],
+      hasStudents: false,
+      hasGrades: false
     }
   };
 }

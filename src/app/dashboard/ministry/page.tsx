@@ -153,9 +153,16 @@ export default function MinistryDashboardPage() {
     return uniqueSessions.length > 0 ? uniqueSessions : ["2025-2026", "2024-2025"];
   }, [schoolSessions]);
 
-  // Late declaration date limit (older than June 1, 2026)
+  const declarationDeadline = useMemo(() => {
+    const years = selectedYear.match(/\d{4}/g)?.map(Number) || [];
+    const closingYear = years.length > 0 ? Math.max(...years) : new Date().getFullYear();
+    return new Date(closingYear, 5, 1);
+  }, [selectedYear]);
+
   const isDeclarationLate = (dateStr: string) => {
-    return new Date(dateStr) < new Date("2026-06-01");
+    const declarationDate = new Date(dateStr);
+    if (Number.isNaN(declarationDate.getTime())) return false;
+    return declarationDate < declarationDeadline;
   };
 
   // Filter lists based on selected region
@@ -264,7 +271,7 @@ export default function MinistryDashboardPage() {
       priorityZones,
       lateDeclaration,
     };
-  }, [filteredSchools]);
+  }, [filteredSchools, declarationDeadline]);
 
   // Public/Private Breakdown
   const publicPrivateRatio = useMemo(() => {
@@ -321,7 +328,7 @@ export default function MinistryDashboardPage() {
       studentsCount: data.eleves,
       avgSuccess: (data.success / data.schools).toFixed(1),
     }));
-  }, [filteredSchools]);
+  }, [filteredSchools, declarationDeadline]);
 
   // Alerts
   const nationalAlerts = useMemo(() => {
