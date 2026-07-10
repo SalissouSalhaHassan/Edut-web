@@ -187,7 +187,7 @@ const fetchFilterOptions = (
       };
     },
     [
-      'academic-filter-options-v3',
+      'academic-filter-options-v4',
       String(schoolId),
       activeLevel || 'all-levels',
       restrictedClassIds ? restrictedClassIds.join(',') || 'no-classes' : 'all-classes',
@@ -201,7 +201,7 @@ export async function getFilterOptions() {
   const user = await getCurrentUser();
   const schoolId = await getActiveSchoolId();
   const roleType = await getUserRoleType(user);
-  let activeLevel = await getActiveEducationalLevel(user);
+  let activeLevel: string | null = null;
   let restrictedClassIds: number[] | null = null;
   let employeeId: number | null = null;
 
@@ -209,7 +209,8 @@ export async function getFilterOptions() {
     const employee = await getTeacherEmployee(user);
     restrictedClassIds = employee ? await getTeacherClassIds(employee.id) : [];
     employeeId = employee ? employee.id : null;
-    activeLevel = null;
+  } else if (roleType === "level_director") {
+    activeLevel = await getActiveEducationalLevel(user);
   }
   
   return protectedDbAction("Academics", "canView", async () => {

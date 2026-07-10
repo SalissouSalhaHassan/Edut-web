@@ -28,6 +28,14 @@ function getAcademicLevels(data: any) {
   return values.length > 0 ? values : ["Lycée"];
 }
 
+function normalizeFilterText(value: unknown) {
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+}
+
 
 const EMPTY_FILTER_OPTIONS: {
   sessions: any[];
@@ -50,6 +58,7 @@ const EMPTY_FILTER_OPTIONS: {
 };
 
 type AcademicFilterOptions = typeof EMPTY_FILTER_OPTIONS;
+const ACADEMIC_FILTER_STORAGE_KEY = "academic_filter_options_v2";
 
 async function cacheAcademicFilterOptions(data: AcademicFilterOptions) {
   const { cacheReferenceItems } = await import("@/infrastructure/local-db/references");
@@ -134,7 +143,7 @@ export default function AcademicFilters({ onLoad, loading }: AcademicFiltersProp
     };
 
     async function loadOptions() {
-      const sessionCached = sessionStorage.getItem("academic_filter_options");
+      const sessionCached = sessionStorage.getItem(ACADEMIC_FILTER_STORAGE_KEY);
       let hasSessionCache = false;
 
       if (sessionCached) {
@@ -154,7 +163,7 @@ export default function AcademicFilters({ onLoad, loading }: AcademicFiltersProp
           if (data && data.sessions) {
             const normalized = { ...EMPTY_FILTER_OPTIONS, ...data };
             applyOptions(normalized);
-            sessionStorage.setItem("academic_filter_options", JSON.stringify(normalized));
+            sessionStorage.setItem(ACADEMIC_FILTER_STORAGE_KEY, JSON.stringify(normalized));
             await cacheAcademicFilterOptions(normalized);
             return;
           }
@@ -192,7 +201,11 @@ export default function AcademicFilters({ onLoad, loading }: AcademicFiltersProp
 
   // Calculate filtered sections
   const filteredSections = useMemo(() => {
-    return (options.sections || []).filter((s: any) => (s.educationalLevel || "Lycée") === level);
+    const selectedLevel = normalizeFilterText(level);
+    return (options.sections || []).filter((s: any) => {
+      const sectionLevel = normalizeFilterText(s.educationalLevel || "Lycée");
+      return !selectedLevel || sectionLevel === selectedLevel;
+    });
   }, [level, options.sections]);
 
   // Calculate filtered classes
