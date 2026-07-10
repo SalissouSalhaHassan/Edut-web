@@ -6,6 +6,8 @@ import { schools } from "@/infrastructure/database/schema/auth";
 import { schoolClasses, studentResults } from "@/infrastructure/database/schema/academics";
 import { studentAttendance } from "@/infrastructure/database/schema/attendance";
 import { employees } from "@/infrastructure/database/schema/hr";
+import { inventoryItems } from "@/infrastructure/database/schema/inventory";
+import { libraryBooks } from "@/infrastructure/database/schema/library";
 import { students } from "@/infrastructure/database/schema/students";
 import { getCurrentUser } from "@/domains/auth/services/session";
 import { getUserRoleType } from "@/domains/auth/services/rbac";
@@ -51,8 +53,10 @@ const hasText = (value: unknown) => String(value || "").trim().length > 0;
 type ScopeUser = {
   schoolId?: number | null;
   region?: string | null;
+  dren?: string | null;
   departement?: string | null;
   department?: string | null;
+  dden?: string | null;
   inspection?: string | null;
   emplacement?: string | null;
 };
@@ -79,21 +83,29 @@ function getUserScopeValue(user: ScopeUser, keys: Array<keyof ScopeUser>) {
 function branchMatchesScope(branch: typeof schoolBranches.$inferSelect, user: ScopeUser, roleType: string) {
   if (roleType === "super_admin" || roleType === "ministere") return true;
 
+  const branchRegion = branch.region || branch.dren;
+  const branchDepartment = branch.department || branch.dden;
+  const branchInspection = branch.inspection;
+
   if (roleType === "dren") {
-    const region = getUserScopeValue(user, ["region", "emplacement"]);
-    return !region || normalize(branch.region || branch.dren) === normalize(region);
+    const region = getUserScopeValue(user, ["region", "dren", "emplacement"]);
+    return Boolean(region) && normalize(branchRegion) === normalize(region);
   }
 
   if (roleType === "dden") {
-    const region = getUserScopeValue(user, ["region"]);
-    const department = getUserScopeValue(user, ["departement", "department", "emplacement"]);
-    return (!region || normalize(branch.region || branch.dren) === normalize(region))
-      && (!department || normalize(branch.department || branch.dden) === normalize(department));
+    const region = getUserScopeValue(user, ["region", "dren"]);
+    const department = getUserScopeValue(user, ["departement", "department", "dden", "emplacement"]);
+    if (!department || normalize(branchDepartment) !== normalize(department)) return false;
+    return !region || normalize(branchRegion) === normalize(region);
   }
 
   if (roleType === "inspection") {
     const inspection = getUserScopeValue(user, ["inspection", "emplacement"]);
-    return !inspection || normalize(branch.inspection) === normalize(inspection);
+    const region = getUserScopeValue(user, ["region", "dren"]);
+    const department = getUserScopeValue(user, ["departement", "department", "dden"]);
+    if (!inspection || normalize(branchInspection) !== normalize(inspection)) return false;
+    if (region && normalize(branchRegion) !== normalize(region)) return false;
+    return !department || normalize(branchDepartment) === normalize(department);
   }
 
   return user?.schoolId ? branch.schoolId === user.schoolId : false;
@@ -113,6 +125,36 @@ function rate(part: number, total: number) {
   return total > 0 ? Math.round((part / total) * 1000) / 10 : 0;
 }
 
+function isActiveStudent(status: string | null | undefined) {
+  const norm = normalize(status || "Actif");
+  return !["abandon", "inactif", "sorti", "radie", "exclu"].some((marker) => norm.includes(marker));
+}
+
+function isDropoutStudent(status: string | null | undefined) {
+  const norm = normalize(status);
+  return ["abandon", "inactif", "sorti", "radie", "exclu"].some((marker) => norm.includes(marker));
+}
+
+function isTeacherEmployee(employee: typeof employees.$inferSelect) {
+  const text = normalize([
+    employee.poste,
+    employee.fonction,
+    employee.departement,
+    employee.categorie,
+  ].filter(Boolean).join(" "));
+
+  return ["enseign", "prof", "instituteur", "maitre", "maitresse", "teacher"].some((marker) => text.includes(marker));
+}
+
+function itemMatches(item: { name?: string | null; location?: string | null }, categoryName: string | undefined, markers: string[]) {
+  const text = normalize([item.name, item.location, categoryName].filter(Boolean).join(" "));
+  return markers.some((marker) => text.includes(marker));
+}
+
+function sumInventoryQuantity(items: Array<typeof inventoryItems.$inferSelect>) {
+  return items.reduce((total, item) => total + Number(item.quantity || 0), 0);
+}
+
 export async function getMinistrySchoolsData() {
   const user = await getCurrentUser();
   if (!user) return { success: false, error: "Non autorisé", data: [] as MinistrySchoolData[] };
@@ -129,11 +171,14 @@ export async function getMinistrySchoolsData() {
     return { success: true, data: [] as MinistrySchoolData[] };
   }
 
-  const [schoolRows, studentRows, employeeRows, classRows] = await Promise.all([
+  const [schoolRows, studentRows, employeeRows, classRows, bookRows, inventoryRows, inventoryCategoryRows] = await Promise.all([
     readDb.query.schools.findMany({ where: inArray(schools.id, schoolIds) }),
     readDb.query.students.findMany({ where: inArray(students.schoolId, schoolIds) }),
     readDb.query.employees.findMany({ where: inArray(employees.schoolId, schoolIds) }),
     readDb.query.schoolClasses.findMany({ where: inArray(schoolClasses.schoolId, schoolIds) }),
+    readDb.query.libraryBooks.findMany({ where: inArray(libraryBooks.schoolId, schoolIds) }).catch(() => []),
+    readDb.query.inventoryItems.findMany({ where: inArray(inventoryItems.schoolId, schoolIds) }).catch(() => []),
+    readDb.query.inventoryCategories.findMany().catch(() => []),
   ]);
   const studentIds = studentRows.map((student) => student.id).filter(Boolean);
   const [resultRows, attendanceRows] = studentIds.length > 0
@@ -147,6 +192,9 @@ export async function getMinistrySchoolsData() {
   const studentsBySchool = groupBy(studentRows, (student) => student.schoolId || 0);
   const employeesBySchool = groupBy(employeeRows, (employee) => employee.schoolId || 0);
   const classesBySchool = groupBy(classRows, (classe) => classe.schoolId || 0);
+  const booksBySchool = groupBy(bookRows, (book) => book.schoolId || 0);
+  const inventoryBySchool = groupBy(inventoryRows, (item) => item.schoolId || 0);
+  const categoryById = new Map(inventoryCategoryRows.map((category) => [category.id, category.name]));
   const studentSchoolById = new Map(studentRows.map((student) => [student.id, student.schoolId || 0]));
 
   const resultsBySchool = groupBy(
@@ -161,11 +209,15 @@ export async function getMinistrySchoolsData() {
   const data = scopedBranches.map((branch) => {
     const schoolId = branch.schoolId || 0;
     const school = schoolById.get(schoolId);
-    const schoolStudents = studentsBySchool.get(schoolId) || [];
+    const allSchoolStudents = studentsBySchool.get(schoolId) || [];
+    const schoolStudents = allSchoolStudents.filter((student) => isActiveStudent(student.statut));
     const schoolEmployees = employeesBySchool.get(schoolId) || [];
+    const schoolTeachers = schoolEmployees.filter(isTeacherEmployee);
     const schoolClasses = classesBySchool.get(schoolId) || [];
     const schoolResults = resultsBySchool.get(schoolId) || [];
     const schoolAttendance = attendanceBySchool.get(schoolId) || [];
+    const schoolBooks = booksBySchool.get(schoolId) || [];
+    const schoolInventory = inventoryBySchool.get(schoolId) || [];
 
     const filles = schoolStudents.filter((student) => normalize(student.sexe).startsWith("f")).length;
     const garcons = schoolStudents.filter((student) => normalize(student.sexe).startsWith("m") || normalize(student.sexe).startsWith("g")).length;
@@ -177,6 +229,30 @@ export async function getMinistrySchoolsData() {
 
     const requiredTeachers = Math.ceil(schoolStudents.length / 35);
     const requiredRooms = Math.ceil(schoolStudents.length / 45);
+    const dropoutCount = allSchoolStudents.filter((student) => isDropoutStudent(student.statut)).length;
+    const libraryBookCount = schoolBooks.reduce((total, book) => total + Number(book.totalQuantity || 0), 0);
+    const textbookInventory = schoolInventory.filter((item) => itemMatches(
+      item,
+      item.categoryId ? categoryById.get(item.categoryId) : undefined,
+      ["manuel", "livre", "book", "guide"]
+    ));
+    const totalBooks = libraryBookCount + sumInventoryQuantity(textbookInventory);
+    const hasWater = schoolInventory.some((item) => itemMatches(
+      item,
+      item.categoryId ? categoryById.get(item.categoryId) : undefined,
+      ["eau", "forage", "puits", "robinet", "water"]
+    ));
+    const hasElectricity = schoolInventory.some((item) => itemMatches(
+      item,
+      item.categoryId ? categoryById.get(item.categoryId) : undefined,
+      ["electric", "electricite", "solaire", "panneau", "groupe electrogene", "generator"]
+    ));
+    const hasLatrines = schoolInventory.some((item) => itemMatches(
+      item,
+      item.categoryId ? categoryById.get(item.categoryId) : undefined,
+      ["latrine", "toilette", "wc", "sanitaire"]
+    ));
+
     const completionFields = [
       branch.schoolCode,
       branch.branchName || school?.name,
@@ -187,7 +263,7 @@ export async function getMinistrySchoolsData() {
       branch.inspection,
       branch.commune,
       schoolStudents.length > 0 ? "students" : "",
-      schoolEmployees.length > 0 ? "employees" : "",
+      schoolTeachers.length > 0 ? "teachers" : "",
       schoolClasses.length > 0 ? "classes" : "",
     ];
     const completion = rate(completionFields.filter(hasText).length, completionFields.length);
@@ -204,17 +280,27 @@ export async function getMinistrySchoolsData() {
       eleves: schoolStudents.length,
       filles,
       garcons: garcons || Math.max(0, schoolStudents.length - filles),
-      enseignants: schoolEmployees.length,
+      enseignants: schoolTeachers.length,
       salles: schoolClasses.length,
-      eau: false,
-      electricite: false,
-      latrines: false,
-      manqueEnseignants: Math.max(0, requiredTeachers - schoolEmployees.length),
+      eau: hasWater,
+      electricite: hasElectricity,
+      latrines: hasLatrines,
+      manqueEnseignants: Math.max(0, requiredTeachers - schoolTeachers.length),
       manqueSalles: Math.max(0, requiredRooms - schoolClasses.length),
-      manqueLivres: 0,
-      abandonRate: 0,
+      manqueLivres: Math.max(0, schoolStudents.length - totalBooks),
+      abandonRate: rate(dropoutCount, allSchoolStudents.length),
       completion,
-      lastDeclaration: latestDate([branch.createdAt, school?.createdAt]),
+      lastDeclaration: latestDate([
+        branch.createdAt,
+        school?.createdAt,
+        ...schoolStudents.map((student) => student.createdAt),
+        ...schoolTeachers.map((employee) => employee.createdAt),
+        ...schoolClasses.map((classe) => classe.createdAt),
+        ...schoolResults.map((result) => result.createdAt),
+        ...schoolAttendance.map((row) => row.date),
+        ...schoolBooks.map((book) => book.createdAt),
+        ...schoolInventory.map((item) => item.createdAt),
+      ]),
       successRate: rate(passed, schoolResults.length),
       attendanceRate: rate(present, schoolAttendance.length),
       status: completion >= 90 ? "Valide" : completion >= 60 ? "À vérifier" : "Incomplet",
