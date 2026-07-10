@@ -167,8 +167,9 @@ export async function updateRessource(id: number, data: Partial<RessourceFormDat
     }
 
     const scope = getPedagogieScope(user);
+    const schoolId = await getActiveSchoolId();
     const existing = await db.query.pedagogieRessources.findFirst({
-      where: eq(pedagogieRessources.id, id)
+      where: and(eq(pedagogieRessources.id, id), eq(pedagogieRessources.schoolId, schoolId))
     });
 
     if (!existing) {
@@ -183,7 +184,7 @@ export async function updateRessource(id: number, data: Partial<RessourceFormDat
 
     await db.update(pedagogieRessources)
       .set({ ...data, updatedAt: new Date() })
-      .where(eq(pedagogieRessources.id, id));
+      .where(and(eq(pedagogieRessources.id, id), eq(pedagogieRessources.schoolId, schoolId)));
 
     revalidatePath("/dashboard/pedagogie/ressources");
     return { success: true };
@@ -203,8 +204,9 @@ export async function deleteRessource(id: number) {
     }
 
     const scope = getPedagogieScope(user);
+    const schoolId = await getActiveSchoolId();
     const existing = await db.query.pedagogieRessources.findFirst({
-      where: eq(pedagogieRessources.id, id)
+      where: and(eq(pedagogieRessources.id, id), eq(pedagogieRessources.schoolId, schoolId))
     });
 
     if (!existing) {
@@ -217,7 +219,7 @@ export async function deleteRessource(id: number) {
       }
     }
 
-    await db.delete(pedagogieRessources).where(eq(pedagogieRessources.id, id));
+    await db.delete(pedagogieRessources).where(and(eq(pedagogieRessources.id, id), eq(pedagogieRessources.schoolId, schoolId)));
     revalidatePath("/dashboard/pedagogie/ressources");
     return { success: true };
   } catch (e: any) {

@@ -148,9 +148,11 @@ export async function updateInspectionVisit(id: number, data: Partial<Inspection
       return { success: false, error: "Accès non autorisé" };
     }
 
+    const schoolId = await getActiveSchoolId();
+
     await db.update(pedagogieInspection)
       .set({ ...data, updatedAt: new Date() })
-      .where(eq(pedagogieInspection.id, id));
+      .where(and(eq(pedagogieInspection.id, id), eq(pedagogieInspection.schoolId, schoolId)));
 
     revalidatePath("/dashboard/pedagogie/inspection");
     return { success: true };
@@ -169,7 +171,9 @@ export async function deleteInspectionVisit(id: number) {
       return { success: false, error: "Accès non autorisé" };
     }
 
-    await db.delete(pedagogieInspection).where(eq(pedagogieInspection.id, id));
+    const schoolId = await getActiveSchoolId();
+
+    await db.delete(pedagogieInspection).where(and(eq(pedagogieInspection.id, id), eq(pedagogieInspection.schoolId, schoolId)));
     revalidatePath("/dashboard/pedagogie/inspection");
     return { success: true };
   } catch (e: any) {

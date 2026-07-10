@@ -17,8 +17,99 @@ import { auditLogs } from "@/infrastructure/database/schema/audit";
 import { eq, and } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { getActiveSchoolId } from "@/domains/auth/services/school";
-import { getTeacherEmployee } from "@/domains/auth/services/rbac";
+import {
+  getTeacherEmployee,
+  getUserRoleType,
+  verifyTeacherClassAccess,
+  verifyTeacherClassSubjectAccess,
+} from "@/domains/auth/services/rbac";
 import { protectedDbAction } from "@/lib/protected-action";
+
+type WorkflowAction =
+  | "submit"
+  | "request_correction"
+  | "control"
+  | "validate"
+  | "lock"
+  | "publish"
+  | "archive"
+  | "unlock";
+
+type WorkflowParams = {
+  sessionId: number;
+  period: string;
+  classId: number;
+  subjectId?: number;
+  teacherId?: number;
+  observation?: string;
+};
+
+const managementRoles = new Set(["directeur", "general_director", "level_director", "censeur"]);
+const controlRoles = new Set(["censeur", "inspection", "directeur", "general_director", "level_director"]);
+const directorRoles = new Set(["directeur", "general_director", "level_director"]);
+const ministryPublishRoles = new Set(["super_admin", "ministere"]);
+
+async function assertWorkflowSchoolScope(params: WorkflowParams) {
+  const schoolId = await getActiveSchoolId();
+  if (!schoolId) throw new Error("Aucun contexte d'école trouvé.");
+
+  const classe = await db.query.schoolClasses.findFirst({
+    where: and(eq(schoolClasses.id, params.classId), eq(schoolClasses.schoolId, schoolId)),
+    columns: { id: true },
+  });
+  if (!classe) throw new Error("Accès refusé pour cette école.");
+
+  if (params.subjectId) {
+    const subject = await db.query.schoolSubjects.findFirst({
+      where: and(eq(schoolSubjects.id, params.subjectId), eq(schoolSubjects.schoolId, schoolId)),
+      columns: { id: true },
+    });
+    if (!subject) throw new Error("Accès refusé pour cette matière.");
+  }
+
+  return schoolId;
+}
+
+async function assertWorkflowPermission(user: any, action: WorkflowAction, params: WorkflowParams) {
+  await assertWorkflowSchoolScope(params);
+  const roleType = await getUserRoleType(user);
+
+  if (action === "submit") {
+    if (roleType !== "teacher" && roleType !== "enseignant") {
+      throw new Error("Seul l'enseignant peut soumettre les notes.");
+    }
+    const emp = await getTeacherEmployee(user);
+    if (!emp) throw new Error("Profil enseignant introuvable.");
+    if (params.teacherId && params.teacherId !== emp.id) {
+      throw new Error("Accès refusé: enseignant différent.");
+    }
+
+    const hasAccess = params.subjectId
+      ? await verifyTeacherClassSubjectAccess(user, params.classId, params.subjectId)
+      : await verifyTeacherClassAccess(user, params.classId);
+    if (!hasAccess) throw new Error("Accès refusé pour cette classe ou matière.");
+    return { roleType, employeeId: emp.id };
+  }
+
+  if (roleType === "teacher" || roleType === "enseignant") {
+    throw new Error("Accès refusé: l'enseignant peut seulement soumettre les notes.");
+  }
+
+  if (action === "request_correction" && managementRoles.has(roleType)) return { roleType, employeeId: null };
+  if (action === "control" && controlRoles.has(roleType)) return { roleType, employeeId: null };
+  if ((action === "validate" || action === "lock") && directorRoles.has(roleType)) return { roleType, employeeId: null };
+  if ((action === "publish" || action === "archive" || action === "unlock") && ministryPublishRoles.has(roleType)) {
+    return { roleType, employeeId: null };
+  }
+
+  throw new Error("Accès refusé pour cette étape du workflow.");
+}
+
+async function getActorEmployeeId(user: any) {
+  if (user?.employeeId) return Number(user.employeeId);
+  const emp = await getTeacherEmployee(user);
+  return emp?.id || null;
+}
 
 export async function initResultsWorkflowTable() {
   try {
@@ -85,6 +176,7 @@ async function setWorkflowStatus(params: {
 }) {
   await initResultsWorkflowTable();
   const schoolId = await getActiveSchoolId();
+  if (!schoolId) throw new Error("Aucun contexte d'école trouvé.");
 
   const conds = [
     eq(resultsWorkflows.schoolId, schoolId),
@@ -115,7 +207,9 @@ async function setWorkflowStatus(params: {
   };
 
   if (existing) {
-    await db.update(resultsWorkflows).set(dbValues).where(eq(resultsWorkflows.id, existing.id));
+    await db.update(resultsWorkflows)
+      .set(dbValues)
+      .where(and(eq(resultsWorkflows.id, existing.id), eq(resultsWorkflows.schoolId, schoolId)));
   } else {
     await db.insert(resultsWorkflows).values(dbValues);
   }
@@ -134,11 +228,12 @@ export async function submitGrades(params: {
   observation?: string;
 }) {
   return protectedDbAction("Academics", "canEdit", async (user) => {
-    const emp = await getTeacherEmployee(user);
-    const empId = emp?.id || null;
+    const permission = await assertWorkflowPermission(user, "submit", params);
+    const empId = permission.employeeId;
 
     const res = await setWorkflowStatus({
       ...params,
+      teacherId: empId || params.teacherId,
       status: "SAISIE_TERMINEE",
       updateFields: {
         submittedBy: empId,
@@ -163,6 +258,7 @@ export async function requestGradeCorrection(params: {
   observation: string;
 }) {
   return protectedDbAction("Academics", "canEdit", async (user) => {
+    await assertWorkflowPermission(user, "request_correction", params);
     const res = await setWorkflowStatus({
       ...params,
       status: "CORRECTION_DEMANDEE",
@@ -186,8 +282,8 @@ export async function validateGradeControl(params: {
   observation?: string;
 }) {
   return protectedDbAction("Academics", "canEdit", async (user) => {
-    const emp = await getTeacherEmployee(user);
-    const empId = emp?.id || null;
+    await assertWorkflowPermission(user, "control", params);
+    const empId = await getActorEmployeeId(user);
 
     const res = await setWorkflowStatus({
       ...params,
@@ -215,8 +311,8 @@ export async function validateClassCouncil(params: {
   observation?: string;
 }) {
   return protectedDbAction("Academics", "canEdit", async (user) => {
-    const emp = await getTeacherEmployee(user);
-    const empId = emp?.id || null;
+    await assertWorkflowPermission(user, "validate", params);
+    const empId = await getActorEmployeeId(user);
 
     const res = await setWorkflowStatus({
       ...params,
@@ -244,8 +340,8 @@ export async function lockResults(params: {
   observation?: string;
 }) {
   return protectedDbAction("Academics", "canEdit", async (user) => {
-    const emp = await getTeacherEmployee(user);
-    const empId = emp?.id || null;
+    await assertWorkflowPermission(user, "lock", params);
+    const empId = await getActorEmployeeId(user);
 
     const res = await setWorkflowStatus({
       ...params,
@@ -273,8 +369,8 @@ export async function publishResults(params: {
   observation?: string;
 }) {
   return protectedDbAction("Academics", "canEdit", async (user) => {
-    const emp = await getTeacherEmployee(user);
-    const empId = emp?.id || null;
+    await assertWorkflowPermission(user, "publish", params);
+    const empId = await getActorEmployeeId(user);
 
     const res = await setWorkflowStatus({
       ...params,
@@ -302,6 +398,7 @@ export async function archiveResultsStatus(params: {
   observation?: string;
 }) {
   return protectedDbAction("Academics", "canEdit", async (user) => {
+    await assertWorkflowPermission(user, "archive", params);
     const res = await setWorkflowStatus({
       ...params,
       status: "ARCHIVE",
@@ -325,6 +422,7 @@ export async function unlockResultsException(params: {
   observation?: string;
 }) {
   return protectedDbAction("Academics", "canEdit", async (user) => {
+    await assertWorkflowPermission(user, "unlock", params);
     const res = await setWorkflowStatus({
       ...params,
       status: "BROUILLON",

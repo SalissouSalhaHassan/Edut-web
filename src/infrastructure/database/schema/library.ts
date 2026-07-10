@@ -5,6 +5,7 @@ import { employees } from "./hr";
 
 export const libraryBooks = pgTable("library_books", {
   id: serial("id").primaryKey(),
+  schoolId: integer("school_id"),
   title: varchar("title", { length: 255 }).notNull(),
   author: varchar("author", { length: 255 }),
   isbn: varchar("isbn", { length: 100 }),
@@ -17,6 +18,7 @@ export const libraryBooks = pgTable("library_books", {
 
 export const libraryIssues = pgTable("library_issues", {
   id: serial("id").primaryKey(),
+  schoolId: integer("school_id"),
   bookId: integer("book_id").references(() => libraryBooks.id, { onDelete: "cascade" }),
   studentId: integer("student_id").references(() => students.id, { onDelete: "cascade" }),
   employeeId: integer("employee_id").references(() => employees.id, { onDelete: "cascade" }),

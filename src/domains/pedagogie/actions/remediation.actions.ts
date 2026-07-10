@@ -155,9 +155,11 @@ export async function updateRemediationPlan(id: number, data: Partial<Remediatio
       return { success: false, error: "Accès non autorisé" };
     }
 
+    const schoolId = await getActiveSchoolId();
+
     await db.update(pedagogieRemediation)
       .set({ ...data, updatedAt: new Date() })
-      .where(eq(pedagogieRemediation.id, id));
+      .where(and(eq(pedagogieRemediation.id, id), eq(pedagogieRemediation.schoolId, schoolId)));
 
     revalidatePath("/dashboard/pedagogie/remediation");
     return { success: true };
@@ -176,12 +178,14 @@ export async function addRemediationSession(id: number) {
       return { success: false, error: "Accès non autorisé" };
     }
 
+    const schoolId = await getActiveSchoolId();
+
     await db.update(pedagogieRemediation)
       .set({
         sessionsCompleted: sql`sessions_completed + 1`,
         updatedAt: new Date()
       })
-      .where(eq(pedagogieRemediation.id, id));
+      .where(and(eq(pedagogieRemediation.id, id), eq(pedagogieRemediation.schoolId, schoolId)));
 
     revalidatePath("/dashboard/pedagogie/remediation");
     return { success: true };
@@ -200,12 +204,14 @@ export async function closeRemediationPlan(id: number) {
       return { success: false, error: "Accès non autorisé" };
     }
 
+    const schoolId = await getActiveSchoolId();
+
     await db.update(pedagogieRemediation)
       .set({
         status: "Clôturé",
         updatedAt: new Date()
       })
-      .where(eq(pedagogieRemediation.id, id));
+      .where(and(eq(pedagogieRemediation.id, id), eq(pedagogieRemediation.schoolId, schoolId)));
 
     revalidatePath("/dashboard/pedagogie/remediation");
     return { success: true };
@@ -224,7 +230,9 @@ export async function deleteRemediationPlan(id: number) {
       return { success: false, error: "Accès non autorisé" };
     }
 
-    await db.delete(pedagogieRemediation).where(eq(pedagogieRemediation.id, id));
+    const schoolId = await getActiveSchoolId();
+
+    await db.delete(pedagogieRemediation).where(and(eq(pedagogieRemediation.id, id), eq(pedagogieRemediation.schoolId, schoolId)));
     revalidatePath("/dashboard/pedagogie/remediation");
     return { success: true };
   } catch (e: any) {

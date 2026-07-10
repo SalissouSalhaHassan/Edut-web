@@ -5,10 +5,14 @@ import { inventoryItems, inventoryAssignments, inventoryCategories } from "@/inf
 import { eq, desc, and } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { protectedDbAction } from "@/lib/protected-action";
+import { getActiveSchoolId } from "@/domains/auth/services/school";
 
 export async function getInventoryItems() {
   return protectedDbAction("Inventory", "canView", async () => {
+    const schoolId = await getActiveSchoolId();
+    if (!schoolId) return { data: [] };
     const data = await db.query.inventoryItems.findMany({
+      where: eq(inventoryItems.schoolId, schoolId),
       with: {
         category: true
       },
@@ -27,10 +31,13 @@ export async function getInventoryCategories() {
 
 export async function saveInventoryItem(data: any, id?: number) {
   return protectedDbAction("Inventory", "canEdit", async () => {
+    const schoolId = await getActiveSchoolId();
+    if (!schoolId) return { error: "Aucun contexte d'école trouvé." };
+    const payload = { ...data, schoolId };
     if (id) {
-      await db.update(inventoryItems).set(data).where(eq(inventoryItems.id, id));
+      await db.update(inventoryItems).set(payload).where(and(eq(inventoryItems.id, id), eq(inventoryItems.schoolId, schoolId)));
     } else {
-      await db.insert(inventoryItems).values(data);
+      await db.insert(inventoryItems).values(payload);
     }
     revalidatePath("/dashboard/inventory");
     return { success: true };
@@ -39,7 +46,10 @@ export async function saveInventoryItem(data: any, id?: number) {
 
 export async function getInventoryAssignments() {
   return protectedDbAction("Inventory", "canView", async () => {
+    const schoolId = await getActiveSchoolId();
+    if (!schoolId) return { data: [] };
     const data = await db.query.inventoryAssignments.findMany({
+      where: eq(inventoryAssignments.schoolId, schoolId),
       with: {
         item: true,
         employee: true
@@ -52,9 +62,12 @@ export async function getInventoryAssignments() {
 
 export async function assignItem(data: { itemId: number; employeeId: number; assignedQty: number }) {
   return protectedDbAction("Inventory", "canEdit", async () => {
+    const schoolId = await getActiveSchoolId();
+    if (!schoolId) return { error: "Aucun contexte d'école trouvé." };
+
     // 1. Check stock
     const item = await db.query.inventoryItems.findFirst({
-      where: eq(inventoryItems.id, data.itemId)
+      where: and(eq(inventoryItems.id, data.itemId), eq(inventoryItems.schoolId, schoolId))
     });
 
     if (!item || (item.quantity || 0) < data.assignedQty) {
@@ -64,13 +77,14 @@ export async function assignItem(data: { itemId: number; employeeId: number; ass
     // 2. Create assignment
     await db.insert(inventoryAssignments).values({
       ...data,
+      schoolId,
       status: "En possession"
     });
 
     // 3. Update stock
     await db.update(inventoryItems)
       .set({ quantity: item.quantity! - data.assignedQty })
-      .where(eq(inventoryItems.id, data.itemId));
+      .where(and(eq(inventoryItems.id, data.itemId), eq(inventoryItems.schoolId, schoolId)));
 
     revalidatePath("/dashboard/inventory");
     return { success: true };
@@ -79,8 +93,11 @@ export async function assignItem(data: { itemId: number; employeeId: number; ass
 
 export async function returnItem(assignmentId: number) {
   return protectedDbAction("Inventory", "canEdit", async () => {
+    const schoolId = await getActiveSchoolId();
+    if (!schoolId) return { error: "Aucun contexte d'école trouvé." };
+
     const assign = await db.query.inventoryAssignments.findFirst({
-      where: eq(inventoryAssignments.id, assignmentId),
+      where: and(eq(inventoryAssignments.id, assignmentId), eq(inventoryAssignments.schoolId, schoolId)),
       with: { item: true }
     });
 
@@ -89,12 +106,12 @@ export async function returnItem(assignmentId: number) {
     // 1. Mark as returned
     await db.update(inventoryAssignments)
       .set({ status: "Retourné", returnDate: new Date() })
-      .where(eq(inventoryAssignments.id, assignmentId));
+      .where(and(eq(inventoryAssignments.id, assignmentId), eq(inventoryAssignments.schoolId, schoolId)));
 
     // 2. Add back to stock
     await db.update(inventoryItems)
       .set({ quantity: (assign.item?.quantity || 0) + assign.assignedQty })
-      .where(eq(inventoryItems.id, assign.itemId!));
+      .where(and(eq(inventoryItems.id, assign.itemId!), eq(inventoryItems.schoolId, schoolId)));
 
     revalidatePath("/dashboard/inventory");
     return { success: true };
@@ -103,7 +120,9 @@ export async function returnItem(assignmentId: number) {
 
 export async function deleteInventoryItem(id: number) {
   return protectedDbAction("Inventory", "canDelete", async () => {
-    await db.delete(inventoryItems).where(eq(inventoryItems.id, id));
+    const schoolId = await getActiveSchoolId();
+    if (!schoolId) return { error: "Aucun contexte d'école trouvé." };
+    await db.delete(inventoryItems).where(and(eq(inventoryItems.id, id), eq(inventoryItems.schoolId, schoolId)));
     revalidatePath("/dashboard/inventory");
     return { success: true };
   });

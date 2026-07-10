@@ -211,7 +211,9 @@ export async function getGraduationStatusDistribution() {
 export async function getGraduationProjects(filters?: { search?: string; status?: string; department?: string }) {
   return protectedDbAction("Academics", "canView", async () => {
     await ensureMigrations();
+    const schoolId = await getActiveSchoolId();
     const data = await db.query.graduationProjects.findMany({
+      where: eq(graduationProjects.schoolId, schoolId),
       with: {
         student: true,
         supervisor: true,
@@ -257,8 +259,8 @@ export async function saveGraduationProject(data: any) {
 
     if (id) {
       await db.update(graduationProjects)
-        .set({ ...fields, updatedAt: new Date() })
-        .where(eq(graduationProjects.id, id));
+        .set({ ...fields, schoolId, updatedAt: new Date() })
+        .where(and(eq(graduationProjects.id, id), eq(graduationProjects.schoolId, schoolId)));
     } else {
       // Auto-generate project code
       const year = new Date().getFullYear();
@@ -288,7 +290,8 @@ export async function saveGraduationProject(data: any) {
 
 export async function deleteGraduationProject(id: number) {
   return protectedDbAction("Academics", "canDelete", async () => {
-    await db.delete(graduationProjects).where(eq(graduationProjects.id, id));
+    const schoolId = await getActiveSchoolId();
+    await db.delete(graduationProjects).where(and(eq(graduationProjects.id, id), eq(graduationProjects.schoolId, schoolId)));
     revalidatePath("/dashboard/academics/research-graduation");
     return { success: true };
   });
@@ -301,7 +304,7 @@ export async function saveProjectDocument(data: any) {
     const schoolId = await getActiveSchoolId();
     const { id, uploadedAt, ...rest } = data;
     if (id) {
-      await db.update(graduationDocuments).set(rest).where(eq(graduationDocuments.id, id));
+      await db.update(graduationDocuments).set({ ...rest, schoolId }).where(and(eq(graduationDocuments.id, id), eq(graduationDocuments.schoolId, schoolId)));
     } else {
       await db.insert(graduationDocuments).values({ ...rest, schoolId });
     }
@@ -312,7 +315,8 @@ export async function saveProjectDocument(data: any) {
 
 export async function deleteProjectDocument(id: number) {
   return protectedDbAction("Academics", "canDelete", async () => {
-    await db.delete(graduationDocuments).where(eq(graduationDocuments.id, id));
+    const schoolId = await getActiveSchoolId();
+    await db.delete(graduationDocuments).where(and(eq(graduationDocuments.id, id), eq(graduationDocuments.schoolId, schoolId)));
     revalidatePath("/dashboard/academics/research-graduation");
     return { success: true };
   });
@@ -323,7 +327,9 @@ export async function deleteProjectDocument(id: number) {
 export async function getDefenseRooms() {
   return protectedDbAction("Academics", "canView", async () => {
     await ensureMigrations();
+    const schoolId = await getActiveSchoolId();
     const data = await db.query.graduationDefenseRooms.findMany({
+      where: eq(graduationDefenseRooms.schoolId, schoolId),
       orderBy: desc(graduationDefenseRooms.id),
     });
     return { data };
@@ -335,7 +341,7 @@ export async function saveDefenseRoom(data: any) {
     const schoolId = await getActiveSchoolId();
     const { id, createdAt, ...rest } = data;
     if (id) {
-      await db.update(graduationDefenseRooms).set(rest).where(eq(graduationDefenseRooms.id, id));
+      await db.update(graduationDefenseRooms).set({ ...rest, schoolId }).where(and(eq(graduationDefenseRooms.id, id), eq(graduationDefenseRooms.schoolId, schoolId)));
     } else {
       await db.insert(graduationDefenseRooms).values({ ...rest, schoolId });
     }
@@ -346,7 +352,8 @@ export async function saveDefenseRoom(data: any) {
 
 export async function deleteDefenseRoom(id: number) {
   return protectedDbAction("Academics", "canDelete", async () => {
-    await db.delete(graduationDefenseRooms).where(eq(graduationDefenseRooms.id, id));
+    const schoolId = await getActiveSchoolId();
+    await db.delete(graduationDefenseRooms).where(and(eq(graduationDefenseRooms.id, id), eq(graduationDefenseRooms.schoolId, schoolId)));
     revalidatePath("/dashboard/academics/research-graduation");
     return { success: true };
   });
@@ -355,12 +362,14 @@ export async function deleteDefenseRoom(id: number) {
 // Check for defense room conflict
 export async function checkRoomConflict(roomName: string, defenseDate: string, excludeId?: number) {
   return protectedDbAction("Academics", "canView", async () => {
+    const schoolId = await getActiveSchoolId();
     const dateObj = new Date(defenseDate);
     const windowStart = new Date(dateObj.getTime() - 90 * 60 * 1000); // -90 min
     const windowEnd = new Date(dateObj.getTime() + 90 * 60 * 1000);   // +90 min
     const conflicts = await db.execute(sql`
       SELECT id, title FROM graduation_projects
       WHERE room_name = ${roomName}
+        AND school_id = ${schoolId}
         AND defense_date BETWEEN ${windowStart.toISOString()} AND ${windowEnd.toISOString()}
         ${excludeId ? sql`AND id != ${excludeId}` : sql``}
     `) as any;
@@ -389,7 +398,7 @@ export async function saveJuryEvaluation(data: any) {
     const fields = { ...rest, average, mention, schoolId };
 
     if (id) {
-      await db.update(graduationJuryEvaluations).set(fields).where(eq(graduationJuryEvaluations.id, id));
+      await db.update(graduationJuryEvaluations).set(fields).where(and(eq(graduationJuryEvaluations.id, id), eq(graduationJuryEvaluations.schoolId, schoolId)));
     } else {
       await db.insert(graduationJuryEvaluations).values(fields);
     }
@@ -402,7 +411,7 @@ export async function saveJuryEvaluation(data: any) {
         decision: rest.decision || (average >= 10 ? "Validé" : "Refusé"),
         status: "Délibération",
         updatedAt: new Date(),
-      }).where(eq(graduationProjects.id, rest.projectId));
+      }).where(and(eq(graduationProjects.id, rest.projectId), eq(graduationProjects.schoolId, schoolId)));
     }
 
     revalidatePath("/dashboard/academics/research-graduation");
@@ -435,7 +444,7 @@ export async function archiveProject(projectId: number) {
       archiveRef,
       archiveUrl: permanentLink,
       updatedAt: new Date(),
-    }).where(eq(graduationProjects.id, projectId));
+    }).where(and(eq(graduationProjects.id, projectId), eq(graduationProjects.schoolId, schoolId)));
 
     revalidatePath("/dashboard/academics/research-graduation");
     return { success: true, archiveRef, permanentLink };
@@ -446,8 +455,10 @@ export async function archiveProject(projectId: number) {
 
 export async function getDigitalLibrary(search?: string, department?: string) {
   return protectedDbAction("Academics", "canView", async () => {
+    const schoolId = await getActiveSchoolId();
     const data = await db.query.graduationProjects.findMany({
       where: and(
+        eq(graduationProjects.schoolId, schoolId),
         eq(graduationProjects.status, "Archivage"),
         search ? or(
           ilike(graduationProjects.title, `%${search}%`),
@@ -471,10 +482,14 @@ export async function getDigitalLibrary(search?: string, department?: string) {
 export async function searchStudentsForGraduation(query: string) {
   return protectedDbAction("Academics", "canView", async () => {
     if (!query || query.trim() === "") return { data: [] };
+    const schoolId = await getActiveSchoolId();
     const data = await db.query.students.findMany({
-      where: or(
-        ilike(students.nomEtudiant, `%${query}%`),
-        ilike(students.numAdmission, `%${query}%`)
+      where: and(
+        eq(students.schoolId, schoolId),
+        or(
+          ilike(students.nomEtudiant, `%${query}%`),
+          ilike(students.numAdmission, `%${query}%`)
+        )
       ),
       limit: 10
     });

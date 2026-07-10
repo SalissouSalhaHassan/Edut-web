@@ -102,7 +102,7 @@ export async function assignTeacherToClassSubject(data: {
     if (existingLegacy) {
       await db.update(classSubjects)
         .set({ employeeId: data.employeeId, coefficient: data.coefficient ?? existingLegacy.coefficient })
-        .where(eq(classSubjects.id, existingLegacy.id));
+        .where(and(eq(classSubjects.id, existingLegacy.id), eq(classSubjects.schoolId, schoolId)));
     } else {
       await db.insert(classSubjects).values({
         schoolId,
@@ -136,7 +136,7 @@ export async function removeTeacherAssignment(id: number) {
     }
 
     // Delete from teacherClassSubjects
-    await db.delete(teacherClassSubjects).where(eq(teacherClassSubjects.id, id));
+    await db.delete(teacherClassSubjects).where(and(eq(teacherClassSubjects.id, id), eq(teacherClassSubjects.schoolId, schoolId)));
 
     // Update legacy classSubjects (remove teacher binding but preserve class-subject configuration)
     const existingLegacy = await db.query.classSubjects.findFirst({
@@ -150,7 +150,7 @@ export async function removeTeacherAssignment(id: number) {
     if (existingLegacy) {
       await db.update(classSubjects)
         .set({ employeeId: null })
-        .where(eq(classSubjects.id, existingLegacy.id));
+        .where(and(eq(classSubjects.id, existingLegacy.id), eq(classSubjects.schoolId, schoolId)));
     }
 
     revalidatePath("/dashboard/pedagogie");
@@ -183,7 +183,7 @@ export async function updateTeacherAssignment(id: number, data: {
 
     await db.update(teacherClassSubjects)
       .set(data as any)
-      .where(eq(teacherClassSubjects.id, id));
+      .where(and(eq(teacherClassSubjects.id, id), eq(teacherClassSubjects.schoolId, schoolId)));
 
     // Mirror to legacy classSubjects if employeeId or coefficient changes
     if (data.employeeId !== undefined || data.coefficient !== undefined) {
@@ -201,7 +201,7 @@ export async function updateTeacherAssignment(id: number, data: {
             employeeId: data.employeeId !== undefined ? data.employeeId : existingLegacy.employeeId,
             coefficient: data.coefficient !== undefined ? data.coefficient : existingLegacy.coefficient
           })
-          .where(eq(classSubjects.id, existingLegacy.id));
+          .where(and(eq(classSubjects.id, existingLegacy.id), eq(classSubjects.schoolId, schoolId)));
       }
     }
 

@@ -244,10 +244,11 @@ async function triggerAutomatedRemediation(
 ) {
   try {
     // 1. Check if an active remediation plan already exists for this student and subject
-    const existing = await db.query.pedagogieRemediation.findFirst({
-      where: and(
-        eq(pedagogieRemediation.studentId, studentId),
-        eq(pedagogieRemediation.subjectId, subjectId),
+      const existing = await db.query.pedagogieRemediation.findFirst({
+        where: and(
+          eq(pedagogieRemediation.schoolId, schoolId),
+          eq(pedagogieRemediation.studentId, studentId),
+          eq(pedagogieRemediation.subjectId, subjectId),
         eq(pedagogieRemediation.status, "Actif")
       )
     });
@@ -256,7 +257,7 @@ async function triggerAutomatedRemediation(
       // Just update current grade/score
       await db.update(pedagogieRemediation)
         .set({ currentGrade: marksObtained, updatedAt: new Date() })
-        .where(eq(pedagogieRemediation.id, existing.id));
+        .where(and(eq(pedagogieRemediation.id, existing.id), eq(pedagogieRemediation.schoolId, schoolId)));
       return;
     }
 

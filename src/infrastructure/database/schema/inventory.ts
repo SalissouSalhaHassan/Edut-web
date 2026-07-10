@@ -10,6 +10,7 @@ export const inventoryCategories = pgTable("inventory_categories", {
 
 export const inventoryItems = pgTable("inventory_items", {
   id: serial("id").primaryKey(),
+  schoolId: integer("school_id"),
   name: varchar("name", { length: 255 }).notNull(),
   sku: varchar("sku", { length: 100 }),
   categoryId: integer("category_id").references(() => inventoryCategories.id),
@@ -22,6 +23,7 @@ export const inventoryItems = pgTable("inventory_items", {
 
 export const inventoryAssignments = pgTable("inventory_assignments", {
   id: serial("id").primaryKey(),
+  schoolId: integer("school_id"),
   itemId: integer("item_id").references(() => inventoryItems.id, { onDelete: "cascade" }),
   employeeId: integer("employee_id").references(() => employees.id, { onDelete: "cascade" }),
   assignedQty: integer("assigned_qty").notNull(),

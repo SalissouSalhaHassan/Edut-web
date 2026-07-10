@@ -175,8 +175,9 @@ export async function updatePlanification(id: number, data: Partial<PlanFormData
     }
 
     const scope = getPedagogieScope(user);
+    const schoolId = await getActiveSchoolId();
     const existing = await db.query.pedagogiePlanification.findFirst({
-      where: eq(pedagogiePlanification.id, id)
+      where: and(eq(pedagogiePlanification.id, id), eq(pedagogiePlanification.schoolId, schoolId))
     });
 
     if (!existing) {
@@ -194,7 +195,7 @@ export async function updatePlanification(id: number, data: Partial<PlanFormData
 
     await db.update(pedagogiePlanification)
       .set({ ...data, updatedAt: new Date() })
-      .where(eq(pedagogiePlanification.id, id));
+      .where(and(eq(pedagogiePlanification.id, id), eq(pedagogiePlanification.schoolId, schoolId)));
 
     revalidatePath("/dashboard/pedagogie/planification");
     return { success: true };
@@ -214,8 +215,9 @@ export async function deletePlanification(id: number) {
     }
 
     const scope = getPedagogieScope(user);
+    const schoolId = await getActiveSchoolId();
     const existing = await db.query.pedagogiePlanification.findFirst({
-      where: eq(pedagogiePlanification.id, id)
+      where: and(eq(pedagogiePlanification.id, id), eq(pedagogiePlanification.schoolId, schoolId))
     });
 
     if (!existing) {
@@ -231,7 +233,7 @@ export async function deletePlanification(id: number) {
       }
     }
 
-    await db.delete(pedagogiePlanification).where(eq(pedagogiePlanification.id, id));
+    await db.delete(pedagogiePlanification).where(and(eq(pedagogiePlanification.id, id), eq(pedagogiePlanification.schoolId, schoolId)));
     revalidatePath("/dashboard/pedagogie/planification");
     return { success: true };
   } catch (e: any) {

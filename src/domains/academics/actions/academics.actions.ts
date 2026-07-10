@@ -2268,7 +2268,8 @@ export async function addClassSubjectLink(data: { classId: number; subjectId: nu
 
 export async function deleteClassSubjectLink(id: number) {
   return protectedDbAction("Academics", "canEdit", async () => {
-    await db.delete(classSubjects).where(eq(classSubjects.id, id));
+    const schoolId = await getActiveSchoolId();
+    await db.delete(classSubjects).where(and(eq(classSubjects.id, id), eq(classSubjects.schoolId, schoolId)));
     revalidatePath("/dashboard/settings");
     return { success: true };
   });

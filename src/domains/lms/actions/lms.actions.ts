@@ -14,6 +14,79 @@ import { protectedDbAction } from "@/lib/protected-action";
 import { students } from "@/infrastructure/database/schema/students";
 import { schoolClasses } from "@/infrastructure/database/schema/academics";
 import { getUserRoleType, getTeacherEmployee, getTeacherClassIds } from "@/domains/auth/services/rbac";
+import { getActiveSchoolId } from "@/domains/auth/services/school";
+
+async function getActiveSchoolClassIds() {
+  const schoolId = await getActiveSchoolId();
+  if (!schoolId) throw new Error("Aucun contexte d'école trouvé.");
+  const classes = await db.query.schoolClasses.findMany({
+    where: eq(schoolClasses.schoolId, schoolId),
+    columns: { id: true },
+  });
+  return classes.map((classe) => classe.id);
+}
+
+async function assertClassInActiveSchool(classId: number | null | undefined) {
+  if (!classId) throw new Error("Classe invalide.");
+  const schoolId = await getActiveSchoolId();
+  if (!schoolId) throw new Error("Aucun contexte d'école trouvé.");
+  const classe = await db.query.schoolClasses.findFirst({
+    where: and(eq(schoolClasses.id, classId), eq(schoolClasses.schoolId, schoolId)),
+  });
+  if (!classe) throw new Error("Accès refusé pour cette école.");
+}
+
+async function assertCourseInActiveSchool(courseId: number | null | undefined) {
+  if (!courseId) throw new Error("Cours invalide.");
+  const course = await db.query.lmsCourses.findFirst({ where: eq(lmsCourses.id, courseId) });
+  if (!course) throw new Error("Cours introuvable.");
+  await assertClassInActiveSchool(course.classId);
+  return course;
+}
+
+async function assertModuleInActiveSchool(moduleId: number) {
+  const module = await db.query.lmsModules.findFirst({ where: eq(lmsModules.id, moduleId) });
+  if (!module) throw new Error("Module introuvable.");
+  await assertCourseInActiveSchool(module.courseId);
+  return module;
+}
+
+async function assertLessonInActiveSchool(lessonId: number) {
+  const lesson = await db.query.lmsLessons.findFirst({ where: eq(lmsLessons.id, lessonId) });
+  if (!lesson) throw new Error("Leçon introuvable.");
+  if (lesson.courseId) await assertCourseInActiveSchool(lesson.courseId);
+  else await assertClassInActiveSchool(lesson.classId);
+  return lesson;
+}
+
+async function assertAssignmentInActiveSchool(assignmentId: number) {
+  const assignment = await db.query.lmsAssignments.findFirst({ where: eq(lmsAssignments.id, assignmentId) });
+  if (!assignment) throw new Error("Devoir introuvable.");
+  if (assignment.courseId) await assertCourseInActiveSchool(assignment.courseId);
+  else await assertClassInActiveSchool(assignment.classId);
+  return assignment;
+}
+
+async function assertSubmissionInActiveSchool(submissionId: number) {
+  const submission = await db.query.lmsSubmissions.findFirst({ where: eq(lmsSubmissions.id, submissionId) });
+  if (!submission) throw new Error("Soumission introuvable.");
+  await assertAssignmentInActiveSchool(submission.assignmentId!);
+  return submission;
+}
+
+async function assertVirtualClassInActiveSchool(virtualClassId: number) {
+  const virtualClass = await db.query.lmsVirtualClasses.findFirst({ where: eq(lmsVirtualClasses.id, virtualClassId) });
+  if (!virtualClass) throw new Error("Classe virtuelle introuvable.");
+  await assertClassInActiveSchool(virtualClass.classId);
+  return virtualClass;
+}
+
+async function assertQuizInActiveSchool(quizId: number) {
+  const quiz = await db.query.lmsQuizzes.findFirst({ where: eq(lmsQuizzes.id, quizId) });
+  if (!quiz) throw new Error("Quiz introuvable.");
+  await assertCourseInActiveSchool(quiz.courseId);
+  return quiz;
+}
 
 export async function initLmsDatabaseTables() {
   return protectedDbAction("LMS", "canView", async () => {
@@ -246,13 +319,14 @@ export async function getCourses() {
   return protectedDbAction("LMS", "canView", async (user) => {
     const roleType = await getUserRoleType(user);
     const roleNameLower = (user.role?.roleName || "").toLowerCase().trim();
+    const schoolClassIds = await getActiveSchoolClassIds();
     
-    let whereClause = undefined;
+    let whereClause: any = schoolClassIds.length > 0 ? inArray(lmsCourses.classId, schoolClassIds) : sql`FALSE`;
     
     if (roleType === "teacher") {
       const emp = await getTeacherEmployee(user);
       if (emp) {
-        whereClause = eq(lmsCourses.teacherId, emp.id);
+        whereClause = and(whereClause, eq(lmsCourses.teacherId, emp.id));
       } else {
         whereClause = sql`FALSE`;
       }
@@ -305,7 +379,9 @@ export async function getCourses() {
 
 export async function saveCourse(data: any, id?: number) {
   return protectedDbAction("LMS", "canEdit", async () => {
+    await assertClassInActiveSchool(data.classId);
     if (id) {
+      await assertCourseInActiveSchool(id);
       await db.update(lmsCourses).set(data).where(eq(lmsCourses.id, id));
     } else {
       await db.insert(lmsCourses).values(data);
@@ -317,6 +393,7 @@ export async function saveCourse(data: any, id?: number) {
 
 export async function deleteCourse(id: number) {
   return protectedDbAction("LMS", "canDelete", async () => {
+    await assertCourseInActiveSchool(id);
     await db.delete(lmsCourses).where(eq(lmsCourses.id, id));
     revalidatePath("/dashboard/lms");
     return { success: true };
@@ -326,6 +403,7 @@ export async function deleteCourse(id: number) {
 // --- Modules & Lessons ---
 export async function getModules(courseId: number) {
   return protectedDbAction("LMS", "canView", async () => {
+    await assertCourseInActiveSchool(courseId);
     const data = await db.query.lmsModules.findMany({
       where: eq(lmsModules.courseId, courseId),
       with: {
@@ -339,7 +417,9 @@ export async function getModules(courseId: number) {
 
 export async function saveModule(data: any, id?: number) {
   return protectedDbAction("LMS", "canEdit", async () => {
+    await assertCourseInActiveSchool(data.courseId);
     if (id) {
+      await assertModuleInActiveSchool(id);
       await db.update(lmsModules).set(data).where(eq(lmsModules.id, id));
     } else {
       await db.insert(lmsModules).values(data);
@@ -351,6 +431,7 @@ export async function saveModule(data: any, id?: number) {
 
 export async function deleteModule(id: number) {
   return protectedDbAction("LMS", "canDelete", async () => {
+    await assertModuleInActiveSchool(id);
     await db.delete(lmsModules).where(eq(lmsModules.id, id));
     revalidatePath("/dashboard/lms");
     return { success: true };
@@ -359,7 +440,9 @@ export async function deleteModule(id: number) {
 
 export async function getLmsLessons() {
   return protectedDbAction("LMS", "canView", async () => {
+    const schoolClassIds = await getActiveSchoolClassIds();
     const data = await db.query.lmsLessons.findMany({
+      where: schoolClassIds.length > 0 ? inArray(lmsLessons.classId, schoolClassIds) : sql`FALSE`,
       with: {
         class: true,
         subject: true,
@@ -374,7 +457,10 @@ export async function getLmsLessons() {
 
 export async function saveLmsLesson(data: any, id?: number) {
   return protectedDbAction("LMS", "canEdit", async () => {
+    if (data.courseId) await assertCourseInActiveSchool(data.courseId);
+    else await assertClassInActiveSchool(data.classId);
     if (id) {
+      await assertLessonInActiveSchool(id);
       await db.update(lmsLessons).set(data).where(eq(lmsLessons.id, id));
     } else {
       await db.insert(lmsLessons).values(data);
@@ -386,6 +472,7 @@ export async function saveLmsLesson(data: any, id?: number) {
 
 export async function deleteLmsLesson(id: number) {
   return protectedDbAction("LMS", "canDelete", async () => {
+    await assertLessonInActiveSchool(id);
     await db.delete(lmsLessons).where(eq(lmsLessons.id, id));
     revalidatePath("/dashboard/lms");
     return { success: true };
@@ -395,6 +482,14 @@ export async function deleteLmsLesson(id: number) {
 // --- Enrollments & Progress ---
 export async function enrollStudent(courseId: number, studentId: number) {
   return protectedDbAction("LMS", "canEdit", async () => {
+    const schoolId = await getActiveSchoolId();
+    if (!schoolId) return { error: "Aucun contexte d'école trouvé." };
+    await assertCourseInActiveSchool(courseId);
+    const student = await db.query.students.findFirst({
+      where: and(eq(students.id, studentId), eq(students.schoolId, schoolId)),
+    });
+    if (!student) return { error: "Accès refusé pour cette école." };
+
     const existing = await db.query.lmsEnrollments.findFirst({
       where: and(
         eq(lmsEnrollments.courseId, courseId),
@@ -411,6 +506,14 @@ export async function enrollStudent(courseId: number, studentId: number) {
 
 export async function getStudentProgress(studentId: number, courseId: number) {
   return protectedDbAction("LMS", "canView", async () => {
+    const schoolId = await getActiveSchoolId();
+    if (!schoolId) return { progress: 0, completedLessons: [] };
+    const student = await db.query.students.findFirst({
+      where: and(eq(students.id, studentId), eq(students.schoolId, schoolId)),
+    });
+    if (!student) return { progress: 0, completedLessons: [] };
+    await assertCourseInActiveSchool(courseId);
+
     const course = await db.query.lmsCourses.findFirst({
       where: eq(lmsCourses.id, courseId),
       with: {
@@ -437,6 +540,14 @@ export async function getStudentProgress(studentId: number, courseId: number) {
 
 export async function updateLessonProgress(data: { studentId: number; lessonId: number; isCompleted: boolean; personalNotes?: string; lastPosition?: number }) {
   return protectedDbAction("LMS", "canEdit", async () => {
+    const schoolId = await getActiveSchoolId();
+    if (!schoolId) return { error: "Aucun contexte d'école trouvé." };
+    const student = await db.query.students.findFirst({
+      where: and(eq(students.id, data.studentId), eq(students.schoolId, schoolId)),
+    });
+    if (!student) return { error: "Accès refusé pour cette école." };
+    await assertLessonInActiveSchool(data.lessonId);
+
     const existing = await db.query.lmsProgress.findFirst({
       where: and(
         eq(lmsProgress.studentId, data.studentId),
@@ -468,7 +579,9 @@ export async function updateLessonProgress(data: { studentId: number; lessonId: 
 // --- Virtual Classes ---
 export async function getLmsVirtualClasses() {
   return protectedDbAction("LMS", "canView", async () => {
+    const schoolClassIds = await getActiveSchoolClassIds();
     const data = await db.query.lmsVirtualClasses.findMany({
+      where: schoolClassIds.length > 0 ? inArray(lmsVirtualClasses.classId, schoolClassIds) : sql`FALSE`,
       with: {
         class: true,
         subject: true,
@@ -483,7 +596,9 @@ export async function getLmsVirtualClasses() {
 
 export async function saveVirtualClass(data: any, id?: number) {
   return protectedDbAction("LMS", "canEdit", async () => {
+    await assertClassInActiveSchool(data.classId);
     if (id) {
+      await assertVirtualClassInActiveSchool(id);
       await db.update(lmsVirtualClasses).set(data).where(eq(lmsVirtualClasses.id, id));
     } else {
       await db.insert(lmsVirtualClasses).values(data);
@@ -495,6 +610,7 @@ export async function saveVirtualClass(data: any, id?: number) {
 
 export async function deleteVirtualClass(id: number) {
   return protectedDbAction("LMS", "canDelete", async () => {
+    await assertVirtualClassInActiveSchool(id);
     await db.delete(lmsVirtualClasses).where(eq(lmsVirtualClasses.id, id));
     revalidatePath("/dashboard/lms");
     return { success: true };
@@ -506,15 +622,16 @@ export async function getAssignments() {
   return protectedDbAction("LMS", "canView", async (user) => {
     const roleType = await getUserRoleType(user);
     const roleNameLower = (user.role?.roleName || "").toLowerCase().trim();
+    const schoolClassIds = await getActiveSchoolClassIds();
     
-    let whereClause = undefined;
+    let whereClause: any = schoolClassIds.length > 0 ? inArray(lmsAssignments.classId, schoolClassIds) : sql`FALSE`;
     
     if (roleType === "teacher") {
       const emp = await getTeacherEmployee(user);
       if (emp) {
         const classIds = await getTeacherClassIds(emp.id);
         if (classIds.length > 0) {
-          whereClause = inArray(lmsAssignments.classId, classIds);
+          whereClause = and(whereClause, inArray(lmsAssignments.classId, classIds));
         } else {
           whereClause = sql`FALSE`;
         }
@@ -569,7 +686,10 @@ export async function getAssignments() {
 
 export async function saveAssignment(data: any, id?: number) {
   return protectedDbAction("LMS", "canEdit", async () => {
+    if (data.courseId) await assertCourseInActiveSchool(data.courseId);
+    else await assertClassInActiveSchool(data.classId);
     if (id) {
+      await assertAssignmentInActiveSchool(id);
       await db.update(lmsAssignments).set(data).where(eq(lmsAssignments.id, id));
     } else {
       await db.insert(lmsAssignments).values(data);
@@ -581,6 +701,7 @@ export async function saveAssignment(data: any, id?: number) {
 
 export async function deleteAssignment(id: number) {
   return protectedDbAction("LMS", "canDelete", async () => {
+    await assertAssignmentInActiveSchool(id);
     await db.delete(lmsAssignments).where(eq(lmsAssignments.id, id));
     revalidatePath("/dashboard/lms");
     return { success: true };
@@ -589,7 +710,15 @@ export async function deleteAssignment(id: number) {
 
 export async function saveSubmission(data: any, id?: number) {
   return protectedDbAction("LMS", "canEdit", async () => {
+    const schoolId = await getActiveSchoolId();
+    if (!schoolId) return { error: "Aucun contexte d'école trouvé." };
+    await assertAssignmentInActiveSchool(data.assignmentId);
+    const student = await db.query.students.findFirst({
+      where: and(eq(students.id, data.studentId), eq(students.schoolId, schoolId)),
+    });
+    if (!student) return { error: "Accès refusé pour cette école." };
     if (id) {
+      await assertSubmissionInActiveSchool(id);
       await db.update(lmsSubmissions).set(data).where(eq(lmsSubmissions.id, id));
     } else {
       await db.insert(lmsSubmissions).values(data);
@@ -601,6 +730,7 @@ export async function saveSubmission(data: any, id?: number) {
 
 export async function gradeSubmission(submissionId: number, score: number, comment: string) {
   return protectedDbAction("LMS", "canEdit", async () => {
+    await assertSubmissionInActiveSchool(submissionId);
     await db.update(lmsSubmissions).set({
       score,
       comment,
@@ -614,7 +744,14 @@ export async function gradeSubmission(submissionId: number, score: number, comme
 // --- Quizzes ---
 export async function getQuizzes() {
   return protectedDbAction("LMS", "canView", async () => {
+    const schoolClassIds = await getActiveSchoolClassIds();
+    const courses = await db.query.lmsCourses.findMany({
+      where: schoolClassIds.length > 0 ? inArray(lmsCourses.classId, schoolClassIds) : sql`FALSE`,
+      columns: { id: true },
+    });
+    const courseIds = courses.map((course) => course.id);
     const data = await db.query.lmsQuizzes.findMany({
+      where: courseIds.length > 0 ? inArray(lmsQuizzes.courseId, courseIds) : sql`FALSE`,
       with: {
         course: true,
         questions: {
@@ -633,7 +770,9 @@ export async function saveQuiz(data: any, id?: number) {
   return protectedDbAction("LMS", "canEdit", async () => {
     const { questions, ...quizData } = data;
     let quizId = id;
+    await assertCourseInActiveSchool(quizData.courseId);
     if (id) {
+      await assertQuizInActiveSchool(id);
       await db.update(lmsQuizzes).set(quizData).where(eq(lmsQuizzes.id, id));
     } else {
       const inserted = await db.insert(lmsQuizzes).values(quizData).returning({ id: lmsQuizzes.id });
@@ -641,6 +780,7 @@ export async function saveQuiz(data: any, id?: number) {
     }
 
     if (questions && quizId) {
+      await assertQuizInActiveSchool(quizId);
       // Simple sync: delete old questions and insert new ones
       await db.delete(lmsQuestions).where(eq(lmsQuestions.quizId, quizId));
       for (const q of questions) {
@@ -673,6 +813,7 @@ export async function saveQuiz(data: any, id?: number) {
 
 export async function deleteQuiz(id: number) {
   return protectedDbAction("LMS", "canDelete", async () => {
+    await assertQuizInActiveSchool(id);
     await db.delete(lmsQuizzes).where(eq(lmsQuizzes.id, id));
     revalidatePath("/dashboard/lms");
     return { success: true };
@@ -682,6 +823,8 @@ export async function deleteQuiz(id: number) {
 // --- Discussions ---
 export async function getDiscussions(courseId: number, lessonId?: number) {
   return protectedDbAction("LMS", "canView", async () => {
+    await assertCourseInActiveSchool(courseId);
+    if (lessonId) await assertLessonInActiveSchool(lessonId);
     const conds = [eq(lmsDiscussions.courseId, courseId)];
     if (lessonId) conds.push(eq(lmsDiscussions.lessonId, lessonId));
     
@@ -699,6 +842,8 @@ export async function getDiscussions(courseId: number, lessonId?: number) {
 
 export async function postMessage(data: any) {
   return protectedDbAction("LMS", "canEdit", async () => {
+    await assertCourseInActiveSchool(data.courseId);
+    if (data.lessonId) await assertLessonInActiveSchool(data.lessonId);
     await db.insert(lmsDiscussions).values(data);
     revalidatePath("/dashboard/lms");
     return { success: true };
@@ -708,7 +853,9 @@ export async function postMessage(data: any) {
 // --- LMS Reports ---
 export async function getLmsReportsData() {
   return protectedDbAction("LMS", "canView", async () => {
+    const schoolClassIds = await getActiveSchoolClassIds();
     const courses = await db.query.lmsCourses.findMany({
+      where: schoolClassIds.length > 0 ? inArray(lmsCourses.classId, schoolClassIds) : sql`FALSE`,
       with: {
         class: true,
         subject: true,
@@ -724,6 +871,7 @@ export async function getLmsReportsData() {
 
     const progress = await db.query.lmsProgress.findMany();
     const virtualClasses = await db.query.lmsVirtualClasses.findMany({
+      where: schoolClassIds.length > 0 ? inArray(lmsVirtualClasses.classId, schoolClassIds) : sql`FALSE`,
       with: {
         class: true,
         subject: true,
@@ -732,6 +880,7 @@ export async function getLmsReportsData() {
     });
 
     const assignments = await db.query.lmsAssignments.findMany({
+      where: schoolClassIds.length > 0 ? inArray(lmsAssignments.classId, schoolClassIds) : sql`FALSE`,
       with: {
         class: true,
         subject: true,

@@ -6,11 +6,15 @@ import { eq, desc, and, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { libraryBookSchema, libraryIssueSchema, LibraryBookFormData, LibraryIssueFormData } from "../validators/library.schema";
 import { protectedDbAction } from "@/lib/protected-action";
+import { getActiveSchoolId } from "@/domains/auth/services/school";
 
 // --- Books ---
 export async function getLibraryBooks() {
   return protectedDbAction("Library", "canView", async () => {
+    const schoolId = await getActiveSchoolId();
+    if (!schoolId) return { data: [] };
     const data = await db.query.libraryBooks.findMany({
+      where: eq(libraryBooks.schoolId, schoolId),
       orderBy: [desc(libraryBooks.createdAt)],
     });
     return { data };
@@ -24,8 +28,11 @@ export async function createLibraryBook(formData: LibraryBookFormData) {
   }
 
   return protectedDbAction("Library", "canEdit", async () => {
+    const schoolId = await getActiveSchoolId();
+    if (!schoolId) return { error: "Aucun contexte d'école trouvé." };
     await db.insert(libraryBooks).values({
       ...validation.data,
+      schoolId,
       availableQuantity: validation.data.totalQuantity,
     });
     revalidatePath("/dashboard/library");
@@ -40,7 +47,9 @@ export async function updateLibraryBook(id: number, formData: LibraryBookFormDat
   }
 
   return protectedDbAction("Library", "canEdit", async () => {
-    const book = await db.query.libraryBooks.findFirst({ where: eq(libraryBooks.id, id) });
+    const schoolId = await getActiveSchoolId();
+    if (!schoolId) return { error: "Aucun contexte d'école trouvé." };
+    const book = await db.query.libraryBooks.findFirst({ where: and(eq(libraryBooks.id, id), eq(libraryBooks.schoolId, schoolId)) });
     if (!book) throw new Error("Livre non trouvé");
 
     const diff = validation.data.totalQuantity - book.totalQuantity;
@@ -48,9 +57,10 @@ export async function updateLibraryBook(id: number, formData: LibraryBookFormDat
     await db.update(libraryBooks)
       .set({
         ...validation.data,
+        schoolId,
         availableQuantity: book.availableQuantity + diff,
       })
-      .where(eq(libraryBooks.id, id));
+      .where(and(eq(libraryBooks.id, id), eq(libraryBooks.schoolId, schoolId)));
     revalidatePath("/dashboard/library");
     return { success: true };
   });
@@ -58,7 +68,9 @@ export async function updateLibraryBook(id: number, formData: LibraryBookFormDat
 
 export async function deleteLibraryBook(id: number) {
   return protectedDbAction("Library", "canDelete", async () => {
-    await db.delete(libraryBooks).where(eq(libraryBooks.id, id));
+    const schoolId = await getActiveSchoolId();
+    if (!schoolId) return { error: "Aucun contexte d'école trouvé." };
+    await db.delete(libraryBooks).where(and(eq(libraryBooks.id, id), eq(libraryBooks.schoolId, schoolId)));
     revalidatePath("/dashboard/library");
     return { success: true };
   });
@@ -67,7 +79,10 @@ export async function deleteLibraryBook(id: number) {
 // --- Issues ---
 export async function getLibraryIssues() {
   return protectedDbAction("Library", "canView", async () => {
+    const schoolId = await getActiveSchoolId();
+    if (!schoolId) return { data: [] };
     const data = await db.query.libraryIssues.findMany({
+      where: eq(libraryIssues.schoolId, schoolId),
       with: {
         book: true,
         student: true,
@@ -86,9 +101,11 @@ export async function issueLibraryBook(formData: LibraryIssueFormData) {
   }
 
   return protectedDbAction("Library", "canEdit", async () => {
+    const schoolId = await getActiveSchoolId();
+    if (!schoolId) return { error: "Aucun contexte d'école trouvé." };
     // 1. Check availability
     const book = await db.query.libraryBooks.findFirst({
-      where: eq(libraryBooks.id, validation.data.bookId),
+      where: and(eq(libraryBooks.id, validation.data.bookId), eq(libraryBooks.schoolId, schoolId)),
     });
 
     if (!book || book.availableQuantity <= 0) {
@@ -98,6 +115,7 @@ export async function issueLibraryBook(formData: LibraryIssueFormData) {
     // 2. Create issue
     await db.insert(libraryIssues).values({
       ...validation.data,
+      schoolId,
       dueDate: new Date(validation.data.dueDate),
       status: "En cours",
     });
@@ -105,7 +123,7 @@ export async function issueLibraryBook(formData: LibraryIssueFormData) {
     // 3. Update availability
     await db.update(libraryBooks)
       .set({ availableQuantity: book.availableQuantity - 1 })
-      .where(eq(libraryBooks.id, validation.data.bookId));
+      .where(and(eq(libraryBooks.id, validation.data.bookId), eq(libraryBooks.schoolId, schoolId)));
 
     revalidatePath("/dashboard/library");
     return { success: true };
@@ -114,8 +132,10 @@ export async function issueLibraryBook(formData: LibraryIssueFormData) {
 
 export async function returnLibraryBook(issueId: number, fineAmount: number = 0) {
   return protectedDbAction("Library", "canEdit", async () => {
+    const schoolId = await getActiveSchoolId();
+    if (!schoolId) return { error: "Aucun contexte d'école trouvé." };
     const issue = await db.query.libraryIssues.findFirst({
-      where: eq(libraryIssues.id, issueId),
+      where: and(eq(libraryIssues.id, issueId), eq(libraryIssues.schoolId, schoolId)),
     });
 
     if (!issue || issue.status === "Retourné") {
@@ -129,17 +149,17 @@ export async function returnLibraryBook(issueId: number, fineAmount: number = 0)
         returnDate: new Date(),
         fineAmount: fineAmount.toString(),
       })
-      .where(eq(libraryIssues.id, issueId));
+      .where(and(eq(libraryIssues.id, issueId), eq(libraryIssues.schoolId, schoolId)));
 
     // 2. Update book availability
     const book = await db.query.libraryBooks.findFirst({
-      where: eq(libraryBooks.id, issue.bookId!),
+      where: and(eq(libraryBooks.id, issue.bookId!), eq(libraryBooks.schoolId, schoolId)),
     });
 
     if (book) {
       await db.update(libraryBooks)
         .set({ availableQuantity: book.availableQuantity + 1 })
-        .where(eq(libraryBooks.id, book.id));
+        .where(and(eq(libraryBooks.id, book.id), eq(libraryBooks.schoolId, schoolId)));
     }
 
     revalidatePath("/dashboard/library");

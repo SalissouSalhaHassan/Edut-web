@@ -8,6 +8,28 @@ import { eq, and, isNull, inArray, sql, or } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { protectedDbAction } from "@/lib/protected-action";
 import { getUserRoleType, getTeacherEmployee, verifyTeacherClassAccess } from "@/domains/auth/services/rbac";
+import { getActiveSchoolId } from "@/domains/auth/services/school";
+
+async function assertClassInActiveSchool(classId: number | null | undefined) {
+  if (!classId) throw new Error("Classe invalide.");
+  const schoolId = await getActiveSchoolId();
+  if (!schoolId) throw new Error("Aucun contexte d'école trouvé.");
+
+  const cls = await db.query.schoolClasses.findFirst({
+    where: and(eq(schoolClasses.id, classId), eq(schoolClasses.schoolId, schoolId)),
+  });
+  if (!cls) throw new Error("Accès refusé pour cette école.");
+  return { schoolId, cls };
+}
+
+async function assertTimetableEntryInActiveSchool(id: number) {
+  const entry = await db.query.timetableEntries.findFirst({
+    where: eq(timetableEntries.id, id),
+  });
+  if (!entry) throw new Error("Séance introuvable.");
+  await assertClassInActiveSchool(entry.classId);
+  return entry;
+}
 
 export async function getTimetableSettings(classId?: number) {
   return protectedDbAction("Academics", "canView", async () => {
@@ -75,6 +97,10 @@ export async function getTimetableEntries(modeOrId: "class" | "teacher" | number
       }
     }
 
+    if (finalMode === "class") {
+      await assertClassInActiveSchool(finalId);
+    }
+
     const entries = await db.query.timetableEntries.findMany({
       where: finalMode === "class" ? eq(timetableEntries.classId, finalId) : eq(timetableEntries.employeeId, finalId),
       with: {
@@ -132,6 +158,8 @@ export async function getGlobalOccupancy() {
 
 export async function saveTimetableEntry(data: any) {
   return protectedDbAction("Academics", "canEdit", async () => {
+    await assertClassInActiveSchool(data.classId);
+
     // Check for conflicts: either class is busy OR teacher is busy at the same day/period
     const conflict = await db.query.timetableEntries.findFirst({
       where: and(
@@ -154,6 +182,7 @@ export async function saveTimetableEntry(data: any) {
     }
 
     if (data.id) {
+      await assertTimetableEntryInActiveSchool(data.id);
       await db.update(timetableEntries).set(data).where(eq(timetableEntries.id, data.id));
     } else {
       await db.insert(timetableEntries).values(data);
@@ -165,6 +194,7 @@ export async function saveTimetableEntry(data: any) {
 
 export async function deleteTimetableEntry(id: number) {
   return protectedDbAction("Academics", "canDelete", async () => {
+    await assertTimetableEntryInActiveSchool(id);
     await db.delete(timetableEntries).where(eq(timetableEntries.id, id));
     revalidatePath("/dashboard/academics/timetable");
     return { success: true };
@@ -173,9 +203,7 @@ export async function deleteTimetableEntry(id: number) {
 
 export async function moveTimetableEntry(id: number, dayName: string, periodNumber: number) {
   return protectedDbAction("Academics", "canEdit", async () => {
-    const entry = await db.query.timetableEntries.findFirst({
-      where: eq(timetableEntries.id, id)
-    });
+    const entry = await assertTimetableEntryInActiveSchool(id);
     if (!entry) throw new Error("Séance introuvable.");
 
     const classId = entry.classId;
@@ -292,10 +320,11 @@ export async function getClassAssignments(classId: number) {
 
 export async function saveClassAssignment(id: number | null, data: any) {
   return protectedDbAction("Academics", "canEdit", async () => {
+    const { schoolId } = await assertClassInActiveSchool(data.classId);
     if (id) {
-      await db.update(classSubjects).set({ ...data }).where(eq(classSubjects.id, id));
+      await db.update(classSubjects).set({ ...data, schoolId }).where(and(eq(classSubjects.id, id), eq(classSubjects.schoolId, schoolId)));
     } else {
-      await db.insert(classSubjects).values(data);
+      await db.insert(classSubjects).values({ ...data, schoolId });
     }
     revalidatePath("/dashboard/academics/timetable");
     return { success: true };
@@ -330,8 +359,9 @@ export async function getTeacherWorkloads() {
 
 export async function aiSyncCursus(classId: number) {
   return protectedDbAction("Academics", "canEdit", async () => {
+    const { schoolId } = await assertClassInActiveSchool(classId);
     const cls = await db.query.schoolClasses.findFirst({
-      where: eq(schoolClasses.id, classId)
+      where: and(eq(schoolClasses.id, classId), eq(schoolClasses.schoolId, schoolId))
     });
 
     if (!cls || !cls.sectionId) throw new Error("Classe non liée à une section.");
@@ -349,11 +379,12 @@ export async function aiSyncCursus(classId: number) {
 
       if (existing) {
         if (existing.coefficient !== os.defaultCoef) {
-          await db.update(classSubjects).set({ coefficient: os.defaultCoef }).where(eq(classSubjects.id, existing.id));
+          await db.update(classSubjects).set({ coefficient: os.defaultCoef }).where(and(eq(classSubjects.id, existing.id), eq(classSubjects.schoolId, schoolId)));
           changes++;
         }
       } else {
         await db.insert(classSubjects).values({
+          schoolId,
           classId,
           subjectId: os.subjectId,
           coefficient: os.defaultCoef || 2
@@ -370,8 +401,9 @@ export async function aiSyncCursus(classId: number) {
 export async function addSubjectsToClass(classId: number, subjectIds: number[]) {
   if (subjectIds.length === 0) return { success: true };
   return protectedDbAction("Academics", "canEdit", async () => {
+    const { schoolId } = await assertClassInActiveSchool(classId);
     const cls = await db.query.schoolClasses.findFirst({
-      where: eq(schoolClasses.id, classId),
+      where: and(eq(schoolClasses.id, classId), eq(schoolClasses.schoolId, schoolId)),
     });
 
     if (!cls || !cls.sectionId) throw new Error("Classe non valide.");
@@ -391,6 +423,7 @@ export async function addSubjectsToClass(classId: number, subjectIds: number[]) 
     });
 
     const values = subjectIds.map(subjectId => ({
+      schoolId,
       classId,
       subjectId,
       coefficient: coefMap[subjectId] || 2
@@ -404,7 +437,9 @@ export async function addSubjectsToClass(classId: number, subjectIds: number[]) 
 
 export async function deleteClassAssignment(id: number) {
   return protectedDbAction("Academics", "canDelete", async () => {
-    await db.delete(classSubjects).where(eq(classSubjects.id, id));
+    const schoolId = await getActiveSchoolId();
+    if (!schoolId) throw new Error("Aucun contexte d'école trouvé.");
+    await db.delete(classSubjects).where(and(eq(classSubjects.id, id), eq(classSubjects.schoolId, schoolId)));
     revalidatePath("/dashboard/academics/timetable");
     return { success: true };
   });

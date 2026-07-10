@@ -35,7 +35,7 @@ export async function saveHostelRoom(data: any, id?: number) {
       schoolId: user.schoolId
     };
     if (id) {
-      await db.update(hostelRooms).set(payload).where(eq(hostelRooms.id, id));
+      await db.update(hostelRooms).set(payload).where(and(eq(hostelRooms.id, id), eq(hostelRooms.schoolId, user.schoolId)));
     } else {
       await db.insert(hostelRooms).values(payload);
     }
@@ -47,7 +47,7 @@ export async function saveHostelRoom(data: any, id?: number) {
 export async function allocateRoom(studentId: number, roomId: number) {
   return protectedDbAction("Hostel", "canEdit", async (user) => {
     const room = await db.query.hostelRooms.findFirst({
-      where: eq(hostelRooms.id, roomId)
+      where: and(eq(hostelRooms.id, roomId), eq(hostelRooms.schoolId, user.schoolId))
     });
 
     if (!room) {
@@ -81,9 +81,9 @@ export async function allocateRoom(studentId: number, roomId: number) {
 }
 
 export async function vacateRoom(allocationId: number) {
-  return protectedDbAction("Hostel", "canEdit", async () => {
+  return protectedDbAction("Hostel", "canEdit", async (user) => {
     const alloc = await db.query.hostelAllocations.findFirst({
-      where: eq(hostelAllocations.id, allocationId),
+      where: and(eq(hostelAllocations.id, allocationId), eq(hostelAllocations.schoolId, user.schoolId)),
     });
 
     if (!alloc || alloc.status === "Libéré") return { error: "Déjà libéré" };
@@ -91,7 +91,7 @@ export async function vacateRoom(allocationId: number) {
     // Mark as vacated
     await db.update(hostelAllocations)
       .set({ status: "Libéré", leaveDate: new Date() })
-      .where(eq(hostelAllocations.id, allocationId));
+      .where(and(eq(hostelAllocations.id, allocationId), eq(hostelAllocations.schoolId, user.schoolId)));
 
     revalidatePath("/dashboard/hostel");
     return { success: true };
@@ -99,16 +99,16 @@ export async function vacateRoom(allocationId: number) {
 }
 
 export async function deleteHostelRoom(id: number) {
-  return protectedDbAction("Hostel", "canDelete", async () => {
-    await db.delete(hostelRooms).where(eq(hostelRooms.id, id));
+  return protectedDbAction("Hostel", "canDelete", async (user) => {
+    await db.delete(hostelRooms).where(and(eq(hostelRooms.id, id), eq(hostelRooms.schoolId, user.schoolId)));
     revalidatePath("/dashboard/hostel");
     return { success: true };
   });
 }
 
 export async function deleteHostelAllocation(id: number) {
-  return protectedDbAction("Hostel", "canDelete", async () => {
-    await db.delete(hostelAllocations).where(eq(hostelAllocations.id, id));
+  return protectedDbAction("Hostel", "canDelete", async (user) => {
+    await db.delete(hostelAllocations).where(and(eq(hostelAllocations.id, id), eq(hostelAllocations.schoolId, user.schoolId)));
     revalidatePath("/dashboard/hostel");
     return { success: true };
   });

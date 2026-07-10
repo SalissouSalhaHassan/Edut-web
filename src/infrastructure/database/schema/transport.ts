@@ -4,6 +4,7 @@ import { students } from "./students";
 
 export const transportRoutes = pgTable("transport_routes", {
   id: serial("id").primaryKey(),
+  schoolId: integer("school_id"),
   routeName: varchar("route_name", { length: 255 }).notNull(),
   vehicleNumber: varchar("vehicle_number", { length: 50 }).notNull(),
   driverName: varchar("driver_name", { length: 255 }).notNull(),
@@ -14,6 +15,7 @@ export const transportRoutes = pgTable("transport_routes", {
 
 export const transportSubscriptions = pgTable("transport_subscriptions", {
   id: serial("id").primaryKey(),
+  schoolId: integer("school_id"),
   studentId: integer("student_id").references(() => students.id, { onDelete: "cascade" }),
   routeId: integer("route_id").references(() => transportRoutes.id, { onDelete: "cascade" }),
   pickupPoint: varchar("pickup_point", { length: 255 }),

@@ -189,8 +189,9 @@ export async function updateSeance(id: number, data: Partial<SeanceFormData>) {
     }
 
     const scope = getPedagogieScope(user);
+    const schoolId = await getActiveSchoolId();
     const existing = await db.query.cahierTextes.findFirst({
-      where: eq(cahierTextes.id, id)
+      where: and(eq(cahierTextes.id, id), eq(cahierTextes.schoolId, schoolId))
     });
 
     if (!existing) {
@@ -208,7 +209,7 @@ export async function updateSeance(id: number, data: Partial<SeanceFormData>) {
 
     await db.update(cahierTextes)
       .set({ ...data, updatedAt: new Date() })
-      .where(eq(cahierTextes.id, id));
+      .where(and(eq(cahierTextes.id, id), eq(cahierTextes.schoolId, schoolId)));
 
     revalidatePath("/dashboard/pedagogie/cahier-textes");
     return { success: true };
@@ -227,9 +228,11 @@ export async function validerSeance(id: number, valideParId: number) {
       return { success: false, error: "Accès non autorisé" };
     }
 
+    const schoolId = await getActiveSchoolId();
+
     await db.update(cahierTextes)
       .set({ statut: "Validé", valideParId, valideAt: new Date(), updatedAt: new Date() })
-      .where(eq(cahierTextes.id, id));
+      .where(and(eq(cahierTextes.id, id), eq(cahierTextes.schoolId, schoolId)));
 
     revalidatePath("/dashboard/pedagogie/cahier-textes");
     return { success: true };
@@ -248,9 +251,11 @@ export async function rejeterSeance(id: number, observation: string) {
       return { success: false, error: "Accès non autorisé" };
     }
 
+    const schoolId = await getActiveSchoolId();
+
     await db.update(cahierTextes)
       .set({ statut: "Rejeté", observation, updatedAt: new Date() })
-      .where(eq(cahierTextes.id, id));
+      .where(and(eq(cahierTextes.id, id), eq(cahierTextes.schoolId, schoolId)));
 
     revalidatePath("/dashboard/pedagogie/cahier-textes");
     return { success: true };
@@ -270,8 +275,9 @@ export async function deleteSeance(id: number) {
     }
 
     const scope = getPedagogieScope(user);
+    const schoolId = await getActiveSchoolId();
     const existing = await db.query.cahierTextes.findFirst({
-      where: eq(cahierTextes.id, id)
+      where: and(eq(cahierTextes.id, id), eq(cahierTextes.schoolId, schoolId))
     });
 
     if (!existing) {
@@ -287,7 +293,7 @@ export async function deleteSeance(id: number) {
       }
     }
 
-    await db.delete(cahierTextes).where(eq(cahierTextes.id, id));
+    await db.delete(cahierTextes).where(and(eq(cahierTextes.id, id), eq(cahierTextes.schoolId, schoolId)));
     revalidatePath("/dashboard/pedagogie/cahier-textes");
     return { success: true };
   } catch (e: any) {
