@@ -46,6 +46,8 @@ const fullMobilePermissions = [
   "attendance.manage",
   "academics.view",
   "academics.manage",
+  "messaging.view",
+  "messaging.manage",
 ];
 
 function jsonError(message: string, status: number) {
@@ -95,6 +97,8 @@ function defaultPermissionsForRole(roleType: UserRoleType) {
       "attendance.view",
       "academics.view",
       "academics.manage",
+      "messaging.view",
+      "messaging.manage",
     ]);
   }
 
@@ -111,6 +115,8 @@ function defaultPermissionsForRole(roleType: UserRoleType) {
       "attendance.manage",
       "academics.view",
       "academics.manage",
+      "messaging.view",
+      "messaging.manage",
     ]);
   }
 
@@ -137,7 +143,7 @@ function defaultPermissionsForRole(roleType: UserRoleType) {
   }
 
   if (roleType === "eleve" || roleType === "parent") {
-    return new Set(["attendance.view", "academics.view", "exams.view"]);
+    return new Set(["attendance.view", "academics.view", "exams.view", "messaging.view"]);
   }
 
   return new Set<string>();
@@ -194,6 +200,11 @@ function mapRolePermission(row: PermissionRow) {
   if (matchesModule(moduleName, ["academics", "notes", "devoirs", "homework"])) {
     if (row.canView) permissions.add("academics.view");
     if (row.canEdit || row.canDelete) permissions.add("academics.manage");
+  }
+
+  if (matchesModule(moduleName, ["messaging", "messages", "notifications"])) {
+    if (row.canView) permissions.add("messaging.view");
+    if (row.canEdit || row.canDelete) permissions.add("messaging.manage");
   }
 
   return permissions;
