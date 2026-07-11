@@ -36,6 +36,8 @@ export const getUserRoleType = cache(async (user: any): Promise<UserRoleType> =>
   if (!user) return "regular_user";
   if (user.superAdmin === true || user.superAdmin === 1) return "super_admin";
   
+  if (user.studentId || user.student_id) return "eleve";
+  
   let roleName = user.role?.roleName;
   if (!roleName && user.roleId) {
     const r = await db.query.roles.findFirst({ where: eq(roles.id, user.roleId) });
@@ -57,6 +59,8 @@ export const getUserRoleType = cache(async (user: any): Promise<UserRoleType> =>
   if (norm.includes("eleve") || norm.includes("etudiant") || norm.includes("student")) return "eleve";
   if (norm.includes("parent") || norm.includes("tuteur")) return "parent";
   if (norm.includes("consultation") || norm.includes("viewer")) return "consultation";
+
+  if (user.employeeId || user.employee_id) return "teacher";
 
   // Legacy compatibility check
   const isAdmin = user.admin === true;
