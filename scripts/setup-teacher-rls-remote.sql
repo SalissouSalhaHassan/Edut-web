@@ -68,6 +68,47 @@ RETURNS integer AS $$
   END;
 $$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
 
+-- 3b. Helper function to resolve student ID for students and parents
+CREATE OR REPLACE FUNCTION get_my_student_id()
+RETURNS integer AS $$
+  DECLARE
+    stud_id integer;
+    user_email text;
+    username text;
+  BEGIN
+    -- 1. Try to get student_id directly from the users table link
+    SELECT student_id INTO stud_id
+    FROM public.users
+    WHERE supabase_id = auth.uid()::text LIMIT 1;
+    
+    -- 2. Fallback to matching by utilisateur (email/username)
+    IF stud_id IS NULL THEN
+      SELECT utilisateur INTO user_email
+      FROM public.users
+      WHERE supabase_id = auth.uid()::text LIMIT 1;
+      
+      IF user_email IS NOT NULL THEN
+        -- Get the username part of email if it contains '@'
+        IF position('@' in user_email) > 0 THEN
+          username := split_part(user_email, '@', 1);
+        ELSE
+          username := user_email;
+        END IF;
+        
+        SELECT id INTO stud_id
+        FROM public.students
+        WHERE num_admission = username 
+           OR num_admission = upper(username)
+           OR mobile = username
+           OR whatsapp = username
+        LIMIT 1;
+      END IF;
+    END IF;
+    
+    RETURN stud_id;
+  END;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
+
 -- 4. Helper function to check if user is Admin or Directeur
 CREATE OR REPLACE FUNCTION is_admin_or_director()
 RETURNS boolean AS $$
@@ -137,12 +178,15 @@ CREATE POLICY class_subjects_write ON class_subjects FOR ALL USING (
   school_id = get_my_school_id() AND is_admin_or_director()
 );
 
--- 10. Define Policies for school_classes
 DROP POLICY IF EXISTS school_classes_select ON school_classes;
 CREATE POLICY school_classes_select ON school_classes FOR SELECT USING (
   school_id = get_my_school_id() AND (
-    is_admin_or_director() OR id IN (
+    is_admin_or_director() OR 
+    id IN (
       SELECT class_id FROM class_subjects WHERE employee_id = get_my_employee_id()
+    ) OR
+    class_name IN (
+      SELECT classe FROM students WHERE id = get_my_student_id()
     )
   )
 );
@@ -314,28 +358,28 @@ DROP POLICY IF EXISTS student_self_select ON students;
 CREATE POLICY student_self_select ON students 
 FOR SELECT 
 USING (
-  id = (SELECT student_id FROM users WHERE supabase_id = auth.uid()::text)
+  id = get_my_student_id()
 );
 
 DROP POLICY IF EXISTS student_results_self_select ON student_results;
 CREATE POLICY student_results_self_select ON student_results 
 FOR SELECT 
 USING (
-  student_id = (SELECT student_id FROM users WHERE supabase_id = auth.uid()::text)
+  student_id = get_my_student_id()
 );
 
 DROP POLICY IF EXISTS student_attendance_self_select ON student_attendance;
 CREATE POLICY student_attendance_self_select ON student_attendance 
 FOR SELECT 
 USING (
-  student_id = (SELECT student_id FROM users WHERE supabase_id = auth.uid()::text)
+  student_id = get_my_student_id()
 );
 
 DROP POLICY IF EXISTS student_fees_self_select ON student_fees;
 CREATE POLICY student_fees_self_select ON student_fees 
 FOR SELECT 
 USING (
-  student_id = (SELECT student_id FROM users WHERE supabase_id = auth.uid()::text)
+  student_id = get_my_student_id()
 );
 
 DROP POLICY IF EXISTS fee_payments_self_select ON fee_payments;
@@ -344,7 +388,7 @@ FOR SELECT
 USING (
   fee_id IN (
     SELECT id FROM student_fees 
-    WHERE student_id = (SELECT student_id FROM users WHERE supabase_id = auth.uid()::text)
+    WHERE student_id = get_my_student_id()
   )
 );
 
@@ -355,7 +399,7 @@ USING (
   class_id = (
     SELECT c.id FROM school_classes c
     JOIN students s ON c.class_name = s.classe
-    WHERE s.id = (SELECT student_id FROM users WHERE supabase_id = auth.uid()::text)
+    WHERE s.id = get_my_student_id()
   )
 );
 
@@ -366,6 +410,6 @@ USING (
   class_id = (
     SELECT c.id FROM school_classes c
     JOIN students s ON c.class_name = s.classe
-    WHERE s.id = (SELECT student_id FROM users WHERE supabase_id = auth.uid()::text)
+    WHERE s.id = get_my_student_id()
   )
 );
