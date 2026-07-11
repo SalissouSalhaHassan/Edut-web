@@ -8,9 +8,9 @@ export async function GET() {
   try {
     // 1. Get student matching name
     const studentsList = await readDb.execute(sql`
-      SELECT id, firstname, lastname, classe, school_id, num_admission, mobile, whatsapp, educational_level
+      SELECT id, nom_etudiant, classe, school_id, num_admission, mobile, whatsapp, educational_level
       FROM students 
-      WHERE firstname ILIKE '%Ado%' OR lastname ILIKE '%Moussa%' OR firstname ILIKE '%Moussa%'
+      WHERE nom_etudiant ILIKE '%Ado%' OR nom_etudiant ILIKE '%Moussa%'
     `);
 
     // 2. Get user profile matching email or student_id
@@ -18,7 +18,7 @@ export async function GET() {
       SELECT id, utilisateur, nom_prenom, role_id, school_id, student_id, supabase_id
       FROM users
       WHERE utilisateur ILIKE '%ado%' OR utilisateur ILIKE '%moussa%' OR student_id IN (
-        SELECT id FROM students WHERE firstname ILIKE '%Ado%' OR lastname ILIKE '%Moussa%' OR firstname ILIKE '%Moussa%'
+        SELECT id FROM students WHERE nom_etudiant ILIKE '%Ado%' OR nom_etudiant ILIKE '%Moussa%'
       )
     `);
 
