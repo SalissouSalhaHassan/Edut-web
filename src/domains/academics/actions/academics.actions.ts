@@ -419,6 +419,23 @@ export async function getSubjectsForClass(classId: number) {
       ),
       with: { subject: true, teacher: true }
     });
+
+    if (links.length === 0) {
+      // Fallback: return all school subjects formatted as class-subject links
+      const allSubjects = await db.query.schoolSubjects.findMany({
+        where: eq(schoolSubjects.schoolId, schoolId),
+        orderBy: schoolSubjects.subjectName
+      });
+      return allSubjects.map((sub) => ({
+        id: sub.id,
+        classId: classId,
+        subjectId: sub.id,
+        employeeId: null,
+        subject: sub,
+        teacher: null
+      }));
+    }
+
     return links;
   });
 }

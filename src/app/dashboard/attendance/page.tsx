@@ -23,7 +23,7 @@ export default async function AttendancePage({ searchParams: searchParamsPromise
 
   try {
     const [classesRes, statsRes, userRes] = await Promise.all([
-      getClasses().catch(() => ({ data: [] })),
+      getClasses(true).catch(() => ({ data: [] })),
       getAttendanceStats(date, classId, subjectId).catch(() => ({ data: { data: { presents: 0, absents: 0, lates: 0, excused: 0 } } })),
       getCurrentUser().catch(() => null)
     ]);
