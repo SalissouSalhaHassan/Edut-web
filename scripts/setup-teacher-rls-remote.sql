@@ -109,6 +109,63 @@ RETURNS integer AS $$
   END;
 $$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
 
+-- 3c. Helper function to get student's class name (bypasses RLS)
+CREATE OR REPLACE FUNCTION get_my_student_class()
+RETURNS text AS $$
+  DECLARE
+    class_val text;
+    stud_id integer;
+  BEGIN
+    stud_id := get_my_student_id();
+    IF stud_id IS NOT NULL THEN
+      SELECT classe INTO class_val
+      FROM public.students
+      WHERE id = stud_id LIMIT 1;
+    END IF;
+    RETURN class_val;
+  END;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
+
+-- 3d. Helper function to get student's class ID (bypasses RLS)
+CREATE OR REPLACE FUNCTION get_my_student_class_id()
+RETURNS integer AS $$
+  DECLARE
+    cid integer;
+    class_val text;
+  BEGIN
+    class_val := get_my_student_class();
+    IF class_val IS NOT NULL THEN
+      SELECT id INTO cid
+      FROM public.school_classes
+      WHERE class_name = class_val LIMIT 1;
+    END IF;
+    RETURN cid;
+  END;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
+
+-- 3e. Helper function to check if class is assigned to teacher (bypasses RLS)
+CREATE OR REPLACE FUNCTION is_class_assigned_to_teacher(class_name_val text)
+RETURNS boolean AS $$
+  DECLARE
+    emp_id integer;
+    has_access boolean;
+  BEGIN
+    emp_id := get_my_employee_id();
+    IF emp_id IS NULL THEN
+      RETURN false;
+    END IF;
+    
+    SELECT EXISTS (
+      SELECT 1 FROM public.school_classes c
+      JOIN public.class_subjects cs ON c.id = cs.class_id
+      WHERE c.class_name = class_name_val AND cs.employee_id = emp_id
+    ) INTO has_access;
+    
+    RETURN has_access;
+  END;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
+
+
 -- 4. Helper function to check if user is Admin or Directeur
 CREATE OR REPLACE FUNCTION is_admin_or_director()
 RETURNS boolean AS $$
@@ -185,9 +242,7 @@ CREATE POLICY school_classes_select ON school_classes FOR SELECT USING (
     id IN (
       SELECT class_id FROM class_subjects WHERE employee_id = get_my_employee_id()
     ) OR
-    class_name IN (
-      SELECT classe FROM students WHERE id = get_my_student_id()
-    )
+    class_name = get_my_student_class()
   )
 );
 
@@ -211,11 +266,7 @@ CREATE POLICY school_subjects_write ON school_subjects FOR ALL USING (
 DROP POLICY IF EXISTS students_select ON students;
 CREATE POLICY students_select ON students FOR SELECT USING (
   school_id = get_my_school_id() AND (
-    is_admin_or_director() OR classe IN (
-      SELECT c.class_name FROM school_classes c 
-      JOIN class_subjects cs ON c.id = cs.class_id
-      WHERE cs.employee_id = get_my_employee_id()
-    )
+    is_admin_or_director() OR is_class_assigned_to_teacher(classe)
   )
 );
 
@@ -396,20 +447,12 @@ DROP POLICY IF EXISTS timetable_entries_self_select ON timetable_entries;
 CREATE POLICY timetable_entries_self_select ON timetable_entries 
 FOR SELECT 
 USING (
-  class_id = (
-    SELECT c.id FROM school_classes c
-    JOIN students s ON c.class_name = s.classe
-    WHERE s.id = get_my_student_id()
-  )
+  class_id = get_my_student_class_id()
 );
 
 DROP POLICY IF EXISTS homework_self_select ON homework;
 CREATE POLICY homework_self_select ON homework 
 FOR SELECT 
 USING (
-  class_id = (
-    SELECT c.id FROM school_classes c
-    JOIN students s ON c.class_name = s.classe
-    WHERE s.id = get_my_student_id()
-  )
+  class_id = get_my_student_class_id()
 );
