@@ -26,8 +26,8 @@ export default function HomeworkDialog({ mode = "add", initialData, trigger }: H
 
   useEffect(() => {
     if (open) {
-      getClasses().then((res: any) => { if (res.data) setClasses(res.data?.data || res.data || []); });
-      getSubjects().then((res: any) => { if (res.data) setSubjects(res.data?.data || res.data || []); });
+      getClasses(true).then((res: any) => { if (res.data) setClasses(res.data || []); });
+      getSubjects().then((res: any) => { if (res.data) setSubjects(res.data || []); });
     }
   }, [open]);
 

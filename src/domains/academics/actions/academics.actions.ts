@@ -224,8 +224,7 @@ export async function getClasses(ignoreActiveFilter = false) {
   
   return protectedDbAction("Academics", "canView", async (user) => {
     const roleType = await getUserRoleType(user);
-
-    if (!ignoreActiveFilter && roleType === "teacher") {
+    if (roleType === "teacher") {
       const employee = await getTeacherEmployee(user);
       if (!employee) return [];
 

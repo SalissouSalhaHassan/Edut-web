@@ -37,7 +37,7 @@ export default async function FinancePage({
         status: params.status
       }).catch(() => ({ data: [] })),
       getFinanceStats().catch(() => ({ data: {} })),
-      getClasses().catch(() => ({ data: [] })),
+      getClasses(true).catch(() => ({ data: [] })),
       getAdvancedFinanceStats().catch(() => ({ data: null })),
       getDocumentHeaderConfig().catch(() => ({ data: null })),
     ]);
