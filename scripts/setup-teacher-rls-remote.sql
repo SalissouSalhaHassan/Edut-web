@@ -51,10 +51,18 @@ RETURNS integer AS $$
   DECLARE
     emp_id integer;
   BEGIN
-    SELECT e.id INTO emp_id 
-    FROM public.employees e
-    JOIN public.users u ON e.email = u.utilisateur
-    WHERE u.supabase_id = auth.uid()::text LIMIT 1;
+    -- 1. Try to get employee_id directly from the users table link
+    SELECT employee_id INTO emp_id
+    FROM public.users
+    WHERE supabase_id = auth.uid()::text LIMIT 1;
+    
+    -- 2. Fallback to email match if not directly linked
+    IF emp_id IS NULL THEN
+      SELECT e.id INTO emp_id 
+      FROM public.employees e
+      JOIN public.users u ON e.email = u.utilisateur
+      WHERE u.supabase_id = auth.uid()::text LIMIT 1;
+    END IF;
     
     RETURN emp_id;
   END;
