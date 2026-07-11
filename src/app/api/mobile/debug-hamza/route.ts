@@ -6,47 +6,46 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    // 1. Get employees matching Hamza
-    const emps = await readDb.execute(sql`
-      SELECT id, nom, email, school_id FROM employees WHERE nom ILIKE '%HAMZA%'
+    // 1. Get student matching name
+    const studentsList = await readDb.execute(sql`
+      SELECT id, firstname, lastname, classe, school_id, num_admission, mobile, whatsapp, educational_level
+      FROM students 
+      WHERE firstname ILIKE '%Ado%' OR lastname ILIKE '%Moussa%' OR firstname ILIKE '%Moussa%'
     `);
 
-    // 2. For each employee, get class_subjects assignments
-    const assignments = await readDb.execute(sql`
-      SELECT cs.id, cs.class_id, c.class_name, cs.subject_id, s.subject_name, cs.employee_id, cs.school_id
-      FROM class_subjects cs
-      LEFT JOIN school_classes c ON cs.class_id = c.id
-      LEFT JOIN school_subjects s ON cs.subject_id = s.id
-      WHERE cs.employee_id IN (
-        SELECT id FROM employees WHERE nom ILIKE '%HAMZA%'
-      )
-    `);
-
-    // 3. Get users matching Hamza or the employee emails
+    // 2. Get user profile matching email or student_id
     const usersList = await readDb.execute(sql`
-      SELECT u.id, u.utilisateur, u.nom_prenom, u.role_id, u.school_id, u.employee_id, u.supabase_id, r.role_name
-      FROM users u
-      LEFT JOIN roles r ON u.role_id = r.id
-      WHERE u.nom_prenom ILIKE '%HAMZA%' OR u.utilisateur ILIKE '%HAMZA%' OR u.employee_id IN (
-        SELECT id FROM employees WHERE nom ILIKE '%HAMZA%'
+      SELECT id, utilisateur, nom_prenom, role_id, school_id, student_id, supabase_id
+      FROM users
+      WHERE utilisateur ILIKE '%ado%' OR utilisateur ILIKE '%moussa%' OR student_id IN (
+        SELECT id FROM students WHERE firstname ILIKE '%Ado%' OR lastname ILIKE '%Moussa%' OR firstname ILIKE '%Moussa%'
       )
     `);
 
-    // 4. Get all school_classes and school_subjects counts
-    const classCount = await readDb.execute(sql`SELECT COUNT(*) FROM school_classes`);
-    const subjectCount = await readDb.execute(sql`SELECT COUNT(*) FROM school_subjects`);
-    const classSubjectsCount = await readDb.execute(sql`SELECT COUNT(*) FROM class_subjects`);
+    // 3. Inspect policy names to see if they are applied
+    const policies = await readDb.execute(sql`
+      SELECT tablename, policyname, cmd, qual 
+      FROM pg_policies 
+      WHERE tablename IN ('students', 'school_classes', 'student_results', 'timetable_entries', 'homework')
+    `);
+
+    // 4. Verify function get_my_student_id
+    let hasFunction = false;
+    try {
+      const funcCheck = await readDb.execute(sql`
+        SELECT routine_name 
+        FROM information_schema.routines 
+        WHERE routine_name = 'get_my_student_id'
+      `);
+      hasFunction = funcCheck.length > 0;
+    } catch (e) {}
 
     return NextResponse.json({
       success: true,
-      employees: emps,
-      assignments: assignments,
+      students: studentsList,
       users: usersList,
-      counts: {
-        classes: classCount[0],
-        subjects: subjectCount[0],
-        class_subjects: classSubjectsCount[0]
-      }
+      has_get_my_student_id_function: hasFunction,
+      policies: policies
     });
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message });
