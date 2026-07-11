@@ -300,3 +300,64 @@ DROP POLICY IF EXISTS timetable_entries_write ON timetable_entries;
 CREATE POLICY timetable_entries_write ON timetable_entries FOR ALL USING (
   (SELECT school_id FROM school_classes WHERE id = class_id) = get_my_school_id() AND is_admin_or_director()
 );
+
+-- 20. Allow Student/Parent self select policies
+DROP POLICY IF EXISTS student_self_select ON students;
+CREATE POLICY student_self_select ON students 
+FOR SELECT 
+USING (
+  id = (SELECT student_id FROM users WHERE supabase_id = auth.uid()::text)
+);
+
+DROP POLICY IF EXISTS student_results_self_select ON student_results;
+CREATE POLICY student_results_self_select ON student_results 
+FOR SELECT 
+USING (
+  student_id = (SELECT student_id FROM users WHERE supabase_id = auth.uid()::text)
+);
+
+DROP POLICY IF EXISTS student_attendance_self_select ON student_attendance;
+CREATE POLICY student_attendance_self_select ON student_attendance 
+FOR SELECT 
+USING (
+  student_id = (SELECT student_id FROM users WHERE supabase_id = auth.uid()::text)
+);
+
+DROP POLICY IF EXISTS student_fees_self_select ON student_fees;
+CREATE POLICY student_fees_self_select ON student_fees 
+FOR SELECT 
+USING (
+  student_id = (SELECT student_id FROM users WHERE supabase_id = auth.uid()::text)
+);
+
+DROP POLICY IF EXISTS fee_payments_self_select ON fee_payments;
+CREATE POLICY fee_payments_self_select ON fee_payments 
+FOR SELECT 
+USING (
+  fee_id IN (
+    SELECT id FROM student_fees 
+    WHERE student_id = (SELECT student_id FROM users WHERE supabase_id = auth.uid()::text)
+  )
+);
+
+DROP POLICY IF EXISTS timetable_entries_self_select ON timetable_entries;
+CREATE POLICY timetable_entries_self_select ON timetable_entries 
+FOR SELECT 
+USING (
+  class_id = (
+    SELECT c.id FROM school_classes c
+    JOIN students s ON c.class_name = s.classe
+    WHERE s.id = (SELECT student_id FROM users WHERE supabase_id = auth.uid()::text)
+  )
+);
+
+DROP POLICY IF EXISTS homework_self_select ON homework;
+CREATE POLICY homework_self_select ON homework 
+FOR SELECT 
+USING (
+  class_id = (
+    SELECT c.id FROM school_classes c
+    JOIN students s ON c.class_name = s.classe
+    WHERE s.id = (SELECT student_id FROM users WHERE supabase_id = auth.uid()::text)
+  )
+);
