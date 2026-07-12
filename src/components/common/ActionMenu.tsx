@@ -76,7 +76,14 @@ export default function ActionMenu({
                 <Edit size={16} />
                 <span className="font-semibold">Modifier</span>
               </DropdownMenuItem>
-            ) : editDialog
+            ) : (
+              <DropdownMenuItem
+                onSelect={(e) => e.preventDefault()}
+                className="w-full p-0 focus:bg-transparent hover:bg-transparent cursor-default"
+              >
+                {editDialog}
+              </DropdownMenuItem>
+            )
           )}
           
           {studentId && (
