@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRef, useState, useCallback } from "react";
 import { 
   Wallet, 
   TrendingUp, 
@@ -107,6 +108,47 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, hea
 
   const [localFees, setLocalFees] = React.useState<any[]>(fees);
   const [isLocal, setIsLocal] = React.useState(false);
+
+  // ── Column Resize ──────────────────────────────────────────────
+  const COL_KEYS = ["check", "student", "attendu", "paye", "solde", "statut", "date", "mode", "actions"] as const;
+  type ColKey = typeof COL_KEYS[number];
+  const DEFAULT_WIDTHS: Record<ColKey, number> = {
+    check: 56, student: 240, attendu: 120, paye: 110, solde: 110,
+    statut: 130, date: 130, mode: 150, actions: 160,
+  };
+  const [colWidths, setColWidths] = React.useState<Record<ColKey, number>>(DEFAULT_WIDTHS);
+  const resizing = useRef<{ col: ColKey; startX: number; startW: number } | null>(null);
+
+  const onResizeStart = useCallback((col: ColKey, e: React.MouseEvent) => {
+    e.preventDefault();
+    resizing.current = { col, startX: e.clientX, startW: colWidths[col] };
+
+    const onMove = (ev: MouseEvent) => {
+      if (!resizing.current) return;
+      const delta = ev.clientX - resizing.current.startX;
+      const newW = Math.max(60, resizing.current.startW + delta);
+      setColWidths(prev => ({ ...prev, [resizing.current!.col]: newW }));
+    };
+    const onUp = () => {
+      resizing.current = null;
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }, [colWidths]);
+
+  // ── Resize Handle component ─────────────────────────────────────
+  const ResizeHandle = ({ col }: { col: ColKey }) => (
+    <span
+      onMouseDown={(e) => onResizeStart(col, e)}
+      className="absolute right-0 top-0 h-full w-2 cursor-col-resize flex items-center justify-center group/rz select-none z-10"
+      title="Faire glisser pour redimensionner"
+    >
+      <span className="w-px h-4 bg-slate-200 group-hover/rz:bg-indigo-400 group-hover/rz:w-0.5 transition-all rounded-full" />
+    </span>
+  );
+  // ─────────────────────────────────────────────────────────────────
 
   React.useEffect(() => {
     setIsMounted(true);
@@ -451,20 +493,48 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, hea
 
           {/* Table */}
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
+            <table className="border-collapse" style={{ tableLayout: "fixed", width: COL_KEYS.reduce((a, k) => a + colWidths[k], 0) }}>
+              <colgroup>
+                {COL_KEYS.map(k => <col key={k} style={{ width: colWidths[k] }} />)}
+              </colgroup>
               <thead>
                 <tr className="bg-slate-50/50 border-y border-slate-100">
-                  <th className="px-8 py-5 text-left">
+                  {/* Checkbox */}
+                  <th className="relative px-4 py-5 text-left" style={{ width: colWidths.check }}>
                     <Checkbox className="rounded-md border-slate-200" />
+                    <ResizeHandle col="check" />
                   </th>
-                  <th className="px-4 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left">ÉLÈVE / CLASSE</th>
-                  <th className="px-4 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left">ATTENDU</th>
-                  <th className="px-4 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left">PAYÉ</th>
-                  <th className="px-4 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left">SOLDE</th>
-                  <th className="px-4 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left">STATUT</th>
-                  <th className="px-4 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left">DATE</th>
-                  <th className="px-4 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left">MODE DE PAIEMENT</th>
-                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">ACTIONS</th>
+                  <th className="relative px-4 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left" style={{ width: colWidths.student }}>
+                    ÉLÈVE / CLASSE
+                    <ResizeHandle col="student" />
+                  </th>
+                  <th className="relative px-4 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left" style={{ width: colWidths.attendu }}>
+                    ATTENDU
+                    <ResizeHandle col="attendu" />
+                  </th>
+                  <th className="relative px-4 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left" style={{ width: colWidths.paye }}>
+                    PAYÉ
+                    <ResizeHandle col="paye" />
+                  </th>
+                  <th className="relative px-4 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left" style={{ width: colWidths.solde }}>
+                    SOLDE
+                    <ResizeHandle col="solde" />
+                  </th>
+                  <th className="relative px-4 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left" style={{ width: colWidths.statut }}>
+                    STATUT
+                    <ResizeHandle col="statut" />
+                  </th>
+                  <th className="relative px-4 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left" style={{ width: colWidths.date }}>
+                    DATE
+                    <ResizeHandle col="date" />
+                  </th>
+                  <th className="relative px-4 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left" style={{ width: colWidths.mode }}>
+                    MODE DE PAIEMENT
+                    <ResizeHandle col="mode" />
+                  </th>
+                  <th className="relative px-4 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right" style={{ width: colWidths.actions }}>
+                    ACTIONS
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
