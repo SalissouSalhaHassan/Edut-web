@@ -131,13 +131,41 @@ export async function registerUser(params: {
       assignedRoleId = match?.id || allRoles.find((r) => r.roleName.toLowerCase() === "membre")?.id || null;
     }
 
-    // 5. Encrypt password and save user
+    // 5. Create Supabase User
+    let loginEmail = username.trim();
+    if (!loginEmail.includes('@')) {
+      loginEmail = `${loginEmail}@test.com`;
+    }
+
+    const { createClient } = await import("@/shared/utils/supabase/server");
+    const supabase = await createClient();
+    
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email: loginEmail,
+      password: passwordHash,
+      options: {
+        data: {
+          full_name: fullName.trim(),
+        }
+      }
+    });
+
+    if (authError) {
+      return { success: false, error: `Échec de la création du compte d'accès: ${authError.message}` };
+    }
+
+    if (!authData.user) {
+      return { success: false, error: "Échec de récupération de l'ID d'authentification." };
+    }
+
+    // 6. Encrypt password and save user
     const saltRounds = 10;
     const cryptedPassword = await bcrypt.hash(passwordHash, saltRounds);
 
     await db.insert(users).values({
       schoolId: school.id,
       utilisateur: username.trim(),
+      supabaseId: authData.user.id,
       nomPrenom: fullName.trim(),
       motDePasse: cryptedPassword,
       roleId: assignedRoleId,

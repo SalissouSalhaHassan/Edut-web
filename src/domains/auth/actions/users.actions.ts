@@ -308,6 +308,33 @@ export async function saveUser(formData: SaveUserFormData, id?: number) {
       console.log(`[saveUser] Update success for user ${id}`);
     } else {
       if (!passwordValue) return { error: "Mot de passe requis pour un nouvel utilisateur", success: false };
+      
+      // Create Supabase User automatically
+      let loginEmail = data.utilisateur;
+      if (!loginEmail.includes('@')) {
+        loginEmail = `${loginEmail}@test.com`;
+      }
+      
+      const { createClient } = await import("@/shared/utils/supabase/server");
+      const supabase = await createClient();
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: loginEmail,
+        password: passwordValue,
+        options: {
+          data: {
+            full_name: data.nomPrenom,
+          }
+        }
+      });
+      
+      if (authError) {
+        return { error: `Échec de la création dans Supabase : ${authError.message}`, success: false };
+      }
+      
+      if (authData.user) {
+        data.supabaseId = authData.user.id;
+      }
+
       console.log(`[saveUser] Inserting new user with:`, data);
       await db.insert(users).values(data as typeof users.$inferInsert);
       console.log(`[saveUser] Insert success`);
