@@ -18,9 +18,13 @@ export async function registerUser(params: {
   const { role, schoolSlug, matriculeOrEmail, username, fullName, passwordHash } = params;
 
   try {
-    // 1. Find school by slug
+    // 1. Find school by slug or ID
+    const schoolIdNum = parseInt(schoolSlug);
     const school = await db.query.schools.findFirst({
-      where: eq(schools.slug, schoolSlug),
+      where: or(
+        eq(schools.slug, schoolSlug),
+        isNaN(schoolIdNum) ? undefined : eq(schools.id, schoolIdNum)
+      ),
     });
     if (!school) {
       return { success: false, error: "École introuvable." };
