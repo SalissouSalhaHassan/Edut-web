@@ -225,6 +225,25 @@ export async function syncStudentFees(revalidate: boolean = true) {
     const toInsert = [];
     const toUpdate = [];
 
+    // Fetch all actual payments for the current session fees in one query
+    const existingFeeIds = existingFees.map(f => f.id);
+    let paymentsMap = new Map<number, { totalPaid: number; totalReduction: number }>();
+
+    if (existingFeeIds.length > 0) {
+      const paymentRows = await db.query.feePayments.findMany({
+        where: (p, { inArray }) => inArray(p.feeId, existingFeeIds),
+        columns: { feeId: true, amount: true, reduction: true },
+      });
+
+      for (const p of paymentRows) {
+        const fid = p.feeId!;
+        if (!paymentsMap.has(fid)) paymentsMap.set(fid, { totalPaid: 0, totalReduction: 0 });
+        const entry = paymentsMap.get(fid)!;
+        entry.totalPaid += Number(p.amount || 0);
+        entry.totalReduction += Number(p.reduction || 0);
+      }
+    }
+
     for (const s of allStudents) {
       const monthly = Number(s.fraisMensuels || 0);
       const inscr = Number(s.fraisInscription || 0);
@@ -236,11 +255,26 @@ export async function syncStudentFees(revalidate: boolean = true) {
       const existing = feeMap.get(s.id);
 
       if (existing) {
-        if (existing.totalExpected !== expected) {
+        // Re-aggregate from actual payment rows to prevent stale/zero values
+        const actualPayments = paymentsMap.get(existing.id) || { totalPaid: 0, totalReduction: 0 };
+        const realPaid = actualPayments.totalPaid;
+        const realReduction = actualPayments.totalReduction;
+        const realBalance = expected - realPaid - realReduction;
+        const realStatus = realBalance <= 0 ? "Soldé" : realPaid > 0 ? "Partiel" : "Impayé";
+
+        // Update if expected changed OR if stored totals are out of sync with actual payments
+        const paidDrift = Math.abs((existing.totalPaid || 0) - realPaid) > 0.01;
+        const reductionDrift = Math.abs((existing.totalReduction || 0) - realReduction) > 0.01;
+        const expectedChanged = existing.totalExpected !== expected;
+
+        if (expectedChanged || paidDrift || reductionDrift) {
           toUpdate.push({
             id: existing.id,
             totalExpected: expected,
-            balance: expected - (existing.totalPaid || 0) - (existing.totalReduction || 0)
+            totalPaid: realPaid,
+            totalReduction: realReduction,
+            balance: realBalance,
+            status: realStatus,
           });
         }
       } else {
@@ -272,7 +306,10 @@ export async function syncStudentFees(revalidate: boolean = true) {
           db.update(studentFees)
             .set({ 
               totalExpected: item.totalExpected,
-              balance: item.balance
+              totalPaid: item.totalPaid,
+              totalReduction: item.totalReduction,
+              balance: item.balance,
+              status: item.status,
             })
             .where(eq(studentFees.id, item.id))
         ));
@@ -287,11 +324,95 @@ export async function syncStudentFees(revalidate: boolean = true) {
   });
 }
 
+
+/**
+ * repairStudentFeeTotals
+ * ─────────────────────────────────────────────────────────────────────────────
+ * One-shot repair: re-aggregates every fee_payments row and writes the correct
+ * totalPaid / totalReduction / balance / status into every student_fees record
+ * for the active session.  Call this from a button in the finance dashboard to
+ * fix any records that were corrupted by the old sync logic (totalPaid = 0).
+ */
+export async function repairStudentFeeTotals() {
+  return protectedDbAction("Finance", "canEdit", async (user) => {
+    const schoolId = await getActiveSchoolId();
+
+    const activeSession = await db.query.schoolSessions.findFirst({
+      where: (s, { eq, or, and }) => and(
+        eq(s.schoolId, schoolId),
+        or(eq(s.isActive, true), eq(s.status, "Actif"))
+      ),
+      orderBy: [desc(schoolSessions.id)]
+    });
+
+    if (!activeSession) return { error: "Aucune session active trouvée." };
+
+    // Load all fee rows for this session
+    const allFees = await db.query.studentFees.findMany({
+      where: and(eq(studentFees.sessionId, activeSession.id), eq(studentFees.schoolId, schoolId)),
+    });
+
+    if (allFees.length === 0) return { success: true, repaired: 0 };
+
+    const feeIds = allFees.map(f => f.id);
+
+    // Aggregate payments per fee
+    const paymentRows = await db.query.feePayments.findMany({
+      where: (p, { inArray }) => inArray(p.feeId, feeIds),
+      columns: { feeId: true, amount: true, reduction: true },
+    });
+
+    const paymentsMap = new Map<number, { totalPaid: number; totalReduction: number }>();
+    for (const p of paymentRows) {
+      const fid = p.feeId!;
+      if (!paymentsMap.has(fid)) paymentsMap.set(fid, { totalPaid: 0, totalReduction: 0 });
+      const entry = paymentsMap.get(fid)!;
+      entry.totalPaid += Number(p.amount || 0);
+      entry.totalReduction += Number(p.reduction || 0);
+    }
+
+    // Build update list for any fee whose stored values differ from aggregated
+    const repairs: Array<{
+      id: number; totalPaid: number; totalReduction: number; balance: number; status: string;
+    }> = [];
+
+    for (const fee of allFees) {
+      const agg = paymentsMap.get(fee.id) || { totalPaid: 0, totalReduction: 0 };
+      const realPaid = agg.totalPaid;
+      const realReduction = agg.totalReduction;
+      const realBalance = (fee.totalExpected || 0) - realPaid - realReduction;
+      const realStatus = realBalance <= 0 ? "Soldé" : realPaid > 0 ? "Partiel" : "Impayé";
+
+      const paidDrift = Math.abs((fee.totalPaid || 0) - realPaid) > 0.01;
+      const reductDrift = Math.abs((fee.totalReduction || 0) - realReduction) > 0.01;
+
+      if (paidDrift || reductDrift) {
+        repairs.push({ id: fee.id, totalPaid: realPaid, totalReduction: realReduction, balance: realBalance, status: realStatus });
+      }
+    }
+
+    // Apply in chunks of 50
+    for (let i = 0; i < repairs.length; i += 50) {
+      const chunk = repairs.slice(i, i + 50);
+      await Promise.all(chunk.map(r =>
+        db.update(studentFees)
+          .set({ totalPaid: r.totalPaid, totalReduction: r.totalReduction, balance: r.balance, status: r.status })
+          .where(eq(studentFees.id, r.id))
+      ));
+    }
+
+    revalidatePath("/dashboard/finance");
+    console.log(`[repairStudentFeeTotals] Repaired ${repairs.length} of ${allFees.length} fee records.`);
+    return { success: true, repaired: repairs.length };
+  });
+}
+
 export async function getFinanceStats() {
   return protectedDbAction("Finance", "canView", async (user) => {
     const roleType = await getUserRoleType(user);
     const activeLevel = await getActiveEducationalLevel(user);
     const schoolId = await getActiveSchoolId();
+
     
     const activeSession = await db.query.schoolSessions.findFirst({
       where: (s, { eq, or, and }) => and(

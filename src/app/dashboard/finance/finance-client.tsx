@@ -27,6 +27,8 @@ import {
   BarChart3,
   AlertTriangle,
   Printer,
+  Wrench,
+  RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,7 +40,7 @@ import FinanceReports from "@/domains/finance/components/FinanceReports";
 import UnpaidAlerts from "@/domains/finance/components/UnpaidAlerts";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useRouter, useSearchParams } from "next/navigation";
-import { deleteStudentFee } from "@/domains/finance/actions/finance.actions";
+import { deleteStudentFee, repairStudentFeeTotals } from "@/domains/finance/actions/finance.actions";
 import { toast } from "sonner";
 import { localDb } from "@/infrastructure/local-db/dexie";
 
@@ -108,6 +110,26 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, hea
 
   const [localFees, setLocalFees] = React.useState<any[]>(fees);
   const [isLocal, setIsLocal] = React.useState(false);
+  const [isRepairing, setIsRepairing] = React.useState(false);
+
+  const handleRepair = async () => {
+    if (!confirm("Réparer les totaux financiers ? Cette opération recalcule les montants payés depuis les transactions réelles.")) return;
+    setIsRepairing(true);
+    try {
+      const res = await repairStudentFeeTotals();
+      if ((res as any)?.success) {
+        const repaired = (res as any).repaired ?? 0;
+        toast.success(`✅ Réparation terminée — ${repaired} dossier(s) corrigé(s). Rechargement...`);
+        setTimeout(() => window.location.reload(), 1200);
+      } else {
+        toast.error((res as any)?.error || "Erreur lors de la réparation.");
+      }
+    } catch (e) {
+      toast.error("Erreur inattendue lors de la réparation.");
+    } finally {
+      setIsRepairing(false);
+    }
+  };
 
   // ── Column Resize ──────────────────────────────────────────────
   const COL_KEYS = ["check", "student", "attendu", "paye", "solde", "statut", "date", "mode", "actions"] as const;
@@ -381,6 +403,20 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, hea
               }
             />
           )}
+          {canEdit && (
+            <Button
+              variant="ghost"
+              onClick={handleRepair}
+              disabled={isRepairing}
+              title="Recalculer les montants payés depuis les transactions réelles"
+              className="h-12 px-5 rounded-2xl border border-amber-200 bg-amber-50 text-amber-700 font-black text-xs uppercase tracking-widest flex items-center gap-2 hover:bg-amber-100 transition-all"
+            >
+              {isRepairing
+                ? <><RefreshCw size={16} className="animate-spin" /> Réparation...</>
+                : <><Wrench size={16} /> Réparer les totaux</>
+              }
+            </Button>
+          )}
           {activeTab === "reports" && (
             <Button
               variant="ghost"
@@ -391,6 +427,7 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, hea
             </Button>
           )}
         </div>
+
       </div>
 
 
