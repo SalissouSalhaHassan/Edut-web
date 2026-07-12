@@ -31,12 +31,31 @@ export default function StudentDialog({ mode = "add", initialData, trigger }: St
   const [cameraError, setCameraError] = useState("");
   const [step, setStep] = useState(1);
 
-  const close = useCallback(() => { setOpen(false); setStep(1); }, []);
+  const close = useCallback(() => { 
+    setOpen(false); 
+    setStep(1); 
+    if (mode === "add") {
+      setFraisMensuels("");
+      setFraisInscription("");
+      setFraisCogesCard("");
+      setFraisTransportInternat("");
+      setAncienSoldeValue("");
+      setStatutValue("Actif");
+    }
+  }, [mode]);
 
   // ── Cascading select state ────────────────────────────────────────────────
   const [selectedLevel,   setSelectedLevel]   = useState(initialData?.educationalLevel || "");
   const [selectedClasse,  setSelectedClasse]  = useState(initialData?.classe  || "");
   const [selectedSection, setSelectedSection] = useState(initialData?.section || "");
+
+  // ── Financial planning state ──────────────────────────────────────────────
+  const [fraisMensuels, setFraisMensuels] = useState(initialData?.fraisMensuels ?? "");
+  const [fraisInscription, setFraisInscription] = useState(initialData?.fraisInscription ?? "");
+  const [fraisCogesCard, setFraisCogesCard] = useState(initialData?.fraisCogesCard ?? "");
+  const [fraisTransportInternat, setFraisTransportInternat] = useState(initialData?.fraisTransportInternat ?? "");
+  const [ancienSoldeValue, setAncienSoldeValue] = useState(initialData?.ancienSolde ?? "");
+  const [statutValue, setStatutValue] = useState(initialData?.statut ?? "Actif");
 
   // ── Raw data from DB ──────────────────────────────────────────────────────
   const [sessionsList,    setSessionsList]    = useState<any[]>([]);
@@ -597,7 +616,22 @@ export default function StudentDialog({ mode = "add", initialData, trigger }: St
                              <select
                                name="classe"
                                value={selectedClasse}
-                               onChange={e => setSelectedClasse(e.target.value)}
+                               onChange={e => {
+                                 const val = e.target.value;
+                                 setSelectedClasse(val);
+                                 // Auto-fill financial planning values from selected class settings
+                                 const clsObj = allClassesList.find(c => c.className === val);
+                                 if (clsObj) {
+                                   setFraisMensuels(clsObj.scolariteMensuelle ?? 0);
+                                   setFraisInscription(clsObj.droitsInscription ?? 0);
+                                   setFraisCogesCard(clsObj.cogesCarteId ?? 0);
+                                   setFraisTransportInternat(clsObj.transportInternat ?? 0);
+                                   setAncienSoldeValue(clsObj.ancienSolde ?? 0);
+                                   if (clsObj.statutInitial) {
+                                     setStatutValue(clsObj.statutInitial);
+                                   }
+                                 }
+                               }}
                                required
                                className="w-full h-12 rounded-2xl border border-slate-100 bg-slate-50/50 px-4 font-bold text-slate-700 outline-none transition-all"
                              >
@@ -682,7 +716,7 @@ export default function StudentDialog({ mode = "add", initialData, trigger }: St
                        </div>
                        <div>
                           <h4 className="text-indigo-900 font-black tracking-tight text-base italic">Notification Automatique</h4>
-                          <p className="text-indigo-600/70 text-xs font-medium mt-0.5">Le نظام enverra un message de bienvenue dès validation.</p>
+                          <p className="text-indigo-600/70 text-xs font-medium mt-0.5">Le système enverra un message de bienvenue dès validation.</p>
                        </div>
                     </div>
                   </div>
@@ -695,7 +729,7 @@ export default function StudentDialog({ mode = "add", initialData, trigger }: St
                           <div className="space-y-3">
                             <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Scolarité Mensuelle</Label>
                             <div className="relative group">
-                              <Input name="fraisMensuels" type="number" defaultValue={initialData?.fraisMensuels} className="h-16 pl-20 rounded-2xl border-slate-100 bg-slate-50/50 font-black text-3xl text-emerald-600" />
+                              <Input name="fraisMensuels" type="number" value={fraisMensuels} onChange={e => setFraisMensuels(e.target.value)} className="h-16 pl-20 rounded-2xl border-slate-100 bg-slate-50/50 font-black text-3xl text-emerald-600" />
                               <div className="absolute left-4 top-1/2 -translate-y-1/2 h-8 px-2 rounded-lg bg-emerald-100 flex items-center justify-center">
                                  <span className="font-black text-[10px] text-emerald-700">FCFA</span>
                               </div>
@@ -704,7 +738,7 @@ export default function StudentDialog({ mode = "add", initialData, trigger }: St
                           <div className="space-y-3">
                             <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Droits d'inscription</Label>
                             <div className="relative group">
-                              <Input name="fraisInscription" type="number" defaultValue={initialData?.fraisInscription} className="h-16 pl-20 rounded-2xl border-slate-100 bg-slate-50/50 font-black text-3xl text-indigo-600" />
+                              <Input name="fraisInscription" type="number" value={fraisInscription} onChange={e => setFraisInscription(e.target.value)} className="h-16 pl-20 rounded-2xl border-slate-100 bg-slate-50/50 font-black text-3xl text-indigo-600" />
                               <div className="absolute left-4 top-1/2 -translate-y-1/2 h-8 px-2 rounded-lg bg-indigo-100 flex items-center justify-center">
                                  <span className="font-black text-[10px] text-indigo-700">FCFA</span>
                               </div>
@@ -716,7 +750,7 @@ export default function StudentDialog({ mode = "add", initialData, trigger }: St
                           <div className="space-y-3">
                             <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">COGES & Carte ID</Label>
                             <div className="relative group">
-                              <Input name="fraisCogesCard" type="number" defaultValue={initialData?.fraisCogesCard} className="h-16 pl-20 rounded-2xl border-slate-100 bg-slate-50/50 font-black text-3xl text-amber-600" />
+                              <Input name="fraisCogesCard" type="number" value={fraisCogesCard} onChange={e => setFraisCogesCard(e.target.value)} className="h-16 pl-20 rounded-2xl border-slate-100 bg-slate-50/50 font-black text-3xl text-amber-600" />
                               <div className="absolute left-4 top-1/2 -translate-y-1/2 h-8 px-2 rounded-lg bg-amber-100 flex items-center justify-center">
                                  <span className="font-black text-[10px] text-amber-700">FCFA</span>
                               </div>
@@ -725,7 +759,7 @@ export default function StudentDialog({ mode = "add", initialData, trigger }: St
                           <div className="space-y-3">
                             <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Transport & Internat</Label>
                             <div className="relative group">
-                              <Input name="fraisTransportInternat" type="number" defaultValue={initialData?.fraisTransportInternat} className="h-16 pl-20 rounded-2xl border-slate-100 bg-slate-50/50 font-black text-3xl text-blue-600" />
+                              <Input name="fraisTransportInternat" type="number" value={fraisTransportInternat} onChange={e => setFraisTransportInternat(e.target.value)} className="h-16 pl-20 rounded-2xl border-slate-100 bg-slate-50/50 font-black text-3xl text-blue-600" />
                               <div className="absolute left-4 top-1/2 -translate-y-1/2 h-8 px-2 rounded-lg bg-blue-100 flex items-center justify-center">
                                  <span className="font-black text-[10px] text-blue-700">FCFA</span>
                               </div>
@@ -736,11 +770,11 @@ export default function StudentDialog({ mode = "add", initialData, trigger }: St
                        <div className="grid grid-cols-2 gap-8">
                           <div className="space-y-3">
                             <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Ancien Solde</Label>
-                            <Input name="ancienSolde" type="number" defaultValue={initialData?.ancienSolde} className="h-14 rounded-2xl border-slate-100 bg-slate-50/50 font-bold text-xl" />
+                            <Input name="ancienSolde" type="number" value={ancienSoldeValue} onChange={e => setAncienSoldeValue(e.target.value)} className="h-14 rounded-2xl border-slate-100 bg-slate-50/50 font-bold text-xl" />
                           </div>
                           <div className="space-y-3">
                             <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Statut Initial</Label>
-                            <select name="statut" defaultValue={initialData?.statut || "Actif"} className="w-full h-14 rounded-2xl border border-slate-100 bg-slate-50/50 px-4 font-bold text-slate-700 outline-none">
+                            <select name="statut" value={statutValue} onChange={e => setStatutValue(e.target.value)} className="w-full h-14 rounded-2xl border border-slate-100 bg-slate-50/50 px-4 font-bold text-slate-700 outline-none">
                               <option value="Actif">Actif</option>
                               <option value="Inactif">Inactif</option>
                               <option value="Diplômé">Diplômé</option>
