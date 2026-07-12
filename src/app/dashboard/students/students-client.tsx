@@ -96,6 +96,7 @@ export default function StudentsClient({ initialStudents, currentUser, canEdit, 
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [page, setPage] = useState(1);
+  const [editingStudent, setEditingStudent] = useState<any>(null);
   const itemsPerPage = 8;
 
   useEffect(() => {
@@ -350,18 +351,7 @@ export default function StudentsClient({ initialStudents, currentUser, canEdit, 
                   canEdit={canEdit}
                   canDelete={canDelete}
                   studentId={student.id}
-                  editDialog={
-                    <StudentDialog 
-                      mode="edit" 
-                      initialData={student} 
-                      trigger={
-                        <button className="flex items-center gap-2 p-3 rounded-xl cursor-pointer hover:bg-slate-50 text-slate-700 transition-colors w-full text-left">
-                          <Edit size={16} className="text-slate-400" />
-                          <span className="font-semibold text-sm">Modifier</span>
-                        </button>
-                      }
-                    />
-                  }
+                  onEdit={() => setEditingStudent(student)}
                 />
               </div>
             </div>
@@ -434,6 +424,13 @@ export default function StudentsClient({ initialStudents, currentUser, canEdit, 
             <ChevronDown size={14} className="text-slate-400" />
           </div>
         </div>
+      {editingStudent && (
+        <StudentDialog
+          mode="edit"
+          initialData={editingStudent}
+          open={!!editingStudent}
+          onClose={() => setEditingStudent(null)}
+        />
       )}
     </div>
   );

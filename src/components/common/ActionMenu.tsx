@@ -66,7 +66,16 @@ export default function ActionMenu({
             <MoreHorizontal className="h-5 w-5 text-slate-400" />
           </button>
         } />
-        <DropdownMenuContent align="end" className="w-48 rounded-2xl p-2 shadow-xl border-slate-100 bg-white">
+        <DropdownMenuContent
+          align="end"
+          className="w-48 rounded-2xl p-2 shadow-xl border-slate-100 bg-white"
+          onPointerDownOutside={(e) => {
+            const target = e.target as HTMLElement;
+            if (target && (target.closest('[role="dialog"]') || target.closest('.fixed.inset-0'))) {
+              e.preventDefault();
+            }
+          }}
+        >
           {canEdit && (
             onEdit ? (
               <DropdownMenuItem

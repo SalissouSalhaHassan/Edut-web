@@ -19,21 +19,30 @@ interface StudentDialogProps {
   mode?: "add" | "edit";
   initialData?: any;
   trigger?: React.ReactNode;
+  open?: boolean;
+  onClose?: () => void;
 }
 
-export default function StudentDialog({ mode = "add", initialData, trigger }: StudentDialogProps) {
+export default function StudentDialog({ mode = "add", initialData, trigger, open: controlledOpen, onClose }: StudentDialogProps) {
   const router = useRouter();
   const isOnline = useOnlineStatus();
   const { mutate } = useOfflineMutation<StudentFormData & { id?: number; originalData?: any }>();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(controlledOpen ?? false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [cameraError, setCameraError] = useState("");
   const [step, setStep] = useState(1);
 
+  useEffect(() => {
+    if (controlledOpen !== undefined) {
+      setOpen(controlledOpen);
+    }
+  }, [controlledOpen]);
+
   const close = useCallback(() => { 
     setOpen(false); 
     setStep(1); 
+    if (onClose) onClose();
     if (mode === "add") {
       setFraisMensuels("");
       setFraisInscription("");
@@ -42,7 +51,7 @@ export default function StudentDialog({ mode = "add", initialData, trigger }: St
       setAncienSoldeValue("");
       setStatutValue("Actif");
     }
-  }, [mode]);
+  }, [mode, onClose]);
 
   // ── Cascading select state ────────────────────────────────────────────────
   const [selectedLevel,   setSelectedLevel]   = useState(initialData?.educationalLevel || "");
