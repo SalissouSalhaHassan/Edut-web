@@ -424,6 +424,7 @@ export default function StudentsClient({ initialStudents, currentUser, canEdit, 
             <ChevronDown size={14} className="text-slate-400" />
           </div>
         </div>
+      )}
       {editingStudent && (
         <StudentDialog
           mode="edit"
