@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { 
   createSession, deleteSession, 
-  createClass, deleteClass, 
+  createClass, updateClass, deleteClass, 
   createSection, updateSection, deleteSection, 
   createSubject, deleteSubject, importSubjects,
   linkSubjectToSection, deleteSectionSubjectLink,
@@ -46,6 +46,18 @@ export function AcademicSettings({
   const [transport, setTransport] = useState("");
   const [ancienSolde, setAncienSolde] = useState("");
   const [statutInitial, setStatutInitial] = useState("");
+  
+  // Edit class states
+  const [editingClassId, setEditingClassId] = useState<number | null>(null);
+  const [editClassName, setEditClassName] = useState("");
+  const [editClassSectionId, setEditClassSectionId] = useState("");
+  const [editRoomName, setEditRoomName] = useState("");
+  const [editScolarite, setEditScolarite] = useState("");
+  const [editInscription, setEditInscription] = useState("");
+  const [editCoges, setEditCoges] = useState("");
+  const [editTransport, setEditTransport] = useState("");
+  const [editAncienSolde, setEditAncienSolde] = useState("");
+  const [editStatutInitial, setEditStatutInitial] = useState("");
   
   // Period states
   const [periodName, setPeriodName] = useState("");
@@ -169,6 +181,43 @@ export function AcademicSettings({
         router.refresh();
       } else {
         toast.error(res.error || "Erreur lors de la création de la classe");
+      }
+    });
+  };
+
+  const startEditClass = (c: any) => {
+    setEditingClassId(c.id);
+    setEditClassName(c.className);
+    setEditClassSectionId(c.sectionId?.toString() || "");
+    setEditRoomName(c.roomName || "");
+    setEditScolarite(c.scolariteMensuelle?.toString() || "");
+    setEditInscription(c.droitsInscription?.toString() || "");
+    setEditCoges(c.cogesCarteId?.toString() || "");
+    setEditTransport(c.transportInternat?.toString() || "");
+    setEditAncienSolde(c.ancienSolde?.toString() || "");
+    setEditStatutInitial(c.statutInitial || "");
+  };
+
+  const handleUpdateClass = (id: number) => {
+    if (!editClassName || !editClassSectionId) return;
+    startTransition(async () => {
+      const res = await updateClass(id, {
+        className: editClassName,
+        sectionId: Number(editClassSectionId),
+        roomName: editRoomName,
+        scolariteMensuelle: editScolarite ? Number(editScolarite) : 0,
+        droitsInscription: editInscription ? Number(editInscription) : 0,
+        cogesCarteId: editCoges ? Number(editCoges) : 0,
+        transportInternat: editTransport ? Number(editTransport) : 0,
+        ancienSolde: editAncienSolde ? Number(editAncienSolde) : 0,
+        statutInitial: editStatutInitial,
+      });
+      if (res.success) {
+        toast.success(`Classe "${editClassName}" mise à jour avec succès`);
+        setEditingClassId(null);
+        router.refresh();
+      } else {
+        toast.error(res.error || "Erreur lors de la mise à jour de la classe");
       }
     });
   };
@@ -729,51 +778,179 @@ export function AcademicSettings({
 
         {/* Classes List */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {initialClasses.map((c: any) => (
-            <div key={c.id} className="flex flex-col p-4 rounded-2xl bg-[#181924] border border-slate-800/80 gap-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="text-white font-black text-base">{c.className}</span>
-                  {c.section && <span className="text-[10px] bg-slate-800/60 text-slate-400 px-2 py-1 rounded-md uppercase font-bold tracking-wider">{c.section.sectionName}</span>}
-                  {c.roomName && <span className="text-[10px] bg-emerald-950 text-emerald-400 px-2 py-1 rounded-md uppercase font-bold tracking-wider">Salle: {c.roomName}</span>}
-                </div>
-                <button 
-                  onClick={() => startTransition(() => { deleteClass(c.id); })}
-                  disabled={isPending}
-                  className="text-rose-500/70 hover:text-rose-500 transition-colors p-1"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
+          {initialClasses.map((c: any) => {
+            const isEditing = editingClassId === c.id;
+            
+            if (isEditing) {
+              return (
+                <div key={c.id} className="flex flex-col p-5 rounded-2xl bg-[#181924] border border-emerald-500/50 gap-4">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                    <span className="text-emerald-400 font-bold text-sm">Modifier la classe</span>
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={() => handleUpdateClass(c.id)}
+                        disabled={isPending}
+                        className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg px-3 py-1 font-semibold transition-all disabled:opacity-50"
+                      >
+                        Enregistrer
+                      </button>
+                      <button 
+                        onClick={() => setEditingClassId(null)}
+                        className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg px-3 py-1 font-semibold transition-all"
+                      >
+                        Annuler
+                      </button>
+                    </div>
+                  </div>
 
-              <div className="grid grid-cols-3 gap-y-3 gap-x-2 pt-3 border-t border-slate-800/50 text-[10px] text-slate-400">
-                <div>
-                  <span className="block text-[8px] text-slate-500 uppercase font-black tracking-wider mb-0.5">Scolarité</span>
-                  <span className="font-mono text-slate-200 font-bold">{c.scolariteMensuelle || 0} FCFA</span>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[8px] text-slate-500 uppercase font-black mb-1">Nom de la classe</label>
+                      <input 
+                        type="text" 
+                        value={editClassName}
+                        onChange={(e) => setEditClassName(e.target.value)}
+                        className="w-full bg-[#1F222B] border border-slate-800 text-white rounded-lg px-2 py-1 text-xs focus:outline-none focus:border-emerald-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[8px] text-slate-500 uppercase font-black mb-1">Salle</label>
+                      <input 
+                        type="text" 
+                        value={editRoomName}
+                        onChange={(e) => setEditRoomName(e.target.value)}
+                        className="w-full bg-[#1F222B] border border-slate-800 text-white rounded-lg px-2 py-1 text-xs focus:outline-none focus:border-emerald-500"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="block text-[8px] text-slate-500 uppercase font-black mb-1">Section</label>
+                      <select 
+                        value={editClassSectionId}
+                        onChange={(e) => setEditClassSectionId(e.target.value)}
+                        className="w-full bg-[#1F222B] border border-slate-800 text-white rounded-lg px-2 py-1 text-xs focus:outline-none"
+                      >
+                        <option value="">Sélectionner une Section</option>
+                        {initialSections.map((s: any) => (
+                          <option key={s.id} value={s.id}>{s.sectionName}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-800 text-[10px]">
+                    <div>
+                      <label className="block text-[8px] text-slate-500 uppercase font-black mb-0.5">Scolarité</label>
+                      <input 
+                        type="number" 
+                        value={editScolarite}
+                        onChange={(e) => setEditScolarite(e.target.value)}
+                        className="w-full bg-[#1F222B] border border-slate-800 text-white rounded-lg px-2 py-1 text-xs focus:outline-none focus:border-emerald-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[8px] text-slate-500 uppercase font-black mb-0.5">Inscription</label>
+                      <input 
+                        type="number" 
+                        value={editInscription}
+                        onChange={(e) => setEditInscription(e.target.value)}
+                        className="w-full bg-[#1F222B] border border-slate-800 text-white rounded-lg px-2 py-1 text-xs focus:outline-none focus:border-emerald-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[8px] text-slate-500 uppercase font-black mb-0.5">Coges & ID</label>
+                      <input 
+                        type="number" 
+                        value={editCoges}
+                        onChange={(e) => setEditCoges(e.target.value)}
+                        className="w-full bg-[#1F222B] border border-slate-800 text-white rounded-lg px-2 py-1 text-xs focus:outline-none focus:border-emerald-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[8px] text-slate-500 uppercase font-black mb-0.5">Transport</label>
+                      <input 
+                        type="number" 
+                        value={editTransport}
+                        onChange={(e) => setEditTransport(e.target.value)}
+                        className="w-full bg-[#1F222B] border border-slate-800 text-white rounded-lg px-2 py-1 text-xs focus:outline-none focus:border-emerald-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[8px] text-slate-500 uppercase font-black mb-0.5">Ancien Solde</label>
+                      <input 
+                        type="number" 
+                        value={editAncienSolde}
+                        onChange={(e) => setEditAncienSolde(e.target.value)}
+                        className="w-full bg-[#1F222B] border border-slate-800 text-white rounded-lg px-2 py-1 text-xs focus:outline-none focus:border-emerald-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[8px] text-slate-500 uppercase font-black mb-0.5">Statut Initial</label>
+                      <input 
+                        type="text" 
+                        value={editStatutInitial}
+                        onChange={(e) => setEditStatutInitial(e.target.value)}
+                        className="w-full bg-[#1F222B] border border-slate-800 text-white rounded-lg px-2 py-1 text-xs focus:outline-none focus:border-emerald-500"
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <span className="block text-[8px] text-slate-500 uppercase font-black tracking-wider mb-0.5">Inscription</span>
-                  <span className="font-mono text-slate-200 font-bold">{c.droitsInscription || 0} FCFA</span>
+              );
+            }
+
+            return (
+              <div key={c.id} className="flex flex-col p-4 rounded-2xl bg-[#181924] border border-slate-800/80 gap-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="text-white font-black text-base">{c.className}</span>
+                    {c.section && <span className="text-[10px] bg-slate-800/60 text-slate-400 px-2 py-1 rounded-md uppercase font-bold tracking-wider">{c.section.sectionName}</span>}
+                    {c.roomName && <span className="text-[10px] bg-emerald-950 text-emerald-400 px-2 py-1 rounded-md uppercase font-bold tracking-wider">Salle: {c.roomName}</span>}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={() => startEditClass(c)}
+                      className="text-slate-400 hover:text-emerald-500 transition-colors p-1"
+                    >
+                      <Pencil size={15} />
+                    </button>
+                    <button 
+                      onClick={() => startTransition(() => { deleteClass(c.id); })}
+                      disabled={isPending}
+                      className="text-rose-500/70 hover:text-rose-500 transition-colors p-1"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
                 </div>
-                <div>
-                  <span className="block text-[8px] text-slate-500 uppercase font-black tracking-wider mb-0.5">Coges & ID</span>
-                  <span className="font-mono text-slate-200 font-bold">{c.cogesCarteId || 0} FCFA</span>
-                </div>
-                <div>
-                  <span className="block text-[8px] text-slate-500 uppercase font-black tracking-wider mb-0.5">Transport</span>
-                  <span className="font-mono text-slate-200 font-bold">{c.transportInternat || 0} FCFA</span>
-                </div>
-                <div>
-                  <span className="block text-[8px] text-slate-500 uppercase font-black tracking-wider mb-0.5">Ancien Solde</span>
-                  <span className="font-mono text-slate-200 font-bold">{c.ancienSolde || 0} FCFA</span>
-                </div>
-                <div>
-                  <span className="block text-[8px] text-slate-500 uppercase font-black tracking-wider mb-0.5">Statut Initial</span>
-                  <span className="text-slate-200 font-bold">{c.statutInitial || 'N/A'}</span>
+
+                <div className="grid grid-cols-3 gap-y-3 gap-x-2 pt-3 border-t border-slate-800/50 text-[10px] text-slate-400">
+                  <div>
+                    <span className="block text-[8px] text-slate-500 uppercase font-black tracking-wider mb-0.5">Scolarité</span>
+                    <span className="font-mono text-slate-200 font-bold">{c.scolariteMensuelle || 0} FCFA</span>
+                  </div>
+                  <div>
+                    <span className="block text-[8px] text-slate-500 uppercase font-black tracking-wider mb-0.5">Inscription</span>
+                    <span className="font-mono text-slate-200 font-bold">{c.droitsInscription || 0} FCFA</span>
+                  </div>
+                  <div>
+                    <span className="block text-[8px] text-slate-500 uppercase font-black tracking-wider mb-0.5">Coges & ID</span>
+                    <span className="font-mono text-slate-200 font-bold">{c.cogesCarteId || 0} FCFA</span>
+                  </div>
+                  <div>
+                    <span className="block text-[8px] text-slate-500 uppercase font-black tracking-wider mb-0.5">Transport</span>
+                    <span className="font-mono text-slate-200 font-bold">{c.transportInternat || 0} FCFA</span>
+                  </div>
+                  <div>
+                    <span className="block text-[8px] text-slate-500 uppercase font-black tracking-wider mb-0.5">Ancien Solde</span>
+                    <span className="font-mono text-slate-200 font-bold">{c.ancienSolde || 0} FCFA</span>
+                  </div>
+                  <div>
+                    <span className="block text-[8px] text-slate-500 uppercase font-black tracking-wider mb-0.5">Statut Initial</span>
+                    <span className="text-slate-200 font-bold">{c.statutInitial || 'N/A'}</span>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
