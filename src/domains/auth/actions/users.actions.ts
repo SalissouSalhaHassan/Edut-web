@@ -250,6 +250,8 @@ export async function saveUser(formData: SaveUserFormData, id?: number) {
     if (!utilisateurValue) return { error: "L'identifiant est requis", success: false };
     if (!nomPrenomValue) return { error: "Le nom complet est requis", success: false };
 
+    const cleanUtilisateur = utilisateurValue.replace(/\s+/g, "");
+
     const data: Partial<typeof users.$inferInsert> & {
       utilisateur: string;
       nomPrenom: string;
@@ -262,7 +264,7 @@ export async function saveUser(formData: SaveUserFormData, id?: number) {
       studentId: number | null;
       employeeId: number | null;
     } = {
-      utilisateur: utilisateurValue,
+      utilisateur: cleanUtilisateur,
       nomPrenom: nomPrenomValue,
       admin: requestedAdmin,
       superAdmin: isSuperAdmin ? requestedSuperAdmin : undefined,

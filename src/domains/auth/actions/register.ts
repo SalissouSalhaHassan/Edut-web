@@ -19,6 +19,8 @@ export async function registerUser(params: {
   const { role, schoolSlug, matriculeOrEmail, username, fullName, passwordHash, activationPin } = params;
 
   try {
+    const cleanUsername = username.replace(/\s+/g, "");
+    
     // 1. Find school by slug or ID
     const schoolIdNum = parseInt(schoolSlug);
     const school = await db.query.schools.findFirst({
@@ -33,7 +35,7 @@ export async function registerUser(params: {
 
     // 2. Validate selected username availability
     const usernameTaken = await db.query.users.findFirst({
-      where: eq(users.utilisateur, username.trim()),
+      where: eq(users.utilisateur, cleanUsername),
     });
     if (usernameTaken) {
       return { success: false, error: "Ce nom d'utilisateur est déjà pris." };
@@ -132,7 +134,7 @@ export async function registerUser(params: {
     }
 
     // 5. Create Supabase User
-    let loginEmail = username.trim();
+    let loginEmail = cleanUsername;
     if (!loginEmail.includes('@')) {
       loginEmail = `${loginEmail}@test.com`;
     }
@@ -164,7 +166,7 @@ export async function registerUser(params: {
 
     await db.insert(users).values({
       schoolId: school.id,
-      utilisateur: username.trim(),
+      utilisateur: cleanUsername,
       supabaseId: authData.user.id,
       nomPrenom: fullName.trim(),
       motDePasse: cryptedPassword,
