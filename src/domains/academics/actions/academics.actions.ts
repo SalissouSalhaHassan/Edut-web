@@ -477,7 +477,17 @@ export async function getClassSubjects() {
 }
 
 // CRUD Operations
-export async function createClass(data: { className: string, sectionId?: number | null }) {
+export async function createClass(data: { 
+  className: string; 
+  sectionId?: number | null;
+  roomName?: string | null;
+  scolariteMensuelle?: number | null;
+  droitsInscription?: number | null;
+  cogesCarteId?: number | null;
+  transportInternat?: number | null;
+  ancienSolde?: number | null;
+  statutInitial?: string | null;
+}) {
   return protectedDbAction("Academics", "canEdit", async () => {
     const schoolId = await getActiveSchoolId();
     const existing = await readDb.query.schoolClasses.findFirst({
@@ -491,6 +501,13 @@ export async function createClass(data: { className: string, sectionId?: number 
     await db.insert(schoolClasses).values({
       className: data.className,
       sectionId: data.sectionId,
+      roomName: data.roomName,
+      scolariteMensuelle: data.scolariteMensuelle || 0,
+      droitsInscription: data.droitsInscription || 0,
+      cogesCarteId: data.cogesCarteId || 0,
+      transportInternat: data.transportInternat || 0,
+      ancienSolde: data.ancienSolde || 0,
+      statutInitial: data.statutInitial,
       schoolId: schoolId
     });
     revalidatePath("/dashboard/academics");
@@ -500,7 +517,17 @@ export async function createClass(data: { className: string, sectionId?: number 
   });
 }
 
-export async function updateClass(id: number, data: { className: string, sectionId?: number | null }) {
+export async function updateClass(id: number, data: { 
+  className?: string; 
+  sectionId?: number | null;
+  roomName?: string | null;
+  scolariteMensuelle?: number | null;
+  droitsInscription?: number | null;
+  cogesCarteId?: number | null;
+  transportInternat?: number | null;
+  ancienSolde?: number | null;
+  statutInitial?: string | null;
+}) {
   return protectedDbAction("Academics", "canEdit", async () => {
     const schoolId = await getActiveSchoolId();
     await db.update(schoolClasses).set(data as any).where(

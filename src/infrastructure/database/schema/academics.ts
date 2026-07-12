@@ -57,6 +57,13 @@ export const schoolClasses = pgTable("school_classes", {
   schoolId: integer("school_id").references(() => schools.id),
   className: varchar("class_name", { length: 100 }).notNull(),
   sectionId: integer("section_id").references(() => schoolSections.id),
+  roomName: varchar("room_name", { length: 100 }),
+  scolariteMensuelle: doublePrecision("scolarite_mensuelle").default(0.0),
+  droitsInscription: doublePrecision("droits_inscription").default(0.0),
+  cogesCarteId: doublePrecision("coges_carte_id").default(0.0),
+  transportInternat: doublePrecision("transport_internat").default(0.0),
+  ancienSolde: doublePrecision("ancien_solde").default(0.0),
+  statutInitial: varchar("statut_initial", { length: 100 }),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

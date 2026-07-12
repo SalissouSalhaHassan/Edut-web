@@ -39,6 +39,13 @@ export function AcademicSettings({
   const [sessionName, setSessionName] = useState("");
   const [className, setClassName] = useState("");
   const [classSectionId, setClassSectionId] = useState("");
+  const [roomName, setRoomName] = useState("");
+  const [scolarite, setScolarite] = useState("");
+  const [inscription, setInscription] = useState("");
+  const [coges, setCoges] = useState("");
+  const [transport, setTransport] = useState("");
+  const [ancienSolde, setAncienSolde] = useState("");
+  const [statutInitial, setStatutInitial] = useState("");
   
   // Period states
   const [periodName, setPeriodName] = useState("");
@@ -138,10 +145,27 @@ export function AcademicSettings({
   const handleCreateClass = () => {
     if (!className || !classSectionId) return;
     startTransition(async () => {
-      const res = await createClass({ className, sectionId: Number(classSectionId) });
+      const res = await createClass({ 
+        className, 
+        sectionId: Number(classSectionId),
+        roomName,
+        scolariteMensuelle: scolarite ? Number(scolarite) : 0,
+        droitsInscription: inscription ? Number(inscription) : 0,
+        cogesCarteId: coges ? Number(coges) : 0,
+        transportInternat: transport ? Number(transport) : 0,
+        ancienSolde: ancienSolde ? Number(ancienSolde) : 0,
+        statutInitial
+      });
       if (res.success) {
         toast.success(`Classe "${className}" créée avec succès`);
         setClassName("");
+        setRoomName("");
+        setScolarite("");
+        setInscription("");
+        setCoges("");
+        setTransport("");
+        setAncienSolde("");
+        setStatutInitial("");
         router.refresh();
       } else {
         toast.error(res.error || "Erreur lors de la création de la classe");
@@ -591,42 +615,163 @@ export function AcademicSettings({
           <GraduationCap className="text-emerald-500" />
           <h2 className="text-xl font-bold text-white">Classes / Niveaux</h2>
         </div>
-        <div className="flex gap-4 mb-6">
-          <input 
-            type="text" 
-            placeholder="Ex: 6ème A"
-            value={className}
-            onChange={(e) => setClassName(e.target.value)}
-            className="flex-1 bg-[#181924] border border-slate-700 text-white rounded-xl px-4 h-12 focus:outline-none focus:border-emerald-500"
-          />
-          <select 
-            value={classSectionId}
-            onChange={(e) => setClassSectionId(e.target.value)}
-            className="flex-1 bg-[#181924] border border-slate-700 text-white rounded-xl px-4 h-12 focus:outline-none"
-          >
-            <option value="">Sélectionner une Section</option>
-            {initialSections.map((s: any) => (
-              <option key={s.id} value={s.id}>{s.sectionName}</option>
-            ))}
-          </select>
-          <Button onClick={handleCreateClass} disabled={isPending || !className || !classSectionId} className="h-12 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl px-6">
-            + Ajouter
-          </Button>
-        </div>
-        <div className="space-y-2">
-          {initialClasses.map((c: any) => (
-            <div key={c.id} className="flex items-center justify-between p-3 rounded-xl bg-[#181924] border border-slate-800/50">
-              <div className="flex items-center gap-4">
-                <span className="text-slate-300 font-medium">{c.className}</span>
-                {c.section && <span className="text-[10px] bg-slate-800 text-slate-500 px-2 py-1 rounded-full uppercase font-bold tracking-wider">{c.section.sectionName}</span>}
-              </div>
-              <button 
-                onClick={() => startTransition(() => { deleteClass(c.id); })}
-                disabled={isPending}
-                className="text-rose-500/70 hover:text-rose-500 transition-colors"
+        
+        {/* New Class Form */}
+        <div className="space-y-4 mb-8 bg-[#181924] border border-slate-800/80 p-5 rounded-2xl">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-400 mb-2">NOM DE LA CLASSE</label>
+              <input 
+                type="text" 
+                placeholder="Ex: 6ème A"
+                value={className}
+                onChange={(e) => setClassName(e.target.value)}
+                className="w-full bg-[#1F222B] border border-slate-800 text-white rounded-xl px-4 h-12 focus:outline-none focus:border-emerald-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-400 mb-2">SECTION</label>
+              <select 
+                value={classSectionId}
+                onChange={(e) => setClassSectionId(e.target.value)}
+                className="w-full bg-[#1F222B] border border-slate-800 text-white rounded-xl px-4 h-12 focus:outline-none"
               >
-                <Trash2 size={16} />
-              </button>
+                <option value="">Sélectionner une Section</option>
+                {initialSections.map((s: any) => (
+                  <option key={s.id} value={s.id}>{s.sectionName}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-400 mb-2">SALLE</label>
+              <input 
+                type="text" 
+                placeholder="Ex: Salle 10"
+                value={roomName}
+                onChange={(e) => setRoomName(e.target.value)}
+                className="w-full bg-[#1F222B] border border-slate-800 text-white rounded-xl px-4 h-12 focus:outline-none focus:border-emerald-500"
+              />
+            </div>
+          </div>
+
+          <div className="border-t border-slate-800/60 my-4 pt-4">
+            <h3 className="text-xs font-black text-emerald-500 uppercase tracking-widest mb-4">PLANIFICATION DES FRAIS (FCFA)</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 mb-1">SCOLARITÉ MENSUELLE</label>
+                <input 
+                  type="number" 
+                  placeholder="0 FCFA"
+                  value={scolarite}
+                  onChange={(e) => setScolarite(e.target.value)}
+                  className="w-full bg-[#1F222B] border border-slate-800 text-white rounded-xl px-4 h-11 focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 mb-1">DROITS D'INSCRIPTION</label>
+                <input 
+                  type="number" 
+                  placeholder="0 FCFA"
+                  value={inscription}
+                  onChange={(e) => setInscription(e.target.value)}
+                  className="w-full bg-[#1F222B] border border-slate-800 text-white rounded-xl px-4 h-11 focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 mb-1">COGES & CARTE ID</label>
+                <input 
+                  type="number" 
+                  placeholder="0 FCFA"
+                  value={coges}
+                  onChange={(e) => setCoges(e.target.value)}
+                  className="w-full bg-[#1F222B] border border-slate-800 text-white rounded-xl px-4 h-11 focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 mb-1">TRANSPORT & INTERNAT</label>
+                <input 
+                  type="number" 
+                  placeholder="0 FCFA"
+                  value={transport}
+                  onChange={(e) => setTransport(e.target.value)}
+                  className="w-full bg-[#1F222B] border border-slate-800 text-white rounded-xl px-4 h-11 focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 mb-1">ANCIEN SOLDE</label>
+                <input 
+                  type="number" 
+                  placeholder="0 FCFA"
+                  value={ancienSolde}
+                  onChange={(e) => setAncienSolde(e.target.value)}
+                  className="w-full bg-[#1F222B] border border-slate-800 text-white rounded-xl px-4 h-11 focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 mb-1">STATUT INITIAL</label>
+                <input 
+                  type="text" 
+                  placeholder="Ex: Actif"
+                  value={statutInitial}
+                  onChange={(e) => setStatutInitial(e.target.value)}
+                  className="w-full bg-[#1F222B] border border-slate-800 text-white rounded-xl px-4 h-11 focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-end pt-2">
+            <Button onClick={handleCreateClass} disabled={isPending || !className || !classSectionId} className="h-12 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl px-8 font-bold">
+              + Ajouter la classe
+            </Button>
+          </div>
+        </div>
+
+        {/* Classes List */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {initialClasses.map((c: any) => (
+            <div key={c.id} className="flex flex-col p-4 rounded-2xl bg-[#181924] border border-slate-800/80 gap-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="text-white font-black text-base">{c.className}</span>
+                  {c.section && <span className="text-[10px] bg-slate-800/60 text-slate-400 px-2 py-1 rounded-md uppercase font-bold tracking-wider">{c.section.sectionName}</span>}
+                  {c.roomName && <span className="text-[10px] bg-emerald-950 text-emerald-400 px-2 py-1 rounded-md uppercase font-bold tracking-wider">Salle: {c.roomName}</span>}
+                </div>
+                <button 
+                  onClick={() => startTransition(() => { deleteClass(c.id); })}
+                  disabled={isPending}
+                  className="text-rose-500/70 hover:text-rose-500 transition-colors p-1"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-3 gap-y-3 gap-x-2 pt-3 border-t border-slate-800/50 text-[10px] text-slate-400">
+                <div>
+                  <span className="block text-[8px] text-slate-500 uppercase font-black tracking-wider mb-0.5">Scolarité</span>
+                  <span className="font-mono text-slate-200 font-bold">{c.scolariteMensuelle || 0} FCFA</span>
+                </div>
+                <div>
+                  <span className="block text-[8px] text-slate-500 uppercase font-black tracking-wider mb-0.5">Inscription</span>
+                  <span className="font-mono text-slate-200 font-bold">{c.droitsInscription || 0} FCFA</span>
+                </div>
+                <div>
+                  <span className="block text-[8px] text-slate-500 uppercase font-black tracking-wider mb-0.5">Coges & ID</span>
+                  <span className="font-mono text-slate-200 font-bold">{c.cogesCarteId || 0} FCFA</span>
+                </div>
+                <div>
+                  <span className="block text-[8px] text-slate-500 uppercase font-black tracking-wider mb-0.5">Transport</span>
+                  <span className="font-mono text-slate-200 font-bold">{c.transportInternat || 0} FCFA</span>
+                </div>
+                <div>
+                  <span className="block text-[8px] text-slate-500 uppercase font-black tracking-wider mb-0.5">Ancien Solde</span>
+                  <span className="font-mono text-slate-200 font-bold">{c.ancienSolde || 0} FCFA</span>
+                </div>
+                <div>
+                  <span className="block text-[8px] text-slate-500 uppercase font-black tracking-wider mb-0.5">Statut Initial</span>
+                  <span className="text-slate-200 font-bold">{c.statutInitial || 'N/A'}</span>
+                </div>
+              </div>
             </div>
           ))}
         </div>
