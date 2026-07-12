@@ -14,8 +14,9 @@ export async function registerUser(params: {
   username: string;
   fullName: string;
   passwordHash: string;
+  activationPin: string;
 }) {
-  const { role, schoolSlug, matriculeOrEmail, username, fullName, passwordHash } = params;
+  const { role, schoolSlug, matriculeOrEmail, username, fullName, passwordHash, activationPin } = params;
 
   try {
     // 1. Find school by slug or ID
@@ -50,10 +51,12 @@ export async function registerUser(params: {
           eq(students.numAdmission, matriculeOrEmail.trim())
         ),
       });
-      if (!student) {
+      
+      // Secure check: if student not found or PIN doesn't match
+      if (!student || student.activationPin !== activationPin.trim()) {
         return {
           success: false,
-          error: "Numéro d'admission étudiant (Matricule) introuvable dans cette école.",
+          error: "Les informations fournies ne correspondent à aucun profil valide ou le code d'activation est incorrect.",
         };
       }
 
@@ -83,10 +86,12 @@ export async function registerUser(params: {
           )
         ),
       });
-      if (!employee) {
+      
+      // Secure check: if employee not found or PIN doesn't match
+      if (!employee || employee.activationPin !== activationPin.trim()) {
         return {
           success: false,
-          error: "Matricule ou email d'enseignant introuvable dans cette école.",
+          error: "Les informations fournies ne correspondent à aucun profil valide ou le code d'activation est incorrect.",
         };
       }
 

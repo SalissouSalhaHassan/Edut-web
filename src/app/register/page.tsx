@@ -22,6 +22,7 @@ export default function RegisterPage() {
   const [role, setRole] = useState<"student" | "teacher">("student");
   const [schoolCode, setSchoolCode] = useState("");
   const [matricule, setMatricule] = useState("");
+  const [activationPin, setActivationPin] = useState("");
   const [username, setUsername] = useState("");
   const [fullName, setFullName] = useState("");
   const [password, setPassword] = useState("");
@@ -46,6 +47,10 @@ export default function RegisterPage() {
       setError("Veuillez saisir le code de votre établissement.");
       return;
     }
+    if (!activationPin.trim()) {
+      setError("Veuillez saisir votre code d'activation (PIN).");
+      return;
+    }
     if (password !== confirmPassword) {
       setError("Les mots de passe ne correspondent pas.");
       return;
@@ -65,6 +70,7 @@ export default function RegisterPage() {
         username: username.trim(),
         fullName: fullName.trim(),
         passwordHash: password,
+        activationPin: activationPin.trim(),
       });
 
       if (!result.success) {
@@ -212,6 +218,24 @@ export default function RegisterPage() {
                       value={matricule}
                       onChange={(e) => setMatricule(e.target.value)}
                       placeholder={role === "student" ? "Ex: ADM-2026-001" : "Ex: prof@ecole.com"}
+                      className="w-full h-12 pl-12 pr-4 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-600 text-sm font-semibold focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                    />
+                  </div>
+                </div>
+
+                {/* Code d'activation (PIN) */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
+                    Code d'activation (PIN)
+                  </label>
+                  <div className="relative group">
+                    <Shield className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={18} />
+                    <input
+                      type="text"
+                      required
+                      value={activationPin}
+                      onChange={(e) => setActivationPin(e.target.value)}
+                      placeholder="Code secret à 6 chiffres"
                       className="w-full h-12 pl-12 pr-4 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-600 text-sm font-semibold focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
                     />
                   </div>

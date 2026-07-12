@@ -6,9 +6,9 @@ export const dynamic = "force-dynamic";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { role, schoolSlug, matriculeOrEmail, username, fullName, password } = body;
+    const { role, schoolSlug, matriculeOrEmail, username, fullName, password, activationPin } = body;
 
-    if (!role || !schoolSlug || !matriculeOrEmail || !username || !fullName || !password) {
+    if (!role || !schoolSlug || !matriculeOrEmail || !username || !fullName || !password || !activationPin) {
       return NextResponse.json(
         { success: false, error: "Tous les champs sont requis." },
         { status: 400 }
@@ -29,6 +29,7 @@ export async function POST(request: NextRequest) {
       username: String(username).trim(),
       fullName: String(fullName).trim(),
       passwordHash: String(password),
+      activationPin: String(activationPin).trim(),
     });
 
     if (!result.success) {
