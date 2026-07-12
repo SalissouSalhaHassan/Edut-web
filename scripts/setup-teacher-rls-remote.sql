@@ -456,3 +456,29 @@ FOR SELECT
 USING (
   class_id = get_my_student_class_id()
 );
+
+-- 18. Define Policies for transport_subscriptions and transport_routes
+ALTER TABLE IF EXISTS transport_subscriptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS transport_routes ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS transport_subscriptions_select ON transport_subscriptions;
+CREATE POLICY transport_subscriptions_select ON transport_subscriptions FOR SELECT USING (
+  school_id = get_my_school_id() AND (
+    is_admin_or_director() OR student_id = get_my_student_id()
+  )
+);
+
+DROP POLICY IF EXISTS transport_subscriptions_write ON transport_subscriptions;
+CREATE POLICY transport_subscriptions_write ON transport_subscriptions FOR ALL USING (
+  school_id = get_my_school_id() AND is_admin_or_director()
+);
+
+DROP POLICY IF EXISTS transport_routes_select ON transport_routes;
+CREATE POLICY transport_routes_select ON transport_routes FOR SELECT USING (
+  school_id = get_my_school_id()
+);
+
+DROP POLICY IF EXISTS transport_routes_write ON transport_routes;
+CREATE POLICY transport_routes_write ON transport_routes FOR ALL USING (
+  school_id = get_my_school_id() AND is_admin_or_director()
+);

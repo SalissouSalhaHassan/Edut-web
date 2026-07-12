@@ -1,4 +1,6 @@
 import postgres from "postgres";
+import * as fs from "fs";
+import * as path from "path";
 
 const remoteUrl = "postgres://postgres.gkarotahjtyvmhjqejts:salissou1994S@aws-1-eu-central-2.pooler.supabase.com:6543/postgres";
 
@@ -6,39 +8,50 @@ async function main() {
   const sql = postgres(remoteUrl, { prepare: false, ssl: { rejectUnauthorized: false } });
 
   try {
-    console.log("=== INSPECTING REMOTE USER PROFILE ===");
-    const users = await sql`
-      SELECT u.*, r.role_name
-      FROM users u
-      LEFT JOIN roles r ON u.role_id = r.id
-      WHERE u.utilisateur ILIKE 'salissousalha@gmail.com' OR u.nom_prenom ILIKE '%SALHA%';
-    `;
-    console.log("Users found:");
-    console.log(JSON.stringify(users, null, 2));
+    // 1. First, apply the corrected SQL policies
+    const sqlPath = path.join(__dirname, "setup-teacher-rls-remote.sql");
+    const queries = fs.readFileSync(sqlPath, "utf8");
+    console.log("Applying corrected SQL policies...");
+    await sql.unsafe(queries);
+    console.log("✅ Applied corrected SQL policies successfully!");
 
-    console.log("=== INSPECTING REMOTE EMPLOYEE PROFILE ===");
-    const employees = await sql`
-      SELECT e.*
-      FROM employees e
-      WHERE e.email ILIKE 'salissousalha@gmail.com' OR e.nom ILIKE '%SALHA%' OR e.email ILIKE 'salissousalhahassan@gmail.com';
-    `;
-    console.log("Employees found:");
-    console.log(JSON.stringify(employees, null, 2));
+    // 2. Now simulate RLS
+    const studentUid = '781b6337-dafb-41e6-a591-9b8d56e2f2c2'; // adoada@gmail.com
+    console.log(`\n=== SIMULATING RLS FOR USER: ${studentUid} ===`);
 
-    console.log("=== INSPECTING REMOTE ASSIGNMENTS ===");
-    const assignments = await sql`
-      SELECT cs.id, cs.class_id, c.class_name, cs.subject_id, s.subject_name, cs.employee_id, e.nom as employee_name, cs.school_id
-      FROM class_subjects cs
-      JOIN school_classes c ON cs.class_id = c.id
-      JOIN school_subjects s ON cs.subject_id = s.id
-      JOIN employees e ON cs.employee_id = e.id
-      WHERE e.email ILIKE 'salissousalha@gmail.com' OR e.nom ILIKE '%SALHA%';
-    `;
-    console.log("Assignments found:");
-    console.table(assignments);
+    await sql.begin(async (tx) => {
+      // Set session variables via set_config to simulate the Supabase authenticated student user
+      const claims = JSON.stringify({ 
+        sub: studentUid, 
+        role: 'authenticated', 
+        email: 'adoada@gmail.com' 
+      });
+      await tx`SELECT set_config('request.jwt.claims', ${claims}, true)`;
+      await tx`SET LOCAL ROLE authenticated`;
+
+      // Check student attendance
+      const attendanceSelect = await tx`
+        SELECT id, student_id, status, date FROM student_attendance
+      `;
+      console.log("SELECT on student_attendance returned count:", attendanceSelect.length);
+
+      // Check transport subscriptions
+      const transportSelect = await tx`
+        SELECT id, student_id, route_id, pickup_point, status FROM transport_subscriptions
+      `;
+      console.log("SELECT on transport_subscriptions returned count:", transportSelect.length);
+      if (transportSelect.length > 0) console.table(transportSelect);
+
+      // Check transport routes
+      const routesSelect = await tx`
+        SELECT id, route_name FROM transport_routes
+      `;
+      console.log("SELECT on transport_routes returned count:", routesSelect.length);
+      if (routesSelect.length > 0) console.table(routesSelect);
+    });
 
   } catch (err: any) {
-    console.error("Error running script:", err.message);
+    console.error("Error simulating RLS:", err.message);
   } finally {
     await sql.end();
     process.exit(0);
