@@ -77,12 +77,13 @@ export default function ActionMenu({
                 <span className="font-semibold">Modifier</span>
               </DropdownMenuItem>
             ) : (
-              <DropdownMenuItem
-                onSelect={(e) => e.preventDefault()}
-                className="w-full p-0 focus:bg-transparent hover:bg-transparent cursor-default"
+              <div
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
+                className="w-full"
               >
                 {editDialog}
-              </DropdownMenuItem>
+              </div>
             )
           )}
           
