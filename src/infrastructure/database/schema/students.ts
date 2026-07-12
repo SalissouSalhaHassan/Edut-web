@@ -42,6 +42,7 @@ export const students = pgTable("students", {
   statut: varchar("statut", { length: 20 }).default("Actif"),
   behaviorScore: doublePrecision("behavior_score").default(0.0),
   photoPath: text("photo_path"),
+  activationPin: varchar("activation_pin", { length: 50 }),
   
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({

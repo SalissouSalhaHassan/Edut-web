@@ -33,6 +33,7 @@ export const employees = pgTable("employees", {
   commune: varchar("commune", { length: 100 }),
   region: varchar("region", { length: 100 }),
   dateAffectation: varchar("date_affectation", { length: 50 }),
+  activationPin: varchar("activation_pin", { length: 50 }),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
   schoolIdIdx: index("employees_school_id_idx").on(table.schoolId),
