@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import { useState } from "react";
 import { MoreHorizontal, Edit, Trash2, Loader2, UserCheck } from "lucide-react";
 import {
@@ -45,6 +46,7 @@ export default function ActionMenu({
 }: ActionMenuProps) {
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   const handleDelete = async () => {
     if (!onDelete) return;
@@ -69,12 +71,6 @@ export default function ActionMenu({
         <DropdownMenuContent
           align="end"
           className="w-48 rounded-2xl p-2 shadow-xl border-slate-100 bg-white"
-          onPointerDownOutside={(e) => {
-            const target = e.target as HTMLElement;
-            if (target && (target.closest('[role="dialog"]') || target.closest('.fixed.inset-0'))) {
-              e.preventDefault();
-            }
-          }}
         >
           {canEdit && (
             onEdit ? (
@@ -86,13 +82,13 @@ export default function ActionMenu({
                 <span className="font-semibold">Modifier</span>
               </DropdownMenuItem>
             ) : (
-              <div
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={(e) => e.stopPropagation()}
-                className="w-full"
+              <DropdownMenuItem
+                onClick={() => setIsEditDialogOpen(true)}
+                className="flex items-center gap-2 p-3 rounded-xl cursor-pointer text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
               >
-                {editDialog}
-              </div>
+                <Edit size={16} />
+                <span className="font-semibold">Modifier</span>
+              </DropdownMenuItem>
             )
           )}
           
@@ -121,6 +117,13 @@ export default function ActionMenu({
           )}
         </DropdownMenuContent>
       </DropdownMenu>
+
+      {isEditDialogOpen && editDialog && React.isValidElement(editDialog) && (
+        React.cloneElement(editDialog as React.ReactElement<any>, {
+          open: isEditDialogOpen,
+          onClose: () => setIsEditDialogOpen(false),
+        })
+      )}
 
       <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
         <AlertDialogContent className="rounded-[2rem] border-none shadow-2xl p-8">
