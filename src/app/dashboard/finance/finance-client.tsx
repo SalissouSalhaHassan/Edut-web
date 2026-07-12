@@ -54,12 +54,6 @@ interface FinanceClientProps {
 
 type TabId = "dashboard" | "payments" | "reports" | "alerts";
 
-const TABS: { id: TabId; label: string; icon: React.ElementType; badge?: (s: any) => number | null }[] = [
-  { id: "dashboard", label: "Tableau de Bord", icon: LayoutDashboard },
-  { id: "payments", label: "Paiements", icon: CardIcon },
-  { id: "reports", label: "Rapports", icon: BarChart3 },
-  { id: "alerts", label: "Alertes Impayées", icon: AlertTriangle, badge: (s) => s?.countUnpaid + s?.countPartial || null },
-];
 
 const getModeIcon = (mode: string) => {
   switch (mode) {
@@ -252,19 +246,37 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, hea
   ];
 
   return (
-    <div className="min-h-screen bg-[#f7f9fc] font-sans text-slate-950 lg:grid lg:grid-cols-[220px_minmax(0,1fr)]">
-      <aside className="hidden min-h-screen flex-col border-r border-slate-200/70 bg-white/95 px-3 py-5 shadow-[12px_0_40px_rgba(15,23,42,0.04)] lg:flex">
-        <div className="mb-5 flex items-center gap-2 rounded-2xl px-2">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-200">
-            <Wallet size={22} />
+    <div className="min-h-screen bg-[#f7f9fc] font-sans text-slate-950">
+
+
+      <main className="min-w-0 space-y-0 p-0">
+      {/* ── ÉCOLE EXCELLENCE — HORIZONTAL TOP BAR ── */}
+      <div className="border-b border-slate-200/80 bg-white/95 shadow-[0_2px_20px_rgba(15,23,42,0.05)] backdrop-blur sticky top-0 z-30">
+        {/* Row 1: Branding + Stats */}
+        <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-3 border-b border-slate-100">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-md shadow-indigo-200">
+              <Wallet size={18} />
+            </div>
+            <div className="leading-tight">
+              <p className="text-[12px] font-black uppercase tracking-widest text-slate-900">École Excellence</p>
+              <p className="text-[10px] font-bold text-slate-400">Année 2024 – 2025</p>
+            </div>
           </div>
-          <div>
-            <p className="text-sm font-black uppercase tracking-tight text-slate-900">École Excellence</p>
-            <p className="text-[11px] font-bold text-slate-500">Année 2024 - 2025</p>
+          <div className="flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-widest">
+            <span className="rounded-lg bg-slate-100 px-3 py-1.5 text-slate-600">Total élèves: {advancedStats?.totalStudents || localFees.length}</span>
+            <span className="rounded-lg bg-emerald-50 px-3 py-1.5 text-emerald-700">Recouvrement: {advancedStats?.recoveryRate || 0}%</span>
+            <span className="rounded-lg bg-rose-50 px-3 py-1.5 text-rose-600">Alertes: {alertCount}</span>
+            <div className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-white">
+              <div className="h-1 w-16 overflow-hidden rounded-full bg-white/30">
+                <div className="h-full rounded-full bg-white transition-all" style={{ width: `${Math.min(100, advancedStats?.recoveryRate || 0)}%` }} />
+              </div>
+              <span>{advancedStats?.recoveryRate || 0}%</span>
+            </div>
           </div>
         </div>
-
-        <nav className="space-y-1.5">
+        {/* Row 2: Horizontal Tab Navigation */}
+        <div className="flex items-center gap-1 overflow-x-auto px-6 py-2">
           {sideItems.map((item) => {
             const Icon = item.icon;
             const active = activeTab === item.tab;
@@ -273,53 +285,29 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, hea
                 key={item.label}
                 onClick={() => setActiveTab(item.tab)}
                 className={cn(
-                  "flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-[12px] font-black transition-all",
+                  "relative flex shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-[11px] font-black uppercase tracking-widest transition-all",
                   active
-                    ? "bg-indigo-600 text-white shadow-lg shadow-indigo-100"
-                    : "text-slate-600 hover:bg-slate-50 hover:text-indigo-600"
+                    ? "bg-indigo-600 text-white shadow-md shadow-indigo-100"
+                    : "text-slate-500 hover:bg-slate-50 hover:text-indigo-600"
                 )}
               >
-                <Icon size={17} />
-                <span className="flex-1">{item.label}</span>
-                {!!item.badge && (
-                  <span className={cn("rounded-full px-2 py-0.5 text-[10px]", active ? "bg-white text-indigo-600" : "bg-rose-500 text-white")}>
-                    {item.badge}
+                <Icon size={14} />
+                {item.label}
+                {!!item.badge && item.badge > 0 && (
+                  <span className={cn(
+                    "ml-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-black",
+                    active ? "bg-white text-indigo-600" : "bg-rose-500 text-white"
+                  )}>
+                    {item.badge > 99 ? "99+" : item.badge}
                   </span>
                 )}
               </button>
             );
           })}
-        </nav>
-
-        <div className="mt-auto rounded-2xl bg-indigo-600 p-5 text-white shadow-xl shadow-indigo-100">
-          <p className="text-[10px] font-black uppercase tracking-widest text-indigo-100">Taux de recouvrement</p>
-          <p className="mt-2 text-3xl font-black">{advancedStats?.recoveryRate || 0}%</p>
-          <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-white/20">
-            <div className="h-full rounded-full bg-white" style={{ width: `${Math.min(100, advancedStats?.recoveryRate || 0)}%` }} />
-          </div>
-        </div>
-      </aside>
-
-      <main className="min-w-0 space-y-6 p-4 md:p-6 xl:p-8 2xl:p-10">
-      <div className="flex flex-col gap-3 rounded-[24px] border border-indigo-100 bg-white px-5 py-4 shadow-sm md:flex-row md:items-center md:justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-100">
-            <Wallet size={23} />
-          </div>
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-lg font-black uppercase tracking-tight text-slate-950">École Excellence</h2>
-              <span className="rounded-full bg-indigo-50 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-indigo-600">Année 2024 - 2025</span>
-            </div>
-            <p className="mt-0.5 text-xs font-bold text-slate-500">Centre de Reporting Financier Intelligent</p>
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 text-[11px] font-black uppercase tracking-widest text-slate-500">
-          <span className="rounded-xl bg-slate-50 px-3 py-2">Total élèves: {advancedStats?.totalStudents || localFees.length}</span>
-          <span className="rounded-xl bg-emerald-50 px-3 py-2 text-emerald-700">Recouvrement: {advancedStats?.recoveryRate || 0}%</span>
-          <span className="rounded-xl bg-rose-50 px-3 py-2 text-rose-700">Alertes: {alertCount}</span>
         </div>
       </div>
+
+      <div className="space-y-6 p-4 md:p-6 xl:p-8">
       
       {/* ── HEADER ── */}
       <div className="flex flex-col gap-5 rounded-[28px] border border-slate-200/70 bg-white/85 p-5 shadow-sm backdrop-blur md:flex-row md:items-center md:justify-between">
@@ -363,38 +351,9 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, hea
         </div>
       </div>
 
-      {/* ── TAB NAVIGATION ── */}
-      <div className="flex w-full items-center gap-1 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm lg:hidden">
-        {TABS.map((tab) => {
-          const Icon = tab.icon;
-          const badge = tab.badge ? tab.badge(advancedStats) : null;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={cn(
-                "relative flex items-center gap-2 px-5 py-2.5 rounded-xl font-black text-[11px] uppercase tracking-widest transition-all",
-                activeTab === tab.id
-                  ? "bg-indigo-600 text-white shadow-lg shadow-indigo-100"
-                  : "text-slate-500 hover:text-slate-800 hover:bg-slate-50"
-              )}
-            >
-              <Icon size={14} />
-              <span className="hidden sm:block">{tab.label}</span>
-              {badge !== null && badge > 0 && (
-                <span className={cn(
-                  "absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black",
-                  activeTab === tab.id ? "bg-white text-indigo-600" : "bg-rose-500 text-white"
-                )}>
-                  {badge > 99 ? "99+" : badge}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
 
       {/* ── TAB CONTENT ── */}
+
       
       {/* DASHBOARD TAB */}
       {activeTab === "dashboard" && (
@@ -682,6 +641,7 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, hea
         feeData={previewFee} 
         headerConfig={headerConfig}
       />
+      </div>{/* end space-y-6 content wrapper */}
       </main>
     </div>
   );
