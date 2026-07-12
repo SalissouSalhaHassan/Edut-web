@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { login } from "@/domains/auth/actions/login";
 import { getSchoolBranding } from "@/domains/auth/actions/branding";
 import { 
@@ -271,11 +272,22 @@ export default function LoginPage() {
                 <div className="flex-1 h-px bg-white/[0.06]" />
               </div>
 
-              {/* Contact Admin */}
-              <button className="w-full h-[48px] rounded-xl border border-white/[0.08] bg-white/[0.02] text-slate-400 hover:text-white hover:bg-white/[0.05] hover:border-white/[0.15] font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2">
-                <Headphones size={16} />
-                Contacter l&apos;administrateur
-              </button>
+              <div className="space-y-3">
+                {/* Register Link */}
+                <Link 
+                  href="/register"
+                  className="w-full h-[48px] rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/10"
+                >
+                  <User size={16} />
+                  Créer un compte (Élève / Enseignant)
+                </Link>
+
+                {/* Contact Admin */}
+                <button className="w-full h-[48px] rounded-xl border border-white/[0.08] bg-white/[0.02] text-slate-400 hover:text-white hover:bg-white/[0.05] hover:border-white/[0.15] font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2">
+                  <Headphones size={16} />
+                  Contacter l&apos;administrateur
+                </button>
+              </div>
             </div>
           </div>
 
