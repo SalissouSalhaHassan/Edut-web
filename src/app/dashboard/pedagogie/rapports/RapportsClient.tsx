@@ -62,20 +62,67 @@ export default function RapportsClient({
     });
   }, []);
 
+  const [selectedPaperSize, setSelectedPaperSize] = useState<"A4" | "A5">("A4");
+
   useEffect(() => {
     const styleId = "pedagogie-report-print-style";
-    if (document.getElementById(styleId)) return;
-    const style = document.createElement("style");
-    style.id = styleId;
+    let style = document.getElementById(styleId) as HTMLStyleElement;
+    if (!style) {
+      style = document.createElement("style");
+      style.id = styleId;
+      document.head.appendChild(style);
+    }
+    
+    const pageMargin = selectedPaperSize === "A5" ? "8mm" : "15mm";
     style.innerHTML = `
       @media print {
         body > *:not(#pedagogie-report-print-root) { display: none !important; }
         #pedagogie-report-print-root { display: block !important; position: absolute; inset: 0; z-index: 9999; background: white; padding: 0; margin: 0; }
-        @page { size: A4 portrait; margin: 15mm; }
+        @page { size: ${selectedPaperSize} portrait; margin: ${pageMargin}; }
+        
+        /* A5 print overrides */
+        #pedagogie-report-print-root [data-paper-size="A5"] {
+          width: 148mm !important;
+          height: 210mm !important;
+          padding: 6mm !important;
+          font-size: 8.5px !important;
+        }
+        #pedagogie-report-print-root [data-paper-size="A5"] .p-8 {
+          padding: 8px !important;
+        }
+        #pedagogie-report-print-root [data-paper-size="A5"] h1,
+        #pedagogie-report-print-root [data-paper-size="A5"] h2 {
+          font-size: 16px !important;
+        }
+        #pedagogie-report-print-root [data-paper-size="A5"] table {
+          font-size: 7.5px !important;
+        }
+        #pedagogie-report-print-root [data-paper-size="A5"] th,
+        #pedagogie-report-print-root [data-paper-size="A5"] td {
+          padding: 3px 4px !important;
+        }
+      }
+      
+      /* A5 Screen Preview Overrides */
+      #pedagogie-report-print[data-paper-size="A5"] {
+        max-width: 148mm !important;
+        margin: 0 auto;
+        font-size: 8.5px !important;
+        padding: 16px !important;
+      }
+      #pedagogie-report-print[data-paper-size="A5"] h1,
+      #pedagogie-report-print[data-paper-size="A5"] h2 {
+        font-size: 16px !important;
+      }
+      #pedagogie-report-print[data-paper-size="A5"] table {
+        font-size: 7.5px !important;
+      }
+      #pedagogie-report-print[data-paper-size="A5"] th,
+      #pedagogie-report-print[data-paper-size="A5"] td {
+        padding: 3px 4px !important;
       }
     `;
-    document.head.appendChild(style);
-  }, []);
+  }, [selectedPaperSize]);
 
   // Fallback default session calculation
   const defaultSession = activeSessionName || (new Date().getFullYear() + "-" + (new Date().getFullYear() + 1));
@@ -497,6 +544,34 @@ export default function RapportsClient({
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          {/* Paper Size selector */}
+          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 shadow-inner mr-2">
+            <button
+              type="button"
+              onClick={() => setSelectedPaperSize("A4")}
+              className={cn(
+                "h-8 px-3 rounded-lg text-xs font-bold transition-all",
+                selectedPaperSize === "A4"
+                  ? "bg-white text-slate-800 shadow-sm"
+                  : "text-slate-400 hover:text-slate-600"
+              )}
+            >
+              A4
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedPaperSize("A5")}
+              className={cn(
+                "h-8 px-3 rounded-lg text-xs font-bold transition-all",
+                selectedPaperSize === "A5"
+                  ? "bg-white text-slate-800 shadow-sm"
+                  : "text-slate-400 hover:text-slate-600"
+              )}
+            >
+              A5
+            </button>
+          </div>
+
           <button onClick={handleSendEmail} disabled={!isGenerated} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-bold hover:bg-slate-50 disabled:opacity-50 transition-all shadow-sm">
             <Mail size={14} /> Envoyer email
           </button>
@@ -633,7 +708,7 @@ export default function RapportsClient({
 
       {/* ─── PREVIEW: OFFICIAL DOCUMENT SHEET ─── */}
       {isGenerated ? (
-        <div id="pedagogie-report-print" className="bg-white rounded-3xl border border-slate-100 shadow-sm p-8 max-w-4xl mx-auto space-y-8 relative overflow-hidden print:border-none print:shadow-none print:p-0">
+        <div id="pedagogie-report-print" data-paper-size={selectedPaperSize} className="bg-white rounded-3xl border border-slate-100 shadow-sm p-8 max-w-4xl mx-auto space-y-8 relative overflow-hidden print:border-none print:shadow-none print:p-0 transition-all duration-300">
 
           {/* Ministry & School Banners */}
           <div className="border-b-[2.5px] border-blue-900 pb-5">

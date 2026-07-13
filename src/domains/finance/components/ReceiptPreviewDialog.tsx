@@ -37,13 +37,13 @@ import type { DocumentHeaderConfig } from "@/domains/printing/document-header";
 import { amiriFontBase64 } from "@/domains/printing/utils/amiri-font";
 import { hasArabicCharacters, reshapeArabicText } from "@/domains/printing/utils/arabic-reshaper";
 
+const formatCfaAmount = (amount: number) => {
+  return amount.toLocaleString("fr-FR").replace(/[\u00A0\u202F\u2007\u200B]/g, " ") + " CFA";
+};
+
 function drawTextBilingual(doc: jsPDF, text: string, x: number, y: number, options?: any) {
   if (hasArabicCharacters(text)) {
     if (!amiriFontBase64) {
-      doc.setFontSize(8);
-      doc.setTextColor(255, 0, 0);
-      doc.text("ERR: amiriFontBase64 empty!", x, y - 4);
-      doc.setTextColor(0, 0, 0);
       doc.text(text, x, y, options);
       return;
     }
@@ -58,14 +58,38 @@ function drawTextBilingual(doc: jsPDF, text: string, x: number, y: number, optio
       doc.setFont(activeName, activeStyle);
     } catch (e: any) {
       console.warn("Error rendering Arabic text with Amiri font:", e);
-      doc.setFontSize(8);
-      doc.setTextColor(255, 0, 0);
-      doc.text(`ERR: ${e?.message || String(e)}`, x, y - 4);
-      doc.setTextColor(0, 0, 0);
       doc.text(text, x, y, options);
     }
   } else {
     doc.text(text, x, y, options);
+  }
+}
+
+function drawWrappedText(doc: jsPDF, text: string, x: number, y: number, maxWidth: number, align: "left" | "right" | "center"): number {
+  const isAr = hasArabicCharacters(text);
+  const currentFont = doc.getFont();
+  const currentName = currentFont.fontName;
+  const currentStyle = currentFont.fontStyle;
+
+  if (isAr) {
+    const reshaped = reshapeArabicText(text);
+    doc.setFont("Amiri", "normal");
+    const lines = doc.splitTextToSize(reshaped, maxWidth);
+    let tempY = y;
+    for (const line of lines) {
+      doc.text(line, x, tempY, { align });
+      tempY += 4.5;
+    }
+    doc.setFont(currentName, currentStyle);
+    return tempY - y;
+  } else {
+    const lines = doc.splitTextToSize(text, maxWidth);
+    let tempY = y;
+    for (const line of lines) {
+      doc.text(line, x, tempY, { align });
+      tempY += 4.5;
+    }
+    return tempY - y;
   }
 }
 
@@ -134,6 +158,7 @@ export default function ReceiptPreviewDialog({
   const [branchInfo, setBranchInfo] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<"receipt" | "history">("receipt");
   const [activeHeaderConfig, setActiveHeaderConfig] = useState<any>(headerConfig);
+  const [selectedPaperSize, setSelectedPaperSize] = useState<"A4" | "A5">("A4");
 
   useEffect(() => {
     if (headerConfig) {
@@ -159,22 +184,122 @@ export default function ReceiptPreviewDialog({
 
   useEffect(() => {
     const styleId = "receipt-print-style-v3";
-    if (document.getElementById(styleId)) return;
-    const style = document.createElement("style");
-    style.id = styleId;
+    let style = document.getElementById(styleId) as HTMLStyleElement;
+    if (!style) {
+      style = document.createElement("style");
+      style.id = styleId;
+      document.head.appendChild(style);
+    }
+    
+    const pageMargin = selectedPaperSize === "A5" ? "5mm" : "10mm";
     style.innerHTML = `
       @media print {
         body > *:not(#receipt-print-root) { display: none !important; }
         #receipt-print-root { display: block !important; position: fixed; inset: 0; z-index: 9999; background: white; padding: 0; margin: 0; }
         .no-print { display: none !important; }
-        @page { size: A4; margin: 10mm; }
+        @page { size: ${selectedPaperSize}; margin: ${pageMargin}; }
+        
+        /* A5 print overrides */
+        #receipt-print-root [data-paper-size="A5"] {
+          width: 148mm !important;
+          height: 210mm !important;
+          padding: 6mm !important;
+          font-size: 8.5px !important;
+        }
+        #receipt-print-root [data-paper-size="A5"] .px-10 {
+          padding-left: 14px !important;
+          padding-right: 14px !important;
+        }
+        #receipt-print-root [data-paper-size="A5"] .py-6 {
+          padding-top: 8px !important;
+          padding-bottom: 8px !important;
+        }
+        #receipt-print-root [data-paper-size="A5"] .py-8 {
+          padding-top: 10px !important;
+          padding-bottom: 10px !important;
+        }
+        #receipt-print-root [data-paper-size="A5"] .pt-7 {
+          padding-top: 10px !important;
+        }
+        #receipt-print-root [data-paper-size="A5"] .pb-6 {
+          padding-bottom: 8px !important;
+        }
+        #receipt-print-root [data-paper-size="A5"] h2 {
+          font-size: 20px !important;
+        }
+        #receipt-print-root [data-paper-size="A5"] .text-\\[22px\\] {
+          font-size: 14px !important;
+        }
+        #receipt-print-root [data-paper-size="A5"] .text-\\[26px\\] {
+          font-size: 16px !important;
+        }
+        #receipt-print-root [data-paper-size="A5"] .grid-cols-\\[1fr_220px\\] {
+          grid-template-columns: 1fr 120px !important;
+        }
+        #receipt-print-root [data-paper-size="A5"] svg.stamp-svg {
+          width: 75px !important;
+          height: 75px !important;
+        }
+        #receipt-print-root [data-paper-size="A5"] .signature-area {
+          width: 110px !important;
+        }
+        #receipt-print-root [data-paper-size="A5"] .signature-area .h-16 {
+          height: 30px !important;
+        }
       }
+      
+      /* A5 Screen Preview Overrides */
+      #receipt-print-area[data-paper-size="A5"] {
+        max-width: 148mm !important;
+        margin: 0 auto;
+        font-size: 8.5px !important;
+      }
+      #receipt-print-area[data-paper-size="A5"] .px-10 {
+        padding-left: 14px !important;
+        padding-right: 14px !important;
+      }
+      #receipt-print-area[data-paper-size="A5"] .py-6 {
+        padding-top: 8px !important;
+        padding-bottom: 8px !important;
+      }
+      #receipt-print-area[data-paper-size="A5"] .py-8 {
+        padding-top: 10px !important;
+        padding-bottom: 10px !important;
+      }
+      #receipt-print-area[data-paper-size="A5"] .pt-7 {
+        padding-top: 10px !important;
+      }
+      #receipt-print-area[data-paper-size="A5"] .pb-6 {
+        padding-bottom: 8px !important;
+      }
+      #receipt-print-area[data-paper-size="A5"] h2 {
+        font-size: 20px !important;
+      }
+      #receipt-print-area[data-paper-size="A5"] .text-\\[22px\\] {
+        font-size: 14px !important;
+      }
+      #receipt-print-area[data-paper-size="A5"] .text-\\[26px\\] {
+        font-size: 16px !important;
+      }
+      #receipt-print-area[data-paper-size="A5"] .grid-cols-\\[1fr_220px\\] {
+        grid-template-columns: 1fr 120px !important;
+      }
+      #receipt-print-area[data-paper-size="A5"] svg.stamp-svg {
+        width: 75px !important;
+        height: 75px !important;
+      }
+      #receipt-print-area[data-paper-size="A5"] .signature-area {
+        width: 110px !important;
+      }
+      #receipt-print-area[data-paper-size="A5"] .signature-area .h-16 {
+        height: 30px !important;
+      }
+      
       .custom-scrollbar::-webkit-scrollbar { width: 6px; }
       .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
       .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.07); border-radius: 10px; }
     `;
-    document.head.appendChild(style);
-  }, []);
+  }, [selectedPaperSize]);
 
   if (!feeData) return null;
 
@@ -253,8 +378,9 @@ export default function ReceiptPreviewDialog({
     schoolYear: string,
     receiptDate: string,
     margin: number,
-    W: number
-  ) {
+    W: number,
+    paperSize: "A4" | "A5"
+  ): number {
     const style = headerConfig?.style || "classic_dual_logo";
     const ministry = headerConfig?.ministry || "Ministère de l'Éducation Nationale";
     const service = headerConfig?.service || "Service de la Scolarité";
@@ -265,35 +391,41 @@ export default function ReceiptPreviewDialog({
     const rightLogo = headerConfig?.rightLogo || leftLogo;
     const centerLogo = headerConfig?.centerLogo || leftLogo;
 
+    const isA5 = paperSize === "A5";
+
     if (style === "modern_card") {
+      const cardHeight = isA5 ? 18 : 24;
+      const cardTop = isA5 ? 5 : 8;
       doc.setFillColor(79, 70, 229);
-      doc.roundedRect(margin, 8, W - 2 * margin, 24, 2, 2, "F");
+      doc.roundedRect(margin, cardTop, W - 2 * margin, cardHeight, isA5 ? 1.5 : 2, isA5 ? 1.5 : 2, "F");
       
       if (leftLogo) {
         try {
-          doc.addImage(leftLogo, 'PNG', margin + 4, 10, 20, 20);
+          const logoSize = isA5 ? 12 : 20;
+          doc.addImage(leftLogo, 'PNG', margin + (isA5 ? 3 : 4), cardTop + (isA5 ? 3 : 2), logoSize, logoSize);
         } catch (e) {}
       }
       
       doc.setTextColor(255, 255, 255);
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(13);
-      drawTextBilingual(doc, schoolName, margin + 28, 17);
+      doc.setFontSize(isA5 ? 10 : 13);
+      drawWrappedText(doc, schoolName, margin + (isA5 ? 18 : 28), cardTop + (isA5 ? 5 : 7), W - 2 * margin - (isA5 ? 22 : 32), "left");
       
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(8);
+      doc.setFontSize(isA5 ? 6.5 : 8);
       doc.setTextColor(220, 225, 255);
-      drawTextBilingual(doc, `Année: ${schoolYear} | Date: ${receiptDate}`, margin + 28, 23);
-      drawTextBilingual(doc, `${schoolAddress} | Tél: ${schoolPhone}`, margin + 28, 28);
+      drawWrappedText(doc, `Année: ${schoolYear} | Date: ${receiptDate}`, margin + (isA5 ? 18 : 28), cardTop + (isA5 ? 10.5 : 14), W - 2 * margin - (isA5 ? 22 : 32), "left");
+      drawWrappedText(doc, `${schoolAddress} | Tél: ${schoolPhone}`, margin + (isA5 ? 18 : 28), cardTop + (isA5 ? 14 : 19), W - 2 * margin - (isA5 ? 22 : 32), "left");
       
       doc.setTextColor(0, 0, 0);
-      return 36;
+      return cardTop + cardHeight + 4;
     }
     
     if (style === "bilingual_center_logo") {
       if (centerLogo) {
         try {
-          doc.addImage(centerLogo, 'PNG', W / 2 - 12, 8, 24, 24);
+          const logoSize = isA5 ? 16 : 24;
+          doc.addImage(centerLogo, 'PNG', W / 2 - (logoSize / 2), isA5 ? 5 : 8, logoSize, logoSize);
         } catch (e) {}
       }
       
@@ -310,13 +442,16 @@ export default function ReceiptPreviewDialog({
         schoolEmail ? `Email: ${schoolEmail}` : "",
       ].filter(Boolean);
 
-      let leftY = 12;
+      let leftY = isA5 ? 8 : 12;
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(7.5);
+      doc.setFontSize(isA5 ? 5.5 : 7.5);
       doc.setTextColor(15, 23, 42);
+      const colWidth = isA5 ? 48 : 65;
+      const stepY = isA5 ? 3 : 4.5;
+
       for (const line of leftLines) {
-        drawTextBilingual(doc, line, margin, leftY);
-        leftY += 4.5;
+        const height = drawWrappedText(doc, line, margin, leftY, colWidth, "left");
+        leftY += height - 4.5 + stepY;
       }
       
       const rightLines = [
@@ -332,102 +467,118 @@ export default function ReceiptPreviewDialog({
         schoolEmail ? `البريد: ${schoolEmail}` : "",
       ].filter(Boolean);
 
-      let rightY = 12;
+      let rightY = isA5 ? 8 : 12;
       for (const line of rightLines) {
-        drawTextBilingual(doc, line, W - margin, rightY, { align: "right" });
-        rightY += 4.5;
+        const height = drawWrappedText(doc, line, W - margin, rightY, colWidth, "right");
+        rightY += height - 4.5 + stepY;
       }
       
       const maxY = Math.max(leftY, rightY);
       doc.setDrawColor(220, 225, 240);
       doc.setLineWidth(0.3);
-      doc.line(margin, maxY + 2, W - margin, maxY + 2);
-      return maxY + 4;
+      doc.line(margin, maxY + 1, W - margin, maxY + 1);
+      return maxY + (isA5 ? 3 : 4);
     }
     
     if (style === "university_formal") {
+      const logoSize = isA5 ? 14 : 20;
+      const logoTop = isA5 ? 5 : 8;
       if (leftLogo) {
         try {
-          doc.addImage(leftLogo, 'PNG', margin, 8, 20, 20);
+          doc.addImage(leftLogo, 'PNG', margin, logoTop, logoSize, logoSize);
         } catch (e) {}
       }
       if (rightLogo) {
         try {
-          doc.addImage(rightLogo, 'PNG', W - margin - 20, 8, 20, 20);
+          doc.addImage(rightLogo, 'PNG', W - margin - logoSize, logoTop, logoSize, logoSize);
         } catch (e) {}
       }
       
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(9);
-      drawTextBilingual(doc, ministry.toUpperCase(), W / 2, 12, { align: "center" });
+      doc.setFontSize(isA5 ? 7 : 9);
+      doc.setTextColor(15, 23, 42);
+      drawWrappedText(doc, ministry.toUpperCase(), W / 2, isA5 ? 8 : 12, W - 2 * margin - (logoSize * 2 + 4), "center");
       
-      doc.setFontSize(11);
-      drawTextBilingual(doc, schoolName, W / 2, 17, { align: "center" });
+      doc.setFontSize(isA5 ? 9 : 11);
+      drawWrappedText(doc, schoolName, W / 2, isA5 ? 12.5 : 17, W - 2 * margin - (logoSize * 2 + 4), "center");
       
-      doc.setFontSize(8.5);
+      doc.setFontSize(isA5 ? 6.5 : 8.5);
       doc.setFont("helvetica", "normal");
-      drawTextBilingual(doc, service, W / 2, 22, { align: "center" });
-      drawTextBilingual(doc, `BP : ${bp || "N/A"} | Tél. ${schoolPhone} | Email : ${schoolEmail}`, W / 2, 27, { align: "center" });
+      drawWrappedText(doc, service, W / 2, isA5 ? 17 : 22, W - 2 * margin - (logoSize * 2 + 4), "center");
+      drawWrappedText(doc, `BP : ${bp || "N/A"} | Tél. ${schoolPhone} | Email : ${schoolEmail}`, W / 2, isA5 ? 21 : 27, W - 2 * margin - (logoSize * 2 + 4), "center");
       
+      const dividerY = isA5 ? 26 : 34;
       doc.setDrawColor(220, 225, 240);
       doc.setLineWidth(0.3);
-      doc.line(margin, 34, W - margin, 34);
-      return 34;
+      doc.line(margin, dividerY, W - margin, dividerY);
+      return dividerY;
     }
     
     if (style === "minimal_administrative") {
+      const logoSize = isA5 ? 14 : 20;
+      const logoTop = isA5 ? 5 : 8;
       if (centerLogo || leftLogo) {
         try {
-          doc.addImage(centerLogo || leftLogo, 'PNG', W - margin - 20, 8, 20, 20);
+          doc.addImage(centerLogo || leftLogo, 'PNG', W - margin - logoSize, logoTop, logoSize, logoSize);
         } catch (e) {}
       }
       
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(12);
-      drawTextBilingual(doc, schoolName, margin, 14);
+      doc.setFontSize(isA5 ? 9.5 : 12);
+      doc.setTextColor(15, 23, 42);
+      drawWrappedText(doc, schoolName, margin, isA5 ? 9 : 14, W - 2 * margin - (logoSize + 4), "left");
       
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(8);
-      drawTextBilingual(doc, `Agrément: ${registrationNo} | Année: ${schoolYear}`, margin, 20);
-      drawTextBilingual(doc, `Adresse: ${schoolAddress} | Tél: ${schoolPhone}`, margin, 25);
-      drawTextBilingual(doc, `Email: ${schoolEmail} | Date: ${receiptDate}`, margin, 30);
+      doc.setFontSize(isA5 ? 6.5 : 8);
+      drawWrappedText(doc, `Agrément: ${registrationNo} | Année: ${schoolYear}`, margin, isA5 ? 14 : 20, W - 2 * margin - (logoSize + 4), "left");
+      drawWrappedText(doc, `Adresse: ${schoolAddress} | Tél: ${schoolPhone}`, margin, isA5 ? 18 : 25, W - 2 * margin - (logoSize + 4), "left");
+      drawWrappedText(doc, `Email: ${schoolEmail} | Date: ${receiptDate}`, margin, isA5 ? 22 : 30, W - 2 * margin - (logoSize + 4), "left");
       
+      const dividerY = isA5 ? 26 : 34;
       doc.setDrawColor(220, 225, 240);
       doc.setLineWidth(0.3);
-      doc.line(margin, 34, W - margin, 34);
-      return 34;
+      doc.line(margin, dividerY, W - margin, dividerY);
+      return dividerY;
     }
     
-    doc.setFillColor(241, 245, 255);
-    doc.setDrawColor(210, 218, 255);
-    doc.roundedRect(margin, 8, 22, 22, 3, 3, "FD");
-    doc.setFontSize(9);
+    // Default fallback: classic dual logo
+    const logoSize = isA5 ? 14 : 20;
+    const logoTop = isA5 ? 5 : 8;
+    if (leftLogo) {
+      try {
+        doc.addImage(leftLogo, 'PNG', margin, logoTop, logoSize, logoSize);
+      } catch (e) {}
+    }
+    if (rightLogo && rightLogo !== leftLogo) {
+      try {
+        doc.addImage(rightLogo, 'PNG', W - margin - logoSize, logoTop, logoSize, logoSize);
+      } catch (e) {}
+    }
+    
     doc.setFont("helvetica", "bold");
-    doc.setTextColor(79, 70, 229);
-    drawTextBilingual(doc, "EDUT", margin + 11, 19, { align: "center" });
-    doc.setFontSize(6);
-    drawTextBilingual(doc, "ACADEMY", margin + 11, 24, { align: "center" });
-
-    doc.setFontSize(15);
-    doc.setFont("helvetica", "bold");
+    doc.setFontSize(isA5 ? 10 : 14);
     doc.setTextColor(15, 23, 42);
-    drawTextBilingual(doc, schoolName, margin + 26, 16);
+    drawWrappedText(doc, schoolName, margin + (isA5 ? 18 : 24), isA5 ? 8 : 12, W - 2 * margin - (isA5 ? 38 : 48), "left");
 
-    doc.setFontSize(7.5);
     doc.setFont("helvetica", "normal");
+    doc.setFontSize(isA5 ? 6.5 : 8);
     doc.setTextColor(120, 130, 150);
-    drawTextBilingual(doc, schoolAddress, margin + 26, 21);
-    drawTextBilingual(doc, `Tél: ${schoolPhone}  |  ${schoolEmail}`, margin + 26, 26);
+    
+    let subY = isA5 ? 13 : 18;
+    const stepY = isA5 ? 3.5 : 4.5;
+    if (schoolAddress) {
+      drawWrappedText(doc, schoolAddress, margin + (isA5 ? 18 : 24), subY, W - 2 * margin - (isA5 ? 38 : 48), "left");
+      subY += stepY;
+    }
+    drawWrappedText(doc, `Tél: ${schoolPhone}  |  Email: ${schoolEmail}`, margin + (isA5 ? 18 : 24), subY, W - 2 * margin - (isA5 ? 38 : 48), "left");
+    subY += stepY;
+    drawWrappedText(doc, `Année: ${schoolYear}  |  Date: ${receiptDate}`, margin + (isA5 ? 18 : 24), subY, W - 2 * margin - (isA5 ? 38 : 48), "left");
 
-    doc.setFontSize(7);
-    doc.setTextColor(120, 130, 150);
-    drawTextBilingual(doc, `Année: ${schoolYear}`, W - margin, 10, { align: "right" });
-    drawTextBilingual(doc, `Date: ${receiptDate}`, W - margin, 15, { align: "right" });
-
+    const dividerY = Math.max(isA5 ? 26 : 34, subY + 3);
     doc.setDrawColor(220, 225, 240);
     doc.setLineWidth(0.3);
-    doc.line(margin, 34, W - margin, 34);
-    return 34;
+    doc.line(margin, dividerY, W - margin, dividerY);
+    return dividerY;
   }
 
   // ---------- PDF ----------
@@ -435,7 +586,8 @@ export default function ReceiptPreviewDialog({
     setIsGenerating(true);
     setPdfSuccess(false);
 
-    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    const isA5 = selectedPaperSize === "A5";
+    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: isA5 ? "a5" : "a4" });
     
     if (amiriFontBase64) {
       try {
@@ -446,20 +598,20 @@ export default function ReceiptPreviewDialog({
       }
     }
 
-    const W = 210;
-    const H = 297;
-    const margin = 14;
+    const W = isA5 ? 148 : 210;
+    const H = isA5 ? 210 : 297;
+    const margin = isA5 ? 8 : 14;
 
     doc.setFillColor(249, 250, 252);
     doc.rect(0, 0, W, H, "F");
     doc.setFillColor(15, 23, 42);
     doc.rect(0, 0, W, 2, "F");
     doc.setFillColor(79, 70, 229);
-    doc.rect(0, 2, 60, 1, "F");
+    doc.rect(0, 2, isA5 ? 40 : 60, 1, "F");
 
-    drawReceiptPDFHeader(
+    const headerBottomY = drawReceiptPDFHeader(
       doc,
-      activeHeaderConfig,
+      receiptHeaderConfig,
       branchInfo,
       schoolName,
       schoolAddress,
@@ -468,47 +620,54 @@ export default function ReceiptPreviewDialog({
       feeData.session?.sessionName || "2024-2025",
       receiptDate,
       margin,
-      W
+      W,
+      selectedPaperSize
     );
 
+    // Dynamic placement of elements below header to prevent overlaps
+    const titleBoxY = headerBottomY + (isA5 ? 3 : 4);
     doc.setFillColor(15, 23, 42);
-    doc.roundedRect(margin, 38, W - 2 * margin, 14, 2, 2, "F");
-    doc.setFontSize(13);
+    doc.roundedRect(margin, titleBoxY, W - 2 * margin, isA5 ? 9 : 12, isA5 ? 1.5 : 2, isA5 ? 1.5 : 2, "F");
+    doc.setFontSize(isA5 ? 9 : 12);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(255, 255, 255);
-    doc.text("REÇU DE PAIEMENT", W / 2, 47, { align: "center" });
+    doc.text("REÇU DE PAIEMENT", W / 2, titleBoxY + (isA5 ? 6 : 8), { align: "center" });
 
+    const refBoxY = titleBoxY + (isA5 ? 12 : 16);
     doc.setFillColor(241, 245, 255);
     doc.setDrawColor(200, 210, 255);
-    doc.roundedRect(W / 2 - 35, 56, 70, 8, 2, 2, "FD");
-    doc.setFontSize(8);
+    doc.roundedRect(W / 2 - (isA5 ? 25 : 35), refBoxY, isA5 ? 50 : 70, isA5 ? 6 : 8, isA5 ? 1.5 : 2, isA5 ? 1.5 : 2, "FD");
+    doc.setFontSize(isA5 ? 6.5 : 8);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(79, 70, 229);
-    doc.text(`RÉF : ${refNumber}`, W / 2, 61.5, { align: "center" });
+    doc.text(`RÉF : ${refNumber}`, W / 2, refBoxY + (isA5 ? 4.2 : 5.5), { align: "center" });
 
+    let provY = refBoxY + (isA5 ? 8 : 10);
     if (isProvisoire) {
       doc.setFillColor(254, 243, 199);
       doc.setDrawColor(251, 191, 36);
-      doc.roundedRect(margin, 65, W - 2 * margin, 4, 0.5, 0.5, "FD");
-      doc.setFontSize(6.5);
+      doc.roundedRect(margin, provY, W - 2 * margin, isA5 ? 3 : 4, 0.5, 0.5, "FD");
+      doc.setFontSize(isA5 ? 5.5 : 6.5);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(180, 83, 9);
-      doc.text("Document généré hors ligne - en attente de synchronisation", W / 2, 68, { align: "center" });
+      doc.text("Document généré hors ligne - en attente de synchronisation", W / 2, provY + (isA5 ? 2.2 : 3), { align: "center" });
+      provY += isA5 ? 4.5 : 6;
     }
 
+    const infoBoxY = provY;
     doc.setFillColor(255, 255, 255);
     doc.setDrawColor(220, 225, 240);
-    doc.roundedRect(margin, 70, W - 2 * margin, 36, 2, 2, "FD");
+    doc.roundedRect(margin, infoBoxY, W - 2 * margin, isA5 ? 24 : 32, isA5 ? 1.5 : 2, isA5 ? 1.5 : 2, "FD");
 
-    doc.setFontSize(7);
+    doc.setFontSize(isA5 ? 6 : 7);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(79, 70, 229);
-    doc.text("INFORMATIONS ÉLÈVE", margin + 5, 77);
+    doc.text("INFORMATIONS ÉLÈVE", margin + (isA5 ? 4 : 5), infoBoxY + (isA5 ? 4.5 : 6));
 
-    doc.setFontSize(11);
+    doc.setFontSize(isA5 ? 8 : 10);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(15, 23, 42);
-    doc.text(feeData.student?.nomEtudiant || "—", margin + 5, 84);
+    doc.text(feeData.student?.nomEtudiant || "—", margin + (isA5 ? 4 : 5), infoBoxY + (isA5 ? 9 : 12));
 
     const leftLabels = ["Classe", "Matricule", "Année Scolaire"];
     const leftVals = [
@@ -516,55 +675,55 @@ export default function ReceiptPreviewDialog({
       feeData.student?.numAdmission || "—",
       feeData.session?.sessionName || "2024–2025",
     ];
-    doc.setFontSize(8);
+    doc.setFontSize(isA5 ? 6.5 : 8);
     leftLabels.forEach((lbl, i) => {
       doc.setFont("helvetica", "normal");
       doc.setTextColor(120, 130, 150);
-      doc.text(lbl, margin + 5, 91 + i * 5.5);
+      doc.text(lbl, margin + (isA5 ? 4 : 5), infoBoxY + (isA5 ? 14 : 18) + i * (isA5 ? 3.5 : 4.5));
       doc.setFont("helvetica", "bold");
       doc.setTextColor(30, 35, 50);
-      doc.text(`: ${leftVals[i]}`, margin + 28, 91 + i * 5.5);
+      doc.text(`: ${leftVals[i]}`, margin + (isA5 ? 20 : 28), infoBoxY + (isA5 ? 14 : 18) + i * (isA5 ? 3.5 : 4.5));
     });
 
-    const rx = W / 2 + 5;
-    doc.setFontSize(7);
+    const rx = W / 2 + (isA5 ? 4 : 5);
+    doc.setFontSize(isA5 ? 6 : 7);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(16, 185, 129);
-    doc.text("DATE DU REÇU", rx, 77);
-    doc.setFontSize(13);
+    doc.text("DATE DU REÇU", rx, infoBoxY + (isA5 ? 4.5 : 6));
+    doc.setFontSize(isA5 ? 8.5 : 11);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(15, 23, 42);
-    doc.text(receiptDate, rx, 87);
+    doc.text(receiptDate, rx, infoBoxY + (isA5 ? 10.5 : 14));
 
     doc.setDrawColor(220, 225, 240);
-    doc.line(W / 2, 72, W / 2, 104);
+    doc.line(W / 2, infoBoxY + (isA5 ? 1.5 : 2), W / 2, infoBoxY + (isA5 ? 22.5 : 30));
 
     autoTable(doc, {
-      startY: 112,
-      head: [["Description", "Montant (CFA)"]],
+      startY: infoBoxY + (isA5 ? 27 : 36),
+      head: [["Description", "Montant"]],
       body: [
-        ["Total Attendu — Frais annuels de scolarité", totalExpected.toLocaleString("fr-FR") + " CFA"],
-        ["Total Déjà Payé", totalPaid.toLocaleString("fr-FR") + " CFA"],
-        ...(totalReduction > 0 ? [["Réduction / Bourse", "- " + totalReduction.toLocaleString("fr-FR") + " CFA"]] : []),
+        ["Total Attendu — Frais annuels de scolarité", formatCfaAmount(totalExpected)],
+        ["Total Déjà Payé", formatCfaAmount(totalPaid)],
+        ...(totalReduction > 0 ? [["Réduction / Bourse", "- " + formatCfaAmount(totalReduction)]] : []),
       ],
-      foot: [["SOLDE RESTANT", balance.toLocaleString("fr-FR") + " CFA"]],
+      foot: [["SOLDE RESTANT", formatCfaAmount(balance)]],
       theme: "grid",
       headStyles: {
         fillColor: [15, 23, 42],
         textColor: 255,
-        fontSize: 9,
+        fontSize: isA5 ? 7 : 9,
         fontStyle: "bold",
         halign: "center",
       },
-      bodyStyles: { fontSize: 9, cellPadding: 4 },
+      bodyStyles: { fontSize: isA5 ? 7 : 9, cellPadding: isA5 ? 2.5 : 4, overflow: 'linebreak' },
       footStyles: {
         fillColor: [79, 70, 229],
         textColor: 255,
-        fontSize: 11,
+        fontSize: isA5 ? 7.5 : 10,
         fontStyle: "bold",
       },
       columnStyles: {
-        0: { cellWidth: 130 },
+        0: { cellWidth: isA5 ? 92 : 130 },
         1: { halign: "right", fontStyle: "bold" },
       },
       margin: { left: margin, right: margin },
@@ -572,61 +731,68 @@ export default function ReceiptPreviewDialog({
 
     const tableBottom = (doc as any).lastAutoTable.finalY;
 
-    const badgeY = tableBottom + 14;
+    // Grid layout at bottom
+    const badgeY = tableBottom + (isA5 ? 8 : 12);
     const isOk = balance <= 0;
+    
+    // Status Badge (Left)
     doc.setFillColor(...(isOk ? [236, 253, 245] : [255, 251, 235]) as [number, number, number]);
     doc.setDrawColor(...(isOk ? [167, 243, 208] : [253, 230, 138]) as [number, number, number]);
-    doc.roundedRect(margin, badgeY, 65, 10, 2, 2, "FD");
-    doc.setFontSize(8);
+    doc.roundedRect(margin, badgeY, isA5 ? 45 : 60, isA5 ? 7 : 10, isA5 ? 1.5 : 2, isA5 ? 1.5 : 2, "FD");
+    doc.setFontSize(isA5 ? 6 : 8);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(...(isOk ? [6, 120, 80] : [146, 64, 14]) as [number, number, number]);
     doc.text(
-      isOk ? "✓  SOLDÉ — PAIEMENT COMPLET" : "⏳  EN COURS — RESTE À PAYER",
-      margin + 32.5,
-      badgeY + 6.5,
+      isOk ? "✓ SOLDÉ — COMPLET" : "⏳ EN COURS — DU",
+      margin + (isA5 ? 22.5 : 30),
+      badgeY + (isA5 ? 4.8 : 6.5),
       { align: "center" }
     );
 
+    // Official circular stamp (Center)
     const stampX = W / 2;
-    const stampY = badgeY + 5;
+    const stampY = badgeY + (isA5 ? 3.5 : 5);
+    const stampRadius = isA5 ? 9 : 14;
     doc.setDrawColor(79, 70, 229);
-    doc.setLineWidth(0.6);
+    doc.setLineWidth(isA5 ? 0.4 : 0.6);
     doc.setGState(new (doc as any).GState({ opacity: 0.25 }));
-    doc.circle(stampX, stampY, 14, "S");
-    doc.circle(stampX, stampY, 12, "S");
-    doc.setFontSize(5);
+    doc.circle(stampX, stampY, stampRadius, "S");
+    doc.circle(stampX, stampY, stampRadius - 2, "S");
+    doc.setFontSize(isA5 ? 3.5 : 5);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(79, 70, 229);
-    doc.text(`${schoolName}\nNIAMEY - NIGER`, stampX, stampY - 2, { align: "center" });
+    doc.text(`${schoolName}\nNIAMEY - NIGER`, stampX, stampY - (isA5 ? 1.5 : 2), { align: "center" });
     doc.setGState(new (doc as any).GState({ opacity: 1 }));
 
-    const sigX = W - margin - 55;
-    doc.setFontSize(7);
+    // Signature Area & Line (Right-Center)
+    const sigX = W - margin - (isA5 ? 45 : 65);
+    const sigLineWidth = isA5 ? 30 : 45;
+    doc.setFontSize(isA5 ? 5.5 : 7);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(120, 130, 150);
-    doc.text("Signature & Cachet", sigX + 27, badgeY, { align: "center" });
+    doc.text("Signature & Cachet", sigX + (sigLineWidth / 2), badgeY, { align: "center" });
     doc.setDrawColor(200, 210, 220);
-    doc.line(sigX, badgeY + 15, sigX + 55, badgeY + 15);
+    doc.line(sigX, badgeY + (isA5 ? 11 : 15), sigX + sigLineWidth, badgeY + (isA5 ? 11 : 15));
 
-    const footerY = H - 18;
+    const footerY = H - (isA5 ? 14 : 18);
     doc.setDrawColor(220, 225, 240);
-    doc.line(margin, footerY - 3, W - margin, footerY - 3);
+    doc.line(margin, footerY - 2, W - margin, footerY - 2);
     doc.setFillColor(248, 250, 252);
-    doc.rect(0, footerY - 3, W, 20, "F");
-    doc.setFontSize(6.5);
+    doc.rect(0, footerY - 2, W, isA5 ? 16 : 20, "F");
+    doc.setFontSize(isA5 ? 5.5 : 6.5);
     doc.setFont("helvetica", "italic");
     doc.setTextColor(150, 160, 180);
     doc.text(
       "Merci pour votre confiance. Ce reçu est délivré à titre de preuve de paiement.",
       W / 2,
-      footerY + 2,
+      footerY + 1.5,
       { align: "center" }
     );
-    doc.setFontSize(6);
+    doc.setFontSize(isA5 ? 5 : 6);
     doc.text(
       `Généré le ${new Date().toLocaleDateString("fr-FR")} — ${schoolName} — ${schoolAddress}`,
       W / 2,
-      footerY + 7,
+      footerY + (isA5 ? 5.5 : 7),
       { align: "center" }
     );
 
@@ -658,13 +824,20 @@ export default function ReceiptPreviewDialog({
 
     if (qrBase64) {
       try {
-        doc.addImage(qrBase64, 'PNG', W - margin - 22, badgeY - 5, 22, 22);
+        const qrSize = isA5 ? 12 : 18;
+        doc.addImage(qrBase64, 'PNG', W - margin - qrSize, badgeY - (isA5 ? 3.5 : 5), qrSize, qrSize);
       } catch (e) {}
     }
 
     if (save) {
       const name = feeData.student?.nomEtudiant?.replace(/\s+/g, "_") || "eleve";
       doc.save(`Recu_${name}_${Date.now()}.pdf`);
+      setPdfSuccess(true);
+    }
+
+    setIsGenerating(false);
+    return doc;
+  };ame}_${Date.now()}.pdf`);
       setPdfSuccess(true);
     }
 
@@ -765,7 +938,8 @@ export default function ReceiptPreviewDialog({
                   ════════════════════════════════════════ */}
               <div
                 id="receipt-print-area"
-                className="bg-white rounded-[2rem] border border-slate-200 shadow-lg overflow-hidden"
+                data-paper-size={selectedPaperSize}
+                className="bg-white rounded-[2rem] border border-slate-200 shadow-lg overflow-hidden transition-all duration-300"
                 style={{ fontFamily: "'Inter', 'Segoe UI', sans-serif" }}
               >
                 {/* Top color accent */}
@@ -820,7 +994,7 @@ export default function ReceiptPreviewDialog({
                         </svg>
                       </div>
                       <div>
-                        <p className="text-[17px] font-black text-[#1E3A8A] leading-tight">EDUT ACADEMY</p>
+                        <p className="text-[17px] font-black text-[#1E3A8A] leading-tight">{schoolName}</p>
                         <p className="text-[11px] text-slate-400 font-medium italic mt-0.5">Excellence en Éducation</p>
                       </div>
                     </div>
@@ -939,7 +1113,7 @@ export default function ReceiptPreviewDialog({
                       </div>
                     </div>
                     <p className="text-[14px] font-black text-slate-800 text-right">
-                      {totalExpected.toLocaleString("fr-FR")} CFA
+                      {formatCfaAmount(totalExpected)}
                     </p>
                   </div>
 
@@ -956,7 +1130,7 @@ export default function ReceiptPreviewDialog({
                         </div>
                       </div>
                       <p className="text-[14px] font-black text-purple-600 text-right">
-                        - {totalReduction.toLocaleString("fr-FR")} CFA
+                        - {formatCfaAmount(totalReduction)}
                       </p>
                     </div>
                   )}
@@ -980,7 +1154,7 @@ export default function ReceiptPreviewDialog({
                       </div>
                     </div>
                     <p className="text-[14px] font-black text-slate-800 text-right">
-                      {totalPaid.toLocaleString("fr-FR")} CFA
+                      {formatCfaAmount(totalPaid)}
                     </p>
                   </div>
 
@@ -991,7 +1165,7 @@ export default function ReceiptPreviewDialog({
                       "text-[22px] font-black text-right",
                       isSolde ? "text-emerald-600" : "text-indigo-600"
                     )}>
-                      {balance.toLocaleString("fr-FR")} CFA
+                      {formatCfaAmount(balance)}
                     </p>
                   </div>
                 </div>
@@ -1019,7 +1193,7 @@ export default function ReceiptPreviewDialog({
 
                   {/* Official circular stamp */}
                   <div className="flex items-center justify-center shrink-0">
-                    <svg width="115" height="115" viewBox="0 0 115 115" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <svg width="115" height="115" className="stamp-svg transition-all duration-300" viewBox="0 0 115 115" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <defs>
                         <path id="topArc" d="M 10,57.5 A 47.5,47.5 0 0,1 105,57.5" />
                         <path id="bottomArc" d="M 21,74 A 40,40 0 0,0 94,74" />
@@ -1028,13 +1202,13 @@ export default function ReceiptPreviewDialog({
                       <circle cx="57.5" cy="57.5" r="53" stroke="#1E40AF" strokeWidth="2.5" />
                       {/* Inner ring */}
                       <circle cx="57.5" cy="57.5" r="44" stroke="#1E40AF" strokeWidth="1.2" />
-                      {/* Top text — EDUT ACADEMY */}
+                      {/* Top text — School Name */}
                       <text fontSize="8.5" fill="#1E40AF" fontWeight="700" letterSpacing="1.5">
-                        <textPath href="#topArc" startOffset="50%" textAnchor="middle">★ EDUT ACADEMY ★</textPath>
+                        <textPath href="#topArc" startOffset="50%" textAnchor="middle">★ {schoolName.toUpperCase()} ★</textPath>
                       </text>
-                      {/* Bottom text — NIAMEY - NIGER */}
+                      {/* Bottom text — Address */}
                       <text fontSize="7.5" fill="#1E40AF" fontWeight="700" letterSpacing="1.5">
-                        <textPath href="#bottomArc" startOffset="50%" textAnchor="middle">NIAMEY - NIGER</textPath>
+                        <textPath href="#bottomArc" startOffset="50%" textAnchor="middle">{schoolAddress.toUpperCase()}</textPath>
                       </text>
                       {/* Center: open book */}
                       <rect x="38" y="42" width="18" height="22" rx="2.5" fill="none" stroke="#1E40AF" strokeWidth="1.8"/>
@@ -1049,7 +1223,7 @@ export default function ReceiptPreviewDialog({
                   </div>
 
                   {/* Signature area */}
-                  <div className="w-52 space-y-2">
+                  <div className="w-52 signature-area space-y-2 transition-all duration-300">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">
                       Signature &amp; Cachet
                     </p>
@@ -1222,7 +1396,35 @@ export default function ReceiptPreviewDialog({
           >
             Fermer
           </Button>
-          <div className="flex gap-3">
+          <div className="flex gap-3 items-center">
+            {/* Paper Size selector */}
+            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-2xl border border-slate-200 shadow-inner mr-2">
+              <button
+                type="button"
+                onClick={() => setSelectedPaperSize("A4")}
+                className={cn(
+                  "h-8 px-4 rounded-xl text-xs font-black tracking-widest transition-all",
+                  selectedPaperSize === "A4"
+                    ? "bg-white text-slate-800 shadow-sm"
+                    : "text-slate-400 hover:text-slate-600"
+                )}
+              >
+                A4
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedPaperSize("A5")}
+                className={cn(
+                  "h-8 px-4 rounded-xl text-xs font-black tracking-widest transition-all",
+                  selectedPaperSize === "A5"
+                    ? "bg-white text-slate-800 shadow-sm"
+                    : "text-slate-400 hover:text-slate-600"
+                )}
+              >
+                A5
+              </button>
+            </div>
+
             <Button
               onClick={() => generatePDF(true)}
               disabled={!isDataComplete || isGenerating}
