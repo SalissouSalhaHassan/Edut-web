@@ -3,8 +3,8 @@ import { and, eq, sql } from "drizzle-orm";
 import { db, readDb } from "@/infrastructure/database";
 import { students } from "@/infrastructure/database/schema/students";
 import { schoolSessions, timetableEntries } from "@/infrastructure/database/schema/academics";
-import { getMobileUser, mobileJsonError } from "../../_lib/auth";
-import { verifyParentChildRelationship } from "../../_lib/family-auth";
+import { getMobileUser, mobileJsonError } from "../../../_lib/auth";
+import { verifyParentChildRelationship } from "../../../_lib/family-auth";
 
 export const dynamic = "force-dynamic";
 

@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { inArray } from "drizzle-orm";
 import { readDb } from "@/infrastructure/database";
 import { students } from "@/infrastructure/database/schema/students";
-import { getMobileUser, mobileJsonError } from "../../_lib/auth";
-import { getParentChildrenIds } from "../../_lib/family-auth";
+import { getMobileUser, mobileJsonError } from "../../../_lib/auth";
+import { getParentChildrenIds } from "../../../_lib/family-auth";
 
 export const dynamic = "force-dynamic";
 

@@ -4,9 +4,9 @@ import { readDb } from "@/infrastructure/database";
 import { studentAttendance } from "@/infrastructure/database/schema/attendance";
 import { students } from "@/infrastructure/database/schema/students";
 import { classSubjects } from "@/infrastructure/database/schema/academics";
-import { getMobileUser, mobileJsonError } from "../../_lib/auth";
+import { getMobileUser, mobileJsonError } from "../../../../_lib/auth";
 import { getUserRoleType } from "@/domains/auth/services/rbac";
-import { verifyParentChildRelationship } from "../../_lib/family-auth";
+import { verifyParentChildRelationship } from "../../../../_lib/family-auth";
 
 export const dynamic = "force-dynamic";
 

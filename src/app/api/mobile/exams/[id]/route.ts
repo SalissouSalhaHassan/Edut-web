@@ -7,9 +7,9 @@ import {
   classSubjects,
 } from "@/infrastructure/database/schema/academics";
 import { students } from "@/infrastructure/database/schema/students";
-import { getMobileUser, mobileJsonError } from "../../_lib/auth";
+import { getMobileUser, mobileJsonError } from "../../../_lib/auth";
 import { getUserRoleType } from "@/domains/auth/services/rbac";
-import { getParentChildrenIds } from "../../_lib/family-auth";
+import { getParentChildrenIds } from "../../../_lib/family-auth";
 
 export const dynamic = "force-dynamic";
 

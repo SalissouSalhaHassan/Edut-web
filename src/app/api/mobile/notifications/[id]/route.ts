@@ -3,7 +3,7 @@ import { and, eq, isNull, or } from "drizzle-orm";
 
 import { db } from "@/infrastructure/database";
 import { notifications } from "@/infrastructure/database/schema/messaging";
-import { getMobileUser, mobileJsonError } from "../../_lib/auth";
+import { getMobileUser, mobileJsonError } from "../../../_lib/auth";
 
 export const dynamic = "force-dynamic";
 
