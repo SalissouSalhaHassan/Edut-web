@@ -429,48 +429,7 @@ export default function UniversalReport({ metadata, kpis = [], table, onSendEmai
       <article className="bg-white rounded-[32px] border border-slate-100 shadow-sm p-8 print:p-0 print:border-none print:shadow-none space-y-8 print:bg-white print:text-black">
         
         {/* ─── PRINTABLE OFFICIAL HEADER ─── */}
-        {metadata.documentHeaderConfig ? (
-          <OfficialDocumentHeader config={metadata.documentHeaderConfig} title={metadata.title} />
-        ) : (
-        <div className="w-full border-b-2 border-indigo-600 pb-5">
-          <div className="flex flex-col md:flex-row justify-between items-start gap-4">
-            
-            {/* Left side: Logo & Title */}
-            <div className="flex items-center gap-4">
-              <div className="w-16 h-16 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-black text-xl shadow-lg shadow-indigo-100 shrink-0">
-                EP
-              </div>
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-indigo-600">{metadata.moduleName}</p>
-                <h1 className="text-2xl font-black tracking-tight text-slate-950 uppercase">{metadata.title}</h1>
-                <p className="text-xs font-bold text-slate-500 mt-0.5">{metadata.subtitle || "Registre centralisé informatisé"}</p>
-              </div>
-            </div>
-
-            {/* Right side: parameters */}
-            <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4 min-w-[280px] space-y-1 text-xs font-bold text-slate-600 print:bg-white print:border-slate-300">
-              <div className="flex justify-between">
-                <span className="text-slate-400">Date d'édition :</span>
-                <span className="text-slate-800">{formattedDate} {formattedTime}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">Année scolaire :</span>
-                <span className="text-slate-800">{metadata.academicYear}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">Généré par :</span>
-                <span className="text-slate-800">{metadata.editorName}</span>
-              </div>
-              <div className="flex justify-between pt-1 border-t border-slate-200/60">
-                <span className="text-indigo-600">ID Rapport :</span>
-                <span className="font-mono text-slate-900">{metadata.reportId}</span>
-              </div>
-            </div>
-
-          </div>
-        </div>
-        )}
-
+        <OfficialDocumentHeader config={metadata.documentHeaderConfig || null} title={metadata.title} />
         {/* ─── GENERAL SUMMARY SECTION ─── */}
         {kpis && kpis.length > 0 && (
           <div className="space-y-3">

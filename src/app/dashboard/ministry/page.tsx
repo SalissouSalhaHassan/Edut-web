@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { jsPDF } from "jspdf";
+import OfficialDocumentHeader from "@/domains/printing/components/OfficialDocumentHeader";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import {
@@ -72,6 +73,17 @@ export default function MinistryDashboardPage() {
   const [schools, setSchools] = useState<SchoolData[]>([]);
   const [loadingSchools, setLoadingSchools] = useState(true);
   const [schoolSessions, setSchoolSessions] = useState<SessionOption[]>([]);
+  const [activeHeaderConfig, setActiveHeaderConfig] = useState<any>(null);
+
+  useEffect(() => {
+    import("@/domains/settings/actions/settings.actions").then(({ getDocumentHeaderConfig }) => {
+      getDocumentHeaderConfig().then((res) => {
+        if (res?.data) {
+          setActiveHeaderConfig(res.data);
+        }
+      });
+    });
+  }, []);
   
   // Filter States
   const [selectedYear, setSelectedYear] = useState("");
@@ -520,6 +532,10 @@ export default function MinistryDashboardPage() {
 
   return (
     <div className="min-h-screen space-y-8 p-4 text-slate-950 md:p-6 xl:p-8 bg-[#fcfdff] print:bg-white print:p-0 animate-in fade-in duration-300">
+      {/* Printable Official Header */}
+      <div className="hidden print:block mb-6 border-b-[2.5px] border-blue-900 pb-5">
+        <OfficialDocumentHeader config={activeHeaderConfig} title="RAPPORT STATISTIQUE NATIONAL DÉCISIONNEL" />
+      </div>
       
       {/* Header */}
       <header className="rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">

@@ -3,6 +3,25 @@
 import { useEffect, useMemo, useState } from "react";
 import jsPDF from "jspdf";
 import Link from "next/link";
+import OfficialDocumentHeader from "@/domains/printing/components/OfficialDocumentHeader";
+
+// Helper to render Arabic text as an image for jsPDF to avoid Unicode/RTL issues
+const renderArabicText = (text: string, fontSize: number, color: string = "#1e3a8a", width: number = 300, height: number = 50): string => {
+  if (typeof window === "undefined") return "";
+  const canvas = document.createElement("canvas");
+  canvas.width = width * 4; // high DPI
+  canvas.height = height * 4;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return "";
+  ctx.scale(4, 4);
+  ctx.clearRect(0, 0, width, height);
+  ctx.font = `bold ${fontSize}px "Amiri", "Arial", "Segoe UI", "Tahoma", sans-serif`;
+  ctx.fillStyle = color;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, width / 2, height / 2);
+  return canvas.toDataURL("image/png");
+};
 import {
   ArrowLeft,
   Columns3,
@@ -165,6 +184,17 @@ export default function AdmitCardsPage() {
   const [draftImage, setDraftImage] = useState("");
   const [dbStudents, setDbStudents] = useState<any[]>([]);
   const [selectedStudentIdx, setSelectedStudentIdx] = useState(0);
+  const [activeHeaderConfig, setActiveHeaderConfig] = useState<any>(null);
+
+  useEffect(() => {
+    import("@/domains/settings/actions/settings.actions").then(({ getDocumentHeaderConfig }) => {
+      getDocumentHeaderConfig().then((res) => {
+        if (res?.data) {
+          setActiveHeaderConfig(res.data);
+        }
+      });
+    });
+  }, []);
 
   // Load students from IndexedDB on mount
   useEffect(() => {
@@ -202,21 +232,79 @@ export default function AdmitCardsPage() {
       doc.rect(0, 0, W, H, "F");
     }
 
-    // Header bar
-    doc.setFillColor(30, 58, 138);
-    doc.rect(0, 0, W, 4, "F");
-    doc.setFillColor(79, 70, 229);
-    doc.rect(0, 4, 80, 1.5, "F");
+    // French Header Text
+    const country = activeHeaderConfig?.country || "RÉPUBLIQUE DU NIGER";
+    const ministry = activeHeaderConfig?.ministry || "MINISTÈRE DE L'ÉDUCATION NATIONALE";
+    const regionalDirection = activeHeaderConfig?.regionalDirection || "Direction Régionale de Niamey";
+    const departmentalDirection = activeHeaderConfig?.departmentalDirection || "";
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.5);
+    doc.setTextColor(30, 58, 138);
+    doc.text(country, 20, 16);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.5);
+    doc.setTextColor(51, 65, 85);
+    doc.text(ministry, 20, 21);
+    doc.setFont("helvetica", "bold");
+    doc.text(regionalDirection, 20, 26);
+    if (departmentalDirection) {
+      doc.text(departmentalDirection, 20, 31);
+    }
+
+    // Arabic Header Text (Rendered as high-res images to support Unicode and RTL)
+    const countryAr = activeHeaderConfig?.countryAr || "جمهورية النيجر";
+    const ministryAr = activeHeaderConfig?.ministryAr || "وزارة التربية الوطنية";
+    const regionalDirectionAr = activeHeaderConfig?.regionalDirectionAr || "المديرية الجهوية لنيامي";
+    const departmentalDirectionAr = activeHeaderConfig?.departmentalDirectionAr || "";
+
+    const arHeader1 = renderArabicText(countryAr, 13, "#1e3a8a", 160, 24);
+    const arHeader2 = renderArabicText(ministryAr, 11, "#334155", 160, 24);
+    const arHeader3 = renderArabicText(regionalDirectionAr, 11, "#334155", 160, 24);
+    
+    if (arHeader1) doc.addImage(arHeader1, "PNG", W - 60, 12, 40, 6);
+    if (arHeader2) doc.addImage(arHeader2, "PNG", W - 60, 17, 40, 6);
+    if (arHeader3) doc.addImage(arHeader3, "PNG", W - 60, 22, 40, 6);
+
+    if (departmentalDirectionAr) {
+      const arHeader4 = renderArabicText(departmentalDirectionAr, 11, "#334155", 160, 24);
+      if (arHeader4) doc.addImage(arHeader4, "PNG", W - 60, 27, 40, 6);
+    }
+
+    // Center logo (Circle) or Left Logo
+    const leftLogo = activeHeaderConfig?.leftLogo || "";
+    if (leftLogo) {
+      try {
+        doc.addImage(leftLogo, "PNG", W / 2 - 9, 12, 18, 18);
+      } catch (e) {
+        doc.setDrawColor(203, 213, 225);
+        doc.setFillColor(248, 250, 252);
+        doc.circle(W / 2, 21, 9, "FD");
+      }
+    } else {
+      doc.setDrawColor(203, 213, 225);
+      doc.setFillColor(248, 250, 252);
+      doc.circle(W / 2, 21, 9, "FD");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(5);
+      doc.setTextColor(148, 163, 184);
+      doc.text("(ARMOIRIES)", W / 2, 28, { align: "center" });
+    }
+
+    // Horizontal Divider
+    doc.setDrawColor(79, 70, 229);
+    doc.setLineWidth(0.6);
+    doc.line(20, 36, W - 20, 36);
 
     // Title
     doc.setFont("helvetica", "bold");
     doc.setFontSize(16);
     doc.setTextColor(30, 58, 138);
-    doc.text("CARTE D'ADMISSION", W / 2, 22, { align: "center" });
+    doc.text("CARTE D'ADMISSION", W / 2, 43, { align: "center" });
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(71, 85, 105);
-    doc.text(template.name, W / 2, 29, { align: "center" });
+    doc.text(template.name, W / 2, 49, { align: "center" });
 
     // Offline watermark
     if (isProvisoire) {
@@ -419,10 +507,8 @@ export default function AdmitCardsPage() {
       </header>
 
       <section className="hidden print:block">
-        <div className="border-b border-slate-300 pb-4 text-center">
-          <p className="text-sm font-black uppercase">Republique du Niger - Ministere de l'Education Nationale</p>
-          <h1 className="mt-2 text-2xl font-black">Cartes d'admission - Modeles administratifs</h1>
-          <p className="mt-1 text-xs font-bold">Ecole Excellence - Annee scolaire 2025 - 2026 - Date impression: 30/06/2026 - Utilisateur: Admin</p>
+        <div className="border-b-[2.5px] border-blue-900 pb-5 z-10">
+          <OfficialDocumentHeader config={activeHeaderConfig} title="" />
         </div>
       </section>
 

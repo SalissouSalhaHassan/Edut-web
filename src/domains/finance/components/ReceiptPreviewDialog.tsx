@@ -133,6 +133,21 @@ export default function ReceiptPreviewDialog({
   const [pdfSuccess, setPdfSuccess] = useState(false);
   const [branchInfo, setBranchInfo] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<"receipt" | "history">("receipt");
+  const [activeHeaderConfig, setActiveHeaderConfig] = useState<any>(headerConfig);
+
+  useEffect(() => {
+    if (headerConfig) {
+      setActiveHeaderConfig(headerConfig);
+    } else if (open) {
+      import("@/domains/settings/actions/settings.actions").then(({ getDocumentHeaderConfig }) => {
+        getDocumentHeaderConfig().then((res) => {
+          if (res?.data) {
+            setActiveHeaderConfig(res.data);
+          }
+        });
+      });
+    }
+  }, [open, headerConfig]);
 
   useEffect(() => {
     if (open && feeData?.student?.educationalLevel) {
@@ -189,22 +204,22 @@ export default function ReceiptPreviewDialog({
         year: "numeric",
       });
 
-  const schoolName = headerConfig?.schoolName || branchInfo?.branchName || "EDUT ACADEMY";
-  const schoolAddress = headerConfig?.address || branchInfo?.address || "Secteur 5, Niamey, Niger";
-  const schoolPhone = headerConfig?.phone || branchInfo?.contactNo || "+227 90 12 34 56";
-  const schoolEmail = headerConfig?.email || branchInfo?.email || "contact@edutacademy.ne";
+  const schoolName = activeHeaderConfig?.schoolName || branchInfo?.branchName || "EDUT ACADEMY";
+  const schoolAddress = activeHeaderConfig?.address || branchInfo?.address || "Secteur 5, Niamey, Niger";
+  const schoolPhone = activeHeaderConfig?.phone || branchInfo?.contactNo || "+227 90 12 34 56";
+  const schoolEmail = activeHeaderConfig?.email || branchInfo?.email || "contact@edutacademy.ne";
   const receiptHeaderConfig: Partial<DocumentHeaderConfig> = {
-    style: headerConfig?.style || "classic_dual_logo",
+    style: activeHeaderConfig?.style || "classic_dual_logo",
     schoolName,
     address: schoolAddress,
     phone: schoolPhone,
     email: schoolEmail,
-    schoolYear: headerConfig?.schoolYear || feeData?.session?.sessionName || "2024 - 2025",
-    leftLogo: headerConfig?.leftLogo || branchInfo?.logoPath || "",
-    rightLogo: headerConfig?.rightLogo || branchInfo?.logoPath || "",
-    centerLogo: headerConfig?.centerLogo || branchInfo?.logoPath || "",
-    ministry: headerConfig?.ministry || "Ministère de l'Éducation Nationale",
-    service: headerConfig?.service || "Service de la Scolarité",
+    schoolYear: activeHeaderConfig?.schoolYear || feeData?.session?.sessionName || "2024 - 2025",
+    leftLogo: activeHeaderConfig?.leftLogo || branchInfo?.logoPath || "",
+    rightLogo: activeHeaderConfig?.rightLogo || branchInfo?.logoPath || "",
+    centerLogo: activeHeaderConfig?.centerLogo || branchInfo?.logoPath || "",
+    ministry: activeHeaderConfig?.ministry || "Ministère de l'Éducation Nationale",
+    service: activeHeaderConfig?.service || "Service de la Scolarité",
   };
 
   // ---------- PRINT ----------
@@ -444,7 +459,7 @@ export default function ReceiptPreviewDialog({
 
     drawReceiptPDFHeader(
       doc,
-      headerConfig,
+      activeHeaderConfig,
       branchInfo,
       schoolName,
       schoolAddress,

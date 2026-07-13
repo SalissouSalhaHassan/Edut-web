@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import { mergeDocumentHeaderConfig, type DocumentHeaderConfig } from "../document-header";
 
@@ -21,7 +22,7 @@ function LogoBox({ src, alt, size = 86 }: { src?: string; alt: string; size?: nu
 }
 
 const mojibakeArabicMap: Record<string, string> = {
-  "ط¬ظ…ظ‡ظˆط±ظٹط© ط§ظ„ظ†ظٹط¬ط±": "جمهورية النيجر",
+  "ط¬ظ…ظ‡ظˆط±ظٹط© ط§ظ„ظٹط¬ط±": "جمهورية النيجر",
   "ظˆط²ط§ط±ط© ط§ظ„طھط±ط¨ظٹط© ط§ظ„ظˆط·ظ†ظٹط©": "وزارة التربية الوطنية",
   "ط§ظ„ظ…ط¯ظٹط±ظٹط© ط§ظ„ط¬ظ‡ظˆظٹط© ظ„ظ„طھط±ط¨ظٹط© ط§ظ„ظˆط·ظ†ظٹط©": "المديرية الجهوية للتربية الوطنية",
   "ط§ظ„ظ…ط¯ظٹط±ظٹط© ط§ظ„ط¥ظ‚ظ„ظٹظ…ظٹط© ظ„ظ„طھط±ط¨ظٹط© ط§ظ„ظˆط·ظ†ظٹط©": "المديرية الإقليمية للتربية الوطنية",
@@ -115,7 +116,21 @@ export default function OfficialDocumentHeader({
   qrData,
   showSignatureArea,
 }: OfficialDocumentHeaderProps) {
-  const cfg = mergeDocumentHeaderConfig(config);
+  const [dbConfig, setDbConfig] = useState<Partial<DocumentHeaderConfig> | null>(null);
+
+  useEffect(() => {
+    if (!config) {
+      import("@/domains/settings/actions/settings.actions").then(({ getDocumentHeaderConfig }) => {
+        getDocumentHeaderConfig().then((res) => {
+          if (res?.data) {
+            setDbConfig(res.data);
+          }
+        });
+      });
+    }
+  }, [config]);
+
+  const cfg = mergeDocumentHeaderConfig(config || dbConfig);
   const primary = cfg.primaryColor || "#4f46e5";
   const secondary = cfg.secondaryColor || "#10b981";
   const titleSize = variant === "compact" ? Math.max(18, (cfg.titleSize || 26) - 8) : cfg.titleSize || 26;

@@ -8,6 +8,7 @@ import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { Input } from "@/components/ui/input";
+import OfficialDocumentHeader from "@/domains/printing/components/OfficialDocumentHeader";
 
 interface ClassSummary {
   className: string;
@@ -196,14 +197,37 @@ export default function FinanceReports({ fees = [], classes = [], classSummary =
     toast.success("PDF généré !");
   };
 
+  React.useEffect(() => {
+    const styleId = "finance-report-print-style-v1";
+    if (document.getElementById(styleId)) return;
+    const style = document.createElement("style");
+    style.id = styleId;
+    style.innerHTML = `
+      @media print {
+        body > *:not(#finance-report-print-root) { display: none !important; }
+        #finance-report-print-root { display: block !important; position: absolute; inset: 0; z-index: 9999; background: white; padding: 0; margin: 0; }
+        @page { size: A4; margin: 15mm; }
+      }
+    `;
+    document.head.appendChild(style);
+  }, []);
+
   const handlePrint = () => {
-    const el = document.getElementById("finance-report-print");
-    if (!el) return;
-    const win = window.open("", "_blank");
-    if (!win) return;
-    const label = ACCOUNTING_REPORTS.find(r => r.id === activeReport)?.label || activeReport;
-    win.document.write(`<!DOCTYPE html><html><head><title>${label}</title><style>body{font-family:sans-serif;padding:20px;color:#333}h1{color:#4f46e5;font-size:20px}table{width:100%;border-collapse:collapse;font-size:11px}th{background:#f3f4f6;padding:8px;text-align:left;border-bottom:2px solid #e5e7eb}td{padding:8px;border-bottom:1px solid #f1f5f9}</style></head><body><h1>${label}</h1><p>Généré le ${today}</p>${el.innerHTML}</body></html>`);
-    win.document.close(); win.focus(); setTimeout(() => { win.print(); win.close(); }, 500);
+    const printArea = document.getElementById("finance-report-print");
+    if (!printArea) return;
+    const clone = printArea.cloneNode(true) as HTMLElement;
+    let root = document.getElementById("finance-report-print-root");
+    if (!root) {
+      root = document.createElement("div");
+      root.id = "finance-report-print-root";
+      document.body.appendChild(root);
+    }
+    root.innerHTML = "";
+    root.appendChild(clone);
+    window.print();
+    setTimeout(() => {
+      if (root) root.innerHTML = "";
+    }, 1500);
   };
 
   const currentFeeDetails = fees.find((f: any) => f.id === selectedFeeId);
@@ -338,7 +362,11 @@ export default function FinanceReports({ fees = [], classes = [], classSummary =
         </div>
 
         {/* ── REPORT TABLE AREA ── */}
-        <div id="finance-report-print" className="bg-white rounded-[2.5rem] border border-slate-200/50 shadow-sm overflow-hidden">
+        <div id="finance-report-print" className="bg-white rounded-[2.5rem] border border-slate-200/50 shadow-sm overflow-hidden p-6 space-y-6">
+          {/* Printable Official Header */}
+          <div className="hidden print:block mb-6">
+            <OfficialDocumentHeader config={null} title={ACCOUNTING_REPORTS.find(r => r.id === activeReport)?.label || "Rapport Financier"} />
+          </div>
 
           {/* JOURNAL DE CAISSE */}
           {activeReport === "journal" && (

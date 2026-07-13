@@ -204,54 +204,58 @@ export async function updateSetting(key: string, value: string) {
   });
 }
 
+export async function fetchDocumentHeaderConfigForSchool(schoolId: number): Promise<DocumentHeaderConfig> {
+  // Fetch first branch of the school for fallback values
+  let branchFallback: any = null;
+  try {
+    const branches = await db.query.schoolBranches.findMany({
+      where: eq(schoolBranches.schoolId, schoolId),
+      orderBy: [desc(schoolBranches.createdAt)]
+    });
+    if (branches && branches.length > 0) {
+      branchFallback = branches[0];
+    }
+  } catch (e) {
+    console.error("Error fetching branch fallback in fetchDocumentHeaderConfigForSchool:", e);
+  }
+
+  const existing = await db.query.settings.findFirst({
+    where: and(
+      eq(settings.key, DOCUMENT_HEADER_SETTING_KEY),
+      eq(settings.schoolId, schoolId)
+    )
+  });
+
+  let configData: any;
+  if (!existing?.value) {
+    configData = mergeDocumentHeaderConfig();
+  } else {
+    try {
+      configData = mergeDocumentHeaderConfig(JSON.parse(existing.value));
+    } catch {
+      configData = mergeDocumentHeaderConfig();
+    }
+  }
+
+  // Apply fallbacks from branch if header config fields are missing
+  if (branchFallback) {
+    if (!configData.schoolName) configData.schoolName = branchFallback.branchName || "";
+    if (!configData.ministry) configData.ministry = branchFallback.ministry || "";
+    if (!configData.regionalDirection) configData.regionalDirection = branchFallback.dren || branchFallback.region || "";
+    if (!configData.departmentalDirection) configData.departmentalDirection = branchFallback.dden || branchFallback.department || "";
+    if (!configData.inspection) configData.inspection = branchFallback.inspection || "";
+    if (!configData.commune) configData.commune = branchFallback.commune || "";
+    if (!configData.schoolCode) configData.schoolCode = branchFallback.schoolCode || "";
+  }
+
+  return configData;
+}
+
 export async function getDocumentHeaderConfig() {
   return protectedDbAction("Settings", "canView", async () => {
     const schoolId = await getActiveSchoolId();
-    
-    // Fetch first branch of the school for fallback values
-    let branchFallback: any = null;
-    try {
-      const branches = await db.query.schoolBranches.findMany({
-        where: eq(schoolBranches.schoolId, schoolId),
-        orderBy: [desc(schoolBranches.createdAt)]
-      });
-      if (branches && branches.length > 0) {
-        branchFallback = branches[0];
-      }
-    } catch (e) {
-      console.error("Error fetching branch fallback in getDocumentHeaderConfig:", e);
-    }
-
-    const existing = await db.query.settings.findFirst({
-      where: and(
-        eq(settings.key, DOCUMENT_HEADER_SETTING_KEY),
-        eq(settings.schoolId, schoolId)
-      )
-    });
-
-    let configData: any;
-    if (!existing?.value) {
-      configData = mergeDocumentHeaderConfig();
-    } else {
-      try {
-        configData = mergeDocumentHeaderConfig(JSON.parse(existing.value));
-      } catch {
-        configData = mergeDocumentHeaderConfig();
-      }
-    }
-
-    // Apply fallbacks from branch if header config fields are missing
-    if (branchFallback) {
-      if (!configData.schoolName) configData.schoolName = branchFallback.branchName || "";
-      if (!configData.ministry) configData.ministry = branchFallback.ministry || "";
-      if (!configData.regionalDirection) configData.regionalDirection = branchFallback.dren || branchFallback.region || "";
-      if (!configData.departmentalDirection) configData.departmentalDirection = branchFallback.dden || branchFallback.department || "";
-      if (!configData.inspection) configData.inspection = branchFallback.inspection || "";
-      if (!configData.commune) configData.commune = branchFallback.commune || "";
-      if (!configData.schoolCode) configData.schoolCode = branchFallback.schoolCode || "";
-    }
-
-    return { data: configData };
+    const data = await fetchDocumentHeaderConfigForSchool(schoolId);
+    return { data };
   });
 }
 

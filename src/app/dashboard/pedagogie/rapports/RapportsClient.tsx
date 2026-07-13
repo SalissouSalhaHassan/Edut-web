@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
+import OfficialDocumentHeader from "@/domains/printing/components/OfficialDocumentHeader";
 import {
   FileText, Search, Filter, Download, Printer, Mail, Play,
   CheckCircle2, AlertCircle, ChevronDown, BookOpen, Users,
@@ -49,6 +50,32 @@ export default function RapportsClient({
   const [selectedReport, setSelectedReport] = useState<string>("cahier");
   const [isGenerated, setIsGenerated] = useState<boolean>(false);
   const [isPending, setIsPending] = useState<boolean>(false);
+  const [activeHeaderConfig, setActiveHeaderConfig] = useState<any>(null);
+
+  useEffect(() => {
+    import("@/domains/settings/actions/settings.actions").then(({ getDocumentHeaderConfig }) => {
+      getDocumentHeaderConfig().then((res) => {
+        if (res?.data) {
+          setActiveHeaderConfig(res.data);
+        }
+      });
+    });
+  }, []);
+
+  useEffect(() => {
+    const styleId = "pedagogie-report-print-style";
+    if (document.getElementById(styleId)) return;
+    const style = document.createElement("style");
+    style.id = styleId;
+    style.innerHTML = `
+      @media print {
+        body > *:not(#pedagogie-report-print-root) { display: none !important; }
+        #pedagogie-report-print-root { display: block !important; position: absolute; inset: 0; z-index: 9999; background: white; padding: 0; margin: 0; }
+        @page { size: A4 portrait; margin: 15mm; }
+      }
+    `;
+    document.head.appendChild(style);
+  }, []);
 
   // Fallback default session calculation
   const defaultSession = activeSessionName || (new Date().getFullYear() + "-" + (new Date().getFullYear() + 1));
@@ -420,7 +447,21 @@ export default function RapportsClient({
   };
 
   const handlePrint = () => {
+    const printArea = document.getElementById("pedagogie-report-print");
+    if (!printArea) return;
+    const clone = printArea.cloneNode(true) as HTMLElement;
+    let root = document.getElementById("pedagogie-report-print-root");
+    if (!root) {
+      root = document.createElement("div");
+      root.id = "pedagogie-report-print-root";
+      document.body.appendChild(root);
+    }
+    root.innerHTML = "";
+    root.appendChild(clone);
     window.print();
+    setTimeout(() => {
+      if (root) root.innerHTML = "";
+    }, 1500);
   };
 
   const handleExportCSV = () => {
@@ -592,26 +633,11 @@ export default function RapportsClient({
 
       {/* ─── PREVIEW: OFFICIAL DOCUMENT SHEET ─── */}
       {isGenerated ? (
-        <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-8 max-w-4xl mx-auto space-y-8 relative overflow-hidden print:border-none print:shadow-none print:p-0">
+        <div id="pedagogie-report-print" className="bg-white rounded-3xl border border-slate-100 shadow-sm p-8 max-w-4xl mx-auto space-y-8 relative overflow-hidden print:border-none print:shadow-none print:p-0">
 
           {/* Ministry & School Banners */}
-          <div className="grid grid-cols-3 items-center border-b-2 border-slate-900 pb-5">
-            <div className="text-[10px] font-bold text-slate-700 leading-snug space-y-0.5">
-              <div>RÉPUBLIQUE DU NIGER</div>
-              <div className="text-[8px] font-medium text-slate-500 uppercase">Fraternité - Travail - Progrès</div>
-              <div>MINISTÈRE DE L'ÉDUCATION NATIONALE</div>
-            </div>
-            <div className="flex flex-col items-center justify-center text-center">
-              <div className="w-12 h-12 rounded-full border-2 border-slate-900 flex items-center justify-center font-black text-slate-900 text-xs">
-                LOGO
-              </div>
-              <span className="text-[9px] font-bold text-slate-400 mt-1 uppercase tracking-widest">Edut Académique</span>
-            </div>
-            <div className="text-right text-[10px] font-bold text-slate-700 space-y-0.5">
-              <div>COMPLEXE SCOLAIRE EDUT</div>
-              <div>Année scolaire: {anneeScolaire}</div>
-              <div>Date: {new Date().toLocaleDateString("fr-FR")}</div>
-            </div>
+          <div className="border-b-[2.5px] border-blue-900 pb-5">
+            <OfficialDocumentHeader config={activeHeaderConfig} title="" />
           </div>
 
           {/* Document Title */}

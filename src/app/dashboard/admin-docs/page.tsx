@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { jsPDF } from "jspdf";
+import OfficialDocumentHeader from "@/domains/printing/components/OfficialDocumentHeader";
 import {
   FileText,
   ArrowLeft,
@@ -74,6 +75,17 @@ export default function AdminDocsPage() {
   const [signatoryName, setSignatoryName] = useState("M. BAKO SANI");
   const [customComment, setCustomComment] = useState("");
   const [dbStudents, setDbStudents] = useState<any[]>([]);
+  const [activeHeaderConfig, setActiveHeaderConfig] = useState<any>(null);
+
+  useEffect(() => {
+    import("@/domains/settings/actions/settings.actions").then(({ getDocumentHeaderConfig }) => {
+      getDocumentHeaderConfig().then((res) => {
+        if (res?.data) {
+          setActiveHeaderConfig(res.data);
+        }
+      });
+    });
+  }, []);
 
   const activeDoc = docTypes.find((d) => d.id === selectedDoc) || docTypes[0];
 
@@ -138,35 +150,64 @@ export default function AdminDocsPage() {
       doc.setFillColor(30, 58, 138); // Institutional blue
       doc.rect(0, 0, pageWidth, 4, "F");
 
-      // Left Header: French Text
+      // French Header Text
+      const country = activeHeaderConfig?.country || "RÉPUBLIQUE DU NIGER";
+      const ministry = activeHeaderConfig?.ministry || "MINISTÈRE DE L'ÉDUCATION NATIONALE";
+      const regionalDirection = activeHeaderConfig?.regionalDirection || "Direction Régionale de Niamey";
+      const departmentalDirection = activeHeaderConfig?.departmentalDirection || "";
+
       doc.setFont("helvetica", "bold");
       doc.setFontSize(8.5);
       doc.setTextColor(30, 58, 138);
-      doc.text("RÉPUBLIQUE DU NIGER", 20, 16);
+      doc.text(country, 20, 16);
       doc.setFont("helvetica", "normal");
       doc.setFontSize(7.5);
       doc.setTextColor(51, 65, 85);
-      doc.text("MINISTÈRE DE L'ÉDUCATION NATIONALE", 20, 21);
+      doc.text(ministry, 20, 21);
       doc.setFont("helvetica", "bold");
-      doc.text("Direction Régionale de Niamey", 20, 26);
+      doc.text(regionalDirection, 20, 26);
+      if (departmentalDirection) {
+        doc.text(departmentalDirection, 20, 31);
+      }
 
-      // Right Header: Arabic Text (Rendered as high-res images to support Unicode and RTL)
-      const arHeader1 = renderArabicText("\u0627\u0644\u062c\u0645\u0647\u0648\u0631\u064a\u0629 \u0627\u0644\u0646\u064a\u062c\u0631", 13, "#1e3a8a", 160, 24);
-      const arHeader2 = renderArabicText("\u0648\u0632\u0627\u0631\u0629 \u0627\u0644\u062a\u0631\u0628\u064a\u0629 \u0627\u0644\u0648\u0637\u0646\u064a\u0629", 11, "#334155", 160, 24);
-      const arHeader3 = renderArabicText("\u0627\u0644\u0645\u062f\u064a\u0631\u064a\u0629 \u0627\u0644\u062c\u0647\u0648\u064a\u0629 \u0644\u0646\u064a\u0627\u0645\u064a", 11, "#334155", 160, 24);
+      // Arabic Header Text (Rendered as high-res images to support Unicode and RTL)
+      const countryAr = activeHeaderConfig?.countryAr || "جمهورية النيجر";
+      const ministryAr = activeHeaderConfig?.ministryAr || "وزارة التربية الوطنية";
+      const regionalDirectionAr = activeHeaderConfig?.regionalDirectionAr || "المديرية الجهوية لنيامي";
+      const departmentalDirectionAr = activeHeaderConfig?.departmentalDirectionAr || "";
+
+      const arHeader1 = renderArabicText(countryAr, 13, "#1e3a8a", 160, 24);
+      const arHeader2 = renderArabicText(ministryAr, 11, "#334155", 160, 24);
+      const arHeader3 = renderArabicText(regionalDirectionAr, 11, "#334155", 160, 24);
       
       if (arHeader1) doc.addImage(arHeader1, "PNG", pageWidth - 60, 12, 40, 6);
       if (arHeader2) doc.addImage(arHeader2, "PNG", pageWidth - 60, 17, 40, 6);
       if (arHeader3) doc.addImage(arHeader3, "PNG", pageWidth - 60, 22, 40, 6);
 
-      // Center logo placeholder (Circle)
-      doc.setDrawColor(203, 213, 225);
-      doc.setFillColor(248, 250, 252);
-      doc.circle(pageWidth / 2, 21, 9, "FD");
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(5);
-      doc.setTextColor(148, 163, 184);
-      doc.text("(ARMOIRIES)", pageWidth / 2, 28, { align: "center" });
+      if (departmentalDirectionAr) {
+        const arHeader4 = renderArabicText(departmentalDirectionAr, 11, "#334155", 160, 24);
+        if (arHeader4) doc.addImage(arHeader4, "PNG", pageWidth - 60, 27, 40, 6);
+      }
+
+      // Center logo (Circle) or Left Logo
+      const leftLogo = activeHeaderConfig?.leftLogo || "";
+      if (leftLogo) {
+        try {
+          doc.addImage(leftLogo, "PNG", pageWidth / 2 - 9, 12, 18, 18);
+        } catch (e) {
+          doc.setDrawColor(203, 213, 225);
+          doc.setFillColor(248, 250, 252);
+          doc.circle(pageWidth / 2, 21, 9, "FD");
+        }
+      } else {
+        doc.setDrawColor(203, 213, 225);
+        doc.setFillColor(248, 250, 252);
+        doc.circle(pageWidth / 2, 21, 9, "FD");
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(5);
+        doc.setTextColor(148, 163, 184);
+        doc.text("(ARMOIRIES)", pageWidth / 2, 28, { align: "center" });
+      }
 
       // Horizontal Divider
       doc.setDrawColor(79, 70, 229);
@@ -653,39 +694,7 @@ export default function AdminDocsPage() {
 
             {/* 1. OFFICIAL DOCUMENT HEADER */}
             <div className="w-full border-b-[1.5px] border-blue-900 pb-5 z-10">
-              <div className="flex justify-between items-start text-[10px] font-sans">
-                {/* Left: French Header */}
-                <div className="text-left space-y-1 text-slate-800">
-                  <div className="flex items-center gap-2">
-                    {/* Republic Niger Seal */}
-                    <svg width="22" height="22" viewBox="0 0 100 100" className="text-amber-500">
-                      <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" strokeWidth="8" />
-                      <circle cx="50" cy="50" r="28" fill="orange" />
-                      <circle cx="50" cy="50" r="14" fill="green" />
-                    </svg>
-                    <p className="font-extrabold text-blue-900 text-xs tracking-tight">RÉPUBLIQUE DU NIGER</p>
-                  </div>
-                  <p className="text-[8px] font-bold text-slate-500 tracking-wider">MINISTÈRE DE L'ÉDUCATION NATIONALE</p>
-                  <p className="text-[9px] font-extrabold text-slate-800">Direction Régionale de Niamey</p>
-                </div>
-
-                {/* Center: School Emblem */}
-                <div className="text-center flex flex-col items-center">
-                  <div className="w-12 h-12 rounded-full border border-slate-200 bg-slate-50/50 flex items-center justify-center text-[7px] text-blue-900 flex-col">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                    </svg>
-                  </div>
-                  <span className="text-[7px] font-black text-slate-400 mt-1 uppercase tracking-widest">(ARMOIRIES)</span>
-                </div>
-
-                {/* Right: Arabic Header */}
-                <div className="text-right space-y-1 text-slate-800">
-                  <p className="font-extrabold text-blue-900 text-xs">{"\u0627\u0644\u062c\u0645\u0647\u0648\u0631\u064a\u0629 \u0627\u0644\u0646\u064a\u062c\u0631"}</p>
-                  <p className="text-[8px] font-bold text-slate-500">{"\u0648\u0632\u0627\u0631\u0629 \u0627\u0644\u062a\u0631\u0628\u064a\u0629 \u0627\u0644\u0648\u0637\u0646\u064a\u0629"}</p>
-                  <p className="text-[9px] font-extrabold text-slate-800">{"\u0627\u0644\u0645\u062f\u064a\u0631\u064a\u0629 \u0627\u0644\u062c\u0647\u0648\u064a\u0629 \u0644\u0646\u064a\u0627\u0645\u064a"}</p>
-                </div>
-              </div>
+              <OfficialDocumentHeader config={activeHeaderConfig} title="" />
             </div>
 
             {/* 2. TITLE SECTION (Institutional & Decorated) */}
