@@ -108,9 +108,77 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, hea
   const [isMounted, setIsMounted] = React.useState(false);
   const [previewFee, setPreviewFee] = React.useState<any>(null);
 
+  const [selectedPeriod, setSelectedPeriod] = React.useState<string>("all");
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const [pageSize, setPageSize] = React.useState(10);
+
   const [localFees, setLocalFees] = React.useState<any[]>(fees);
   const [isLocal, setIsLocal] = React.useState(false);
   const [isRepairing, setIsRepairing] = React.useState(false);
+
+  // High-speed client-side instant filtering logic
+  const filteredFees = React.useMemo(() => {
+    return localFees.filter((fee) => {
+      // 1. Search filter (student name, admission number, class, status)
+      const searchLower = search.toLowerCase().trim();
+      const matchesSearch =
+        !searchLower ||
+        fee.student?.nomEtudiant?.toLowerCase().includes(searchLower) ||
+        fee.student?.numAdmission?.toLowerCase().includes(searchLower) ||
+        fee.student?.classe?.toLowerCase().includes(searchLower) ||
+        fee.status?.toLowerCase().includes(searchLower) ||
+        (fee.payments?.[0]?.paymentMode || "").toLowerCase().includes(searchLower);
+
+      // 2. Class filter
+      const matchesClass = selectedClass === "Toutes" || fee.student?.classe === selectedClass;
+
+      // 3. Status filter
+      const matchesStatus =
+        selectedStatus === "Tous" ||
+        (selectedStatus === "Soldé" && (fee.status === "Soldé" || fee.status === "Payé")) ||
+        (selectedStatus === "Partiel" && fee.status === "Partiel") ||
+        (selectedStatus === "Impayé" && (fee.status === "Impayé" || fee.status === "En retard"));
+
+      // 4. Period filter (filters by the date of the last payment)
+      let matchesPeriod = true;
+      if (selectedPeriod !== "all") {
+        const lastPaymentDateStr = fee.payments?.[0]?.datePaid;
+        if (!lastPaymentDateStr) {
+          matchesPeriod = false;
+        } else {
+          const lastPaymentDate = new Date(lastPaymentDateStr);
+          const now = new Date();
+          if (selectedPeriod === "today") {
+            matchesPeriod = lastPaymentDate.toDateString() === now.toDateString();
+          } else if (selectedPeriod === "week") {
+            const oneWeekAgo = new Date();
+            oneWeekAgo.setDate(now.getDate() - 7);
+            matchesPeriod = lastPaymentDate >= oneWeekAgo;
+          } else if (selectedPeriod === "month") {
+            matchesPeriod =
+              lastPaymentDate.getMonth() === now.getMonth() &&
+              lastPaymentDate.getFullYear() === now.getFullYear();
+          } else if (selectedPeriod === "year") {
+            matchesPeriod = lastPaymentDate.getFullYear() === now.getFullYear();
+          }
+        }
+      }
+
+      return matchesSearch && matchesClass && matchesStatus && matchesPeriod;
+    });
+  }, [localFees, search, selectedClass, selectedStatus, selectedPeriod]);
+
+  // Reset page when filters change
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [search, selectedClass, selectedStatus, selectedPeriod]);
+
+  const paginatedFees = React.useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    return filteredFees.slice(startIndex, startIndex + pageSize);
+  }, [filteredFees, currentPage, pageSize]);
+
+  const totalPages = Math.ceil(filteredFees.length / pageSize) || 1;
 
   const handleRepair = async () => {
     if (!confirm("Réparer les totaux financiers ? Cette opération recalcule les montants payés depuis les transactions réelles.")) return;
@@ -517,15 +585,27 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, hea
                 <div className="space-y-1.5">
                   <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Période</label>
                   <div className="relative">
-                    <div className="w-full md:w-40 h-11 bg-slate-50 border border-slate-100 rounded-xl px-3 flex items-center justify-between cursor-pointer group">
-                      <span className="text-[11px] font-bold text-slate-700">Ce mois-ci</span>
-                      <Calendar className="text-slate-400 group-hover:text-indigo-500 transition-colors" size={14} />
-                    </div>
+                    <select 
+                      value={selectedPeriod}
+                      onChange={(e) => setSelectedPeriod(e.target.value)}
+                      className="w-full md:w-40 h-11 bg-slate-50 border border-slate-100 rounded-xl px-3 text-[11px] font-bold text-slate-700 appearance-none outline-none cursor-pointer"
+                    >
+                      <option value="all">Toute période</option>
+                      <option value="today">Aujourd'hui</option>
+                      <option value="week">Cette semaine</option>
+                      <option value="month">Ce mois-ci</option>
+                      <option value="year">Cette année</option>
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={12} />
                   </div>
                 </div>
 
                 <div className="flex items-end">
-                  <Button className="w-full md:w-auto h-11 px-6 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100 font-black text-[10px] uppercase tracking-widest flex items-center gap-2 hover:bg-indigo-100 transition-all">
+                  <Button 
+                    type="button"
+                    onClick={() => updateFilters({ search, class: selectedClass, status: selectedStatus })}
+                    className="w-full md:w-auto h-11 px-6 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100 font-black text-[10px] uppercase tracking-widest flex items-center gap-2 hover:bg-indigo-100 transition-all cursor-pointer"
+                  >
                     <Filter size={14} /> Filtrer
                   </Button>
                 </div>
@@ -580,8 +660,8 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, hea
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {localFees.length > 0 ? (
-                  localFees.map((fee) => {
+                {paginatedFees.length > 0 ? (
+                  paginatedFees.map((fee) => {
                     const lastPayment = fee.payments?.[0];
                     const date = lastPayment?.datePaid ? new Date(lastPayment.datePaid).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" }) : "-";
                     const mode = lastPayment?.paymentMode || "Non spécifié";
@@ -688,25 +768,55 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, hea
                <div className="flex items-center gap-2">
                   <span className="text-[11px] font-bold text-slate-400">Affichage</span>
                   <div className="relative">
-                     <select className="bg-slate-50 border border-slate-100 rounded-lg px-3 py-1.5 text-[11px] font-black text-slate-700 appearance-none pr-8 outline-none">
-                        <option>10</option>
-                        <option>25</option>
-                        <option>50</option>
+                     <select 
+                       value={pageSize}
+                       onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
+                       className="bg-slate-50 border border-slate-100 rounded-lg px-3 py-1.5 text-[11px] font-black text-slate-700 appearance-none pr-8 outline-none cursor-pointer"
+                     >
+                        <option value={10}>10</option>
+                        <option value={25}>25</option>
+                        <option value={50}>50</option>
                      </select>
                      <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400" size={10} />
                   </div>
                </div>
-               <p className="text-[11px] font-bold text-slate-400">Sur {fees.length} élèves</p>
+               <p className="text-[11px] font-bold text-slate-400">
+                 Affichage de {Math.min(filteredFees.length, (currentPage - 1) * pageSize + 1)}-{Math.min(filteredFees.length, currentPage * pageSize)} sur {filteredFees.length} élèves
+               </p>
             </div>
 
             <div className="flex items-center gap-2">
-              <button className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-100 text-slate-400 hover:bg-slate-50 transition-all">
+              <button 
+                type="button"
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-100 text-slate-400 hover:bg-slate-50 disabled:opacity-50 transition-all cursor-pointer"
+              >
                 <ChevronLeft size={16} />
               </button>
-              <button className="w-8 h-8 flex items-center justify-center rounded-lg bg-indigo-600 text-white font-black text-xs shadow-md shadow-indigo-100">1</button>
-              <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-50 font-bold text-xs text-slate-600 transition-all">2</button>
-              <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-50 font-bold text-xs text-slate-600 transition-all">3</button>
-              <button className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-100 text-slate-400 hover:bg-slate-50 transition-all">
+              
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                <button
+                  type="button"
+                  key={p}
+                  onClick={() => setCurrentPage(p)}
+                  className={cn(
+                    "w-8 h-8 flex items-center justify-center rounded-lg font-bold text-xs transition-all cursor-pointer",
+                    p === currentPage
+                      ? "bg-indigo-600 text-white shadow-md shadow-indigo-100"
+                      : "hover:bg-slate-50 text-slate-600"
+                  )}
+                >
+                  {p}
+                </button>
+              ))}
+
+              <button 
+                type="button"
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+                className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-100 text-slate-400 hover:bg-slate-50 disabled:opacity-50 transition-all cursor-pointer"
+              >
                 <ChevronRight size={16} />
               </button>
             </div>
