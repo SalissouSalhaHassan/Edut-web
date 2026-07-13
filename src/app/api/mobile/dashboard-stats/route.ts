@@ -60,18 +60,18 @@ export async function GET(request: NextRequest) {
   const roleType = await getUserRoleType(user);
   const schoolId = user.schoolId ?? null;
   const isTeacher = roleType === "teacher" || roleType === "enseignant";
-  const isFamily = roleType === "eleve" || roleType === "parent" || roleType === "student";
+  const isFamily = roleType === "eleve" || roleType === "parent";
 
   let studentIds: number[] = [];
   if (roleType === "parent") {
     studentIds = await getParentChildrenIds(user);
-  } else if (roleType === "eleve" || roleType === "student") {
+  } else if (roleType === "eleve") {
     studentIds = user.studentId ? [user.studentId] : [];
   } else {
     studentIds = await getStudentIdsForSchool(schoolId);
   }
 
-  const linkedStudent = (roleType === "eleve" || roleType === "student") && user.studentId
+  const linkedStudent = roleType === "eleve" && user.studentId
     ? await readDb.query.students.findFirst({
         where: eq(students.id, user.studentId),
         columns: { classe: true },
