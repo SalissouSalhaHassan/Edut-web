@@ -108,7 +108,7 @@ export async function GET(request: NextRequest, props: { params: Promise<{ id: s
 
         return NextResponse.json({
           success: true,
-          data: rows.rows || []
+          data: (rows as any) || []
         });
       } catch (err) {
         return NextResponse.json({ success: true, data: [] });

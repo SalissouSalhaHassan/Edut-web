@@ -126,8 +126,8 @@ export async function GET(request: NextRequest) {
           LIMIT 1
         `);
 
-        if (sub && sub.rows && sub.rows.length > 0) {
-          const row: any = sub.rows[0];
+        if (sub && (sub as any).length > 0) {
+          const row: any = sub[0];
           return NextResponse.json({
             success: true,
             data: {
@@ -166,8 +166,8 @@ export async function GET(request: NextRequest) {
           LIMIT 1
         `);
 
-        if (alloc && alloc.rows && alloc.rows.length > 0) {
-          const row: any = alloc.rows[0];
+        if (alloc && (alloc as any).length > 0) {
+          const row: any = alloc[0];
           return NextResponse.json({
             success: true,
             data: {

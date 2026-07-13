@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
       // Query library_books if exists, else return empty
       try {
         const books = await db.execute(sql`SELECT * FROM library_books ORDER BY created_at DESC`);
-        return NextResponse.json({ success: true, data: books.rows || [] });
+        return NextResponse.json({ success: true, data: (books as any) || [] });
       } catch (err) {
         return NextResponse.json({ success: true, data: [] });
       }
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
           ORDER BY li.issue_date DESC
         `);
 
-        const data = (issues.rows || []).map((row: any) => ({
+        const data = ((issues as any) || []).map((row: any) => ({
           id: row.id,
           book_id: row.book_id,
           student_id: row.student_id,
