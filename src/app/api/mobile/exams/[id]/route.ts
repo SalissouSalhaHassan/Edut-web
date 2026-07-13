@@ -73,7 +73,7 @@ export async function GET(
         if (!classNames.includes(exam.class?.className ?? "")) {
           return mobileJsonError("Accès refusé. Cet examen n'appartient pas à la classe de vos enfants.", 403);
         }
-      } else if (roleType === "student" || roleType === "eleve") {
+      } else if (roleType === "eleve") {
         const studentId = user.studentId;
         if (!studentId) return mobileJsonError("Accès refusé.", 403);
 

@@ -85,7 +85,7 @@ async function buildExamScope(user: any, roleType: string) {
   }
 
   // STUDENT — exams for their own class only
-  if (roleType === "student" || roleType === "eleve") {
+  if (roleType === "eleve") {
     const studentId = user.studentId;
     if (!studentId) return { cond: [eq(exams.id, -1)], classIds: null, studentIds: null };
 
@@ -305,7 +305,7 @@ export async function POST(request: NextRequest) {
   const roleType = await getUserRoleType(user);
 
   // Parents and students cannot write exams
-  if (roleType === "parent" || roleType === "student" || roleType === "eleve") {
+  if (roleType === "parent" || roleType === "eleve") {
     return mobileJsonError("Accès refusé. Écriture non autorisée pour ce rôle.", 403);
   }
 

@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
       return mobileJsonError("Accès refusé", 403);
     }
 
-    if ((roleType === "parent" || roleType === "student") && user.studentId !== fee.studentId) {
+    if ((roleType === "parent" || roleType === "eleve") && user.studentId !== fee.studentId) {
       return mobileJsonError("Accès refusé. Ce dossier ne vous appartient pas.", 403);
     }
 

@@ -147,7 +147,7 @@ export async function GET(request: NextRequest) {
   const roleType = await getUserRoleType(user);
 
   // Parents and students cannot access the messaging compose dashboard
-  if (roleType === "parent" || roleType === "student" || roleType === "eleve") {
+  if (roleType === "parent" || roleType === "eleve") {
     return mobileJsonError(
       "Accès refusé. Le tableau de messagerie est réservé au personnel.",
       403
@@ -231,7 +231,7 @@ export async function POST(request: NextRequest) {
   const roleType = await getUserRoleType(user);
 
   // Block parents & students from sending
-  if (roleType === "parent" || roleType === "student" || roleType === "eleve") {
+  if (roleType === "parent" || roleType === "eleve") {
     return mobileJsonError("Accès refusé. Envoi de messages non autorisé pour ce rôle.", 403);
   }
 

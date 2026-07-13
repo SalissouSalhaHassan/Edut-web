@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
     // Role-based restrictions
     if (roleType === "parent" && user.studentId) {
       cond.push(eq(studentFees.studentId, user.studentId));
-    } else if (roleType === "student" && user.studentId) {
+    } else if (roleType === "eleve" && user.studentId) {
       cond.push(eq(studentFees.studentId, user.studentId));
     } else if (roleType === "teacher" || roleType === "enseignant") {
       // Teachers don't see financial lists by default

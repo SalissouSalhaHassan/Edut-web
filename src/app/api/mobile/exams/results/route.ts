@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
       let studentIdFilter: number[] | null = null;
       if (roleType === "parent") {
         studentIdFilter = await getParentChildrenIds(user);
-      } else if (roleType === "student" || roleType === "eleve") {
+      } else if (roleType === "eleve") {
         if (!user.studentId) return mobileJsonError("Accès refusé.", 403);
         studentIdFilter = [user.studentId];
       }
@@ -146,7 +146,7 @@ export async function GET(request: NextRequest) {
           if (!childIds.includes(studentId)) {
             return mobileJsonError("Accès refusé. Cet élève ne fait pas partie de vos enfants.", 403);
           }
-        } else if (roleType === "student" || roleType === "eleve") {
+        } else if (roleType === "eleve") {
           if (user.studentId !== studentId) {
             return mobileJsonError("Accès refusé. Vous ne pouvez voir que vos propres résultats.", 403);
           }

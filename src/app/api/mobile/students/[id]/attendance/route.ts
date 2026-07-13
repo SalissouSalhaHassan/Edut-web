@@ -37,7 +37,7 @@ export async function GET(request: NextRequest, props: { params: Promise<{ id: s
     }
 
     // Role verification
-    if (roleType === "parent" || roleType === "student") {
+    if (roleType === "parent" || roleType === "eleve") {
       const isLinked = await verifyParentChildRelationship(user, studentId);
       if (!isLinked) {
         return mobileJsonError("Accès refusé. Dossier non lié.", 403);

@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
           ),
           columns: { totalExpected: true, totalPaid: true, balance: true }
         });
-      } else if (roleType === "student" && user.studentId) {
+      } else if (roleType === "eleve" && user.studentId) {
         rows = await readDb.query.studentFees.findMany({
           where: and(
             eq(studentFees.schoolId, targetSchoolId),

@@ -37,7 +37,7 @@ export async function GET(request: NextRequest, props: { params: Promise<{ id: s
     }
 
     // 2. Enforce role scope
-    if (roleType === "parent" || roleType === "student") {
+    if (roleType === "parent" || roleType === "eleve") {
       const isLinked = await verifyParentChildRelationship(user, studentId);
       if (!isLinked) {
         return mobileJsonError("Accès refusé. Vous n'êtes pas autorisé à voir ce dossier.", 403);
