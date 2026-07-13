@@ -68,8 +68,9 @@ export async function GET(request: NextRequest) {
       noElec,
       noLatrines,
       priorityZones,
-    });
-  } catch (e: any) {
-    return NextResponse.json({ success: false, error: e.message || "Erreur serveur" }, { status: 500 });
-  }
+    }
+  });
+} catch (e: any) {
+  return NextResponse.json({ success: false, error: e.message || "Erreur serveur" }, { status: 500 });
+}
 }
