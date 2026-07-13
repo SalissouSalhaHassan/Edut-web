@@ -94,7 +94,7 @@ export async function GET(request: NextRequest) {
         where: eq(timetableEntries.classId, cls.id),
         with: {
           subject: true,
-          employee: true,
+          teacher: true,
         },
         orderBy: [timetableEntries.dayName, timetableEntries.periodNumber]
       });
@@ -107,7 +107,7 @@ export async function GET(request: NextRequest) {
         subject_id: row.subjectId,
         employee_id: row.employeeId,
         school_subjects: row.subject ? { subject_name: row.subject.subjectName } : null,
-        employees: row.employee ? { nom: row.employee.nom, poste: row.employee.poste } : null,
+        employees: row.teacher ? { nom: row.teacher.nom, poste: row.teacher.poste } : null,
       }));
 
       return NextResponse.json({ success: true, data: list });
