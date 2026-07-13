@@ -14,32 +14,32 @@ export async function GET(request: NextRequest) {
     return mobileJsonError("Accès refusé. Rôle ministère/inspection requis.", 403);
   }
 
-  const schoolsRes = await getMinistrySchoolsDataForUser(user);
-  if (!schoolsRes.success || !schoolsRes.data) {
-    return NextResponse.json({ success: false, error: schoolsRes.error || "Erreur serveur" }, { status: 500 });
-  }
+  try {
+    const schoolsRes = await getMinistrySchoolsDataForUser(user);
+    const searchParams = request.nextUrl.searchParams;
+    const query = searchParams.get("query")?.toLowerCase().trim() || "";
 
-  const searchParams = request.nextUrl.searchParams;
-  const query = searchParams.get("query")?.toLowerCase().trim() || "";
+    let schools = schoolsRes.data;
 
-  let schools = schoolsRes.data;
+    if (query) {
+      schools = schools.filter((s) => {
+        return (
+          s.name.toLowerCase().includes(query) ||
+          s.code.toLowerCase().includes(query) ||
+          s.commune.toLowerCase().includes(query) ||
+          s.region.toLowerCase().includes(query) ||
+          s.department.toLowerCase().includes(query) ||
+          s.inspection.toLowerCase().includes(query)
+        );
+      });
+    }
 
-  if (query) {
-    schools = schools.filter((s) => {
-      return (
-        s.name.toLowerCase().includes(query) ||
-        s.code.toLowerCase().includes(query) ||
-        s.commune.toLowerCase().includes(query) ||
-        s.region.toLowerCase().includes(query) ||
-        s.department.toLowerCase().includes(query) ||
-        s.inspection.toLowerCase().includes(query)
-      );
+    return NextResponse.json({
+      success: true,
+      roleType,
+      schools,
     });
+  } catch (e: any) {
+    return NextResponse.json({ success: false, error: e.message || "Erreur serveur" }, { status: 500 });
   }
-
-  return NextResponse.json({
-    success: true,
-    roleType,
-    schools,
-  });
 }

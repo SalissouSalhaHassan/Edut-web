@@ -14,12 +14,9 @@ export async function GET(request: NextRequest) {
     return mobileJsonError("Accès refusé. Rôle ministère/inspection requis.", 403);
   }
 
-  const schoolsRes = await getMinistrySchoolsDataForUser(user);
-  if (!schoolsRes.success || !schoolsRes.data) {
-    return NextResponse.json({ success: false, error: schoolsRes.error || "Erreur serveur" }, { status: 500 });
-  }
-
-  const schools = schoolsRes.data;
+  try {
+    const schoolsRes = await getMinistrySchoolsDataForUser(user);
+    const schools = schoolsRes.data;
   const totalSchools = schools.length;
   let totalEleves = 0;
   let totalFilles = 0;
@@ -71,6 +68,8 @@ export async function GET(request: NextRequest) {
       noElec,
       noLatrines,
       priorityZones,
-    },
-  });
+    });
+  } catch (e: any) {
+    return NextResponse.json({ success: false, error: e.message || "Erreur serveur" }, { status: 500 });
+  }
 }
