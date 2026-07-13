@@ -13,6 +13,8 @@ interface EmployeeDialogProps {
   mode?: "add" | "edit";
   initialData?: any;
   trigger?: React.ReactNode;
+  open?: boolean;
+  onClose?: () => void;
 }
 
 // ─── Field Group ────────────────────────────────────────────────────────────
