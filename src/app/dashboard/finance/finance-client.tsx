@@ -119,8 +119,13 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, hea
       const res = await repairStudentFeeTotals();
       if ((res as any)?.success) {
         const repaired = (res as any).repaired ?? 0;
-        toast.success(`✅ Réparation terminée — ${repaired} dossier(s) corrigé(s). Rechargement...`);
+        const dups = (res as any).duplicatesRemoved ?? 0;
+        const msg = dups > 0
+          ? `✅ ${dups} doublon(s) supprimé(s) + ${repaired} dossier(s) recalculé(s). Rechargement...`
+          : `✅ Réparation terminée — ${repaired} dossier(s) recalculé(s). Rechargement...`;
+        toast.success(msg);
         setTimeout(() => window.location.reload(), 1200);
+
       } else {
         toast.error((res as any)?.error || "Erreur lors de la réparation.");
       }

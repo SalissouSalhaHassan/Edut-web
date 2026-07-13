@@ -31,13 +31,12 @@ export async function getStudentFees(params?: { search?: string, class?: string,
     if (!activeSession) return { data: [] };
 
     const data = await db.query.studentFees.findMany({
-      where: (fees, { and, eq, or, ilike }) => {
+      where: (fees, { and, eq }) => {
         const conditions = [
           eq(fees.sessionId, activeSession.id),
           eq(fees.schoolId, schoolId)
         ];
         if (status && status !== "Tous") conditions.push(eq(fees.status, status));
-        
         return and(...conditions);
       },
       with: {
@@ -49,12 +48,24 @@ export async function getStudentFees(params?: { search?: string, class?: string,
       }
     });
 
-    let filteredData = data;
+    // ── DEDUP GUARD: if duplicates exist in DB, keep the row with highest totalPaid ──
+    const seenStudents = new Map<number, typeof data[0]>();
+    for (const row of data) {
+      if (!row.studentId) continue;
+      const existing = seenStudents.get(row.studentId);
+      if (!existing || (row.totalPaid || 0) > (existing.totalPaid || 0)) {
+        seenStudents.set(row.studentId, row);
+      }
+    }
+    const dedupedData = Array.from(seenStudents.values());
+    // ─────────────────────────────────────────────────────────────────────────────
+
+    let filteredData = dedupedData;
 
     if (roleType === "level_director" && activeLevel) {
       const compatibleLevels = getCompatibleLevels(activeLevel).map(l => l.toLowerCase());
-      filteredData = filteredData.filter(item => 
-        item.student && item.student.educationalLevel && 
+      filteredData = filteredData.filter(item =>
+        item.student && item.student.educationalLevel &&
         compatibleLevels.includes(item.student.educationalLevel.toLowerCase())
       );
     }
@@ -62,7 +73,7 @@ export async function getStudentFees(params?: { search?: string, class?: string,
     if (search || (className && className !== "Toutes")) {
       const searchLower = search?.toLowerCase();
       filteredData = filteredData.filter(item => {
-        const matchesSearch = !searchLower || 
+        const matchesSearch = !searchLower ||
           item.student?.nomEtudiant?.toLowerCase().includes(searchLower) ||
           item.student?.numAdmission?.toLowerCase().includes(searchLower);
         const matchesClass = !className || className === "Toutes" || item.student?.classe === className;
@@ -217,6 +228,27 @@ export async function syncStudentFees(revalidate: boolean = true) {
 
     if (!activeSession) return { error: "Impossible de créer ou trouver une session active." };
 
+    // ────────────────────────────────────────────────────────────────────────────
+    // DEDUP PASS: remove duplicate (student_id, session_id) rows before processing
+    // A duplicate is any row that is NOT the canonical row (highest totalPaid, lowest id)
+    // ────────────────────────────────────────────────────────────────────────────
+    try {
+      await db.execute(sql`
+        DELETE FROM student_fees
+        WHERE school_id = ${schoolId}
+          AND session_id = ${activeSession.id}
+          AND id NOT IN (
+            SELECT DISTINCT ON (student_id, session_id) id
+            FROM student_fees
+            WHERE school_id = ${schoolId} AND session_id = ${activeSession.id}
+            ORDER BY student_id, session_id, total_paid DESC NULLS LAST, id ASC
+          )
+      `);
+    } catch (dedupErr) {
+      console.warn("[syncStudentFees] Dedup pass failed (non-fatal):", dedupErr);
+    }
+    // ────────────────────────────────────────────────────────────────────────────
+
     const existingFees = await db.query.studentFees.findMany({
       where: and(eq(studentFees.sessionId, activeSession.id), eq(studentFees.schoolId, schoolId))
     });
@@ -328,10 +360,12 @@ export async function syncStudentFees(revalidate: boolean = true) {
 /**
  * repairStudentFeeTotals
  * ─────────────────────────────────────────────────────────────────────────────
- * One-shot repair: re-aggregates every fee_payments row and writes the correct
- * totalPaid / totalReduction / balance / status into every student_fees record
- * for the active session.  Call this from a button in the finance dashboard to
- * fix any records that were corrupted by the old sync logic (totalPaid = 0).
+ * Two-phase repair:
+ *   Phase 1 — Remove duplicate (student_id, session_id) rows keeping the one
+ *              with the highest totalPaid.  This fixes the "multiplied amounts"
+ *              bug caused by missing UNIQUE constraint on student_fees.
+ *   Phase 2 — Re-aggregate every fee_payments row and write the correct
+ *              totalPaid / totalReduction / balance / status into every record.
  */
 export async function repairStudentFeeTotals() {
   return protectedDbAction("Finance", "canEdit", async (user) => {
@@ -346,6 +380,27 @@ export async function repairStudentFeeTotals() {
     });
 
     if (!activeSession) return { error: "Aucune session active trouvée." };
+
+    // ── Phase 1: Remove duplicate rows ─────────────────────────────────────
+    let duplicatesRemoved = 0;
+    try {
+      const result = await db.execute(sql`
+        DELETE FROM student_fees
+        WHERE school_id = ${schoolId}
+          AND session_id = ${activeSession.id}
+          AND id NOT IN (
+            SELECT DISTINCT ON (student_id, session_id) id
+            FROM student_fees
+            WHERE school_id = ${schoolId} AND session_id = ${activeSession.id}
+            ORDER BY student_id, session_id, total_paid DESC NULLS LAST, id ASC
+          )
+      `);
+      duplicatesRemoved = (result as any)?.rowCount ?? 0;
+      console.log(`[repairStudentFeeTotals] Phase 1: removed ${duplicatesRemoved} duplicate row(s).`);
+    } catch (e) {
+      console.warn("[repairStudentFeeTotals] Phase 1 dedup failed:", e);
+    }
+
 
     // Load all fee rows for this session
     const allFees = await db.query.studentFees.findMany({
@@ -402,8 +457,9 @@ export async function repairStudentFeeTotals() {
     }
 
     revalidatePath("/dashboard/finance");
-    console.log(`[repairStudentFeeTotals] Repaired ${repairs.length} of ${allFees.length} fee records.`);
-    return { success: true, repaired: repairs.length };
+    console.log(`[repairStudentFeeTotals] Phase 1: ${duplicatesRemoved} duplicates removed. Phase 2: ${repairs.length} records re-aggregated.`);
+    return { success: true, repaired: repairs.length, duplicatesRemoved };
+
   });
 }
 
