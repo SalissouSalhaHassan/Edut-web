@@ -7,7 +7,7 @@ import {
   schoolSessions,
   studentResults
 } from "@/infrastructure/database/schema/academics";
-import { getMobileUser, mobileJsonError } from "../../../../_lib/auth";
+import { getMobileUser, mobileJsonError } from "../../../_lib/auth";
 import { getUserRoleType } from "@/domains/auth/services/rbac";
 
 export const dynamic = "force-dynamic";
