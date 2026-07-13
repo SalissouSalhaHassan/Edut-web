@@ -155,13 +155,13 @@ function sumInventoryQuantity(items: Array<typeof inventoryItems.$inferSelect>) 
   return items.reduce((total, item) => total + Number(item.quantity || 0), 0);
 }
 
-export async function getMinistrySchoolsData() {
+export async function getMinistrySchoolsData(): Promise<{ success: boolean; error?: string; data: MinistrySchoolData[] }> {
   const user = await getCurrentUser();
   if (!user) return { success: false, error: "Non autorisé", data: [] as MinistrySchoolData[] };
   return getMinistrySchoolsDataForUser(user);
 }
 
-export async function getMinistrySchoolsDataForUser(user: any) {
+export async function getMinistrySchoolsDataForUser(user: any): Promise<{ success: boolean; error?: string; data: MinistrySchoolData[] }> {
   const roleType = await getUserRoleType(user);
   const allBranches = await readDb.query.schoolBranches.findMany({
     orderBy: [schoolBranches.createdAt],
