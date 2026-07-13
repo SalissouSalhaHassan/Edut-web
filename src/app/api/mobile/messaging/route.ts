@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { and, count, desc, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, count, desc } from "drizzle-orm";
 
 import { db, readDb } from "@/infrastructure/database";
 import { users } from "@/infrastructure/database/schema/auth";
@@ -12,8 +12,11 @@ import {
   notifications,
 } from "@/infrastructure/database/schema/messaging";
 import { canUseMobileModule, getMobileUser, mobileJsonError } from "../_lib/auth";
+import { getUserRoleType } from "@/domains/auth/services/rbac";
 
 export const dynamic = "force-dynamic";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 type RecipientUser = {
   id: number;
@@ -21,22 +24,30 @@ type RecipientUser = {
   nomPrenom?: string | null;
   role?: { roleName?: string | null } | null;
   studentId?: number | null;
+  employeeId?: number | null;
 };
 
-function roleNameOf(user: RecipientUser) {
-  return String(user.role?.roleName || "").toLowerCase().trim();
+function roleNameOf(u: RecipientUser) {
+  return String(u.role?.roleName || "").toLowerCase().trim();
 }
 
-function isParentOrStudent(user: RecipientUser) {
-  const role = roleNameOf(user);
-  return role.includes("parent") || role.includes("tuteur") || role.includes("eleve") || role.includes("student");
+function isParentOrStudent(u: RecipientUser) {
+  const r = roleNameOf(u);
+  return (
+    r.includes("parent") ||
+    r.includes("tuteur") ||
+    r.includes("eleve") ||
+    r.includes("student")
+  );
 }
 
-function isStaff(user: RecipientUser) {
-  return !isParentOrStudent(user);
+function isStaff(u: RecipientUser) {
+  return !isParentOrStudent(u);
 }
 
-async function getScopedUsers(schoolId: number | null) {
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+async function getScopedUsers(schoolId: number | null): Promise<RecipientUser[]> {
   const rows = await readDb.query.users.findMany({
     where: schoolId ? eq(users.schoolId, schoolId) : undefined,
     with: { role: true },
@@ -52,44 +63,57 @@ async function getScopedUsers(schoolId: number | null) {
   return rows as RecipientUser[];
 }
 
-async function getClassStudentIds(schoolId: number | null, className: string) {
+async function getClassStudentUserIds(
+  schoolId: number | null,
+  className: string,
+  scopedUsers: RecipientUser[]
+): Promise<number[]> {
   if (!className.trim()) return [];
-  const rows = await readDb.query.students.findMany({
+  const studentRows = await readDb.query.students.findMany({
     where: and(
       schoolId ? eq(students.schoolId, schoolId) : undefined,
       eq(students.classe, className.trim())
     ),
     columns: { id: true },
   });
-  return rows.map((row) => row.id);
+  const studentIds = new Set(studentRows.map((r) => r.id));
+  return scopedUsers
+    .filter((u) => u.studentId && studentIds.has(u.studentId))
+    .map((u) => u.id);
 }
 
-async function resolveRecipients(data: {
-  targetAudience: string;
-  className?: string;
-  recipientUserId?: number;
-}, schoolId: number | null) {
-  const target = data.targetAudience;
-  const scopedUsers = await getScopedUsers(schoolId);
-  let recipientUsers: RecipientUser[] = [];
+async function resolveRecipientIds(
+  target: string,
+  opts: { className?: string; recipientUserId?: number },
+  schoolId: number | null,
+  scopedUsers: RecipientUser[]
+): Promise<number[]> {
+  let recipientUsers: RecipientUser[];
 
-  if (target === "Tous les Parents") {
-    recipientUsers = scopedUsers.filter(isParentOrStudent);
-  } else if (target === "Tout le Personnel") {
-    recipientUsers = scopedUsers.filter(isStaff);
-  } else if (target === "Tous (Parents + Staff)") {
-    recipientUsers = scopedUsers;
-  } else if (target === "Classe specifique") {
-    const studentIds = await getClassStudentIds(schoolId, data.className || "");
-    recipientUsers = studentIds.length
-      ? scopedUsers.filter((user) => user.studentId && studentIds.includes(user.studentId))
-      : [];
-  } else if (target === "Destinataire specifique" && data.recipientUserId) {
-    recipientUsers = scopedUsers.filter((user) => user.id === data.recipientUserId);
+  switch (target) {
+    case "Tous les Parents":
+      recipientUsers = scopedUsers.filter(isParentOrStudent);
+      break;
+    case "Tout le Personnel":
+      recipientUsers = scopedUsers.filter(isStaff);
+      break;
+    case "Tous (Parents + Staff)":
+      recipientUsers = scopedUsers;
+      break;
+    case "Classe specifique": {
+      const userIds = await getClassStudentUserIds(schoolId, opts.className || "", scopedUsers);
+      recipientUsers = scopedUsers.filter((u) => userIds.includes(u.id));
+      break;
+    }
+    case "Destinataire specifique":
+      if (!opts.recipientUserId) return [];
+      recipientUsers = scopedUsers.filter((u) => u.id === opts.recipientUserId);
+      break;
+    default:
+      return [];
   }
 
-  const uniqueIds = Array.from(new Set(recipientUsers.map((user) => user.id)));
-  return uniqueIds;
+  return Array.from(new Set(recipientUsers.map((u) => u.id)));
 }
 
 async function getStats(schoolId: number | null) {
@@ -102,33 +126,55 @@ async function getStats(schoolId: number | null) {
     : await readDb.select({ count: count() }).from(employees);
 
   return {
-    templateCount: templateCount?.count || 0,
-    studentCount: studentCount?.count || 0,
-    staffCount: staffCount?.count || 0,
+    templateCount: Number(templateCount?.count ?? 0),
+    studentCount: Number(studentCount?.count ?? 0),
+    staffCount: Number(staffCount?.count ?? 0),
   };
 }
 
+// ─── GET ──────────────────────────────────────────────────────────────────────
+
+/**
+ * GET /api/mobile/messaging
+ * Returns dashboard data: templates, logs (last 100), classes, recipients list, stats.
+ * Access: restricted to users with canView permission on Messaging module.
+ * Parents/students are blocked from seeing the messaging dashboard.
+ */
 export async function GET(request: NextRequest) {
   const { user, response } = await getMobileUser(request);
-  if (response || !user) return response;
+  if (response || !user) return response || mobileJsonError("Non autorisé", 401);
+
+  const roleType = await getUserRoleType(user);
+
+  // Parents and students cannot access the messaging compose dashboard
+  if (roleType === "parent" || roleType === "student" || roleType === "eleve") {
+    return mobileJsonError(
+      "Accès refusé. Le tableau de messagerie est réservé au personnel.",
+      403
+    );
+  }
 
   const canView = await canUseMobileModule(user, "Messaging", "canView");
-  if (!canView) return mobileJsonError("Acces messagerie refuse.", 403);
+  if (!canView) return mobileJsonError("Accès messagerie refusé.", 403);
 
   const schoolId = user.schoolId ?? null;
+
   const templates = await readDb.query.messageTemplates.findMany({
     orderBy: [desc(messageTemplates.createdAt)],
     limit: 80,
   });
+
   const logs = await readDb.query.messageLogs.findMany({
     orderBy: [desc(messageLogs.sentAt)],
     limit: 100,
   });
+
   const classes = await readDb.query.schoolClasses.findMany({
     where: schoolId ? eq(schoolClasses.schoolId, schoolId) : undefined,
     orderBy: [schoolClasses.className],
     columns: { id: true, className: true },
   });
+
   const scopedUsers = await getScopedUsers(schoolId);
   const recipients = scopedUsers.map((row) => ({
     id: row.id,
@@ -138,20 +184,59 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     success: true,
-    templates,
-    logs,
-    classes,
+    templates: templates.map((t) => ({
+      id: t.id,
+      title: t.title,
+      msg_type: t.msgType,
+      content: t.content,
+      category: t.category,
+      created_at: t.createdAt?.toISOString() ?? null,
+    })),
+    logs: logs.map((l) => ({
+      id: l.id,
+      msg_type: l.msgType,
+      target_audience: l.targetAudience,
+      subject: l.subject,
+      content: l.content,
+      recipient_count: l.recipientCount,
+      status: l.status,
+      sent_by: l.sentBy,
+      sent_at: l.sentAt?.toISOString() ?? null,
+    })),
+    classes: classes.map((c) => ({ id: c.id, class_name: c.className })),
     recipients,
     stats: await getStats(schoolId),
   });
 }
 
+// ─── POST ─────────────────────────────────────────────────────────────────────
+
+/**
+ * POST /api/mobile/messaging
+ * Send a message to a target audience.
+ * Access: restricted to staff / teachers / admins (canEdit on Messaging).
+ *
+ * Body:
+ *   msgType         — 'Interne' | 'SMS' | 'WhatsApp' | 'Email'
+ *   targetAudience  — 'Tous les Parents' | 'Tout le Personnel' | 'Tous (Parents + Staff)' | 'Classe specifique' | 'Destinataire specifique'
+ *   subject         — optional subject
+ *   content         — message body (required)
+ *   className       — required when targetAudience = 'Classe specifique'
+ *   recipientUserId — required when targetAudience = 'Destinataire specifique'
+ */
 export async function POST(request: NextRequest) {
   const { user, response } = await getMobileUser(request);
-  if (response || !user) return response;
+  if (response || !user) return response || mobileJsonError("Non autorisé", 401);
+
+  const roleType = await getUserRoleType(user);
+
+  // Block parents & students from sending
+  if (roleType === "parent" || roleType === "student" || roleType === "eleve") {
+    return mobileJsonError("Accès refusé. Envoi de messages non autorisé pour ce rôle.", 403);
+  }
 
   const canEdit = await canUseMobileModule(user, "Messaging", "canEdit");
-  if (!canEdit) return mobileJsonError("Envoi de message refuse.", 403);
+  if (!canEdit) return mobileJsonError("Envoi de message refusé.", 403);
 
   const body = await request.json().catch(() => null) as {
     msgType?: string;
@@ -165,32 +250,40 @@ export async function POST(request: NextRequest) {
   const content = body?.content?.trim() || "";
   const targetAudience = body?.targetAudience?.trim() || "";
   const msgType = body?.msgType?.trim() || "Interne";
-  if (!content || !targetAudience) {
-    return mobileJsonError("Message ou destinataire manquant.", 400);
-  }
 
-  const recipientIds = await resolveRecipients(
-    {
-      targetAudience,
-      className: body?.className,
-      recipientUserId: body?.recipientUserId,
-    },
-    user.schoolId ?? null
+  if (!content) return mobileJsonError("Le contenu du message est requis.", 400);
+  if (!targetAudience) return mobileJsonError("Le destinataire est requis.", 400);
+
+  const schoolId = user.schoolId ?? null;
+  const scopedUsers = await getScopedUsers(schoolId);
+
+  const recipientIds = await resolveRecipientIds(
+    targetAudience,
+    { className: body?.className, recipientUserId: body?.recipientUserId },
+    schoolId,
+    scopedUsers
   );
 
+  // Insert notification for each recipient
   if (recipientIds.length > 0) {
-    await db.insert(notifications).values(
-      recipientIds.map((userId) => ({
-        title: body?.subject?.trim() || "Nouveau message",
-        content,
-        type: "info",
-        category: "Messaging",
-        userId,
-        isRead: false,
-      }))
-    );
+    // Insert in batches of 100 to avoid query limits
+    const BATCH = 100;
+    for (let i = 0; i < recipientIds.length; i += BATCH) {
+      const batch = recipientIds.slice(i, i + BATCH);
+      await db.insert(notifications).values(
+        batch.map((userId) => ({
+          title: body?.subject?.trim() || "Nouveau message",
+          content,
+          type: "info" as const,
+          category: "Messaging",
+          userId,
+          isRead: false,
+        }))
+      );
+    }
   }
 
+  // Log the send
   await db.insert(messageLogs).values({
     msgType,
     targetAudience,
@@ -201,17 +294,15 @@ export async function POST(request: NextRequest) {
     sentBy: user.nomPrenom || user.utilisateur || "Mobile",
   });
 
+  // Confirmation notification for the sender
   await db.insert(notifications).values({
-    title: "Message envoye",
-    content: `${recipientIds.length} destinataire(s) ont recu le message.`,
-    type: "success",
+    title: "Message envoyé",
+    content: `${recipientIds.length} destinataire(s) ont reçu le message.`,
+    type: "success" as const,
     category: "Messaging",
     userId: user.id,
     isRead: false,
   });
 
-  return NextResponse.json({
-    success: true,
-    recipientCount: recipientIds.length,
-  });
+  return NextResponse.json({ success: true, recipientCount: recipientIds.length });
 }

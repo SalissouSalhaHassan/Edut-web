@@ -158,7 +158,10 @@ function sumInventoryQuantity(items: Array<typeof inventoryItems.$inferSelect>) 
 export async function getMinistrySchoolsData() {
   const user = await getCurrentUser();
   if (!user) return { success: false, error: "Non autorisé", data: [] as MinistrySchoolData[] };
+  return getMinistrySchoolsDataForUser(user);
+}
 
+export async function getMinistrySchoolsDataForUser(user: any) {
   const roleType = await getUserRoleType(user);
   const allBranches = await readDb.query.schoolBranches.findMany({
     orderBy: [schoolBranches.createdAt],

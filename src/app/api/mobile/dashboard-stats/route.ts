@@ -15,6 +15,7 @@ import { cahierTextes, pedagogiePlanification } from "@/infrastructure/database/
 import { students } from "@/infrastructure/database/schema/students";
 import { getUserRoleType } from "@/domains/auth/services/rbac";
 import { getMobileUser } from "../_lib/auth";
+import { getParentChildrenIds } from "../_lib/family-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -59,12 +60,18 @@ export async function GET(request: NextRequest) {
   const roleType = await getUserRoleType(user);
   const schoolId = user.schoolId ?? null;
   const isTeacher = roleType === "teacher" || roleType === "enseignant";
-  const isFamily = roleType === "eleve" || roleType === "parent";
-  const studentIds = isFamily
-    ? user.studentId ? [user.studentId] : []
-    : await getStudentIdsForSchool(schoolId);
+  const isFamily = roleType === "eleve" || roleType === "parent" || roleType === "student";
 
-  const linkedStudent = isFamily && user.studentId
+  let studentIds: number[] = [];
+  if (roleType === "parent") {
+    studentIds = await getParentChildrenIds(user);
+  } else if (roleType === "eleve" || roleType === "student") {
+    studentIds = user.studentId ? [user.studentId] : [];
+  } else {
+    studentIds = await getStudentIdsForSchool(schoolId);
+  }
+
+  const linkedStudent = (roleType === "eleve" || roleType === "student") && user.studentId
     ? await readDb.query.students.findFirst({
         where: eq(students.id, user.studentId),
         columns: { classe: true },
@@ -77,11 +84,28 @@ export async function GET(request: NextRequest) {
   });
   const classIds = classRows.map((row) => row.id);
 
-  const familyClassIds = linkedStudent?.classe
-    ? classRows
-        .filter((row) => row.className === linkedStudent.classe)
-        .map((row) => row.id)
-    : [];
+  let familyClassIds: number[] = [];
+  if (roleType === "parent") {
+    if (studentIds.length > 0) {
+      const parentChildren = await readDb.query.students.findMany({
+        where: and(
+          schoolId ? eq(students.schoolId, schoolId) : undefined,
+          inArray(students.id, studentIds)
+        ),
+        columns: { classe: true },
+      });
+      const childClasses = parentChildren.map((c) => c.classe).filter(Boolean);
+      if (childClasses.length > 0) {
+        familyClassIds = classRows
+          .filter((row) => row.className && childClasses.includes(row.className))
+          .map((row) => row.id);
+      }
+    }
+  } else if (linkedStudent?.classe) {
+    familyClassIds = classRows
+      .filter((row) => row.className === linkedStudent.classe)
+      .map((row) => row.id);
+  }
 
   const scopedClassIds = isFamily
     ? familyClassIds
@@ -214,6 +238,8 @@ export async function GET(request: NextRequest) {
     plannedLessons: teacherPlans.length,
     completedLessons: completedPlans || teacherLessons.length,
     pedagogicalProgressRate: rate(completedPlans || teacherLessons.length, teacherPlans.length || teacherLessons.length),
+    clubsCount: 0,
+    eventsCount: 0,
   };
 
   return NextResponse.json({
