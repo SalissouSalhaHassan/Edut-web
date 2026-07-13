@@ -70,17 +70,30 @@ export default function EmployeeDialog({
   mode = "add",
   initialData,
   trigger,
+  open: controlledOpen,
+  onClose,
 }: EmployeeDialogProps) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(controlledOpen ?? false);
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const { speak } = useSpeech();
 
+  const handleClose = () => {
+    setOpen(false);
+    if (onClose) onClose();
+  };
+
   // Mount guard for SSR — createPortal only works client-side
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (controlledOpen !== undefined) {
+      setOpen(controlledOpen);
+    }
+  }, [controlledOpen]);
 
   useEffect(() => {
     if (open) {
@@ -102,11 +115,14 @@ export default function EmployeeDialog({
   // Close on Escape key
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape") {
+        setOpen(false);
+        if (onClose) onClose();
+      }
     };
     if (open) window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
+  }, [open, onClose]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -168,7 +184,7 @@ export default function EmployeeDialog({
     setLoading(false);
 
     if (result.success) {
-      setOpen(false);
+      handleClose();
     } else if (result.error) {
       setError(result.error);
     }
@@ -179,7 +195,7 @@ export default function EmployeeDialog({
     <>
       {/* Backdrop */}
       <div
-        onClick={() => setOpen(false)}
+        onClick={handleClose}
         className="fixed inset-0 z-[200] bg-slate-900/50 backdrop-blur-[3px]"
         aria-hidden="true"
       />
@@ -211,7 +227,7 @@ export default function EmployeeDialog({
           </div>
           <button
             type="button"
-            onClick={() => setOpen(false)}
+            onClick={handleClose}
             className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
             aria-label="Fermer"
           >
@@ -574,7 +590,7 @@ export default function EmployeeDialog({
           <div className="flex gap-3">
             <button
               type="button"
-              onClick={() => setOpen(false)}
+              onClick={handleClose}
               className="h-11 px-6 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-bold hover:bg-slate-50 transition-colors"
             >
               Annuler

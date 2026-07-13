@@ -3,7 +3,7 @@
 import { db } from "@/infrastructure/database";
 import { timetableEntries, timetableSettings, teacherConstraints, schoolClasses, schoolSubjects, classSubjects, sectionSubjects } from "@/infrastructure/database/schema/academics";
 import { employees } from "@/infrastructure/database/schema/hr";
-import { schoolBranches } from "@/infrastructure/database/schema/settings";
+import { schoolBranches, settings } from "@/infrastructure/database/schema/settings";
 import { eq, and, isNull, inArray, sql, or } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { protectedDbAction } from "@/lib/protected-action";
@@ -114,8 +114,9 @@ export async function getTimetableEntries(modeOrId: "class" | "teacher" | number
 }
 
 export async function getTimetableReportData() {
-  return protectedDbAction("Academics", "canView", async () => {
-    const [entries, classes, teachers, settings, branchInfo] = await Promise.all([
+  return protectedDbAction("Academics", "canView", async (user) => {
+    const schoolId = user.schoolId || await getActiveSchoolId();
+    const [entries, classes, teachers, settingsData, branchInfo, headerConfigRecord] = await Promise.all([
       db.query.timetableEntries.findMany({
         with: { subject: true, teacher: true, class: true }
       }),
@@ -128,15 +129,31 @@ export async function getTimetableReportData() {
       db.query.timetableSettings.findFirst({
         where: isNull(timetableSettings.classId)
       }),
-      db.query.schoolBranches.findFirst()
+      db.query.schoolBranches.findFirst({
+        where: eq(schoolBranches.schoolId, schoolId)
+      }),
+      db.query.settings.findFirst({
+        where: and(
+          eq(settings.key, "official_document_header"),
+          eq(settings.schoolId, schoolId)
+        )
+      })
     ]);
-    
+
+    let documentHeaderConfig = null;
+    if (headerConfigRecord?.value) {
+      try {
+        documentHeaderConfig = JSON.parse(headerConfigRecord.value);
+      } catch (e) {}
+    }
+
     return { 
       entries, 
       classes, 
       teachers, 
       schoolInfo: branchInfo,
-      settings: settings || {
+      documentHeaderConfig,
+      settings: settingsData || {
         days: "Lundi,Mardi,Mercredi,Jeudi,Vendredi",
         periods: 6,
         recessAfter: 3,

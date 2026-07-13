@@ -52,7 +52,7 @@ export async function generateTimetablePDF(options: ExportOptions) {
     }
     const reportData = await response.json();
 
-    const { entries, classes, teachers, settings, schoolInfo } = reportData;
+    const { entries, classes, teachers, settings, schoolInfo, documentHeaderConfig } = reportData;
     const days = normalizeDays(settings?.days);
     const periods = settings?.periods || 6;
     const recessAfter = settings?.recessAfter || 0;
@@ -63,14 +63,14 @@ export async function generateTimetablePDF(options: ExportOptions) {
       if (options.mode === 'class') {
         const cls = classes.find((c: any) => c.id === options.id);
         const clsEntries = entries.filter((e: any) => e.classId === options.id);
-        drawTimetablePage(doc, `CLASSE : ${cls?.className || 'Inconnue'}`, days, periods, recessAfter, clsEntries, 'class', schoolInfo);
+        drawTimetablePage(doc, `CLASSE : ${cls?.className || 'Inconnue'}`, days, periods, recessAfter, clsEntries, 'class', schoolInfo, documentHeaderConfig);
         const blob = doc.output("blob");
         const url = URL.createObjectURL(blob);
         window.open(url, "_blank");
       } else {
         const teacher = teachers.find((t: any) => t.id === options.id);
         const tEntries = entries.filter((e: any) => e.employeeId === options.id);
-        drawTimetablePage(doc, `ENSEIGNANT : ${teacher?.nom || 'Inconnu'}`, days, periods, recessAfter, tEntries, 'teacher', schoolInfo);
+        drawTimetablePage(doc, `ENSEIGNANT : ${teacher?.nom || 'Inconnu'}`, days, periods, recessAfter, tEntries, 'teacher', schoolInfo, documentHeaderConfig);
         const blob = doc.output("blob");
         const url = URL.createObjectURL(blob);
         window.open(url, "_blank");
@@ -81,7 +81,7 @@ export async function generateTimetablePDF(options: ExportOptions) {
       classes.forEach((cls: any, index: number) => {
         if (index > 0) doc.addPage();
         const clsEntries = entries.filter((e: any) => e.classId === cls.id);
-        drawTimetablePage(doc, `CLASSE : ${cls.className}`, days, periods, recessAfter, clsEntries, 'class', schoolInfo);
+        drawTimetablePage(doc, `CLASSE : ${cls.className}`, days, periods, recessAfter, clsEntries, 'class', schoolInfo, documentHeaderConfig);
       });
       const blob = doc.output("blob");
       const url = URL.createObjectURL(blob);
@@ -93,7 +93,7 @@ export async function generateTimetablePDF(options: ExportOptions) {
       activeTeachers.forEach((t: any, index: number) => {
         if (index > 0) doc.addPage();
         const tEntries = entries.filter((e: any) => e.employeeId === t.id);
-        drawTimetablePage(doc, `ENSEIGNANT : ${t.nom}`, days, periods, recessAfter, tEntries, 'teacher', schoolInfo);
+        drawTimetablePage(doc, `ENSEIGNANT : ${t.nom}`, days, periods, recessAfter, tEntries, 'teacher', schoolInfo, documentHeaderConfig);
       });
       const blob = doc.output("blob");
       const url = URL.createObjectURL(blob);
@@ -136,6 +136,239 @@ export async function generateTimetablePDF(options: ExportOptions) {
   }
 }
 
+function drawOfficialHeaderLandscape(doc: any, headerConfig: any, schoolInfo: any, titleText: string): number {
+  const schoolName = headerConfig?.schoolName || schoolInfo?.branchName || "ÉTABLISSEMENT D'EXCELLENCE";
+  const schoolNameAr = headerConfig?.schoolNameAr || "";
+  const country = headerConfig?.country || "RÉPUBLIQUE DU NIGER";
+  const countryAr = headerConfig?.countryAr || "";
+  const ministry = headerConfig?.ministry || "Ministère de l'Éducation Nationale";
+  const ministryAr = headerConfig?.ministryAr || "";
+  const regionalDirection = headerConfig?.regionalDirection || schoolInfo?.dren || schoolInfo?.region || "";
+  const regionalDirectionAr = headerConfig?.regionalDirectionAr || "";
+  const departmentalDirection = headerConfig?.departmentalDirection || schoolInfo?.dden || schoolInfo?.department || "";
+  const departmentalDirectionAr = headerConfig?.departmentalDirectionAr || "";
+  const inspection = headerConfig?.inspection || schoolInfo?.inspection || "";
+  const inspectionAr = headerConfig?.inspectionAr || "";
+  const service = headerConfig?.service || "";
+  const serviceAr = headerConfig?.serviceAr || "";
+  const address = headerConfig?.address || schoolInfo?.address || "";
+  const addressAr = headerConfig?.addressAr || "";
+  const bp = headerConfig?.bp || "";
+  const phone = headerConfig?.phone || schoolInfo?.contactNo || "";
+  const email = headerConfig?.email || schoolInfo?.email || "";
+  const schoolYear = headerConfig?.schoolYear || "2024 - 2025";
+  const motto = headerConfig?.motto || "";
+  const mottoAr = headerConfig?.mottoAr || "";
+
+  const style = headerConfig?.style || "classic_dual_logo";
+
+  doc.setTextColor(0, 0, 0);
+
+  if (style === "modern_card") {
+    // Fill background
+    doc.setFillColor(79, 70, 229); // Indigo 600
+    doc.roundedRect(15, 8, 267, 20, 2, 2, "F");
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
+    doc.text(schoolName, 25, 14);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
+    doc.setTextColor(220, 225, 255);
+    doc.text(`Année Scolaire: ${schoolYear}`, 25, 20);
+    doc.text(`${address} ${phone ? '| Tél: ' + phone : ''}`, 25, 25);
+
+    doc.setTextColor(0, 0, 0);
+    
+    // Draw Title
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(15);
+    doc.text(titleText, 148, 38, { align: 'center' });
+    return 42;
+  }
+
+  if (style === "bilingual_center_logo") {
+    const leftLines = [
+      country,
+      motto,
+      ministry,
+      regionalDirection,
+      departmentalDirection,
+      inspection,
+      schoolName,
+      service,
+      address,
+      bp ? `BP : ${bp}` : "",
+      phone ? `Tél: ${phone}` : "",
+    ].filter(Boolean);
+
+    let leftY = 12;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    for (const line of leftLines) {
+      doc.text(line, 15, leftY);
+      leftY += 3.8;
+    }
+
+    const rightLines = [
+      countryAr || "جمهورية النيجر",
+      mottoAr,
+      ministryAr,
+      regionalDirectionAr,
+      departmentalDirectionAr,
+      inspectionAr,
+      schoolNameAr || schoolName,
+      serviceAr,
+      addressAr,
+      bp ? `ص.ب: ${bp}` : "",
+      phone ? `الهاتف: ${phone}` : "",
+    ].filter(Boolean);
+
+    let rightY = 12;
+    for (const line of rightLines) {
+      doc.text(line, 282, rightY, { align: "right" });
+      rightY += 3.8;
+    }
+
+    const maxY = Math.max(leftY, rightY);
+    doc.setLineWidth(0.5);
+    doc.line(15, maxY + 1, 282, maxY + 1);
+
+    // Title
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(15);
+    doc.setTextColor(30, 58, 138); // Indigo 900
+    doc.text(titleText, 148, maxY + 8, { align: "center" });
+
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(100);
+    doc.text(`Année Scolaire: ${schoolYear}  •  Imprimé le ${new Date().toLocaleDateString('fr-FR')}`, 148, maxY + 13, { align: 'center' });
+
+    return maxY + 18;
+  }
+
+  if (style === "university_formal") {
+    const centerLines = [
+      country,
+      schoolName,
+      service,
+      [bp && `BP : ${bp}`, address, phone && `Tél. ${phone}`].filter(Boolean).join(" | "),
+      email ? `Email : ${email}` : "",
+    ].filter(Boolean);
+
+    let centerY = 12;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.text(centerLines[0].toUpperCase(), 148, centerY, { align: "center" });
+
+    doc.setFontSize(13);
+    centerY += 5;
+    doc.text(centerLines[1], 148, centerY, { align: "center" });
+
+    doc.setFontSize(8.5);
+    doc.setFont("helvetica", "normal");
+    for (let i = 2; i < centerLines.length; i++) {
+      centerY += 4;
+      doc.text(centerLines[i], 148, centerY, { align: "center" });
+    }
+
+    const finalY = Math.max(centerY + 3, 30);
+    doc.setLineWidth(0.5);
+    doc.line(15, finalY, 282, finalY);
+
+    // Title
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(15);
+    doc.setTextColor(30, 58, 138); // Indigo 900
+    doc.text(titleText, 148, finalY + 8, { align: "center" });
+
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(100);
+    doc.text(`Année Scolaire: ${schoolYear}  •  Imprimé le ${new Date().toLocaleDateString('fr-FR')}`, 148, finalY + 13, { align: 'center' });
+
+    return finalY + 18;
+  }
+
+  if (style === "minimal_administrative") {
+    const leftLines = [
+      schoolName,
+      service || "Administration",
+      phone ? `Tél: ${phone}` : "",
+    ].filter(Boolean);
+
+    let leftY = 12;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.text(leftLines[0], 15, leftY);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
+    for (let i = 1; i < leftLines.length; i++) {
+      leftY += 4;
+      doc.text(leftLines[i], 15, leftY);
+    }
+
+    // Title
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(15);
+    doc.setTextColor(30, 58, 138); // Indigo 900
+    doc.text(titleText, 148, 16, { align: "center" });
+
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(100);
+    doc.text(`Année Scolaire: ${schoolYear}  •  Imprimé le ${new Date().toLocaleDateString('fr-FR')}`, 148, 22, { align: 'center' });
+
+    doc.setLineWidth(0.5);
+    doc.line(15, 27, 282, 27);
+    return 33;
+  }
+
+  // DEFAULT / CLASSIC DUAL LOGO
+  // Left side: Republic & Ministry
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.text(country, 15, 12);
+  doc.setFontSize(7.5);
+  doc.text(motto, 15, 15);
+  doc.text(ministry, 15, 18);
+  if (regionalDirection) doc.text(regionalDirection, 15, 21);
+  if (departmentalDirection) doc.text(departmentalDirection, 15, 24);
+  if (inspection) doc.text(inspection, 15, 27);
+
+  // Right side: School details
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.text(schoolName, 282, 12, { align: 'right' });
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  let rightY = 16;
+  if (phone) { doc.text(`Tél: ${phone}`, 282, rightY, { align: 'right' }); rightY += 3.5; }
+  if (address) { doc.text(address, 282, rightY, { align: 'right' }); rightY += 3.5; }
+  if (email) { doc.text(email, 282, rightY, { align: 'right' }); rightY += 3.5; }
+
+  // Draw separator line
+  doc.setLineWidth(0.5);
+  doc.line(15, 34, 282, 34);
+
+  // Main Title
+  doc.setFontSize(18);
+  doc.setTextColor(30, 58, 138); // Indigo 900
+  doc.setFont("helvetica", "bold");
+  doc.text(titleText, 148, 42, { align: 'center' });
+
+  // Academic Year / Date
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(100);
+  doc.text(`Année Scolaire: ${schoolYear}  •  Imprimé le ${new Date().toLocaleDateString('fr-FR')}`, 148, 48, { align: 'center' });
+
+  return 52;
+}
+
 function drawTimetablePage(
   doc: any,
   title: string,
@@ -144,46 +377,19 @@ function drawTimetablePage(
   recessAfter: number,
   entries: any[],
   mode: 'class' | 'teacher',
-  schoolInfo?: any
+  schoolInfo?: any,
+  documentHeaderConfig?: any
 ) {
-  // Professional Header
-  doc.setFontSize(10);
-  doc.setTextColor(50);
-  
-  // Left side: Republic & Ministry
-  doc.text("RÉPUBLIQUE DU NIGER", 15, 15);
-  doc.setFontSize(8);
-  doc.text("Ministère de l'Éducation Nationale", 15, 20);
-  
-  // Right side: School details
-  doc.setFontSize(11);
-  doc.setFont("helvetica", "bold");
-  const schoolName = schoolInfo?.branchName || "ÉTABLISSEMENT D'EXCELLENCE";
-  doc.text(schoolName, 282, 15, { align: 'right' });
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  if (schoolInfo?.contactNo) doc.text(`Tél: ${schoolInfo.contactNo}`, 282, 20, { align: 'right' });
-  if (schoolInfo?.address) doc.text(schoolInfo.address, 282, 24, { align: 'right' });
+  const startY = drawOfficialHeaderLandscape(doc, documentHeaderConfig, schoolInfo, "EMPLOI DU TEMPS");
 
-  // Main Title
-  doc.setFontSize(22);
-  doc.setTextColor(30, 58, 138); // Indigo 900
-  doc.setFont("helvetica", "bold");
-  doc.text("EMPLOI DU TEMPS", 148, 25, { align: 'center' });
-  
   // Subtitle (Class or Teacher)
-  doc.setFontSize(14);
+  doc.setFontSize(12);
   doc.setTextColor(255, 255, 255);
   // Draw a rounded pill for the subtitle
-  const subtitleWidth = doc.getTextWidth(title) + 20;
+  const subtitleWidth = doc.getTextWidth(title) + 16;
   doc.setFillColor(79, 70, 229); // Indigo 600
-  doc.roundedRect(148 - subtitleWidth / 2, 30, subtitleWidth, 10, 5, 5, 'F');
-  doc.text((title || "").toUpperCase(), 148, 37, { align: 'center' });
-
-  // Academic Year / Date
-  doc.setFontSize(9);
-  doc.setTextColor(100);
-  doc.text(`Année Scolaire: 2024 - 2025  •  Imprimé le ${new Date().toLocaleDateString('fr-FR')}`, 148, 46, { align: 'center' });
+  doc.roundedRect(148 - subtitleWidth / 2, startY - 4, subtitleWidth, 8, 4, 4, 'F');
+  doc.text((title || "").toUpperCase(), 148, startY + 1.5, { align: 'center' });
 
   // Generate Table Data
   const tableBody: any[] = [];
@@ -225,7 +431,7 @@ function drawTimetablePage(
   }
 
   (doc as any).autoTable({
-    startY: 50,
+    startY: startY + 8,
     head: [['HEURES', ...days.map((d: string) => (d || "").toUpperCase())]],
     body: tableBody,
     theme: 'grid',
@@ -247,7 +453,7 @@ function drawTimetablePage(
       halign: 'center'
     },
     alternateRowStyles: { },
-    margin: { top: 50, bottom: 15, left: 15, right: 15 },
+    margin: { top: startY + 8, bottom: 15, left: 15, right: 15 },
   });
 
   // Signatures

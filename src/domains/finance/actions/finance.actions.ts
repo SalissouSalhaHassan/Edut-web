@@ -282,7 +282,7 @@ export async function syncStudentFees(revalidate: boolean = true) {
       const oldBal = Number(s.ancienSolde || 0);
       const cogesCard = Number(s.fraisCogesCard || 0);
       const transpInternat = Number(s.fraisTransportInternat || 0);
-      const expected = inscr + oldBal + cogesCard + transpInternat + (monthly * 9);
+      const expected = inscr + oldBal + cogesCard + transpInternat + monthly;
 
       const existing = feeMap.get(s.id);
 
