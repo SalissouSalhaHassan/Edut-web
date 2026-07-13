@@ -3,16 +3,23 @@ import autoTable from "jspdf-autotable";
 import { amiriFontBase64 } from "@/domains/printing/utils/amiri-font";
 import { hasArabicCharacters, reshapeArabicText } from "@/domains/printing/utils/arabic-reshaper";
 
+function ensureAmiriRegistered(doc: jsPDF) {
+  try {
+    const fontList = doc.getFontList();
+    if (!fontList["Amiri"]) {
+      if (amiriFontBase64) {
+        doc.addFileToVFS("Amiri-Regular.ttf", amiriFontBase64);
+        doc.addFont("Amiri-Regular.ttf", "Amiri", "normal", "Identity-H");
+      }
+    }
+  } catch (e) {
+    console.warn("Failed to check or register Amiri font:", e);
+  }
+}
+
 function drawTextBilingual(doc: jsPDF, text: string, x: number, y: number, options?: any) {
   if (hasArabicCharacters(text)) {
-    if (!amiriFontBase64) {
-      doc.setFontSize(8);
-      doc.setTextColor(255, 0, 0);
-      doc.text("ERR: amiriFontBase64 empty!", x, y - 4);
-      doc.setTextColor(0, 0, 0);
-      doc.text(text, x, y, options);
-      return;
-    }
+    ensureAmiriRegistered(doc);
     try {
       const reshaped = reshapeArabicText(text);
       const activeFont = doc.getFont();
@@ -24,14 +31,39 @@ function drawTextBilingual(doc: jsPDF, text: string, x: number, y: number, optio
       doc.setFont(activeName, activeStyle);
     } catch (e: any) {
       console.warn("Error rendering Arabic text with Amiri font:", e);
-      doc.setFontSize(8);
-      doc.setTextColor(255, 0, 0);
-      doc.text(`ERR: ${e?.message || String(e)}`, x, y - 4);
-      doc.setTextColor(0, 0, 0);
       doc.text(text, x, y, options);
     }
   } else {
     doc.text(text, x, y, options);
+  }
+}
+
+function drawWrappedText(doc: jsPDF, text: string, x: number, y: number, maxWidth: number, align: "left" | "right" | "center"): number {
+  const isAr = hasArabicCharacters(text);
+  const currentFont = doc.getFont();
+  const currentName = currentFont.fontName;
+  const currentStyle = currentFont.fontStyle;
+
+  if (isAr) {
+    ensureAmiriRegistered(doc);
+    const reshaped = reshapeArabicText(text);
+    doc.setFont("Amiri", "normal");
+    const lines = doc.splitTextToSize(reshaped, maxWidth);
+    let tempY = y;
+    for (const line of lines) {
+      doc.text(line, x, tempY, { align });
+      tempY += 4;
+    }
+    doc.setFont(currentName, currentStyle);
+    return tempY - y;
+  } else {
+    const lines = doc.splitTextToSize(text, maxWidth);
+    let tempY = y;
+    for (const line of lines) {
+      doc.text(line, x, tempY, { align });
+      tempY += 4;
+    }
+    return tempY - y;
   }
 }
 
@@ -140,13 +172,13 @@ function drawPDFHeader(
     doc.setTextColor(255, 255, 255);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(13);
-    drawTextBilingual(doc, schoolName, 38, 17);
+    drawWrappedText(doc, schoolName, 38, 17, 150, "left");
     
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
     doc.setTextColor(220, 225, 255);
-    drawTextBilingual(doc, `Année Scolaire: ${schoolYear} | Niveau: ${eduLevel}`, 38, 23);
-    drawTextBilingual(doc, `${address} ${phone ? '| Tél: ' + phone : ''}`, 38, 28);
+    drawWrappedText(doc, `Année Scolaire: ${schoolYear} | Niveau: ${eduLevel}`, 38, 23, 150, "left");
+    drawWrappedText(doc, `${address} ${phone ? '| Tél: ' + phone : ''}`, 38, 28, 150, "left");
     
     doc.setTextColor(0, 0, 0);
     return 38;
@@ -173,15 +205,6 @@ function drawPDFHeader(
       email ? `Email: ${email}` : "",
     ].filter(Boolean);
 
-    let leftY = 12;
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.setTextColor(0, 0, 0);
-    for (const line of leftLines) {
-      drawTextBilingual(doc, line, 10, leftY);
-      leftY += 4.5;
-    }
-    
     const rightLines = [
       headerConfig?.countryAr || "جمهورية النيجر",
       headerConfig?.ministryAr || "وزارة التربية الوطنية",
@@ -196,10 +219,21 @@ function drawPDFHeader(
       email ? `البريد: ${email}` : "",
     ].filter(Boolean);
 
+    const colWidth = centerLogo ? 78 : 92;
+    
+    let leftY = 12;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(0, 0, 0);
+    for (const line of leftLines) {
+      const height = drawWrappedText(doc, line, 10, leftY, colWidth, "left");
+      leftY += height + 0.5;
+    }
+    
     let rightY = 12;
     for (const line of rightLines) {
-      drawTextBilingual(doc, line, 200, rightY, { align: "right" });
-      rightY += 4.5;
+      const height = drawWrappedText(doc, line, 200, rightY, colWidth, "right");
+      rightY += height + 0.5;
     }
     
     const maxY = Math.max(leftY, rightY);
@@ -232,17 +266,18 @@ function drawPDFHeader(
     let centerY = 12;
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
-    drawTextBilingual(doc, centerLines[0].toUpperCase(), 105, centerY, { align: "center" });
+    const height0 = drawWrappedText(doc, centerLines[0].toUpperCase(), 105, centerY, 140, "center");
+    centerY += height0 + 1;
     
     doc.setFontSize(12);
-    centerY += 5;
-    drawTextBilingual(doc, centerLines[1], 105, centerY, { align: "center" });
+    const height1 = drawWrappedText(doc, centerLines[1], 105, centerY, 140, "center");
+    centerY += height1 + 1;
 
     doc.setFontSize(8.5);
     doc.setFont("helvetica", "normal");
     for (let i = 2; i < centerLines.length; i++) {
-      centerY += 4.5;
-      drawTextBilingual(doc, centerLines[i], 105, centerY, { align: "center" });
+      const height = drawWrappedText(doc, centerLines[i], 105, centerY, 140, "center");
+      centerY += height + 0.5;
     }
     
     const finalY = Math.max(centerY + 3, 32);
@@ -272,13 +307,14 @@ function drawPDFHeader(
     let leftY = 12;
     doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
-    drawTextBilingual(doc, leftLines[0], 10, leftY);
+    const height0 = drawWrappedText(doc, leftLines[0], 10, leftY, 155, "left");
+    leftY += height0 + 1;
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8.5);
     for (let i = 1; i < leftLines.length; i++) {
-      leftY += 4.5;
-      drawTextBilingual(doc, leftLines[i], 10, leftY);
+      const height = drawWrappedText(doc, leftLines[i], 10, leftY, 155, "left");
+      leftY += height + 0.5;
     }
     
     const finalY = Math.max(leftY + 3, 32);
@@ -310,18 +346,20 @@ function drawPDFHeader(
   let centerY = 12;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(13);
-  drawTextBilingual(doc, centerLines[0], 105, centerY, { align: "center" });
+  const height0 = drawWrappedText(doc, centerLines[0], 105, centerY, 140, "center");
+  centerY += height0 + 1;
 
   doc.setFontSize(8.5);
   doc.setFont("helvetica", "normal");
   for (let i = 1; i < centerLines.length; i++) {
-    centerY += 4.5;
     if (i === 1 && motto) {
       doc.setFont("helvetica", "italic");
-      drawTextBilingual(doc, centerLines[i], 105, centerY, { align: "center" });
+      const height = drawWrappedText(doc, centerLines[i], 105, centerY, 140, "center");
+      centerY += height + 0.5;
       doc.setFont("helvetica", "normal");
     } else {
-      drawTextBilingual(doc, centerLines[i], 105, centerY, { align: "center" });
+      const height = drawWrappedText(doc, centerLines[i], 105, centerY, 140, "center");
+      centerY += height + 0.5;
     }
   }
   
@@ -367,8 +405,8 @@ export async function generateBulletinPDF(data: any) {
     }
   }
 
-  const titleY = headerEndY + 10;
-  const infoBoxY = headerEndY + 15;
+  const titleY = headerEndY + 14;
+  const infoBoxY = headerEndY + 20;
   const textRow1Y = infoBoxY + 7;
   const textRow2Y = infoBoxY + 14;
   const textRow3Y = infoBoxY + 21;
@@ -930,7 +968,7 @@ export async function generateReleveNotesPDF(data: any) {
     }
   }
 
-  const titleBarY = headerEndY + 5;
+  const titleBarY = headerEndY + 12;
   const studentInfoY = titleBarY + 14;
   const s1SectionY = studentInfoY + 18;
   const s1TitleY = studentInfoY + 23;
