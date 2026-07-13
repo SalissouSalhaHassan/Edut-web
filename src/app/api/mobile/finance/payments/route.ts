@@ -134,7 +134,7 @@ export async function POST(request: NextRequest) {
       paymentMode: paymentMode || "Espèces",
       reference: reference || null,
       monthConcerned: monthConcerned || null,
-      recordedBy: recordedBy || user.email || "Mobile App",
+      recordedBy: recordedBy || user.utilisateur || "Mobile App",
       datePaid: new Date(),
     };
 
