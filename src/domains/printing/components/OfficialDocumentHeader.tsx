@@ -123,7 +123,8 @@ export default function OfficialDocumentHeader({
       import("@/domains/settings/actions/settings.actions").then(({ getDocumentHeaderConfig }) => {
         getDocumentHeaderConfig().then((res) => {
           if (res?.data) {
-            setDbConfig(res.data);
+            const cfg = (res.data as any).data || res.data;
+            setDbConfig(cfg);
           }
         });
       });
