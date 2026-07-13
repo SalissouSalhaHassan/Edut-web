@@ -144,7 +144,7 @@ export async function GET(request: NextRequest, props: { params: Promise<{ id: s
           if (!statsByStudent.has(studentId)) {
             statsByStudent.set(studentId, []);
           }
-          statsByStudent.get(studentId)!.add(values[0]);
+          statsByStudent.get(studentId)!.push(values[0]);
         }
       }
 
