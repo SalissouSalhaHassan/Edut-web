@@ -837,12 +837,6 @@ export default function ReceiptPreviewDialog({
 
     setIsGenerating(false);
     return doc;
-  };ame}_${Date.now()}.pdf`);
-      setPdfSuccess(true);
-    }
-
-    setIsGenerating(false);
-    return doc;
   };
 
   // ---------- WHATSAPP ----------
