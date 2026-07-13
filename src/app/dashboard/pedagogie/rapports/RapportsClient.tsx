@@ -549,24 +549,22 @@ export default function RapportsClient({
             <button
               type="button"
               onClick={() => setSelectedPaperSize("A4")}
-              className={cn(
-                "h-8 px-3 rounded-lg text-xs font-bold transition-all",
+              className={`h-8 px-3 rounded-lg text-xs font-bold transition-all ${
                 selectedPaperSize === "A4"
                   ? "bg-white text-slate-800 shadow-sm"
                   : "text-slate-400 hover:text-slate-600"
-              )}
+              }`}
             >
               A4
             </button>
             <button
               type="button"
               onClick={() => setSelectedPaperSize("A5")}
-              className={cn(
-                "h-8 px-3 rounded-lg text-xs font-bold transition-all",
+              className={`h-8 px-3 rounded-lg text-xs font-bold transition-all ${
                 selectedPaperSize === "A5"
                   ? "bg-white text-slate-800 shadow-sm"
                   : "text-slate-400 hover:text-slate-600"
-              )}
+              }`}
             >
               A5
             </button>
