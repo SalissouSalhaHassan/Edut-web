@@ -5,23 +5,344 @@ import jsPDF from "jspdf";
 import Link from "next/link";
 import OfficialDocumentHeader from "@/domains/printing/components/OfficialDocumentHeader";
 
-// Helper to render Arabic text as an image for jsPDF to avoid Unicode/RTL issues
-const renderArabicText = (text: string, fontSize: number, color: string = "#1e3a8a", width: number = 300, height: number = 50): string => {
-  if (typeof window === "undefined") return "";
-  const canvas = document.createElement("canvas");
-  canvas.width = width * 4; // high DPI
-  canvas.height = height * 4;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return "";
-  ctx.scale(4, 4);
-  ctx.clearRect(0, 0, width, height);
-  ctx.font = `bold ${fontSize}px "Amiri", "Arial", "Segoe UI", "Tahoma", sans-serif`;
-  ctx.fillStyle = color;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText(text, width / 2, height / 2);
-  return canvas.toDataURL("image/png");
-};
+import { amiriFontBase64 } from "@/domains/printing/utils/amiri-font";
+import { hasArabicCharacters, reshapeArabicText } from "@/domains/printing/utils/arabic-reshaper";
+
+function ensureAmiriRegistered(doc: jsPDF) {
+  try {
+    const fontList = doc.getFontList();
+    if (!fontList["Amiri"]) {
+      if (amiriFontBase64) {
+        doc.addFileToVFS("Amiri-Regular.ttf", amiriFontBase64);
+        doc.addFont("Amiri-Regular.ttf", "Amiri", "normal", "Identity-H");
+      }
+    }
+  } catch (e) {
+    console.warn("Failed to check or register Amiri font in admit-cards:", e);
+  }
+}
+
+function drawTextBilingual(doc: jsPDF, text: string, x: number, y: number, options?: any) {
+  if (hasArabicCharacters(text)) {
+    ensureAmiriRegistered(doc);
+    try {
+      const reshaped = reshapeArabicText(text);
+      const activeFont = doc.getFont();
+      const activeStyle = activeFont.fontStyle;
+      const activeName = activeFont.fontName;
+      
+      doc.setFont("Amiri", "normal");
+      doc.text(reshaped, x, y, options);
+      doc.setFont(activeName, activeStyle);
+    } catch (e: any) {
+      console.warn("Error rendering Arabic text with Amiri font:", e);
+      doc.text(text, x, y, options);
+    }
+  } else {
+    doc.text(text, x, y, options);
+  }
+}
+
+function drawWrappedText(doc: jsPDF, text: string, x: number, y: number, maxWidth: number, align: "left" | "right" | "center"): number {
+  const isAr = hasArabicCharacters(text);
+  const currentFont = doc.getFont();
+  const currentName = currentFont.fontName;
+  const currentStyle = currentFont.fontStyle;
+
+  if (isAr) {
+    ensureAmiriRegistered(doc);
+    const reshaped = reshapeArabicText(text);
+    doc.setFont("Amiri", "normal");
+    const lines = doc.splitTextToSize(reshaped, maxWidth);
+    let tempY = y;
+    for (const line of lines) {
+      doc.text(line, x, tempY, { align });
+      tempY += 4;
+    }
+    doc.setFont(currentName, currentStyle);
+    return tempY - y;
+  } else {
+    const lines = doc.splitTextToSize(text, maxWidth);
+    let tempY = y;
+    for (const line of lines) {
+      doc.text(line, x, tempY, { align });
+      tempY += 4;
+    }
+    return tempY - y;
+  }
+}
+
+function drawPDFHeader(
+  doc: jsPDF,
+  headerConfig: any,
+  title: string
+): number {
+  const style = headerConfig?.style || "classic_dual_logo";
+  const schoolName = headerConfig?.schoolName || "ÉCOLE EXCELLENCE";
+  const address = headerConfig?.address || "";
+  const phone = headerConfig?.phone || "";
+  const email = headerConfig?.email || "";
+  const registrationNo = headerConfig?.registrationNo || "";
+  const schoolYear = headerConfig?.schoolYear || "";
+  const ministry = headerConfig?.ministry || "Ministère de l'Éducation Nationale";
+  const service = headerConfig?.service || "Service de la Scolarité";
+  const bp = headerConfig?.bp || "";
+  const motto = headerConfig?.motto || "";
+  
+  const leftLogo = headerConfig?.leftLogo || "";
+  const rightLogo = headerConfig?.rightLogo || leftLogo;
+  const centerLogo = headerConfig?.centerLogo || leftLogo;
+
+  const W = doc.internal.pageSize.getWidth();
+  const margin = 10;
+  const rightX = W - margin;
+  const centerX = W / 2;
+
+  if (style === "modern_card") {
+    doc.setFillColor(79, 70, 229);
+    doc.roundedRect(margin, 8, W - 2 * margin, 26, 2, 2, "F");
+    
+    if (leftLogo) {
+      try {
+        doc.addImage(leftLogo, 'PNG', margin + 4, 11, 20, 20);
+      } catch (e) {}
+    }
+    
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
+    drawWrappedText(doc, schoolName, margin + 28, 17, W - 2 * margin - 38, "left");
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(220, 225, 255);
+    drawWrappedText(doc, `Année Scolaire: ${schoolYear}`, margin + 28, 23, W - 2 * margin - 38, "left");
+    drawWrappedText(doc, `${address} ${phone ? '| Tél: ' + phone : ''}`, margin + 28, 28, W - 2 * margin - 38, "left");
+    
+    doc.setTextColor(0, 0, 0);
+    
+    if (title) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      drawWrappedText(doc, title.toUpperCase(), centerX, 44, W - 2 * margin, "center");
+      return 52;
+    }
+    return 38;
+  }
+  
+  if (style === "bilingual_center_logo") {
+    if (centerLogo) {
+      try {
+        doc.addImage(centerLogo, 'PNG', centerX - 13, 8, 26, 26);
+      } catch (e) {}
+    }
+    
+    const leftLines = [
+      headerConfig?.country || "RÉPUBLIQUE DU NIGER",
+      ministry,
+      headerConfig?.regionalDirection || "",
+      headerConfig?.departmentalDirection || "",
+      headerConfig?.inspection || "",
+      schoolName,
+      service,
+      address,
+      bp ? `BP : ${bp}` : "",
+      phone ? `Tél: ${phone}` : "",
+      email ? `Email: ${email}` : "",
+    ].filter(Boolean);
+
+    const rightLines = [
+      headerConfig?.countryAr || "جمهورية النيجر",
+      headerConfig?.ministryAr || "وزارة التربية الوطنية",
+      headerConfig?.regionalDirectionAr || "",
+      headerConfig?.departmentalDirectionAr || "",
+      headerConfig?.inspectionAr || "",
+      headerConfig?.schoolNameAr || schoolName,
+      headerConfig?.serviceAr || "",
+      headerConfig?.addressAr || "",
+      bp ? `ص.ب: ${bp}` : "",
+      phone ? `الهاتف: ${phone}` : "",
+      email ? `البريد: ${email}` : "",
+    ].filter(Boolean);
+
+    const colWidth = centerLogo ? (centerX - margin - 15) : (centerX - margin - 4);
+    
+    let leftY = 12;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(0, 0, 0);
+    for (const line of leftLines) {
+      const height = drawWrappedText(doc, line, margin, leftY, colWidth, "left");
+      leftY += height + 0.5;
+    }
+    
+    let rightY = 12;
+    for (const line of rightLines) {
+      const height = drawWrappedText(doc, line, rightX, rightY, colWidth, "right");
+      rightY += height + 0.5;
+    }
+    
+    const maxY = Math.max(leftY, rightY);
+    doc.setLineWidth(0.5);
+    doc.line(margin, maxY + 2, rightX, maxY + 2);
+    
+    if (title) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      drawWrappedText(doc, title.toUpperCase(), centerX, maxY + 12, W - 2 * margin, "center");
+      return maxY + 18;
+    }
+    return maxY + 4;
+  }
+  
+  if (style === "university_formal") {
+    if (leftLogo) {
+      try {
+        doc.addImage(leftLogo, 'PNG', margin, 8, 22, 22);
+      } catch (e) {}
+    }
+    if (rightLogo) {
+      try {
+        doc.addImage(rightLogo, 'PNG', rightX - 22, 8, 22, 22);
+      } catch (e) {}
+    }
+    
+    const centerLines = [
+      headerConfig?.country || "REPUBLIQUE DU NIGER",
+      schoolName,
+      service,
+      [bp && `BP : ${bp}`, address, phone && `Tél. ${phone}`].filter(Boolean).join(" | "),
+      email ? `Email : ${email}` : "",
+      registrationNo ? `Agrément N°: ${registrationNo}` : "",
+    ].filter(Boolean);
+
+    let centerY = 12;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    const height0 = drawWrappedText(doc, centerLines[0].toUpperCase(), centerX, centerY, W - 2 * margin - 50, "center");
+    centerY += height0 + 1;
+    
+    doc.setFontSize(12);
+    const height1 = drawWrappedText(doc, centerLines[1], centerX, centerY, W - 2 * margin - 50, "center");
+    centerY += height1 + 1;
+
+    doc.setFontSize(8.5);
+    doc.setFont("helvetica", "normal");
+    for (let i = 2; i < centerLines.length; i++) {
+      const height = drawWrappedText(doc, centerLines[i], centerX, centerY, W - 2 * margin - 50, "center");
+      centerY += height + 0.5;
+    }
+    
+    const finalY = Math.max(centerY + 3, 32);
+    doc.setLineWidth(0.5);
+    doc.line(margin, finalY, rightX, finalY);
+    
+    if (title) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      drawWrappedText(doc, title.toUpperCase(), centerX, finalY + 12, W - 2 * margin, "center");
+      return finalY + 18;
+    }
+    return finalY + 2;
+  }
+  
+  if (style === "minimal_administrative") {
+    if (centerLogo || leftLogo) {
+      try {
+        doc.addImage(centerLogo || leftLogo, 'PNG', rightX - 22, 8, 22, 22);
+      } catch (e) {}
+    }
+    
+    const leftLines = [
+      schoolName,
+      headerConfig?.country || "RÉPUBLIQUE DU NIGER",
+      ministry,
+      headerConfig?.regionalDirection || "",
+      headerConfig?.inspection || "",
+      registrationNo ? `Agrément: ${registrationNo}` : "",
+      [address, phone && `Tél: ${phone}`].filter(Boolean).join(" | "),
+      email ? `Email: ${email}` : "",
+    ].filter(Boolean);
+
+    let leftY = 12;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    const height0 = drawWrappedText(doc, leftLines[0], margin, leftY, W - 2 * margin - 25, "left");
+    leftY += height0 + 1;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
+    for (let i = 1; i < leftLines.length; i++) {
+      const height = drawWrappedText(doc, leftLines[i], margin, leftY, W - 2 * margin - 25, "left");
+      leftY += height + 0.5;
+    }
+    
+    const finalY = Math.max(leftY + 3, 32);
+    doc.setLineWidth(0.3);
+    doc.line(margin, finalY, rightX, finalY);
+    
+    if (title) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      drawWrappedText(doc, title.toUpperCase(), centerX, finalY + 12, W - 2 * margin, "center");
+      return finalY + 18;
+    }
+    return finalY + 2;
+  }
+  
+  // DEFAULT / CLASSIC DUAL LOGO
+  if (leftLogo) {
+    try {
+      doc.addImage(leftLogo, 'PNG', margin, 8, 22, 22);
+    } catch (e) {}
+  }
+  if (rightLogo && rightLogo !== leftLogo) {
+    try {
+      doc.addImage(rightLogo, 'PNG', rightX - 22, 8, 22, 22);
+    } catch (e) {}
+  }
+  
+  const centerLines = [
+    schoolName,
+    motto ? `"${motto}"` : "",
+    [registrationNo && `Agrément: ${registrationNo}`, `Niveau: Secondaire`].filter(Boolean).join(" | "),
+    `Année Scolaire: ${schoolYear}`,
+    [phone && `Tél: ${phone}`, email && `Email: ${email}`].filter(Boolean).join(" | "),
+    address ? `Adresse: ${address}` : "",
+  ].filter(Boolean);
+
+  let centerY = 12;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(13);
+  const height0 = drawWrappedText(doc, centerLines[0], centerX, centerY, W - 2 * margin - 50, "center");
+  centerY += height0 + 1;
+
+  doc.setFontSize(8.5);
+  doc.setFont("helvetica", "normal");
+  for (let i = 1; i < centerLines.length; i++) {
+    if (i === 1 && motto) {
+      doc.setFont("helvetica", "italic");
+      const height = drawWrappedText(doc, centerLines[i], centerX, centerY, W - 2 * margin - 50, "center");
+      centerY += height + 0.5;
+      doc.setFont("helvetica", "normal");
+    } else {
+      const height = drawWrappedText(doc, centerLines[i], centerX, centerY, W - 2 * margin - 50, "center");
+      centerY += height + 0.5;
+    }
+  }
+  
+  const finalY = Math.max(centerY + 3, 32);
+  doc.setLineWidth(0.5);
+  doc.line(margin, finalY, rightX, finalY);
+  
+  if (title) {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    drawWrappedText(doc, title.toUpperCase(), centerX, finalY + 12, W - 2 * margin, "center");
+    return finalY + 18;
+  }
+  return finalY + 2;
+}
 import {
   ArrowLeft,
   Columns3,
@@ -185,6 +506,54 @@ export default function AdmitCardsPage() {
   const [dbStudents, setDbStudents] = useState<any[]>([]);
   const [selectedStudentIdx, setSelectedStudentIdx] = useState(0);
   const [activeHeaderConfig, setActiveHeaderConfig] = useState<any>(null);
+  const [selectedPaperSize, setSelectedPaperSize] = useState<"A4" | "A5">("A4");
+
+  useEffect(() => {
+    const styleId = "admit-cards-size-print-style";
+    let style = document.getElementById(styleId) as HTMLStyleElement;
+    if (!style) {
+      style = document.createElement("style");
+      style.id = styleId;
+      document.head.appendChild(style);
+    }
+    
+    const pageMargin = selectedPaperSize === "A5" ? "8mm" : "15mm";
+    style.innerHTML = `
+      @media print {
+        @page { size: ${selectedPaperSize} portrait; margin: ${pageMargin}; }
+        
+        /* A5 print overrides */
+        .print-container[data-paper-size="A5"] {
+          width: 148mm !important;
+          height: 210mm !important;
+          padding: 8mm !important;
+          font-size: 8.5px !important;
+        }
+        .print-container[data-paper-size="A5"] h2 {
+          font-size: 16px !important;
+        }
+        .print-container[data-paper-size="A5"] p {
+          font-size: 8.5px !important;
+        }
+        .print-container[data-paper-size="A5"] .text-sm {
+          font-size: 8.5px !important;
+        }
+        .print-container[data-paper-size="A5"] .text-2xl {
+          font-size: 14px !important;
+        }
+        .print-container[data-paper-size="A5"] .h-20 {
+          height: 3rem !important;
+        }
+      }
+      
+      /* A5 Screen Preview Overrides */
+      .print-container[data-paper-size="A5"] {
+        max-width: 148mm !important;
+        margin: 0 auto;
+        font-size: 8.5px !important;
+      }
+    `;
+  }, [selectedPaperSize]);
 
   useEffect(() => {
     import("@/domains/settings/actions/settings.actions").then(({ getDocumentHeaderConfig }) => {
@@ -219,8 +588,11 @@ export default function AdmitCardsPage() {
 
   // Generate a printable admit card PDF for a student
   const handlePrintCard = async (template: Template, student: any) => {
-    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-    const W = 210, H = 297, m = 18;
+    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: selectedPaperSize === "A5" ? "a5" : "a4" });
+    ensureAmiriRegistered(doc);
+    
+    const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
+    const m = 18;
     const isProvisoire = !!student.isProvisoire;
     const ref = `ADM-${template.id}-${student.numAdmission || student.id}`;
 
@@ -232,94 +604,34 @@ export default function AdmitCardsPage() {
       doc.rect(0, 0, W, H, "F");
     }
 
-    // French Header Text
-    const country = activeHeaderConfig?.country || "RÉPUBLIQUE DU NIGER";
-    const ministry = activeHeaderConfig?.ministry || "MINISTÈRE DE L'ÉDUCATION NATIONALE";
-    const regionalDirection = activeHeaderConfig?.regionalDirection || "Direction Régionale de Niamey";
-    const departmentalDirection = activeHeaderConfig?.departmentalDirection || "";
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(8.5);
-    doc.setTextColor(30, 58, 138);
-    doc.text(country, 20, 16);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(7.5);
-    doc.setTextColor(51, 65, 85);
-    doc.text(ministry, 20, 21);
-    doc.setFont("helvetica", "bold");
-    doc.text(regionalDirection, 20, 26);
-    if (departmentalDirection) {
-      doc.text(departmentalDirection, 20, 31);
-    }
-
-    // Arabic Header Text (Rendered as high-res images to support Unicode and RTL)
-    const countryAr = activeHeaderConfig?.countryAr || "جمهورية النيجر";
-    const ministryAr = activeHeaderConfig?.ministryAr || "وزارة التربية الوطنية";
-    const regionalDirectionAr = activeHeaderConfig?.regionalDirectionAr || "المديرية الجهوية لنيامي";
-    const departmentalDirectionAr = activeHeaderConfig?.departmentalDirectionAr || "";
-
-    const arHeader1 = renderArabicText(countryAr, 13, "#1e3a8a", 160, 24);
-    const arHeader2 = renderArabicText(ministryAr, 11, "#334155", 160, 24);
-    const arHeader3 = renderArabicText(regionalDirectionAr, 11, "#334155", 160, 24);
-    
-    if (arHeader1) doc.addImage(arHeader1, "PNG", W - 60, 12, 40, 6);
-    if (arHeader2) doc.addImage(arHeader2, "PNG", W - 60, 17, 40, 6);
-    if (arHeader3) doc.addImage(arHeader3, "PNG", W - 60, 22, 40, 6);
-
-    if (departmentalDirectionAr) {
-      const arHeader4 = renderArabicText(departmentalDirectionAr, 11, "#334155", 160, 24);
-      if (arHeader4) doc.addImage(arHeader4, "PNG", W - 60, 27, 40, 6);
-    }
-
-    // Center logo (Circle) or Left Logo
-    const leftLogo = activeHeaderConfig?.leftLogo || "";
-    if (leftLogo) {
-      try {
-        doc.addImage(leftLogo, "PNG", W / 2 - 9, 12, 18, 18);
-      } catch (e) {
-        doc.setDrawColor(203, 213, 225);
-        doc.setFillColor(248, 250, 252);
-        doc.circle(W / 2, 21, 9, "FD");
-      }
-    } else {
-      doc.setDrawColor(203, 213, 225);
-      doc.setFillColor(248, 250, 252);
-      doc.circle(W / 2, 21, 9, "FD");
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(5);
-      doc.setTextColor(148, 163, 184);
-      doc.text("(ARMOIRIES)", W / 2, 28, { align: "center" });
-    }
-
-    // Horizontal Divider
-    doc.setDrawColor(79, 70, 229);
-    doc.setLineWidth(0.6);
-    doc.line(20, 36, W - 20, 36);
-
-    // Title
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(16);
-    doc.setTextColor(30, 58, 138);
-    doc.text("CARTE D'ADMISSION", W / 2, 43, { align: "center" });
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(71, 85, 105);
-    doc.text(template.name, W / 2, 49, { align: "center" });
+    // Draw official header
+    const startY = drawPDFHeader(doc, activeHeaderConfig || null, "");
 
     // Offline watermark
     if (isProvisoire) {
       doc.setFillColor(254, 243, 199);
       doc.setDrawColor(245, 158, 11);
       doc.setLineWidth(0.4);
-      doc.roundedRect(m, 34, W - 2 * m, 6, 1, 1, "FD");
+      doc.roundedRect(m, startY + 2, W - 2 * m, 6, 1, 1, "FD");
       doc.setFont("helvetica", "bold");
       doc.setFontSize(7);
       doc.setTextColor(180, 83, 9);
-      doc.text("Document g\u00e9n\u00e9r\u00e9 hors ligne - en attente de synchronisation", W / 2, 38, { align: "center" });
+      doc.text("Document généré hors ligne - en attente de synchronisation", W / 2, startY + 6, { align: "center" });
     }
 
+    // Title
+    const titleY = startY + (isProvisoire ? 14 : 8);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.setTextColor(30, 58, 138);
+    doc.text("CARTE D'ADMISSION", W / 2, titleY, { align: "center" });
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(71, 85, 105);
+    drawTextBilingual(doc, template.name, W / 2, titleY + 6, { align: "center" });
+
     // Info card
-    const cardY = isProvisoire ? 46 : 40;
+    const cardY = titleY + 12;
     doc.setFillColor(255, 255, 255);
     doc.setDrawColor(226, 232, 240);
     doc.roundedRect(m, cardY, W - 2 * m, 60, 3, 3, "FD");
@@ -330,7 +642,7 @@ export default function AdmitCardsPage() {
       doc.setFont("helvetica", "normal"); doc.setTextColor(100, 116, 139);
       doc.text(label, m + 5, ly);
       doc.setFont("helvetica", "bold"); doc.setTextColor(15, 23, 42);
-      doc.text(String(vals[i]), m + 55, ly);
+      drawTextBilingual(doc, String(vals[i]), m + 55, ly);
       if (i < 3) { doc.setDrawColor(241, 245, 249); doc.line(m + 5, ly + 3, W - m - 5, ly + 3); }
       ly += 13;
     });
@@ -493,6 +805,32 @@ export default function AdmitCardsPage() {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            {/* Paper Size selector */}
+            <div className="flex items-center gap-0.5 rounded-xl border border-slate-200 bg-slate-50/50 p-1">
+              <button
+                type="button"
+                onClick={() => setSelectedPaperSize("A4")}
+                className={`h-8 px-3 rounded-lg text-xs font-bold transition-all ${
+                  selectedPaperSize === "A4"
+                    ? "bg-white text-slate-800 shadow-sm"
+                    : "text-slate-400 hover:text-slate-600"
+                }`}
+              >
+                A4
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedPaperSize("A5")}
+                className={`h-8 px-3 rounded-lg text-xs font-bold transition-all ${
+                  selectedPaperSize === "A5"
+                    ? "bg-white text-slate-800 shadow-sm"
+                    : "text-slate-400 hover:text-slate-600"
+                }`}
+              >
+                A5
+              </button>
+            </div>
+
             <button onClick={() => setActiveTab("Ajouter une carte")} className="flex h-11 items-center gap-2 rounded-xl bg-indigo-600 px-4 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-indigo-100">
               <Plus size={16} /> Nouveau modele
             </button>
@@ -521,7 +859,7 @@ export default function AdmitCardsPage() {
 
       <div className="rounded-2xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm font-bold text-indigo-800 print:hidden">{notice}</div>
 
-      <section className="rounded-[30px] border border-slate-100 bg-white shadow-sm print-card">
+      <section data-paper-size={selectedPaperSize} className="rounded-[30px] border border-slate-100 bg-white shadow-sm print-card">
         <div className="border-b border-slate-100 p-4 print:hidden">
           <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
             <div className="flex flex-wrap gap-2">

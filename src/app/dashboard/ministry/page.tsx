@@ -6,6 +6,344 @@ import { toast } from "sonner";
 import { jsPDF } from "jspdf";
 import OfficialDocumentHeader from "@/domains/printing/components/OfficialDocumentHeader";
 import autoTable from "jspdf-autotable";
+import { amiriFontBase64 } from "@/domains/printing/utils/amiri-font";
+import { hasArabicCharacters, reshapeArabicText } from "@/domains/printing/utils/arabic-reshaper";
+
+function ensureAmiriRegistered(doc: jsPDF) {
+  try {
+    const fontList = doc.getFontList();
+    if (!fontList["Amiri"]) {
+      if (amiriFontBase64) {
+        doc.addFileToVFS("Amiri-Regular.ttf", amiriFontBase64);
+        doc.addFont("Amiri-Regular.ttf", "Amiri", "normal", "Identity-H");
+      }
+    }
+  } catch (e) {
+    console.warn("Failed to check or register Amiri font in ministry:", e);
+  }
+}
+
+function drawTextBilingual(doc: jsPDF, text: string, x: number, y: number, options?: any) {
+  if (hasArabicCharacters(text)) {
+    ensureAmiriRegistered(doc);
+    try {
+      const reshaped = reshapeArabicText(text);
+      const activeFont = doc.getFont();
+      const activeStyle = activeFont.fontStyle;
+      const activeName = activeFont.fontName;
+      
+      doc.setFont("Amiri", "normal");
+      doc.text(reshaped, x, y, options);
+      doc.setFont(activeName, activeStyle);
+    } catch (e: any) {
+      console.warn("Error rendering Arabic text with Amiri font:", e);
+      doc.text(text, x, y, options);
+    }
+  } else {
+    doc.text(text, x, y, options);
+  }
+}
+
+function drawWrappedText(doc: jsPDF, text: string, x: number, y: number, maxWidth: number, align: "left" | "right" | "center"): number {
+  const isAr = hasArabicCharacters(text);
+  const currentFont = doc.getFont();
+  const currentName = currentFont.fontName;
+  const currentStyle = currentFont.fontStyle;
+
+  if (isAr) {
+    ensureAmiriRegistered(doc);
+    const reshaped = reshapeArabicText(text);
+    doc.setFont("Amiri", "normal");
+    const lines = doc.splitTextToSize(reshaped, maxWidth);
+    let tempY = y;
+    for (const line of lines) {
+      doc.text(line, x, tempY, { align });
+      tempY += 4;
+    }
+    doc.setFont(currentName, currentStyle);
+    return tempY - y;
+  } else {
+    const lines = doc.splitTextToSize(text, maxWidth);
+    let tempY = y;
+    for (const line of lines) {
+      doc.text(line, x, tempY, { align });
+      tempY += 4;
+    }
+    return tempY - y;
+  }
+}
+
+function drawPDFHeader(
+  doc: jsPDF,
+  headerConfig: any,
+  title: string
+): number {
+  const style = headerConfig?.style || "classic_dual_logo";
+  const schoolName = headerConfig?.schoolName || "ÉCOLE EXCELLENCE";
+  const address = headerConfig?.address || "";
+  const phone = headerConfig?.phone || "";
+  const email = headerConfig?.email || "";
+  const registrationNo = headerConfig?.registrationNo || "";
+  const schoolYear = headerConfig?.schoolYear || "";
+  const ministry = headerConfig?.ministry || "Ministère de l'Éducation Nationale";
+  const service = headerConfig?.service || "Service de la Scolarité";
+  const bp = headerConfig?.bp || "";
+  const motto = headerConfig?.motto || "";
+  
+  const leftLogo = headerConfig?.leftLogo || "";
+  const rightLogo = headerConfig?.rightLogo || leftLogo;
+  const centerLogo = headerConfig?.centerLogo || leftLogo;
+
+  const W = doc.internal.pageSize.getWidth();
+  const margin = 10;
+  const rightX = W - margin;
+  const centerX = W / 2;
+
+  if (style === "modern_card") {
+    doc.setFillColor(79, 70, 229);
+    doc.roundedRect(margin, 8, W - 2 * margin, 26, 2, 2, "F");
+    
+    if (leftLogo) {
+      try {
+        doc.addImage(leftLogo, 'PNG', margin + 4, 11, 20, 20);
+      } catch (e) {}
+    }
+    
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
+    drawWrappedText(doc, schoolName, margin + 28, 17, W - 2 * margin - 38, "left");
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(220, 225, 255);
+    drawWrappedText(doc, `Année Scolaire: ${schoolYear}`, margin + 28, 23, W - 2 * margin - 38, "left");
+    drawWrappedText(doc, `${address} ${phone ? '| Tél: ' + phone : ''}`, margin + 28, 28, W - 2 * margin - 38, "left");
+    
+    doc.setTextColor(0, 0, 0);
+    
+    if (title) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      drawWrappedText(doc, title.toUpperCase(), centerX, 44, W - 2 * margin, "center");
+      return 52;
+    }
+    return 38;
+  }
+  
+  if (style === "bilingual_center_logo") {
+    if (centerLogo) {
+      try {
+        doc.addImage(centerLogo, 'PNG', centerX - 13, 8, 26, 26);
+      } catch (e) {}
+    }
+    
+    const leftLines = [
+      headerConfig?.country || "RÉPUBLIQUE DU NIGER",
+      ministry,
+      headerConfig?.regionalDirection || "",
+      headerConfig?.departmentalDirection || "",
+      headerConfig?.inspection || "",
+      schoolName,
+      service,
+      address,
+      bp ? `BP : ${bp}` : "",
+      phone ? `Tél: ${phone}` : "",
+      email ? `Email: ${email}` : "",
+    ].filter(Boolean);
+
+    const rightLines = [
+      headerConfig?.countryAr || "جمهورية النيجر",
+      headerConfig?.ministryAr || "وزارة التربية الوطنية",
+      headerConfig?.regionalDirectionAr || "",
+      headerConfig?.departmentalDirectionAr || "",
+      headerConfig?.inspectionAr || "",
+      headerConfig?.schoolNameAr || schoolName,
+      headerConfig?.serviceAr || "",
+      headerConfig?.addressAr || "",
+      bp ? `ص.ب: ${bp}` : "",
+      phone ? `الهاتف: ${phone}` : "",
+      email ? `البريد: ${email}` : "",
+    ].filter(Boolean);
+
+    const colWidth = centerLogo ? (centerX - margin - 15) : (centerX - margin - 4);
+    
+    let leftY = 12;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(0, 0, 0);
+    for (const line of leftLines) {
+      const height = drawWrappedText(doc, line, margin, leftY, colWidth, "left");
+      leftY += height + 0.5;
+    }
+    
+    let rightY = 12;
+    for (const line of rightLines) {
+      const height = drawWrappedText(doc, line, rightX, rightY, colWidth, "right");
+      rightY += height + 0.5;
+    }
+    
+    const maxY = Math.max(leftY, rightY);
+    doc.setLineWidth(0.5);
+    doc.line(margin, maxY + 2, rightX, maxY + 2);
+    
+    if (title) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      drawWrappedText(doc, title.toUpperCase(), centerX, maxY + 12, W - 2 * margin, "center");
+      return maxY + 18;
+    }
+    return maxY + 4;
+  }
+  
+  if (style === "university_formal") {
+    if (leftLogo) {
+      try {
+        doc.addImage(leftLogo, 'PNG', margin, 8, 22, 22);
+      } catch (e) {}
+    }
+    if (rightLogo) {
+      try {
+        doc.addImage(rightLogo, 'PNG', rightX - 22, 8, 22, 22);
+      } catch (e) {}
+    }
+    
+    const centerLines = [
+      headerConfig?.country || "REPUBLIQUE DU NIGER",
+      schoolName,
+      service,
+      [bp && `BP : ${bp}`, address, phone && `Tél. ${phone}`].filter(Boolean).join(" | "),
+      email ? `Email : ${email}` : "",
+      registrationNo ? `Agrément N°: ${registrationNo}` : "",
+    ].filter(Boolean);
+
+    let centerY = 12;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    const height0 = drawWrappedText(doc, centerLines[0].toUpperCase(), centerX, centerY, W - 2 * margin - 50, "center");
+    centerY += height0 + 1;
+    
+    doc.setFontSize(12);
+    const height1 = drawWrappedText(doc, centerLines[1], centerX, centerY, W - 2 * margin - 50, "center");
+    centerY += height1 + 1;
+
+    doc.setFontSize(8.5);
+    doc.setFont("helvetica", "normal");
+    for (let i = 2; i < centerLines.length; i++) {
+      const height = drawWrappedText(doc, centerLines[i], centerX, centerY, W - 2 * margin - 50, "center");
+      centerY += height + 0.5;
+    }
+    
+    const finalY = Math.max(centerY + 3, 32);
+    doc.setLineWidth(0.5);
+    doc.line(margin, finalY, rightX, finalY);
+    
+    if (title) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      drawWrappedText(doc, title.toUpperCase(), centerX, finalY + 12, W - 2 * margin, "center");
+      return finalY + 18;
+    }
+    return finalY + 2;
+  }
+  
+  if (style === "minimal_administrative") {
+    if (centerLogo || leftLogo) {
+      try {
+        doc.addImage(centerLogo || leftLogo, 'PNG', rightX - 22, 8, 22, 22);
+      } catch (e) {}
+    }
+    
+    const leftLines = [
+      schoolName,
+      headerConfig?.country || "RÉPUBLIQUE DU NIGER",
+      ministry,
+      headerConfig?.regionalDirection || "",
+      headerConfig?.inspection || "",
+      registrationNo ? `Agrément: ${registrationNo}` : "",
+      [address, phone && `Tél: ${phone}`].filter(Boolean).join(" | "),
+      email ? `Email: ${email}` : "",
+    ].filter(Boolean);
+
+    let leftY = 12;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    const height0 = drawWrappedText(doc, leftLines[0], margin, leftY, W - 2 * margin - 25, "left");
+    leftY += height0 + 1;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
+    for (let i = 1; i < leftLines.length; i++) {
+      const height = drawWrappedText(doc, leftLines[i], margin, leftY, W - 2 * margin - 25, "left");
+      leftY += height + 0.5;
+    }
+    
+    const finalY = Math.max(leftY + 3, 32);
+    doc.setLineWidth(0.3);
+    doc.line(margin, finalY, rightX, finalY);
+    
+    if (title) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      drawWrappedText(doc, title.toUpperCase(), centerX, finalY + 12, W - 2 * margin, "center");
+      return finalY + 18;
+    }
+    return finalY + 2;
+  }
+  
+  // DEFAULT / CLASSIC DUAL LOGO
+  if (leftLogo) {
+    try {
+      doc.addImage(leftLogo, 'PNG', margin, 8, 22, 22);
+    } catch (e) {}
+  }
+  if (rightLogo && rightLogo !== leftLogo) {
+    try {
+      doc.addImage(rightLogo, 'PNG', rightX - 22, 8, 22, 22);
+    } catch (e) {}
+  }
+  
+  const centerLines = [
+    schoolName,
+    motto ? `"${motto}"` : "",
+    [registrationNo && `Agrément: ${registrationNo}`, `Niveau: Secondaire`].filter(Boolean).join(" | "),
+    `Année Scolaire: ${schoolYear}`,
+    [phone && `Tél: ${phone}`, email && `Email: ${email}`].filter(Boolean).join(" | "),
+    address ? `Adresse: ${address}` : "",
+  ].filter(Boolean);
+
+  let centerY = 12;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(13);
+  const height0 = drawWrappedText(doc, centerLines[0], centerX, centerY, W - 2 * margin - 50, "center");
+  centerY += height0 + 1;
+
+  doc.setFontSize(8.5);
+  doc.setFont("helvetica", "normal");
+  for (let i = 1; i < centerLines.length; i++) {
+    if (i === 1 && motto) {
+      doc.setFont("helvetica", "italic");
+      const height = drawWrappedText(doc, centerLines[i], centerX, centerY, W - 2 * margin - 50, "center");
+      centerY += height + 0.5;
+      doc.setFont("helvetica", "normal");
+    } else {
+      const height = drawWrappedText(doc, centerLines[i], centerX, centerY, W - 2 * margin - 50, "center");
+      centerY += height + 0.5;
+    }
+  }
+  
+  const finalY = Math.max(centerY + 3, 32);
+  doc.setLineWidth(0.5);
+  doc.line(margin, finalY, rightX, finalY);
+  
+  if (title) {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    drawWrappedText(doc, title.toUpperCase(), centerX, finalY + 12, W - 2 * margin, "center");
+    return finalY + 18;
+  }
+  return finalY + 2;
+}
 import * as XLSX from "xlsx";
 import {
   ArrowLeft,

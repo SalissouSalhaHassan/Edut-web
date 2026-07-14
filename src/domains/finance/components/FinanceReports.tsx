@@ -9,6 +9,8 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { Input } from "@/components/ui/input";
 import OfficialDocumentHeader from "@/domains/printing/components/OfficialDocumentHeader";
+import { amiriFontBase64 } from "@/domains/printing/utils/amiri-font";
+import { hasArabicCharacters, reshapeArabicText } from "@/domains/printing/utils/arabic-reshaper";
 
 interface ClassSummary {
   className: string;
@@ -51,8 +53,400 @@ const ACCOUNTING_REPORTS = [
   { id: "prevision", label: "Prévision encaissement" },
 ];
 
+function ensureAmiriRegistered(doc: jsPDF) {
+  try {
+    const fontList = doc.getFontList();
+    if (!fontList["Amiri"]) {
+      if (amiriFontBase64) {
+        doc.addFileToVFS("Amiri-Regular.ttf", amiriFontBase64);
+        doc.addFont("Amiri-Regular.ttf", "Amiri", "normal", "Identity-H");
+      }
+    }
+  } catch (e) {
+    console.warn("Failed to check or register Amiri font in FinanceReports:", e);
+  }
+}
+
+function drawTextBilingual(doc: jsPDF, text: string, x: number, y: number, options?: any) {
+  if (hasArabicCharacters(text)) {
+    ensureAmiriRegistered(doc);
+    try {
+      const reshaped = reshapeArabicText(text);
+      const activeFont = doc.getFont();
+      const activeStyle = activeFont.fontStyle;
+      const activeName = activeFont.fontName;
+      
+      doc.setFont("Amiri", "normal");
+      doc.text(reshaped, x, y, options);
+      doc.setFont(activeName, activeStyle);
+    } catch (e: any) {
+      console.warn("Error rendering Arabic text with Amiri font:", e);
+      doc.text(text, x, y, options);
+    }
+  } else {
+    doc.text(text, x, y, options);
+  }
+}
+
+function drawWrappedText(doc: jsPDF, text: string, x: number, y: number, maxWidth: number, align: "left" | "right" | "center"): number {
+  const isAr = hasArabicCharacters(text);
+  const currentFont = doc.getFont();
+  const currentName = currentFont.fontName;
+  const currentStyle = currentFont.fontStyle;
+
+  if (isAr) {
+    ensureAmiriRegistered(doc);
+    const reshaped = reshapeArabicText(text);
+    doc.setFont("Amiri", "normal");
+    const lines = doc.splitTextToSize(reshaped, maxWidth);
+    let tempY = y;
+    for (const line of lines) {
+      doc.text(line, x, tempY, { align });
+      tempY += 4;
+    }
+    doc.setFont(currentName, currentStyle);
+    return tempY - y;
+  } else {
+    const lines = doc.splitTextToSize(text, maxWidth);
+    let tempY = y;
+    for (const line of lines) {
+      doc.text(line, x, tempY, { align });
+      tempY += 4;
+    }
+    return tempY - y;
+  }
+}
+
+function drawPDFHeader(
+  doc: jsPDF,
+  headerConfig: any,
+  title: string
+): number {
+  const style = headerConfig?.style || "classic_dual_logo";
+  const schoolName = headerConfig?.schoolName || "ÉCOLE EXCELLENCE";
+  const address = headerConfig?.address || "";
+  const phone = headerConfig?.phone || "";
+  const email = headerConfig?.email || "";
+  const registrationNo = headerConfig?.registrationNo || "";
+  const schoolYear = headerConfig?.schoolYear || "";
+  const ministry = headerConfig?.ministry || "Ministère de l'Éducation Nationale";
+  const service = headerConfig?.service || "Service de la Scolarité";
+  const bp = headerConfig?.bp || "";
+  const motto = headerConfig?.motto || "";
+  
+  const leftLogo = headerConfig?.leftLogo || "";
+  const rightLogo = headerConfig?.rightLogo || leftLogo;
+  const centerLogo = headerConfig?.centerLogo || leftLogo;
+
+  const W = doc.internal.pageSize.getWidth();
+  const margin = 10;
+  const rightX = W - margin;
+  const centerX = W / 2;
+
+  if (style === "modern_card") {
+    doc.setFillColor(79, 70, 229);
+    doc.roundedRect(margin, 8, W - 2 * margin, 26, 2, 2, "F");
+    
+    if (leftLogo) {
+      try {
+        doc.addImage(leftLogo, 'PNG', margin + 4, 11, 20, 20);
+      } catch (e) {}
+    }
+    
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
+    drawWrappedText(doc, schoolName, margin + 28, 17, W - 2 * margin - 38, "left");
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(220, 225, 255);
+    drawWrappedText(doc, `Année Scolaire: ${schoolYear}`, margin + 28, 23, W - 2 * margin - 38, "left");
+    drawWrappedText(doc, `${address} ${phone ? '| Tél: ' + phone : ''}`, margin + 28, 28, W - 2 * margin - 38, "left");
+    
+    doc.setTextColor(0, 0, 0);
+    
+    if (title) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      drawWrappedText(doc, title.toUpperCase(), centerX, 44, W - 2 * margin, "center");
+      return 52;
+    }
+    return 38;
+  }
+  
+  if (style === "bilingual_center_logo") {
+    if (centerLogo) {
+      try {
+        doc.addImage(centerLogo, 'PNG', centerX - 13, 8, 26, 26);
+      } catch (e) {}
+    }
+    
+    const leftLines = [
+      headerConfig?.country || "RÉPUBLIQUE DU NIGER",
+      ministry,
+      headerConfig?.regionalDirection || "",
+      headerConfig?.departmentalDirection || "",
+      headerConfig?.inspection || "",
+      schoolName,
+      service,
+      address,
+      bp ? `BP : ${bp}` : "",
+      phone ? `Tél: ${phone}` : "",
+      email ? `Email: ${email}` : "",
+    ].filter(Boolean);
+
+    const rightLines = [
+      headerConfig?.countryAr || "جمهورية النيجر",
+      headerConfig?.ministryAr || "وزارة التربية الوطنية",
+      headerConfig?.regionalDirectionAr || "",
+      headerConfig?.departmentalDirectionAr || "",
+      headerConfig?.inspectionAr || "",
+      headerConfig?.schoolNameAr || schoolName,
+      headerConfig?.serviceAr || "",
+      headerConfig?.addressAr || "",
+      bp ? `ص.ب: ${bp}` : "",
+      phone ? `الهاتف: ${phone}` : "",
+      email ? `البريد: ${email}` : "",
+    ].filter(Boolean);
+
+    const colWidth = centerLogo ? (centerX - margin - 15) : (centerX - margin - 4);
+    
+    let leftY = 12;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(0, 0, 0);
+    for (const line of leftLines) {
+      const height = drawWrappedText(doc, line, margin, leftY, colWidth, "left");
+      leftY += height + 0.5;
+    }
+    
+    let rightY = 12;
+    for (const line of rightLines) {
+      const height = drawWrappedText(doc, line, rightX, rightY, colWidth, "right");
+      rightY += height + 0.5;
+    }
+    
+    const maxY = Math.max(leftY, rightY);
+    doc.setLineWidth(0.5);
+    doc.line(margin, maxY + 2, rightX, maxY + 2);
+    
+    if (title) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      drawWrappedText(doc, title.toUpperCase(), centerX, maxY + 12, W - 2 * margin, "center");
+      return maxY + 18;
+    }
+    return maxY + 4;
+  }
+  
+  if (style === "university_formal") {
+    if (leftLogo) {
+      try {
+        doc.addImage(leftLogo, 'PNG', margin, 8, 22, 22);
+      } catch (e) {}
+    }
+    if (rightLogo) {
+      try {
+        doc.addImage(rightLogo, 'PNG', rightX - 22, 8, 22, 22);
+      } catch (e) {}
+    }
+    
+    const centerLines = [
+      headerConfig?.country || "REPUBLIQUE DU NIGER",
+      schoolName,
+      service,
+      [bp && `BP : ${bp}`, address, phone && `Tél. ${phone}`].filter(Boolean).join(" | "),
+      email ? `Email : ${email}` : "",
+      registrationNo ? `Agrément N°: ${registrationNo}` : "",
+    ].filter(Boolean);
+
+    let centerY = 12;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    const height0 = drawWrappedText(doc, centerLines[0].toUpperCase(), centerX, centerY, W - 2 * margin - 50, "center");
+    centerY += height0 + 1;
+    
+    doc.setFontSize(12);
+    const height1 = drawWrappedText(doc, centerLines[1], centerX, centerY, W - 2 * margin - 50, "center");
+    centerY += height1 + 1;
+
+    doc.setFontSize(8.5);
+    doc.setFont("helvetica", "normal");
+    for (let i = 2; i < centerLines.length; i++) {
+      const height = drawWrappedText(doc, centerLines[i], centerX, centerY, W - 2 * margin - 50, "center");
+      centerY += height + 0.5;
+    }
+    
+    const finalY = Math.max(centerY + 3, 32);
+    doc.setLineWidth(0.5);
+    doc.line(margin, finalY, rightX, finalY);
+    
+    if (title) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      drawWrappedText(doc, title.toUpperCase(), centerX, finalY + 12, W - 2 * margin, "center");
+      return finalY + 18;
+    }
+    return finalY + 2;
+  }
+  
+  if (style === "minimal_administrative") {
+    if (centerLogo || leftLogo) {
+      try {
+        doc.addImage(centerLogo || leftLogo, 'PNG', rightX - 22, 8, 22, 22);
+      } catch (e) {}
+    }
+    
+    const leftLines = [
+      schoolName,
+      headerConfig?.country || "RÉPUBLIQUE DU NIGER",
+      ministry,
+      headerConfig?.regionalDirection || "",
+      headerConfig?.inspection || "",
+      registrationNo ? `Agrément: ${registrationNo}` : "",
+      [address, phone && `Tél: ${phone}`].filter(Boolean).join(" | "),
+      email ? `Email: ${email}` : "",
+    ].filter(Boolean);
+
+    let leftY = 12;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    const height0 = drawWrappedText(doc, leftLines[0], margin, leftY, W - 2 * margin - 25, "left");
+    leftY += height0 + 1;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
+    for (let i = 1; i < leftLines.length; i++) {
+      const height = drawWrappedText(doc, leftLines[i], margin, leftY, W - 2 * margin - 25, "left");
+      leftY += height + 0.5;
+    }
+    
+    const finalY = Math.max(leftY + 3, 32);
+    doc.setLineWidth(0.3);
+    doc.line(margin, finalY, rightX, finalY);
+    
+    if (title) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      drawWrappedText(doc, title.toUpperCase(), centerX, finalY + 12, W - 2 * margin, "center");
+      return finalY + 18;
+    }
+    return finalY + 2;
+  }
+  
+  // DEFAULT / CLASSIC DUAL LOGO
+  if (leftLogo) {
+    try {
+      doc.addImage(leftLogo, 'PNG', margin, 8, 22, 22);
+    } catch (e) {}
+  }
+  if (rightLogo && rightLogo !== leftLogo) {
+    try {
+      doc.addImage(rightLogo, 'PNG', rightX - 22, 8, 22, 22);
+    } catch (e) {}
+  }
+  
+  const centerLines = [
+    schoolName,
+    motto ? `"${motto}"` : "",
+    [registrationNo && `Agrément: ${registrationNo}`, `Niveau: Secondaire`].filter(Boolean).join(" | "),
+    `Année Scolaire: ${schoolYear}`,
+    [phone && `Tél: ${phone}`, email && `Email: ${email}`].filter(Boolean).join(" | "),
+    address ? `Adresse: ${address}` : "",
+  ].filter(Boolean);
+
+  let centerY = 12;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(13);
+  const height0 = drawWrappedText(doc, centerLines[0], centerX, centerY, W - 2 * margin - 50, "center");
+  centerY += height0 + 1;
+
+  doc.setFontSize(8.5);
+  doc.setFont("helvetica", "normal");
+  for (let i = 1; i < centerLines.length; i++) {
+    if (i === 1 && motto) {
+      doc.setFont("helvetica", "italic");
+      const height = drawWrappedText(doc, centerLines[i], centerX, centerY, W - 2 * margin - 50, "center");
+      centerY += height + 0.5;
+      doc.setFont("helvetica", "normal");
+    } else {
+      const height = drawWrappedText(doc, centerLines[i], centerX, centerY, W - 2 * margin - 50, "center");
+      centerY += height + 0.5;
+    }
+  }
+  
+  const finalY = Math.max(centerY + 3, 32);
+  doc.setLineWidth(0.5);
+  doc.line(margin, finalY, rightX, finalY);
+  
+  if (title) {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    drawWrappedText(doc, title.toUpperCase(), centerX, finalY + 12, W - 2 * margin, "center");
+    return finalY + 18;
+  }
+  return finalY + 2;
+}
+
 export default function FinanceReports({ fees = [], classes = [], classSummary = [], stats, isMounted }: FinanceReportsProps) {
   const [activeReport, setActiveReport] = React.useState("journal");
+  const [headerConfig, setHeaderConfig] = React.useState<any>(null);
+  const [selectedPaperSize, setSelectedPaperSize] = React.useState<"A4" | "A5">("A4");
+
+  React.useEffect(() => {
+    import("@/domains/settings/actions/settings.actions").then(({ getDocumentHeaderConfig }) => {
+      getDocumentHeaderConfig().then((res) => {
+        if (res?.data) {
+          const cfg = (res.data as any).data || res.data;
+          setHeaderConfig(cfg);
+        }
+      });
+    });
+  }, []);
+
+  React.useEffect(() => {
+    const styleId = "finance-report-size-print-style";
+    let style = document.getElementById(styleId) as HTMLStyleElement;
+    if (!style) {
+      style = document.createElement("style");
+      style.id = styleId;
+      document.head.appendChild(style);
+    }
+    
+    const pageMargin = selectedPaperSize === "A5" ? "8mm" : "15mm";
+    style.innerHTML = `
+      @media print {
+        @page { size: ${selectedPaperSize} portrait; margin: ${pageMargin}; }
+        
+        /* A5 print overrides */
+        #finance-report-print[data-paper-size="A5"] {
+          width: 148mm !important;
+          height: 210mm !important;
+          padding: 6mm !important;
+          font-size: 8.5px !important;
+        }
+        #finance-report-print[data-paper-size="A5"] h1,
+        #finance-report-print[data-paper-size="A5"] h2 {
+          font-size: 16px !important;
+        }
+        #finance-report-print[data-paper-size="A5"] table {
+          font-size: 7px !important;
+        }
+        #finance-report-print[data-paper-size="A5"] th,
+        #finance-report-print[data-paper-size="A5"] td {
+          padding: 3px 4px !important;
+        }
+      }
+      
+      /* A5 Screen Preview Overrides */
+      #finance-report-print[data-paper-size="A5"] {
+        max-width: 148mm !important;
+        margin: 0 auto;
+        font-size: 8.5px !important;
+      }
+    `;
+  }, [selectedPaperSize]);
 
   // ── FILTER STATES ──
   const [classFilter, setClassFilter] = React.useState("Tous");
@@ -182,19 +576,62 @@ export default function FinanceReports({ fees = [], classes = [], classSummary =
   };
 
   const exportToPDF = () => {
-    const doc = new jsPDF();
-    doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.setTextColor(79, 70, 229);
-    const label = ACCOUNTING_REPORTS.find(r => r.id === activeReport)?.label || activeReport;
-    doc.text(`Rapport - ${label}`, 14, 20);
-    doc.setFontSize(9); doc.setFont("helvetica", "normal"); doc.setTextColor(100, 116, 139);
-    doc.text(`Généré le ${today}`, 14, 26);
-    const rows = filteredPayments.map((p: any) => [
-      isMounted ? new Date(p.datePaid).toLocaleDateString("fr-FR") : "-",
-      p.reference || "-", p.studentName, p.classe, p.paymentMode, `${(p.amount || 0).toLocaleString()} CFA`
-    ]);
-    autoTable(doc, { head: [["Date","Référence","Élève","Classe","Mode","Montant"]], body: rows, startY: 32, headStyles: { fillColor: [79,70,229] }, styles: { fontSize: 8 } });
-    doc.save(`rapport_finance_${Date.now()}.pdf`);
-    toast.success("PDF généré !");
+    try {
+      const doc = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: selectedPaperSize === "A5" ? "a5" : "a4"
+      });
+
+      ensureAmiriRegistered(doc);
+
+      const label = ACCOUNTING_REPORTS.find(r => r.id === activeReport)?.label || activeReport;
+      const startY = drawPDFHeader(doc, headerConfig, `Rapport - ${label}`);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(100, 116, 139);
+      doc.text(`Généré le ${today}`, 14, startY + 4);
+
+      const rows = filteredPayments.map((p: any) => {
+        const studentName = p.studentName || "";
+        const classe = p.classe || "";
+        const ref = p.reference || "-";
+        const mode = p.paymentMode || "";
+        const amountStr = `${(p.amount || 0).toLocaleString()} CFA`;
+        const dateStr = isMounted ? new Date(p.datePaid).toLocaleDateString("fr-FR") : "-";
+
+        return [
+          dateStr,
+          hasArabicCharacters(ref) ? reshapeArabicText(ref) : ref,
+          hasArabicCharacters(studentName) ? reshapeArabicText(studentName) : studentName,
+          hasArabicCharacters(classe) ? reshapeArabicText(classe) : classe,
+          hasArabicCharacters(mode) ? reshapeArabicText(mode) : mode,
+          amountStr
+        ];
+      });
+
+      autoTable(doc, {
+        head: [["Date","Référence","Élève","Classe","Mode","Montant"]],
+        body: rows,
+        startY: startY + 8,
+        headStyles: {
+          fillColor: [79, 70, 229],
+          font: "Amiri",
+          fontSize: selectedPaperSize === "A5" ? 7 : 8
+        },
+        styles: {
+          fontSize: selectedPaperSize === "A5" ? 6.5 : 8,
+          font: "Amiri"
+        }
+      });
+
+      doc.save(`rapport_finance_${Date.now()}.pdf`);
+      toast.success("PDF généré !");
+    } catch (e: any) {
+      console.error(e);
+      toast.error("Erreur lors de l'export PDF.");
+    }
   };
 
   React.useEffect(() => {
@@ -326,6 +763,32 @@ export default function FinanceReports({ fees = [], classes = [], classSummary =
             <h3 className="text-sm font-black text-slate-800 mt-0.5">{ACCOUNTING_REPORTS.find(r => r.id === activeReport)?.label}</h3>
           </div>
           <div className="flex flex-wrap gap-2">
+            {/* Paper Size selector */}
+            <div className="flex items-center gap-0.5 rounded-xl border border-slate-200 bg-slate-50/50 p-1">
+              <button
+                type="button"
+                onClick={() => setSelectedPaperSize("A4")}
+                className={`h-7 px-2.5 rounded-lg text-[10px] font-bold transition-all ${
+                  selectedPaperSize === "A4"
+                    ? "bg-white text-slate-800 shadow-sm"
+                    : "text-slate-400 hover:text-slate-600"
+                }`}
+              >
+                A4
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedPaperSize("A5")}
+                className={`h-7 px-2.5 rounded-lg text-[10px] font-bold transition-all ${
+                  selectedPaperSize === "A5"
+                    ? "bg-white text-slate-800 shadow-sm"
+                    : "text-slate-400 hover:text-slate-600"
+                }`}
+              >
+                A5
+              </button>
+            </div>
+
             <button onClick={exportToPDF} className="h-9 px-4 rounded-xl border border-slate-200 hover:bg-red-50 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 text-red-600 cursor-pointer transition-all">
               <FileText size={13} /> PDF
             </button>
@@ -362,10 +825,10 @@ export default function FinanceReports({ fees = [], classes = [], classSummary =
         </div>
 
         {/* ── REPORT TABLE AREA ── */}
-        <div id="finance-report-print" className="bg-white rounded-[2.5rem] border border-slate-200/50 shadow-sm overflow-hidden p-6 space-y-6">
+        <div id="finance-report-print" data-paper-size={selectedPaperSize} className="bg-white rounded-[2.5rem] border border-slate-200/50 shadow-sm overflow-hidden p-6 space-y-6">
           {/* Printable Official Header */}
           <div className="hidden print:block mb-6">
-            <OfficialDocumentHeader config={null} title={ACCOUNTING_REPORTS.find(r => r.id === activeReport)?.label || "Rapport Financier"} />
+            <OfficialDocumentHeader config={headerConfig} title={ACCOUNTING_REPORTS.find(r => r.id === activeReport)?.label || "Rapport Financier"} />
           </div>
 
           {/* JOURNAL DE CAISSE */}

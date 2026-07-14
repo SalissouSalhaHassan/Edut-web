@@ -23,6 +23,8 @@ import {
 import { cn } from "@/lib/utils";
 import OfficialDocumentHeader from "@/domains/printing/components/OfficialDocumentHeader";
 import type { DocumentHeaderConfig } from "@/domains/printing/document-header";
+import { amiriFontBase64 } from "@/domains/printing/utils/amiri-font";
+import { hasArabicCharacters, reshapeArabicText } from "@/domains/printing/utils/arabic-reshaper";
 
 export interface UniversalReportKpi {
   label: string;
@@ -61,10 +63,397 @@ export interface UniversalReportProps {
   onSendEmail?: (email: string) => Promise<boolean> | boolean;
 }
 
+function ensureAmiriRegistered(doc: jsPDF) {
+  try {
+    const fontList = doc.getFontList();
+    if (!fontList["Amiri"]) {
+      if (amiriFontBase64) {
+        doc.addFileToVFS("Amiri-Regular.ttf", amiriFontBase64);
+        doc.addFont("Amiri-Regular.ttf", "Amiri", "normal", "Identity-H");
+      }
+    }
+  } catch (e) {
+    console.warn("Failed to check or register Amiri font in universal-report:", e);
+  }
+}
+
+function drawTextBilingual(doc: jsPDF, text: string, x: number, y: number, options?: any) {
+  if (hasArabicCharacters(text)) {
+    ensureAmiriRegistered(doc);
+    try {
+      const reshaped = reshapeArabicText(text);
+      const activeFont = doc.getFont();
+      const activeStyle = activeFont.fontStyle;
+      const activeName = activeFont.fontName;
+      
+      doc.setFont("Amiri", "normal");
+      doc.text(reshaped, x, y, options);
+      doc.setFont(activeName, activeStyle);
+    } catch (e: any) {
+      console.warn("Error rendering Arabic text with Amiri font:", e);
+      doc.text(text, x, y, options);
+    }
+  } else {
+    doc.text(text, x, y, options);
+  }
+}
+
+function drawWrappedText(doc: jsPDF, text: string, x: number, y: number, maxWidth: number, align: "left" | "right" | "center"): number {
+  const isAr = hasArabicCharacters(text);
+  const currentFont = doc.getFont();
+  const currentName = currentFont.fontName;
+  const currentStyle = currentFont.fontStyle;
+
+  if (isAr) {
+    ensureAmiriRegistered(doc);
+    const reshaped = reshapeArabicText(text);
+    doc.setFont("Amiri", "normal");
+    const lines = doc.splitTextToSize(reshaped, maxWidth);
+    let tempY = y;
+    for (const line of lines) {
+      doc.text(line, x, tempY, { align });
+      tempY += 4;
+    }
+    doc.setFont(currentName, currentStyle);
+    return tempY - y;
+  } else {
+    const lines = doc.splitTextToSize(text, maxWidth);
+    let tempY = y;
+    for (const line of lines) {
+      doc.text(line, x, tempY, { align });
+      tempY += 4;
+    }
+    return tempY - y;
+  }
+}
+
+function drawPDFHeader(
+  doc: jsPDF,
+  headerConfig: any,
+  title: string
+): number {
+  const style = headerConfig?.style || "classic_dual_logo";
+  const schoolName = headerConfig?.schoolName || "ÉCOLE EXCELLENCE";
+  const address = headerConfig?.address || "";
+  const phone = headerConfig?.phone || "";
+  const email = headerConfig?.email || "";
+  const registrationNo = headerConfig?.registrationNo || "";
+  const schoolYear = headerConfig?.schoolYear || "";
+  const ministry = headerConfig?.ministry || "Ministère de l'Éducation Nationale";
+  const service = headerConfig?.service || "Service de la Scolarité";
+  const bp = headerConfig?.bp || "";
+  const motto = headerConfig?.motto || "";
+  
+  const leftLogo = headerConfig?.leftLogo || "";
+  const rightLogo = headerConfig?.rightLogo || leftLogo;
+  const centerLogo = headerConfig?.centerLogo || leftLogo;
+
+  const W = doc.internal.pageSize.getWidth();
+  const margin = 10;
+  const rightX = W - margin;
+  const centerX = W / 2;
+
+  if (style === "modern_card") {
+    doc.setFillColor(79, 70, 229);
+    doc.roundedRect(margin, 8, W - 2 * margin, 26, 2, 2, "F");
+    
+    if (leftLogo) {
+      try {
+        doc.addImage(leftLogo, 'PNG', margin + 4, 11, 20, 20);
+      } catch (e) {}
+    }
+    
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
+    drawWrappedText(doc, schoolName, margin + 28, 17, W - 2 * margin - 38, "left");
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(220, 225, 255);
+    drawWrappedText(doc, `Année Scolaire: ${schoolYear}`, margin + 28, 23, W - 2 * margin - 38, "left");
+    drawWrappedText(doc, `${address} ${phone ? '| Tél: ' + phone : ''}`, margin + 28, 28, W - 2 * margin - 38, "left");
+    
+    doc.setTextColor(0, 0, 0);
+    
+    if (title) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      drawWrappedText(doc, title.toUpperCase(), centerX, 44, W - 2 * margin, "center");
+      return 52;
+    }
+    return 38;
+  }
+  
+  if (style === "bilingual_center_logo") {
+    if (centerLogo) {
+      try {
+        doc.addImage(centerLogo, 'PNG', centerX - 13, 8, 26, 26);
+      } catch (e) {}
+    }
+    
+    const leftLines = [
+      headerConfig?.country || "RÉPUBLIQUE DU NIGER",
+      ministry,
+      headerConfig?.regionalDirection || "",
+      headerConfig?.departmentalDirection || "",
+      headerConfig?.inspection || "",
+      schoolName,
+      service,
+      address,
+      bp ? `BP : ${bp}` : "",
+      phone ? `Tél: ${phone}` : "",
+      email ? `Email: ${email}` : "",
+    ].filter(Boolean);
+
+    const rightLines = [
+      headerConfig?.countryAr || "جمهورية النيجر",
+      headerConfig?.ministryAr || "وزارة التربية الوطنية",
+      headerConfig?.regionalDirectionAr || "",
+      headerConfig?.departmentalDirectionAr || "",
+      headerConfig?.inspectionAr || "",
+      headerConfig?.schoolNameAr || schoolName,
+      headerConfig?.serviceAr || "",
+      headerConfig?.addressAr || "",
+      bp ? `ص.ب: ${bp}` : "",
+      phone ? `الهاتف: ${phone}` : "",
+      email ? `البريد: ${email}` : "",
+    ].filter(Boolean);
+
+    const colWidth = centerLogo ? (centerX - margin - 15) : (centerX - margin - 4);
+    
+    let leftY = 12;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(0, 0, 0);
+    for (const line of leftLines) {
+      const height = drawWrappedText(doc, line, margin, leftY, colWidth, "left");
+      leftY += height + 0.5;
+    }
+    
+    let rightY = 12;
+    for (const line of rightLines) {
+      const height = drawWrappedText(doc, line, rightX, rightY, colWidth, "right");
+      rightY += height + 0.5;
+    }
+    
+    const maxY = Math.max(leftY, rightY);
+    doc.setLineWidth(0.5);
+    doc.line(margin, maxY + 2, rightX, maxY + 2);
+    
+    if (title) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      drawWrappedText(doc, title.toUpperCase(), centerX, maxY + 12, W - 2 * margin, "center");
+      return maxY + 18;
+    }
+    return maxY + 4;
+  }
+  
+  if (style === "university_formal") {
+    if (leftLogo) {
+      try {
+        doc.addImage(leftLogo, 'PNG', margin, 8, 22, 22);
+      } catch (e) {}
+    }
+    if (rightLogo) {
+      try {
+        doc.addImage(rightLogo, 'PNG', rightX - 22, 8, 22, 22);
+      } catch (e) {}
+    }
+    
+    const centerLines = [
+      headerConfig?.country || "REPUBLIQUE DU NIGER",
+      schoolName,
+      service,
+      [bp && `BP : ${bp}`, address, phone && `Tél. ${phone}`].filter(Boolean).join(" | "),
+      email ? `Email : ${email}` : "",
+      registrationNo ? `Agrément N°: ${registrationNo}` : "",
+    ].filter(Boolean);
+
+    let centerY = 12;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    const height0 = drawWrappedText(doc, centerLines[0].toUpperCase(), centerX, centerY, W - 2 * margin - 50, "center");
+    centerY += height0 + 1;
+    
+    doc.setFontSize(12);
+    const height1 = drawWrappedText(doc, centerLines[1], centerX, centerY, W - 2 * margin - 50, "center");
+    centerY += height1 + 1;
+
+    doc.setFontSize(8.5);
+    doc.setFont("helvetica", "normal");
+    for (let i = 2; i < centerLines.length; i++) {
+      const height = drawWrappedText(doc, centerLines[i], centerX, centerY, W - 2 * margin - 50, "center");
+      centerY += height + 0.5;
+    }
+    
+    const finalY = Math.max(centerY + 3, 32);
+    doc.setLineWidth(0.5);
+    doc.line(margin, finalY, rightX, finalY);
+    
+    if (title) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      drawWrappedText(doc, title.toUpperCase(), centerX, finalY + 12, W - 2 * margin, "center");
+      return finalY + 18;
+    }
+    return finalY + 2;
+  }
+  
+  if (style === "minimal_administrative") {
+    if (centerLogo || leftLogo) {
+      try {
+        doc.addImage(centerLogo || leftLogo, 'PNG', rightX - 22, 8, 22, 22);
+      } catch (e) {}
+    }
+    
+    const leftLines = [
+      schoolName,
+      headerConfig?.country || "RÉPUBLIQUE DU NIGER",
+      ministry,
+      headerConfig?.regionalDirection || "",
+      headerConfig?.inspection || "",
+      registrationNo ? `Agrément: ${registrationNo}` : "",
+      [address, phone && `Tél: ${phone}`].filter(Boolean).join(" | "),
+      email ? `Email: ${email}` : "",
+    ].filter(Boolean);
+
+    let leftY = 12;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    const height0 = drawWrappedText(doc, leftLines[0], margin, leftY, W - 2 * margin - 25, "left");
+    leftY += height0 + 1;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
+    for (let i = 1; i < leftLines.length; i++) {
+      const height = drawWrappedText(doc, leftLines[i], margin, leftY, W - 2 * margin - 25, "left");
+      leftY += height + 0.5;
+    }
+    
+    const finalY = Math.max(leftY + 3, 32);
+    doc.setLineWidth(0.3);
+    doc.line(margin, finalY, rightX, finalY);
+    
+    if (title) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      drawWrappedText(doc, title.toUpperCase(), centerX, finalY + 12, W - 2 * margin, "center");
+      return finalY + 18;
+    }
+    return finalY + 2;
+  }
+  
+  // DEFAULT / CLASSIC DUAL LOGO
+  if (leftLogo) {
+    try {
+      doc.addImage(leftLogo, 'PNG', margin, 8, 22, 22);
+    } catch (e) {}
+  }
+  if (rightLogo && rightLogo !== leftLogo) {
+    try {
+      doc.addImage(rightLogo, 'PNG', rightX - 22, 8, 22, 22);
+    } catch (e) {}
+  }
+  
+  const centerLines = [
+    schoolName,
+    motto ? `"${motto}"` : "",
+    [registrationNo && `Agrément: ${registrationNo}`, `Niveau: Secondaire`].filter(Boolean).join(" | "),
+    `Année Scolaire: ${schoolYear}`,
+    [phone && `Tél: ${phone}`, email && `Email: ${email}`].filter(Boolean).join(" | "),
+    address ? `Adresse: ${address}` : "",
+  ].filter(Boolean);
+
+  let centerY = 12;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(13);
+  const height0 = drawWrappedText(doc, centerLines[0], centerX, centerY, W - 2 * margin - 50, "center");
+  centerY += height0 + 1;
+
+  doc.setFontSize(8.5);
+  doc.setFont("helvetica", "normal");
+  for (let i = 1; i < centerLines.length; i++) {
+    if (i === 1 && motto) {
+      doc.setFont("helvetica", "italic");
+      const height = drawWrappedText(doc, centerLines[i], centerX, centerY, W - 2 * margin - 50, "center");
+      centerY += height + 0.5;
+      doc.setFont("helvetica", "normal");
+    } else {
+      const height = drawWrappedText(doc, centerLines[i], centerX, centerY, W - 2 * margin - 50, "center");
+      centerY += height + 0.5;
+    }
+  }
+  
+  const finalY = Math.max(centerY + 3, 32);
+  doc.setLineWidth(0.5);
+  doc.line(margin, finalY, rightX, finalY);
+  
+  if (title) {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    drawWrappedText(doc, title.toUpperCase(), centerX, finalY + 12, W - 2 * margin, "center");
+    return finalY + 18;
+  }
+  return finalY + 2;
+}
+
 export default function UniversalReport({ metadata, kpis = [], table, onSendEmail }: UniversalReportProps) {
   const [emailModalOpen, setEmailModalOpen] = useState(false);
   const [recipientEmail, setRecipientEmail] = useState("");
   const [isSendingEmail, setIsSendingEmail] = useState(false);
+  const [selectedPaperSize, setSelectedPaperSize] = useState<"A4" | "A5">("A4");
+
+  React.useEffect(() => {
+    const styleId = "universal-report-print-style";
+    let style = document.getElementById(styleId) as HTMLStyleElement;
+    if (!style) {
+      style = document.createElement("style");
+      style.id = styleId;
+      document.head.appendChild(style);
+    }
+    
+    const pageMargin = selectedPaperSize === "A5" ? "8mm" : "15mm";
+    style.innerHTML = `
+      @media print {
+        @page { size: ${selectedPaperSize} ${metadata.isLandscape ? "landscape" : "portrait"}; margin: ${pageMargin}; }
+        
+        /* A5 print overrides */
+        article[data-paper-size="A5"] {
+          width: ${metadata.isLandscape ? "210mm" : "148mm"} !important;
+          height: ${metadata.isLandscape ? "148mm" : "210mm"} !important;
+          padding: 6mm !important;
+          font-size: 8.5px !important;
+        }
+        article[data-paper-size="A5"] h1,
+        article[data-paper-size="A5"] h2 {
+          font-size: 16px !important;
+        }
+        article[data-paper-size="A5"] table {
+          font-size: 7.5px !important;
+        }
+        article[data-paper-size="A5"] th,
+        article[data-paper-size="A5"] td {
+          padding: 3px 4px !important;
+        }
+        article[data-paper-size="A5"] .w-12 {
+          width: 2rem !important;
+          height: 2rem !important;
+        }
+        article[data-paper-size="A5"] .text-2xl {
+          font-size: 1.125rem !important;
+        }
+      }
+      
+      /* A5 Screen Preview Overrides */
+      article[data-paper-size="A5"] {
+        max-width: ${metadata.isLandscape ? "210mm" : "148mm"} !important;
+        margin: 0 auto;
+        font-size: 8.5px !important;
+      }
+    `;
+  }, [selectedPaperSize, metadata.isLandscape]);
 
   const formattedDate = new Date().toLocaleDateString("fr-FR");
   const formattedTime = new Date().toLocaleTimeString("fr-FR", { hour: '2-digit', minute: '2-digit' });
@@ -107,235 +496,6 @@ export default function UniversalReport({ metadata, kpis = [], table, onSendEmai
         link.href = url;
         link.download = `${metadata.reportId}_${metadata.title.replace(/\s+/g, "_")}_${Date.now()}.csv`;
         document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      }
-      toast.success(`Fichier ${format.toUpperCase()} téléchargé avec succès.`);
-    } catch (error) {
-      toast.error("Erreur lors de la génération du fichier Excel/CSV.");
-      console.error(error);
-    }
-  };
-
-  // 2. jsPDF PDF Generation Handler
-  const handleExportPDF = () => {
-    try {
-      toast.success("Génération du rapport PDF officiel...");
-      const doc = new jsPDF({
-        orientation: metadata.isLandscape ? "landscape" : "portrait",
-        unit: "mm",
-        format: "a4"
-      });
-
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const pageHeight = doc.internal.pageSize.getHeight();
-
-      // Draw header border & backgrounds
-      doc.setFillColor(248, 250, 252); // bg-slate-50
-      doc.rect(10, 10, pageWidth - 20, 35, "F");
-      doc.setDrawColor(226, 232, 240); // border-slate-200
-      doc.rect(10, 10, pageWidth - 20, 35, "S");
-
-      // Left part of PDF header
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(8);
-      doc.setTextColor(37, 99, 235);
-      doc.text("EDUT PRO - GESTION SCOLAIRE", 15, 17);
-
-      doc.setFontSize(14);
-      doc.setTextColor(15, 23, 42); // slate-900
-      doc.text(metadata.title, 15, 24);
-
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(9);
-      doc.setTextColor(100, 116, 139);
-      doc.text(metadata.subtitle || "Rapport administratif automatisé", 15, 29);
-      doc.text(`Année scolaire : ${metadata.academicYear}`, 15, 34);
-
-      // Right part of PDF header (metadata panel)
-      doc.setFontSize(8);
-      doc.setFont("helvetica", "bold");
-      doc.text("INFORMATIONS DOCUMENT", pageWidth - 80, 17);
-      doc.setFont("helvetica", "normal");
-      doc.text(`Date d'édition : ${formattedDate} ${formattedTime}`, pageWidth - 80, 22);
-      doc.text(`Édité par : ${metadata.editorName}`, pageWidth - 80, 27);
-      doc.text(`Réf Rapport : ${metadata.reportId}`, pageWidth - 80, 32);
-
-      // Draw general summary section if KPIs exist
-      let currentY = 52;
-      if (kpis && kpis.length > 0) {
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(10);
-        doc.setTextColor(15, 23, 42);
-        doc.text("RÉSUMÉ DES INDICATEURS CLÉS", 10, currentY);
-        doc.setDrawColor(226, 232, 240);
-        doc.line(10, currentY + 2, pageWidth - 10, currentY + 2);
-        currentY += 8;
-
-        // Draw KPI boxes
-        const boxWidth = (pageWidth - 20 - (kpis.length - 1) * 4) / kpis.length;
-        kpis.forEach((kpi, idx) => {
-          const startX = 10 + idx * (boxWidth + 4);
-          doc.setFillColor(255, 255, 255);
-          doc.setDrawColor(241, 245, 249);
-          doc.rect(startX, currentY, boxWidth, 20, "DF");
-
-          doc.setFont("helvetica", "bold");
-          doc.setFontSize(7);
-          doc.setTextColor(100, 116, 139);
-          doc.text(kpi.label.toUpperCase(), startX + 3, currentY + 5);
-
-          doc.setFontSize(12);
-          doc.setTextColor(37, 99, 235);
-          doc.text(String(kpi.value), startX + 3, currentY + 12);
-
-          doc.setFontSize(7);
-          doc.setFont("helvetica", "normal");
-          doc.setTextColor(148, 163, 184);
-          doc.text(kpi.subtext || "", startX + 3, currentY + 17);
-        });
-
-        currentY += 26;
-      }
-
-      // Draw description block if exists
-      if (metadata.description) {
-        doc.setFillColor(248, 250, 252);
-        doc.setDrawColor(226, 232, 240);
-        doc.rect(10, currentY, pageWidth - 20, 14, "F");
-        
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(8);
-        doc.setTextColor(37, 99, 235);
-        doc.text("À PROPOS DE CE RAPPORT", 14, currentY + 5);
-        
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(7.5);
-        doc.setTextColor(100, 116, 139);
-        doc.text(metadata.description, 14, currentY + 10);
-        
-        // Mock QR Code block
-        doc.rect(pageWidth - 25, currentY + 2, 10, 10);
-        doc.setFontSize(5);
-        doc.text("[QR]", pageWidth - 23, currentY + 8);
-        
-        currentY += 20;
-      }
-
-      // Render the main table
-      if (table) {
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(10);
-        doc.setTextColor(15, 23, 42);
-        doc.text("DONNÉES DÉTAILLÉES", 10, currentY);
-        doc.line(10, currentY + 2, pageWidth - 10, currentY + 2);
-        currentY += 6;
-
-        const tableBody = table.rows.map(row => {
-          return row.map(cell => {
-            if (typeof cell === "object") {
-              return "[Détail]";
-            }
-            return String(cell);
-          });
-        });
-
-        autoTable(doc, {
-          startY: currentY,
-          head: [table.headers],
-          body: tableBody,
-          theme: "striped",
-          headStyles: {
-            fillColor: [37, 99, 235], // blue-600
-            textColor: [255, 255, 255],
-            fontSize: 8,
-            fontStyle: "bold",
-          },
-          bodyStyles: {
-            fontSize: 7.5,
-            textColor: [51, 65, 85],
-          },
-          margin: { left: 10, right: 10 },
-          didDrawPage: (data) => {
-            const pageCount = (doc as any).internal.getNumberOfPages();
-            doc.setFont("helvetica", "normal");
-            doc.setFontSize(7);
-            doc.setTextColor(148, 163, 184);
-            doc.text("Edut Pro - Gestion Scolaire", 10, pageHeight - 8);
-            doc.text("CONFIDENTIEL - Document officiel destiné à l'usage interne", pageWidth / 2 - 35, pageHeight - 8);
-            doc.text(`Page ${pageCount}`, pageWidth - 20, pageHeight - 8);
-          }
-        });
-
-        currentY = (doc as any).lastAutoTable.finalY + 12;
-      }
-
-      if (table?.summary && table.summary.length > 0 && currentY + 25 < pageHeight) {
-        doc.setFillColor(250, 250, 250);
-        doc.rect(10, currentY, pageWidth - 20, 10, "F");
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(8);
-        doc.setTextColor(71, 85, 105);
-        
-        let textX = 14;
-        table.summary.forEach((sum) => {
-          doc.text(`${sum.label}: ${sum.value}`, textX, currentY + 6);
-          textX += 45;
-        });
-        currentY += 16;
-      }
-
-      if (currentY + 30 > pageHeight) {
-        doc.addPage();
-        currentY = 20;
-      }
-
-      doc.setDrawColor(226, 232, 240);
-      doc.line(10, currentY, pageWidth - 10, currentY);
-      currentY += 6;
-
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(8);
-      doc.setTextColor(100, 116, 139);
-      doc.text("CONTRÔLE & SIGNATURES", 10, currentY);
-      currentY += 8;
-
-      const columnWidth = (pageWidth - 20) / 3;
-
-      doc.text("LE CLIENT (Inspecteur / IEFA)", 15, currentY);
-      doc.setDrawColor(203, 213, 225);
-      doc.rect(15, currentY + 3, columnWidth - 10, 16, "S");
-      doc.setFontSize(6);
-      doc.setFont("helvetica", "italic");
-      doc.text("Signature & Cachet", 17, currentY + 22);
-
-      doc.setFillColor(239, 246, 255);
-      doc.setDrawColor(191, 219, 254);
-      doc.rect(columnWidth + 15, currentY + 3, columnWidth - 10, 16, "DF");
-      doc.setFontSize(7);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(37, 99, 235);
-      doc.text("SYSTEME DE GESTION", columnWidth + 20, currentY + 9);
-      doc.text("EDUT PRO SCOLAIRE", columnWidth + 22, currentY + 13);
-
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(8);
-      doc.setTextColor(100, 116, 139);
-      doc.text("LA DIRECTION GENERALE", columnWidth * 2 + 15, currentY);
-      doc.setDrawColor(203, 213, 225);
-      doc.rect(columnWidth * 2 + 15, currentY + 3, columnWidth - 10, 16, "S");
-      doc.setFontSize(6);
-      doc.setFont("helvetica", "italic");
-      doc.text("Signature & Cachet", columnWidth * 2 + 17, currentY + 22);
-
-      doc.save(`${metadata.reportId}_${metadata.title.replace(/\s+/g, "_")}.pdf`);
-      toast.success("Rapport PDF exporté avec succès !");
-    } catch (e: any) {
-      console.error(e);
-      toast.error("Erreur lors de l'export PDF.");
-    }
-  };
-
   const handleSendEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!recipientEmail) return;
@@ -391,6 +551,32 @@ export default function UniversalReport({ metadata, kpis = [], table, onSendEmai
           </div>
           
           <div className="flex flex-wrap items-center gap-2">
+            {/* Paper Size Selector */}
+            <div className="flex items-center gap-0.5 rounded-xl border border-slate-200 bg-slate-50/50 p-1">
+              <button
+                type="button"
+                onClick={() => setSelectedPaperSize("A4")}
+                className={`h-8 px-3 rounded-lg text-xs font-bold transition-all ${
+                  selectedPaperSize === "A4"
+                    ? "bg-white text-slate-800 shadow-sm"
+                    : "text-slate-400 hover:text-slate-600"
+                }`}
+              >
+                A4
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedPaperSize("A5")}
+                className={`h-8 px-3 rounded-lg text-xs font-bold transition-all ${
+                  selectedPaperSize === "A5"
+                    ? "bg-white text-slate-800 shadow-sm"
+                    : "text-slate-400 hover:text-slate-600"
+                }`}
+              >
+                A5
+              </button>
+            </div>
+
             <button 
               onClick={handleExportPDF}
               className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 active:scale-95 transition-all"
@@ -426,7 +612,7 @@ export default function UniversalReport({ metadata, kpis = [], table, onSendEmai
       </header>
 
       {/* ─── PRINTABLE DOCUMENT WRAPPER ─── */}
-      <article className="bg-white rounded-[32px] border border-slate-100 shadow-sm p-8 print:p-0 print:border-none print:shadow-none space-y-8 print:bg-white print:text-black">
+      <article data-paper-size={selectedPaperSize} className="bg-white rounded-[32px] border border-slate-100 shadow-sm p-8 print:p-0 print:border-none print:shadow-none space-y-8 print:bg-white print:text-black">
         
         {/* ─── PRINTABLE OFFICIAL HEADER ─── */}
         <OfficialDocumentHeader config={metadata.documentHeaderConfig || null} title={metadata.title} />
