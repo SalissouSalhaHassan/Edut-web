@@ -1,3 +1,94 @@
+import { amiriFontBase64 } from "@/domains/printing/utils/amiri-font";
+import { hasArabicCharacters, reshapeArabicText } from "@/domains/printing/utils/arabic-reshaper";
+
+function ensureAmiriRegistered(doc: any) {
+  try {
+    const fontList = doc.getFontList();
+    if (!fontList["Amiri"]) {
+      if (amiriFontBase64) {
+        doc.addFileToVFS("Amiri-Regular.ttf", amiriFontBase64);
+        doc.addFont("Amiri-Regular.ttf", "Amiri", "normal", "Identity-H");
+      }
+    }
+  } catch (e) {
+    console.warn("Failed to check or register Amiri font in timetable-pdf:", e);
+  }
+}
+
+function drawTextBilingual(doc: any, text: string, x: number, y: number, options?: any) {
+  if (hasArabicCharacters(text)) {
+    ensureAmiriRegistered(doc);
+    try {
+      const reshaped = reshapeArabicText(text);
+      const activeFont = doc.getFont();
+      const activeStyle = activeFont.fontStyle;
+      const activeName = activeFont.fontName;
+      
+      doc.setFont("Amiri", "normal");
+      doc.text(reshaped, x, y, options);
+      doc.setFont(activeName, activeStyle);
+    } catch (e: any) {
+      console.warn("Error rendering Arabic text with Amiri font:", e);
+      doc.text(text, x, y, options);
+    }
+  } else {
+    doc.text(text, x, y, options);
+  }
+}
+
+function drawWrappedText(doc: any, text: string, x: number, y: number, maxWidth: number, align: "left" | "right" | "center"): number {
+  const isAr = hasArabicCharacters(text);
+  const currentFont = doc.getFont();
+  const currentName = currentFont.fontName;
+  const currentStyle = currentFont.fontStyle;
+
+  if (isAr) {
+    ensureAmiriRegistered(doc);
+    const reshaped = reshapeArabicText(text);
+    doc.setFont("Amiri", "normal");
+    const lines = doc.splitTextToSize(reshaped, maxWidth);
+    let tempY = y;
+    for (const line of lines) {
+      doc.text(line, x, tempY, { align });
+      tempY += 4;
+    }
+    doc.setFont(currentName, currentStyle);
+    return tempY - y;
+  } else {
+    const lines = doc.splitTextToSize(text, maxWidth);
+    let tempY = y;
+    for (const line of lines) {
+      doc.text(line, x, tempY, { align });
+      tempY += 4;
+    }
+    return tempY - y;
+  }
+}
+
+async function loadImage(url: string): Promise<string> {
+  return new Promise((resolve) => {
+    if (typeof window === 'undefined') {
+      resolve("");
+      return;
+    }
+    const img = new Image();
+    img.crossOrigin = 'Anonymous';
+    img.src = url;
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      ctx?.drawImage(img, 0, 0);
+      const dataUrl = canvas.toDataURL('image/png');
+      resolve(dataUrl);
+    };
+    img.onerror = () => {
+      resolve("");
+    };
+  });
+}
+
 interface ExportOptions {
   type: 'all-classes' | 'all-teachers' | 'teachers-4-per-page' | 'current';
   id?: number; // Used for 'current' mode (classId or employeeId)
@@ -63,14 +154,14 @@ export async function generateTimetablePDF(options: ExportOptions) {
       if (options.mode === 'class') {
         const cls = classes.find((c: any) => c.id === options.id);
         const clsEntries = entries.filter((e: any) => e.classId === options.id);
-        drawTimetablePage(doc, `CLASSE : ${cls?.className || 'Inconnue'}`, days, periods, recessAfter, clsEntries, 'class', schoolInfo, documentHeaderConfig);
+        await drawTimetablePage(doc, `CLASSE : ${cls?.className || 'Inconnue'}`, days, periods, recessAfter, clsEntries, 'class', schoolInfo, documentHeaderConfig);
         const blob = doc.output("blob");
         const url = URL.createObjectURL(blob);
         window.open(url, "_blank");
       } else {
         const teacher = teachers.find((t: any) => t.id === options.id);
         const tEntries = entries.filter((e: any) => e.employeeId === options.id);
-        drawTimetablePage(doc, `ENSEIGNANT : ${teacher?.nom || 'Inconnu'}`, days, periods, recessAfter, tEntries, 'teacher', schoolInfo, documentHeaderConfig);
+        await drawTimetablePage(doc, `ENSEIGNANT : ${teacher?.nom || 'Inconnu'}`, days, periods, recessAfter, tEntries, 'teacher', schoolInfo, documentHeaderConfig);
         const blob = doc.output("blob");
         const url = URL.createObjectURL(blob);
         window.open(url, "_blank");
@@ -78,11 +169,12 @@ export async function generateTimetablePDF(options: ExportOptions) {
     }
     else if (options.type === 'all-classes') {
       if (!classes || classes.length === 0) { alert("Aucune classe trouvée."); return; }
-      classes.forEach((cls: any, index: number) => {
+      for (let index = 0; index < classes.length; index++) {
+        const cls = classes[index];
         if (index > 0) doc.addPage();
         const clsEntries = entries.filter((e: any) => e.classId === cls.id);
-        drawTimetablePage(doc, `CLASSE : ${cls.className}`, days, periods, recessAfter, clsEntries, 'class', schoolInfo, documentHeaderConfig);
-      });
+        await drawTimetablePage(doc, `CLASSE : ${cls.className}`, days, periods, recessAfter, clsEntries, 'class', schoolInfo, documentHeaderConfig);
+      }
       const blob = doc.output("blob");
       const url = URL.createObjectURL(blob);
       window.open(url, "_blank");
@@ -90,11 +182,12 @@ export async function generateTimetablePDF(options: ExportOptions) {
     else if (options.type === 'all-teachers') {
       const activeTeachers = (teachers || []).filter((t: any) => (entries || []).some((e: any) => e.employeeId === t.id));
       if (activeTeachers.length === 0) { alert("Aucun enseignant avec des cours programmés."); return; }
-      activeTeachers.forEach((t: any, index: number) => {
+      for (let index = 0; index < activeTeachers.length; index++) {
+        const t = activeTeachers[index];
         if (index > 0) doc.addPage();
         const tEntries = entries.filter((e: any) => e.employeeId === t.id);
-        drawTimetablePage(doc, `ENSEIGNANT : ${t.nom}`, days, periods, recessAfter, tEntries, 'teacher', schoolInfo, documentHeaderConfig);
-      });
+        await drawTimetablePage(doc, `ENSEIGNANT : ${t.nom}`, days, periods, recessAfter, tEntries, 'teacher', schoolInfo, documentHeaderConfig);
+      }
       const blob = doc.output("blob");
       const url = URL.createObjectURL(blob);
       window.open(url, "_blank");
@@ -136,7 +229,7 @@ export async function generateTimetablePDF(options: ExportOptions) {
   }
 }
 
-function drawOfficialHeaderLandscape(doc: any, headerConfig: any, schoolInfo: any, titleText: string): number {
+async function drawOfficialHeaderLandscape(doc: any, headerConfig: any, schoolInfo: any, titleText: string): Promise<number> {
   const schoolName = headerConfig?.schoolName || schoolInfo?.branchName || "ÉTABLISSEMENT D'EXCELLENCE";
   const schoolNameAr = headerConfig?.schoolNameAr || "";
   const country = headerConfig?.country || "RÉPUBLIQUE DU NIGER";
@@ -162,34 +255,52 @@ function drawOfficialHeaderLandscape(doc: any, headerConfig: any, schoolInfo: an
 
   const style = headerConfig?.style || "classic_dual_logo";
 
+  const leftLogoUrl = headerConfig?.leftLogo || schoolInfo?.logoPath;
+  const rightLogoUrl = headerConfig?.rightLogo || leftLogoUrl;
+  const centerLogoUrl = headerConfig?.centerLogo || leftLogoUrl;
+
+  const leftLogo = leftLogoUrl ? await loadImage(leftLogoUrl) : null;
+  const rightLogo = rightLogoUrl ? await loadImage(rightLogoUrl) : null;
+  const centerLogo = centerLogoUrl ? await loadImage(centerLogoUrl) : null;
+
   doc.setTextColor(0, 0, 0);
 
   if (style === "modern_card") {
-    // Fill background
     doc.setFillColor(79, 70, 229); // Indigo 600
     doc.roundedRect(15, 8, 267, 20, 2, 2, "F");
+
+    if (leftLogo) {
+      try {
+        doc.addImage(leftLogo, 'PNG', 19, 10, 16, 16);
+      } catch (e) {}
+    }
 
     doc.setTextColor(255, 255, 255);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(13);
-    doc.text(schoolName, 25, 14);
+    drawWrappedText(doc, schoolName, 40, 14, 220, "left");
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8.5);
     doc.setTextColor(220, 225, 255);
-    doc.text(`Année Scolaire: ${schoolYear}`, 25, 20);
-    doc.text(`${address} ${phone ? '| Tél: ' + phone : ''}`, 25, 25);
+    drawWrappedText(doc, `Année Scolaire: ${schoolYear}`, 40, 20, 220, "left");
+    drawWrappedText(doc, `${address} ${phone ? '| Tél: ' + phone : ''}`, 40, 25, 220, "left");
 
     doc.setTextColor(0, 0, 0);
     
-    // Draw Title
     doc.setFont("helvetica", "bold");
     doc.setFontSize(15);
-    doc.text(titleText, 148, 38, { align: 'center' });
+    drawWrappedText(doc, titleText, 148, 38, 220, "center");
     return 42;
   }
 
   if (style === "bilingual_center_logo") {
+    if (centerLogo) {
+      try {
+        doc.addImage(centerLogo, 'PNG', 135, 8, 26, 26);
+      } catch (e) {}
+    }
+
     const leftLines = [
       country,
       motto,
@@ -203,14 +314,6 @@ function drawOfficialHeaderLandscape(doc: any, headerConfig: any, schoolInfo: an
       bp ? `BP : ${bp}` : "",
       phone ? `Tél: ${phone}` : "",
     ].filter(Boolean);
-
-    let leftY = 12;
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    for (const line of leftLines) {
-      doc.text(line, 15, leftY);
-      leftY += 3.8;
-    }
 
     const rightLines = [
       countryAr || "جمهورية النيجر",
@@ -226,10 +329,20 @@ function drawOfficialHeaderLandscape(doc: any, headerConfig: any, schoolInfo: an
       phone ? `الهاتف: ${phone}` : "",
     ].filter(Boolean);
 
+    const colWidth = centerLogo ? 115 : 130;
+    
+    let leftY = 12;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    for (const line of leftLines) {
+      const height = drawWrappedText(doc, line, 15, leftY, colWidth, "left");
+      leftY += height + 0.5;
+    }
+
     let rightY = 12;
     for (const line of rightLines) {
-      doc.text(line, 282, rightY, { align: "right" });
-      rightY += 3.8;
+      const height = drawWrappedText(doc, line, 282, rightY, colWidth, "right");
+      rightY += height + 0.5;
     }
 
     const maxY = Math.max(leftY, rightY);
@@ -240,17 +353,28 @@ function drawOfficialHeaderLandscape(doc: any, headerConfig: any, schoolInfo: an
     doc.setFont("helvetica", "bold");
     doc.setFontSize(15);
     doc.setTextColor(30, 58, 138); // Indigo 900
-    doc.text(titleText, 148, maxY + 8, { align: "center" });
+    drawWrappedText(doc, titleText, 148, maxY + 8, 250, "center");
 
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(100);
-    doc.text(`Année Scolaire: ${schoolYear}  •  Imprimé le ${new Date().toLocaleDateString('fr-FR')}`, 148, maxY + 13, { align: 'center' });
+    drawWrappedText(doc, `Année Scolaire: ${schoolYear}  •  Imprimé le ${new Date().toLocaleDateString('fr-FR')}`, 148, maxY + 13, 250, "center");
 
     return maxY + 18;
   }
 
   if (style === "university_formal") {
+    if (leftLogo) {
+      try {
+        doc.addImage(leftLogo, 'PNG', 15, 8, 22, 22);
+      } catch (e) {}
+    }
+    if (rightLogo) {
+      try {
+        doc.addImage(rightLogo, 'PNG', 260, 8, 22, 22);
+      } catch (e) {}
+    }
+
     const centerLines = [
       country,
       schoolName,
@@ -262,17 +386,18 @@ function drawOfficialHeaderLandscape(doc: any, headerConfig: any, schoolInfo: an
     let centerY = 12;
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
-    doc.text(centerLines[0].toUpperCase(), 148, centerY, { align: "center" });
+    const height0 = drawWrappedText(doc, centerLines[0].toUpperCase(), 148, centerY, 220, "center");
+    centerY += height0 + 1;
 
     doc.setFontSize(13);
-    centerY += 5;
-    doc.text(centerLines[1], 148, centerY, { align: "center" });
+    const height1 = drawWrappedText(doc, centerLines[1], 148, centerY, 220, "center");
+    centerY += height1 + 1;
 
     doc.setFontSize(8.5);
     doc.setFont("helvetica", "normal");
     for (let i = 2; i < centerLines.length; i++) {
-      centerY += 4;
-      doc.text(centerLines[i], 148, centerY, { align: "center" });
+      const height = drawWrappedText(doc, centerLines[i], 148, centerY, 220, "center");
+      centerY += height + 0.5;
     }
 
     const finalY = Math.max(centerY + 3, 30);
@@ -283,17 +408,23 @@ function drawOfficialHeaderLandscape(doc: any, headerConfig: any, schoolInfo: an
     doc.setFont("helvetica", "bold");
     doc.setFontSize(15);
     doc.setTextColor(30, 58, 138); // Indigo 900
-    doc.text(titleText, 148, finalY + 8, { align: "center" });
+    drawWrappedText(doc, titleText, 148, finalY + 8, 250, "center");
 
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(100);
-    doc.text(`Année Scolaire: ${schoolYear}  •  Imprimé le ${new Date().toLocaleDateString('fr-FR')}`, 148, finalY + 13, { align: 'center' });
+    drawWrappedText(doc, `Année Scolaire: ${schoolYear}  •  Imprimé le ${new Date().toLocaleDateString('fr-FR')}`, 148, finalY + 13, 250, "center");
 
     return finalY + 18;
   }
 
   if (style === "minimal_administrative") {
+    if (centerLogo || leftLogo) {
+      try {
+        doc.addImage(centerLogo || leftLogo, 'PNG', 260, 8, 22, 22);
+      } catch (e) {}
+    }
+
     const leftLines = [
       schoolName,
       service || "Administration",
@@ -303,24 +434,26 @@ function drawOfficialHeaderLandscape(doc: any, headerConfig: any, schoolInfo: an
     let leftY = 12;
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
-    doc.text(leftLines[0], 15, leftY);
+    const height0 = drawWrappedText(doc, leftLines[0], 15, leftY, 230, "left");
+    leftY += height0 + 1;
+    
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8.5);
     for (let i = 1; i < leftLines.length; i++) {
-      leftY += 4;
-      doc.text(leftLines[i], 15, leftY);
+      const height = drawWrappedText(doc, leftLines[i], 15, leftY, 230, "left");
+      leftY += height + 0.5;
     }
 
     // Title
     doc.setFont("helvetica", "bold");
     doc.setFontSize(15);
     doc.setTextColor(30, 58, 138); // Indigo 900
-    doc.text(titleText, 148, 16, { align: "center" });
+    drawWrappedText(doc, titleText, 148, 16, 150, "center");
 
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(100);
-    doc.text(`Année Scolaire: ${schoolYear}  •  Imprimé le ${new Date().toLocaleDateString('fr-FR')}`, 148, 22, { align: 'center' });
+    drawWrappedText(doc, `Année Scolaire: ${schoolYear}  •  Imprimé le ${new Date().toLocaleDateString('fr-FR')}`, 148, 22, 150, "center");
 
     doc.setLineWidth(0.5);
     doc.line(15, 27, 282, 27);
@@ -328,48 +461,80 @@ function drawOfficialHeaderLandscape(doc: any, headerConfig: any, schoolInfo: an
   }
 
   // DEFAULT / CLASSIC DUAL LOGO
-  // Left side: Republic & Ministry
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.text(country, 15, 12);
-  doc.setFontSize(7.5);
-  doc.text(motto, 15, 15);
-  doc.text(ministry, 15, 18);
-  if (regionalDirection) doc.text(regionalDirection, 15, 21);
-  if (departmentalDirection) doc.text(departmentalDirection, 15, 24);
-  if (inspection) doc.text(inspection, 15, 27);
+  if (leftLogo) {
+    try {
+      doc.addImage(leftLogo, 'PNG', 15, 8, 22, 22);
+    } catch (e) {}
+  }
+  if (rightLogo && rightLogo !== leftLogo) {
+    try {
+      doc.addImage(rightLogo, 'PNG', 260, 8, 22, 22);
+    } catch (e) {}
+  }
 
-  // Right side: School details
-  doc.setFontSize(11);
-  doc.setFont("helvetica", "bold");
-  doc.text(schoolName, 282, 12, { align: 'right' });
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  let rightY = 16;
-  if (phone) { doc.text(`Tél: ${phone}`, 282, rightY, { align: 'right' }); rightY += 3.5; }
-  if (address) { doc.text(address, 282, rightY, { align: 'right' }); rightY += 3.5; }
-  if (email) { doc.text(email, 282, rightY, { align: 'right' }); rightY += 3.5; }
+  const leftLines = [
+    country,
+    motto,
+    ministry,
+    regionalDirection,
+    departmentalDirection,
+    inspection,
+  ].filter(Boolean);
 
-  // Draw separator line
+  const rightLines = [
+    schoolName,
+    phone ? `Tél: ${phone}` : "",
+    address,
+    email,
+  ].filter(Boolean);
+
+  let leftY = 12;
+  doc.setFont("helvetica", "normal");
+  for (let i = 0; i < leftLines.length; i++) {
+    const fontSize = i === 0 ? 9 : 7.5;
+    doc.setFontSize(fontSize);
+    if (i === 1 && motto) {
+      doc.setFont("helvetica", "italic");
+    } else {
+      doc.setFont("helvetica", "normal");
+    }
+    const height = drawWrappedText(doc, leftLines[i], 15, leftY, 115, "left");
+    leftY += height + 0.5;
+  }
+
+  let rightY = 12;
+  for (let i = 0; i < rightLines.length; i++) {
+    const fontSize = i === 0 ? 11 : 8;
+    doc.setFontSize(fontSize);
+    if (i === 0) {
+      doc.setFont("helvetica", "bold");
+    } else {
+      doc.setFont("helvetica", "normal");
+    }
+    const height = drawWrappedText(doc, rightLines[i], 282, rightY, 115, "right");
+    rightY += height + 0.5;
+  }
+
+  const finalY = Math.max(leftY, rightY, 32);
   doc.setLineWidth(0.5);
-  doc.line(15, 34, 282, 34);
+  doc.line(15, finalY + 2, 282, finalY + 2);
 
   // Main Title
   doc.setFontSize(18);
   doc.setTextColor(30, 58, 138); // Indigo 900
   doc.setFont("helvetica", "bold");
-  doc.text(titleText, 148, 42, { align: 'center' });
+  drawWrappedText(doc, titleText, 148, finalY + 10, 250, "center");
 
   // Academic Year / Date
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(100);
-  doc.text(`Année Scolaire: ${schoolYear}  •  Imprimé le ${new Date().toLocaleDateString('fr-FR')}`, 148, 48, { align: 'center' });
+  drawWrappedText(doc, `Année Scolaire: ${schoolYear}  •  Imprimé le ${new Date().toLocaleDateString('fr-FR')}`, 148, finalY + 16, 250, "center");
 
-  return 52;
+  return finalY + 20;
 }
 
-function drawTimetablePage(
+async function drawTimetablePage(
   doc: any,
   title: string,
   days: string[],
@@ -380,7 +545,7 @@ function drawTimetablePage(
   schoolInfo?: any,
   documentHeaderConfig?: any
 ) {
-  const startY = drawOfficialHeaderLandscape(doc, documentHeaderConfig, schoolInfo, "EMPLOI DU TEMPS");
+  const startY = await drawOfficialHeaderLandscape(doc, documentHeaderConfig, schoolInfo, "EMPLOI DU TEMPS");
 
   // Subtitle (Class or Teacher)
   doc.setFontSize(12);
