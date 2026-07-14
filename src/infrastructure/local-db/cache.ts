@@ -2,18 +2,24 @@ import { localDb } from "./dexie";
 import { cacheReferenceItems, getCachedReferenceItems } from "./references";
 
 // 1. Students Caching
-export async function cacheStudents(items: any[]) {
+export async function cacheStudents(items: any[], schoolId?: number | null) {
+  if (!schoolId) return;
+
   const unsyncedItems = await localDb.outbox
     .where("targetTable")
     .equals("students")
     .toArray();
-  const unsynced = unsyncedItems.filter(item => item.status !== "synced" && item.status !== "cancelled");
+  const unsynced = unsyncedItems.filter(item =>
+    item.status !== "synced" &&
+    item.status !== "cancelled" &&
+    Number(item.schoolId || item.payload?.schoolId) === Number(schoolId)
+  );
   const unsyncedAdmissions = new Set(unsynced.map(item => item.payload.numAdmission));
 
-  const currentStudents = await localDb.students.toArray();
+  const currentStudents = await localDb.students.where("schoolId").equals(schoolId).toArray();
   const unsyncedStudents = currentStudents.filter(s => s.numAdmission && unsyncedAdmissions.has(s.numAdmission));
 
-  await localDb.students.clear();
+  await localDb.students.where("schoolId").equals(schoolId).delete();
 
   if (unsyncedStudents.length > 0) {
     await localDb.students.bulkPut(unsyncedStudents);
@@ -24,6 +30,7 @@ export async function cacheStudents(items: any[]) {
       .filter(item => !unsyncedAdmissions.has(item.numAdmission))
       .map((item) => ({
         ...item,
+        schoolId,
         updatedAt: Date.now(),
       }));
     if (toPut.length > 0) {
@@ -32,8 +39,9 @@ export async function cacheStudents(items: any[]) {
   }
 }
 
-export async function getCachedStudents() {
-  return localDb.students.toArray();
+export async function getCachedStudents(schoolId?: number | null) {
+  if (!schoolId) return [];
+  return localDb.students.where("schoolId").equals(schoolId).toArray();
 }
 
 // 2. Student Fees Caching

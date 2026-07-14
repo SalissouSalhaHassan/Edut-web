@@ -2,6 +2,7 @@ import Dexie, { type Table } from 'dexie';
 
 export interface LocalStudent {
   id?: number;
+  schoolId?: number | null;
   numAdmission: string;
   nomEtudiant: string;
   nomArabe?: string | null;
@@ -192,6 +193,19 @@ class EdutLocalDatabase extends Dexie {
 
     this.version(6).stores({
       students: '++id, numAdmission, nomEtudiant, classe, statut, updatedAt',
+      exams: '++id, examName, classId, subjectId, updatedAt',
+      examResults: '++id, examId, studentId, updatedAt',
+      subjects: '++id, subjectName, updatedAt',
+      references: '++id, type, remoteId, label, updatedAt',
+      feePayments: '++id, feeId, reference, datePaid, updatedAt',
+      attendanceBatches: '++id, classId, subjectId, date, updatedAt',
+      studentPhotos: 'numAdmission, updatedAt',
+      studentAttendance: '++id, classId, subjectId, date, studentId, updatedAt',
+      outbox: '++id, actionType, targetTable, status, timestamp, updatedAt, syncedAt, retryCount, idempotencyKey, userId, schoolId',
+    });
+
+    this.version(7).stores({
+      students: '++id, schoolId, [schoolId+numAdmission], numAdmission, nomEtudiant, classe, statut, updatedAt',
       exams: '++id, examName, classId, subjectId, updatedAt',
       examResults: '++id, examId, studentId, updatedAt',
       subjects: '++id, subjectName, updatedAt',

@@ -318,12 +318,19 @@ export async function getStudentsByClass(className: string) {
 
 export async function fixStudentLevels() {
   return protectedDbAction("Students", "canEdit", async (user) => {
+    const schoolId = await getActiveSchoolId();
+    if (!schoolId) {
+      return { error: "Aucun contexte d'école trouvé." };
+    }
+
     const roleType = await getUserRoleType(user);
     if (roleType === "teacher") {
       return { error: "Non autorisé" };
     }
 
-    const allStudents = await db.query.students.findMany();
+    const allStudents = await db.query.students.findMany({
+      where: eq(students.schoolId, schoolId),
+    });
     let fixedCount = 0;
 
     for (const s of allStudents) {
@@ -340,7 +347,9 @@ export async function fixStudentLevels() {
       else if (cls.includes("TERM") || cls.includes("1ERE") || cls.includes("2NDE")) targetLevel = "Lycée";
 
       if (targetLevel !== s.educationalLevel) {
-        await db.update(students).set({ educationalLevel: targetLevel }).where(eq(students.id, s.id));
+        await db.update(students)
+          .set({ educationalLevel: targetLevel })
+          .where(and(eq(students.id, s.id), eq(students.schoolId, schoolId)));
         fixedCount++;
       }
     }

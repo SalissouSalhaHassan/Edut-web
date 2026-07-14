@@ -85,11 +85,12 @@ function StatusBadge({ status }: { status: string }) {
 interface StudentsClientProps {
   initialStudents: any[];
   currentUser: any;
+  activeSchoolId?: number | null;
   canEdit: boolean;
   canDelete: boolean;
 }
 
-export default function StudentsClient({ initialStudents, currentUser, canEdit, canDelete }: StudentsClientProps) {
+export default function StudentsClient({ initialStudents, currentUser, activeSchoolId, canEdit, canDelete }: StudentsClientProps) {
   const [allStudents, setAllStudents] = useState<any[]>(initialStudents);
   const [isLocal, setIsLocal] = useState(false);
   const [unsyncedAdmissions, setUnsyncedAdmissions] = useState<Set<string>>(new Set());
@@ -98,13 +99,14 @@ export default function StudentsClient({ initialStudents, currentUser, canEdit, 
   const [page, setPage] = useState(1);
   const [editingStudent, setEditingStudent] = useState<any>(null);
   const itemsPerPage = 8;
+  const schoolId = activeSchoolId ?? currentUser?.schoolId ?? null;
 
   useEffect(() => {
     async function loadData() {
-      if (navigator.onLine && initialStudents && initialStudents.length > 0) {
+      if (navigator.onLine && schoolId) {
         try {
           const { cacheStudents } = await import("@/infrastructure/local-db/cache");
-          await cacheStudents(initialStudents);
+          await cacheStudents(initialStudents || [], schoolId);
         } catch (e) {
           console.warn("Failed to update student local cache:", e);
         }
@@ -112,14 +114,18 @@ export default function StudentsClient({ initialStudents, currentUser, canEdit, 
 
       try {
         const { getCachedStudents } = await import("@/infrastructure/local-db/cache");
-        const cached = await getCachedStudents();
+        const cached = await getCachedStudents(schoolId);
 
         const { localDb } = await import("@/infrastructure/local-db/dexie");
         const outboxItems = await localDb.outbox
           .where("targetTable")
           .equals("students")
           .toArray();
-        const unsynced = outboxItems.filter(item => item.status !== "synced" && item.status !== "cancelled");
+        const unsynced = outboxItems.filter(item =>
+          item.status !== "synced" &&
+          item.status !== "cancelled" &&
+          Number(item.schoolId || item.payload?.schoolId) === Number(schoolId)
+        );
         setUnsyncedAdmissions(new Set(unsynced.map(item => item.payload.numAdmission)));
 
         if (cached && cached.length > 0) {
@@ -136,7 +142,7 @@ export default function StudentsClient({ initialStudents, currentUser, canEdit, 
       }
     }
     loadData();
-  }, [initialStudents]);
+  }, [initialStudents, schoolId]);
 
   // Performance Optimization: Student growth and new students count
   const currentMonth = new Date().getMonth();
