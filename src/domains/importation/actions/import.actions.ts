@@ -59,9 +59,16 @@ function getAppreciationFromAverage(average: number): string {
   return "Insuffisant";
 }
 
+function missingSchoolContextError() {
+  return { error: "Aucun contexte d'ecole trouve. Selectionnez une ecole avant l'importation." };
+}
+
 export async function importStudentRow(data: any) {
   return protectedDbAction("Students", "canEdit", async (user) => {
     const schoolId = await getActiveSchoolId();
+    if (!schoolId) {
+      return missingSchoolContextError();
+    }
     const roleType = await getUserRoleType(user);
 
     if (roleType === "teacher") {
@@ -131,6 +138,9 @@ export async function importStudentRow(data: any) {
 export async function importEmployeeRow(data: any) {
   return protectedDbAction("HR", "canEdit", async (user) => {
     const schoolId = await getActiveSchoolId();
+    if (!schoolId) {
+      return missingSchoolContextError();
+    }
     const roleType = await getUserRoleType(user);
 
     if (roleType === "teacher") {
@@ -202,6 +212,9 @@ export async function importEmployeeRow(data: any) {
 export async function importSubjectRow(data: any) {
   return protectedDbAction("Academics", "canEdit", async (user) => {
     const schoolId = await getActiveSchoolId();
+    if (!schoolId) {
+      return missingSchoolContextError();
+    }
     const roleType = await getUserRoleType(user);
 
     if (roleType === "teacher") {
@@ -299,6 +312,9 @@ export async function importSubjectRow(data: any) {
 export async function importExamResultRow(data: any) {
   return protectedDbAction("Exams", "canEdit", async (user) => {
     const schoolId = await getActiveSchoolId();
+    if (!schoolId) {
+      return missingSchoolContextError();
+    }
     const roleType = await getUserRoleType(user);
 
     const examName = String(data.examName || "").trim();
