@@ -1,11 +1,11 @@
-import { pgTable, serial, varchar, text, timestamp, doublePrecision, integer, index } from "drizzle-orm/pg-core";
+import { pgTable, serial, varchar, text, timestamp, doublePrecision, integer, index, unique } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { schools } from "./auth";
 
 export const employees = pgTable("employees", {
   id: serial("id").primaryKey(),
   schoolId: integer("school_id").references(() => schools.id), // SaaS isolation
-  empId: varchar("emp_id", { length: 50 }).notNull().unique(),
+  empId: varchar("emp_id", { length: 50 }).notNull(),
   nom: varchar("nom", { length: 100 }).notNull(),
   poste: varchar("poste", { length: 100 }),
   departement: varchar("departement", { length: 100 }),
@@ -37,6 +37,7 @@ export const employees = pgTable("employees", {
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
   schoolIdIdx: index("employees_school_id_idx").on(table.schoolId),
+  unqSchoolEmpId: unique().on(table.schoolId, table.empId),
 }));
 
 export const employeeAttendance = pgTable("employee_attendance", {
