@@ -466,7 +466,6 @@ export default function UniversalReport({ metadata, kpis = [], table, onSendEmai
       let rowsData = table ? table.rows.map((row) => {
         const item: Record<string, any> = {};
         table.headers.forEach((header, idx) => {
-          // Skip action column on spreadsheet export
           if (header.toLowerCase() !== "actions") {
             item[header] = row[idx];
           }
@@ -496,6 +495,113 @@ export default function UniversalReport({ metadata, kpis = [], table, onSendEmai
         link.href = url;
         link.download = `${metadata.reportId}_${metadata.title.replace(/\s+/g, "_")}_${Date.now()}.csv`;
         document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+      toast.success(`Fichier ${format.toUpperCase()} téléchargé avec succès.`);
+    } catch (error) {
+      toast.error("Erreur lors de la génération du fichier Excel/CSV.");
+      console.error(error);
+    }
+  };
+
+  // 2. jsPDF PDF Generation Handler (Amiri font for Arabic)
+  const handleExportPDF = () => {
+    try {
+      toast.success("Génération du rapport PDF officiel...");
+      const doc = new jsPDF({
+        orientation: metadata.isLandscape ? "landscape" : "portrait",
+        unit: "mm",
+        format: selectedPaperSize === "A5" ? "a5" : "a4",
+      });
+
+      ensureAmiriRegistered(doc);
+
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+
+      const startY = drawPDFHeader(doc, metadata.documentHeaderConfig || null, metadata.title);
+      let currentY = startY + 8;
+
+      if (kpis && kpis.length > 0) {
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10);
+        doc.setTextColor(15, 23, 42);
+        drawTextBilingual(doc, "RÉSUMÉ DES INDICATEURS CLÉS", 10, currentY);
+        doc.setDrawColor(226, 232, 240);
+        doc.line(10, currentY + 2, pageWidth - 10, currentY + 2);
+        currentY += 8;
+
+        const boxWidth = (pageWidth - 20 - (kpis.length - 1) * 4) / kpis.length;
+        kpis.forEach((kpi, idx) => {
+          const sx = 10 + idx * (boxWidth + 4);
+          doc.setFillColor(255, 255, 255);
+          doc.setDrawColor(241, 245, 249);
+          doc.rect(sx, currentY, boxWidth, 20, "DF");
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(7);
+          doc.setTextColor(100, 116, 139);
+          drawTextBilingual(doc, kpi.label.toUpperCase(), sx + 3, currentY + 5);
+          doc.setFontSize(12);
+          doc.setTextColor(37, 99, 235);
+          drawTextBilingual(doc, String(kpi.value), sx + 3, currentY + 14);
+          if (kpi.subtext) {
+            doc.setFontSize(6);
+            doc.setTextColor(148, 163, 184);
+            drawTextBilingual(doc, kpi.subtext, sx + 3, currentY + 19);
+          }
+        });
+        currentY += 28;
+      }
+
+      if (table && table.rows.length > 0) {
+        autoTable(doc, {
+          startY: currentY,
+          head: [table.headers],
+          body: table.rows.map((row) => row.map((cell) => String(cell ?? ""))),
+          styles: { font: "helvetica", fontSize: 8, cellPadding: 3 },
+          headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255], fontStyle: "bold" },
+          alternateRowStyles: { fillColor: [248, 250, 252] },
+          margin: { left: 10, right: 10 },
+        });
+        currentY = (doc as any).lastAutoTable.finalY + 8;
+
+        if (table.summary && table.summary.length > 0) {
+          doc.setFontSize(8);
+          doc.setFont("helvetica", "bold");
+          doc.setTextColor(100, 116, 139);
+          table.summary.forEach((sum, idx) => {
+            drawTextBilingual(doc, `${sum.label}: ${sum.value}`, 10 + idx * 60, currentY);
+          });
+          currentY += 8;
+        }
+      }
+
+      if (metadata.description) {
+        doc.setFont("helvetica", "italic");
+        doc.setFontSize(8);
+        doc.setTextColor(71, 85, 105);
+        const splitDesc = doc.splitTextToSize(metadata.description, pageWidth - 20);
+        doc.text(splitDesc, 10, currentY);
+      }
+
+      doc.setFillColor(79, 70, 229);
+      doc.rect(0, pageHeight - 10, pageWidth, 10, "F");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7);
+      doc.setTextColor(255, 255, 255);
+      doc.text("Edut Pro – Système de Gestion Scolaire", 10, pageHeight - 3.5);
+      doc.text(`Réf: ${metadata.reportId}`, pageWidth - 10, pageHeight - 3.5, { align: "right" });
+
+      doc.save(`${metadata.reportId}_${metadata.title.replace(/\s+/g, "_")}.pdf`);
+      toast.success("Rapport PDF téléchargé avec succès !");
+    } catch (e: any) {
+      console.error(e);
+      toast.error("Erreur lors de la génération du PDF.");
+    }
+  };
+
+  // 3. Email Handler
   const handleSendEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!recipientEmail) return;
