@@ -118,13 +118,20 @@ export async function getTimetableReportData() {
     const schoolId = user.schoolId || await getActiveSchoolId();
     const [entries, classes, teachers, settingsData, branchInfo, headerConfigRecord] = await Promise.all([
       db.query.timetableEntries.findMany({
+        where: inArray(
+          timetableEntries.classId,
+          db.select({ id: schoolClasses.id })
+            .from(schoolClasses)
+            .where(eq(schoolClasses.schoolId, schoolId))
+        ),
         with: { subject: true, teacher: true, class: true }
       }),
       db.query.schoolClasses.findMany({
+        where: eq(schoolClasses.schoolId, schoolId),
         with: { section: true }
       }),
       db.query.employees.findMany({
-        where: eq(employees.statut, "Actif")
+        where: and(eq(employees.statut, "Actif"), eq(employees.schoolId, schoolId))
       }),
       db.query.timetableSettings.findFirst({
         where: isNull(timetableSettings.classId)
@@ -166,8 +173,18 @@ export async function getTimetableReportData() {
 // Helper for dashboard overview
 export async function getGlobalOccupancy() {
   return protectedDbAction("Academics", "canView", async () => {
-    const entries = await db.query.timetableEntries.findMany();
-    const classesCount = await db.query.schoolClasses.findMany();
+    const schoolId = await getActiveSchoolId();
+    const entries = await db.query.timetableEntries.findMany({
+      where: inArray(
+        timetableEntries.classId,
+        db.select({ id: schoolClasses.id })
+          .from(schoolClasses)
+          .where(eq(schoolClasses.schoolId, schoolId))
+      )
+    });
+    const classesCount = await db.query.schoolClasses.findMany({
+      where: eq(schoolClasses.schoolId, schoolId)
+    });
     
     return { entries, totalClasses: classesCount.length };
   });
@@ -285,12 +302,78 @@ export async function getAllSubjects(classId?: number) {
         official.forEach(o => {
           if (o.subjectId) {
             sectionSubjectMap.set(o.subjectId, o.defaultCoef || 2);
+    if (!entry) throw new Error("Séance introuvable.");
+
+    const classId = entry.classId;
+    const employeeId = entry.employeeId;
+    if (!classId || !employeeId) {
+      throw new Error("Séance incomplète (classe ou enseignant manquant).");
+    }
+
+    const conflict = await db.query.timetableEntries.findFirst({
+      where: and(
+        eq(timetableEntries.dayName, dayName),
+        eq(timetableEntries.periodNumber, periodNumber),
+        or(
+          eq(timetableEntries.classId, classId),
+          eq(timetableEntries.employeeId, employeeId)
+        )
+      )
+    });
+
+    if (conflict && conflict.id !== id) {
+       const isClassBusy = conflict.classId === classId;
+       const msg = isClassBusy 
+         ? "Cette classe a déjà un cours programmé à cette heure."
+         : "Ce enseignant a déjà un cours programmé à cette heure.";
+       throw new Error(`Conflit détecté : ${msg}`);
+    }
+
+    await db.update(timetableEntries)
+      .set({ dayName, periodNumber })
+      .where(eq(timetableEntries.id, id));
+
+    revalidatePath("/dashboard/academics/timetable");
+    return { success: true };
+  });
+}
+
+export async function getTeacherConstraints(employeeId: number) {
+  return protectedDbAction("Academics", "canView", async () => {
+    const constraints = await db.query.teacherConstraints.findFirst({
+      where: eq(teacherConstraints.employeeId, employeeId)
+    });
+    return constraints || {
+       offDays: "",
+       maxPeriodsPerDay: 5,
+       forceConsecutive: false
+    };
+  });
+}
+
+export async function getAllSubjects(classId?: number) {
+  return protectedDbAction("Academics", "canView", async () => {
+    let sectionSubjectMap = new Map<number, number>();
+    
+    if (classId) {
+      const cls = await db.query.schoolClasses.findFirst({
+        where: eq(schoolClasses.id, classId),
+      });
+      if (cls?.sectionId) {
+        const official = await db.query.sectionSubjects.findMany({
+          where: eq(sectionSubjects.sectionId, cls.sectionId)
+        });
+        official.forEach(o => {
+          if (o.subjectId) {
+            sectionSubjectMap.set(o.subjectId, o.defaultCoef || 2);
           }
         });
       }
     }
     
+    const schoolId = await getActiveSchoolId();
     const allSubjects = await db.query.schoolSubjects.findMany({
+      where: eq(schoolSubjects.schoolId, schoolId),
       orderBy: (schoolSubjects, { asc }) => [asc(schoolSubjects.subjectName)]
     });
 
@@ -350,16 +433,18 @@ export async function saveClassAssignment(id: number | null, data: any) {
 
 export async function getTeacherWorkloads() {
   return protectedDbAction("Academics", "canView", async () => {
+    const schoolId = await getActiveSchoolId();
     const workloads = await db
       .select({
         employeeId: classSubjects.employeeId,
         totalHours: sql<number>`sum(${classSubjects.coefficient})`,
       })
       .from(classSubjects)
+      .where(eq(classSubjects.schoolId, schoolId))
       .groupBy(classSubjects.employeeId);
     
     const teachers = await db.query.employees.findMany({
-      where: eq(employees.statut, "Actif")
+      where: and(eq(employees.statut, "Actif"), eq(employees.schoolId, schoolId))
     });
 
     const workloadMap: Record<number, number> = {};
@@ -464,15 +549,27 @@ export async function deleteClassAssignment(id: number) {
 
 export async function runAISolver(sessionId: number) {
   return protectedDbAction("Academics", "canEdit", async () => {
-    // 1. Clear existing for this session to avoid duplicates/conflicts
-    await db.delete(timetableEntries).where(eq(timetableEntries.sessionId, sessionId));
+    const schoolId = await getActiveSchoolId();
 
-    // 2. Fetch all required data
+    await db.delete(timetableEntries).where(
+      and(
+        eq(timetableEntries.sessionId, sessionId),
+        inArray(
+          timetableEntries.classId,
+          db.select({ id: schoolClasses.id })
+            .from(schoolClasses)
+            .where(eq(schoolClasses.schoolId, schoolId))
+        )
+      )
+    );
+
     const [assignments, teachers, settings] = await Promise.all([
       db.query.classSubjects.findMany({
+        where: eq(classSubjects.schoolId, schoolId),
         with: { subject: true, teacher: true }
       }),
       db.query.employees.findMany({
+        where: eq(employees.schoolId, schoolId),
         with: { constraints: true }
       }),
       db.query.timetableSettings.findFirst({
