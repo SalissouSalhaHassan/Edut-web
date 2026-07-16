@@ -50,7 +50,13 @@ export const getUserRoleType = cache(async (user: any): Promise<UserRoleType> =>
   if (norm.includes("dren")) return "dren";
   if (norm.includes("dden")) return "dden";
   if (norm.includes("inspection")) return "inspection";
-  if (norm.includes("directeur") || norm.includes("dirigeant")) return "directeur";
+  const hasRestrictedLevel = !hasAllEducationalLevels(user.educationalLevel);
+  if (norm.includes("directeur") || norm.includes("dirigeant")) {
+    if (hasRestrictedLevel) {
+      return "level_director";
+    }
+    return "directeur";
+  }
   if (norm.includes("censeur")) return "censeur";
   if (norm.includes("surveillant")) return "surveillant";
   if (norm.includes("comptable")) return "comptable";
@@ -64,7 +70,6 @@ export const getUserRoleType = cache(async (user: any): Promise<UserRoleType> =>
 
   // Legacy compatibility check
   const isAdmin = user.admin === true;
-  const hasRestrictedLevel = !hasAllEducationalLevels(user.educationalLevel);
 
   if (isAdmin) {
     if (hasRestrictedLevel) {
@@ -542,7 +547,7 @@ export const getTeacherClassIds = cache(async (employeeId: number): Promise<numb
 // Verify teacher access to a specific class
 export async function verifyTeacherClassAccess(user: any, classId: number): Promise<boolean> {
   const roleType = await getUserRoleType(user);
-  if (roleType === "super_admin" || roleType === "ministere" || roleType === "directeur") {
+  if (roleType === "super_admin" || roleType === "ministere" || roleType === "directeur" || roleType === "general_director" || roleType === "level_director") {
     return true;
   }
   
@@ -559,7 +564,7 @@ export async function verifyTeacherClassAccess(user: any, classId: number): Prom
 // Verify teacher access to a specific class and subject
 export async function verifyTeacherClassSubjectAccess(user: any, classId: number, subjectId: number): Promise<boolean> {
   const roleType = await getUserRoleType(user);
-  if (roleType === "super_admin" || roleType === "ministere" || roleType === "directeur") {
+  if (roleType === "super_admin" || roleType === "ministere" || roleType === "directeur" || roleType === "general_director" || roleType === "level_director") {
     return true;
   }
   
