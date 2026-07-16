@@ -330,9 +330,9 @@ function TimetableCell({
 
   return (
     <div
-      role="button"
-      tabIndex={0}
-      draggable={!!cell && mode !== "up"}
+      role={mode !== "teacher" ? "button" : undefined}
+      tabIndex={mode !== "teacher" ? 0 : undefined}
+      draggable={!!cell && mode !== "up" && mode !== "teacher"}
       onDragStart={(e) => {
         if (cell) e.dataTransfer.setData("text/plain", String(cell.id));
       }}
@@ -343,7 +343,9 @@ function TimetableCell({
       className={cn(
         "group relative h-28 rounded-[24px] border transition-all duration-500 flex flex-col items-center justify-center p-5 gap-2 overflow-hidden",
         cell
-          ? "bg-indigo-500/10 border-indigo-500/30 shadow-[0_10px_30px_rgba(99,102,241,0.10)] hover:bg-indigo-500/15 hover:border-indigo-500/50 hover:scale-[1.02] cursor-grab active:cursor-grabbing"
+          ? mode === "teacher"
+            ? "bg-indigo-500/10 border-indigo-500/30 shadow-[0_10px_30px_rgba(99,102,241,0.10)]"
+            : "bg-indigo-500/10 border-indigo-500/30 shadow-[0_10px_30px_rgba(99,102,241,0.10)] hover:bg-indigo-500/15 hover:border-indigo-500/50 hover:scale-[1.02] cursor-grab active:cursor-grabbing"
           : "bg-white/[0.03] border-white/[0.07] hover:bg-white/[0.06] hover:border-white/[0.15]"
       )}
     >
@@ -367,6 +369,7 @@ function TimetableCell({
             {cell.roomName ? `Salle ${cell.roomName}` : "Salle —"}
           </span>
 
+          {mode !== "teacher" && (
           <div className="absolute bottom-4 flex gap-3 opacity-0 group-hover:opacity-100 transition-all duration-500 translate-y-4 group-hover:translate-y-0">
             <button
               type="button"
@@ -381,14 +384,17 @@ function TimetableCell({
               <span className="text-lg leading-none">×</span>
             </button>
           </div>
+          )}
         </>
       ) : (
-        <div className="opacity-0 group-hover:opacity-100 transition-all duration-500 flex flex-col items-center gap-2">
-          <div className="w-12 h-12 rounded-2xl bg-white/5 border border-dashed border-white/10 flex items-center justify-center">
-            <span className="text-2xl text-slate-600">+</span>
+        mode !== "teacher" ? (
+          <div className="opacity-0 group-hover:opacity-100 transition-all duration-500 flex flex-col items-center gap-2">
+            <div className="w-12 h-12 rounded-2xl bg-white/5 border border-dashed border-white/10 flex items-center justify-center">
+              <span className="text-2xl text-slate-600">+</span>
+            </div>
+            <span className="text-[9px] font-black text-slate-600 uppercase tracking-[0.2em]">Slot Libre</span>
           </div>
-          <span className="text-[9px] font-black text-slate-600 uppercase tracking-[0.2em]">Slot Libre</span>
-        </div>
+        ) : null
       )}
     </div>
   );
@@ -600,6 +606,8 @@ export default function IntelligentTimetable({ classes, teachers, subjects, curr
   const getCellData = (day: string, periodNumber: number) => entries.filter((e) => e.dayName === day && e.periodNumber === periodNumber);
 
   const handleDelete = (id: number) => {
+    // Delete is not allowed from teacher view (read-only)
+    if (viewMode === "teacher") return;
     startTransition(async () => {
       await deleteTimetableEntry(id);
       await refresh();
@@ -609,6 +617,10 @@ export default function IntelligentTimetable({ classes, teachers, subjects, curr
   const openEntryDialog = React.useCallback(
     (dayName: string, periodNumber: number, cell: TimetableEntry | null) => {
       if (viewMode === "global" || viewMode === "up") return;
+
+      // In teacher view, the timetable is READ-ONLY.
+      // Adding or editing sessions must be done from the class view.
+      if (viewMode === "teacher") return;
 
       const fallbackClassId = lastClassId ?? classes[0]?.id ?? null;
       const fallbackTeacherId = lastTeacherId ?? teachers[0]?.id ?? null;
@@ -626,8 +638,8 @@ export default function IntelligentTimetable({ classes, teachers, subjects, curr
         });
       } else {
         setEntryDraft({
-          classId: viewMode === "class" ? selectedId : fallbackClassId,
-          employeeId: viewMode === "teacher" ? selectedId : fallbackTeacherId,
+          classId: fallbackClassId,
+          employeeId: fallbackTeacherId,
           subjectId: fallbackSubjectId,
           roomName: "",
           dayName,
@@ -877,6 +889,14 @@ export default function IntelligentTimetable({ classes, teachers, subjects, curr
               )}
             </select>
           ) : null}
+
+          {viewMode === "teacher" && (
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              <span className="text-[9px] font-black uppercase tracking-widest">Vue lecture seule</span>
+            </div>
+          )}
+
 
           <Button
             onClick={handleRunAI}
