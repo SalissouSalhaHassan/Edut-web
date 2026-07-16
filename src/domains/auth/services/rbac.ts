@@ -119,9 +119,8 @@ export const hasPermission = cache(async (
     return ["canevas", "reports"].includes(modLower);
   }
 
-  // 6. Directeur / General Director / Level Director: full access to school modules
+  // 6. Directeur / General Director / Level Director: full access to school modules including Security/Users
   if (roleType === "directeur" || roleType === "general_director" || roleType === "level_director") {
-    if (modLower === "security") return false;
     return true;
   }
 
