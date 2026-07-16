@@ -45,6 +45,8 @@ export function AssignmentsDialog({ open, onOpenChange, classes, teachers: initi
   const [selectedAssignmentId, setSelectedAssignmentId] = useState<number | null>(null);
   const [aiInsight, setAiInsight] = useState<string>("Sélectionnez une matière pour recevoir des suggestions.");
   const [showAddSubjects, setShowAddSubjects] = useState(false);
+  const [draftTeacherId, setDraftTeacherId] = useState<string>("");
+  const [draftCoefficient, setDraftCoefficient] = useState<number>(1);
 
   const selectedClass = classes.find(c => c.id === selectedClassId);
 
@@ -73,10 +75,55 @@ export function AssignmentsDialog({ open, onOpenChange, classes, teachers: initi
   }, [assignments]);
 
   const handleUpdateAssignment = (assignmentId: number, data: any) => {
+    const assignment = assignments.find(a => a.id === assignmentId);
+    if (!assignment) {
+      alert("Sélectionnez une matière à affecter.");
+      return;
+    }
+
     startTransition(() => {
-       saveClassAssignment(assignmentId, data).then(res => {
-         if (res.success) loadData();
+       saveClassAssignment(assignmentId, {
+         classId: assignment.classId ?? selectedClassId,
+         subjectId: assignment.subjectId,
+         coefficient: assignment.coefficient ?? 1,
+         ...data,
+       }).then(res => {
+         if (res.success) {
+           loadData();
+         } else {
+           alert(res.error || "Erreur lors de l'affectation.");
+         }
        });
+    });
+  };
+
+  const handleApplyDraft = () => {
+    if (!selectedAssignmentId) {
+      alert("Sélectionnez d'abord une matière dans le tableau.");
+      return;
+    }
+    const assignment = assignments.find(a => a.id === selectedAssignmentId);
+    if (!assignment) return;
+
+    const teacherId = draftTeacherId ? Number(draftTeacherId) : null;
+    const teacher = teacherWorkloads.find(t => t.id === teacherId);
+    if (teacher && teacher.workload + draftCoefficient > 22) {
+      if (!confirm(`Attention : Ce professeur dépassera le seuil de 22h (${teacher.workload + draftCoefficient}h). Continuer ?`)) return;
+    }
+
+    startTransition(() => {
+      saveClassAssignment(selectedAssignmentId, {
+        classId: assignment.classId ?? selectedClassId,
+        subjectId: assignment.subjectId,
+        employeeId: teacherId,
+        coefficient: draftCoefficient,
+      }).then(res => {
+        if (res.success) {
+          loadData();
+        } else {
+          alert(res.error || "Erreur lors de l'affectation.");
+        }
+      });
     });
   };
 
@@ -98,7 +145,8 @@ export function AssignmentsDialog({ open, onOpenChange, classes, teachers: initi
     const bestTeacher = [...teacherWorkloads].sort((a, b) => (a.workload || 0) - (b.workload || 0))[0];
     if (bestTeacher) {
       setAiInsight(`Suggestion IA : ${bestTeacher.nom} (Charge : ${bestTeacher.workload}h)`);
-      handleUpdateAssignment(selectedAssignmentId, { employeeId: bestTeacher.id });
+      // Pre-fill the draft — user confirms via Appliquer
+      setDraftTeacherId(String(bestTeacher.id));
     }
   };
 
@@ -112,6 +160,11 @@ export function AssignmentsDialog({ open, onOpenChange, classes, teachers: initi
   };
 
   const selectedAssignment = assignments.find(a => a.id === selectedAssignmentId);
+
+  useEffect(() => {
+    setDraftTeacherId(selectedAssignment?.employeeId ? String(selectedAssignment.employeeId) : "");
+    setDraftCoefficient(Number(selectedAssignment?.coefficient ?? 1));
+  }, [selectedAssignment?.id, selectedAssignment?.employeeId, selectedAssignment?.coefficient]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -283,37 +336,36 @@ export function AssignmentsDialog({ open, onOpenChange, classes, teachers: initi
                           <Activity size={12} /> Affectation Manuelle
                        </h4>
                        <div className="flex items-center gap-3">
-                          <div className="flex-1 space-y-3">
+                          <div className="flex-1">
                              <select 
-                               value={selectedAssignment?.employeeId || ''}
-                               onChange={(e) => {
-                                 const teacherId = Number(e.target.value);
-                                 const teacher = teacherWorkloads.find(t => t.id === teacherId);
-                                 if (teacher && teacher.workload + (selectedAssignment?.coefficient || 0) > 22) {
-                                   if (!confirm(`Attention : Ce professeur dépassera le seuil de 22h (${teacher.workload + (selectedAssignment?.coefficient || 0)}h). Continuer ?`)) return;
-                                 }
-                                 handleUpdateAssignment(selectedAssignmentId!, { employeeId: teacherId });
-                               }}
-                               className="w-full h-11 bg-white/5 border border-white/10 rounded-xl px-4 text-xs font-bold text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500/30"
-                             >
-                                <option value="">-- Choisir Prof --</option>
-                                {teacherWorkloads.map(t => (
-                                  <option key={t.id} value={t.id} className={cn(t.workload > 22 ? "text-rose-500" : "")}>
-                                    {t.nom} ({t.workload}h) {t.workload > 22 ? "⚠️" : ""}
-                                  </option>
-                                ))}
-                             </select>
-                          </div>
-                          <div className="flex items-center bg-white/5 rounded-xl border border-white/10">
-                             <button onClick={() => handleUpdateAssignment(selectedAssignmentId!, { coefficient: Math.max((selectedAssignment?.coefficient || 1) - 1, 0) })} className="w-9 h-11 text-slate-500 font-black">-</button>
-                             <input type="number" value={selectedAssignment?.coefficient || ''} className="w-10 h-11 bg-transparent text-center text-xs font-black text-indigo-400 outline-none" readOnly />
-                             <button onClick={() => handleUpdateAssignment(selectedAssignmentId!, { coefficient: (selectedAssignment?.coefficient || 1) + 1 })} className="w-9 h-11 text-slate-500 font-black">+</button>
-                          </div>
+                                value={draftTeacherId}
+                                disabled={!selectedAssignmentId}
+                                onChange={(e) => setDraftTeacherId(e.target.value)}
+                                className="w-full h-11 bg-white/5 border border-white/10 rounded-xl px-4 text-xs font-bold text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500/30 disabled:opacity-40 disabled:cursor-not-allowed"
+                              >
+                                 <option value="">{selectedAssignmentId ? "-- Choisir Prof --" : "-- Sélectionner une matière --"}</option>
+                                 {teacherWorkloads.map(t => (
+                                   <option key={t.id} value={t.id}>
+                                     {t.nom} ({t.workload}h) {t.workload > 22 ? "⚠️" : ""}
+                                   </option>
+                                 ))}
+                              </select>
+                           </div>
+                           <div className="flex items-center bg-white/5 rounded-xl border border-white/10">
+                              <button disabled={!selectedAssignmentId} onClick={() => setDraftCoefficient(c => Math.max(c - 1, 0))} className="w-9 h-11 text-slate-500 font-black disabled:opacity-40">-</button>
+                              <input type="number" value={draftCoefficient} onChange={(e) => setDraftCoefficient(Number(e.target.value))} className="w-10 h-11 bg-transparent text-center text-xs font-black text-indigo-400 outline-none" />
+                              <button disabled={!selectedAssignmentId} onClick={() => setDraftCoefficient(c => c + 1)} className="w-9 h-11 text-slate-500 font-black disabled:opacity-40">+</button>
+                           </div>
                        </div>
                     </div>
                     <div className="flex gap-2">
-                       <Button disabled={!selectedAssignmentId} className="h-11 px-6 bg-indigo-500 hover:bg-indigo-600 rounded-xl font-black text-white gap-2 shadow-lg shadow-indigo-500/20">
-                          <Save size={16} /> Appliquer
+                       <Button
+                          disabled={!selectedAssignmentId || isPending}
+                          onClick={handleApplyDraft}
+                          className="h-11 px-6 bg-indigo-500 hover:bg-indigo-600 rounded-xl font-black text-white gap-2 shadow-lg shadow-indigo-500/20"
+                        >
+                          {isPending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                          Appliquer
                        </Button>
                        <Button variant="ghost" onClick={() => selectedAssignmentId && handleDeleteAssignment(selectedAssignmentId)} className="h-11 w-11 rounded-xl bg-rose-500/10 text-rose-500 border border-rose-500/10">
                           <Trash2 size={16} />
