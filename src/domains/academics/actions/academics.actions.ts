@@ -641,7 +641,12 @@ export async function getGradingGrid(params: { classId: number, subjectId: numbe
     const [studentList, attendanceStats, subLink, results] = await Promise.all([
       readDb.select()
         .from(students)
-        .where(ilike(students.classe, cls.className.trim()))
+        .where(
+          and(
+            ilike(students.classe, cls.className.trim()),
+            eq(students.schoolId, cls.schoolId)
+          )
+        )
         .orderBy(students.nomEtudiant),
       readDb.select({
         studentId: studentAttendance.studentId,
@@ -790,7 +795,12 @@ export async function getDevoirGrid(params: { classId: number, subjectId: number
     const [studentList, results] = await Promise.all([
       readDb.select()
         .from(students)
-        .where(ilike(students.classe, cls.className.trim()))
+        .where(
+          and(
+            ilike(students.classe, cls.className.trim()),
+            eq(students.schoolId, cls.schoolId)
+          )
+        )
         .orderBy(students.nomEtudiant),
       readDb.query.studentResults.findMany({
         where: and(
@@ -906,7 +916,12 @@ const fetchBroadsheetMatrix = (params: { classId: number, sessionId: number, ter
           )),
         readDb.select({ id: students.id })
           .from(students)
-          .where(ilike(students.classe, cls.className.trim())),
+          .where(
+            and(
+              ilike(students.classe, cls.className.trim()),
+              eq(students.schoolId, cls.schoolId)
+            )
+          ),
         readDb.query.studentResults.findMany({
           where: and(
             eq(studentResults.classId, classIdNum),
@@ -937,7 +952,12 @@ const fetchBroadsheetMatrix = (params: { classId: number, sessionId: number, ter
       if (allStudentIds.length > 0) {
         studentList = await readDb.select()
           .from(students)
-          .where(inArray(students.id, allStudentIds))
+          .where(
+            and(
+              inArray(students.id, allStudentIds),
+              eq(students.schoolId, cls.schoolId)
+            )
+          )
           .orderBy(students.nomEtudiant);
       }
 
@@ -1216,9 +1236,10 @@ export async function saveTermSummaries(summaries: any[]) {
 export async function fetchStudentBulletinDataRaw(sId: number, sessionId: number, term: string) {
       console.log(`🔄 [Raw Fetch] Fetching bulletin data for Student ${sId}, Term ${term}...`);
       
-      // 1. Fetch Student with current class info
+      // 1. Fetch Student with current class info (scoped to active school)
+      const schoolId = await getActiveSchoolId();
       const student = await db.query.students.findFirst({
-        where: eq(students.id, sId),
+        where: and(eq(students.id, sId), eq(students.schoolId, schoolId)),
       });
 
       if (!student) return { error: "Étudiant non trouvé" };
@@ -1687,7 +1708,12 @@ export async function fetchStudentBulletinDataRaw(sId: number, sessionId: number
       if (student?.classe) {
         const classStudents = await db.select({ count: sql`count(*)` })
           .from(students)
-          .where(eq(students.classe, student.classe));
+          .where(
+            and(
+              eq(students.classe, student.classe),
+              eq(students.schoolId, student.schoolId)
+            )
+          );
         totalStudents = Number(classStudents[0]?.count || 0);
       }
 
@@ -1771,7 +1797,12 @@ export async function getBatchBulletinData(classId: number, sessionId: number, t
     // 2. Fetch all students in this class
     const studentList = await db.select()
       .from(students)
-      .where(ilike(students.classe, cls.className.trim()))
+      .where(
+        and(
+          ilike(students.classe, cls.className.trim()),
+          eq(students.schoolId, cls.schoolId)
+        )
+      )
       .orderBy(students.nomEtudiant);
 
     if (studentList.length === 0) return { data: [] };
@@ -2479,42 +2510,65 @@ export async function getCanevasStats() {
     const schoolId = await getActiveSchoolId();
 
     // 1. Get counts
-    const totalStudentsResult = await db.select({ count: sql<number>`count(*)` }).from(students);
+    const totalStudentsResult = await db.select({ count: sql<number>`count(*)` })
+      .from(students)
+      .where(eq(students.schoolId, schoolId));
     const totalStudents = Number(totalStudentsResult[0]?.count || 0);
 
     const girlsResult = await db.select({ count: sql<number>`count(*)` })
       .from(students)
-      .where(ilike(students.sexe, "f%"));
+      .where(
+        and(
+          eq(students.schoolId, schoolId),
+          ilike(students.sexe, "f%")
+        )
+      );
     const totalGirls = Number(girlsResult[0]?.count || 0);
     const totalBoys = Math.max(0, totalStudents - totalGirls);
 
-    const schoolsResult = await db.select({ count: sql<number>`count(*)` }).from(schoolBranches);
+    const schoolsResult = await db.select({ count: sql<number>`count(*)` })
+      .from(schoolBranches)
+      .where(eq(schoolBranches.schoolId, schoolId));
     const totalSchools = Number(schoolsResult[0]?.count || 0);
 
     const publicSchoolsResult = await db.select({ count: sql<number>`count(*)` })
       .from(schoolBranches)
-      .where(ilike(schoolBranches.instCategory, "Pub%"));
+      .where(
+        and(
+          eq(schoolBranches.schoolId, schoolId),
+          ilike(schoolBranches.instCategory, "Pub%")
+        )
+      );
     const publicSchools = Number(publicSchoolsResult[0]?.count || 0);
     const privateSchools = Math.max(0, totalSchools - publicSchools);
 
     const teachersResult = await db.select({ count: sql<number>`count(*)` })
       .from(employees)
-      .where(or(
-        ilike(employees.poste, "%enseignant%"),
-        ilike(employees.fonction, "%enseignant%"),
-        ilike(employees.poste, "%prof%"),
-        ilike(employees.fonction, "%prof%")
-      ));
+      .where(
+        and(
+          eq(employees.schoolId, schoolId),
+          or(
+            ilike(employees.poste, "%enseignant%"),
+            ilike(employees.fonction, "%enseignant%"),
+            ilike(employees.poste, "%prof%"),
+            ilike(employees.fonction, "%prof%")
+          )
+        )
+      );
     const totalTeachers = Number(teachersResult[0]?.count || 0);
 
-    const classesResult = await db.select({ count: sql<number>`count(*)` }).from(schoolClasses);
+    const classesResult = await db.select({ count: sql<number>`count(*)` })
+      .from(schoolClasses)
+      .where(eq(schoolClasses.schoolId, schoolId));
     const totalClasses = Number(classesResult[0]?.count || 0);
 
     // 2. Class Levels statistics (CI, CP, CE1, CE2, CM1, CM2, or dynamic from database)
     const studentsList = await db.select({
       classe: students.classe,
       sexe: students.sexe
-    }).from(students);
+    })
+      .from(students)
+      .where(eq(students.schoolId, schoolId));
 
     const levelMap: Record<string, { total: number; girls: number }> = {
       "CI": { total: 0, girls: 0 },

@@ -200,8 +200,9 @@ export async function getMessagingStats() {
     const [templateCount] = await db.select({ count: count() }).from(messageTemplates);
 
     // Audience counts
-    const [studentCount] = await db.select({ count: count() }).from(students);
-    const [staffCount] = await db.select({ count: count() }).from(employees);
+    const schoolId = await getActiveSchoolId();
+    const [studentCount] = await db.select({ count: count() }).from(students).where(eq(students.schoolId, schoolId));
+    const [staffCount] = await db.select({ count: count() }).from(employees).where(eq(employees.schoolId, schoolId));
 
     return {
       data: {
