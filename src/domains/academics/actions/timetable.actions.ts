@@ -226,6 +226,7 @@ export async function saveTimetableEntry(data: any) {
   });
 }
 
+
 export async function deleteTimetableEntry(id: number) {
   return protectedDbAction("Academics", "canDelete", async () => {
     await assertTimetableEntryInActiveSchool(id);
@@ -238,70 +239,7 @@ export async function deleteTimetableEntry(id: number) {
 export async function moveTimetableEntry(id: number, dayName: string, periodNumber: number) {
   return protectedDbAction("Academics", "canEdit", async () => {
     const entry = await assertTimetableEntryInActiveSchool(id);
-    if (!entry) throw new Error("Séance introuvable.");
 
-    const classId = entry.classId;
-    const employeeId = entry.employeeId;
-    if (!classId || !employeeId) {
-      throw new Error("Séance incomplète (classe ou enseignant manquant).");
-    }
-
-    const conflict = await db.query.timetableEntries.findFirst({
-      where: and(
-        eq(timetableEntries.dayName, dayName),
-        eq(timetableEntries.periodNumber, periodNumber),
-        or(
-          eq(timetableEntries.classId, classId),
-          eq(timetableEntries.employeeId, employeeId)
-        )
-      )
-    });
-
-    if (conflict && conflict.id !== id) {
-       const isClassBusy = conflict.classId === classId;
-       const msg = isClassBusy 
-         ? "Cette classe a déjà un cours programmé à cette heure."
-         : "Ce enseignant a déjà un cours programmé à cette heure.";
-       throw new Error(`Conflit détecté : ${msg}`);
-    }
-
-    await db.update(timetableEntries)
-      .set({ dayName, periodNumber })
-      .where(eq(timetableEntries.id, id));
-
-    revalidatePath("/dashboard/academics/timetable");
-    return { success: true };
-  });
-}
-
-export async function getTeacherConstraints(employeeId: number) {
-  return protectedDbAction("Academics", "canView", async () => {
-    const constraints = await db.query.teacherConstraints.findFirst({
-      where: eq(teacherConstraints.employeeId, employeeId)
-    });
-    return constraints || {
-       offDays: "",
-       maxPeriodsPerDay: 5,
-       forceConsecutive: false
-    };
-  });
-}
-
-export async function getAllSubjects(classId?: number) {
-  return protectedDbAction("Academics", "canView", async () => {
-    let sectionSubjectMap = new Map<number, number>();
-    
-    if (classId) {
-      const cls = await db.query.schoolClasses.findFirst({
-        where: eq(schoolClasses.id, classId),
-      });
-      if (cls?.sectionId) {
-        const official = await db.query.sectionSubjects.findMany({
-          where: eq(sectionSubjects.sectionId, cls.sectionId)
-        });
-        official.forEach(o => {
-          if (o.subjectId) {
-            sectionSubjectMap.set(o.subjectId, o.defaultCoef || 2);
     if (!entry) throw new Error("Séance introuvable.");
 
     const classId = entry.classId;
