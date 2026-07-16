@@ -37,14 +37,16 @@ async function getStats(user: any) {
     const activeLevel = await getActiveEducationalLevel(user);
     const cacheKey = `dashboard_stats:${schoolId}:${activeLevel || 'all'}`;
     
-    // Try Redis Cache first
+    // Try Redis Cache first (bypassed for real-time accuracy)
+    /*
     const cachedStats = await redisCache.get<any>(cacheKey);
     if (cachedStats) {
       console.log(`🚀 [Redis Hit] Dashboard stats for School ${schoolId} (${activeLevel || 'all'})`);
       return cachedStats;
     }
+    */
 
-    let studentWhere = eq(students.schoolId, schoolId);
+    let studentWhere = and(eq(students.schoolId, schoolId), eq(students.statut, "Actif")) as any;
     let employeeWhere = eq(employees.schoolId, schoolId);
 
     let queryRevenue;

@@ -472,6 +472,12 @@ export async function getActiveEducationalLevel(user: any): Promise<string | nul
   } catch (e) {
     // cookies() can throw in some contexts (e.g. static generation)
   }
+
+  // If we are a global admin and no specific branch instType was determined,
+  // return the user's explicit educationalLevel or null (which means see all levels).
+  if (roleType === "super_admin" || roleType === "directeur" || roleType === "general_director" || roleType === "ministere") {
+    return user.educationalLevel || null;
+  }
   
   return user.educationalLevel || "Primaire";
 }

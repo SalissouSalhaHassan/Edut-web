@@ -318,7 +318,7 @@ export default function DashboardUI(props: DashboardUIProps) {
           iconBg="bg-indigo-50"
           iconFg="text-indigo-700"
           label="Élèves actifs"
-          value={String(props.stats.students || 1250)}
+          value={String(props.stats.students ?? 0)}
           pill={`${props.stats.studentGrowth || 12.5}%`}
           pillTone={props.stats.studentGrowth && props.stats.studentGrowth > 0 ? "green" : "red"}
           spark={[6, 7, 6.5, 7.2, 7.9, 7.6, 8.1, 8.4, 8.0, 8.9, 9.2, 9.0]}
@@ -329,7 +329,7 @@ export default function DashboardUI(props: DashboardUIProps) {
           iconBg="bg-blue-50"
           iconFg="text-blue-700"
           label="Personnel HR"
-          value={String(props.stats.employees || 48)}
+          value={String(props.stats.employees ?? 0)}
           pill="+4.2%"
           pillTone="green"
           spark={[40, 42, 41, 45, 44, 46, 48, 47, 49, 50, 48, 52]}
