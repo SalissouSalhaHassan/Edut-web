@@ -644,7 +644,7 @@ export async function getGradingGrid(params: { classId: number, subjectId: numbe
         .where(
           and(
             ilike(students.classe, cls.className.trim()),
-            eq(students.schoolId, cls.schoolId)
+            eq(students.schoolId, cls.schoolId ?? 0)
           )
         )
         .orderBy(students.nomEtudiant),
@@ -798,7 +798,7 @@ export async function getDevoirGrid(params: { classId: number, subjectId: number
         .where(
           and(
             ilike(students.classe, cls.className.trim()),
-            eq(students.schoolId, cls.schoolId)
+            eq(students.schoolId, cls.schoolId ?? 0)
           )
         )
         .orderBy(students.nomEtudiant),
@@ -919,7 +919,7 @@ const fetchBroadsheetMatrix = (params: { classId: number, sessionId: number, ter
           .where(
             and(
               ilike(students.classe, cls.className.trim()),
-              eq(students.schoolId, cls.schoolId)
+              eq(students.schoolId, cls.schoolId ?? 0)
             )
           ),
         readDb.query.studentResults.findMany({
@@ -955,7 +955,7 @@ const fetchBroadsheetMatrix = (params: { classId: number, sessionId: number, ter
           .where(
             and(
               inArray(students.id, allStudentIds),
-              eq(students.schoolId, cls.schoolId)
+              eq(students.schoolId, cls.schoolId ?? 0)
             )
           )
           .orderBy(students.nomEtudiant);
@@ -1711,7 +1711,7 @@ export async function fetchStudentBulletinDataRaw(sId: number, sessionId: number
           .where(
             and(
               eq(students.classe, student.classe),
-              eq(students.schoolId, student.schoolId)
+              eq(students.schoolId, student.schoolId ?? 0)
             )
           );
         totalStudents = Number(classStudents[0]?.count || 0);
@@ -1800,7 +1800,7 @@ export async function getBatchBulletinData(classId: number, sessionId: number, t
       .where(
         and(
           ilike(students.classe, cls.className.trim()),
-          eq(students.schoolId, cls.schoolId)
+          eq(students.schoolId, cls.schoolId ?? 0)
         )
       )
       .orderBy(students.nomEtudiant);
