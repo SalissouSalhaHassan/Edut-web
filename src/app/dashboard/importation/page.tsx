@@ -146,7 +146,7 @@ const KEYWORDS: Record<string, string[]> = {
   fraisTransportInternat: ["transport_internat", "transport", "internat", "fraistransportinternat"],
   statut: ["statut", "status", "etat"],
   behaviorScore: ["conduite", "behavior", "behaviour", "score_conduite", "behaviorscore"],
-  
+
   empId: ["emp_id", "id", "matricule", "identifiant", "empid"],
   nom: ["nom", "name", "employe", "staff", "nom_complet"],
   poste: ["poste", "job", "designation", "fonction"],
@@ -190,7 +190,7 @@ export default function ImportationPage() {
   const [headers, setHeaders] = useState<string[]>([]);
   const [parsedData, setParsedData] = useState<any[]>([]);
   const [columnMapping, setColumnMapping] = useState<Record<string, string>>({});
-  
+
   // UI states
   const [step, setStep] = useState<1 | 2 | 3>(1); // 1: Upload, 2: Mapping & Preview, 3: Executing
   const [importProgress, setImportProgress] = useState({ current: 0, total: 0, success: 0, error: 0 });
@@ -368,7 +368,7 @@ export default function ImportationPage() {
         const workbook = XLSX.read(bstr, { type: "binary", cellDates: true });
         const firstSheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[firstSheetName];
-        
+
         // Parse headers first
         const rawJson = XLSX.utils.sheet_to_json<any>(worksheet, { header: 1 });
         if (rawJson.length === 0) {
@@ -390,7 +390,7 @@ export default function ImportationPage() {
         for (const field of systemFields) {
           const kws = KEYWORDS[field] || [];
           let matched = "";
-          
+
           // Try exact match
           for (const h of excelHeaders) {
             if (h.toLowerCase().trim() === field.toLowerCase()) {
@@ -472,7 +472,7 @@ export default function ImportationPage() {
 
       for (let i = 0; i < parsedData.length; i++) {
         const row = parsedData[i];
-        
+
         // Assemble mapped payload
         const payload: Record<string, any> = {};
         FIELDS[activeTab].forEach(field => {
@@ -483,7 +483,7 @@ export default function ImportationPage() {
         });
 
         // Add index tracker
-        const rowNum = i + 2; // header is 1
+        const rowNum = i + 2; // header is row 1
 
         try {
           let res: any;
@@ -503,7 +503,7 @@ export default function ImportationPage() {
             const rowId = payload.numAdmission || payload.empId || payload.subjectName || `Ligne ${rowNum}`;
             setImportLogs(prev => [
               `✅ Ligne ${rowNum} (${rowId}) : ${actionText} avec succès.`,
-              ...prev.slice(0, 49) // limit log box length
+              ...prev.slice(0, 49)
             ]);
           } else {
             errorCount++;
@@ -515,8 +515,9 @@ export default function ImportationPage() {
           }
         } catch (err: any) {
           errorCount++;
+          // Never expose raw DB errors (which may contain SQL) in the UI.
           setImportLogs(prev => [
-            `❌ Ligne ${rowNum} : Erreur système : ${err.message}`,
+            `❌ Ligne ${rowNum} : Erreur lors de l'importation. Vérifiez vos données.`,
             ...prev.slice(0, 49)
           ]);
         }
@@ -549,7 +550,7 @@ export default function ImportationPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 rounded-[24px] bg-white/85 backdrop-blur-md border border-white/40 shadow-sm relative overflow-hidden">
         <div className="absolute right-0 top-0 w-24 h-24 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none" />
         <div className="absolute left-1/3 bottom-0 w-32 h-32 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
-        
+
         <div>
           <h1 className="text-2xl md:text-3xl font-black text-slate-800 tracking-tight flex items-center gap-2">
             📥 Importation Intelligente
@@ -606,264 +607,158 @@ export default function ImportationPage() {
           ].map(tab => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={cn(
-                "p-6 rounded-[24px] border-2 text-left transition-all duration-300 shadow-sm relative overflow-hidden group",
-                activeTab === tab.id
-                  ? "border-indigo-600 bg-white/90 shadow-md ring-4 ring-indigo-500/10"
-                  : "border-white/50 bg-white/60 hover:shadow-sm"
-              )}
+              onClick={() => { setActiveTab(tab.id); setStep(1); }}
+              className={`flex flex-col items-start p-5 rounded-[20px] border-2 transition-all text-left gap-3 ${tab.color} ${activeTab === tab.id ? "ring-2 ring-offset-2 ring-indigo-400 scale-[1.02]" : ""}`}
             >
-              <div className="flex justify-between items-start">
-                <div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center border border-slate-100 group-hover:scale-110 transition-transform">
-                  {tab.icon}
-                </div>
-                {activeTab === tab.id && (
-                  <span className="w-3 h-3 bg-indigo-600 rounded-full shadow-lg shadow-indigo-200 animate-ping" />
-                )}
+              <div className="p-2 rounded-xl bg-white/60 shadow-sm">{tab.icon}</div>
+              <div>
+                <p className="font-black text-slate-800 text-sm">{tab.title}</p>
+                <p className="text-xs text-slate-500 mt-0.5">{tab.desc}</p>
               </div>
-              <h3 className="mt-4 font-black text-slate-800 text-lg">{tab.title}</h3>
-              <p className="mt-1 text-xs font-semibold text-slate-500 leading-relaxed">{tab.desc}</p>
             </button>
           ))}
         </div>
       )}
 
-      {/* STEP 1: FILE UPLOAD ZONE */}
+      {/* Download template buttons */}
       {step === 1 && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-          {/* Instructions Box */}
-          <div className="lg:col-span-1 rounded-[24px] bg-white/80 border border-white/50 p-6 space-y-4 shadow-sm">
-            <h3 className="font-black text-slate-800 flex items-center gap-2">
-              <FileSpreadsheet className="size-5 text-indigo-500" />
-              Instructions de Remplissage
-            </h3>
-            
-            <div className="text-xs text-slate-600 space-y-3 font-semibold leading-relaxed">
-              <p>
-                1. Téléchargez le modèle Excel pré-configuré pour le type de données sélectionné.
-              </p>
-              <p>
-                2. Les colonnes marquées d&apos;une astérisque (<strong>*</strong>) sont obligatoires et doivent être remplies pour chaque ligne.
-              </p>
-              <p>
-                3. Pour le sexe, utilisez <strong>Garçon</strong> / <strong>Fille</strong> (ou Homme / Femme pour les employés).
-              </p>
-              <p>
-                4. Les dates doivent respecter le format standard <strong>JJ/MM/AAAA</strong>.
-              </p>
-              <p>
-                5. Ne changez pas l&apos;ordre ou les intitulés des colonnes pour un mappage automatique à 100%.
-              </p>
-            </div>
-
-            <button
-              onClick={() => handleDownloadTemplate(activeTab)}
-              className="w-full mt-4 py-3 rounded-xl bg-indigo-600 text-white font-bold text-xs shadow-md shadow-indigo-200 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 group"
-            >
-              <Download className="size-4 group-hover:-translate-y-0.5 transition-transform" />
-              Télécharger le Modèle (تحميل النموذج)
-            </button>
+        <div className="p-4 rounded-[20px] bg-amber-50/80 border border-amber-200/60 flex flex-col sm:flex-row items-start sm:items-center gap-3">
+          <div className="flex items-center gap-2 text-amber-700">
+            <Download className="size-4 shrink-0" />
+            <span className="text-sm font-bold">Télécharger un modèle Excel :</span>
           </div>
-
-          {/* Upload Area */}
-          <div className="lg:col-span-2">
-            <div
-              onDragOver={handleDragOver}
-              onDrop={handleDrop}
-              className="flex flex-col items-center justify-center border-2 border-dashed border-indigo-200 bg-white/70 hover:bg-white hover:border-indigo-400 transition-all rounded-[24px] p-12 text-center shadow-sm min-h-[340px] group cursor-pointer"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <div className="w-16 h-16 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
-                <Upload className="size-7" />
-              </div>
-              <h3 className="mt-6 text-lg font-black text-slate-800">
-                Glissez & Déposez votre fichier Excel ici
-              </h3>
-              <p className="mt-2 text-xs font-semibold text-slate-500 max-w-sm">
-                Uniquement les fichiers au format Excel <strong>.xlsx</strong>. Taille maximale de 10 Mo.
-              </p>
-              
-              <div className="mt-8 px-6 py-2.5 bg-indigo-50 text-indigo-700 font-bold text-xs rounded-xl hover:bg-indigo-100 transition-colors">
-                Sélectionner un fichier (اختيار ملف)
-              </div>
-
-              <input
-                type="file"
-                ref={fileInputRef}
-                className="hidden"
-                accept=".xlsx"
-                onChange={handleFileUpload}
-              />
-            </div>
+          <div className="flex flex-wrap gap-2">
+            {(["student", "employee", "subject", "exam_result"] as ImportType[]).map(type => (
+              <button
+                key={type}
+                onClick={() => handleDownloadTemplate(type)}
+                className="px-3 py-1.5 text-xs font-bold bg-white border border-amber-200 text-amber-800 hover:bg-amber-100 rounded-lg transition-all"
+              >
+                {type === "student" ? "Élèves" : type === "employee" ? "Personnel" : type === "subject" ? "Matières" : "Notes"}
+              </button>
+            ))}
           </div>
         </div>
       )}
 
-      {/* STEP 2: COLUMN MAPPING & PREVIEW */}
+      {/* STEP 1: FILE UPLOAD */}
+      {step === 1 && (
+        <div
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
+          className="relative border-2 border-dashed border-slate-200 hover:border-indigo-400 rounded-[24px] p-12 text-center transition-all cursor-pointer bg-white/60 backdrop-blur-sm group"
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <input ref={fileInputRef} type="file" accept=".xlsx" className="hidden" onChange={handleFileUpload} />
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-20 h-20 rounded-[20px] bg-indigo-500/10 flex items-center justify-center group-hover:scale-110 transition-transform shadow-lg shadow-indigo-100">
+              <FileSpreadsheet className="size-10 text-indigo-500" />
+            </div>
+            <div>
+              <p className="font-black text-slate-800 text-lg">Glissez votre fichier Excel ici</p>
+              <p className="text-sm text-slate-400 mt-1">ou cliquez pour parcourir · Formats : .xlsx uniquement</p>
+            </div>
+            {file && (
+              <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-50 border border-emerald-200">
+                <CheckCircle2 className="size-4 text-emerald-500" />
+                <span className="text-sm font-bold text-emerald-700">{file.name}</span>
+                <span className="text-xs text-emerald-500">({parsedData.length} lignes)</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* STEP 1 → 2: Next Button */}
+      {step === 1 && file && parsedData.length > 0 && (
+        <div className="flex justify-end">
+          <button
+            onClick={() => setStep(2)}
+            className="flex items-center gap-2 px-8 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm shadow-lg shadow-indigo-100 transition-all"
+          >
+            Mapper les colonnes <ArrowRight className="size-4" />
+          </button>
+        </div>
+      )}
+
+      {/* STEP 2: COLUMN MAPPING */}
       {step === 2 && (
         <div className="space-y-6">
-          {/* COLUMN MAPPING PANEL */}
-          <div className="rounded-[24px] bg-white border border-white/50 shadow-sm p-6">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-              <h3 className="font-black text-slate-800 text-lg flex items-center gap-2">
-                <ArrowRight className="size-5 text-indigo-500" />
-                Correspondance des Colonnes (ربط الأعمدة)
-              </h3>
-              <span className="px-3 py-1 bg-slate-50 border border-slate-100 rounded-full text-xs font-bold text-slate-500">
-                {parsedData.length} lignes chargées
-              </span>
-            </div>
-
-            <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {FIELDS[activeTab].map(field => {
-                const isMapped = columnMapping[field.key] && columnMapping[field.key] !== "Ignorer";
-                return (
-                  <div
-                    key={field.key}
-                    className={cn(
-                      "p-4 rounded-2xl border transition-all space-y-2.5",
-                      field.required
-                        ? isMapped
-                          ? "border-emerald-200 bg-emerald-50/10"
-                          : "border-rose-200 bg-rose-50/10"
-                        : isMapped
-                        ? "border-indigo-100 bg-indigo-50/5"
-                        : "border-slate-100 bg-slate-50/30"
-                    )}
+          <div className="p-6 rounded-[24px] bg-white/85 border border-white/40 shadow-sm">
+            <h2 className="text-lg font-black text-slate-800 mb-1 flex items-center gap-2">
+              <Table className="size-5 text-indigo-500" /> Correspondance des Colonnes
+            </h2>
+            <p className="text-xs text-slate-500 mb-6">Reliez chaque champ du système à la colonne correspondante dans votre fichier Excel.</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+              {FIELDS[activeTab].map(field => (
+                <div key={field.key} className="space-y-1.5">
+                  <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                    {field.label}
+                    {field.required && <span className="text-rose-500">*</span>}
+                  </label>
+                  <select
+                    value={columnMapping[field.key] || ""}
+                    onChange={e => setColumnMapping(prev => ({ ...prev, [field.key]: e.target.value }))}
+                    className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200 transition-all"
                   >
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-black text-slate-700">
-                        {field.label}
-                      </label>
-                      {field.required && !isMapped && (
-                        <span className="text-[10px] font-black text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md">
-                          Requis
-                        </span>
-                      )}
-                    </div>
-
-                    <select
-                      value={columnMapping[field.key] || "Ignorer"}
-                      onChange={(e) => {
-                        setColumnMapping(prev => ({
-                          ...prev,
-                          [field.key]: e.target.value
-                        }));
-                      }}
-                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all cursor-pointer"
-                    >
-                      <option value="Ignorer">🚫 Ignorer ce champ</option>
-                      {headers.map(h => (
-                        <option key={h} value={h}>
-                          📋 {h}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="mt-8 flex justify-end gap-3">
-              <button
-                onClick={handleReset}
-                className="px-6 py-3 border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold transition-all"
-              >
-                Annuler
-              </button>
-              <button
-                onClick={startImport}
-                className="px-6 py-3 bg-indigo-600 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-200 hover:bg-indigo-700 transition-all flex items-center gap-2"
-              >
-                <Play className="size-4" />
-                Lancer l&apos;importation (بدء الاستيراد)
-              </button>
+                    <option value="">-- Ignorer --</option>
+                    <option value="Ignorer">Ignorer</option>
+                    {headers.map(h => (
+                      <option key={h} value={h}>{h}</option>
+                    ))}
+                  </select>
+                </div>
+              ))}
             </div>
           </div>
 
-          {/* PARSED DATA PREVIEW */}
-          <div className="rounded-[24px] bg-white border border-white/50 shadow-sm p-6 overflow-hidden">
-            <h3 className="font-black text-slate-800 text-lg flex items-center gap-2 pb-4 border-b border-slate-100">
-              <Table className="size-5 text-indigo-500" />
-              Aperçu des Données (Aperçu des 5 premières lignes)
-            </h3>
-            
-            <div className="mt-6 overflow-x-auto">
-              <table className="w-full border-collapse text-left">
-                <thead>
-                  <tr className="border-b border-slate-200">
-                    <th className="py-3 px-4 text-xs font-black text-slate-400 uppercase tracking-wider">#</th>
-                    {headers.map(h => (
-                      <th key={h} className="py-3 px-4 text-xs font-black text-slate-700 uppercase tracking-wider">
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {parsedData.slice(0, 5).map((row, idx) => (
-                    <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
-                      <td className="py-3.5 px-4 text-xs font-bold text-slate-400">{idx + 2}</td>
-                      {headers.map(h => (
-                        <td key={h} className="py-3.5 px-4 text-xs font-semibold text-slate-600 truncate max-w-[200px]">
-                          {row[h] instanceof Date ? row[h].toLocaleDateString("fr-FR") : String(row[h] ?? "")}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {parsedData.length > 5 && (
-                <div className="py-4 text-center text-xs font-bold text-slate-400">
-                  Et {parsedData.length - 5} autres lignes...
-                </div>
-              )}
-            </div>
+          <div className="flex justify-between gap-4">
+            <button
+              onClick={() => setStep(1)}
+              className="px-6 py-3 border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl font-bold text-sm transition-all"
+            >
+              ← Retour
+            </button>
+            <button
+              onClick={startImport}
+              disabled={isPending}
+              className="flex items-center gap-2 px-8 py-3.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white rounded-xl font-bold text-sm shadow-lg shadow-emerald-100 transition-all"
+            >
+              {isPending ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
+              Lancer l&apos;Importation
+            </button>
           </div>
         </div>
       )}
 
-      {/* STEP 3: EXECUTING & PROGRESS */}
+      {/* STEP 3: RESULTS */}
       {step === 3 && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-          {/* Progress Dashboard */}
-          <div className="lg:col-span-1 rounded-[24px] bg-white border border-white/50 p-6 shadow-sm space-y-6">
-            <h3 className="font-black text-slate-800 text-lg flex items-center gap-2">
-              {isPending ? (
-                <Loader2 className="size-5 text-indigo-500 animate-spin" />
-              ) : (
-                <CheckCircle2 className="size-5 text-emerald-500" />
-              )}
-              Statut de l&apos;Importation
-            </h3>
-
-            {/* Circular or Linear Progress Bar */}
-            <div className="space-y-2">
-              <div className="flex justify-between text-xs font-bold text-slate-500">
-                <span>Progression</span>
-                <span>
-                  {importProgress.current} / {importProgress.total} (
-                  {Math.round((importProgress.current / (importProgress.total || 1)) * 100)}%)
-                </span>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="space-y-4">
+            {/* Progress Card */}
+            <div className="p-6 rounded-[24px] bg-white/85 border border-white/40 shadow-sm space-y-4">
+              <h3 className="font-black text-slate-700 text-sm uppercase tracking-widest">Progression</h3>
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs font-bold text-slate-600">
+                  <span>{importProgress.current} / {importProgress.total} lignes</span>
+                  <span>{importProgress.total > 0 ? Math.round((importProgress.current / importProgress.total) * 100) : 0}%</span>
+                </div>
+                <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-indigo-500 rounded-full transition-all duration-300"
+                    style={{ width: `${importProgress.total > 0 ? (importProgress.current / importProgress.total) * 100 : 0}%` }}
+                  />
+                </div>
               </div>
-              <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-indigo-600 rounded-full transition-all duration-300"
-                  style={{ width: `${(importProgress.current / (importProgress.total || 1)) * 100}%` }}
-                />
-              </div>
-            </div>
-
-            {/* Ingestion Stats Cards */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="p-4 rounded-2xl bg-emerald-50/50 border border-emerald-100 text-center">
-                <p className="text-2xl font-black text-emerald-600">{importProgress.success}</p>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Succès</p>
-              </div>
-              <div className="p-4 rounded-2xl bg-rose-50/50 border border-rose-100 text-center">
-                <p className="text-2xl font-black text-rose-600">{importProgress.error}</p>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Échecs</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-100 text-center">
+                  <p className="text-2xl font-black text-emerald-600">{importProgress.success}</p>
+                  <p className="text-[10px] font-bold text-emerald-500 uppercase">Succès</p>
+                </div>
+                <div className="p-3 rounded-xl bg-rose-50 border border-rose-100 text-center">
+                  <p className="text-2xl font-black text-rose-600">{importProgress.error}</p>
+                  <p className="text-[10px] font-bold text-rose-500 uppercase">Échecs</p>
+                </div>
               </div>
             </div>
 
@@ -873,7 +768,7 @@ export default function ImportationPage() {
                 className="w-full py-3.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold shadow-md transition-all flex items-center justify-center gap-2"
               >
                 <RotateCcw className="size-4" />
-                Retourner & Importer à nouveau
+                Retourner &amp; Importer à nouveau
               </button>
             )}
           </div>
