@@ -150,36 +150,70 @@ export default function StudentsClient({ initialStudents, currentUser, activeSch
   const currentYear = new Date().getFullYear();
   const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
 
-  const nouveaux = useMemo(() => allStudents.filter((s: any) => {
+  const userLevel = currentUser?.educationalLevel;
+  const isRestricted = useMemo(() => {
+    if (!userLevel) return false;
+    const clean = userLevel.toLowerCase().trim();
+    return clean && !["tous", "all", "tous les niveaux", "toutes les étapes", "tous les cycles", ""].includes(clean);
+  }, [userLevel]);
+
+  const getCompatibleEducationalLevels = useCallback((level: string): string[] => {
+    if (!level) return [];
+    const norm = level.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+    if (norm === "primaire" || norm === "maternelle" || norm === "elementaire") {
+      return ["Primaire", "Maternelle", "primaire", "maternelle", "Elémentaire", "elementaire"];
+    }
+    if (norm === "college" || norm === "moyen") {
+      return ["Collège", "College", "collège", "college", "Moyen", "moyen"];
+    }
+    if (norm === "lycee" || norm === "secondaire") {
+      return ["Lycée", "Lycee", "lycée", "lycee", "Secondaire", "secondaire"];
+    }
+    if (["university", "universite", "licence", "master", "doctorat", "superieur"].includes(norm)) {
+      return ["Université", "Universite", "Licence", "Master", "université", "universite", "licence", "master", "Supérieur", "superieur"];
+    }
+    return [level, level.toLowerCase(), level.toUpperCase(), level.charAt(0).toUpperCase() + level.slice(1).toLowerCase()];
+  }, []);
+
+  const visibleStudents = useMemo(() => {
+    if (!isRestricted || !userLevel) return allStudents;
+    const compatible = getCompatibleEducationalLevels(userLevel);
+    return allStudents.filter((s: any) => {
+      if (!s.educationalLevel) return true; // keep general
+      return compatible.includes(s.educationalLevel);
+    });
+  }, [allStudents, isRestricted, userLevel, getCompatibleEducationalLevels]);
+
+  const nouveaux = useMemo(() => visibleStudents.filter((s: any) => {
     if (!s.createdAt) return false;
     const d = new Date(s.createdAt);
     return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
-  }).length, [allStudents, currentMonth, currentYear]);
+  }).length, [visibleStudents, currentMonth, currentYear]);
 
-  const lastMonthNouveaux = useMemo(() => allStudents.filter((s: any) => {
+  const lastMonthNouveaux = useMemo(() => visibleStudents.filter((s: any) => {
     if (!s.createdAt) return false;
     const d = new Date(s.createdAt);
     return d.getMonth() === lastMonth && d.getFullYear() === lastMonthYear;
-  }).length, [allStudents, lastMonth, lastMonthYear]);
+  }).length, [visibleStudents, lastMonth, lastMonthYear]);
 
   const growth = lastMonthNouveaux > 0 
     ? Math.round(((nouveaux - lastMonthNouveaux) / lastMonthNouveaux) * 100)
     : nouveaux * 100;
 
-  const filteredStudents = useMemo(() => allStudents.filter((s: any) => 
+  const filteredStudents = useMemo(() => visibleStudents.filter((s: any) => 
     s.nomEtudiant.toLowerCase().includes(search.toLowerCase()) ||
     (s.numAdmission && s.numAdmission.toLowerCase().includes(search.toLowerCase()))
-  ), [allStudents, search]);
+  ), [visibleStudents, search]);
 
   const start = (page - 1) * itemsPerPage;
   const paginatedStudents = useMemo(() => filteredStudents.slice(start, start + itemsPerPage), [filteredStudents, start, itemsPerPage]);
   const totalPages = Math.ceil(filteredStudents.length / itemsPerPage);
 
-  const actifs = useMemo(() => allStudents.filter((s: any) => (s.statut || "").toUpperCase() === "ACTIF").length, [allStudents]);
-  const classesCount = useMemo(() => new Set(allStudents.map((s: any) => s.classe).filter(Boolean)).size, [allStudents]);
+  const actifs = useMemo(() => visibleStudents.filter((s: any) => (s.statut || "").toUpperCase() === "ACTIF").length, [visibleStudents]);
+  const classesCount = useMemo(() => new Set(visibleStudents.map((s: any) => s.classe).filter(Boolean)).size, [visibleStudents]);
 
   const stats = {
-    total: allStudents.length,
+    total: visibleStudents.length,
     actifs,
     nouveaux,
     growth,
