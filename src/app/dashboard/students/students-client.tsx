@@ -108,17 +108,17 @@ function normalizeEducationalLevel(level: string): string {
 function getCompatibleEducationalLevels(level: string): string[] {
   if (!level) return [];
   const norm = normalizeEducationalLevel(level);
-  if (["primaire", "maternelle", "elementaire", "\u0627\u0628\u062a\u062f\u0627\u0626\u064a", "\u0627\u0644\u0627\u0628\u062a\u062f\u0627\u0626\u064a", "\u0627\u0644\u0627\u0628\u062a\u062f\u0627\u0626\u064a\u0647"].includes(norm)) {
-    return ["Primaire", "Maternelle", "primaire", "maternelle", "El\u00e9mentaire", "elementaire", "\u0627\u0628\u062a\u062f\u0627\u0626\u064a", "\u0627\u0644\u0627\u0628\u062a\u062f\u0627\u0626\u064a"];
+  if (["primaire", "maternelle", "elementaire", "ابتدائي", "الابتدائي", "الابتدائيه"].includes(norm)) {
+    return ["Primaire", "Maternelle", "primaire", "maternelle", "Elémentaire", "elementaire", "ابتدائي", "الابتدائي"];
   }
-  if (["college", "moyen", "middle", "cem", "\u0627\u0639\u062f\u0627\u062f\u064a", "\u0627\u0639\u062f\u0627\u062f\u064a\u0647", "\u0627\u0644\u0627\u0639\u062f\u0627\u062f\u064a", "\u0627\u0644\u0627\u0639\u062f\u0627\u062f\u064a\u0647", "\u0645\u062a\u0648\u0633\u0637", "\u0627\u0644\u0645\u062a\u0648\u0633\u0637", "\u0645\u062a\u0648\u0633\u0637\u0647", "\u0627\u0644\u0645\u062a\u0648\u0633\u0637\u0647"].includes(norm)) {
-    return ["Coll\u00e8ge", "College", "coll\u00e8ge", "college", "Moyen", "moyen", "\u0625\u0639\u062f\u0627\u062f\u064a", "\u0627\u0644\u0625\u0639\u062f\u0627\u062f\u064a\u0629", "\u0627\u0639\u062f\u0627\u062f\u064a", "\u0645\u062a\u0648\u0633\u0637", "\u0627\u0644\u0645\u062a\u0648\u0633\u0637"];
+  if (["college", "moyen", "middle", "cem", "college general", "premier cycle", "إعدادي", "الإعدادية", "اعدادي", "متوسط", "المتوسط", "متوسطه", "المتوسطه"].includes(norm)) {
+    return ["Collège", "College", "collège", "college", "Moyen", "moyen", "Collège Général", "college general", "Premier Cycle", "premier cycle", "إعدادي", "الإعدادية", "اعدادي", "متوسط", "المتوسط"];
   }
-  if (["lycee", "secondaire", "high school", "\u062b\u0627\u0646\u0648\u064a", "\u062b\u0627\u0646\u0648\u064a\u0647", "\u0627\u0644\u062b\u0627\u0646\u0648\u064a", "\u0627\u0644\u062b\u0627\u0646\u0648\u064a\u0647"].includes(norm)) {
-    return ["Lyc\u00e9e", "Lycee", "lyc\u00e9e", "lycee", "Secondaire", "secondaire", "\u062b\u0627\u0646\u0648\u064a", "\u0627\u0644\u062b\u0627\u0646\u0648\u064a\u0629"];
+  if (["lycee", "secondaire", "high school", "second cycle", "ثانوي", "ثانويه", "الثانوي", "الثانويه"].includes(norm)) {
+    return ["Lycée", "Lycee", "lycée", "lycee", "Secondaire", "secondaire", "Second Cycle", "second cycle", "ثانوي", "الثانوية"];
   }
-  if (["university", "universite", "licence", "master", "doctorat", "superieur", "\u062c\u0627\u0645\u0639\u0647", "\u0627\u0644\u062c\u0627\u0645\u0639\u0647", "\u062c\u0627\u0645\u0639\u064a", "\u0639\u0627\u0644\u064a"].includes(norm)) {
-    return ["Universit\u00e9", "Universite", "Licence", "Master", "universit\u00e9", "universite", "licence", "master", "Sup\u00e9rieur", "superieur", "\u062c\u0627\u0645\u0639\u0629", "\u062c\u0627\u0645\u0639\u064a", "\u0639\u0627\u0644\u064a"];
+  if (["university", "universite", "licence", "master", "doctorat", "superieur", "جامعه", "الجامعه", "جامعي", "عالي"].includes(norm)) {
+    return ["Université", "Universite", "Licence", "Master", "université", "universite", "licence", "master", "Supérieur", "superieur", "جامعة", "جامعي", "عالي"];
   }
   return [level, level.toLowerCase(), level.toUpperCase(), level.charAt(0).toUpperCase() + level.slice(1).toLowerCase()];
 }
@@ -225,10 +225,14 @@ export default function StudentsClient({ initialStudents, currentUser, activeSch
 
   const userLevel = currentUser?.educationalLevel;
   const isRestricted = useMemo(() => {
+    // Super admins and global admins should never be restricted by educational level
+    if (currentUser?.superAdmin === true || currentUser?.superAdmin === 1 || currentUser?.role?.roleName === "Super Admin") {
+      return false;
+    }
     if (!userLevel) return false;
     const clean = normalizeEducationalLevel(userLevel);
-    return clean && !["tous", "all", "tous les niveaux", "toutes les etapes", "tous les cycles", "\u0627\u0644\u0643\u0644", "\u0643\u0644", "\u062c\u0645\u064a\u0639", "\u062c\u0645\u064a\u0639 \u0627\u0644\u0645\u0633\u062a\u0648\u064a\u0627\u062a", ""].includes(clean);
-  }, [userLevel]);
+    return clean && !["tous", "all", "tous les niveaux", "toutes les etapes", "tous les cycles", "الكل", "كل", "جميع", "جميع المستويات", ""].includes(clean);
+  }, [userLevel, currentUser]);
 
   const visibleStudents = useMemo(() => {
     if (!isRestricted || !userLevel) return allStudents;

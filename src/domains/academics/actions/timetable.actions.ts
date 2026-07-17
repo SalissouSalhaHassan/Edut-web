@@ -22,6 +22,31 @@ async function assertClassInActiveSchool(classId: number | null | undefined) {
   return { schoolId, cls };
 }
 
+async function assertSubjectInActiveSchool(subjectId: number | null | undefined, schoolId: number) {
+  if (!subjectId) throw new Error("Matiere invalide.");
+
+  const subject = await db.query.schoolSubjects.findFirst({
+    where: and(
+      eq(schoolSubjects.id, subjectId),
+      or(eq(schoolSubjects.schoolId, schoolId), isNull(schoolSubjects.schoolId))
+    ),
+  });
+
+  if (!subject) throw new Error("Matiere introuvable dans cette ecole.");
+  return subject;
+}
+
+async function assertTeacherInActiveSchool(employeeId: number | null | undefined, schoolId: number) {
+  if (!employeeId) return null;
+
+  const teacher = await db.query.employees.findFirst({
+    where: and(eq(employees.id, employeeId), eq(employees.schoolId, schoolId)),
+  });
+
+  if (!teacher) throw new Error("Professeur introuvable dans cette ecole.");
+  return teacher;
+}
+
 async function assertTimetableEntryInActiveSchool(id: number) {
   const entry = await db.query.timetableEntries.findFirst({
     where: eq(timetableEntries.id, id),
@@ -339,6 +364,7 @@ export async function saveTeacherConstraints(employeeId: number, data: any) {
 
 export async function getClassAssignments(classId: number) {
   return protectedDbAction("Academics", "canView", async (user) => {
+    const { schoolId } = await assertClassInActiveSchool(classId);
     const roleType = await getUserRoleType(user);
     if (roleType === "teacher") {
       const hasAccess = await verifyTeacherClassAccess(user, classId);
@@ -346,7 +372,7 @@ export async function getClassAssignments(classId: number) {
     }
 
     const assignments = await db.query.classSubjects.findMany({
-      where: eq(classSubjects.classId, classId),
+      where: and(eq(classSubjects.classId, classId), eq(classSubjects.schoolId, schoolId)),
       with: {
         subject: true,
         teacher: true
@@ -358,11 +384,54 @@ export async function getClassAssignments(classId: number) {
 
 export async function saveClassAssignment(id: number | null, data: any) {
   return protectedDbAction("Academics", "canEdit", async () => {
-    const { schoolId } = await assertClassInActiveSchool(data.classId);
+    const existing = id
+      ? await db.query.classSubjects.findFirst({ where: eq(classSubjects.id, id) })
+      : null;
+
+    if (id && !existing) {
+      throw new Error("Affectation introuvable.");
+    }
+
+    const classId = Number(data.classId ?? existing?.classId);
+    const subjectId = Number(data.subjectId ?? existing?.subjectId);
+    const { schoolId } = await assertClassInActiveSchool(classId);
+    await assertSubjectInActiveSchool(subjectId, schoolId);
+
+    const employeeId =
+      data.employeeId === undefined
+        ? existing?.employeeId ?? null
+        : data.employeeId === null || data.employeeId === ""
+          ? null
+          : Number(data.employeeId);
+    await assertTeacherInActiveSchool(employeeId, schoolId);
+
+    const rawCoefficient = Number(data.coefficient ?? existing?.coefficient ?? 1);
+    const payload = {
+      schoolId,
+      classId,
+      subjectId,
+      employeeId,
+      coefficient: Number.isFinite(rawCoefficient) ? rawCoefficient : 1,
+      credits: data.credits ?? existing?.credits,
+      semester: data.semester ?? existing?.semester,
+    };
+
     if (id) {
-      await db.update(classSubjects).set({ ...data, schoolId }).where(and(eq(classSubjects.id, id), eq(classSubjects.schoolId, schoolId)));
+      await db.update(classSubjects).set(payload).where(and(eq(classSubjects.id, id), eq(classSubjects.schoolId, schoolId)));
     } else {
-      await db.insert(classSubjects).values({ ...data, schoolId });
+      const duplicate = await db.query.classSubjects.findFirst({
+        where: and(
+          eq(classSubjects.schoolId, schoolId),
+          eq(classSubjects.classId, classId),
+          eq(classSubjects.subjectId, subjectId)
+        ),
+      });
+
+      if (duplicate) {
+        await db.update(classSubjects).set(payload).where(and(eq(classSubjects.id, duplicate.id), eq(classSubjects.schoolId, schoolId)));
+      } else {
+        await db.insert(classSubjects).values(payload);
+      }
     }
     revalidatePath("/dashboard/academics/timetable");
     return { success: true };

@@ -82,7 +82,11 @@ function isConfiguredPlatformOwner(email: string) {
 
 function canUseCachedSession(cachedUser: SessionUserRecord | null, authEmail?: string) {
   if (!cachedUser) return false;
-  if (cachedUser.superAdmin === true || cachedUser.superAdmin === 1) return true;
+  // For super admins: only trust cache if educationalLevel is already 'Tous'.
+  // Otherwise force a fresh DB lookup so ensurePlatformOwnerIfNeeded can correct it.
+  if (cachedUser.superAdmin === true || cachedUser.superAdmin === 1) {
+    return cachedUser.educationalLevel === "Tous";
+  }
 
   const cachedEmail = String(cachedUser.utilisateur || "").toLowerCase();
   if (cachedEmail && isConfiguredPlatformOwner(cachedEmail)) return false;
@@ -141,16 +145,28 @@ async function ensurePlatformOwnerIfNeeded(
   if (!shouldPromote) return dbUser;
 
   if (dbUser) {
-    if (dbUser.superAdmin && dbUser.admin) return dbUser;
+    // Super admin already fully set up AND educationalLevel is correct — use as-is
+    if (dbUser.superAdmin && dbUser.admin && dbUser.educationalLevel === "Tous") {
+      return dbUser;
+    }
 
-    await db.update(users)
-      .set({
-        admin: true,
-        superAdmin: true,
-        educationalLevel: "Tous",
-        supabaseId: dbUser.supabaseId || authUser.id,
-      })
-      .where(eq(users.id, dbUser.id));
+    // Fix: super admin exists but educationalLevel is wrong (e.g. 'Lycée') or admin flags missing
+    const needsUpdate =
+      !dbUser.superAdmin ||
+      !dbUser.admin ||
+      dbUser.educationalLevel !== "Tous" ||
+      (dbUser.supabaseId !== authUser.id && authUser.id);
+
+    if (needsUpdate && dbUser.id) {
+      await db.update(users)
+        .set({
+          admin: true,
+          superAdmin: true,
+          educationalLevel: "Tous",
+          supabaseId: dbUser.supabaseId || authUser.id,
+        })
+        .where(eq(users.id, dbUser.id));
+    }
 
     return {
       ...dbUser,

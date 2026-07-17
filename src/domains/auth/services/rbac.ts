@@ -57,6 +57,10 @@ const MIDDLE_LEVEL_TERMS = [
   "moyen",
   "middle",
   "cem",
+  "college general",
+  "college_general",
+  "premier cycle",
+  "premier_cycle",
   "\u0627\u0639\u062f\u0627\u062f\u064a",
   "\u0627\u0639\u062f\u0627\u062f\u064a\u0647",
   "\u0627\u0644\u0627\u0639\u062f\u0627\u062f\u064a",
@@ -71,6 +75,8 @@ const SECONDARY_LEVEL_TERMS = [
   "lycee",
   "secondaire",
   "high school",
+  "second cycle",
+  "second_cycle",
   "\u062b\u0627\u0646\u0648\u064a",
   "\u062b\u0627\u0646\u0648\u064a\u0647",
   "\u0627\u0644\u062b\u0627\u0646\u0648\u064a",
@@ -511,16 +517,16 @@ export function getCompatibleLevels(level: string): string[] {
 
   const family = getEducationalLevelFamily(level);
   if (family === "primary") {
-    return Array.from(new Set(["Primaire", "Maternelle", "primaire", "maternelle", "El\u00e9mentaire", "elementaire", "\u0627\u0628\u062a\u062f\u0627\u0626\u064a", "\u0627\u0644\u0627\u0628\u062a\u062f\u0627\u0626\u064a", "Tous", "All", "tous", "all", ""]));
+    return Array.from(new Set(["Primaire", "Maternelle", "primaire", "maternelle", "Elémentaire", "elementaire", "ابتدائي", "الابتدائي", "Tous", "All", "tous", "all", ""]));
   }
   if (family === "middle") {
-    return Array.from(new Set(["Coll\u00e8ge", "College", "coll\u00e8ge", "college", "Moyen", "moyen", "\u0625\u0639\u062f\u0627\u062f\u064a", "\u0627\u0644\u0625\u0639\u062f\u0627\u062f\u064a\u0629", "\u0627\u0639\u062f\u0627\u062f\u064a", "\u0645\u062a\u0648\u0633\u0637", "\u0627\u0644\u0645\u062a\u0648\u0633\u0637", "Tous", "All", "tous", "all", ""]));
+    return Array.from(new Set(["Collège", "College", "collège", "college", "Moyen", "moyen", "Collège Général", "college general", "Premier Cycle", "premier cycle", "إعدادي", "الإعدادية", "اعدادي", "متوسط", "المتوسط", "Tous", "All", "tous", "all", ""]));
   }
   if (family === "secondary") {
-    return Array.from(new Set(["Lyc\u00e9e", "Lycee", "lyc\u00e9e", "lycee", "Secondaire", "secondaire", "\u062b\u0627\u0646\u0648\u064a", "\u0627\u0644\u062b\u0627\u0646\u0648\u064a\u0629", "Tous", "All", "tous", "all", ""]));
+    return Array.from(new Set(["Lycée", "Lycee", "lycée", "lycee", "Secondaire", "secondaire", "Second Cycle", "second cycle", "ثانوي", "الثانوية", "Tous", "All", "tous", "all", ""]));
   }
   if (family === "university") {
-    return Array.from(new Set(["Universit\u00e9", "Universite", "Licence", "Master", "universit\u00e9", "universite", "licence", "master", "Sup\u00e9rieur", "superieur", "\u062c\u0627\u0645\u0639\u0629", "\u062c\u0627\u0645\u0639\u064a", "\u0639\u0627\u0644\u064a", "Tous", "All", "tous", "all", ""]));
+    return Array.from(new Set(["Université", "Universite", "Licence", "Master", "université", "universite", "licence", "master", "Supérieur", "superieur", "جامعة", "جامعي", "عالي", "Tous", "All", "tous", "all", ""]));
   }
 
   const norm = normalizeLevel(level);
@@ -528,10 +534,10 @@ export function getCompatibleLevels(level: string): string[] {
   
   if (norm === "primaire" || norm === "maternelle" || norm === "elementaire") {
     baseLevels = ["Primaire", "Maternelle", "primaire", "maternelle", "Elémentaire", "elementaire"];
-  } else if (norm === "college" || norm === "moyen") {
-    baseLevels = ["Collège", "College", "collège", "college", "Moyen", "moyen"];
-  } else if (norm === "lycee" || norm === "secondaire") {
-    baseLevels = ["Lycée", "Lycee", "lycée", "lycee", "Secondaire", "secondaire"];
+  } else if (norm === "college" || norm === "moyen" || norm === "college general" || norm === "premier cycle") {
+    baseLevels = ["Collège", "College", "collège", "college", "Moyen", "moyen", "Collège Général", "college general", "Premier Cycle", "premier cycle"];
+  } else if (norm === "lycee" || norm === "secondaire" || norm === "second cycle") {
+    baseLevels = ["Lycée", "Lycee", "lycée", "lycee", "Secondaire", "secondaire", "Second Cycle", "second cycle"];
   } else if (["university", "universite", "licence", "master", "doctorat", "superieur"].includes(norm)) {
     baseLevels = ["Université", "Universite", "Licence", "Master", "université", "universite", "licence", "master", "Supérieur", "superieur"];
   } else {
