@@ -15,6 +15,8 @@ export type UserRoleType =
   | "super_admin" 
   | "general_director"
   | "level_director"
+  | "level_comptable"    // Comptable assigned to a specific level
+  | "level_caissier"    // Caissier assigned to a specific level
   | "teacher"
   | "ministere"
   | "dren"
@@ -136,8 +138,16 @@ export const getUserRoleType = cache(async (user: any): Promise<UserRoleType> =>
   }
   if (norm.includes("censeur")) return "censeur";
   if (norm.includes("surveillant")) return "surveillant";
-  if (norm.includes("comptable")) return "comptable";
-  if (norm.includes("caissier")) return "caissier";
+  if (norm.includes("comptable")) {
+    // Comptable with a specific level (not Tous) → level-scoped: sees only finance for their level
+    if (hasRestrictedLevel) return "level_comptable";
+    return "comptable";
+  }
+  if (norm.includes("caissier")) {
+    // Caissier with a specific level (not Tous) → level-scoped: sees only finance for their level
+    if (hasRestrictedLevel) return "level_caissier";
+    return "caissier";
+  }
   if (norm.includes("enseignant") || norm.includes("professeur") || norm.includes("teacher")) return "teacher";
   if (norm.includes("eleve") || norm.includes("etudiant") || norm.includes("student")) return "eleve";
   if (norm.includes("parent") || norm.includes("tuteur")) return "parent";
@@ -222,12 +232,12 @@ export const hasPermission = cache(async (
   }
 
   // 9. Comptable: finance and coges only
-  if (roleType === "comptable") {
+  if (roleType === "comptable" || roleType === "level_comptable") {
     return ["finance", "coges"].includes(modLower);
   }
 
   // 10. Caissier: finance payments only. No edit/delete of configs.
-  if (roleType === "caissier") {
+  if (roleType === "caissier" || roleType === "level_caissier") {
     if (modLower !== "finance") return false;
     return action === "canView" || action === "canEdit";
   }
@@ -383,8 +393,10 @@ export async function verifyStudentAccess(user: any, studentId: string | number)
   const roleType = await getUserRoleType(user);
   if (roleType === "super_admin" || roleType === "ministere" || roleType === "dren" || roleType === "dden" || roleType === "inspection") return true;
 
-  if (roleType === "directeur" || roleType === "censeur" || roleType === "surveillant" || roleType === "comptable" || roleType === "caissier") {
-    return true; // Subject to schoolId matching in database query
+  if (roleType === "directeur" || roleType === "censeur" || roleType === "surveillant" ||
+      roleType === "comptable" || roleType === "caissier" ||
+      roleType === "level_comptable" || roleType === "level_caissier") {
+    return true; // Subject to schoolId and level matching in database query
   }
 
   if (roleType === "eleve") {

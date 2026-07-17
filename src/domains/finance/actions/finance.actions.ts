@@ -62,7 +62,9 @@ export async function getStudentFees(params?: { search?: string, class?: string,
 
     let filteredData = dedupedData;
 
-    if (roleType === "level_director" && activeLevel) {
+    // Apply level isolation for level_director, level_comptable, level_caissier
+    const isLevelScoped = (roleType === "level_director" || roleType === "level_comptable" || roleType === "level_caissier") && !!activeLevel;
+    if (isLevelScoped) {
       const compatibleLevels = getCompatibleLevels(activeLevel).map(l => l.toLowerCase());
       filteredData = filteredData.filter(item =>
         item.student && item.student.educationalLevel &&
@@ -114,8 +116,9 @@ export async function recordPayment(formData: PaymentFormData) {
 
     if (!fee) throw new Error("Dossier financier introuvable.");
 
-    // Enforce Level Director isolation
-    if (roleType === "level_director") {
+    // Enforce level isolation for level_director, level_comptable, level_caissier
+    const isLevelScoped = roleType === "level_director" || roleType === "level_comptable" || roleType === "level_caissier";
+    if (isLevelScoped) {
       if (!fee.student || !checkEducationalLevelAccess(user, fee.student.educationalLevel)) {
         return { error: "Accès refusé. Cet élève appartient à un autre secteur." };
       }
@@ -166,7 +169,8 @@ export async function deleteStudentFee(id: number) {
     const roleType = await getUserRoleType(user);
     const schoolId = await getActiveSchoolId();
 
-    if (roleType === "level_director") {
+    const isLevelScoped = roleType === "level_director" || roleType === "level_comptable" || roleType === "level_caissier";
+    if (isLevelScoped) {
       const fee = await db.query.studentFees.findFirst({
         where: and(eq(studentFees.id, id), eq(studentFees.schoolId, schoolId)),
         with: { student: true }
@@ -188,9 +192,10 @@ export async function syncStudentFees(revalidate: boolean = true) {
     const schoolId = await getActiveSchoolId();
     console.log("Starting syncStudentFees...");
     
-    // Filter active students by level director's level
+    // Filter active students by level for level_director, level_comptable, level_caissier
     let studentWhere = and(eq(students.statut, "Actif"), eq(students.schoolId, schoolId));
-    if (roleType === "level_director") {
+    const isLevelScoped = roleType === "level_director" || roleType === "level_comptable" || roleType === "level_caissier";
+    if (isLevelScoped) {
       const compatibleLevels = getCompatibleLevels(user.educationalLevel);
       studentWhere = and(studentWhere, inArray(students.educationalLevel, compatibleLevels)) as any;
     }
@@ -492,7 +497,7 @@ export async function getFinanceStats() {
       })
       .from(studentFees);
 
-    if (roleType === "level_director" && activeLevel) {
+    if ((roleType === "level_director" || roleType === "level_comptable" || roleType === "level_caissier") && activeLevel) {
       const compatibleLevels = getCompatibleLevels(activeLevel);
       query = query.innerJoin(students, eq(studentFees.studentId, students.id)) as any;
       whereClause = and(whereClause, inArray(students.educationalLevel, compatibleLevels)) as any;
@@ -572,9 +577,6 @@ export async function getAdvancedFinanceStats() {
     // Base where clause for student fees
     let feesWhere = and(eq(studentFees.sessionId, activeSession.id), eq(studentFees.schoolId, schoolId));
 
-    // Level director isolation
-    const needsJoin = roleType === "level_director" && !!activeLevel;
-
     // Get all fees with payments for this session
     const allFees = await db.query.studentFees.findMany({
       where: feesWhere,
@@ -584,9 +586,10 @@ export async function getAdvancedFinanceStats() {
       }
     });
 
-    // Filter by level director if needed
+    // Filter by level for level_director, level_comptable, level_caissier
     let fees = allFees;
-    if (needsJoin && activeLevel) {
+    const needsLevelFilter = (roleType === "level_director" || roleType === "level_comptable" || roleType === "level_caissier") && !!activeLevel;
+    if (needsLevelFilter) {
       const compatibleLevels = getCompatibleLevels(activeLevel).map(l => l.toLowerCase());
       fees = fees.filter(f => f.student?.educationalLevel && compatibleLevels.includes(f.student.educationalLevel.toLowerCase()));
     }
