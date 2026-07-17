@@ -215,10 +215,18 @@ export async function saveUser(formData: SaveUserFormData, id?: number) {
     const isSuperAdmin = currentUser.superAdmin === true || currentUser.superAdmin === 1;
     if (!isSuperAdmin) {
       // Check permission only for non-superAdmin users
-      const { hasPermission } = await import("@/domains/auth/services/rbac");
-      const permitted = await hasPermission(currentUser.id, "Security", "canEdit");
-      if (!permitted) {
-        return { error: "Accès refusé. Vous n'avez pas la permission d'éditer les utilisateurs.", success: false };
+      const { hasPermission, getUserRoleType } = await import("@/domains/auth/services/rbac");
+      const roleType = await getUserRoleType(currentUser);
+      
+      // Directors (general and level) always can manage users in their school
+      const isDirector = roleType === "directeur" || roleType === "general_director" || roleType === "level_director";
+      
+      if (!isDirector) {
+        // For other roles, check the Security module permission
+        const permitted = await hasPermission(currentUser.id, "Security", "canEdit");
+        if (!permitted) {
+          return { error: "Accès refusé. Vous n'avez pas la permission d'éditer les utilisateurs.", success: false };
+        }
       }
     }
 
@@ -362,10 +370,17 @@ export async function deleteUser(id: number) {
 
     const isSuperAdmin = currentUser.superAdmin === true || currentUser.superAdmin === 1;
     if (!isSuperAdmin) {
-      const { hasPermission } = await import("@/domains/auth/services/rbac");
-      const permitted = await hasPermission(currentUser.id, "Security", "canDelete");
-      if (!permitted) {
-        return { error: "Accès refusé. Vous n'avez pas la permission de supprimer des utilisateurs.", success: false };
+      const { hasPermission, getUserRoleType: getRoleType } = await import("@/domains/auth/services/rbac");
+      const roleType = await getRoleType(currentUser);
+      
+      // Directors always can manage users in their school
+      const isDirector = roleType === "directeur" || roleType === "general_director" || roleType === "level_director";
+      
+      if (!isDirector) {
+        const permitted = await hasPermission(currentUser.id, "Security", "canDelete");
+        if (!permitted) {
+          return { error: "Accès refusé. Vous n'avez pas la permission de supprimer des utilisateurs.", success: false };
+        }
       }
     }
 
