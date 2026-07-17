@@ -10,7 +10,7 @@ import { schoolClasses, schoolSessions } from "@/infrastructure/database/schema/
 import { students } from "@/infrastructure/database/schema/students";
 import { getActiveSchoolId } from "@/domains/auth/services/school";
 import { getCurrentUser } from "@/domains/auth/services/session";
-import { getActiveEducationalLevel, getCompatibleLevels, getUserRoleType, checkEducationalLevelAccess } from "@/domains/auth/services/rbac";
+import { getActiveEducationalLevel, getCompatibleLevels, getUserRoleType, checkEducationalLevelAccess, normalizeLevel } from "@/domains/auth/services/rbac";
 
 export async function getStudentFees(params?: { search?: string, class?: string, status?: string }) {
   return protectedDbAction("Finance", "canView", async (user) => {
@@ -65,10 +65,11 @@ export async function getStudentFees(params?: { search?: string, class?: string,
     // Apply level isolation for level_director, level_comptable, level_caissier
     const isLevelScoped = (roleType === "level_director" || roleType === "level_comptable" || roleType === "level_caissier") && !!activeLevel;
     if (isLevelScoped) {
-      const compatibleLevels = getCompatibleLevels(activeLevel).map(l => l.toLowerCase());
+      // Use normalizeLevel for accent-insensitive comparison (e.g. 'Collège Général' == 'college general')
+      const compatibleNorms = getCompatibleLevels(activeLevel).map(l => normalizeLevel(l));
       filteredData = filteredData.filter(item =>
         item.student && item.student.educationalLevel &&
-        compatibleLevels.includes(item.student.educationalLevel.toLowerCase())
+        compatibleNorms.includes(normalizeLevel(item.student.educationalLevel))
       );
     }
 
@@ -590,8 +591,9 @@ export async function getAdvancedFinanceStats() {
     let fees = allFees;
     const needsLevelFilter = (roleType === "level_director" || roleType === "level_comptable" || roleType === "level_caissier") && !!activeLevel;
     if (needsLevelFilter) {
-      const compatibleLevels = getCompatibleLevels(activeLevel).map(l => l.toLowerCase());
-      fees = fees.filter(f => f.student?.educationalLevel && compatibleLevels.includes(f.student.educationalLevel.toLowerCase()));
+      // Use normalizeLevel for accent-insensitive comparison
+      const compatibleNorms = getCompatibleLevels(activeLevel).map(l => normalizeLevel(l));
+      fees = fees.filter(f => f.student?.educationalLevel && compatibleNorms.includes(normalizeLevel(f.student.educationalLevel)));
     }
 
     // 1. Core financials
