@@ -5,12 +5,13 @@ import { students } from "@/infrastructure/database/schema/students";
 import { schoolClasses, schoolSubjects, exams, examResults, schoolSessions } from "@/infrastructure/database/schema/academics";
 import { pedagogieRemediation } from "@/infrastructure/database/schema/pedagogie";
 import { lmsAssignments } from "@/infrastructure/database/schema/lms";
+import { users } from "@/infrastructure/database/schema/auth";
 import { eq, desc, and, or, inArray, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { studentSchema, StudentFormData } from "../validators/student.schema";
 import { protectedDbAction } from "@/lib/protected-action";
 import { getActiveSchoolId } from "@/domains/auth/services/school";
-import { getActiveEducationalLevel, getCompatibleLevels, getUserRoleType, getTeacherEmployee, getTeacherClassIds, checkEducationalLevelAccess } from "@/domains/auth/services/rbac";
+import { getCompatibleLevels, getUserRoleType, getTeacherEmployee, getTeacherClassIds, checkEducationalLevelAccess } from "@/domains/auth/services/rbac";
 
 export async function getStudents() {
   return protectedDbAction("Students", "canView", async (user) => {
@@ -21,10 +22,23 @@ export async function getStudents() {
     let whereClause = eq(students.schoolId, schoolId);
     
     if (roleType === "level_director") {
-      const activeLevel = user.educationalLevel;
+      // Always fetch fresh educationalLevel from DB — never trust the cached session value
+      // because Redis may return stale data (e.g., right after account creation).
+      let activeLevel: string | null | undefined = user.educationalLevel;
+      if (!activeLevel && user.id) {
+        const freshUser = await db.query.users.findFirst({
+          where: eq(users.id, user.id),
+          columns: { educationalLevel: true },
+        });
+        activeLevel = freshUser?.educationalLevel;
+      }
+
       if (activeLevel) {
         const compatibleLevels = getCompatibleLevels(activeLevel);
         whereClause = and(whereClause, inArray(students.educationalLevel, compatibleLevels)) as any;
+      } else {
+        // Safety: level_director without an assigned level sees nothing
+        whereClause = and(whereClause, sql`FALSE`) as any;
       }
     } else if (roleType === "teacher") {
       const emp = await getTeacherEmployee(user);

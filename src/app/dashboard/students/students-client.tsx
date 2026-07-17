@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import StudentDialog from "@/domains/students/components/StudentDialog";
 import RepairDataButton from "@/domains/students/components/RepairDataButton";
 import ActionMenu from "@/components/common/ActionMenu";
@@ -90,6 +90,39 @@ interface StudentsClientProps {
   canDelete: boolean;
 }
 
+function normalizeEducationalLevel(level: string): string {
+  return String(level || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[\u064b-\u065f\u0670]/g, "")
+    .replace(/[\u0622\u0623\u0625\u0671]/g, "\u0627")
+    .replace(/\u0649/g, "\u064a")
+    .replace(/\u0629/g, "\u0647")
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** Pure helper — defined outside component to avoid hook-order issues in useEffect */
+function getCompatibleEducationalLevels(level: string): string[] {
+  if (!level) return [];
+  const norm = normalizeEducationalLevel(level);
+  if (["primaire", "maternelle", "elementaire", "\u0627\u0628\u062a\u062f\u0627\u0626\u064a", "\u0627\u0644\u0627\u0628\u062a\u062f\u0627\u0626\u064a", "\u0627\u0644\u0627\u0628\u062a\u062f\u0627\u0626\u064a\u0647"].includes(norm)) {
+    return ["Primaire", "Maternelle", "primaire", "maternelle", "El\u00e9mentaire", "elementaire", "\u0627\u0628\u062a\u062f\u0627\u0626\u064a", "\u0627\u0644\u0627\u0628\u062a\u062f\u0627\u0626\u064a"];
+  }
+  if (["college", "moyen", "middle", "cem", "\u0627\u0639\u062f\u0627\u062f\u064a", "\u0627\u0639\u062f\u0627\u062f\u064a\u0647", "\u0627\u0644\u0627\u0639\u062f\u0627\u062f\u064a", "\u0627\u0644\u0627\u0639\u062f\u0627\u062f\u064a\u0647", "\u0645\u062a\u0648\u0633\u0637", "\u0627\u0644\u0645\u062a\u0648\u0633\u0637", "\u0645\u062a\u0648\u0633\u0637\u0647", "\u0627\u0644\u0645\u062a\u0648\u0633\u0637\u0647"].includes(norm)) {
+    return ["Coll\u00e8ge", "College", "coll\u00e8ge", "college", "Moyen", "moyen", "\u0625\u0639\u062f\u0627\u062f\u064a", "\u0627\u0644\u0625\u0639\u062f\u0627\u062f\u064a\u0629", "\u0627\u0639\u062f\u0627\u062f\u064a", "\u0645\u062a\u0648\u0633\u0637", "\u0627\u0644\u0645\u062a\u0648\u0633\u0637"];
+  }
+  if (["lycee", "secondaire", "high school", "\u062b\u0627\u0646\u0648\u064a", "\u062b\u0627\u0646\u0648\u064a\u0647", "\u0627\u0644\u062b\u0627\u0646\u0648\u064a", "\u0627\u0644\u062b\u0627\u0646\u0648\u064a\u0647"].includes(norm)) {
+    return ["Lyc\u00e9e", "Lycee", "lyc\u00e9e", "lycee", "Secondaire", "secondaire", "\u062b\u0627\u0646\u0648\u064a", "\u0627\u0644\u062b\u0627\u0646\u0648\u064a\u0629"];
+  }
+  if (["university", "universite", "licence", "master", "doctorat", "superieur", "\u062c\u0627\u0645\u0639\u0647", "\u0627\u0644\u062c\u0627\u0645\u0639\u0647", "\u062c\u0627\u0645\u0639\u064a", "\u0639\u0627\u0644\u064a"].includes(norm)) {
+    return ["Universit\u00e9", "Universite", "Licence", "Master", "universit\u00e9", "universite", "licence", "master", "Sup\u00e9rieur", "superieur", "\u062c\u0627\u0645\u0639\u0629", "\u062c\u0627\u0645\u0639\u064a", "\u0639\u0627\u0644\u064a"];
+  }
+  return [level, level.toLowerCase(), level.toUpperCase(), level.charAt(0).toUpperCase() + level.slice(1).toLowerCase()];
+}
+
 export default function StudentsClient({ initialStudents, currentUser, activeSchoolId, canEdit, canDelete }: StudentsClientProps) {
   const [allStudents, setAllStudents] = useState<any[]>(initialStudents);
   const [isLocal, setIsLocal] = useState(false);
@@ -104,14 +137,39 @@ export default function StudentsClient({ initialStudents, currentUser, activeSch
   useEffect(() => {
     async function loadData() {
       if (navigator.onLine && schoolId) {
+        // Online: server has already filtered students by level.
+        // Write the server-filtered list to local cache to overwrite stale cross-level data.
         try {
           const { cacheStudents } = await import("@/infrastructure/local-db/cache");
           await cacheStudents(initialStudents || [], schoolId);
         } catch (e) {
           console.warn("Failed to update student local cache:", e);
         }
+
+        // When online, always use the server-filtered initialStudents.
+        // Don't read from IndexedDB since it may contain students from other levels.
+        try {
+          const { localDb } = await import("@/infrastructure/local-db/dexie");
+          const outboxItems = await localDb.outbox
+            .where("targetTable")
+            .equals("students")
+            .toArray();
+          const unsynced = outboxItems.filter(item =>
+            item.status !== "synced" &&
+            item.status !== "cancelled" &&
+            Number(item.schoolId || item.payload?.schoolId) === Number(schoolId)
+          );
+          setUnsyncedAdmissions(new Set(unsynced.map(item => item.payload.numAdmission)));
+        } catch (e) {
+          console.warn("Failed to read outbox:", e);
+        }
+
+        setAllStudents(initialStudents || []);
+        setIsLocal(false);
+        return;
       }
 
+      // Offline: read from IndexedDB and apply level filter to prevent cross-level data leaks
       try {
         const { getCachedStudents } = await import("@/infrastructure/local-db/cache");
         const cached = await getCachedStudents(schoolId);
@@ -129,7 +187,21 @@ export default function StudentsClient({ initialStudents, currentUser, activeSch
         setUnsyncedAdmissions(new Set(unsynced.map(item => item.payload.numAdmission)));
 
         if (cached && cached.length > 0) {
-          setAllStudents(cached);
+          // Apply level filter on cached data when offline
+          const userLvl = currentUser?.educationalLevel;
+          let filteredCached = cached;
+          if (userLvl) {
+            const lvlNorm = normalizeEducationalLevel(userLvl);
+            const globalLevels = ["tous", "all", "tous les niveaux", "\u0627\u0644\u0643\u0644", "\u0643\u0644", "\u062c\u0645\u064a\u0639", "\u062c\u0645\u064a\u0639 \u0627\u0644\u0645\u0633\u062a\u0648\u064a\u0627\u062a", ""];
+            if (!globalLevels.includes(lvlNorm)) {
+              const compatibles = getCompatibleEducationalLevels(userLvl).map(normalizeEducationalLevel);
+              filteredCached = cached.filter((s: any) => {
+                if (!s.educationalLevel) return true;
+                return compatibles.includes(normalizeEducationalLevel(s.educationalLevel));
+              });
+            }
+          }
+          setAllStudents(filteredCached);
           setIsLocal(!navigator.onLine || unsynced.length > 0);
         } else {
           setAllStudents(initialStudents || []);
@@ -142,7 +214,8 @@ export default function StudentsClient({ initialStudents, currentUser, activeSch
       }
     }
     loadData();
-  }, [initialStudents, schoolId]);
+  }, [initialStudents, schoolId, currentUser?.educationalLevel]);
+
 
   // Performance Optimization: Student growth and new students count
   const currentMonth = new Date().getMonth();
@@ -153,36 +226,21 @@ export default function StudentsClient({ initialStudents, currentUser, activeSch
   const userLevel = currentUser?.educationalLevel;
   const isRestricted = useMemo(() => {
     if (!userLevel) return false;
-    const clean = userLevel.toLowerCase().trim();
-    return clean && !["tous", "all", "tous les niveaux", "toutes les étapes", "tous les cycles", ""].includes(clean);
+    const clean = normalizeEducationalLevel(userLevel);
+    return clean && !["tous", "all", "tous les niveaux", "toutes les etapes", "tous les cycles", "\u0627\u0644\u0643\u0644", "\u0643\u0644", "\u062c\u0645\u064a\u0639", "\u062c\u0645\u064a\u0639 \u0627\u0644\u0645\u0633\u062a\u0648\u064a\u0627\u062a", ""].includes(clean);
   }, [userLevel]);
-
-  const getCompatibleEducationalLevels = useCallback((level: string): string[] => {
-    if (!level) return [];
-    const norm = level.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-    if (norm === "primaire" || norm === "maternelle" || norm === "elementaire") {
-      return ["Primaire", "Maternelle", "primaire", "maternelle", "Elémentaire", "elementaire"];
-    }
-    if (norm === "college" || norm === "moyen") {
-      return ["Collège", "College", "collège", "college", "Moyen", "moyen"];
-    }
-    if (norm === "lycee" || norm === "secondaire") {
-      return ["Lycée", "Lycee", "lycée", "lycee", "Secondaire", "secondaire"];
-    }
-    if (["university", "universite", "licence", "master", "doctorat", "superieur"].includes(norm)) {
-      return ["Université", "Universite", "Licence", "Master", "université", "universite", "licence", "master", "Supérieur", "superieur"];
-    }
-    return [level, level.toLowerCase(), level.toUpperCase(), level.charAt(0).toUpperCase() + level.slice(1).toLowerCase()];
-  }, []);
 
   const visibleStudents = useMemo(() => {
     if (!isRestricted || !userLevel) return allStudents;
-    const compatible = getCompatibleEducationalLevels(userLevel);
+    const compatible = getCompatibleEducationalLevels(userLevel).map(normalizeEducationalLevel);
     return allStudents.filter((s: any) => {
       if (!s.educationalLevel) return true; // keep general
-      return compatible.includes(s.educationalLevel);
+      return compatible.includes(normalizeEducationalLevel(s.educationalLevel));
     });
-  }, [allStudents, isRestricted, userLevel, getCompatibleEducationalLevels]);
+  }, [allStudents, isRestricted, userLevel]);
+
+
+
 
   const nouveaux = useMemo(() => visibleStudents.filter((s: any) => {
     if (!s.createdAt) return false;

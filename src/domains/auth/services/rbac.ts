@@ -31,6 +31,77 @@ export type UserRoleType =
   | "consultation"
   | "regular_user";
 
+const GLOBAL_LEVEL_TERMS = [
+  "tous",
+  "all",
+  "tous les niveaux",
+  "toutes les etapes",
+  "tous les cycles",
+  "\u0627\u0644\u0643\u0644",
+  "\u0643\u0644",
+  "\u062c\u0645\u064a\u0639",
+  "\u062c\u0645\u064a\u0639 \u0627\u0644\u0645\u0633\u062a\u0648\u064a\u0627\u062a",
+];
+
+const PRIMARY_LEVEL_TERMS = [
+  "primaire",
+  "maternelle",
+  "elementaire",
+  "\u0627\u0628\u062a\u062f\u0627\u0626\u064a",
+  "\u0627\u0644\u0627\u0628\u062a\u062f\u0627\u0626\u064a",
+  "\u0627\u0644\u0627\u0628\u062a\u062f\u0627\u0626\u064a\u0647",
+];
+
+const MIDDLE_LEVEL_TERMS = [
+  "college",
+  "moyen",
+  "middle",
+  "cem",
+  "\u0627\u0639\u062f\u0627\u062f\u064a",
+  "\u0627\u0639\u062f\u0627\u062f\u064a\u0647",
+  "\u0627\u0644\u0627\u0639\u062f\u0627\u062f\u064a",
+  "\u0627\u0644\u0627\u0639\u062f\u0627\u062f\u064a\u0647",
+  "\u0645\u062a\u0648\u0633\u0637",
+  "\u0627\u0644\u0645\u062a\u0648\u0633\u0637",
+  "\u0645\u062a\u0648\u0633\u0637\u0647",
+  "\u0627\u0644\u0645\u062a\u0648\u0633\u0637\u0647",
+];
+
+const SECONDARY_LEVEL_TERMS = [
+  "lycee",
+  "secondaire",
+  "high school",
+  "\u062b\u0627\u0646\u0648\u064a",
+  "\u062b\u0627\u0646\u0648\u064a\u0647",
+  "\u0627\u0644\u062b\u0627\u0646\u0648\u064a",
+  "\u0627\u0644\u062b\u0627\u0646\u0648\u064a\u0647",
+];
+
+const UNIVERSITY_LEVEL_TERMS = [
+  "university",
+  "universite",
+  "licence",
+  "master",
+  "doctorat",
+  "superieur",
+  "\u062c\u0627\u0645\u0639\u0647",
+  "\u0627\u0644\u062c\u0627\u0645\u0639\u0647",
+  "\u062c\u0627\u0645\u0639\u064a",
+  "\u0639\u0627\u0644\u064a",
+];
+
+type EducationalLevelFamily = "primary" | "middle" | "secondary" | "university";
+
+function getEducationalLevelFamily(level: string | null | undefined): EducationalLevelFamily | null {
+  const norm = normalizeLevel(level || "");
+  if (!norm) return null;
+  if (PRIMARY_LEVEL_TERMS.includes(norm)) return "primary";
+  if (MIDDLE_LEVEL_TERMS.includes(norm)) return "middle";
+  if (SECONDARY_LEVEL_TERMS.includes(norm)) return "secondary";
+  if (UNIVERSITY_LEVEL_TERMS.includes(norm)) return "university";
+  return null;
+}
+
 // Classify user role type
 export const getUserRoleType = cache(async (user: any): Promise<UserRoleType> => {
   if (!user) return "regular_user";
@@ -51,7 +122,7 @@ export const getUserRoleType = cache(async (user: any): Promise<UserRoleType> =>
   if (norm.includes("dden")) return "dden";
   if (norm.includes("inspection")) return "inspection";
   const hasRestrictedLevel = !hasAllEducationalLevels(user.educationalLevel);
-  if (norm.includes("directeur") || norm.includes("dirigeant")) {
+  if (norm.includes("directeur") || norm.includes("dirigeant") || norm.includes("\u0645\u062f\u064a\u0631")) {
     if (hasRestrictedLevel) {
       return "level_director";
     }
@@ -406,10 +477,16 @@ export async function isAdmin(userId: number): Promise<boolean> {
 }
 
 export function normalizeLevel(level: string): string {
-  return level
+  return String(level || "")
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[\u064b-\u065f\u0670]/g, "")
+    .replace(/[\u0622\u0623\u0625\u0671]/g, "\u0627")
+    .replace(/\u0649/g, "\u064a")
+    .replace(/\u0629/g, "\u0647")
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
     .trim();
 }
 
@@ -422,7 +499,7 @@ export function hasAllEducationalLevels(level: string | null | undefined): boole
   const levels = parseEducationalLevels(level);
   return levels.length === 0 || levels.some((item) => {
     const norm = normalizeLevel(item);
-    return norm === "tous" || norm === "all";
+    return GLOBAL_LEVEL_TERMS.includes(norm);
   });
 }
 
@@ -430,6 +507,20 @@ export function getCompatibleLevels(level: string): string[] {
   const selectedLevels = parseEducationalLevels(level);
   if (selectedLevels.length > 1) {
     return Array.from(new Set(selectedLevels.flatMap((item) => getCompatibleLevels(item))));
+  }
+
+  const family = getEducationalLevelFamily(level);
+  if (family === "primary") {
+    return Array.from(new Set(["Primaire", "Maternelle", "primaire", "maternelle", "El\u00e9mentaire", "elementaire", "\u0627\u0628\u062a\u062f\u0627\u0626\u064a", "\u0627\u0644\u0627\u0628\u062a\u062f\u0627\u0626\u064a", "Tous", "All", "tous", "all", ""]));
+  }
+  if (family === "middle") {
+    return Array.from(new Set(["Coll\u00e8ge", "College", "coll\u00e8ge", "college", "Moyen", "moyen", "\u0625\u0639\u062f\u0627\u062f\u064a", "\u0627\u0644\u0625\u0639\u062f\u0627\u062f\u064a\u0629", "\u0627\u0639\u062f\u0627\u062f\u064a", "\u0645\u062a\u0648\u0633\u0637", "\u0627\u0644\u0645\u062a\u0648\u0633\u0637", "Tous", "All", "tous", "all", ""]));
+  }
+  if (family === "secondary") {
+    return Array.from(new Set(["Lyc\u00e9e", "Lycee", "lyc\u00e9e", "lycee", "Secondaire", "secondaire", "\u062b\u0627\u0646\u0648\u064a", "\u0627\u0644\u062b\u0627\u0646\u0648\u064a\u0629", "Tous", "All", "tous", "all", ""]));
+  }
+  if (family === "university") {
+    return Array.from(new Set(["Universit\u00e9", "Universite", "Licence", "Master", "universit\u00e9", "universite", "licence", "master", "Sup\u00e9rieur", "superieur", "\u062c\u0627\u0645\u0639\u0629", "\u062c\u0627\u0645\u0639\u064a", "\u0639\u0627\u0644\u064a", "Tous", "All", "tous", "all", ""]));
   }
 
   const norm = normalizeLevel(level);
@@ -500,9 +591,14 @@ export function checkEducationalLevelAccess(user: any, resourceLevel: string | n
   
   const normResource = normalizeLevel(resourceLevel);
   
-  if (normResource === "tous" || normResource === "all" || normResource === "") return true;
+  if (GLOBAL_LEVEL_TERMS.includes(normResource) || normResource === "") return true;
   const userLevels = parseEducationalLevels(user.educationalLevel);
   if (userLevels.some((level) => normalizeLevel(level) === normResource)) return true;
+
+  const resourceFamily = getEducationalLevelFamily(resourceLevel);
+  if (resourceFamily && userLevels.some((level) => getEducationalLevelFamily(level) === resourceFamily)) {
+    return true;
+  }
   
   const universityTerms = ["university", "universite", "licence", "master", "doctorat", "superieur"];
   const primaryTerms = ["primaire", "maternelle", "elementaire"];
