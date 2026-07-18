@@ -4,7 +4,7 @@ import { db, readDb } from "@/infrastructure/database";
 import { students } from "@/infrastructure/database/schema/students";
 import { classSubjects, schoolClasses, schoolSessions } from "@/infrastructure/database/schema/academics";
 import { getMobileUser, mobileJsonError } from "../_lib/auth";
-import { getUserRoleType } from "@/domains/auth/services/rbac";
+import { getUserRoleType, getCompatibleLevels, normalizeLevel } from "@/domains/auth/services/rbac";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +43,17 @@ export async function GET(request: NextRequest) {
 
       rows = rows.filter((s) => s.classe && allowedClasses.has(s.classe));
     }
+
+    // ── Level scoping for level_director / level_comptable / level_caissier ──
+    const isLevelScoped = roleType === "level_director" && user.educationalLevel;
+    if (isLevelScoped) {
+      const compatibleNorms = getCompatibleLevels(user.educationalLevel!).map(l => normalizeLevel(l));
+      rows = rows.filter(s =>
+        s.educationalLevel &&
+        compatibleNorms.includes(normalizeLevel(s.educationalLevel))
+      );
+    }
+    // ─────────────────────────────────────────────────────────────────────────
 
     // Sort alphabetically by name
     rows.sort((a, b) =>

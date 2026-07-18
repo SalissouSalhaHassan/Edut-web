@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
             totalDebts: 0.0,
           }
         });
-      } else if ((roleType === "level_comptable" || roleType === "level_caissier") && user.educationalLevel) {
+      } else if ((roleType === "level_director" || roleType === "level_comptable" || roleType === "level_caissier") && user.educationalLevel) {
         // Level-scoped: fetch all fees then filter by compatible levels
         const allRows = await readDb.query.studentFees.findMany({
           where: and(

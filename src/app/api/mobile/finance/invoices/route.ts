@@ -56,8 +56,8 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    // ── Level scoping for level_comptable / level_caissier ──
-    const isLevelScoped = (roleType === "level_comptable" || roleType === "level_caissier") && user.educationalLevel;
+    // ── Level scoping for level_director / level_comptable / level_caissier ──
+    const isLevelScoped = (roleType === "level_director" || roleType === "level_comptable" || roleType === "level_caissier") && user.educationalLevel;
     let filteredRows = rows;
     if (isLevelScoped) {
       const compatibleNorms = getCompatibleLevels(user.educationalLevel!).map(l => normalizeLevel(l));
