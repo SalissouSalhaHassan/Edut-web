@@ -105,41 +105,48 @@ export default function ExamsDashboardClient({
     setLoadingContext(true);
     setBackendOffline(false);
     try {
+      // Ping Python backend to check if it's running
+      try {
+        const ping = await fetch(`${BACKEND_URL}/`);
+        if (!ping.ok) setBackendOffline(true);
+      } catch (pingErr) {
+        setBackendOffline(true);
+      }
+
       // 1. Fetch Teachers
       try {
-        const resTeachers = await fetch(`${BACKEND_URL}/exams/teachers`);
+        const resTeachers = await fetch('/api/exams/teachers');
         if (resTeachers.ok) {
           const data = await resTeachers.json();
           setTeachers(data);
         }
       } catch (e) {
-        console.warn("Failed to fetch teachers from Python backend:", e);
+        console.warn("Failed to fetch teachers from Next.js API:", e);
       }
 
       // 2. Fetch Campaigns
       try {
-        const resCampaigns = await fetch(`${BACKEND_URL}/exams/campaigns`);
+        const resCampaigns = await fetch('/api/exams/campaigns');
         if (resCampaigns.ok) {
           const data = await resCampaigns.json();
           setCampaigns(data);
         }
       } catch (e) {
-        console.warn("Failed to fetch campaigns from Python backend:", e);
+        console.warn("Failed to fetch campaigns from Next.js API:", e);
       }
 
       // 3. Fetch Rooms
       try {
-        const resRooms = await fetch(`${BACKEND_URL}/exams/rooms`);
+        const resRooms = await fetch('/api/exams/rooms');
         if (resRooms.ok) {
           const data = await resRooms.json();
           setRooms(data);
         }
       } catch (e) {
-        console.warn("Failed to fetch rooms from Python backend:", e);
+        console.warn("Failed to fetch rooms from Next.js API:", e);
       }
     } catch (err) {
-      setBackendOffline(true);
-      console.error("Backend connection failed:", err);
+      console.error("Error in fetchBackendEntities:", err);
     } finally {
       setLoadingContext(false);
     }
@@ -237,7 +244,7 @@ export default function ExamsDashboardClient({
     }
     setCampSaving(true);
     try {
-      const response = await fetch(`${BACKEND_URL}/exams/campaigns`, {
+      const response = await fetch('/api/exams/campaigns', {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -253,10 +260,10 @@ export default function ExamsDashboardClient({
         fetchBackendEntities();
       } else {
         const errData = await response.json().catch(() => ({}));
-        showAlert("error", errData.detail || "Erreur.");
+        showAlert("error", errData.error || errData.detail || "Erreur lors de la création.");
       }
     } catch (err) {
-      showAlert("error", "Serveur Python hors ligne.");
+      showAlert("error", "Erreur de communication avec le serveur.");
     } finally {
       setCampSaving(false);
     }
@@ -273,7 +280,7 @@ export default function ExamsDashboardClient({
     }
     setRoomSaving(true);
     try {
-      const response = await fetch(`${BACKEND_URL}/exams/rooms`, {
+      const response = await fetch('/api/exams/rooms', {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -287,10 +294,10 @@ export default function ExamsDashboardClient({
         fetchBackendEntities();
       } else {
         const errData = await response.json().catch(() => ({}));
-        showAlert("error", errData.detail || "Erreur.");
+        showAlert("error", errData.error || errData.detail || "Erreur lors de la création.");
       }
     } catch (err) {
-      showAlert("error", "Serveur Python hors ligne.");
+      showAlert("error", "Erreur de communication avec le serveur.");
     } finally {
       setRoomSaving(false);
     }
