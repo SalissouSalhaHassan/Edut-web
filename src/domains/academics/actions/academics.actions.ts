@@ -83,7 +83,8 @@ function getLevelFilter() {
     let conditions = [eq(schoolSections.schoolId, schoolId)];
     
     if (!isAdmin && user?.educationalLevel) {
-      conditions.push(ilike(schoolSections.educationalLevel, user.educationalLevel));
+      const compatibleLevels = getCompatibleLevels(user.educationalLevel);
+      conditions.push(inArray(schoolSections.educationalLevel, compatibleLevels));
     }
     
     return and(...conditions);

@@ -107,6 +107,11 @@ function normalizeEducationalLevel(level: string): string {
 /** Pure helper — defined outside component to avoid hook-order issues in useEffect */
 function getCompatibleEducationalLevels(level: string): string[] {
   if (!level) return [];
+  if (level.includes(",")) {
+    const parts = level.split(",").map((p) => p.trim()).filter(Boolean);
+    const results = parts.flatMap((p) => getCompatibleEducationalLevels(p));
+    return Array.from(new Set(results));
+  }
   const norm = normalizeEducationalLevel(level);
   if (["primaire", "maternelle", "elementaire", "ابتدائي", "الابتدائي", "الابتدائيه"].includes(norm)) {
     return ["Primaire", "Maternelle", "primaire", "maternelle", "Elémentaire", "elementaire", "ابتدائي", "الابتدائي"];
