@@ -328,9 +328,17 @@ export async function POST(request: NextRequest) {
         return mobileJsonError("Paramètres classId ou employeeId manquants", 400);
       }
 
-      // Verify authorization
+      // Verify authorization: teacher may only record their own scan
       if (roleType === "teacher" || roleType === "enseignant") {
-        if (user.employeeId !== employeeId) {
+        // user.employeeId from session may be null if cache is stale — fall back to DB
+        let resolvedEmpId = user.employeeId;
+        if (resolvedEmpId == null) {
+          const empFromDb = await readDb.query.employees.findFirst({
+            where: and(eq(employees.schoolId, schoolId!), eq(employees.email, user.utilisateur))
+          });
+          resolvedEmpId = empFromDb?.id ?? null;
+        }
+        if (resolvedEmpId == null || Number(resolvedEmpId) !== Number(employeeId)) {
           return mobileJsonError("Accès refusé", 403);
         }
       }
