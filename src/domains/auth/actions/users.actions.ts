@@ -1,7 +1,8 @@
 "use server";
 
 import { db } from "@/infrastructure/database";
-import { users } from "@/infrastructure/database/schema/auth";
+import { users, loginLogs } from "@/infrastructure/database/schema/auth";
+import { auditLogs } from "@/infrastructure/database/schema/audit";
 import { eq, desc, and, inArray, sql, type SQL } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/domains/auth/services/session";
@@ -401,6 +402,21 @@ export async function deleteUser(id: number) {
         return { error: "Non autorisé : cet utilisateur appartient à un autre secteur", success: false };
       }
     }
+
+    // ── Delete related records (FK constraints without cascade) before deleting user ──
+    // 1. Delete login logs
+    try {
+      await db.delete(loginLogs).where(eq(loginLogs.userId, id));
+    } catch (e) {
+      console.warn("[deleteUser] Could not delete login_logs (table may not exist yet):", e);
+    }
+    // 2. Delete audit logs
+    try {
+      await db.delete(auditLogs).where(eq(auditLogs.userId, id));
+    } catch (e) {
+      console.warn("[deleteUser] Could not delete audit_logs (table may not exist yet):", e);
+    }
+    // ─────────────────────────────────────────────────────────────────────────
 
     await db.delete(users).where(eq(users.id, id));
     revalidatePath("/dashboard/security/users");
