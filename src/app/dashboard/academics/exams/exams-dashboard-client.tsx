@@ -567,7 +567,7 @@ export default function ExamsDashboardClient({
 
   const fetchAttendanceTimetables = async () => {
     try {
-      const res = await fetch(`${BACKEND_URL}/exams/planning/timetable/${attCampaignId}`);
+      const res = await fetch(`/api/exams/planning/timetable/${attCampaignId}`);
       if (res.ok) {
         const data = await res.json();
         const filtered = data.filter((t: any) => t.class_id === parseInt(attClassId));
@@ -594,7 +594,7 @@ export default function ExamsDashboardClient({
   const fetchAttendanceRoster = async (ttId: string) => {
     setRosterLoading(true);
     try {
-      const res = await fetch(`${BACKEND_URL}/exams/attendance/${ttId}`);
+      const res = await fetch(`/api/exams/attendance/${ttId}`);
       if (res.ok) {
         const data = await res.json();
         setAttendanceRoster(data);
@@ -608,7 +608,7 @@ export default function ExamsDashboardClient({
 
   const handleMarkAttendance = async (recordId: number, status: string) => {
     try {
-      const response = await fetch(`${BACKEND_URL}/exams/attendance/mark`, {
+      const response = await fetch('/api/exams/attendance/mark', {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ record_id: recordId, status })
@@ -637,7 +637,7 @@ export default function ExamsDashboardClient({
     }
     setScanning(true);
     try {
-      const response = await fetch(`${BACKEND_URL}/exams/attendance/scan-qr`, {
+      const response = await fetch('/api/exams/attendance/scan-qr', {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -652,7 +652,7 @@ export default function ExamsDashboardClient({
         fetchAttendanceRoster(selectedTimetableId);
       } else {
         const errData = await response.json().catch(() => ({}));
-        showAlert("error", errData.detail || "Code QR non reconnu.");
+        showAlert("error", errData.error || errData.detail || "Code QR non reconnu.");
       }
     } catch (err) {
       showAlert("error", "Erreur de traitement.");
@@ -671,7 +671,7 @@ export default function ExamsDashboardClient({
     if (!incidentDialog) return;
     setReportingIncident(true);
     try {
-      const response = await fetch(`${BACKEND_URL}/exams/attendance/incident`, {
+      const response = await fetch('/api/exams/attendance/incident', {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -687,7 +687,7 @@ export default function ExamsDashboardClient({
         if (selectedTimetableId) fetchAttendanceRoster(selectedTimetableId);
       } else {
         const errData = await response.json().catch(() => ({}));
-        showAlert("error", errData.detail || "Erreur.");
+        showAlert("error", errData.error || errData.detail || "Erreur.");
       }
     } catch (err) {
       showAlert("error", "Erreur réseau.");
