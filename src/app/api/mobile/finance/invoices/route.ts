@@ -4,7 +4,7 @@ import { db, readDb } from "@/infrastructure/database";
 import { studentFees } from "@/infrastructure/database/schema/finance";
 import { students } from "@/infrastructure/database/schema/students";
 import { getMobileUser, mobileJsonError } from "../../_lib/auth";
-import { getUserRoleType } from "@/domains/auth/services/rbac";
+import { getUserRoleType, getCompatibleLevels, normalizeLevel } from "@/domains/auth/services/rbac";
 
 export const dynamic = "force-dynamic";
 
@@ -56,7 +56,19 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    const list = rows.map((row) => ({
+    // ── Level scoping for level_comptable / level_caissier ──
+    const isLevelScoped = (roleType === "level_comptable" || roleType === "level_caissier") && user.educationalLevel;
+    let filteredRows = rows;
+    if (isLevelScoped) {
+      const compatibleNorms = getCompatibleLevels(user.educationalLevel!).map(l => normalizeLevel(l));
+      filteredRows = rows.filter(row =>
+        row.student?.educationalLevel &&
+        compatibleNorms.includes(normalizeLevel(row.student.educationalLevel))
+      );
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const list = filteredRows.map((row) => ({
       id: row.id,
       school_id: row.schoolId,
       student_id: row.studentId,

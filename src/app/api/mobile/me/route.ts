@@ -76,7 +76,7 @@ function mobileRoleFromWebRole(roleType: UserRoleType) {
   if (roleType === "teacher" || roleType === "enseignant") return "teacher";
   if (roleType === "eleve") return "student";
   if (roleType === "parent") return "parent";
-  if (roleType === "comptable" || roleType === "caissier") return "accountant";
+  if (roleType === "comptable" || roleType === "caissier" || roleType === "level_comptable" || roleType === "level_caissier") return "accountant";
   if (roleType === "directeur" || roleType === "general_director" || roleType === "level_director") {
     return "director";
   }
@@ -138,7 +138,7 @@ function defaultPermissionsForRole(roleType: UserRoleType) {
     return new Set(["students.view", "attendance.view", "attendance.manage"]);
   }
 
-  if (roleType === "comptable" || roleType === "caissier") {
+  if (roleType === "comptable" || roleType === "caissier" || roleType === "level_comptable" || roleType === "level_caissier") {
     return new Set(["students.view", "finance.view", "finance.collect"]);
   }
 

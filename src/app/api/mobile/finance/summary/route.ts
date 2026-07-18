@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { and, eq, sql } from "drizzle-orm";
 import { db, readDb } from "@/infrastructure/database";
 import { studentFees } from "@/infrastructure/database/schema/finance";
+import { students } from "@/infrastructure/database/schema/students";
 import { schoolSessions } from "@/infrastructure/database/schema/academics";
 import { getMobileUser, mobileJsonError } from "../../_lib/auth";
-import { getUserRoleType } from "@/domains/auth/services/rbac";
+import { getUserRoleType, getCompatibleLevels, normalizeLevel } from "@/domains/auth/services/rbac";
 
 export const dynamic = "force-dynamic";
 
@@ -65,6 +66,19 @@ export async function GET(request: NextRequest) {
             totalDebts: 0.0,
           }
         });
+      } else if ((roleType === "level_comptable" || roleType === "level_caissier") && user.educationalLevel) {
+        // Level-scoped: fetch all fees then filter by compatible levels
+        const allRows = await readDb.query.studentFees.findMany({
+          where: and(
+            eq(studentFees.schoolId, targetSchoolId),
+            eq(studentFees.sessionId, sessionId)
+          ),
+          with: { student: { columns: { educationalLevel: true } } }
+        });
+        const compatibleNorms = getCompatibleLevels(user.educationalLevel!).map(l => normalizeLevel(l));
+        rows = allRows
+          .filter(r => r.student?.educationalLevel && compatibleNorms.includes(normalizeLevel(r.student.educationalLevel)))
+          .map(r => ({ totalExpected: r.totalExpected, totalPaid: r.totalPaid, balance: r.balance }));
       } else {
         // Staff/Director has access to all records in school
         rows = await readDb.query.studentFees.findMany({
