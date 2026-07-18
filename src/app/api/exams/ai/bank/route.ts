@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
     const finalQuery = sql`${query} ORDER BY q.id DESC`;
     
     const result = await db.execute(finalQuery);
-    const rows = result.rows || [];
+    const rows = (Array.isArray(result) ? result : (result as any).rows || []) as any[];
 
     const formattedQuestions = rows.map((row: any) => {
       let parsedOptions = [];
