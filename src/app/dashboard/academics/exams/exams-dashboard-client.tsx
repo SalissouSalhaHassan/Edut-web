@@ -167,7 +167,7 @@ export default function ExamsDashboardClient({
     setAiGenerating(true);
     setGeneratedQuestions([]);
     try {
-      const response = await fetch(`${BACKEND_URL}/exams/ai/generate`, {
+      const response = await fetch('/api/exams/ai/generate', {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(aiForm)
@@ -178,7 +178,7 @@ export default function ExamsDashboardClient({
         showAlert("success", `${data.questions.length} questions générées avec succès !`);
       } else {
         const errData = await response.json().catch(() => ({}));
-        showAlert("error", errData.detail || "Erreur de génération.");
+        showAlert("error", errData.error || "Erreur de génération.");
       }
     } catch (err) {
       showAlert("error", "Le serveur d'IA est actuellement hors ligne ou indisponible.");
@@ -195,7 +195,7 @@ export default function ExamsDashboardClient({
     const subId = selectedSub?.id || 1;
 
     try {
-      const response = await fetch(`${BACKEND_URL}/exams/ai/save`, {
+      const response = await fetch('/api/exams/ai/save', {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -211,7 +211,7 @@ export default function ExamsDashboardClient({
         setGeneratedQuestions([]);
       } else {
         const errData = await response.json().catch(() => ({}));
-        showAlert("error", errData.detail || "Erreur de sauvegarde.");
+        showAlert("error", errData.error || errData.detail || "Erreur de sauvegarde.");
       }
     } catch (err) {
       showAlert("error", "Erreur de communication avec le serveur.");
@@ -705,7 +705,7 @@ export default function ExamsDashboardClient({
   const fetchQuestionBank = async () => {
     setBankLoading(true);
     try {
-      let url = `${BACKEND_URL}/exams/bank`;
+      let url = '/api/exams/ai/bank';
       if (bankFilterSubjectId) {
         url += `?subject_id=${bankFilterSubjectId}`;
       }
