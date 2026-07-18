@@ -959,9 +959,9 @@ export async function generateReleveNotesPDF(data: any) {
   // Background logo watermark
   if (branchInfo?.logoPath) {
     try {
-      const logoWatermark = await fetchTransparentLogoBase64(branchInfo.logoPath, 0.05);
+      const logoWatermark = await fetchTransparentLogoBase64(branchInfo.logoPath, 0.12);
       if (logoWatermark) {
-        doc.addImage(logoWatermark, 'PNG', 55, 110, 100, 100);
+        doc.addImage(logoWatermark, 'PNG', 35, 90, 140, 140);
       }
     } catch (e) {
       console.warn("Failed to load watermark for releve:", e);
@@ -993,13 +993,6 @@ export async function generateReleveNotesPDF(data: any) {
   drawTextBilingual(doc, student?.nomEtudiant || student?.name || "ADIATULLAHI RABIU AHMAD Nigeria", 30, studentInfoY);
   drawTextBilingual(doc, student?.numAdmission || student?.matricule || "20 D 004", 30, studentInfoY + 5);
   drawTextBilingual(doc, student?.classe || student?.className || "Première année de licence en Shari'a and Law", 30, studentInfoY + 10);
-
-  doc.setDrawColor(0);
-  doc.setLineWidth(0.3);
-  doc.rect(175, studentInfoY - 4, 18, 18);
-  doc.setFontSize(6);
-  doc.setFont("helvetica", "normal");
-  doc.text("QR Code", 178, studentInfoY + 5);
 
   // --- 4. DETERMINE SEMESTER PAIR ---
   const isDoctorate = student?.educationalLevel?.toLowerCase().includes("doc") || student?.classe?.toLowerCase().includes("doc") || term?.toLowerCase().includes("ann") || term?.toLowerCase().includes("annee");
@@ -1102,9 +1095,9 @@ export async function generateReleveNotesPDF(data: any) {
       ]
     ],
     theme: "grid",
-    headStyles: { fillColor: [255, 255, 255], textColor: 0, fontStyle: "bold", lineWidth: 0.5, lineColor: 0 },
-    bodyStyles: { textColor: 0, lineWidth: 0.5, lineColor: 0 },
-    footStyles: { fillColor: [255, 255, 255], textColor: 0, lineWidth: 0.5, lineColor: 0 },
+    headStyles: { fillColor: [255, 255, 255], textColor: 0, fontStyle: "bold", lineWidth: 0.15, lineColor: 0 },
+    bodyStyles: { textColor: 0, lineWidth: 0.15, lineColor: 0 },
+    footStyles: { fillColor: [255, 255, 255], textColor: 0, lineWidth: 0.15, lineColor: 0 },
     styles: { fontSize: 8, cellPadding: { top: 0.5, bottom: 0.5, left: 1, right: 1 } },
     columnStyles: {
       0: { fontStyle: "bold", halign: "center", cellWidth: 30 },
@@ -1185,9 +1178,9 @@ export async function generateReleveNotesPDF(data: any) {
       ]
     ],
     theme: "grid",
-    headStyles: { fillColor: [255, 255, 255], textColor: 0, fontStyle: "bold", lineWidth: 0.5, lineColor: 0 },
-    bodyStyles: { textColor: 0, lineWidth: 0.5, lineColor: 0 },
-    footStyles: { fillColor: [255, 255, 255], textColor: 0, lineWidth: 0.5, lineColor: 0 },
+    headStyles: { fillColor: [255, 255, 255], textColor: 0, fontStyle: "bold", lineWidth: 0.15, lineColor: 0 },
+    bodyStyles: { textColor: 0, lineWidth: 0.15, lineColor: 0 },
+    footStyles: { fillColor: [255, 255, 255], textColor: 0, lineWidth: 0.15, lineColor: 0 },
     styles: { fontSize: 8, cellPadding: { top: 0.5, bottom: 0.5, left: 1, right: 1 } },
     columnStyles: {
       0: { fontStyle: "bold", halign: "center", cellWidth: 30 },
@@ -1212,12 +1205,12 @@ export async function generateReleveNotesPDF(data: any) {
   doc.setFontSize(7);
   doc.text("Il ne sera pas délivré de duplicata de ce relevé. Il vous appartient d'en faire des copies et de les faire certifier conformes.", 105, pageHeight - 5, { align: "center" });
 
-  // Draw QR Code
+  // Draw QR Code in top right position
   try {
     const qrData = `RELEVE: ${student?.nomEtudiant || student?.name || "N/A"} | MATRICULE: ${student?.numAdmission || student?.matricule || "N/A"} | DECISION: ${displayDecision2} | ANNEE: ${session || "2024-2025"}`;
     const qrBase64 = await fetchQRCodeBase64(qrData);
     if (qrBase64) {
-      doc.addImage(qrBase64, 'PNG', 170, finalY2 - 10, 25, 25);
+      doc.addImage(qrBase64, 'PNG', 175, studentInfoY - 4, 18, 18);
     }
   } catch (e) {
     console.warn("Failed to load QR code for Releve:", e);
