@@ -455,14 +455,14 @@ export default function ExamsDashboardClient({
     setCandidatesLoading(true);
     setAdmitCardsLink(null);
     try {
-      const res = await fetch(`${BACKEND_URL}/exams/candidates/status?campaign_id=${admitCampaignId}&class_id=${admitClassId}`);
+      const res = await fetch(`/api/exams/candidates/status?campaign_id=${admitCampaignId}&class_id=${admitClassId}`);
       if (res.ok) {
         const data = await res.json();
         setCandidatesList(data);
       }
     } catch (err) {
       console.warn("Failed to fetch candidates:", err);
-      showAlert("error", "Serveur Python hors ligne.");
+      showAlert("error", "Erreur lors du chargement des candidats.");
     } finally {
       setCandidatesLoading(false);
     }
@@ -475,7 +475,7 @@ export default function ExamsDashboardClient({
     }
     setCandidatesLoading(true);
     try {
-      const response = await fetch(`${BACKEND_URL}/exams/candidates/process`, {
+      const response = await fetch('/api/exams/candidates/process', {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -488,7 +488,7 @@ export default function ExamsDashboardClient({
         fetchCandidatesStatus();
       } else {
         const errData = await response.json().catch(() => ({}));
-        showAlert("error", errData.detail || "Erreur.");
+        showAlert("error", errData.error || errData.detail || "Erreur de traitement.");
       }
     } catch (err) {
       showAlert("error", "Erreur de communication.");
