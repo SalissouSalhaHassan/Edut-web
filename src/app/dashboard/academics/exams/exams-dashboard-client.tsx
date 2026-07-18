@@ -512,6 +512,14 @@ export default function ExamsDashboardClient({
         if (data.url) {
           setAdmitCardsLink(data.url);
           showAlert("success", "Cartes d'admission générées et stockées sur Supabase !");
+        } else if (data.pdf_base64) {
+          const link = document.createElement("a");
+          link.href = `data:application/pdf;base64,${data.pdf_base64}`;
+          link.download = `cartes_admission_classe_${admitClassId}.pdf`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          showAlert("success", "Cartes d'admission téléchargées avec succès !");
         } else if (data.local_path) {
           showAlert("success", `Cartes générées localement: ${data.local_path}`);
           setAdmitCardsLink(data.local_path);
