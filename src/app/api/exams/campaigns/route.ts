@@ -40,6 +40,22 @@ export async function GET(request: NextRequest) {
   }
 }
 
+function parseDate(dateStr: string): Date | null {
+  if (!dateStr) return null;
+  const clean = dateStr.trim().replace(/\//g, "-");
+  const parts = clean.split("-");
+  if (parts.length === 3) {
+    // If YYYY-MM-DD
+    if (parts[0].length === 4) {
+      return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    }
+    // If DD-MM-YYYY
+    return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+  }
+  const d = new Date(dateStr);
+  return isNaN(d.getTime()) ? null : d;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { name, session_id, start_date, end_date, user = "Admin" } = await request.json();
@@ -48,10 +64,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Tous les champs sont requis." }, { status: 400 });
     }
 
-    // Convert ISO date strings to DB Date format if needed, Drizzle SQL handles standard date strings
+    const parsedStart = parseDate(start_date);
+    const parsedEnd = parseDate(end_date);
+
+    if (!parsedStart || !parsedEnd) {
+      return NextResponse.json({ error: "Format de date invalide (DD-MM-YYYY attendu)." }, { status: 400 });
+    }
+
     await db.execute(sql`
       INSERT INTO exam_campaigns (name, session_id, start_date, end_date, is_locked, created_by, created_at)
-      VALUES (${name}, ${session_id}, ${start_date}, ${end_date}, false, ${user}, NOW())
+      VALUES (${name}, ${session_id}, ${parsedStart.toISOString()}, ${parsedEnd.toISOString()}, false, ${user}, NOW())
     `);
 
     return NextResponse.json({ status: "success", message: "Campagne d'examen créée avec succès." });
