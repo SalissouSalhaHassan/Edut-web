@@ -635,6 +635,16 @@ export function checkEducationalLevelAccess(user: any, resourceLevel: string | n
 // Get Teacher Employee record matching user's username or email
 export const getTeacherEmployee = cache(async (user: any) => {
   if (!user) return null;
+  
+  // 1. Prefer explicit employeeId link if present
+  if (user.employeeId) {
+    const emp = await db.query.employees.findFirst({
+      where: eq(employees.id, Number(user.employeeId))
+    });
+    if (emp) return emp;
+  }
+  
+  // 2. Fallback to username/email matching
   const username = user.utilisateur || "";
   const email = user.email || "";
   
