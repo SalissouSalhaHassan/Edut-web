@@ -636,10 +636,19 @@ export function checkEducationalLevelAccess(user: any, resourceLevel: string | n
 export const getTeacherEmployee = cache(async (user: any) => {
   if (!user) return null;
   
+  let empId = user.employeeId;
+  if (!empId && user.id) {
+    const fresh = await db.query.users.findFirst({
+      where: eq(users.id, user.id),
+      columns: { employeeId: true }
+    });
+    empId = fresh?.employeeId;
+  }
+  
   // 1. Prefer explicit employeeId link if present
-  if (user.employeeId) {
+  if (empId) {
     const emp = await db.query.employees.findFirst({
-      where: eq(employees.id, Number(user.employeeId))
+      where: eq(employees.id, Number(empId))
     });
     if (emp) return emp;
   }

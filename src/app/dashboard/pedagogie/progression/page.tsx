@@ -23,9 +23,9 @@ export default async function ProgressionPage() {
     getSeances(),
   ]);
 
-  const classes = (classesRes as any).data?.data || (classesRes as any).data || classesRes || [];
-  const subjects = (subjectsRes as any).data?.data || (subjectsRes as any).data || subjectsRes || [];
-  const employees = (employeesRes as any).data?.data || (employeesRes as any).data || employeesRes || [];
+  const classes = (classesRes as any).data || (Array.isArray(classesRes) ? classesRes : []);
+  const subjects = (subjectsRes as any).data || (Array.isArray(subjectsRes) ? subjectsRes : []);
+  const employees = (employeesRes as any).data || (Array.isArray(employeesRes) ? employeesRes : []);
   const plans = (plansRes as any).data || [];
   const seances = (seancesRes as any).data || [];
 
