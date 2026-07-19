@@ -4,78 +4,23 @@ import { amiriFontBase64 } from "@/domains/printing/utils/amiri-font";
 import { hasArabicCharacters, reshapeArabicText } from "@/domains/printing/utils/arabic-reshaper";
 
 function ensureAmiriRegistered(doc: jsPDF) {
-  if ((doc as any).amiriRegistered) return;
   try {
-    if (amiriFontBase64) {
-      try {
-        doc.addFileToVFS("Amiri-Regular.ttf", amiriFontBase64);
-      } catch (vfsErr: any) {
-        console.error("[Amiri debug] VFS add error (sync):", vfsErr);
+    const fontList = doc.getFontList();
+    if (!fontList["Amiri"]) {
+      if (amiriFontBase64) {
+        try {
+          doc.addFileToVFS("Amiri-Regular.ttf", amiriFontBase64);
+        } catch (e) {}
+        try {
+          doc.addFont("Amiri-Regular.ttf", "Amiri", "normal", "Identity-H");
+          console.log("[Amiri debug] ensureAmiriRegistered registered Amiri on doc instance");
+        } catch (e) {
+          console.error("[Amiri debug] ensureAmiriRegistered failed:", e);
+        }
       }
-      try {
-        doc.addFont("Amiri-Regular.ttf", "Amiri", "normal", "Identity-H");
-        console.log("[Amiri debug] doc.addFont succeeded for name (sync): Amiri");
-      } catch (fontErr: any) {
-        console.error("[Amiri debug] Font add error (sync):", fontErr);
-      }
-      (doc as any).amiriRegistered = true;
-      console.log("[Amiri debug] Amiri registered as name: Amiri");
-    } else {
-      console.warn("[Amiri debug] amiriFontBase64 is empty!");
     }
   } catch (e) {
     console.warn("Failed to check or register Amiri font:", e);
-  }
-}
-
-async function ensureAmiriRegisteredAsync(doc: jsPDF) {
-  if ((doc as any).amiriRegistered) return;
-  try {
-    if (amiriFontBase64 && amiriFontBase64.length > 1000) {
-      try {
-        doc.addFileToVFS("Amiri-Regular.ttf", amiriFontBase64);
-      } catch (vfsErr: any) {
-        console.error("[Amiri debug] VFS add error (async):", vfsErr);
-      }
-      try {
-        doc.addFont("Amiri-Regular.ttf", "Amiri", "normal", "Identity-H");
-        console.log("[Amiri debug] doc.addFont succeeded for name (async): Amiri");
-      } catch (fontErr: any) {
-        console.error("[Amiri debug] Font add error (async):", fontErr);
-      }
-      (doc as any).amiriRegistered = true;
-      console.log("[Amiri debug] Amiri font registered successfully from local bundle (async) as: Amiri");
-    } else {
-      console.warn("[Amiri debug] Local amiriFontBase64 is empty/missing. Attempting CDN fallback...");
-      try {
-        const response = await fetch("https://raw.githubusercontent.com/google/fonts/main/ofl/amiri/Amiri-Regular.ttf");
-        const buffer = await response.arrayBuffer();
-        let binary = "";
-        const bytes = new Uint8Array(buffer);
-        const len = bytes.byteLength;
-        for (let i = 0; i < len; i++) {
-          binary += String.fromCharCode(bytes[i]);
-        }
-        const base64 = window.btoa(binary);
-        try {
-          doc.addFileToVFS("Amiri-Regular.ttf", base64);
-        } catch (vfsErr: any) {
-          console.error("[Amiri debug] VFS add error (CDN):", vfsErr);
-        }
-        try {
-          doc.addFont("Amiri-Regular.ttf", "Amiri", "normal", "Identity-H");
-          console.log("[Amiri debug] doc.addFont succeeded for name (CDN): Amiri");
-        } catch (fontErr: any) {
-          console.error("[Amiri debug] Font add error (CDN):", fontErr);
-        }
-        (doc as any).amiriRegistered = true;
-        console.log("[Amiri debug] Amiri font registered successfully from CDN fallback as: Amiri");
-      } catch (cdnErr) {
-        console.error("[Amiri debug] Amiri font CDN fallback failed:", cdnErr);
-      }
-    }
-  } catch (e) {
-    console.warn("Failed in ensureAmiriRegisteredAsync:", e);
   }
 }
 
@@ -470,7 +415,15 @@ export async function generateBulletinPDF(data: any) {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const { student, session, term, results, summary, summaryS1, summaryS2, totalStudents, branchInfo, headerConfig } = data;
   
-  await ensureAmiriRegisteredAsync(doc);
+  if (amiriFontBase64) {
+    try {
+      doc.addFileToVFS("Amiri-Regular.ttf", amiriFontBase64);
+      doc.addFont("Amiri-Regular.ttf", "Amiri", "normal", "Identity-H");
+      console.log("[Amiri debug] Amiri registered directly on doc instance in generateBulletinPDF");
+    } catch (e) {
+      console.warn("[Amiri debug] Failed to register Amiri directly in generateBulletinPDF:", e);
+    }
+  }
 
   const safeTerm = (term || "Semestre").toUpperCase();
   const eduLevel = (student?.educationalLevel || "Lycée").toUpperCase();
@@ -1032,7 +985,15 @@ export async function generateReleveNotesPDF(data: any) {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const { student, session, term, results, summary, resultsS1, resultsS2, resultsS3, resultsS4, resultsS5, resultsS6, summaryS1, summaryS2, summaryS3, summaryS4, summaryS5, summaryS6, branchInfo, headerConfig } = data;
 
-  await ensureAmiriRegisteredAsync(doc);
+  if (amiriFontBase64) {
+    try {
+      doc.addFileToVFS("Amiri-Regular.ttf", amiriFontBase64);
+      doc.addFont("Amiri-Regular.ttf", "Amiri", "normal", "Identity-H");
+      console.log("[Amiri debug] Amiri registered directly on doc instance in generateReleveNotesPDF");
+    } catch (e) {
+      console.warn("[Amiri debug] Failed to register Amiri directly in generateReleveNotesPDF:", e);
+    }
+  }
 
   // --- 1. HEADER SECTION ---
   const headerEndY = drawPDFHeader(doc, headerConfig, branchInfo, (student?.educationalLevel || "Université").toUpperCase(), session);
