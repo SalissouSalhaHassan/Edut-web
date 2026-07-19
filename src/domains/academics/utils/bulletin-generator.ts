@@ -4,14 +4,21 @@ import { amiriFontBase64 } from "@/domains/printing/utils/amiri-font";
 import { hasArabicCharacters, reshapeArabicText } from "@/domains/printing/utils/arabic-reshaper";
 
 function ensureAmiriRegistered(doc: jsPDF) {
+  if ((doc as any).amiriRegistered) return;
   try {
     const fontList = doc.getFontList();
-    if (!fontList["Amiri"]) {
+    const hasAmiri = fontList["Amiri"] || fontList["amiri"];
+    if (!hasAmiri) {
       if (amiriFontBase64) {
-        doc.addFileToVFS("Amiri-Regular.ttf", amiriFontBase64);
+        try {
+          doc.addFileToVFS("Amiri-Regular.ttf", amiriFontBase64);
+        } catch (vfsErr) {
+          // Ignore VFS double-add error
+        }
         doc.addFont("Amiri-Regular.ttf", "Amiri", "normal", "Identity-H");
       }
     }
+    (doc as any).amiriRegistered = true;
   } catch (e) {
     console.warn("Failed to check or register Amiri font:", e);
   }
@@ -406,14 +413,7 @@ export async function generateBulletinPDF(data: any) {
   const doc = new jsPDF();
   const { student, session, term, results, summary, summaryS1, summaryS2, totalStudents, branchInfo, headerConfig } = data;
   
-  if (amiriFontBase64) {
-    try {
-      doc.addFileToVFS("Amiri-Regular.ttf", amiriFontBase64);
-      doc.addFont("Amiri-Regular.ttf", "Amiri", "normal", "Identity-H");
-    } catch (e) {
-      console.warn("Error registering Amiri font for bulletin:", e);
-    }
-  }
+  ensureAmiriRegistered(doc);
 
   const safeTerm = (term || "Semestre").toUpperCase();
   const eduLevel = (student?.educationalLevel || "Lycée").toUpperCase();
@@ -976,14 +976,7 @@ export async function generateReleveNotesPDF(data: any) {
   const doc = new jsPDF();
   const { student, session, term, results, summary, resultsS1, resultsS2, resultsS3, resultsS4, resultsS5, resultsS6, summaryS1, summaryS2, summaryS3, summaryS4, summaryS5, summaryS6, branchInfo, headerConfig } = data;
 
-  if (amiriFontBase64) {
-    try {
-      doc.addFileToVFS("Amiri-Regular.ttf", amiriFontBase64);
-      doc.addFont("Amiri-Regular.ttf", "Amiri", "normal", "Identity-H");
-    } catch (e) {
-      console.warn("Error registering Amiri font for releve:", e);
-    }
-  }
+  ensureAmiriRegistered(doc);
 
   // --- 1. HEADER SECTION ---
   const headerEndY = drawPDFHeader(doc, headerConfig, branchInfo, (student?.educationalLevel || "Université").toUpperCase(), session);
