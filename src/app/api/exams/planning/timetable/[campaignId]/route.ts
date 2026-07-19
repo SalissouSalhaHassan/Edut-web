@@ -28,7 +28,7 @@ export async function GET(
         t.start_time,
         t.end_time,
         t.max_marks
-      FROM exam_timetable t
+      FROM exam_timetables t
       LEFT JOIN school_classes c ON t.class_id = c.id
       LEFT JOIN school_subjects s ON t.subject_id = s.id
       WHERE t.campaign_id = ${campaignId}

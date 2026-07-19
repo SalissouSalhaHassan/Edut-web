@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
 
     // 3. Fetch exam timetables
     const ttRes = await db.execute(sql`
-      SELECT id, subject_id FROM exam_timetable 
+      SELECT id, subject_id FROM exam_timetables 
       WHERE campaign_id = ${campaignId} AND class_id = ${classId}
     `);
     const timetables = (Array.isArray(ttRes) ? ttRes : (ttRes as any).rows || []) as any[];

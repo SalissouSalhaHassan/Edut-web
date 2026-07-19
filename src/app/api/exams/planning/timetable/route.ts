@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
         t.start_time, 
         t.end_time, 
         s.subject_name 
-      FROM exam_timetable t
+      FROM exam_timetables t
       LEFT JOIN school_subjects s ON t.subject_id = s.id
       WHERE t.campaign_id = ${campaignId} 
         AND t.class_id = ${classId} 
@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
     }
 
     await db.execute(sql`
-      INSERT INTO exam_timetable (campaign_id, class_id, subject_id, exam_date, start_time, end_time, max_marks)
+      INSERT INTO exam_timetables (campaign_id, class_id, subject_id, exam_date, start_time, end_time, max_marks)
       VALUES (${campaignId}, ${classId}, ${subjectId}, ${parsedDate.toISOString()}, ${start_time}, ${end_time}, ${parseFloat(max_marks)})
     `);
 

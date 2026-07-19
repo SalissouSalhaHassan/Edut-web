@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
 
     // 1. Get target exam details
     const examRes = await db.execute(sql`
-      SELECT exam_date, start_time, end_time FROM exam_timetable WHERE id = ${timetableId} LIMIT 1
+      SELECT exam_date, start_time, end_time FROM exam_timetables WHERE id = ${timetableId} LIMIT 1
     `);
     const examRows = (Array.isArray(examRes) ? examRes : (examRes as any).rows || []) as any[];
     if (examRows.length === 0) {
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
         t.start_time, 
         t.end_time 
       FROM exam_invigilations i
-      JOIN exam_timetable t ON i.timetable_id = t.id
+      JOIN exam_timetables t ON i.timetable_id = t.id
       JOIN exam_rooms r ON i.room_id = r.id
       WHERE i.employee_id = ${employeeId} 
         AND t.exam_date = ${targetExam.exam_date}::timestamp

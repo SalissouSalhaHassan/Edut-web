@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
         t.start_time,
         t.end_time,
         s.subject_name
-      FROM exam_timetable t
+      FROM exam_timetables t
       JOIN school_subjects s ON t.subject_id = s.id
       WHERE t.campaign_id = ${campaignId} 
         AND t.class_id = ${classId}

@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
 
     // 1. Get exam timetables
     const ttRes = await db.execute(sql`
-      SELECT id, exam_date, start_time, end_time FROM exam_timetable WHERE campaign_id = ${campaignId}
+      SELECT id, exam_date, start_time, end_time FROM exam_timetables WHERE campaign_id = ${campaignId}
     `);
     const timetables = (Array.isArray(ttRes) ? ttRes : (ttRes as any).rows || []) as any[];
     if (timetables.length === 0) {
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
           t.start_time,
           t.end_time
         FROM exam_invigilations i
-        JOIN exam_timetable t ON i.timetable_id = t.id
+        JOIN exam_timetables t ON i.timetable_id = t.id
         WHERE t.exam_date = ${examDateStr}::timestamp
       `);
       const activeAssignments = (Array.isArray(activeAssignmentsRes) ? activeAssignmentsRes : (activeAssignmentsRes as any).rows || []) as any[];
@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
           i.employee_id,
           COUNT(i.id) as count
         FROM exam_invigilations i
-        JOIN exam_timetable t ON i.timetable_id = t.id
+        JOIN exam_timetables t ON i.timetable_id = t.id
         WHERE t.campaign_id = ${campaignId}
         GROUP BY i.employee_id
       `);
