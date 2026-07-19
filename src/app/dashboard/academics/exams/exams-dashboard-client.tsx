@@ -105,13 +105,7 @@ export default function ExamsDashboardClient({
     setLoadingContext(true);
     setBackendOffline(false);
     try {
-      // Ping Python backend to check if it's running
-      try {
-        const ping = await fetch(`${BACKEND_URL}/`);
-        if (!ping.ok) setBackendOffline(true);
-      } catch (pingErr) {
-        setBackendOffline(true);
-      }
+      // Backend is always online via Next.js APIs now
 
       // 1. Fetch Teachers
       try {
@@ -326,7 +320,7 @@ export default function ExamsDashboardClient({
 
   const fetchTimetables = async (campId: string) => {
     try {
-      const res = await fetch(`${BACKEND_URL}/exams/planning/timetable/${campId}`);
+      const res = await fetch(`/api/exams/planning/timetable/${campId}`);
       if (res.ok) {
         const data = await res.json();
         setTimetables(data);
@@ -348,7 +342,7 @@ export default function ExamsDashboardClient({
     }
     setTtSaving(true);
     try {
-      const response = await fetch(`${BACKEND_URL}/exams/planning/timetable`, {
+      const response = await fetch('/api/exams/planning/timetable', {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -367,10 +361,10 @@ export default function ExamsDashboardClient({
         fetchTimetables(selectedCampaignId);
       } else {
         const errData = await response.json().catch(() => ({}));
-        showAlert("error", errData.detail || "Erreur de planification.");
+        showAlert("error", errData.error || errData.detail || "Erreur de planification.");
       }
     } catch (err) {
-      showAlert("error", "Serveur hors ligne.");
+      showAlert("error", "Erreur de communication.");
     } finally {
       setTtSaving(false);
     }
@@ -392,7 +386,7 @@ export default function ExamsDashboardClient({
     }
     setAssignSaving(true);
     try {
-      const response = await fetch(`${BACKEND_URL}/exams/planning/assign-invigilator`, {
+      const response = await fetch('/api/exams/planning/assign-invigilator', {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -406,10 +400,10 @@ export default function ExamsDashboardClient({
         setAssignForm({ timetable_id: "", room_id: "", employee_id: "" });
       } else {
         const errData = await response.json().catch(() => ({}));
-        showAlert("error", errData.detail || "Erreur d'affectation.");
+        showAlert("error", errData.error || errData.detail || "Erreur d'affectation.");
       }
     } catch (err) {
-      showAlert("error", "Serveur hors ligne.");
+      showAlert("error", "Erreur de communication.");
     } finally {
       setAssignSaving(false);
     }
@@ -423,7 +417,7 @@ export default function ExamsDashboardClient({
     }
     setAiSolverLoading(true);
     try {
-      const response = await fetch(`${BACKEND_URL}/exams/planning/auto-assign-invigilators`, {
+      const response = await fetch('/api/exams/planning/auto-assign-invigilators', {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ campaign_id: parseInt(selectedCampaignId) })
@@ -432,7 +426,7 @@ export default function ExamsDashboardClient({
         showAlert("success", "Planification intelligente des surveillants terminée !");
       } else {
         const errData = await response.json().catch(() => ({}));
-        showAlert("error", errData.detail || "Le planificateur a échoué.");
+        showAlert("error", errData.error || errData.detail || "Le planificateur a échoué.");
       }
     } catch (err) {
       showAlert("error", "Erreur lors de l'appel du solveur de contraintes.");
@@ -505,7 +499,7 @@ export default function ExamsDashboardClient({
     }
     setGeneratingPDF(true);
     try {
-      const response = await fetch(`${BACKEND_URL}/exams/candidates/admit-cards`, {
+      const response = await fetch('/api/exams/candidates/admit-cards', {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -535,7 +529,7 @@ export default function ExamsDashboardClient({
         }
       } else {
         const errData = await response.json().catch(() => ({}));
-        showAlert("error", errData.detail || "Erreur de génération PDF.");
+        showAlert("error", errData.error || errData.detail || "Erreur de génération PDF.");
       }
     } catch (err) {
       showAlert("error", "Erreur réseau.");
