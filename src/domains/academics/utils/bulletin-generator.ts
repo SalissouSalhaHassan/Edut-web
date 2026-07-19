@@ -6,6 +6,8 @@ import { hasArabicCharacters, reshapeArabicText } from "@/domains/printing/utils
 function ensureAmiriRegistered(doc: jsPDF) {
   if ((doc as any).amiriRegistered) return;
   try {
+    const fontName = "Amiri_" + Math.random().toString(36).substring(7);
+    (doc as any).amiriFontName = fontName;
     if (amiriFontBase64) {
       try {
         doc.addFileToVFS("Amiri-Regular.ttf", amiriFontBase64);
@@ -13,14 +15,14 @@ function ensureAmiriRegistered(doc: jsPDF) {
         // Ignore VFS double-add error
       }
       try {
-        doc.addFont("Amiri-Regular.ttf", "Amiri", "normal", "Identity-H");
+        doc.addFont("Amiri-Regular.ttf", fontName, "normal", "Identity-H");
       } catch (fontErr) {
-        // Ignore font double-add error
+        // Ignore
       }
       (doc as any).amiriRegistered = true;
-      console.log("[Amiri debug] Amiri registered successfully on instance (sync).");
+      console.log("[Amiri debug] Amiri registered as unique name:", fontName);
     } else {
-      console.warn("[Amiri debug] amiriFontBase64 is empty (sync)!");
+      console.warn("[Amiri debug] amiriFontBase64 is empty!");
     }
   } catch (e) {
     console.warn("Failed to check or register Amiri font:", e);
@@ -30,6 +32,8 @@ function ensureAmiriRegistered(doc: jsPDF) {
 async function ensureAmiriRegisteredAsync(doc: jsPDF) {
   if ((doc as any).amiriRegistered) return;
   try {
+    const fontName = "Amiri_" + Math.random().toString(36).substring(7);
+    (doc as any).amiriFontName = fontName;
     if (amiriFontBase64 && amiriFontBase64.length > 1000) {
       try {
         doc.addFileToVFS("Amiri-Regular.ttf", amiriFontBase64);
@@ -37,12 +41,12 @@ async function ensureAmiriRegisteredAsync(doc: jsPDF) {
         // Ignore
       }
       try {
-        doc.addFont("Amiri-Regular.ttf", "Amiri", "normal", "Identity-H");
+        doc.addFont("Amiri-Regular.ttf", fontName, "normal", "Identity-H");
       } catch (fontErr) {
         // Ignore
       }
       (doc as any).amiriRegistered = true;
-      console.log("[Amiri debug] Amiri font registered successfully from local bundle (async).");
+      console.log("[Amiri debug] Amiri font registered successfully from local bundle (async) as:", fontName);
     } else {
       console.warn("[Amiri debug] Local amiriFontBase64 is empty/missing. Attempting CDN fallback...");
       try {
@@ -61,12 +65,12 @@ async function ensureAmiriRegisteredAsync(doc: jsPDF) {
           // Ignore
         }
         try {
-          doc.addFont("Amiri-Regular.ttf", "Amiri", "normal", "Identity-H");
+          doc.addFont("Amiri-Regular.ttf", fontName, "normal", "Identity-H");
         } catch (fontErr) {
           // Ignore
         }
         (doc as any).amiriRegistered = true;
-        console.log("[Amiri debug] Amiri font registered successfully from CDN fallback.");
+        console.log("[Amiri debug] Amiri font registered successfully from CDN fallback as:", fontName);
       } catch (cdnErr) {
         console.error("[Amiri debug] Amiri font CDN fallback failed:", cdnErr);
       }
@@ -90,9 +94,11 @@ const handleBilingualCell = (data: any) => {
       const activeDoc = data.doc || (data.settings && data.settings.doc);
       if (activeDoc) {
         ensureAmiriRegistered(activeDoc);
+        data.cell.styles.font = (activeDoc as any).amiriFontName || "Amiri";
+      } else {
+        data.cell.styles.font = "Amiri";
       }
       data.cell.text = newText;
-      data.cell.styles.font = "Amiri";
       data.cell.styles.fontStyle = "normal";
     }
   }
@@ -118,7 +124,8 @@ function drawTextBilingual(doc: jsPDF, text: string, x: number, y: number, optio
       const activeStyle = activeFont.fontStyle;
       const activeName = activeFont.fontName;
       
-      doc.setFont("Amiri", "normal");
+      const fontName = (doc as any).amiriFontName || "Amiri";
+      doc.setFont(fontName, "normal");
       doc.text(reshaped, x, y, options);
       doc.setFont(activeName, activeStyle);
     } catch (e: any) {
@@ -138,9 +145,10 @@ function drawWrappedText(doc: jsPDF, text: string, x: number, y: number, maxWidt
 
   if (isAr) {
     ensureAmiriRegistered(doc);
+    const fontName = (doc as any).amiriFontName || "Amiri";
     const reshaped = reshapeArabicText(text);
-    console.log("[Amiri debug] Setting font to Amiri for text:", text, "reshaped:", reshaped);
-    doc.setFont("Amiri", "normal");
+    console.log("[Amiri debug] Setting font to unique font name:", fontName, "for text:", text, "reshaped:", reshaped);
+    doc.setFont(fontName, "normal");
     console.log("[Amiri debug] Active font after setFont:", doc.getFont()?.fontName);
     const lines = doc.splitTextToSize(reshaped, maxWidth);
     let tempY = y;
