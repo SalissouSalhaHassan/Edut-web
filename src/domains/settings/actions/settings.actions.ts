@@ -99,6 +99,8 @@ export async function saveBranch(data: any) {
       await db.execute(sql`ALTER TABLE "school_branches" ALTER COLUMN "adm_padding" TYPE varchar(100)`);
       await db.execute(sql`ALTER TABLE "school_branches" ALTER COLUMN "smtp_port" TYPE varchar(100)`);
       await db.execute(sql`ALTER TABLE "school_branches" ALTER COLUMN "working_days" TYPE varchar(255)`);
+      await db.execute(sql`ALTER TABLE "school_branches" ALTER COLUMN "inst_type" TYPE varchar(255)`);
+      await db.execute(sql`ALTER TABLE "school_branches" ALTER COLUMN "inst_category" TYPE varchar(255)`);
       
       // Ensure new administrative fields are created
       await db.execute(sql`ALTER TABLE "school_branches" ADD COLUMN IF NOT EXISTS "ministry" varchar(255)`);

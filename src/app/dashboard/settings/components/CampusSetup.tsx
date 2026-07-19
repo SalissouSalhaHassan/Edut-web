@@ -26,6 +26,20 @@ import { cn } from "@/lib/utils";
 
 const DAYS = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
 
+const LEVEL_OPTIONS = [
+  { value: "Primaire", label: "Primaire", icon: "📚" },
+  { value: "College", label: "Collège", icon: "📖" },
+  { value: "Lycée", label: "Lycée", icon: "🎓" },
+  { value: "University", label: "Université", icon: "🏛️" },
+  { value: "Autre", label: "Autre", icon: "✨" }
+];
+
+const CATEGORY_OPTIONS = [
+  { value: "Privé", label: "Privé", icon: "🔒" },
+  { value: "Public", label: "Public", icon: "🌐" },
+  { value: "Mixte", label: "Mixte", icon: "🔄" }
+];
+
 interface Branch {
   id?: number;
   branchName: string;
@@ -94,6 +108,72 @@ export function CampusSetup({ initialBranches }: { initialBranches: Branch[] }) 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
   const [formData, setFormData] = useState<Branch>(DEFAULT_BRANCH_STATE);
+
+  // instType helpers
+  const instTypeVal = formData.instType || "";
+  const selectedTypes = instTypeVal === "Tous" 
+    ? LEVEL_OPTIONS.map(o => o.value) 
+    : instTypeVal.split(",").map(s => s.trim()).filter(Boolean);
+  const hasAllLevels = instTypeVal === "Tous" || selectedTypes.length === LEVEL_OPTIONS.length;
+
+  const toggleInstType = (val: string) => {
+    let current = instTypeVal === "Tous" 
+      ? LEVEL_OPTIONS.map(o => o.value) 
+      : instTypeVal.split(",").map(s => s.trim()).filter(Boolean);
+    
+    if (current.includes(val)) {
+      current = current.filter(item => item !== val);
+    } else {
+      current = [...current, val];
+    }
+    
+    if (current.length === LEVEL_OPTIONS.length || current.length === 0) {
+      handleInputChange("instType", "Tous");
+    } else {
+      handleInputChange("instType", current.join(","));
+    }
+  };
+
+  const toggleAllInstTypes = () => {
+    if (hasAllLevels) {
+      handleInputChange("instType", "");
+    } else {
+      handleInputChange("instType", "Tous");
+    }
+  };
+
+  // instCategory helpers
+  const instCategoryVal = formData.instCategory || "";
+  const selectedCategories = instCategoryVal === "Toutes" 
+    ? CATEGORY_OPTIONS.map(o => o.value) 
+    : instCategoryVal.split(",").map(s => s.trim()).filter(Boolean);
+  const hasAllCategories = instCategoryVal === "Toutes" || selectedCategories.length === CATEGORY_OPTIONS.length;
+
+  const toggleInstCategory = (val: string) => {
+    let current = instCategoryVal === "Toutes" 
+      ? CATEGORY_OPTIONS.map(o => o.value) 
+      : instCategoryVal.split(",").map(s => s.trim()).filter(Boolean);
+    
+    if (current.includes(val)) {
+      current = current.filter(item => item !== val);
+    } else {
+      current = [...current, val];
+    }
+    
+    if (current.length === CATEGORY_OPTIONS.length || current.length === 0) {
+      handleInputChange("instCategory", "Toutes");
+    } else {
+      handleInputChange("instCategory", current.join(","));
+    }
+  };
+
+  const toggleAllCategories = () => {
+    if (hasAllCategories) {
+      handleInputChange("instCategory", "");
+    } else {
+      handleInputChange("instCategory", "Toutes");
+    }
+  };
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -319,38 +399,75 @@ export function CampusSetup({ initialBranches }: { initialBranches: Branch[] }) 
                     />
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">TYPE INSTITUTION / NIVEAU</Label>
-                  <div className="relative">
-                    <GraduationCap className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-500 z-10" size={18} />
-                    <Select onValueChange={v => handleInputChange("instType", v)} value={formData.instType}>
-                      <SelectTrigger className="h-14 pl-12 rounded-2xl border-slate-100 bg-slate-50/50 font-bold">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="rounded-2xl border-slate-100 shadow-xl">
-                        <SelectItem value="Primaire" className="font-bold">Primaire</SelectItem>
-                        <SelectItem value="College" className="font-bold">Collège</SelectItem>
-                        <SelectItem value="Lycée" className="font-bold">Lycée</SelectItem>
-                        <SelectItem value="University" className="font-bold">Université</SelectItem>
-                        <SelectItem value="Autre" className="font-bold">Autre</SelectItem>
-                      </SelectContent>
-                    </Select>
+                <div className="md:col-span-2 space-y-3">
+                  <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 block mb-1">TYPE INSTITUTION / NIVEAU</Label>
+                  <div className="flex flex-wrap gap-2.5">
+                    <button
+                      type="button"
+                      onClick={toggleAllInstTypes}
+                      className={cn(
+                        "h-12 px-5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-200 border shadow-sm flex items-center gap-2 select-none",
+                        hasAllLevels 
+                          ? "bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-100" 
+                          : "bg-slate-50 border-slate-100 text-slate-600 hover:bg-slate-100 hover:border-slate-200"
+                      )}
+                    >
+                      ✨ Toutes les étapes
+                    </button>
+                    {LEVEL_OPTIONS.map(lvl => {
+                      const isActive = !hasAllLevels && selectedTypes.includes(lvl.value);
+                      return (
+                        <button
+                          key={lvl.value}
+                          type="button"
+                          onClick={() => toggleInstType(lvl.value)}
+                          className={cn(
+                            "h-12 px-5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-200 border shadow-sm flex items-center gap-2 select-none",
+                            isActive 
+                              ? "bg-emerald-600 border-emerald-600 text-white shadow-md shadow-emerald-100" 
+                              : "bg-slate-50 border-slate-100 text-slate-600 hover:bg-slate-100 hover:border-slate-200"
+                          )}
+                        >
+                          <span>{lvl.icon}</span> {lvl.label}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">CATÉGORIE</Label>
-                  <div className="relative">
-                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-500 z-10" size={18} />
-                    <Select onValueChange={v => handleInputChange("instCategory", v)} value={formData.instCategory}>
-                      <SelectTrigger className="h-14 pl-12 rounded-2xl border-slate-100 bg-slate-50/50 font-bold">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {["Privé", "Public", "Mixte"].map(c => (
-                          <SelectItem key={c} value={c}>{c}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+
+                <div className="md:col-span-2 space-y-3">
+                  <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 block mb-1">CATÉGORIE</Label>
+                  <div className="flex flex-wrap gap-2.5">
+                    <button
+                      type="button"
+                      onClick={toggleAllCategories}
+                      className={cn(
+                        "h-12 px-5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-200 border shadow-sm flex items-center gap-2 select-none",
+                        hasAllCategories 
+                          ? "bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-100" 
+                          : "bg-slate-50 border-slate-100 text-slate-600 hover:bg-slate-100 hover:border-slate-200"
+                      )}
+                    >
+                      🌟 Toutes les catégories
+                    </button>
+                    {CATEGORY_OPTIONS.map(cat => {
+                      const isActive = !hasAllCategories && selectedCategories.includes(cat.value);
+                      return (
+                        <button
+                          key={cat.value}
+                          type="button"
+                          onClick={() => toggleInstCategory(cat.value)}
+                          className={cn(
+                            "h-12 px-5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-200 border shadow-sm flex items-center gap-2 select-none",
+                            isActive 
+                              ? "bg-emerald-600 border-emerald-600 text-white shadow-md shadow-emerald-100" 
+                              : "bg-slate-50 border-slate-100 text-slate-600 hover:bg-slate-100 hover:border-slate-200"
+                          )}
+                        >
+                          <span>{cat.icon}</span> {cat.label}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
