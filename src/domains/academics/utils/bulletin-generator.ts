@@ -976,9 +976,8 @@ export async function generateResultsPedagogicalReportPDF(payload: any) {
     doc.text(`Page ${i}/${pageCount}`, 285, 204, { align: "right" });
   }
 
-  const blob = doc.output("blob");
-  const url = URL.createObjectURL(blob);
-  window.open(url, "_blank");
+  const classInfoName = (classInfo?.className || "Classe").replace(/\s+/g, "_");
+  doc.save(`PV_Moyennes_${classInfoName}_${Date.now()}.pdf`);
 }
 
 export async function generateReleveNotesPDF(data: any) {
@@ -1273,9 +1272,8 @@ export async function generateReleveNotesPDF(data: any) {
     drawOfflineWatermark(doc, "RELEVÉ PROVISOIRE");
   }
 
-  const blob = doc.output("blob");
-  const url = URL.createObjectURL(blob);
-  window.open(url, "_blank");
+  const studentName = (student?.nomEtudiant || student?.name || "Eleve").replace(/\s+/g, "_");
+  doc.save(`Releve_Notes_${studentName}_${Date.now()}.pdf`);
 }
 
 export async function generateClassReportPDF(payload: any) {
@@ -1353,9 +1351,8 @@ export async function generateClassReportPDF(payload: any) {
     drawOfflineWatermark(doc, "RAPPORT PROVISOIRE");
   }
 
-  const blob = doc.output("blob");
-  const url = URL.createObjectURL(blob);
-  window.open(url, "_blank");
+  const filterClassName = (filters?.className || "Classe").replace(/\s+/g, "_");
+  doc.save(`Rapport_Statistique_Classe_${filterClassName}_${Date.now()}.pdf`);
 }
 
 export async function generateSubjectReportPDF(payload: any) {
@@ -1432,9 +1429,8 @@ export async function generateSubjectReportPDF(payload: any) {
     drawOfflineWatermark(doc, "RAPPORT PROVISOIRE");
   }
 
-  const blob = doc.output("blob");
-  const url = URL.createObjectURL(blob);
-  window.open(url, "_blank");
+  const subjectName = (currentSubject?.subjectName || "Matiere").replace(/\s+/g, "_");
+  doc.save(`Rapport_Par_Matiere_${subjectName}_${Date.now()}.pdf`);
 }
 
 export async function generateTeacherReportPDF(payload: any) {
@@ -1506,9 +1502,8 @@ export async function generateTeacherReportPDF(payload: any) {
     drawOfflineWatermark(doc, "RAPPORT PROVISOIRE");
   }
 
-  const blob = doc.output("blob");
-  const url = URL.createObjectURL(blob);
-  window.open(url, "_blank");
+  const teacherName = (filters?.teacherName || "Enseignant").replace(/\s+/g, "_");
+  doc.save(`Rapport_Enseignant_${teacherName}_${Date.now()}.pdf`);
 }
 
 export async function generateWeakStudentsReportPDF(payload: any) {
@@ -1575,9 +1570,8 @@ export async function generateWeakStudentsReportPDF(payload: any) {
     drawOfflineWatermark(doc, "RAPPORT PROVISOIRE");
   }
 
-  const blob = doc.output("blob");
-  const url = URL.createObjectURL(blob);
-  window.open(url, "_blank");
+  const filterClassName = (filters?.className || "Classe").replace(/\s+/g, "_");
+  doc.save(`Rapport_Eleves_En_Difficulte_${filterClassName}_${Date.now()}.pdf`);
 }
 
 export async function generateClassCouncilReportPDF(payload: any) {
@@ -1655,7 +1649,6 @@ export async function generateClassCouncilReportPDF(payload: any) {
     drawOfflineWatermark(doc, "PROVISOIRE - HORS LIGNE");
   }
 
-  const blob = doc.output("blob");
-  const url = URL.createObjectURL(blob);
-  window.open(url, "_blank");
+  const filterClassName = (filters?.className || "Classe").replace(/\s+/g, "_");
+  doc.save(`Rapport_Conseil_Classe_${filterClassName}_${Date.now()}.pdf`);
 }
