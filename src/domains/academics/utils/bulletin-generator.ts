@@ -797,9 +797,8 @@ export async function generatePVMatrixPDF(matrixData: any, classInfo: any, filte
     }
   });
 
-  const blob = doc.output("blob");
-  const url = URL.createObjectURL(blob);
-  window.open(url, "_blank");
+  const classInfoName = (classInfo?.className || "Classe").replace(/\s+/g, "_");
+  doc.save(`PV_Moyennes_${classInfoName}_${Date.now()}.pdf`);
 }
 
 
@@ -976,8 +975,8 @@ export async function generateResultsPedagogicalReportPDF(payload: any) {
     doc.text(`Page ${i}/${pageCount}`, 285, 204, { align: "right" });
   }
 
-  const classInfoName = (classInfo?.className || "Classe").replace(/\s+/g, "_");
-  doc.save(`PV_Moyennes_${classInfoName}_${Date.now()}.pdf`);
+  const filterClassName = (filters?.className || "Classe").replace(/\s+/g, "_");
+  doc.save(`Rapport_Pedagogique_${filterClassName}_${Date.now()}.pdf`);
 }
 
 export async function generateReleveNotesPDF(data: any) {
