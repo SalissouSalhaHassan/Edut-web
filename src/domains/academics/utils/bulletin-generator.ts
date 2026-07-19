@@ -793,10 +793,9 @@ export async function generateBulletinPDF(data: any) {
     doc.restoreGraphicsState();
   }
 
-  // Open in new window for preview
-  const blob = doc.output("blob");
-  const url = URL.createObjectURL(blob);
-  window.open(url, "_blank");
+  // Save PDF directly to bypass browser PDF sandbox restrictions on blob URL custom fonts
+  const studentName = student?.nomEtudiant?.replace(/\s+/g, "_") || "eleve";
+  doc.save(`Bulletin_${studentName}_${Date.now()}.pdf`);
 }
 
 export async function generatePVMatrixPDF(matrixData: any, classInfo: any, filters: any) {
