@@ -50,6 +50,9 @@ export async function POST(request: NextRequest) {
     const subjectId = parseInt(subject_id);
 
     // Overlap conflict check
+    // Use DATE() cast for robust date comparison ignoring time component
+    const dateStr = `${parsedDate.getFullYear()}-${String(parsedDate.getMonth() + 1).padStart(2, '0')}-${String(parsedDate.getDate()).padStart(2, '0')}`;
+
     const existingResult = await db.execute(sql`
       SELECT 
         t.id, 
@@ -60,7 +63,7 @@ export async function POST(request: NextRequest) {
       LEFT JOIN school_subjects s ON t.subject_id = s.id
       WHERE t.campaign_id = ${campaignId} 
         AND t.class_id = ${classId} 
-        AND t.exam_date = ${parsedDate.toISOString()}::timestamp
+        AND DATE(t.exam_date) = ${dateStr}::date
     `);
     const existingExams = (Array.isArray(existingResult) ? existingResult : (existingResult as any).rows || []) as any[];
 
@@ -74,7 +77,7 @@ export async function POST(request: NextRequest) {
 
     await db.execute(sql`
       INSERT INTO exam_timetables (campaign_id, class_id, subject_id, exam_date, start_time, end_time, max_marks)
-      VALUES (${campaignId}, ${classId}, ${subjectId}, ${parsedDate.toISOString()}, ${start_time}, ${end_time}, ${parseFloat(max_marks)})
+      VALUES (${campaignId}, ${classId}, ${subjectId}, ${dateStr}::date, ${start_time}, ${end_time}, ${parseFloat(max_marks)})
     `);
 
     return NextResponse.json({ status: "success", message: "Épreuve planifiée avec succès." });

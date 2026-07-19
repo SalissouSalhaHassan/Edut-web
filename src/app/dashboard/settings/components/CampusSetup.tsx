@@ -27,17 +27,17 @@ import { cn } from "@/lib/utils";
 const DAYS = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
 
 const LEVEL_OPTIONS = [
-  { value: "Primaire", label: "Primaire", icon: "📚" },
-  { value: "College", label: "Collège", icon: "📖" },
-  { value: "Lycée", label: "Lycée", icon: "🎓" },
-  { value: "University", label: "Université", icon: "🏛️" },
-  { value: "Autre", label: "Autre", icon: "✨" }
+  { value: "Primaire", label: "Primaire", icon: "📚", desc: "Cursus élémentaire et primaire" },
+  { value: "College", label: "Collège", icon: "📖", desc: "Enseignement moyen / premier cycle" },
+  { value: "Lycée", label: "Lycée", icon: "🎓", desc: "Second cycle et baccalauréat" },
+  { value: "University", label: "Université", icon: "🏛️", desc: "Études supérieures et facultés" },
+  { value: "Autre", label: "Autre", icon: "✨", desc: "Formations professionnelles ou spéciales" }
 ];
 
 const CATEGORY_OPTIONS = [
-  { value: "Privé", label: "Privé", icon: "🔒" },
-  { value: "Public", label: "Public", icon: "🌐" },
-  { value: "Mixte", label: "Mixte", icon: "🔄" }
+  { value: "Privé", label: "Privé", icon: "🔒", desc: "Gestion et financement privés" },
+  { value: "Public", label: "Public", icon: "🌐", desc: "Établissement étatique public" },
+  { value: "Mixte", label: "Mixte", icon: "🔄", desc: "Partenariat mixte public-privé" }
 ];
 
 interface Branch {
@@ -399,21 +399,44 @@ export function CampusSetup({ initialBranches }: { initialBranches: Branch[] }) 
                     />
                   </div>
                 </div>
-                <div className="md:col-span-2 space-y-3">
+                <div className="md:col-span-2 space-y-4">
                   <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 block mb-1">TYPE INSTITUTION / NIVEAU</Label>
-                  <div className="flex flex-wrap gap-2.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+                    {/* All Stages Master Card */}
                     <button
                       type="button"
                       onClick={toggleAllInstTypes}
                       className={cn(
-                        "h-12 px-5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-200 border shadow-sm flex items-center gap-2 select-none",
+                        "relative p-5 rounded-3xl border-2 text-left transition-all duration-300 flex flex-col justify-between gap-4 group hover:-translate-y-1 hover:shadow-md select-none w-full",
                         hasAllLevels 
-                          ? "bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-100" 
-                          : "bg-slate-50 border-slate-100 text-slate-600 hover:bg-slate-100 hover:border-slate-200"
+                          ? "bg-indigo-50/80 border-indigo-500 shadow-sm shadow-indigo-50" 
+                          : "bg-slate-50/50 border-slate-100 text-slate-600 hover:bg-white hover:border-slate-200"
                       )}
                     >
-                      ✨ Toutes les étapes
+                      <div className="flex items-center justify-between w-full">
+                        <div className={cn(
+                          "w-12 h-12 rounded-2xl flex items-center justify-center text-xl transition-all duration-300",
+                          hasAllLevels ? "bg-indigo-500 text-white scale-110 shadow-lg shadow-indigo-100" : "bg-white border border-slate-100 text-slate-700 group-hover:scale-105"
+                        )}>
+                          ✨
+                        </div>
+                        <div className={cn(
+                          "w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-300",
+                          hasAllLevels ? "bg-indigo-500 border-indigo-500 text-white" : "border-slate-200 bg-white"
+                        )}>
+                          {hasAllLevels && <CheckCircle2 size={12} className="stroke-[3]" />}
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <p className={cn(
+                          "font-black text-xs uppercase tracking-wider transition-colors",
+                          hasAllLevels ? "text-indigo-900" : "text-slate-800"
+                        )}>Toutes les étapes</p>
+                        <p className="text-[10px] font-semibold text-slate-400 leading-snug">Sélectionner tout le cursus</p>
+                      </div>
                     </button>
+
+                    {/* Level Option Cards */}
                     {LEVEL_OPTIONS.map(lvl => {
                       const isActive = !hasAllLevels && selectedTypes.includes(lvl.value);
                       return (
@@ -422,34 +445,77 @@ export function CampusSetup({ initialBranches }: { initialBranches: Branch[] }) 
                           type="button"
                           onClick={() => toggleInstType(lvl.value)}
                           className={cn(
-                            "h-12 px-5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-200 border shadow-sm flex items-center gap-2 select-none",
+                            "relative p-5 rounded-3xl border-2 text-left transition-all duration-300 flex flex-col justify-between gap-4 group hover:-translate-y-1 hover:shadow-md select-none w-full",
                             isActive 
-                              ? "bg-emerald-600 border-emerald-600 text-white shadow-md shadow-emerald-100" 
-                              : "bg-slate-50 border-slate-100 text-slate-600 hover:bg-slate-100 hover:border-slate-200"
+                              ? "bg-emerald-50/80 border-emerald-500 shadow-sm shadow-emerald-50" 
+                              : "bg-slate-50/50 border-slate-100 text-slate-600 hover:bg-white hover:border-slate-200"
                           )}
                         >
-                          <span>{lvl.icon}</span> {lvl.label}
+                          <div className="flex items-center justify-between w-full">
+                            <div className={cn(
+                              "w-12 h-12 rounded-2xl flex items-center justify-center text-xl transition-all duration-300",
+                              isActive ? "bg-emerald-500 text-white scale-110 shadow-lg shadow-emerald-100" : "bg-white border border-slate-100 text-slate-700 group-hover:scale-105"
+                            )}>
+                              {lvl.icon}
+                            </div>
+                            <div className={cn(
+                              "w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-300",
+                              isActive ? "bg-emerald-500 border-emerald-500 text-white" : "border-slate-200 bg-white"
+                            )}>
+                              {isActive && <CheckCircle2 size={12} className="stroke-[3]" />}
+                            </div>
+                          </div>
+                          <div className="space-y-1">
+                            <p className={cn(
+                              "font-black text-xs uppercase tracking-wider transition-colors",
+                              isActive ? "text-emerald-900" : "text-slate-800"
+                            )}>{lvl.label}</p>
+                            <p className="text-[10px] font-semibold text-slate-400 leading-snug">{lvl.desc}</p>
+                          </div>
                         </button>
                       );
                     })}
                   </div>
                 </div>
 
-                <div className="md:col-span-2 space-y-3">
+                <div className="md:col-span-2 space-y-4">
                   <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 block mb-1">CATÉGORIE</Label>
-                  <div className="flex flex-wrap gap-2.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {/* All Categories Master Card */}
                     <button
                       type="button"
                       onClick={toggleAllCategories}
                       className={cn(
-                        "h-12 px-5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-200 border shadow-sm flex items-center gap-2 select-none",
+                        "relative p-5 rounded-3xl border-2 text-left transition-all duration-300 flex flex-col justify-between gap-4 group hover:-translate-y-1 hover:shadow-md select-none w-full",
                         hasAllCategories 
-                          ? "bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-100" 
-                          : "bg-slate-50 border-slate-100 text-slate-600 hover:bg-slate-100 hover:border-slate-200"
+                          ? "bg-indigo-50/80 border-indigo-500 shadow-sm shadow-indigo-50" 
+                          : "bg-slate-50/50 border-slate-100 text-slate-600 hover:bg-white hover:border-slate-200"
                       )}
                     >
-                      🌟 Toutes les catégories
+                      <div className="flex items-center justify-between w-full">
+                        <div className={cn(
+                          "w-12 h-12 rounded-2xl flex items-center justify-center text-xl transition-all duration-300",
+                          hasAllCategories ? "bg-indigo-500 text-white scale-110 shadow-lg shadow-indigo-100" : "bg-white border border-slate-100 text-slate-700 group-hover:scale-105"
+                        )}>
+                          🌟
+                        </div>
+                        <div className={cn(
+                          "w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-300",
+                          hasAllCategories ? "bg-indigo-500 border-indigo-500 text-white" : "border-slate-200 bg-white"
+                        )}>
+                          {hasAllCategories && <CheckCircle2 size={12} className="stroke-[3]" />}
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <p className={cn(
+                          "font-black text-xs uppercase tracking-wider transition-colors",
+                          hasAllCategories ? "text-indigo-900" : "text-slate-800"
+                        )}>Toutes les catégories</p>
+                        <p className="text-[10px] font-semibold text-slate-400 leading-snug">Sélectionner toutes les options</p>
+                      </div>
                     </button>
+
+                    {/* Category Option Cards */}
                     {CATEGORY_OPTIONS.map(cat => {
                       const isActive = !hasAllCategories && selectedCategories.includes(cat.value);
                       return (
@@ -458,13 +524,33 @@ export function CampusSetup({ initialBranches }: { initialBranches: Branch[] }) 
                           type="button"
                           onClick={() => toggleInstCategory(cat.value)}
                           className={cn(
-                            "h-12 px-5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-200 border shadow-sm flex items-center gap-2 select-none",
+                            "relative p-5 rounded-3xl border-2 text-left transition-all duration-300 flex flex-col justify-between gap-4 group hover:-translate-y-1 hover:shadow-md select-none w-full",
                             isActive 
-                              ? "bg-emerald-600 border-emerald-600 text-white shadow-md shadow-emerald-100" 
-                              : "bg-slate-50 border-slate-100 text-slate-600 hover:bg-slate-100 hover:border-slate-200"
+                              ? "bg-emerald-50/80 border-emerald-500 shadow-sm shadow-emerald-50" 
+                              : "bg-slate-50/50 border-slate-100 text-slate-600 hover:bg-white hover:border-slate-200"
                           )}
                         >
-                          <span>{cat.icon}</span> {cat.label}
+                          <div className="flex items-center justify-between w-full">
+                            <div className={cn(
+                              "w-12 h-12 rounded-2xl flex items-center justify-center text-xl transition-all duration-300",
+                              isActive ? "bg-emerald-500 text-white scale-110 shadow-lg shadow-emerald-100" : "bg-white border border-slate-100 text-slate-700 group-hover:scale-105"
+                            )}>
+                              {cat.icon}
+                            </div>
+                            <div className={cn(
+                              "w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-300",
+                              isActive ? "bg-emerald-500 border-emerald-500 text-white" : "border-slate-200 bg-white"
+                            )}>
+                              {isActive && <CheckCircle2 size={12} className="stroke-[3]" />}
+                            </div>
+                          </div>
+                          <div className="space-y-1">
+                            <p className={cn(
+                              "font-black text-xs uppercase tracking-wider transition-colors",
+                              isActive ? "text-emerald-900" : "text-slate-800"
+                            )}>{cat.label}</p>
+                            <p className="text-[10px] font-semibold text-slate-400 leading-snug">{cat.desc}</p>
+                          </div>
                         </button>
                       );
                     })}

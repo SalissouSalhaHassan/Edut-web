@@ -1,5 +1,5 @@
 import { jsPDF } from "jspdf";
-import autoTable from "jspdf-autotable";
+import originalAutoTable from "jspdf-autotable";
 import { amiriFontBase64 } from "@/domains/printing/utils/amiri-font";
 import { hasArabicCharacters, reshapeArabicText } from "@/domains/printing/utils/arabic-reshaper";
 
@@ -16,6 +16,39 @@ function ensureAmiriRegistered(doc: jsPDF) {
     console.warn("Failed to check or register Amiri font:", e);
   }
 }
+
+const handleBilingualCell = (data: any) => {
+  if (data.cell && data.cell.text) {
+    let hasAr = false;
+    const newText = data.cell.text.map((t: string) => {
+      if (hasArabicCharacters(t)) {
+        hasAr = true;
+        return reshapeArabicText(t);
+      }
+      return t;
+    });
+    if (hasAr) {
+      const activeDoc = data.doc || (data.settings && data.settings.doc);
+      if (activeDoc) {
+        ensureAmiriRegistered(activeDoc);
+      }
+      data.cell.text = newText;
+      data.cell.styles.font = "Amiri";
+      data.cell.styles.fontStyle = "normal";
+    }
+  }
+};
+
+const autoTable = (doc: jsPDF, options: any) => {
+  const originalDidParseCell = options.didParseCell;
+  options.didParseCell = (data: any) => {
+    handleBilingualCell(data);
+    if (originalDidParseCell) {
+      originalDidParseCell(data);
+    }
+  };
+  return originalAutoTable(doc, options);
+};
 
 function drawTextBilingual(doc: jsPDF, text: string, x: number, y: number, options?: any) {
   if (hasArabicCharacters(text)) {
