@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
         r.id, 
         r.attendance_status as status, 
         s.nom_etudiant as name
-      FROM exam_attendance_and_marks r
+      FROM exam_attendance_marks r
       JOIN exam_candidates c ON r.candidate_id = c.id
       JOIN students s ON c.student_id = s.id
       WHERE r.candidate_id = ${candId} AND r.timetable_id = ${timetableId}
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
 
     // Mark as Present
     await db.execute(sql`
-      UPDATE exam_attendance_and_marks 
+      UPDATE exam_attendance_marks 
       SET attendance_status = 'Présent' 
       WHERE id = ${record.id}
     `);

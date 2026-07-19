@@ -38,7 +38,7 @@ export default function ExamsDashboardClient({
   initialSubjects
 }: ExamsDashboardClientProps) {
   // Tabs State
-  const [activeTab, setActiveTab] = useState<"ai_generator" | "planning" | "admissions" | "attendance" | "bank">("ai_generator");
+  const [activeTab, setActiveTab] = useState<"ai_generator" | "planning" | "admissions" | "attendance" | "bank" | "marks">("ai_generator");
   const [planningSubTab, setPlanningSubTab] = useState<"campaigns" | "rooms" | "schedule" | "ai_solver">("campaigns");
 
   // Local state initialized with server props or fallbacks
@@ -722,6 +722,153 @@ export default function ExamsDashboardClient({
     }
   };
 
+  // ====================================================
+  // TAB 6: NOTES & RESULTATS STATE & HANDLERS
+  // ====================================================
+  const [marksCampaignId, setMarksCampaignId] = useState("");
+  const [marksClassId, setMarksClassId] = useState("");
+  const [marksTimetables, setMarksTimetables] = useState<any[]>([]);
+  const [selectedMarksTimetableId, setSelectedMarksTimetableId] = useState("");
+  const [marksList, setMarksList] = useState<any[]>([]);
+  const [marksLoading, setMarksLoading] = useState(false);
+  const [marksSaving, setMarksSaving] = useState(false);
+  const [deAnonymize, setDeAnonymize] = useState(false);
+  const [smartImportText, setSmartImportText] = useState("");
+  const [smartImportLoading, setSmartImportLoading] = useState(false);
+  const [parsedPreviewList, setParsedPreviewList] = useState<any[]>([]);
+  const [showSmartImportModal, setShowSmartImportModal] = useState(false);
+
+  useEffect(() => {
+    if (marksCampaignId && marksClassId) {
+      fetchMarksTimetables();
+    } else {
+      setMarksTimetables([]);
+      setSelectedMarksTimetableId("");
+      setMarksList([]);
+    }
+  }, [marksCampaignId, marksClassId]);
+
+  const fetchMarksTimetables = async () => {
+    try {
+      const res = await fetch(`/api/exams/planning/timetable/${marksCampaignId}`);
+      if (res.ok) {
+        const data = await res.json();
+        const filtered = data.filter((t: any) => t.class_id === parseInt(marksClassId));
+        setMarksTimetables(filtered);
+      }
+    } catch (err) {
+      console.warn(err);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedMarksTimetableId) {
+      fetchMarksRoster(selectedMarksTimetableId);
+    } else {
+      setMarksList([]);
+    }
+  }, [selectedMarksTimetableId]);
+
+  const fetchMarksRoster = async (ttId: string) => {
+    setMarksLoading(true);
+    try {
+      const res = await fetch(`/api/exams/attendance/${ttId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setMarksList(data);
+      }
+    } catch (err) {
+      console.warn(err);
+    } finally {
+      setMarksLoading(false);
+    }
+  };
+
+  const handleSaveMarks = async () => {
+    if (marksList.length === 0) return;
+    setMarksSaving(true);
+    try {
+      const response = await fetch('/api/exams/marks/save', {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          marks: marksList.map(item => ({
+            record_id: item.id,
+            marks_obtained: item.marks_obtained !== "" && item.marks_obtained !== null ? parseFloat(item.marks_obtained) : null
+          }))
+        })
+      });
+      if (response.ok) {
+        showAlert("success", "Toutes les notes ont été enregistrées avec succès !");
+        fetchMarksRoster(selectedMarksTimetableId);
+      } else {
+        const errData = await response.json().catch(() => ({}));
+        showAlert("error", errData.error || "Erreur lors de la sauvegarde.");
+      }
+    } catch (err) {
+      showAlert("error", "Erreur de communication.");
+    } finally {
+      setMarksSaving(false);
+    }
+  };
+
+  const handleAIParseMarks = async () => {
+    if (!smartImportText.trim()) {
+      showAlert("error", "Veuillez coller du texte d'abord.");
+      return;
+    }
+    setSmartImportLoading(true);
+    try {
+      const response = await fetch('/api/exams/marks/parse', {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: smartImportText,
+          max_marks: 20
+        })
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setParsedPreviewList(data.parsed || []);
+        showAlert("success", `Extraction intelligente terminée (${data.method}) ! ${data.parsed?.length || 0} notes identifiées.`);
+      } else {
+        const errData = await response.json().catch(() => ({}));
+        showAlert("error", errData.error || "Erreur de parsing.");
+      }
+    } catch (err) {
+      showAlert("error", "Erreur réseau.");
+    } finally {
+      setSmartImportLoading(false);
+    }
+  };
+
+  const handleApplyParsedMarks = () => {
+    if (parsedPreviewList.length === 0) return;
+    
+    setMarksList(prev => {
+      const updated = [...prev];
+      let matchCount = 0;
+      
+      for (const parsed of parsedPreviewList) {
+        const index = updated.findIndex(item => item.anonymity_code === parsed.anonymity_code);
+        if (index !== -1) {
+          updated[index] = {
+            ...updated[index],
+            marks_obtained: parsed.mark
+          };
+          matchCount++;
+        }
+      }
+      
+      showAlert("success", `${matchCount} notes appliquées avec succès aux candidats correspondants !`);
+      return updated;
+    });
+    
+    setSmartImportText("");
+    setParsedPreviewList([]);
+    setShowSmartImportModal(false);
+  };
+
   return (
     <div className="space-y-10">
       
@@ -834,6 +981,16 @@ export default function ExamsDashboardClient({
           }`}
         >
           <BookOpen size={16} /> Banque de Questions
+        </button>
+        <button
+          onClick={() => setActiveTab("marks")}
+          className={`flex items-center gap-2.5 px-6 py-3.5 rounded-[1.5rem] font-bold text-xs uppercase tracking-wider transition-all duration-300 ${
+            activeTab === "marks" 
+              ? "bg-indigo-600 text-white shadow-lg shadow-indigo-100" 
+              : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+          }`}
+        >
+          <Award size={16} /> Notes & Résultats
         </button>
       </div>
 
@@ -2009,6 +2166,323 @@ export default function ExamsDashboardClient({
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* ---------------------------------------------------- */}
+      {/* TAB 6: NOTES & RESULTATS (MARKS ENTRY) PANEL */}
+      {/* ---------------------------------------------------- */}
+      {activeTab === "marks" && (
+        <div className="space-y-8">
+          <div className="bg-white rounded-[3rem] p-8 border border-slate-100 shadow-sm space-y-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="space-y-1">
+                <h2 className="text-2xl font-black text-slate-800 uppercase tracking-wide">Saisie & Importation des Notes</h2>
+                <p className="text-slate-400 text-sm font-medium">Saisissez les notes d'examens manuellement ou via notre système d'analyse intelligente par IA.</p>
+              </div>
+              
+              {/* De-anonymize Toggle */}
+              {marksList.length > 0 && (
+                <div className="flex items-center gap-3">
+                  <label className="text-xs font-bold text-slate-600 cursor-pointer flex items-center gap-2 bg-slate-50 border border-slate-100 px-4 py-2.5 rounded-full select-none hover:bg-slate-100 transition-colors">
+                    <input 
+                      type="checkbox" 
+                      checked={deAnonymize} 
+                      onChange={(e) => setDeAnonymize(e.target.checked)}
+                      className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 mr-2" 
+                    />
+                    🔓 Lever l'Anonymat (Voir les Noms)
+                  </label>
+                </div>
+              )}
+            </div>
+
+            {/* Filters Selection */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Campagne d'Examens</label>
+                <select
+                  value={marksCampaignId}
+                  onChange={(e) => setMarksCampaignId(e.target.value)}
+                  className="w-full h-12 px-4 rounded-xl border border-slate-200 bg-slate-50 font-bold text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="">Choisir une campagne...</option>
+                  {campaigns.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Classe</label>
+                <select
+                  value={marksClassId}
+                  onChange={(e) => setMarksClassId(e.target.value)}
+                  className="w-full h-12 px-4 rounded-xl border border-slate-200 bg-slate-50 font-bold text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="">Choisir une classe...</option>
+                  {classes.map(c => (
+                    <option key={c.id} value={c.id}>{getClassDisplayName(c)}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Épreuve / Examen</label>
+                <select
+                  value={selectedMarksTimetableId}
+                  onChange={(e) => setSelectedMarksTimetableId(e.target.value)}
+                  disabled={!marksCampaignId || !marksClassId}
+                  className="w-full h-12 px-4 rounded-xl border border-slate-200 bg-slate-50 font-bold text-xs text-slate-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="">Choisir une épreuve...</option>
+                  {marksTimetables.map(t => (
+                    <option key={t.id} value={t.id}>{`${t.class_name} - ${t.subject_name} (${t.exam_date})`}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Marks roster panel */}
+          {selectedMarksTimetableId && (
+            <div className="bg-white rounded-[3rem] p-8 border border-slate-100 shadow-sm space-y-6">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-slate-50 pb-6">
+                <div className="space-y-1">
+                  <h3 className="text-lg font-black text-slate-800 uppercase tracking-wide">Candidats & Correction</h3>
+                  <p className="text-slate-400 text-xs font-semibold">Toutes les modifications sont locales tant que vous ne sauvegardez pas.</p>
+                </div>
+                
+                {/* Actions */}
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowSmartImportModal(true)}
+                    className="h-12 px-5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-black text-xs uppercase tracking-wider transition-all flex items-center gap-2"
+                  >
+                    <Sparkles size={16} /> Importation Intelligente (IA)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveMarks}
+                    disabled={marksSaving || marksList.length === 0}
+                    className="h-12 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-indigo-100 transition-all flex items-center justify-center gap-2 disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none"
+                  >
+                    {marksSaving ? <RefreshCw className="animate-spin" size={14} /> : <CheckCircle2 size={14} />}
+                    Enregistrer les Notes
+                  </button>
+                </div>
+              </div>
+
+              {/* Roster list */}
+              {marksLoading ? (
+                <div className="py-24 text-center space-y-4">
+                  <div className="w-12 h-12 rounded-full border-4 border-indigo-100 border-t-indigo-600 animate-spin mx-auto" />
+                  <p className="text-slate-400 text-xs font-semibold uppercase tracking-widest">Chargement des copies...</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="border-b border-slate-100">
+                        <th className="py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Code Anonymat</th>
+                        <th className="py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Présence</th>
+                        <th className="py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center w-40">Note / 20</th>
+                        {deAnonymize && (
+                          <th className="py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest pl-6">Nom de l'élève</th>
+                        )}
+                        <th className="py-4 text-[10px] font-black text-slate-400 tracking-widest w-24"></th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                      {marksList.map((item) => {
+                        const isAbsent = item.status === "Absent";
+                        
+                        return (
+                          <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
+                            {/* Anonymity Code */}
+                            <td className="py-4 font-mono font-bold text-xs text-indigo-600">
+                              <span className="bg-indigo-50/50 border border-indigo-100/50 px-3 py-1.5 rounded-lg">
+                                🕵️ {item.anonymity_code}
+                              </span>
+                            </td>
+
+                            {/* Status */}
+                            <td className="py-4">
+                              <span className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                                item.status === "Présent" 
+                                  ? "bg-emerald-50 text-emerald-600" 
+                                  : item.status === "Retard" 
+                                  ? "bg-amber-50 text-amber-600" 
+                                  : "bg-rose-50 text-rose-600"
+                              }`}>
+                                {item.status}
+                              </span>
+                            </td>
+
+                            {/* Marks Input */}
+                            <td className="py-4 text-center">
+                              <div className="inline-flex items-center gap-2">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max="20"
+                                  step="0.25"
+                                  disabled={isAbsent}
+                                  value={item.marks_obtained !== null && item.marks_obtained !== undefined ? item.marks_obtained : ""}
+                                  onChange={(e) => {
+                                    const val = e.target.value === "" ? null : parseFloat(e.target.value);
+                                    setMarksList(prev => prev.map(m => m.id === item.id ? { ...m, marks_obtained: val } : m));
+                                  }}
+                                  className="w-20 h-10 border border-slate-200 bg-slate-50 rounded-lg text-center font-bold text-xs text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                />
+                                <span className="text-xs font-bold text-slate-400">/ 20</span>
+                              </div>
+                            </td>
+
+                            {/* Student name if de-anonymized */}
+                            {deAnonymize && (
+                              <td className="py-4 pl-6 text-xs font-bold text-slate-700">
+                                👤 {item.name}
+                              </td>
+                            )}
+
+                            {/* Incidents Warning */}
+                            <td className="py-4 text-right">
+                              {item.incident !== "-" && (
+                                <span 
+                                  title={item.report}
+                                  className="px-2.5 py-1 rounded bg-rose-100 text-rose-600 text-[9px] font-black uppercase inline-flex items-center gap-1 cursor-help"
+                                >
+                                  ⚠️ {item.incident}
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+
+                      {marksList.length === 0 && (
+                        <tr>
+                          <td colSpan={deAnonymize ? 5 : 4} className="py-12 text-center text-slate-400 text-xs font-semibold">
+                            Aucun candidat n'a encore été inscrit ou traité pour cette épreuve.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Smart Import Modal */}
+          {showSmartImportModal && (
+            <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+              <div className="bg-white rounded-[3rem] border border-slate-100 shadow-2xl p-8 max-w-2xl w-full space-y-6 animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+                <div className="flex items-center gap-3 text-indigo-600">
+                  <Sparkles size={28} />
+                  <div>
+                    <h4 className="font-black text-slate-900 text-lg leading-snug">Importation Intelligente par IA</h4>
+                    <p className="text-xs text-slate-400 font-semibold">Gemini extrait automatiquement les codes et notes depuis n'importe quel texte.</p>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Texte brut à analyser (Notes rédigées, tableau Excel copié...)</label>
+                    <textarea
+                      placeholder="Exemple :
+C2-S45-12-XYZ : 14.5
+C2-S46-12-ABC = 18
+L'élève C2-S47 a obtenu 11.25..."
+                      value={smartImportText}
+                      onChange={(e) => setSmartImportText(e.target.value)}
+                      rows={6}
+                      className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 font-bold text-xs text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+
+                  {/* Extract action */}
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={handleAIParseMarks}
+                      disabled={smartImportLoading || !smartImportText.trim()}
+                      className="h-11 px-5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs uppercase tracking-wider transition-all flex items-center gap-2 disabled:bg-slate-100 disabled:text-slate-400"
+                    >
+                      {smartImportLoading ? <RefreshCw className="animate-spin" size={14} /> : <Cpu size={14} />}
+                      Extraire avec l'IA
+                    </button>
+                  </div>
+
+                  {/* Parsed results preview table */}
+                  {parsedPreviewList.length > 0 && (
+                    <div className="border border-slate-100 rounded-2xl overflow-hidden bg-slate-50/50">
+                      <div className="px-4 py-3 bg-slate-100/50 border-b border-slate-100 flex justify-between items-center">
+                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Résultats détectés ({parsedPreviewList.length})</span>
+                      </div>
+                      
+                      <div className="max-h-48 overflow-y-auto">
+                        <table className="w-full text-left text-xs border-collapse">
+                          <thead>
+                            <tr className="border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase bg-white">
+                              <th className="px-4 py-2">Code d'Anonymat</th>
+                              <th className="px-4 py-2 text-center w-28">Note</th>
+                              <th className="px-4 py-2 text-right">Statut Base</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
+                            {parsedPreviewList.map((parsed, pIdx) => {
+                              // Check if this anonymity code matches any candidate loaded in roster
+                              const match = marksList.find(m => m.anonymity_code === parsed.anonymity_code);
+                              
+                              return (
+                                <tr key={pIdx} className="hover:bg-white transition-colors">
+                                  <td className="px-4 py-2.5 font-mono text-indigo-600">{parsed.anonymity_code}</td>
+                                  <td className="px-4 py-2.5 text-center font-bold">{parsed.mark} / 20</td>
+                                  <td className="px-4 py-2.5 text-right">
+                                    {match ? (
+                                      <span className="text-emerald-500 text-[10px] uppercase font-black">✔️ Trouvé ({match.name.substring(0, 12)}...)</span>
+                                    ) : (
+                                      <span className="text-rose-500 text-[10px] uppercase font-black">⚠️ Inexistant dans la classe</span>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSmartImportText("");
+                      setParsedPreviewList([]);
+                      setShowSmartImportModal(false);
+                    }}
+                    className="flex-1 h-12 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-xs uppercase tracking-wider transition-all"
+                  >
+                    Fermer
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleApplyParsedMarks}
+                    disabled={parsedPreviewList.length === 0}
+                    className="flex-1 h-12 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-indigo-100 hover:shadow-indigo-200 transition-all flex items-center justify-center gap-1.5 disabled:bg-slate-100 disabled:text-slate-400"
+                  >
+                    <CheckCircle2 size={14} />
+                    Appliquer au tableau
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

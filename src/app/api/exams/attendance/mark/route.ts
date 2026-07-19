@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
 
     // Verify if record exists
     const check = await db.execute(sql`
-      SELECT id FROM exam_attendance_and_marks WHERE id = ${recordId} LIMIT 1
+      SELECT id FROM exam_attendance_marks WHERE id = ${recordId} LIMIT 1
     `);
     const checkRows = (Array.isArray(check) ? check : (check as any).rows || []) as any[];
 
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     }
 
     await db.execute(sql`
-      UPDATE exam_attendance_and_marks 
+      UPDATE exam_attendance_marks 
       SET attendance_status = ${status} 
       WHERE id = ${recordId}
     `);

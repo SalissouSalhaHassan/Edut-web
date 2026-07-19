@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
 
     // Verify if record exists
     const check = await db.execute(sql`
-      SELECT id FROM exam_attendance_and_marks WHERE id = ${recordId} LIMIT 1
+      SELECT id FROM exam_attendance_marks WHERE id = ${recordId} LIMIT 1
     `);
     const checkRows = (Array.isArray(check) ? check : (check as any).rows || []) as any[];
 
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     // If Fraud (Triche) or Exclusion, set marks_obtained to 0.0!
     if (incident_type === "Fraude (Triche)" || incident_type === "Exclusion") {
       await db.execute(sql`
-        UPDATE exam_attendance_and_marks 
+        UPDATE exam_attendance_marks 
         SET incident_type = ${incident_type}, 
             incident_report = ${report_text || ""},
             marks_obtained = 0.0
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
       `);
     } else {
       await db.execute(sql`
-        UPDATE exam_attendance_and_marks 
+        UPDATE exam_attendance_marks 
         SET incident_type = ${incident_type}, 
             incident_report = ${report_text || ""}
         WHERE id = ${recordId}

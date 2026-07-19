@@ -25,8 +25,10 @@ export async function GET(
         s.nom_etudiant as name,
         r.attendance_status as status,
         r.incident_type as incident,
-        r.incident_report as report
-      FROM exam_attendance_and_marks r
+        r.incident_report as report,
+        r.anonymity_code,
+        r.marks_obtained
+      FROM exam_attendance_marks r
       JOIN exam_candidates c ON r.candidate_id = c.id
       JOIN students s ON c.student_id = s.id
       WHERE r.timetable_id = ${timetableId}
@@ -43,7 +45,9 @@ export async function GET(
       name: row.name || "N/A",
       status: row.status || "Absent",
       incident: row.incident || "-",
-      report: row.report || ""
+      report: row.report || "",
+      anonymity_code: row.anonymity_code || "",
+      marks_obtained: row.marks_obtained !== null && row.marks_obtained !== undefined ? parseFloat(row.marks_obtained) : null
     }));
 
     return NextResponse.json(formatted);

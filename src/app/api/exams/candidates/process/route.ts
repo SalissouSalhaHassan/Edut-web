@@ -144,7 +144,7 @@ export async function POST(request: NextRequest) {
       // Generate anonymity codes for marks/attendance
       for (const tt of timetables) {
         const markCheck = await db.execute(sql`
-          SELECT id FROM exam_attendance_and_marks 
+          SELECT id FROM exam_attendance_marks 
           WHERE candidate_id = ${candidateId} AND timetable_id = ${tt.id} LIMIT 1
         `);
         const markRows = (Array.isArray(markCheck) ? markCheck : (markCheck as any).rows || []) as any[];
@@ -156,7 +156,7 @@ export async function POST(request: NextRequest) {
           const anonCode = `C${campaignId}-S${student.id}-${tt.subject_id}-${randChars}`;
 
           await db.execute(sql`
-            INSERT INTO exam_attendance_and_marks (candidate_id, timetable_id, anonymity_code)
+            INSERT INTO exam_attendance_marks (candidate_id, timetable_id, anonymity_code)
             VALUES (${candidateId}, ${tt.id}, ${anonCode})
           `);
         }
