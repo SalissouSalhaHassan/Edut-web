@@ -190,6 +190,7 @@ export default function ImportationPage() {
   const [headers, setHeaders] = useState<string[]>([]);
   const [parsedData, setParsedData] = useState<any[]>([]);
   const [columnMapping, setColumnMapping] = useState<Record<string, string>>({});
+  const [fixedValues, setFixedValues] = useState<Record<string, string>>({});
 
   // UI states
   const [step, setStep] = useState<1 | 2 | 3>(1); // 1: Upload, 2: Mapping & Preview, 3: Executing
@@ -452,8 +453,13 @@ export default function ImportationPage() {
     // 1. Verify required column mappings
     const missingRequired: string[] = [];
     FIELDS[activeTab].forEach(field => {
-      if (field.required && (!columnMapping[field.key] || columnMapping[field.key] === "Ignorer")) {
-        missingRequired.push(field.label);
+      const mapping = columnMapping[field.key];
+      if (field.required) {
+        if (!mapping || mapping === "Ignorer") {
+          missingRequired.push(field.label);
+        } else if (mapping === "__fixed__" && !fixedValues[field.key]?.trim()) {
+          missingRequired.push(`${field.label} (Valeur fixe requise)`);
+        }
       }
     });
 
@@ -477,7 +483,9 @@ export default function ImportationPage() {
         const payload: Record<string, any> = {};
         FIELDS[activeTab].forEach(field => {
           const excelHeader = columnMapping[field.key];
-          if (excelHeader && excelHeader !== "Ignorer") {
+          if (excelHeader === "__fixed__") {
+            payload[field.key] = fixedValues[field.key] || "";
+          } else if (excelHeader && excelHeader !== "Ignorer") {
             payload[field.key] = row[excelHeader];
           }
         });
@@ -539,6 +547,7 @@ export default function ImportationPage() {
     setHeaders([]);
     setParsedData([]);
     setColumnMapping({});
+    setFixedValues({});
     setStep(1);
     setImportLogs([]);
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -703,10 +712,20 @@ export default function ImportationPage() {
                   >
                     <option value="">-- Ignorer --</option>
                     <option value="Ignorer">Ignorer</option>
+                    <option value="__fixed__">✍️ Valeur fixe pour toute la colonne...</option>
                     {headers.map(h => (
                       <option key={h} value={h}>{h}</option>
                     ))}
                   </select>
+                  {columnMapping[field.key] === "__fixed__" && (
+                    <input
+                      type="text"
+                      placeholder={`Saisir la valeur fixe pour ${field.label.replace(" *", "")}`}
+                      value={fixedValues[field.key] || ""}
+                      onChange={e => setFixedValues(prev => ({ ...prev, [field.key]: e.target.value }))}
+                      className="w-full h-10 px-3 mt-1.5 bg-white border border-indigo-200 rounded-xl text-sm font-semibold text-slate-700 outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200 transition-all"
+                    />
+                  )}
                 </div>
               ))}
             </div>

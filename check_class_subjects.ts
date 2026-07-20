@@ -7,7 +7,7 @@ dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
 async function main() {
   const connectionString = process.env.REMOTE_DATABASE_URL || "postgres://postgres.gkarotahjtyvmhjqejts:salissou1994S@aws-1-eu-central-2.pooler.supabase.com:6543/postgres";
   const sql = postgres(connectionString, { ssl: { rejectUnauthorized: false } });
-  
+
   try {
     const schoolId = 9;
 
