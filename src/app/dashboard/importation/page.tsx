@@ -18,18 +18,23 @@ import {
   Play,
   RotateCcw,
   Sparkles,
-  Award
+  Award,
+  Layers,
+  Link as LinkIcon
 } from "lucide-react";
 import { toast } from "sonner";
 import {
   importStudentRow,
   importEmployeeRow,
   importSubjectRow,
-  importExamResultRow
+  importExamResultRow,
+  importClassLevelRow,
+  importSectionSubjectRow,
+  importClassSubjectRow
 } from "@/domains/importation/actions/import.actions";
 import { cn } from "@/lib/utils";
 
-type ImportType = "student" | "employee" | "subject" | "exam_result";
+type ImportType = "student" | "employee" | "subject" | "exam_result" | "class_level" | "section_subject" | "class_subject";
 
 interface FieldInfo {
   key: string;
@@ -117,6 +122,32 @@ const FIELDS: Record<ImportType, FieldInfo[]> = {
     { key: "maxMarks", label: "Note Maximale (ex: 20)", required: false },
     { key: "remarks", label: "Appréciation / Remarques", required: false },
     { key: "examDate", label: "Date de l'Examen", required: false }
+  ],
+  class_level: [
+    { key: "className", label: "Nom de la Classe *", required: true },
+    { key: "sectionName", label: "Nom de la Section *", required: true },
+    { key: "educationalLevel", label: "Niveau Éducatif *", required: true },
+    { key: "roomName", label: "Salle de classe / Division", required: false },
+    { key: "scolariteMensuelle", label: "Scolarité Mensuelle (CFA)", required: false },
+    { key: "droitsInscription", label: "Frais d'Inscription (CFA)", required: false },
+    { key: "cogesCarteId", label: "Frais COGES / Cartes ID (CFA)", required: false },
+    { key: "transportInternat", label: "Transport / Internat (CFA)", required: false },
+    { key: "ancienSolde", label: "Ancien solde initial (CFA)", required: false },
+    { key: "statutInitial", label: "Statut (Actif/Inactif)", required: false }
+  ],
+  section_subject: [
+    { key: "sectionName", label: "Nom de la Section *", required: true },
+    { key: "subjectName", label: "Nom de la Matière *", required: true },
+    { key: "coefficient", label: "Coefficient", required: false },
+    { key: "term", label: "Trimestre / Période (ex: 1er Trimestre)", required: false },
+    { key: "isEliminatory", label: "Éliminatoire (Oui/Non)", required: false }
+  ],
+  class_subject: [
+    { key: "className", label: "Nom de la Classe *", required: true },
+    { key: "subjectName", label: "Nom de la Matière *", required: true },
+    { key: "coefficient", label: "Coefficient", required: false },
+    { key: "semester", label: "Semestre / Période", required: false },
+    { key: "teacherName", label: "Nom de l'Enseignant", required: false }
   ]
 };
 
@@ -181,7 +212,16 @@ const KEYWORDS: Record<string, string[]> = {
   sessionName: ["session", "annee", "année", "annee scolaire", "année scolaire", "annee_scolaire", "sessionname", "session_name"],
   maxMarks: ["max", "note_max", "maxmarks", "bareme", "note_maximale"],
   remarks: ["remarques", "appreciation", "remarks", "commentaire", "obs", "observation"],
-  examDate: ["date", "date_examen", "examdate"]
+  examDate: ["date", "date_examen", "examdate"],
+  roomName: ["salle", "classe_salle", "room", "roomname", "division"],
+  scolariteMensuelle: ["scolarite", "frais_mensuels", "mensuel", "scolaritemensuelle", "mensualite"],
+  droitsInscription: ["inscription", "frais_inscription", "fraisinscription", "droits"],
+  cogesCarteId: ["coges", "carte", "frais_coges", "coges_card", "fraiscogescard"],
+  transportInternat: ["transport", "internat", "frais_transport", "transport_internat", "fraistransportinternat"],
+  statutInitial: ["statut", "status", "etat", "statutinitial"],
+  isEliminatory: ["eliminatoire", "is_eliminatory", "eliminatoire_oui_non", "iseliminatory"],
+  semester: ["semestre", "trimestre", "periode", "semester"],
+  teacherName: ["enseignant", "prof", "professeur", "teacher", "nom_prof", "teachername", "nom_enseignant"]
 };
 
 export default function ImportationPage() {
@@ -347,6 +387,73 @@ export default function ImportationPage() {
         }
       ];
       filename = "Modele_Import_Notes.xlsx";
+    } else if (type === "class_level") {
+      cols = ["className", "sectionName", "educationalLevel", "roomName", "scolariteMensuelle", "droitsInscription", "cogesCarteId", "transportInternat", "ancienSolde", "statutInitial"];
+      sample = [
+        {
+          className: "6ème A",
+          sectionName: "Collège Général",
+          educationalLevel: "Collège",
+          roomName: "Salle 1",
+          scolariteMensuelle: 12000,
+          droitsInscription: 15000,
+          cogesCarteId: 5000,
+          transportInternat: 0,
+          ancienSolde: 0,
+          statutInitial: "Actif"
+        },
+        {
+          className: "Terminale D",
+          sectionName: "Lycée Scientifique",
+          educationalLevel: "Lycée",
+          roomName: "Salle B4",
+          scolariteMensuelle: 18000,
+          droitsInscription: 20000,
+          cogesCarteId: 5000,
+          transportInternat: 10000,
+          ancienSolde: 5000,
+          statutInitial: "Actif"
+        }
+      ];
+      filename = "Modele_Import_Classes.xlsx";
+    } else if (type === "section_subject") {
+      cols = ["sectionName", "subjectName", "coefficient", "term", "isEliminatory"];
+      sample = [
+        {
+          sectionName: "Collège Général",
+          subjectName: "Physique-Chimie",
+          coefficient: 2,
+          term: "Tous",
+          isEliminatory: "Non"
+        },
+        {
+          sectionName: "Lycée Scientifique",
+          subjectName: "Mathématiques",
+          coefficient: 5,
+          term: "Tous",
+          isEliminatory: "Oui"
+        }
+      ];
+      filename = "Modele_Import_Matieres_Sections.xlsx";
+    } else if (type === "class_subject") {
+      cols = ["className", "subjectName", "coefficient", "semester", "teacherName"];
+      sample = [
+        {
+          className: "6ème A",
+          subjectName: "Physique-Chimie",
+          coefficient: 2,
+          semester: "1er Trimestre",
+          teacherName: "Adama Coulibaly"
+        },
+        {
+          className: "Terminale D",
+          subjectName: "Mathématiques",
+          coefficient: 5,
+          semester: "1er Trimestre",
+          teacherName: "Clarisse Touré"
+        }
+      ];
+      filename = "Modele_Import_Plan_Etudes.xlsx";
     }
 
     const worksheet = XLSX.utils.json_to_sheet(sample, { header: cols });
@@ -501,6 +608,12 @@ export default function ImportationPage() {
             res = await importEmployeeRow(payload);
           } else if (activeTab === "subject") {
             res = await importSubjectRow(payload);
+          } else if (activeTab === "class_level") {
+            res = await importClassLevelRow(payload);
+          } else if (activeTab === "section_subject") {
+            res = await importSectionSubjectRow(payload);
+          } else if (activeTab === "class_subject") {
+            res = await importClassSubjectRow(payload);
           } else {
             res = await importExamResultRow(payload);
           }
@@ -508,7 +621,7 @@ export default function ImportationPage() {
           if (res?.success) {
             successCount++;
             const actionText = res.action === "update" ? "mis à jour" : "créé";
-            const rowId = payload.numAdmission || payload.empId || payload.subjectName || `Ligne ${rowNum}`;
+            const rowId = payload.numAdmission || payload.empId || payload.subjectName || payload.className || payload.sectionName || `Ligne ${rowNum}`;
             setImportLogs(prev => [
               `✅ Ligne ${rowNum} (${rowId}) : ${actionText} avec succès.`,
               ...prev.slice(0, 49)
@@ -583,7 +696,7 @@ export default function ImportationPage() {
 
       {/* MODE SELECTOR (Only active at step 1) */}
       {step === 1 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {[
             {
               id: "student" as ImportType,
@@ -612,6 +725,27 @@ export default function ImportationPage() {
               desc: "Importation des notes d'examen et appréciations...",
               icon: <Award className="size-6 text-amber-600" />,
               color: "border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10"
+            },
+            {
+              id: "class_level" as ImportType,
+              title: "Classes & Niveaux (الفصول)",
+              desc: "Importation des classes, sections et niveaux éducatifs...",
+              icon: <Layers className="size-6 text-cyan-600" />,
+              color: "border-cyan-500/20 bg-cyan-500/5 hover:bg-cyan-500/10"
+            },
+            {
+              id: "section_subject" as ImportType,
+              title: "Matières ↔ Sections (الشعب)",
+              desc: "Importation des coefficients de matières par sections...",
+              icon: <LinkIcon className="size-6 text-teal-600" />,
+              color: "border-teal-500/20 bg-teal-500/5 hover:bg-teal-500/10"
+            },
+            {
+              id: "class_subject" as ImportType,
+              title: "Plan d'Études (مخطط الدراسة)",
+              desc: "Liaisons des matières aux classes et assignation des profs...",
+              icon: <BookOpen className="size-6 text-rose-600" />,
+              color: "border-rose-500/20 bg-rose-500/5 hover:bg-rose-500/10"
             }
           ].map(tab => (
             <button
@@ -637,13 +771,19 @@ export default function ImportationPage() {
             <span className="text-sm font-bold">Télécharger un modèle Excel :</span>
           </div>
           <div className="flex flex-wrap gap-2">
-            {(["student", "employee", "subject", "exam_result"] as ImportType[]).map(type => (
+            {(["student", "employee", "subject", "exam_result", "class_level", "section_subject", "class_subject"] as ImportType[]).map(type => (
               <button
                 key={type}
                 onClick={() => handleDownloadTemplate(type)}
                 className="px-3 py-1.5 text-xs font-bold bg-white border border-amber-200 text-amber-800 hover:bg-amber-100 rounded-lg transition-all"
               >
-                {type === "student" ? "Élèves" : type === "employee" ? "Personnel" : type === "subject" ? "Matières" : "Notes"}
+                {type === "student" ? "Élèves" : 
+                 type === "employee" ? "Personnel" : 
+                 type === "subject" ? "Matières" : 
+                 type === "exam_result" ? "Notes" :
+                 type === "class_level" ? "Classes & Niveaux" :
+                 type === "section_subject" ? "Matières ↔ Sections" :
+                 "Plan d'Études"}
               </button>
             ))}
           </div>

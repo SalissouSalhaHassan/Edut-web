@@ -3,16 +3,8 @@
 import { db } from "@/infrastructure/database";
 import { students } from "@/infrastructure/database/schema/students";
 import { employees } from "@/infrastructure/database/schema/hr";
-import { schoolSubjects, schoolSections, sectionSubjects, schoolClasses, exams, examResults, academicPeriods, schoolSessions, classSubjects, studentResults } from "@/infrastructure/database/schema/academics";
+import { schoolSubjects, schoolSections, sectionSubjects, schoolClasses, exams, examResults, academicPeriods, schoolSessions, classSubjects, studentResults, educationalLevels } from "@/infrastructure/database/schema/academics";
 import { eq, and } from "drizzle-orm";
-import { revalidatePath } from "next/cache";
-import { protectedDbAction } from "@/lib/protected-action";
-import { getActiveSchoolId } from "@/domains/auth/services/school";
-import { getUserRoleType } from "@/domains/auth/services/rbac";
-
-function formatDate(val: any): string | null {
-  if (val === undefined || val === null || val === "") return null;
-  if (val instanceof Date) {
     const day = String(val.getDate()).padStart(2, '0');
     const month = String(val.getMonth() + 1).padStart(2, '0');
     const year = val.getFullYear();
@@ -577,6 +569,246 @@ export async function importExamResultRow(data: any) {
         revalidatePath("/dashboard/academics/grades");
       }
       return { success: true, action: "insert", id: newRes.id };
+    }
+  });
+}
+
+export async function importClassLevelRow(data: any) {
+  return protectedDbAction("Academics", "canEdit", async (user) => {
+    const schoolId = await getActiveSchoolId();
+    if (!schoolId) {
+      return missingSchoolContextError();
+    }
+
+    const className = String(data.className || "").trim();
+    const sectionName = String(data.sectionName || "").trim();
+    const educationalLevel = String(data.educationalLevel || "").trim();
+
+    if (!className || !sectionName || !educationalLevel) {
+      return { error: "Le nom de la classe, de la section et du niveau éducatif sont requis." };
+    }
+
+    // 1. Find or create Educational Level
+    let level = await db.query.educationalLevels.findFirst({
+      where: and(
+        eq(educationalLevels.schoolId, schoolId),
+        eq(educationalLevels.levelName, educationalLevel)
+      )
+    });
+    if (!level) {
+      const [newLevel] = await db.insert(educationalLevels).values({
+        schoolId,
+        levelName: educationalLevel
+      }).returning();
+      level = newLevel;
+    }
+
+    // 2. Find or create Section
+    let section = await db.query.schoolSections.findFirst({
+      where: and(
+        eq(schoolSections.schoolId, schoolId),
+        eq(schoolSections.sectionName, sectionName)
+      )
+    });
+    if (!section) {
+      const [newSection] = await db.insert(schoolSections).values({
+        schoolId,
+        sectionName,
+        educationalLevel
+      }).returning();
+      section = newSection;
+    }
+
+    // 3. Find or create Class
+    let cls = await db.query.schoolClasses.findFirst({
+      where: and(
+        eq(schoolClasses.schoolId, schoolId),
+        eq(schoolClasses.className, className)
+      )
+    });
+
+    const classData = {
+      className,
+      sectionId: section.id,
+      roomName: data.roomName ? String(data.roomName).trim() : null,
+      scolariteMensuelle: parseOptionalNumber(data.scolariteMensuelle) || 0,
+      droitsInscription: parseOptionalNumber(data.droitsInscription) || 0,
+      cogesCarteId: parseOptionalNumber(data.cogesCarteId) || 0,
+      transportInternat: parseOptionalNumber(data.transportInternat) || 0,
+      ancienSolde: parseOptionalNumber(data.ancienSolde) || 0,
+      statutInitial: data.statutInitial ? String(data.statutInitial).trim() : "Actif",
+      schoolId
+    };
+
+    if (cls) {
+      await db.update(schoolClasses).set(classData).where(eq(schoolClasses.id, cls.id));
+      revalidatePath("/dashboard/academics");
+      revalidatePath("/dashboard/settings");
+      return { success: true, action: "update", id: cls.id };
+    } else {
+      const [newCls] = await db.insert(schoolClasses).values(classData).returning();
+      revalidatePath("/dashboard/academics");
+      revalidatePath("/dashboard/settings");
+      return { success: true, action: "insert", id: newCls.id };
+    }
+  });
+}
+
+export async function importSectionSubjectRow(data: any) {
+  return protectedDbAction("Academics", "canEdit", async (user) => {
+    const schoolId = await getActiveSchoolId();
+    if (!schoolId) {
+      return missingSchoolContextError();
+    }
+
+    const sectionName = String(data.sectionName || "").trim();
+    const subjectName = String(data.subjectName || "").trim();
+    const defaultCoef = parseOptionalNumber(data.coefficient) ?? 1;
+    const term = data.term ? String(data.term).trim() : "Tous";
+    const isEliminatory = data.isEliminatory === true || String(data.isEliminatory).trim().toLowerCase() === "oui" || String(data.isEliminatory).trim().toLowerCase() === "true" || data.isEliminatory === 1;
+
+    if (!sectionName || !subjectName) {
+      return { error: "Le nom de la section et le nom de la matière sont requis." };
+    }
+
+    // 1. Find Section
+    const section = await db.query.schoolSections.findFirst({
+      where: and(
+        eq(schoolSections.schoolId, schoolId),
+        eq(schoolSections.sectionName, sectionName)
+      )
+    });
+    if (!section) {
+      return { error: `La section '${sectionName}' n'existe pas dans le système.` };
+    }
+
+    // 2. Find or Create Subject
+    let subject = await db.query.schoolSubjects.findFirst({
+      where: and(
+        eq(schoolSubjects.schoolId, schoolId),
+        eq(schoolSubjects.subjectName, subjectName)
+      )
+    });
+    if (!subject) {
+      const [newSub] = await db.insert(schoolSubjects).values({
+        schoolId,
+        subjectName,
+      }).returning();
+      subject = newSub;
+    }
+
+    // 3. Find or Create/Update Link in sectionSubjects
+    const existingLink = await db.query.sectionSubjects.findFirst({
+      where: and(
+        eq(sectionSubjects.sectionId, section.id),
+        eq(sectionSubjects.subjectId, subject.id),
+        eq(sectionSubjects.term, term)
+      )
+    });
+
+    const linkData = {
+      sectionId: section.id,
+      subjectId: subject.id,
+      term,
+      defaultCoef,
+      isEliminatory
+    };
+
+    if (existingLink) {
+      await db.update(sectionSubjects).set(linkData).where(eq(sectionSubjects.id, existingLink.id));
+      revalidatePath("/dashboard/settings");
+      return { success: true, action: "update", id: existingLink.id };
+    } else {
+      const [newLink] = await db.insert(sectionSubjects).values(linkData).returning();
+      revalidatePath("/dashboard/settings");
+      return { success: true, action: "insert", id: newLink.id };
+    }
+  });
+}
+
+export async function importClassSubjectRow(data: any) {
+  return protectedDbAction("Academics", "canEdit", async (user) => {
+    const schoolId = await getActiveSchoolId();
+    if (!schoolId) {
+      return missingSchoolContextError();
+    }
+
+    const className = String(data.className || "").trim();
+    const subjectName = String(data.subjectName || "").trim();
+    const coefficient = parseOptionalNumber(data.coefficient) ?? 1;
+    const semester = data.semester ? String(data.semester).trim() : null;
+    const teacherName = data.teacherName ? String(data.teacherName).trim() : null;
+
+    if (!className || !subjectName) {
+      return { error: "Le nom de la classe et le nom de la matière sont requis." };
+    }
+
+    // 1. Find Class
+    const cls = await db.query.schoolClasses.findFirst({
+      where: and(
+        eq(schoolClasses.schoolId, schoolId),
+        eq(schoolClasses.className, className)
+      )
+    });
+    if (!cls) {
+      return { error: `La classe '${className}' n'existe pas dans le système.` };
+    }
+
+    // 2. Find or Create Subject
+    let subject = await db.query.schoolSubjects.findFirst({
+      where: and(
+        eq(schoolSubjects.schoolId, schoolId),
+        eq(schoolSubjects.subjectName, subjectName)
+      )
+    });
+    if (!subject) {
+      const [newSub] = await db.insert(schoolSubjects).values({
+        schoolId,
+        subjectName,
+      }).returning();
+      subject = newSub;
+    }
+
+    // 3. Find Teacher if provided
+    let employeeId: number | null = null;
+    if (teacherName) {
+      const teacher = await db.query.employees.findFirst({
+        where: and(
+          eq(employees.schoolId, schoolId),
+          eq(employees.nom, teacherName)
+        )
+      });
+      if (teacher) {
+        employeeId = teacher.id;
+      }
+    }
+
+    // 4. Find or Create/Update Link in classSubjects
+    const existingLink = await db.query.classSubjects.findFirst({
+      where: and(
+        eq(classSubjects.schoolId, schoolId),
+        eq(classSubjects.classId, cls.id),
+        eq(classSubjects.subjectId, subject.id)
+      )
+    });
+
+    const linkData = {
+      schoolId,
+      classId: cls.id,
+      subjectId: subject.id,
+      coefficient,
+      semester,
+      employeeId
+    };
+
+    if (existingLink) {
+      await db.update(classSubjects).set(linkData).where(eq(classSubjects.id, existingLink.id));
+      revalidatePath("/dashboard/settings");
+      return { success: true, action: "update", id: existingLink.id };
+    } else {
+      const [newLink] = await db.insert(classSubjects).values(linkData).returning();
+      revalidatePath("/dashboard/settings");
+      return { success: true, action: "insert", id: newLink.id };
     }
   });
 }
