@@ -5,6 +5,14 @@ import { students } from "@/infrastructure/database/schema/students";
 import { employees } from "@/infrastructure/database/schema/hr";
 import { schoolSubjects, schoolSections, sectionSubjects, schoolClasses, exams, examResults, academicPeriods, schoolSessions, classSubjects, studentResults, educationalLevels } from "@/infrastructure/database/schema/academics";
 import { eq, and } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
+import { protectedDbAction } from "@/lib/protected-action";
+import { getActiveSchoolId } from "@/domains/auth/services/school";
+import { getUserRoleType } from "@/domains/auth/services/rbac";
+
+function formatDate(val: any): string | null {
+  if (val === undefined || val === null || val === "") return null;
+  if (val instanceof Date) {
     const day = String(val.getDate()).padStart(2, '0');
     const month = String(val.getMonth() + 1).padStart(2, '0');
     const year = val.getFullYear();
