@@ -9,31 +9,17 @@ async function main() {
   const sql = postgres(connectionString, { ssl: { rejectUnauthorized: false } });
 
   try {
-    const schoolId = 9;
-
-    console.log("\n=== ALL CLASS_SUBJECTS FOR SCHOOL ID 9 ===");
-    const allCS = await sql`
-      SELECT cs.id, cs.class_id, cs.subject_id, cs.employee_id, c.class_name, s.subject_name, e.nom as teacher_name
-      FROM class_subjects cs
-      LEFT JOIN school_classes c ON cs.class_id = c.id
-      LEFT JOIN school_subjects s ON cs.subject_id = s.id
-      LEFT JOIN employees e ON cs.employee_id = e.id
-      WHERE cs.school_id = ${schoolId}
+    console.log("\n=== LISTING COLUMNS FOR exam_results ===");
+    const columns = await sql`
+      SELECT column_name, data_type 
+      FROM information_schema.columns 
+      WHERE table_name = 'exam_results'
     `;
-    console.log("All class_subjects for School 9:", allCS);
-
-    console.log("\n=== ALL SUBJECTS FOR SCHOOL ID 9 ===");
-    const allSubs = await sql`
-      SELECT id, subject_name, subject_code
-      FROM school_subjects
-      WHERE school_id = ${schoolId}
-    `;
-    console.log("All Subjects (School 9):", allSubs);
-
+    console.log("Columns of exam_results:", columns);
     await sql.end();
     process.exit(0);
   } catch (err: any) {
-    console.error("Check failed:", err.message);
+    console.error("❌ FAILED:", err.message);
     await sql.end();
     process.exit(1);
   }

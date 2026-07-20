@@ -4,7 +4,7 @@ import { db } from "@/infrastructure/database";
 import { students } from "@/infrastructure/database/schema/students";
 import { employees } from "@/infrastructure/database/schema/hr";
 import { schoolSubjects, schoolSections, sectionSubjects, schoolClasses, exams, examResults, academicPeriods, schoolSessions, classSubjects, studentResults, educationalLevels } from "@/infrastructure/database/schema/academics";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { protectedDbAction } from "@/lib/protected-action";
 import { getActiveSchoolId } from "@/domains/auth/services/school";
@@ -334,6 +334,14 @@ export async function importExamResultRow(data: any) {
       return missingSchoolContextError();
     }
     const roleType = await getUserRoleType(user);
+
+    // Auto-migrate: ensure school_id and recorded_at exist in exam_results
+    try {
+      await db.execute(sql`ALTER TABLE exam_results ADD COLUMN IF NOT EXISTS school_id integer`);
+      await db.execute(sql`ALTER TABLE exam_results ADD COLUMN IF NOT EXISTS recorded_at timestamp DEFAULT now()`);
+    } catch (e: any) {
+      console.warn("Could not check/add columns to exam_results:", e.message);
+    }
 
     const examName = String(data.examName || "").trim();
     const className = String(data.className || "").trim();
