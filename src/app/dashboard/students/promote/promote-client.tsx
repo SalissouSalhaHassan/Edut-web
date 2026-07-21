@@ -71,12 +71,23 @@ export default function PromoteClient({
     return sessionName.trim().toLowerCase();
   };
 
+  // Helper to normalize strings (accents, spaces, casing)
+  const cleanString = (val: string | null | undefined): string => {
+    if (!val) return "";
+    return val
+      .trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "") // Remove accents
+      .replace(/\s+/g, ""); // Remove all whitespace
+  };
+
   // Filtering logic
   const filteredStudents = React.useMemo(() => {
     return allStudents.filter(s => {
       const matchesSearch = s.nomEtudiant.toLowerCase().includes(search.toLowerCase()) || 
                            s.numAdmission.toLowerCase().includes(search.toLowerCase());
-      const matchesClass = !sourceClass || s.classe === sourceClass;
+      const matchesClass = !sourceClass || cleanString(s.classe) === cleanString(sourceClass);
       
       const normalizedStudentSession = normalizeSession(s.session);
       const normalizedSourceSession = normalizeSession(sourceSession);
