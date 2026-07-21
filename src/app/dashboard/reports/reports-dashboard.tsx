@@ -10,7 +10,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { localDb } from "@/infrastructure/local-db/dexie";
-import UniversalReport from "@/components/reporting/universal-report";
+import dynamicImport from "next/dynamic";
+const UniversalReport = dynamicImport(() => import("@/components/reporting/universal-report"), { ssr: false });
 import { Label } from "@/components/ui/label";
 
 interface ReportsDashboardProps {
