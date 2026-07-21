@@ -68,7 +68,7 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
     const dbSess = (data.sessions || []).map((s: any) => s.sessionName).filter(Boolean);
     if (dbSess.length > 0) return Array.from(new Set(dbSess)).sort();
 
-    const sess = Array.from(new Set(data.students.map(s => s.session).filter(Boolean))) as string[];
+    const sess = Array.from(new Set((data.students || []).map(s => s.session).filter(Boolean))) as string[];
     return sess.length > 0 ? sess.sort() : ["2024-2025", "2025-2026", "2026-2027"];
   }, [data.sessions, data.students]);
 
@@ -368,7 +368,7 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
   }
 
   else if (activeReport === "finances") {
-    const expected = data.students.reduce((acc, s) => acc + (s.fraisMensuels || 0), 0);
+    const expected = (data.students || []).reduce((acc, s) => acc + (s.fraisMensuels || 0), 0);
     const paid = filteredPayments.reduce((acc, p) => acc + (p.amount || 0), 0);
     const spent = filteredExpenses.reduce((acc, e) => acc + (e.amount || 0), 0);
     const balance = paid - spent;
@@ -429,9 +429,9 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
 
     const pedRows = [
       ...filteredSeances.map(s => {
-        const teacher = data.employees.find(e => e.id === s.employeeId);
-        const subject = data.subjects.find(sub => sub.id === s.subjectId);
-        const cls = data.classes.find(c => c.id === s.classId);
+        const teacher = (data.employees || []).find(e => e.id === s.employeeId);
+        const subject = (data.subjects || []).find(sub => sub.id === s.subjectId);
+        const cls = (data.classes || []).find(c => c.id === s.classId);
         return {
           date: s.sessionDate ? new Date(s.sessionDate) : new Date(),
           cls: cls?.className || "Classe",
@@ -890,7 +890,7 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
                   className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-2xl text-xs font-bold outline-none"
                 >
                   <option value="All">Toutes les classes</option>
-                  {data.classes
+                  {(data.classes || [])
                     .filter(c => {
                       if (selectedLevel === "All") return true;
                       return c.section?.educationalLevel === selectedLevel;
