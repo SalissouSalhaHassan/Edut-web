@@ -108,6 +108,16 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
     return (data.periods || []).find((p: any) => String(p.id) === period);
   }, [period, data.periods]);
 
+  // Get active period name for display
+  const activePeriodName = React.useMemo(() => {
+    if (period === "All") return "Année entière";
+    if (selectedPeriodObj) return selectedPeriodObj.name;
+    if (period === "T1") return "Trimestre 1";
+    if (period === "T2") return "Trimestre 2";
+    if (period === "T3") return "Trimestre 3";
+    return period;
+  }, [period, selectedPeriodObj]);
+
   // Export History State
   const [exportHistory, setExportHistory] = useState<any[]>([]);
 
@@ -699,15 +709,7 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
     };
   }
 
-  // Get active period name for display
-  const activePeriodName = React.useMemo(() => {
-    if (period === "All") return "Année entière";
-    if (selectedPeriodObj) return selectedPeriodObj.name;
-    if (period === "T1") return "Trimestre 1";
-    if (period === "T2") return "Trimestre 2";
-    if (period === "T3") return "Trimestre 3";
-    return period;
-  }, [period, selectedPeriodObj]);
+
 
   const universalMetadata = {
     title: getReportTitle(activeReport),
