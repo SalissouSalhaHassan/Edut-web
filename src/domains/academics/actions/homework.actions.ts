@@ -7,10 +7,14 @@ import { revalidatePath } from "next/cache";
 import { homeworkSchema, HomeworkFormData } from "../validators/homework.schema";
 import { protectedDbAction } from "@/lib/protected-action";
 import { getUserRoleType, getTeacherEmployee, getTeacherClassIds, verifyTeacherClassAccess, verifyTeacherClassSubjectAccess } from "@/domains/auth/services/rbac";
-import { classSubjects } from "@/infrastructure/database/schema/academics";
+import { classSubjects, schoolClasses, schoolSubjects } from "@/infrastructure/database/schema/academics";
+import { getActiveSchoolId } from "@/domains/auth/services/school";
 
 export async function getHomeworks() {
   return protectedDbAction("Academics", "canView", async (user) => {
+    const schoolId = await getActiveSchoolId();
+    if (!schoolId) return { data: [] };
+
     const roleType = await getUserRoleType(user);
 
     // Teachers only see homework for their assigned class-subject combinations
@@ -36,15 +40,19 @@ export async function getHomeworks() {
         with: { class: true, subject: true },
         orderBy: [desc(homework.dateAssigned)],
       });
-      return { data };
+
+      const filtered = data.filter((h) => h.class?.schoolId === schoolId);
+      return { data: filtered };
     }
 
-    // Admin/Director sees all homework
+    // Admin/Director sees all homework for their school
     const data = await db.query.homework.findMany({
       with: { class: true, subject: true },
       orderBy: [desc(homework.dateAssigned)],
     });
-    return { data };
+
+    const filtered = data.filter((h) => h.class?.schoolId === schoolId);
+    return { data: filtered };
   });
 }
 
@@ -55,6 +63,9 @@ export async function createHomework(formData: HomeworkFormData) {
   }
 
   return protectedDbAction("Academics", "canEdit", async (user) => {
+    const schoolId = await getActiveSchoolId();
+    if (!schoolId) return { error: "Aucune école active." };
+
     // Verify teacher has access to this class and subject
     if (validation.data.classId && validation.data.subjectId) {
       const hasAccess = await verifyTeacherClassSubjectAccess(
@@ -64,6 +75,29 @@ export async function createHomework(formData: HomeworkFormData) {
       );
       if (!hasAccess) {
         return { error: "Accès refusé. Vous n'êtes pas autorisé pour cette classe et cette matière." };
+      }
+    }
+
+    // Verify target class and subject belong to the school
+    if (validation.data.classId && validation.data.subjectId) {
+      const targetClass = await db.query.schoolClasses.findFirst({
+        where: and(
+          eq(schoolClasses.id, validation.data.classId),
+          eq(schoolClasses.schoolId, schoolId)
+        )
+      });
+      if (!targetClass) {
+        return { error: "Classe introuvable ou non autorisée." };
+      }
+
+      const targetSubject = await db.query.schoolSubjects.findFirst({
+        where: and(
+          eq(schoolSubjects.id, validation.data.subjectId),
+          eq(schoolSubjects.schoolId, schoolId)
+        )
+      });
+      if (!targetSubject) {
+        return { error: "Matière introuvable ou non autorisée." };
       }
     }
 
@@ -83,6 +117,18 @@ export async function updateHomework(id: number, formData: HomeworkFormData) {
   }
 
   return protectedDbAction("Academics", "canEdit", async (user) => {
+    const schoolId = await getActiveSchoolId();
+    if (!schoolId) return { error: "Aucune école active." };
+
+    // Verify existing homework belongs to the active school
+    const existing = await db.query.homework.findFirst({
+      where: eq(homework.id, id),
+      with: { class: true }
+    });
+    if (!existing || existing.class?.schoolId !== schoolId) {
+      return { error: "Devoir introuvable ou non autorisé." };
+    }
+
     // Verify teacher has access to the target class and subject
     if (validation.data.classId && validation.data.subjectId) {
       const hasAccess = await verifyTeacherClassSubjectAccess(
@@ -92,6 +138,29 @@ export async function updateHomework(id: number, formData: HomeworkFormData) {
       );
       if (!hasAccess) {
         return { error: "Accès refusé. Vous n'êtes pas autorisé pour cette classe et cette matière." };
+      }
+    }
+
+    // Verify target class and subject belong to the school
+    if (validation.data.classId && validation.data.subjectId) {
+      const targetClass = await db.query.schoolClasses.findFirst({
+        where: and(
+          eq(schoolClasses.id, validation.data.classId),
+          eq(schoolClasses.schoolId, schoolId)
+        )
+      });
+      if (!targetClass) {
+        return { error: "Classe cible introuvable ou non autorisée." };
+      }
+
+      const targetSubject = await db.query.schoolSubjects.findFirst({
+        where: and(
+          eq(schoolSubjects.id, validation.data.subjectId),
+          eq(schoolSubjects.schoolId, schoolId)
+        )
+      });
+      if (!targetSubject) {
+        return { error: "Matière cible introuvable ou non autorisée." };
       }
     }
 
@@ -108,9 +177,20 @@ export async function updateHomework(id: number, formData: HomeworkFormData) {
 
 export async function deleteHomework(id: number) {
   return protectedDbAction("Academics", "canDelete", async (user) => {
+    const schoolId = await getActiveSchoolId();
+    if (!schoolId) return { error: "Aucune école active." };
+
+    // Verify existing homework belongs to the active school
+    const existing = await db.query.homework.findFirst({
+      where: eq(homework.id, id),
+      with: { class: true }
+    });
+    if (!existing || existing.class?.schoolId !== schoolId) {
+      return { error: "Devoir introuvable ou non autorisé." };
+    }
+
     // Verify teacher owns the homework's class and subject before deleting
-    const existing = await db.query.homework.findFirst({ where: eq(homework.id, id) });
-    if (existing?.classId && existing?.subjectId) {
+    if (existing.classId && existing.subjectId) {
       const hasAccess = await verifyTeacherClassSubjectAccess(user, existing.classId, existing.subjectId);
       if (!hasAccess) {
         return { error: "Accès refusé. Vous n'êtes pas autorisé pour cette classe et cette matière." };
