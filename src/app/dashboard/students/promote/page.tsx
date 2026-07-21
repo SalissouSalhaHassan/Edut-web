@@ -13,11 +13,9 @@ export default async function StudentPromotionPage({
   searchParams: Promise<{ class?: string; session?: string }> 
 }) {
   const params = await searchParams;
-  
-  // Parallel fetch for better performance
   const [studentsRes, classesRes, sessionsRes] = await Promise.all([
     getStudents(),
-    getClasses(),
+    getClasses(true),
     getSessions()
   ]);
 
