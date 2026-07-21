@@ -216,7 +216,6 @@ export async function importEmployeeRow(data: any) {
             error:
               "Le matricule employé existe déjà. Si c'est un employé d'une autre école, appliquez la migration 0004_scope_employee_emp_id_by_school.sql dans Supabase avant l'importation.",
           };
-        }
         // All other DB errors — return a friendly message, never expose raw SQL.
         console.error("[importEmployeeRow] DB error:", pgCode, error?.message);
         return {
@@ -244,88 +243,146 @@ export async function importSubjectRow(data: any) {
       return { error: "Le nom de la matière est requis." };
     }
 
-    const subjectData = {
-      schoolId,
-      subjectName,
-      subjectCode: data.subjectCode ? String(data.subjectCode).trim() : null,
-      category: data.category ? String(data.category).trim() : null,
-    };
+    const inputCode = data.subjectCode ? String(data.subjectCode).trim() : null;
+    const category = data.category ? String(data.category).trim() : null;
 
-    // 1. Find or create the subject
-    let subjectId: number;
-    const existingSubject = await db.query.schoolSubjects.findFirst({
-      where: and(
-        eq(schoolSubjects.schoolId, schoolId),
-        eq(schoolSubjects.subjectName, subjectName)
-      )
-    });
+    try {
+      // 1. Find or create the subject by subjectCode first, then by subjectName
+      let existingSubject = null;
 
-    if (existingSubject) {
-      await db.update(schoolSubjects)
-        .set(subjectData)
-        .where(and(eq(schoolSubjects.id, existingSubject.id), eq(schoolSubjects.schoolId, schoolId)));
-      subjectId = existingSubject.id;
-    } else {
-      const [newSub] = await db.insert(schoolSubjects).values(subjectData).returning({ id: schoolSubjects.id });
-      subjectId = newSub.id;
-    }
-
-    // 2. If sectionName is provided, find or create section and link subject
-    const sectionName = data.sectionName ? String(data.sectionName).trim() : null;
-    if (sectionName) {
-      // Find matching section in this school
-      let section = await db.query.schoolSections.findFirst({
-        where: and(
-          eq(schoolSections.schoolId, schoolId),
-          eq(schoolSections.sectionName, sectionName)
-        )
-      });
-
-      // If not exists, create it
-      if (!section) {
-        const eduLevel = data.educationalLevel ? String(data.educationalLevel).trim() : "Lycée";
-        const [newSec] = await db.insert(schoolSections).values({
-          schoolId,
-          sectionName,
-          educationalLevel: eduLevel,
-        }).returning();
-        section = newSec;
+      if (inputCode) {
+        existingSubject = await db.query.schoolSubjects.findFirst({
+          where: and(
+            eq(schoolSubjects.schoolId, schoolId),
+            eq(schoolSubjects.subjectCode, inputCode)
+          )
+        });
       }
 
-      // Check if link exists in sectionSubjects
-      const existingLink = await db.query.sectionSubjects.findFirst({
-        where: and(
-          eq(sectionSubjects.sectionId, section.id),
-          eq(sectionSubjects.subjectId, subjectId)
-        )
-      });
+      if (!existingSubject && subjectName) {
+        existingSubject = await db.query.schoolSubjects.findFirst({
+          where: and(
+            eq(schoolSubjects.schoolId, schoolId),
+            eq(schoolSubjects.subjectName, subjectName)
+          )
+        });
+      }
 
-      const coefVal = data.coefficient !== undefined ? Number(data.coefficient) : 1;
-      const creditsVal = data.credits !== undefined ? Number(data.credits) : 0.0;
-      const termVal = data.term ? String(data.term).trim() : null;
+      let subjectId: number;
+      let action: "insert" | "update" = "insert";
 
-      const linkData = {
-        sectionId: section.id,
-        subjectId,
-        defaultCoef: isNaN(coefVal) ? 1 : coefVal,
-        credits: isNaN(creditsVal) ? 0.0 : creditsVal,
-        term: termVal,
-      };
+      if (existingSubject) {
+        action = "update";
+        subjectId = existingSubject.id;
 
-      if (existingLink) {
-        await db.update(sectionSubjects)
-          .set(linkData)
-          .where(eq(sectionSubjects.id, existingLink.id));
+        const updateData: any = {
+          subjectName: subjectName || existingSubject.subjectName,
+        };
+        if (category !== null) {
+          updateData.category = category;
+        }
+
+        // Only update subjectCode if provided and not owned by another subject
+        if (inputCode && inputCode !== existingSubject.subjectCode) {
+          const conflicting = await db.query.schoolSubjects.findFirst({
+            where: and(
+              eq(schoolSubjects.schoolId, schoolId),
+              eq(schoolSubjects.subjectCode, inputCode)
+            )
+          });
+          if (!conflicting || conflicting.id === existingSubject.id) {
+            updateData.subjectCode = inputCode;
+          }
+        }
+
+        await db.update(schoolSubjects)
+          .set(updateData)
+          .where(and(eq(schoolSubjects.id, existingSubject.id), eq(schoolSubjects.schoolId, schoolId)));
+
       } else {
-        await db.insert(sectionSubjects).values(linkData);
-      }
-    }
+        // Create new subject
+        let finalCode = inputCode;
+        if (inputCode) {
+          const conflicting = await db.query.schoolSubjects.findFirst({
+            where: and(
+              eq(schoolSubjects.schoolId, schoolId),
+              eq(schoolSubjects.subjectCode, inputCode)
+            )
+          });
+          if (conflicting) {
+            // Code already taken by another subject, omit code to avoid unique constraint crash
+            finalCode = null;
+          }
+        }
 
-    revalidatePath("/dashboard/settings");
-    revalidatePath("/dashboard/academics");
-    return { success: true, id: subjectId };
+        const [newSub] = await db.insert(schoolSubjects).values({
+          schoolId,
+          subjectName,
+          subjectCode: finalCode,
+          category,
+        }).returning({ id: schoolSubjects.id });
+        subjectId = newSub.id;
+      }
+
+      // 2. If sectionName is provided, find or create section and link subject
+      const sectionName = data.sectionName ? String(data.sectionName).trim() : null;
+      if (sectionName) {
+        let section = await db.query.schoolSections.findFirst({
+          where: and(
+            eq(schoolSections.schoolId, schoolId),
+            eq(schoolSections.sectionName, sectionName)
+          )
+        });
+
+        if (!section) {
+          const eduLevel = data.educationalLevel ? String(data.educationalLevel).trim() : "Lycée";
+          const [newSec] = await db.insert(schoolSections).values({
+            schoolId,
+            sectionName,
+            educationalLevel: eduLevel,
+          }).returning();
+          section = newSec;
+        }
+
+        const existingLink = await db.query.sectionSubjects.findFirst({
+          where: and(
+            eq(sectionSubjects.sectionId, section.id),
+            eq(sectionSubjects.subjectId, subjectId)
+          )
+        });
+
+        const coefVal = data.coefficient !== undefined ? Number(data.coefficient) : 1;
+        const creditsVal = data.credits !== undefined ? Number(data.credits) : 0.0;
+        const termVal = data.term ? String(data.term).trim() : null;
+
+        const linkData = {
+          sectionId: section.id,
+          subjectId,
+          defaultCoef: isNaN(coefVal) ? 1 : coefVal,
+          credits: isNaN(creditsVal) ? 0.0 : creditsVal,
+          term: termVal,
+        };
+
+        if (existingLink) {
+          await db.update(sectionSubjects)
+            .set(linkData)
+            .where(eq(sectionSubjects.id, existingLink.id));
+        } else {
+          await db.insert(sectionSubjects).values(linkData);
+        }
+      }
+
+      revalidatePath("/dashboard/settings");
+      revalidatePath("/dashboard/academics");
+      return { success: true, action, id: subjectId };
+
+    } catch (error: any) {
+      console.error("[importSubjectRow] Error:", error?.message || error);
+      return { error: `Erreur lors de l'enregistrement de la matière '${subjectName}'. Vérifiez les données.` };
+    }
   });
 }
+
 
 export async function importExamResultRow(data: any) {
   return protectedDbAction("Exams", "canEdit", async (user) => {
