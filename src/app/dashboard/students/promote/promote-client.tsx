@@ -62,13 +62,14 @@ export default function PromoteClient({
   const [search, setSearch] = React.useState("");
 
   // Helper to normalize academic sessions (e.g. 2025-2026 and 2026-2025 should match)
+  // Helper to normalize academic sessions (e.g. 2025-2026 and 2026-2025 should match)
   const normalizeSession = (sessionName: string | null | undefined): string => {
     if (!sessionName) return "";
     const years = sessionName.match(/\d{4}/g);
     if (years && years.length === 2) {
       return years.sort().join("-");
     }
-    return sessionName.trim().toLowerCase();
+    return cleanString(sessionName);
   };
 
   // Helper to normalize strings (accents, spaces, casing)
@@ -91,7 +92,9 @@ export default function PromoteClient({
       
       const normalizedStudentSession = normalizeSession(s.session);
       const normalizedSourceSession = normalizeSession(sourceSession);
-      const matchesSession = !sourceSession || normalizedStudentSession === normalizedSourceSession;
+      const matchesSession = !sourceSession || 
+                             !s.session || 
+                             normalizedStudentSession === normalizedSourceSession;
       
       return matchesSearch && matchesClass && matchesSession;
     });
