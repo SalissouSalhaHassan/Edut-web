@@ -532,6 +532,46 @@ export default function PromoteClient({
         </div>
       </div>
       
+      {/* ON-SCREEN DEBUGGING PANEL */}
+      <div className="mt-8 p-6 bg-slate-900 border border-slate-800 rounded-3xl text-slate-200 font-mono text-xs shadow-2xl space-y-4">
+        <h3 className="text-sm font-bold text-rose-400 border-b border-slate-800 pb-2">💻 Diagnostic de la Promotion des Élèves</h3>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <p className="text-slate-400 font-bold">Filtres Sélectionnés :</p>
+            <p>Source Class: <span className="text-amber-400">"{sourceClass}"</span> (Cleaned: "{cleanString(sourceClass)}")</p>
+            <p>Source Session: <span className="text-amber-400">"{sourceSession}"</span> (Cleaned: "{cleanString(sourceSession)}")</p>
+          </div>
+          <div>
+            <p className="text-slate-400 font-bold">Statistiques :</p>
+            <p>Total allStudents: <span className="text-emerald-400">{allStudents.length}</span></p>
+            <p>Filtered Students: <span className="text-emerald-400">{filteredStudents.length}</span></p>
+          </div>
+        </div>
+        
+        <div>
+          <p className="text-slate-400 font-bold mb-2">Liste des Classes Configures dans la Base :</p>
+          <div className="max-h-24 overflow-y-auto bg-slate-950 p-3 rounded-xl border border-slate-800 flex flex-wrap gap-2">
+            {classes.map((c: any) => (
+              <span key={c.id} className="bg-slate-800 px-2 py-1 rounded text-[10px]">
+                {c.className || c.class_name || c.name} (ID: {c.id})
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <p className="text-slate-400 font-bold mb-2">Échantillon des 15 premiers étudiants (Données brutes) :</p>
+          <div className="max-h-48 overflow-y-auto bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1">
+            {allStudents.slice(0, 15).map((s: any) => (
+              <div key={s.id} className="flex justify-between hover:bg-slate-900 p-1 rounded">
+                <span>👤 {s.nomEtudiant} (ID: {s.id})</span>
+                <span className="text-amber-500">Classe: "{s.classe}" | Session: "{s.session}"</span>
+              </div>
+            ))}
+            {allStudents.length === 0 && <p className="text-rose-400 text-center py-4">Aucun étudiant trouvé dans allStudents (Array vide !)</p>}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
