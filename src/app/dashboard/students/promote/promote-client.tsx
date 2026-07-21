@@ -85,7 +85,8 @@ export default function PromoteClient({
 
   // Filtering logic
   const filteredStudents = React.useMemo(() => {
-    return allStudents.filter(s => {
+    // 1. Strict filter by class and session
+    let results = allStudents.filter(s => {
       const matchesSearch = s.nomEtudiant.toLowerCase().includes(search.toLowerCase()) || 
                            s.numAdmission.toLowerCase().includes(search.toLowerCase());
       const matchesClass = !sourceClass || cleanString(s.classe) === cleanString(sourceClass);
@@ -98,6 +99,18 @@ export default function PromoteClient({
       
       return matchesSearch && matchesClass && matchesSession;
     });
+
+    // 2. Fallback if 0 results: search by class only (ignoring session filter)
+    if (results.length === 0 && sourceClass) {
+      results = allStudents.filter(s => {
+        const matchesSearch = s.nomEtudiant.toLowerCase().includes(search.toLowerCase()) || 
+                             s.numAdmission.toLowerCase().includes(search.toLowerCase());
+        const matchesClass = cleanString(s.classe) === cleanString(sourceClass);
+        return matchesSearch && matchesClass;
+      });
+    }
+
+    return results;
   }, [allStudents, search, sourceClass, sourceSession]);
 
   const stats = React.useMemo(() => {
@@ -433,7 +446,14 @@ export default function PromoteClient({
                             <Users size={20} className="text-indigo-300" />
                           </div>
                           <div>
-                            <p className="text-sm font-bold text-slate-900 leading-none">{student.nomEtudiant}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-bold text-slate-900 leading-none">{student.nomEtudiant}</p>
+                              {student.session && (
+                                <span className="px-1.5 py-0.5 bg-indigo-50 text-indigo-600 rounded text-[9px] font-bold">
+                                  {student.session}
+                                </span>
+                              )}
+                            </div>
                             <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-tight">{student.numAdmission}</p>
                           </div>
                         </div>
