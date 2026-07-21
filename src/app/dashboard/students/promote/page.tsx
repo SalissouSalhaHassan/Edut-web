@@ -26,41 +26,50 @@ export default async function StudentPromotionPage({
   const studentIds = allStudents.map((s: any) => s.id);
   
   // Fetch real average grades from the database summaries table
-  const averagesMap: Record<number, number> = {};
+  let summaries: any[] = [];
   if (studentIds.length > 0) {
     try {
-      const summaries = await db
+      summaries = await db
         .select({
           studentId: studentTermSummaries.studentId,
           average: studentTermSummaries.average,
+          sessionId: studentTermSummaries.sessionId,
         })
         .from(studentTermSummaries)
         .where(inArray(studentTermSummaries.studentId, studentIds));
-
-      const groupings: Record<number, number[]> = {};
-      summaries.forEach((s) => {
-        if (s.studentId) {
-          if (!groupings[s.studentId]) groupings[s.studentId] = [];
-          groupings[s.studentId].push(Number(s.average) || 0);
-        }
-      });
-
-      Object.keys(groupings).forEach((sId) => {
-        const id = Number(sId);
-        const avgs = groupings[id];
-        const sum = avgs.reduce((a, b) => a + b, 0);
-        averagesMap[id] = avgs.length > 0 ? sum / avgs.length : 10.0;
-      });
     } catch (err) {
       console.error("⚠️ Failed to fetch student averages:", err);
     }
   }
 
+  // Map sessionName to sessionId
+  const sessionNameToIdMap: Record<string, number> = {};
+  sessions.forEach((s: any) => {
+    if (s.sessionName && s.id) {
+      sessionNameToIdMap[s.sessionName.trim().toLowerCase()] = s.id;
+    }
+  });
+
   // Combine student details with their real averages
-  const studentsWithRealAverages = allStudents.map((s: any) => ({
-    ...s,
-    moyenne: averagesMap[s.id] !== undefined ? averagesMap[s.id] : 10.0, // Default fallback to 10.0 (passing score) if no grades recorded yet
-  }));
+  const studentsWithRealAverages = allStudents.map((s: any) => {
+    const studentSessionName = s.session ? s.session.trim().toLowerCase() : "";
+    const studentSessionId = sessionNameToIdMap[studentSessionName];
+    
+    // Filter summaries for this student and their current session
+    const studentSummaries = summaries.filter((sum: any) => 
+      sum.studentId === s.id && 
+      (!studentSessionId || sum.sessionId === studentSessionId)
+    );
+    
+    const avgs = studentSummaries.map((sum: any) => Number(sum.average) || 0);
+    const sum = avgs.reduce((a, b) => a + b, 0);
+    const average = avgs.length > 0 ? sum / avgs.length : 10.0;
+
+    return {
+      ...s,
+      moyenne: average,
+    };
+  });
 
   return (
     <PromoteClient 

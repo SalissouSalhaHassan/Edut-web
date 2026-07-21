@@ -60,6 +60,7 @@ export default function PromoteClient({
   const [selectedIds, setSelectedIds] = React.useState<number[]>([]);
   const [isPromoting, setIsPromoting] = React.useState(false);
   const [search, setSearch] = React.useState("");
+  const [isPreviewOpen, setIsPreviewOpen] = React.useState(false);
 
   // Helper to normalize academic sessions (e.g. 2025-2026 and 2026-2025 should match)
   // Helper to normalize academic sessions (e.g. 2025-2026 and 2026-2025 should match)
@@ -155,11 +156,24 @@ export default function PromoteClient({
       } else {
         toast.error(res.error || "Une erreur est survenue.");
       }
-    } catch (error) {
-      toast.error("Erreur de connexion.");
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Erreur de communication avec le serveur.");
     } finally {
       setIsPromoting(false);
     }
+  };
+
+  const handleOpenPreview = () => {
+    if (selectedIds.length === 0) {
+      toast.warning("Veuillez sélectionner au moins un élève.");
+      return;
+    }
+    if (!targetClass || !targetSession) {
+      toast.warning("Veuillez sélectionner la classe et la session de destination.");
+      return;
+    }
+    setIsPreviewOpen(true);
   };
 
   const toggleSelect = (id: number) => {
@@ -397,7 +411,10 @@ export default function PromoteClient({
               <Button variant="outline" className="h-11 px-5 rounded-xl border-slate-100 text-slate-600 font-bold flex items-center gap-2">
                 <Filter size={16} /> Filtres
               </Button>
-              <Button className="h-11 px-5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold flex items-center gap-2 shadow-lg shadow-indigo-100 transition-all">
+              <Button 
+                onClick={handleOpenPreview}
+                className="h-11 px-5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold flex items-center gap-2 shadow-lg shadow-indigo-100 transition-all"
+              >
                 <Eye size={16} /> Aperçu de la promotion
               </Button>
             </div>
@@ -592,6 +609,92 @@ export default function PromoteClient({
           </div>
         </div>
       </div>
+
+      {/* PREVIEW MODAL */}
+      {isPreviewOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[85vh]">
+            {/* Modal Header */}
+            <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+              <div>
+                <h3 className="text-xl font-black text-slate-900 tracking-tight">Aperçu de la Promotion</h3>
+                <p className="text-slate-500 font-medium text-xs mt-1">Vérifiez les détails avant de valider.</p>
+              </div>
+              <button 
+                onClick={() => setIsPreviewOpen(false)}
+                className="w-10 h-10 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-8 overflow-y-auto space-y-6 flex-grow">
+              {/* Transfer Details Card */}
+              <div className="grid grid-cols-2 gap-4 p-6 bg-indigo-50/30 border border-indigo-50 rounded-3xl">
+                <div>
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Classe de Départ (Source)</span>
+                  <span className="text-sm font-black text-indigo-900 mt-1 block">{sourceClass || "Non spécifiée"}</span>
+                  <span className="text-[11px] font-bold text-indigo-500 block">{sourceSession || "Toutes les sessions"}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Classe d'Arrivée (Destination)</span>
+                  <span className="text-sm font-black text-emerald-900 mt-1 block">{targetClass}</span>
+                  <span className="text-[11px] font-bold text-emerald-600 block">{targetSession}</span>
+                </div>
+              </div>
+
+              {/* Selected Students List */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">Élèves sélectionnés ({selectedIds.length})</h4>
+                <div className="border border-slate-100 rounded-3xl divide-y divide-slate-50 overflow-hidden max-h-60 overflow-y-auto bg-slate-50/20">
+                  {allStudents.filter(s => selectedIds.includes(s.id)).map(student => (
+                    <div key={student.id} className="p-4 flex justify-between items-center">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center">
+                          <Users size={16} className="text-indigo-400" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-slate-800">{student.nomEtudiant}</p>
+                          <p className="text-[9px] font-bold text-slate-400">{student.numAdmission}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <span className="px-2 py-1 bg-indigo-50 text-indigo-600 rounded text-[9px] font-bold">
+                          {(student.moyenne || 10).toFixed(2)} / 20
+                        </span>
+                        <span className="text-slate-400 text-xs">➔</span>
+                        <span className="text-emerald-600 text-xs font-bold">{targetClass}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-8 border-t border-slate-100 flex justify-between items-center bg-slate-50/50">
+              <Button 
+                variant="outline" 
+                onClick={() => setIsPreviewOpen(false)}
+                className="h-12 px-6 rounded-xl border-slate-200 font-bold"
+              >
+                Annuler
+              </Button>
+              <Button 
+                disabled={isPromoting}
+                onClick={async () => {
+                  setIsPreviewOpen(false);
+                  await handlePromote();
+                }}
+                className="h-12 px-8 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest flex items-center gap-3 shadow-lg shadow-indigo-100 transition-all"
+              >
+                {isPromoting ? "Traitement..." : <><CheckCircle2 size={18} /> Confirmer la promotion</>}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
