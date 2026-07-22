@@ -418,12 +418,12 @@ export default function DashboardSidebar({
   }, [pathname, sortedPlatformItems]);
 
   return (
-    <aside className="w-[300px] shrink-0 rounded-[32px] bg-white border border-indigo-200/50 shadow-[0_0_40px_-10px_rgba(99,102,241,0.08)] overflow-hidden flex flex-col h-full relative print:hidden">
+    <aside className="w-[300px] shrink-0 rounded-[32px] bg-white dark:bg-[#12141d] border border-indigo-200/50 dark:border-slate-800/80 shadow-[0_0_40px_-10px_rgba(99,102,241,0.08)] dark:shadow-[0_20px_80px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col h-full relative print:hidden transition-colors duration-300">
       {/* HEADER */}
       <div className="p-6 shrink-0 flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-12 h-12 rounded-[18px] bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-200 overflow-hidden shrink-0">
+            <div className="w-12 h-12 rounded-[18px] bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-200 dark:shadow-none overflow-hidden shrink-0">
               {branding?.logoPath || branch?.logoPath ? (
                 <img src={branding?.logoPath || branch.logoPath} alt="Logo" className="w-full h-full object-cover" />
               ) : (
@@ -431,15 +431,15 @@ export default function DashboardSidebar({
               )}
             </div>
             <div className="min-w-0">
-              <p className="font-bold text-slate-900 text-[17px] leading-tight truncate">
+              <p className="font-bold text-slate-900 dark:text-white text-[17px] leading-tight truncate">
                 {branding?.name || branch?.branchName || "École Plus"}
               </p>
-              <p className="text-xs font-semibold text-slate-500 truncate">
+              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 truncate">
                 {branding?.level || user?.educationalLevel || "Gestion Scolaire"}
               </p>
             </div>
           </div>
-          <button className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 hover:bg-indigo-100 transition-colors shrink-0">
+          <button className="w-8 h-8 rounded-full bg-indigo-50 dark:bg-indigo-950/60 flex items-center justify-center text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-colors shrink-0">
             <ChevronsLeft className="size-4" />
           </button>
         </div>
@@ -449,16 +449,16 @@ export default function DashboardSidebar({
             <select
               value={branch?.id?.toString() || "all"}
               onChange={(e) => handleBranchChange(e.target.value)}
-              className="w-full appearance-none rounded-xl border border-indigo-100/80 bg-slate-50 hover:bg-slate-100/70 px-3 py-2 pr-8 text-xs font-semibold text-slate-700 outline-none transition-all cursor-pointer shadow-sm"
+              className="w-full appearance-none rounded-xl border border-indigo-100/80 dark:border-slate-800 bg-slate-50 dark:bg-[#181a24] hover:bg-slate-100/70 dark:hover:bg-[#1f2230] px-3 py-2 pr-8 text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none transition-all cursor-pointer shadow-sm"
             >
-              <option value="all">Administration générale (toutes)</option>
+              <option value="all" className="dark:bg-[#181a24] dark:text-white">Administration générale (toutes)</option>
               {allBranches.map((b: any) => (
-                <option key={b.id} value={b.id?.toString()}>
+                <option key={b.id} value={b.id?.toString()} className="dark:bg-[#181a24] dark:text-white">
                   {b.branchName} ({b.instType})
                 </option>
               ))}
             </select>
-            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 size-3.5 text-slate-500 pointer-events-none" />
+            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 size-3.5 text-slate-500 dark:text-slate-400 pointer-events-none" />
           </div>
         )}
       </div>
@@ -467,19 +467,19 @@ export default function DashboardSidebar({
       <nav className="px-5 pb-4 space-y-6 flex-1 overflow-y-auto custom-scrollbar">
         {dynamicSections.map((section) => (
           <div key={section.id} className="space-y-2.5">
-            <p className="px-3 text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+            <p className="px-3 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-400 flex items-center gap-2">
               <span
                 className={cn(
-                  section.id === "general" ? "text-indigo-600" :
-                  section.id === "schooling" ? "text-blue-500" :
-                  section.id === "pedagogie" ? "text-violet-600" :
-                  section.id === "finance" ? "text-emerald-600" :
-                  section.id === "administration" ? "text-violet-600" :
-                  section.id === "canevas" ? "text-cyan-600" :
-                  section.id === "resources" ? "text-amber-600" :
-                  section.id === "communication" ? "text-pink-500" :
-                  section.id === "owner" ? "text-red-600" :
-                  "text-slate-600"
+                  section.id === "general" ? "text-indigo-600 dark:text-indigo-400" :
+                  section.id === "schooling" ? "text-blue-500 dark:text-blue-400" :
+                  section.id === "pedagogie" ? "text-violet-600 dark:text-violet-400" :
+                  section.id === "finance" ? "text-emerald-600 dark:text-emerald-400" :
+                  section.id === "administration" ? "text-violet-600 dark:text-violet-400" :
+                  section.id === "canevas" ? "text-cyan-600 dark:text-cyan-400" :
+                  section.id === "resources" ? "text-amber-600 dark:text-amber-400" :
+                  section.id === "communication" ? "text-pink-500 dark:text-pink-400" :
+                  section.id === "owner" ? "text-red-600 dark:text-red-400" :
+                  "text-slate-600 dark:text-slate-400"
                 )}
               >
                 {section.title}
@@ -504,13 +504,13 @@ export default function DashboardSidebar({
                     className={cn(
                       "group relative flex items-center justify-between gap-3 rounded-2xl px-3 py-3 transition-all duration-300",
                       active
-                        ? "bg-gradient-to-r from-transparent to-indigo-100/50"
-                        : "hover:bg-slate-50"
+                        ? "bg-gradient-to-r from-transparent to-indigo-100/50 dark:to-indigo-950/40"
+                        : "hover:bg-slate-50 dark:hover:bg-slate-800/50"
                     )}
                   >
                     {/* Active Right Indicator Line */}
                     {active && (
-                      <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-indigo-600 rounded-l-full" />
+                      <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-indigo-600 dark:bg-indigo-500 rounded-l-full" />
                     )}
 
                     <span className="flex items-center gap-4">
@@ -518,13 +518,13 @@ export default function DashboardSidebar({
                         className={cn(
                           "w-10 h-10 rounded-[14px] flex items-center justify-center transition-all duration-300 relative",
                           active
-                            ? "bg-indigo-600 text-white shadow-md shadow-indigo-200"
-                            : cn("bg-white border border-slate-100/80 group-hover:border-slate-200 group-hover:bg-slate-50 shadow-sm", item.color)
+                            ? "bg-indigo-600 text-white shadow-md shadow-indigo-200 dark:shadow-none"
+                            : cn("bg-white dark:bg-[#181a24] border border-slate-100/80 dark:border-slate-800/80 group-hover:border-slate-200 dark:group-hover:border-slate-700 group-hover:bg-slate-50 dark:group-hover:bg-[#1f2230] shadow-sm", item.color)
                         )}
                       >
-                        {isPending ? <Loader2 className="size-[18px] animate-spin text-indigo-600" /> : item.icon}
+                        {isPending ? <Loader2 className="size-[18px] animate-spin text-indigo-600 dark:text-indigo-400" /> : item.icon}
                       </span>
-                      <span className={cn("text-sm", active ? "font-bold text-indigo-700" : "font-semibold text-slate-700 group-hover:text-slate-900 transition-colors")}>
+                      <span className={cn("text-sm", active ? "font-bold text-indigo-700 dark:text-indigo-400" : "font-semibold text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white transition-colors")}>
                         {item.label}
                       </span>
                     </span>
@@ -535,7 +535,7 @@ export default function DashboardSidebar({
                         {item.badge}
                       </span>
                     ) : !active ? (
-                      <ChevronRight className="size-[15px] text-slate-300 group-hover:text-slate-400 transition-colors mr-1" />
+                      <ChevronRight className="size-[15px] text-slate-300 dark:text-slate-600 group-hover:text-slate-400 dark:group-hover:text-slate-400 transition-colors mr-1" />
                     ) : null}
                   </Link>
                 );
@@ -546,29 +546,29 @@ export default function DashboardSidebar({
       </nav>
 
       {/* FOOTER (Profile & Logout) */}
-      <div className="p-4 mt-auto shrink-0 border-t border-slate-50/50">
+      <div className="p-4 mt-auto shrink-0 border-t border-slate-50/50 dark:border-slate-800/60">
         <button
           onClick={() => logout()}
           className="w-full text-left"
         >
-          <div className="rounded-[24px] bg-indigo-50/50 hover:bg-indigo-50 border border-indigo-100/30 p-2.5 flex items-center justify-between transition-colors cursor-pointer group">
+          <div className="rounded-[24px] bg-indigo-50/50 dark:bg-[#181a24]/90 hover:bg-indigo-50 dark:hover:bg-[#1f2230] border border-indigo-100/30 dark:border-slate-800 p-2.5 flex items-center justify-between transition-colors cursor-pointer group">
             <div className="flex items-center gap-3">
               <div className="relative shrink-0">
-                <div className="w-10 h-10 rounded-[14px] bg-indigo-600 text-white flex items-center justify-center font-bold text-lg shadow-md shadow-indigo-200/50">
+                <div className="w-10 h-10 rounded-[14px] bg-indigo-600 text-white flex items-center justify-center font-bold text-lg shadow-md shadow-indigo-200/50 dark:shadow-none">
                   {user?.nomPrenom?.charAt(0) || user?.utilisateur?.charAt(0) || "U"}
                 </div>
-                <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-400 border-2 border-white shadow-sm" />
+                <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-400 border-2 border-white dark:border-[#181a24] shadow-sm" />
               </div>
               <div className="min-w-0">
-                <p className="text-[13px] font-bold text-slate-900 truncate">
+                <p className="text-[13px] font-bold text-slate-900 dark:text-white truncate">
                   {user?.nomPrenom || user?.utilisateur || "Utilisateur"}
                 </p>
-                <p className="text-[11px] font-medium text-slate-500 truncate">
+                <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 truncate">
                   {user?.admin ? "Administrateur" : user?.role?.roleName || "Membre"}
                 </p>
               </div>
             </div>
-            <ChevronDown className="size-[15px] text-slate-400 group-hover:text-slate-600 mr-2 shrink-0 transition-colors" />
+            <ChevronDown className="size-[15px] text-slate-400 dark:text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200 mr-2 shrink-0 transition-colors" />
           </div>
         </button>
       </div>

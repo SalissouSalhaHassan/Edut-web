@@ -33,7 +33,7 @@ export default async function DashboardLayout({
   };
 
   return (
-    <div className="h-screen max-h-screen overflow-hidden bg-background gradient-bg font-sans relative" dir="ltr">
+    <div className="h-screen max-h-screen overflow-hidden bg-background dark:bg-[#08090e] gradient-bg font-sans relative transition-colors duration-300" dir="ltr">
       <React.Suspense fallback={null}>
         <NavigationProgressProvider>
           <DashboardLoadingBar />

@@ -189,10 +189,17 @@
     background: hsl(0, 0%, 98%);
     border-radius: 10px;
   }
+  .dark .custom-scrollbar::-webkit-scrollbar-track {
+    background: #12141d;
+  }
   .custom-scrollbar::-webkit-scrollbar-thumb {
     background: hsl(0, 0%, 80%);
     border-radius: 10px;
     border: 2px solid hsl(0, 0%, 98%);
+  }
+  .dark .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #2a2e3d;
+    border-color: #12141d;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: hsl(260, 20%, 50%);
