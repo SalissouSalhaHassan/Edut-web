@@ -111,12 +111,12 @@ async function getMonthlyAnalytics(schoolId: number, revenueTotal: number, expen
   try {
     const [monthlyRevenueRaw, monthlyExpenseRaw] = await Promise.all([
       readDb.select({
-        month: sql<number>`extract(month from ${feePayments.createdAt})`,
+        month: sql<number>`extract(month from ${feePayments.datePaid})`,
         sum: sql<number>`coalesce(sum(${feePayments.amount}), 0)`
       })
       .from(feePayments)
       .where(eq(feePayments.schoolId, schoolId))
-      .groupBy(sql`extract(month from ${feePayments.createdAt})`)
+      .groupBy(sql`extract(month from ${feePayments.datePaid})`)
       .catch(() => []),
 
       readDb.select({
