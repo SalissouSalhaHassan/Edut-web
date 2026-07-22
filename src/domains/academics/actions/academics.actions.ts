@@ -638,6 +638,9 @@ export async function getGradingGrid(params: { classId: number, subjectId: numbe
     const subjectIdNum = Number(params.subjectId);
     const sessionIdNum = Number(params.sessionId);
 
+    const sessionObj = sessionIdNum ? await readDb.query.schoolSessions.findFirst({ where: eq(schoolSessions.id, sessionIdNum) }) : null;
+    const sessionNameStr = sessionObj?.sessionName?.trim();
+
     // Fetch all dependent data in parallel using readDb
     const [studentList, attendanceStats, subLink, results] = await Promise.all([
       readDb.select()
@@ -645,7 +648,10 @@ export async function getGradingGrid(params: { classId: number, subjectId: numbe
         .where(
           and(
             ilike(students.classe, cls.className.trim()),
-            eq(students.schoolId, cls.schoolId ?? 0)
+            eq(students.schoolId, cls.schoolId ?? 0),
+            sessionNameStr
+              ? or(eq(students.session, sessionNameStr), isNull(students.session))
+              : undefined
           )
         )
         .orderBy(students.nomEtudiant),
@@ -793,13 +799,19 @@ export async function getDevoirGrid(params: { classId: number, subjectId: number
     const subjectIdNum = Number(params.subjectId);
     const sessionIdNum = Number(params.sessionId);
 
+    const sessionObj = sessionIdNum ? await readDb.query.schoolSessions.findFirst({ where: eq(schoolSessions.id, sessionIdNum) }) : null;
+    const sessionNameStr = sessionObj?.sessionName?.trim();
+
     const [studentList, results] = await Promise.all([
       readDb.select()
         .from(students)
         .where(
           and(
             ilike(students.classe, cls.className.trim()),
-            eq(students.schoolId, cls.schoolId ?? 0)
+            eq(students.schoolId, cls.schoolId ?? 0),
+            sessionNameStr
+              ? or(eq(students.session, sessionNameStr), isNull(students.session))
+              : undefined
           )
         )
         .orderBy(students.nomEtudiant),
@@ -906,6 +918,9 @@ const fetchBroadsheetMatrix = (params: { classId: number, sessionId: number, ter
       const classIdNum = Number(params.classId);
       const sessionIdNum = Number(params.sessionId);
 
+      const sessionObj = sessionIdNum ? await readDb.query.schoolSessions.findFirst({ where: eq(schoolSessions.id, sessionIdNum) }) : null;
+      const sessionNameStr = sessionObj?.sessionName?.trim();
+
       // 1. Fetch all primary data components in parallel using readDb
       const [studentsWithResults, studentsByClassName, results, summaries] = await Promise.all([
         readDb.selectDistinct({ studentId: studentResults.studentId })
@@ -920,7 +935,10 @@ const fetchBroadsheetMatrix = (params: { classId: number, sessionId: number, ter
           .where(
             and(
               ilike(students.classe, cls.className.trim()),
-              eq(students.schoolId, cls.schoolId ?? 0)
+              eq(students.schoolId, cls.schoolId ?? 0),
+              sessionNameStr
+                ? or(eq(students.session, sessionNameStr), isNull(students.session))
+                : undefined
             )
           ),
         readDb.query.studentResults.findMany({
@@ -956,7 +974,10 @@ const fetchBroadsheetMatrix = (params: { classId: number, sessionId: number, ter
           .where(
             and(
               inArray(students.id, allStudentIds),
-              eq(students.schoolId, cls.schoolId ?? 0)
+              eq(students.schoolId, cls.schoolId ?? 0),
+              sessionNameStr
+                ? or(eq(students.session, sessionNameStr), isNull(students.session))
+                : undefined
             )
           )
           .orderBy(students.nomEtudiant);
