@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { and, eq, sql, isNull } from "drizzle-orm";
+import { and, eq, sql, isNull, or } from "drizzle-orm";
 import { db, readDb } from "@/infrastructure/database";
 import {
   schoolSessions,
@@ -150,6 +150,8 @@ export async function GET(request: NextRequest) {
     if (action === "getPeriods") {
       const targetSchoolId = Number(searchParams.get("schoolId"));
       const sessionId = Number(searchParams.get("sessionId"));
+      const level = searchParams.get("level") || searchParams.get("educationalLevel") || "";
+      const classIdStr = searchParams.get("classId");
 
       if (!targetSchoolId || !sessionId) {
         return mobileJsonError("Paramètres manquants", 400);
@@ -158,6 +160,26 @@ export async function GET(request: NextRequest) {
       if (schoolId && schoolId !== targetSchoolId) {
         return mobileJsonError("Accès refusé", 403);
       }
+
+      let resolvedLevel = level;
+      if (!resolvedLevel && classIdStr) {
+        const cls = await readDb.query.schoolClasses.findFirst({
+          where: eq(schoolClasses.id, Number(classIdStr)),
+          with: { section: true }
+        });
+        if (cls?.section?.educationalLevel) {
+          resolvedLevel = cls.section.educationalLevel;
+        }
+      }
+
+      const normLevel = resolvedLevel
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .trim();
+
+      const isPrimaire = normLevel.includes("prim") || normLevel.includes("matern") || normLevel.includes("fonda") || normLevel.includes("elem");
+      const isSuperior = normLevel.includes("licence") || normLevel.includes("lmd") || normLevel.includes("master") || normLevel.includes("doc") || normLevel.includes("super") || normLevel.includes("univ");
 
       let rows = await readDb.query.academicPeriods.findMany({
         where: and(
@@ -180,7 +202,7 @@ export async function GET(request: NextRequest) {
         });
       }
 
-      const list = rows.map((p) => ({
+      let list = rows.map((p) => ({
         id: p.id,
         name: p.name,
         period_type: p.periodType,
@@ -188,6 +210,48 @@ export async function GET(request: NextRequest) {
         session_id: p.sessionId,
         school_id: p.schoolId,
       }));
+
+      // Smart period filter / fallback by level
+      if (isPrimaire) {
+        const dbTrim = list.filter(p => p.period_type === "Trimestre" || p.name.toLowerCase().includes("trimestre"));
+        if (dbTrim.length > 0) {
+          list = dbTrim;
+        } else {
+          list = [
+            { id: 1, name: "1er Trimestre", period_type: "Trimestre", is_active: true, session_id: sessionId, school_id: targetSchoolId },
+            { id: 2, name: "2ème Trimestre", period_type: "Trimestre", is_active: true, session_id: sessionId, school_id: targetSchoolId },
+            { id: 3, name: "3ème Trimestre", period_type: "Trimestre", is_active: true, session_id: sessionId, school_id: targetSchoolId },
+          ];
+        }
+      } else if (isSuperior) {
+        const dbSem = list.filter(p => p.period_type === "Semestre" || p.name.toLowerCase().includes("semest") || /^s\d+/i.test(p.name));
+        if (dbSem.length >= 6) {
+          list = dbSem;
+        } else {
+          list = Array.from({ length: 14 }, (_, i) => {
+            const num = i + 1;
+            const label = `${num === 1 ? "1er" : `${num}ème`} Semestre (S${num})`;
+            return {
+              id: num,
+              name: label,
+              period_type: "Semestre",
+              is_active: true,
+              session_id: sessionId,
+              school_id: targetSchoolId,
+            };
+          });
+        }
+      } else if (resolvedLevel) {
+        const dbSem = list.filter(p => p.period_type === "Semestre" || p.name.toLowerCase().includes("semest"));
+        if (dbSem.length >= 2) {
+          list = dbSem.slice(0, 2);
+        } else {
+          list = [
+            { id: 1, name: "1er Semestre", period_type: "Semestre", is_active: true, session_id: sessionId, school_id: targetSchoolId },
+            { id: 2, name: "2ème Semestre", period_type: "Semestre", is_active: true, session_id: sessionId, school_id: targetSchoolId },
+          ];
+        }
+      }
 
       return NextResponse.json({ success: true, data: list });
     }
@@ -245,12 +309,21 @@ export async function GET(request: NextRequest) {
       });
       const coeff = subLink?.coefficient || 1;
 
-      // Active students
+      // Active session lookup for student session isolation
+      const sessionObj = await readDb.query.schoolSessions.findFirst({
+        where: eq(schoolSessions.id, sessionId)
+      });
+      const sessionNameStr = sessionObj?.sessionName?.trim();
+
+      // Active students for session
       const activeStudents = await readDb.query.students.findMany({
         where: and(
           eq(students.classe, className),
           eq(students.statut, "Actif"),
-          eq(students.schoolId, targetSchoolId)
+          eq(students.schoolId, targetSchoolId),
+          sessionNameStr
+            ? or(eq(students.session, sessionNameStr), isNull(students.session))
+            : undefined
         ),
         orderBy: [students.nomEtudiant]
       });
@@ -318,12 +391,21 @@ export async function GET(request: NextRequest) {
 
       const className = classRes.className;
 
-      // Active students
+      // Active session lookup for student session isolation
+      const sessionObj = await readDb.query.schoolSessions.findFirst({
+        where: eq(schoolSessions.id, sessionId)
+      });
+      const sessionNameStr = sessionObj?.sessionName?.trim();
+
+      // Active students for session
       const activeStudents = await readDb.query.students.findMany({
         where: and(
           eq(students.classe, className),
           eq(students.statut, "Actif"),
-          eq(students.schoolId, targetSchoolId)
+          eq(students.schoolId, targetSchoolId),
+          sessionNameStr
+            ? or(eq(students.session, sessionNameStr), isNull(students.session))
+            : undefined
         ),
         orderBy: [students.nomEtudiant]
       });
