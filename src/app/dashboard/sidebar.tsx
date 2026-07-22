@@ -599,8 +599,12 @@ export default function DashboardSidebar({
           <div className="rounded-[24px] bg-indigo-50/50 dark:bg-[#181a24]/90 hover:bg-indigo-50 dark:hover:bg-[#1f2230] border border-indigo-100/30 dark:border-slate-800 p-2.5 flex items-center justify-between transition-colors cursor-pointer group">
             <div className="flex items-center gap-3">
               <div className="relative shrink-0">
-                <div className="w-10 h-10 rounded-[14px] bg-indigo-600 text-white flex items-center justify-center font-bold text-lg shadow-md shadow-indigo-200/50 dark:shadow-none">
-                  {user?.nomPrenom?.charAt(0) || user?.utilisateur?.charAt(0) || "U"}
+                <div className="w-10 h-10 rounded-[14px] bg-indigo-600 text-white flex items-center justify-center font-bold text-lg shadow-md shadow-indigo-200/50 dark:shadow-none overflow-hidden">
+                  {user?.avatarUrl ? (
+                    <img src={user.avatarUrl} alt={user.nomPrenom || "User"} className="w-full h-full object-cover" />
+                  ) : (
+                    user?.nomPrenom?.charAt(0) || user?.utilisateur?.charAt(0) || "U"
+                  )}
                 </div>
                 <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-400 border-2 border-white dark:border-[#181a24] shadow-sm" />
               </div>

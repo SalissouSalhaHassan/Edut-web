@@ -22,6 +22,8 @@ import {
   Plus,
   Link2,
   Loader2,
+  Camera,
+  Trash2 as TrashIcon,
 } from "lucide-react";
 import { saveUser } from "@/domains/auth/actions/users.actions";
 import { createRoleInline } from "@/domains/auth/actions/roles.actions";
@@ -147,9 +149,27 @@ export default function UserDialog({
     utilisateur: "", nomPrenom: "", motDePasse: "",
     admin: false, superAdmin: false,
     roleId: "", langue: "FR", educationalLevel: "Primaire",
+    avatarUrl: "",
     supabaseId: "", schoolId: "",
     studentId: "", employeeId: "",
   });
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 3 * 1024 * 1024) {
+      toast.error("La taille de la photo ne doit pas dépasser 3 Mo.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64 = reader.result as string;
+      setFormData((prev) => ({ ...prev, avatarUrl: base64 }));
+    };
+    reader.readAsDataURL(file);
+  };
 
   // Inline role creation state
   const [rolesList, setRolesList] = useState<any[]>(roles);
@@ -180,6 +200,7 @@ export default function UserDialog({
       roleId:           user?.roleId?.toString()    || "",
       langue:           user?.langue           || "FR",
       educationalLevel: user?.educationalLevel || "Primaire",
+      avatarUrl:        user?.avatarUrl        || "",
       supabaseId:       user?.supabaseId       || "",
       schoolId:         user?.schoolId?.toString()  || "",
       studentId:        user?.studentId?.toString()  || "",
@@ -376,9 +397,43 @@ export default function UserDialog({
           <div>
             <SectionHeader
               icon={<User size={14} />}
-              label="Identité"
+              label="Identité & Photo"
               iconBg="bg-gradient-to-br from-blue-500 to-indigo-600"
             />
+            
+            {/* Avatar Photo Picker */}
+            <div className="mb-5 flex items-center gap-5 p-4 rounded-2xl bg-slate-50/80 border border-slate-100">
+              <div className="relative w-16 h-16 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center justify-center overflow-hidden shrink-0 group">
+                {formData.avatarUrl ? (
+                  <img src={formData.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="font-black text-xl text-indigo-600">
+                    {formData.nomPrenom?.charAt(0)?.toUpperCase() || formData.utilisateur?.charAt(0)?.toUpperCase() || "U"}
+                  </span>
+                )}
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs font-black text-slate-800 uppercase tracking-wider">Photo de profil / Avatar</p>
+                <div className="flex items-center gap-2 pt-0.5">
+                  <label className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-black tracking-wide cursor-pointer transition-colors inline-flex items-center gap-1.5 shadow-sm">
+                    <Camera size={13} />
+                    <span>Choisir une photo</span>
+                    <input type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" />
+                  </label>
+                  {formData.avatarUrl && (
+                    <button
+                      type="button"
+                      onClick={() => setFormData((prev) => ({ ...prev, avatarUrl: "" }))}
+                      className="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 text-[11px] font-bold transition-colors inline-flex items-center gap-1"
+                    >
+                      <TrashIcon size={12} />
+                      <span>Supprimer</span>
+                    </button>
+                  )}
+                </div>
+                <p className="text-[10px] text-slate-400 font-medium">Formats acceptés : PNG, JPG, WEBP (Max: 3 Mo)</p>
+              </div>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {/* Identifiant */}
               <div className="space-y-1.5">

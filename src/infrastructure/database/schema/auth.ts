@@ -44,6 +44,7 @@ export const users = pgTable("users", {
   emplacement: varchar("emplacement", { length: 100 }),
   depots: text("depots"),
   educationalLevel: varchar("educational_level", { length: 50 }).default("Primaire"),
+  avatarUrl: text("avatar_url"),
   // Liaison identité — pour Élève, Enseignant, Parent
   studentId: integer("student_id").references(() => students.id),
   employeeId: integer("employee_id").references(() => employees.id),

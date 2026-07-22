@@ -83,9 +83,12 @@ export default function UserManager({ initialUsers, roles, currentUser, schools 
             <div className="bg-slate-50/50 rounded-[2.2rem] p-7 flex-1 flex flex-col">
               <div className="flex justify-between items-start mb-6">
                 <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-2xl bg-white border border-slate-100 text-indigo-600 flex items-center justify-center font-black text-2xl shadow-sm group-hover:scale-110 transition-transform duration-500 relative overflow-hidden">
-                    <div className="absolute inset-0 bg-indigo-600/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    {user.nomPrenom?.charAt(0).toUpperCase() || user.utilisateur.charAt(0).toUpperCase()}
+                  <div className="w-16 h-16 rounded-2xl bg-white border border-slate-100 text-indigo-600 flex items-center justify-center font-black text-2xl shadow-sm group-hover:scale-110 transition-transform duration-500 relative overflow-hidden shrink-0">
+                    {user.avatarUrl ? (
+                      <img src={user.avatarUrl} alt={user.nomPrenom || user.utilisateur} className="w-full h-full object-cover" />
+                    ) : (
+                      <span>{user.nomPrenom?.charAt(0).toUpperCase() || user.utilisateur.charAt(0).toUpperCase()}</span>
+                    )}
                   </div>
                   <div>
                     <h4 className="font-black text-slate-900 tracking-tight leading-tight text-lg">{user.nomPrenom || user.utilisateur}</h4>
