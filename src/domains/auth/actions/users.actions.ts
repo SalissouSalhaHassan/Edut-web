@@ -245,8 +245,9 @@ export async function getUsers() {
       const forbiddenTerms = ["superadmin", "super_admin", "ministere", "ministère", "dren", "dden", "inspection"];
       data = data.filter((u: any) => {
         const uName = (u.utilisateur || "").toLowerCase();
+        const nName = (u.nomPrenom || "").toLowerCase();
         const rName = (u.role?.roleName || "").toLowerCase();
-        const isForbidden = forbiddenTerms.some(term => uName.includes(term) || rName.includes(term));
+        const isForbidden = forbiddenTerms.some(term => uName.includes(term) || nName.includes(term) || rName.includes(term));
         return !isForbidden;
       });
     }
