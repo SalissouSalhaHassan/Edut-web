@@ -362,8 +362,9 @@ export default function DashboardSidebar({
         items = items.filter((item) => item.href !== "/dashboard/hr/attendance/teacher/me");
 
         if (isLevelDirector && section.id === "system") {
+          // Level Director (Collège / Lycée / Primaire / LMD) CANNOT modify security roles (/dashboard/security).
+          // They only see Utilisateurs & Équipes (/dashboard/security/users) filtered by their level!
           items = items.filter((item) => [
-            "/dashboard/security",
             "/dashboard/security/users"
           ].includes(item.href));
         }
