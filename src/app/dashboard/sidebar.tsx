@@ -238,14 +238,30 @@ export default function DashboardSidebar({
     const isSuperAdmin = Boolean(user?.superAdmin === true || user?.superAdmin === 1);
     const roleNameLower = (user?.role?.roleName || "").toLowerCase();
 
-    const isDirecteur = user?.admin === true || isSuperAdmin || roleNameLower.includes("directeur") || roleNameLower.includes("dirigeant");
-    const isPedago = roleNameLower.includes("responsable pédagogique") || roleNameLower.includes("inspecteur") || roleNameLower.includes("censeur") || roleNameLower.includes("études");
+    // 1. Is Comptable / Caissier? Check role name first
+    const isComptable = (
+      roleNameLower.includes("comptable") || 
+      roleNameLower.includes("caissier") || 
+      roleNameLower.includes("financier")
+    ) && !roleNameLower.includes("directeur général") && !roleNameLower.includes("directeur general");
+
+    // 2. Is Teacher, Student, Parent?
     const isTeacher = roleNameLower.includes("professeur") || roleNameLower.includes("enseignant") || roleNameLower.includes("teacher");
     const isStudent = roleNameLower.includes("élève") || roleNameLower.includes("etudiant") || roleNameLower.includes("student");
     const isParent = roleNameLower.includes("parent") || roleNameLower.includes("tuteur") || roleNameLower.includes("famille");
-    const isComptable = roleNameLower.includes("comptable") || roleNameLower.includes("caissier") || roleNameLower.includes("financier") || roleNameLower.includes("finance");
 
-    const isLevelDirector = !isSuperAdmin && user?.admin === true && user?.educationalLevel && user?.educationalLevel !== "Tous" && user?.educationalLevel !== "All";
+    // 3. Is Level Director? (Directeur Primaire, Collège, Lycée, LMD, or restricted educationalLevel)
+    const isLevelDirector = !isSuperAdmin && (
+      (user?.educationalLevel && !["tous", "all", "tous les niveaux"].includes(user.educationalLevel.toLowerCase())) ||
+      roleNameLower.includes("primaire") ||
+      roleNameLower.includes("collège") ||
+      roleNameLower.includes("college") ||
+      roleNameLower.includes("lycée") ||
+      roleNameLower.includes("lycee") ||
+      roleNameLower.includes("licence") ||
+      roleNameLower.includes("master") ||
+      roleNameLower.includes("lmd")
+    );
 
     let filtered = sections.map((section) => {
       let items = [...section.items].map((item) => {
@@ -322,7 +338,7 @@ export default function DashboardSidebar({
         } else if (["finance", "administration", "canevas", "resources", "system"].includes(section.id)) {
           items = [];
         }
-      } else if (isComptable && !isDirecteur) {
+      } else if (isComptable) {
         if (section.id === "general") {
           items = items.filter((item) => ["/dashboard", "/dashboard/reports"].includes(item.href));
         } else if (section.id === "schooling") {
@@ -348,8 +364,16 @@ export default function DashboardSidebar({
         if (isLevelDirector && section.id === "system") {
           items = items.filter((item) => [
             "/dashboard/security",
-            "/dashboard/security/users",
-            "/dashboard/security/audit-logs",
+            "/dashboard/security/users"
+          ].includes(item.href));
+        }
+
+        if (isLevelDirector && section.id === "canevas") {
+          items = items.filter((item) => [
+            "/dashboard/canevas",
+            "/dashboard/canevas/etablissements",
+            "/dashboard/canevas/reporting",
+            "/dashboard/canevas/export"
           ].includes(item.href));
         }
       }
