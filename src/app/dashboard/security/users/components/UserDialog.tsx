@@ -257,6 +257,16 @@ export default function UserDialog({
 
   const handleCreateRole = async () => {
     if (!newRoleName.trim()) return;
+
+    if (!currentUser?.superAdmin) {
+      const lower = newRoleName.trim().toLowerCase();
+      const forbidden = ["superadmin", "super admin", "ministere", "ministère", "dren", "dden", "inspection"];
+      if (forbidden.some((term) => lower.includes(term))) {
+        toast.error("Ce nom de rôle est réservé à l'administration supérieure.");
+        return;
+      }
+    }
+
     setCreatingRole(true);
     try {
       const res = await createRoleInline(newRoleName);
@@ -513,7 +523,14 @@ export default function UserDialog({
                 >
                   — Aucun rôle —
                 </ChipOption>
-                {rolesList.map((role) => (
+                {rolesList
+                  .filter((role) => {
+                    if (currentUser?.superAdmin) return true;
+                    const rName = (role.roleName || "").toLowerCase().trim();
+                    const forbidden = ["superadmin", "super admin", "ministere", "ministère", "dren", "dden", "inspection"];
+                    return !forbidden.some((term) => rName.includes(term));
+                  })
+                  .map((role) => (
                   <ChipOption
                     key={role.id}
                     selected={formData.roleId === role.id.toString()}
