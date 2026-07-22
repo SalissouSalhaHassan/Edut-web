@@ -636,7 +636,6 @@ export async function runAISolver(sessionId: number) {
 
         for (const p of preferredPeriods) {
           if (scheduled >= hoursNeeded) break;
-          if (p === recess) continue; 
 
           const dailySubjKey = `${a.classId}_${day}_${a.subjectId}`;
           if (isLanguage(a.subject.subjectName) && (classDailySubjCount[dailySubjKey] || 0) >= 1) continue;
