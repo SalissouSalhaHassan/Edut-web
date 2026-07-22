@@ -178,13 +178,35 @@ export async function getUsers() {
       return { data: [], success: true };
     }
 
-    if (roleType === "level_director" && user.educationalLevel) {
-      const compatibleLevels = getCompatibleLevels(user.educationalLevel);
-      const compatibleLevelsSql = sql`ARRAY[${sql.join(compatibleLevels.map((level) => sql`${level}`), sql`, `)}]::text[]`;
-      const levelWhere = sql`string_to_array(coalesce(${users.educationalLevel}, ''), ',') && ${compatibleLevelsSql}`;
-      whereClause = whereClause 
-        ? and(whereClause, levelWhere)
-        : levelWhere;
+    const isLevelScoped = (roleType === "level_director" || roleType === "level_comptable") || 
+      (user.educationalLevel && !["tous", "all", "tous les niveaux"].includes(user.educationalLevel.toLowerCase()));
+
+    if (isLevelScoped) {
+      let activeLevel: string | null | undefined = user.educationalLevel;
+      if (!activeLevel && user.id) {
+        const freshUser = await db.query.users.findFirst({
+          where: eq(users.id, user.id),
+          columns: { educationalLevel: true },
+        });
+        activeLevel = freshUser?.educationalLevel;
+      }
+
+      if (activeLevel && !["tous", "all", "tous les niveaux"].includes(activeLevel.toLowerCase())) {
+        const compatibleLevels = getCompatibleLevels(activeLevel);
+        const compatibleLevelsSql = sql`ARRAY[${sql.join(compatibleLevels.map((level) => sql`${level}`), sql`, `)}]::text[]`;
+        const levelMatchSql = sql`string_to_array(coalesce(${users.educationalLevel}, ''), ',') && ${compatibleLevelsSql}`;
+        const excludeGlobalAdminsSql = sql`(
+          coalesce(${users.superAdmin}, false) = false
+          AND (
+            coalesce(${users.admin}, false) = false OR
+            (coalesce(${users.educationalLevel}, '') != '' AND coalesce(${users.educationalLevel}, '') NOT IN ('Tous', 'All', 'Tous les niveaux'))
+          )
+        )`;
+
+        whereClause = whereClause 
+          ? and(whereClause, levelMatchSql, excludeGlobalAdminsSql)
+          : and(levelMatchSql, excludeGlobalAdminsSql);
+      }
     }
 
     const data = await db.query.users.findMany({

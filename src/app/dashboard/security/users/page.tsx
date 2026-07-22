@@ -102,12 +102,18 @@ export default async function UsersPage() {
           <div className="bg-white/[0.03] backdrop-blur-sm rounded-[2.5rem] p-8 flex-1 flex items-center justify-between">
             <div className="relative z-10">
               <p className="text-[10px] font-black text-indigo-300 uppercase tracking-widest mb-1">Actions de Sécurité</p>
-              <h3 className="text-2xl font-black tracking-tight">Gérer les Rôles</h3>
-              <Link href="/dashboard/security">
-                <Button variant="secondary" size="sm" className="mt-5 rounded-xl font-black text-[10px] uppercase tracking-widest bg-white text-indigo-900 hover:bg-indigo-50 transition-all h-10 px-6 border-none shadow-lg shadow-black/20">
-                  Configurer les Rôles
-                </Button>
-              </Link>
+              <h3 className="text-2xl font-black tracking-tight">Gestion des Équipes</h3>
+              {currentUser?.superAdmin || (!currentUser?.educationalLevel || currentUser?.educationalLevel === "Tous" || currentUser?.educationalLevel === "All") ? (
+                <Link href="/dashboard/security">
+                  <Button variant="secondary" size="sm" className="mt-5 rounded-xl font-black text-[10px] uppercase tracking-widest bg-white text-indigo-900 hover:bg-indigo-50 transition-all h-10 px-6 border-none shadow-lg shadow-black/20">
+                    Configurer les Rôles
+                  </Button>
+                </Link>
+              ) : (
+                <span className="mt-5 inline-block px-4 py-2 rounded-xl bg-white/10 text-white text-[10px] font-black uppercase tracking-widest border border-white/10">
+                  Accès Limité à la Section
+                </span>
+              )}
             </div>
             <Shield size={72} className="opacity-10 absolute -right-4 -bottom-4 group-hover:scale-125 transition-transform duration-700" />
           </div>

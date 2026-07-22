@@ -20,16 +20,17 @@ export async function getEmployees() {
 
     let whereClause = eq(employees.schoolId, schoolId);
 
-    if (roleType === "level_director") {
-      const compatibleLevels = getCompatibleLevels(user.educationalLevel);
-      whereClause = and(
-        whereClause,
-        or(
-          inArray(employees.educationalLevel, compatibleLevels),
-          isNull(employees.educationalLevel),
-          sql`string_to_array(${employees.educationalLevel}, ',') && ${compatibleLevels}::text[]`
-        )
-      ) as any;
+    if ((roleType === "level_director" || roleType === "level_comptable") && user.educationalLevel) {
+      if (!["tous", "all", "tous les niveaux"].includes(user.educationalLevel.toLowerCase())) {
+        const compatibleLevels = getCompatibleLevels(user.educationalLevel);
+        whereClause = and(
+          whereClause,
+          or(
+            inArray(employees.educationalLevel, compatibleLevels),
+            sql`string_to_array(${employees.educationalLevel}, ',') && ${compatibleLevels}::text[]`
+          )
+        ) as any;
+      }
     }
 
     const data = await db.query.employees.findMany({
