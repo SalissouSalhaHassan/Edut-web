@@ -24,8 +24,8 @@ import {
   GraduationCap,
   LayoutDashboard,
   Moon,
-  ShieldCheck,
   Sun,
+  ShieldCheck,
   TrendingDown,
   TrendingUp,
   Zap,
@@ -128,29 +128,29 @@ function StatCard({
 }) {
   const isPositive = !pill.startsWith("-");
   return (
-    <div className="rounded-[24px] bg-white/85 backdrop-blur-sm border border-white/40 shadow-[0_20px_80px_rgba(15,23,42,0.06)] p-6 flex items-center justify-between gap-6 group hover:bg-white transition-all duration-300">
+    <div className="rounded-[24px] bg-white/85 dark:bg-[#181a24]/90 backdrop-blur-sm border border-white/40 dark:border-slate-800/80 shadow-[0_20px_80px_rgba(15,23,42,0.06)] p-6 flex items-center justify-between gap-6 group hover:bg-white dark:hover:bg-[#1f2230] transition-all duration-300">
       <div className="flex items-start gap-4">
         <div className={cn("w-14 h-14 rounded-2xl grid place-items-center transition-transform group-hover:scale-110 duration-300", iconBg, iconFg)}>
           {icon}
         </div>
         <div>
-          <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">{label}</p>
-          <p className="mt-2 text-2xl font-black text-slate-900 tracking-tight">{value}</p>
+          <p className="text-[11px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-400">{label}</p>
+          <p className="mt-2 text-2xl font-black text-slate-900 dark:text-white tracking-tight">{value}</p>
           <div className="mt-4 flex items-center gap-2">
             <span
               className={cn(
                 "h-7 px-3 rounded-full text-[11px] font-black inline-flex items-center gap-1",
                 pillTone === "green"
-                  ? "bg-emerald-50 text-emerald-700"
+                  ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400"
                   : pillTone === "red"
-                  ? "bg-rose-50 text-rose-700"
-                  : "bg-slate-100 text-slate-500"
+                  ? "bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-400"
+                  : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"
               )}
             >
               {isPositive ? <ArrowUpRight className="size-3" /> : <ArrowDownRight className="size-3" />}
               {pill}
             </span>
-            <span className="text-[11px] font-bold text-slate-400">vs mois dernier</span>
+            <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400">vs mois dernier</span>
           </div>
         </div>
       </div>
@@ -170,8 +170,8 @@ function DonutCard({
 }) {
   const pieData = items.map((i) => ({ name: i.label, value: i.amount, color: i.color }));
   return (
-    <div className="rounded-[24px] bg-white/85 backdrop-blur-sm border border-white/40 shadow-[0_20px_80px_rgba(15,23,42,0.06)] p-7">
-      <h4 className="text-[12px] font-black uppercase tracking-widest text-slate-700">{title}</h4>
+    <div className="rounded-[24px] bg-white/85 dark:bg-[#181a24]/90 backdrop-blur-sm border border-white/40 dark:border-slate-800/80 shadow-[0_20px_80px_rgba(15,23,42,0.06)] p-7">
+      <h4 className="text-[12px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-300">{title}</h4>
       <div className="mt-6 grid grid-cols-1 md:grid-cols-[220px_1fr] gap-8 items-center">
         <div className="relative mx-auto w-[200px] h-[200px]">
           <ResponsiveContainer width="100%" height="100%">
@@ -193,8 +193,8 @@ function DonutCard({
           </ResponsiveContainer>
           <div className="absolute inset-0 grid place-items-center">
             <div className="text-center">
-              <p className="text-2xl font-black text-slate-900 leading-none">{totalValue}</p>
-              <p className="text-[11px] font-bold text-slate-400 mt-1">CFA</p>
+              <p className="text-2xl font-black text-slate-900 dark:text-white leading-none">{totalValue}</p>
+              <p className="text-[11px] font-bold text-slate-400 dark:text-slate-400 mt-1">CFA</p>
             </div>
           </div>
         </div>
@@ -203,9 +203,9 @@ function DonutCard({
           {items.map((row) => (
             <div key={row.label} className="grid grid-cols-[14px_1fr_auto_auto] items-center gap-3">
               <span className="size-2 rounded-full" style={{ backgroundColor: row.color }} />
-              <span className="text-xs font-bold text-slate-700">{row.label}</span>
-              <span className="text-xs font-black text-slate-900 tabular-nums">{Math.round(row.percent)}%</span>
-              <span className="text-xs font-bold text-slate-400 tabular-nums">{formatShortCfa(row.amount)}</span>
+              <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{row.label}</span>
+              <span className="text-xs font-black text-slate-900 dark:text-white tabular-nums">{Math.round(row.percent)}%</span>
+              <span className="text-xs font-bold text-slate-400 dark:text-slate-400 tabular-nums">{formatShortCfa(row.amount)}</span>
             </div>
           ))}
         </div>
@@ -220,10 +220,10 @@ function Pill({ tone, children }: { tone: "purple" | "green" | "orange"; childre
       className={cn(
         "h-7 px-3 rounded-full text-[11px] font-black inline-flex items-center justify-center whitespace-nowrap",
         tone === "purple"
-          ? "bg-indigo-50 text-indigo-700"
+          ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-400"
           : tone === "green"
-          ? "bg-emerald-50 text-emerald-700"
-          : "bg-amber-50 text-amber-700"
+          ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400"
+          : "bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400"
       )}
     >
       {children}
@@ -232,27 +232,53 @@ function Pill({ tone, children }: { tone: "purple" | "green" | "orange"; childre
 }
 
 export default function DashboardUI(props: DashboardUIProps) {
+  const [isDark, setIsDark] = React.useState(false);
+
+  React.useEffect(() => {
+    const savedTheme = localStorage.getItem("edut_theme");
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const shouldBeDark = savedTheme === "dark" || (!savedTheme && prefersDark);
+    setIsDark(shouldBeDark);
+    if (shouldBeDark) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, []);
+
+  const toggleDarkMode = () => {
+    const nextDark = !isDark;
+    setIsDark(nextDark);
+    if (nextDark) {
+      document.documentElement.classList.add("dark");
+      localStorage.setItem("edut_theme", "dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem("edut_theme", "light");
+    }
+  };
+
   return (
-    <div className="p-10 space-y-10 animate-in fade-in duration-700">
+    <div className="p-10 space-y-10 animate-in fade-in duration-700 min-h-screen transition-colors duration-300 dark:bg-[#0c0e14]">
       {/* Header + Topbar */}
       <div className="flex flex-col 2xl:flex-row 2xl:items-center justify-between gap-6">
         <div className="space-y-2 flex items-start gap-4">
           {props.branding?.logoPath && (
-            <div className="w-16 h-16 rounded-[20px] bg-indigo-50 border border-indigo-100 flex items-center justify-center overflow-hidden shrink-0 shadow-sm mt-1">
+            <div className="w-16 h-16 rounded-[20px] bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-800/40 flex items-center justify-center overflow-hidden shrink-0 shadow-sm mt-1">
               <img src={props.branding.logoPath} alt="Logo" className="w-full h-full object-cover" />
             </div>
           )}
           <div>
             <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-5xl font-black text-slate-900 tracking-tight">Tableau de Bord</h1>
+              <h1 className="text-5xl font-black text-slate-900 dark:text-white tracking-tight">Tableau de Bord</h1>
               {props.branding?.name && (
-                <span className="text-xs font-black text-indigo-600 bg-indigo-50 border border-indigo-100/60 px-3 py-1 rounded-full shadow-sm">
+                <span className="text-xs font-black text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-100/60 dark:border-indigo-800/60 px-3 py-1 rounded-full shadow-sm">
                   {props.branding.name}
                 </span>
               )}
             </div>
-            <p className="text-slate-500 font-medium flex items-center gap-2 mt-2">
-              <Zap className="size-4 text-indigo-600 animate-pulse" />
+            <p className="text-slate-500 dark:text-slate-400 font-medium flex items-center gap-2 mt-2">
+              <Zap className="size-4 text-indigo-600 dark:text-indigo-400 animate-pulse" />
               Bienvenue sur le centre de commande de {props.branding?.name || "votre établissement"}.
             </p>
           </div>
@@ -261,25 +287,30 @@ export default function DashboardUI(props: DashboardUIProps) {
         <div className="flex flex-wrap items-center justify-end gap-3">
           <button
             type="button"
-            className="h-12 px-5 rounded-2xl bg-white/85 backdrop-blur-sm border border-white/40 shadow-sm flex items-center gap-3 text-slate-700 font-bold"
+            className="h-12 px-5 rounded-2xl bg-white/85 dark:bg-[#181a24]/90 backdrop-blur-sm border border-white/40 dark:border-slate-800/80 shadow-sm flex items-center gap-3 text-slate-700 dark:text-slate-200 font-bold"
           >
-            <CalendarIcon className="size-4 text-slate-500" />
+            <CalendarIcon className="size-4 text-slate-500 dark:text-slate-400" />
             <span className="text-sm">Session : {props.sessionLabel}</span>
             <ChevronDown className="size-4 text-slate-400" />
           </button>
 
           <button
             type="button"
-            className="h-12 w-12 rounded-2xl bg-white/85 backdrop-blur-sm border border-white/40 shadow-sm grid place-items-center text-slate-700"
+            onClick={toggleDarkMode}
+            className="h-12 w-12 rounded-2xl bg-white/85 dark:bg-[#181a24]/90 backdrop-blur-sm border border-white/40 dark:border-slate-800/80 shadow-sm grid place-items-center text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#222534] transition-all duration-300 cursor-pointer"
             aria-label="Mode sombre"
-            title="Mode sombre"
+            title={isDark ? "Passer en mode clair" : "Passer en mode sombre"}
           >
-            <Moon className="size-5" />
+            {isDark ? (
+              <Sun className="size-5 text-amber-400 animate-in spin-in-180 duration-500" />
+            ) : (
+              <Moon className="size-5 text-slate-600 dark:text-slate-300 animate-in fade-in duration-300" />
+            )}
           </button>
 
           <Link
             href="/dashboard/notifications"
-            className="relative h-12 w-12 rounded-2xl bg-white/85 backdrop-blur-sm border border-white/40 shadow-sm grid place-items-center text-slate-700 hover:bg-slate-50 transition-colors"
+            className="relative h-12 w-12 rounded-2xl bg-white/85 dark:bg-[#181a24]/90 backdrop-blur-sm border border-white/40 dark:border-slate-800/80 shadow-sm grid place-items-center text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#222534] transition-colors"
             aria-label="Notifications"
             title="Notifications"
           >
@@ -293,16 +324,16 @@ export default function DashboardUI(props: DashboardUIProps) {
 
           <button
             type="button"
-            className="h-12 px-4 rounded-2xl bg-white/85 backdrop-blur-sm border border-white/40 shadow-sm flex items-center gap-3"
+            className="h-12 px-4 rounded-2xl bg-white/85 dark:bg-[#181a24]/90 backdrop-blur-sm border border-white/40 dark:border-slate-800/80 shadow-sm flex items-center gap-3"
           >
-            <div className="size-9 rounded-full bg-indigo-600 text-white grid place-items-center font-black text-xs shadow-md shadow-indigo-100">
+            <div className="size-9 rounded-full bg-indigo-600 text-white grid place-items-center font-black text-xs shadow-md shadow-indigo-100 dark:shadow-none">
               {props.user?.nomPrenom?.charAt(0) || props.user?.utilisateur?.charAt(0) || "U"}
             </div>
             <div className="text-left leading-tight">
-              <p className="text-sm font-black text-slate-900">
+              <p className="text-sm font-black text-slate-900 dark:text-white">
                 {props.user?.nomPrenom || props.user?.utilisateur || "Utilisateur"}
               </p>
-              <p className="text-xs font-bold text-slate-400">
+              <p className="text-xs font-bold text-slate-400 dark:text-slate-400">
                 {props.user?.admin ? "Administrateur" : props.user?.role?.roleName || "Membre"}
               </p>
             </div>
@@ -315,8 +346,8 @@ export default function DashboardUI(props: DashboardUIProps) {
       <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-4 gap-6">
         <StatCard
           icon={<GraduationCap className="size-6" />}
-          iconBg="bg-indigo-50"
-          iconFg="text-indigo-700"
+          iconBg="bg-indigo-50 dark:bg-indigo-950/50"
+          iconFg="text-indigo-700 dark:text-indigo-400"
           label="Élèves actifs"
           value={String(props.stats.students ?? 0)}
           pill={`${props.stats.studentGrowth || 12.5}%`}
@@ -326,8 +357,8 @@ export default function DashboardUI(props: DashboardUIProps) {
         />
         <StatCard
           icon={<Users className="size-6" />}
-          iconBg="bg-blue-50"
-          iconFg="text-blue-700"
+          iconBg="bg-blue-50 dark:bg-blue-950/50"
+          iconFg="text-blue-700 dark:text-blue-400"
           label="Personnel HR"
           value={String(props.stats.employees ?? 0)}
           pill="+4.2%"
@@ -337,8 +368,8 @@ export default function DashboardUI(props: DashboardUIProps) {
         />
         <StatCard
           icon={<TrendingUp className="size-6" />}
-          iconBg="bg-emerald-50"
-          iconFg="text-emerald-700"
+          iconBg="bg-emerald-50 dark:bg-emerald-950/50"
+          iconFg="text-emerald-700 dark:text-emerald-400"
           label="Recettes"
           value={formatShortCfa(props.stats.revenue)}
           pill={`${props.stats.revenueGrowth || 8.2}%`}
@@ -348,8 +379,8 @@ export default function DashboardUI(props: DashboardUIProps) {
         />
         <StatCard
           icon={<TrendingDown className="size-6" />}
-          iconBg="bg-rose-50"
-          iconFg="text-rose-700"
+          iconBg="bg-rose-50 dark:bg-rose-950/50"
+          iconFg="text-rose-700 dark:text-rose-400"
           label="Dépenses"
           value={formatShortCfa(props.stats.expense)}
           pill="-2.1%"
@@ -364,8 +395,8 @@ export default function DashboardUI(props: DashboardUIProps) {
         {/* Left column */}
         <div className="2xl:col-span-8 space-y-6">
           {/* Actions rapides */}
-          <div className="rounded-[24px] bg-white/85 backdrop-blur-sm border border-white/40 shadow-[0_20px_80px_rgba(15,23,42,0.06)] p-7">
-            <h3 className="text-[12px] font-black uppercase tracking-widest text-slate-700">Actions rapides</h3>
+          <div className="rounded-[24px] bg-white/85 dark:bg-[#181a24]/90 backdrop-blur-sm border border-white/40 dark:border-slate-800/80 shadow-[0_20px_80px_rgba(15,23,42,0.06)] p-7">
+            <h3 className="text-[12px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-300">Actions rapides</h3>
             <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
               {[
                 { label: "INSCRIRE\nUN ÉLÈVE", icon: <Users className="size-5" />, tone: "from-indigo-600 to-violet-600", href: "/dashboard/students" },
@@ -377,12 +408,12 @@ export default function DashboardUI(props: DashboardUIProps) {
                 <Link
                   key={a.label}
                   href={a.href}
-                  className="group rounded-2xl bg-slate-50/60 border border-slate-100 hover:bg-white hover:border-indigo-100 hover:shadow-xl hover:shadow-indigo-500/10 transition-all duration-300 p-4 flex items-center gap-3"
+                  className="group rounded-2xl bg-slate-50/60 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 hover:bg-white dark:hover:bg-[#1f2230] hover:border-indigo-100 dark:hover:border-indigo-900 hover:shadow-xl hover:shadow-indigo-500/10 transition-all duration-300 p-4 flex items-center gap-3"
                 >
                   <div className={cn("w-11 h-11 rounded-2xl bg-gradient-to-br text-white grid place-items-center shadow-lg transition-transform group-hover:scale-110 duration-300", a.tone)}>
                     {a.icon}
                   </div>
-                  <p className="text-[11px] font-black text-slate-900 whitespace-pre-line leading-tight">
+                  <p className="text-[11px] font-black text-slate-900 dark:text-white whitespace-pre-line leading-tight">
                     {a.label}
                   </p>
                 </Link>
@@ -391,15 +422,15 @@ export default function DashboardUI(props: DashboardUIProps) {
           </div>
 
           {/* Aperçu analytique */}
-          <div className="rounded-[24px] bg-white/85 backdrop-blur-sm border border-white/40 shadow-[0_20px_80px_rgba(15,23,42,0.06)] p-7">
+          <div className="rounded-[24px] bg-white/85 dark:bg-[#181a24]/90 backdrop-blur-sm border border-white/40 dark:border-slate-800/80 shadow-[0_20px_80px_rgba(15,23,42,0.06)] p-7">
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-700 grid place-items-center border border-indigo-100">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-400 grid place-items-center border border-indigo-100 dark:border-indigo-900/50">
                   <LayoutDashboard className="size-5" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-black text-slate-900">Aperçu Analytique</h3>
-                  <div className="mt-2 flex flex-wrap items-center gap-6 text-xs font-bold text-slate-500">
+                  <h3 className="text-lg font-black text-slate-900 dark:text-white">Aperçu Analytique</h3>
+                  <div className="mt-2 flex flex-wrap items-center gap-6 text-xs font-bold text-slate-500 dark:text-slate-400">
                     <span className="inline-flex items-center gap-2">
                       <span className="size-2 rounded-full bg-blue-600" /> Recettes (CFA)
                     </span>
@@ -416,13 +447,13 @@ export default function DashboardUI(props: DashboardUIProps) {
               <div className="flex items-center gap-3">
                 <button
                   type="button"
-                  className="h-10 px-4 rounded-2xl bg-slate-50 border border-slate-100 text-slate-700 font-bold text-sm inline-flex items-center gap-2"
+                  className="h-10 px-4 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold text-sm inline-flex items-center gap-2"
                 >
                   12 Mois <ChevronDown className="size-4 text-slate-400" />
                 </button>
                 <button
                   type="button"
-                  className="h-10 w-10 rounded-2xl bg-slate-50 border border-slate-100 text-slate-700 grid place-items-center"
+                  className="h-10 w-10 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 text-slate-700 dark:text-slate-200 grid place-items-center"
                   aria-label="Options"
                   title="Options"
                 >
@@ -439,13 +470,13 @@ export default function DashboardUI(props: DashboardUIProps) {
                   barCategoryGap="35%"
                   barGap={6}
                 >
-                  <CartesianGrid stroke="#e2e8f0" strokeDasharray="6 6" vertical={false} />
-                  <XAxis dataKey="month" tickLine={false} axisLine={false} tick={{ fill: "#64748b", fontSize: 12 }} />
+                  <CartesianGrid stroke={isDark ? "#2a2e3d" : "#e2e8f0"} strokeDasharray="6 6" vertical={false} />
+                  <XAxis dataKey="month" tickLine={false} axisLine={false} tick={{ fill: isDark ? "#94a3b8" : "#64748b", fontSize: 12 }} />
                   <YAxis
                     yAxisId="left"
                     tickLine={false}
                     axisLine={false}
-                    tick={{ fill: "#64748b", fontSize: 12 }}
+                    tick={{ fill: isDark ? "#94a3b8" : "#64748b", fontSize: 12 }}
                     tickFormatter={(v) => `${Math.round(v / 1_000_000)}M`}
                     domain={[0, (max: number) => Math.ceil(max / 1_000_000) * 1_000_000]}
                   />
@@ -454,22 +485,24 @@ export default function DashboardUI(props: DashboardUIProps) {
                     orientation="right"
                     tickLine={false}
                     axisLine={false}
-                    tick={{ fill: "#64748b", fontSize: 12 }}
+                    tick={{ fill: isDark ? "#94a3b8" : "#64748b", fontSize: 12 }}
                     tickFormatter={(v) => `${v}%`}
                     domain={[0, 100]}
                   />
                   <Tooltip
                     contentStyle={{
                       borderRadius: 16,
-                      border: "1px solid #e2e8f0",
-                      boxShadow: "0 12px 40px rgba(15, 23, 42, 0.08)",
+                      border: isDark ? "1px solid #334155" : "1px solid #e2e8f0",
+                      backgroundColor: isDark ? "#1e293b" : "#ffffff",
+                      color: isDark ? "#f8fafc" : "#0f172a",
+                      boxShadow: "0 12px 40px rgba(15, 23, 42, 0.2)",
                     }}
                     formatter={(value: unknown, name: unknown) => {
                       const label = String(name);
                       if (label === "Recouvrement") return [`${Number(value)}%`, "Recouvrement"];
                       return [formatShortCfa(Number(value)), label];
                     }}
-                    labelStyle={{ fontWeight: 800 }}
+                    labelStyle={{ fontWeight: 800, color: isDark ? "#f8fafc" : "#0f172a" }}
                   />
 
                   <Bar
@@ -512,16 +545,16 @@ export default function DashboardUI(props: DashboardUIProps) {
         {/* Right column */}
         <div className="2xl:col-span-4 space-y-6">
           {/* Etat du système */}
-          <div className="rounded-[24px] bg-white/85 backdrop-blur-sm border border-white/40 shadow-[0_20px_80px_rgba(15,23,42,0.06)] p-7 space-y-6">
-            <h3 className="text-[12px] font-black uppercase tracking-widest text-slate-700">État du système</h3>
+          <div className="rounded-[24px] bg-white/85 dark:bg-[#181a24]/90 backdrop-blur-sm border border-white/40 dark:border-slate-800/80 shadow-[0_20px_80px_rgba(15,23,42,0.06)] p-7 space-y-6">
+            <h3 className="text-[12px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-300">État du système</h3>
             <div className="space-y-5">
               {props.system.map((row) => (
                 <div key={row.label} className="flex items-center justify-between">
-                  <span className="text-sm font-bold text-slate-600">{row.label}</span>
+                  <span className="text-sm font-bold text-slate-600 dark:text-slate-300">{row.label}</span>
                   <span
                     className={cn(
                       "text-[11px] font-black uppercase tracking-widest",
-                      row.tone === "green" ? "text-emerald-600" : "text-indigo-600"
+                      row.tone === "green" ? "text-emerald-600 dark:text-emerald-400" : "text-indigo-600 dark:text-indigo-400"
                     )}
                   >
                     {row.value}
@@ -530,41 +563,41 @@ export default function DashboardUI(props: DashboardUIProps) {
               ))}
             </div>
 
-            <div className="rounded-[20px] bg-slate-50/70 border border-slate-100 p-5 flex items-start gap-4">
-              <div className="w-10 h-10 rounded-2xl bg-white border border-slate-200 grid place-items-center text-indigo-700">
+            <div className="rounded-[20px] bg-slate-50/70 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 p-5 flex items-start gap-4">
+              <div className="w-10 h-10 rounded-2xl bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 grid place-items-center text-indigo-700 dark:text-indigo-300">
                 <ShieldCheck className="size-5" />
               </div>
               <div className="min-w-0">
-                <p className="text-[12px] font-black uppercase tracking-widest text-slate-900">Mode sécurisé</p>
-                <p className="text-xs text-slate-500 font-medium mt-2">
+                <p className="text-[12px] font-black uppercase tracking-widest text-slate-900 dark:text-white">Mode sécurisé</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-2">
                   Toutes les transactions sont chiffrées et auditées en temps réel.
                 </p>
               </div>
-              <div className="ml-auto w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 grid place-items-center border border-emerald-100">
+              <div className="ml-auto w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 grid place-items-center border border-emerald-100 dark:border-emerald-900/50">
                 <span className="text-lg">🔒</span>
               </div>
             </div>
 
             {/* Microservices Status Card */}
             {props.services && (
-              <div className="rounded-[24px] bg-white/85 backdrop-blur-sm border border-white/40 shadow-sm p-7 space-y-5">
+              <div className="rounded-[24px] bg-white/85 dark:bg-[#181a24]/90 backdrop-blur-sm border border-white/40 dark:border-slate-800/80 shadow-sm p-7 space-y-5">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500">État des Services</h3>
-                  <div className="size-8 rounded-xl bg-slate-50 border border-slate-100 grid place-items-center text-slate-400">
+                  <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">État des Services</h3>
+                  <div className="size-8 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 grid place-items-center text-slate-400">
                     <Server className="size-4" />
                   </div>
                 </div>
                 <div className="space-y-3">
                   {props.services.map((svc) => (
-                    <div key={svc.name} className="flex items-center justify-between p-3 rounded-xl bg-slate-50/50 border border-slate-100/50">
+                    <div key={svc.name} className="flex items-center justify-between p-3 rounded-xl bg-slate-50/50 dark:bg-slate-800/40 border border-slate-100/50 dark:border-slate-700/50">
                       <div className="flex items-center gap-3">
                         <div className={cn(
                           "size-2 rounded-full",
                           svc.status === 'online' ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-rose-500"
                         )} />
-                        <span className="text-sm font-black text-slate-700">{svc.name}</span>
+                        <span className="text-sm font-black text-slate-700 dark:text-slate-200">{svc.name}</span>
                       </div>
-                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-400">
                         {svc.type === 'microservice' ? 'Service' : 'Core'}
                       </span>
                     </div>
@@ -595,7 +628,7 @@ export default function DashboardUI(props: DashboardUIProps) {
               </div>
               <button
                 type="button"
-                className="w-full h-12 rounded-2xl bg-white text-indigo-700 font-black text-xs uppercase tracking-widest shadow-lg flex items-center justify-center gap-3"
+                className="w-full h-12 rounded-2xl bg-white text-indigo-700 font-black text-xs uppercase tracking-widest shadow-lg flex items-center justify-center gap-3 cursor-pointer hover:bg-slate-100 transition-colors"
               >
                 <Video className="size-4" /> Rejoindre la salle
               </button>
@@ -603,10 +636,10 @@ export default function DashboardUI(props: DashboardUIProps) {
           </div>
 
           {/* Évènements */}
-          <div className="rounded-[24px] bg-white/85 backdrop-blur-sm border border-white/40 shadow-[0_20px_80px_rgba(15,23,42,0.06)] p-7">
+          <div className="rounded-[24px] bg-white/85 dark:bg-[#181a24]/90 backdrop-blur-sm border border-white/40 dark:border-slate-800/80 shadow-[0_20px_80px_rgba(15,23,42,0.06)] p-7">
             <div className="flex items-center justify-between">
-              <h3 className="text-[12px] font-black uppercase tracking-widest text-slate-700">Évènements à venir</h3>
-              <Link href="#" className="text-xs font-black text-indigo-700 hover:underline">
+              <h3 className="text-[12px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-300">Évènements à venir</h3>
+              <Link href="#" className="text-xs font-black text-indigo-700 dark:text-indigo-400 hover:underline">
                 Voir tout
               </Link>
             </div>
@@ -614,14 +647,14 @@ export default function DashboardUI(props: DashboardUIProps) {
               {props.events.map((e) => (
                 <div
                   key={e.title}
-                  className="rounded-2xl bg-slate-50/70 border border-slate-100 p-4 flex items-center gap-4"
+                  className="rounded-2xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 p-4 flex items-center gap-4"
                 >
-                  <div className="w-11 h-11 rounded-2xl bg-white border border-slate-200 grid place-items-center text-indigo-700">
+                  <div className="w-11 h-11 rounded-2xl bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 grid place-items-center text-indigo-700 dark:text-indigo-400">
                     <EventIcon name={e.icon} />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-sm font-black text-slate-900 truncate">{e.title}</p>
-                    <p className="text-xs font-bold text-slate-400 mt-1">{e.date}</p>
+                    <p className="text-sm font-black text-slate-900 dark:text-white truncate">{e.title}</p>
+                    <p className="text-xs font-bold text-slate-400 dark:text-slate-400 mt-1">{e.date}</p>
                   </div>
                   <div className="ml-auto">
                     <Pill tone={e.pillTone}>{e.pill}</Pill>
