@@ -179,15 +179,19 @@ export async function getUsers() {
       whereClause = undefined;
     }
 
-    // Non-superAdmin users (e.g. General Directors, Level Directors) MUST NEVER see platform Super Admin accounts
+    // Non-superAdmin users (e.g. General Directors, Level Directors) MUST NEVER see platform Super Admin or Government Regulatory accounts (Ministère, DREN, DDEN, Inspection)
     if (!user.superAdmin) {
-      const excludeSuperAdminSql = sql`(
+      const excludeGlobalAuthoritySql = sql`(
         coalesce(${users.superAdmin}, false) = false
         AND lower(coalesce(${users.utilisateur}, '')) NOT LIKE '%superadmin%'
+        AND lower(coalesce(${users.utilisateur}, '')) NOT LIKE '%ministere%'
+        AND lower(coalesce(${users.utilisateur}, '')) NOT LIKE '%dren%'
+        AND lower(coalesce(${users.utilisateur}, '')) NOT LIKE '%dden%'
+        AND lower(coalesce(${users.utilisateur}, '')) NOT LIKE '%inspection%'
       )`;
       whereClause = whereClause 
-        ? and(whereClause, excludeSuperAdminSql)
-        : excludeSuperAdminSql;
+        ? and(whereClause, excludeGlobalAuthoritySql)
+        : excludeGlobalAuthoritySql;
     }
 
     const isGeneralAdminOrDirector = !!user.admin || !!user.superAdmin || roleType === "directeur" || roleType === "general_director";
@@ -234,6 +238,17 @@ export async function getUsers() {
     } catch (_relErr) {
       console.warn("[getUsers] Relational query failed, executing fallback simple select:", _relErr);
       data = await db.select().from(users).where(whereClause).orderBy(desc(users.createdAt));
+    }
+    
+    // Post-filter safety check for non-superAdmins
+    if (!user.superAdmin) {
+      const forbiddenTerms = ["superadmin", "super_admin", "ministere", "ministère", "dren", "dden", "inspection"];
+      data = data.filter((u: any) => {
+        const uName = (u.utilisateur || "").toLowerCase();
+        const rName = (u.role?.roleName || "").toLowerCase();
+        const isForbidden = forbiddenTerms.some(term => uName.includes(term) || rName.includes(term));
+        return !isForbidden;
+      });
     }
     
     console.log(`[getUsers] Found ${data.length} users (SuperAdmin: ${user.superAdmin}, schoolId filter: ${schoolId ?? user.schoolId ?? 'none'})`);
