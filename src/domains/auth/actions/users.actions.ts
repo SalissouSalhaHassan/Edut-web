@@ -179,6 +179,17 @@ export async function getUsers() {
       whereClause = undefined;
     }
 
+    // Non-superAdmin users (e.g. General Directors, Level Directors) MUST NEVER see platform Super Admin accounts
+    if (!user.superAdmin) {
+      const excludeSuperAdminSql = sql`(
+        coalesce(${users.superAdmin}, false) = false
+        AND lower(coalesce(${users.utilisateur}, '')) NOT LIKE '%superadmin%'
+      )`;
+      whereClause = whereClause 
+        ? and(whereClause, excludeSuperAdminSql)
+        : excludeSuperAdminSql;
+    }
+
     const isGeneralAdminOrDirector = !!user.admin || !!user.superAdmin || roleType === "directeur" || roleType === "general_director";
     const isLevelScoped = !isGeneralAdminOrDirector && (roleType === "level_director" || roleType === "level_comptable");
 
