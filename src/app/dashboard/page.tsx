@@ -15,14 +15,52 @@ import { getActiveEducationalLevel, getCompatibleLevels } from "@/domains/auth/s
 async function getActiveSessionLabel() {
   try {
     const schoolId = await getActiveSchoolId();
-    const session = await readDb.query.schoolSessions.findFirst({
-      where: schoolId ? eq(schoolSessions.schoolId, schoolId) : undefined,
-      orderBy: (sessions, { desc }) => [desc(sessions.isActive), desc(sessions.id)],
+    const currentYear = new Date().getFullYear();
+
+    if (!schoolId) {
+      return `${currentYear - 1} - ${currentYear}`;
+    }
+
+    // 1. Try explicitly active session (isActive: true)
+    let activeSession = await readDb.query.schoolSessions.findFirst({
+      where: and(
+        eq(schoolSessions.schoolId, schoolId),
+        eq(schoolSessions.isActive, true)
+      )
     });
 
-    return session?.sessionName || `${new Date().getFullYear()} - ${new Date().getFullYear() + 1}`;
+    // 2. If not found by isActive, try status = "Actif"
+    if (!activeSession) {
+      activeSession = await readDb.query.schoolSessions.findFirst({
+        where: and(
+          eq(schoolSessions.schoolId, schoolId),
+          ilike(schoolSessions.status, "actif")
+        )
+      });
+    }
+
+    // 3. If still not found, try matching current calendar year in sessionName
+    if (!activeSession) {
+      activeSession = await readDb.query.schoolSessions.findFirst({
+        where: and(
+          eq(schoolSessions.schoolId, schoolId),
+          ilike(schoolSessions.sessionName, `%${currentYear}%`)
+        )
+      });
+    }
+
+    // 4. Fallback to session record or current academic year string
+    if (!activeSession) {
+      activeSession = await readDb.query.schoolSessions.findFirst({
+        where: eq(schoolSessions.schoolId, schoolId),
+        orderBy: (sessions, { desc }) => [desc(sessions.id)],
+      });
+    }
+
+    return activeSession?.sessionName || `${currentYear - 1} - ${currentYear}`;
   } catch (error) {
-    return `${new Date().getFullYear()} - ${new Date().getFullYear() + 1}`;
+    const currentYear = new Date().getFullYear();
+    return `${currentYear - 1} - ${currentYear}`;
   }
 }
 
