@@ -174,13 +174,12 @@ export async function getUsers() {
       // Fallback to user's own schoolId
       whereClause = eq(users.schoolId, user.schoolId);
     } else {
-      // No school context at all - return empty
-      console.warn(`[getUsers] No school context found for non-superAdmin user`);
-      return { data: [], success: true };
+      // Fallback for single-school environments
+      whereClause = undefined;
     }
 
-    const isLevelScoped = (roleType === "level_director" || roleType === "level_comptable") || 
-      (user.educationalLevel && !["tous", "all", "tous les niveaux"].includes(user.educationalLevel.toLowerCase()));
+    const isGeneralAdminOrDirector = !!user.admin || !!user.superAdmin || roleType === "directeur" || roleType === "general_director" || roleType === "admin";
+    const isLevelScoped = !isGeneralAdminOrDirector && (roleType === "level_director" || roleType === "level_comptable");
 
     if (isLevelScoped) {
       let activeLevel: string | null | undefined = user.educationalLevel;
