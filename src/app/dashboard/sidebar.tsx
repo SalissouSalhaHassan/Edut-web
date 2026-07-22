@@ -243,6 +243,7 @@ export default function DashboardSidebar({
     const isTeacher = roleNameLower.includes("professeur") || roleNameLower.includes("enseignant") || roleNameLower.includes("teacher");
     const isStudent = roleNameLower.includes("élève") || roleNameLower.includes("etudiant") || roleNameLower.includes("student");
     const isParent = roleNameLower.includes("parent") || roleNameLower.includes("tuteur") || roleNameLower.includes("famille");
+    const isComptable = roleNameLower.includes("comptable") || roleNameLower.includes("caissier") || roleNameLower.includes("financier") || roleNameLower.includes("finance");
 
     const isLevelDirector = !isSuperAdmin && user?.admin === true && user?.educationalLevel && user?.educationalLevel !== "Tous" && user?.educationalLevel !== "All";
 
@@ -319,6 +320,25 @@ export default function DashboardSidebar({
             "/dashboard/pedagogie/devoirs"
           ].includes(item.href));
         } else if (["finance", "administration", "canevas", "resources", "system"].includes(section.id)) {
+          items = [];
+        }
+      } else if (isComptable && !isDirecteur) {
+        if (section.id === "general") {
+          items = items.filter((item) => ["/dashboard", "/dashboard/reports"].includes(item.href));
+        } else if (section.id === "schooling") {
+          // Accountant ONLY sees student management for viewing fees/invoices
+          items = items.filter((item) => ["/dashboard/students"].includes(item.href));
+        } else if (section.id === "finance") {
+          items = items; // /dashboard/finance, /dashboard/coges
+        } else if (section.id === "administration") {
+          items = items.filter((item) => [
+            "/dashboard/admin-docs",
+            "/dashboard/admin-docs/admit-cards",
+            "/dashboard/id-cards"
+          ].includes(item.href));
+        } else if (section.id === "communication" || section.id === "support") {
+          items = items;
+        } else if (["pedagogie", "canevas", "resources", "system"].includes(section.id)) {
           items = [];
         }
       } else {
