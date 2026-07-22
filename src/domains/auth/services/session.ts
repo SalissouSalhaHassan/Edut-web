@@ -110,6 +110,7 @@ function createPlatformOwnerFallback(authUser: SupabaseAuthUser, email: string):
     emplacement: null,
     depots: null,
     educationalLevel: "Tous",
+    avatarUrl: null,
     createdAt: null,
     studentId: null,
     employeeId: null,
