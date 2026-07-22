@@ -25,6 +25,10 @@ import {
   FileText,
   Filter,
   LayoutGrid,
+  Maximize2,
+  Minimize2,
+  PanelLeft,
+  PanelRight,
   Printer,
   Settings2,
   Sparkles,
@@ -418,6 +422,9 @@ export default function IntelligentTimetable({ classes, teachers, subjects, curr
   const [lastUpdated, setLastUpdated] = React.useState<Date | null>(null);
   const [updatedAgoLabel, setUpdatedAgoLabel] = React.useState<string>("—");
   const [showModernView, setShowModernView] = React.useState(true); // Default to true for user's request
+  const [isWideView, setIsWideView] = React.useState(true); // Wide Screen Mode by default
+  const [showLeftSidebar, setShowLeftSidebar] = React.useState(false); // Collapsed by default in wide view for maximum width
+  const [showRightSidebar, setShowRightSidebar] = React.useState(false); // Collapsed by default in wide view for maximum width
 
   // Dialog states
   const [showConstraints, setShowConstraints] = React.useState(false);
@@ -907,62 +914,121 @@ export default function IntelligentTimetable({ classes, teachers, subjects, curr
             {isAiLoading ? <Zap className="animate-spin" size={18} /> : <Wand2 size={18} />}
             Générer avec IA
           </Button>
+
+          <div className="flex items-center gap-2 border-l border-white/10 pl-3">
+            <button
+              type="button"
+              onClick={() => {
+                const next = !isWideView;
+                setIsWideView(next);
+                if (next) {
+                  setShowLeftSidebar(false);
+                  setShowRightSidebar(false);
+                } else {
+                  setShowLeftSidebar(true);
+                  setShowRightSidebar(true);
+                }
+              }}
+              className={cn(
+                "h-12 px-5 rounded-2xl border text-xs font-black flex items-center gap-2 transition-all duration-300",
+                isWideView
+                  ? "bg-gradient-to-r from-indigo-500 to-purple-600 border-indigo-300 text-white shadow-xl shadow-indigo-500/30 scale-105"
+                  : "bg-black/40 border-white/10 text-slate-300 hover:bg-white/5"
+              )}
+              title="Basculer vers la vue الشاشة الشاملة الواسعة"
+            >
+              {isWideView ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
+              <span>{isWideView ? "Vue الشاملة (Wide)" : "Plein Écran"}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowLeftSidebar((v) => !v)}
+              className={cn(
+                "h-12 px-4 rounded-2xl border text-xs font-black flex items-center gap-2 transition-all",
+                showLeftSidebar
+                  ? "bg-indigo-500/30 border-indigo-400 text-white shadow-md shadow-indigo-500/20"
+                  : "bg-black/40 border-white/10 text-slate-400 hover:bg-white/5"
+              )}
+              title="Afficher/Masquer le panneau de configuration"
+            >
+              <PanelLeft className="size-4" />
+              <span className="hidden xl:inline">Config</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowRightSidebar((v) => !v)}
+              className={cn(
+                "h-12 px-4 rounded-2xl border text-xs font-black flex items-center gap-2 transition-all",
+                showRightSidebar
+                  ? "bg-indigo-500/30 border-indigo-400 text-white shadow-md shadow-indigo-500/20"
+                  : "bg-black/40 border-white/10 text-slate-400 hover:bg-white/5"
+              )}
+              title="Afficher/Masquer le panneau Assistant IA & Stats"
+            >
+              <PanelRight className="size-4" />
+              <span className="hidden xl:inline">Stats & IA</span>
+            </button>
+          </div>
         </div>
       </header>
 
       <div className="flex flex-1 overflow-hidden relative z-10">
         {/* Left sidebar */}
-        <aside className="w-72 bg-white/[0.03] backdrop-blur-2xl border-r border-white/[0.08] p-6 flex flex-col gap-8 overflow-y-auto custom-scrollbar">
-          <div className="space-y-6">
-            <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] px-4">Configuration</h3>
-            <div className="space-y-3">
-              <ActionBtn icon={<LayoutGrid size={20} />} label="Affectations" sub="SYNC CURSUS" onClick={() => setShowAssignments(true)} />
-              <ActionBtn
-                icon={<Settings2 size={20} />}
-                label="Règles"
-                sub="CONTRAINTES IA"
-                color="text-amber-300"
-                onClick={() => setShowConstraints(true)}
-              />
-              <ActionBtn icon={<Clock size={20} />} label="Stratégie" sub="JOURS / PÉRIODES" color="text-emerald-300" onClick={() => setShowSettings(true)} />
-              <ActionBtn icon={<FileText size={20} />} label="Exporter PDF" sub="IMPRESSION BULK" color="text-indigo-300" onClick={() => setShowPrintOptions(true)} />
+        {showLeftSidebar && (
+          <aside className="w-72 bg-white/[0.03] backdrop-blur-2xl border-r border-white/[0.08] p-6 flex flex-col gap-8 overflow-y-auto custom-scrollbar shrink-0 transition-all duration-300">
+            <div className="space-y-6">
+              <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] px-4">Configuration</h3>
+              <div className="space-y-3">
+                <ActionBtn icon={<LayoutGrid size={20} />} label="Affectations" sub="SYNC CURSUS" onClick={() => setShowAssignments(true)} />
+                <ActionBtn
+                  icon={<Settings2 size={20} />}
+                  label="Règles"
+                  sub="CONTRAINTES IA"
+                  color="text-amber-300"
+                  onClick={() => setShowConstraints(true)}
+                />
+                <ActionBtn icon={<Clock size={20} />} label="Stratégie" sub="JOURS / PÉRIODES" color="text-emerald-300" onClick={() => setShowSettings(true)} />
+                <ActionBtn icon={<FileText size={20} />} label="Exporter PDF" sub="IMPRESSION BULK" color="text-indigo-300" onClick={() => setShowPrintOptions(true)} />
+              </div>
             </div>
-          </div>
 
-          <div className="space-y-6">
-            <h3 className="text-[10px] font-black text-indigo-400/60 uppercase tracking-[0.3em] px-4">Analyse</h3>
-            <div className="grid grid-cols-1 gap-4">
-              <MiniMetric label="Équité équipes" value="95%" tone="emerald" />
-              <MiniMetric label="Équilibre" value="88%" tone="amber" />
-              <MiniMetric label="Satisfaction" value="100%" tone="indigo" />
+            <div className="space-y-6">
+              <h3 className="text-[10px] font-black text-indigo-400/60 uppercase tracking-[0.3em] px-4">Analyse</h3>
+              <div className="grid grid-cols-1 gap-4">
+                <MiniMetric label="Équité équipes" value="95%" tone="emerald" />
+                <MiniMetric label="Équilibre" value="88%" tone="amber" />
+                <MiniMetric label="Satisfaction" value="100%" tone="indigo" />
+              </div>
             </div>
-          </div>
 
-          <div className="mt-auto bg-gradient-to-br from-indigo-500/10 to-transparent rounded-[2.5rem] p-7 border border-white/[0.06] flex flex-col items-center text-center gap-5 relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 blur-[40px] -mr-16 -mt-16 group-hover:bg-indigo-500/20 transition-all duration-700" />
-            <div className="w-16 h-16 rounded-2xl bg-indigo-500 flex items-center justify-center shadow-2xl shadow-indigo-500/40 transform group-hover:rotate-12 transition-all duration-500">
-              <BrainCircuit size={32} className="text-white" />
+            <div className="mt-auto bg-gradient-to-br from-indigo-500/10 to-transparent rounded-[2.5rem] p-7 border border-white/[0.06] flex flex-col items-center text-center gap-5 relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 blur-[40px] -mr-16 -mt-16 group-hover:bg-indigo-500/20 transition-all duration-700" />
+              <div className="w-16 h-16 rounded-2xl bg-indigo-500 flex items-center justify-center shadow-2xl shadow-indigo-500/40 transform group-hover:rotate-12 transition-all duration-500">
+                <BrainCircuit size={32} className="text-white" />
+              </div>
+              <div>
+                <p className="text-xs font-black text-white uppercase tracking-widest mb-2">Assistant IA</p>
+                <p className="text-[10px] font-bold text-slate-400 leading-relaxed px-2">
+                  Optimisation en temps réel des conflits et de l&apos;équité pédagogique.
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                className="w-full h-12 rounded-xl bg-white/5 border border-white/10 text-indigo-300 hover:bg-indigo-500 hover:text-white transition-all text-[10px] font-black uppercase tracking-widest"
+              >
+                Support stratégique
+              </Button>
             </div>
-            <div>
-              <p className="text-xs font-black text-white uppercase tracking-widest mb-2">Assistant IA</p>
-              <p className="text-[10px] font-bold text-slate-400 leading-relaxed px-2">
-                Optimisation en temps réel des conflits et de l&apos;équité pédagogique.
-              </p>
-            </div>
-            <Button
-              variant="ghost"
-              className="w-full h-12 rounded-xl bg-white/5 border border-white/10 text-indigo-300 hover:bg-indigo-500 hover:text-white transition-all text-[10px] font-black uppercase tracking-widest"
-            >
-              Support stratégique
-            </Button>
-          </div>
-        </aside>
+          </aside>
+        )}
 
         {/* Center + right columns */}
-        <div className="flex-1 min-w-0 p-6 overflow-hidden bg-[#0E1018]/60 backdrop-blur-sm">
-          <div className="h-full grid grid-cols-1 xl:grid-cols-[1fr_380px] gap-6">
+        <div className="flex-1 min-w-0 p-4 md:p-6 overflow-y-auto custom-scrollbar bg-[#0E1018]/60 backdrop-blur-sm">
+          <div className={cn("h-full grid gap-6", showRightSidebar ? "grid-cols-1 xl:grid-cols-[1fr_380px]" : "grid-cols-1")}>
             {/* Center */}
-            <section className="min-w-0 h-full overflow-hidden flex flex-col gap-6">
+            <section className="min-w-0 h-full flex flex-col gap-6">
               {/* Top stat cards */}
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
                 <StatTile label="Heures hebdomadaires" value={`${weeklyHours}h`} sub="Planifiées" icon={<Clock size={18} />} />
@@ -1083,8 +1149,8 @@ export default function IntelligentTimetable({ classes, teachers, subjects, curr
                     />
                   ) : (
                     <div
-                      className="grid gap-4"
-                      style={{ gridTemplateColumns: `110px repeat(${days.length}, minmax(240px, 1fr))` }}
+                      className="grid gap-3 md:gap-4 overflow-x-auto"
+                      style={{ gridTemplateColumns: `minmax(70px, 95px) repeat(${days.length}, minmax(130px, 1fr))` }}
                     >
                       <div className="h-10" />
                       {days.map((d) => (
@@ -1252,114 +1318,116 @@ export default function IntelligentTimetable({ classes, teachers, subjects, curr
             </section>
 
             {/* Right sidebar */}
-            <aside className="h-full overflow-auto custom-scrollbar space-y-6">
-              <div className="rounded-[24px] bg-white/[0.03] border border-white/[0.08] shadow-[0_20px_80px_rgba(0,0,0,0.45)] p-6">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-2xl bg-indigo-500/20 border border-indigo-500/30 grid place-items-center text-indigo-200">
-                      <BrainCircuit className="size-5" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-black text-white">Assistant IA</p>
-                      <p className="text-[11px] text-slate-400 font-bold mt-1">Optimisation en cours...</p>
-                    </div>
-                  </div>
-                  <span className="h-7 px-3 rounded-full bg-indigo-500/15 border border-indigo-500/25 text-[11px] font-black text-indigo-200">
-                    Nouveau
-                  </span>
-                </div>
-
-                <div className="mt-6 space-y-3">
-                  <div className="flex items-center justify-between text-xs font-bold text-slate-400">
-                    <span>Ajustement des charges horaires</span>
-                    <span className="text-slate-200">92%</span>
-                  </div>
-                  <div className="h-2 rounded-full bg-white/10 overflow-hidden">
-                    <div className="h-full w-[92%] bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full" />
-                  </div>
-                  <p className="text-[11px] text-slate-500 font-semibold">
-                    Vérification des conflits et recommandations pédagogiques.
-                  </p>
-                </div>
-
-                <Button
-                  variant="ghost"
-                  className="mt-5 w-full h-12 rounded-2xl bg-white/5 border border-white/10 text-indigo-200 hover:bg-indigo-500 hover:text-white transition-all text-[11px] font-black"
-                >
-                  <Sparkles className="size-4 mr-2" />
-                  Voir les suggestions
-                </Button>
-              </div>
-
-              <div className="rounded-[24px] bg-white/[0.03] border border-white/[0.08] shadow-[0_20px_80px_rgba(0,0,0,0.45)] p-6">
-                <p className="text-sm font-black text-white">Statistiques</p>
-                <div className="mt-5 grid grid-cols-[180px_1fr] gap-6 items-center">
-                  <div className="relative w-[180px] h-[180px] mx-auto">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={distribution}
-                          dataKey="value"
-                          nameKey="label"
-                          innerRadius={60}
-                          outerRadius={82}
-                          stroke="transparent"
-                          startAngle={90}
-                          endAngle={-270}
-                        >
-                          {distribution.map((row, idx) => (
-                            <Cell key={idx} fill={row.color} />
-                          ))}
-                        </Pie>
-                      </PieChart>
-                    </ResponsiveContainer>
-                    <div className="absolute inset-0 grid place-items-center">
-                      <div className="text-center">
-                        <p className="text-2xl font-black text-white">{weeklyHours}h</p>
-                        <p className="text-xs font-bold text-slate-500 mt-1">Total</p>
+            {showRightSidebar && (
+              <aside className="h-full overflow-auto custom-scrollbar space-y-6 shrink-0 transition-all duration-300">
+                <div className="rounded-[24px] bg-white/[0.03] border border-white/[0.08] shadow-[0_20px_80px_rgba(0,0,0,0.45)] p-6">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-11 h-11 rounded-2xl bg-indigo-500/20 border border-indigo-500/30 grid place-items-center text-indigo-200">
+                        <BrainCircuit className="size-5" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-black text-white">Assistant IA</p>
+                        <p className="text-[11px] text-slate-400 font-bold mt-1">Optimisation en cours...</p>
                       </div>
                     </div>
+                    <span className="h-7 px-3 rounded-full bg-indigo-500/15 border border-indigo-500/25 text-[11px] font-black text-indigo-200">
+                      Nouveau
+                    </span>
                   </div>
 
-                  <div className="space-y-3">
-                    {distribution.slice(0, 6).map((row) => (
-                      <div key={row.label} className="flex items-center justify-between gap-3 text-xs font-bold">
-                        <span className="inline-flex items-center gap-2 text-slate-300">
-                          <span className="size-2 rounded-full" style={{ backgroundColor: row.color }} /> {row.label}
-                        </span>
-                        <span className="text-slate-500 tabular-nums">{row.percent}%</span>
+                  <div className="mt-6 space-y-3">
+                    <div className="flex items-center justify-between text-xs font-bold text-slate-400">
+                      <span>Ajustement des charges horaires</span>
+                      <span className="text-slate-200">92%</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-white/10 overflow-hidden">
+                      <div className="h-full w-[92%] bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full" />
+                    </div>
+                    <p className="text-[11px] text-slate-500 font-semibold">
+                      Vérification des conflits et recommandations pédagogiques.
+                    </p>
+                  </div>
+
+                  <Button
+                    variant="ghost"
+                    className="mt-5 w-full h-12 rounded-2xl bg-white/5 border border-white/10 text-indigo-200 hover:bg-indigo-500 hover:text-white transition-all text-[11px] font-black"
+                  >
+                    <Sparkles className="size-4 mr-2" />
+                    Voir les suggestions
+                  </Button>
+                </div>
+
+                <div className="rounded-[24px] bg-white/[0.03] border border-white/[0.08] shadow-[0_20px_80px_rgba(0,0,0,0.45)] p-6">
+                  <p className="text-sm font-black text-white">Statistiques</p>
+                  <div className="mt-5 grid grid-cols-[180px_1fr] gap-6 items-center">
+                    <div className="relative w-[180px] h-[180px] mx-auto">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={distribution}
+                            dataKey="value"
+                            nameKey="label"
+                            innerRadius={60}
+                            outerRadius={82}
+                            stroke="transparent"
+                            startAngle={90}
+                            endAngle={-270}
+                          >
+                            {distribution.map((row, idx) => (
+                              <Cell key={idx} fill={row.color} />
+                            ))}
+                          </Pie>
+                        </PieChart>
+                      </ResponsiveContainer>
+                      <div className="absolute inset-0 grid place-items-center">
+                        <div className="text-center">
+                          <p className="text-2xl font-black text-white">{weeklyHours}h</p>
+                          <p className="text-xs font-bold text-slate-500 mt-1">Total</p>
+                        </div>
                       </div>
-                    ))}
+                    </div>
+
+                    <div className="space-y-3">
+                      {distribution.slice(0, 6).map((row) => (
+                        <div key={row.label} className="flex items-center justify-between gap-3 text-xs font-bold">
+                          <span className="inline-flex items-center gap-2 text-slate-300">
+                            <span className="size-2 rounded-full" style={{ backgroundColor: row.color }} /> {row.label}
+                          </span>
+                          <span className="text-slate-500 tabular-nums">{row.percent}%</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="rounded-[24px] bg-white/[0.03] border border-white/[0.08] shadow-[0_20px_80px_rgba(0,0,0,0.45)] p-6">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-black text-white">Alertes & Notifications</p>
-                  <button type="button" className="text-xs font-black text-indigo-200 hover:underline">
-                    Tout voir
-                  </button>
+                <div className="rounded-[24px] bg-white/[0.03] border border-white/[0.08] shadow-[0_20px_80px_rgba(0,0,0,0.45)] p-6">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-black text-white">Alertes & Notifications</p>
+                    <button type="button" className="text-xs font-black text-indigo-200 hover:underline">
+                      Tout voir
+                    </button>
+                  </div>
+
+                  <div className="mt-5 space-y-3">
+                    <AlertRow
+                      tone="good"
+                      title={conflicts === 0 ? "Aucun conflit détecté" : `${conflicts} conflit(s) détecté(s)`}
+                      subtitle={conflicts === 0 ? "Excellent !" : "Vérifier les affectations"}
+                    />
+                    <AlertRow tone="warn" title="Charge de M. Hamissou (92%)" subtitle="Proche de la limite" />
+                    <AlertRow tone="info" title="Salle 12 indisponible vendredi H6" subtitle="Remplacement suggéré" />
+                  </div>
                 </div>
 
-                <div className="mt-5 space-y-3">
-                  <AlertRow
-                    tone="good"
-                    title={conflicts === 0 ? "Aucun conflit détecté" : `${conflicts} conflit(s) détecté(s)`}
-                    subtitle={conflicts === 0 ? "Excellent !" : "Vérifier les affectations"}
-                  />
-                  <AlertRow tone="warn" title="Charge de M. Hamissou (92%)" subtitle="Proche de la limite" />
-                  <AlertRow tone="info" title="Salle 12 indisponible vendredi H6" subtitle="Remplacement suggéré" />
+                <div className="rounded-[24px] bg-white/[0.03] border border-white/[0.08] shadow-[0_20px_80px_rgba(0,0,0,0.45)] p-6">
+                  <p className="text-sm font-black text-white">Aperçu Hebdomadaire</p>
+                  <div className="mt-4 h-[170px]">
+                    <WeeklyBarChart data={bars} />
+                  </div>
                 </div>
-              </div>
-
-              <div className="rounded-[24px] bg-white/[0.03] border border-white/[0.08] shadow-[0_20px_80px_rgba(0,0,0,0.45)] p-6">
-                <p className="text-sm font-black text-white">Aperçu Hebdomadaire</p>
-                <div className="mt-4 h-[170px]">
-                  <WeeklyBarChart data={bars} />
-                </div>
-              </div>
-            </aside>
+              </aside>
+            )}
           </div>
         </div>
       </div>

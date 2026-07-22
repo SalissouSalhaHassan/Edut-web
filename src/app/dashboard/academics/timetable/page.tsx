@@ -21,7 +21,7 @@ export default async function TimetablePage() {
   const currentSession = sessions.find(s => s.isActive) || sessions[0] || { id: 0, sessionName: "N/A" };
 
   return (
-    <div className="p-3 h-[calc(100vh-60px)]">
+    <div className="w-full min-h-[calc(100vh-65px)] p-1 md:p-2 bg-[#0B0D14] rounded-2xl overflow-hidden">
       <IntelligentTimetable 
         classes={classes}
         teachers={employees}
