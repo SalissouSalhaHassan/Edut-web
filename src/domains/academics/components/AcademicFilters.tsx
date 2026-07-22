@@ -302,36 +302,80 @@ export default function AcademicFilters({ onLoad, loading }: AcademicFiltersProp
 
   const currentSection = options.sections.find((s: any) => s.id.toString() === sectionId);
 
-  // periodOptions should now come from the database based on the selected session
-  let periodOptions: { id: string, name: string }[] = [];
-  if (options.periods && options.periods.length > 0) {
-    const sessionPeriods = options.periods.filter((p: any) => p.sessionId?.toString() === session);
-    if (sessionPeriods.length > 0) {
-      periodOptions = sessionPeriods.map((p: any) => ({ id: p.name, name: p.name }));
-    } else {
-      // Fallback if no periods found for session but periods exist in DB
-      periodOptions = options.periods.map((p: any) => ({ id: p.name, name: p.name }));
+  // Smart period options based on level:
+  // - Primaire: 3 Trimestres (1er Trimestre, 2ème Trimestre, 3ème Trimestre)
+  // - Collège & Lycée: 2 Semestres (1er Semestre, 2ème Semestre)
+  // - Licence (LMD), Master & Doctorat: 14 Semestres (1er Semestre (S1) ... 14ème Semestre (S14))
+  const periodOptions = useMemo(() => {
+    const normLevel = String(level || "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim();
+
+    const isPrimaire = normLevel.includes("prim") || normLevel.includes("matern") || normLevel.includes("fonda") || normLevel.includes("elem");
+    const isSuperior = normLevel.includes("licence") || normLevel.includes("lmd") || normLevel.includes("master") || normLevel.includes("doc") || normLevel.includes("super") || normLevel.includes("univ");
+
+    let sessionPeriods = (options.periods || []).filter((p: any) => p.sessionId?.toString() === session);
+    if (sessionPeriods.length === 0 && options.periods?.length > 0) {
+      sessionPeriods = options.periods;
     }
-  } else {
-    // Legacy fallback based on section numTerms
-    if (currentSection?.termLabels) {
-      periodOptions = currentSection.termLabels.split(",").map((l: string) => ({ id: l.trim(), name: l.trim() }));
-    } else {
-      const numTerms = currentSection?.numTerms || 3;
-      if (numTerms === 2) {
-        periodOptions = [
-          { id: "1er Semestre", name: "1er Semestre" },
-          { id: "2ème Semestre", name: "2ème Semestre" }
-        ];
-      } else {
-        periodOptions = [
-          { id: "1er Trimestre", name: "1er Trimestre" },
-          { id: "2ème Trimestre", name: "2ème Trimestre" },
-          { id: "3ème Trimestre", name: "3ème Trimestre" }
-        ];
+
+    if (isPrimaire) {
+      const dbTrimestres = sessionPeriods.filter((p: any) =>
+        p.periodType === "Trimestre" || String(p.name).toLowerCase().includes("trimestre")
+      );
+      if (dbTrimestres.length > 0) {
+        return dbTrimestres.map((p: any) => ({ id: p.name, name: p.name }));
+      }
+      return [
+        { id: "1er Trimestre", name: "1er Trimestre" },
+        { id: "2ème Trimestre", name: "2ème Trimestre" },
+        { id: "3ème Trimestre", name: "3ème Trimestre" },
+      ];
+    }
+
+    if (isSuperior) {
+      const dbSuperior = sessionPeriods.filter((p: any) =>
+        p.periodType === "Semestre" || String(p.name).toLowerCase().includes("semest") || /^s\d+/i.test(p.name)
+      );
+
+      const superiorPresets = Array.from({ length: 14 }, (_, i) => {
+        const num = i + 1;
+        const label = `${num === 1 ? "1er" : `${num}ème`} Semestre (S${num})`;
+        return { id: label, name: label };
+      });
+
+      if (dbSuperior.length > 0) {
+        const dbList = dbSuperior.map((p: any) => ({ id: p.name, name: p.name }));
+        return dbList.length >= 6 ? dbList : superiorPresets;
+      }
+      return superiorPresets;
+    }
+
+    // Default for Collège / Lycée -> 2 Semestres
+    const dbSemestres = sessionPeriods.filter((p: any) =>
+      p.periodType === "Semestre" || String(p.name).toLowerCase().includes("semest")
+    );
+
+    if (dbSemestres.length > 0) {
+      const collegePeriods = dbSemestres
+        .filter((p: any) => {
+          const n = String(p.name).toLowerCase();
+          return n.includes("1") || n.includes("2") || n.includes("premiere") || n.includes("deuxieme");
+        })
+        .map((p: any) => ({ id: p.name, name: p.name }));
+
+      if (collegePeriods.length >= 2) {
+        return collegePeriods.slice(0, 2);
       }
     }
-  }
+
+    return [
+      { id: "1er Semestre", name: "1er Semestre" },
+      { id: "2ème Semestre", name: "2ème Semestre" },
+    ];
+  }, [level, session, options.periods]);
 
   // Auto-update period if current value is not in options
   useEffect(() => {

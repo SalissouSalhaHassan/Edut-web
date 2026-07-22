@@ -147,6 +147,49 @@ export function AcademicSettings({
     });
   };
 
+  const handleGeneratePresetPeriods = (type: "Primaire" | "CollegeLycee" | "Superior") => {
+    startTransition(async () => {
+      let periodsToCreate: { name: string; periodType: string }[] = [];
+      if (type === "Primaire") {
+        periodsToCreate = [
+          { name: "1er Trimestre", periodType: "Trimestre" },
+          { name: "2ème Trimestre", periodType: "Trimestre" },
+          { name: "3ème Trimestre", periodType: "Trimestre" },
+        ];
+      } else if (type === "CollegeLycee") {
+        periodsToCreate = [
+          { name: "1er Semestre", periodType: "Semestre" },
+          { name: "2ème Semestre", periodType: "Semestre" },
+        ];
+      } else if (type === "Superior") {
+        periodsToCreate = Array.from({ length: 14 }, (_, i) => {
+          const num = i + 1;
+          return {
+            name: `${num === 1 ? "1er" : `${num}ème`} Semestre (S${num})`,
+            periodType: "Semestre",
+          };
+        });
+      }
+
+      const sid = periodSessionId ? Number(periodSessionId) : null;
+      let count = 0;
+      for (const p of periodsToCreate) {
+        const exists = initialPeriods?.some((ip: any) => ip.name === p.name && (sid === null || ip.sessionId === sid));
+        if (!exists) {
+          await createPeriod({
+            name: p.name,
+            periodType: p.periodType,
+            sessionId: sid,
+            isActive: true,
+          });
+          count++;
+        }
+      }
+      toast.success(`${count} période(s) générée(s) avec succès !`);
+      router.refresh();
+    });
+  };
+
   const startEditPeriod = (p: any) => {
     setEditingPeriodId(p.id);
     setPeriodName(p.name);
@@ -406,9 +449,38 @@ export function AcademicSettings({
 
       {/* 1.5 Périodes */}
       <div className="bg-[#1F222B] border border-slate-800 rounded-3xl p-6 shadow-sm">
-        <div className="flex items-center gap-3 mb-6">
-          <CalendarDays className="text-teal-500" />
-          <h2 className="text-xl font-bold text-white">Périodes (Trimestres / Semestres)</h2>
+        <div className="flex items-center justify-between flex-wrap gap-3 mb-6">
+          <div className="flex items-center gap-3">
+            <CalendarDays className="text-teal-500" />
+            <h2 className="text-xl font-bold text-white">Périodes (Trimestres / Semestres)</h2>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-bold text-slate-400">Génération rapide :</span>
+            <button
+              type="button"
+              disabled={isPending || !canEdit}
+              onClick={() => handleGeneratePresetPeriods("Primaire")}
+              className="text-xs bg-teal-500/10 text-teal-400 hover:bg-teal-500/20 px-3 py-1.5 rounded-lg border border-teal-500/30 transition-all font-semibold disabled:opacity-40"
+            >
+              ⚡ Primaire (3 Trimestres)
+            </button>
+            <button
+              type="button"
+              disabled={isPending || !canEdit}
+              onClick={() => handleGeneratePresetPeriods("CollegeLycee")}
+              className="text-xs bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 px-3 py-1.5 rounded-lg border border-blue-500/30 transition-all font-semibold disabled:opacity-40"
+            >
+              ⚡ Collège / Lycée (2 Semestres)
+            </button>
+            <button
+              type="button"
+              disabled={isPending || !canEdit}
+              onClick={() => handleGeneratePresetPeriods("Superior")}
+              className="text-xs bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 px-3 py-1.5 rounded-lg border border-purple-500/30 transition-all font-semibold disabled:opacity-40"
+            >
+              ⚡ Licence/Master/Doctorat (S1 - S14)
+            </button>
+          </div>
         </div>
         <div className="flex flex-wrap md:flex-nowrap gap-4 mb-6">
           <input 
