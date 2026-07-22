@@ -178,7 +178,7 @@ export async function getUsers() {
       whereClause = undefined;
     }
 
-    const isGeneralAdminOrDirector = !!user.admin || !!user.superAdmin || roleType === "directeur" || roleType === "general_director" || roleType === "admin";
+    const isGeneralAdminOrDirector = !!user.admin || !!user.superAdmin || roleType === "directeur" || roleType === "general_director";
     const isLevelScoped = !isGeneralAdminOrDirector && (roleType === "level_director" || roleType === "level_comptable");
 
     if (isLevelScoped) {
