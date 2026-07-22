@@ -2,14 +2,14 @@ export const dynamic = "force-dynamic";
 
 import { getRoles } from "@/domains/auth/actions/roles.actions";
 import { getCurrentUser } from "@/domains/auth/services/session";
-import { getRoleType } from "@/domains/auth/services/rbac";
+import { getUserRoleType } from "@/domains/auth/services/rbac";
 import { redirect } from "next/navigation";
 import RoleManager from "../settings/components/RoleManager";
 import { Shield, ShieldCheck, Bell, ChevronDown } from "lucide-react";
 
 export default async function SecurityPage() {
   const currentUser = await getCurrentUser();
-  const roleType = await getRoleType(currentUser);
+  const roleType = await getUserRoleType(currentUser);
 
   // Level Directors and non-global admins are redirected to Users & Teams
   if (roleType === "level_director" || roleType === "level_comptable" || roleType === "comptable" || roleType === "caissier" || roleType === "teacher" || roleType === "eleve" || roleType === "parent") {
