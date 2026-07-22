@@ -207,16 +207,13 @@ export async function importEmployeeRow(data: any) {
         revalidatePath("/dashboard/hr");
         return { success: true, action: "insert", id: newEmp.id };
       } catch (error: any) {
-        // Check both direct code and nested cause (driver-dependent)
         const pgCode: string | undefined = error?.code ?? error?.cause?.code;
         if (pgCode === "23505") {
-          // Unique constraint violation — most likely emp_id is still globally unique in DB.
-          // The admin must apply migration 0004_scope_employee_emp_id_by_school.sql in Supabase.
           return {
             error:
               "Le matricule employé existe déjà. Si c'est un employé d'une autre école, appliquez la migration 0004_scope_employee_emp_id_by_school.sql dans Supabase avant l'importation.",
           };
-        // All other DB errors — return a friendly message, never expose raw SQL.
+        }
         console.error("[importEmployeeRow] DB error:", pgCode, error?.message);
         return {
           error: "Erreur lors de l'insertion de l'employé. Vérifiez les données et réessayez.",
