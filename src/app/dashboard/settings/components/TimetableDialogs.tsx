@@ -202,9 +202,9 @@ export function AssignmentsDialog({ open, onOpenChange, classes, teachers: initi
 
         <div className="flex-1 flex overflow-hidden">
            {/* 2. Sidebar */}
-           <aside className="w-[320px] bg-black/20 border-r border-white/5 flex flex-col shrink-0">
-              <Tabs defaultValue="classes" className="flex-1 flex flex-col">
-                 <div className="p-5 bg-black/10 space-y-4">
+           <aside className="w-[320px] bg-black/20 border-r border-white/5 flex flex-col shrink-0 h-full min-h-0 overflow-hidden">
+              <Tabs defaultValue="classes" className="h-full flex-1 flex flex-col min-h-0 overflow-hidden">
+                 <div className="p-5 bg-black/10 space-y-4 shrink-0">
                     <TabsList className="w-full h-10 bg-white/5 p-1 rounded-xl border border-white/5">
                        <TabsTrigger value="classes" className="flex-1 rounded-lg text-[9px] font-black uppercase">Classes</TabsTrigger>
                        <TabsTrigger value="profs" className="flex-1 rounded-lg text-[9px] font-black uppercase">Profs</TabsTrigger>
@@ -221,25 +221,25 @@ export function AssignmentsDialog({ open, onOpenChange, classes, teachers: initi
                     </div>
                  </div>
 
-                 <TabsContent value="classes" className="flex-1 overflow-auto p-4 m-0 space-y-1 custom-scrollbar">
+                 <TabsContent value="classes" className="mt-0 flex-1 min-h-0 overflow-y-auto p-4 space-y-1 custom-scrollbar">
                      {classes.filter(c => getClassDisplayName(c, "").toLowerCase().includes(searchQuery.toLowerCase())).map(c => (
                        <button
                         key={c.id} 
                         onClick={() => setSelectedClassId(c.id)}
                         className={cn(
-                          "w-full flex items-center justify-between p-4 rounded-2xl transition-all",
+                          "w-full flex items-center justify-between p-3.5 rounded-2xl transition-all shrink-0 text-left",
                           selectedClassId === c.id ? "bg-indigo-500/10 border border-indigo-500/30 text-white" : "hover:bg-white/5 border border-transparent text-slate-500"
                         )}
                       >
-                          <span className="text-xs font-black uppercase tracking-widest">{getClassDisplayName(c)}</span>
-                         <ChevronRight size={14} className={selectedClassId === c.id ? "text-indigo-400" : "text-slate-700"} />
+                          <span className="text-xs font-black uppercase tracking-widest truncate max-w-[210px]">{getClassDisplayName(c)}</span>
+                         <ChevronRight size={14} className={selectedClassId === c.id ? "text-indigo-400 shrink-0" : "text-slate-700 shrink-0"} />
                       </button>
                     ))}
                  </TabsContent>
 
-                 <TabsContent value="profs" className="flex-1 overflow-auto p-5 m-0 space-y-3 custom-scrollbar">
+                 <TabsContent value="profs" className="mt-0 flex-1 min-h-0 overflow-y-auto p-5 space-y-3 custom-scrollbar">
                     {teacherWorkloads.filter(t => t.nom.toLowerCase().includes(searchQuery.toLowerCase())).map(t => (
-                      <div key={t.id} className="bg-white/[0.02] p-4 rounded-2xl border border-white/5">
+                      <div key={t.id} className="bg-white/[0.02] p-4 rounded-2xl border border-white/5 shrink-0">
                          <div className="flex justify-between items-center mb-2">
                             <span className="text-xs font-black text-slate-300">{t.nom}</span>
                             <span className={cn("text-[9px] font-black px-2 py-0.5 rounded-md", t.workload > 22 ? "bg-rose-500/10 text-rose-400" : "bg-emerald-500/10 text-emerald-400")}>{t.workload}h</span>
@@ -405,10 +405,10 @@ export function AssignmentsDialog({ open, onOpenChange, classes, teachers: initi
         />
 
         <style jsx global>{`
-          .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
-          .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-          .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.03); border-radius: 20px; border: 2px solid transparent; background-clip: padding-box; }
-          .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.08); }
+          .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+          .custom-scrollbar::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.02); }
+          .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 20px; }
+          .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(99, 102, 241, 0.6); }
         `}</style>
       </DialogContent>
     </Dialog>
@@ -910,14 +910,14 @@ export function TimetableSettingsDialog({ open, onOpenChange }: { open: boolean,
             width: 6px;
           }
           .custom-scrollbar::-webkit-scrollbar-track {
-            background: transparent;
+            background: rgba(255, 255, 255, 0.02);
           }
           .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.05);
+            background: rgba(255, 255, 255, 0.2);
             border-radius: 20px;
           }
           .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(99, 102, 241, 0.6);
           }
         `}</style>
       </DialogContent>
