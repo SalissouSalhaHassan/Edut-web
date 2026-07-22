@@ -3,7 +3,7 @@
 import { db } from "@/infrastructure/database";
 import { users, loginLogs } from "@/infrastructure/database/schema/auth";
 import { auditLogs } from "@/infrastructure/database/schema/audit";
-import { eq, desc, and, inArray, sql, type SQL } from "drizzle-orm";
+import { eq, desc, and, or, isNull, inArray, sql, type SQL } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/domains/auth/services/session";
 import bcrypt from "bcryptjs";
@@ -152,6 +152,7 @@ export async function getUsers() {
     try {
       await db.execute(sql`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "student_id" integer`);
       await db.execute(sql`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "employee_id" integer`);
+      await db.execute(sql`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "avatar_url" text`);
     } catch (_migErr) {
       // Columns likely already exist — safe to ignore
     }
@@ -162,17 +163,17 @@ export async function getUsers() {
     console.log(`[getUsers] currentUser: id=${user.id}, superAdmin=${user.superAdmin}, schoolId=${user.schoolId}, activeSchoolId=${schoolId}, roleType=${roleType}`);
 
     // Multi-tenancy logic: 
-    // Super Admins see everyone, regular users see only their school's users
+    // Super Admins see everyone, regular users see their school's users or unassigned users
     let whereClause: SQL | undefined;
     if (user.superAdmin) {
       // superAdmin sees ALL users across platform
       whereClause = undefined;
     } else if (schoolId) {
-      // Regular users filtered by their school
-      whereClause = eq(users.schoolId, schoolId);
+      // Regular users filtered by their school or unassigned users
+      whereClause = or(eq(users.schoolId, schoolId), isNull(users.schoolId));
     } else if (user.schoolId) {
-      // Fallback to user's own schoolId
-      whereClause = eq(users.schoolId, user.schoolId);
+      // Fallback to user's own schoolId or unassigned
+      whereClause = or(eq(users.schoolId, user.schoolId), isNull(users.schoolId));
     } else {
       // Fallback for single-school environments
       whereClause = undefined;
@@ -209,14 +210,20 @@ export async function getUsers() {
       }
     }
 
-    const data = await db.query.users.findMany({
-      where: whereClause,
-      with: { 
-        role: true,
-        school: true
-      },
-      orderBy: [desc(users.createdAt)],
-    });
+    let data: any[] = [];
+    try {
+      data = await db.query.users.findMany({
+        where: whereClause,
+        with: { 
+          role: true,
+          school: true
+        },
+        orderBy: [desc(users.createdAt)],
+      });
+    } catch (_relErr) {
+      console.warn("[getUsers] Relational query failed, executing fallback simple select:", _relErr);
+      data = await db.select().from(users).where(whereClause).orderBy(desc(users.createdAt));
+    }
     
     console.log(`[getUsers] Found ${data.length} users (SuperAdmin: ${user.superAdmin}, schoolId filter: ${schoolId ?? user.schoolId ?? 'none'})`);
     return { data, success: true };
