@@ -1670,16 +1670,69 @@ export function generateOfficialAnnualReportPDF(data: {
   const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
   ensureAmiriRegistered(doc);
 
-  // Header Title
-  doc.setFontSize(16);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(15, 23, 42); // slate-900
-  doc.text(`RAPPORT RÉCAPITULATIF OFFICIEL ANNUEL`, 148.5, 14, { align: "center" });
+  const cfg = data.headerConfig || {};
+  const country = cfg.country || cfg.countryName || "RÉPUBLIQUE DU NIGER";
+  const motto = cfg.motto || "Unité - Travail - Progrès";
+  const ministry = cfg.ministry || cfg.ministryName || "MINISTÈRE DE L'ÉDUCATION NATIONALE";
+  const regionalDir = cfg.regionalDirection || cfg.region || "";
+  const schoolName = cfg.schoolName || cfg.school?.name || "ÉCOLE GESTION PRO";
+  const logo = cfg.leftLogo || cfg.rightLogo || cfg.centerLogo || cfg.logoUrl;
 
-  doc.setFontSize(11);
+  let startY = 32;
+
+  // Render official header logo & info if headerConfig available
+  if (logo) {
+    try {
+      doc.addImage(logo, 'PNG', 12, 8, 22, 22);
+    } catch (e) {}
+  }
+
+  // Left Block (Country / Ministry / Region)
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(15, 23, 42);
+  doc.text(country.toUpperCase(), logo ? 38 : 12, 12);
+  
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "italic");
+  doc.setTextColor(100, 116, 139);
+  doc.text(motto, logo ? 38 : 12, 15);
+
+  doc.setFontSize(7.5);
   doc.setFont("helvetica", "normal");
-  doc.setTextColor(71, 85, 105); // slate-600
-  doc.text(`Classe: ${data.className || "N/A"}  |  Année Scolaire: ${data.sessionName || "2025-2026"}  |  Effectif: ${data.students.length} Élèves`, 148.5, 20, { align: "center" });
+  doc.setTextColor(30, 41, 59);
+  doc.text(ministry, logo ? 38 : 12, 19);
+  if (regionalDir) doc.text(regionalDir, logo ? 38 : 12, 23);
+
+  // Right Block (School Name & Session)
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(15, 23, 42);
+  doc.text(schoolName, 285, 12, { align: "right" });
+
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(100, 116, 139);
+  doc.text(`Année Scolaire: ${data.sessionName || "2025-2026"}`, 285, 17, { align: "right" });
+  doc.text(`Document Officiel Annuel`, 285, 21, { align: "right" });
+
+  // Divider Line
+  doc.setDrawColor(226, 232, 240);
+  doc.setLineWidth(0.5);
+  doc.line(10, 26, 287, 26);
+
+  // Main Report Title
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(15, 23, 42);
+  doc.text(`RAPPORT RÉCAPITULATIF OFFICIEL ANNUEL`, 148.5, 32, { align: "center" });
+
+  doc.setFontSize(9.5);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(71, 85, 105);
+  doc.text(`Classe: ${data.className || "N/A"}  |  Effectif: ${data.students.length} Élèves`, 148.5, 37, { align: "center" });
+
+  startY = 42;
 
   // Table Data
   const head = [[
@@ -1734,7 +1787,7 @@ export function generateOfficialAnnualReportPDF(data: {
   });
 
   autoTable(doc, {
-    startY: 25,
+    startY: startY,
     head: head,
     body: body,
     theme: "grid",

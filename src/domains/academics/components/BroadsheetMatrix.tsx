@@ -19,9 +19,10 @@ interface BroadsheetMatrixProps {
   onPrintAll?: () => void;
   onPrintPV: () => void;
   activeFilters: any;
+  headerConfig?: any;
 }
 
-export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, onPrintPV, activeFilters }: BroadsheetMatrixProps) {
+export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, onPrintPV, activeFilters, headerConfig }: BroadsheetMatrixProps) {
   const [saving, setSaving] = useState(false);
   const [appreciations, setAppreciations] = useState<Record<number, any>>({});
   const [showAnnualReportModal, setShowAnnualReportModal] = useState(false);
@@ -194,6 +195,7 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
         className: activeFilters?.className || "Classe",
         sessionName: activeFilters?.sessionName || "2025-2026",
         students: data.students,
+        headerConfig: headerConfig,
       });
       toast.success("PDF Officiel Annuel généré avec succès !");
     } catch (e) {
@@ -642,6 +644,30 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
                 </button>
               </div>
             </div>
+
+            {/* Official School Header Banner */}
+            {headerConfig && (
+              <div className="px-6 pt-4 pb-2 flex justify-between items-center border-b border-slate-200 bg-white">
+                <div className="flex items-center gap-3">
+                  {(headerConfig.logoUrl || headerConfig.leftLogo) && (
+                    <img
+                      src={headerConfig.logoUrl || headerConfig.leftLogo}
+                      alt="Logo"
+                      className="w-12 h-12 object-contain"
+                    />
+                  )}
+                  <div>
+                    <p className="text-xs font-black text-slate-900 uppercase">{headerConfig.country || headerConfig.countryName || "RÉPUBLIQUE DU NIGER"}</p>
+                    <p className="text-[10px] italic text-slate-500">{headerConfig.motto || "Unité - Travail - Progrès"}</p>
+                    <p className="text-[10px] font-bold text-slate-700">{headerConfig.ministry || headerConfig.ministryName || "MINISTÈRE DE L'ÉDUCATION NATIONALE"}</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <h3 className="text-sm font-black text-indigo-950 uppercase">{headerConfig.schoolName || "ÉCOLE GESTION PRO"}</h3>
+                  <p className="text-xs text-slate-500 font-medium">Année Scolaire: {activeFilters?.sessionName || "2025-2026"}</p>
+                </div>
+              </div>
+            )}
 
             {/* Modal Body / Table */}
             <div className="p-4 md:p-6 overflow-auto flex-1 bg-slate-50/50">
