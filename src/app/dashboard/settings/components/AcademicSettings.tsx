@@ -391,7 +391,7 @@ export function AcademicSettings({
       subject: subObj || { subjectName: "Matière" }
     };
 
-    setSectionSubjectsList(prev => [newItem, ...prev]);
+    setSectionSubjectsList((prev: any[]) => [newItem, ...prev]);
     setLinkSubjectId("");
     setShowSectionLinkBuilder(false);
     toast.success("Matière associée avec succès à la section");
@@ -406,7 +406,7 @@ export function AcademicSettings({
       });
       if (!res.success) {
         toast.error(res.error || "Erreur lors de la liaison de la matière");
-        setSectionSubjectsList(prev => prev.filter(item => item.id !== tempId));
+        setSectionSubjectsList((prev: any[]) => prev.filter((item: any) => item.id !== tempId));
       } else {
         router.refresh();
       }
@@ -435,7 +435,7 @@ export function AcademicSettings({
       subject: subObj || { subjectName: "Matière" }
     };
 
-    setClassSubjectsList(prev => [...prev, newItem]);
+    setClassSubjectsList((prev: any[]) => [...prev, newItem]);
     setPlanSubjectId("");
     setPlanCoef("1");
     setSelectedClassForModal(null);
@@ -449,7 +449,7 @@ export function AcademicSettings({
       });
       if (!res.success) {
         toast.error(res.error || "Erreur lors de la liaison de la matière");
-        setClassSubjectsList(prev => prev.filter(item => item.id !== tempId));
+        setClassSubjectsList((prev: any[]) => prev.filter((item: any) => item.id !== tempId));
       } else {
         router.refresh();
       }
@@ -463,7 +463,7 @@ export function AcademicSettings({
     const targetId = editingSectionLink.id;
     const oldList = [...sectionSubjectsList];
 
-    setSectionSubjectsList(prev => prev.map((item: any) => item.id === targetId ? {
+    setSectionSubjectsList((prev: any[]) => prev.map((item: any) => item.id === targetId ? {
       ...item,
       sectionId: Number(editLinkSectionId),
       subjectId: Number(editLinkSubjectId),
@@ -499,7 +499,7 @@ export function AcademicSettings({
     const targetId = editingClassSubject.id;
     const oldList = [...classSubjectsList];
 
-    setClassSubjectsList(prev => prev.map((item: any) => item.id === targetId ? {
+    setClassSubjectsList((prev: any[]) => prev.map((item: any) => item.id === targetId ? {
       ...item,
       subjectId: Number(editClassSubjectId),
       coefficient: Number(editClassCoef),
@@ -524,7 +524,7 @@ export function AcademicSettings({
 
   const handleDeleteSectionLink = (id: number) => {
     const oldList = [...sectionSubjectsList];
-    setSectionSubjectsList(prev => prev.filter((item: any) => item.id !== id));
+    setSectionSubjectsList((prev: any[]) => prev.filter((item: any) => item.id !== id));
     toast.success("Carte d'association supprimée");
     startTransition(async () => {
       const res = await deleteSectionSubjectLink(id);
@@ -539,7 +539,7 @@ export function AcademicSettings({
 
   const handleDeleteClassSubjectLink = (id: number) => {
     const oldList = [...classSubjectsList];
-    setClassSubjectsList(prev => prev.filter((item: any) => item.id !== id));
+    setClassSubjectsList((prev: any[]) => prev.filter((item: any) => item.id !== id));
     toast.success("Matière retirée du plan d'études");
     startTransition(async () => {
       const res = await deleteClassSubjectLink(id);
