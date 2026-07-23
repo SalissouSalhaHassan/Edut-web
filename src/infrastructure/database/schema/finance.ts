@@ -1,4 +1,4 @@
-import { pgTable, serial, varchar, text, timestamp, doublePrecision, integer, index } from "drizzle-orm/pg-core";
+import { pgTable, serial, varchar, text, timestamp, doublePrecision, integer, index, jsonb } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { students } from "./students";
 import { schoolSessions } from "./academics";
@@ -141,6 +141,64 @@ export const cogesPayments = pgTable("coges_payments", {
   status: varchar("status", { length: 20 }).default("Validé"),
   recordedBy: varchar("recorded_by", { length: 100 }),
   educationalLevel: varchar("educational_level", { length: 50 }),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// --- Phase 3: Mobile Money & SYSCOHADA Accounting Tables ---
+
+export const onlineTransactions = pgTable("online_transactions", {
+  id: serial("id").primaryKey(),
+  schoolId: integer("school_id").references(() => schools.id),
+  studentId: integer("student_id").references(() => students.id, { onDelete: "set null" }),
+  feeId: integer("fee_id").references(() => studentFees.id, { onDelete: "set null" }),
+  transactionReference: varchar("transaction_reference", { length: 100 }).notNull().unique(),
+  provider: varchar("provider", { length: 50 }).notNull(), // ORANGE_MONEY, MOOV_MONEY, WAVE, BANK_CARD, CINETPAY
+  providerTransactionId: varchar("provider_transaction_id", { length: 100 }),
+  amount: doublePrecision("amount").notNull(),
+  currency: varchar("currency", { length: 10 }).default("XOF"),
+  phoneNumber: varchar("phone_number", { length: 30 }),
+  status: varchar("status", { length: 20 }).default("PENDING"), // PENDING, SUCCESS, FAILED, EXPIRED, REFUNDED
+  purpose: varchar("purpose", { length: 255 }), // Scolarité, Inscription, COGES
+  webhookPayload: jsonb("webhook_payload"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  schoolIdIdx: index("online_txn_school_idx").on(table.schoolId),
+  txnRefIdx: index("online_txn_ref_idx").on(table.transactionReference),
+}));
+
+export const syscohadaAccounts = pgTable("syscohada_accounts", {
+  id: serial("id").primaryKey(),
+  schoolId: integer("school_id").references(() => schools.id),
+  accountNumber: varchar("account_number", { length: 20 }).notNull(), // e.g. 512000, 531000, 706000
+  accountName: varchar("account_name", { length: 150 }).notNull(),
+  categoryClass: integer("category_class").notNull(), // 1 to 7 (SYSCOHADA Classes)
+  accountType: varchar("account_type", { length: 20 }).default("ACTIF"), // ACTIF, PASSIF, CHARGE, PRODUIT
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const syscohadaEntries = pgTable("syscohada_entries", {
+  id: serial("id").primaryKey(),
+  schoolId: integer("school_id").references(() => schools.id),
+  sessionId: integer("session_id").references(() => schoolSessions.id),
+  entryDate: timestamp("entry_date").defaultNow(),
+  reference: varchar("reference", { length: 50 }).notNull(),
+  accountId: integer("account_id").references(() => syscohadaAccounts.id),
+  label: varchar("label", { length: 255 }).notNull(),
+  debit: doublePrecision("debit").default(0),
+  credit: doublePrecision("credit").default(0),
+  recordedBy: varchar("recorded_by", { length: 100 }),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const cogesBudgets = pgTable("coges_budgets", {
+  id: serial("id").primaryKey(),
+  schoolId: integer("school_id").references(() => schools.id),
+  sessionId: integer("session_id").references(() => schoolSessions.id),
+  category: varchar("category", { length: 100 }).notNull(), // Santé, Équipement, Entretien, Sport, Animation
+  budgetedAmount: doublePrecision("budgeted_amount").notNull(),
+  realizedAmount: doublePrecision("realized_amount").default(0),
+  comments: text("comments"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
