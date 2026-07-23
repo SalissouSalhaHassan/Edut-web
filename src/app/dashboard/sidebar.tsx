@@ -39,6 +39,7 @@ import {
   UserRound,
   Users,
   Wallet,
+  Smartphone,
   Loader2,
   LogOut,
   Bookmark,
@@ -126,6 +127,7 @@ const sections: NavSection[] = [
     dotColor: "bg-emerald-500",
     items: [
       { href: "/dashboard/finance", label: "Gestion financière", icon: <Wallet className="size-[18px]" />, color: "text-emerald-500" },
+      { href: "/dashboard/finance/syscohada", label: "Paiements Mobile & SYSCOHADA", icon: <Smartphone className="size-[18px]" />, color: "text-orange-500", badge: "Phase 3", badgeColor: "bg-orange-500/20 text-orange-400" },
       { href: "/dashboard/coges", label: "Paiement COGES", icon: <BriefcaseBusiness className="size-[18px]" />, color: "text-indigo-500" },
     ],
   },
