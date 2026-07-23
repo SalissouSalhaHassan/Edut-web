@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       cogesReport: {
-        schoolName: user.school?.schoolName || "Établissement Scolaire",
+        schoolName: user.school?.name || "Établissement Scolaire",
         totalCotisations,
         totalDepenses,
         soldeDisponible,

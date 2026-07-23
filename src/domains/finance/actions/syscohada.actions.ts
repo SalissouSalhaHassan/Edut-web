@@ -208,7 +208,7 @@ export async function getCogesFinancialReport() {
     return {
       success: true,
       data: {
-        schoolName: user.schoolName || "Établissement Scolaire",
+        schoolName: (user as any).schoolName || (user as any).school?.name || "Établissement Scolaire",
         totalCotisations,
         totalDepenses,
         soldeDisponible,
