@@ -2340,6 +2340,28 @@ export async function linkSubjectToSection(data: {
   });
 }
 
+export async function updateSectionSubjectLink(id: number, data: {
+  sectionId?: number;
+  subjectId?: number;
+  term?: string;
+  defaultCoef?: number;
+  isEliminatory?: boolean;
+}) {
+  return protectedDbAction("Academics", "canEdit", async () => {
+    await db.update(sectionSubjects)
+      .set({
+        ...(data.sectionId !== undefined && { sectionId: data.sectionId }),
+        ...(data.subjectId !== undefined && { subjectId: data.subjectId }),
+        ...(data.term !== undefined && { term: data.term }),
+        ...(data.defaultCoef !== undefined && { defaultCoef: data.defaultCoef }),
+        ...(data.isEliminatory !== undefined && { isEliminatory: data.isEliminatory }),
+      })
+      .where(eq(sectionSubjects.id, id));
+    revalidatePath("/dashboard/settings");
+    return { success: true };
+  });
+}
+
 export async function deleteSectionSubjectLink(id: number) {
   return protectedDbAction("Academics", "canEdit", async () => {
     await db.delete(sectionSubjects).where(eq(sectionSubjects.id, id));
@@ -2358,6 +2380,20 @@ export async function addClassSubjectLink(data: { classId: number; subjectId: nu
       coefficient: data.coefficient,
       schoolId: schoolId,
     });
+    revalidatePath("/dashboard/settings");
+    return { success: true };
+  });
+}
+
+export async function updateClassSubjectLink(id: number, data: { coefficient?: number; subjectId?: number }) {
+  return protectedDbAction("Academics", "canEdit", async () => {
+    const schoolId = await getActiveSchoolId();
+    await db.update(classSubjects)
+      .set({
+        ...(data.coefficient !== undefined && { coefficient: data.coefficient }),
+        ...(data.subjectId !== undefined && { subjectId: data.subjectId }),
+      })
+      .where(and(eq(classSubjects.id, id), eq(classSubjects.schoolId, schoolId)));
     revalidatePath("/dashboard/settings");
     return { success: true };
   });

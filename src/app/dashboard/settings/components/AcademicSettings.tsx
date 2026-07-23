@@ -10,8 +10,8 @@ import {
   createClass, updateClass, deleteClass, 
   createSection, updateSection, deleteSection, 
   createSubject, deleteSubject, importSubjects,
-  linkSubjectToSection, deleteSectionSubjectLink,
-  addClassSubjectLink, deleteClassSubjectLink,
+  linkSubjectToSection, updateSectionSubjectLink, deleteSectionSubjectLink,
+  addClassSubjectLink, updateClassSubjectLink, deleteClassSubjectLink,
   createGradingAppreciation, deleteGradingAppreciation,
   createSchoolRemark, deleteSchoolRemark,
   createPeriod, deletePeriod, updatePeriod,
@@ -92,6 +92,19 @@ export function AcademicSettings({
   const [planCoef, setPlanCoef] = useState("1");
   const [classPlanSearch, setClassPlanSearch] = useState("");
   const [selectedClassForModal, setSelectedClassForModal] = useState<any | null>(null);
+
+  // Edit section-subject link states
+  const [editingSectionLink, setEditingSectionLink] = useState<any | null>(null);
+  const [editLinkSectionId, setEditLinkSectionId] = useState("");
+  const [editLinkPeriod, setEditLinkPeriod] = useState("Tous");
+  const [editLinkSubjectId, setEditLinkSubjectId] = useState("");
+  const [editLinkCoef, setEditLinkCoef] = useState("1");
+  const [editLinkEliminatory, setEditLinkEliminatory] = useState(false);
+
+  // Edit class-subject link states
+  const [editingClassSubject, setEditingClassSubject] = useState<any | null>(null);
+  const [editClassCoef, setEditClassCoef] = useState("1");
+  const [editClassSubjectId, setEditClassSubjectId] = useState("");
 
   // Grading states
   const [gradingName, setGradingName] = useState("");
@@ -384,6 +397,41 @@ export function AcademicSettings({
         router.refresh();
       } else {
         toast.error(res.error || "Erreur lors de la liaison de la matière");
+      }
+    });
+  const handleUpdateSectionLink = () => {
+    if (!editingSectionLink) return;
+    startTransition(async () => {
+      const res = await updateSectionSubjectLink(editingSectionLink.id, {
+        sectionId: Number(editLinkSectionId),
+        subjectId: Number(editLinkSubjectId),
+        term: editLinkPeriod,
+        defaultCoef: Number(editLinkCoef),
+        isEliminatory: editLinkEliminatory,
+      });
+      if (res.success) {
+        toast.success("Carte de section mise à jour avec succès");
+        setEditingSectionLink(null);
+        router.refresh();
+      } else {
+        toast.error(res.error || "Erreur lors de la modification");
+      }
+    });
+  };
+
+  const handleUpdateClassSubjectLink = () => {
+    if (!editingClassSubject) return;
+    startTransition(async () => {
+      const res = await updateClassSubjectLink(editingClassSubject.id, {
+        coefficient: Number(editClassCoef),
+        subjectId: Number(editClassSubjectId),
+      });
+      if (res.success) {
+        toast.success("Matière de classe mise à jour avec succès");
+        setEditingClassSubject(null);
+        router.refresh();
+      } else {
+        toast.error(res.error || "Erreur lors de la modification");
       }
     });
   };
@@ -1444,20 +1492,138 @@ export function AcademicSettings({
                       )}
                     </div>
 
-                    <button 
-                      onClick={() => startTransition(() => { deleteSectionSubjectLink(ss.id); })}
-                      disabled={isPending}
-                      title="Supprimer la carte"
-                      className="w-8 h-8 rounded-lg bg-slate-800/60 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 border border-slate-700/50 hover:border-rose-500/40 flex items-center justify-center transition-all"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button 
+                        onClick={() => {
+                          setEditingSectionLink(ss);
+                          setEditLinkSectionId(ss.sectionId?.toString() || "");
+                          setEditLinkPeriod(ss.term || "Tous");
+                          setEditLinkSubjectId(ss.subjectId?.toString() || "");
+                          setEditLinkCoef((ss.defaultCoef || 1).toString());
+                          setEditLinkEliminatory(!!ss.isEliminatory);
+                        }}
+                        disabled={isPending}
+                        title="Modifier la carte"
+                        className="w-8 h-8 rounded-lg bg-slate-800/60 hover:bg-cyan-500/20 text-slate-400 hover:text-cyan-400 border border-slate-700/50 hover:border-cyan-500/40 flex items-center justify-center transition-all"
+                      >
+                        <Pencil size={13} />
+                      </button>
+                      <button 
+                        onClick={() => startTransition(() => { deleteSectionSubjectLink(ss.id); })}
+                        disabled={isPending}
+                        title="Supprimer la carte"
+                        className="w-8 h-8 rounded-lg bg-slate-800/60 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 border border-slate-700/50 hover:border-rose-500/40 flex items-center justify-center transition-all"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
           );
         })()}
+
+        {/* Edit Modal Panel for Section Link */}
+        {editingSectionLink && (
+          <div className="p-6 rounded-2xl bg-[#161822] border-2 border-cyan-500/50 shadow-2xl space-y-5 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <span className="text-sm font-black uppercase tracking-widest text-cyan-400 flex items-center gap-2">
+                <Pencil size={16} /> Modifier la Carte : <span className="text-white underline">{editingSectionLink.subject?.subjectName}</span>
+              </span>
+              <button onClick={() => setEditingSectionLink(null)} className="text-slate-400 hover:text-white">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="space-y-2">
+                <label className="text-xs text-slate-400 font-black uppercase tracking-wider block">Section</label>
+                <select 
+                  value={editLinkSectionId}
+                  onChange={(e) => setEditLinkSectionId(e.target.value)}
+                  className="w-full bg-[#1F222B] border border-slate-700 text-white rounded-xl px-4 h-12 focus:outline-none focus:border-cyan-500 font-bold text-sm"
+                >
+                  {initialSections.map((s: any) => (
+                    <option key={s.id} value={s.id}>{s.sectionName}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs text-slate-400 font-black uppercase tracking-wider block">Période</label>
+                <select 
+                  value={editLinkPeriod}
+                  onChange={(e) => setEditLinkPeriod(e.target.value)}
+                  className="w-full bg-[#1F222B] border border-slate-700 text-white rounded-xl px-4 h-12 focus:outline-none focus:border-cyan-500 font-bold text-sm"
+                >
+                  <option value="Tous">Toutes les Périodes (Tous)</option>
+                  {initialPeriods?.map((p: any) => (
+                    <option key={p.id} value={p.name}>{p.name}</option>
+                  ))}
+                  {(!initialPeriods || initialPeriods.length === 0) && (
+                    <>
+                      <option value="1er Trimestre">1er Trimestre</option>
+                      <option value="2ème Trimestre">2ème Trimestre</option>
+                      <option value="3ème Trimestre">3ème Trimestre</option>
+                      <option value="1er Semestre">1er Semestre</option>
+                      <option value="2ème Semestre">2ème Semestre</option>
+                    </>
+                  )}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs text-slate-400 font-black uppercase tracking-wider block">Matière</label>
+                <select 
+                  value={editLinkSubjectId}
+                  onChange={(e) => setEditLinkSubjectId(e.target.value)}
+                  className="w-full bg-[#1F222B] border border-slate-700 text-white rounded-xl px-4 h-12 focus:outline-none focus:border-cyan-500 font-bold text-sm"
+                >
+                  {initialSubjects.map((s: any) => (
+                    <option key={s.id} value={s.id}>{s.subjectName}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs text-slate-400 font-black uppercase tracking-wider block">Coef & Option</label>
+                <div className="flex items-center gap-3">
+                  <input 
+                    type="number" 
+                    min="1"
+                    value={editLinkCoef}
+                    onChange={(e) => setEditLinkCoef(e.target.value)}
+                    className="w-full bg-[#1F222B] border border-slate-700 text-white rounded-xl px-4 h-12 focus:outline-none focus:border-cyan-500 text-center font-black text-lg"
+                  />
+                  <label className="flex items-center gap-2 h-12 px-3 rounded-xl bg-[#1F222B] border border-slate-700 cursor-pointer select-none">
+                    <input 
+                      type="checkbox" 
+                      checked={editLinkEliminatory}
+                      onChange={(e) => setEditLinkEliminatory(e.target.checked)}
+                      className="w-4 h-4 rounded border-slate-700 accent-rose-500"
+                    />
+                    <span className="text-xs font-bold text-rose-400">Éliminatoire</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
+              <Button onClick={() => setEditingSectionLink(null)} variant="outline" className="h-11 border-slate-800 text-slate-400 rounded-xl px-5">
+                Annuler
+              </Button>
+              <Button 
+                onClick={handleUpdateSectionLink}
+                disabled={isPending}
+                className="h-11 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-xl px-7 font-black shadow-lg shadow-cyan-900/30 flex items-center gap-2"
+              >
+                {isPending ? <Loader2 className="animate-spin" size={16} /> : <Check size={16} />}
+                <span>Enregistrer la modification</span>
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 6. Plan d'Études (Lien Classe-Matière) - CARDS DESIGN */}
@@ -1560,6 +1726,72 @@ export function AcademicSettings({
           </div>
         )}
 
+        {/* Edit Modal Panel for Class Subject Link */}
+        {editingClassSubject && (
+          <div className="p-6 rounded-2xl bg-[#161822] border-2 border-emerald-500/50 shadow-2xl space-y-5 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <span className="text-sm font-black uppercase tracking-widest text-emerald-400 flex items-center gap-2">
+                <Pencil size={16} /> Modifier le Coefficient de la Matière : <span className="text-white underline">{editingClassSubject.subject?.subjectName}</span> ({editingClassSubject.class?.className})
+              </span>
+              <button onClick={() => setEditingClassSubject(null)} className="text-slate-400 hover:text-white">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-xs text-slate-400 font-black uppercase tracking-wider block">Matière</label>
+                <select 
+                  value={editClassSubjectId}
+                  onChange={(e) => setEditClassSubjectId(e.target.value)}
+                  className="w-full bg-[#1F222B] border border-slate-700 text-white rounded-xl px-4 h-12 focus:outline-none focus:border-emerald-500 font-bold text-sm"
+                >
+                  {initialSubjects.map((s: any) => (
+                    <option key={s.id} value={s.id}>{s.subjectName}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs text-slate-400 font-black uppercase tracking-wider block">Nouveau Coefficient</label>
+                <div className="flex items-center gap-2">
+                  <input 
+                    type="number" 
+                    min="1"
+                    value={editClassCoef}
+                    onChange={(e) => setEditClassCoef(e.target.value)}
+                    className="flex-1 bg-[#1F222B] border border-slate-700 text-white rounded-xl px-4 h-12 focus:outline-none focus:border-emerald-500 text-center font-black text-lg"
+                  />
+                  {[1, 2, 3, 4, 5, 6].map(n => (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() => setEditClassCoef(n.toString())}
+                      className={`w-9 h-12 rounded-xl text-xs font-black transition-all ${editClassCoef === n.toString() ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
+              <Button onClick={() => setEditingClassSubject(null)} variant="outline" className="h-11 border-slate-800 text-slate-400 rounded-xl px-5">
+                Annuler
+              </Button>
+              <Button 
+                onClick={handleUpdateClassSubjectLink}
+                disabled={isPending}
+                className="h-11 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl px-7 font-black shadow-lg shadow-emerald-900/30 flex items-center gap-2"
+              >
+                {isPending ? <Loader2 className="animate-spin" size={16} /> : <Check size={16} />}
+                <span>Enregistrer la modification</span>
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* Master Class Cards Grid */}
         {(() => {
           const q = classPlanSearch.toLowerCase();
@@ -1649,15 +1881,27 @@ export function AcademicSettings({
                                 </span>
                               </div>
 
-                              <div className="flex items-center gap-2 shrink-0">
+                              <div className="flex items-center gap-1.5 shrink-0">
                                 <span className="px-2 py-0.5 rounded-md bg-emerald-950/80 border border-emerald-800/50 text-emerald-400 text-[11px] font-black">
                                   Coef {cs.coefficient}
                                 </span>
                                 <button 
+                                  onClick={() => {
+                                    setEditingClassSubject(cs);
+                                    setEditClassCoef((cs.coefficient || 1).toString());
+                                    setEditClassSubjectId(cs.subjectId?.toString() || "");
+                                  }}
+                                  disabled={isPending}
+                                  title="Modifier le coefficient"
+                                  className="text-slate-400 hover:text-emerald-400 transition-colors p-1"
+                                >
+                                  <Pencil size={13} />
+                                </button>
+                                <button 
                                   onClick={() => startTransition(() => { deleteClassSubjectLink(cs.id); })}
                                   disabled={isPending}
                                   title="Supprimer"
-                                  className="text-slate-500 hover:text-rose-400 transition-colors p-1"
+                                  className="text-slate-400 hover:text-rose-400 transition-colors p-1"
                                 >
                                   <Trash2 size={13} />
                                 </button>
