@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Trash2, CalendarDays, GraduationCap, Bookmark, BookOpen, Link as LinkIcon, Loader2, Bell, FileUp, Search, Pencil, Building2, Layers, MapPin, Plus, Check, Sparkles, Filter, CheckCircle2, X, AlertTriangle, ChevronRight, Hash } from "lucide-react";
 import { toast } from "sonner";
@@ -34,6 +34,27 @@ export function AcademicSettings({
 }: any) {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
+
+  // Local reactive states for Instant/Optimistic 0ms UI updates
+  const [sessionsList, setSessionsList] = useState(initialSessions || []);
+  const [classesList, setClassesList] = useState(initialClasses || []);
+  const [sectionsList, setSectionsList] = useState(initialSections || []);
+  const [subjectsList, setSubjectsList] = useState(initialSubjects || []);
+  const [sectionSubjectsList, setSectionSubjectsList] = useState(initialSectionSubjects || []);
+  const [classSubjectsList, setClassSubjectsList] = useState(initialClassSubjects || []);
+  const [periodsList, setPeriodsList] = useState(initialPeriods || []);
+  const [gradingList, setGradingList] = useState(initialGradingAppreciations || []);
+  const [remarksList, setRemarksList] = useState(initialSchoolRemarks || []);
+
+  useEffect(() => { setSessionsList(initialSessions || []); }, [initialSessions]);
+  useEffect(() => { setClassesList(initialClasses || []); }, [initialClasses]);
+  useEffect(() => { setSectionsList(initialSections || []); }, [initialSections]);
+  useEffect(() => { setSubjectsList(initialSubjects || []); }, [initialSubjects]);
+  useEffect(() => { setSectionSubjectsList(initialSectionSubjects || []); }, [initialSectionSubjects]);
+  useEffect(() => { setClassSubjectsList(initialClassSubjects || []); }, [initialClassSubjects]);
+  useEffect(() => { setPeriodsList(initialPeriods || []); }, [initialPeriods]);
+  useEffect(() => { setGradingList(initialGradingAppreciations || []); }, [initialGradingAppreciations]);
+  useEffect(() => { setRemarksList(initialSchoolRemarks || []); }, [initialSchoolRemarks]);
 
   // Form states
   const [sessionName, setSessionName] = useState("");
@@ -355,6 +376,26 @@ export function AcademicSettings({
       toast.error("Veuillez sélectionner une section et une matière");
       return;
     }
+
+    const secObj = sectionsList.find((s: any) => s.id === Number(secId));
+    const subObj = subjectsList.find((s: any) => s.id === Number(subId));
+    const tempId = Date.now();
+    const newItem = {
+      id: tempId,
+      sectionId: Number(secId),
+      subjectId: Number(subId),
+      term: term,
+      defaultCoef: Number(coef),
+      isEliminatory: elim,
+      section: secObj || { sectionName: "Section" },
+      subject: subObj || { subjectName: "Matière" }
+    };
+
+    setSectionSubjectsList(prev => [newItem, ...prev]);
+    setLinkSubjectId("");
+    setShowSectionLinkBuilder(false);
+    toast.success("Matière associée avec succès à la section");
+
     startTransition(async () => {
       const res = await linkSubjectToSection({
         sectionId: Number(secId),
@@ -363,13 +404,11 @@ export function AcademicSettings({
         defaultCoef: Number(coef),
         isEliminatory: elim
       });
-      if (res.success) {
-        toast.success("Matière asociada avec succès à la section");
-        setLinkSubjectId("");
-        setShowSectionLinkBuilder(false);
-        router.refresh();
-      } else {
+      if (!res.success) {
         toast.error(res.error || "Erreur lors de la liaison de la matière");
+        setSectionSubjectsList(prev => prev.filter(item => item.id !== tempId));
+      } else {
+        router.refresh();
       }
     });
   };
@@ -383,57 +422,132 @@ export function AcademicSettings({
       toast.error("Veuillez sélectionner une classe et une matière");
       return;
     }
+
+    const clsObj = classesList.find((c: any) => c.id === Number(clsId));
+    const subObj = subjectsList.find((s: any) => s.id === Number(subId));
+    const tempId = Date.now();
+    const newItem = {
+      id: tempId,
+      classId: Number(clsId),
+      subjectId: Number(subId),
+      coefficient: Number(coef),
+      class: clsObj || { className: "Classe" },
+      subject: subObj || { subjectName: "Matière" }
+    };
+
+    setClassSubjectsList(prev => [...prev, newItem]);
+    setPlanSubjectId("");
+    setPlanCoef("1");
+    setSelectedClassForModal(null);
+    toast.success("Matière ajoutée au plan d'études avec succès");
+
     startTransition(async () => {
       const res = await addClassSubjectLink({
         classId: Number(clsId),
         subjectId: Number(subId),
         coefficient: Number(coef)
       });
-      if (res.success) {
-        toast.success("Matière ajoutée au plan d'études avec succès");
-        setPlanSubjectId("");
-        setPlanCoef("1");
-        setSelectedClassForModal(null);
-        router.refresh();
-      } else {
+      if (!res.success) {
         toast.error(res.error || "Erreur lors de la liaison de la matière");
+        setClassSubjectsList(prev => prev.filter(item => item.id !== tempId));
+      } else {
+        router.refresh();
       }
     });
   };
 
   const handleUpdateSectionLink = () => {
     if (!editingSectionLink) return;
+    const secObj = sectionsList.find((s: any) => s.id === Number(editLinkSectionId));
+    const subObj = subjectsList.find((s: any) => s.id === Number(editLinkSubjectId));
+    const targetId = editingSectionLink.id;
+    const oldList = [...sectionSubjectsList];
+
+    setSectionSubjectsList(prev => prev.map((item: any) => item.id === targetId ? {
+      ...item,
+      sectionId: Number(editLinkSectionId),
+      subjectId: Number(editLinkSubjectId),
+      term: editLinkPeriod,
+      defaultCoef: Number(editLinkCoef),
+      isEliminatory: editLinkEliminatory,
+      section: secObj || item.section,
+      subject: subObj || item.subject,
+    } : item));
+    setEditingSectionLink(null);
+    toast.success("Carte de section mise à jour avec succès");
+
     startTransition(async () => {
-      const res = await updateSectionSubjectLink(editingSectionLink.id, {
+      const res = await updateSectionSubjectLink(targetId, {
         sectionId: Number(editLinkSectionId),
         subjectId: Number(editLinkSubjectId),
         term: editLinkPeriod,
         defaultCoef: Number(editLinkCoef),
         isEliminatory: editLinkEliminatory,
       });
-      if (res.success) {
-        toast.success("Carte de section mise à jour avec succès");
-        setEditingSectionLink(null);
-        router.refresh();
-      } else {
+      if (!res.success) {
         toast.error(res.error || "Erreur lors de la modification");
+        setSectionSubjectsList(oldList);
+      } else {
+        router.refresh();
       }
     });
   };
 
   const handleUpdateClassSubjectLink = () => {
     if (!editingClassSubject) return;
+    const subObj = subjectsList.find((s: any) => s.id === Number(editClassSubjectId));
+    const targetId = editingClassSubject.id;
+    const oldList = [...classSubjectsList];
+
+    setClassSubjectsList(prev => prev.map((item: any) => item.id === targetId ? {
+      ...item,
+      subjectId: Number(editClassSubjectId),
+      coefficient: Number(editClassCoef),
+      subject: subObj || item.subject,
+    } : item));
+    setEditingClassSubject(null);
+    toast.success("Matière de classe mise à jour avec succès");
+
     startTransition(async () => {
-      const res = await updateClassSubjectLink(editingClassSubject.id, {
+      const res = await updateClassSubjectLink(targetId, {
         coefficient: Number(editClassCoef),
         subjectId: Number(editClassSubjectId),
       });
-      if (res.success) {
-        toast.success("Matière de classe mise à jour avec succès");
-        setEditingClassSubject(null);
-        router.refresh();
-      } else {
+      if (!res.success) {
         toast.error(res.error || "Erreur lors de la modification");
+        setClassSubjectsList(oldList);
+      } else {
+        router.refresh();
+      }
+    });
+  };
+
+  const handleDeleteSectionLink = (id: number) => {
+    const oldList = [...sectionSubjectsList];
+    setSectionSubjectsList(prev => prev.filter((item: any) => item.id !== id));
+    toast.success("Carte d'association supprimée");
+    startTransition(async () => {
+      const res = await deleteSectionSubjectLink(id);
+      if (!res.success) {
+        toast.error(res.error || "Erreur lors de la suppression");
+        setSectionSubjectsList(oldList);
+      } else {
+        router.refresh();
+      }
+    });
+  };
+
+  const handleDeleteClassSubjectLink = (id: number) => {
+    const oldList = [...classSubjectsList];
+    setClassSubjectsList(prev => prev.filter((item: any) => item.id !== id));
+    toast.success("Matière retirée du plan d'études");
+    startTransition(async () => {
+      const res = await deleteClassSubjectLink(id);
+      if (!res.success) {
+        toast.error(res.error || "Erreur lors de la suppression");
+        setClassSubjectsList(oldList);
+      } else {
+        router.refresh();
       }
     });
   };
@@ -1403,10 +1517,10 @@ export function AcademicSettings({
               onClick={() => setSectionSubjectFilterSection("all")}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${sectionSubjectFilterSection === "all" ? "bg-cyan-500 text-white shadow-md" : "bg-[#1F222B] text-slate-400 hover:text-white border border-slate-800"}`}
             >
-              Toutes les Sections ({initialSectionSubjects.length})
+              Toutes les Sections ({sectionSubjectsList.length})
             </button>
-            {initialSections.map((sec: any) => {
-              const count = initialSectionSubjects.filter((ss: any) => ss.sectionId === sec.id).length;
+            {sectionsList.map((sec: any) => {
+              const count = sectionSubjectsList.filter((ss: any) => ss.sectionId === sec.id).length;
               return (
                 <button
                   key={sec.id}
@@ -1434,7 +1548,7 @@ export function AcademicSettings({
 
         {/* Section Subjects Cards Grid */}
         {(() => {
-          const filteredLinks = initialSectionSubjects.filter((ss: any) => {
+          const filteredLinks = sectionSubjectsList.filter((ss: any) => {
             const matchSec = sectionSubjectFilterSection === "all" || ss.sectionId?.toString() === sectionSubjectFilterSection;
             const q = sectionSubjectSearch.toLowerCase();
             const matchSearch = !q || (ss.subject?.subjectName?.toLowerCase().includes(q) || ss.section?.sectionName?.toLowerCase().includes(q) || ss.term?.toLowerCase().includes(q));
@@ -1511,7 +1625,7 @@ export function AcademicSettings({
                         <Pencil size={13} />
                       </button>
                       <button 
-                        onClick={() => startTransition(() => { deleteSectionSubjectLink(ss.id); })}
+                        onClick={() => handleDeleteSectionLink(ss.id)}
                         disabled={isPending}
                         title="Supprimer la carte"
                         className="w-8 h-8 rounded-lg bg-slate-800/60 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 border border-slate-700/50 hover:border-rose-500/40 flex items-center justify-center transition-all"
@@ -1797,11 +1911,11 @@ export function AcademicSettings({
         {/* Master Class Cards Grid */}
         {(() => {
           const q = classPlanSearch.toLowerCase();
-          const filteredClasses = initialClasses.filter((c: any) => {
+          const filteredClasses = classesList.filter((c: any) => {
             if (!q) return true;
             const matchClassName = c.className?.toLowerCase().includes(q);
             const matchSectionName = c.section?.sectionName?.toLowerCase().includes(q);
-            const assignedSubs = initialClassSubjects.filter((cs: any) => cs.classId === c.id);
+            const assignedSubs = classSubjectsList.filter((cs: any) => cs.classId === c.id);
             const matchSubjectName = assignedSubs.some((cs: any) => cs.subject?.subjectName?.toLowerCase().includes(q));
             return matchClassName || matchSectionName || matchSubjectName;
           });
@@ -1818,7 +1932,7 @@ export function AcademicSettings({
           return (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {filteredClasses.map((cls: any) => {
-                const clsSubjects = initialClassSubjects.filter((cs: any) => cs.classId === cls.id);
+                const clsSubjects = classSubjectsList.filter((cs: any) => cs.classId === cls.id);
                 const totalCoefSum = clsSubjects.reduce((acc: number, cs: any) => acc + Number(cs.coefficient || 1), 0);
 
                 return (
@@ -1900,7 +2014,7 @@ export function AcademicSettings({
                                   <Pencil size={13} />
                                 </button>
                                 <button 
-                                  onClick={() => startTransition(() => { deleteClassSubjectLink(cs.id); })}
+                                  onClick={() => handleDeleteClassSubjectLink(cs.id)}
                                   disabled={isPending}
                                   title="Supprimer"
                                   className="text-slate-400 hover:text-rose-400 transition-colors p-1"
