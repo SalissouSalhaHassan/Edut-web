@@ -1651,3 +1651,141 @@ export async function generateClassCouncilReportPDF(payload: any) {
   const filterClassName = (filters?.className || "Classe").replace(/\s+/g, "_");
   doc.save(`Rapport_Conseil_Classe_${filterClassName}_${Date.now()}.pdf`);
 }
+
+/**
+ * Generate Official Annual Summary Report PDF (Landscape with all 11 columns)
+ */
+export function generateOfficialAnnualReportPDF(data: {
+  className: string;
+  sessionName?: string;
+  students: any[];
+  headerConfig?: any;
+}) {
+  const doc = new jsPDF({
+    orientation: "landscape",
+    unit: "mm",
+    format: "a4"
+  });
+
+  const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
+  ensureAmiriRegistered(doc);
+
+  // Header Title
+  doc.setFontSize(16);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(15, 23, 42); // slate-900
+  doc.text(`RAPPORT RÉCAPITULATIF OFFICIEL ANNUEL`, 148.5, 14, { align: "center" });
+
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(71, 85, 105); // slate-600
+  doc.text(`Classe: ${data.className || "N/A"}  |  Année Scolaire: ${data.sessionName || "2025-2026"}  |  Effectif: ${data.students.length} Élèves`, 148.5, 20, { align: "center" });
+
+  // Table Data
+  const head = [[
+    "N°",
+    "Noms et Prénoms",
+    "Date et lieu de naissance",
+    "Matricule",
+    "Sexe",
+    "Redoublement\nAntérieur",
+    "Moyenne\n1er Sem.",
+    "Rang\n1er Sem.",
+    "Moyenne\n2ème Sem.",
+    "Rang\n2ème Sem.",
+    "Moyenne\nAnnuelle",
+    "Allocataire"
+  ]];
+
+  const body = data.students.map((student: any, idx: number) => {
+    const dob = student.dateNaissance || student.dateOfBirth || student.birthDate || "-";
+    const pob = student.lieuNaissance || student.placeOfBirth || "-";
+    const dateAndPlace = `${dob} à ${pob}`;
+
+    const s1Summary = student.summaryS1 || student.history?.find((h: any) => h.term?.toLowerCase().includes("1") || h.term?.toLowerCase().includes("première"));
+    const s2Summary = student.summaryS2 || student.history?.find((h: any) => h.term?.toLowerCase().includes("2") || h.term?.toLowerCase().includes("deuxième"));
+
+    const s1Avg = typeof s1Summary?.average === 'number' ? s1Summary.average.toFixed(2) : (student.s1Average ? Number(student.s1Average).toFixed(2) : "-");
+    const s1Rank = s1Summary?.rank || student.s1Rank || "-";
+
+    const s2Avg = typeof s2Summary?.average === 'number' ? s2Summary.average.toFixed(2) : (student.s2Average ? Number(student.s2Average).toFixed(2) : "-");
+    const s2Rank = s2Summary?.rank || student.s2Rank || "-";
+
+    const safeAvg = typeof student.average === 'number' && !isNaN(student.average) ? student.average : 0;
+    const annualAvg = typeof student.annualAverage === 'number' ? student.annualAverage.toFixed(2) : safeAvg.toFixed(2);
+
+    const redoublement = student.redoublement === true || student.isRepeater === true || student.redoublement === "Oui" ? "Oui" : "Non";
+    const allocataire = student.allocataire || (student.isScholarship ? "Boursier" : "Non Boursier") || "Non";
+
+    return [
+      idx + 1,
+      student.name || student.studentName || "Élève",
+      dateAndPlace,
+      student.matricule || "-",
+      student.sexe || student.gender || "M",
+      redoublement,
+      s1Avg,
+      s1Rank,
+      s2Avg,
+      s2Rank,
+      annualAvg,
+      allocataire
+    ];
+  });
+
+  autoTable(doc, {
+    startY: 25,
+    head: head,
+    body: body,
+    theme: "grid",
+    headStyles: {
+      fillColor: [15, 23, 42],
+      textColor: [255, 255, 255],
+      fontSize: 8,
+      fontStyle: "bold",
+      halign: "center",
+      valign: "middle"
+    },
+    styles: {
+      fontSize: 8,
+      cellPadding: 2,
+      valign: "middle",
+      overflow: "linebreak"
+    },
+    columnStyles: {
+      0: { cellWidth: 10, halign: "center" },
+      1: { cellWidth: 45, fontStyle: "bold" },
+      2: { cellWidth: 42 },
+      3: { cellWidth: 28, halign: "center", fontStyle: "bold" },
+      4: { cellWidth: 12, halign: "center" },
+      5: { cellWidth: 22, halign: "center" },
+      6: { cellWidth: 20, halign: "center", fontStyle: "bold" },
+      7: { cellWidth: 16, halign: "center" },
+      8: { cellWidth: 20, halign: "center", fontStyle: "bold" },
+      9: { cellWidth: 16, halign: "center" },
+      10: { cellWidth: 22, halign: "center", fontStyle: "bold" },
+      11: { cellWidth: 24, halign: "center" }
+    },
+    didParseCell: handleBilingualCell
+  });
+
+  const finalY = (doc as any).lastAutoTable.finalY + 15;
+  const pageHeight = doc.internal.pageSize.getHeight();
+
+  if (finalY + 20 < pageHeight) {
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.text("Le Chef d'Établissement / Directeur", 50, finalY, { align: "center" });
+    doc.text("Le Président du Conseil de Classe / Inspection", 230, finalY, { align: "center" });
+  }
+
+  if (isOffline) {
+    doc.setFillColor(254, 243, 199);
+    doc.setTextColor(180, 83, 9);
+    doc.setFontSize(8);
+    doc.text("⚠️ DOCUMENT GÉNÉRÉ HORS LIGNE - EN ATTENTE DE SYNCHRONISATION", 148.5, pageHeight - 8, { align: "center" });
+  }
+
+  const cleanClassName = (data.className || "Classe").replace(/\s+/g, "_");
+  doc.save(`Rapport_Annuel_Officiel_${cleanClassName}_${Date.now()}.pdf`);
+}

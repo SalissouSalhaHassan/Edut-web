@@ -11,6 +11,7 @@ import { BroadsheetData } from "../types";
 import { formatRank } from "../utils/calculations";
 import { toast } from "sonner";
 import { saveTermSummaries } from "../actions/academics.actions";
+import { generateOfficialAnnualReportPDF } from "../utils/bulletin-generator";
 
 interface BroadsheetMatrixProps {
   data: BroadsheetData;
@@ -184,6 +185,21 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
     link.click();
     document.body.removeChild(link);
     toast.success("Rapport récapitulatif annuel exporté avec succès !");
+  };
+
+  const handleDownloadAnnualReportPDF = () => {
+    if (!data || !data.students) return;
+    try {
+      generateOfficialAnnualReportPDF({
+        className: activeFilters?.className || "Classe",
+        sessionName: activeFilters?.sessionName || "2025-2026",
+        students: data.students,
+      });
+      toast.success("PDF Officiel Annuel généré avec succès !");
+    } catch (e) {
+      console.error("PDF generation failed:", e);
+      toast.error("Erreur lors de la génération du PDF.");
+    }
   };
 
   const handlePrintAll = async () => {
@@ -509,12 +525,81 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
 
       {/* Official Annual Report Modal */}
       {showAnnualReportModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 md:p-8 overflow-y-auto">
-          <div className="bg-white w-full max-w-7xl rounded-[2.5rem] shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-2 md:p-6 overflow-y-auto">
+          {/* Embedded Print CSS */}
+          <style>{`
+            @media print {
+              @page {
+                size: A4 landscape;
+                margin: 5mm;
+              }
+              body * {
+                visibility: hidden !important;
+              }
+              #official-annual-report-printable, #official-annual-report-printable * {
+                visibility: visible !important;
+              }
+              #official-annual-report-printable {
+                position: fixed !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 100vw !important;
+                height: 100vh !important;
+                background: white !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                box-shadow: none !important;
+                border: none !important;
+                overflow: visible !important;
+                z-index: 99999 !important;
+                border-radius: 0 !important;
+              }
+              .no-print {
+                display: none !important;
+              }
+              .print-container {
+                padding: 0 !important;
+                background: white !important;
+                max-height: none !important;
+                overflow: visible !important;
+              }
+              .print-header {
+                background: #0f172a !important;
+                color: white !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                padding: 10px 15px !important;
+              }
+              .print-table {
+                width: 100% !important;
+                font-size: 7.5pt !important;
+                border-collapse: collapse !important;
+                table-layout: fixed !important;
+              }
+              .print-table th, .print-table td {
+                padding: 4px 3px !important;
+                border: 1px solid #334155 !important;
+                word-wrap: break-word !important;
+                overflow-wrap: break-word !important;
+                color: #0f172a !important;
+              }
+              .print-table th {
+                background-color: #0f172a !important;
+                color: #ffffff !important;
+                font-weight: bold !important;
+                text-transform: uppercase !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                font-size: 7pt !important;
+              }
+            }
+          `}</style>
+
+          <div id="official-annual-report-printable" className="bg-white w-full max-w-[95vw] rounded-[2.5rem] shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh] print-container">
             {/* Modal Header */}
-            <div className="p-6 md:p-8 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white flex justify-between items-center border-b border-slate-800">
+            <div className="p-6 md:p-8 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white flex justify-between items-center border-b border-slate-800 print-header">
               <div className="flex items-center gap-4">
-                <div className="p-3.5 bg-amber-500/20 text-amber-400 rounded-2xl border border-amber-500/30">
+                <div className="p-3.5 bg-amber-500/20 text-amber-400 rounded-2xl border border-amber-500/30 no-print">
                   <FileSpreadsheet size={28} />
                 </div>
                 <div>
@@ -524,7 +609,13 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 no-print">
+                <Button
+                  onClick={handleDownloadAnnualReportPDF}
+                  className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl flex items-center gap-2"
+                >
+                  <FileText size={18} /> Télécharger PDF Officiel
+                </Button>
                 <Button
                   onClick={handleExportAnnualReportCSV}
                   className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl flex items-center gap-2"
@@ -533,9 +624,9 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
                 </Button>
                 <Button
                   onClick={() => window.print()}
-                  className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl flex items-center gap-2"
+                  className="bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-xl flex items-center gap-2"
                 >
-                  <Printer size={18} /> Imprimer (PDF)
+                  <Printer size={18} /> Imprimer (Paysage)
                 </Button>
                 <button
                   onClick={() => setShowAnnualReportModal(false)}
@@ -547,23 +638,23 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
             </div>
 
             {/* Modal Body / Table */}
-            <div className="p-6 md:p-8 overflow-auto flex-1 bg-slate-50/50">
+            <div className="p-4 md:p-6 overflow-auto flex-1 bg-slate-50/50">
               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                <table className="w-full text-left text-xs border-collapse min-w-[1200px]">
+                <table className="w-full text-left text-xs border-collapse print-table min-w-[1200px]">
                   <thead>
                     <tr className="bg-slate-900 text-white text-[10px] font-black uppercase tracking-wider">
-                      <th className="p-3 border-r border-slate-800 text-center w-12">N°</th>
-                      <th className="p-3 border-r border-slate-800">Noms et Prénoms</th>
-                      <th className="p-3 border-r border-slate-800">Date et lieu de naissance</th>
-                      <th className="p-3 border-r border-slate-800 text-center">Matricule</th>
-                      <th className="p-3 border-r border-slate-800 text-center">Sexe</th>
-                      <th className="p-3 border-r border-slate-800 text-center">Redoublement Antérieur</th>
-                      <th className="p-3 border-r border-slate-800 text-center text-cyan-300">Moyenne 1er Semestre</th>
-                      <th className="p-3 border-r border-slate-800 text-center text-cyan-300">Rang 1er Semestre</th>
-                      <th className="p-3 border-r border-slate-800 text-center text-indigo-300">Moyenne 2ème Semestre</th>
-                      <th className="p-3 border-r border-slate-800 text-center text-indigo-300">Rang 2ème Semestre</th>
-                      <th className="p-3 border-r border-slate-800 text-center text-amber-300">Moyenne Annuelle</th>
-                      <th className="p-3 text-center">Allocataire</th>
+                      <th className="p-2.5 border-r border-slate-800 text-center w-[3%]">N°</th>
+                      <th className="p-2.5 border-r border-slate-800 w-[17%]">Noms et Prénoms</th>
+                      <th className="p-2.5 border-r border-slate-800 w-[14%]">Date et lieu de naissance</th>
+                      <th className="p-2.5 border-r border-slate-800 text-center w-[9%]">Matricule</th>
+                      <th className="p-2.5 border-r border-slate-800 text-center w-[4%]">Sexe</th>
+                      <th className="p-2.5 border-r border-slate-800 text-center w-[7%]">Redoublement Antérieur</th>
+                      <th className="p-2.5 border-r border-slate-800 text-center text-cyan-300 w-[7%]">Moyenne 1er Semestre</th>
+                      <th className="p-2.5 border-r border-slate-800 text-center text-cyan-300 w-[6%]">Rang 1er Semestre</th>
+                      <th className="p-2.5 border-r border-slate-800 text-center text-indigo-300 w-[7%]">Moyenne 2ème Semestre</th>
+                      <th className="p-2.5 border-r border-slate-800 text-center text-indigo-300 w-[6%]">Rang 2ème Semestre</th>
+                      <th className="p-2.5 border-r border-slate-800 text-center text-amber-300 w-[8%]">Moyenne Annuelle</th>
+                      <th className="p-2.5 text-center w-[12%]">Allocataire</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
@@ -589,22 +680,22 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
 
                       return (
                         <tr key={student.id} className="hover:bg-slate-50 transition-colors">
-                          <td className="p-3 border-r border-slate-100 text-center font-bold text-slate-400">{idx + 1}</td>
-                          <td className="p-3 border-r border-slate-100 font-bold text-slate-900">{student.name || student.studentName || "Élève"}</td>
-                          <td className="p-3 border-r border-slate-100 text-slate-600">{dateAndPlace}</td>
-                          <td className="p-3 border-r border-slate-100 text-center font-mono font-bold text-indigo-600">{student.matricule || "-"}</td>
-                          <td className="p-3 border-r border-slate-100 text-center font-bold">{student.sexe || student.gender || "M"}</td>
-                          <td className="p-3 border-r border-slate-100 text-center">
-                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${redoublement === "Oui" ? "bg-rose-100 text-rose-700" : "bg-emerald-100 text-emerald-700"}`}>
+                          <td className="p-2 border-r border-slate-100 text-center font-bold text-slate-400">{idx + 1}</td>
+                          <td className="p-2 border-r border-slate-100 font-bold text-slate-900">{student.name || student.studentName || "Élève"}</td>
+                          <td className="p-2 border-r border-slate-100 text-slate-600">{dateAndPlace}</td>
+                          <td className="p-2 border-r border-slate-100 text-center font-mono font-bold text-indigo-600">{student.matricule || "-"}</td>
+                          <td className="p-2 border-r border-slate-100 text-center font-bold">{student.sexe || student.gender || "M"}</td>
+                          <td className="p-2 border-r border-slate-100 text-center">
+                            <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${redoublement === "Oui" ? "bg-rose-100 text-rose-700" : "bg-emerald-100 text-emerald-700"}`}>
                               {redoublement}
                             </span>
                           </td>
-                          <td className="p-3 border-r border-slate-100 text-center font-bold text-slate-900 bg-cyan-50/20">{s1Avg}</td>
-                          <td className="p-3 border-r border-slate-100 text-center font-bold text-cyan-700 bg-cyan-50/20">{s1Rank}</td>
-                          <td className="p-3 border-r border-slate-100 text-center font-bold text-slate-900 bg-indigo-50/20">{s2Avg}</td>
-                          <td className="p-3 border-r border-slate-100 text-center font-bold text-indigo-700 bg-indigo-50/20">{s2Rank}</td>
-                          <td className="p-3 border-r border-slate-100 text-center font-black text-amber-600 text-sm bg-amber-50/30">{annualAvg}</td>
-                          <td className="p-3 text-center font-semibold text-slate-700">{allocataire}</td>
+                          <td className="p-2 border-r border-slate-100 text-center font-bold text-slate-900 bg-cyan-50/20">{s1Avg}</td>
+                          <td className="p-2 border-r border-slate-100 text-center font-bold text-cyan-700 bg-cyan-50/20">{s1Rank}</td>
+                          <td className="p-2 border-r border-slate-100 text-center font-bold text-slate-900 bg-indigo-50/20">{s2Avg}</td>
+                          <td className="p-2 border-r border-slate-100 text-center font-bold text-indigo-700 bg-indigo-50/20">{s2Rank}</td>
+                          <td className="p-2 border-r border-slate-100 text-center font-black text-amber-600 text-sm bg-amber-50/30">{annualAvg}</td>
+                          <td className="p-2 text-center font-semibold text-slate-700">{allocataire}</td>
                         </tr>
                       );
                     })}
@@ -614,7 +705,7 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
             </div>
 
             {/* Modal Footer */}
-            <div className="p-4 bg-white border-t border-slate-200 flex justify-between items-center text-xs text-slate-500 font-medium">
+            <div className="p-4 bg-white border-t border-slate-200 flex justify-between items-center text-xs text-slate-500 font-medium no-print">
               <p>Rapport récapitulatif généré conformément aux normes pédagogiques officielles.</p>
               <Button onClick={() => setShowAnnualReportModal(false)} variant="outline" className="rounded-xl">
                 Fermer
