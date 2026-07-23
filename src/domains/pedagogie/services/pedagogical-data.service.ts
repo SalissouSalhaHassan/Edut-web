@@ -138,30 +138,22 @@ export class PedagogicalDataService {
 
     // 3. Fetch academic results, attendance, and plans
     const [results, termSummaries, attendanceRecords, remediations, plans, homeworks] = await Promise.all([
-      studentIds.length > 0 && subjectId && sessionId && period !== "All"
+      studentIds.length > 0 && sessionId
         ? db.query.studentResults.findMany({
             where: and(
               inArray(studentResults.studentId, studentIds),
-              eq(studentResults.subjectId, subjectId),
+              subjectId ? eq(studentResults.subjectId, subjectId) : undefined,
               eq(studentResults.sessionId, sessionId),
-              eq(studentResults.term, period)
-            )
-          })
-        : studentIds.length > 0 && sessionId && period !== "All"
-        ? db.query.studentResults.findMany({
-            where: and(
-              inArray(studentResults.studentId, studentIds),
-              eq(studentResults.sessionId, sessionId),
-              eq(studentResults.term, period)
+              period && period !== "All" ? eq(studentResults.term, period) : undefined
             )
           })
         : Promise.resolve([]),
-      studentIds.length > 0 && sessionId && period !== "All"
+      studentIds.length > 0 && sessionId
         ? db.query.studentTermSummaries.findMany({
             where: and(
               inArray(studentTermSummaries.studentId, studentIds),
               eq(studentTermSummaries.sessionId, sessionId),
-              eq(studentTermSummaries.term, period)
+              period && period !== "All" ? eq(studentTermSummaries.term, period) : undefined
             )
           })
         : Promise.resolve([]),

@@ -73,6 +73,70 @@ async function assertResultsWorkflowEditable(params: {
   return { editable: true };
 }
 
+function buildTermFilter(column: any, term: string) {
+  if (!term || term === "All" || term === "Tout") return undefined;
+  
+  const norm = term.toLowerCase().trim();
+  
+  if (norm.includes("1") || norm.includes("premier") || norm.includes("premiere")) {
+    return or(
+      ilike(column, "%1%"),
+      ilike(column, "%premier%"),
+      ilike(column, "%première%"),
+      ilike(column, "%s1%"),
+      ilike(column, "%t1%"),
+      eq(column, "F1")
+    );
+  }
+  
+  if (norm.includes("2") || norm.includes("deuxieme") || norm.includes("second")) {
+    return or(
+      ilike(column, "%2%"),
+      ilike(column, "%deuxième%"),
+      ilike(column, "%second%"),
+      ilike(column, "%s2%"),
+      ilike(column, "%t2%"),
+      eq(column, "F2")
+    );
+  }
+  
+  if (norm.includes("3") || norm.includes("troisieme")) {
+    return or(
+      ilike(column, "%3%"),
+      ilike(column, "%troisième%"),
+      ilike(column, "%s3%"),
+      ilike(column, "%t3%"),
+      eq(column, "F3")
+    );
+  }
+  
+  return eq(column, term);
+}
+
+function matchTerm(termInDb?: string | null, requestedTerm?: string | null): boolean {
+  if (!requestedTerm || requestedTerm === "All" || requestedTerm === "Tout") return true;
+  if (!termInDb) return false;
+  
+  const normDb = termInDb.toLowerCase().trim();
+  const normReq = requestedTerm.toLowerCase().trim();
+  
+  if (normDb === normReq) return true;
+  
+  const isReq1 = normReq.includes("1") || normReq.includes("premier") || normReq.includes("premiere");
+  const isReq2 = normReq.includes("2") || normReq.includes("deuxieme") || normReq.includes("second");
+  const isReq3 = normReq.includes("3") || normReq.includes("troisieme");
+  
+  const isDb1 = normDb.includes("1") || normDb.includes("premier") || normDb.includes("premiere");
+  const isDb2 = normDb.includes("2") || normDb.includes("deuxieme") || normDb.includes("second");
+  const isDb3 = normDb.includes("3") || normDb.includes("troisieme");
+  
+  if (isReq1 && isDb1) return true;
+  if (isReq2 && isDb2) return true;
+  if (isReq3 && isDb3) return true;
+  
+  return false;
+}
+
 // Helper to get educational level filter - admins see all
 function getLevelFilter() {
   return async () => {
@@ -642,16 +706,13 @@ export async function getGradingGrid(params: { classId: number, subjectId: numbe
     const sessionNameStr = sessionObj?.sessionName?.trim();
 
     // Fetch all dependent data in parallel using readDb
-    const [studentList, attendanceStats, subLink, results] = await Promise.all([
+    const [studentsInClass, attendanceStats, subLink, results] = await Promise.all([
       readDb.select()
         .from(students)
         .where(
           and(
             ilike(students.classe, cls.className.trim()),
-            eq(students.schoolId, cls.schoolId ?? 0),
-            sessionNameStr
-              ? or(eq(students.session, sessionNameStr), isNull(students.session))
-              : undefined
+            eq(students.schoolId, cls.schoolId ?? 0)
           )
         )
         .orderBy(students.nomEtudiant),
@@ -678,11 +739,25 @@ export async function getGradingGrid(params: { classId: number, subjectId: numbe
         where: and(
           eq(studentResults.classId, classIdNum),
           eq(studentResults.subjectId, subjectIdNum),
-          eq(studentResults.sessionId, sessionIdNum),
-          eq(studentResults.term, params.term)
+          or(
+            eq(studentResults.sessionId, sessionIdNum),
+            isNull(studentResults.sessionId)
+          ),
+          buildTermFilter(studentResults.term, params.term)
         )
       })
     ]);
+
+    const resultStudentIds = results.map(r => r.studentId).filter((id): id is number => id !== null);
+    const classStudentIds = new Set(studentsInClass.map(s => s.id));
+    const missingIds = resultStudentIds.filter(id => !classStudentIds.has(id));
+    let extraStudents: any[] = [];
+    if (missingIds.length > 0) {
+      extraStudents = await readDb.select()
+        .from(students)
+        .where(inArray(students.id, missingIds));
+    }
+    const studentList = [...studentsInClass, ...extraStudents].sort((a, b) => a.nomEtudiant.localeCompare(b.nomEtudiant));
 
     const activeCoefficient = subLink?.coefficient || 1.0;
     const statsMap = new Map(attendanceStats.map(s => [s.studentId, s]));
@@ -802,28 +877,39 @@ export async function getDevoirGrid(params: { classId: number, subjectId: number
     const sessionObj = sessionIdNum ? await readDb.query.schoolSessions.findFirst({ where: eq(schoolSessions.id, sessionIdNum) }) : null;
     const sessionNameStr = sessionObj?.sessionName?.trim();
 
-    const [studentList, results] = await Promise.all([
+    const [studentsInClass, results] = await Promise.all([
       readDb.select()
         .from(students)
         .where(
           and(
             ilike(students.classe, cls.className.trim()),
-            eq(students.schoolId, cls.schoolId ?? 0),
-            sessionNameStr
-              ? or(eq(students.session, sessionNameStr), isNull(students.session))
-              : undefined
+            eq(students.schoolId, cls.schoolId ?? 0)
           )
         )
         .orderBy(students.nomEtudiant),
       readDb.query.studentResults.findMany({
         where: and(
           eq(studentResults.classId, classIdNum),
-          eq(studentResults.sessionId, sessionIdNum),
           eq(studentResults.subjectId, subjectIdNum),
-          eq(studentResults.term, params.term)
+          or(
+            eq(studentResults.sessionId, sessionIdNum),
+            isNull(studentResults.sessionId)
+          ),
+          buildTermFilter(studentResults.term, params.term)
         )
       })
     ]);
+
+    const resultStudentIds = results.map(r => r.studentId).filter((id): id is number => id !== null);
+    const classStudentIds = new Set(studentsInClass.map(s => s.id));
+    const missingIds = resultStudentIds.filter(id => !classStudentIds.has(id));
+    let extraStudents: any[] = [];
+    if (missingIds.length > 0) {
+      extraStudents = await readDb.select()
+        .from(students)
+        .where(inArray(students.id, missingIds));
+    }
+    const studentList = [...studentsInClass, ...extraStudents].sort((a, b) => a.nomEtudiant.localeCompare(b.nomEtudiant));
 
     const resultsMap = new Map(results.map(r => [r.studentId, r]));
 
@@ -908,241 +994,237 @@ export async function saveDevoirGrades(payload: any[]) {
   });
 }
 
-// Broadsheet Matrix
-const fetchBroadsheetMatrix = (params: { classId: number, sessionId: number, term: string }) =>
-  unstable_cache(
-    async () => {
-      const cls = await readDb.query.schoolClasses.findFirst({ where: eq(schoolClasses.id, params.classId) });
-      if (!cls) return { error: "Classe non trouvée" };
+// Broadsheet Matrix - Direct query without static caching for dynamic multi-year support
+async function fetchBroadsheetMatrixDirect(params: { classId: number, sessionId: number, term: string }) {
+  const cls = await readDb.query.schoolClasses.findFirst({ where: eq(schoolClasses.id, params.classId) });
+  if (!cls) return { error: "Classe non trouvée" };
 
-      const classIdNum = Number(params.classId);
-      const sessionIdNum = Number(params.sessionId);
+  const classIdNum = Number(params.classId);
+  const sessionIdNum = Number(params.sessionId);
 
-      const sessionObj = sessionIdNum ? await readDb.query.schoolSessions.findFirst({ where: eq(schoolSessions.id, sessionIdNum) }) : null;
-      const sessionNameStr = sessionObj?.sessionName?.trim();
-
-      // 1. Fetch all primary data components in parallel using readDb
-      const [studentsWithResults, studentsByClassName, results, summaries] = await Promise.all([
-        readDb.selectDistinct({ studentId: studentResults.studentId })
-          .from(studentResults)
-          .where(and(
-            eq(studentResults.classId, classIdNum),
-            eq(studentResults.sessionId, sessionIdNum),
-            eq(studentResults.term, params.term)
-          )),
-        readDb.select({ id: students.id })
-          .from(students)
-          .where(
-            and(
-              ilike(students.classe, cls.className.trim()),
-              eq(students.schoolId, cls.schoolId ?? 0),
-              sessionNameStr
-                ? or(eq(students.session, sessionNameStr), isNull(students.session))
-                : undefined
-            )
-          ),
-        readDb.query.studentResults.findMany({
-          where: and(
-            eq(studentResults.classId, classIdNum),
-            eq(studentResults.sessionId, sessionIdNum),
-            eq(studentResults.term, params.term)
-          ),
-          with: {
-            subject: true
-          }
-        }),
-        readDb.query.studentTermSummaries.findMany({
-          where: and(
-            eq(studentTermSummaries.classId, classIdNum),
-            eq(studentTermSummaries.sessionId, sessionIdNum)
-          )
-        }).catch(e => {
-          console.error("[getBroadsheetMatrix] Error fetching summaries:", e);
-          return [];
-        })
-      ]);
-
-      // 2. Process student IDs and fetch full student data
-      const studentIdsFromResults = studentsWithResults.map(r => r.studentId).filter((id): id is number => id !== null);
-      const studentIdsByClass = studentsByClassName.map(s => s.id);
-      const allStudentIds = Array.from(new Set([...studentIdsFromResults, ...studentIdsByClass]));
-
-      let studentList: any[] = [];
-      if (allStudentIds.length > 0) {
-        studentList = await readDb.select()
-          .from(students)
-          .where(
-            and(
-              inArray(students.id, allStudentIds),
-              eq(students.schoolId, cls.schoolId ?? 0),
-              sessionNameStr
-                ? or(eq(students.session, sessionNameStr), isNull(students.session))
-                : undefined
-            )
-          )
-          .orderBy(students.nomEtudiant);
+  // 1. Fetch all primary data components in parallel using readDb
+  const [studentsWithResults, studentsByClassName, results, summaries] = await Promise.all([
+    readDb.selectDistinct({ studentId: studentResults.studentId })
+      .from(studentResults)
+      .where(and(
+        eq(studentResults.classId, classIdNum),
+        or(
+          eq(studentResults.sessionId, sessionIdNum),
+          isNull(studentResults.sessionId)
+        ),
+        buildTermFilter(studentResults.term, params.term)
+      )),
+    readDb.select({ id: students.id })
+      .from(students)
+      .where(
+        and(
+          ilike(students.classe, cls.className.trim()),
+          eq(students.schoolId, cls.schoolId ?? 0)
+        )
+      ),
+    readDb.query.studentResults.findMany({
+      where: and(
+        eq(studentResults.classId, classIdNum),
+        or(
+          eq(studentResults.sessionId, sessionIdNum),
+          isNull(studentResults.sessionId)
+        ),
+        buildTermFilter(studentResults.term, params.term)
+      ),
+      with: {
+        subject: true
       }
+    }),
+    readDb.query.studentTermSummaries.findMany({
+      where: and(
+        eq(studentTermSummaries.classId, classIdNum),
+        or(
+          eq(studentTermSummaries.sessionId, sessionIdNum),
+          isNull(studentTermSummaries.sessionId)
+        ),
+        buildTermFilter(studentTermSummaries.term, params.term)
+      )
+    }).catch(e => {
+      console.error("[getBroadsheetMatrix] Error fetching summaries:", e);
+      return [];
+    })
+  ]);
 
-      // 3. Fetch unique subjects involved in these results
-      const subjectIds = Array.from(new Set(results.map(r => r.subjectId).filter((id): id is number => id !== null)));
-      let subjectsList: any[] = [];
-      if (subjectIds.length > 0) {
-        const rawSubjects = await readDb.query.schoolSubjects.findMany({
-          where: inArray(schoolSubjects.id, subjectIds)
-        });
+  // 2. Process student IDs and fetch full student data
+  const studentIdsFromResults = studentsWithResults.map(r => r.studentId).filter((id): id is number => id !== null);
+  const studentIdsByClass = studentsByClassName.map(s => s.id);
+  const allStudentIds = Array.from(new Set([...studentIdsFromResults, ...studentIdsByClass]));
 
-        // Fetch teachers for these classSubjects
-        let classSubjs: any[] = [];
-        try {
-          classSubjs = await readDb.select({
-            subjectId: classSubjects.subjectId,
-            teacherName: employees.nom,
-          })
-          .from(classSubjects)
-          .leftJoin(employees, eq(classSubjects.employeeId, employees.id))
-          .where(eq(classSubjects.classId, classIdNum));
-        } catch (e) {
-          console.warn("Failed to fetch classSubjects with teacher name:", e);
-        }
+  let studentList: any[] = [];
+  if (allStudentIds.length > 0) {
+    studentList = await readDb.select()
+      .from(students)
+      .where(
+        and(
+          inArray(students.id, allStudentIds),
+          eq(students.schoolId, cls.schoolId ?? 0)
+        )
+      )
+      .orderBy(students.nomEtudiant);
+  }
 
-        const teacherMap = new Map<number, string>();
-        classSubjs.forEach(cs => {
-          if (cs.subjectId && cs.teacherName) {
-            teacherMap.set(cs.subjectId, cs.teacherName);
-          }
-        });
+  // 3. Fetch unique subjects involved in these results
+  const subjectIds = Array.from(new Set(results.map(r => r.subjectId).filter((id): id is number => id !== null)));
+  let subjectsList: any[] = [];
+  if (subjectIds.length > 0) {
+    const rawSubjects = await readDb.query.schoolSubjects.findMany({
+      where: inArray(schoolSubjects.id, subjectIds)
+    });
 
-        subjectsList = rawSubjects.map(sub => ({
-          ...sub,
-          teacherName: teacherMap.get(sub.id) || "—"
-        }));
+    // Fetch teachers for these classSubjects
+    let classSubjs: any[] = [];
+    try {
+      classSubjs = await readDb.select({
+        subjectId: classSubjects.subjectId,
+        teacherName: employees.nom,
+      })
+      .from(classSubjects)
+      .leftJoin(employees, eq(classSubjects.employeeId, employees.id))
+      .where(eq(classSubjects.classId, classIdNum));
+    } catch (e) {
+      console.warn("Failed to fetch classSubjects with teacher name:", e);
+    }
+
+    const teacherMap = new Map<number, string>();
+    classSubjs.forEach(cs => {
+      if (cs.subjectId && cs.teacherName) {
+        teacherMap.set(cs.subjectId, cs.teacherName);
       }
+    });
 
-      // 4. Map data for UI using efficient Lookups
-      const summariesByStudent = new Map<number, any[]>();
-      summaries.forEach(s => {
-        if (s.studentId) {
-          if (!summariesByStudent.has(s.studentId)) summariesByStudent.set(s.studentId, []);
-          summariesByStudent.get(s.studentId)!.push(s);
-        }
+    subjectsList = rawSubjects.map(sub => ({
+      ...sub,
+      teacherName: teacherMap.get(sub.id) || "—"
+    }));
+  }
+
+  // 4. Map data for UI using efficient Lookups
+  const summariesByStudent = new Map<number, any[]>();
+  summaries.forEach(s => {
+    if (s.studentId) {
+      if (!summariesByStudent.has(s.studentId)) summariesByStudent.set(s.studentId, []);
+      summariesByStudent.get(s.studentId)!.push(s);
+    }
+  });
+  
+  const resultsByStudent = new Map<number, any[]>();
+  results.forEach(r => {
+    if (r.studentId) {
+      if (!resultsByStudent.has(r.studentId)) resultsByStudent.set(r.studentId, []);
+      resultsByStudent.get(r.studentId)!.push(r);
+    }
+  });
+
+  // Pre-compute current averages for all students
+  const currentAveragesMap = new Map<number, number>();
+  studentList.forEach(s => {
+    const studentRes = resultsByStudent.get(s.id) || [];
+    const summary = (summariesByStudent.get(s.id) || []).find(sum => matchTerm(sum.term, params.term));
+    if (summary) {
+      currentAveragesMap.set(s.id, summary.average || 0);
+    } else {
+      let totalWeighted = 0;
+      let totalCoef = 0;
+      studentRes.forEach(r => {
+        const cw = parseFloat(String(r.classWorkScore ?? "0")) || 0;
+        const ex = parseFloat(String(r.examScore ?? "0")) || 0;
+        const coef = parseFloat(String(r.coefficient ?? "1")) || 1;
+        totalWeighted += ((cw + ex) / 2) * coef;
+        totalCoef += coef;
       });
-      
-      const resultsByStudent = new Map<number, any[]>();
-      results.forEach(r => {
-        if (r.studentId) {
-          if (!resultsByStudent.has(r.studentId)) resultsByStudent.set(r.studentId, []);
-          resultsByStudent.get(r.studentId)!.push(r);
-        }
-      });
+      currentAveragesMap.set(s.id, totalCoef > 0 ? totalWeighted / totalCoef : 0);
+    }
+  });
 
-      // Pre-compute current averages for all students
-      const currentAveragesMap = new Map<number, number>();
-      studentList.forEach(s => {
-        const studentRes = resultsByStudent.get(s.id) || [];
-        const summary = (summariesByStudent.get(s.id) || []).find(sum => sum.term === params.term);
-        if (summary) {
-          currentAveragesMap.set(s.id, summary.average || 0);
-        } else {
-          let totalWeighted = 0;
-          let totalCoef = 0;
-          studentRes.forEach(r => {
-            const cw = parseFloat(String(r.classWorkScore ?? "0")) || 0;
-            const ex = parseFloat(String(r.examScore ?? "0")) || 0;
-            const coef = parseFloat(String(r.coefficient ?? "1")) || 1;
-            totalWeighted += ((cw + ex) / 2) * coef;
-            totalCoef += coef;
-          });
-          currentAveragesMap.set(s.id, totalCoef > 0 ? totalWeighted / totalCoef : 0);
-        }
-      });
+  // Pre-compute annual averages and annual ranks
+  const annualAveragesList = studentList.map(s => {
+    const studentSummaries = summariesByStudent.get(s.id) || [];
+    const termAverages = studentSummaries.filter(sum => !matchTerm(sum.term, params.term)).map(sum => sum.average || 0);
+    termAverages.push(currentAveragesMap.get(s.id) || 0);
+    
+    const annualAvg = termAverages.length > 0 ? (termAverages.reduce((sum, v) => sum + v, 0) / termAverages.length) : 0;
+    return { studentId: s.id, annualAverage: annualAvg };
+  });
 
-      // Pre-compute annual averages and annual ranks
-      const annualAveragesList = studentList.map(s => {
-        const studentSummaries = summariesByStudent.get(s.id) || [];
-        const termAverages = studentSummaries.filter(sum => sum.term !== params.term).map(sum => sum.average || 0);
-        termAverages.push(currentAveragesMap.get(s.id) || 0);
-        
-        const annualAvg = termAverages.length > 0 ? (termAverages.reduce((sum, v) => sum + v, 0) / termAverages.length) : 0;
-        return { studentId: s.id, annualAverage: annualAvg };
-      });
+  annualAveragesList.sort((a, b) => b.annualAverage - a.annualAverage);
+  const annualRanksMap = new Map<number, number>();
+  let currentAnnualRank = 1;
+  for (let i = 0; i < annualAveragesList.length; i++) {
+    if (i > 0 && annualAveragesList[i].annualAverage < annualAveragesList[i-1].annualAverage) {
+      currentAnnualRank = i + 1;
+    }
+    annualRanksMap.set(annualAveragesList[i].studentId, currentAnnualRank);
+  }
+  
+  const data = studentList.map(s => {
+    const studentRes = resultsByStudent.get(s.id) || [];
+    const studentSummaries = summariesByStudent.get(s.id) || [];
+    const summary = studentSummaries.find(sum => matchTerm(sum.term, params.term));
+    
+    const resultsObj: Record<number, any> = {};
+    studentRes.forEach(r => {
+      if (r.subjectId) {
+        const cw = parseFloat(String(r.classWorkScore ?? "0")) || 0;
+        const ex = parseFloat(String(r.examScore ?? "0")) || 0;
+        const coef = parseFloat(String(r.coefficient ?? "1")) || 1;
+        const avg = (cw + ex) / 2;
 
-      annualAveragesList.sort((a, b) => b.annualAverage - a.annualAverage);
-      const annualRanksMap = new Map<number, number>();
-      let currentAnnualRank = 1;
-      for (let i = 0; i < annualAveragesList.length; i++) {
-        if (i > 0 && annualAveragesList[i].annualAverage < annualAveragesList[i-1].annualAverage) {
-          currentAnnualRank = i + 1;
-        }
-        annualRanksMap.set(annualAveragesList[i].studentId, currentAnnualRank);
-      }
-      
-      const data = studentList.map(s => {
-        const studentRes = resultsByStudent.get(s.id) || [];
-        const studentSummaries = summariesByStudent.get(s.id) || [];
-        const summary = studentSummaries.find(sum => sum.term === params.term);
-        
-        const resultsObj: Record<number, any> = {};
-        studentRes.forEach(r => {
-          if (r.subjectId) {
-            const cw = parseFloat(String(r.classWorkScore ?? "0")) || 0;
-            const ex = parseFloat(String(r.examScore ?? "0")) || 0;
-            const coef = parseFloat(String(r.coefficient ?? "1")) || 1;
-            const avg = (cw + ex) / 2;
-
-            resultsObj[r.subjectId] = {
-              n1: r.classWorkScore !== null ? String(r.classWorkScore) : "-",
-              n2: r.examScore !== null ? String(r.examScore) : "-",
-              total: r.totalScore !== null ? String(r.totalScore) : "-",
-              moy: avg.toFixed(2),
-              rank: r.rank !== null ? String(r.rank) : "-"
-            };
-          }
-        });
-
-        const average = currentAveragesMap.get(s.id) || 0;
-        const decision = summary?.decision ?? (average >= 10 ? "ADMIS ✅" : "REDOUBLE ❌");
-        const rank = summary?.rank ?? "N/A";
-        const annualAverage = annualAveragesList.find(a => a.studentId === s.id)?.annualAverage || average;
-        const annualRank = annualRanksMap.get(s.id) || 1;
-
-        const studentHistory = studentSummaries.map(h => ({
-          term: h.term,
-          average: h.average,
-          rank: h.rank
-        }));
-
-        return {
-          id: s.id,
-          name: s.nomEtudiant,
-          matricule: s.numAdmission,
-          results: resultsObj,
-          average,
-          decision,
-          rank,
-          annualAverage,
-          annualRank,
-          totalCoef: studentRes.reduce((acc, r) => acc + (parseFloat(String(r.coefficient ?? "1")) || 1), 0),
-          behaviorScore: s.behaviorScore || 20.0,
-          conduite: summary?.conduite || 0.0,
-          travail: summary?.travail || "-",
-          tableauHonneur: summary?.tableauHonneur || false,
-          history: studentHistory,
-          sexe: s.sexe
+        resultsObj[r.subjectId] = {
+          n1: r.classWorkScore !== null ? String(r.classWorkScore) : "-",
+          n2: r.examScore !== null ? String(r.examScore) : "-",
+          total: r.totalScore !== null ? String(r.totalScore) : "-",
+          moy: avg.toFixed(2),
+          rank: r.rank !== null ? String(r.rank) : "-"
         };
-      });
+      }
+    });
 
-      const isCumulative = params.term.toLowerCase().includes("2") || params.term.toLowerCase().includes("3") || params.term.toLowerCase().includes("deuxième") || params.term.toLowerCase().includes("troisième");
+    const average = currentAveragesMap.get(s.id) || 0;
+    const decision = summary?.decision ?? (average >= 10 ? "ADMIS ✅" : "REDOUBLE ❌");
+    const rank = summary?.rank ?? "N/A";
+    const annualAverage = annualAveragesList.find(a => a.studentId === s.id)?.annualAverage || average;
+    const annualRank = annualRanksMap.get(s.id) || 1;
 
-      return { students: data, subjects: subjectsList, isCumulative };
-    },
-    ['broadsheet-matrix', String(params.classId), String(params.sessionId), params.term],
-    { tags: [ACADEMICS_CACHE_TAG], revalidate: 3600 }
-  )();
+    const studentHistory = studentSummaries.map(h => ({
+      term: h.term,
+      average: h.average,
+      rank: h.rank
+    }));
+
+    return {
+      id: s.id,
+      name: s.nomEtudiant,
+      matricule: s.numAdmission,
+      results: resultsObj,
+      average,
+      decision,
+      rank,
+      annualAverage,
+      annualRank,
+      totalCoef: studentRes.reduce((acc, r) => acc + (parseFloat(String(r.coefficient ?? "1")) || 1), 0),
+      behaviorScore: s.behaviorScore || 20.0,
+      conduite: summary?.conduite || 0.0,
+      travail: summary?.travail || "-",
+      tableauHonneur: summary?.tableauHonneur || false,
+      history: studentHistory,
+      sexe: s.sexe
+    };
+  });
+
+  const isCumulative = params.term.toLowerCase().includes("2") || params.term.toLowerCase().includes("3") || params.term.toLowerCase().includes("deuxième") || params.term.toLowerCase().includes("troisième");
+
+  return { students: data, subjects: subjectsList, isCumulative };
+}
 
 export async function getBroadsheetMatrix(params: { classId: number, sessionId: number, term: string }) {
   return protectedDbAction("Academics", "canView", async (user) => {
     // 1. Get raw matrix
-    const matrix = await fetchBroadsheetMatrix(params);
+    const matrix = await fetchBroadsheetMatrixDirect(params);
     if ('error' in matrix) return matrix;
 
     // 2. Filter if user is teacher
@@ -1816,16 +1898,36 @@ export async function getBatchBulletinData(classId: number, sessionId: number, t
 
     const sessionRecord = await db.query.schoolSessions.findFirst({ where: eq(schoolSessions.id, sessionId) });
 
-    // 2. Fetch all students in this class
-    const studentList = await db.select()
-      .from(students)
-      .where(
-        and(
-          ilike(students.classe, cls.className.trim()),
-          eq(students.schoolId, cls.schoolId ?? 0)
+    // 2. Fetch all students in this class + students with results in this session
+    const [studentsInClass, sessionResults] = await Promise.all([
+      db.select()
+        .from(students)
+        .where(
+          and(
+            ilike(students.classe, cls.className.trim()),
+            eq(students.schoolId, cls.schoolId ?? 0)
+          )
         )
-      )
-      .orderBy(students.nomEtudiant);
+        .orderBy(students.nomEtudiant),
+      db.selectDistinct({ studentId: studentResults.studentId })
+        .from(studentResults)
+        .where(and(
+          eq(studentResults.classId, classId),
+          eq(studentResults.sessionId, Number(sessionId))
+        ))
+    ]);
+
+    const resultStudentIds = sessionResults.map(r => r.studentId).filter((id): id is number => id !== null);
+    const classStudentIds = new Set(studentsInClass.map(s => s.id));
+    const missingIds = resultStudentIds.filter(id => !classStudentIds.has(id));
+    let extraStudents: any[] = [];
+    if (missingIds.length > 0) {
+      extraStudents = await db.select()
+        .from(students)
+        .where(inArray(students.id, missingIds));
+    }
+
+    const studentList = [...studentsInClass, ...extraStudents].sort((a, b) => a.nomEtudiant.localeCompare(b.nomEtudiant));
 
     if (studentList.length === 0) return { data: [] };
 

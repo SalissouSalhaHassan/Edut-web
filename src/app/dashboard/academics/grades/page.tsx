@@ -128,20 +128,30 @@ export default function AcademicResultsPage() {
     const matrixCacheKey = `matrix-${filters.classId}-${filters.sessionId}-${filters.period}`;
 
     try {
-      // 1. First fetch ONLY the entry grid (smaller data)
-      let gridResult: any = null;
-      if (navigator.onLine) {
-        try {
-          gridResult = await getGradingGrid({
-            classId: filters.classId,
-            subjectId: filters.subjectId,
-            sessionId: filters.sessionId,
-            term: filters.period,
-          });
-        } catch (e) {
-          console.warn("Failed to get grading grid from server:", e);
-        }
-      }
+      // 1. Fetch entry grid and matrix data in parallel
+      const [gridResult, matrixResult] = await Promise.all([
+        navigator.onLine
+          ? getGradingGrid({
+              classId: filters.classId,
+              subjectId: filters.subjectId,
+              sessionId: filters.sessionId,
+              term: filters.period,
+            }).catch(e => {
+              console.warn("Failed to get grading grid from server:", e);
+              return null;
+            })
+          : Promise.resolve(null),
+        navigator.onLine
+          ? getBroadsheetMatrix({
+              classId: filters.classId,
+              sessionId: filters.sessionId,
+              term: filters.period,
+            }).catch(e => {
+              console.warn("Failed to get broadsheet matrix from server:", e);
+              return null;
+            })
+          : Promise.resolve(null),
+      ]);
 
       if (gridResult?.data) {
         const studentData = gridResult.data;
@@ -176,41 +186,25 @@ export default function AcademicResultsPage() {
         }
       }
 
-      // 2. Fetch the heavy matrix data if needed
-      if (view === "matrix" || view === "reports") {
-        let matrixResult: any = null;
-        if (navigator.onLine) {
-          try {
-            matrixResult = await getBroadsheetMatrix({
-              classId: filters.classId,
-              sessionId: filters.sessionId,
-              term: filters.period,
-            });
-          } catch (e) {
-            console.warn("Failed to get broadsheet matrix from server:", e);
-          }
+      if (matrixResult?.data) {
+        setMatrixData(matrixResult.data);
+        try {
+          const { cacheReferenceItems } = await import("@/infrastructure/local-db/references");
+          await cacheReferenceItems("examResults" as any, [{ key: matrixCacheKey, data: matrixResult.data }], "key");
+        } catch (e) {
+          console.warn("Failed to cache matrix locally:", e);
         }
-
-        if (matrixResult?.data) {
-          setMatrixData(matrixResult.data);
-          try {
-            const { cacheReferenceItems } = await import("@/infrastructure/local-db/references");
-            await cacheReferenceItems("examResults" as any, [{ key: matrixCacheKey, data: matrixResult.data }], "key");
-          } catch (e) {
-            console.warn("Failed to cache matrix locally:", e);
+      } else {
+        try {
+          const { getCachedReferenceItems } = await import("@/infrastructure/local-db/references");
+          const cachedList = await getCachedReferenceItems<any>("examResults" as any);
+          const match = cachedList.find((c: any) => c.key === matrixCacheKey);
+          if (match) {
+            setMatrixData(match.data);
+            setIsLocal(true);
           }
-        } else {
-          try {
-            const { getCachedReferenceItems } = await import("@/infrastructure/local-db/references");
-            const cachedList = await getCachedReferenceItems<any>("examResults" as any);
-            const match = cachedList.find((c: any) => c.key === matrixCacheKey);
-            if (match) {
-              setMatrixData(match.data);
-              setIsLocal(true);
-            }
-          } catch (e) {
-            console.warn("Failed to load cached matrix:", e);
-          }
+        } catch (e) {
+          console.warn("Failed to load cached matrix:", e);
         }
       }
 
