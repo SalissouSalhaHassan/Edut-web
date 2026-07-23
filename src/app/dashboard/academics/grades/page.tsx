@@ -425,7 +425,6 @@ export default function AcademicResultsPage() {
     }
   };
 
-
   const hasLoadedData = view === "entry"
     ? students.length > 0
     : view === "reports"
@@ -601,6 +600,8 @@ export default function AcademicResultsPage() {
                   Valider le contrôle
                 </Button>
               </>
+            )}
+
             {/* 3. Directeur action */}
             {isDirecteur && (workflowStatus === "CONTROLE_PEDAGOGIQUE" || workflowStatus === "VALIDATION_CONSEIL" || workflowStatus === "SAISIE_TERMINEE") && (
               <>
