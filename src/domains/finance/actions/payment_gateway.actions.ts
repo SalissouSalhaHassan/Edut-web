@@ -3,7 +3,7 @@
 import { db } from "@/infrastructure/database";
 import { onlineTransactions, feePayments, cogesPayments, studentFees, syscohadaAccounts, syscohadaEntries } from "@/infrastructure/database/schema/finance";
 import { getCurrentUser } from "@/domains/auth/services/session";
-import { protectedDbAction } from "@/domains/auth/utils/protected-action";
+import { protectedDbAction } from "@/lib/protected-action";
 import { eq, and, desc } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 

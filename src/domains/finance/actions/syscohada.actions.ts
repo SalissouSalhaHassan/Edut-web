@@ -2,7 +2,7 @@
 
 import { db } from "@/infrastructure/database";
 import { syscohadaAccounts, syscohadaEntries, cogesBudgets, cogesPayments, expenses, revenues } from "@/infrastructure/database/schema/finance";
-import { protectedDbAction } from "@/domains/auth/utils/protected-action";
+import { protectedDbAction } from "@/lib/protected-action";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
