@@ -530,8 +530,8 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
           <style>{`
             @media print {
               @page {
-                size: A4 landscape;
-                margin: 5mm;
+                size: A4 landscape !important;
+                margin: 4mm !important;
               }
               body * {
                 visibility: hidden !important;
@@ -540,11 +540,12 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
                 visibility: visible !important;
               }
               #official-annual-report-printable {
-                position: fixed !important;
+                position: absolute !important;
                 left: 0 !important;
                 top: 0 !important;
-                width: 100vw !important;
-                height: 100vh !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                height: auto !important;
                 background: white !important;
                 padding: 0 !important;
                 margin: 0 !important;
@@ -568,20 +569,25 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
                 color: white !important;
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
-                padding: 10px 15px !important;
+                padding: 8px 12px !important;
+                margin-bottom: 4px !important;
               }
               .print-table {
                 width: 100% !important;
-                font-size: 7.5pt !important;
+                min-width: 0 !important;
+                max-width: 100% !important;
+                font-size: 6.5pt !important;
                 border-collapse: collapse !important;
                 table-layout: fixed !important;
               }
               .print-table th, .print-table td {
-                padding: 4px 3px !important;
-                border: 1px solid #334155 !important;
-                word-wrap: break-word !important;
+                padding: 3px 1.5px !important;
+                border: 0.5pt solid #1e293b !important;
+                word-break: break-word !important;
                 overflow-wrap: break-word !important;
+                white-space: normal !important;
                 color: #0f172a !important;
+                font-size: 6.5pt !important;
               }
               .print-table th {
                 background-color: #0f172a !important;
@@ -590,7 +596,7 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
                 text-transform: uppercase !important;
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
-                font-size: 7pt !important;
+                font-size: 6pt !important;
               }
             }
           `}</style>
@@ -640,21 +646,21 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
             {/* Modal Body / Table */}
             <div className="p-4 md:p-6 overflow-auto flex-1 bg-slate-50/50">
               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                <table className="w-full text-left text-xs border-collapse print-table min-w-[1200px]">
+                <table className="w-full text-left text-xs border-collapse print-table">
                   <thead>
                     <tr className="bg-slate-900 text-white text-[10px] font-black uppercase tracking-wider">
-                      <th className="p-2.5 border-r border-slate-800 text-center w-[3%]">N°</th>
-                      <th className="p-2.5 border-r border-slate-800 w-[17%]">Noms et Prénoms</th>
-                      <th className="p-2.5 border-r border-slate-800 w-[14%]">Date et lieu de naissance</th>
-                      <th className="p-2.5 border-r border-slate-800 text-center w-[9%]">Matricule</th>
-                      <th className="p-2.5 border-r border-slate-800 text-center w-[4%]">Sexe</th>
-                      <th className="p-2.5 border-r border-slate-800 text-center w-[7%]">Redoublement Antérieur</th>
-                      <th className="p-2.5 border-r border-slate-800 text-center text-cyan-300 w-[7%]">Moyenne 1er Semestre</th>
-                      <th className="p-2.5 border-r border-slate-800 text-center text-cyan-300 w-[6%]">Rang 1er Semestre</th>
-                      <th className="p-2.5 border-r border-slate-800 text-center text-indigo-300 w-[7%]">Moyenne 2ème Semestre</th>
-                      <th className="p-2.5 border-r border-slate-800 text-center text-indigo-300 w-[6%]">Rang 2ème Semestre</th>
-                      <th className="p-2.5 border-r border-slate-800 text-center text-amber-300 w-[8%]">Moyenne Annuelle</th>
-                      <th className="p-2.5 text-center w-[12%]">Allocataire</th>
+                      <th className="p-2 border-r border-slate-800 text-center w-[3%]">N°</th>
+                      <th className="p-2 border-r border-slate-800 w-[16%]">Noms et Prénoms</th>
+                      <th className="p-2 border-r border-slate-800 w-[13%]">Date et lieu de naissance</th>
+                      <th className="p-2 border-r border-slate-800 text-center w-[10%]">Matricule</th>
+                      <th className="p-2 border-r border-slate-800 text-center w-[4%]">Sexe</th>
+                      <th className="p-2 border-r border-slate-800 text-center w-[7%]">Redoublement Antérieur</th>
+                      <th className="p-2 border-r border-slate-800 text-center text-cyan-300 w-[7%]">Moy. 1er Sem.</th>
+                      <th className="p-2 border-r border-slate-800 text-center text-cyan-300 w-[6%]">Rang 1er Sem.</th>
+                      <th className="p-2 border-r border-slate-800 text-center text-indigo-300 w-[7%]">Moy. 2ème Sem.</th>
+                      <th className="p-2 border-r border-slate-800 text-center text-indigo-300 w-[6%]">Rang 2ème Sem.</th>
+                      <th className="p-2 border-r border-slate-800 text-center text-amber-300 w-[9%]">Moy. Annuelle</th>
+                      <th className="p-2 text-center w-[12%]">Allocataire</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
