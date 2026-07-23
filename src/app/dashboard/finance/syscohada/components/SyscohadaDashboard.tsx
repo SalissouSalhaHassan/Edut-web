@@ -47,7 +47,7 @@ export function SyscohadaDashboard({
       return;
     }
     startTransition(async () => {
-      const res = await initiateMobilePayment({
+      const res: any = await initiateMobilePayment({
         amount: Number(payAmount),
         provider,
         phoneNumber,
@@ -57,7 +57,7 @@ export function SyscohadaDashboard({
       if (res.success && res.data) {
         toast.success(res.data.message);
         // Automatically confirm in test environment
-        const confirmRes = await confirmMobilePayment(res.data.transaction.id, "SUCCESS");
+        const confirmRes: any = await confirmMobilePayment(res.data.transaction.id, "SUCCESS");
         if (confirmRes.success) {
           toast.success("Paiement simulé validé avec succès!");
           router.refresh();
@@ -70,7 +70,7 @@ export function SyscohadaDashboard({
 
   const handleConfirmManualTxn = (txnId: number) => {
     startTransition(async () => {
-      const res = await confirmMobilePayment(txnId, "SUCCESS");
+      const res: any = await confirmMobilePayment(txnId, "SUCCESS");
       if (res.success) {
         toast.success("Transaction confirmée!");
         router.refresh();
@@ -86,7 +86,7 @@ export function SyscohadaDashboard({
       return;
     }
     startTransition(async () => {
-      const res = await addSyscohadaEntry({
+      const res: any = await addSyscohadaEntry({
         reference: entryRef,
         accountId: Number(entryAccountId),
         label: entryLabel,
@@ -108,7 +108,7 @@ export function SyscohadaDashboard({
 
   const handleSeedAccounts = () => {
     startTransition(async () => {
-      const res = await seedSyscohadaAccounts();
+      const res: any = await seedSyscohadaAccounts();
       if (res.success) {
         toast.success(res.message);
         router.refresh();
