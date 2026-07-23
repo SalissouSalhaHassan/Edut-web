@@ -399,6 +399,8 @@ export function AcademicSettings({
         toast.error(res.error || "Erreur lors de la liaison de la matière");
       }
     });
+  };
+
   const handleUpdateSectionLink = () => {
     if (!editingSectionLink) return;
     startTransition(async () => {
