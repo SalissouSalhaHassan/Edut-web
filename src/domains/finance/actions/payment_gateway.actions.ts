@@ -4,8 +4,75 @@ import { db } from "@/infrastructure/database";
 import { onlineTransactions, feePayments, cogesPayments, studentFees, syscohadaAccounts, syscohadaEntries } from "@/infrastructure/database/schema/finance";
 import { getCurrentUser } from "@/domains/auth/services/session";
 import { protectedDbAction } from "@/lib/protected-action";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+
+async function ensurePhase3Tables() {
+  try {
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS "online_transactions" (
+        "id" serial PRIMARY KEY,
+        "school_id" integer,
+        "student_id" integer,
+        "fee_id" integer,
+        "transaction_reference" varchar(100) NOT NULL UNIQUE,
+        "provider" varchar(50) NOT NULL,
+        "provider_transaction_id" varchar(100),
+        "amount" double precision NOT NULL,
+        "currency" varchar(10) DEFAULT 'XOF',
+        "phone_number" varchar(30),
+        "status" varchar(20) DEFAULT 'PENDING',
+        "purpose" varchar(255),
+        "webhook_payload" jsonb,
+        "created_at" timestamp DEFAULT now(),
+        "updated_at" timestamp DEFAULT now()
+      );
+    `);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS "syscohada_accounts" (
+        "id" serial PRIMARY KEY,
+        "school_id" integer,
+        "account_number" varchar(20) NOT NULL,
+        "account_name" varchar(150) NOT NULL,
+        "category_class" integer NOT NULL,
+        "account_type" varchar(20) DEFAULT 'ACTIF',
+        "created_at" timestamp DEFAULT now()
+      );
+    `);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS "syscohada_entries" (
+        "id" serial PRIMARY KEY,
+        "school_id" integer,
+        "session_id" integer,
+        "entry_date" timestamp DEFAULT now(),
+        "reference" varchar(50) NOT NULL,
+        "account_id" integer,
+        "label" varchar(255) NOT NULL,
+        "debit" double precision DEFAULT 0,
+        "credit" double precision DEFAULT 0,
+        "recorded_by" varchar(100),
+        "created_at" timestamp DEFAULT now()
+      );
+    `);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS "coges_budgets" (
+        "id" serial PRIMARY KEY,
+        "school_id" integer,
+        "session_id" integer,
+        "category" varchar(100) NOT NULL,
+        "budgeted_amount" double precision NOT NULL,
+        "realized_amount" double precision DEFAULT 0,
+        "comments" text,
+        "created_at" timestamp DEFAULT now()
+      );
+    `);
+  } catch (e) {
+    console.warn("[ensurePhase3Tables] Error creating tables:", e);
+  }
+}
 
 export interface InitiatePaymentParams {
   studentId?: number;
@@ -21,6 +88,7 @@ export interface InitiatePaymentParams {
  */
 export async function initiateMobilePayment(params: InitiatePaymentParams) {
   return protectedDbAction("Finance", "canEdit", async (user) => {
+    await ensurePhase3Tables();
     const schoolId = user.schoolId;
     if (!schoolId) return { success: false, error: "School context missing" };
 
@@ -59,6 +127,7 @@ export async function initiateMobilePayment(params: InitiatePaymentParams) {
  */
 export async function confirmMobilePayment(transactionId: number, status: "SUCCESS" | "FAILED" = "SUCCESS") {
   return protectedDbAction("Finance", "canEdit", async (user) => {
+    await ensurePhase3Tables();
     const schoolId = user.schoolId;
     if (!schoolId) return { success: false, error: "School context missing" };
 
@@ -166,6 +235,7 @@ export async function confirmMobilePayment(transactionId: number, status: "SUCCE
  */
 export async function getOnlineTransactions() {
   return protectedDbAction("Finance", "canView", async (user) => {
+    await ensurePhase3Tables();
     const schoolId = user.schoolId;
     if (!schoolId) return { success: true, data: [] };
 
