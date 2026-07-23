@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import {
   Download, FileText, Share2,
   ChevronRight, Award, BadgeCheck,
-  Eye, Printer
+  Eye, Printer, FileSpreadsheet, X, Check
 } from "lucide-react";
 import { BroadsheetData } from "../types";
 import { formatRank } from "../utils/calculations";
@@ -23,6 +23,7 @@ interface BroadsheetMatrixProps {
 export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, onPrintPV, activeFilters }: BroadsheetMatrixProps) {
   const [saving, setSaving] = useState(false);
   const [appreciations, setAppreciations] = useState<Record<number, any>>({});
+  const [showAnnualReportModal, setShowAnnualReportModal] = useState(false);
   
   const isHigherEd = ["Licence", "Master", "Doctorat", "Supérieur", "Université"].includes(activeFilters?.level || "Lycée");
 
@@ -119,6 +120,72 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
     );
   }
 
+  const handleExportAnnualReportCSV = () => {
+    if (!data || !data.students) return;
+
+    const headers = [
+      "N°",
+      "Noms et Prénoms",
+      "Date et lieu de naissance",
+      "Matricule",
+      "Sexe",
+      "Redoublement Antérieur",
+      "Moyenne 1er Semestre",
+      "Rang 1er Semestre",
+      "Moyenne 2ème Semestre",
+      "Rang 2ème Semestre",
+      "Moyenne Annuelle",
+      "Allocataire"
+    ];
+
+    const rows = data.students.map((student: any, idx: number) => {
+      const dob = student.dateNaissance || student.dateOfBirth || student.birthDate || "-";
+      const pob = student.lieuNaissance || student.placeOfBirth || "-";
+      const dateAndPlace = `${dob} à ${pob}`;
+
+      const s1Summary = student.summaryS1 || student.history?.find((h: any) => h.term?.toLowerCase().includes("1") || h.term?.toLowerCase().includes("première"));
+      const s2Summary = student.summaryS2 || student.history?.find((h: any) => h.term?.toLowerCase().includes("2") || h.term?.toLowerCase().includes("deuxième"));
+
+      const s1Avg = typeof s1Summary?.average === 'number' ? s1Summary.average.toFixed(2) : (student.s1Average ? Number(student.s1Average).toFixed(2) : "-");
+      const s1Rank = s1Summary?.rank || student.s1Rank || "-";
+
+      const s2Avg = typeof s2Summary?.average === 'number' ? s2Summary.average.toFixed(2) : (student.s2Average ? Number(student.s2Average).toFixed(2) : "-");
+      const s2Rank = s2Summary?.rank || student.s2Rank || "-";
+
+      const safeAvg = typeof student.average === 'number' && !isNaN(student.average) ? student.average : 0;
+      const annualAvg = typeof student.annualAverage === 'number' ? student.annualAverage.toFixed(2) : safeAvg.toFixed(2);
+
+      const redoublement = student.redoublement === true || student.isRepeater === true || student.redoublement === "Oui" ? "Oui" : "Non";
+      const allocataire = student.allocataire || (student.isScholarship ? "Boursier" : "Non Boursier") || "Non";
+
+      return [
+        idx + 1,
+        `"${(student.name || student.studentName || 'Élève').replace(/"/g, '""')}"`,
+        `"${dateAndPlace.replace(/"/g, '""')}"`,
+        `"${(student.matricule || '-').replace(/"/g, '""')}"`,
+        `"${(student.sexe || student.gender || 'M').replace(/"/g, '""')}"`,
+        `"${redoublement}"`,
+        `"${s1Avg}"`,
+        `"${s1Rank}"`,
+        `"${s2Avg}"`,
+        `"${s2Rank}"`,
+        `"${annualAvg}"`,
+        `"${allocataire}"`
+      ].join(",");
+    });
+
+    const csvContent = "\uFEFF" + [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Rapport_Récapitulatif_Annuel_${activeFilters?.className || "Classe"}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success("Rapport récapitulatif annuel exporté avec succès !");
+  };
+
   const handlePrintAll = async () => {
     if (onPrintAll) {
       onPrintAll();
@@ -197,7 +264,13 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
             <p className="text-sm text-slate-500 font-medium">{students.length} élèves compilés</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button 
+            onClick={() => setShowAnnualReportModal(true)} 
+            className="bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold flex items-center gap-2 shadow-sm"
+          >
+            <FileSpreadsheet size={18} /> Rapport Annuel Officiel
+          </Button>
           <Button 
             onClick={handleSaveSummaries}
             disabled={saving}
@@ -433,6 +506,123 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
           </table>
         </div>
       </div>
+
+      {/* Official Annual Report Modal */}
+      {showAnnualReportModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 md:p-8 overflow-y-auto">
+          <div className="bg-white w-full max-w-7xl rounded-[2.5rem] shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
+            {/* Modal Header */}
+            <div className="p-6 md:p-8 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white flex justify-between items-center border-b border-slate-800">
+              <div className="flex items-center gap-4">
+                <div className="p-3.5 bg-amber-500/20 text-amber-400 rounded-2xl border border-amber-500/30">
+                  <FileSpreadsheet size={28} />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-black tracking-tight">Rapport Récapitulatif Officiel Annuel</h2>
+                  <p className="text-sm text-slate-300 font-medium mt-0.5">
+                    Classe: <span className="text-amber-400 font-bold">{activeFilters?.className || "N/A"}</span> • {students.length} Élèves inscrits
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <Button
+                  onClick={handleExportAnnualReportCSV}
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl flex items-center gap-2"
+                >
+                  <Download size={18} /> Exporter Excel (CSV)
+                </Button>
+                <Button
+                  onClick={() => window.print()}
+                  className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl flex items-center gap-2"
+                >
+                  <Printer size={18} /> Imprimer (PDF)
+                </Button>
+                <button
+                  onClick={() => setShowAnnualReportModal(false)}
+                  className="p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body / Table */}
+            <div className="p-6 md:p-8 overflow-auto flex-1 bg-slate-50/50">
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <table className="w-full text-left text-xs border-collapse min-w-[1200px]">
+                  <thead>
+                    <tr className="bg-slate-900 text-white text-[10px] font-black uppercase tracking-wider">
+                      <th className="p-3 border-r border-slate-800 text-center w-12">N°</th>
+                      <th className="p-3 border-r border-slate-800">Noms et Prénoms</th>
+                      <th className="p-3 border-r border-slate-800">Date et lieu de naissance</th>
+                      <th className="p-3 border-r border-slate-800 text-center">Matricule</th>
+                      <th className="p-3 border-r border-slate-800 text-center">Sexe</th>
+                      <th className="p-3 border-r border-slate-800 text-center">Redoublement Antérieur</th>
+                      <th className="p-3 border-r border-slate-800 text-center text-cyan-300">Moyenne 1er Semestre</th>
+                      <th className="p-3 border-r border-slate-800 text-center text-cyan-300">Rang 1er Semestre</th>
+                      <th className="p-3 border-r border-slate-800 text-center text-indigo-300">Moyenne 2ème Semestre</th>
+                      <th className="p-3 border-r border-slate-800 text-center text-indigo-300">Rang 2ème Semestre</th>
+                      <th className="p-3 border-r border-slate-800 text-center text-amber-300">Moyenne Annuelle</th>
+                      <th className="p-3 text-center">Allocataire</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                    {students.map((student: any, idx: number) => {
+                      const dob = student.dateNaissance || student.dateOfBirth || student.birthDate || "-";
+                      const pob = student.lieuNaissance || student.placeOfBirth || "-";
+                      const dateAndPlace = `${dob} à ${pob}`;
+
+                      const s1Summary = student.summaryS1 || student.history?.find((h: any) => h.term?.toLowerCase().includes("1") || h.term?.toLowerCase().includes("première"));
+                      const s2Summary = student.summaryS2 || student.history?.find((h: any) => h.term?.toLowerCase().includes("2") || h.term?.toLowerCase().includes("deuxième"));
+
+                      const s1Avg = typeof s1Summary?.average === 'number' ? s1Summary.average.toFixed(2) : (student.s1Average ? Number(student.s1Average).toFixed(2) : "-");
+                      const s1Rank = s1Summary?.rank || student.s1Rank || "-";
+
+                      const s2Avg = typeof s2Summary?.average === 'number' ? s2Summary.average.toFixed(2) : (student.s2Average ? Number(student.s2Average).toFixed(2) : "-");
+                      const s2Rank = s2Summary?.rank || student.s2Rank || "-";
+
+                      const safeAvg = typeof student.average === 'number' && !isNaN(student.average) ? student.average : 0;
+                      const annualAvg = typeof student.annualAverage === 'number' ? student.annualAverage.toFixed(2) : safeAvg.toFixed(2);
+
+                      const redoublement = student.redoublement === true || student.isRepeater === true || student.redoublement === "Oui" ? "Oui" : "Non";
+                      const allocataire = student.allocataire || (student.isScholarship ? "Boursier" : "Non Boursier") || "Non";
+
+                      return (
+                        <tr key={student.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="p-3 border-r border-slate-100 text-center font-bold text-slate-400">{idx + 1}</td>
+                          <td className="p-3 border-r border-slate-100 font-bold text-slate-900">{student.name || student.studentName || "Élève"}</td>
+                          <td className="p-3 border-r border-slate-100 text-slate-600">{dateAndPlace}</td>
+                          <td className="p-3 border-r border-slate-100 text-center font-mono font-bold text-indigo-600">{student.matricule || "-"}</td>
+                          <td className="p-3 border-r border-slate-100 text-center font-bold">{student.sexe || student.gender || "M"}</td>
+                          <td className="p-3 border-r border-slate-100 text-center">
+                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${redoublement === "Oui" ? "bg-rose-100 text-rose-700" : "bg-emerald-100 text-emerald-700"}`}>
+                              {redoublement}
+                            </span>
+                          </td>
+                          <td className="p-3 border-r border-slate-100 text-center font-bold text-slate-900 bg-cyan-50/20">{s1Avg}</td>
+                          <td className="p-3 border-r border-slate-100 text-center font-bold text-cyan-700 bg-cyan-50/20">{s1Rank}</td>
+                          <td className="p-3 border-r border-slate-100 text-center font-bold text-slate-900 bg-indigo-50/20">{s2Avg}</td>
+                          <td className="p-3 border-r border-slate-100 text-center font-bold text-indigo-700 bg-indigo-50/20">{s2Rank}</td>
+                          <td className="p-3 border-r border-slate-100 text-center font-black text-amber-600 text-sm bg-amber-50/30">{annualAvg}</td>
+                          <td className="p-3 text-center font-semibold text-slate-700">{allocataire}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 bg-white border-t border-slate-200 flex justify-between items-center text-xs text-slate-500 font-medium">
+              <p>Rapport récapitulatif généré conformément aux normes pédagogiques officielles.</p>
+              <Button onClick={() => setShowAnnualReportModal(false)} variant="outline" className="rounded-xl">
+                Fermer
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
