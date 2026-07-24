@@ -236,19 +236,19 @@ export default function ResultsReportsPanel({
 
   // PDF report handlers
   const handleClassReport = () => {
-    generateClassReportPDF({ matrixData, students, filters: activeFilters, isOffline: isLocal || !navigator.onLine });
+    generateClassReportPDF({ matrixData, students, filters: activeFilters, headerConfig, isOffline: isLocal || !navigator.onLine });
   };
   const handleSubjectReport = () => {
-    generateSubjectReportPDF({ matrixData, students, filters: activeFilters, isOffline: isLocal || !navigator.onLine });
+    generateSubjectReportPDF({ matrixData, students, filters: activeFilters, headerConfig, isOffline: isLocal || !navigator.onLine });
   };
   const handleTeacherReport = () => {
-    generateTeacherReportPDF({ matrixData, students, filters: activeFilters, isOffline: isLocal || !navigator.onLine });
+    generateTeacherReportPDF({ matrixData, students, filters: activeFilters, headerConfig, isOffline: isLocal || !navigator.onLine });
   };
   const handleWeakStudentsReport = () => {
-    generateWeakStudentsReportPDF({ matrixData, students, filters: activeFilters, isOffline: isLocal || !navigator.onLine });
+    generateWeakStudentsReportPDF({ matrixData, students, filters: activeFilters, headerConfig, isOffline: isLocal || !navigator.onLine });
   };
   const handleClassCouncilReport = () => {
-    generateClassCouncilReportPDF({ matrixData, students, filters: activeFilters, isOffline: isLocal || !navigator.onLine });
+    generateClassCouncilReportPDF({ matrixData, students, filters: activeFilters, headerConfig, isOffline: isLocal || !navigator.onLine });
   };
 
   return (
@@ -283,6 +283,30 @@ export default function ResultsReportsPanel({
             </Button>
           </div>
         </div>
+
+        {/* Official Header Banner from Gestion des En-têtes Officiels */}
+        {headerConfig && (
+          <div className="mt-4 pt-4 border-t border-slate-100 flex flex-wrap justify-between items-center gap-4 bg-slate-50/50 p-4 rounded-2xl">
+            <div className="flex items-center gap-3">
+              {(headerConfig.logoUrl || headerConfig.leftLogo) && (
+                <img
+                  src={headerConfig.logoUrl || headerConfig.leftLogo}
+                  alt="Logo"
+                  className="w-10 h-10 object-contain"
+                />
+              )}
+              <div>
+                <p className="text-[11px] font-black text-slate-900 uppercase">{headerConfig.country || headerConfig.countryName || "RÉPUBLIQUE DU NIGER"}</p>
+                <p className="text-[9px] italic text-slate-500">{headerConfig.motto || "Unité - Travail - Progrès"}</p>
+                <p className="text-[9px] font-bold text-slate-700">{headerConfig.ministry || headerConfig.ministryName || "MINISTÈRE DE L'ÉDUCATION NATIONALE"}</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <h4 className="text-xs font-black text-indigo-950 uppercase">{headerConfig.schoolName || "ÉCOLE GESTION PRO"}</h4>
+              <p className="text-[10px] text-slate-500 font-medium">En-tête Officiel Configuré</p>
+            </div>
+          </div>
+        )}
 
         {/* ─── PDF EXPORTS HUB ─── */}
         <div className="mt-6 border-t border-slate-100 pt-5 print:hidden">

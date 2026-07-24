@@ -713,6 +713,7 @@ export default function AcademicResultsPage() {
                 onPrintAll={handlePrintAllBulletins}
                 onExportPDF={handleExportResultsReport}
                 pedagogicalReportData={pedagogicalReportData}
+                headerConfig={headerConfig}
               />
             )}
           </motion.div>
