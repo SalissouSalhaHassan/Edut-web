@@ -155,14 +155,15 @@ export default function AcademicResultsPage() {
 
       if (gridResult?.data) {
         const studentData = gridResult.data;
+        const resObj = gridResult as any;
         if (Array.isArray(studentData)) {
           setStudents(studentData);
-          setLevel(gridResult.level || filters.level);
-          setActiveCoef(gridResult.activeCoefficient || 1);
+          setLevel(resObj.level || filters.level);
+          setActiveCoef(resObj.activeCoefficient || 1);
           
           try {
             const { cacheReferenceItems } = await import("@/infrastructure/local-db/references");
-            await cacheReferenceItems("examResults" as any, [{ key: cacheKey, data: studentData, level: gridResult.level, activeCoef: gridResult.activeCoefficient }], "key");
+            await cacheReferenceItems("examResults" as any, [{ key: cacheKey, data: studentData, level: resObj.level, activeCoef: resObj.activeCoefficient }], "key");
           } catch (e) {
             console.warn("Failed to cache grading grid locally:", e);
           }
