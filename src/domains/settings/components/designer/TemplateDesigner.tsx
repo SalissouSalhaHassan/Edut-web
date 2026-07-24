@@ -198,7 +198,7 @@ export default function TemplateDesigner() {
 
     setSaving(true);
     try {
-      const res = await saveOfficialTemplate({
+      const res: any = await saveOfficialTemplate({
         id: templateId,
         name: templateName,
         description: templateDescription,
@@ -208,12 +208,13 @@ export default function TemplateDesigner() {
         isDefault: true,
       });
 
-      if (res?.success) {
-        if (res.id) setTemplateId(res.id);
+      const outcome = res?.data || res;
+      if (outcome?.success) {
+        if (outcome?.id) setTemplateId(outcome.id);
         toast.success("تم حفظ القالب بنجاح وإدراجه كـ En-tête officiel!");
         fetchTemplates();
       } else {
-        toast.error((res as any)?.error || "Erreur lors de la sauvegarde");
+        toast.error(outcome?.error || res?.error || "Erreur lors de la sauvegarde");
       }
     } catch (e: any) {
       toast.error("Erreur d'enregistrement", { description: e.message });
