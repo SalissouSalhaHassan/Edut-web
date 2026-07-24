@@ -739,10 +739,7 @@ export async function getGradingGrid(params: { classId: number, subjectId: numbe
         where: and(
           eq(studentResults.classId, classIdNum),
           eq(studentResults.subjectId, subjectIdNum),
-          or(
-            eq(studentResults.sessionId, sessionIdNum),
-            isNull(studentResults.sessionId)
-          ),
+          eq(studentResults.sessionId, sessionIdNum),
           buildTermFilter(studentResults.term, params.term)
         )
       })
@@ -891,10 +888,7 @@ export async function getDevoirGrid(params: { classId: number, subjectId: number
         where: and(
           eq(studentResults.classId, classIdNum),
           eq(studentResults.subjectId, subjectIdNum),
-          or(
-            eq(studentResults.sessionId, sessionIdNum),
-            isNull(studentResults.sessionId)
-          ),
+          eq(studentResults.sessionId, sessionIdNum),
           buildTermFilter(studentResults.term, params.term)
         )
       })
@@ -1008,10 +1002,7 @@ async function fetchBroadsheetMatrixDirect(params: { classId: number, sessionId:
       .from(studentResults)
       .where(and(
         eq(studentResults.classId, classIdNum),
-        or(
-          eq(studentResults.sessionId, sessionIdNum),
-          isNull(studentResults.sessionId)
-        )
+        eq(studentResults.sessionId, sessionIdNum)
       )),
     readDb.select({ id: students.id })
       .from(students)
@@ -1024,10 +1015,7 @@ async function fetchBroadsheetMatrixDirect(params: { classId: number, sessionId:
     readDb.query.studentResults.findMany({
       where: and(
         eq(studentResults.classId, classIdNum),
-        or(
-          eq(studentResults.sessionId, sessionIdNum),
-          isNull(studentResults.sessionId)
-        )
+        eq(studentResults.sessionId, sessionIdNum)
       ),
       with: {
         subject: true
@@ -1036,10 +1024,7 @@ async function fetchBroadsheetMatrixDirect(params: { classId: number, sessionId:
     readDb.query.studentTermSummaries.findMany({
       where: and(
         eq(studentTermSummaries.classId, classIdNum),
-        or(
-          eq(studentTermSummaries.sessionId, sessionIdNum),
-          isNull(studentTermSummaries.sessionId)
-        )
+        eq(studentTermSummaries.sessionId, sessionIdNum)
       )
     }).catch(e => {
       console.error("[getBroadsheetMatrix] Error fetching summaries:", e);
