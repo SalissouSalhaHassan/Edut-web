@@ -1002,7 +1002,7 @@ async function fetchBroadsheetMatrixDirect(params: { classId: number, sessionId:
   const classIdNum = Number(params.classId);
   const sessionIdNum = Number(params.sessionId);
 
-  // 1. Fetch all primary data components in parallel using readDb
+  // 1. Fetch all primary data components in parallel using readDb for ALL terms of the session
   const [studentsWithResults, studentsByClassName, results, summaries] = await Promise.all([
     readDb.selectDistinct({ studentId: studentResults.studentId })
       .from(studentResults)
@@ -1011,8 +1011,7 @@ async function fetchBroadsheetMatrixDirect(params: { classId: number, sessionId:
         or(
           eq(studentResults.sessionId, sessionIdNum),
           isNull(studentResults.sessionId)
-        ),
-        buildTermFilter(studentResults.term, params.term)
+        )
       )),
     readDb.select({ id: students.id })
       .from(students)
@@ -1028,8 +1027,7 @@ async function fetchBroadsheetMatrixDirect(params: { classId: number, sessionId:
         or(
           eq(studentResults.sessionId, sessionIdNum),
           isNull(studentResults.sessionId)
-        ),
-        buildTermFilter(studentResults.term, params.term)
+        )
       ),
       with: {
         subject: true
@@ -1041,8 +1039,7 @@ async function fetchBroadsheetMatrixDirect(params: { classId: number, sessionId:
         or(
           eq(studentTermSummaries.sessionId, sessionIdNum),
           isNull(studentTermSummaries.sessionId)
-        ),
-        buildTermFilter(studentTermSummaries.term, params.term)
+        )
       )
     }).catch(e => {
       console.error("[getBroadsheetMatrix] Error fetching summaries:", e);
@@ -1068,40 +1065,35 @@ async function fetchBroadsheetMatrixDirect(params: { classId: number, sessionId:
       .orderBy(students.nomEtudiant);
   }
 
-  // 3. Fetch unique subjects involved in these results
-  const subjectIds = Array.from(new Set(results.map(r => r.subjectId).filter((id): id is number => id !== null)));
-  let subjectsList: any[] = [];
-  if (subjectIds.length > 0) {
-    const rawSubjects = await readDb.query.schoolSubjects.findMany({
-      where: inArray(schoolSubjects.id, subjectIds)
-    });
+  // 3. Fetch all assigned subjects for this class from classSubjects, merged with results
+  const classSubjLinks = await readDb.query.classSubjects.findMany({
+    where: eq(classSubjects.classId, classIdNum),
+    with: { subject: true, teacher: true }
+  });
 
-    // Fetch teachers for these classSubjects
-    let classSubjs: any[] = [];
-    try {
-      classSubjs = await readDb.select({
-        subjectId: classSubjects.subjectId,
-        teacherName: employees.nom,
-      })
-      .from(classSubjects)
-      .leftJoin(employees, eq(classSubjects.employeeId, employees.id))
-      .where(eq(classSubjects.classId, classIdNum));
-    } catch (e) {
-      console.warn("Failed to fetch classSubjects with teacher name:", e);
+  const subjectMapFromLinks = new Map<number, any>();
+  classSubjLinks.forEach(cs => {
+    if (cs.subject) {
+      subjectMapFromLinks.set(cs.subject.id, {
+        ...cs.subject,
+        teacherName: cs.teacher?.nom || "—"
+      });
     }
+  });
 
-    const teacherMap = new Map<number, string>();
-    classSubjs.forEach(cs => {
-      if (cs.subjectId && cs.teacherName) {
-        teacherMap.set(cs.subjectId, cs.teacherName);
+  const subjectIdsFromResults = Array.from(new Set(results.map(r => r.subjectId).filter((id): id is number => id !== null)));
+  if (subjectIdsFromResults.length > 0) {
+    const rawSubjects = await readDb.query.schoolSubjects.findMany({
+      where: inArray(schoolSubjects.id, subjectIdsFromResults)
+    });
+    rawSubjects.forEach(sub => {
+      if (!subjectMapFromLinks.has(sub.id)) {
+        subjectMapFromLinks.set(sub.id, { ...sub, teacherName: "—" });
       }
     });
-
-    subjectsList = rawSubjects.map(sub => ({
-      ...sub,
-      teacherName: teacherMap.get(sub.id) || "—"
-    }));
   }
+
+  const subjectsList = Array.from(subjectMapFromLinks.values()).sort((a, b) => (a.subjectName || "").localeCompare(b.subjectName || ""));
 
   // 4. Map data for UI using efficient Lookups
   const summariesByStudent = new Map<number, any[]>();
@@ -1120,10 +1112,10 @@ async function fetchBroadsheetMatrixDirect(params: { classId: number, sessionId:
     }
   });
 
-  // Pre-compute current averages for all students
+  // Pre-compute current term averages for all students
   const currentAveragesMap = new Map<number, number>();
   studentList.forEach(s => {
-    const studentRes = resultsByStudent.get(s.id) || [];
+    const studentRes = (resultsByStudent.get(s.id) || []).filter(r => matchTerm(r.term, params.term));
     const summary = (summariesByStudent.get(s.id) || []).find(sum => matchTerm(sum.term, params.term));
     if (summary) {
       currentAveragesMap.set(s.id, summary.average || 0);
@@ -1163,11 +1155,17 @@ async function fetchBroadsheetMatrixDirect(params: { classId: number, sessionId:
   
   const data = studentList.map(s => {
     const studentRes = resultsByStudent.get(s.id) || [];
+    const studentResForTerm = studentRes.filter(r => matchTerm(r.term, params.term));
     const studentSummaries = summariesByStudent.get(s.id) || [];
     const summary = studentSummaries.find(sum => matchTerm(sum.term, params.term));
     
+    const summaryS1 = studentSummaries.find(sum => matchTerm(sum.term, "1er Semestre") || matchTerm(sum.term, "1er Trimestre"));
+    const summaryS2 = studentSummaries.find(sum => matchTerm(sum.term, "2ème Semestre") || matchTerm(sum.term, "2ème Trimestre"));
+
     const resultsObj: Record<number, any> = {};
-    studentRes.forEach(r => {
+    const resListToUse = params.term && params.term !== "All" ? studentResForTerm : studentRes;
+    
+    resListToUse.forEach(r => {
       if (r.subjectId) {
         const cw = parseFloat(String(r.classWorkScore ?? "0")) || 0;
         const ex = parseFloat(String(r.examScore ?? "0")) || 0;
@@ -1200,19 +1198,25 @@ async function fetchBroadsheetMatrixDirect(params: { classId: number, sessionId:
       id: s.id,
       name: s.nomEtudiant,
       matricule: s.numAdmission,
+      dateNaissance: s.dateNaissance,
+      lieuNaissance: s.lieuNaissance,
+      sexe: s.sexe,
+      redoublement: s.isRepeating || s.redoublement || false,
+      allocataire: s.isBoursier || s.allocataire || false,
       results: resultsObj,
       average,
       decision,
       rank,
       annualAverage,
       annualRank,
-      totalCoef: studentRes.reduce((acc, r) => acc + (parseFloat(String(r.coefficient ?? "1")) || 1), 0),
+      summaryS1,
+      summaryS2,
+      totalCoef: resListToUse.reduce((acc, r) => acc + (parseFloat(String(r.coefficient ?? "1")) || 1), 0),
       behaviorScore: s.behaviorScore || 20.0,
       conduite: summary?.conduite || 0.0,
       travail: summary?.travail || "-",
       tableauHonneur: summary?.tableauHonneur || false,
       history: studentHistory,
-      sexe: s.sexe
     };
   });
 
