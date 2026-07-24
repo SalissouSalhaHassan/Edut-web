@@ -1007,6 +1007,9 @@ async function fetchBroadsheetMatrixDirect(params: { classId: number, sessionId:
   const cls = await readDb.query.schoolClasses.findFirst({ where: eq(schoolClasses.id, params.classId) });
   if (!cls) return { error: "Classe non trouvée" };
 
+  const classIdNum = Number(params.classId);
+  const sessionIdNum = Number(params.sessionId);
+
   const sessionObj = sessionIdNum ? await readDb.query.schoolSessions.findFirst({ where: eq(schoolSessions.id, sessionIdNum) }) : null;
   const sessionNameStr = sessionObj?.sessionName?.trim();
 
