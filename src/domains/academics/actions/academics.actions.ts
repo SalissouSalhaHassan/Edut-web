@@ -712,7 +712,14 @@ export async function getGradingGrid(params: { classId: number, subjectId: numbe
         .where(
           and(
             ilike(students.classe, cls.className.trim()),
-            eq(students.schoolId, cls.schoolId ?? 0)
+            eq(students.schoolId, cls.schoolId ?? 0),
+            sessionNameStr
+              ? or(
+                  ilike(students.session, sessionNameStr),
+                  isNull(students.session),
+                  eq(students.session, "")
+                )
+              : undefined
           )
         )
         .orderBy(students.nomEtudiant),
@@ -880,7 +887,14 @@ export async function getDevoirGrid(params: { classId: number, subjectId: number
         .where(
           and(
             ilike(students.classe, cls.className.trim()),
-            eq(students.schoolId, cls.schoolId ?? 0)
+            eq(students.schoolId, cls.schoolId ?? 0),
+            sessionNameStr
+              ? or(
+                  ilike(students.session, sessionNameStr),
+                  isNull(students.session),
+                  eq(students.session, "")
+                )
+              : undefined
           )
         )
         .orderBy(students.nomEtudiant),
@@ -993,8 +1007,8 @@ async function fetchBroadsheetMatrixDirect(params: { classId: number, sessionId:
   const cls = await readDb.query.schoolClasses.findFirst({ where: eq(schoolClasses.id, params.classId) });
   if (!cls) return { error: "Classe non trouvée" };
 
-  const classIdNum = Number(params.classId);
-  const sessionIdNum = Number(params.sessionId);
+  const sessionObj = sessionIdNum ? await readDb.query.schoolSessions.findFirst({ where: eq(schoolSessions.id, sessionIdNum) }) : null;
+  const sessionNameStr = sessionObj?.sessionName?.trim();
 
   // 1. Fetch all primary data components in parallel using readDb for ALL terms of the session
   const [studentsWithResults, studentsByClassName, results, summaries] = await Promise.all([
@@ -1009,7 +1023,14 @@ async function fetchBroadsheetMatrixDirect(params: { classId: number, sessionId:
       .where(
         and(
           ilike(students.classe, cls.className.trim()),
-          eq(students.schoolId, cls.schoolId ?? 0)
+          eq(students.schoolId, cls.schoolId ?? 0),
+          sessionNameStr
+            ? or(
+                ilike(students.session, sessionNameStr),
+                isNull(students.session),
+                eq(students.session, "")
+              )
+            : undefined
         )
       ),
     readDb.query.studentResults.findMany({
@@ -1894,7 +1915,14 @@ export async function getBatchBulletinData(classId: number, sessionId: number, t
         .where(
           and(
             ilike(students.classe, cls.className.trim()),
-            eq(students.schoolId, cls.schoolId ?? 0)
+            eq(students.schoolId, cls.schoolId ?? 0),
+            sessionRecord?.sessionName
+              ? or(
+                  ilike(students.session, sessionRecord.sessionName.trim()),
+                  isNull(students.session),
+                  eq(students.session, "")
+                )
+              : undefined
           )
         )
         .orderBy(students.nomEtudiant),
