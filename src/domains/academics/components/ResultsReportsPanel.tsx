@@ -37,6 +37,7 @@ interface ResultsReportsPanelProps {
   onPrintAll?: () => void;
   onExportPDF?: () => void;
   pedagogicalReportData?: any;
+  headerConfig?: any;
 }
 
 const numberFormat = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 2 });
@@ -84,6 +85,7 @@ export default function ResultsReportsPanel({
   onPrintAll,
   onExportPDF,
   pedagogicalReportData,
+  headerConfig,
 }: ResultsReportsPanelProps) {
   const [grouping, setGrouping] = useState<"class" | "subject" | "teacher" | "gender">("class");
 
