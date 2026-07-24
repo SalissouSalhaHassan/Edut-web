@@ -14,6 +14,9 @@ import {
 } from "@/domains/printing/document-header";
 import { saveDocumentHeaderConfig } from "@/domains/settings/actions/settings.actions";
 
+import TemplateDesigner from "@/domains/settings/components/designer/TemplateDesigner";
+import { LayoutGrid, Sparkles } from "lucide-react";
+
 const HEADER_STYLES: { value: DocumentHeaderStyle; label: string; description: string }[] = [
   { value: "classic_dual_logo", label: "Classique deux logos", description: "Lycée, collège, primaire, rapports officiels." },
   { value: "bilingual_center_logo", label: "Bilingue centre logo", description: "Français / arabe avec logo central." },
@@ -25,6 +28,7 @@ const HEADER_STYLES: { value: DocumentHeaderStyle; label: string; description: s
 const fieldClass = "h-11 rounded-xl border-slate-200 bg-white text-sm font-bold";
 
 export default function DocumentHeaderManager({ initialConfig }: { initialConfig?: Partial<DocumentHeaderConfig> | null }) {
+  const [activeTab, setActiveTab] = useState<"designer" | "preset">("designer");
   const [isPending, startTransition] = useTransition();
   const [config, setConfig] = useState<DocumentHeaderConfig>(() => mergeDocumentHeaderConfig(initialConfig));
   const previewTitle = useMemo(() => "Exemple de rapport officiel", []);
@@ -48,29 +52,65 @@ export default function DocumentHeaderManager({ initialConfig }: { initialConfig
 
   return (
     <div className="space-y-8">
-      <div className="rounded-[2.5rem] border border-slate-100 bg-white p-8 shadow-sm">
-        <div className="mb-8 flex flex-col gap-4 border-b border-slate-100 pb-6 xl:flex-row xl:items-center xl:justify-between">
-          <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
-              <Settings2 size={24} />
-            </div>
-            <div>
-              <h3 className="text-2xl font-black tracking-tight text-slate-900">Gestion des En-têtes Officiels</h3>
-              <p className="text-sm font-semibold text-slate-500">Modèles réutilisables pour rapports, reçus, bulletins, attestations et cartes.</p>
-            </div>
+      {/* Top Selector Bar */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-4 rounded-[2rem] border border-slate-200 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="p-3 bg-indigo-600 text-white rounded-2xl shadow-md shadow-indigo-100">
+            <Sparkles size={24} />
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button type="button" variant="outline" onClick={() => window.print()} className="rounded-xl font-black">
-              <Printer size={16} /> Imprimer test
-            </Button>
-            <Button type="button" variant="outline" onClick={reset} className="rounded-xl font-black">
-              Réinitialiser
-            </Button>
-            <Button type="button" onClick={save} disabled={isPending} className="rounded-xl bg-indigo-600 font-black text-white">
-              <Save size={16} /> {isPending ? "Enregistrement..." : "Enregistrer"}
-            </Button>
+          <div>
+            <h3 className="text-xl font-black tracking-tight text-slate-900">Éditeur de Modèles Professionnel (WYSIWYG)</h3>
+            <p className="text-xs font-semibold text-slate-500">تصميم وتخصيص الترويسات والقوالب الرسمية بحرية كاملة باللسحب والإفلات.</p>
           </div>
         </div>
+
+        <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+          <button
+            onClick={() => setActiveTab("designer")}
+            className={`px-5 py-2.5 rounded-xl font-black text-xs transition flex items-center gap-2 ${
+              activeTab === "designer" ? "bg-indigo-600 text-white shadow-md shadow-indigo-100" : "text-slate-600 hover:bg-slate-200"
+            }`}
+          >
+            <LayoutGrid size={16} /> المحرر التفاعلي (Canva Designer)
+          </button>
+          <button
+            onClick={() => setActiveTab("preset")}
+            className={`px-5 py-2.5 rounded-xl font-black text-xs transition flex items-center gap-2 ${
+              activeTab === "preset" ? "bg-indigo-600 text-white shadow-md shadow-indigo-100" : "text-slate-600 hover:bg-slate-200"
+            }`}
+          >
+            <Settings2 size={16} /> التكوين السريع (Presets)
+          </button>
+        </div>
+      </div>
+
+      {/* Main Mode Renderer */}
+      {activeTab === "designer" ? (
+        <TemplateDesigner />
+      ) : (
+        <div className="rounded-[2.5rem] border border-slate-100 bg-white p-8 shadow-sm">
+          <div className="mb-8 flex flex-col gap-4 border-b border-slate-100 pb-6 xl:flex-row xl:items-center xl:justify-between">
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
+                <Settings2 size={24} />
+              </div>
+              <div>
+                <h3 className="text-2xl font-black tracking-tight text-slate-900">Gestion des En-têtes Officiels</h3>
+                <p className="text-sm font-semibold text-slate-500">Modèles réutilisables pour rapports, reçus, bulletins, attestations et cartes.</p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="outline" onClick={() => window.print()} className="rounded-xl font-black">
+                <Printer size={16} /> Imprimer test
+              </Button>
+              <Button type="button" variant="outline" onClick={reset} className="rounded-xl font-black">
+                Réinitialiser
+              </Button>
+              <Button type="button" onClick={save} disabled={isPending} className="rounded-xl bg-indigo-600 font-black text-white">
+                <Save size={16} /> {isPending ? "Enregistrement..." : "Enregistrer"}
+              </Button>
+            </div>
+          </div>
 
         <div className="grid gap-8 xl:grid-cols-[420px_minmax(0,1fr)]">
           <div className="space-y-6">
@@ -183,6 +223,7 @@ export default function DocumentHeaderManager({ initialConfig }: { initialConfig
           </section>
         </div>
       </div>
+      )}
     </div>
   );
 }

@@ -710,3 +710,17 @@ export const officialRectificationsRelations = relations(officialRectifications,
   }),
 }));
 
+export const officialTemplates = pgTable("official_templates", {
+  id: serial("id").primaryKey(),
+  schoolId: integer("school_id").references(() => schools.id),
+  name: varchar("name", { length: 150 }).notNull(),
+  description: text("description"),
+  pageSize: varchar("page_size", { length: 20 }).default("A4"),
+  orientation: varchar("orientation", { length: 20 }).default("portrait"),
+  jsonDesign: jsonb("json_design"),
+  isDefault: boolean("is_default").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+

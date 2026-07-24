@@ -323,3 +323,70 @@ export async function saveSettings(data: Record<string, string>) {
     return { success: true };
   });
 }
+
+export async function getOfficialTemplates() {
+  return protectedDbAction("Settings", "canView", async () => {
+    const schoolId = await getActiveSchoolId();
+    try {
+      const { officialTemplates } = await import("@/infrastructure/database/schema/academics");
+      const list = await db.select().from(officialTemplates).where(eq(officialTemplates.schoolId, schoolId)).orderBy(desc(officialTemplates.updatedAt));
+      return { data: list };
+    } catch (e: any) {
+      console.error("[getOfficialTemplates] error:", e);
+      return { data: [] };
+    }
+  });
+}
+
+export async function saveOfficialTemplate(data: { id?: number; name: string; description?: string; pageSize?: string; orientation?: string; jsonDesign: any; isDefault?: boolean }) {
+  return protectedDbAction("Settings", "canEdit", async () => {
+    const schoolId = await getActiveSchoolId();
+    try {
+      const { officialTemplates } = await import("@/infrastructure/database/schema/academics");
+      if (data.isDefault) {
+        await db.update(officialTemplates).set({ isDefault: false }).where(eq(officialTemplates.schoolId, schoolId));
+      }
+
+      if (data.id) {
+        await db.update(officialTemplates).set({
+          name: data.name,
+          description: data.description,
+          pageSize: data.pageSize || "A4",
+          orientation: data.orientation || "portrait",
+          jsonDesign: data.jsonDesign,
+          isDefault: Boolean(data.isDefault),
+          updatedAt: new Date()
+        }).where(and(eq(officialTemplates.id, data.id), eq(officialTemplates.schoolId, schoolId)));
+        return { success: true, id: data.id };
+      } else {
+        const [inserted] = await db.insert(officialTemplates).values({
+          schoolId,
+          name: data.name,
+          description: data.description,
+          pageSize: data.pageSize || "A4",
+          orientation: data.orientation || "portrait",
+          jsonDesign: data.jsonDesign,
+          isDefault: Boolean(data.isDefault),
+        }).returning({ id: officialTemplates.id });
+        return { success: true, id: inserted.id };
+      }
+    } catch (e: any) {
+      console.error("[saveOfficialTemplate] error:", e);
+      return { error: e.message || "Impossible d'enregistrer le modèle" };
+    }
+  });
+}
+
+export async function deleteOfficialTemplate(id: number) {
+  return protectedDbAction("Settings", "canEdit", async () => {
+    const schoolId = await getActiveSchoolId();
+    try {
+      const { officialTemplates } = await import("@/infrastructure/database/schema/academics");
+      await db.delete(officialTemplates).where(and(eq(officialTemplates.id, id), eq(officialTemplates.schoolId, schoolId)));
+      return { success: true };
+    } catch (e: any) {
+      return { error: e.message || "Impossible de supprimer le modèle" };
+    }
+  });
+}
+
