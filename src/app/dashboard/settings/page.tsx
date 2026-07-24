@@ -299,6 +299,10 @@ export default async function SettingsPage({
                 </div>
              </TabsContent>
 
+             <TabsContent value="headers" className="m-0 animate-in slide-in-from-right-4 duration-500">
+                <DocumentHeaderManager initialConfig={documentHeaderConfig} />
+             </TabsContent>
+
           </div>
         </Tabs>
       </SettingsForm>

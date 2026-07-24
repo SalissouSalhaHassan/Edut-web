@@ -191,6 +191,7 @@ const sections: NavSection[] = [
       { href: "/dashboard/security/users", label: "Utilisateurs & équipes", icon: <UserRound className="size-[18px]" />, color: "text-blue-500" },
       { href: "/dashboard/security/audit-logs", label: "Journal d'audit", icon: <ClipboardList className="size-[18px]" />, color: "text-rose-500" },
       { href: "/dashboard/settings", label: "Paramètres", icon: <Settings className="size-[18px]" />, color: "text-indigo-500" },
+      { href: "/dashboard/settings/headers", label: "En-têtes Officiels & Designer", icon: <FileText className="size-[18px]" />, color: "text-purple-500" },
       { href: "/dashboard/synchronisation", label: "Synchronisation", icon: <RefreshCw className="size-[18px]" />, color: "text-blue-500" },
       { href: "/dashboard/campus-setup", label: "Configuration campus", icon: <MapPin className="size-[18px]" />, color: "text-amber-500" },
     ],
