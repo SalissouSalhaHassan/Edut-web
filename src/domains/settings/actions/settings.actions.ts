@@ -330,10 +330,10 @@ export async function getOfficialTemplates() {
     try {
       const { officialTemplates } = await import("@/infrastructure/database/schema/academics");
       const list = await db.select().from(officialTemplates).where(eq(officialTemplates.schoolId, schoolId)).orderBy(desc(officialTemplates.updatedAt));
-      return { data: list };
+      return list;
     } catch (e: any) {
       console.error("[getOfficialTemplates] error:", e);
-      return { data: [] };
+      return [];
     }
   });
 }

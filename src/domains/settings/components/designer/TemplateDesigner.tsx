@@ -182,8 +182,11 @@ export default function TemplateDesigner() {
 
   const fetchTemplates = async () => {
     const res = await getOfficialTemplates();
-    if (res?.data) {
-      setSavedTemplates(res.data);
+    const list = (res as any)?.data;
+    if (Array.isArray(list)) {
+      setSavedTemplates(list);
+    } else if (Array.isArray((list as any)?.data)) {
+      setSavedTemplates((list as any).data);
     }
   };
 
