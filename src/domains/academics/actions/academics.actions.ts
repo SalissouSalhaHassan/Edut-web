@@ -1142,13 +1142,86 @@ async function fetchBroadsheetMatrixDirect(params: { classId: number, sessionId:
     }
   });
 
+  // Dynamic fallback calculation for S1 and S2 if studentTermSummaries table is empty
+  const s1AveragesMap = new Map<number, number>();
+  const s2AveragesMap = new Map<number, number>();
+
+  studentList.forEach(s => {
+    const allRes = resultsByStudent.get(s.id) || [];
+    
+    // Check S1
+    const sumS1 = (summariesByStudent.get(s.id) || []).find(sum => matchTerm(sum.term, "1er Semestre") || matchTerm(sum.term, "1er Trimestre") || matchTerm(sum.term, "S1"));
+    if (sumS1 && typeof sumS1.average === 'number' && sumS1.average > 0) {
+      s1AveragesMap.set(s.id, sumS1.average);
+    } else {
+      const resS1 = allRes.filter(r => matchTerm(r.term, "1er Semestre") || matchTerm(r.term, "1er Trimestre") || matchTerm(r.term, "S1") || matchTerm(r.term, "T1"));
+      if (resS1.length > 0) {
+        let tw = 0, tc = 0;
+        resS1.forEach(r => {
+          const cw = parseFloat(String(r.classWorkScore ?? "0")) || 0;
+          const ex = parseFloat(String(r.examScore ?? "0")) || 0;
+          const coef = parseFloat(String(r.coefficient ?? "1")) || 1;
+          tw += ((cw + ex) / 2) * coef;
+          tc += coef;
+        });
+        if (tc > 0) s1AveragesMap.set(s.id, tw / tc);
+      }
+    }
+
+    // Check S2
+    const sumS2 = (summariesByStudent.get(s.id) || []).find(sum => matchTerm(sum.term, "2ème Semestre") || matchTerm(sum.term, "2ème Trimestre") || matchTerm(sum.term, "S2"));
+    if (sumS2 && typeof sumS2.average === 'number' && sumS2.average > 0) {
+      s2AveragesMap.set(s.id, sumS2.average);
+    } else {
+      const resS2 = allRes.filter(r => matchTerm(r.term, "2ème Semestre") || matchTerm(r.term, "2ème Trimestre") || matchTerm(r.term, "S2") || matchTerm(r.term, "T2"));
+      if (resS2.length > 0) {
+        let tw = 0, tc = 0;
+        resS2.forEach(r => {
+          const cw = parseFloat(String(r.classWorkScore ?? "0")) || 0;
+          const ex = parseFloat(String(r.examScore ?? "0")) || 0;
+          const coef = parseFloat(String(r.coefficient ?? "1")) || 1;
+          tw += ((cw + ex) / 2) * coef;
+          tc += coef;
+        });
+        if (tc > 0) s2AveragesMap.set(s.id, tw / tc);
+      }
+    }
+  });
+
+  // Calculate S1 ranks
+  const s1Sorted = Array.from(s1AveragesMap.entries()).map(([id, avg]) => ({ studentId: id, average: avg }));
+  s1Sorted.sort((a, b) => b.average - a.average);
+  const s1RanksMap = new Map<number, string>();
+  let rankS1Tracker = 1;
+  for (let i = 0; i < s1Sorted.length; i++) {
+    if (i > 0 && s1Sorted[i].average < s1Sorted[i - 1].average) {
+      rankS1Tracker = i + 1;
+    }
+    const suffix = rankS1Tracker === 1 ? "er" : "ème";
+    s1RanksMap.set(s1Sorted[i].studentId, `${rankS1Tracker}${suffix}`);
+  }
+
+  // Calculate S2 ranks
+  const s2Sorted = Array.from(s2AveragesMap.entries()).map(([id, avg]) => ({ studentId: id, average: avg }));
+  s2Sorted.sort((a, b) => b.average - a.average);
+  const s2RanksMap = new Map<number, string>();
+  let rankS2Tracker = 1;
+  for (let i = 0; i < s2Sorted.length; i++) {
+    if (i > 0 && s2Sorted[i].average < s2Sorted[i - 1].average) {
+      rankS2Tracker = i + 1;
+    }
+    const suffix = rankS2Tracker === 1 ? "er" : "ème";
+    s2RanksMap.set(s2Sorted[i].studentId, `${rankS2Tracker}${suffix}`);
+  }
+
   // Pre-compute annual averages and annual ranks
   const annualAveragesList = studentList.map(s => {
-    const studentSummaries = summariesByStudent.get(s.id) || [];
-    const termAverages = studentSummaries.filter(sum => !matchTerm(sum.term, params.term)).map(sum => sum.average || 0);
-    termAverages.push(currentAveragesMap.get(s.id) || 0);
-    
-    const annualAvg = termAverages.length > 0 ? (termAverages.reduce((sum, v) => sum + v, 0) / termAverages.length) : 0;
+    const s1Avg = s1AveragesMap.get(s.id);
+    const s2Avg = s2AveragesMap.get(s.id);
+    const availableTermAvgs = [s1Avg, s2Avg].filter((v): v is number => typeof v === 'number' && !isNaN(v));
+    const annualAvg = availableTermAvgs.length > 0 
+      ? (availableTermAvgs.reduce((a, b) => a + b, 0) / availableTermAvgs.length)
+      : (currentAveragesMap.get(s.id) || 0);
     return { studentId: s.id, annualAverage: annualAvg };
   });
 
@@ -1168,8 +1241,17 @@ async function fetchBroadsheetMatrixDirect(params: { classId: number, sessionId:
     const studentSummaries = summariesByStudent.get(s.id) || [];
     const summary = studentSummaries.find(sum => matchTerm(sum.term, params.term));
     
-    const summaryS1 = studentSummaries.find(sum => matchTerm(sum.term, "1er Semestre") || matchTerm(sum.term, "1er Trimestre"));
-    const summaryS2 = studentSummaries.find(sum => matchTerm(sum.term, "2ème Semestre") || matchTerm(sum.term, "2ème Trimestre"));
+    const sumS1Db = studentSummaries.find(sum => matchTerm(sum.term, "1er Semestre") || matchTerm(sum.term, "1er Trimestre") || matchTerm(sum.term, "S1"));
+    const sumS2Db = studentSummaries.find(sum => matchTerm(sum.term, "2ème Semestre") || matchTerm(sum.term, "2ème Trimestre") || matchTerm(sum.term, "S2"));
+
+    const s1Avg = s1AveragesMap.get(s.id) ?? sumS1Db?.average ?? null;
+    const s1Rank = s1RanksMap.get(s.id) || sumS1Db?.rank || "-";
+
+    const s2Avg = s2AveragesMap.get(s.id) ?? sumS2Db?.average ?? null;
+    const s2Rank = s2RanksMap.get(s.id) || sumS2Db?.rank || "-";
+
+    const summaryS1 = { average: s1Avg, rank: s1Rank, term: "1er Semestre" };
+    const summaryS2 = { average: s2Avg, rank: s2Rank, term: "2ème Semestre" };
 
     const resultsObj: Record<number, any> = {};
     const resListToUse = params.term && params.term !== "All" ? studentResForTerm : studentRes;
