@@ -429,7 +429,7 @@ export default function AcademicResultsPage() {
   return (
     <div className="p-8 space-y-8 animate-in fade-in duration-700">
       {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 print:hidden">
         <div className="flex items-start gap-4">
           <div className="p-4 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-[1.5rem] text-white shadow-lg shadow-indigo-200">
             <GraduationCap size={28} />
@@ -498,7 +498,7 @@ export default function AcademicResultsPage() {
 
       {/* Workflow Status Action Bar */}
       {activeFilters && (
-        <div className="bg-white border border-slate-200 p-5 rounded-[2rem] flex flex-col md:flex-row justify-between items-center gap-4 shadow-sm animate-in fade-in slide-in-from-top-4 duration-500">
+        <div className="bg-white border border-slate-200 p-5 rounded-[2rem] flex flex-col md:flex-row justify-between items-center gap-4 shadow-sm animate-in fade-in slide-in-from-top-4 duration-500 print:hidden">
           <div className="flex items-center gap-3">
             <span className="text-xs font-black uppercase tracking-wider text-slate-400">Circuit Approbation:</span>
             <span className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-widest border ${

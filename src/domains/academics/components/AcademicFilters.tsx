@@ -387,7 +387,7 @@ export default function AcademicFilters({ onLoad, loading }: AcademicFiltersProp
   }, [periodOptions]);
 
   return (
-    <div className="bg-white rounded-[2rem] border border-slate-200 shadow-lg p-8">
+    <div className="bg-white rounded-[2rem] border border-slate-200 shadow-lg p-8 print:hidden">
       <div className="flex items-center gap-3 mb-6">
         <div className="p-2 bg-indigo-50 rounded-xl">
           <Filter size={20} className="text-indigo-600" />
