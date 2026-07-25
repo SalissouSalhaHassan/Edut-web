@@ -184,15 +184,22 @@ export default function CardStudioContainer() {
     fileInputRef.current?.click();
   };
 
-  // Filtered Students List for Left Sidebar
+  // Filtered Students List for Left Sidebar (Searches: Name, Matricule/ID Reference, Class/Section)
   const filteredStudents = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+
     return students.filter((s) => {
-      const q = searchQuery.toLowerCase();
-      const match =
-        s.nomEtudiant?.toLowerCase().includes(q) ||
-        s.prenomEtudiant?.toLowerCase().includes(q) ||
-        s.numAdmission?.toLowerCase().includes(q) ||
-        s.classe?.toLowerCase().includes(q);
+      let match = true;
+      if (q) {
+        const tokens = q.split(/\s+/).filter(Boolean);
+        const fullName = `${s.nomEtudiant || ""} ${s.prenomEtudiant || ""}`.toLowerCase();
+        const reverseName = `${s.prenomEtudiant || ""} ${s.nomEtudiant || ""}`.toLowerCase();
+        const matricule = `${s.numAdmission || ""} ${s.id || ""}`.toLowerCase();
+        const classe = `${s.classe || ""} ${s.section || ""} ${s.educationalLevel || ""}`.toLowerCase();
+        const haystack = `${fullName} ${reverseName} ${matricule} ${classe}`;
+
+        match = tokens.every((tok) => haystack.includes(tok));
+      }
 
       if (filterType === "selected") return match && selectedStudentIds.includes(s.id);
       if (filterType === "no-photo") return match && !isValidPhoto(s.photoPath);
@@ -397,7 +404,7 @@ export default function CardStudioContainer() {
               <Search className="absolute left-3 top-2.5 text-slate-400" size={14} />
               <Input
                 type="text"
-                placeholder="Nom ou matricule..."
+                placeholder="Nom, matricule, classe..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-8 h-9 rounded-xl border-slate-200 text-xs font-bold bg-slate-50/60 focus:bg-white"
