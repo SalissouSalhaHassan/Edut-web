@@ -660,6 +660,8 @@ export default function CanevasDashboardPage() {
             </form>
           </div>
         </div>
+      )}
+
       {/* ─── PRINT LAYOUT FOR TABLEAU DE BORD ─── */}
       <div className="hidden print:block bg-white text-black font-sans w-full p-0 m-0 space-y-6">
         
