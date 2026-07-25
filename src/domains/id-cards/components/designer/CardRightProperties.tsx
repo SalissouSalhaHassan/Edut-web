@@ -98,7 +98,7 @@ export default function CardRightProperties({
 
       <div className="p-4 space-y-5">
         {/* Content Editor */}
-        {(element.type === "text" || element.type === "variable" || element.type === "qrcode" || element.type === "barcode" || element.type === "signature" || element.type === "stamp") && (
+        {(element.type === "text" || element.type === "variable" || element.type === "badge" || element.type === "watermark" || element.type === "qrcode" || element.type === "barcode" || element.type === "signature" || element.type === "stamp") && (
           <div className="space-y-1.5">
             <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Contenu & Texte</p>
             <Input
@@ -110,6 +110,23 @@ export default function CardRightProperties({
             />
           </div>
         )}
+
+        {/* Opacity Control */}
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <label className="text-[9px] font-bold text-slate-500">Transparence / Opacité</label>
+            <span className="text-[10px] font-mono font-bold text-indigo-600">{Math.round((element.opacity ?? 1) * 100)}%</span>
+          </div>
+          <input
+            type="range"
+            min="0.05"
+            max="1"
+            step="0.05"
+            value={element.opacity ?? 1}
+            onChange={(e) => update("opacity", parseFloat(e.target.value))}
+            className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+          />
+        </div>
 
         {/* Position & Size */}
         <div className="space-y-2.5">
@@ -172,7 +189,7 @@ export default function CardRightProperties({
         )}
 
         {/* Typography */}
-        {(element.type === "text" || element.type === "variable") && (
+        {(element.type === "text" || element.type === "variable" || element.type === "badge" || element.type === "watermark") && (
           <div className="space-y-2.5 pt-2 border-t border-slate-100">
             <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Typographie & Couleur</p>
             <div>

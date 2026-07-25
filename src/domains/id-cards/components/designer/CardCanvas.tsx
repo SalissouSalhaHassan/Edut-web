@@ -2,7 +2,11 @@
 
 import { useRef, useState } from "react";
 import { CardElement, CardSize, Orientation, CARD_DIMENSIONS } from "./types";
-import { RotateCw, Lock, EyeOff, QrCode, Barcode, ShieldCheck, User, Building2, MapPin, Phone, Mail, Calendar } from "lucide-react";
+import {
+  RotateCw, Lock, EyeOff, QrCode, Barcode, ShieldCheck, User, Building2, MapPin, Phone, Mail, Calendar,
+  Globe, Smartphone, Send, GraduationCap, BookOpen, LibraryBig, Award, Bookmark, Medal, ShieldAlert,
+  Fingerprint, Key, BadgeCheck, CheckCircle2, Clock, History, Star, Heart, Sparkles, AlertCircle, Info, Hash, Image as ImageIcon
+} from "lucide-react";
 
 interface CardCanvasProps {
   elements: CardElement[];
@@ -186,6 +190,30 @@ export default function CardCanvas({
     if (name === "Address") return <MapPin {...props} />;
     if (name === "School") return <Building2 {...props} />;
     if (name === "Calendar") return <Calendar {...props} />;
+    if (name === "Globe") return <Globe {...props} />;
+    if (name === "Smartphone") return <Smartphone {...props} />;
+    if (name === "Send") return <Send {...props} />;
+    if (name === "GraduationCap") return <GraduationCap {...props} />;
+    if (name === "BookOpen") return <BookOpen {...props} />;
+    if (name === "LibraryBig") return <LibraryBig {...props} />;
+    if (name === "Award") return <Award {...props} />;
+    if (name === "Bookmark") return <Bookmark {...props} />;
+    if (name === "Medal") return <Medal {...props} />;
+    if (name === "ShieldAlert") return <ShieldAlert {...props} />;
+    if (name === "Fingerprint") return <Fingerprint {...props} />;
+    if (name === "Lock") return <Lock {...props} />;
+    if (name === "Key") return <Key {...props} />;
+    if (name === "BadgeCheck") return <BadgeCheck {...props} />;
+    if (name === "CheckCircle2") return <CheckCircle2 {...props} />;
+    if (name === "Clock") return <Clock {...props} />;
+    if (name === "History") return <History {...props} />;
+    if (name === "Star") return <Star {...props} />;
+    if (name === "Heart") return <Heart {...props} />;
+    if (name === "Sparkles") return <Sparkles {...props} />;
+    if (name === "AlertCircle") return <AlertCircle {...props} />;
+    if (name === "Info") return <Info {...props} />;
+    if (name === "Hash") return <Hash {...props} />;
+    if (name === "ShieldCheck") return <ShieldCheck {...props} />;
     return <User {...props} />;
   };
 
@@ -281,12 +309,46 @@ export default function CardCanvas({
               >
                 {el.type === "text" || el.type === "variable" ? (
                   <span className="w-full break-words">{contentStr}</span>
-                ) : el.type === "studentPhoto" || el.type === "schoolLogo" || el.type === "image" ? (
-                  <img
-                    src={el.type === "studentPhoto" ? photoSrc : (el.src || "/placeholder-logo.png")}
-                    alt={el.name}
-                    className={`w-full h-full object-cover pointer-events-none ${el.circularCrop ? "rounded-full" : ""}`}
-                  />
+                ) : el.type === "studentPhoto" ? (
+                  photoSrc && !photoSrc.includes("placeholder-student") ? (
+                    <img
+                      src={photoSrc}
+                      alt={el.name}
+                      className={`w-full h-full object-cover pointer-events-none ${el.circularCrop ? "rounded-full" : ""}`}
+                    />
+                  ) : (
+                    <div className={`w-full h-full bg-slate-100 border-2 border-indigo-200 text-indigo-600 flex flex-col items-center justify-center p-1 ${el.circularCrop ? "rounded-full" : "rounded-lg"}`}>
+                      <User size={24 * scale} />
+                      <span className="text-[7px] font-bold text-center mt-1 text-slate-500">Photo Élève</span>
+                    </div>
+                  )
+                ) : el.type === "schoolLogo" ? (
+                  el.src && !el.src.includes("placeholder-logo") ? (
+                    <img
+                      src={el.src}
+                      alt={el.name}
+                      className={`w-full h-full object-contain pointer-events-none ${el.circularCrop ? "rounded-full" : ""}`}
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-indigo-900/10 text-indigo-700 border border-indigo-300 flex flex-col items-center justify-center rounded-lg p-0.5">
+                      <Building2 size={20 * scale} />
+                      <span className="text-[6px] font-black text-center uppercase tracking-tighter">Logo École</span>
+                    </div>
+                  )
+                ) : el.type === "image" ? (
+                  el.src ? (
+                    <img
+                      src={el.src}
+                      alt={el.name}
+                      className={`w-full h-full object-cover pointer-events-none ${el.circularCrop ? "rounded-full" : ""}`}
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-slate-100 text-slate-500 border border-slate-300 flex items-center justify-center rounded p-1">
+                      <ImageIcon size={18 * scale} />
+                    </div>
+                  )
+                ) : el.type === "badge" || el.type === "watermark" ? (
+                  <span className="w-full text-center font-bold">{contentStr}</span>
                 ) : el.type === "shape" ? (
                   <div
                     style={{ borderRadius: el.shapeType === "circle" ? "50%" : el.borderRadius || 0 }}
