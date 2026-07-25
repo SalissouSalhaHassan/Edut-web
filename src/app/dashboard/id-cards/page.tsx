@@ -1,11 +1,11 @@
 "use client";
 
-import CardDesigner from "@/domains/id-cards/components/designer/CardDesigner";
+import CardStudioContainer from "@/domains/id-cards/components/CardStudioContainer";
 
 export default function IdCardsPage() {
   return (
-    <div className="p-8 space-y-6 animate-in fade-in duration-700">
-      <CardDesigner />
+    <div className="p-6 space-y-6 animate-in fade-in duration-700">
+      <CardStudioContainer />
     </div>
   );
 }
