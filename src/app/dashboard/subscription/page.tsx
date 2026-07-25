@@ -11,7 +11,12 @@ export default async function SubscriptionPage() {
     redirect("/login");
   }
 
-  const school = await getCurrentSchool();
+  // Primary: get school by subdomain slug
+  // Fallback: use school embedded in user session (works on main domain)
+  let school = await getCurrentSchool();
+  if (!school && user?.school) {
+    school = user.school as any;
+  }
   
   return <SubscriptionClient initialSchool={school} user={user} />;
 }
