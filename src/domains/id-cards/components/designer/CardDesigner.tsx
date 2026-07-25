@@ -8,6 +8,7 @@ import CardCanvas from "./CardCanvas";
 import CardRightProperties from "./CardRightProperties";
 import CardLayersPanel from "./CardLayersPanel";
 import { useCardTemplateStore } from "./CardTemplateStore";
+import { exportCardToPDF, exportCardToImage, exportCardToJSON } from "./cardExportEngine";
 import { saveCardTemplate, getCardTemplates, deleteCardTemplate } from "@/domains/academics/actions/academics.actions";
 import { getBranches } from "@/domains/settings/actions/settings.actions";
 import { getStudents } from "@/domains/students/actions/students.actions";
