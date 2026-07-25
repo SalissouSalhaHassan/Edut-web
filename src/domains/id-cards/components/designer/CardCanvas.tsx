@@ -35,6 +35,7 @@ export default function CardCanvas({
   showRulers,
   snapToGrid,
   activeStudent,
+  activeBranch,
 }: CardCanvasProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [snapLines, setSnapLines] = useState<{ x?: number; y?: number }>({});
