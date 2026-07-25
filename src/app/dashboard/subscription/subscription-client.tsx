@@ -54,6 +54,24 @@ type SchoolType = {
 
 type Tab = "overview" | "plans" | "history" | "billing";
 
+type StatsType = {
+  totalStudents: number;
+  activeStudents: number;
+  totalEmployees: number;
+  totalClasses: number;
+  totalSections: number;
+  totalUsers: number;
+};
+
+const DEFAULT_STATS: StatsType = {
+  totalStudents: 0,
+  activeStudents: 0,
+  totalEmployees: 0,
+  totalClasses: 0,
+  totalSections: 0,
+  totalUsers: 0,
+};
+
 // ─── helpers ──────────────────────────────────────────────────────────────────
 function getDaysRemaining(expiry: Date | string | null): number {
   if (!expiry) return 0;
@@ -151,14 +169,6 @@ const MODULES = [
   { name: "API & SSO custom", basic: false, pro: false, enterprise: true },
 ];
 
-// Mock billing history
-const BILLING_HISTORY = [
-  { date: "25 Juil 2026", plan: "Professionnel", amount: "49 000 F CFA", status: "Payé", invoice: "INV-2026-007" },
-  { date: "25 Juin 2026", plan: "Professionnel", amount: "49 000 F CFA", status: "Payé", invoice: "INV-2026-006" },
-  { date: "25 Mai 2026", plan: "Basique", amount: "19 000 F CFA", status: "Payé", invoice: "INV-2026-005" },
-  { date: "25 Avr 2026", plan: "Basique", amount: "19 000 F CFA", status: "Payé", invoice: "INV-2026-004" },
-];
-
 // ─── sub-components ────────────────────────────────────────────────────────────
 
 function ModuleCell({ val }: { val: boolean | string }) {
@@ -197,11 +207,13 @@ export default function SubscriptionClient({
   user,
   allSchools = [],
   isSuperAdmin = false,
+  initialStats = DEFAULT_STATS,
 }: {
   initialSchool: SchoolType;
   user: any;
   allSchools?: { id: number; name: string; slug: string; plan: string | null; status: string | null; subscriptionExpiry: Date | string | null }[];
   isSuperAdmin?: boolean;
+  initialStats?: StatsType;
 }) {
   const [school, setSchool] = useState<SchoolType>(initialSchool);
   const [isPending, startTransition] = useTransition();
@@ -209,10 +221,22 @@ export default function SubscriptionClient({
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [daysLeft, setDaysLeft] = useState(0);
   const [showSchoolPicker, setShowSchoolPicker] = useState(false);
+  const [stats, setStats] = useState<StatsType>(initialStats);
+  const [statsLoading, setStatsLoading] = useState(false);
 
   useEffect(() => {
     setDaysLeft(getDaysRemaining(school?.subscriptionExpiry ?? null));
   }, [school]);
+
+  // When super admin switches school, reload stats
+  useEffect(() => {
+    if (!isSuperAdmin || !school?.id) return;
+    setStatsLoading(true);
+    import("@/domains/auth/actions/subscription.actions")
+      .then(m => m.getSchoolStats(school.id))
+      .then(s => { setStats(s); setStatsLoading(false); })
+      .catch(() => setStatsLoading(false));
+  }, [school?.id, isSuperAdmin]);
 
   const handleUpgrade = (planName: string) => {
     setSelectedPlan(planName);
@@ -514,15 +538,53 @@ export default function SubscriptionClient({
             </div>
           </div>
 
-          {/* Stats Row */}
+          {/* Stats Row — Real Data */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {[
-              { label: "Élèves enregistrés", value: "124", limit: currentPlan === "basic" ? "/100" : "∞", icon: Users, color: "indigo", pct: currentPlan === "basic" ? 124 : 50 },
-              { label: "Enseignants actifs", value: "18", limit: currentPlan === "basic" ? "/10" : "∞", icon: BookOpen, color: "emerald", pct: 60 },
-              { label: "Classes & Sections", value: "14", limit: "∞", icon: GraduationCap, color: "amber", pct: 35 },
-              { label: "Jours restants", value: daysLeft.toString(), limit: `/${maxDays}`, icon: Clock, color: daysLeft <= 7 ? "rose" : "indigo", pct: Math.min(100, (daysLeft / maxDays) * 100) },
+              {
+                label: "Élèves enregistrés",
+                value: stats.totalStudents,
+                sublabel: stats.activeStudents !== stats.totalStudents
+                  ? `${stats.activeStudents} actifs`
+                  : undefined,
+                limit: currentPlan === "basic" ? "/100" : "∞",
+                icon: Users,
+                color: "indigo",
+                pct: currentPlan === "basic"
+                  ? Math.min(100, (stats.totalStudents / 100) * 100)
+                  : Math.min(100, (stats.totalStudents / Math.max(stats.totalStudents, 1)) * 50),
+              },
+              {
+                label: "Personnel & Enseignants",
+                value: stats.totalEmployees,
+                sublabel: stats.totalUsers > 0 ? `${stats.totalUsers} comptes` : undefined,
+                limit: currentPlan === "basic" ? "/10" : "∞",
+                icon: BookOpen,
+                color: "emerald",
+                pct: currentPlan === "basic"
+                  ? Math.min(100, (stats.totalEmployees / 10) * 100)
+                  : Math.min(100, (stats.totalEmployees / Math.max(stats.totalEmployees, 1)) * 60),
+              },
+              {
+                label: "Classes enregistrées",
+                value: stats.totalClasses,
+                sublabel: stats.totalSections > 0 ? `${stats.totalSections} sections` : undefined,
+                limit: "∞",
+                icon: GraduationCap,
+                color: "amber",
+                pct: Math.min(100, (stats.totalClasses / Math.max(stats.totalClasses, 1)) * 60),
+              },
+              {
+                label: "Jours restants",
+                value: daysLeft,
+                sublabel: undefined,
+                limit: `/${maxDays}`,
+                icon: Clock,
+                color: daysLeft <= 7 ? "rose" : "indigo",
+                pct: Math.min(100, (daysLeft / maxDays) * 100),
+              },
             ].map((stat, i) => (
-              <Card key={i} className="border-none shadow-sm rounded-[1.75rem] bg-white overflow-hidden">
+              <Card key={i} className={`border-none shadow-sm rounded-[1.75rem] bg-white overflow-hidden transition-opacity ${statsLoading ? "opacity-50" : "opacity-100"}`}>
                 <CardContent className="p-5 space-y-3">
                   <div className="flex items-center justify-between">
                     <div className={`w-9 h-9 rounded-xl flex items-center justify-center
@@ -533,13 +595,22 @@ export default function SubscriptionClient({
                     >
                       <stat.icon size={16} />
                     </div>
-                    <span className="text-2xl font-black text-slate-900">
-                      {stat.value}
-                      <span className="text-sm font-bold text-slate-400">{stat.limit}</span>
-                    </span>
+                    <div className="text-right">
+                      <span className="text-2xl font-black text-slate-900">
+                        {statsLoading ? "…" : stat.value}
+                        <span className="text-sm font-bold text-slate-400">{stat.limit}</span>
+                      </span>
+                      {stat.sublabel && (
+                        <p className="text-[10px] text-slate-400 font-bold">{stat.sublabel}</p>
+                      )}
+                    </div>
                   </div>
                   <p className="text-xs font-bold text-slate-500">{stat.label}</p>
-                  <ProgressBar value={stat.pct} max={100} color={stat.color === "rose" ? "rose" : stat.color === "amber" ? "amber" : stat.color === "emerald" ? "emerald" : "indigo"} />
+                  <ProgressBar
+                    value={stat.pct}
+                    max={100}
+                    color={stat.color === "rose" ? "rose" : stat.color === "amber" ? "amber" : stat.color === "emerald" ? "emerald" : "indigo"}
+                  />
                 </CardContent>
               </Card>
             ))}
@@ -789,28 +860,54 @@ export default function SubscriptionClient({
                 Toutes vos transactions et changements de forfait.
               </CardDescription>
             </CardHeader>
-            <CardContent className="p-8 pt-0 space-y-3">
-              {BILLING_HISTORY.map((item, i) => (
-                <div key={i} className="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-100 hover:bg-slate-100/60 transition-colors">
-                  <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center shrink-0">
-                    <FileText size={18} className="text-indigo-600" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-black text-slate-900 text-sm">Forfait {item.plan}</p>
-                    <p className="text-xs text-slate-500 font-medium">{item.date} · {item.invoice}</p>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="font-black text-slate-900 text-sm">{item.amount}</p>
-                    <Badge className="bg-emerald-50 text-emerald-600 border-none text-[10px] font-black">
-                      {item.status}
-                    </Badge>
-                  </div>
-                  <Button variant="ghost" size="sm" className="text-indigo-600 hover:text-indigo-700 rounded-xl font-bold text-xs gap-1">
-                    <FileText size={12} />
-                    PDF
-                  </Button>
+            <CardContent className="p-8 pt-0 space-y-4">
+              <div className="flex items-center gap-3 p-4 rounded-2xl bg-indigo-50 border border-indigo-100">
+                <Info size={18} className="text-indigo-500 shrink-0" />
+                <p className="text-sm text-indigo-800 font-semibold">
+                  L'historique de facturation sera disponible une fois le système de paiement en ligne activé.
+                  Les renouvellements actuels sont traités manuellement.
+                </p>
+              </div>
+
+              {/* Current subscription as a record */}
+              <div className="flex items-center gap-4 p-4 rounded-2xl bg-emerald-50 border border-emerald-100">
+                <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0">
+                  <ShieldCheck size={18} className="text-emerald-600" />
                 </div>
-              ))}
+                <div className="flex-1 min-w-0">
+                  <p className="font-black text-slate-900 text-sm">
+                    Forfait {currentPlan === "basic" ? "Basique" : currentPlan === "pro" ? "Professionnel" : "Entreprise"} — Actif
+                  </p>
+                  <p className="text-xs text-slate-500 font-medium">
+                    Renouvelé jusqu'au {formattedExpiry} · {school.slug}
+                  </p>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="font-black text-slate-900 text-sm">
+                    {PLANS.find(p => p.id === currentPlan)?.price ?? "N/A"}
+                  </p>
+                  <Badge className="bg-emerald-100 text-emerald-700 border-none text-[10px] font-black">
+                    Actif
+                  </Badge>
+                </div>
+              </div>
+
+              {/* Usage stats in history */}
+              <div className="grid grid-cols-3 gap-3 pt-2">
+                {[
+                  { label: "Élèves", value: statsLoading ? "…" : stats.totalStudents, icon: Users, color: "bg-indigo-50 text-indigo-600" },
+                  { label: "Personnel", value: statsLoading ? "…" : stats.totalEmployees, icon: BookOpen, color: "bg-emerald-50 text-emerald-600" },
+                  { label: "Classes", value: statsLoading ? "…" : stats.totalClasses, icon: GraduationCap, color: "bg-amber-50 text-amber-600" },
+                ].map((s, i) => (
+                  <div key={i} className="p-3 rounded-2xl bg-slate-50 border border-slate-100 text-center">
+                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center mx-auto mb-2 ${s.color}`}>
+                      <s.icon size={15} />
+                    </div>
+                    <p className="text-xl font-black text-slate-900">{s.value}</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{s.label}</p>
+                  </div>
+                ))}
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -824,22 +921,45 @@ export default function SubscriptionClient({
           <Card className="border-none shadow-sm rounded-[2rem] bg-white overflow-hidden">
             <CardHeader className="p-8 pb-4">
               <CardTitle className="text-lg font-black text-slate-900">Informations de facturation</CardTitle>
+              <CardDescription className="font-semibold text-slate-500">
+                Données réelles de votre école depuis la base de données.
+              </CardDescription>
             </CardHeader>
             <CardContent className="p-8 pt-0 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 {[
                   { label: "Établissement", value: school.name },
-                  { label: "Identifiant école", value: school.slug },
-                  { label: "Forfait actif", value: currentPlan.charAt(0).toUpperCase() + currentPlan.slice(1) },
-                  { label: "Statut", value: currentStatus === "active" ? "Actif ✅" : "Suspendu ❌" },
-                  { label: "Prochain renouvellement", value: formattedExpiry },
-                  { label: "Jours restants", value: `${daysLeft} jours` },
+                  { label: "Identifiant (slug)", value: school.slug },
+                  { label: "ID École", value: `#${school.id}` },
+                  { label: "Forfait actif", value: currentPlan === "basic" ? "Basique" : currentPlan === "pro" ? "Professionnel" : "Entreprise" },
+                  { label: "Statut abonnement", value: currentStatus === "active" ? "✅ Actif" : "❌ Suspendu" },
+                  { label: "Date d'expiration", value: formattedExpiry },
+                  { label: "Jours restants", value: daysLeft > 0 ? `${daysLeft} jour${daysLeft > 1 ? 's' : ''}` : "Expiré" },
+                  { label: "URL de connexion", value: `${school.slug}.edut.pro` },
                 ].map((item, i) => (
                   <div key={i} className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
                     <p className="text-xs font-black text-slate-400 uppercase tracking-wider mb-1">{item.label}</p>
-                    <p className="font-black text-slate-900 text-sm">{item.value}</p>
+                    <p className="font-black text-slate-900 text-sm break-all">{item.value}</p>
                   </div>
                 ))}
+              </div>
+
+              {/* Real usage summary */}
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100">
+                <p className="text-xs font-black text-indigo-800 uppercase tracking-wider mb-3">Utilisation réelle</p>
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { label: "Élèves", value: statsLoading ? "…" : stats.totalStudents, sub: statsLoading ? "" : `${stats.activeStudents} actifs` },
+                    { label: "Personnel", value: statsLoading ? "…" : stats.totalEmployees, sub: statsLoading ? "" : `${stats.totalUsers} comptes` },
+                    { label: "Classes", value: statsLoading ? "…" : stats.totalClasses, sub: statsLoading ? "" : `${stats.totalSections} sections` },
+                  ].map((s, i) => (
+                    <div key={i} className="text-center">
+                      <p className="text-2xl font-black text-indigo-900">{s.value}</p>
+                      <p className="text-xs font-bold text-indigo-600">{s.label}</p>
+                      {s.sub && <p className="text-[10px] text-indigo-400 font-medium">{s.sub}</p>}
+                    </div>
+                  ))}
+                </div>
               </div>
             </CardContent>
           </Card>

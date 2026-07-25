@@ -1,8 +1,12 @@
 "use server";
 
 import { db } from "@/infrastructure/database";
-import { schools } from "@/infrastructure/database/schema/auth";
-import { eq } from "drizzle-orm";
+import { readDb } from "@/infrastructure/database";
+import { schools, users } from "@/infrastructure/database/schema/auth";
+import { students } from "@/infrastructure/database/schema/students";
+import { employees } from "@/infrastructure/database/schema/hr";
+import { schoolClasses, schoolSections } from "@/infrastructure/database/schema/academics";
+import { eq, count, and } from "drizzle-orm";
 import { protectedDbAction } from "@/lib/protected-action";
 import { revalidatePath } from "next/cache";
 import { getActiveSchoolId, getCurrentSchool } from "@/domains/auth/services/school";
@@ -15,6 +19,56 @@ export async function getSchoolSubscription() {
     const school = await getCurrentSchool();
     return { school };
   });
+}
+
+/**
+ * Get real usage statistics for a school
+ */
+export async function getSchoolStats(schoolId: number) {
+  try {
+    const [
+      studentCountRes,
+      activeStudentCountRes,
+      employeeCountRes,
+      classCountRes,
+      sectionCountRes,
+      userCountRes,
+    ] = await Promise.all([
+      // Total students
+      readDb.select({ count: count() }).from(students).where(eq(students.schoolId, schoolId)),
+      // Active students only
+      readDb.select({ count: count() }).from(students).where(
+        and(eq(students.schoolId, schoolId), eq(students.statut, "Actif"))
+      ),
+      // Total employees (teachers + staff)
+      readDb.select({ count: count() }).from(employees).where(eq(employees.schoolId, schoolId)),
+      // Total classes
+      readDb.select({ count: count() }).from(schoolClasses).where(eq(schoolClasses.schoolId, schoolId)),
+      // Total sections
+      readDb.select({ count: count() }).from(schoolSections).where(eq(schoolSections.schoolId, schoolId)),
+      // Total user accounts
+      readDb.select({ count: count() }).from(users).where(eq(users.schoolId, schoolId)),
+    ]);
+
+    return {
+      totalStudents: studentCountRes[0]?.count ?? 0,
+      activeStudents: activeStudentCountRes[0]?.count ?? 0,
+      totalEmployees: employeeCountRes[0]?.count ?? 0,
+      totalClasses: classCountRes[0]?.count ?? 0,
+      totalSections: sectionCountRes[0]?.count ?? 0,
+      totalUsers: userCountRes[0]?.count ?? 0,
+    };
+  } catch (e) {
+    console.error("[getSchoolStats] Error:", e);
+    return {
+      totalStudents: 0,
+      activeStudents: 0,
+      totalEmployees: 0,
+      totalClasses: 0,
+      totalSections: 0,
+      totalUsers: 0,
+    };
+  }
 }
 
 /**

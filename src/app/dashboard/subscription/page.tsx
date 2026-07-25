@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import SubscriptionClient from "./subscription-client";
 import { readDb } from "@/infrastructure/database";
 import { schools } from "@/infrastructure/database/schema/auth";
+import { getSchoolStats } from "@/domains/auth/actions/subscription.actions";
 
 export default async function SubscriptionPage() {
   const user = await getCurrentUser();
@@ -38,6 +39,19 @@ export default async function SubscriptionPage() {
     }
   }
 
-  return <SubscriptionClient initialSchool={school} user={user} allSchools={allSchools} isSuperAdmin={isSuperAdmin} />;
+  // Fetch real stats for the current school
+  const stats = school?.id
+    ? await getSchoolStats(school.id)
+    : { totalStudents: 0, activeStudents: 0, totalEmployees: 0, totalClasses: 0, totalSections: 0, totalUsers: 0 };
+
+  return (
+    <SubscriptionClient
+      initialSchool={school}
+      user={user}
+      allSchools={allSchools}
+      isSuperAdmin={isSuperAdmin}
+      initialStats={stats}
+    />
+  );
 }
 
