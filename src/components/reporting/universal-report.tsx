@@ -717,6 +717,39 @@ export default function UniversalReport({ metadata, kpis = [], table, onSendEmai
         </div>
       </header>
 
+      <style dangerouslySetInnerHTML={{__html: `
+        @media print {
+          @page {
+            size: ${selectedPaperSize === "A5" ? "A5 portrait" : "A4 portrait"};
+            margin: ${selectedPaperSize === "A5" ? "6mm 8mm" : "8mm 10mm"};
+          }
+          html, body {
+            background: #ffffff !important;
+            color: #000000 !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: visible !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          * {
+            overflow: visible !important;
+            box-shadow: none !important;
+            scrollbar-width: none !important;
+            -ms-overflow-style: none !important;
+          }
+          ::-webkit-scrollbar {
+            display: none !important;
+            width: 0 !important;
+            height: 0 !important;
+          }
+          .no-print, .print\\:hidden {
+            display: none !important;
+          }
+        }
+      `}} />
+
       {/* ─── PRINTABLE DOCUMENT WRAPPER ─── */}
       <article data-paper-size={selectedPaperSize} className="bg-white rounded-[32px] border border-slate-100 shadow-sm p-8 print:p-0 print:border-none print:shadow-none space-y-8 print:bg-white print:text-black">
         
@@ -729,9 +762,9 @@ export default function UniversalReport({ metadata, kpis = [], table, onSendEmai
               <ShieldCheck size={14} className="text-indigo-600" /> Résumé Général
             </h3>
             
-            <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-4 grid-cols-2 lg:grid-cols-4 print:grid-cols-4 print:gap-2.5">
               {kpis.map((kpi, idx) => (
-                <div key={idx} className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm flex items-center justify-between gap-4 print:border-slate-300">
+                <div key={idx} className="rounded-2xl border border-slate-100 bg-white p-5 print:p-3 shadow-sm flex items-center justify-between gap-4 print:border-slate-300">
                   <div>
                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">{kpi.label}</span>
                     <span className="text-2xl font-black text-slate-950 mt-1 block">{kpi.value}</span>
@@ -748,7 +781,7 @@ export default function UniversalReport({ metadata, kpis = [], table, onSendEmai
 
         {/* ─── DESCRIPTION / INFO SECTION ─── */}
         {metadata.description && (
-          <div className="rounded-[24px] border border-slate-100 bg-slate-50/50 p-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 print:border-slate-300 print:bg-white">
+          <div className="rounded-[24px] border border-slate-100 bg-slate-50/50 p-5 print:p-3 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 print:border-slate-300 print:bg-white">
             <div className="space-y-1">
               <p className="text-[10px] font-black uppercase tracking-widest text-indigo-600 flex items-center gap-1.5">
                 <Info size={13} /> À propos de ce rapport
@@ -776,8 +809,8 @@ export default function UniversalReport({ metadata, kpis = [], table, onSendEmai
               <Building size={14} className="text-indigo-600" /> Données détaillées
             </h3>
             
-            <div className="overflow-x-auto rounded-[24px] border border-slate-100 print:border-slate-300">
-              <table className="w-full border-collapse text-left text-sm print:border print:border-slate-300">
+            <div className="overflow-x-auto print:overflow-visible rounded-[24px] border border-slate-100 print:border-slate-300">
+              <table className="w-full border-collapse text-left text-sm print:text-xs print:border print:border-slate-300">
                 <thead>
                   <tr className="bg-indigo-600 text-[10px] font-black uppercase tracking-widest text-white print:bg-slate-100 print:text-black print:border-b print:border-slate-300">
                     {table.headers.map((head, idx) => (

@@ -224,7 +224,7 @@ export default function ReportingClient({
   };
 
   return (
-    <div className="min-h-screen space-y-6 p-4 text-slate-950 md:p-6 xl:p-8 print:bg-white print:p-0">
+    <div className="min-h-screen space-y-6 p-4 text-slate-950 md:p-6 xl:p-8 print:bg-white print:p-0 print:m-0 print:w-full print:min-h-0">
       
       {/* ─── WEB HEADER (Hidden on print) ─── */}
       <header className="rounded-[30px] border border-slate-200 bg-white p-5 shadow-sm print:hidden">
