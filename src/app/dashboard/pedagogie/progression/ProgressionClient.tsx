@@ -1,11 +1,14 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
 import {
   Printer, Download, Search, Filter, AlertTriangle, CheckCircle2, BookOpen,
   Users, Clock, HelpCircle, Eye, Mail, Bell, FileText, ChevronLeft, ChevronRight,
-  TrendingUp, Award, Layers, Sparkles, MessageSquare, ShieldAlert, X
+  TrendingUp, Award, Layers, Sparkles, MessageSquare, ShieldAlert, ShieldCheck, X
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
@@ -225,7 +228,7 @@ export default function ProgressionClient({
     toast.success(`Relance envoyée avec succès à l'enseignant ${teacherName} pour la matière ${subject}.`);
   };
 
-  const handleExport = () => {
+  const handleExportCsv = () => {
     const headers = ["N°", "Classe", "Niveau", "Matière", "Enseignant", "Prévues", "Réalisées", "Restantes", "Taux", "Statut"];
     const rows = filtered.map((r, i) => [
       i + 1,
@@ -246,6 +249,141 @@ export default function ProgressionClient({
     a.click();
   };
 
+  const handleExportPdf = () => {
+    try {
+      toast.success("Génération du rapport PDF de progression...");
+      const doc = new jsPDF({
+        orientation: "landscape",
+        unit: "mm",
+        format: "a4"
+      });
+
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const editionDate = new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+
+      // Header Box
+      doc.setFillColor(248, 250, 252);
+      doc.rect(10, 10, pageWidth - 20, 32, "F");
+      doc.setDrawColor(226, 232, 240);
+      doc.rect(10, 10, pageWidth - 20, 32, "S");
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8);
+      doc.setTextColor(99, 102, 241);
+      doc.text("GESTION PÉDAGOGIQUE & AVANCEMENT", 15, 17);
+
+      doc.setFontSize(14);
+      doc.setTextColor(15, 23, 42);
+      doc.text("SUIVI DE PROGRESSION PÉDAGOGIQUE", 15, 24);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8.5);
+      doc.setTextColor(100, 116, 139);
+      doc.text("Avancement des programmes par matière et classe", 15, 29);
+
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "bold");
+      doc.text("INFORMATIONS DOCUMENT", pageWidth - 85, 17);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Date d'édition : ${editionDate}`, pageWidth - 85, 22);
+      doc.text("Année scolaire : 2025 - 2026", pageWidth - 85, 27);
+      doc.text("Édité par : Admin Super", pageWidth - 85, 31);
+
+      let currentY = 48;
+
+      // KPI Summary Text
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.setTextColor(15, 23, 42);
+      doc.text(`SYNTHÈSE DES INDICATEURS (Total Prévu: ${kpis.planned} | Réalisé: ${kpis.realised} | Taux Global: ${kpis.rate}% | Classes à risque: ${kpis.atRisk})`, 10, currentY);
+      doc.line(10, currentY + 2, pageWidth - 10, currentY + 2);
+      currentY += 8;
+
+      const headers = ["N°", "Classe", "Niveau", "Matière", "Enseignant", "Prévues", "Réalisées", "Restantes", "Taux (%)", "Statut"];
+      const rows = filtered.map((r, i) => [
+        i + 1,
+        r.className,
+        r.niveau,
+        r.subjectName,
+        r.teacherName,
+        r.totalPlanned,
+        r.totalRealised,
+        r.remaining,
+        `${r.rate}%`,
+        r.status
+      ]);
+
+      autoTable(doc, {
+        startY: currentY,
+        head: [headers],
+        body: rows,
+        theme: "striped",
+        headStyles: {
+          fillColor: [99, 102, 241],
+          textColor: [255, 255, 255],
+          fontSize: 8,
+          fontStyle: "bold"
+        },
+        bodyStyles: {
+          fontSize: 7.5,
+          textColor: [51, 65, 85]
+        },
+        margin: { left: 10, right: 10 }
+      });
+
+      currentY = (doc as any).lastAutoTable.finalY + 8;
+
+      // Signatures
+      if (currentY + 25 > pageHeight) {
+        doc.addPage();
+        currentY = 20;
+      }
+
+      doc.setDrawColor(226, 232, 240);
+      doc.line(10, currentY, pageWidth - 10, currentY);
+      currentY += 5;
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8);
+      doc.setTextColor(100, 116, 139);
+      doc.text("CONTRÔLE & SIGNATURES", 10, currentY);
+      currentY += 6;
+
+      let colWidth = (pageWidth - 20) / 3;
+      doc.text("LE CLIENT (Inspecteur / IEFA)", 15, currentY);
+      doc.setDrawColor(203, 213, 225);
+      doc.rect(15, currentY + 2, colWidth - 10, 14, "S");
+
+      doc.setFillColor(239, 246, 255);
+      doc.setDrawColor(191, 219, 254);
+      doc.rect(colWidth + 15, currentY + 2, colWidth - 10, 14, "DF");
+      doc.setFontSize(7);
+      doc.setTextColor(99, 102, 241);
+      doc.text("EDUT PRO SCOLAIRE", colWidth + 22, currentY + 8);
+      doc.text("Rapport Certifié", colWidth + 24, currentY + 12);
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8);
+      doc.setTextColor(100, 116, 139);
+      doc.text("LA DIRECTION PEDAGOGIQUE", colWidth * 2 + 15, currentY);
+      doc.setDrawColor(203, 213, 225);
+      doc.rect(colWidth * 2 + 15, currentY + 2, colWidth - 10, 14, "S");
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7.5);
+      doc.setTextColor(148, 163, 184);
+      doc.text("Edut Pro - Suivi de Progression Pédagogique", 10, pageHeight - 6);
+      doc.text("Page 1 / 1", pageWidth - 20, pageHeight - 6);
+
+      doc.save(`Rapport_Progression_Pedagogique_${Date.now()}.pdf`);
+      toast.success("Rapport PDF exporté avec succès !");
+    } catch (e: any) {
+      console.error(e);
+      toast.error("Erreur lors de la génération du PDF.");
+    }
+  };
+
   const KpiCard = ({ icon, label, value, color, sub }: any) => (
     <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
       <div className={`p-3.5 rounded-xl ${color} shrink-0`}>{icon}</div>
@@ -258,10 +396,43 @@ export default function ProgressionClient({
   );
 
   return (
-    <div className="min-h-screen bg-slate-50/60 p-5 lg:p-7 space-y-6">
+    <div className="min-h-screen bg-slate-50/60 p-5 lg:p-7 space-y-6 print:bg-white print:p-0 print:m-0 print:w-full print:min-h-0">
+
+      <style dangerouslySetInnerHTML={{__html: `
+        @media print {
+          @page {
+            size: A4 portrait;
+            margin: 8mm 10mm;
+          }
+          html, body {
+            background: #ffffff !important;
+            color: #000000 !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: visible !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          * {
+            overflow: visible !important;
+            box-shadow: none !important;
+            scrollbar-width: none !important;
+            -ms-overflow-style: none !important;
+          }
+          ::-webkit-scrollbar {
+            display: none !important;
+            width: 0 !important;
+            height: 0 !important;
+          }
+          .no-print, .print\\:hidden {
+            display: none !important;
+          }
+        }
+      `}} />
 
       {/* ─── HEADER ─── */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 print:hidden">
         <div className="flex items-center gap-3">
           <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-700 flex items-center justify-center shadow-lg shadow-indigo-200 shrink-0">
             <TrendingUp size={20} className="text-white" />
@@ -274,11 +445,14 @@ export default function ProgressionClient({
         <div className="flex items-center gap-2">
           {canExport && (
             <>
-              <button onClick={() => window.print()} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-bold hover:bg-slate-50 transition-all shadow-sm">
-                <Printer size={14} /> Imprimer
+              <button onClick={() => window.print()} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-700 text-xs font-bold hover:bg-slate-50 transition-all shadow-sm">
+                <Printer size={14} className="text-indigo-600" /> Imprimer
               </button>
-              <button onClick={handleExport} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-bold hover:bg-slate-50 transition-all shadow-sm">
-                <Download size={14} /> Générer rapport
+              <button onClick={handleExportPdf} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-700 text-xs font-bold hover:bg-slate-50 transition-all shadow-sm">
+                <FileText size={14} className="text-rose-500" /> Exporter PDF
+              </button>
+              <button onClick={handleExportCsv} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-700 text-xs font-bold hover:bg-slate-50 transition-all shadow-sm">
+                <Download size={14} className="text-emerald-600" /> CSV
               </button>
             </>
           )}
@@ -286,7 +460,7 @@ export default function ProgressionClient({
       </div>
 
       {/* ─── KPIs ─── */}
-      <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 print:hidden">
         <KpiCard icon={<BookOpen size={18} className="text-blue-600" />} label="Programme prévu" value={kpis.planned} color="bg-blue-50" sub="Leçons au total" />
         <KpiCard icon={<CheckCircle2 size={18} className="text-emerald-600" />} label="Programme réalisé" value={kpis.realised} color="bg-emerald-50" sub="Leçons validées" />
         <KpiCard icon={<TrendingUp size={18} className="text-violet-600" />} label="Taux progression" value={`${kpis.rate}%`} color="bg-violet-50" sub="Moyenne exécution" />
@@ -296,7 +470,7 @@ export default function ProgressionClient({
       </div>
 
       {/* ─── CHARTS SECTION ─── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 print:hidden">
         {/* Progression par classe (BarChart) */}
         <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
           <h3 className="text-xs font-black text-slate-700 uppercase tracking-wider mb-4">Progression par classe (%)</h3>
@@ -354,7 +528,7 @@ export default function ProgressionClient({
       </div>
 
       {/* ─── FILTERS ─── */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex flex-wrap items-center gap-3">
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex flex-wrap items-center gap-3 print:hidden">
         <div className="relative flex-1 min-w-[240px]">
           <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
@@ -386,7 +560,7 @@ export default function ProgressionClient({
       </div>
 
       {/* ─── DATA TABLE ─── */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden print:hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
@@ -464,7 +638,7 @@ export default function ProgressionClient({
 
       {/* ─── DETAILS MODAL ─── */}
       {showDetails && selectedProgress && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm print:hidden">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
@@ -589,6 +763,146 @@ export default function ProgressionClient({
           </div>
         </div>
       )}
+
+      {/* ─── PRINT LAYOUT FOR PROGRESSION PÉDAGOGIQUE ─── */}
+      <div className="hidden print:block bg-white text-black font-sans w-full p-0 m-0 space-y-6">
+        
+        {/* Header */}
+        <div className="flex justify-between items-start border-b-2 border-indigo-600 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-14 h-14 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-black text-lg shadow-sm shrink-0">
+              EP
+            </div>
+            <div>
+              <p className="text-[9px] font-black uppercase tracking-[0.18em] text-indigo-600">GESTION PÉDAGOGIQUE & AVANCEMENT</p>
+              <h1 className="text-2xl font-black tracking-tight text-slate-950 uppercase">SUIVI DE PROGRESSION PÉDAGOGIQUE</h1>
+              <p className="text-xs font-bold text-slate-500 mt-0.5">Avancement des programmes par matière et classe</p>
+            </div>
+          </div>
+          
+          <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 text-xs font-bold text-slate-700 shrink-0 w-auto space-y-1">
+            <div className="flex justify-between gap-3">
+              <span className="text-slate-400 font-normal">Date d'édition :</span>
+              <span className="text-slate-800 font-black">{new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span className="text-slate-400 font-normal">Année scolaire :</span>
+              <span className="text-slate-800 font-black">2025 - 2026</span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span className="text-slate-400 font-normal">Édité par :</span>
+              <span className="text-slate-800 font-black">Admin Super</span>
+            </div>
+          </div>
+        </div>
+
+        {/* KPIs Grid (6 Cards) */}
+        <div className="space-y-3">
+          <h3 className="text-xs font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
+            <ShieldCheck size={14} className="text-indigo-600" /> Indicateurs Globaux d'Avancement
+          </h3>
+          <div className="grid grid-cols-3 gap-3 w-full">
+            {[
+              { label: "Programme prévu", value: kpis.planned, sub: "Leçons au total", color: "text-blue-600", bg: "bg-blue-50" },
+              { label: "Programme réalisé", value: kpis.realised, sub: "Leçons validées", color: "text-emerald-600", bg: "bg-emerald-50" },
+              { label: "Taux progression", value: `${kpis.rate}%`, sub: "Moyenne exécution", color: "text-violet-600", bg: "bg-violet-50" },
+              { label: "Cours en retard", value: kpis.lateCount, sub: "Hors échéances", color: "text-rose-600", bg: "bg-rose-50" },
+              { label: "Classes à risque", value: kpis.atRisk, sub: "Progression < 50%", color: "text-red-600", bg: "bg-red-50" },
+              { label: "Enseignants à relancer", value: kpis.teachersCount, sub: "Relances prêtes", color: "text-amber-600", bg: "bg-amber-50" },
+            ].map((k, idx) => (
+              <div key={idx} className="rounded-xl border border-slate-200 bg-white p-3 flex items-center justify-between shadow-none">
+                <div className="space-y-0.5">
+                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">{k.label}</span>
+                  <span className="text-xl font-black text-slate-950 block">{k.value}</span>
+                  <span className="text-[8px] font-bold text-slate-400 block">{k.sub}</span>
+                </div>
+                <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 font-black text-xs border border-slate-200 ${k.bg} ${k.color}`}>
+                  {k.value}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Printable Data Table */}
+        <div className="space-y-3">
+          <h3 className="text-xs font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
+            <BookOpen size={14} className="text-indigo-600" /> Tableau Détaillé de Progression
+          </h3>
+          
+          <div className="rounded-xl border border-slate-200 w-full overflow-visible">
+            <table className="w-full border-collapse text-left text-xs table-fixed">
+              <thead>
+                <tr className="bg-indigo-600 font-black uppercase tracking-wider text-white text-[10px]">
+                  <th className="px-3 py-2.5 w-[35px]">N°</th>
+                  <th className="px-3 py-2.5 w-[80px]">Classe</th>
+                  <th className="px-3 py-2.5 w-[75px]">Niveau</th>
+                  <th className="px-3 py-2.5">Matière</th>
+                  <th className="px-3 py-2.5">Enseignant</th>
+                  <th className="px-3 py-2.5 w-[65px] text-right">Prév.</th>
+                  <th className="px-3 py-2.5 w-[65px] text-right">Réal.</th>
+                  <th className="px-3 py-2.5 w-[65px] text-right">Rest.</th>
+                  <th className="px-3 py-2.5 w-[75px] text-right">Taux (%)</th>
+                  <th className="px-3 py-2.5 w-[85px]">Statut</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200 font-semibold text-slate-800">
+                {filtered.map((r, index) => (
+                  <tr key={r.id} className="odd:bg-white even:bg-slate-50/60">
+                    <td className="px-3 py-2 text-slate-400 font-normal">{index + 1}</td>
+                    <td className="px-3 py-2 font-black text-indigo-700">{r.className}</td>
+                    <td className="px-3 py-2 text-slate-500 font-normal">{r.niveau}</td>
+                    <td className="px-3 py-2 font-black text-slate-900 truncate">{r.subjectName}</td>
+                    <td className="px-3 py-2 text-slate-700 truncate">{r.teacherName}</td>
+                    <td className="px-3 py-2 text-right font-bold text-slate-500">{r.totalPlanned}</td>
+                    <td className="px-3 py-2 text-right font-black text-emerald-600">{r.totalRealised}</td>
+                    <td className="px-3 py-2 text-right font-bold text-slate-500">{r.remaining}</td>
+                    <td className="px-3 py-2 text-right font-black text-slate-900">{r.rate}%</td>
+                    <td className="px-3 py-2">
+                      <span className={`inline-block rounded-md px-2 py-0.5 text-[9px] font-black uppercase tracking-wider ${
+                        r.status === "Excellent" ? "bg-emerald-100 text-emerald-800" :
+                        r.status === "En retard" ? "bg-rose-100 text-rose-800" : "bg-amber-100 text-amber-800"
+                      }`}>
+                        {r.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Signatures & Stamp */}
+        <div className="space-y-4 pt-6 border-t border-slate-200 mt-auto">
+          <div className="grid grid-cols-3 gap-6 items-center text-center">
+            <div>
+              <p className="text-xs font-black uppercase tracking-wider text-slate-500">Le Client (Inspecteur / IEFA)</p>
+              <div className="mt-2 h-16 w-36 border border-dashed border-slate-300 rounded-xl mx-auto flex items-center justify-center text-[10px] text-slate-400 italic">Signature & Cachet</div>
+            </div>
+            <div className="flex flex-col items-center">
+              <div className="w-16 h-16 rounded-full border-4 border-double border-indigo-200 bg-indigo-50/30 flex flex-col items-center justify-center text-center p-1.5">
+                <span className="text-[7px] font-black text-indigo-600 uppercase tracking-widest leading-none">Edut Pro</span>
+                <span className="text-[6px] font-bold text-slate-500 uppercase leading-normal">Système</span>
+                <span className="text-[6px] font-bold text-slate-500 uppercase leading-none">Gestion Scolaire</span>
+                <span className="text-[7px] text-indigo-500 mt-0.5">★</span>
+              </div>
+            </div>
+            <div>
+              <p className="text-xs font-black uppercase tracking-wider text-slate-500">La Direction Pédagogique</p>
+              <div className="mt-2 h-16 w-36 border border-dashed border-slate-300 rounded-xl mx-auto flex items-center justify-center text-[10px] text-slate-400 italic">Signature & Cachet</div>
+            </div>
+          </div>
+          
+          {/* Footer Page 1 */}
+          <div className="flex justify-between items-center text-[9px] text-slate-400 font-bold uppercase tracking-widest border-t border-slate-200 pt-3 mt-4">
+            <span>Edut Pro - Progression Pédagogique</span>
+            <span className="text-indigo-600 italic">Merci pour votre confiance</span>
+            <span>Page 1 / 1</span>
+          </div>
+        </div>
+
+      </div>
     </div>
   );
 }
