@@ -23,8 +23,8 @@ const SAMPLE_STUDENTS = [
     nomEtudiant: "Maman Dan Falké",
     prenomEtudiant: "Aboubacar",
     numAdmission: "EDUT-2024-000325",
-    classe: "M2 Arabic",
-    educationalLevel: "Master",
+    classe: "6ème A",
+    educationalLevel: "Collège",
     sexe: "Garçon",
     dateNaissance: "2002-07-09",
     lieuNaissance: "Téra",
@@ -36,8 +36,8 @@ const SAMPLE_STUDENTS = [
     nomEtudiant: "Maman",
     prenomEtudiant: "Adah",
     numAdmission: "EDUT-2024-000324",
-    classe: "M2 Arabic",
-    educationalLevel: "Master",
+    classe: "5ème B",
+    educationalLevel: "Collège",
     sexe: "Garçon",
     dateNaissance: "2003-05-14",
     lieuNaissance: "Niamey",
@@ -49,8 +49,8 @@ const SAMPLE_STUDENTS = [
     nomEtudiant: "Maman",
     prenomEtudiant: "Biba",
     numAdmission: "EDUT-2024-000323",
-    classe: "M2 Arabic",
-    educationalLevel: "Master",
+    classe: "1ère D",
+    educationalLevel: "Lycée",
     sexe: "Fille",
     dateNaissance: "2003-11-20",
     lieuNaissance: "Zinder",
@@ -62,8 +62,8 @@ const SAMPLE_STUDENTS = [
     nomEtudiant: "Mamadou Ibrahim",
     prenomEtudiant: "Salifou",
     numAdmission: "EDUT-2024-000322",
-    classe: "M2 Arabic",
-    educationalLevel: "Master",
+    classe: "Terminale S",
+    educationalLevel: "Lycée",
     sexe: "Garçon",
     dateNaissance: "2001-08-12",
     lieuNaissance: "Maradi",
@@ -88,8 +88,8 @@ const SAMPLE_STUDENTS = [
     nomEtudiant: "Malam Maina",
     prenomEtudiant: "Abass",
     numAdmission: "EDUT-2024-000320",
-    classe: "M2 Arabic",
-    educationalLevel: "Master",
+    classe: "L3 Informatique",
+    educationalLevel: "Licence",
     sexe: "Garçon",
     dateNaissance: "2002-12-05",
     lieuNaissance: "Diffa",
@@ -101,8 +101,8 @@ const SAMPLE_STUDENTS = [
     nomEtudiant: "Malam Issoufou",
     prenomEtudiant: "Mme Hamiss",
     numAdmission: "EDUT-2024-000319",
-    classe: "M2 Arabic",
-    educationalLevel: "Master",
+    classe: "3ème C",
+    educationalLevel: "Collège",
     sexe: "Fille",
     dateNaissance: "2003-09-30",
     lieuNaissance: "Dosso",
@@ -116,6 +116,15 @@ function isValidPhoto(path?: string | null): boolean {
   const p = path.trim().toLowerCase();
   if (p.length === 0 || p.includes("placeholder")) return false;
   return true;
+}
+
+function normalizeSearchText(str?: string | null): string {
+  if (!str) return "";
+  return String(str)
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
 }
 
 export default function CardStudioContainer() {
@@ -186,17 +195,24 @@ export default function CardStudioContainer() {
 
   // Filtered Students List for Left Sidebar (Searches: Name, Matricule/ID Reference, Class/Section)
   const filteredStudents = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
+    const q = normalizeSearchText(searchQuery);
 
     return students.filter((s) => {
       let match = true;
       if (q) {
         const tokens = q.split(/\s+/).filter(Boolean);
-        const fullName = `${s.nomEtudiant || ""} ${s.prenomEtudiant || ""}`.toLowerCase();
-        const reverseName = `${s.prenomEtudiant || ""} ${s.nomEtudiant || ""}`.toLowerCase();
-        const matricule = `${s.numAdmission || ""} ${s.id || ""}`.toLowerCase();
-        const classe = `${s.classe || ""} ${s.section || ""} ${s.educationalLevel || ""}`.toLowerCase();
-        const haystack = `${fullName} ${reverseName} ${matricule} ${classe}`;
+
+        const nom = normalizeSearchText(s.nomEtudiant);
+        const prenom = normalizeSearchText(s.prenomEtudiant);
+        const fullName = `${nom} ${prenom}`;
+        const reverseName = `${prenom} ${nom}`;
+        const matricule = normalizeSearchText(`${s.numAdmission || ""} ${s.id || ""} ${s.studentId || ""}`);
+        const classe = normalizeSearchText(`${s.classe || ""} ${s.section || ""} ${s.educationalLevel || ""} ${s.filiere || ""}`);
+
+        // Synthetic keywords for generic class / matricule / name matching (e.g. typing "cl", "classe", "mat", "id")
+        const keywords = "classe class cl matricule mat id eleve etudiant";
+
+        const haystack = `${fullName} ${reverseName} ${matricule} ${classe} ${keywords}`;
 
         match = tokens.every((tok) => haystack.includes(tok));
       }
