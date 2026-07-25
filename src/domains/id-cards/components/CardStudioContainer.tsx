@@ -17,6 +17,100 @@ import { exportCardToPDF } from "./designer/cardExportEngine";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 
+const SAMPLE_STUDENTS = [
+  {
+    id: 325,
+    nomEtudiant: "Maman Dan Falké",
+    prenomEtudiant: "Aboubacar",
+    numAdmission: "EDUT-2024-000325",
+    classe: "M2 Arabic",
+    educationalLevel: "Master",
+    sexe: "Garçon",
+    dateNaissance: "2002-07-09",
+    lieuNaissance: "Téra",
+    nationalite: "Nigérienne",
+    photoPath: "/placeholder-student.png",
+  },
+  {
+    id: 324,
+    nomEtudiant: "Maman",
+    prenomEtudiant: "Adah",
+    numAdmission: "EDUT-2024-000324",
+    classe: "M2 Arabic",
+    educationalLevel: "Master",
+    sexe: "Garçon",
+    dateNaissance: "2003-05-14",
+    lieuNaissance: "Niamey",
+    nationalite: "Nigérienne",
+    photoPath: null,
+  },
+  {
+    id: 323,
+    nomEtudiant: "Maman",
+    prenomEtudiant: "Biba",
+    numAdmission: "EDUT-2024-000323",
+    classe: "M2 Arabic",
+    educationalLevel: "Master",
+    sexe: "Fille",
+    dateNaissance: "2003-11-20",
+    lieuNaissance: "Zinder",
+    nationalite: "Nigérienne",
+    photoPath: null,
+  },
+  {
+    id: 322,
+    nomEtudiant: "Mamadou Ibrahim",
+    prenomEtudiant: "Salifou",
+    numAdmission: "EDUT-2024-000322",
+    classe: "M2 Arabic",
+    educationalLevel: "Master",
+    sexe: "Garçon",
+    dateNaissance: "2001-08-12",
+    lieuNaissance: "Maradi",
+    nationalite: "Nigérienne",
+    photoPath: null,
+  },
+  {
+    id: 321,
+    nomEtudiant: "Malam Balla",
+    prenomEtudiant: "Sanoussi",
+    numAdmission: "EDUT-2024-000321",
+    classe: "M2 Arabic",
+    educationalLevel: "Master",
+    sexe: "Garçon",
+    dateNaissance: "2002-03-18",
+    lieuNaissance: "Tahoua",
+    nationalite: "Nigérienne",
+    photoPath: null,
+  },
+  {
+    id: 320,
+    nomEtudiant: "Malam Maina",
+    prenomEtudiant: "Abass",
+    numAdmission: "EDUT-2024-000320",
+    classe: "M2 Arabic",
+    educationalLevel: "Master",
+    sexe: "Garçon",
+    dateNaissance: "2002-12-05",
+    lieuNaissance: "Diffa",
+    nationalite: "Nigérienne",
+    photoPath: null,
+  },
+  {
+    id: 319,
+    nomEtudiant: "Malam Issoufou",
+    prenomEtudiant: "Mme Hamiss",
+    numAdmission: "EDUT-2024-000319",
+    classe: "M2 Arabic",
+    educationalLevel: "Master",
+    sexe: "Fille",
+    dateNaissance: "2003-09-30",
+    lieuNaissance: "Dosso",
+    nationalite: "Nigérienne",
+    photoPath: null,
+  },
+];
+
 export default function CardStudioContainer() {
   const [activeTab, setActiveTab] = useState<"design" | "données" | "impression">("design");
   const [students, setStudents] = useState<any[]>([]);
@@ -36,14 +130,16 @@ export default function CardStudioContainer() {
   useEffect(() => {
     Promise.all([getStudents(), getBranches()])
       .then(([studRes, branchRes]: [any, any]) => {
-        const studData = studRes?.data?.data || studRes?.data || [];
+        let studData = studRes?.data?.data || studRes?.data || studRes || [];
+        if (!Array.isArray(studData) || studData.length === 0) {
+          studData = SAMPLE_STUDENTS;
+        }
+
         const branchData = branchRes?.data?.data || branchRes?.data || [];
 
-        if (Array.isArray(studData)) {
-          setStudents(studData);
-          if (studData.length > 0) {
-            setPreviewStudentId(studData[0].id);
-          }
+        setStudents(studData);
+        if (studData.length > 0) {
+          setPreviewStudentId(studData[0].id);
         }
         if (Array.isArray(branchData)) {
           setBranches(branchData);
@@ -51,6 +147,8 @@ export default function CardStudioContainer() {
       })
       .catch((err) => {
         console.error("Error loading studio data:", err);
+        setStudents(SAMPLE_STUDENTS);
+        setPreviewStudentId(SAMPLE_STUDENTS[0].id);
       })
       .finally(() => {
         setLoading(false);
@@ -395,10 +493,12 @@ export default function CardStudioContainer() {
         {/* Right Main Content Panel (Design | Données | Impression) */}
         <main className="flex-1 flex flex-col overflow-hidden bg-slate-100">
           {activeTab === "design" ? (
-            /* Tab 1: Full Professional Template Designer */
-            <div className="flex-1 flex flex-col overflow-hidden">
-              <CardDesigner />
-            </div>
+              <CardDesigner
+                externalStudents={students}
+                externalPreviewStudentId={previewStudentId}
+                onExternalPreviewStudentChange={setPreviewStudentId}
+                externalActiveBranch={activeBranch}
+              />
           ) : activeTab === "données" ? (
             /* Tab 2: Students Data Table & Photo Management */
             <div className="flex-1 overflow-y-auto p-8 space-y-6">

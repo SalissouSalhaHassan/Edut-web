@@ -191,7 +191,19 @@ const DEFAULT_RECTO_CARD_ELEMENTS: CardElement[] = [
   }
 ];
 
-export default function CardDesigner() {
+interface CardDesignerProps {
+  externalStudents?: any[];
+  externalPreviewStudentId?: number | null;
+  onExternalPreviewStudentChange?: (id: number) => void;
+  externalActiveBranch?: any;
+}
+
+export default function CardDesigner({
+  externalStudents,
+  externalPreviewStudentId,
+  onExternalPreviewStudentChange,
+  externalActiveBranch,
+}: CardDesignerProps = {}) {
   const [saving, setSaving] = useState(false);
   const [students, setStudents] = useState<any[]>([]);
   const [branches, setBranches] = useState<any[]>([]);
@@ -250,9 +262,9 @@ export default function CardDesigner() {
   useEffect(() => {
     getStudents().then((res: any) => {
       const data = res.data?.data || res.data || [];
-      if (Array.isArray(data)) {
+      if (Array.isArray(data) && data.length > 0) {
         setStudents(data);
-        if (data.length > 0) setPreviewStudentId(data[0].id);
+        if (!externalPreviewStudentId) setPreviewStudentId(data[0].id);
       }
     });
     getBranches().then((res: any) => {
@@ -261,16 +273,20 @@ export default function CardDesigner() {
     });
   }, []);
 
+  const effectiveStudents = externalStudents && externalStudents.length > 0 ? externalStudents : students;
+  const effectivePreviewId = externalPreviewStudentId !== undefined && externalPreviewStudentId !== null ? externalPreviewStudentId : previewStudentId;
+  const handlePreviewStudentChange = onExternalPreviewStudentChange || setPreviewStudentId;
+
   const activeStudent = useMemo(() => {
-    if (previewStudentId) {
-      return students.find(s => s.id === previewStudentId) || students[0] || null;
+    if (effectivePreviewId) {
+      return effectiveStudents.find(s => s.id === effectivePreviewId) || effectiveStudents[0] || null;
     }
-    return students[0] || null;
-  }, [students, previewStudentId]);
+    return effectiveStudents[0] || null;
+  }, [effectiveStudents, effectivePreviewId]);
 
   const activeBranch = useMemo(() => {
-    return branches[0] || null;
-  }, [branches]);
+    return externalActiveBranch || branches[0] || null;
+  }, [externalActiveBranch, branches]);
 
   const filteredStudents = useMemo(() => {
     return students.filter(s =>
@@ -367,9 +383,9 @@ export default function CardDesigner() {
         templateName={templateName}
         onTemplateNameChange={setTemplateName}
         onBatchPrintClick={() => setShowBatchModal(true)}
-        students={students}
-        previewStudentId={previewStudentId}
-        onPreviewStudentChange={setPreviewStudentId}
+        students={effectiveStudents}
+        previewStudentId={effectivePreviewId}
+        onPreviewStudentChange={handlePreviewStudentChange}
       />
 
       {/* Main Workspace Layout */}
