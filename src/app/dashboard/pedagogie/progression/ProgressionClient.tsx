@@ -401,7 +401,7 @@ export default function ProgressionClient({
       <style dangerouslySetInnerHTML={{__html: `
         @media print {
           @page {
-            size: A4 portrait;
+            size: A4 landscape;
             margin: 8mm 10mm;
           }
           html, body {
@@ -801,7 +801,7 @@ export default function ProgressionClient({
           <h3 className="text-xs font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
             <ShieldCheck size={14} className="text-indigo-600" /> Indicateurs Globaux d'Avancement
           </h3>
-          <div className="grid grid-cols-3 gap-3 w-full">
+          <div className="grid grid-cols-6 gap-2.5 w-full">
             {[
               { label: "Programme prévu", value: kpis.planned, sub: "Leçons au total", color: "text-blue-600", bg: "bg-blue-50" },
               { label: "Programme réalisé", value: kpis.realised, sub: "Leçons validées", color: "text-emerald-600", bg: "bg-emerald-50" },
