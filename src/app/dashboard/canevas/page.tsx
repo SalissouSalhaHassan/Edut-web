@@ -372,7 +372,7 @@ export default function CanevasDashboardPage() {
       <style dangerouslySetInnerHTML={{__html: `
         @media print {
           @page {
-            size: A4 portrait;
+            size: A4 landscape;
             margin: 8mm 10mm;
           }
           html, body {
