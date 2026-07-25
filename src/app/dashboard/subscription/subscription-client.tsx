@@ -242,7 +242,7 @@ export default function SubscriptionClient({
     setSelectedPlan(planName);
     startTransition(async () => {
       try {
-        const res = await updateMySchoolSubscription(planName);
+        const res = await updateMySchoolSubscription(planName, school?.id);
         if (res.success) {
           toast.success(`Forfait ${planName.toUpperCase()} activé avec succès ! 🎉`);
           const newExpiry = new Date();

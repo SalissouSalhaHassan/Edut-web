@@ -73,11 +73,14 @@ export async function getSchoolStats(schoolId: number) {
 
 /**
  * Update the subscription of the active school (for self-serve upgrading)
+ * @param plan - The plan to upgrade to
+ * @param schoolId - Optional: pass schoolId directly (for Super Admin managing a specific school)
  */
-export async function updateMySchoolSubscription(plan: string) {
+export async function updateMySchoolSubscription(plan: string, schoolId?: number) {
   return protectedDbAction("Settings", "canEdit", async () => {
-    const schoolId = await getActiveSchoolId();
-    if (!schoolId) throw new Error("Aucun contexte d'école trouvé.");
+    // Use provided schoolId or fall back to session context
+    const targetSchoolId = schoolId ?? await getActiveSchoolId();
+    if (!targetSchoolId) throw new Error("Aucun contexte d'école trouvé.");
 
     // Set expiry based on plan
     const expiry = new Date();
@@ -93,7 +96,7 @@ export async function updateMySchoolSubscription(plan: string) {
         subscriptionExpiry: expiry,
         status: "active"
       })
-      .where(eq(schools.id, schoolId));
+      .where(eq(schools.id, targetSchoolId));
 
     revalidatePath("/dashboard/subscription");
     revalidatePath("/dashboard", "layout");
