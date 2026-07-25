@@ -91,8 +91,8 @@ const PLANS = [
     id: "basic",
     name: "Forfait Basique",
     icon: Star,
-    price: "19 000 F CFA",
-    usdPrice: "$29",
+    price: "10 000 F CFA",
+    usdPrice: "/mois",
     period: "par mois",
     color: "blue",
     gradient: "from-blue-500 to-blue-700",
@@ -112,8 +112,8 @@ const PLANS = [
     id: "pro",
     name: "Forfait Professionnel",
     icon: Rocket,
-    price: "49 000 F CFA",
-    usdPrice: "$79",
+    price: "13 000 F CFA",
+    usdPrice: "/mois",
     period: "par mois",
     color: "indigo",
     gradient: "from-indigo-500 to-purple-700",
@@ -747,10 +747,10 @@ export default function SubscriptionClient({
 
                     <CardContent className="p-8 pt-0 space-y-6">
                       <div className="border-b border-slate-100 pb-6">
-                        <div className="flex items-baseline gap-2">
+                        <div className="flex items-baseline gap-1">
                           <span className="text-3xl font-black text-slate-950 tracking-tight">{plan.price}</span>
-                          {plan.usdPrice !== "Custom" && (
-                            <span className="text-sm text-slate-400 font-bold">({plan.usdPrice})</span>
+                          {plan.usdPrice !== "Custom" && plan.usdPrice !== "/mois" && (
+                            <span className="text-sm text-slate-400 font-bold ml-1">({plan.usdPrice})</span>
                           )}
                         </div>
                         <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">{plan.period}</span>
