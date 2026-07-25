@@ -71,6 +71,19 @@ const SAMPLE_STUDENTS = [
     photoPath: null,
   },
   {
+    id: 326,
+    nomEtudiant: "Mahamadou Kane",
+    prenomEtudiant: "Issaka",
+    numAdmission: "EDUT-2024-000326",
+    classe: "Terminale A1",
+    educationalLevel: "Lycée",
+    sexe: "Garçon",
+    dateNaissance: "2001-11-04",
+    lieuNaissance: "Tahoua",
+    nationalite: "Nigérienne",
+    photoPath: null,
+  },
+  {
     id: 321,
     nomEtudiant: "Malam Balla",
     prenomEtudiant: "Sanoussi",
@@ -125,6 +138,37 @@ function normalizeSearchText(str?: string | null): string {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .trim();
+}
+
+function expandSearchText(str?: string | null): string {
+  if (!str) return "";
+  let norm = normalizeSearchText(str);
+
+  // Class aliases expansion (e.g. Tle -> Terminale, 6e -> 6ème)
+  let expansions = [norm];
+  if (norm.includes("tle") || norm.includes("terminal")) {
+    expansions.push("tle", "terminale", "terminal", "bac");
+  }
+  if (norm.includes("1ere") || norm.includes("1er") || norm.includes("premiere")) {
+    expansions.push("1ere", "1er", "premiere");
+  }
+  if (norm.includes("2nde") || norm.includes("seconde")) {
+    expansions.push("2nde", "2nd", "seconde");
+  }
+  if (norm.includes("3eme") || norm.includes("3e") || norm.includes("troisieme")) {
+    expansions.push("3eme", "3e", "troisieme");
+  }
+  if (norm.includes("4eme") || norm.includes("4e") || norm.includes("quatrieme")) {
+    expansions.push("4eme", "4e", "quatrieme");
+  }
+  if (norm.includes("5eme") || norm.includes("5e") || norm.includes("cinquieme")) {
+    expansions.push("5eme", "5e", "cinquieme");
+  }
+  if (norm.includes("6eme") || norm.includes("6e") || norm.includes("sixieme")) {
+    expansions.push("6eme", "6e", "sixieme");
+  }
+
+  return expansions.join(" ");
 }
 
 export default function CardStudioContainer() {
@@ -200,21 +244,30 @@ export default function CardStudioContainer() {
     return students.filter((s) => {
       let match = true;
       if (q) {
-        const tokens = q.split(/\s+/).filter(Boolean);
+        const rawTokens = searchQuery.trim().toLowerCase().split(/\s+/).filter(Boolean);
 
         const nom = normalizeSearchText(s.nomEtudiant);
         const prenom = normalizeSearchText(s.prenomEtudiant);
         const fullName = `${nom} ${prenom}`;
         const reverseName = `${prenom} ${nom}`;
         const matricule = normalizeSearchText(`${s.numAdmission || ""} ${s.id || ""} ${s.studentId || ""}`);
-        const classe = normalizeSearchText(`${s.classe || ""} ${s.section || ""} ${s.educationalLevel || ""} ${s.filiere || ""}`);
+        const classe = expandSearchText(`${s.classe || ""} ${s.section || ""} ${s.educationalLevel || ""} ${s.filiere || ""}`);
 
         // Synthetic keywords for generic class / matricule / name matching (e.g. typing "cl", "classe", "mat", "id")
-        const keywords = "classe class cl matricule mat id eleve etudiant";
+        const keywords = "classe class cl matricule mat id eleve etudiant student";
 
         const haystack = `${fullName} ${reverseName} ${matricule} ${classe} ${keywords}`;
 
-        match = tokens.every((tok) => haystack.includes(tok));
+        match = rawTokens.every((tok) => {
+          const normTok = normalizeSearchText(tok);
+          const expandedTok = expandSearchText(normTok);
+          const subwords = expandedTok.split(/\s+/).filter(Boolean);
+
+          return (
+            haystack.includes(normTok) ||
+            subwords.some((sub) => haystack.includes(sub))
+          );
+        });
       }
 
       if (filterType === "selected") return match && selectedStudentIds.includes(s.id);
