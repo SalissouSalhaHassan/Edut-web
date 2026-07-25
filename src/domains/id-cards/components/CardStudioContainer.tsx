@@ -29,7 +29,7 @@ const SAMPLE_STUDENTS = [
     dateNaissance: "2002-07-09",
     lieuNaissance: "Téra",
     nationalite: "Nigérienne",
-    photoPath: "/placeholder-student.png",
+    photoPath: null,
   },
   {
     id: 324,
@@ -111,6 +111,13 @@ const SAMPLE_STUDENTS = [
   },
 ];
 
+function isValidPhoto(path?: string | null): boolean {
+  if (!path || typeof path !== "string") return false;
+  const p = path.trim().toLowerCase();
+  if (p.length === 0 || p.includes("placeholder")) return false;
+  return true;
+}
+
 export default function CardStudioContainer() {
   const [activeTab, setActiveTab] = useState<"design" | "données" | "impression">("design");
   const [students, setStudents] = useState<any[]>([]);
@@ -126,6 +133,8 @@ export default function CardStudioContainer() {
   const [printing, setPrinting] = useState(false);
 
   const printRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingStudentId, setUploadingStudentId] = useState<number | null>(null);
 
   useEffect(() => {
     Promise.all([getStudents(), getBranches()])
@@ -155,6 +164,26 @@ export default function CardStudioContainer() {
       });
   }, []);
 
+  const handlePhotoUpload = (studentId: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string;
+      setStudents((prev) =>
+        prev.map((s) => (s.id === studentId ? { ...s, photoPath: dataUrl } : s))
+      );
+      toast.success("Photo de l'élève ajoutée avec succès !");
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const triggerUploadFor = (studentId: number) => {
+    setUploadingStudentId(studentId);
+    fileInputRef.current?.click();
+  };
+
   // Filtered Students List for Left Sidebar
   const filteredStudents = useMemo(() => {
     return students.filter((s) => {
@@ -166,7 +195,7 @@ export default function CardStudioContainer() {
         s.classe?.toLowerCase().includes(q);
 
       if (filterType === "selected") return match && selectedStudentIds.includes(s.id);
-      if (filterType === "no-photo") return match && !s.photoPath;
+      if (filterType === "no-photo") return match && !isValidPhoto(s.photoPath);
       return match;
     });
   }, [students, searchQuery, filterType, selectedStudentIds]);
@@ -268,8 +297,20 @@ export default function CardStudioContainer() {
     }
   };
 
+  const countWithPhoto = useMemo(() => students.filter((s) => isValidPhoto(s.photoPath)).length, [students]);
+  const countNoPhoto = useMemo(() => students.filter((s) => !isValidPhoto(s.photoPath)).length, [students]);
+
   return (
     <div className="flex flex-col h-[calc(100vh-5.5rem)] rounded-[2.5rem] border border-slate-200/80 bg-slate-50 overflow-hidden shadow-2xl select-none">
+      {/* Hidden File Input for Photo Upload */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={(e) => uploadingStudentId && handlePhotoUpload(uploadingStudentId, e)}
+        className="hidden"
+      />
+
       {/* Top Header Bar with Main Tabs */}
       <header className="h-16 bg-white border-b border-slate-200/80 px-8 flex items-center justify-between z-30 shadow-sm">
         <div className="flex items-center gap-4">
@@ -422,9 +463,9 @@ export default function CardStudioContainer() {
               filteredStudents.map((st) => {
                 const isSelected = selectedStudentIds.includes(st.id);
                 const isPreviewing = previewStudentId === st.id;
-                const hasPhoto = Boolean(st.photoPath);
+                const hasPhoto = isValidPhoto(st.photoPath);
 
-                let photoUrl = st.photoPath;
+                let photoUrl = hasPhoto ? st.photoPath : null;
                 if (photoUrl && (photoUrl.startsWith("C:") || photoUrl.startsWith("file:"))) {
                   photoUrl = `/api/files?path=${encodeURIComponent(photoUrl)}`;
                 }
@@ -452,11 +493,16 @@ export default function CardStudioContainer() {
                       />
 
                       {/* Student Avatar */}
-                      <div className="relative w-9 h-9 rounded-full bg-slate-200 overflow-hidden flex-shrink-0 border border-slate-200">
+                      <div className="relative w-9 h-9 rounded-full bg-slate-200 overflow-hidden flex-shrink-0 border border-slate-200 flex items-center justify-center">
                         {hasPhoto && photoUrl ? (
-                          <img src={photoUrl} alt={st.nomEtudiant} className="w-full h-full object-cover" />
+                          <img
+                            src={photoUrl}
+                            alt={st.nomEtudiant}
+                            onError={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
+                            className="w-full h-full object-cover"
+                          />
                         ) : (
-                          <div className="w-full h-full bg-slate-100 flex items-center justify-center text-slate-400 font-black text-xs">
+                          <div className="w-full h-full bg-slate-100 flex items-center justify-center text-slate-500 font-black text-xs uppercase">
                             {st.nomEtudiant?.[0] || "E"}
                           </div>
                         )}
@@ -493,12 +539,12 @@ export default function CardStudioContainer() {
         {/* Right Main Content Panel (Design | Données | Impression) */}
         <main className="flex-1 flex flex-col overflow-hidden bg-slate-100">
           {activeTab === "design" ? (
-              <CardDesigner
-                externalStudents={students}
-                externalPreviewStudentId={previewStudentId}
-                onExternalPreviewStudentChange={setPreviewStudentId}
-                externalActiveBranch={activeBranch}
-              />
+            <CardDesigner
+              externalStudents={students}
+              externalPreviewStudentId={previewStudentId}
+              onExternalPreviewStudentChange={setPreviewStudentId}
+              externalActiveBranch={activeBranch}
+            />
           ) : activeTab === "données" ? (
             /* Tab 2: Students Data Table & Photo Management */
             <div className="flex-1 overflow-y-auto p-8 space-y-6">
@@ -511,10 +557,10 @@ export default function CardStudioContainer() {
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="px-3 py-1.5 bg-emerald-50 text-emerald-700 font-bold text-xs rounded-xl border border-emerald-100">
-                    {students.filter(s => s.photoPath).length} avec photo
+                    {countWithPhoto} avec photo
                   </span>
                   <span className="px-3 py-1.5 bg-amber-50 text-amber-700 font-bold text-xs rounded-xl border border-amber-100">
-                    {students.filter(s => !s.photoPath).length} photos manquantes
+                    {countNoPhoto} photos manquantes
                   </span>
                 </div>
               </div>
@@ -532,45 +578,67 @@ export default function CardStudioContainer() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
-                    {filteredStudents.map((st) => (
-                      <tr key={st.id} className="hover:bg-slate-50/80 transition">
-                        <td className="py-3 px-4 flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-slate-200 overflow-hidden flex-shrink-0">
-                            {st.photoPath ? (
-                              <img
-                                src={st.photoPath.startsWith("http") ? st.photoPath : `/api/files?path=${encodeURIComponent(st.photoPath)}`}
-                                alt={st.nomEtudiant}
-                                className="w-full h-full object-cover"
-                              />
+                    {filteredStudents.map((st) => {
+                      const hasPhoto = isValidPhoto(st.photoPath);
+                      return (
+                        <tr key={st.id} className="hover:bg-slate-50/80 transition">
+                          <td className="py-3 px-4 flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-slate-200 overflow-hidden flex-shrink-0 flex items-center justify-center border border-slate-200">
+                              {hasPhoto && st.photoPath ? (
+                                <img
+                                  src={st.photoPath.startsWith("http") ? st.photoPath : `/api/files?path=${encodeURIComponent(st.photoPath)}`}
+                                  alt={st.nomEtudiant}
+                                  onError={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <div className="w-full h-full bg-slate-100 flex items-center justify-center text-slate-500 font-black text-xs uppercase">
+                                  {st.nomEtudiant?.[0] || "E"}
+                                </div>
+                              )}
+                            </div>
+                            <span className="font-bold text-slate-900">{st.nomEtudiant} {st.prenomEtudiant}</span>
+                          </td>
+                          <td className="py-3 px-4 font-mono font-bold">{st.numAdmission || "N/A"}</td>
+                          <td className="py-3 px-4">{st.classe || "Non assignée"}</td>
+                          <td className="py-3 px-4">{st.sexe || "N/A"}</td>
+                          <td className="py-3 px-4">
+                            {hasPhoto ? (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-full font-bold text-[10px]">
+                                <CheckCircle2 size={12} /> Prêt
+                              </span>
                             ) : (
-                              <div className="w-full h-full flex items-center justify-center text-slate-400 font-bold">
-                                {st.nomEtudiant?.[0]}
-                              </div>
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 text-amber-700 rounded-full font-bold text-[10px]">
+                                <AlertCircle size={12} /> Photo manquante
+                              </span>
                             )}
-                          </div>
-                          <span className="font-bold text-slate-900">{st.nomEtudiant} {st.prenomEtudiant}</span>
-                        </td>
-                        <td className="py-3 px-4 font-mono font-bold">{st.numAdmission || "N/A"}</td>
-                        <td className="py-3 px-4">{st.classe || "Non assignée"}</td>
-                        <td className="py-3 px-4">{st.sexe || "N/A"}</td>
-                        <td className="py-3 px-4">
-                          {st.photoPath ? (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-full font-bold text-[10px]">
-                              <CheckCircle2 size={12} /> Prêt
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 text-amber-700 rounded-full font-bold text-[10px]">
-                              <AlertCircle size={12} /> Photo manquante
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-3 px-4 text-right">
-                          <Button size="sm" variant="outline" onClick={() => setPreviewStudentId(st.id)} className="rounded-xl font-bold text-[11px]">
-                            <Eye size={13} className="mr-1" /> Aperçu Carte
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => triggerUploadFor(st.id)}
+                                className="rounded-xl font-bold text-[11px] text-indigo-600 hover:bg-indigo-50 border-indigo-200"
+                              >
+                                <Upload size={12} className="mr-1" /> Photo
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setPreviewStudentId(st.id);
+                                  setActiveTab("design");
+                                }}
+                                className="rounded-xl font-bold text-[11px]"
+                              >
+                                <Eye size={13} className="mr-1" /> Aperçu Carte
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

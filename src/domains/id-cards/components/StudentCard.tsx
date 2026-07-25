@@ -75,9 +75,15 @@ export const StudentCard: React.FC<StudentCardProps> = ({
   const qr = JSON.stringify({ id: student.id, num: student.numAdmission, nom: student.nomEtudiant });
   const issued = new Date().toLocaleDateString("fr-FR");
   const expiry = `31/10/${parseInt(academicYear.split("-")[1] || "2025")}`;
-  const photo = student.photoPath
-    ? student.photoPath.startsWith("http") ? student.photoPath
-      : `/api/files?path=${encodeURIComponent(student.photoPath)}`
+
+  const hasPhoto = Boolean(student.photoPath) &&
+    typeof student.photoPath === "string" &&
+    student.photoPath.trim().length > 0 &&
+    !student.photoPath.toLowerCase().includes("placeholder");
+
+  const photo = hasPhoto
+    ? student.photoPath!.startsWith("http") ? student.photoPath!
+      : `/api/files?path=${encodeURIComponent(student.photoPath!)}`
     : null;
   const classe = student.classe
     ? `Classe de ${student.classe}${student.section ? ` – ${student.section}` : ""}` : "ÉTUDIANT RÉGULIER";
@@ -215,13 +221,35 @@ export const StudentCard: React.FC<StudentCardProps> = ({
         <div style={{ width: 150, flexShrink: 0, position: "relative", marginTop: -10, marginLeft: 20, zIndex: 10 }}>
           <div style={{ width: 142, height: 175, borderRadius: 18, background: "#f1f5f9", border: `3.5px solid ${W}`, boxShadow: "0 8px 28px rgba(0,0,0,0.14)", overflow: "hidden" }}>
             {photo ? (
-              <img src={photo} alt="photo" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top center", display: "block" }} />
-            ) : (
-              <div style={{ width: "100%", height: "100%", background: "linear-gradient(135deg,#f1f5f9,#e2e8f0)", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 8 }}>
-                <span style={{ fontSize: 50, opacity: 0.3 }}>👤</span>
-                <span style={{ fontSize: 8, fontWeight: 700, color: GR, textTransform: "uppercase", letterSpacing: 1 }}>Photo</span>
-              </div>
-            )}
+              <img
+                src={photo}
+                alt={student.nomEtudiant}
+                onError={(e) => {
+                  (e.currentTarget as HTMLElement).style.display = "none";
+                  const fallback = e.currentTarget.parentElement?.querySelector(".fallback-avatar");
+                  if (fallback) (fallback as HTMLElement).style.display = "flex";
+                }}
+                style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top center", display: "block" }}
+              />
+            ) : null}
+            <div
+              className="fallback-avatar"
+              style={{
+                width: "100%",
+                height: "100%",
+                background: "linear-gradient(135deg,#f1f5f9,#e2e8f0)",
+                display: photo ? "none" : "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexDirection: "column",
+                gap: 8,
+              }}
+            >
+              <span style={{ fontSize: 50, opacity: 0.3 }}>👤</span>
+              <span style={{ fontSize: 8, fontWeight: 700, color: GR, textTransform: "uppercase", letterSpacing: 1 }}>
+                Photo Non Fournie
+              </span>
+            </div>
           </div>
           {/* Holographic seal */}
           <div style={{ position: "absolute", bottom: 6, left: 6, width: 50, height: 50, borderRadius: "50%", background: `conic-gradient(${GOLD},${GL},#a87c1a,${GL},${GOLD})`, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 10px rgba(200,146,42,0.5)", border: `2px solid ${W}` }}>
