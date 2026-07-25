@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
 import {
   AlertTriangle,
   BarChart3,
@@ -10,8 +12,10 @@ import {
   Download,
   Droplets,
   FileSpreadsheet,
+  FileText,
   GitCompareArrows,
   GraduationCap,
+  Info,
   Lightbulb,
   Plus,
   Printer,
@@ -228,6 +232,131 @@ export default function CanevasDashboardPage() {
 
   const activeData = stats || academicYearsData[selectedYear] || academicYearsData["2025 - 2026"];
 
+  const handleExportPdf = () => {
+    try {
+      toast.success("Génération du rapport PDF du Tableau de bord...");
+      const doc = new jsPDF({
+        orientation: "landscape",
+        unit: "mm",
+        format: "a4"
+      });
+
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const editionDate = new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+
+      // Page 1: Header
+      doc.setFillColor(248, 250, 252);
+      doc.rect(10, 10, pageWidth - 20, 32, "F");
+      doc.setDrawColor(226, 232, 240);
+      doc.rect(10, 10, pageWidth - 20, 32, "S");
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8);
+      doc.setTextColor(37, 99, 235);
+      doc.text("GESTION DES CANEVAS SCOLAIRES", 15, 17);
+
+      doc.setFontSize(14);
+      doc.setTextColor(15, 23, 42);
+      doc.text("TABLEAU DE BORD CENTRAL", 15, 24);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8.5);
+      doc.setTextColor(100, 116, 139);
+      doc.text(`Année scolaire : ${selectedYear}`, 15, 29);
+
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "bold");
+      doc.text("INFORMATIONS DOCUMENT", pageWidth - 80, 17);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Date d'édition : ${editionDate}`, pageWidth - 80, 22);
+      doc.text("Édité par : Admin Super", pageWidth - 80, 27);
+      doc.text("Réf : RPT-CNV-2026-0001", pageWidth - 80, 31);
+
+      let currentY = 48;
+
+      // KPIs Table
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(15, 23, 42);
+      doc.text("SYNTHÈSE DES INDICATEURS CLÉS (KPIS)", 10, currentY);
+      doc.line(10, currentY + 2, pageWidth - 10, currentY + 2);
+      currentY += 8;
+
+      const kpisList = activeData.kpis || [];
+      const kpiHeaders = ["Indicateur", "Valeur", "Détail", "Secteur / Cible"];
+      const kpiRows = kpisList.map((k: any) => [k.label, String(k.value), k.sub || "-", "Toutes structures"]);
+
+      autoTable(doc, {
+        startY: currentY,
+        head: [kpiHeaders],
+        body: kpiRows,
+        theme: "striped",
+        headStyles: {
+          fillColor: [37, 99, 235],
+          textColor: [255, 255, 255],
+          fontSize: 8,
+          fontStyle: "bold"
+        },
+        bodyStyles: {
+          fontSize: 7.5,
+          textColor: [51, 65, 85]
+        },
+        margin: { left: 10, right: 10 }
+      });
+
+      currentY = (doc as any).lastAutoTable.finalY + 8;
+
+      // Signatures
+      if (currentY + 25 > pageHeight) {
+        doc.addPage();
+        currentY = 20;
+      }
+
+      doc.setDrawColor(226, 232, 240);
+      doc.line(10, currentY, pageWidth - 10, currentY);
+      currentY += 5;
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8);
+      doc.setTextColor(100, 116, 139);
+      doc.text("CONTRÔLE & SIGNATURES", 10, currentY);
+      currentY += 6;
+
+      let colWidth = (pageWidth - 20) / 3;
+      doc.text("LE CLIENT (Inspecteur / IEFA)", 15, currentY);
+      doc.setDrawColor(203, 213, 225);
+      doc.rect(15, currentY + 2, colWidth - 10, 14, "S");
+
+      doc.setFillColor(239, 246, 255);
+      doc.setDrawColor(191, 219, 254);
+      doc.rect(colWidth + 15, currentY + 2, colWidth - 10, 14, "DF");
+      doc.setFontSize(7);
+      doc.setTextColor(37, 99, 235);
+      doc.text("EDUT PRO SCOLAIRE", colWidth + 22, currentY + 8);
+      doc.text("Rapport Certifié", colWidth + 24, currentY + 12);
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8);
+      doc.setTextColor(100, 116, 139);
+      doc.text("LA DIRECTION GENERALE", colWidth * 2 + 15, currentY);
+      doc.setDrawColor(203, 213, 225);
+      doc.rect(colWidth * 2 + 15, currentY + 2, colWidth - 10, 14, "S");
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7.5);
+      doc.setTextColor(148, 163, 184);
+      doc.text("Edut Pro - Gestion des Canevas Scolaires", 10, pageHeight - 6);
+      doc.text("Page 1 / 1", pageWidth - 20, pageHeight - 6);
+
+      doc.save(`Tableau_De_Bord_Canevas_${Date.now()}.pdf`);
+      toast.success("Rapport PDF du Tableau de bord exporté avec succès !");
+    } catch (e: any) {
+      console.error(e);
+      toast.error("Erreur lors de la génération du PDF.");
+    }
+  };
+
   const handleCreateCanevas = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newName) return;
@@ -239,8 +368,41 @@ export default function CanevasDashboardPage() {
   };
 
   return (
-    <div className="min-h-screen space-y-6 p-4 text-slate-950 md:p-6 xl:p-8 print:bg-white print:p-0">
-      <header className="rounded-[30px] border border-slate-200 bg-white p-5 shadow-sm print:border-b print:shadow-none">
+    <div className="min-h-screen space-y-6 p-4 text-slate-950 md:p-6 xl:p-8 print:bg-white print:p-0 print:m-0 print:w-full print:min-h-0">
+      <style dangerouslySetInnerHTML={{__html: `
+        @media print {
+          @page {
+            size: A4 portrait;
+            margin: 8mm 10mm;
+          }
+          html, body {
+            background: #ffffff !important;
+            color: #000000 !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: visible !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          * {
+            overflow: visible !important;
+            box-shadow: none !important;
+            scrollbar-width: none !important;
+            -ms-overflow-style: none !important;
+          }
+          ::-webkit-scrollbar {
+            display: none !important;
+            width: 0 !important;
+            height: 0 !important;
+          }
+          .no-print, .print\\:hidden {
+            display: none !important;
+          }
+        }
+      `}} />
+      
+      <header className="rounded-[30px] border border-slate-200 bg-white p-5 shadow-sm print:hidden">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex items-center gap-4">
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-100">
@@ -274,12 +436,18 @@ export default function CanevasDashboardPage() {
               <Download size={16} /> Exporter
             </Link>
             <button 
+              onClick={handleExportPdf}
+              className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 active:scale-95 transition-all cursor-pointer"
+            >
+              <FileText size={16} className="text-rose-500" /> PDF
+            </button>
+            <button 
               onClick={() => setIsNewOpen(true)}
               className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 active:scale-95 transition-all"
             >
               <Plus size={16} /> Nouveau Canevas
             </button>
-            <button onClick={() => window.print()} className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 active:scale-95 transition-all">
+            <button onClick={() => window.print()} className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 active:scale-95 transition-all cursor-pointer">
               <Printer size={16} /> Imprimer
             </button>
           </div>
@@ -492,7 +660,283 @@ export default function CanevasDashboardPage() {
             </form>
           </div>
         </div>
-      )}
+      {/* ─── PRINT LAYOUT FOR TABLEAU DE BORD ─── */}
+      <div className="hidden print:block bg-white text-black font-sans w-full p-0 m-0 space-y-6">
+        
+        {/* PAGE 1: SYNTHÈSE DES INDICATEURS */}
+        <div className="flex flex-col justify-between py-4 px-2 space-y-6" style={{ pageBreakAfter: "always", breakAfter: "page" }}>
+          <div className="space-y-6">
+            {/* Header */}
+            <div className="flex justify-between items-start border-b-2 border-indigo-600 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-14 h-14 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-black text-lg shadow-sm shrink-0">
+                  EP
+                </div>
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-[0.18em] text-indigo-600">GESTION DES CANEVAS SCOLAIRES</p>
+                  <h1 className="text-2xl font-black tracking-tight text-slate-950 uppercase">TABLEAU DE BORD CENTRAL</h1>
+                  <p className="text-xs font-bold text-slate-500 mt-0.5">Synthèse globale des données enregistrées</p>
+                </div>
+              </div>
+              
+              <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 text-xs font-bold text-slate-700 shrink-0 w-auto space-y-1">
+                <div className="flex justify-between gap-3">
+                  <span className="text-slate-400 font-normal">Date d'édition :</span>
+                  <span className="text-slate-800 font-black">{new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <span className="text-slate-400 font-normal">Année scolaire :</span>
+                  <span className="text-slate-800 font-black">{selectedYear}</span>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <span className="text-slate-400 font-normal">Édité par :</span>
+                  <span className="text-slate-800 font-black">Admin Super</span>
+                </div>
+              </div>
+            </div>
+
+            {/* KPI Grid (13 Cards) */}
+            <div className="space-y-3">
+              <h3 className="text-xs font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-indigo-600" /> Indicateurs Clés de Performance (KPIs)
+              </h3>
+              <div className="grid grid-cols-4 gap-2.5 w-full">
+                {activeData.kpis.map((kpi: any, idx: number) => {
+                  const Icon = typeof kpi.icon === "string" ? (ICON_MAP[kpi.icon] || School) : kpi.icon;
+                  return (
+                    <div key={idx} className="rounded-xl border border-slate-200 bg-white p-3 flex items-center justify-between shadow-none">
+                      <div className="space-y-0.5 min-w-0 flex-1 pr-2">
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block truncate">{kpi.label}</span>
+                        <span className="text-lg font-black text-slate-950 block">{kpi.value}</span>
+                        <span className="text-[8px] font-bold text-slate-500 block truncate">{kpi.sub}</span>
+                      </div>
+                      <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border", colorClasses(kpi.color))}>
+                        <Icon size={16} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Sectorial & Geographic Summary */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-2">
+                <h4 className="text-xs font-black uppercase text-indigo-700">Répartition Sectorielle</h4>
+                <div className="grid grid-cols-2 gap-2 text-xs font-bold text-slate-700">
+                  <div className="bg-white p-2.5 rounded-lg border border-slate-200">
+                    <span className="text-[9px] text-slate-400 uppercase block font-black">Écoles Publiques</span>
+                    <span className="text-lg font-black text-emerald-600">{activeData.publicSchools ?? activeData.publicValue ?? 612}</span>
+                  </div>
+                  <div className="bg-white p-2.5 rounded-lg border border-slate-200">
+                    <span className="text-[9px] text-slate-400 uppercase block font-black">Écoles Privées</span>
+                    <span className="text-lg font-black text-violet-600">{activeData.privateSchools ?? activeData.privateValue ?? 194}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-2">
+                <h4 className="text-xs font-black uppercase text-indigo-700">Répartition par Commune</h4>
+                <div className="grid grid-cols-5 gap-1.5 text-center text-xs font-bold">
+                  {communeData.map((c) => (
+                    <div key={c.name} className="bg-white p-2 rounded-lg border border-slate-200">
+                      <span className="text-[9px] text-slate-400 uppercase block font-black">{c.name}</span>
+                      <span className="text-sm font-black text-indigo-600">{c.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Info Box */}
+            <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 flex justify-between items-center gap-4">
+              <div className="space-y-1">
+                <p className="text-[10px] font-black uppercase tracking-widest text-indigo-600 flex items-center gap-1.5">
+                  <Info size={13} /> Certificat de Rapport Central
+                </p>
+                <p className="text-xs font-bold leading-relaxed text-slate-500 max-w-2xl">
+                  Ce tableau de bord consolidé est généré automatiquement par le système Edut Pro à partir des données validées du canevas scolaire {selectedYear}.
+                </p>
+              </div>
+              <div className="flex items-center gap-3 shrink-0">
+                <div className="text-right">
+                  <p className="text-[9px] font-black text-slate-400">VÉRIFICATION</p>
+                  <p className="text-[10px] font-mono font-bold text-slate-700 mt-0.5">RPT-CNV-2026-0001</p>
+                </div>
+                <div className="w-12 h-12 border border-slate-300 rounded-lg bg-slate-50 flex items-center justify-center text-[7px] font-mono text-slate-400 select-none">
+                  [QR CODE]
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Signatures & Stamp */}
+          <div className="space-y-4 pt-6 border-t border-slate-200 mt-auto">
+            <div className="grid grid-cols-3 gap-6 items-center text-center">
+              <div>
+                <p className="text-xs font-black uppercase tracking-wider text-slate-500">Le Client</p>
+                <div className="mt-2 h-16 w-36 border border-dashed border-slate-300 rounded-xl mx-auto flex items-center justify-center text-[10px] text-slate-400 italic">Signature & Cachet</div>
+              </div>
+              <div className="flex flex-col items-center">
+                <div className="w-16 h-16 rounded-full border-4 border-double border-indigo-200 bg-indigo-50/30 flex flex-col items-center justify-center text-center p-1.5">
+                  <span className="text-[7px] font-black text-indigo-600 uppercase tracking-widest leading-none">Edut Pro</span>
+                  <span className="text-[6px] font-bold text-slate-500 uppercase leading-normal">Système</span>
+                  <span className="text-[6px] font-bold text-slate-500 uppercase leading-none">Gestion Scolaire</span>
+                  <span className="text-[7px] text-indigo-500 mt-0.5">★</span>
+                </div>
+              </div>
+              <div>
+                <p className="text-xs font-black uppercase tracking-wider text-slate-500">La Direction</p>
+                <div className="mt-2 h-16 w-36 border border-dashed border-slate-300 rounded-xl mx-auto flex items-center justify-center text-[10px] text-slate-400 italic">Signature & Cachet</div>
+              </div>
+            </div>
+            
+            {/* Footer Page 1 */}
+            <div className="flex justify-between items-center text-[9px] text-slate-400 font-bold uppercase tracking-widest border-t border-slate-200 pt-3 mt-4">
+              <span>Edut Pro - Tableau de bord Canevas</span>
+              <span className="text-indigo-600 italic">Merci pour votre confiance</span>
+              <span>Page 1 / 2</span>
+            </div>
+          </div>
+        </div>
+
+        {/* PAGE 2: EFFECTIFS ET INFRASTRUCTURES */}
+        <div className="flex flex-col justify-between py-4 px-2 space-y-6">
+          <div className="space-y-6">
+            {/* Header Page 2 */}
+            <div className="flex justify-between items-start border-b-2 border-indigo-600 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-14 h-14 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-black text-lg shadow-sm shrink-0">
+                  EP
+                </div>
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-[0.18em] text-indigo-600">GESTION DES CANEVAS SCOLAIRES</p>
+                  <h1 className="text-2xl font-black tracking-tight text-slate-950 uppercase">DETAILS NIVEAUX & INFRASTRUCTURES</h1>
+                  <p className="text-xs font-bold text-slate-500 mt-0.5">Ventilation des effectifs et analyse des besoins</p>
+                </div>
+              </div>
+              
+              <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 text-xs font-bold text-slate-700 shrink-0 w-auto space-y-1">
+                <div className="flex justify-between gap-3">
+                  <span className="text-slate-400 font-normal">Date d'édition :</span>
+                  <span className="text-slate-800 font-black">{new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <span className="text-slate-400 font-normal">Année scolaire :</span>
+                  <span className="text-slate-800 font-black">{selectedYear}</span>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <span className="text-slate-400 font-normal">Édité par :</span>
+                  <span className="text-slate-800 font-black">Admin Super</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Table: Effectifs par Niveau */}
+            <div className="space-y-3">
+              <h3 className="text-xs font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-indigo-600" /> Répartition des Effectifs par Niveau
+              </h3>
+              
+              <div className="rounded-xl border border-slate-200 w-full overflow-visible">
+                <table className="w-full border-collapse text-left text-xs table-fixed">
+                  <thead>
+                    <tr className="bg-indigo-600 font-black uppercase tracking-wider text-white text-[10px]">
+                      <th className="px-3 py-2.5">Niveau</th>
+                      <th className="px-3 py-2.5 text-right">Garçons</th>
+                      <th className="px-3 py-2.5 text-right">Filles</th>
+                      <th className="px-3 py-2.5 text-right">Total Élèves</th>
+                      <th className="px-3 py-2.5 text-right">% Filles</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200 font-semibold text-slate-800">
+                    {levels.map((lvl) => {
+                      const boys = lvl.total - lvl.girls;
+                      const pctF = ((lvl.girls / lvl.total) * 100).toFixed(1);
+                      return (
+                        <tr key={lvl.name} className="odd:bg-white even:bg-slate-50/60">
+                          <td className="px-3 py-2 font-black text-indigo-700">{lvl.name}</td>
+                          <td className="px-3 py-2 text-right font-semibold text-slate-700">{boys.toLocaleString("fr-FR")}</td>
+                          <td className="px-3 py-2 text-right font-semibold text-pink-600">{lvl.girls.toLocaleString("fr-FR")}</td>
+                          <td className="px-3 py-2 text-right font-black text-slate-900">{lvl.total.toLocaleString("fr-FR")}</td>
+                          <td className="px-3 py-2 text-right font-bold text-indigo-600">{pctF}%</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Besoins & State Breakdown */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-2">
+                <h4 className="text-xs font-black uppercase text-rose-700">Besoins Prioritaires</h4>
+                <div className="space-y-1.5 text-xs font-bold">
+                  {[
+                    ["Salles de classe", "74 % des besoins"],
+                    ["Tables bancs", "62 % des besoins"],
+                    ["Enseignants", "48 % des besoins"],
+                    ["Armoires", "30 % des besoins"],
+                  ].map(([label, sub]) => (
+                    <div key={label} className="flex justify-between items-center bg-white p-2 rounded-lg border border-slate-200">
+                      <span className="text-slate-800 font-bold">{label}</span>
+                      <span className="text-rose-600 font-black text-[11px]">{sub}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-2">
+                <h4 className="text-xs font-black uppercase text-emerald-700">État des Infrastructures</h4>
+                <div className="space-y-1.5 text-xs font-bold">
+                  {[
+                    ["Salles Fonctionnelles", "78 % exploitées", "text-emerald-600"],
+                    ["À Réparer", "14 % des salles", "text-amber-600"],
+                    ["État Critique", "8 % des salles", "text-rose-600"],
+                    ["Sans Électricité", "126 structures", "text-orange-600"],
+                  ].map(([label, sub, col]) => (
+                    <div key={label} className="flex justify-between items-center bg-white p-2 rounded-lg border border-slate-200">
+                      <span className="text-slate-800 font-bold">{label}</span>
+                      <span className={cn("font-black text-[11px]", col)}>{sub}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Signatures & Stamp */}
+          <div className="space-y-4 pt-6 border-t border-slate-200 mt-auto">
+            <div className="grid grid-cols-3 gap-6 items-center text-center">
+              <div>
+                <p className="text-xs font-black uppercase tracking-wider text-slate-500">Le Client</p>
+                <div className="mt-2 h-16 w-36 border border-dashed border-slate-300 rounded-xl mx-auto flex items-center justify-center text-[10px] text-slate-400 italic">Signature & Cachet</div>
+              </div>
+              <div className="flex flex-col items-center">
+                <div className="w-16 h-16 rounded-full border-4 border-double border-indigo-200 bg-indigo-50/30 flex flex-col items-center justify-center text-center p-1.5">
+                  <span className="text-[7px] font-black text-indigo-600 uppercase tracking-widest leading-none">Edut Pro</span>
+                  <span className="text-[6px] font-bold text-slate-500 uppercase leading-normal">Système</span>
+                  <span className="text-[6px] font-bold text-slate-500 uppercase leading-none">Gestion Scolaire</span>
+                  <span className="text-[7px] text-indigo-500 mt-0.5">★</span>
+                </div>
+              </div>
+              <div>
+                <p className="text-xs font-black uppercase tracking-wider text-slate-500">La Direction</p>
+                <div className="mt-2 h-16 w-36 border border-dashed border-slate-300 rounded-xl mx-auto flex items-center justify-center text-[10px] text-slate-400 italic">Signature & Cachet</div>
+              </div>
+            </div>
+            
+            {/* Footer Page 2 */}
+            <div className="flex justify-between items-center text-[9px] text-slate-400 font-bold uppercase tracking-widest border-t border-slate-200 pt-3 mt-4">
+              <span>Edut Pro - Tableau de bord Canevas</span>
+              <span className="text-indigo-600 italic">Merci pour votre confiance</span>
+              <span>Page 2 / 2</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
     </div>
   );
 }
