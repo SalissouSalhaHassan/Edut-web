@@ -18,188 +18,71 @@ import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 
 const SAMPLE_STUDENTS = [
-  {
-    id: 325,
-    nomEtudiant: "Maman Dan Falké",
-    prenomEtudiant: "Aboubacar",
-    numAdmission: "EDUT-2024-000325",
-    classe: "CI A",
-    educationalLevel: "Primaire Général",
-    sexe: "Garçon",
-    dateNaissance: "2018-07-09",
-    lieuNaissance: "Téra",
-    nationalite: "Nigérienne",
-    photoPath: null,
-  },
-  {
-    id: 324,
-    nomEtudiant: "Maman",
-    prenomEtudiant: "Adah",
-    numAdmission: "EDUT-2024-000324",
-    classe: "CP A",
-    educationalLevel: "Primaire Général",
-    sexe: "Garçon",
-    dateNaissance: "2017-05-14",
-    lieuNaissance: "Niamey",
-    nationalite: "Nigérienne",
-    photoPath: null,
-  },
-  {
-    id: 323,
-    nomEtudiant: "Maman",
-    prenomEtudiant: "Biba",
-    numAdmission: "EDUT-2024-000323",
-    classe: "CE1 A",
-    educationalLevel: "Primaire Général",
-    sexe: "Fille",
-    dateNaissance: "2016-11-20",
-    lieuNaissance: "Zinder",
-    nationalite: "Nigérienne",
-    photoPath: null,
-  },
-  {
-    id: 322,
-    nomEtudiant: "Mamadou Ibrahim",
-    prenomEtudiant: "Salifou",
-    numAdmission: "EDUT-2024-000322",
-    classe: "CE2 A",
-    educationalLevel: "Primaire Général",
-    sexe: "Garçon",
-    dateNaissance: "2015-08-12",
-    lieuNaissance: "Maradi",
-    nationalite: "Nigérienne",
-    photoPath: null,
-  },
-  {
-    id: 326,
-    nomEtudiant: "Mahamadou Kane",
-    prenomEtudiant: "Issaka",
-    numAdmission: "EDUT-2024-000326",
-    classe: "CM1 A",
-    educationalLevel: "Primaire Général",
-    sexe: "Garçon",
-    dateNaissance: "2014-11-04",
-    lieuNaissance: "Tahoua",
-    nationalite: "Nigérienne",
-    photoPath: null,
-  },
-  {
-    id: 327,
-    nomEtudiant: "Aïssatou",
-    prenomEtudiant: "Souley",
-    numAdmission: "EDUT-2024-000327",
-    classe: "CM2 A",
-    educationalLevel: "Primaire Général",
-    sexe: "Fille",
-    dateNaissance: "2013-02-18",
-    lieuNaissance: "Agadez",
-    nationalite: "Nigérienne",
-    photoPath: null,
-  },
-  {
-    id: 321,
-    nomEtudiant: "Malam Balla",
-    prenomEtudiant: "Sanoussi",
-    numAdmission: "EDUT-2024-000321",
-    classe: "6ème A",
-    educationalLevel: "Collège Général",
-    sexe: "Garçon",
-    dateNaissance: "2012-03-18",
-    lieuNaissance: "Tahoua",
-    nationalite: "Nigérienne",
-    photoPath: null,
-  },
-  {
-    id: 320,
-    nomEtudiant: "Malam Maina",
-    prenomEtudiant: "Abass",
-    numAdmission: "EDUT-2024-000320",
-    classe: "5ème A",
-    educationalLevel: "Collège Général",
-    sexe: "Garçon",
-    dateNaissance: "2011-12-05",
-    lieuNaissance: "Diffa",
-    nationalite: "Nigérienne",
-    photoPath: null,
-  },
-  {
-    id: 319,
-    nomEtudiant: "Malam Issoufou",
-    prenomEtudiant: "Mme Hamiss",
-    numAdmission: "EDUT-2024-000319",
-    classe: "4ème A",
-    educationalLevel: "Collège Général",
-    sexe: "Fille",
-    dateNaissance: "2010-09-30",
-    lieuNaissance: "Dosso",
-    nationalite: "Nigérienne",
-    photoPath: null,
-  },
-  {
-    id: 318,
-    nomEtudiant: "Ousmane",
-    prenomEtudiant: "Seydou",
-    numAdmission: "EDUT-2024-000318",
-    classe: "3ème A",
-    educationalLevel: "Collège Général",
-    sexe: "Garçon",
-    dateNaissance: "2009-04-12",
-    lieuNaissance: "Niamey",
-    nationalite: "Nigérienne",
-    photoPath: null,
-  },
-  {
-    id: 317,
-    nomEtudiant: "Hamadou",
-    prenomEtudiant: "Garba",
-    numAdmission: "EDUT-2024-000317",
-    classe: "2nde A",
-    educationalLevel: "Lycée Général",
-    sexe: "Garçon",
-    dateNaissance: "2008-01-25",
-    lieuNaissance: "Tillabéri",
-    nationalite: "Nigérienne",
-    photoPath: null,
-  },
-  {
-    id: 316,
-    nomEtudiant: "Zalika",
-    prenomEtudiant: "Abdou",
-    numAdmission: "EDUT-2024-000316",
-    classe: "1ère A",
-    educationalLevel: "Lycée Général",
-    sexe: "Fille",
-    dateNaissance: "2007-06-19",
-    lieuNaissance: "Maradi",
-    nationalite: "Nigérienne",
-    photoPath: null,
-  },
-  {
-    id: 315,
-    nomEtudiant: "Ibrahim",
-    prenomEtudiant: "Salissou",
-    numAdmission: "EDUT-2024-000315",
-    classe: "L1 Arabic",
-    educationalLevel: "Licence Général",
-    sexe: "Garçon",
-    dateNaissance: "2005-10-11",
-    lieuNaissance: "Zinder",
-    nationalite: "Nigérienne",
-    photoPath: null,
-  },
-  {
-    id: 314,
-    nomEtudiant: "Fatouma",
-    prenomEtudiant: "Hassan",
-    numAdmission: "EDUT-2024-000314",
-    classe: "L2 Arabic",
-    educationalLevel: "Licence Général",
-    sexe: "Fille",
-    dateNaissance: "2004-03-22",
-    lieuNaissance: "Niamey",
-    nationalite: "Nigérienne",
-    photoPath: null,
-  },
+  // --- CI A ---
+  { id: 325, nomEtudiant: "Maman Dan Falké", prenomEtudiant: "Aboubacar", numAdmission: "EDUT-2024-000325", classe: "CI A", educationalLevel: "Primaire Général", sexe: "Garçon", dateNaissance: "2018-07-09", lieuNaissance: "Téra", nationalite: "Nigérienne", photoPath: null },
+  { id: 330, nomEtudiant: "Abdoul Razak", prenomEtudiant: "Hamani", numAdmission: "EDUT-2024-000330", classe: "CI A", educationalLevel: "Primaire Général", sexe: "Garçon", dateNaissance: "2018-03-12", lieuNaissance: "Niamey", nationalite: "Nigérienne", photoPath: null },
+  { id: 331, nomEtudiant: "Balkissa", prenomEtudiant: "Seydou", numAdmission: "EDUT-2024-000331", classe: "CI A", educationalLevel: "Primaire Général", sexe: "Fille", dateNaissance: "2018-11-05", lieuNaissance: "Zinder", nationalite: "Nigérienne", photoPath: null },
+
+  // --- CP A ---
+  { id: 324, nomEtudiant: "Maman", prenomEtudiant: "Adah", numAdmission: "EDUT-2024-000324", classe: "CP A", educationalLevel: "Primaire Général", sexe: "Garçon", dateNaissance: "2017-05-14", lieuNaissance: "Niamey", nationalite: "Nigérienne", photoPath: null },
+  { id: 332, nomEtudiant: "Hadiza", prenomEtudiant: "Garba", numAdmission: "EDUT-2024-000332", classe: "CP A", educationalLevel: "Primaire Général", sexe: "Fille", dateNaissance: "2017-09-20", lieuNaissance: "Maradi", nationalite: "Nigérienne", photoPath: null },
+  { id: 333, nomEtudiant: "Saley", prenomEtudiant: "Soumana", numAdmission: "EDUT-2024-000333", classe: "CP A", educationalLevel: "Primaire Général", sexe: "Garçon", dateNaissance: "2017-02-18", lieuNaissance: "Tahoua", nationalite: "Nigérienne", photoPath: null },
+
+  // --- CE1 A ---
+  { id: 323, nomEtudiant: "Maman", prenomEtudiant: "Biba", numAdmission: "EDUT-2024-000323", classe: "CE1 A", educationalLevel: "Primaire Général", sexe: "Fille", dateNaissance: "2016-11-20", lieuNaissance: "Zinder", nationalite: "Nigérienne", photoPath: null },
+  { id: 334, nomEtudiant: "Boubacar", prenomEtudiant: "Moussa", numAdmission: "EDUT-2024-000334", classe: "CE1 A", educationalLevel: "Primaire Général", sexe: "Garçon", dateNaissance: "2016-04-15", lieuNaissance: "Dosso", nationalite: "Nigérienne", photoPath: null },
+  { id: 335, nomEtudiant: "Ramatou", prenomEtudiant: "Djibo", numAdmission: "EDUT-2024-000335", classe: "CE1 A", educationalLevel: "Primaire Général", sexe: "Fille", dateNaissance: "2016-08-30", lieuNaissance: "Tillabéri", nationalite: "Nigérienne", photoPath: null },
+
+  // --- CE2 A ---
+  { id: 322, nomEtudiant: "Mamadou Ibrahim", prenomEtudiant: "Salifou", numAdmission: "EDUT-2024-000322", classe: "CE2 A", educationalLevel: "Primaire Général", sexe: "Garçon", dateNaissance: "2015-08-12", lieuNaissance: "Maradi", nationalite: "Nigérienne", photoPath: null },
+  { id: 336, nomEtudiant: "Kadidiatou", prenomEtudiant: "Hassane", numAdmission: "EDUT-2024-000336", classe: "CE2 A", educationalLevel: "Primaire Général", sexe: "Fille", dateNaissance: "2015-01-22", lieuNaissance: "Agadez", nationalite: "Nigérienne", photoPath: null },
+  { id: 337, nomEtudiant: "Ali", prenomEtudiant: "Tankari", numAdmission: "EDUT-2024-000337", classe: "CE2 A", educationalLevel: "Primaire Général", sexe: "Garçon", dateNaissance: "2015-10-10", lieuNaissance: "Diffa", nationalite: "Nigérienne", photoPath: null },
+
+  // --- CM1 A ---
+  { id: 326, nomEtudiant: "Mahamadou Kane", prenomEtudiant: "Issaka", numAdmission: "EDUT-2024-000326", classe: "CM1 A", educationalLevel: "Primaire Général", sexe: "Garçon", dateNaissance: "2014-11-04", lieuNaissance: "Tahoua", nationalite: "Nigérienne", photoPath: null },
+  { id: 338, nomEtudiant: "Amina", prenomEtudiant: "Nouhou", numAdmission: "EDUT-2024-000338", classe: "CM1 A", educationalLevel: "Primaire Général", sexe: "Fille", dateNaissance: "2014-06-17", lieuNaissance: "Niamey", nationalite: "Nigérienne", photoPath: null },
+  { id: 339, nomEtudiant: "Yacouba", prenomEtudiant: "Amadou", numAdmission: "EDUT-2024-000339", classe: "CM1 A", educationalLevel: "Primaire Général", sexe: "Garçon", dateNaissance: "2014-03-25", lieuNaissance: "Zinder", nationalite: "Nigérienne", photoPath: null },
+
+  // --- CM2 A ---
+  { id: 327, nomEtudiant: "Aïssatou", prenomEtudiant: "Souley", numAdmission: "EDUT-2024-000327", classe: "CM2 A", educationalLevel: "Primaire Général", sexe: "Fille", dateNaissance: "2013-02-18", lieuNaissance: "Agadez", nationalite: "Nigérienne", photoPath: null },
+  { id: 340, nomEtudiant: "Sani", prenomEtudiant: "Yahaya", numAdmission: "EDUT-2024-000340", classe: "CM2 A", educationalLevel: "Primaire Général", sexe: "Garçon", dateNaissance: "2013-09-08", lieuNaissance: "Maradi", nationalite: "Nigérienne", photoPath: null },
+  { id: 341, nomEtudiant: "Halima", prenomEtudiant: "Ousmane", numAdmission: "EDUT-2024-000341", classe: "CM2 A", educationalLevel: "Primaire Général", sexe: "Fille", dateNaissance: "2013-12-14", lieuNaissance: "Tahoua", nationalite: "Nigérienne", photoPath: null },
+
+  // --- 6ème A ---
+  { id: 321, nomEtudiant: "Malam Balla", prenomEtudiant: "Sanoussi", numAdmission: "EDUT-2024-000321", classe: "6ème A", educationalLevel: "Collège Général", sexe: "Garçon", dateNaissance: "2012-03-18", lieuNaissance: "Tahoua", nationalite: "Nigérienne", photoPath: null },
+  { id: 342, nomEtudiant: "Rahinatou", prenomEtudiant: "Zakari", numAdmission: "EDUT-2024-000342", classe: "6ème A", educationalLevel: "Collège Général", sexe: "Fille", dateNaissance: "2012-07-22", lieuNaissance: "Dosso", nationalite: "Nigérienne", photoPath: null },
+  { id: 343, nomEtudiant: "Hamza", prenomEtudiant: "Abdoulaye", numAdmission: "EDUT-2024-000343", classe: "6ème A", educationalLevel: "Collège Général", sexe: "Garçon", dateNaissance: "2012-10-30", lieuNaissance: "Niamey", nationalite: "Nigérienne", photoPath: null },
+
+  // --- 5ème A ---
+  { id: 320, nomEtudiant: "Malam Maina", prenomEtudiant: "Abass", numAdmission: "EDUT-2024-000320", classe: "5ème A", educationalLevel: "Collège Général", sexe: "Garçon", dateNaissance: "2011-12-05", lieuNaissance: "Diffa", nationalite: "Nigérienne", photoPath: null },
+  { id: 344, nomEtudiant: "Mariama", prenomEtudiant: "Oumarou", numAdmission: "EDUT-2024-000344", classe: "5ème A", educationalLevel: "Collège Général", sexe: "Fille", dateNaissance: "2011-05-19", lieuNaissance: "Tillabéri", nationalite: "Nigérienne", photoPath: null },
+  { id: 345, nomEtudiant: "Souleymane", prenomEtudiant: "Bello", numAdmission: "EDUT-2024-000345", classe: "5ème A", educationalLevel: "Collège Général", sexe: "Garçon", dateNaissance: "2011-08-11", lieuNaissance: "Zinder", nationalite: "Nigérienne", photoPath: null },
+
+  // --- 4ème A ---
+  { id: 319, nomEtudiant: "Malam Issoufou", prenomEtudiant: "Mme Hamiss", numAdmission: "EDUT-2024-000319", classe: "4ème A", educationalLevel: "Collège Général", sexe: "Fille", dateNaissance: "2010-09-30", lieuNaissance: "Dosso", nationalite: "Nigérienne", photoPath: null },
+  { id: 346, nomEtudiant: "Ibrahim", prenomEtudiant: "Adamou", numAdmission: "EDUT-2024-000346", classe: "4ème A", educationalLevel: "Collège Général", sexe: "Garçon", dateNaissance: "2010-02-14", lieuNaissance: "Maradi", nationalite: "Nigérienne", photoPath: null },
+  { id: 347, nomEtudiant: "Habiba", prenomEtudiant: "Salifou", numAdmission: "EDUT-2024-000347", classe: "4ème A", educationalLevel: "Collège Général", sexe: "Fille", dateNaissance: "2010-11-28", lieuNaissance: "Tahoua", nationalite: "Nigérienne", photoPath: null },
+
+  // --- 3ème A ---
+  { id: 318, nomEtudiant: "Ousmane", prenomEtudiant: "Seydou", numAdmission: "EDUT-2024-000318", classe: "3ème A", educationalLevel: "Collège Général", sexe: "Garçon", dateNaissance: "2009-04-12", lieuNaissance: "Niamey", nationalite: "Nigérienne", photoPath: null },
+  { id: 348, nomEtudiant: "Nafissatou", prenomEtudiant: "Bello", numAdmission: "EDUT-2024-000348", classe: "3ème A", educationalLevel: "Collège Général", sexe: "Fille", dateNaissance: "2009-07-07", lieuNaissance: "Agadez", nationalite: "Nigérienne", photoPath: null },
+  { id: 349, nomEtudiant: "Kabirou", prenomEtudiant: "Moussa", numAdmission: "EDUT-2024-000349", classe: "3ème A", educationalLevel: "Collège Général", sexe: "Garçon", dateNaissance: "2009-12-01", lieuNaissance: "Diffa", nationalite: "Nigérienne", photoPath: null },
+
+  // --- 2nde A ---
+  { id: 317, nomEtudiant: "Hamadou", prenomEtudiant: "Garba", numAdmission: "EDUT-2024-000317", classe: "2nde A", educationalLevel: "Lycée Général", sexe: "Garçon", dateNaissance: "2008-01-25", lieuNaissance: "Tillabéri", nationalite: "Nigérienne", photoPath: null },
+  { id: 350, nomEtudiant: "Zeinabou", prenomEtudiant: "Mahamane", numAdmission: "EDUT-2024-000350", classe: "2nde A", educationalLevel: "Lycée Général", sexe: "Fille", dateNaissance: "2008-08-16", lieuNaissance: "Niamey", nationalite: "Nigérienne", photoPath: null },
+
+  // --- 1ère A ---
+  { id: 316, nomEtudiant: "Zalika", prenomEtudiant: "Abdou", numAdmission: "EDUT-2024-000316", classe: "1ère A", educationalLevel: "Lycée Général", sexe: "Fille", dateNaissance: "2007-06-19", lieuNaissance: "Maradi", nationalite: "Nigérienne", photoPath: null },
+  { id: 351, nomEtudiant: "Bachir", prenomEtudiant: "Harouna", numAdmission: "EDUT-2024-000351", classe: "1ère A", educationalLevel: "Lycée Général", sexe: "Garçon", dateNaissance: "2007-10-03", lieuNaissance: "Zinder", nationalite: "Nigérienne", photoPath: null },
+
+  // --- L1 Arabic ---
+  { id: 315, nomEtudiant: "Ibrahim", prenomEtudiant: "Salissou", numAdmission: "EDUT-2024-000315", classe: "L1 Arabic", educationalLevel: "Licence Général", sexe: "Garçon", dateNaissance: "2005-10-11", lieuNaissance: "Zinder", nationalite: "Nigérienne", photoPath: null },
+  { id: 352, nomEtudiant: "Samira", prenomEtudiant: "Djibrilla", numAdmission: "EDUT-2024-000352", classe: "L1 Arabic", educationalLevel: "Licence Général", sexe: "Fille", dateNaissance: "2005-04-29", lieuNaissance: "Tillabéri", nationalite: "Nigérienne", photoPath: null },
+
+  // --- L2 Arabic ---
+  { id: 314, nomEtudiant: "Fatouma", prenomEtudiant: "Hassan", numAdmission: "EDUT-2024-000314", classe: "L2 Arabic", educationalLevel: "Licence Général", sexe: "Fille", dateNaissance: "2004-03-22", lieuNaissance: "Niamey", nationalite: "Nigérienne", photoPath: null },
+  { id: 353, nomEtudiant: "Sidi Mohamed", prenomEtudiant: "Ali", numAdmission: "EDUT-2024-000353", classe: "L2 Arabic", educationalLevel: "Licence Général", sexe: "Garçon", dateNaissance: "2004-11-15", lieuNaissance: "Tahoua", nationalite: "Nigérienne", photoPath: null },
 ];
 
 function isValidPhoto(path?: string | null): boolean {
@@ -270,7 +153,15 @@ export default function CardStudioContainer() {
   useEffect(() => {
     Promise.all([getStudents(), getBranches()])
       .then(([studRes, branchRes]: [any, any]) => {
-        let studData = studRes?.data?.data || studRes?.data || studRes || [];
+        let studData: any[] = [];
+        if (Array.isArray(studRes)) {
+          studData = studRes;
+        } else if (Array.isArray(studRes?.data)) {
+          studData = studRes.data;
+        } else if (Array.isArray(studRes?.data?.data)) {
+          studData = studRes.data.data;
+        }
+
         if (!Array.isArray(studData) || studData.length === 0) {
           studData = SAMPLE_STUDENTS;
         }
