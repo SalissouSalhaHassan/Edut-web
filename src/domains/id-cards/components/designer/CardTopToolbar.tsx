@@ -30,6 +30,9 @@ interface CardTopToolbarProps {
   templateName: string;
   onTemplateNameChange: (name: string) => void;
   onBatchPrintClick: () => void;
+  students?: any[];
+  previewStudentId?: number | null;
+  onPreviewStudentChange?: (id: number) => void;
 }
 
 export default function CardTopToolbar({
@@ -56,6 +59,9 @@ export default function CardTopToolbar({
   templateName,
   onTemplateNameChange,
   onBatchPrintClick,
+  students,
+  previewStudentId,
+  onPreviewStudentChange,
 }: CardTopToolbarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -113,6 +119,26 @@ export default function CardTopToolbar({
             Verso (Dos)
           </button>
         </div>
+
+        {/* Live Student Data Preview Selector */}
+        {students && students.length > 0 && onPreviewStudentChange && (
+          <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-200/80 px-2.5 py-1 rounded-xl">
+            <Sparkles size={13} className="text-amber-600" />
+            <span className="text-[10px] font-black text-amber-800 uppercase tracking-tight">Aperçu élève :</span>
+            <Select value={String(previewStudentId || students[0]?.id)} onValueChange={(val) => onPreviewStudentChange(Number(val))}>
+              <SelectTrigger className="h-7 w-36 rounded-lg border-none bg-white font-bold text-xs shadow-sm text-slate-900">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {students.map((st) => (
+                  <SelectItem key={st.id} value={String(st.id)}>
+                    {st.nomEtudiant} {st.prenomEtudiant} ({st.classe || "N/A"})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </div>
 
       {/* Card Configuration & Controls */}

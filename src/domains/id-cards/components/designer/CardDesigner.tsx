@@ -8,8 +8,8 @@ import CardCanvas from "./CardCanvas";
 import CardRightProperties from "./CardRightProperties";
 import CardLayersPanel from "./CardLayersPanel";
 import { useCardTemplateStore } from "./CardTemplateStore";
-import { exportCardToPDF, exportCardToImage, exportCardToJSON } from "./cardExportEngine";
 import { saveCardTemplate, getCardTemplates, deleteCardTemplate } from "@/domains/academics/actions/academics.actions";
+import { getBranches } from "@/domains/settings/actions/settings.actions";
 import { getStudents } from "@/domains/students/actions/students.actions";
 import { CardElement } from "./types";
 import { Users, Search, Printer, Check, X, Shield, Sparkles } from "lucide-react";
@@ -193,6 +193,8 @@ const DEFAULT_RECTO_CARD_ELEMENTS: CardElement[] = [
 export default function CardDesigner() {
   const [saving, setSaving] = useState(false);
   const [students, setStudents] = useState<any[]>([]);
+  const [branches, setBranches] = useState<any[]>([]);
+  const [previewStudentId, setPreviewStudentId] = useState<number | null>(null);
   const [selectedStudentIds, setSelectedStudentIds] = useState<number[]>([]);
   const [searchStudent, setSearchStudent] = useState("");
   const [showBatchModal, setShowBatchModal] = useState(false);
@@ -247,16 +249,27 @@ export default function CardDesigner() {
   useEffect(() => {
     getStudents().then((res: any) => {
       const data = res.data?.data || res.data || [];
-      if (Array.isArray(data)) setStudents(data);
+      if (Array.isArray(data)) {
+        setStudents(data);
+        if (data.length > 0) setPreviewStudentId(data[0].id);
+      }
+    });
+    getBranches().then((res: any) => {
+      const data = res.data?.data || res.data || [];
+      if (Array.isArray(data)) setBranches(data);
     });
   }, []);
 
   const activeStudent = useMemo(() => {
-    if (selectedStudentIds.length > 0) {
-      return students.find(s => s.id === selectedStudentIds[0]);
+    if (previewStudentId) {
+      return students.find(s => s.id === previewStudentId) || students[0] || null;
     }
     return students[0] || null;
-  }, [students, selectedStudentIds]);
+  }, [students, previewStudentId]);
+
+  const activeBranch = useMemo(() => {
+    return branches[0] || null;
+  }, [branches]);
 
   const filteredStudents = useMemo(() => {
     return students.filter(s =>
@@ -353,6 +366,9 @@ export default function CardDesigner() {
         templateName={templateName}
         onTemplateNameChange={setTemplateName}
         onBatchPrintClick={() => setShowBatchModal(true)}
+        students={students}
+        previewStudentId={previewStudentId}
+        onPreviewStudentChange={setPreviewStudentId}
       />
 
       {/* Main Workspace Layout */}
@@ -372,6 +388,7 @@ export default function CardDesigner() {
             showRulers={showRulers}
             snapToGrid={snapToGrid}
             activeStudent={activeStudent}
+            activeBranch={activeBranch}
           />
 
           <CardLayersPanel

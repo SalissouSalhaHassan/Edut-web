@@ -20,6 +20,7 @@ interface CardCanvasProps {
   showRulers: boolean;
   snapToGrid: boolean;
   activeStudent?: any;
+  activeBranch?: any;
 }
 
 export default function CardCanvas({
@@ -244,23 +245,43 @@ export default function CardCanvas({
           if (el.hidden) return null;
           const isSelected = el.id === selectedId;
 
-          // Replace token variables if student object is available
+          // Replace token variables if student or branch data is available
           let contentStr = el.content || "";
-          if (activeStudent && el.variableKey) {
-            if (el.variableKey === "{{student_name}}") contentStr = `${activeStudent.nomEtudiant || ""} ${activeStudent.prenomEtudiant || ""}`.trim() || "MAMADOU SOW";
-            else if (el.variableKey === "{{student_id}}") contentStr = activeStudent.numAdmission || "EDUT-100482";
-            else if (el.variableKey === "{{class}}") contentStr = activeStudent.classe || "6ème A";
-            else if (el.variableKey === "{{section}}") contentStr = activeStudent.section || "Général";
-            else if (el.variableKey === "{{gender}}") contentStr = activeStudent.sexe || "Masculin";
-            else if (el.variableKey === "{{birth_date}}") contentStr = activeStudent.dateNaissance || "14/05/2012";
-            else if (el.variableKey === "{{phone}}") contentStr = activeStudent.telephone || "+227 90 00 00 00";
-            else if (el.variableKey === "{{guardian}}") contentStr = activeStudent.tuteur || "M. Sow Ibrahim";
+          if (el.variableKey) {
+            if (el.variableKey === "{{student_name}}") contentStr = activeStudent ? `${activeStudent.nomEtudiant || ""} ${activeStudent.prenomEtudiant || ""}`.trim() : "MAMADOU SOW";
+            else if (el.variableKey === "{{student_id}}") contentStr = activeStudent?.numAdmission ? `Matricule: ${activeStudent.numAdmission}` : "Matricule: EDUT-100482";
+            else if (el.variableKey === "{{class}}") contentStr = activeStudent?.classe ? `Classe: ${activeStudent.classe}` : "Classe: 6ème A";
+            else if (el.variableKey === "{{section}}") contentStr = activeStudent?.section || "Général";
+            else if (el.variableKey === "{{gender}}") contentStr = activeStudent?.sexe || "Masculin";
+            else if (el.variableKey === "{{birth_date}}") contentStr = activeStudent?.dateNaissance || "14/05/2012";
+            else if (el.variableKey === "{{birth_place}}") contentStr = activeStudent?.lieuNaissance || "Niamey";
+            else if (el.variableKey === "{{blood_type}}") contentStr = activeStudent?.groupeSanguin || "O+";
+            else if (el.variableKey === "{{phone}}") contentStr = activeStudent?.telephone || "+227 90 00 00 00";
+            else if (el.variableKey === "{{guardian}}") contentStr = activeStudent?.tuteur || "M. Sow Ibrahim";
+            else if (el.variableKey === "{{address}}") contentStr = activeStudent?.adresse || "Quartier Plateau, Niamey";
+            else if (el.variableKey === "{{school_name}}") contentStr = activeBranch?.nomBranch || activeBranch?.name || "ÉCOLE GESTION PRO";
             else if (el.variableKey === "{{academic_year}}") contentStr = "2025-2026";
+            else if (el.variableKey === "{{director}}") contentStr = activeBranch?.directorName || "M. le Proviseur";
+            else if (el.variableKey === "{{school_phone}}") contentStr = activeBranch?.telephone || "+227 20 00 00 00";
+            else if (el.variableKey === "{{school_email}}") contentStr = activeBranch?.email || "contact@ecole-edut.ne";
             else if (el.variableKey === "{{issue_date}}") contentStr = "01/10/2025";
             else if (el.variableKey === "{{expiry_date}}") contentStr = "30/06/2026";
+            else if (el.variableKey === "{{status_badge}}") contentStr = "ÉLÈVE INSCRIT";
+            else if (el.variableKey === "{{qr_code}}") contentStr = activeStudent?.numAdmission ? `VERIFIED-${activeStudent.numAdmission}` : "EDUT-CARD-VERIFIED";
+            else if (el.variableKey === "{{barcode}}") contentStr = activeStudent?.numAdmission || "EDUT-100482";
           }
 
-          const photoSrc = activeStudent?.photoPath || el.src || "/placeholder-student.png";
+          let rawPhoto = activeStudent?.photoPath || el.src;
+          if (rawPhoto && (rawPhoto.startsWith("C:") || rawPhoto.startsWith("file:"))) {
+            rawPhoto = `/api/files?path=${encodeURIComponent(rawPhoto)}`;
+          }
+          const photoSrc = rawPhoto;
+
+          let rawLogo = activeBranch?.logoPath || el.src;
+          if (rawLogo && (rawLogo.startsWith("C:") || rawLogo.startsWith("file:"))) {
+            rawLogo = `/api/files?path=${encodeURIComponent(rawLogo)}`;
+          }
+          const logoSrc = rawLogo;
 
           return (
             <div
@@ -323,9 +344,9 @@ export default function CardCanvas({
                     </div>
                   )
                 ) : el.type === "schoolLogo" ? (
-                  el.src && !el.src.includes("placeholder-logo") ? (
+                  logoSrc && !logoSrc.includes("placeholder-logo") ? (
                     <img
-                      src={el.src}
+                      src={logoSrc}
                       alt={el.name}
                       className={`w-full h-full object-contain pointer-events-none ${el.circularCrop ? "rounded-full" : ""}`}
                     />
