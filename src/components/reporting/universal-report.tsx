@@ -510,7 +510,7 @@ export default function UniversalReport({ metadata, kpis = [], table, onSendEmai
     try {
       toast.success("Génération du rapport PDF officiel...");
       const doc = new jsPDF({
-        orientation: metadata.isLandscape ? "landscape" : "portrait",
+        orientation: metadata.isLandscape !== false ? "landscape" : "portrait",
         unit: "mm",
         format: selectedPaperSize === "A5" ? "a5" : "a4",
       });
@@ -720,7 +720,7 @@ export default function UniversalReport({ metadata, kpis = [], table, onSendEmai
       <style dangerouslySetInnerHTML={{__html: `
         @media print {
           @page {
-            size: ${selectedPaperSize === "A5" ? "A5 portrait" : "A4 portrait"};
+            size: ${selectedPaperSize === "A5" ? "A5 landscape" : "A4 landscape"};
             margin: ${selectedPaperSize === "A5" ? "6mm 8mm" : "8mm 10mm"};
           }
           html, body {
