@@ -391,7 +391,7 @@ export default function EtablissementsPage() {
       doc.setFont("helvetica", "bold");
       doc.text("INFORMATIONS DOCUMENT", pageWidth - 80, 17);
       doc.setFont("helvetica", "normal");
-      doc.text(`Date d'édition : 28/06/2026 15:05`, pageWidth - 80, 22);
+      doc.text(`Date d'édition : ${new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}`, pageWidth - 80, 22);
       doc.text("Édité par : Admin Super", pageWidth - 80, 27);
       doc.text("Réf Rapport : RPT-ETB-2026-0001", pageWidth - 80, 32);
 
@@ -533,7 +533,7 @@ export default function EtablissementsPage() {
       doc.setFont("helvetica", "bold");
       doc.text("INFORMATIONS DOCUMENT", pageWidth - 80, 17);
       doc.setFont("helvetica", "normal");
-      doc.text(`Date d'édition : 28/06/2026 15:05`, pageWidth - 80, 22);
+      doc.text(`Date d'édition : ${new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}`, pageWidth - 80, 22);
       doc.text("Édité par : Admin Super", pageWidth - 80, 27);
       doc.text("Réf Rapport : RPT-ETB-2026-0001", pageWidth - 80, 32);
 
@@ -646,12 +646,36 @@ export default function EtablissementsPage() {
   };
 
   return (
-    <div className="min-h-screen space-y-6 p-4 text-slate-950 md:p-6 xl:p-8 print:bg-white print:p-0 print:w-[297mm] print:h-[210mm]">
+    <div className="min-h-screen space-y-6 p-4 text-slate-950 md:p-6 xl:p-8 print:bg-white print:p-0 print:m-0 print:w-full print:min-h-0">
       <style dangerouslySetInnerHTML={{__html: `
         @media print {
           @page {
-            size: landscape !important;
-            margin: 10mm !important;
+            size: A4 portrait;
+            margin: 8mm 10mm;
+          }
+          html, body {
+            background: #ffffff !important;
+            color: #000000 !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: visible !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          * {
+            overflow: visible !important;
+            box-shadow: none !important;
+            scrollbar-width: none !important;
+            -ms-overflow-style: none !important;
+          }
+          ::-webkit-scrollbar {
+            display: none !important;
+            width: 0 !important;
+            height: 0 !important;
+          }
+          .no-print, .print\\:hidden {
+            display: none !important;
           }
         }
       `}} />
@@ -913,59 +937,59 @@ export default function EtablissementsPage() {
       </div>
 
       {/* ─── PRINT LAYOUT (Visible only on print) ─── */}
-      <div className="hidden print:block bg-white text-black font-sans w-full space-y-8">
+      <div className="hidden print:block bg-white text-black font-sans w-full p-0 m-0 space-y-6">
         
         {/* PAGE 1: RÉSUMÉ GÉNÉRAL */}
-        <div className="min-h-screen flex flex-col justify-between py-10 px-8 border-b-2 border-slate-200" style={{ pageBreakAfter: "always" }}>
-          <div className="space-y-8">
+        <div className="flex flex-col justify-between py-4 px-2 space-y-6" style={{ pageBreakAfter: "always", breakAfter: "page" }}>
+          <div className="space-y-6">
             {/* Header */}
-            <div className="flex justify-between items-start border-b-2 border-indigo-600 pb-5">
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-black text-xl shadow-lg shrink-0">
+            <div className="flex justify-between items-start border-b-2 border-indigo-600 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-14 h-14 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-black text-lg shadow-sm shrink-0">
                   EP
                 </div>
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-indigo-600">GESTION DES CANEVAS SCOLAIRES</p>
-                  <h1 className="text-3xl font-black tracking-tight text-slate-950 uppercase">LISTE DES ÉTABLISSEMENTS</h1>
+                  <p className="text-[9px] font-black uppercase tracking-[0.18em] text-indigo-600">GESTION DES CANEVAS SCOLAIRES</p>
+                  <h1 className="text-2xl font-black tracking-tight text-slate-950 uppercase">LISTE DES ÉTABLISSEMENTS</h1>
                   <p className="text-xs font-bold text-slate-500 mt-0.5">Registre central des écoles, collèges et lycées</p>
                 </div>
               </div>
               
-              <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4 min-w-[280px] space-y-1 text-xs font-bold text-slate-600">
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Date d'édition :</span>
-                  <span className="text-slate-800">28/06/2026 15:05</span>
+              <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 text-xs font-bold text-slate-700 shrink-0 w-auto space-y-1">
+                <div className="flex justify-between gap-3">
+                  <span className="text-slate-400 font-normal">Date d'édition :</span>
+                  <span className="text-slate-800 font-black">{new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Année scolaire :</span>
-                  <span className="text-slate-800">2025 - 2026</span>
+                <div className="flex justify-between gap-3">
+                  <span className="text-slate-400 font-normal">Année scolaire :</span>
+                  <span className="text-slate-800 font-black">2025 - 2026</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Édité par :</span>
-                  <span className="text-slate-800">Admin Super</span>
+                <div className="flex justify-between gap-3">
+                  <span className="text-slate-400 font-normal">Édité par :</span>
+                  <span className="text-slate-800 font-black">Admin Super</span>
                 </div>
               </div>
             </div>
 
             {/* General Summary */}
-            <div className="space-y-4">
-              <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+            <div className="space-y-3">
+              <h3 className="text-xs font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-indigo-600" /> Résumé Général
               </h3>
-              <div className="grid gap-4 grid-cols-4">
+              <div className="grid grid-cols-4 gap-3 w-full">
                 {[
-                  { label: "Établissements", value: filteredSchools.length, icon: <Building2 size={20} />, color: "text-indigo-600", bg: "bg-indigo-50" },
-                  { label: "Publics", value: totalPublic, icon: <ShieldCheck size={20} />, color: "text-emerald-600", bg: "bg-emerald-50" },
-                  { label: "Privés", value: totalPrivate, icon: <Building2 size={20} />, color: "text-violet-600", bg: "bg-violet-50" },
-                  { label: "Total Élèves", value: totalStudents.toLocaleString("fr-FR"), icon: <Users size={20} />, color: "text-blue-600", bg: "bg-blue-50" },
+                  { label: "Établissements", value: filteredSchools.length, icon: <Building2 size={18} />, color: "text-indigo-600", bg: "bg-indigo-50" },
+                  { label: "Publics", value: totalPublic, icon: <ShieldCheck size={18} />, color: "text-emerald-600", bg: "bg-emerald-50" },
+                  { label: "Privés", value: totalPrivate, icon: <Building2 size={18} />, color: "text-violet-600", bg: "bg-violet-50" },
+                  { label: "Total Élèves", value: totalStudents.toLocaleString("fr-FR"), icon: <Users size={18} />, color: "text-blue-600", bg: "bg-blue-50" },
                 ].map((item, idx) => (
-                  <div key={idx} className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm flex items-center justify-between">
-                    <div>
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">{item.label}</span>
-                      <span className="text-2xl font-black text-slate-950 mt-1 block">{item.value}</span>
-                      <span className="text-[9px] font-bold text-slate-400 block mt-0.5">2025 - 2026</span>
+                  <div key={idx} className="rounded-xl border border-slate-200 bg-white p-3.5 flex items-center justify-between shadow-none">
+                    <div className="space-y-0.5">
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">{item.label}</span>
+                      <span className="text-xl font-black text-slate-950 block">{item.value}</span>
+                      <span className="text-[8px] font-bold text-slate-400 block">2025 - 2026</span>
                     </div>
-                    <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center shrink-0", item.bg, item.color)}>
+                    <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center shrink-0", item.bg, item.color)}>
                       {item.icon}
                     </div>
                   </div>
@@ -974,13 +998,13 @@ export default function EtablissementsPage() {
             </div>
 
             {/* Info Box */}
-            <div className="rounded-[24px] border border-slate-100 bg-slate-50/50 p-6 flex justify-between items-center gap-4">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 flex justify-between items-center gap-4">
               <div className="space-y-1">
                 <p className="text-[10px] font-black uppercase tracking-widest text-indigo-600 flex items-center gap-1.5">
                   <Info size={13} /> À propos de ce rapport
                 </p>
                 <p className="text-xs font-bold leading-relaxed text-slate-500 max-w-2xl">
-                  Ce rapport présente la liste complète des établissements scolaires enregistrés dans le canevas scolaire du système Edut Pro pour l'année scolaire 2025-2026.
+                  Ce rapport présente la liste officielle des établissements scolaires enregistrés dans le canevas du système Edut Pro pour l'année scolaire 2025-2026.
                 </p>
               </div>
               <div className="flex items-center gap-3 shrink-0">
@@ -988,7 +1012,7 @@ export default function EtablissementsPage() {
                   <p className="text-[9px] font-black text-slate-400">VÉRIFICATION D'AUTHENTICITÉ</p>
                   <p className="text-[10px] font-mono font-bold text-slate-700 mt-0.5">RPT-ETB-2026-0001</p>
                 </div>
-                <div className="w-14 h-14 border border-slate-300 rounded-lg bg-slate-50 flex items-center justify-center text-[8px] font-mono text-slate-400 select-none">
+                <div className="w-12 h-12 border border-slate-300 rounded-lg bg-slate-50 flex items-center justify-center text-[7px] font-mono text-slate-400 select-none">
                   [QR CODE]
                 </div>
               </div>
@@ -996,28 +1020,28 @@ export default function EtablissementsPage() {
           </div>
 
           {/* Signatures & Stamp */}
-          <div className="space-y-6 pt-10 border-t border-slate-100 mt-auto">
+          <div className="space-y-4 pt-6 border-t border-slate-200 mt-auto">
             <div className="grid grid-cols-3 gap-6 items-center text-center">
               <div>
                 <p className="text-xs font-black uppercase tracking-wider text-slate-500">Le Client</p>
-                <div className="mt-2 h-20 w-44 border border-dashed border-slate-200 rounded-2xl mx-auto flex items-center justify-center text-[10px] text-slate-400 italic">Signature & Cachet</div>
+                <div className="mt-2 h-16 w-36 border border-dashed border-slate-300 rounded-xl mx-auto flex items-center justify-center text-[10px] text-slate-400 italic">Signature & Cachet</div>
               </div>
               <div className="flex flex-col items-center">
-                <div className="w-20 h-20 rounded-full border-4 border-double border-indigo-200 bg-indigo-50/30 flex flex-col items-center justify-center text-center p-2">
-                  <span className="text-[8px] font-black text-indigo-600 uppercase tracking-widest leading-none">Edut Pro</span>
-                  <span className="text-[7px] font-bold text-slate-500 uppercase leading-normal">Système</span>
-                  <span className="text-[7px] font-bold text-slate-500 uppercase leading-none">Gestion Scolaire</span>
-                  <span className="text-[8px] text-indigo-500 mt-1">★</span>
+                <div className="w-16 h-16 rounded-full border-4 border-double border-indigo-200 bg-indigo-50/30 flex flex-col items-center justify-center text-center p-1.5">
+                  <span className="text-[7px] font-black text-indigo-600 uppercase tracking-widest leading-none">Edut Pro</span>
+                  <span className="text-[6px] font-bold text-slate-500 uppercase leading-normal">Système</span>
+                  <span className="text-[6px] font-bold text-slate-500 uppercase leading-none">Gestion Scolaire</span>
+                  <span className="text-[7px] text-indigo-500 mt-0.5">★</span>
                 </div>
               </div>
               <div>
                 <p className="text-xs font-black uppercase tracking-wider text-slate-500">La Direction</p>
-                <div className="mt-2 h-20 w-44 border border-dashed border-slate-200 rounded-2xl mx-auto flex items-center justify-center text-[10px] text-slate-400 italic">Signature & Cachet</div>
+                <div className="mt-2 h-16 w-36 border border-dashed border-slate-300 rounded-xl mx-auto flex items-center justify-center text-[10px] text-slate-400 italic">Signature & Cachet</div>
               </div>
             </div>
             
             {/* Footer Page 1 */}
-            <div className="flex justify-between items-center text-[9px] text-slate-400 font-bold uppercase tracking-widest border-t border-slate-200 pt-4 mt-6">
+            <div className="flex justify-between items-center text-[9px] text-slate-400 font-bold uppercase tracking-widest border-t border-slate-200 pt-3 mt-4">
               <span>Edut Pro - Gestion Scolaire</span>
               <span className="text-indigo-600 italic">Merci pour votre confiance</span>
               <span>Page 1 / 2</span>
@@ -1026,77 +1050,81 @@ export default function EtablissementsPage() {
         </div>
 
         {/* PAGE 2: TABLEAU DES ÉTABLISSEMENTS */}
-        <div className="min-h-screen flex flex-col justify-between py-10 px-8">
-          <div className="space-y-8">
-            {/* Header */}
-            <div className="flex justify-between items-start border-b-2 border-indigo-600 pb-5">
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-black text-xl shadow-lg shrink-0">
+        <div className="flex flex-col justify-between py-4 px-2 space-y-6">
+          <div className="space-y-6">
+            {/* Header Page 2 */}
+            <div className="flex justify-between items-start border-b-2 border-indigo-600 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-14 h-14 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-black text-lg shadow-sm shrink-0">
                   EP
                 </div>
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-indigo-600">GESTION DES CANEVAS SCOLAIRES</p>
-                  <h1 className="text-3xl font-black tracking-tight text-slate-950 uppercase">LISTE DES ÉTABLISSEMENTS</h1>
+                  <p className="text-[9px] font-black uppercase tracking-[0.18em] text-indigo-600">GESTION DES CANEVAS SCOLAIRES</p>
+                  <h1 className="text-2xl font-black tracking-tight text-slate-950 uppercase">LISTE DES ÉTABLISSEMENTS</h1>
                   <p className="text-xs font-bold text-slate-500 mt-0.5">Registre central des écoles, collèges et lycées</p>
                 </div>
               </div>
               
-              <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4 min-w-[280px] space-y-1 text-xs font-bold text-slate-600">
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Date d'édition :</span>
-                  <span className="text-slate-800">28/06/2026 15:05</span>
+              <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 text-xs font-bold text-slate-700 shrink-0 w-auto space-y-1">
+                <div className="flex justify-between gap-3">
+                  <span className="text-slate-400 font-normal">Date d'édition :</span>
+                  <span className="text-slate-800 font-black">{new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Année scolaire :</span>
-                  <span className="text-slate-800">2025 - 2026</span>
+                <div className="flex justify-between gap-3">
+                  <span className="text-slate-400 font-normal">Année scolaire :</span>
+                  <span className="text-slate-800 font-black">2025 - 2026</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Édité par :</span>
-                  <span className="text-slate-800">Admin Super</span>
+                <div className="flex justify-between gap-3">
+                  <span className="text-slate-400 font-normal">Édité par :</span>
+                  <span className="text-slate-800 font-black">Admin Super</span>
                 </div>
               </div>
             </div>
 
             {/* Table */}
-            <div className="space-y-4">
-              <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+            <div className="space-y-3">
+              <h3 className="text-xs font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-indigo-600" /> Tableau des Établissements
               </h3>
               
-              <div className="overflow-x-auto rounded-[24px] border border-slate-200">
-                <table className="w-full border-collapse text-left text-xs">
+              <div className="rounded-xl border border-slate-200 w-full overflow-visible">
+                <table className="w-full border-collapse text-left text-xs table-fixed">
                   <thead>
-                    <tr className="bg-indigo-600 font-black uppercase tracking-widest text-white">
-                      <th className="px-4 py-3">N°</th>
-                      <th className="px-4 py-3">Code Établissement</th>
-                      <th className="px-4 py-3">Établissement</th>
-                      <th className="px-4 py-3">Type</th>
-                      <th className="px-4 py-3">Cycle</th>
-                      <th className="px-4 py-3">Région</th>
-                      <th className="px-4 py-3">Commune</th>
-                      <th className="px-4 py-3">Actions</th>
+                    <tr className="bg-indigo-600 font-black uppercase tracking-wider text-white text-[10px]">
+                      <th className="px-3 py-2.5 w-[35px]">N°</th>
+                      <th className="px-3 py-2.5 w-[110px]">Code</th>
+                      <th className="px-3 py-2.5">Établissement</th>
+                      <th className="px-3 py-2.5 w-[75px]">Type</th>
+                      <th className="px-3 py-2.5 w-[85px]">Cycle</th>
+                      <th className="px-3 py-2.5 w-[85px]">Région</th>
+                      <th className="px-3 py-2.5 w-[95px]">Commune</th>
+                      <th className="px-3 py-2.5 w-[80px] text-right">Élèves</th>
+                      <th className="px-3 py-2.5 w-[90px]">Statut</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 font-bold text-slate-700">
+                  <tbody className="divide-y divide-slate-200 font-semibold text-slate-800">
                     {filteredSchools.map((school, index) => (
-                      <tr key={school.code} className="hover:bg-slate-50/50 transition-colors odd:bg-white even:bg-slate-50/30">
-                        <td className="px-4 py-3 text-slate-400">{index + 1}</td>
-                        <td className="px-4 py-3 font-black text-indigo-600">{school.code}</td>
-                        <td className="px-4 py-3">
+                      <tr key={school.code} className="odd:bg-white even:bg-slate-50/60">
+                        <td className="px-3 py-2 text-slate-400 font-normal">{index + 1}</td>
+                        <td className="px-3 py-2 font-black text-indigo-700">{school.code}</td>
+                        <td className="px-3 py-2">
                           <div>
-                            <p className="font-black text-slate-900">{school.name}</p>
-                            <p className="text-[10px] text-slate-400">{school.quartier}</p>
+                            <p className="font-black text-slate-900 truncate">{school.name}</p>
+                            <p className="text-[9px] text-slate-400 font-normal truncate">{school.quartier}</p>
                           </div>
                         </td>
-                        <td className="px-4 py-3">{school.type}</td>
-                        <td className="px-4 py-3">{school.cycle}</td>
-                        <td className="px-4 py-3">{school.region}</td>
-                        <td className="px-4 py-3">{school.commune}</td>
-                        <td className="px-4 py-3">
-                          <div className="flex gap-2">
-                            <span className="text-[9px] text-indigo-600 underline">OUVRIR</span>
-                            <span className="text-[9px] text-indigo-600 underline">FICHE ERP</span>
-                          </div>
+                        <td className="px-3 py-2">{school.type}</td>
+                        <td className="px-3 py-2">{school.cycle}</td>
+                        <td className="px-3 py-2">{school.region}</td>
+                        <td className="px-3 py-2">{school.commune}</td>
+                        <td className="px-3 py-2 text-right font-black text-slate-900">{school.eleves.toLocaleString("fr-FR")}</td>
+                        <td className="px-3 py-2">
+                          <span className={cn(
+                            "inline-block rounded-md px-2 py-0.5 text-[9px] font-black uppercase tracking-wider",
+                            school.statut.includes("Validé") ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
+                          )}>
+                            {school.statut.includes("Validé") ? "Validé" : "En cours"}
+                          </span>
                         </td>
                       </tr>
                     ))}
@@ -1105,41 +1133,41 @@ export default function EtablissementsPage() {
               </div>
 
               {/* Recap Summary */}
-              <div className="rounded-[20px] border border-slate-200 bg-slate-50/50 p-4 flex gap-6 items-center justify-between text-[11px] font-black text-slate-700">
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Récapitulatif</span>
+              <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 flex gap-6 items-center justify-between text-[11px] font-black text-slate-700">
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Récapitulatif Global</span>
                 <div className="flex gap-6">
-                  <span>Nombre d'établissements : <span className="text-slate-900">{filteredSchools.length}</span></span>
+                  <span>Établissements : <span className="text-slate-900">{filteredSchools.length}</span></span>
                   <span>Publics : <span className="text-slate-900">{totalPublic}</span></span>
                   <span>Privés : <span className="text-slate-900">{totalPrivate}</span></span>
-                  <span>Total élèves : <span className="text-slate-900">{totalStudents}</span></span>
+                  <span>Total élèves : <span className="text-slate-900">{totalStudents.toLocaleString("fr-FR")}</span></span>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Signatures & Stamp */}
-          <div className="space-y-6 pt-10 border-t border-slate-100 mt-auto">
+          <div className="space-y-4 pt-6 border-t border-slate-200 mt-auto">
             <div className="grid grid-cols-3 gap-6 items-center text-center">
               <div>
                 <p className="text-xs font-black uppercase tracking-wider text-slate-500">Le Client</p>
-                <div className="mt-2 h-20 w-44 border border-dashed border-slate-200 rounded-2xl mx-auto flex items-center justify-center text-[10px] text-slate-400 italic">Signature & Cachet</div>
+                <div className="mt-2 h-16 w-36 border border-dashed border-slate-300 rounded-xl mx-auto flex items-center justify-center text-[10px] text-slate-400 italic">Signature & Cachet</div>
               </div>
               <div className="flex flex-col items-center">
-                <div className="w-20 h-20 rounded-full border-4 border-double border-indigo-200 bg-indigo-50/30 flex flex-col items-center justify-center text-center p-2">
-                  <span className="text-[8px] font-black text-indigo-600 uppercase tracking-widest leading-none">Edut Pro</span>
-                  <span className="text-[7px] font-bold text-slate-500 uppercase leading-normal">Système</span>
-                  <span className="text-[7px] font-bold text-slate-500 uppercase leading-none">Gestion Scolaire</span>
-                  <span className="text-[8px] text-indigo-500 mt-1">★</span>
+                <div className="w-16 h-16 rounded-full border-4 border-double border-indigo-200 bg-indigo-50/30 flex flex-col items-center justify-center text-center p-1.5">
+                  <span className="text-[7px] font-black text-indigo-600 uppercase tracking-widest leading-none">Edut Pro</span>
+                  <span className="text-[6px] font-bold text-slate-500 uppercase leading-normal">Système</span>
+                  <span className="text-[6px] font-bold text-slate-500 uppercase leading-none">Gestion Scolaire</span>
+                  <span className="text-[7px] text-indigo-500 mt-0.5">★</span>
                 </div>
               </div>
               <div>
                 <p className="text-xs font-black uppercase tracking-wider text-slate-500">La Direction</p>
-                <div className="mt-2 h-20 w-44 border border-dashed border-slate-200 rounded-2xl mx-auto flex items-center justify-center text-[10px] text-slate-400 italic">Signature & Cachet</div>
+                <div className="mt-2 h-16 w-36 border border-dashed border-slate-300 rounded-xl mx-auto flex items-center justify-center text-[10px] text-slate-400 italic">Signature & Cachet</div>
               </div>
             </div>
             
             {/* Footer Page 2 */}
-            <div className="flex justify-between items-center text-[9px] text-slate-400 font-bold uppercase tracking-widest border-t border-slate-200 pt-4 mt-6">
+            <div className="flex justify-between items-center text-[9px] text-slate-400 font-bold uppercase tracking-widest border-t border-slate-200 pt-3 mt-4">
               <span>Edut Pro - Gestion Scolaire</span>
               <span className="text-indigo-600 italic">Merci pour votre confiance</span>
               <span>Page 2 / 2</span>
