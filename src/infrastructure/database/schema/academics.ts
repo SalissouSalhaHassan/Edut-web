@@ -723,4 +723,19 @@ export const officialTemplates = pgTable("official_templates", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+export const cardTemplates = pgTable("card_templates", {
+  id: serial("id").primaryKey(),
+  schoolId: integer("school_id").references(() => schools.id),
+  name: varchar("name", { length: 150 }).notNull(),
+  description: text("description"),
+  cardType: varchar("card_type", { length: 30 }).default("CR80"),
+  orientation: varchar("orientation", { length: 20 }).default("landscape"),
+  rectoDesign: jsonb("recto_design"),
+  versoDesign: jsonb("verso_design"),
+  isDefault: boolean("is_default").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+
 

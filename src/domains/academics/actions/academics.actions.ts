@@ -2882,3 +2882,72 @@ export async function getCanevasStats() {
     };
   });
 }
+
+export async function getCardTemplates() {
+  return protectedDbAction("Settings", "canView", async () => {
+    const schoolId = await getActiveSchoolId();
+    try {
+      const { cardTemplates } = await import("@/infrastructure/database/schema/academics");
+      const list = await db.select().from(cardTemplates).where(eq(cardTemplates.schoolId, schoolId)).orderBy(desc(cardTemplates.updatedAt));
+      return list;
+    } catch (e: any) {
+      console.error("[getCardTemplates] error:", e);
+      return [];
+    }
+  });
+}
+
+export async function saveCardTemplate(data: { id?: number; name: string; description?: string; cardType?: string; orientation?: string; rectoDesign: any; versoDesign: any; isDefault?: boolean }) {
+  return protectedDbAction("Settings", "canEdit", async () => {
+    const schoolId = await getActiveSchoolId();
+    try {
+      const { cardTemplates } = await import("@/infrastructure/database/schema/academics");
+      if (data.isDefault) {
+        await db.update(cardTemplates).set({ isDefault: false }).where(eq(cardTemplates.schoolId, schoolId));
+      }
+
+      if (data.id) {
+        await db.update(cardTemplates).set({
+          name: data.name,
+          description: data.description,
+          cardType: data.cardType || "CR80",
+          orientation: data.orientation || "landscape",
+          rectoDesign: data.rectoDesign,
+          versoDesign: data.versoDesign,
+          isDefault: Boolean(data.isDefault),
+          updatedAt: new Date()
+        }).where(and(eq(cardTemplates.id, data.id), eq(cardTemplates.schoolId, schoolId)));
+        return { success: true, id: data.id };
+      } else {
+        const [inserted] = await db.insert(cardTemplates).values({
+          schoolId,
+          name: data.name,
+          description: data.description,
+          cardType: data.cardType || "CR80",
+          orientation: data.orientation || "landscape",
+          rectoDesign: data.rectoDesign,
+          versoDesign: data.versoDesign,
+          isDefault: Boolean(data.isDefault),
+        }).returning({ id: cardTemplates.id });
+        return { success: true, id: inserted.id };
+      }
+    } catch (e: any) {
+      console.error("[saveCardTemplate] error:", e);
+      return { error: e.message || "Impossible d'enregistrer le modèle de carte" };
+    }
+  });
+}
+
+export async function deleteCardTemplate(id: number) {
+  return protectedDbAction("Settings", "canEdit", async () => {
+    const schoolId = await getActiveSchoolId();
+    try {
+      const { cardTemplates } = await import("@/infrastructure/database/schema/academics");
+      await db.delete(cardTemplates).where(and(eq(cardTemplates.id, id), eq(cardTemplates.schoolId, schoolId)));
+      return { success: true };
+    } catch (e: any) {
+      return { error: e.message || "Impossible de supprimer le modèle de carte" };
+    }
+  });
+}
+
