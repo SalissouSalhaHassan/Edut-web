@@ -1,10 +1,11 @@
 "use client";
 
 import { DesignerElement, FONT_FAMILIES } from "./types";
+import { toast } from "sonner";
 import {
   AlignLeft, AlignCenter, AlignRight, AlignJustify,
   Bold, Italic, Underline, Type, RotateCw, Move, Sliders,
-  Palette, Square, Layers, Lock, Eye, EyeOff, Trash2, Copy
+  Palette, Square, Layers, Lock, Eye, EyeOff, Trash2, Copy, Upload
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -101,6 +102,45 @@ export default function RightPropertiesPanel({
               className="h-10 rounded-xl border-slate-200 text-xs font-bold"
               placeholder="أدخل محتوى النص..."
             />
+          </div>
+        )}
+
+        {/* Logo / Image source properties */}
+        {(element.type === "logo" || element.type === "image") && (
+          <div className="space-y-3 pt-3 border-t border-slate-100">
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">صورة اللوجو (Logo Source)</p>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-slate-500">مسار / URL اللوجو</label>
+              <Input
+                value={element.src || ""}
+                onChange={(e) => update("src", e.target.value)}
+                className="h-10 rounded-xl border-slate-200 text-xs font-bold"
+                placeholder="URL أو Base64..."
+              />
+              <label className="flex h-9 items-center justify-center gap-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-black cursor-pointer transition">
+                <Upload size={14} /> تحميل لوجو من الجهاز
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      if (file.size > 3 * 1024 * 1024) {
+                        toast.error("حجم اللوجو لا يجب أن يتجاوز 3 ميجابايت");
+                        return;
+                      }
+                      const reader = new FileReader();
+                      reader.onload = () => {
+                        update("src", reader.result as string);
+                        toast.success("تم رفع وتحديث اللوجو بنجاح");
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                  className="hidden"
+                />
+              </label>
+            </div>
           </div>
         )}
 

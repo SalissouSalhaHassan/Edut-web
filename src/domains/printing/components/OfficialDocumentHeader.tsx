@@ -7,13 +7,13 @@ import { mergeDocumentHeaderConfig, type DocumentHeaderConfig } from "../documen
 function LogoBox({ src, alt, size = 86 }: { src?: string; alt: string; size?: number }) {
   return (
     <div
-      className="relative shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm print:shadow-none"
+      className="relative shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm print:shadow-none flex items-center justify-center p-1"
       style={{ width: size, height: size }}
     >
       {src ? (
-        <Image src={src} alt={alt} fill className="object-contain p-1" unoptimized />
+        <img src={src} alt={alt} className="w-full h-full object-contain" />
       ) : (
-        <div className="flex h-full w-full items-center justify-center text-[10px] font-black uppercase text-slate-300">
+        <div className="flex h-full w-full items-center justify-center text-[10px] font-black uppercase text-slate-300 select-none">
           Logo
         </div>
       )}

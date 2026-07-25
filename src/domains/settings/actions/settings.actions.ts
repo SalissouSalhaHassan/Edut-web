@@ -248,6 +248,36 @@ export async function fetchDocumentHeaderConfigForSchool(schoolId: number): Prom
     if (!configData.inspection) configData.inspection = branchFallback.inspection || "";
     if (!configData.commune) configData.commune = branchFallback.commune || "";
     if (!configData.schoolCode) configData.schoolCode = branchFallback.schoolCode || "";
+
+    const branchLogo = branchFallback.logoPath || branchFallback.logo || branchFallback.schoolLogo;
+    if (branchLogo) {
+      if (!configData.leftLogo) configData.leftLogo = branchLogo;
+      if (!configData.rightLogo) configData.rightLogo = branchLogo;
+      if (!configData.centerLogo) configData.centerLogo = branchLogo;
+    }
+  }
+
+  // Fallback to school_logo setting if leftLogo is still empty
+  if (!configData.leftLogo) {
+    try {
+      const logoSetting = await db.query.settings.findFirst({
+        where: and(
+          or(
+            eq(settings.key, "school_logo"),
+            eq(settings.key, "logo"),
+            eq(settings.key, "schoolLogo")
+          ),
+          eq(settings.schoolId, schoolId)
+        )
+      });
+      if (logoSetting?.value) {
+        configData.leftLogo = logoSetting.value;
+        if (!configData.rightLogo) configData.rightLogo = logoSetting.value;
+        if (!configData.centerLogo) configData.centerLogo = logoSetting.value;
+      }
+    } catch (e) {
+      console.error("Error fetching logo setting fallback:", e);
+    }
   }
 
   return configData;

@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { FileText, Printer, Save, Settings2 } from "lucide-react";
+import { FileText, Printer, Save, Settings2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import OfficialDocumentHeader from "@/domains/printing/components/OfficialDocumentHeader";
@@ -183,10 +183,15 @@ export default function DocumentHeaderManager({ initialConfig }: { initialConfig
               </div>
               
               <Field label="Autorisations / Arrêtés" value={config.authorizationText || ""} onChange={(v) => update("authorizationText", v)} />
-              <Field label="Logo gauche URL" value={config.leftLogo || ""} onChange={(v) => update("leftLogo", v)} />
-              <Field label="Logo centre URL" value={config.centerLogo || ""} onChange={(v) => update("centerLogo", v)} />
-              <Field label="Logo droite URL" value={config.rightLogo || ""} onChange={(v) => update("rightLogo", v)} />
-              <div className="grid grid-cols-2 gap-3">
+              
+              <div className="space-y-3 pt-2">
+                <p className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Logos & Armoiries Officiels</p>
+                <LogoUploaderField label="Logo gauche (Établissement)" value={config.leftLogo || ""} onChange={(v) => update("leftLogo", v)} />
+                <LogoUploaderField label="Logo centre (Sceau / République)" value={config.centerLogo || ""} onChange={(v) => update("centerLogo", v)} />
+                <LogoUploaderField label="Logo droite (Ministère / Armoiries)" value={config.rightLogo || ""} onChange={(v) => update("rightLogo", v)} />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 pt-2">
                 <ColorField label="Couleur principale" value={config.primaryColor || "#4f46e5"} onChange={(v) => update("primaryColor", v)} />
                 <ColorField label="Couleur secondaire" value={config.secondaryColor || "#10b981"} onChange={(v) => update("secondaryColor", v)} />
               </div>
@@ -246,5 +251,63 @@ function ColorField({ label, value, onChange }: { label: string; value: string; 
         <input value={value} onChange={(e) => onChange(e.target.value)} className="w-full text-sm font-bold outline-none" />
       </div>
     </label>
+  );
+}
+
+function LogoUploaderField({ label, value, onChange }: { label: string; value: string; onChange: (base64: string) => void }) {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 3 * 1024 * 1024) {
+        toast.error("La taille du logo ne doit pas dépasser 3 Mo");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64 = reader.result as string;
+        onChange(base64);
+        toast.success("Logo chargé avec succès");
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <span className="px-1 text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</span>
+      <div className="flex items-center gap-3 bg-white p-3 rounded-2xl border border-slate-200">
+        <div className="w-14 h-14 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center overflow-hidden shrink-0 relative">
+          {value ? (
+            <img src={value} alt={label} className="w-full h-full object-contain p-1" />
+          ) : (
+            <span className="text-[10px] font-black text-slate-300 uppercase">Logo</span>
+          )}
+        </div>
+
+        <div className="flex-1 space-y-1.5 min-w-0">
+          <Input 
+            value={value} 
+            onChange={(e) => onChange(e.target.value)} 
+            placeholder="URL du logo ou Data Base64..." 
+            className="h-9 text-xs font-semibold"
+          />
+          <div className="flex items-center gap-2">
+            <label className="flex h-8 items-center gap-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-3 text-[11px] font-black cursor-pointer transition">
+              <Upload size={13} /> Charger image
+              <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+            </label>
+            {value && (
+              <button
+                type="button"
+                onClick={() => onChange("")}
+                className="flex h-8 items-center gap-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 px-2.5 text-[11px] font-bold transition"
+              >
+                Supprimer
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
