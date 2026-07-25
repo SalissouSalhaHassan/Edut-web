@@ -272,7 +272,12 @@ export default function SubscriptionClient({
     );
   }
 
+  // TypeScript guard: school must be non-null at this point
+  // (page.tsx sets school = allSchools[0] when school is null and allSchools exists)
+  if (!school) return null;
+
   const currentPlan = school.plan || "basic";
+
   const currentStatus = school.status || "active";
   const currentPlanIdx = getPlanIndex(currentPlan);
   const formattedExpiry = school.subscriptionExpiry
