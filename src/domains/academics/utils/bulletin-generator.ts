@@ -367,12 +367,12 @@ function drawPDFHeader(
   
   if (leftLogo) {
     try {
-      doc.addImage(leftLogo, 'PNG', 10, 8, 22, 22);
+      doc.addImage(leftLogo, 'PNG', 10, 5, 22, 22);
     } catch (e) {}
   }
   if (rightLogo && rightLogo !== leftLogo) {
     try {
-      doc.addImage(rightLogo, 'PNG', 178, 8, 22, 22);
+      doc.addImage(rightLogo, 'PNG', 178, 5, 22, 22);
     } catch (e) {}
   }
   
@@ -385,7 +385,7 @@ function drawPDFHeader(
     address ? `Adresse: ${address}` : "",
   ].filter(Boolean);
 
-  let centerY = 12;
+  let centerY = 6;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(13);
   const height0 = drawWrappedText(doc, centerLines[0], 105, centerY, 140, "center");
@@ -405,10 +405,10 @@ function drawPDFHeader(
     }
   }
   
-  const finalY = Math.max(centerY + 3, 32);
+  const finalY = Math.max(centerY + 1.5, 26);
   doc.setLineWidth(0.5);
   doc.line(10, finalY, 200, finalY);
-  return finalY + 2;
+  return finalY + 1;
 }
 
 export async function generateBulletinPDF(data: any) {
@@ -448,21 +448,21 @@ export async function generateBulletinPDF(data: any) {
     }
   }
 
-  const titleY = headerEndY + 14;
-  const infoBoxY = headerEndY + 20;
-  const textRow1Y = infoBoxY + 7;
-  const textRow2Y = infoBoxY + 14;
-  const textRow3Y = infoBoxY + 21;
-  const tableY = infoBoxY + 30;
+  const titleY = headerEndY + 4.5;
+  const infoBoxY = headerEndY + 9.5;
+  const textRow1Y = infoBoxY + 5;
+  const textRow2Y = infoBoxY + 10.5;
+  const textRow3Y = infoBoxY + 15.5;
+  const tableY = infoBoxY + 20.5;
 
-  doc.setFontSize(14);
+  doc.setFontSize(13);
   doc.setFont("helvetica", "bolditalic");
   doc.text(`${mainTitle} - ${safeTerm}`, 105, titleY, { align: "center" });
 
   // Student Info Box
   doc.setDrawColor(0);
   doc.setLineWidth(0.3);
-  doc.rect(10, infoBoxY, 190, 22);
+  doc.rect(10, infoBoxY, 190, 19);
   
   // Extract and compute data robustly
   const totalCoef = (results || []).reduce((acc: number, r: any) => acc + (parseFloat(r.coefficient) || 1), 0);
@@ -523,7 +523,7 @@ export async function generateBulletinPDF(data: any) {
   doc.text(`${displayAverage.toFixed(2)} / 20`, 150, textRow2Y);
 
   if (qrBase64) {
-    doc.addImage(qrBase64, 'PNG', 178, infoBoxY + 2, 18, 18);
+    doc.addImage(qrBase64, 'PNG', 179, infoBoxY + 1.5, 16, 16);
   }
 
   // Results Table
