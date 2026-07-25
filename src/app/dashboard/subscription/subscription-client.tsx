@@ -195,15 +195,20 @@ function ProgressBar({ value, max, color = "indigo" }: { value: number; max: num
 export default function SubscriptionClient({
   initialSchool,
   user,
+  allSchools = [],
+  isSuperAdmin = false,
 }: {
   initialSchool: SchoolType;
   user: any;
+  allSchools?: { id: number; name: string; slug: string; plan: string | null; status: string | null; subscriptionExpiry: Date | string | null }[];
+  isSuperAdmin?: boolean;
 }) {
   const [school, setSchool] = useState<SchoolType>(initialSchool);
   const [isPending, startTransition] = useTransition();
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [daysLeft, setDaysLeft] = useState(0);
+  const [showSchoolPicker, setShowSchoolPicker] = useState(false);
 
   useEffect(() => {
     setDaysLeft(getDaysRemaining(school?.subscriptionExpiry ?? null));
@@ -239,8 +244,8 @@ export default function SubscriptionClient({
     });
   };
 
-  // ── Super Admin with no school context ────────────────────────────────────
-  if (!school) {
+  // ── Super Admin with no school context & no schools in DB ─────────────────
+  if (!school && allSchools.length === 0) {
     return (
       <div className="p-10 min-h-screen bg-slate-50/50 flex items-center justify-center">
         <Card className="max-w-lg w-full border-none shadow-xl rounded-[2.5rem] overflow-hidden">
@@ -248,26 +253,12 @@ export default function SubscriptionClient({
             <div className="w-16 h-16 rounded-2xl bg-white/10 flex items-center justify-center mx-auto mb-4 border border-white/10">
               <Crown size={32} className="text-amber-400" />
             </div>
-            <h3 className="text-2xl font-black mb-2">Accès Super Admin</h3>
+            <h3 className="text-2xl font-black mb-2">Aucune école enregistrée</h3>
             <p className="text-indigo-200 text-sm font-medium">
-              Vous êtes connecté en tant que Super Administrateur de la plateforme.
+              Créez d'abord une école pour gérer son abonnement.
             </p>
           </div>
-          <CardContent className="p-8 space-y-4 bg-white">
-            <div className="flex items-start gap-3 p-4 rounded-2xl bg-amber-50 border border-amber-100">
-              <AlertTriangle size={18} className="text-amber-500 mt-0.5 shrink-0" />
-              <p className="text-sm text-amber-800 font-semibold">
-                La gestion des abonnements est disponible uniquement dans le contexte d'une école spécifique.
-                Connectez-vous via le sous-domaine de l'école pour gérer son forfait.
-              </p>
-            </div>
-            <div className="flex items-start gap-3 p-4 rounded-2xl bg-indigo-50 border border-indigo-100">
-              <Info size={18} className="text-indigo-500 mt-0.5 shrink-0" />
-              <p className="text-sm text-indigo-800 font-semibold">
-                Pour gérer les abonnements de toutes les écoles, utilisez le panneau{" "}
-                <strong>Super Admin</strong> accessible depuis le menu principal.
-              </p>
-            </div>
+          <CardContent className="p-8 bg-white">
             <Button
               className="w-full bg-indigo-600 hover:bg-indigo-700 h-12 rounded-2xl font-bold shadow-lg gap-2"
               onClick={() => (window.location.href = "/dashboard")}
@@ -341,6 +332,63 @@ export default function SubscriptionClient({
           )}
         </div>
       </div>
+
+      {/* ── Super Admin School Picker ───────────────────────────────────────── */}
+      {isSuperAdmin && allSchools.length > 0 && (
+        <div className="flex items-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 shadow-sm">
+          <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
+            <Crown size={18} className="text-amber-600" />
+          </div>
+          <div className="flex-1">
+            <p className="text-xs font-black text-amber-800 uppercase tracking-wider mb-1">
+              Mode Super Admin — Gestion d'abonnement
+            </p>
+            <p className="text-xs text-amber-700 font-medium">
+              Vous gérez le forfait de : <span className="font-black">{school.name}</span>
+            </p>
+          </div>
+          <div className="relative shrink-0">
+            <button
+              onClick={() => setShowSchoolPicker(v => !v)}
+              className="flex items-center gap-2 px-3 py-2 bg-white border border-amber-200 rounded-xl text-xs font-bold text-amber-800 hover:bg-amber-50 transition-colors cursor-pointer shadow-sm"
+            >
+              <Building2 size={13} />
+              Changer d'école
+              <ChevronRight size={12} className={`transition-transform ${showSchoolPicker ? "rotate-90" : ""}`} />
+            </button>
+            {showSchoolPicker && (
+              <div className="absolute right-0 top-full mt-2 w-64 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 overflow-hidden">
+                <div className="p-2 max-h-64 overflow-y-auto">
+                  {allSchools.map(s => (
+                    <button
+                      key={s.id}
+                      onClick={() => {
+                        setSchool(s);
+                        setShowSchoolPicker(false);
+                        setActiveTab("overview");
+                      }}
+                      className={`w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors cursor-pointer
+                        ${school?.id === s.id
+                          ? "bg-indigo-50 text-indigo-700 font-black"
+                          : "text-slate-700 hover:bg-slate-50"
+                        }`}
+                    >
+                      <div className="w-7 h-7 rounded-lg bg-indigo-100 flex items-center justify-center shrink-0 text-xs font-black text-indigo-600">
+                        {s.name.charAt(0)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="truncate">{s.name}</p>
+                        <p className="text-xs text-slate-400 font-medium capitalize">{s.plan || "basic"}</p>
+                      </div>
+                      {school?.id === s.id && <CheckCircle2 size={14} className="text-indigo-500 shrink-0" />}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ── Expiry Alert ───────────────────────────────────────────────────── */}
       {isExpiringSoon && (
