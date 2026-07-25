@@ -68,7 +68,7 @@ export default function CardTopToolbar({
         const json = JSON.parse(event.target?.result as string);
         onImportJSON(json);
       } catch (err) {
-        alert("JSON غير صالح");
+        alert("Fichier JSON non valide");
       }
     };
     reader.readAsText(file);
@@ -88,9 +88,9 @@ export default function CardTopToolbar({
               value={templateName}
               onChange={(e) => onTemplateNameChange(e.target.value)}
               className="text-sm font-black text-slate-900 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-indigo-600 focus:outline-none transition px-1"
-              placeholder="اسم قالب البطاقات..."
+              placeholder="Nom du modèle de carte..."
             />
-            <p className="text-[10px] font-semibold text-slate-400 px-1">Professional Card Studio (WYSIWYG)</p>
+            <p className="text-[10px] font-semibold text-slate-400 px-1">Studio de cartes ID (WYSIWYG)</p>
           </div>
         </div>
 
@@ -102,7 +102,7 @@ export default function CardTopToolbar({
               activeSide === "recto" ? "bg-indigo-600 text-white shadow" : "text-slate-600 hover:bg-slate-200"
             }`}
           >
-            الواجهة الأولي (Recto)
+            Recto (Face)
           </button>
           <button
             onClick={() => onSideChange("verso")}
@@ -110,7 +110,7 @@ export default function CardTopToolbar({
               activeSide === "verso" ? "bg-indigo-600 text-white shadow" : "text-slate-600 hover:bg-slate-200"
             }`}
           >
-            الظهر (Verso)
+            Verso (Dos)
           </button>
         </div>
       </div>
@@ -123,7 +123,7 @@ export default function CardTopToolbar({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="CR80">CR80 (PVC)</SelectItem>
-            <SelectItem value="CR100">CR100 (كبير)</SelectItem>
+            <SelectItem value="CR100">CR100 (Grand)</SelectItem>
             <SelectItem value="Badge">Badge (90x60)</SelectItem>
           </SelectContent>
         </Select>
@@ -133,17 +133,17 @@ export default function CardTopToolbar({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="landscape">أفقي Landscape</SelectItem>
-            <SelectItem value="portrait">عمودي Portrait</SelectItem>
+            <SelectItem value="landscape">Paysage (Landscape)</SelectItem>
+            <SelectItem value="portrait">Portrait (Vertical)</SelectItem>
           </SelectContent>
         </Select>
 
         <div className="h-4 w-px bg-slate-200 mx-1" />
 
-        <Button size="icon" variant="ghost" disabled={!canUndo} onClick={onUndo} className="h-8 w-8 rounded-xl text-slate-700 hover:bg-white" title="تراجع (Ctrl+Z)">
+        <Button size="icon" variant="ghost" disabled={!canUndo} onClick={onUndo} className="h-8 w-8 rounded-xl text-slate-700 hover:bg-white" title="Annuler (Ctrl+Z)">
           <Undo size={14} />
         </Button>
-        <Button size="icon" variant="ghost" disabled={!canRedo} onClick={onRedo} className="h-8 w-8 rounded-xl text-slate-700 hover:bg-white" title="إعادة (Ctrl+Y)">
+        <Button size="icon" variant="ghost" disabled={!canRedo} onClick={onRedo} className="h-8 w-8 rounded-xl text-slate-700 hover:bg-white" title="Rétablir (Ctrl+Y)">
           <Redo size={14} />
         </Button>
 
@@ -161,7 +161,7 @@ export default function CardTopToolbar({
 
         <div className="h-4 w-px bg-slate-200 mx-1" />
 
-        <Button size="icon" variant="ghost" onClick={onToggleGrid} className={`h-8 w-8 rounded-xl ${showGrid ? "bg-indigo-600 text-white" : "text-slate-700 hover:bg-white"}`} title="Grid">
+        <Button size="icon" variant="ghost" onClick={onToggleGrid} className={`h-8 w-8 rounded-xl ${showGrid ? "bg-indigo-600 text-white" : "text-slate-700 hover:bg-white"}`} title="Grille">
           <Grid size={14} />
         </Button>
       </div>
@@ -171,24 +171,24 @@ export default function CardTopToolbar({
         <input ref={fileInputRef} type="file" accept=".json" onChange={handleFileUpload} className="hidden" />
 
         <Button onClick={onBatchPrintClick} className="h-9 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md flex items-center gap-1.5">
-          <Printer size={14} /> طباعة البطاقات للطلاب
+          <Printer size={14} /> Impression par lots d'élèves
         </Button>
 
         <Select onValueChange={(fmt) => onExport(fmt as any)}>
           <SelectTrigger className="h-9 w-28 rounded-xl border-slate-200 bg-white font-bold text-xs shadow-sm">
             <Download size={13} className="mr-1 text-slate-500" />
-            <SelectValue placeholder="تصدير" />
+            <SelectValue placeholder="Exporter" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="pdf">تصدير PDF</SelectItem>
-            <SelectItem value="png">تصدير PNG</SelectItem>
-            <SelectItem value="jpeg">تصدير JPEG</SelectItem>
-            <SelectItem value="json">تصدير JSON</SelectItem>
+            <SelectItem value="pdf">Exporter PDF</SelectItem>
+            <SelectItem value="png">Exporter PNG</SelectItem>
+            <SelectItem value="jpeg">Exporter JPEG</SelectItem>
+            <SelectItem value="json">Exporter JSON</SelectItem>
           </SelectContent>
         </Select>
 
         <Button onClick={onSave} disabled={saving} className="h-9 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs shadow-lg shadow-indigo-100 flex items-center gap-1.5">
-          <Save size={14} /> {saving ? "جاري الحفظ..." : "حفظ القالب"}
+          <Save size={14} /> {saving ? "Enregistrement..." : "Enregistrer le modèle"}
         </Button>
       </div>
     </header>

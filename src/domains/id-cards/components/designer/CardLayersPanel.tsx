@@ -32,22 +32,22 @@ export default function CardLayersPanel({
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-1.5">
           <Layers size={14} className="text-indigo-600" />
-          <h4 className="text-[11px] font-black uppercase tracking-wider text-slate-900">طبقات البطاقة (Card Layers)</h4>
+          <h4 className="text-[11px] font-black uppercase tracking-wider text-slate-900">Calques de la carte (Card Layers)</h4>
           <span className="text-[9px] font-bold text-slate-400">({elements.length})</span>
         </div>
 
         {selectedId && (
           <div className="flex items-center gap-0.5">
-            <Button size="icon" variant="ghost" onClick={() => onMoveLayer(selectedId, "top")} className="h-6 w-6 rounded-lg text-slate-600" title="للأمام كلياً">
+            <Button size="icon" variant="ghost" onClick={() => onMoveLayer(selectedId, "top")} className="h-6 w-6 rounded-lg text-slate-600" title="Placer tout devant">
               <ArrowUpToLine size={11} />
             </Button>
-            <Button size="icon" variant="ghost" onClick={() => onMoveLayer(selectedId, "up")} className="h-6 w-6 rounded-lg text-slate-600" title="تقديم">
+            <Button size="icon" variant="ghost" onClick={() => onMoveLayer(selectedId, "up")} className="h-6 w-6 rounded-lg text-slate-600" title="Avancer">
               <ArrowUp size={11} />
             </Button>
-            <Button size="icon" variant="ghost" onClick={() => onMoveLayer(selectedId, "down")} className="h-6 w-6 rounded-lg text-slate-600" title="تأخير">
+            <Button size="icon" variant="ghost" onClick={() => onMoveLayer(selectedId, "down")} className="h-6 w-6 rounded-lg text-slate-600" title="Reculer">
               <ArrowDown size={11} />
             </Button>
-            <Button size="icon" variant="ghost" onClick={() => onMoveLayer(selectedId, "bottom")} className="h-6 w-6 rounded-lg text-slate-600" title="للخلف كلياً">
+            <Button size="icon" variant="ghost" onClick={() => onMoveLayer(selectedId, "bottom")} className="h-6 w-6 rounded-lg text-slate-600" title="Placer tout derrière">
               <ArrowDownToLine size={11} />
             </Button>
           </div>

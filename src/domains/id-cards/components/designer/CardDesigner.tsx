@@ -20,7 +20,7 @@ import { motion, AnimatePresence } from "framer-motion";
 const DEFAULT_RECTO_CARD_ELEMENTS: CardElement[] = [
   {
     id: "card_bg_header",
-    name: "خلفية الترويسة",
+    name: "Fond d'en-tête",
     type: "shape",
     shapeType: "rectangle",
     x: 0,
@@ -33,7 +33,7 @@ const DEFAULT_RECTO_CARD_ELEMENTS: CardElement[] = [
   },
   {
     id: "card_school_logo",
-    name: "شعار المدرسة",
+    name: "Logo école",
     type: "schoolLogo",
     variableKey: "{{school_logo}}",
     src: "/placeholder-logo.png",
@@ -46,7 +46,7 @@ const DEFAULT_RECTO_CARD_ELEMENTS: CardElement[] = [
   },
   {
     id: "card_school_name",
-    name: "اسم المدرسة",
+    name: "Nom école",
     type: "variable",
     variableKey: "{{school_name}}",
     content: "ÉCOLE GESTION PRO",
@@ -64,7 +64,7 @@ const DEFAULT_RECTO_CARD_ELEMENTS: CardElement[] = [
   },
   {
     id: "card_doc_title",
-    name: "عنوان الوثيقة",
+    name: "Titre du document",
     type: "text",
     content: "CARTE D'IDENTITÉ SCOLAIRE",
     x: 52,
@@ -82,7 +82,7 @@ const DEFAULT_RECTO_CARD_ELEMENTS: CardElement[] = [
   },
   {
     id: "card_student_photo",
-    name: "صورة الطالب",
+    name: "Photo élève",
     type: "studentPhoto",
     variableKey: "{{student_photo}}",
     src: "/placeholder-student.png",
@@ -98,7 +98,7 @@ const DEFAULT_RECTO_CARD_ELEMENTS: CardElement[] = [
   },
   {
     id: "card_student_name",
-    name: "اسم الطالب",
+    name: "Nom élève",
     type: "variable",
     variableKey: "{{student_name}}",
     content: "MAMADOU SOW",
@@ -115,7 +115,7 @@ const DEFAULT_RECTO_CARD_ELEMENTS: CardElement[] = [
   },
   {
     id: "card_student_id",
-    name: "رقم التسجيل",
+    name: "Matricule",
     type: "variable",
     variableKey: "{{student_id}}",
     content: "Matricule: EDUT-100482",
@@ -132,7 +132,7 @@ const DEFAULT_RECTO_CARD_ELEMENTS: CardElement[] = [
   },
   {
     id: "card_student_class",
-    name: "الرتبة / الفصل",
+    name: "Classe",
     type: "variable",
     variableKey: "{{class}}",
     content: "Classe: 6ème A",
@@ -148,7 +148,7 @@ const DEFAULT_RECTO_CARD_ELEMENTS: CardElement[] = [
   },
   {
     id: "card_academic_year",
-    name: "السنة الدراسية",
+    name: "Année scolaire",
     type: "variable",
     variableKey: "{{academic_year}}",
     content: "Année: 2025-2026",
@@ -164,7 +164,7 @@ const DEFAULT_RECTO_CARD_ELEMENTS: CardElement[] = [
   },
   {
     id: "card_qrcode",
-    name: "رمز QR أمني",
+    name: "Code QR sécurité",
     type: "qrcode",
     variableKey: "{{qr_code}}",
     content: "EDUT-CARD-VERIFIED",
@@ -177,7 +177,7 @@ const DEFAULT_RECTO_CARD_ELEMENTS: CardElement[] = [
   },
   {
     id: "card_barcode",
-    name: "بارشود",
+    name: "Code-barres",
     type: "barcode",
     variableKey: "{{barcode}}",
     content: "EDUT-100482",
@@ -268,7 +268,7 @@ export default function CardDesigner() {
 
   const handleSave = async () => {
     if (!templateName.trim()) {
-      toast.error("Veuillez saisir un nom de modèle");
+      toast.error("Veuillez saisir un nom pour le modèle de carte");
       return;
     }
 
@@ -288,9 +288,9 @@ export default function CardDesigner() {
       const outcome = res?.data || res;
       if (outcome?.success) {
         if (outcome?.id) setTemplateId(outcome.id);
-        toast.success("تم حفظ قالب البطاقات بنجاح!");
+        toast.success("Modèle de carte enregistré avec succès !");
       } else {
-        toast.error(outcome?.error || "Erreur lors de la sauvegarde du modèle");
+        toast.error(outcome?.error || "Erreur lors de l'enregistrement du modèle");
       }
     } catch (e: any) {
       toast.error("Erreur d'enregistrement", { description: e.message });
@@ -316,9 +316,9 @@ export default function CardDesigner() {
         versoElements: json.versoElements || [],
         cardType: json.cardType || "CR80",
         orientation: json.orientation || "landscape",
-        templateName: json.templateName || "قالب بطاقات مستورد",
+        templateName: json.templateName || "Modèle de carte importé",
       });
-      toast.success("تم استيراد تصميم البطاقة بنجاح!");
+      toast.success("Modèle de carte importé avec succès !");
     }
   };
 
@@ -417,8 +417,8 @@ export default function CardDesigner() {
                     <Printer size={22} />
                   </div>
                   <div>
-                    <h3 className="text-xl font-black">طباعة بطاقات الطلاب بالشكل الدفعي</h3>
-                    <p className="text-xs text-indigo-200">اختر الطلاب لإنشاء وطباعة بطاقاتهم تلقائياً بهذا القالب</p>
+                    <h3 className="text-xl font-black">Impression par lots des cartes d'identité élèves</h3>
+                    <p className="text-xs text-indigo-200">Sélectionnez les élèves pour générer et imprimer leurs cartes automatiquement avec ce modèle</p>
                   </div>
                 </div>
                 <button onClick={() => setShowBatchModal(false)} className="p-2 text-white/80 hover:text-white rounded-xl hover:bg-white/10">
@@ -431,7 +431,7 @@ export default function CardDesigner() {
                   <Search className="absolute left-3.5 top-3 text-slate-400" size={18} />
                   <Input
                     type="text"
-                    placeholder="ابحث باسم الطالب، رقم التسجيل، أو الصف..."
+                    placeholder="Rechercher par nom, matricule ou classe..."
                     value={searchStudent}
                     onChange={(e) => setSearchStudent(e.target.value)}
                     className="pl-10 h-11 rounded-2xl border-slate-200 font-bold text-sm"
@@ -465,19 +465,19 @@ export default function CardDesigner() {
               </div>
 
               <div className="p-6 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-600">تم تحديد {selectedStudentIds.length} طالب(اً)</span>
+                <span className="text-xs font-bold text-slate-600">{selectedStudentIds.length} élève(s) sélectionné(s)</span>
                 <div className="flex items-center gap-3">
                   <Button variant="outline" onClick={() => setShowBatchModal(false)} className="rounded-xl font-bold">
-                    إلغاء
+                    Annuler
                   </Button>
                   <Button
                     onClick={() => {
-                      toast.success(`جاري طباعة ${selectedStudentIds.length || 1} بطاقة...`);
+                      toast.success(`Impression de ${selectedStudentIds.length || 1} carte(s) en cours...`);
                       window.print();
                     }}
                     className="rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-black px-6"
                   >
-                    <Printer size={16} className="mr-2" /> طباعة المخرجات
+                    <Printer size={16} className="mr-2" /> Imprimer les cartes
                   </Button>
                 </div>
               </div>

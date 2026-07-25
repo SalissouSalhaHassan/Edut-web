@@ -3,7 +3,7 @@
 import { CardElement, FONT_FAMILIES } from "./types";
 import {
   AlignLeft, AlignCenter, AlignRight, Bold, Italic, Underline,
-  Sliders, Lock, Eye, EyeOff, Trash2, Copy, Crop, Circle
+  Sliders, Lock, Eye, EyeOff, Trash2, Copy, Circle
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -38,8 +38,8 @@ export default function CardRightProperties({
     return (
       <aside className="w-80 bg-white border-l border-slate-200 flex flex-col items-center justify-center p-8 text-center text-slate-400 select-none">
         <Sliders size={40} className="mb-3 text-slate-300 animate-pulse" />
-        <h4 className="text-xs font-bold text-slate-600">لم يتم تحديد أي عنصر بالبطاقة</h4>
-        <p className="text-[11px] text-slate-400 mt-1">انقر على صورة الطالب، النص، أو الشعار لتعديل خصائصه وموقعه وأبعاده.</p>
+        <h4 className="text-xs font-bold text-slate-600">Aucun élément sélectionné</h4>
+        <p className="text-[11px] text-slate-400 mt-1">Cliquez sur un élément de la carte pour ajuster sa position, sa taille, ses couleurs et sa police.</p>
       </aside>
     );
   }
@@ -62,7 +62,7 @@ export default function CardRightProperties({
             variant="ghost"
             onClick={() => onToggleLock(element.id)}
             className={`h-7 w-7 rounded-lg ${element.locked ? "text-amber-600 bg-amber-50" : "text-slate-500"}`}
-            title="تأمين"
+            title="Verrouiller"
           >
             <Lock size={13} />
           </Button>
@@ -71,7 +71,7 @@ export default function CardRightProperties({
             variant="ghost"
             onClick={() => onToggleHide(element.id)}
             className={`h-7 w-7 rounded-lg ${element.hidden ? "text-rose-600 bg-rose-50" : "text-slate-500"}`}
-            title="إخفاء"
+            title="Masquer"
           >
             {element.hidden ? <EyeOff size={13} /> : <Eye size={13} />}
           </Button>
@@ -80,7 +80,7 @@ export default function CardRightProperties({
             variant="ghost"
             onClick={() => onDuplicate(element.id)}
             className="h-7 w-7 rounded-lg text-slate-500 hover:text-indigo-600"
-            title="تكرار"
+            title="Dupliquer"
           >
             <Copy size={13} />
           </Button>
@@ -89,7 +89,7 @@ export default function CardRightProperties({
             variant="ghost"
             onClick={() => onDelete(element.id)}
             className="h-7 w-7 rounded-lg text-slate-500 hover:text-rose-600"
-            title="حذف"
+            title="Supprimer"
           >
             <Trash2 size={13} />
           </Button>
@@ -100,23 +100,23 @@ export default function CardRightProperties({
         {/* Content Editor */}
         {(element.type === "text" || element.type === "variable" || element.type === "qrcode" || element.type === "barcode" || element.type === "signature" || element.type === "stamp") && (
           <div className="space-y-1.5">
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">النص والمحتوى</p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Contenu & Texte</p>
             <Input
               type="text"
               value={element.content || ""}
               onChange={(e) => update("content", e.target.value)}
               className="h-9 rounded-xl border-slate-200 text-xs font-bold"
-              placeholder="المحتوى..."
+              placeholder="Texte du contenu..."
             />
           </div>
         )}
 
         {/* Position & Size */}
         <div className="space-y-2.5">
-          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">الموقع والأبعاد (Position)</p>
+          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Position & Dimensions</p>
           <div className="grid grid-cols-2 gap-2 text-xs">
             <div>
-              <label className="text-[9px] font-bold text-slate-500">X (أفقي)</label>
+              <label className="text-[9px] font-bold text-slate-500">Axe X</label>
               <Input
                 type="number"
                 value={element.x}
@@ -125,7 +125,7 @@ export default function CardRightProperties({
               />
             </div>
             <div>
-              <label className="text-[9px] font-bold text-slate-500">Y (عمودي)</label>
+              <label className="text-[9px] font-bold text-slate-500">Axe Y</label>
               <Input
                 type="number"
                 value={element.y}
@@ -134,7 +134,7 @@ export default function CardRightProperties({
               />
             </div>
             <div>
-              <label className="text-[9px] font-bold text-slate-500">العرض (W)</label>
+              <label className="text-[9px] font-bold text-slate-500">Largeur (W)</label>
               <Input
                 type="number"
                 value={element.width}
@@ -143,7 +143,7 @@ export default function CardRightProperties({
               />
             </div>
             <div>
-              <label className="text-[9px] font-bold text-slate-500">الارتفاع (H)</label>
+              <label className="text-[9px] font-bold text-slate-500">Hauteur (H)</label>
               <Input
                 type="number"
                 value={element.height}
@@ -157,7 +157,7 @@ export default function CardRightProperties({
         {/* Media & Circular Crop for Student Photo / Logo */}
         {(element.type === "studentPhoto" || element.type === "schoolLogo" || element.type === "image") && (
           <div className="space-y-2.5 pt-2 border-t border-slate-100">
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">قص وتشكيل الصورة</p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Découpe photo</p>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => update("circularCrop", !element.circularCrop)}
@@ -165,7 +165,7 @@ export default function CardRightProperties({
                   element.circularCrop ? "bg-indigo-600 text-white border-indigo-600" : "bg-slate-50 border-slate-200 text-slate-700"
                 }`}
               >
-                <Circle size={14} /> قص دائري (Circular)
+                <Circle size={14} /> Découpe circulaire
               </button>
             </div>
           </div>
@@ -174,9 +174,9 @@ export default function CardRightProperties({
         {/* Typography */}
         {(element.type === "text" || element.type === "variable") && (
           <div className="space-y-2.5 pt-2 border-t border-slate-100">
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">الخط واللون (Typography)</p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Typographie & Couleur</p>
             <div>
-              <label className="text-[9px] font-bold text-slate-500">نوع الخط</label>
+              <label className="text-[9px] font-bold text-slate-500">Police (Font)</label>
               <Select value={element.fontFamily || "Poppins"} onValueChange={(v) => update("fontFamily", v)}>
                 <SelectTrigger className="h-9 rounded-xl border-slate-200 text-xs font-bold">
                   <SelectValue />
@@ -193,7 +193,7 @@ export default function CardRightProperties({
 
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-[9px] font-bold text-slate-500">الحجم (px)</label>
+                <label className="text-[9px] font-bold text-slate-500">Taille (px)</label>
                 <Input
                   type="number"
                   value={element.fontSize || 12}
@@ -202,7 +202,7 @@ export default function CardRightProperties({
                 />
               </div>
               <div>
-                <label className="text-[9px] font-bold text-slate-500">اللون</label>
+                <label className="text-[9px] font-bold text-slate-500">Couleur</label>
                 <input
                   type="color"
                   value={element.color || "#111827"}
@@ -216,18 +216,21 @@ export default function CardRightProperties({
               <button
                 onClick={() => update("fontWeight", element.fontWeight === "bold" ? "normal" : "bold")}
                 className={`p-1.5 rounded-lg border text-xs font-bold transition ${element.fontWeight === "bold" ? "bg-indigo-600 text-white border-indigo-600" : "bg-slate-50 border-slate-200 text-slate-600"}`}
+                title="Gras"
               >
                 <Bold size={13} />
               </button>
               <button
                 onClick={() => update("fontStyle", element.fontStyle === "italic" ? "normal" : "italic")}
                 className={`p-1.5 rounded-lg border text-xs font-bold transition ${element.fontStyle === "italic" ? "bg-indigo-600 text-white border-indigo-600" : "bg-slate-50 border-slate-200 text-slate-600"}`}
+                title="Italique"
               >
                 <Italic size={13} />
               </button>
               <button
                 onClick={() => update("textDecoration", element.textDecoration === "underline" ? "none" : "underline")}
                 className={`p-1.5 rounded-lg border text-xs font-bold transition ${element.textDecoration === "underline" ? "bg-indigo-600 text-white border-indigo-600" : "bg-slate-50 border-slate-200 text-slate-600"}`}
+                title="Souligné"
               >
                 <Underline size={13} />
               </button>
@@ -256,10 +259,10 @@ export default function CardRightProperties({
 
         {/* Styling & Gradients */}
         <div className="space-y-2.5 pt-2 border-t border-slate-100">
-          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">الخلفيات والحدود (Styling & Gradients)</p>
+          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Styles & Dégradés</p>
           
           <div>
-            <label className="text-[9px] font-bold text-slate-500">تدرجات ألوان فاخرة (Gradient Presets)</label>
+            <label className="text-[9px] font-bold text-slate-500">Dégradés prédéfinis</label>
             <div className="flex items-center gap-1.5 mt-1">
               {PRESET_GRADIENTS.map((grad, idx) => (
                 <button
@@ -274,7 +277,7 @@ export default function CardRightProperties({
 
           <div className="grid grid-cols-2 gap-2 text-xs">
             <div>
-              <label className="text-[9px] font-bold text-slate-500">لون صلب</label>
+              <label className="text-[9px] font-bold text-slate-500">Couleur unie</label>
               <input
                 type="color"
                 value={element.backgroundColor || "#ffffff"}
@@ -283,7 +286,7 @@ export default function CardRightProperties({
               />
             </div>
             <div>
-              <label className="text-[9px] font-bold text-slate-500">استدواره (Radius)</label>
+              <label className="text-[9px] font-bold text-slate-500">Rayon (Radius)</label>
               <Input
                 type="number"
                 value={element.borderRadius || 0}
