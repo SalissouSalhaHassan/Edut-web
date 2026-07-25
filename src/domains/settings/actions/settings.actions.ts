@@ -3,7 +3,7 @@
 import { db } from "@/infrastructure/database";
 import { settings, schoolBranches } from "@/infrastructure/database/schema/settings";
 import { schools } from "@/infrastructure/database/schema/auth";
-import { eq, desc, ilike, and, sql } from "drizzle-orm";
+import { eq, desc, ilike, and, or, sql } from "drizzle-orm";
 import { protectedDbAction } from "@/lib/protected-action";
 import { revalidatePath, unstable_cache, revalidateTag as nextRevalidateTag } from "next/cache";
 const revalidateTag = nextRevalidateTag as any;
