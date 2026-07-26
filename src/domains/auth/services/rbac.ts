@@ -709,21 +709,6 @@ export const getTeacherClassIds = cache(async (employeeId: number): Promise<numb
 export async function verifyTeacherClassAccess(user: any, classId: number): Promise<boolean> {
   if (user?.admin || user?.role?.isSystemAdmin) return true;
   const roleType = await getUserRoleType(user);
-  if (
-    roleType === "admin" ||
-    roleType === "super_admin" || 
-    roleType === "ministere" || 
-    roleType === "directeur" || 
-    roleType === "general_director" || 
-    roleType === "level_director" ||
-    roleType === "responsable_pedagogique" ||
-    roleType === "agent" ||
-    roleType === "secretaire" ||
-    roleType === "surveillant"
-  ) {
-    return true;
-  }
-  
   if (roleType === "teacher" || roleType === "enseignant") {
     const emp = await getTeacherEmployee(user);
     if (!emp) return false;
@@ -738,21 +723,6 @@ export async function verifyTeacherClassAccess(user: any, classId: number): Prom
 export async function verifyTeacherClassSubjectAccess(user: any, classId: number, subjectId: number): Promise<boolean> {
   if (user?.admin || user?.role?.isSystemAdmin) return true;
   const roleType = await getUserRoleType(user);
-  if (
-    roleType === "admin" ||
-    roleType === "super_admin" || 
-    roleType === "ministere" || 
-    roleType === "directeur" || 
-    roleType === "general_director" || 
-    roleType === "level_director" ||
-    roleType === "responsable_pedagogique" ||
-    roleType === "agent" ||
-    roleType === "secretaire" ||
-    roleType === "surveillant"
-  ) {
-    return true;
-  }
-  
   if (roleType === "teacher" || roleType === "enseignant") {
     const emp = await getTeacherEmployee(user);
     if (!emp) return false;
