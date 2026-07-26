@@ -729,10 +729,12 @@ async function resolveStudentsForClass(params: {
     eq(students.classe, alias),
     ilike(students.classe, alias),
     ilike(students.classe, `${alias}%`),
+    ilike(students.classe, `%${alias}`),
+    ilike(students.classe, `%${alias}%`),
   ]);
 
-  // Tier 2 query
-  let tier2Results = await readDb.select()
+  // Tier 2 query — flexible class name matching
+  const tier2Results = await readDb.select()
     .from(students)
     .where(and(
       or(...classConditions),
@@ -743,26 +745,32 @@ async function resolveStudentsForClass(params: {
 
   if (tier2Results.length > 0) return tier2Results;
 
-  // --- TIER 3: fallback — match by section name OR educational level only ---
-  // This is needed when students.classe is completely different from className
-  // (e.g., students registered as "Master" but class is "Master 1 Informatique")
-  const tier3Conditions: any[] = [eq(students.schoolId, schoolId)];
+  // --- TIER 3: fallback — match by section name OR educational level (OR logic, not AND) ---
+  // This handles: students registered with empty/different classe field
+  const tier3OrClauses: any[] = [];
 
   if (sectionNameClean) {
-    tier3Conditions.push(ilike(students.section, sectionNameClean));
+    tier3OrClauses.push(ilike(students.section, sectionNameClean));
+    tier3OrClauses.push(ilike(students.section, `%${sectionNameClean}%`));
   }
   if (edLevelClean) {
-    // For university: match e.g. "Université" in educationalLevel
-    tier3Conditions.push(ilike(students.educationalLevel, `%${edLevelClean}%`));
-  }
-  if (sessionFilter) {
-    tier3Conditions.push(sessionFilter);
+    tier3OrClauses.push(ilike(students.educationalLevel, edLevelClean));
+    tier3OrClauses.push(ilike(students.educationalLevel, `%${edLevelClean}%`));
+    // Also try matching keywords: "Université", "Lycée", "Collège", "Primaire"
+    const edKeywords = edLevelClean.split(/\s+/).filter(w => w.length > 3);
+    for (const kw of edKeywords) {
+      tier3OrClauses.push(ilike(students.educationalLevel, `%${kw}%`));
+    }
   }
 
-  if (tier3Conditions.length > 1) {
+  if (tier3OrClauses.length > 0) {
     const tier3Results = await readDb.select()
       .from(students)
-      .where(and(...tier3Conditions))
+      .where(and(
+        eq(students.schoolId, schoolId),
+        or(...tier3OrClauses),
+        sessionFilter
+      ))
       .orderBy(students.nomEtudiant);
     if (tier3Results.length > 0) return tier3Results;
   }

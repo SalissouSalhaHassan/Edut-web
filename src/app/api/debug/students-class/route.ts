@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/infrastructure/database";
 import { students } from "@/infrastructure/database/schema/students";
-import { schoolClasses, schoolSections } from "@/infrastructure/database/schema/academics";
+import { schoolClasses } from "@/infrastructure/database/schema/academics";
 import { eq, and, ilike, or, sql } from "drizzle-orm";
 
-// GET /api/debug/students-class?classId=36
-// This diagnoses why students are not loading for a given class
+// GET /api/debug/students-class?classId=36&schoolId=1
+// Shows all distinct values in students table fields to diagnose matching issues
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
@@ -13,7 +13,11 @@ export async function GET(req: NextRequest) {
     const schoolId = parseInt(searchParams.get("schoolId") || "1");
 
     if (!classId) {
-      return NextResponse.json({ error: "classId requis. Ex: /api/debug/students-class?classId=36&schoolId=1" });
+      return NextResponse.json({ 
+        error: "classId requis.",
+        example: "/api/debug/students-class?classId=36&schoolId=1",
+        tip: "Cherchez le classId dans l'URL quand vous sélectionnez une classe dans les filtres."
+      });
     }
 
     // 1. Get the class and section info
@@ -22,113 +26,103 @@ export async function GET(req: NextRequest) {
       with: { section: true }
     });
 
-    // 2. Get ALL distinct values of students.classe in the school
-    const distinctClasses = await db
-      .selectDistinct({ classe: students.classe, educationalLevel: students.educationalLevel, section: students.section })
-      .from(students)
-      .where(eq(students.schoolId, schoolId))
-      .orderBy(students.classe);
-
-    // 3. Sample of students filtered by class name match (if cls found)
-    let matchedByClassName: any[] = [];
-    let matchedBySection: any[] = [];
-    let matchedByEdLevel: any[] = [];
-
-    if (cls) {
-      const className = cls.className.trim();
-      const sectionName = cls.section?.sectionName?.trim();
-      const edLevel = cls.section?.educationalLevel?.trim();
-
-      matchedByClassName = await db.select({
-        id: students.id,
-        name: students.nomEtudiant,
+    // 2. All distinct classe/section/educationalLevel values in the school
+    const distinctValues = await db
+      .select({
         classe: students.classe,
         section: students.section,
         educationalLevel: students.educationalLevel,
-        session: students.session,
-      })
-      .from(students)
-      .where(and(
-        eq(students.schoolId, schoolId),
-        or(
-          ilike(students.classe, className),
-          ilike(students.classe, `${className}%`),
-          ilike(students.classe, `%${className}%`),
-        )
-      ))
-      .limit(50);
-
-      if (sectionName) {
-        matchedBySection = await db.select({
-          id: students.id,
-          name: students.nomEtudiant,
-          classe: students.classe,
-          section: students.section,
-          educationalLevel: students.educationalLevel,
-        })
-        .from(students)
-        .where(and(
-          eq(students.schoolId, schoolId),
-          ilike(students.section, sectionName)
-        ))
-        .limit(50);
-      }
-
-      if (edLevel) {
-        matchedByEdLevel = await db.select({
-          id: students.id,
-          name: students.nomEtudiant,
-          classe: students.classe,
-          section: students.section,
-          educationalLevel: students.educationalLevel,
-        })
-        .from(students)
-        .where(and(
-          eq(students.schoolId, schoolId),
-          ilike(students.educationalLevel, `%${edLevel}%`)
-        ))
-        .limit(50);
-      }
-    }
-
-    // 4. Count total students per class value
-    const countPerClass = await db
-      .select({ 
-        classe: students.classe,
-        count: sql<number>`count(*)::int`
+        count: sql<number>`count(*)::int`,
       })
       .from(students)
       .where(eq(students.schoolId, schoolId))
-      .groupBy(students.classe)
-      .orderBy(sql`count(*) DESC`);
+      .groupBy(students.classe, students.section, students.educationalLevel)
+      .orderBy(students.educationalLevel, students.section, students.classe);
+
+    if (!cls) {
+      return NextResponse.json({
+        error: `Classe ${classId} introuvable`,
+        schoolId,
+        distinctValuesInStudentTable: distinctValues,
+      });
+    }
+
+    const className = cls.className.trim();
+    const sectionName = cls.section?.sectionName?.trim();
+    const edLevel = cls.section?.educationalLevel?.trim();
+
+    // 3. Try all possible match methods individually
+    const [
+      matchExact,
+      matchIlike,
+      matchIlikeWild,
+      matchBySection,
+      matchByEdLevel,
+      matchBySectionOrEdLevel,
+      allStudentsInSchool,
+    ] = await Promise.all([
+      // Exact match
+      db.select({ id: students.id, name: students.nomEtudiant, classe: students.classe, section: students.section, educationalLevel: students.educationalLevel })
+        .from(students).where(and(eq(students.schoolId, schoolId), eq(students.classe, className))).limit(20),
+      
+      // ilike exact
+      db.select({ id: students.id, name: students.nomEtudiant, classe: students.classe, section: students.section, educationalLevel: students.educationalLevel })
+        .from(students).where(and(eq(students.schoolId, schoolId), ilike(students.classe, className))).limit(20),
+      
+      // ilike wildcard
+      db.select({ id: students.id, name: students.nomEtudiant, classe: students.classe, section: students.section, educationalLevel: students.educationalLevel })
+        .from(students).where(and(eq(students.schoolId, schoolId), ilike(students.classe, `%${className}%`))).limit(20),
+
+      // By section name
+      sectionName
+        ? db.select({ id: students.id, name: students.nomEtudiant, classe: students.classe, section: students.section, educationalLevel: students.educationalLevel })
+            .from(students).where(and(eq(students.schoolId, schoolId), ilike(students.section, `%${sectionName}%`))).limit(20)
+        : Promise.resolve([]),
+      
+      // By educational level
+      edLevel
+        ? db.select({ id: students.id, name: students.nomEtudiant, classe: students.classe, section: students.section, educationalLevel: students.educationalLevel })
+            .from(students).where(and(eq(students.schoolId, schoolId), ilike(students.educationalLevel, `%${edLevel}%`))).limit(20)
+        : Promise.resolve([]),
+
+      // By section OR educationalLevel
+      (sectionName || edLevel)
+        ? db.select({ id: students.id, name: students.nomEtudiant, classe: students.classe, section: students.section, educationalLevel: students.educationalLevel })
+            .from(students).where(and(
+              eq(students.schoolId, schoolId),
+              or(
+                sectionName ? ilike(students.section, `%${sectionName}%`) : undefined,
+                edLevel ? ilike(students.educationalLevel, `%${edLevel}%`) : undefined,
+              )
+            )).limit(30)
+        : Promise.resolve([]),
+
+      // Total count
+      db.select({ id: students.id, name: students.nomEtudiant, classe: students.classe, section: students.section, educationalLevel: students.educationalLevel })
+        .from(students).where(eq(students.schoolId, schoolId)).limit(10),
+    ]);
 
     return NextResponse.json({
-      classId,
-      schoolId,
-      classInfo: cls ? {
+      classInfo: {
         id: cls.id,
-        className: cls.className,
+        className,
         sectionId: cls.sectionId,
-        sectionName: cls.section?.sectionName,
-        educationalLevel: cls.section?.educationalLevel,
-      } : null,
-      diagnosis: {
-        matchedByClassName: {
-          count: matchedByClassName.length,
-          samples: matchedByClassName.slice(0, 10),
-        },
-        matchedBySection: {
-          count: matchedBySection.length,
-          samples: matchedBySection.slice(0, 10),
-        },
-        matchedByEdLevel: {
-          count: matchedByEdLevel.length,
-          samples: matchedByEdLevel.slice(0, 10),
-        },
+        sectionName,
+        educationalLevel: edLevel,
       },
-      allDistinctClassValues: distinctClasses,
-      studentsCountPerClass: countPerClass,
-    });
+      matchResults: {
+        exactClassName: { count: matchExact.length, samples: matchExact },
+        ilikeClassName: { count: matchIlike.length, samples: matchIlike },
+        ilikeWildcard: { count: matchIlikeWild.length, samples: matchIlikeWild },
+        bySection: { count: matchBySection.length, samples: matchBySection },
+        byEducationalLevel: { count: matchByEdLevel.length, samples: matchByEdLevel },
+        bySectionOrEdLevel: { count: matchBySectionOrEdLevel.length, samples: matchBySectionOrEdLevel },
+      },
+      allDistinctCombinations: distinctValues,
+      schoolStudentsSample: allStudentsInSchool,
+      totalDistinctGroups: distinctValues.length,
+    }, { status: 200 });
+
   } catch (error: any) {
     return NextResponse.json({ error: error.message, stack: error.stack }, { status: 500 });
   }
