@@ -676,7 +676,7 @@ export async function deleteSection(id: number) {
 // Tier 2: flexible class name matching (ilike on students.classe)
 // Tier 3: fallback on educationalLevel + sectionName only (for Université / Lycée)
 async function resolveStudentsForClass(params: {
-  cls: { id: number; className: string; schoolId: number | null; section: { sectionName: string; educationalLevel: string } | null };
+  cls: { id: number; className: string; schoolId: number | null; section: { sectionName: string; educationalLevel: string | null } | null };
   sessionNameStr: string | undefined;
   schoolId: number;
   existingResultStudentIds?: number[];
