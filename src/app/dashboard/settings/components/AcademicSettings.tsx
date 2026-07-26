@@ -12,6 +12,7 @@ import {
   createSubject, deleteSubject, importSubjects,
   linkSubjectToSection, updateSectionSubjectLink, deleteSectionSubjectLink,
   addClassSubjectLink, updateClassSubjectLink, deleteClassSubjectLink,
+  clearAllSectionSubjectLinks, clearAllClassSubjectLinks, clearAllAcademicSubjectLinks,
   createGradingAppreciation, deleteGradingAppreciation,
   createSchoolRemark, deleteSchoolRemark,
   createPeriod, deletePeriod, updatePeriod,
@@ -560,6 +561,51 @@ export function AcademicSettings({
       if (!res.success) {
         toast.error(res.error || "Erreur lors de la suppression");
         setClassSubjectsList(oldList);
+      } else {
+        router.refresh();
+      }
+  };
+
+  const handleClearSectionSubjects = () => {
+    if (!confirm("Voulez-vous vraiment supprimer TOUS les liens Matières ↔ Sections ? Cette action est irréversible.")) return;
+    setSectionSubjectsList([]);
+    clearAcademicFilterCache();
+    toast.success("Tous les liens Matières ↔ Sections ont été supprimés.");
+    startTransition(async () => {
+      const res = await clearAllSectionSubjectLinks();
+      if (!res.success) {
+        toast.error(res.error || "Erreur lors de la suppression des liens de section");
+      } else {
+        router.refresh();
+      }
+    });
+  };
+
+  const handleClearClassSubjects = () => {
+    if (!confirm("Voulez-vous vraiment supprimer TOUT le Plan d'Études (Lien Classe-Matière) ? Cette action est irréversible.")) return;
+    setClassSubjectsList([]);
+    clearAcademicFilterCache();
+    toast.success("Tout le Plan d'Études a été supprimé.");
+    startTransition(async () => {
+      const res = await clearAllClassSubjectLinks();
+      if (!res.success) {
+        toast.error(res.error || "Erreur lors de la suppression du plan d'études");
+      } else {
+        router.refresh();
+      }
+    });
+  };
+
+  const handleClearAllSubjectLinks = () => {
+    if (!confirm("Voulez-vous vraiment supprimer TOUS les liens (Lien Matières ↔ Sections et Plan d'Études) ? Cette action est irréversible.")) return;
+    setSectionSubjectsList([]);
+    setClassSubjectsList([]);
+    clearAcademicFilterCache();
+    toast.success("Tous les liens de matières ont été effacés avec succès.");
+    startTransition(async () => {
+      const res = await clearAllAcademicSubjectLinks();
+      if (!res.success) {
+        toast.error(res.error || "Erreur lors de la suppression globale");
       } else {
         router.refresh();
       }
@@ -1392,13 +1438,24 @@ export function AcademicSettings({
             </div>
           </div>
 
-          <Button 
-            onClick={() => setShowSectionLinkBuilder(!showSectionLinkBuilder)}
-            className="h-11 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl px-5 font-bold flex items-center gap-2 shadow-lg shadow-cyan-900/30"
-          >
-            {showSectionLinkBuilder ? <X size={16} /> : <Plus size={16} />}
-            <span>{showSectionLinkBuilder ? "Fermer le constructeur" : "+ Nouvelle Association (Carte)"}</span>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button 
+              onClick={handleClearSectionSubjects}
+              disabled={isPending || sectionSubjectsList.length === 0}
+              variant="outline"
+              className="h-11 border-rose-500/30 bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white rounded-xl px-4 font-bold flex items-center gap-2"
+            >
+              <Trash2 size={16} />
+              <span>Vider les liens ({sectionSubjectsList.length})</span>
+            </Button>
+            <Button 
+              onClick={() => setShowSectionLinkBuilder(!showSectionLinkBuilder)}
+              className="h-11 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl px-5 font-bold flex items-center gap-2 shadow-lg shadow-cyan-900/30"
+            >
+              {showSectionLinkBuilder ? <X size={16} /> : <Plus size={16} />}
+              <span>{showSectionLinkBuilder ? "Fermer le constructeur" : "+ Nouvelle Association (Carte)"}</span>
+            </Button>
+          </div>
         </div>
 
         {/* Builder Panel / Card Form */}
@@ -1775,6 +1832,15 @@ export function AcademicSettings({
           </div>
 
           <div className="flex items-center gap-3 w-full md:w-auto">
+            <Button 
+              onClick={handleClearClassSubjects}
+              disabled={isPending || classSubjectsList.length === 0}
+              variant="outline"
+              className="h-11 border-rose-500/30 bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white rounded-xl px-4 font-bold flex items-center gap-2 shrink-0"
+            >
+              <Trash2 size={16} />
+              <span>Vider le Plan ({classSubjectsList.length})</span>
+            </Button>
             {/* Search */}
             <div className="relative flex-1 md:w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={14} />

@@ -2994,3 +2994,59 @@ export async function deleteCardTemplate(id: number) {
   });
 }
 
+// ─── Purge / Clear Academic Subject Links ────────────────────────────────────
+export async function clearAllSectionSubjectLinks() {
+  return protectedDbAction("Academics", "canDelete", async () => {
+    const schoolId = await getActiveSchoolId();
+    const schoolSecs = await readDb.query.schoolSections.findMany({
+      where: eq(schoolSections.schoolId, schoolId),
+      columns: { id: true }
+    });
+    const secIds = schoolSecs.map(s => s.id);
+    if (secIds.length > 0) {
+      await db.delete(sectionSubjects).where(inArray(sectionSubjects.sectionId, secIds));
+    }
+    revalidatePath("/dashboard/settings");
+    revalidatePath("/dashboard/academics");
+    revalidatePath("/dashboard/academics/grades");
+    revalidateTag(ACADEMICS_CACHE_TAG);
+    return { success: true };
+  });
+}
+
+export async function clearAllClassSubjectLinks() {
+  return protectedDbAction("Academics", "canDelete", async () => {
+    const schoolId = await getActiveSchoolId();
+    await db.delete(classSubjects).where(eq(classSubjects.schoolId, schoolId));
+    revalidatePath("/dashboard/settings");
+    revalidatePath("/dashboard/academics");
+    revalidatePath("/dashboard/academics/grades");
+    revalidateTag(ACADEMICS_CACHE_TAG);
+    return { success: true };
+  });
+}
+
+export async function clearAllAcademicSubjectLinks() {
+  return protectedDbAction("Academics", "canDelete", async () => {
+    const schoolId = await getActiveSchoolId();
+    const schoolSecs = await readDb.query.schoolSections.findMany({
+      where: eq(schoolSections.schoolId, schoolId),
+      columns: { id: true }
+    });
+    const secIds = schoolSecs.map(s => s.id);
+
+    await Promise.all([
+      db.delete(classSubjects).where(eq(classSubjects.schoolId, schoolId)),
+      secIds.length > 0
+        ? db.delete(sectionSubjects).where(inArray(sectionSubjects.sectionId, secIds))
+        : Promise.resolve()
+    ]);
+
+    revalidatePath("/dashboard/settings");
+    revalidatePath("/dashboard/academics");
+    revalidatePath("/dashboard/academics/grades");
+    revalidateTag(ACADEMICS_CACHE_TAG);
+    return { success: true };
+  });
+}
+
