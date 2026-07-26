@@ -222,10 +222,60 @@ export default function ReceiptPreviewDialog({
     const pageMargin = selectedPaperSize === "A5" ? "5mm" : "10mm";
     style.innerHTML = `
       @media print {
+        * {
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+          color-adjust: exact !important;
+        }
         body > *:not(#receipt-print-root) { display: none !important; }
-        #receipt-print-root { display: block !important; position: fixed; inset: 0; z-index: 9999; background: white; padding: 0; margin: 0; }
+        #receipt-print-root {
+          display: block !important;
+          position: fixed;
+          inset: 0;
+          z-index: 9999;
+          background: white !important;
+          padding: 0;
+          margin: 0;
+        }
         .no-print { display: none !important; }
         @page { size: ${selectedPaperSize}; margin: ${pageMargin}; }
+        
+        #receipt-print-root #receipt-print-area {
+          background-color: #ffffff !important;
+          position: relative !important;
+        }
+
+        #receipt-print-root .receipt-watermark-container {
+          display: flex !important;
+          visibility: visible !important;
+          opacity: 0.16 !important;
+          position: absolute !important;
+          inset: 0 !important;
+          z-index: 0 !important;
+          align-items: center !important;
+          justify-content: center !important;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+
+        #receipt-print-root .receipt-watermark-container img {
+          display: block !important;
+          visibility: visible !important;
+          opacity: 1 !important;
+          max-width: 65% !important;
+          max-height: 65% !important;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+
+        #receipt-print-root .bg-slate-50,
+        #receipt-print-root .bg-slate-50\\/50,
+        #receipt-print-root .bg-slate-50\\/60,
+        #receipt-print-root .bg-slate-50\\/80,
+        #receipt-print-root .bg-white,
+        #receipt-print-root .bg-white\\/75 {
+          background-color: transparent !important;
+        }
         
         /* A5 print overrides */
         #receipt-print-root [data-paper-size="A5"] {
@@ -990,11 +1040,11 @@ export default function ReceiptPreviewDialog({
 
                 {/* Background logo watermark for print & web preview */}
                 {(receiptHeaderConfig?.leftLogo || receiptHeaderConfig?.centerLogo || receiptHeaderConfig?.rightLogo || branchInfo?.logoPath) && (
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.09] overflow-hidden z-0 print:opacity-[0.12]">
+                  <div className="receipt-watermark-container absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.14] overflow-hidden z-0">
                     <img
                       src={receiptHeaderConfig?.leftLogo || receiptHeaderConfig?.centerLogo || receiptHeaderConfig?.rightLogo || branchInfo?.logoPath}
                       alt="Watermark"
-                      className="w-[280px] h-[280px] md:w-[360px] md:h-[360px] object-contain"
+                      className="w-[300px] h-[300px] md:w-[380px] md:h-[380px] object-contain"
                     />
                   </div>
                 )}
