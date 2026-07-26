@@ -564,6 +564,7 @@ export function AcademicSettings({
       } else {
         router.refresh();
       }
+    });
   };
 
   const handleClearSectionSubjects = () => {
