@@ -77,39 +77,24 @@ function buildTermFilter(column: any, term: string) {
   if (!term || term === "All" || term === "Tout") return undefined;
   
   const norm = term.toLowerCase().trim();
-  
-  if (norm.includes("1") || norm.includes("premier") || norm.includes("premiere")) {
+
+  // Extract semester or trimester number (e.g. S1..S14, T1..T3, 1er Semestre, 2ème Semestre)
+  const semMatch = norm.match(/\b(s\d+)\b/i) || norm.match(/(\d+)/);
+  const num = semMatch ? semMatch[1].replace(/s/i, "") : null;
+
+  if (num) {
+    const sCode = `s${num}`;
+    const tCode = `t${num}`;
+    const fCode = `f${num}`;
     return or(
-      ilike(column, "%1%"),
-      ilike(column, "%premier%"),
-      ilike(column, "%première%"),
-      ilike(column, "%s1%"),
-      ilike(column, "%t1%"),
-      eq(column, "F1")
+      ilike(column, `%${num}%`),
+      ilike(column, `%${sCode}%`),
+      ilike(column, `%${tCode}%`),
+      eq(column, fCode.toUpperCase()),
+      eq(column, term)
     );
   }
-  
-  if (norm.includes("2") || norm.includes("deuxieme") || norm.includes("second")) {
-    return or(
-      ilike(column, "%2%"),
-      ilike(column, "%deuxième%"),
-      ilike(column, "%second%"),
-      ilike(column, "%s2%"),
-      ilike(column, "%t2%"),
-      eq(column, "F2")
-    );
-  }
-  
-  if (norm.includes("3") || norm.includes("troisieme")) {
-    return or(
-      ilike(column, "%3%"),
-      ilike(column, "%troisième%"),
-      ilike(column, "%s3%"),
-      ilike(column, "%t3%"),
-      eq(column, "F3")
-    );
-  }
-  
+
   return eq(column, term);
 }
 
@@ -705,20 +690,36 @@ export async function getGradingGrid(params: { classId: number, subjectId: numbe
     const sessionObj = sessionIdNum ? await readDb.query.schoolSessions.findFirst({ where: eq(schoolSessions.id, sessionIdNum) }) : null;
     const sessionNameStr = sessionObj?.sessionName?.trim();
 
+    const classNameClean = cls.className.trim();
+    const sectionNameClean = cls.section?.sectionName?.trim();
+    const edLevelClean = cls.section?.educationalLevel?.trim();
+
+    const classConditions = [
+      ilike(students.classe, classNameClean),
+      ilike(students.classe, `${classNameClean}%`),
+      ilike(classNameClean, sql`concat(${students.classe}, '%')`),
+    ];
+    if (sectionNameClean) {
+      classConditions.push(
+        and(
+          ilike(students.section, sectionNameClean),
+          edLevelClean ? ilike(students.educationalLevel, `%${edLevelClean}%`) : undefined
+        ) as any
+      );
+    }
+
     // Fetch all dependent data in parallel using readDb
     const [studentsInClass, attendanceStats, subLink, results] = await Promise.all([
       readDb.select()
         .from(students)
         .where(
           and(
-            or(
-              ilike(students.classe, cls.className.trim()),
-              ilike(students.classe, `${cls.className.trim()}%`)
-            ),
+            or(...classConditions),
             eq(students.schoolId, cls.schoolId ?? 0),
             sessionNameStr
               ? or(
                   ilike(students.session, sessionNameStr),
+                  ilike(students.session, `%${sessionNameStr.replace(/[/ -]/g, "%")}%`),
                   isNull(students.session),
                   eq(students.session, "")
                 )
@@ -755,8 +756,24 @@ export async function getGradingGrid(params: { classId: number, subjectId: numbe
       })
     ]);
 
+    let baseStudents = studentsInClass;
+    if (baseStudents.length === 0) {
+      const fallbackConditions = [
+        eq(students.schoolId, cls.schoolId ?? 0)
+      ];
+      if (sectionNameClean) {
+        fallbackConditions.push(ilike(students.section, sectionNameClean));
+      } else if (edLevelClean) {
+        fallbackConditions.push(ilike(students.educationalLevel, `%${edLevelClean}%`));
+      }
+      baseStudents = await readDb.select()
+        .from(students)
+        .where(and(...fallbackConditions))
+        .orderBy(students.nomEtudiant);
+    }
+
     const resultStudentIds = results.map(r => r.studentId).filter((id): id is number => id !== null);
-    const classStudentIds = new Set(studentsInClass.map(s => s.id));
+    const classStudentIds = new Set(baseStudents.map(s => s.id));
     const missingIds = resultStudentIds.filter(id => !classStudentIds.has(id));
     let extraStudents: any[] = [];
     if (missingIds.length > 0) {
@@ -764,7 +781,7 @@ export async function getGradingGrid(params: { classId: number, subjectId: numbe
         .from(students)
         .where(inArray(students.id, missingIds));
     }
-    const studentList = [...studentsInClass, ...extraStudents].sort((a, b) => a.nomEtudiant.localeCompare(b.nomEtudiant));
+    const studentList = [...baseStudents, ...extraStudents].sort((a, b) => a.nomEtudiant.localeCompare(b.nomEtudiant));
 
     const activeCoefficient = subLink?.coefficient || 1.0;
     const statsMap = new Map(attendanceStats.map(s => [s.studentId, s]));
@@ -884,16 +901,35 @@ export async function getDevoirGrid(params: { classId: number, subjectId: number
     const sessionObj = sessionIdNum ? await readDb.query.schoolSessions.findFirst({ where: eq(schoolSessions.id, sessionIdNum) }) : null;
     const sessionNameStr = sessionObj?.sessionName?.trim();
 
+    const classNameClean = cls.className.trim();
+    const sectionNameClean = cls.section?.sectionName?.trim();
+    const edLevelClean = cls.section?.educationalLevel?.trim();
+
+    const classConditions = [
+      ilike(students.classe, classNameClean),
+      ilike(students.classe, `${classNameClean}%`),
+      ilike(classNameClean, sql`concat(${students.classe}, '%')`),
+    ];
+    if (sectionNameClean) {
+      classConditions.push(
+        and(
+          ilike(students.section, sectionNameClean),
+          edLevelClean ? ilike(students.educationalLevel, `%${edLevelClean}%`) : undefined
+        ) as any
+      );
+    }
+
     const [studentsInClass, results] = await Promise.all([
       readDb.select()
         .from(students)
         .where(
           and(
-            ilike(students.classe, cls.className.trim()),
+            or(...classConditions),
             eq(students.schoolId, cls.schoolId ?? 0),
             sessionNameStr
               ? or(
                   ilike(students.session, sessionNameStr),
+                  ilike(students.session, `%${sessionNameStr.replace(/[/ -]/g, "%")}%`),
                   isNull(students.session),
                   eq(students.session, "")
                 )
@@ -911,8 +947,24 @@ export async function getDevoirGrid(params: { classId: number, subjectId: number
       })
     ]);
 
+    let baseStudents = studentsInClass;
+    if (baseStudents.length === 0) {
+      const fallbackConditions = [
+        eq(students.schoolId, cls.schoolId ?? 0)
+      ];
+      if (sectionNameClean) {
+        fallbackConditions.push(ilike(students.section, sectionNameClean));
+      } else if (edLevelClean) {
+        fallbackConditions.push(ilike(students.educationalLevel, `%${edLevelClean}%`));
+      }
+      baseStudents = await readDb.select()
+        .from(students)
+        .where(and(...fallbackConditions))
+        .orderBy(students.nomEtudiant);
+    }
+
     const resultStudentIds = results.map(r => r.studentId).filter((id): id is number => id !== null);
-    const classStudentIds = new Set(studentsInClass.map(s => s.id));
+    const classStudentIds = new Set(baseStudents.map(s => s.id));
     const missingIds = resultStudentIds.filter(id => !classStudentIds.has(id));
     let extraStudents: any[] = [];
     if (missingIds.length > 0) {
@@ -920,7 +972,7 @@ export async function getDevoirGrid(params: { classId: number, subjectId: number
         .from(students)
         .where(inArray(students.id, missingIds));
     }
-    const studentList = [...studentsInClass, ...extraStudents].sort((a, b) => a.nomEtudiant.localeCompare(b.nomEtudiant));
+    const studentList = [...baseStudents, ...extraStudents].sort((a, b) => a.nomEtudiant.localeCompare(b.nomEtudiant));
 
     const resultsMap = new Map(results.map(r => [r.studentId, r]));
 
