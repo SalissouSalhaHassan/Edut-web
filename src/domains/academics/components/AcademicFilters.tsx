@@ -238,25 +238,28 @@ export default function AcademicFilters({ onLoad, loading }: AcademicFiltersProp
     return options.classes.filter((c: any) => c.sectionId?.toString() === sectionId);
   }, [sectionId, options.classes]);
 
-  // Calculate filtered subjects with fallback to section subjects
+  // Calculate filtered subjects by merging both class-specific links (Plan d'Études) AND section-specific links
   const filteredSubjects = useMemo(() => {
-    // 1. Try class-specific subjects
-    let subjectIds = (options.classSubjectLinks || [])
+    const classSubIds = (options.classSubjectLinks || [])
       .filter((l: any) => l.classId?.toString() === classId)
       .map((l: any) => l.subjectId?.toString());
 
-    // 2. Fallback to section-specific subjects if no class links exist
-    if (subjectIds.length === 0 && classId) {
-       const cls = options.classes.find((c: any) => c.id.toString() === classId);
-       if (cls?.sectionId) {
-          subjectIds = (options.sectionSubjectLinks || [])
-             .filter((l: any) => l.sectionId?.toString() === cls.sectionId.toString())
-             .map((l: any) => l.subjectId?.toString());
-       }
+    let sectionSubIds: string[] = [];
+    if (classId) {
+      const cls = options.classes.find((c: any) => c.id.toString() === classId);
+      if (cls?.sectionId) {
+        sectionSubIds = (options.sectionSubjectLinks || [])
+          .filter((l: any) => l.sectionId?.toString() === cls.sectionId.toString())
+          .map((l: any) => l.subjectId?.toString());
+      }
     }
 
-    return options.subjects.filter((s: any) => subjectIds.length === 0 ? Boolean(classId) : subjectIds.includes(s.id.toString()));
-  }, [classId, sectionId, options.classSubjectLinks, options.sectionSubjectLinks, options.subjects]);
+    const mergedIds = Array.from(new Set([...classSubIds, ...sectionSubIds]));
+
+    return options.subjects.filter((s: any) =>
+      mergedIds.length === 0 ? Boolean(classId) : mergedIds.includes(s.id.toString())
+    );
+  }, [classId, sectionId, options.classSubjectLinks, options.sectionSubjectLinks, options.subjects, options.classes]);
 
   // Handle Level -> Section auto-selection
   useEffect(() => {
@@ -341,7 +344,9 @@ export default function AcademicFilters({ onLoad, loading }: AcademicFiltersProp
     const isPrimaire = normLevel.includes("prim") || normLevel.includes("matern") || normLevel.includes("fonda") || normLevel.includes("elem");
     const isSuperior = normLevel.includes("licence") || normLevel.includes("lmd") || normLevel.includes("master") || normLevel.includes("doc") || normLevel.includes("super") || normLevel.includes("univ");
 
-    let sessionPeriods = (options.periods || []).filter((p: any) => p.sessionId?.toString() === session);
+    let sessionPeriods = (options.periods || []).filter((p: any) =>
+      !p.sessionId || p.sessionId === 0 || String(p.sessionId) === "" || p.sessionId?.toString() === session
+    );
     if (sessionPeriods.length === 0 && options.periods?.length > 0) {
       sessionPeriods = options.periods;
     }

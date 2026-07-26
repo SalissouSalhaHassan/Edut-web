@@ -2343,6 +2343,9 @@ export async function updatePeriod(id: number, data: { name: string; periodType:
       )
     );
     revalidatePath("/dashboard/settings");
+    revalidatePath("/dashboard/academics");
+    revalidatePath("/dashboard/academics/grades");
+    revalidateTag(ACADEMICS_CACHE_TAG);
     return { success: true };
   });
 }
@@ -2357,6 +2360,9 @@ export async function deletePeriod(id: number) {
       )
     );
     revalidatePath("/dashboard/settings");
+    revalidatePath("/dashboard/academics");
+    revalidatePath("/dashboard/academics/grades");
+    revalidateTag(ACADEMICS_CACHE_TAG);
     return { success: true };
   });
 }
@@ -2378,6 +2384,8 @@ export async function createEducationalLevel(levelName: string) {
       schoolId: schoolId
     });
     revalidatePath("/dashboard/settings");
+    revalidatePath("/dashboard/academics");
+    revalidatePath("/dashboard/academics/grades");
     revalidateTag(ACADEMICS_CACHE_TAG);
     return { success: true };
   });
@@ -2393,6 +2401,9 @@ export async function deleteEducationalLevel(id: number) {
       )
     );
     revalidatePath("/dashboard/settings");
+    revalidatePath("/dashboard/academics");
+    revalidatePath("/dashboard/academics/grades");
+    revalidateTag(ACADEMICS_CACHE_TAG);
     return { success: true };
   });
 }
@@ -2400,8 +2411,8 @@ export async function deleteEducationalLevel(id: number) {
 
 const CANEVAS_REFERENCE_PREFIX = "canevas_reference";
 const CANEVAS_REFERENCE_DEFAULTS: Record<string, string[]> = {
-  type: ["Public", "Priv?", "Communautaire", "Confessionnel"],
-  cycle: ["Pr?scolaire", "Primaire", "Coll?ge", "Lyc?e", "Technique", "Sup?rieur"],
+  type: ["Public", "Privé", "Communautaire", "Confessionnel"],
+  cycle: ["Préscolaire", "Primaire", "Collège", "Lycée", "Technique", "Supérieur"],
   commune: ["Niamey I", "Niamey II", "Niamey III", "Niamey IV", "Niamey V"],
 };
 
@@ -2461,7 +2472,7 @@ export async function createCanevasReferenceItem(category: "type" | "cycle" | "c
         ilike(settings.value, cleanValue)
       )
     });
-    if (existing) return { error: "Cette valeur existe d?j?." };
+    if (existing) return { error: "Cette valeur existe déjà." };
 
     await db.insert(settings).values({
       schoolId,
@@ -2500,6 +2511,8 @@ export async function createSubject(data: { subjectName: string; subjectCode?: s
       schoolId: schoolId,
     });
     revalidatePath("/dashboard/settings");
+    revalidatePath("/dashboard/academics");
+    revalidatePath("/dashboard/academics/grades");
     revalidateTag(ACADEMICS_CACHE_TAG);
     return { success: true };
   });
@@ -2515,6 +2528,9 @@ export async function deleteSubject(id: number) {
       )
     );
     revalidatePath("/dashboard/settings");
+    revalidatePath("/dashboard/academics");
+    revalidatePath("/dashboard/academics/grades");
+    revalidateTag(ACADEMICS_CACHE_TAG);
     return { success: true };
   });
 }
@@ -2525,6 +2541,9 @@ export async function importSubjects(names: string[], sectionId?: number) {
     const rows = names.map(subjectName => ({ subjectName, schoolId }));
     await db.insert(schoolSubjects).values(rows).onConflictDoNothing();
     revalidatePath("/dashboard/settings");
+    revalidatePath("/dashboard/academics");
+    revalidatePath("/dashboard/academics/grades");
+    revalidateTag(ACADEMICS_CACHE_TAG);
     return { success: true };
   });
 }
@@ -2546,6 +2565,9 @@ export async function linkSubjectToSection(data: {
       isEliminatory: data.isEliminatory,
     });
     revalidatePath("/dashboard/settings");
+    revalidatePath("/dashboard/academics");
+    revalidatePath("/dashboard/academics/grades");
+    revalidateTag(ACADEMICS_CACHE_TAG);
     return { success: true };
   });
 }
@@ -2568,6 +2590,9 @@ export async function updateSectionSubjectLink(id: number, data: {
       })
       .where(eq(sectionSubjects.id, id));
     revalidatePath("/dashboard/settings");
+    revalidatePath("/dashboard/academics");
+    revalidatePath("/dashboard/academics/grades");
+    revalidateTag(ACADEMICS_CACHE_TAG);
     return { success: true };
   });
 }
@@ -2576,6 +2601,9 @@ export async function deleteSectionSubjectLink(id: number) {
   return protectedDbAction("Academics", "canEdit", async () => {
     await db.delete(sectionSubjects).where(eq(sectionSubjects.id, id));
     revalidatePath("/dashboard/settings");
+    revalidatePath("/dashboard/academics");
+    revalidatePath("/dashboard/academics/grades");
+    revalidateTag(ACADEMICS_CACHE_TAG);
     return { success: true };
   });
 }
@@ -2591,6 +2619,9 @@ export async function addClassSubjectLink(data: { classId: number; subjectId: nu
       schoolId: schoolId,
     });
     revalidatePath("/dashboard/settings");
+    revalidatePath("/dashboard/academics");
+    revalidatePath("/dashboard/academics/grades");
+    revalidateTag(ACADEMICS_CACHE_TAG);
     return { success: true };
   });
 }
@@ -2605,6 +2636,9 @@ export async function updateClassSubjectLink(id: number, data: { coefficient?: n
       })
       .where(and(eq(classSubjects.id, id), eq(classSubjects.schoolId, schoolId)));
     revalidatePath("/dashboard/settings");
+    revalidatePath("/dashboard/academics");
+    revalidatePath("/dashboard/academics/grades");
+    revalidateTag(ACADEMICS_CACHE_TAG);
     return { success: true };
   });
 }
@@ -2614,6 +2648,9 @@ export async function deleteClassSubjectLink(id: number) {
     const schoolId = await getActiveSchoolId();
     await db.delete(classSubjects).where(and(eq(classSubjects.id, id), eq(classSubjects.schoolId, schoolId)));
     revalidatePath("/dashboard/settings");
+    revalidatePath("/dashboard/academics");
+    revalidatePath("/dashboard/academics/grades");
+    revalidateTag(ACADEMICS_CACHE_TAG);
     return { success: true };
   });
 }

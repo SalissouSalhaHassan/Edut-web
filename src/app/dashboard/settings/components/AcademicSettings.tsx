@@ -56,6 +56,20 @@ export function AcademicSettings({
   useEffect(() => { setGradingList(initialGradingAppreciations || []); }, [initialGradingAppreciations]);
   useEffect(() => { setRemarksList(initialSchoolRemarks || []); }, [initialSchoolRemarks]);
 
+  const clearAcademicFilterCache = () => {
+    try {
+      if (typeof window !== "undefined" && window.sessionStorage) {
+        window.sessionStorage.removeItem("academic_filter_options_v2");
+      }
+    } catch (e) {
+      console.warn("Failed to clear filter storage:", e);
+    }
+  };
+
+  useEffect(() => {
+    clearAcademicFilterCache();
+  }, [sessionsList, classesList, sectionsList, subjectsList, sectionSubjectsList, classSubjectsList, periodsList]);
+
   // Form states
   const [sessionName, setSessionName] = useState("");
   const [className, setClassName] = useState("");
