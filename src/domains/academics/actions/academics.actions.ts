@@ -694,19 +694,28 @@ export async function getGradingGrid(params: { classId: number, subjectId: numbe
     const sectionNameClean = cls.section?.sectionName?.trim();
     const edLevelClean = cls.section?.educationalLevel?.trim();
 
-    const classConditions = [
-      ilike(students.classe, classNameClean),
-      ilike(students.classe, `${classNameClean}%`),
-      ilike(students.classe, `%${classNameClean}%`),
-    ];
-    if (sectionNameClean) {
-      classConditions.push(
-        and(
-          ilike(students.section, sectionNameClean),
-          edLevelClean ? ilike(students.educationalLevel, `%${edLevelClean}%`) : undefined
-        ) as any
-      );
+    // Generate precise class aliases (e.g. "Licence 1" -> "L1", "6ème A" -> "6A")
+    const classAliases = [classNameClean];
+    if (/licence\s*1/i.test(classNameClean)) classAliases.push("L1", "Licence 1", "L-1");
+    else if (/licence\s*2/i.test(classNameClean)) classAliases.push("L2", "Licence 2", "L-2");
+    else if (/licence\s*3/i.test(classNameClean)) classAliases.push("L3", "Licence 3", "L-3");
+    else if (/master\s*1/i.test(classNameClean)) classAliases.push("M1", "Master 1", "M-1");
+    else if (/master\s*2/i.test(classNameClean)) classAliases.push("M2", "Master 2", "M-2");
+
+    const gradeNumberMatch = classNameClean.match(/^(\d+)(?:è|ème|e)?\s*([a-z0-9]*)/i);
+    if (gradeNumberMatch) {
+      const num = gradeNumberMatch[1];
+      const letter = gradeNumberMatch[2];
+      if (letter) {
+        classAliases.push(`${num}ème ${letter}`, `${num}eme ${letter}`, `${num}${letter}`, `${num}-${letter}`);
+      }
     }
+
+    const classConditions = classAliases.flatMap(alias => [
+      eq(students.classe, alias),
+      ilike(students.classe, alias),
+      ilike(students.classe, `${alias}%`),
+    ]);
 
     // Fetch all dependent data in parallel using readDb
     const [studentsInClass, attendanceStats, subLink, results] = await Promise.all([
@@ -763,8 +772,19 @@ export async function getGradingGrid(params: { classId: number, subjectId: numbe
       ];
       if (sectionNameClean) {
         fallbackConditions.push(ilike(students.section, sectionNameClean));
-      } else if (edLevelClean) {
+      }
+      if (edLevelClean) {
         fallbackConditions.push(ilike(students.educationalLevel, `%${edLevelClean}%`));
+      }
+      const numMatch = classNameClean.match(/\d+/);
+      if (numMatch) {
+        fallbackConditions.push(
+          or(
+            ilike(students.classe, `%${numMatch[0]}%`),
+            ilike(students.classe, `%l${numMatch[0]}%`),
+            ilike(students.classe, `%m${numMatch[0]}%`)
+          ) as any
+        );
       }
       baseStudents = await readDb.select()
         .from(students)
@@ -905,19 +925,28 @@ export async function getDevoirGrid(params: { classId: number, subjectId: number
     const sectionNameClean = cls.section?.sectionName?.trim();
     const edLevelClean = cls.section?.educationalLevel?.trim();
 
-    const classConditions = [
-      ilike(students.classe, classNameClean),
-      ilike(students.classe, `${classNameClean}%`),
-      ilike(students.classe, `%${classNameClean}%`),
-    ];
-    if (sectionNameClean) {
-      classConditions.push(
-        and(
-          ilike(students.section, sectionNameClean),
-          edLevelClean ? ilike(students.educationalLevel, `%${edLevelClean}%`) : undefined
-        ) as any
-      );
+    // Generate precise class aliases (e.g. "Licence 1" -> "L1", "6ème A" -> "6A")
+    const classAliases = [classNameClean];
+    if (/licence\s*1/i.test(classNameClean)) classAliases.push("L1", "Licence 1", "L-1");
+    else if (/licence\s*2/i.test(classNameClean)) classAliases.push("L2", "Licence 2", "L-2");
+    else if (/licence\s*3/i.test(classNameClean)) classAliases.push("L3", "Licence 3", "L-3");
+    else if (/master\s*1/i.test(classNameClean)) classAliases.push("M1", "Master 1", "M-1");
+    else if (/master\s*2/i.test(classNameClean)) classAliases.push("M2", "Master 2", "M-2");
+
+    const gradeNumberMatch = classNameClean.match(/^(\d+)(?:è|ème|e)?\s*([a-z0-9]*)/i);
+    if (gradeNumberMatch) {
+      const num = gradeNumberMatch[1];
+      const letter = gradeNumberMatch[2];
+      if (letter) {
+        classAliases.push(`${num}ème ${letter}`, `${num}eme ${letter}`, `${num}${letter}`, `${num}-${letter}`);
+      }
     }
+
+    const classConditions = classAliases.flatMap(alias => [
+      eq(students.classe, alias),
+      ilike(students.classe, alias),
+      ilike(students.classe, `${alias}%`),
+    ]);
 
     const [studentsInClass, results] = await Promise.all([
       readDb.select()
@@ -954,8 +983,19 @@ export async function getDevoirGrid(params: { classId: number, subjectId: number
       ];
       if (sectionNameClean) {
         fallbackConditions.push(ilike(students.section, sectionNameClean));
-      } else if (edLevelClean) {
+      }
+      if (edLevelClean) {
         fallbackConditions.push(ilike(students.educationalLevel, `%${edLevelClean}%`));
+      }
+      const numMatch = classNameClean.match(/\d+/);
+      if (numMatch) {
+        fallbackConditions.push(
+          or(
+            ilike(students.classe, `%${numMatch[0]}%`),
+            ilike(students.classe, `%l${numMatch[0]}%`),
+            ilike(students.classe, `%m${numMatch[0]}%`)
+          ) as any
+        );
       }
       baseStudents = await readDb.select()
         .from(students)
