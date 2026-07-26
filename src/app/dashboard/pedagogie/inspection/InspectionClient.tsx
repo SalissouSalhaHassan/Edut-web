@@ -236,6 +236,28 @@ export default function InspectionClient({
 
   return (
     <div className="min-h-screen bg-slate-50/60 p-5 lg:p-7 space-y-6">
+      <style>{`
+        @media print {
+          @page {
+            size: A4 landscape !important;
+            margin: 8mm !important;
+          }
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+          }
+          body {
+            background-color: #ffffff !important;
+          }
+          .no-print, nav, aside {
+            display: none !important;
+          }
+          table {
+            width: 100% !important;
+          }
+        }
+      `}</style>
 
       {/* ─── HEADER ─── */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">

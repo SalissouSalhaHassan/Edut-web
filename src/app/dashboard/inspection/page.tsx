@@ -495,6 +495,37 @@ export default function InspectionDashboardPage() {
 
   return (
     <div className="min-h-screen space-y-8 p-4 text-slate-950 md:p-6 xl:p-8 bg-[#fcfdff] print:bg-white print:p-0">
+      <style>{`
+        @media print {
+          @page {
+            size: A4 landscape !important;
+            margin: 8mm !important;
+          }
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+          }
+          body {
+            background-color: #ffffff !important;
+            padding: 0 !important;
+            margin: 0 !important;
+          }
+          .print\\:hidden,
+          nav,
+          aside {
+            display: none !important;
+          }
+          table {
+            width: 100% !important;
+            page-break-inside: auto !important;
+          }
+          tr {
+            page-break-inside: avoid !important;
+            page-break-after: auto !important;
+          }
+        }
+      `}</style>
       
       {/* Header */}
       <header className="rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
