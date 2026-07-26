@@ -697,7 +697,7 @@ export async function getGradingGrid(params: { classId: number, subjectId: numbe
     const classConditions = [
       ilike(students.classe, classNameClean),
       ilike(students.classe, `${classNameClean}%`),
-      ilike(classNameClean, sql`concat(${students.classe}, '%')`),
+      ilike(students.classe, `%${classNameClean}%`),
     ];
     if (sectionNameClean) {
       classConditions.push(
@@ -908,7 +908,7 @@ export async function getDevoirGrid(params: { classId: number, subjectId: number
     const classConditions = [
       ilike(students.classe, classNameClean),
       ilike(students.classe, `${classNameClean}%`),
-      ilike(classNameClean, sql`concat(${students.classe}, '%')`),
+      ilike(students.classe, `%${classNameClean}%`),
     ];
     if (sectionNameClean) {
       classConditions.push(
