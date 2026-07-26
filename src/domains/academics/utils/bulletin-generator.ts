@@ -610,6 +610,11 @@ export async function generateBulletinPDF(data: any) {
       4: { halign: "center" },
       5: { fontStyle: "bold", halign: "center" }
     },
+    didParseCell: (data: any) => {
+      if (data.section === 'body' || data.section === 'foot') {
+        data.cell.styles.fillColor = false;
+      }
+    },
     margin: { left: 10, right: 10 }
   });
 
@@ -619,19 +624,19 @@ export async function generateBulletinPDF(data: any) {
   autoTable(doc, {
     startY: finalY1,
     head: [
-      [{ content: "Moyenne Générale sur 20", colSpan: 6, styles: { halign: "center", fontStyle: "bold", fillColor: [230, 230, 230], textColor: 0 } }],
+      [{ content: "Moyenne Générale sur 20", colSpan: 6, styles: { halign: "center", fontStyle: "bold", textColor: 0 } }],
       [
-        { content: "1er Semestre", colSpan: 2, styles: { halign: "center", fontStyle: "bold", fillColor: [245, 245, 245], textColor: 0 } },
-        { content: "2ème Semestre", colSpan: 2, styles: { halign: "center", fontStyle: "bold", fillColor: [245, 245, 245], textColor: 0 } },
-        { content: "Moyenne Annuelle", colSpan: 2, styles: { halign: "center", fontStyle: "bold", fillColor: [245, 245, 245], textColor: 0 } }
+        { content: "1er Semestre", colSpan: 2, styles: { halign: "center", fontStyle: "bold", textColor: 0 } },
+        { content: "2ème Semestre", colSpan: 2, styles: { halign: "center", fontStyle: "bold", textColor: 0 } },
+        { content: "Moyenne Annuelle", colSpan: 2, styles: { halign: "center", fontStyle: "bold", textColor: 0 } }
       ],
       [
-        { content: "Moyenne", styles: { halign: "center", fontStyle: "bold", fillColor: [255, 255, 255], textColor: 0 } },
-        { content: "Rang", styles: { halign: "center", fontStyle: "bold", fillColor: [255, 255, 255], textColor: 0 } },
-        { content: "Moyenne", styles: { halign: "center", fontStyle: "bold", fillColor: [255, 255, 255], textColor: 0 } },
-        { content: "Rang", styles: { halign: "center", fontStyle: "bold", fillColor: [255, 255, 255], textColor: 0 } },
-        { content: "Moyenne", styles: { halign: "center", fontStyle: "bold", fillColor: [255, 255, 255], textColor: 0 } },
-        { content: "Rang", styles: { halign: "center", fontStyle: "bold", fillColor: [255, 255, 255], textColor: 0 } }
+        { content: "Moyenne", styles: { halign: "center", fontStyle: "bold", textColor: 0 } },
+        { content: "Rang", styles: { halign: "center", fontStyle: "bold", textColor: 0 } },
+        { content: "Moyenne", styles: { halign: "center", fontStyle: "bold", textColor: 0 } },
+        { content: "Rang", styles: { halign: "center", fontStyle: "bold", textColor: 0 } },
+        { content: "Moyenne", styles: { halign: "center", fontStyle: "bold", textColor: 0 } },
+        { content: "Rang", styles: { halign: "center", fontStyle: "bold", textColor: 0 } }
       ]
     ],
     body: [
@@ -639,13 +644,16 @@ export async function generateBulletinPDF(data: any) {
         { content: displayAvgS1, styles: { halign: "center", fontStyle: "bold" } },
         { content: displayRankS1, styles: { halign: "center", fontStyle: "bold" } },
         { content: displayAvgS2, styles: { halign: "center", fontStyle: "bold" } },
-        { content: displayRankS2, styles: { halign: "center", fontStyle: "bold", fillColor: isS2Active ? [255, 255, 0] : [255, 255, 255] } },
-        { content: displayAnnualAvg, styles: { halign: "center", fontStyle: "bold", fillColor: [245, 245, 245] } },
-        { content: displayAnnualRank, styles: { halign: "center", fontStyle: "bold", fillColor: [245, 245, 245] } }
+        { content: displayRankS2, styles: { halign: "center", fontStyle: "bold" } },
+        { content: displayAnnualAvg, styles: { halign: "center", fontStyle: "bold" } },
+        { content: displayAnnualRank, styles: { halign: "center", fontStyle: "bold" } }
       ]
     ],
     theme: "grid",
     styles: { fontSize: 8.5, cellPadding: 1, lineColor: 0, lineWidth: 0.1, textColor: 0 },
+    didParseCell: (data: any) => {
+      data.cell.styles.fillColor = false;
+    },
     margin: { left: 10, right: 10 }
   });
 
@@ -678,11 +686,11 @@ export async function generateBulletinPDF(data: any) {
   autoTable(doc, {
     startY: finalY2,
     head: [
-      [{ content: "Appréciation", colSpan: 3, styles: { halign: "center", fontStyle: "bold", fillColor: [230, 230, 230], textColor: 0 } }],
+      [{ content: "Appréciation", colSpan: 3, styles: { halign: "center", fontStyle: "bold", textColor: 0 } }],
       [
-        { content: "Travail", styles: { halign: "center", fontStyle: "bold", fillColor: [255, 255, 255], textColor: 0 } },
-        { content: "Conduite", styles: { halign: "center", fontStyle: "bold", fillColor: [255, 255, 255], textColor: 0 } },
-        { content: "Assiduité/Retard", styles: { halign: "center", fontStyle: "bold", fillColor: [255, 255, 255], textColor: 0 } }
+        { content: "Travail", styles: { halign: "center", fontStyle: "bold", textColor: 0 } },
+        { content: "Conduite", styles: { halign: "center", fontStyle: "bold", textColor: 0 } },
+        { content: "Assiduité/Retard", styles: { halign: "center", fontStyle: "bold", textColor: 0 } }
       ]
     ],
     body: [
@@ -699,6 +707,9 @@ export async function generateBulletinPDF(data: any) {
     ],
     theme: "grid",
     styles: { fontSize: 8, cellPadding: 1, lineColor: 0, lineWidth: 0.1, textColor: 0 },
+    didParseCell: (data: any) => {
+      data.cell.styles.fillColor = false;
+    },
     margin: { left: 10, right: 10 }
   });
 
@@ -708,8 +719,8 @@ export async function generateBulletinPDF(data: any) {
     startY: finalY3,
     body: [
       [
-        { content: "Résultat annuel", colSpan: 2, styles: { halign: "center", fontStyle: "bold", fillColor: [245, 245, 245] } },
-        { content: "Appréciation et signature du proviseur", styles: { halign: "center", fontStyle: "bold", fillColor: [245, 245, 245] } }
+        { content: "Résultat annuel", colSpan: 2, styles: { halign: "center", fontStyle: "bold" } },
+        { content: "Appréciation et signature du proviseur", styles: { halign: "center", fontStyle: "bold" } }
       ],
       [
         { content: "Proposé pour", rowSpan: 3, styles: { halign: "center", valign: "middle", fontStyle: "bold" } },
@@ -1149,6 +1160,11 @@ export async function generateReleveNotesPDF(data: any) {
       3: { halign: "center", cellWidth: 25 },
       4: { halign: "center", cellWidth: 30 }
     },
+    didParseCell: (data: any) => {
+      if (data.section === 'body' || data.section === 'foot') {
+        data.cell.styles.fillColor = false;
+      }
+    },
     margin: { left: 10, right: 10 }
   });
 
@@ -1231,6 +1247,11 @@ export async function generateReleveNotesPDF(data: any) {
       2: { halign: "center", cellWidth: 25 },
       3: { halign: "center", cellWidth: 25 },
       4: { halign: "center", cellWidth: 30 }
+    },
+    didParseCell: (data: any) => {
+      if (data.section === 'body' || data.section === 'foot') {
+        data.cell.styles.fillColor = false;
+      }
     },
     margin: { left: 10, right: 10 }
   });
