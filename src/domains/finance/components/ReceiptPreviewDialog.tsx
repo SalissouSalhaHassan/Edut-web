@@ -93,6 +93,34 @@ function drawWrappedText(doc: jsPDF, text: string, x: number, y: number, maxWidt
   }
 }
 
+async function fetchTransparentLogoBase64(url: string, opacity: number = 0.08): Promise<string> {
+  return new Promise((resolve) => {
+    if (typeof window === 'undefined') {
+      resolve("");
+      return;
+    }
+    const img = new Image();
+    img.crossOrigin = 'Anonymous';
+    img.src = url;
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.globalAlpha = opacity;
+        ctx.drawImage(img, 0, 0);
+      }
+      const dataUrl = canvas.toDataURL('image/png');
+      resolve(dataUrl);
+    };
+    img.onerror = () => {
+      resolve("");
+    };
+  });
+}
+
 interface ReceiptPreviewDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -609,6 +637,22 @@ export default function ReceiptPreviewDialog({
     doc.setFillColor(79, 70, 229);
     doc.rect(0, 2, isA5 ? 40 : 60, 1, "F");
 
+    // Background logo watermark for PDF
+    const logoUrl = receiptHeaderConfig?.centerLogo || receiptHeaderConfig?.leftLogo || receiptHeaderConfig?.rightLogo || branchInfo?.logoPath;
+    if (logoUrl) {
+      try {
+        const logoWatermark = await fetchTransparentLogoBase64(logoUrl, 0.12);
+        if (logoWatermark) {
+          const wmSize = isA5 ? 95 : 135;
+          const wmX = (W - wmSize) / 2;
+          const wmY = (H - wmSize) / 2 + 10;
+          doc.addImage(logoWatermark, 'PNG', wmX, wmY, wmSize, wmSize);
+        }
+      } catch (e) {
+        console.warn("Failed to load watermark for receipt PDF:", e);
+      }
+    }
+
     const headerBottomY = drawReceiptPDFHeader(
       doc,
       receiptHeaderConfig,
@@ -716,6 +760,11 @@ export default function ReceiptPreviewDialog({
         halign: "center",
       },
       bodyStyles: { fontSize: isA5 ? 7 : 9, cellPadding: isA5 ? 2.5 : 4, overflow: 'linebreak' },
+      didParseCell: (data: any) => {
+        if (data.section === 'body') {
+          data.cell.styles.fillColor = false;
+        }
+      },
       footStyles: {
         fillColor: [79, 70, 229],
         textColor: 255,
@@ -933,14 +982,25 @@ export default function ReceiptPreviewDialog({
               <div
                 id="receipt-print-area"
                 data-paper-size={selectedPaperSize}
-                className="bg-white rounded-[2rem] border border-slate-200 shadow-lg overflow-hidden transition-all duration-300"
+                className="bg-white rounded-[2rem] border border-slate-200 shadow-lg overflow-hidden transition-all duration-300 relative"
                 style={{ fontFamily: "'Inter', 'Segoe UI', sans-serif" }}
               >
                 {/* Top color accent */}
-                <div className="h-1.5 w-full bg-gradient-to-r from-slate-900 via-indigo-600 to-slate-900" />
+                <div className="h-1.5 w-full bg-gradient-to-r from-slate-900 via-indigo-600 to-slate-900 relative z-10" />
+
+                {/* Background logo watermark for print & web preview */}
+                {(receiptHeaderConfig?.leftLogo || receiptHeaderConfig?.centerLogo || receiptHeaderConfig?.rightLogo || branchInfo?.logoPath) && (
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.09] overflow-hidden z-0 print:opacity-[0.12]">
+                    <img
+                      src={receiptHeaderConfig?.leftLogo || receiptHeaderConfig?.centerLogo || receiptHeaderConfig?.rightLogo || branchInfo?.logoPath}
+                      alt="Watermark"
+                      className="w-[280px] h-[280px] md:w-[360px] md:h-[360px] object-contain"
+                    />
+                  </div>
+                )}
 
                 {/* ── HEADER: Logo | Title | Contact ── */}
-                <div className="px-10 pt-7 pb-6 border-b border-slate-100">
+                <div className="px-10 pt-7 pb-6 border-b border-slate-100 relative z-10">
                   <OfficialDocumentHeader config={receiptHeaderConfig} title={`Reçu de paiement - ${refNumber}`} variant="compact" />
                 </div>
 
@@ -1035,13 +1095,13 @@ export default function ReceiptPreviewDialog({
                 </div>
 
                 {/* ── STUDENT INFO + DATE (2-column with divider) ── */}
-                <div className="bg-slate-50/80 border-b border-slate-100">
+                <div className="bg-slate-50/50 backdrop-blur-[1px] border-b border-slate-100 relative z-10">
                   <div className="px-10 py-6 flex divide-x divide-slate-200">
 
                     {/* Left — Student info */}
                     <div className="flex-1 pr-10">
                       <div className="flex items-center gap-2 mb-3">
-                        <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
+                        <div className="w-8 h-8 rounded-lg bg-slate-100/80 flex items-center justify-center shrink-0">
                           <User size={15} className="text-slate-500" />
                         </div>
                         <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">
@@ -1069,7 +1129,7 @@ export default function ReceiptPreviewDialog({
                     {/* Right — Date */}
                     <div className="pl-10 flex flex-col justify-center min-w-[200px]">
                       <div className="flex items-center gap-2 mb-3">
-                        <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center shrink-0">
+                        <div className="w-8 h-8 rounded-lg bg-emerald-50/80 flex items-center justify-center shrink-0">
                           <Calendar size={15} className="text-emerald-600" />
                         </div>
                         <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">
@@ -1084,7 +1144,7 @@ export default function ReceiptPreviewDialog({
                 </div>
 
                 {/* ── AMOUNTS TABLE ── */}
-                <div className="border-b border-slate-100">
+                <div className="border-b border-slate-100 relative z-10">
 
                   {/* Table header — dark navy */}
                   <div className="grid grid-cols-[1fr_220px] bg-[#0F172A] text-white px-8 py-4">
@@ -1093,9 +1153,9 @@ export default function ReceiptPreviewDialog({
                   </div>
 
                   {/* Row 1: Total Attendu */}
-                  <div className="grid grid-cols-[1fr_220px] px-8 py-4 items-center border-b border-slate-100 bg-white">
+                  <div className="grid grid-cols-[1fr_220px] px-8 py-4 items-center border-b border-slate-100 bg-white/75">
                     <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0">
+                      <div className="w-10 h-10 rounded-xl bg-blue-50/80 border border-blue-100 flex items-center justify-center shrink-0">
                         <BookOpen size={18} className="text-blue-500" />
                       </div>
                       <div>
@@ -1113,9 +1173,9 @@ export default function ReceiptPreviewDialog({
 
                   {/* Row 2: Réduction (conditional) */}
                   {totalReduction > 0 && (
-                    <div className="grid grid-cols-[1fr_220px] px-8 py-4 items-center border-b border-slate-100 bg-white">
+                    <div className="grid grid-cols-[1fr_220px] px-8 py-4 items-center border-b border-slate-100 bg-white/75">
                       <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center shrink-0">
+                        <div className="w-10 h-10 rounded-xl bg-purple-50/80 border border-purple-100 flex items-center justify-center shrink-0">
                           <GraduationCap size={18} className="text-purple-500" />
                         </div>
                         <div>
@@ -1130,9 +1190,9 @@ export default function ReceiptPreviewDialog({
                   )}
 
                   {/* Row 3: Total Payé */}
-                  <div className="grid grid-cols-[1fr_220px] px-8 py-4 items-center border-b border-slate-100 bg-white">
+                  <div className="grid grid-cols-[1fr_220px] px-8 py-4 items-center border-b border-slate-100 bg-white/75">
                     <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center shrink-0">
+                      <div className="w-10 h-10 rounded-xl bg-emerald-50/80 border border-emerald-100 flex items-center justify-center shrink-0">
                         <Wallet size={18} className="text-emerald-500" />
                       </div>
                       <div>
@@ -1153,7 +1213,7 @@ export default function ReceiptPreviewDialog({
                   </div>
 
                   {/* Balance row — light blue background, indigo amount */}
-                  <div className="grid grid-cols-[1fr_220px] px-8 py-5 items-center bg-slate-50">
+                  <div className="grid grid-cols-[1fr_220px] px-8 py-5 items-center bg-slate-50/60">
                     <p className="text-[13px] font-black text-slate-700 uppercase tracking-wider">Solde Restant</p>
                     <p className={cn(
                       "text-[22px] font-black text-right",
@@ -1165,7 +1225,7 @@ export default function ReceiptPreviewDialog({
                 </div>
 
                 {/* ── FOOTER: Status Badge | Stamp | Signature ── */}
-                <div className="px-10 py-8 flex items-center justify-between gap-6">
+                <div className="px-10 py-8 flex items-center justify-between gap-6 relative z-10">
 
                   {/* Status badge */}
                   <div className={cn(
@@ -1238,8 +1298,8 @@ export default function ReceiptPreviewDialog({
                 </div>
 
                 {/* Disclaimer bar */}
-                <div className="px-10 pb-7">
-                  <div className="flex items-center gap-2.5 px-5 py-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                <div className="px-10 pb-7 relative z-10">
+                  <div className="flex items-center gap-2.5 px-5 py-2.5 rounded-xl bg-slate-50/80 border border-slate-100">
                     <Info size={13} className="text-slate-400 shrink-0" />
                     <p className="text-[11px] font-medium text-slate-400">
                       Merci pour votre confiance. Ce reçu est délivré à titre de preuve de paiement.
@@ -1248,7 +1308,7 @@ export default function ReceiptPreviewDialog({
                 </div>
 
                 {/* Bottom accent */}
-                <div className="h-1.5 w-full bg-gradient-to-r from-slate-900 via-indigo-600 to-slate-900" />
+                <div className="h-1.5 w-full bg-gradient-to-r from-slate-900 via-indigo-600 to-slate-900 relative z-10" />
               </div>
 
               {/* ── WhatsApp Section ── */}
