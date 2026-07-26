@@ -713,8 +713,7 @@ export async function getGradingGrid(params: { classId: number, subjectId: numbe
           and(
             or(
               ilike(students.classe, cls.className.trim()),
-              ilike(students.classe, `${cls.className.trim()}%`),
-              ilike(cls.className.trim(), sql`concat(${students.classe}, '%')`)
+              ilike(students.classe, `${cls.className.trim()}%`)
             ),
             eq(students.schoolId, cls.schoolId ?? 0),
             sessionNameStr
@@ -1031,8 +1030,7 @@ async function fetchBroadsheetMatrixDirect(params: { classId: number, sessionId:
         and(
           or(
             ilike(students.classe, cls.className.trim()),
-            ilike(students.classe, `${cls.className.trim()}%`),
-            ilike(cls.className.trim(), sql`concat(${students.classe}, '%')`)
+            ilike(students.classe, `${cls.className.trim()}%`)
           ),
           eq(students.schoolId, cls.schoolId ?? 0),
           sessionNameStr
