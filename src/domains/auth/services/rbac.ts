@@ -88,14 +88,25 @@ const SECONDARY_LEVEL_TERMS = [
 const UNIVERSITY_LEVEL_TERMS = [
   "university",
   "universite",
+  "université",
+  "universitaire",
   "licence",
+  "licence (lmd)",
+  "licence lmd",
+  "lmd",
   "master",
   "doctorat",
   "superieur",
-  "\u062c\u0627\u0645\u0639\u0647",
-  "\u0627\u0644\u062c\u0627\u0645\u0639\u0647",
-  "\u062c\u0627\u0645\u0639\u064a",
-  "\u0639\u0627\u0644\u064a",
+  "superieure",
+  "enseignement superieur",
+  "enseignement supérieur",
+  "enseignement_superieur",
+  "جامعة",
+  "الجامعة",
+  "جامعي",
+  "عالي",
+  "تعليم عالي",
+  "التعليم العالي",
 ];
 
 type EducationalLevelFamily = "primary" | "middle" | "secondary" | "university";
@@ -538,7 +549,16 @@ export function getCompatibleLevels(level: string): string[] {
     return Array.from(new Set(["Lycée", "Lycee", "lycée", "lycee", "Secondaire", "secondaire", "Second Cycle", "second cycle", "ثانوي", "الثانوية", "Tous", "All", "tous", "all", ""]));
   }
   if (family === "university") {
-    return Array.from(new Set(["Université", "Universite", "Licence", "Master", "université", "universite", "licence", "master", "Supérieur", "superieur", "جامعة", "جامعي", "عالي", "Tous", "All", "tous", "all", ""]));
+    return Array.from(new Set([
+      "Université", "Universite", "université", "universite",
+      "Universitaire", "universitaire",
+      "Licence", "licence", "Licence (LMD)", "Licence LMD", "LMD", "lmd",
+      "Master", "master",
+      "Doctorat", "doctorat",
+      "Supérieur", "superieur", "Enseignement Supérieur", "enseignement superieur", "Enseignement supérieur", "enseignement_superieur",
+      "جامعة", "الجامعة", "جامعي", "عالي", "التعليم العالي",
+      "Tous", "All", "tous", "all", ""
+    ]));
   }
 
   const norm = normalizeLevel(level);
@@ -550,8 +570,16 @@ export function getCompatibleLevels(level: string): string[] {
     baseLevels = ["Collège", "College", "collège", "college", "Moyen", "moyen", "Collège Général", "college general", "Premier Cycle", "premier cycle"];
   } else if (norm === "lycee" || norm === "secondaire" || norm === "second cycle") {
     baseLevels = ["Lycée", "Lycee", "lycée", "lycee", "Secondaire", "secondaire", "Second Cycle", "second cycle"];
-  } else if (["university", "universite", "licence", "master", "doctorat", "superieur"].includes(norm)) {
-    baseLevels = ["Université", "Universite", "Licence", "Master", "université", "universite", "licence", "master", "Supérieur", "superieur"];
+  } else if (["university", "universite", "universitaire", "licence", "master", "doctorat", "superieur", "enseignement superieur", "lmd"].includes(norm)) {
+    baseLevels = [
+      "Université", "Universite", "université", "universite",
+      "Universitaire", "universitaire",
+      "Licence", "licence", "Licence (LMD)", "Licence LMD", "LMD", "lmd",
+      "Master", "master",
+      "Doctorat", "doctorat",
+      "Supérieur", "superieur", "Enseignement Supérieur", "enseignement superieur", "Enseignement supérieur",
+      "جامعة", "الجامعة", "جامعي", "عالي", "التعليم العالي"
+    ];
   } else {
     baseLevels = [level, level.toLowerCase(), level.toUpperCase(), level.charAt(0).toUpperCase() + level.slice(1).toLowerCase()];
   }

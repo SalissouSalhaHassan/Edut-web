@@ -199,12 +199,37 @@ export default function AcademicFilters({ onLoad, loading }: AcademicFiltersProp
     };
   }, []);
 
-  // Calculate filtered sections
+  // Calculate filtered sections with level family compatibility
   const filteredSections = useMemo(() => {
-    const selectedLevel = normalizeFilterText(level);
+    const selectedNorm = normalizeFilterText(level);
+    if (!selectedNorm) return options.sections || [];
+
+    const isLevelMatch = (secLevel: string, targetLevel: string) => {
+      const sNorm = normalizeFilterText(secLevel);
+      const tNorm = normalizeFilterText(targetLevel);
+      if (sNorm === tNorm) return true;
+
+      const isUnivTarget = tNorm.includes("univ") || tNorm.includes("super") || tNorm.includes("licence") || tNorm.includes("lmd") || tNorm.includes("master") || tNorm.includes("doc");
+      const isUnivSec = sNorm.includes("univ") || sNorm.includes("super") || sNorm.includes("licence") || sNorm.includes("lmd") || sNorm.includes("master") || sNorm.includes("doc");
+      if (isUnivTarget && isUnivSec) return true;
+
+      const isLyceeTarget = tNorm.includes("lyc") || tNorm.includes("sec");
+      const isLyceeSec = sNorm.includes("lyc") || sNorm.includes("sec");
+      if (isLyceeTarget && isLyceeSec) return true;
+
+      const isCollegeTarget = tNorm.includes("colleg") || tNorm.includes("moyen");
+      const isCollegeSec = sNorm.includes("colleg") || sNorm.includes("moyen");
+      if (isCollegeTarget && isCollegeSec) return true;
+
+      const isPrimTarget = tNorm.includes("prim") || tNorm.includes("matern") || tNorm.includes("elem");
+      const isPrimSec = sNorm.includes("prim") || sNorm.includes("matern") || sNorm.includes("elem");
+      if (isPrimTarget && isPrimSec) return true;
+
+      return false;
+    };
+
     return (options.sections || []).filter((s: any) => {
-      const sectionLevel = normalizeFilterText(s.educationalLevel || "Lycée");
-      return !selectedLevel || sectionLevel === selectedLevel;
+      return isLevelMatch(s.educationalLevel || "Lycée", level);
     });
   }, [level, options.sections]);
 
