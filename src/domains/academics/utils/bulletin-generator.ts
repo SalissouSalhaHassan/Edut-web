@@ -287,12 +287,12 @@ function drawPDFHeader(
   if (style === "university_formal") {
     if (leftLogo) {
       try {
-        doc.addImage(leftLogo, 'PNG', 10, 8, 22, 22);
+        doc.addImage(leftLogo, 'PNG', 10, 5, 22, 22);
       } catch (e) {}
     }
     if (rightLogo) {
       try {
-        doc.addImage(rightLogo, 'PNG', 178, 8, 22, 22);
+        doc.addImage(rightLogo, 'PNG', 178, 5, 22, 22);
       } catch (e) {}
     }
     
@@ -305,7 +305,7 @@ function drawPDFHeader(
       registrationNo ? `Agrément N°: ${registrationNo}` : "",
     ].filter(Boolean);
 
-    let centerY = 12;
+    let centerY = 6;
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
     const height0 = drawWrappedText(doc, centerLines[0].toUpperCase(), 105, centerY, 140, "center");
@@ -322,10 +322,10 @@ function drawPDFHeader(
       centerY += height + 0.5;
     }
     
-    const finalY = Math.max(centerY + 3, 32);
+    const finalY = Math.max(centerY + 1.5, 26);
     doc.setLineWidth(0.5);
     doc.line(10, finalY, 200, finalY);
-    return finalY + 2;
+    return finalY + 1;
   }
   
   if (style === "minimal_administrative") {
@@ -1009,31 +1009,31 @@ export async function generateReleveNotesPDF(data: any) {
     }
   }
 
-  const titleBarY = headerEndY + 12;
-  const studentInfoY = titleBarY + 14;
-  const s1SectionY = studentInfoY + 18;
-  const s1TitleY = studentInfoY + 23;
-  const table1StartY = studentInfoY + 25;
+  const titleBarY = headerEndY + 3.5;
+  const studentInfoY = titleBarY + 11;
+  const s1SectionY = studentInfoY + 15;
+  const s1TitleY = studentInfoY + 19;
+  const table1StartY = studentInfoY + 22;
 
   doc.setFillColor(210, 230, 210);
-  doc.rect(10, titleBarY, 190, 8, "F");
-  doc.setFontSize(12);
+  doc.rect(10, titleBarY, 190, 7, "F");
+  doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(0, 50, 0);
-  doc.text("RELEVE DE NOTES", 105, titleBarY + 6, { align: "center" });
+  doc.text("RELEVE DE NOTES", 105, titleBarY + 5, { align: "center" });
   doc.setTextColor(0, 0, 0);
 
   // --- 3. STUDENT INFO ---
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
   doc.text("Etudiant:", 10, studentInfoY);
-  doc.text("Matricule:", 10, studentInfoY + 5);
-  doc.text("Parcours:", 10, studentInfoY + 10);
+  doc.text("Matricule:", 10, studentInfoY + 4.5);
+  doc.text("Parcours:", 10, studentInfoY + 9);
   
   doc.setFont("helvetica", "bold");
   drawTextBilingual(doc, student?.nomEtudiant || student?.name || "ADIATULLAHI RABIU AHMAD Nigeria", 30, studentInfoY);
-  drawTextBilingual(doc, student?.numAdmission || student?.matricule || "20 D 004", 30, studentInfoY + 5);
-  drawTextBilingual(doc, student?.classe || student?.className || "Première année de licence en Shari'a and Law", 30, studentInfoY + 10);
+  drawTextBilingual(doc, student?.numAdmission || student?.matricule || "20 D 004", 30, studentInfoY + 4.5);
+  drawTextBilingual(doc, student?.classe || student?.className || "Première année de licence en Shari'a and Law", 30, studentInfoY + 9);
 
   // --- 4. DETERMINE SEMESTER PAIR ---
   const isDoctorate = student?.educationalLevel?.toLowerCase().includes("doc") || student?.classe?.toLowerCase().includes("doc") || term?.toLowerCase().includes("ann") || term?.toLowerCase().includes("annee");
