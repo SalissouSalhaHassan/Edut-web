@@ -671,6 +671,112 @@ export async function deleteSection(id: number) {
   });
 }
 
+// ─── Shared helper: fetch students for a class using a 3-tier strategy ───────
+// Tier 1: match students already linked via studentResults.classId (most precise)
+// Tier 2: flexible class name matching (ilike on students.classe)
+// Tier 3: fallback on educationalLevel + sectionName only (for Université / Lycée)
+async function resolveStudentsForClass(params: {
+  cls: { id: number; className: string; schoolId: number | null; section: { sectionName: string; educationalLevel: string } | null };
+  sessionNameStr: string | undefined;
+  schoolId: number;
+  existingResultStudentIds?: number[];
+}): Promise<any[]> {
+  const { cls, sessionNameStr, schoolId, existingResultStudentIds = [] } = params;
+  const classNameClean = cls.className.trim();
+  const sectionNameClean = cls.section?.sectionName?.trim();
+  const edLevelClean = cls.section?.educationalLevel?.trim();
+
+  // --- TIER 1: students already linked via results (exact match by classId) ---
+  // These IDs will be fetched separately via extraStudents logic after this function.
+
+  // --- TIER 2: flexible class name matching ---
+  const classAliases = [classNameClean];
+
+  // University aliases
+  if (/licence\s*1/i.test(classNameClean)) classAliases.push("L1", "Licence 1", "L-1", "l1");
+  else if (/licence\s*2/i.test(classNameClean)) classAliases.push("L2", "Licence 2", "L-2", "l2");
+  else if (/licence\s*3/i.test(classNameClean)) classAliases.push("L3", "Licence 3", "L-3", "l3");
+  else if (/master\s*1/i.test(classNameClean)) classAliases.push("M1", "Master 1", "M-1", "m1");
+  else if (/master\s*2/i.test(classNameClean)) classAliases.push("M2", "Master 2", "M-2", "m2");
+  else if (/doctorat/i.test(classNameClean)) classAliases.push("D", "Doc", "Doctorat");
+  // Also try just the number from the class name as a suffix alias (e.g. "Informatique L1" -> "L1")
+  const numInName = classNameClean.match(/(?:l|m|d)(\d)/i);
+  if (numInName) classAliases.push(`l${numInName[1]}`, `m${numInName[1]}`, numInName[0]);
+
+  // Middle/High school aliases (e.g. "6ème A" -> "6A", "Terminale A")
+  const gradeMatch = classNameClean.match(/^(\d+)(?:è|ème|e)?\s*([a-zA-Z0-9]+)?/i);
+  if (gradeMatch && gradeMatch[1]) {
+    const num = gradeMatch[1];
+    const letter = gradeMatch[2] || "";
+    if (letter) {
+      classAliases.push(
+        `${num}ème ${letter}`, `${num}eme ${letter}`, `${num}${letter}`,
+        `${num}-${letter}`, `${num}e${letter}`, `${num} ${letter}`
+      );
+    }
+  }
+
+  const sessionFilter = sessionNameStr
+    ? or(
+        ilike(students.session, sessionNameStr),
+        ilike(students.session, `%${sessionNameStr.replace(/[/ -]/g, "%")}%`),
+        isNull(students.session),
+        eq(students.session, "")
+      )
+    : undefined;
+
+  const classConditions = classAliases.flatMap(alias => [
+    eq(students.classe, alias),
+    ilike(students.classe, alias),
+    ilike(students.classe, `${alias}%`),
+  ]);
+
+  // Tier 2 query
+  let tier2Results = await readDb.select()
+    .from(students)
+    .where(and(
+      or(...classConditions),
+      eq(students.schoolId, schoolId),
+      sessionFilter
+    ))
+    .orderBy(students.nomEtudiant);
+
+  if (tier2Results.length > 0) return tier2Results;
+
+  // --- TIER 3: fallback — match by section name OR educational level only ---
+  // This is needed when students.classe is completely different from className
+  // (e.g., students registered as "Master" but class is "Master 1 Informatique")
+  const tier3Conditions: any[] = [eq(students.schoolId, schoolId)];
+
+  if (sectionNameClean) {
+    tier3Conditions.push(ilike(students.section, sectionNameClean));
+  }
+  if (edLevelClean) {
+    // For university: match e.g. "Université" in educationalLevel
+    tier3Conditions.push(ilike(students.educationalLevel, `%${edLevelClean}%`));
+  }
+  if (sessionFilter) {
+    tier3Conditions.push(sessionFilter);
+  }
+
+  if (tier3Conditions.length > 1) {
+    const tier3Results = await readDb.select()
+      .from(students)
+      .where(and(...tier3Conditions))
+      .orderBy(students.nomEtudiant);
+    if (tier3Results.length > 0) return tier3Results;
+  }
+
+  // --- TIER 4: last resort — return any students with results for this classId ---
+  if (existingResultStudentIds.length > 0) {
+    return await readDb.select()
+      .from(students)
+      .where(inArray(students.id, existingResultStudentIds));
+  }
+
+  return [];
+}
+
 // Grading Grid
 export async function getGradingGrid(params: { classId: number, subjectId: number, sessionId: number, term: string }) {
   return protectedDbAction("Academics", "canView", async (user) => {
@@ -689,53 +795,10 @@ export async function getGradingGrid(params: { classId: number, subjectId: numbe
 
     const sessionObj = sessionIdNum ? await readDb.query.schoolSessions.findFirst({ where: eq(schoolSessions.id, sessionIdNum) }) : null;
     const sessionNameStr = sessionObj?.sessionName?.trim();
+    const schoolId = cls.schoolId ?? 0;
 
-    const classNameClean = cls.className.trim();
-    const sectionNameClean = cls.section?.sectionName?.trim();
-    const edLevelClean = cls.section?.educationalLevel?.trim();
-
-    // Generate precise class aliases (e.g. "Licence 1" -> "L1", "6ème A" -> "6A")
-    const classAliases = [classNameClean];
-    if (/licence\s*1/i.test(classNameClean)) classAliases.push("L1", "Licence 1", "L-1");
-    else if (/licence\s*2/i.test(classNameClean)) classAliases.push("L2", "Licence 2", "L-2");
-    else if (/licence\s*3/i.test(classNameClean)) classAliases.push("L3", "Licence 3", "L-3");
-    else if (/master\s*1/i.test(classNameClean)) classAliases.push("M1", "Master 1", "M-1");
-    else if (/master\s*2/i.test(classNameClean)) classAliases.push("M2", "Master 2", "M-2");
-
-    const gradeNumberMatch = classNameClean.match(/^(\d+)(?:è|ème|e)?\s*([a-z0-9]*)/i);
-    if (gradeNumberMatch) {
-      const num = gradeNumberMatch[1];
-      const letter = gradeNumberMatch[2];
-      if (letter) {
-        classAliases.push(`${num}ème ${letter}`, `${num}eme ${letter}`, `${num}${letter}`, `${num}-${letter}`);
-      }
-    }
-
-    const classConditions = classAliases.flatMap(alias => [
-      eq(students.classe, alias),
-      ilike(students.classe, alias),
-      ilike(students.classe, `${alias}%`),
-    ]);
-
-    // Fetch all dependent data in parallel using readDb
-    const [studentsInClass, attendanceStats, subLink, results] = await Promise.all([
-      readDb.select()
-        .from(students)
-        .where(
-          and(
-            or(...classConditions),
-            eq(students.schoolId, cls.schoolId ?? 0),
-            sessionNameStr
-              ? or(
-                  ilike(students.session, sessionNameStr),
-                  ilike(students.session, `%${sessionNameStr.replace(/[/ -]/g, "%")}%`),
-                  isNull(students.session),
-                  eq(students.session, "")
-                )
-              : undefined
-          )
-        )
-        .orderBy(students.nomEtudiant),
+    // Fetch results and attendance in parallel first
+    const [attendanceStats, subLink, results] = await Promise.all([
       readDb.select({
         studentId: studentAttendance.studentId,
         presents: sql<number>`count(*) filter (where ${studentAttendance.status} = 'Présent')`,
@@ -765,43 +828,26 @@ export async function getGradingGrid(params: { classId: number, subjectId: numbe
       })
     ]);
 
-    let baseStudents = studentsInClass;
-    if (baseStudents.length === 0) {
-      const fallbackConditions = [
-        eq(students.schoolId, cls.schoolId ?? 0)
-      ];
-      if (sectionNameClean) {
-        fallbackConditions.push(ilike(students.section, sectionNameClean));
-      }
-      if (edLevelClean) {
-        fallbackConditions.push(ilike(students.educationalLevel, `%${edLevelClean}%`));
-      }
-      const numMatch = classNameClean.match(/\d+/);
-      if (numMatch) {
-        fallbackConditions.push(
-          or(
-            ilike(students.classe, `%${numMatch[0]}%`),
-            ilike(students.classe, `%l${numMatch[0]}%`),
-            ilike(students.classe, `%m${numMatch[0]}%`)
-          ) as any
-        );
-      }
-      baseStudents = await readDb.select()
-        .from(students)
-        .where(and(...fallbackConditions))
-        .orderBy(students.nomEtudiant);
-    }
-
     const resultStudentIds = results.map(r => r.studentId).filter((id): id is number => id !== null);
+
+    // Use shared 3-tier strategy to find students
+    let baseStudents = await resolveStudentsForClass({
+      cls,
+      sessionNameStr,
+      schoolId,
+      existingResultStudentIds: resultStudentIds,
+    });
+
+    // Merge: add students who have results but weren't found by class matching
     const classStudentIds = new Set(baseStudents.map(s => s.id));
     const missingIds = resultStudentIds.filter(id => !classStudentIds.has(id));
-    let extraStudents: any[] = [];
     if (missingIds.length > 0) {
-      extraStudents = await readDb.select()
+      const extraStudents = await readDb.select()
         .from(students)
         .where(inArray(students.id, missingIds));
+      baseStudents = [...baseStudents, ...extraStudents];
     }
-    const studentList = [...baseStudents, ...extraStudents].sort((a, b) => a.nomEtudiant.localeCompare(b.nomEtudiant));
+    const studentList = baseStudents.sort((a, b) => a.nomEtudiant.localeCompare(b.nomEtudiant));
 
     const activeCoefficient = subLink?.coefficient || 1.0;
     const statsMap = new Map(attendanceStats.map(s => [s.studentId, s]));
@@ -920,99 +966,38 @@ export async function getDevoirGrid(params: { classId: number, subjectId: number
 
     const sessionObj = sessionIdNum ? await readDb.query.schoolSessions.findFirst({ where: eq(schoolSessions.id, sessionIdNum) }) : null;
     const sessionNameStr = sessionObj?.sessionName?.trim();
+    const schoolId = cls.schoolId ?? 0;
 
-    const classNameClean = cls.className.trim();
-    const sectionNameClean = cls.section?.sectionName?.trim();
-    const edLevelClean = cls.section?.educationalLevel?.trim();
-
-    // Generate precise class aliases (e.g. "Licence 1" -> "L1", "6ème A" -> "6A")
-    const classAliases = [classNameClean];
-    if (/licence\s*1/i.test(classNameClean)) classAliases.push("L1", "Licence 1", "L-1");
-    else if (/licence\s*2/i.test(classNameClean)) classAliases.push("L2", "Licence 2", "L-2");
-    else if (/licence\s*3/i.test(classNameClean)) classAliases.push("L3", "Licence 3", "L-3");
-    else if (/master\s*1/i.test(classNameClean)) classAliases.push("M1", "Master 1", "M-1");
-    else if (/master\s*2/i.test(classNameClean)) classAliases.push("M2", "Master 2", "M-2");
-
-    const gradeNumberMatch = classNameClean.match(/^(\d+)(?:è|ème|e)?\s*([a-z0-9]*)/i);
-    if (gradeNumberMatch) {
-      const num = gradeNumberMatch[1];
-      const letter = gradeNumberMatch[2];
-      if (letter) {
-        classAliases.push(`${num}ème ${letter}`, `${num}eme ${letter}`, `${num}${letter}`, `${num}-${letter}`);
-      }
-    }
-
-    const classConditions = classAliases.flatMap(alias => [
-      eq(students.classe, alias),
-      ilike(students.classe, alias),
-      ilike(students.classe, `${alias}%`),
-    ]);
-
-    const [studentsInClass, results] = await Promise.all([
-      readDb.select()
-        .from(students)
-        .where(
-          and(
-            or(...classConditions),
-            eq(students.schoolId, cls.schoolId ?? 0),
-            sessionNameStr
-              ? or(
-                  ilike(students.session, sessionNameStr),
-                  ilike(students.session, `%${sessionNameStr.replace(/[/ -]/g, "%")}%`),
-                  isNull(students.session),
-                  eq(students.session, "")
-                )
-              : undefined
-          )
-        )
-        .orderBy(students.nomEtudiant),
-      readDb.query.studentResults.findMany({
-        where: and(
-          eq(studentResults.classId, classIdNum),
-          eq(studentResults.subjectId, subjectIdNum),
-          eq(studentResults.sessionId, sessionIdNum),
-          buildTermFilter(studentResults.term, params.term)
-        )
-      })
-    ]);
-
-    let baseStudents = studentsInClass;
-    if (baseStudents.length === 0) {
-      const fallbackConditions = [
-        eq(students.schoolId, cls.schoolId ?? 0)
-      ];
-      if (sectionNameClean) {
-        fallbackConditions.push(ilike(students.section, sectionNameClean));
-      }
-      if (edLevelClean) {
-        fallbackConditions.push(ilike(students.educationalLevel, `%${edLevelClean}%`));
-      }
-      const numMatch = classNameClean.match(/\d+/);
-      if (numMatch) {
-        fallbackConditions.push(
-          or(
-            ilike(students.classe, `%${numMatch[0]}%`),
-            ilike(students.classe, `%l${numMatch[0]}%`),
-            ilike(students.classe, `%m${numMatch[0]}%`)
-          ) as any
-        );
-      }
-      baseStudents = await readDb.select()
-        .from(students)
-        .where(and(...fallbackConditions))
-        .orderBy(students.nomEtudiant);
-    }
+    // Fetch results first (to know which studentIds already have data)
+    const results = await readDb.query.studentResults.findMany({
+      where: and(
+        eq(studentResults.classId, classIdNum),
+        eq(studentResults.subjectId, subjectIdNum),
+        eq(studentResults.sessionId, sessionIdNum),
+        buildTermFilter(studentResults.term, params.term)
+      )
+    });
 
     const resultStudentIds = results.map(r => r.studentId).filter((id): id is number => id !== null);
+
+    // Use shared 3-tier strategy to find students
+    let baseStudents = await resolveStudentsForClass({
+      cls,
+      sessionNameStr,
+      schoolId,
+      existingResultStudentIds: resultStudentIds,
+    });
+
+    // Merge: add students who have results but weren't found by class matching
     const classStudentIds = new Set(baseStudents.map(s => s.id));
     const missingIds = resultStudentIds.filter(id => !classStudentIds.has(id));
-    let extraStudents: any[] = [];
     if (missingIds.length > 0) {
-      extraStudents = await readDb.select()
+      const extraStudents = await readDb.select()
         .from(students)
         .where(inArray(students.id, missingIds));
+      baseStudents = [...baseStudents, ...extraStudents];
     }
-    const studentList = [...baseStudents, ...extraStudents].sort((a, b) => a.nomEtudiant.localeCompare(b.nomEtudiant));
+    const studentList = baseStudents.sort((a, b) => a.nomEtudiant.localeCompare(b.nomEtudiant));
 
     const resultsMap = new Map(results.map(r => [r.studentId, r]));
 
