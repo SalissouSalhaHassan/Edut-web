@@ -436,12 +436,13 @@ export async function generateBulletinPDF(data: any) {
   // Header
   const headerEndY = drawPDFHeader(doc, headerConfig, branchInfo, eduLevel, session);
 
-  // Background logo watermark
-  if (branchInfo?.logoPath) {
+  // Background logo watermark - Expanded to cover page center behind tables
+  const logoUrl = headerConfig?.centerLogo || headerConfig?.leftLogo || headerConfig?.rightLogo || branchInfo?.logoPath;
+  if (logoUrl) {
     try {
-      const logoWatermark = await fetchTransparentLogoBase64(branchInfo.logoPath, 0.05);
+      const logoWatermark = await fetchTransparentLogoBase64(logoUrl, 0.10);
       if (logoWatermark) {
-        doc.addImage(logoWatermark, 'PNG', 55, 110, 100, 100);
+        doc.addImage(logoWatermark, 'PNG', 30, 70, 150, 150);
       }
     } catch (e) {
       console.warn("Failed to load watermark for bulletin:", e);
@@ -572,26 +573,26 @@ export async function generateBulletinPDF(data: any) {
 
   const footerRows: any[] = [
     [
-      { content: "Conduite", colSpan: 4, styles: { halign: "left", fontStyle: "bold", fillColor: [255, 255, 255] } },
-      { content: "1", styles: { halign: "center", fontStyle: "bold", fillColor: [255, 255, 255] } },
-      { content: summary?.conduite || student?.conduite || "-", styles: { halign: "center", fontStyle: "bold", fillColor: [255, 255, 255] } },
-      { content: "", colSpan: 3, styles: { fillColor: [255, 255, 255] } }
+      { content: "Conduite", colSpan: 4, styles: { halign: "left", fontStyle: "bold" } },
+      { content: "1", styles: { halign: "center", fontStyle: "bold" } },
+      { content: summary?.conduite || student?.conduite || "-", styles: { halign: "center", fontStyle: "bold" } },
+      { content: "", colSpan: 3, styles: {} }
     ],
     [
-      { content: "Total", colSpan: 4, styles: { halign: "left", fontStyle: "bold", fillColor: [255, 255, 255] } },
-      { content: totalCoef.toFixed(2), styles: { halign: "center", fontStyle: "bold", fillColor: [255, 255, 255] } },
-      { content: totalWeighted.toFixed(2), styles: { halign: "center", fontStyle: "bold", fillColor: [255, 255, 255] } },
-      { content: "", colSpan: 3, styles: { fillColor: [255, 255, 255] } }
+      { content: "Total", colSpan: 4, styles: { halign: "left", fontStyle: "bold" } },
+      { content: totalCoef.toFixed(2), styles: { halign: "center", fontStyle: "bold" } },
+      { content: totalWeighted.toFixed(2), styles: { halign: "center", fontStyle: "bold" } },
+      { content: "", colSpan: 3, styles: {} }
     ],
     [
-      { content: `Moy. du ${safeTerm}`, colSpan: 5, styles: { halign: "left", fontStyle: "bold", fillColor: [255, 255, 255] } },
+      { content: `Moy. du ${safeTerm}`, colSpan: 5, styles: { halign: "left", fontStyle: "bold" } },
       { content: displayAverage.toFixed(2), styles: { halign: "center", fontStyle: "bold", fillColor: [240, 240, 240] } },
-      { content: "", colSpan: 3, styles: { fillColor: [255, 255, 255] } }
+      { content: "", colSpan: 3, styles: {} }
     ],
     [
-      { content: "Moy. Annuelle", colSpan: 5, styles: { halign: "left", fontStyle: "bold", fillColor: [255, 255, 255] } },
+      { content: "Moy. Annuelle", colSpan: 5, styles: { halign: "left", fontStyle: "bold" } },
       { content: displayAnnualAvg || "-", styles: { halign: "center", fontStyle: "bold", fillColor: [240, 240, 240] } },
-      { content: "", colSpan: 3, styles: { fillColor: [255, 255, 255] } }
+      { content: "", colSpan: 3, styles: {} }
     ]
   ];
 
@@ -997,12 +998,13 @@ export async function generateReleveNotesPDF(data: any) {
   const headerEndY = drawPDFHeader(doc, headerConfig, branchInfo, (student?.educationalLevel || "Université").toUpperCase(), session);
 
   // --- 2. TITLE BAR ---
-  // Background logo watermark
-  if (branchInfo?.logoPath) {
+  // Background logo watermark - Expanded to cover page center behind tables
+  const logoUrl = headerConfig?.centerLogo || headerConfig?.leftLogo || headerConfig?.rightLogo || branchInfo?.logoPath;
+  if (logoUrl) {
     try {
-      const logoWatermark = await fetchTransparentLogoBase64(branchInfo.logoPath, 0.12);
+      const logoWatermark = await fetchTransparentLogoBase64(logoUrl, 0.10);
       if (logoWatermark) {
-        doc.addImage(logoWatermark, 'PNG', 35, 90, 140, 140);
+        doc.addImage(logoWatermark, 'PNG', 30, 70, 150, 150);
       }
     } catch (e) {
       console.warn("Failed to load watermark for releve:", e);
@@ -1136,9 +1138,9 @@ export async function generateReleveNotesPDF(data: any) {
       ]
     ],
     theme: "grid",
-    headStyles: { fillColor: [255, 255, 255], textColor: 0, fontStyle: "bold", lineWidth: 0.15, lineColor: 0 },
+    headStyles: { textColor: 0, fontStyle: "bold", lineWidth: 0.15, lineColor: 0 },
     bodyStyles: { textColor: 0, lineWidth: 0.15, lineColor: 0 },
-    footStyles: { fillColor: [255, 255, 255], textColor: 0, lineWidth: 0.15, lineColor: 0 },
+    footStyles: { textColor: 0, lineWidth: 0.15, lineColor: 0 },
     styles: { fontSize: 8, cellPadding: { top: 0.5, bottom: 0.5, left: 1, right: 1 } },
     columnStyles: {
       0: { fontStyle: "bold", halign: "center", cellWidth: 30 },
@@ -1219,9 +1221,9 @@ export async function generateReleveNotesPDF(data: any) {
       ]
     ],
     theme: "grid",
-    headStyles: { fillColor: [255, 255, 255], textColor: 0, fontStyle: "bold", lineWidth: 0.15, lineColor: 0 },
+    headStyles: { textColor: 0, fontStyle: "bold", lineWidth: 0.15, lineColor: 0 },
     bodyStyles: { textColor: 0, lineWidth: 0.15, lineColor: 0 },
-    footStyles: { fillColor: [255, 255, 255], textColor: 0, lineWidth: 0.15, lineColor: 0 },
+    footStyles: { textColor: 0, lineWidth: 0.15, lineColor: 0 },
     styles: { fontSize: 8, cellPadding: { top: 0.5, bottom: 0.5, left: 1, right: 1 } },
     columnStyles: {
       0: { fontStyle: "bold", halign: "center", cellWidth: 30 },
