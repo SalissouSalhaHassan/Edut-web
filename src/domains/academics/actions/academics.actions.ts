@@ -671,39 +671,47 @@ export async function deleteSection(id: number) {
   });
 }
 
-// ─── Shared helper: fetch students for a class using a 3-tier strategy ───────
-// Tier 1: match students already linked via studentResults.classId (most precise)
-// Tier 2: flexible class name matching (ilike on students.classe)
-// Tier 3: fallback on educationalLevel + sectionName only (for Université / Lycée)
+// ─── Shared helper: fetch students for a class ────────────────────────────────
+// TIER 1: Direct classId FK match (fastest, requires students.class_id populated via SQL)
+// TIER 2: Flexible class name text matching via ilike on students.classe
+// TIER 3: section name OR educational level fallback
+// TIER 4: Students already linked via studentResults
+// NOTE: We intentionally do NOT filter by session here because students.session
+// represents the enrollment year, which may differ from the grading session name.
 async function resolveStudentsForClass(params: {
   cls: { id: number; className: string; schoolId: number | null; section: { sectionName: string; educationalLevel: string | null } | null };
   sessionNameStr: string | undefined;
   schoolId: number;
   existingResultStudentIds?: number[];
 }): Promise<any[]> {
-  const { cls, sessionNameStr, schoolId, existingResultStudentIds = [] } = params;
+  const { cls, schoolId, existingResultStudentIds = [] } = params;
   const classNameClean = cls.className.trim();
   const sectionNameClean = cls.section?.sectionName?.trim();
   const edLevelClean = cls.section?.educationalLevel?.trim();
 
-  // --- TIER 1: students already linked via results (exact match by classId) ---
-  // These IDs will be fetched separately via extraStudents logic after this function.
+  // ── TIER 1: Direct classId match (most precise & fast) ──────────────────────
+  const tier1Results = await readDb.select()
+    .from(students)
+    .where(and(
+      eq(students.classId, cls.id),
+      eq(students.schoolId, schoolId),
+    ))
+    .orderBy(students.nomEtudiant);
 
-  // --- TIER 2: flexible class name matching ---
+  if (tier1Results.length > 0) return tier1Results;
+
+  // ── TIER 2: Flexible class name text matching ────────────────────────────────
   const classAliases = [classNameClean];
 
-  // University aliases
-  if (/licence\s*1/i.test(classNameClean)) classAliases.push("L1", "Licence 1", "L-1", "l1");
-  else if (/licence\s*2/i.test(classNameClean)) classAliases.push("L2", "Licence 2", "L-2", "l2");
-  else if (/licence\s*3/i.test(classNameClean)) classAliases.push("L3", "Licence 3", "L-3", "l3");
-  else if (/master\s*1/i.test(classNameClean)) classAliases.push("M1", "Master 1", "M-1", "m1");
-  else if (/master\s*2/i.test(classNameClean)) classAliases.push("M2", "Master 2", "M-2", "m2");
-  else if (/doctorat/i.test(classNameClean)) classAliases.push("D", "Doc", "Doctorat");
-  // Also try just the number from the class name as a suffix alias (e.g. "Informatique L1" -> "L1")
-  const numInName = classNameClean.match(/(?:l|m|d)(\d)/i);
-  if (numInName) classAliases.push(`l${numInName[1]}`, `m${numInName[1]}`, numInName[0]);
+  // University / LMD aliases
+  if (/licence\s*1/i.test(classNameClean)) classAliases.push("L1", "Licence 1", "L-1", "l1", "licence1");
+  else if (/licence\s*2/i.test(classNameClean)) classAliases.push("L2", "Licence 2", "L-2", "l2", "licence2");
+  else if (/licence\s*3/i.test(classNameClean)) classAliases.push("L3", "Licence 3", "L-3", "l3", "licence3");
+  else if (/master\s*1/i.test(classNameClean)) classAliases.push("M1", "Master 1", "M-1", "m1", "master1");
+  else if (/master\s*2/i.test(classNameClean)) classAliases.push("M2", "Master 2", "M-2", "m2", "master2");
+  else if (/doctorat/i.test(classNameClean)) classAliases.push("D", "Doc", "Doctorat", "PhD");
 
-  // Middle/High school aliases (e.g. "6ème A" -> "6A", "Terminale A")
+  // Lycée / Collège aliases
   const gradeMatch = classNameClean.match(/^(\d+)(?:è|ème|e)?\s*([a-zA-Z0-9]+)?/i);
   if (gradeMatch && gradeMatch[1]) {
     const num = gradeMatch[1];
@@ -715,15 +723,13 @@ async function resolveStudentsForClass(params: {
       );
     }
   }
+  if (/terminale/i.test(classNameClean)) classAliases.push("Term", "Tle", "Terminale");
+  if (/première|1ère|1ere/i.test(classNameClean)) classAliases.push("1ère", "1ere", "Premiere", "1ere A");
+  if (/seconde/i.test(classNameClean)) classAliases.push("2nde", "Seconde");
 
-  const sessionFilter = sessionNameStr
-    ? or(
-        ilike(students.session, sessionNameStr),
-        ilike(students.session, `%${sessionNameStr.replace(/[/ -]/g, "%")}%`),
-        isNull(students.session),
-        eq(students.session, "")
-      )
-    : undefined;
+  // Token from composite name e.g. "L1 Arabic" → already included; "Informatique L1" → "L1"
+  const tokenMatch = classNameClean.match(/\b(l\d|m\d|d\d)\b/i);
+  if (tokenMatch) classAliases.push(tokenMatch[1].toUpperCase(), tokenMatch[1].toLowerCase());
 
   const classConditions = classAliases.flatMap(alias => [
     eq(students.classe, alias),
@@ -733,22 +739,18 @@ async function resolveStudentsForClass(params: {
     ilike(students.classe, `%${alias}%`),
   ]);
 
-  // Tier 2 query — flexible class name matching
   const tier2Results = await readDb.select()
     .from(students)
     .where(and(
       or(...classConditions),
       eq(students.schoolId, schoolId),
-      sessionFilter
     ))
     .orderBy(students.nomEtudiant);
 
   if (tier2Results.length > 0) return tier2Results;
 
-  // --- TIER 3: fallback — match by section name OR educational level (OR logic, not AND) ---
-  // This handles: students registered with empty/different classe field
+  // ── TIER 3: Section name OR educational level fallback ───────────────────────
   const tier3OrClauses: any[] = [];
-
   if (sectionNameClean) {
     tier3OrClauses.push(ilike(students.section, sectionNameClean));
     tier3OrClauses.push(ilike(students.section, `%${sectionNameClean}%`));
@@ -756,26 +758,23 @@ async function resolveStudentsForClass(params: {
   if (edLevelClean) {
     tier3OrClauses.push(ilike(students.educationalLevel, edLevelClean));
     tier3OrClauses.push(ilike(students.educationalLevel, `%${edLevelClean}%`));
-    // Also try matching keywords: "Université", "Lycée", "Collège", "Primaire"
     const edKeywords = edLevelClean.split(/\s+/).filter(w => w.length > 3);
     for (const kw of edKeywords) {
       tier3OrClauses.push(ilike(students.educationalLevel, `%${kw}%`));
     }
   }
-
   if (tier3OrClauses.length > 0) {
     const tier3Results = await readDb.select()
       .from(students)
       .where(and(
         eq(students.schoolId, schoolId),
         or(...tier3OrClauses),
-        sessionFilter
       ))
       .orderBy(students.nomEtudiant);
     if (tier3Results.length > 0) return tier3Results;
   }
 
-  // --- TIER 4: last resort — return any students with results for this classId ---
+  // ── TIER 4: Students already linked via existing results ─────────────────────
   if (existingResultStudentIds.length > 0) {
     return await readDb.select()
       .from(students)

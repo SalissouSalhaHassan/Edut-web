@@ -17,6 +17,7 @@ export const students = pgTable("students", {
   session: varchar("session", { length: 50 }),
   educationalLevel: varchar("educational_level", { length: 100 }),
   classe: varchar("classe", { length: 100 }),
+  classId: integer("class_id"),   // Direct link to school_classes.id (preferred lookup)
   section: varchar("section", { length: 100 }),
   categorie: varchar("categorie", { length: 50 }),
   
