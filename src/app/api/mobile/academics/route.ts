@@ -309,12 +309,28 @@ export async function GET(request: NextRequest) {
       });
       const coeff = subLink?.coefficient || 1;
 
+      // Active session lookup for session isolation
+      const sessionObj = await readDb.query.schoolSessions.findFirst({
+        where: eq(schoolSessions.id, sessionId)
+      });
+      const sessionNameStr = sessionObj?.sessionName?.trim();
+
+      const sessionClause = sessionNameStr
+        ? or(
+            eq(students.session, sessionNameStr),
+            ilike(students.session, `%${sessionNameStr}%`),
+            isNull(students.session),
+            eq(students.session, "")
+          )
+        : undefined;
+
       // ── Tier 1: classId FK (most reliable) ──────────────────────────────
       let activeStudents = await readDb.query.students.findMany({
         where: and(
           eq(students.classId, classId),
           eq(students.statut, "Actif"),
-          eq(students.schoolId, targetSchoolId)
+          eq(students.schoolId, targetSchoolId),
+          sessionClause
         ),
         orderBy: [students.nomEtudiant]
       });
@@ -325,7 +341,8 @@ export async function GET(request: NextRequest) {
           where: and(
             eq(students.classe, className),
             eq(students.statut, "Actif"),
-            eq(students.schoolId, targetSchoolId)
+            eq(students.schoolId, targetSchoolId),
+            sessionClause
           ),
           orderBy: [students.nomEtudiant]
         });
@@ -337,7 +354,8 @@ export async function GET(request: NextRequest) {
           where: and(
             eq(students.statut, "Actif"),
             eq(students.schoolId, targetSchoolId),
-            isNull(students.classId)
+            isNull(students.classId),
+            sessionClause
           ),
           orderBy: [students.nomEtudiant]
         });
@@ -406,12 +424,28 @@ export async function GET(request: NextRequest) {
 
       const className = classRes.className;
 
+      // Active session lookup for session isolation
+      const sessionObjDev = await readDb.query.schoolSessions.findFirst({
+        where: eq(schoolSessions.id, sessionId)
+      });
+      const sessionNameStrDev = sessionObjDev?.sessionName?.trim();
+
+      const sessionClauseDev = sessionNameStrDev
+        ? or(
+            eq(students.session, sessionNameStrDev),
+            ilike(students.session, `%${sessionNameStrDev}%`),
+            isNull(students.session),
+            eq(students.session, "")
+          )
+        : undefined;
+
       // ── Tier 1: classId FK (most reliable) ──────────────────────────────
       let activeStudentsDev = await readDb.query.students.findMany({
         where: and(
           eq(students.classId, classId),
           eq(students.statut, "Actif"),
-          eq(students.schoolId, targetSchoolId)
+          eq(students.schoolId, targetSchoolId),
+          sessionClauseDev
         ),
         orderBy: [students.nomEtudiant]
       });
@@ -422,7 +456,8 @@ export async function GET(request: NextRequest) {
           where: and(
             eq(students.classe, className),
             eq(students.statut, "Actif"),
-            eq(students.schoolId, targetSchoolId)
+            eq(students.schoolId, targetSchoolId),
+            sessionClauseDev
           ),
           orderBy: [students.nomEtudiant]
         });

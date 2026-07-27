@@ -684,10 +684,23 @@ async function resolveStudentsForClass(params: {
   schoolId: number;
   existingResultStudentIds?: number[];
 }): Promise<any[]> {
-  const { cls, schoolId, existingResultStudentIds = [] } = params;
+  const { cls, sessionNameStr, schoolId, existingResultStudentIds = [] } = params;
   const classNameClean = cls.className.trim();
   const sectionNameClean = cls.section?.sectionName?.trim();
   const edLevelClean = cls.section?.educationalLevel?.trim();
+
+  // ── Session isolation condition ──────────────────────────────────────────────
+  // If sessionNameStr is specified (e.g. "2025-2026"), only include students whose
+  // registered session matches OR is unassigned (null/empty).
+  // Students registered specifically for "2026-2027" will NOT be mixed into "2025-2026".
+  const sessionClause = sessionNameStr
+    ? or(
+        eq(students.session, sessionNameStr),
+        ilike(students.session, `%${sessionNameStr}%`),
+        isNull(students.session),
+        eq(students.session, "")
+      )
+    : undefined;
 
   // ── TIER 1: Direct classId match (most precise & fast) ──────────────────────
   const tier1Results = await readDb.select()
@@ -695,6 +708,7 @@ async function resolveStudentsForClass(params: {
     .where(and(
       eq(students.classId, cls.id),
       eq(students.schoolId, schoolId),
+      sessionClause
     ))
     .orderBy(students.nomEtudiant);
 
@@ -744,6 +758,7 @@ async function resolveStudentsForClass(params: {
     .where(and(
       or(...classConditions),
       eq(students.schoolId, schoolId),
+      sessionClause
     ))
     .orderBy(students.nomEtudiant);
 
@@ -769,6 +784,7 @@ async function resolveStudentsForClass(params: {
       .where(and(
         eq(students.schoolId, schoolId),
         or(...tier3OrClauses),
+        sessionClause
       ))
       .orderBy(students.nomEtudiant);
     if (tier3Results.length > 0) return tier3Results;
