@@ -50,29 +50,37 @@ export default async function PedagogiePage() {
     classOverviewRes,
     subjectOverviewRes,
   ] = await Promise.all([
-    getClasses(true),
-    getSubjects(),
-    getEmployees(),
-    getStudents(),
-    getAssignments(),
-    getPedagogieOverview(),
-    getPedagogieClassOverview(),
-    getPedagogieSubjectOverview(),
+    getClasses(true).catch((err) => ({ error: err?.message, data: [] })),
+    getSubjects().catch((err) => ({ error: err?.message, data: [] })),
+    getEmployees().catch((err) => ({ error: err?.message, data: [] })),
+    getStudents().catch((err) => ({ error: err?.message, data: [] })),
+    getAssignments().catch((err) => ({ error: err?.message, data: [] })),
+    getPedagogieOverview().catch((err) => ({ success: false, error: err?.message, data: null })),
+    getPedagogieClassOverview().catch((err) => ({ success: false, error: err?.message, data: [] })),
+    getPedagogieSubjectOverview().catch((err) => ({ success: false, error: err?.message, data: [] })),
   ]);
 
-  const classes = (classesRes as any).data?.data || (classesRes as any).data || classesRes || [];
-  const subjects = (subjectsRes as any).data?.data || (subjectsRes as any).data || subjectsRes || [];
-  const employees = (employeesRes as any).data?.data || (employeesRes as any).data || employeesRes || [];
-  const students = (studentsRes as any).data?.data || (studentsRes as any).data || studentsRes || [];
-  const assignments = (assignmentsRes as any).data?.data || (assignmentsRes as any).data || assignmentsRes || [];
-  const overview = (overviewRes as any).data || null;
-  const classOverview = (classOverviewRes as any).data || [];
-  const subjectOverview = (subjectOverviewRes as any).data || [];
+  const extractArray = (res: any): any[] => {
+    if (!res) return [];
+    if (Array.isArray(res)) return res;
+    if (Array.isArray(res.data)) return res.data;
+    if (Array.isArray(res.data?.data)) return res.data.data;
+    return [];
+  };
+
+  const classes = extractArray(classesRes);
+  const subjects = extractArray(subjectsRes);
+  const employees = extractArray(employeesRes);
+  const students = extractArray(studentsRes);
+  const assignments = extractArray(assignmentsRes);
+  const overview = (overviewRes as any)?.data || null;
+  const classOverview = Array.isArray((classOverviewRes as any)?.data) ? (classOverviewRes as any).data : [];
+  const subjectOverview = Array.isArray((subjectOverviewRes as any)?.data) ? (subjectOverviewRes as any).data : [];
 
   const teachers = employees.filter((employee: any) =>
-    (employee.poste || "").toLowerCase().match(/profess|enseign|teacher|instit/) ||
-    (employee.fonction || "").toLowerCase().match(/profess|enseign|teacher|instit/) ||
-    (employee.role?.roleName || "").toLowerCase().match(/profess|enseign/)
+    (employee?.poste || "").toLowerCase().match(/profess|enseign|teacher|instit/) ||
+    (employee?.fonction || "").toLowerCase().match(/profess|enseign|teacher|instit/) ||
+    (employee?.role?.roleName || "").toLowerCase().match(/profess|enseign/)
   );
 
   return (

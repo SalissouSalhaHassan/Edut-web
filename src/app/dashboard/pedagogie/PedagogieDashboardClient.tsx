@@ -119,8 +119,24 @@ const COLORS = ["#6366f1", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4"
 
 // ─── Component ─────────────────────────────────────────────────────────────
 export default function PedagogieDashboardClient({
-  currentUser, classes, subjects, teachers, students, assignments, overview, classOverview = [], subjectOverview = [],
+  currentUser,
+  classes: rawClasses = [],
+  subjects: rawSubjects = [],
+  teachers: rawTeachers = [],
+  students: rawStudents = [],
+  assignments: rawAssignments = [],
+  overview,
+  classOverview: rawClassOverview = [],
+  subjectOverview: rawSubjectOverview = [],
 }: Props) {
+  const classes = useMemo(() => Array.isArray(rawClasses) ? rawClasses : [], [rawClasses]);
+  const subjects = useMemo(() => Array.isArray(rawSubjects) ? rawSubjects : [], [rawSubjects]);
+  const teachers = useMemo(() => Array.isArray(rawTeachers) ? rawTeachers : [], [rawTeachers]);
+  const students = useMemo(() => Array.isArray(rawStudents) ? rawStudents : [], [rawStudents]);
+  const assignments = useMemo(() => Array.isArray(rawAssignments) ? rawAssignments : [], [rawAssignments]);
+  const classOverview = useMemo(() => Array.isArray(rawClassOverview) ? rawClassOverview : [], [rawClassOverview]);
+  const subjectOverview = useMemo(() => Array.isArray(rawSubjectOverview) ? rawSubjectOverview : [], [rawSubjectOverview]);
+
   const [activeTab, setActiveTab] = useState<"overview" | "progression" | "devoirs" | "alertes">("overview");
   const [searchQuery, setSearchQuery] = useState("");
 
