@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { and, eq, sql, isNull, or } from "drizzle-orm";
+import { and, eq, sql, isNull, or, ilike } from "drizzle-orm";
 import { db, readDb } from "@/infrastructure/database";
 import {
   schoolSessions,
