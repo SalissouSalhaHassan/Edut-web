@@ -78,20 +78,30 @@ function buildTermFilter(column: any, term: string) {
   
   const norm = term.toLowerCase().trim();
 
-  // Extract semester or trimester number (e.g. S1..S14, T1..T3, 1er Semestre, 2ème Semestre)
-  const semMatch = norm.match(/\b(s\d+)\b/i) || norm.match(/(\d+)/);
-  const num = semMatch ? semMatch[1].replace(/s/i, "") : null;
+  // Extract exact term number e.g. "1" from "1er Semestre" or "S1"
+  const rawNumMatch = norm.match(/\b(\d+)\b/);
+  const num = rawNumMatch ? rawNumMatch[1] : null;
 
   if (num) {
-    const sCode = `s${num}`;
-    const tCode = `t${num}`;
-    const fCode = `f${num}`;
+    const sCode = `S${num}`;
+    const tCode = `T${num}`;
+    const fCode = `F${num}`;
+    const termVariant1 = `${num}er Semestre`;
+    const termVariant2 = `${num}ème Semestre`;
+    const termVariant3 = `${num}er Trimestre`;
+    const termVariant4 = `${num}ème Trimestre`;
+
     return or(
-      ilike(column, `%${num}%`),
+      eq(column, term),
+      eq(column, sCode),
+      eq(column, tCode),
+      eq(column, fCode),
+      ilike(column, termVariant1),
+      ilike(column, termVariant2),
+      ilike(column, termVariant3),
+      ilike(column, termVariant4),
       ilike(column, `%${sCode}%`),
-      ilike(column, `%${tCode}%`),
-      eq(column, fCode.toUpperCase()),
-      eq(column, term)
+      ilike(column, `%${tCode}%`)
     );
   }
 
@@ -106,20 +116,15 @@ function matchTerm(termInDb?: string | null, requestedTerm?: string | null): boo
   const normReq = requestedTerm.toLowerCase().trim();
   
   if (normDb === normReq) return true;
-  
-  const isReq1 = normReq.includes("1") || normReq.includes("premier") || normReq.includes("premiere");
-  const isReq2 = normReq.includes("2") || normReq.includes("deuxieme") || normReq.includes("second");
-  const isReq3 = normReq.includes("3") || normReq.includes("troisieme");
-  
-  const isDb1 = normDb.includes("1") || normDb.includes("premier") || normDb.includes("premiere");
-  const isDb2 = normDb.includes("2") || normDb.includes("deuxieme") || normDb.includes("second");
-  const isDb3 = normDb.includes("3") || normDb.includes("troisieme");
-  
-  if (isReq1 && isDb1) return true;
-  if (isReq2 && isDb2) return true;
-  if (isReq3 && isDb3) return true;
-  
-  return false;
+
+  const numDb = normDb.match(/\b(\d+)\b/)?.[1];
+  const numReq = normReq.match(/\b(\d+)\b/)?.[1];
+
+  if (numDb && numReq) {
+    return numDb === numReq;
+  }
+
+  return normDb.includes(normReq) || normReq.includes(normDb);
 }
 
 // Helper to get educational level filter - admins see all
@@ -916,7 +921,7 @@ export async function saveStudentGrades(resultsData: any[]) {
         eq(studentResults.classId, first.classId),
         eq(studentResults.subjectId, first.subjectId),
         eq(studentResults.sessionId, first.sessionId),
-        eq(studentResults.term, first.term)
+        buildTermFilter(studentResults.term, first.term)
       )
     });
 
