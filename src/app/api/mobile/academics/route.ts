@@ -309,24 +309,39 @@ export async function GET(request: NextRequest) {
       });
       const coeff = subLink?.coefficient || 1;
 
-      // Active session lookup for student session isolation
-      const sessionObj = await readDb.query.schoolSessions.findFirst({
-        where: eq(schoolSessions.id, sessionId)
-      });
-      const sessionNameStr = sessionObj?.sessionName?.trim();
-
-      // Active students for session
-      const activeStudents = await readDb.query.students.findMany({
+      // ── Tier 1: classId FK (most reliable) ──────────────────────────────
+      let activeStudents = await readDb.query.students.findMany({
         where: and(
-          eq(students.classe, className),
+          eq(students.classId, classId),
           eq(students.statut, "Actif"),
-          eq(students.schoolId, targetSchoolId),
-          sessionNameStr
-            ? or(eq(students.session, sessionNameStr), isNull(students.session))
-            : undefined
+          eq(students.schoolId, targetSchoolId)
         ),
         orderBy: [students.nomEtudiant]
       });
+
+      // ── Tier 2: classe text match fallback ───────────────────────────────
+      if (activeStudents.length === 0) {
+        activeStudents = await readDb.query.students.findMany({
+          where: and(
+            eq(students.classe, className),
+            eq(students.statut, "Actif"),
+            eq(students.schoolId, targetSchoolId)
+          ),
+          orderBy: [students.nomEtudiant]
+        });
+      }
+
+      // ── Tier 3: school-wide fallback (any class_id=null or unlinked) ─────
+      if (activeStudents.length === 0) {
+        activeStudents = await readDb.query.students.findMany({
+          where: and(
+            eq(students.statut, "Actif"),
+            eq(students.schoolId, targetSchoolId),
+            isNull(students.classId)
+          ),
+          orderBy: [students.nomEtudiant]
+        });
+      }
 
       // Existing results
       const results = await readDb.query.studentResults.findMany({
@@ -391,24 +406,27 @@ export async function GET(request: NextRequest) {
 
       const className = classRes.className;
 
-      // Active session lookup for student session isolation
-      const sessionObj = await readDb.query.schoolSessions.findFirst({
-        where: eq(schoolSessions.id, sessionId)
-      });
-      const sessionNameStr = sessionObj?.sessionName?.trim();
-
-      // Active students for session
-      const activeStudents = await readDb.query.students.findMany({
+      // ── Tier 1: classId FK (most reliable) ──────────────────────────────
+      let activeStudentsDev = await readDb.query.students.findMany({
         where: and(
-          eq(students.classe, className),
+          eq(students.classId, classId),
           eq(students.statut, "Actif"),
-          eq(students.schoolId, targetSchoolId),
-          sessionNameStr
-            ? or(eq(students.session, sessionNameStr), isNull(students.session))
-            : undefined
+          eq(students.schoolId, targetSchoolId)
         ),
         orderBy: [students.nomEtudiant]
       });
+
+      // ── Tier 2: classe text match fallback ───────────────────────────────
+      if (activeStudentsDev.length === 0) {
+        activeStudentsDev = await readDb.query.students.findMany({
+          where: and(
+            eq(students.classe, className),
+            eq(students.statut, "Actif"),
+            eq(students.schoolId, targetSchoolId)
+          ),
+          orderBy: [students.nomEtudiant]
+        });
+      }
 
       // Existing results
       const results = await readDb.query.studentResults.findMany({
@@ -422,7 +440,7 @@ export async function GET(request: NextRequest) {
 
       const resultsMap = new Map(results.map((r) => [r.studentId, r]));
 
-      const gridData = activeStudents.map((student) => {
+      const gridData = activeStudentsDev.map((student) => {
         const res = resultsMap.get(student.id);
         return {
           student_id: student.id,
