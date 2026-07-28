@@ -62,6 +62,12 @@ const PlayIcon = () => (
     <polygon points="10 8 16 12 10 16 10 8"/>
   </svg>
 );
+const SmartphoneIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
+    <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+    <line x1="12" y1="18" x2="12.01" y2="18"/>
+  </svg>
+);
 const MoonIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
     <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
@@ -125,40 +131,53 @@ const CheckIcon = () => (
     <polyline points="20 6 9 17 4 12"/>
   </svg>
 );
+const CloseIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+    <line x1="18" y1="6" x2="6" y2="18"/>
+    <line x1="6" y1="6" x2="18" y2="18"/>
+  </svg>
+);
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function LandingPage() {
-  const [dark, setDark] = useState(false);
+  const [dark, setDark] = useState(true);
+  const [showDemo, setShowDemo] = useState(false);
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", dark);
   }, [dark]);
 
   return (
-    <div className="min-h-screen bg-[#f4f6fb] dark:bg-[#0f1117] text-gray-900 dark:text-white transition-colors duration-300 font-sans">
+    <div className="min-h-screen bg-[#f4f6fb] dark:bg-[#0b0f19] text-gray-900 dark:text-white transition-colors duration-300 font-sans">
 
       {/* ── NAVBAR ─────────────────────────────────────────────── */}
-      <nav className="sticky top-0 z-50 bg-white dark:bg-[#161b27] border-b border-gray-200 dark:border-white/10 shadow-sm">
-        <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
+      <nav className="sticky top-0 z-50 bg-white/90 dark:bg-[#111625]/90 backdrop-blur-md border-b border-gray-200 dark:border-white/10 shadow-sm">
+        <div className="max-w-7xl mx-auto px-6 py-3.5 flex items-center justify-between">
           {/* Logo */}
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center shadow-md shadow-blue-200">
+          <Link href="/" className="flex items-center gap-2.5 group">
+            <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center shadow-md shadow-blue-500/20 group-hover:scale-105 transition-transform">
               <GraduationIcon />
-              <span className="sr-only">Édut Pro</span>
             </div>
             <div>
               <p className="font-bold text-[15px] leading-tight text-gray-900 dark:text-white">Édut Pro</p>
               <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-tight">Gestion Scolaire Intelligente</p>
             </div>
-          </div>
+          </Link>
 
           {/* Nav Links */}
           <div className="hidden md:flex items-center gap-7">
-            {["Fonctionnalités", "À propos", "Tarifs", "Contact"].map(l => (
-              <a key={l} href="#" className="text-sm text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors font-medium">
-                {l}
-              </a>
-            ))}
+            <a href="#features" className="text-sm text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors font-medium">
+              Fonctionnalités
+            </a>
+            <Link href="/dashboard/about" className="text-sm text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors font-medium">
+              À propos
+            </Link>
+            <a href="#mobile" className="text-sm text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors font-medium">
+              App Mobile
+            </a>
+            <a href="#pricing" className="text-sm text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors font-medium">
+              Tarifs
+            </a>
           </div>
 
           {/* Actions */}
@@ -172,7 +191,7 @@ export default function LandingPage() {
             </button>
             <Link
               href="/login"
-              className="text-sm font-semibold px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors shadow-sm shadow-blue-300"
+              className="text-sm font-semibold px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white transition-all shadow-md shadow-blue-600/30 hover:shadow-blue-600/50 hover:-translate-y-0.5"
             >
               Se connecter
             </Link>
@@ -181,12 +200,12 @@ export default function LandingPage() {
       </nav>
 
       {/* ── HERO ───────────────────────────────────────────────── */}
-      <section className="max-w-7xl mx-auto px-6 py-16 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center relative">
+      <section className="max-w-7xl mx-auto px-6 py-16 lg:py-24 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center relative">
         {/* Dot grid decoration top-right */}
-        <div className="absolute right-0 top-8 hidden lg:block opacity-40 dark:opacity-20">
+        <div className="absolute right-0 top-8 hidden lg:block opacity-30">
           <div className="grid grid-cols-8 gap-2">
             {Array.from({ length: 48 }).map((_, i) => (
-              <div key={i} className="w-1.5 h-1.5 rounded-full bg-blue-300 dark:bg-blue-700" />
+              <div key={i} className="w-1.5 h-1.5 rounded-full bg-blue-400 dark:bg-blue-600" />
             ))}
           </div>
         </div>
@@ -194,7 +213,7 @@ export default function LandingPage() {
         {/* Left column */}
         <div className="space-y-6 z-10">
           {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs font-semibold rounded-full border border-blue-100 dark:border-blue-800">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs font-semibold rounded-full border border-blue-200 dark:border-blue-800">
             <CheckIcon />
             Solution complète pour les établissements scolaires
           </div>
@@ -202,42 +221,49 @@ export default function LandingPage() {
           {/* Headline */}
           <h1 className="text-4xl lg:text-5xl font-extrabold text-gray-900 dark:text-white leading-[1.15] tracking-tight">
             Système de gestion scolaire{" "}
-            <span className="text-blue-600 dark:text-blue-400">intelligent et complet</span>
+            <span className="text-blue-600 dark:text-blue-400 bg-gradient-to-r from-blue-600 to-indigo-400 bg-clip-text text-transparent">
+              intelligent et complet
+            </span>
           </h1>
 
-          <p className="text-gray-500 dark:text-gray-400 text-base leading-relaxed max-w-md">
+          <p className="text-gray-600 dark:text-gray-300 text-base lg:text-lg leading-relaxed max-w-lg">
             Édut Pro simplifie la gestion de votre établissement scolaire.
             Gagnez du temps, améliorez la communication et concentrez-vous
             sur l'essentiel : la réussite de vos élèves.
           </p>
 
           {/* CTA Buttons */}
-          <div className="flex flex-wrap gap-3 pt-1">
+          <div className="flex flex-wrap gap-4 pt-2">
             <Link
-              href="/register-school"
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm shadow-lg shadow-blue-200 dark:shadow-blue-900 transition-all hover:-translate-y-0.5"
+              href="/login"
+              className="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-xl shadow-blue-600/30 transition-all hover:-translate-y-0.5"
             >
               <LockIcon />
               Découvrir Édut Pro
             </Link>
-            <button className="inline-flex items-center gap-2 px-6 py-3 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 bg-white dark:bg-white/5 hover:bg-gray-50 dark:hover:bg-white/10 font-semibold text-sm transition-all hover:-translate-y-0.5">
+            <button
+              onClick={() => setShowDemo(true)}
+              className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl border border-gray-300 dark:border-white/20 text-gray-700 dark:text-gray-200 bg-white dark:bg-white/5 hover:bg-gray-50 dark:hover:bg-white/10 font-bold text-sm transition-all hover:-translate-y-0.5"
+            >
               <PlayIcon />
               Voir la démonstration
             </button>
           </div>
 
           {/* Mini badges */}
-          <div className="flex flex-wrap gap-6 pt-2">
+          <div className="flex flex-wrap gap-6 pt-4 border-t border-gray-200/80 dark:border-white/10">
             {[
               { icon: <ShieldIcon />, label: "Sécurisé", sub: "Données protégées" },
               { icon: <CloudIcon />, label: "Sauvegarde", sub: "Automatique" },
               { icon: <HeadphonesIcon />, label: "Support 24/7", sub: "Assistance dédiée" },
             ].map(b => (
-              <div key={b.label} className="flex items-center gap-2">
-                <div className="text-blue-500 dark:text-blue-400">{b.icon}</div>
+              <div key={b.label} className="flex items-center gap-2.5">
+                <div className="text-blue-500 dark:text-blue-400 p-2 rounded-lg bg-blue-50 dark:bg-blue-900/30">
+                  {b.icon}
+                </div>
                 <div>
-                  <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">{b.label}</p>
-                  <p className="text-[10px] text-gray-400">{b.sub}</p>
+                  <p className="text-xs font-bold text-gray-800 dark:text-gray-200">{b.label}</p>
+                  <p className="text-[10px] text-gray-500 dark:text-gray-400 font-medium">{b.sub}</p>
                 </div>
               </div>
             ))}
@@ -246,106 +272,169 @@ export default function LandingPage() {
 
         {/* Right column — hero image + floating card */}
         <div className="relative z-10">
-          <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-white dark:border-white/10">
+          <div className="relative rounded-3xl overflow-hidden shadow-2xl border border-gray-200 dark:border-white/10 group">
             <Image
               src="https://images.unsplash.com/photo-1497633762265-9d179a990aa6?q=80&w=1000&auto=format&fit=crop"
               alt="School library books"
               width={560}
               height={380}
-              className="w-full h-72 lg:h-96 object-cover"
+              className="w-full h-80 lg:h-[420px] object-cover group-hover:scale-105 transition-transform duration-700"
               priority
             />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
           </div>
 
           {/* Floating stats card */}
-          <div className="absolute -bottom-6 right-6 bg-white dark:bg-[#1e2535] rounded-2xl shadow-xl p-4 flex items-center gap-3 min-w-[190px] border border-gray-100 dark:border-white/10">
-            <div className="w-10 h-10 bg-blue-50 dark:bg-blue-900/40 rounded-xl flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
+          <div className="absolute -bottom-6 right-6 bg-white/95 dark:bg-[#161c2c]/95 backdrop-blur-md rounded-2xl shadow-2xl p-4.5 flex items-center gap-3.5 min-w-[210px] border border-gray-200 dark:border-white/15">
+            <div className="w-11 h-11 bg-blue-50 dark:bg-blue-900/40 rounded-xl flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
               <SchoolIcon />
             </div>
             <div>
-              <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-tight">Des établissements<br/>nous font confiance</p>
-              <p className="text-2xl font-extrabold text-gray-900 dark:text-white">120+</p>
+              <p className="text-[11px] text-gray-500 dark:text-gray-400 font-medium leading-tight">Des établissements<br/>nous font confiance</p>
+              <p className="text-2xl font-black text-gray-900 dark:text-white">120+</p>
               <div className="flex items-center gap-0.5 mt-0.5">
                 {Array.from({ length: 5 }).map((_, i) => (
                   <StarIcon key={i} />
                 ))}
-                <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">4.8/5</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400 font-bold ml-1">4.8/5</span>
               </div>
             </div>
           </div>
-
-          {/* Circle decoration */}
-          <div className="absolute -right-8 top-1/2 -translate-y-1/2 w-20 h-20 rounded-full border-4 border-gray-200 dark:border-white/10 hidden lg:block" />
         </div>
       </section>
 
       {/* ── STATS BAR ──────────────────────────────────────────── */}
-      <section className="max-w-7xl mx-auto px-6 mt-14 mb-16">
-        <div className="bg-white dark:bg-[#161b27] rounded-2xl shadow-sm border border-gray-100 dark:border-white/10 grid grid-cols-2 md:grid-cols-4 divide-x divide-y md:divide-y-0 divide-gray-100 dark:divide-white/10">
+      <section className="max-w-7xl mx-auto px-6 mt-10 mb-16">
+        <div className="bg-white dark:bg-[#111625] rounded-3xl shadow-sm border border-gray-200 dark:border-white/10 grid grid-cols-2 md:grid-cols-4 divide-x divide-y md:divide-y-0 divide-gray-100 dark:divide-white/10">
           {[
-            { icon: <UsersIcon />, color: "text-blue-500", bg: "bg-blue-50 dark:bg-blue-900/20", label: "Élèves", value: "12 540+", sub: "Inscrits" },
-            { icon: <GraduationIcon />, color: "text-green-500", bg: "bg-green-50 dark:bg-green-900/20", label: "Enseignants", value: "850+", sub: "Actifs" },
-            { icon: <SchoolIcon />, color: "text-orange-500", bg: "bg-orange-50 dark:bg-orange-900/20", label: "Établissements", value: "120+", sub: "Partenaires" },
-            { icon: <BarChartIcon />, color: "text-purple-500", bg: "bg-purple-50 dark:bg-purple-900/20", label: "Taux de satisfaction", value: "98%", sub: "de satisfaction" },
+            { icon: <UsersIcon />, color: "text-blue-500", bg: "bg-blue-50 dark:bg-blue-900/30", label: "Élèves", value: "12 540+", sub: "Inscrits" },
+            { icon: <GraduationIcon />, color: "text-emerald-500", bg: "bg-emerald-50 dark:bg-emerald-900/30", label: "Enseignants", value: "850+", sub: "Actifs" },
+            { icon: <SchoolIcon />, color: "text-amber-500", bg: "bg-amber-50 dark:bg-amber-900/30", label: "Établissements", value: "120+", sub: "Partenaires" },
+            { icon: <BarChartIcon />, color: "text-purple-500", bg: "bg-purple-50 dark:bg-purple-900/30", label: "Satisfaction", value: "98%", sub: "Taux de satisfaction" },
           ].map(s => (
-            <div key={s.label} className="flex items-center gap-3 px-6 py-5">
-              <div className={`w-11 h-11 ${s.bg} rounded-xl flex items-center justify-center ${s.color} shrink-0`}>
+            <div key={s.label} className="flex items-center gap-3.5 px-6 py-6">
+              <div className={`w-12 h-12 ${s.bg} rounded-2xl flex items-center justify-center ${s.color} shrink-0`}>
                 {s.icon}
               </div>
               <div>
-                <p className="text-[11px] text-gray-400 dark:text-gray-500 uppercase tracking-wide font-medium">{s.label}</p>
-                <p className="text-2xl font-extrabold text-gray-900 dark:text-white leading-tight">{s.value}</p>
-                <p className="text-xs text-gray-400">{s.sub}</p>
+                <p className="text-[11px] text-gray-400 dark:text-gray-400 uppercase tracking-widest font-black">{s.label}</p>
+                <p className="text-2xl font-black text-gray-900 dark:text-white leading-tight">{s.value}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">{s.sub}</p>
               </div>
             </div>
           ))}
         </div>
       </section>
 
+      {/* ── MOBILE APP SPOTLIGHT ─────────────────────────────────── */}
+      <section id="mobile" className="max-w-7xl mx-auto px-6 py-16">
+        <div className="bg-gradient-to-br from-blue-900 via-indigo-900 to-slate-950 text-white rounded-3xl p-8 lg:p-12 relative overflow-hidden border border-blue-800/40 shadow-2xl">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center relative z-10">
+            <div className="space-y-6">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-500/20 text-blue-300 text-xs font-bold border border-blue-400/30">
+                <SmartphoneIcon />
+                Application Mobile Élèves &amp; Enseignants
+              </div>
+              <h2 className="text-3xl lg:text-4xl font-extrabold tracking-tight">
+                Emportez Édut Pro partout avec vous
+              </h2>
+              <p className="text-blue-100/80 text-sm lg:text-base leading-relaxed">
+                Saisie des notes et devoirs en mode hors-ligne, consultation des bulletins en temps réel et notifications instantanées pour les parents et enseignants.
+              </p>
+              <div className="space-y-3 pt-2">
+                {[
+                  "Mode Hors-Ligne & Synchronisation Automatique",
+                  "Gestion des Devoirs (DS) & Saisie des Notes",
+                  "Bulletins Trimestriels & Semestriels instantanés",
+                  "Support Multi-Tenant pour tous les établissements"
+                ].map((item, idx) => (
+                  <div key={idx} className="flex items-center gap-3">
+                    <div className="w-5 h-5 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs shrink-0 font-bold">✓</div>
+                    <span className="text-xs lg:text-sm font-semibold text-blue-100">{item}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="pt-4 flex flex-wrap gap-4">
+                <Link
+                  href="/login"
+                  className="px-6 py-3.5 rounded-xl bg-blue-500 hover:bg-blue-600 text-white font-bold text-sm shadow-lg transition-all"
+                >
+                  Accéder à l'application Web
+                </Link>
+                <Link
+                  href="/dashboard/about"
+                  className="px-6 py-3.5 rounded-xl border border-white/20 text-white hover:bg-white/10 font-bold text-sm transition-all"
+                >
+                  En savoir plus
+                </Link>
+              </div>
+            </div>
+            <div className="flex justify-center relative">
+              <div className="w-64 h-[420px] bg-slate-900 rounded-[38px] border-4 border-slate-700 shadow-2xl p-3 flex flex-col justify-between relative">
+                <div className="w-24 h-4 bg-slate-800 rounded-full mx-auto mb-3" />
+                <div className="bg-slate-800/90 rounded-2xl p-4 space-y-3 flex-1 flex flex-col justify-center text-center">
+                  <div className="w-12 h-12 bg-blue-600 rounded-2xl mx-auto flex items-center justify-center text-white font-bold">
+                    <GraduationIcon />
+                  </div>
+                  <p className="font-bold text-sm text-white">Édut Pro Mobile</p>
+                  <p className="text-[11px] text-slate-400">Saisie des notes &amp; devoirs synchronisée</p>
+                  <div className="pt-3">
+                    <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-bold">
+                      ● Connecté &amp; Synchro
+                    </span>
+                  </div>
+                </div>
+                <div className="w-10 h-1 bg-slate-700 rounded-full mx-auto mt-2" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ── FEATURES ───────────────────────────────────────────── */}
-      <section className="max-w-7xl mx-auto px-6 pb-20">
-        <div className="text-center mb-10">
-          <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white mb-2">
+      <section id="features" className="max-w-7xl mx-auto px-6 py-16">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white mb-3">
             Pourquoi choisir Édut Pro&nbsp;?
           </h2>
-          <p className="text-gray-500 dark:text-gray-400 text-sm">
-            Une plateforme conçue pour répondre à tous les besoins de votre établissement.
+          <p className="text-gray-500 dark:text-gray-400 text-sm max-w-xl mx-auto">
+            Une plateforme complète et intuitive conçue pour simplifier la vie scolaire au quotidien.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {[
             {
               icon: <MonitorIcon />,
               color: "text-blue-600 dark:text-blue-400",
               bg: "bg-blue-600",
               label: "Gestion Centralisée",
-              desc: "Gérez tous les aspects de votre établissement depuis une seule plateforme intuitive.",
+              desc: "Gérez l'administration générale, les classes, enseignants, notes et devoirs depuis un seul endroit.",
             },
             {
               icon: <UsersIcon />,
-              color: "text-green-600 dark:text-green-400",
-              bg: "bg-green-500",
+              color: "text-emerald-600 dark:text-emerald-400",
+              bg: "bg-emerald-500",
               label: "Communication Fluide",
-              desc: "Facilitez les échanges entre enseignants, élèves et parents en temps réel.",
+              desc: "Accès instantané pour la direction, les enseignants, les élèves et les parents en temps réel.",
             },
             {
               icon: <ShieldBigIcon />,
               color: "text-purple-600 dark:text-purple-400",
               bg: "bg-purple-600",
-              label: "Sécurité Avancée",
-              desc: "Vos données sont protégées avec les meilleures normes de sécurité.",
+              label: "Sécurité & Multi-Tenant",
+              desc: "Isolation totale des données de chaque établissement avec permissions fines et rôles configurables.",
             },
           ].map(f => (
             <div
               key={f.label}
-              className="bg-white dark:bg-[#161b27] rounded-2xl border border-gray-100 dark:border-white/10 p-6 flex items-start gap-4 shadow-sm hover:shadow-md transition-shadow group"
+              className="bg-white dark:bg-[#111625] rounded-3xl border border-gray-200 dark:border-white/10 p-7 flex items-start gap-4 shadow-sm hover:shadow-xl transition-all group"
             >
-              <div className={`w-12 h-12 ${f.bg} rounded-xl flex items-center justify-center text-white shrink-0 shadow-md`}>
+              <div className={`w-12 h-12 ${f.bg} rounded-2xl flex items-center justify-center text-white shrink-0 shadow-lg`}>
                 {f.icon}
               </div>
               <div>
-                <h3 className="font-bold text-gray-900 dark:text-white mb-1">{f.label}</h3>
+                <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1">{f.label}</h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">{f.desc}</p>
               </div>
             </div>
@@ -353,27 +442,85 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ── DEMO MODAL POPUP ───────────────────────────────────── */}
+      {showDemo && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-white dark:bg-[#161c2c] border border-gray-200 dark:border-white/10 rounded-3xl p-6 lg:p-8 max-w-2xl w-full shadow-2xl relative space-y-6">
+            <button
+              onClick={() => setShowDemo(false)}
+              className="absolute top-5 right-5 p-2 rounded-full text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
+            >
+              <CloseIcon />
+            </button>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white">
+                <PlayIcon />
+              </div>
+              <div>
+                <h3 className="text-xl font-black text-gray-900 dark:text-white">Démonstration d'Édut Pro</h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Présentation des fonctionnalités principales</p>
+              </div>
+            </div>
+            <div className="space-y-3 text-sm text-gray-600 dark:text-gray-300">
+              <div className="p-4 rounded-2xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/40">
+                <p className="font-bold text-blue-900 dark:text-blue-200 mb-1">1. Tableau de Bord Intégré</p>
+                <p className="text-xs text-blue-800/80 dark:text-blue-300/80">Statistiques globales pour Administration Générale et Directeurs de niveau.</p>
+              </div>
+              <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/40">
+                <p className="font-bold text-emerald-900 dark:text-emerald-200 mb-1">2. Saisie des Notes &amp; Devoirs (DS)</p>
+                <p className="text-xs text-emerald-800/80 dark:text-emerald-300/80">Grille interactive avec transfert direct vers le bulletin d'évaluation.</p>
+              </div>
+              <div className="p-4 rounded-2xl bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800/40">
+                <p className="font-bold text-purple-900 dark:text-purple-200 mb-1">3. Synchronisation Mobile Off-Line</p>
+                <p className="text-xs text-purple-800/80 dark:text-purple-300/80">Fonctionnement complet sans connexion Internet sur l'application Flutter.</p>
+              </div>
+            </div>
+            <div className="pt-4 flex justify-end gap-3">
+              <button
+                onClick={() => setShowDemo(false)}
+                className="px-5 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 text-xs font-bold text-gray-700 dark:text-gray-300"
+              >
+                Fermer
+              </button>
+              <Link
+                href="/login"
+                className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md"
+              >
+                Se connecter à l'App
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── FOOTER ─────────────────────────────────────────────── */}
-      <footer className="bg-white dark:bg-[#161b27] border-t border-gray-200 dark:border-white/10">
-        <div className="max-w-7xl mx-auto px-6 py-8 flex flex-col md:flex-row items-center justify-between gap-6">
+      <footer className="bg-white dark:bg-[#0d111c] border-t border-gray-200 dark:border-white/10">
+        <div className="max-w-7xl mx-auto px-6 py-10 flex flex-col md:flex-row items-center justify-between gap-6">
           {/* Logo + copyright */}
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 bg-blue-600 rounded-xl flex items-center justify-center">
+            <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center text-white">
               <GraduationIcon />
             </div>
             <div>
               <p className="font-bold text-sm text-gray-900 dark:text-white">Édut Pro</p>
-              <p className="text-[10px] text-gray-400">© 2024 Édut Pro. Tous droits réservés.</p>
+              <p className="text-[10px] text-gray-500 dark:text-gray-400">© 2026 Édut Pro. Tous droits réservés.</p>
             </div>
           </div>
 
           {/* Nav links */}
-          <div className="flex flex-wrap items-center gap-5">
-            {["Fonctionnalités", "À propos", "Tarifs", "Contact", "Aide", "Confidentialité"].map(l => (
-              <a key={l} href="#" className="text-xs text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-                {l}
-              </a>
-            ))}
+          <div className="flex flex-wrap items-center gap-6">
+            <a href="#features" className="text-xs text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+              Fonctionnalités
+            </a>
+            <Link href="/dashboard/about" className="text-xs text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+              À propos
+            </Link>
+            <a href="#mobile" className="text-xs text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+              App Mobile
+            </a>
+            <Link href="/login" className="text-xs text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+              Connexion
+            </Link>
           </div>
 
           {/* Social icons */}
@@ -388,7 +535,7 @@ export default function LandingPage() {
                 key={s.label}
                 href="#"
                 aria-label={s.label}
-                className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all"
+                className="w-8.5 h-8.5 flex items-center justify-center rounded-full text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-white/10 transition-all"
               >
                 {s.icon}
               </a>
