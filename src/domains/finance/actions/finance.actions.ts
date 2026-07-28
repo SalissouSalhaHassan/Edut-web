@@ -534,6 +534,40 @@ export async function getExpenses() {
   });
 }
 
+export async function getExpenseCategories() {
+  return protectedDbAction("Finance", "canView", async () => {
+    const schoolId = await getActiveSchoolId();
+    let categories = await db.query.expenseCategories.findMany({
+      where: or(eq(expenseCategories.schoolId, schoolId), isNull(expenseCategories.schoolId)),
+      orderBy: [expenseCategories.name]
+    });
+
+    if (categories.length === 0) {
+      const defaultCats = [
+        "Fournitures de Bureau",
+        "Électricité & Eau",
+        "Maintenance & Réparations",
+        "Transport & Logistique",
+        "Salaires & Honoraires",
+        "Équipements & Matériel",
+        "Événements & COGES",
+        "Divers Dépenses"
+      ];
+      for (const catName of defaultCats) {
+        try {
+          await db.insert(expenseCategories).values({ schoolId, name: catName, description: catName });
+        } catch (_) {}
+      }
+      categories = await db.query.expenseCategories.findMany({
+        where: or(eq(expenseCategories.schoolId, schoolId), isNull(expenseCategories.schoolId)),
+        orderBy: [expenseCategories.name]
+      });
+    }
+
+    return { data: categories };
+  });
+}
+
 export async function createExpense(formData: ExpenseFormData) {
   const validation = expenseSchema.safeParse(formData);
   if (!validation.success) return { error: validation.error.message };
@@ -545,6 +579,7 @@ export async function createExpense(formData: ExpenseFormData) {
       ...validation.data,
       schoolId,
       dateExpense: new Date(validation.data.dateExpense),
+      recordedBy: user.nomComplet || user.email || "Admin",
     };
 
     if (roleType === "level_director") {
@@ -553,6 +588,17 @@ export async function createExpense(formData: ExpenseFormData) {
 
     await db.insert(expenses).values(expenseData);
     revalidatePath("/dashboard/finance/expenses");
+    revalidatePath("/dashboard/finance");
+    return { success: true };
+  });
+}
+
+export async function deleteExpense(expenseId: number) {
+  return protectedDbAction("Finance", "canDelete", async () => {
+    const schoolId = await getActiveSchoolId();
+    await db.delete(expenses).where(and(eq(expenses.id, expenseId), eq(expenses.schoolId, schoolId)));
+    revalidatePath("/dashboard/finance/expenses");
+    revalidatePath("/dashboard/finance");
     return { success: true };
   });
 }
