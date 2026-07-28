@@ -170,6 +170,13 @@ export default function BIClient({
         { name: "CM2", rate: 72 }
       ];
 
+  const weakClasses = classSuccessRates.map(c => ({
+    name: c.name,
+    avg: `${Math.round((c.rate / 100 * 10 + 5) * 10) / 10} / 20`,
+    passRate: c.rate,
+    status: c.rate >= 70 ? "Satisfaisant" : c.rate >= 50 ? "Moyen" : "Critique"
+  }));
+
   const trimesterProgression = [
     { name: "Trimestre 1", avg: "11.8/20", studentsRisk: 18 },
     { name: "Trimestre 2", avg: "12.4/20", studentsRisk: 12 },
