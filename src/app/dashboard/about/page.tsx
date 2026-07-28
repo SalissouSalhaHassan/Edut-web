@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Info, Shield, GraduationCap, Calendar, Settings, Heart, CheckCircle2, Bookmark, BookOpen, ChevronDown, ChevronUp } from "lucide-react";
+import { Info, Shield, GraduationCap, Calendar, Settings, Heart, CheckCircle2, Bookmark, BookOpen, ChevronDown, ChevronUp, Layers, Clock } from "lucide-react";
 
 // ─── Data: Class naming guide ───────────────────────────────────────────────
 const classGuide = [
@@ -258,6 +258,126 @@ export default function AboutPage() {
                 Propulsé avec <Heart size={10} className="text-rose-500 fill-rose-500" /> par l'équipe Edut
               </p>
               <p className="text-[9px] text-slate-400 mt-1">© 2026 Edut Pro. Tous droits réservés.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ─── Academic Structure Setup Guide ─────────────────────────────────── */}
+      <div className="space-y-6 pt-6 border-t border-slate-200/80">
+        <div className="flex items-center gap-4">
+          <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center shadow-lg shadow-emerald-200">
+            <Layers size={22} />
+          </div>
+          <div>
+            <h2 className="text-xl font-black text-slate-900 tracking-tight">
+              Guide de Création de la Structure Académique
+            </h2>
+            <p className="text-xs text-slate-400 font-medium mt-0.5">
+              Étapes détaillées pour configurer les listes académiques (Sessions, Sections, Classes, Matières et Périodes)
+            </p>
+          </div>
+        </div>
+
+        {/* 5-Step Process Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {/* Step 1 */}
+          <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-3 relative overflow-hidden group hover:border-indigo-200 hover:shadow-md transition-all">
+            <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 font-black text-sm flex items-center justify-center border border-indigo-100">
+              1
+            </div>
+            <div className="flex items-center gap-2 text-indigo-700 font-black text-sm">
+              <Calendar size={16} />
+              <span>Sessions Académiques</span>
+            </div>
+            <p className="text-xs font-medium text-slate-500 leading-relaxed">
+              Définit l'année scolaire globale (ex: <code className="bg-slate-100 px-1 py-0.5 rounded text-indigo-600 font-bold">2025-2026</code> ou <code className="bg-slate-100 px-1 py-0.5 rounded text-indigo-600 font-bold">2026-2027</code>).
+            </p>
+            <div className="pt-2 border-t border-slate-50 text-[11px] text-slate-400 font-semibold space-y-1">
+              <p>📍 <strong>Chemin:</strong> Paramètres → Sessions Académiques</p>
+              <p>💡 Marquer la session comme <span className="text-emerald-600 font-bold">Active</span> pour alimenter automatiquement les filtres du système.</p>
+            </div>
+          </div>
+
+          {/* Step 2 */}
+          <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-3 relative overflow-hidden group hover:border-blue-200 hover:shadow-md transition-all">
+            <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 font-black text-sm flex items-center justify-center border border-blue-100">
+              2
+            </div>
+            <div className="flex items-center gap-2 text-blue-700 font-black text-sm">
+              <Bookmark size={16} />
+              <span>Niveaux &amp; Sections (Séries)</span>
+            </div>
+            <p className="text-xs font-medium text-slate-500 leading-relaxed">
+              Regroupe les séries par niveau d'enseignement (<code className="bg-slate-100 px-1 py-0.5 rounded text-blue-600 font-bold">Primaire</code>, <code className="bg-slate-100 px-1 py-0.5 rounded text-blue-600 font-bold">Collège</code>, <code className="bg-slate-100 px-1 py-0.5 rounded text-blue-600 font-bold">Lycée</code>, <code className="bg-slate-100 px-1 py-0.5 rounded text-blue-600 font-bold">Université</code>).
+            </p>
+            <div className="pt-2 border-t border-slate-50 text-[11px] text-slate-400 font-semibold space-y-1">
+              <p>📍 <strong>Chemin:</strong> Paramètres → Sections / Séries</p>
+              <p>💡 Exemples: <span className="text-slate-600 font-bold">Série D (Scientifique)</span>, <span className="text-slate-600 font-bold">Série A (Littéraire)</span>, <span className="text-slate-600 font-bold">L1 Droit</span>.</p>
+            </div>
+          </div>
+
+          {/* Step 3 */}
+          <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-3 relative overflow-hidden group hover:border-violet-200 hover:shadow-md transition-all">
+            <div className="w-9 h-9 rounded-xl bg-violet-50 text-violet-600 font-black text-sm flex items-center justify-center border border-violet-100">
+              3
+            </div>
+            <div className="flex items-center gap-2 text-violet-700 font-black text-sm">
+              <GraduationCap size={16} />
+              <span>Classes</span>
+            </div>
+            <p className="text-xs font-medium text-slate-500 leading-relaxed">
+              Crée les classes physiques associées à chaque section (<code className="bg-slate-100 px-1 py-0.5 rounded text-violet-600 font-bold">6ème A</code>, <code className="bg-slate-100 px-1 py-0.5 rounded text-violet-600 font-bold">3ème A</code>, <code className="bg-slate-100 px-1 py-0.5 rounded text-violet-600 font-bold">Tle D</code>, <code className="bg-slate-100 px-1 py-0.5 rounded text-violet-600 font-bold">L1 Info</code>).
+            </p>
+            <div className="pt-2 border-t border-slate-50 text-[11px] text-slate-400 font-semibold space-y-1">
+              <p>📍 <strong>Chemin:</strong> Paramètres → Classes</p>
+              <p>⚠️ <strong>Attention:</strong> Le nom doit être scrupuleusement identique à celui utilisé dans l'importation Excel des élèves.</p>
+            </div>
+          </div>
+
+          {/* Step 4 */}
+          <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-3 relative overflow-hidden group hover:border-amber-200 hover:shadow-md transition-all">
+            <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 font-black text-sm flex items-center justify-center border border-amber-100">
+              4
+            </div>
+            <div className="flex items-center gap-2 text-amber-700 font-black text-sm">
+              <BookOpen size={16} />
+              <span>Matières &amp; Coefficients</span>
+            </div>
+            <p className="text-xs font-medium text-slate-500 leading-relaxed">
+              Définit les matières enseignées et attribue les coefficients selon la filière (ex: <code className="bg-slate-100 px-1 py-0.5 rounded text-amber-600 font-bold">Coef 4</code> en Tle C).
+            </p>
+            <div className="pt-2 border-t border-slate-50 text-[11px] text-slate-400 font-semibold space-y-1">
+              <p>📍 <strong>Chemin:</strong> Paramètres → Matières &amp; Plan d'Études</p>
+              <p>💡 Affecter chaque matière à sa classe ou section avec son coefficient correspondant.</p>
+            </div>
+          </div>
+
+          {/* Step 5 */}
+          <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-3 relative overflow-hidden group hover:border-emerald-200 hover:shadow-md transition-all lg:col-span-2">
+            <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 font-black text-sm flex items-center justify-center border border-emerald-100">
+              5
+            </div>
+            <div className="flex items-center gap-2 text-emerald-700 font-black text-sm">
+              <Clock size={16} />
+              <span>Périodes Académiques (Trimestres / Semestres)</span>
+            </div>
+            <p className="text-xs font-medium text-slate-500 leading-relaxed">
+              Le système adapte automatiquement les périodes d'évaluation selon le niveau de la classe sélectionnée:
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+              <div className="p-3 bg-emerald-50/60 rounded-2xl border border-emerald-100 text-xs">
+                <p className="font-black text-emerald-800">Primaire</p>
+                <p className="text-[11px] text-emerald-700 font-medium mt-1">3 Trimestres:<br /><code>1er Trimestre</code>, <code>2ème Trimestre</code>, <code>3ème Trimestre</code></p>
+              </div>
+              <div className="p-3 bg-indigo-50/60 rounded-2xl border border-indigo-100 text-xs">
+                <p className="font-black text-indigo-800">Collège &amp; Lycée</p>
+                <p className="text-[11px] text-indigo-700 font-medium mt-1">2 Semestres:<br /><code>1er Semestre</code>, <code>2ème Semestre</code></p>
+              </div>
+              <div className="p-3 bg-purple-50/60 rounded-2xl border border-purple-100 text-xs">
+                <p className="font-black text-purple-800">Université (LMD)</p>
+                <p className="text-[11px] text-purple-700 font-medium mt-1">14 Semestres:<br /><code>1er Semestre (S1)</code> à <code>14ème Semestre (S14)</code></p>
+              </div>
             </div>
           </div>
         </div>
