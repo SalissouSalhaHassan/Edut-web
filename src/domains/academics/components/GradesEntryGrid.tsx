@@ -122,6 +122,22 @@ export default function GradesEntryGrid({
     return { count, avg, passed, failed };
   }, [processedData]);
 
+  const selectedStudent = useMemo(() => 
+    data.find(s => s.studentId === selectedId)?.fullStudent, 
+    [selectedId, data]
+  );
+
+  const handleDeleteResult = () => {
+    if (!selectedId) return;
+    if (confirm("Voulez-vous réinitialiser les notes de cet étudiant ?")) {
+      setData(prev => prev.map(row => 
+        row.studentId === selectedId 
+          ? { ...row, classWork: "", examNote: "", observation: "", appreciation: "-", rank: "-" } 
+          : row
+      ));
+    }
+  };
+
   const isBusy = isSaving || loading;
 
   const handleSaveInternal = async () => {
