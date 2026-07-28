@@ -17,7 +17,7 @@ export interface MinistrySchoolData {
   code: string;
   name: string;
   type: "Public" | "Privé";
-  cycle: "Préscolaire" | "Primaire" | "Collège" | "Lycée";
+  cycle: "Préscolaire" | "Primaire" | "Collège" | "Lycée" | "Technique" | "Supérieur" | string;
   region: string;
   department: string;
   inspection: string;
