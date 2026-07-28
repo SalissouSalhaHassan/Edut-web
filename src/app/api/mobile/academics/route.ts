@@ -162,7 +162,7 @@ export async function GET(request: NextRequest) {
       }
 
       let resolvedLevel = level;
-      if (!resolvedLevel && classIdStr) {
+      if (!resolvedLevel && classIdStr && classIdStr !== "undefined" && classIdStr !== "null") {
         const cls = await readDb.query.schoolClasses.findFirst({
           where: eq(schoolClasses.id, Number(classIdStr)),
           with: { section: true }
@@ -211,7 +211,10 @@ export async function GET(request: NextRequest) {
         school_id: p.schoolId,
       }));
 
-      // Smart period filter / fallback by level
+      // Smart period filter / fallback by level (EXACTLY MATCHING WEB AcademicFilters.tsx):
+      // - Primaire: 3 Trimestres (1er Trimestre, 2ème Trimestre, 3ème Trimestre)
+      // - Université / Supérieur (Licence, Master, Doctorat): 14 Semestres (S1 ... S14)
+      // - Collège & Lycée: 2 Semestres (1er Semestre, 2ème Semestre)
       if (isPrimaire) {
         const dbTrim = list.filter(p => p.period_type === "Trimestre" || p.name.toLowerCase().includes("trimestre"));
         if (dbTrim.length > 0) {
@@ -225,26 +228,29 @@ export async function GET(request: NextRequest) {
         }
       } else if (isSuperior) {
         const dbSem = list.filter(p => p.period_type === "Semestre" || p.name.toLowerCase().includes("semest") || /^s\d+/i.test(p.name));
+        const superiorPresets = Array.from({ length: 14 }, (_, i) => {
+          const num = i + 1;
+          const label = `${num === 1 ? "1er" : `${num}ème`} Semestre (S${num})`;
+          return { id: num, name: label, period_type: "Semestre", is_active: true, session_id: sessionId, school_id: targetSchoolId };
+        });
+
         if (dbSem.length >= 6) {
           list = dbSem;
         } else {
-          list = Array.from({ length: 14 }, (_, i) => {
-            const num = i + 1;
-            const label = `${num === 1 ? "1er" : `${num}ème`} Semestre (S${num})`;
-            return {
-              id: num,
-              name: label,
-              period_type: "Semestre",
-              is_active: true,
-              session_id: sessionId,
-              school_id: targetSchoolId,
-            };
-          });
+          list = superiorPresets;
         }
-      } else if (resolvedLevel) {
-        const dbSem = list.filter(p => p.period_type === "Semestre" || p.name.toLowerCase().includes("semest"));
-        if (dbSem.length >= 2) {
-          list = dbSem.slice(0, 2);
+      } else {
+        // Collège & Lycée default -> 2 Semestres (1er Semestre & 2ème Semestre)
+        const dbCollegeSem = list.filter(p => {
+          const n = p.name.toLowerCase();
+          const isSem = p.period_type === "Semestre" || n.includes("semest");
+          const is1or2 = n.includes("1") || n.includes("2") || n.includes("premier") || n.includes("deuxieme") || n.includes("1er") || n.includes("2eme") || n.includes("2ème");
+          const isHigherS = /^s([3-9]|1[0-4])/i.test(n) || n.includes("3eme") || n.includes("3ème") || n.includes("4eme") || n.includes("4ème") || n.includes("5eme") || n.includes("5ème") || n.includes("6eme") || n.includes("6ème");
+          return isSem && is1or2 && !isHigherS;
+        });
+
+        if (dbCollegeSem.length >= 2) {
+          list = dbCollegeSem.slice(0, 2);
         } else {
           list = [
             { id: 1, name: "1er Semestre", period_type: "Semestre", is_active: true, session_id: sessionId, school_id: targetSchoolId },
