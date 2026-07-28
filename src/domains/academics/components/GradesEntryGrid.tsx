@@ -30,6 +30,7 @@ interface GradesEntryGridProps {
   onSave: (data: any) => void;
   onPrintBulletin?: (studentId: number) => void;
   readOnly?: boolean;
+  loading?: boolean;
 }
 
 export default function GradesEntryGrid({
@@ -39,7 +40,8 @@ export default function GradesEntryGrid({
   gradingScale,
   onSave,
   onPrintBulletin,
-  readOnly = false
+  readOnly = false,
+  loading = false
 }: GradesEntryGridProps) {
   const isHigherEd = ["Licence", "Master", "Doctorat", "Supérieur", "Université"].includes(level);
 
@@ -120,21 +122,7 @@ export default function GradesEntryGrid({
     return { count, avg, passed, failed };
   }, [processedData]);
 
-  const selectedStudent = useMemo(() => 
-    data.find(s => s.studentId === selectedId)?.fullStudent, 
-    [selectedId, data]
-  );
-
-  const handleDeleteResult = () => {
-    if (!selectedId) return;
-    if (confirm("Voulez-vous réinitialiser les notes de cet étudiant ?")) {
-      setData(prev => prev.map(row => 
-        row.studentId === selectedId 
-          ? { ...row, classWork: "", examNote: "", observation: "", appreciation: "-", rank: "-" } 
-          : row
-      ));
-    }
-  };
+  const isBusy = isSaving || loading;
 
   const handleSaveInternal = async () => {
     setIsSaving(true);
@@ -146,7 +134,7 @@ export default function GradesEntryGrid({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 relative">
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <StatsCard 
@@ -158,43 +146,23 @@ export default function GradesEntryGrid({
         <StatsCard 
            icon={<BarChart3 className="text-amber-500" />} 
            label="Moyenne Classe" 
-           value={`${stats.avg.toFixed(2)}/20`} 
+           value={`${stats.avg.toFixed(2)} / 20`} 
            color="amber"
         />
         <StatsCard 
-           icon={<CheckCircle2 className="text-emerald-500" />} 
-           label="Admis" 
+           icon={<TrendingUp className="text-emerald-500" />} 
+           label="Admis (>=10)" 
            value={stats.passed.toString()} 
            color="emerald"
         />
         <StatsCard 
            icon={<AlertCircle className="text-rose-500" />} 
-           label="Non admis" 
+           label="Ajournés (<10)" 
            value={stats.failed.toString()} 
            color="rose"
         />
       </div>
 
-      {/* Action Bar */}
-      <div className="flex flex-col xl:flex-row justify-between items-center gap-4 bg-white/50 backdrop-blur-sm p-4 rounded-[2rem] border border-slate-200/60 shadow-sm">
-        <div className="relative w-full xl:w-96 group">
-          <div className="absolute inset-y-0 left-4 flex items-center text-slate-400 group-focus-within:text-indigo-500 transition-colors">
-            <Search size={18} />
-          </div>
-          <Input
-            placeholder="Filtrer par nom ou matricule..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-12 h-12 bg-white rounded-2xl border-slate-200 shadow-inner focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-medium"
-          />
-        </div>
-
-        <div className="flex flex-wrap items-center justify-center gap-3">
-          <Button 
-            variant="outline"
-            className="h-11 px-5 rounded-xl border-slate-200 text-slate-600 font-bold flex items-center gap-2 hover:bg-slate-50 transition-all disabled:opacity-30"
-            disabled={!selectedId}
-          >
             <History size={18} /> <span className="hidden sm:inline">Historique</span>
           </Button>
 

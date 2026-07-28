@@ -283,6 +283,8 @@ export default function AcademicResultsPage() {
       return;
     }
     setLoading(true);
+    const toastId = toast.loading("Enregistrement et ترحيل البيانات en cours... Veuillez patienter.");
+
     const resultsToSave = data.map((r: any) => ({
       studentId: r.studentId,
       subjectId: activeFilters.subjectId,
@@ -303,17 +305,23 @@ export default function AcademicResultsPage() {
     try {
       const res = await saveStudentGrades(resultsToSave);
       if (res.success) {
-        toast.success("Résultats enregistrés avec succès !", {
-          description: "La grille de notes a été mise à jour dans la base de données.",
+        toast.success("Succès du ترحيل !", {
+          id: toastId,
+          description: "La grille de notes a été enregistrée et transférée avec succès dans les bulletins.",
+          duration: 5000
         });
       } else {
         toast.error("Erreur lors de l'enregistrement", {
+          id: toastId,
           description: res.error || "Une erreur est survenue lors de la communication avec le serveur.",
+          duration: 5000
         });
       }
-    } catch (err) {
-      toast.error("Erreur critique", {
-        description: "Impossible de joindre le serveur pour sauvegarder les données.",
+    } catch (err: any) {
+      toast.error("Erreur critique de ترحيل", {
+        id: toastId,
+        description: err?.message || "Impossible de joindre le serveur pour sauvegarder les données.",
+        duration: 5000
       });
     } finally {
       setLoading(false);
@@ -692,6 +700,7 @@ export default function AcademicResultsPage() {
                 level={level}
                 coefficient={activeCoef}
                 readOnly={workflowStatus === "VERROUILLE" || workflowStatus === "PUBLIE" || workflowStatus === "ARCHIVE"}
+                loading={loading}
               />
             ) : view === "matrix" ? (
               <BroadsheetMatrix
