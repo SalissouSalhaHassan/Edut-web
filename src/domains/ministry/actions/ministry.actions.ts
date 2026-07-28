@@ -62,11 +62,14 @@ type ScopeUser = {
 };
 
 function inferCycle(value: string | null | undefined): MinistrySchoolData["cycle"] {
+  if (!value || !value.trim()) return "Primaire";
   const norm = normalize(value);
   if (norm.includes("prescolaire") || norm.includes("maternelle")) return "Préscolaire";
-  if (norm.includes("college") || norm.includes("moyen")) return "Collège";
-  if (norm.includes("lycee") || norm.includes("secondaire")) return "Lycée";
-  return "Primaire";
+  if (norm.includes("college") || norm.includes("moyen") || norm.includes("1er cycle")) return "Collège";
+  if (norm.includes("lycee") || norm.includes("secondaire") || norm.includes("2nd cycle")) return "Lycée";
+  if (norm.includes("superieur") || norm.includes("universite") || norm.includes("licence") || norm.includes("master")) return "Supérieur";
+  if (norm.includes("technique") || norm.includes("professionnel")) return "Technique";
+  return value.trim() as any;
 }
 
 function inferType(value: string | null | undefined): MinistrySchoolData["type"] {

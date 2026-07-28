@@ -38,14 +38,34 @@ interface ReportingClientProps {
   sessions?: any[];
   activeSessionName?: string;
   headerConfig?: any | null;
+  initialCanevasReferences?: {
+    type?: any[];
+    cycle?: any[];
+    commune?: any[];
+  };
+  educationalLevels?: any[];
 }
 
 export default function ReportingClient({
   sessions = [],
   activeSessionName,
-  headerConfig
+  headerConfig,
+  initialCanevasReferences,
+  educationalLevels = []
 }: ReportingClientProps) {
   const [selectedReport, setSelectedReport] = useState("global");
+  
+  // Dynamic References
+  const communesList = Array.from(new Set([
+    "Niamey I", "Niamey II", "Niamey III", "Niamey IV", "Niamey V",
+    ...(initialCanevasReferences?.commune || []).map((c: any) => c.value || c)
+  ]));
+
+  const cyclesList = Array.from(new Set([
+    "Préscolaire", "Primaire", "Collège", "Lycée", "Technique", "Supérieur",
+    ...(educationalLevels || []).map((l: any) => l.levelName || l.name || l),
+    ...(initialCanevasReferences?.cycle || []).map((c: any) => c.value || c)
+  ]));
   
   // Filters state
   const defaultSession = activeSessionName || "2024-2025";
@@ -279,10 +299,7 @@ export default function ReportingClient({
             <span className="text-[9px] font-black text-slate-400 uppercase block">Commune</span>
             <select value={commune} onChange={(e) => setCommune(e.target.value)} className="w-full h-11 px-3 border border-slate-200 rounded-xl outline-none font-semibold text-slate-700 text-xs bg-white">
               <option value="Toutes">Toutes</option>
-              <option value="Niamey I">Niamey I</option>
-              <option value="Niamey II">Niamey II</option>
-              <option value="Niamey III">Niamey III</option>
-              <option value="Niamey IV">Niamey IV</option>
+              {communesList.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
           <div className="space-y-1">
