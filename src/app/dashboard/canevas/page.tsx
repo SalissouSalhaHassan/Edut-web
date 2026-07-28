@@ -29,7 +29,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getCanevasStats } from "@/domains/academics/actions/academics.actions";
+import { getCanevasStats, getCanevasReferenceLists, getEducationalLevels } from "@/domains/academics/actions/academics.actions";
 
 const ICON_MAP: Record<string, any> = {
   School,
@@ -208,6 +208,25 @@ export default function CanevasDashboardPage() {
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
+  // Unified references from DB
+  const [canevasReferences, setCanevasReferences] = useState<{ cycle: any[]; commune: any[]; type: any[] }>({ cycle: [], commune: [], type: [] });
+  const [educationalLevels, setEducationalLevels] = useState<any[]>([]);
+
+  // Derived unified lists
+  const DEFAULT_CYCLES = ["Préscolaire", "Primaire", "Collège", "Lycée", "Technique", "Supérieur"];
+  const DEFAULT_COMMUNES = ["Niamey I", "Niamey II", "Niamey III", "Niamey IV", "Niamey V"];
+
+  const cyclesList = Array.from(new Set([
+    ...DEFAULT_CYCLES,
+    ...(educationalLevels || []).map((l: any) => l.levelName || l.name || l).filter(Boolean),
+    ...(canevasReferences.cycle || []).map((c: any) => c.value || c).filter(Boolean),
+  ]));
+
+  const communesList = Array.from(new Set([
+    ...DEFAULT_COMMUNES,
+    ...(canevasReferences.commune || []).map((c: any) => c.value || c).filter(Boolean),
+  ]));
+
   // Modal for new canevas
   const [isNewOpen, setIsNewOpen] = useState(false);
   const [newName, setNewName] = useState("");
@@ -215,19 +234,29 @@ export default function CanevasDashboardPage() {
   const [newDesc, setNewDesc] = useState("");
 
   useEffect(() => {
-    async function loadStats() {
+    async function loadAll() {
       try {
-        const res = await getCanevasStats();
-        if (res.data) {
-          setStats(res.data);
+        const [statsRes, refRes, levelsRes] = await Promise.all([
+          getCanevasStats().catch(() => null),
+          getCanevasReferenceLists().catch(() => null),
+          getEducationalLevels(true).catch(() => null),
+        ]);
+        if (statsRes?.data) setStats(statsRes.data);
+        if (refRes) {
+          const d = (refRes as any)?.data || refRes;
+          if (d) setCanevasReferences({ cycle: d.cycle || [], commune: d.commune || [], type: d.type || [] });
+        }
+        if (levelsRes) {
+          const d = (levelsRes as any)?.data || levelsRes;
+          if (Array.isArray(d)) setEducationalLevels(d);
         }
       } catch (e) {
-        console.error("Failed to load Canevas statistics:", e);
+        console.error("Failed to load Canevas data:", e);
       } finally {
         setLoading(false);
       }
     }
-    loadStats();
+    loadAll();
   }, []);
 
   const activeData = stats || academicYearsData[selectedYear] || academicYearsData["2025 - 2026"];
@@ -641,10 +670,7 @@ export default function CanevasDashboardPage() {
               <div className="space-y-1.5">
                 <label className="text-[10px] font-black text-slate-400 uppercase">Cycle scolaire</label>
                 <select value={newCycle} onChange={e => setNewCycle(e.target.value)} className="w-full h-12 px-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-semibold text-slate-800 text-xs">
-                  <option value="Prescolaire">Prescolaire</option>
-                  <option value="Primaire">Primaire</option>
-                  <option value="College">College</option>
-                  <option value="Lycee">Lycee</option>
+                  {cyclesList.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
 
@@ -740,12 +766,15 @@ export default function CanevasDashboardPage() {
               <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-2">
                 <h4 className="text-xs font-black uppercase text-indigo-700">Répartition par Commune</h4>
                 <div className="grid grid-cols-5 gap-1.5 text-center text-xs font-bold">
-                  {communeData.map((c) => (
-                    <div key={c.name} className="bg-white p-2 rounded-lg border border-slate-200">
-                      <span className="text-[9px] text-slate-400 uppercase block font-black">{c.name}</span>
-                      <span className="text-sm font-black text-indigo-600">{c.value}</span>
-                    </div>
-                  ))}
+                  {(communesList.length > 0 ? communesList : communeData.map(c => c.name)).slice(0, 10).map((name) => {
+                    const found = communeData.find(c => c.name === name || name.includes(c.name.replace("NY ", "Niamey ")));
+                    return (
+                      <div key={name} className="bg-white p-2 rounded-lg border border-slate-200">
+                        <span className="text-[9px] text-slate-400 uppercase block font-black">{name.length > 8 ? name.substring(0, 8) + "…" : name}</span>
+                        <span className="text-sm font-black text-indigo-600">{found?.value ?? (activeData?.communeStats?.[name] ?? "—")}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
