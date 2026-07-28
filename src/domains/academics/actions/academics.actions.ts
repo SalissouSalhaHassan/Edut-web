@@ -2484,6 +2484,9 @@ export async function createEducationalLevel(levelName: string) {
     revalidatePath("/dashboard/settings");
     revalidatePath("/dashboard/academics");
     revalidatePath("/dashboard/academics/grades");
+    revalidatePath("/dashboard/canevas");
+    revalidatePath("/dashboard/canevas/etablissements");
+    revalidatePath("/dashboard/canevas/reporting");
     revalidateTag(ACADEMICS_CACHE_TAG);
     return { success: true };
   });
@@ -2501,6 +2504,9 @@ export async function deleteEducationalLevel(id: number) {
     revalidatePath("/dashboard/settings");
     revalidatePath("/dashboard/academics");
     revalidatePath("/dashboard/academics/grades");
+    revalidatePath("/dashboard/canevas");
+    revalidatePath("/dashboard/canevas/etablissements");
+    revalidatePath("/dashboard/canevas/reporting");
     revalidateTag(ACADEMICS_CACHE_TAG);
     return { success: true };
   });
@@ -2521,13 +2527,19 @@ function canevasReferenceKey(category: string) {
 export async function getCanevasReferenceLists() {
   return protectedDbAction("Academics", "canView", async () => {
     const schoolId = await getActiveSchoolId();
-    const rows = await readDb.query.settings.findMany({
-      where: and(
-        eq(settings.schoolId, schoolId),
-        inArray(settings.key, Object.keys(CANEVAS_REFERENCE_DEFAULTS).map(canevasReferenceKey))
-      ),
-      orderBy: settings.value
-    });
+    const [rows, levels] = await Promise.all([
+      readDb.query.settings.findMany({
+        where: and(
+          eq(settings.schoolId, schoolId),
+          inArray(settings.key, Object.keys(CANEVAS_REFERENCE_DEFAULTS).map(canevasReferenceKey))
+        ),
+        orderBy: settings.value
+      }),
+      readDb.query.educationalLevels.findMany({
+        where: eq(educationalLevels.schoolId, schoolId),
+        orderBy: educationalLevels.levelName
+      }).catch(() => [])
+    ]);
 
     const grouped: Record<string, any[]> = {
       type: [],
@@ -2549,6 +2561,23 @@ export async function getCanevasReferenceLists() {
           value,
           metadata: { category, source: "default" },
         }));
+      }
+    }
+
+    // Directly link Niveaux d'Étude (educational_levels) to Cycle reference list
+    if (levels && levels.length > 0) {
+      const existingCycleValues = new Set(grouped.cycle.map(c => (c.value || "").toLowerCase().trim()));
+      for (const l of levels) {
+        const val = l.levelName ? l.levelName.trim() : "";
+        if (val && !existingCycleValues.has(val.toLowerCase())) {
+          grouped.cycle.push({
+            id: `edu-level-${l.id}`,
+            key: canevasReferenceKey("cycle"),
+            value: val,
+            metadata: { category: "cycle", source: "educational_levels", levelId: l.id },
+          });
+          existingCycleValues.add(val.toLowerCase());
+        }
       }
     }
 
