@@ -39,10 +39,20 @@ const GLOBAL_LEVEL_TERMS = [
   "tous les niveaux",
   "toutes les etapes",
   "tous les cycles",
-  "\u0627\u0644\u0643\u0644",
-  "\u0643\u0644",
-  "\u062c\u0645\u064a\u0639",
-  "\u062c\u0645\u064a\u0639 \u0627\u0644\u0645\u0633\u062a\u0648\u064a\u0627\u062a",
+  "administration generale",
+  "administration générale",
+  "administration",
+  "administration_generale",
+  "gestion scolaire",
+  "gestion_scolaire",
+  "الكل",
+  "كل",
+  "جميع",
+  "جميع المستويات",
+  "الإدارة العامة",
+  "ادارة عامة",
+  "الإدارة",
+  "ادارة"
 ];
 
 const PRIMARY_LEVEL_TERMS = [
@@ -533,6 +543,16 @@ export function hasAllEducationalLevels(level: string | null | undefined): boole
 }
 
 export function getCompatibleLevels(level: string): string[] {
+  if (hasAllEducationalLevels(level)) {
+    return [
+      "Primaire", "Maternelle", "Elémentaire", "elementaire", "primaire", "maternelle",
+      "Collège", "College", "Moyen", "moyen", "Collège Général", "college general", "Premier Cycle", "premier cycle",
+      "Lycée", "Lycee", "Secondaire", "secondaire", "Second Cycle", "second cycle",
+      "Université", "Universite", "Universitaire", "Licence", "Licence (LMD)", "LMD", "Master", "Doctorat", "Supérieur", "Enseignement Supérieur",
+      "Administration Générale", "Administration generale", "Administration", "Tous", "All", "tous", "all", ""
+    ];
+  }
+
   const selectedLevels = parseEducationalLevels(level);
   if (selectedLevels.length > 1) {
     return Array.from(new Set(selectedLevels.flatMap((item) => getCompatibleLevels(item))));
@@ -595,6 +615,7 @@ export async function getActiveEducationalLevel(user: any): Promise<string | nul
   const isAdminUser = roleType === "super_admin" || roleType === "directeur" || roleType === "general_director" || roleType === "level_director" || roleType === "ministere";
   
   if (!isAdminUser) {
+    if (hasAllEducationalLevels(user.educationalLevel)) return null;
     return user.educationalLevel || "Primaire";
   }
   
@@ -606,7 +627,7 @@ export async function getActiveEducationalLevel(user: any): Promise<string | nul
       const branch = await db.query.schoolBranches.findFirst({
         where: eq(schoolBranches.id, parseInt(selectedBranchId))
       });
-      if (branch?.instType) {
+      if (branch?.instType && !hasAllEducationalLevels(branch.instType)) {
         return branch.instType;
       }
     }
@@ -614,10 +635,16 @@ export async function getActiveEducationalLevel(user: any): Promise<string | nul
     // cookies() can throw in some contexts (e.g. static generation)
   }
 
-  // If we are a global admin and no specific branch instType was determined,
-  // return the user's explicit educationalLevel or null (which means see all levels).
-  if (roleType === "super_admin" || roleType === "directeur" || roleType === "general_director" || roleType === "ministere") {
-    return user.educationalLevel || null;
+  // If user is admin or educationalLevel is global ("Administration Générale", "Tous", etc.), return null (all levels)
+  if (roleType === "super_admin" || roleType === "directeur" || roleType === "general_director" || roleType === "ministere" || user.admin || hasAllEducationalLevels(user.educationalLevel)) {
+    if (user.educationalLevel && !hasAllEducationalLevels(user.educationalLevel)) {
+      return user.educationalLevel;
+    }
+    return null;
+  }
+
+  if (hasAllEducationalLevels(user.educationalLevel)) {
+    return null;
   }
   
   return user.educationalLevel || "Primaire";

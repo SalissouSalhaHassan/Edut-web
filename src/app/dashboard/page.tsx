@@ -10,7 +10,7 @@ import DashboardUI, { type DashboardUIProps } from "./dashboard-ui";
 import { getUnreadNotificationsCount } from "@/domains/messaging/actions/notifications.actions";
 import { getActiveSchoolId, getActiveBranchData } from "@/domains/auth/services/school";
 import { getCurrentUser } from "@/domains/auth/services/session";
-import { getActiveEducationalLevel, getCompatibleLevels } from "@/domains/auth/services/rbac";
+import { getActiveEducationalLevel, getCompatibleLevels, hasAllEducationalLevels } from "@/domains/auth/services/rbac";
 
 async function getActiveSessionLabel() {
   try {
@@ -72,6 +72,7 @@ async function getStats(user: any) {
     }
 
     const activeLevel = await getActiveEducationalLevel(user);
+    const isGlobalLevel = !activeLevel || hasAllEducationalLevels(activeLevel);
     
     // Flexible student filter: schoolId + (Actif / Inscrit / null)
     let studentWhere = and(
@@ -84,7 +85,7 @@ async function getStats(user: any) {
 
     let queryRevenue;
 
-    if (activeLevel) {
+    if (!isGlobalLevel && activeLevel) {
       const compatibleLevels = getCompatibleLevels(activeLevel);
       studentWhere = and(studentWhere, inArray(students.educationalLevel, compatibleLevels)) as any;
       employeeWhere = and(employeeWhere, inArray(employees.educationalLevel, compatibleLevels)) as any;

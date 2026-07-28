@@ -12,7 +12,7 @@ import { auditLogs } from "@/infrastructure/database/schema/audit";
 import { eq, and, sql, inArray, desc } from "drizzle-orm";
 import { protectedDbAction } from "@/lib/protected-action";
 import { getActiveSchoolId } from "@/domains/auth/services/school";
-import { getActiveEducationalLevel, getCompatibleLevels } from "@/domains/auth/services/rbac";
+import { getActiveEducationalLevel, getCompatibleLevels, hasAllEducationalLevels } from "@/domains/auth/services/rbac";
 
 export async function getReportsData() {
   return protectedDbAction("Reports", "canView", async (user) => {
@@ -21,7 +21,7 @@ export async function getReportsData() {
     
     let studentWhere = eq(students.schoolId, schoolId);
     
-    if (activeLevel && activeLevel !== "Tous" && activeLevel !== "All" && activeLevel !== "") {
+    if (activeLevel && !hasAllEducationalLevels(activeLevel)) {
       const compatibleLevels = getCompatibleLevels(activeLevel);
       studentWhere = and(studentWhere, inArray(students.educationalLevel, compatibleLevels)) as any;
       
