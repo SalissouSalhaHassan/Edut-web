@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { 
-  Save, Search, TrendingUp, Calculator
+  Save, Search, TrendingUp, Calculator, Loader2, CheckCircle2, RefreshCw
 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -17,7 +17,7 @@ interface DevoirEntryGridProps {
 export default function DevoirEntryGrid({ 
   students: initialStudents, 
   onSave,
-  loading
+  loading = false
 }: DevoirEntryGridProps) {
   const [data, setData] = useState<any[]>([]);
   const [search, setSearch] = useState("");
@@ -76,7 +76,7 @@ export default function DevoirEntryGrid({
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 relative">
       <div className="flex flex-col md:flex-row justify-between items-center gap-4">
         <div className="relative w-full md:w-96 group">
           <div className="absolute inset-y-0 left-4 flex items-center text-slate-400 group-focus-within:text-indigo-500 transition-colors">
@@ -85,13 +85,33 @@ export default function DevoirEntryGrid({
           <Input 
             placeholder="Rechercher un élève..." 
             value={search}
+            disabled={loading}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-12 h-12 bg-white rounded-2xl border-slate-100 shadow-sm focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-medium"
+            className="pl-12 h-12 bg-white rounded-2xl border-slate-100 shadow-sm focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-medium disabled:opacity-60"
           />
         </div>
+
+        {loading && (
+          <div className="flex items-center gap-3 px-5 py-2.5 bg-indigo-50 text-indigo-700 rounded-2xl border border-indigo-100 font-bold text-xs animate-pulse">
+            <Loader2 size={16} className="animate-spin text-indigo-600" />
+            <span>Enregistrement et ترحيل البيانات en cours... Veuillez patienter.</span>
+          </div>
+        )}
       </div>
 
-      <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 overflow-hidden">
+      <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 overflow-hidden relative">
+        {loading && (
+          <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] z-20 flex items-center justify-center">
+            <div className="bg-slate-900 text-white px-8 py-6 rounded-3xl shadow-2xl flex items-center gap-4 border border-slate-800">
+              <Loader2 size={28} className="animate-spin text-emerald-400" />
+              <div>
+                <p className="font-black text-sm">Enregistrement et ترحيل البيانات en cours...</p>
+                <p className="text-xs text-slate-400 font-medium">Les moyennes DS sont en cours de mise à jour dans les bulletins.</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[1200px]">
             <thead>
@@ -121,9 +141,10 @@ export default function DevoirEntryGrid({
                     <td key={i} className="px-4 py-4 text-center">
                       <Input 
                         value={val}
+                        disabled={loading}
                         onChange={(e) => handleDevoirInput(row.studentId, i, e.target.value)}
                         placeholder="--"
-                        className="w-20 h-10 text-center rounded-xl bg-slate-50 border-slate-200 font-bold focus:bg-white focus:ring-indigo-500/10 mx-auto"
+                        className="w-20 h-10 text-center rounded-xl bg-slate-50 border-slate-200 font-bold focus:bg-white focus:ring-indigo-500/10 mx-auto disabled:opacity-50"
                       />
                     </td>
                   ))}
@@ -138,22 +159,32 @@ export default function DevoirEntryGrid({
           </table>
         </div>
 
-        <div className="bg-slate-900 p-8 flex justify-between items-center">
+        <div className="bg-slate-900 p-8 flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex items-center gap-4 text-white">
             <div className="p-3 bg-amber-500/20 rounded-2xl">
               <Calculator className="text-amber-400" size={24} />
             </div>
             <div>
-              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Calcul Automatique</p>
-              <p className="text-sm font-medium text-slate-400">La moyenne DS est mise à jour en temps réel.</p>
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Calcul &amp; ترحيل Automatique</p>
+              <p className="text-sm font-medium text-slate-400">La moyenne DS est calculée et transférée automatiquement dans les bulletins.</p>
             </div>
           </div>
           <Button 
             onClick={() => onSave(processedData)}
             disabled={loading}
-            className="h-14 px-12 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-sm uppercase tracking-widest shadow-xl shadow-emerald-500/20 transition-all flex items-center gap-3"
+            className="h-14 px-12 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-sm uppercase tracking-widest shadow-xl shadow-emerald-500/20 transition-all flex items-center gap-3 disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            <Save size={20} /> Enregistrer les Devoirs
+            {loading ? (
+              <>
+                <Loader2 size={20} className="animate-spin text-white" />
+                <span>Enregistrement &amp; ترحيل en cours...</span>
+              </>
+            ) : (
+              <>
+                <Save size={20} />
+                <span>Enregistrer les Devoirs &amp; Transférer</span>
+              </>
+            )}
           </Button>
         </div>
       </div>

@@ -10,6 +10,7 @@ import {
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import dynamic from "next/dynamic";
+import { toast } from "sonner";
 
 const AcademicFilters = dynamic(() => import("@/domains/academics/components/AcademicFilters"), { ssr: false });
 const DevoirEntryGrid = dynamic(() => import("@/domains/academics/components/DevoirEntryGrid"), { ssr: false });
@@ -35,12 +36,13 @@ export default function DevoirEntryPage() {
       
       if (result?.data) {
         setStudents(result.data as unknown as any[]);
+        toast.success("Grille des devoirs (DS) chargée avec succès.");
       } else if (result?.error) {
-        alert(result.error);
+        toast.error("Erreur de chargement", { description: result.error });
       }
     } catch (err) {
       console.error(err);
-      alert("Erreur de chargement.");
+      toast.error("Erreur de chargement de la grille.");
     } finally {
       setLoading(false);
     }
@@ -50,6 +52,8 @@ export default function DevoirEntryPage() {
     if (!activeFilters) return;
     
     setLoading(true);
+    const toastId = toast.loading("Enregistrement et ترحيل البيانات en cours... Veuillez patienter.");
+
     try {
       const payload = data.map(row => ({
         studentId: row.studentId,
@@ -63,13 +67,25 @@ export default function DevoirEntryPage() {
 
       const result = await saveDevoirGrades(payload);
       if (result?.success) {
-        alert("Devoirs enregistrés avec succès !");
+        toast.success("Succès du ترحيل !", {
+          id: toastId,
+          description: "Les devoirs (DS) et les moyennes de classe ont été enregistrés et transférés avec succès.",
+          duration: 5000
+        });
       } else {
-        alert("Erreur lors de l'enregistrement.");
+        toast.error("Erreur de ترحيل البيانات", {
+          id: toastId,
+          description: result?.error || "Une erreur est survenue lors de l'enregistrement.",
+          duration: 5000
+        });
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert("Erreur critique.");
+      toast.error("Erreur critique de ترحيل", {
+        id: toastId,
+        description: err?.message || "Impossible de joindre le serveur.",
+        duration: 5000
+      });
     } finally {
       setLoading(false);
     }
