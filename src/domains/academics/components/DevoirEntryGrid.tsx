@@ -25,18 +25,27 @@ export default function DevoirEntryGrid({
   useEffect(() => {
     setData(initialStudents.map(s => {
       const res = s.existingResult;
+      const devArray = Array.isArray(s.devoirs) ? s.devoirs : [];
+      
+      const d1 = res?.devoir1 ?? devArray[0];
+      const d2 = res?.devoir2 ?? devArray[1];
+      const d3 = res?.devoir3 ?? devArray[2];
+      const d4 = res?.devoir4 ?? devArray[3];
+      const d5 = res?.devoir5 ?? devArray[4];
+      const moy = res?.moyenneDevoirs ?? s.moyenneDevoirs ?? 0;
+
       return {
         studentId: s.id,
         matricule: s.numAdmission || "N/A",
         name: s.nomEtudiant || "Sans Nom",
         devoirs: [
-          res?.devoir1?.toString() || "",
-          res?.devoir2?.toString() || "",
-          res?.devoir3?.toString() || "",
-          res?.devoir4?.toString() || "",
-          res?.devoir5?.toString() || "",
+          d1 != null && d1 !== "" ? String(d1) : "",
+          d2 != null && d2 !== "" ? String(d2) : "",
+          d3 != null && d3 !== "" ? String(d3) : "",
+          d4 != null && d4 !== "" ? String(d4) : "",
+          d5 != null && d5 !== "" ? String(d5) : "",
         ],
-        moyenneDevoirs: res?.moyenneDevoirs || 0,
+        moyenneDevoirs: Number(moy) || 0,
       };
     }));
   }, [initialStudents]);

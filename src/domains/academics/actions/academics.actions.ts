@@ -1021,6 +1021,15 @@ export async function getDevoirGrid(params: { classId: number, subjectId: number
         nomEtudiant: s.nomEtudiant,
         devoirs: res ? [res.devoir1, res.devoir2, res.devoir3, res.devoir4, res.devoir5] : [null, null, null, null, null],
         moyenneDevoirs: res?.moyenneDevoirs || 0,
+        existingResult: res ? {
+          devoir1: res.devoir1,
+          devoir2: res.devoir2,
+          devoir3: res.devoir3,
+          devoir4: res.devoir4,
+          devoir5: res.devoir5,
+          moyenneDevoirs: res.moyenneDevoirs,
+          classWorkScore: res.classWorkScore,
+        } : null,
         fullStudent: s
       };
     });
@@ -1057,7 +1066,7 @@ export async function saveDevoirGrades(payload: any[]) {
         eq(studentResults.classId, first.classId),
         eq(studentResults.sessionId, first.sessionId),
         eq(studentResults.subjectId, first.subjectId),
-        eq(studentResults.term, first.term)
+        buildTermFilter(studentResults.term, first.term)
       )
     });
 
