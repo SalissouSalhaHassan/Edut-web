@@ -43,13 +43,13 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
-import { getSessions } from "@/domains/academics/actions/academics.actions";
+import { getSessions, getCanevasReferenceLists, getEducationalLevels } from "@/domains/academics/actions/academics.actions";
 
 interface SchoolInspectionData {
   code: string;
   name: string;
   type: "Public" | "Privé";
-  cycle: "Préscolaire" | "Primaire" | "Collège" | "Lycée";
+  cycle: string;
   inspection: string;
   commune: string;
   eleves: number;
@@ -200,19 +200,33 @@ export default function InspectionDashboardPage() {
   const [selectedSchoolDetail, setSelectedSchoolDetail] = useState<SchoolInspectionData | null>(null);
   const [rejectingSchool, setRejectingSchool] = useState<SchoolInspectionData | null>(null);
   const [rejectionObservation, setRejectionObservation] = useState("");
+  const [dynamicCycles, setDynamicCycles] = useState<string[]>([]);
 
   useEffect(() => {
     let cancelled = false;
 
-    const loadSessions = async () => {
+    const loadData = async () => {
       try {
-        const res = await getSessions();
+        const [res, refsRes, levelsRes] = await Promise.all([
+          getSessions().catch(() => null),
+          getCanevasReferenceLists().catch(() => null),
+          getEducationalLevels(true).catch(() => null),
+        ]);
         const sessions = (res as any)?.data?.data || (res as any)?.data || [];
         if (cancelled) return;
 
         setSchoolSessions(sessions);
         const activeSession = sessions.find((session: any) => session.isActive) || sessions[0];
         setSelectedYear(activeSession?.sessionName || "2025-2026");
+
+        const refCycles = (refsRes as any)?.data?.cycle || (refsRes as any)?.cycle || [];
+        const eduLevels = (levelsRes as any)?.data || levelsRes || [];
+        const combined = Array.from(new Set([
+          "Préscolaire", "Primaire", "Collège", "Lycée", "Technique", "Supérieur",
+          ...eduLevels.map((l: any) => l.levelName || l.name || l).filter(Boolean),
+          ...refCycles.map((c: any) => c.value || c).filter(Boolean)
+        ]));
+        setDynamicCycles(combined);
       } catch {
         if (!cancelled) {
           setSchoolSessions([]);
@@ -221,7 +235,7 @@ export default function InspectionDashboardPage() {
       }
     };
 
-    loadSessions();
+    loadData();
 
     return () => {
       cancelled = true;
@@ -235,6 +249,12 @@ export default function InspectionDashboardPage() {
     const uniqueSessions = Array.from(new Set(realSessions));
     return uniqueSessions.length > 0 ? uniqueSessions : ["2025-2026", "2024-2025"];
   }, [schoolSessions]);
+
+  const cyclesList = useMemo(() => {
+    const defaults = ["Préscolaire", "Primaire", "Collège", "Lycée", "Technique", "Supérieur"];
+    const schoolCycles = schools.map(s => s.cycle).filter(Boolean);
+    return Array.from(new Set([...defaults, ...dynamicCycles, ...schoolCycles]));
+  }, [dynamicCycles, schools]);
 
   // Late declaration date limit (older than June 1, 2026)
   const isDeclarationLate = (dateStr: string) => {
@@ -605,10 +625,9 @@ export default function InspectionDashboardPage() {
               className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 text-xs font-bold outline-none cursor-pointer"
             >
               <option value="all">Tous</option>
-              <option value="Préscolaire">Préscolaire</option>
-              <option value="Primaire">Primaire</option>
-              <option value="Collège">Collège</option>
-              <option value="Lycée">Lycée</option>
+              {cyclesList.map(c => (
+                <option key={c} value={c}>{c}</option>
+              ))}
             </select>
           </div>
 

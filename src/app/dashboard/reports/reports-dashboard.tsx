@@ -273,6 +273,12 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
     return true;
   };
 
+  const availableLevels = useMemo(() => {
+    const studentLevels = (data.students || []).map((s: any) => s.educationalLevel).filter(Boolean);
+    const defaults = ["Préscolaire", "Maternelle", "Primaire", "Collège", "Lycée", "Licence", "Master", "Technique", "Supérieur"];
+    return Array.from(new Set([...defaults, ...studentLevels]));
+  }, [data.students]);
+
   // Filter students
   const filteredStudents = (data.students || []).filter(s => {
     if (academicYear !== "All" && s.session && s.session !== academicYear) return false;
@@ -910,10 +916,9 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
                   className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-2xl text-xs font-bold outline-none"
                 >
                   <option value="All">Tous les cycles</option>
-                  <option value="Maternelle">Maternelle</option>
-                  <option value="Primaire">Primaire</option>
-                  <option value="Collège">Collège</option>
-                  <option value="Lycée">Lycée</option>
+                  {availableLevels.map(lvl => (
+                    <option key={lvl} value={lvl}>{lvl}</option>
+                  ))}
                 </select>
               </div>
 

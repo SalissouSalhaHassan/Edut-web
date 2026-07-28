@@ -373,12 +373,13 @@ import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 import { getSessions } from "@/domains/academics/actions/academics.actions";
 import { getMinistrySchoolsData } from "@/domains/ministry/actions/ministry.actions";
+import { getCanevasReferenceLists, getEducationalLevels } from "@/domains/academics/actions/academics.actions";
 
 interface SchoolData {
   code: string;
   name: string;
   type: "Public" | "Privé";
-  cycle: "Préscolaire" | "Primaire" | "Collège" | "Lycée";
+  cycle: string;
   region: string;
   department: string;
   inspection: string;
@@ -412,6 +413,7 @@ export default function MinistryDashboardPage() {
   const [loadingSchools, setLoadingSchools] = useState(true);
   const [schoolSessions, setSchoolSessions] = useState<SessionOption[]>([]);
   const [activeHeaderConfig, setActiveHeaderConfig] = useState<any>(null);
+  const [dynamicCycles, setDynamicCycles] = useState<string[]>([]);
 
   useEffect(() => {
     import("@/domains/settings/actions/settings.actions").then(({ getDocumentHeaderConfig }) => {
@@ -420,6 +422,21 @@ export default function MinistryDashboardPage() {
           setActiveHeaderConfig(res.data);
         }
       });
+    });
+
+    Promise.all([
+      getCanevasReferenceLists().catch(() => null),
+      getEducationalLevels(true).catch(() => null)
+    ]).then(([refsRes, levelsRes]) => {
+      const refCycles = (refsRes as any)?.data?.cycle || (refsRes as any)?.cycle || [];
+      const eduLevels = (levelsRes as any)?.data || levelsRes || [];
+      
+      const combined = Array.from(new Set([
+        "Préscolaire", "Primaire", "Collège", "Lycée", "Technique", "Supérieur",
+        ...eduLevels.map((l: any) => l.levelName || l.name || l).filter(Boolean),
+        ...refCycles.map((c: any) => c.value || c).filter(Boolean)
+      ]));
+      setDynamicCycles(combined);
     });
   }, []);
   
@@ -539,6 +556,12 @@ export default function MinistryDashboardPage() {
     });
     return Array.from(new Set(list.map(s => s.commune)));
   }, [schools, selectedRegion, selectedDept, selectedInsp]);
+
+  const cyclesList = useMemo(() => {
+    const defaults = ["Préscolaire", "Primaire", "Collège", "Lycée", "Technique", "Supérieur"];
+    const schoolCycles = schools.map(s => s.cycle).filter(Boolean);
+    return Array.from(new Set([...defaults, ...dynamicCycles, ...schoolCycles]));
+  }, [dynamicCycles, schools]);
 
   // Filtered Schools
   const filteredSchools = useMemo(() => {
@@ -1026,10 +1049,9 @@ export default function MinistryDashboardPage() {
               className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 text-xs font-bold outline-none cursor-pointer"
             >
               <option value="all">Tous</option>
-              <option value="Préscolaire">Préscolaire</option>
-              <option value="Primaire">Primaire</option>
-              <option value="Collège">Collège</option>
-              <option value="Lycée">Lycée</option>
+              {cyclesList.map(c => (
+                <option key={c} value={c}>{c}</option>
+              ))}
             </select>
           </div>
         </div>
