@@ -163,13 +163,34 @@ export default function GradesEntryGrid({
         />
       </div>
 
+      {/* Action Bar */}
+      <div className="flex flex-col xl:flex-row justify-between items-center gap-4 bg-white/50 backdrop-blur-sm p-4 rounded-[2rem] border border-slate-200/60 shadow-sm">
+        <div className="relative w-full xl:w-96 group">
+          <div className="absolute inset-y-0 left-4 flex items-center text-slate-400 group-focus-within:text-indigo-500 transition-colors">
+            <Search size={18} />
+          </div>
+          <Input
+            placeholder="Filtrer par nom ou matricule..."
+            value={search}
+            disabled={isBusy}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-12 h-12 bg-white rounded-2xl border-slate-200 shadow-inner focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-medium disabled:opacity-60"
+          />
+        </div>
+
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <Button 
+            variant="outline"
+            className="h-11 px-5 rounded-xl border-slate-200 text-slate-600 font-bold flex items-center gap-2 hover:bg-slate-50 transition-all disabled:opacity-30"
+            disabled={!selectedId || isBusy}
+          >
             <History size={18} /> <span className="hidden sm:inline">Historique</span>
           </Button>
 
           <Button 
             variant="outline"
             className="h-11 px-5 rounded-xl border-indigo-100 bg-indigo-50/50 text-indigo-600 font-bold flex items-center gap-2 hover:bg-indigo-100 transition-all disabled:opacity-30"
-            disabled={!selectedId}
+            disabled={!selectedId || isBusy}
             onClick={() => onPrintBulletin?.(selectedId!)}
           >
             <Printer size={18} /> <span className="hidden sm:inline">Imprimer Bulletin</span>
