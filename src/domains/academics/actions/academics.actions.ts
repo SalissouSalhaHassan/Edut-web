@@ -2584,16 +2584,68 @@ export async function createCanevasReferenceItem(category: "type" | "cycle" | "c
   });
 }
 
-export async function deleteCanevasReferenceItem(id: number) {
+export async function updateCanevasReferenceItem(idOrOldValue: number | string, category: "type" | "cycle" | "commune", newValue: string) {
   return protectedDbAction("Academics", "canEdit", async () => {
     const schoolId = await getActiveSchoolId();
-    await db.delete(settings).where(
-      and(
-        eq(settings.id, id),
-        eq(settings.schoolId, schoolId)
-      )
-    );
+    const cleanValue = newValue.trim();
+    if (!cleanValue) return { error: "Valeur obligatoire." };
+
+    const key = canevasReferenceKey(category);
+
+    if (typeof idOrOldValue === "number") {
+      await db.update(settings)
+        .set({ value: cleanValue })
+        .where(and(eq(settings.id, idOrOldValue), eq(settings.schoolId, schoolId)));
+    } else {
+      const existing = await readDb.query.settings.findFirst({
+        where: and(
+          eq(settings.schoolId, schoolId),
+          eq(settings.key, key),
+          ilike(settings.value, idOrOldValue)
+        )
+      });
+      if (existing) {
+        await db.update(settings)
+          .set({ value: cleanValue })
+          .where(eq(settings.id, existing.id));
+      } else {
+        await db.insert(settings).values({
+          schoolId,
+          key,
+          value: cleanValue,
+          metadata: { category, source: "settings" },
+        });
+      }
+    }
+
     revalidatePath("/dashboard/settings");
+    revalidatePath("/dashboard/canevas/etablissements");
+    return { success: true };
+  });
+}
+
+export async function deleteCanevasReferenceItem(idOrValue: number | string, category?: string) {
+  return protectedDbAction("Academics", "canEdit", async () => {
+    const schoolId = await getActiveSchoolId();
+    if (typeof idOrValue === "number") {
+      await db.delete(settings).where(
+        and(
+          eq(settings.id, idOrValue),
+          eq(settings.schoolId, schoolId)
+        )
+      );
+    } else if (category) {
+      const key = canevasReferenceKey(category);
+      await db.delete(settings).where(
+        and(
+          eq(settings.schoolId, schoolId),
+          eq(settings.key, key),
+          ilike(settings.value, idOrValue)
+        )
+      );
+    }
+    revalidatePath("/dashboard/settings");
+    revalidatePath("/dashboard/canevas/etablissements");
     return { success: true };
   });
 }

@@ -32,7 +32,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import * as XLSX from "xlsx";
-import { createCanevasReferenceItem } from "@/domains/academics/actions/academics.actions";
+import { createCanevasReferenceItem, updateCanevasReferenceItem, deleteCanevasReferenceItem } from "@/domains/academics/actions/academics.actions";
 
 interface SchoolRow {
   code: string;
@@ -274,19 +274,61 @@ export default function EtablissementsClient({
         setCommunesList(prev => [...prev, cleanName]);
         setNewCommune(cleanName);
         setNewCommuneName("");
-        setIsAddCommuneOpen(false);
         toast.success(`La commune "${cleanName}" a été créée et ajoutée avec succès !`);
       }
     } catch (err) {
-      // Offline or local fallback
       setCommunesList(prev => [...prev, cleanName]);
       setNewCommune(cleanName);
       setNewCommuneName("");
-      setIsAddCommuneOpen(false);
       toast.success(`La commune "${cleanName}" a été ajoutée à la liste localement !`);
     } finally {
       setIsAddingCommune(false);
     }
+  };
+
+  // Commune Edit / Delete Handlers
+  const [editingCommuneName, setEditingCommuneName] = useState<string | null>(null);
+  const [editCommuneValue, setEditCommuneValue] = useState("");
+
+  const handleUpdateCommune = async (oldName: string, newName: string) => {
+    const cleanNew = newName.trim();
+    if (!cleanNew) {
+      toast.error("Veuillez saisir un nom valide.");
+      return;
+    }
+    if (cleanNew === oldName) {
+      setEditingCommuneName(null);
+      return;
+    }
+
+    try {
+      await updateCanevasReferenceItem(oldName, "commune", cleanNew);
+    } catch (e) {
+      console.log("Local update fallback");
+    }
+
+    setCommunesList(prev => prev.map(c => (c === oldName ? cleanNew : c)));
+    setSchoolsList(prev => prev.map(s => (s.commune === oldName ? { ...s, commune: cleanNew } : s)));
+    if (newCommune === oldName) setNewCommune(cleanNew);
+
+    setEditingCommuneName(null);
+    toast.success(`La commune "${oldName}" a été modifiée en "${cleanNew}".`);
+  };
+
+  const handleDeleteCommune = async (communeName: string) => {
+    if (!confirm(`Voulez-vous supprimer la commune "${communeName}" ?`)) return;
+
+    try {
+      await deleteCanevasReferenceItem(communeName, "commune");
+    } catch (e) {
+      console.log("Local delete fallback");
+    }
+
+    setCommunesList(prev => prev.filter(c => c !== communeName));
+    if (newCommune === communeName) {
+      setNewCommune(communesList.find(c => c !== communeName) || "");
+    }
+    toast.success(`La commune "${communeName}" a été supprimée.`);
   };
 
   // Filtering Logic
@@ -642,8 +684,8 @@ export default function EtablissementsClient({
             onClick={() => setIsAddCommuneOpen(true)}
             className="h-11 px-4 rounded-xl border border-indigo-200 bg-indigo-50/50 hover:bg-indigo-100/80 text-indigo-700 font-bold text-xs flex items-center gap-2 transition"
           >
-            <Plus size={16} />
-            Nouvelle Commune
+            <MapPin size={16} />
+            Gérer les Communes
           </button>
           <button 
             onClick={handleExportPDF}
@@ -891,10 +933,10 @@ export default function EtablissementsClient({
         </div>
       </div>
 
-      {/* ─── MODAL: ADD NEW COMMUNE ─── */}
+      {/* ─── MODAL: GESTION DES COMMUNES (ADD, EDIT, DELETE) ─── */}
       {isAddCommuneOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in print:hidden">
-          <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-2xl max-w-md w-full p-8 relative">
+          <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-2xl max-w-lg w-full p-8 relative max-h-[90vh] overflow-y-auto custom-scrollbar">
             <button 
               onClick={() => setIsAddCommuneOpen(false)}
               className="absolute right-6 top-6 w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors"
@@ -902,46 +944,126 @@ export default function EtablissementsClient({
               <X size={20} />
             </button>
 
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                <MapPin size={20} />
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-11 h-11 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                <MapPin size={22} />
               </div>
               <div>
-                <h3 className="text-xl font-black text-slate-900">Nouvelle Commune</h3>
-                <p className="text-xs text-slate-400 font-semibold">Ajouter une nouvelle commune territoriale.</p>
+                <h3 className="text-xl font-black text-slate-900">Gestion des Communes</h3>
+                <p className="text-xs text-slate-400 font-semibold">Ajouter, modifier ou supprimer des communes scolaires.</p>
               </div>
             </div>
 
-            <form onSubmit={handleCreateCommune} className="space-y-4 mt-6">
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase">Nom de la commune *</label>
+            {/* Add Commune Form */}
+            <form onSubmit={handleCreateCommune} className="space-y-3 p-4 bg-slate-50 border border-slate-100 rounded-2xl mb-6">
+              <label className="text-[10px] font-black text-slate-400 uppercase block">Ajouter une nouvelle commune</label>
+              <div className="flex gap-2">
                 <input 
                   required 
-                  autoFocus
                   value={newCommuneName} 
                   onChange={e => setNewCommuneName(e.target.value)} 
                   placeholder="Ex: Niamey VI, Dosso Commune 1, Maradi Nord..." 
-                  className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 font-semibold text-slate-800 text-sm" 
+                  className="flex-1 h-11 px-4 bg-white border border-slate-200 rounded-xl outline-none focus:border-indigo-500 font-semibold text-slate-800 text-xs" 
                 />
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-                <button 
-                  type="button" 
-                  onClick={() => setIsAddCommuneOpen(false)} 
-                  className="h-11 px-5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs"
-                >
-                  Annuler
-                </button>
                 <button 
                   type="submit" 
                   disabled={isAddingCommune}
-                  className="h-11 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md shadow-indigo-100"
+                  className="h-11 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex items-center gap-1 shrink-0 shadow-xs"
                 >
-                  {isAddingCommune ? "Enregistrement..." : "Enregistrer la commune"}
+                  <Plus size={15} />
+                  {isAddingCommune ? "..." : "Ajouter"}
                 </button>
               </div>
             </form>
+
+            {/* Registered Communes List */}
+            <div className="space-y-3">
+              <div className="flex justify-between items-center px-1">
+                <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider">Communes Enregistrées ({communesList.length})</h4>
+              </div>
+
+              <div className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar pr-1">
+                {communesList.map((commune) => {
+                  const isEditing = editingCommuneName === commune;
+                  const schoolCount = schoolsList.filter(s => s.commune === commune).length;
+
+                  return (
+                    <div key={commune} className="flex items-center justify-between p-3.5 bg-slate-50/80 border border-slate-100 rounded-2xl hover:bg-slate-100/50 transition">
+                      {isEditing ? (
+                        <div className="flex items-center gap-2 flex-1 mr-2">
+                          <input
+                            value={editCommuneValue}
+                            onChange={e => setEditCommuneValue(e.target.value)}
+                            className="flex-1 h-9 px-3 bg-white border border-indigo-300 rounded-lg text-xs font-bold text-slate-900 outline-none"
+                            autoFocus
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateCommune(commune, editCommuneValue)}
+                            className="p-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white transition"
+                            title="Enregistrer"
+                          >
+                            <Check size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditingCommuneName(null)}
+                            className="p-2 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-600 transition"
+                            title="Annuler"
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-xs">
+                              <MapPin size={14} />
+                            </div>
+                            <span className="font-bold text-xs text-slate-900">{commune}</span>
+                            <span className="px-2 py-0.5 rounded-full bg-slate-200/70 text-slate-600 text-[10px] font-black">
+                              {schoolCount} {schoolCount > 1 ? "écoles" : "école"}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingCommuneName(commune);
+                                setEditCommuneValue(commune);
+                              }}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition"
+                              title="Modifier cette commune"
+                            >
+                              <Edit3 size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteCommune(commune)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition"
+                              title="Supprimer cette commune"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-6 mt-6 border-t border-slate-100">
+              <button 
+                type="button" 
+                onClick={() => setIsAddCommuneOpen(false)} 
+                className="h-11 px-6 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs"
+              >
+                Fermer
+              </button>
+            </div>
           </div>
         </div>
       )}
