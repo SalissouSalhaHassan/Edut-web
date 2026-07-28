@@ -2,7 +2,7 @@
 
 import { db } from "@/infrastructure/database";
 import { studentFees, feePayments, expenses, expenseCategories } from "@/infrastructure/database/schema/finance";
-import { eq, desc, sql, and, ilike, or, inArray } from "drizzle-orm";
+import { eq, desc, sql, and, ilike, or, inArray, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { paymentSchema, expenseSchema, PaymentFormData, ExpenseFormData } from "../validators/finance.schema";
 import { protectedDbAction } from "@/lib/protected-action";
