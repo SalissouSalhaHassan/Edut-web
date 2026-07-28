@@ -19,9 +19,10 @@ export default async function AnalyticsPage() {
     redirect("/dashboard");
   }
 
-  const { dropoutAlerts, regressionAlerts, metrics } = result.data || {
+  const { dropoutAlerts, regressionAlerts, indicators, metrics } = result.data || {
     dropoutAlerts: [],
     regressionAlerts: [],
+    indicators: { weakSubjects: [], classSuccessRates: [], absencesFailureCorrelation: [] },
     metrics: { highRiskCount: 0, mediumRiskCount: 0, regressionCount: 0, overallAttendanceRate: 95 }
   };
 
@@ -30,6 +31,7 @@ export default async function AnalyticsPage() {
       currentUser={currentUser}
       dropoutAlerts={dropoutAlerts}
       regressionAlerts={regressionAlerts}
+      indicators={indicators}
       metrics={metrics}
     />
   );

@@ -225,9 +225,122 @@ export async function getPredictiveAnalyticsData() {
       ? Math.round(((totalAttendanceRecords - totalAbsences) / totalAttendanceRecords) * 100)
       : 95; // Default standard baseline
 
+    // ─── 3. REAL DB INDICATORS & CORRELATIONS ─────────────────────────────
+    
+    // A. Real Subject Success Rates
+    const subjectStatsRaw = await db
+      .select({
+        subjectId: exams.subjectId,
+        subjectName: schoolSubjects.subjectName,
+        totalCount: sql<number>`COUNT(${examResults.id})`,
+        passedCount: sql<number>`SUM(CASE WHEN ${examResults.marksObtained} >= 10 THEN 1 ELSE 0 END)`,
+        avgMarks: sql<number>`AVG(${examResults.marksObtained})`,
+      })
+      .from(examResults)
+      .innerJoin(exams, eq(examResults.examId, exams.id))
+      .innerJoin(schoolSubjects, eq(exams.subjectId, schoolSubjects.id))
+      .where(eq(exams.schoolId, schoolId))
+      .groupBy(exams.subjectId, schoolSubjects.subjectName);
+
+    const weakSubjects = subjectStatsRaw.map((item) => {
+      const total = Number(item.totalCount) || 1;
+      const passed = Number(item.passedCount) || 0;
+      const passRate = Math.round((passed / total) * 100);
+      const avg = Math.round((Number(item.avgMarks) || 0) * 10) / 10;
+      let status = "Normal";
+      if (passRate < 50 || avg < 10) status = "Critique";
+      else if (passRate < 65 || avg < 12) status = "Faible";
+
+      return {
+        name: item.subjectName || `Matière ${item.subjectId}`,
+        avg: `${avg} / 20`,
+        passRate,
+        status,
+      };
+    }).sort((a, b) => a.passRate - b.passRate);
+
+    // B. Real Class Success Rates
+    const classStatsRaw = await db
+      .select({
+        classId: exams.classId,
+        className: schoolClasses.className,
+        totalCount: sql<number>`COUNT(${examResults.id})`,
+        passedCount: sql<number>`SUM(CASE WHEN ${examResults.marksObtained} >= 10 THEN 1 ELSE 0 END)`,
+      })
+      .from(examResults)
+      .innerJoin(exams, eq(examResults.examId, exams.id))
+      .innerJoin(schoolClasses, eq(exams.classId, schoolClasses.id))
+      .where(eq(exams.schoolId, schoolId))
+      .groupBy(exams.classId, schoolClasses.className);
+
+    const classSuccessRates = classStatsRaw.map((item) => {
+      const total = Number(item.totalCount) || 1;
+      const passed = Number(item.passedCount) || 0;
+      const rate = Math.round((passed / total) * 100);
+      return {
+        name: item.className || `Classe ${item.classId}`,
+        rate,
+      };
+    }).sort((a, b) => a.name.localeCompare(b.name));
+
+    // C. Real Absences vs Failure Correlation
+    const studentGradesRaw = await db
+      .select({
+        studentId: examResults.studentId,
+        avgGrade: sql<number>`AVG(${examResults.marksObtained})`,
+      })
+      .from(examResults)
+      .innerJoin(exams, eq(examResults.examId, exams.id))
+      .where(eq(exams.schoolId, schoolId))
+      .groupBy(examResults.studentId);
+
+    const studentGradeMap = new Map(studentGradesRaw.map(g => [g.studentId, Number(g.avgGrade) || 0]));
+
+    const absenceGroupGrades: Record<string, { totalGrades: number; count: number }> = {
+      "0 - 2 jours": { totalGrades: 0, count: 0 },
+      "3 - 5 jours": { totalGrades: 0, count: 0 },
+      "6 - 10 jours": { totalGrades: 0, count: 0 },
+      "+ 10 jours": { totalGrades: 0, count: 0 },
+    };
+
+    for (const s of schoolStudents) {
+      const sStats = stats[s.id] || { absences: 0 };
+      const absCount = sStats.absences || 0;
+      const grade = studentGradeMap.get(s.id);
+      if (grade === undefined) continue;
+
+      let key = "0 - 2 jours";
+      if (absCount >= 3 && absCount <= 5) key = "3 - 5 jours";
+      else if (absCount >= 6 && absCount <= 10) key = "6 - 10 jours";
+      else if (absCount > 10) key = "+ 10 jours";
+
+      absenceGroupGrades[key].totalGrades += grade;
+      absenceGroupGrades[key].count += 1;
+    }
+
+    const absencesFailureCorrelation = Object.entries(absenceGroupGrades).map(([range, data]) => {
+      const avg = data.count > 0 ? Math.round((data.totalGrades / data.count) * 10) / 10 : 0;
+      let status = "Excellent";
+      if (range === "3 - 5 jours") status = "Moyen";
+      if (range === "6 - 10 jours") status = "Risque modéré";
+      if (range === "+ 10 jours") status = "Risque élevé";
+
+      return {
+        range,
+        avgGrade: data.count > 0 ? `${avg} / 20` : "-- / 20",
+        status,
+        studentCount: data.count,
+      };
+    });
+
     return {
       dropoutAlerts,
       regressionAlerts,
+      indicators: {
+        weakSubjects,
+        classSuccessRates,
+        absencesFailureCorrelation,
+      },
       metrics: {
         highRiskCount,
         mediumRiskCount,

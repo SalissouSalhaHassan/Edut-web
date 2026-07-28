@@ -19,6 +19,11 @@ interface BIClientProps {
   currentUser: any;
   dropoutAlerts: any[];
   regressionAlerts: any[];
+  indicators?: {
+    weakSubjects?: any[];
+    classSuccessRates?: any[];
+    absencesFailureCorrelation?: any[];
+  };
   metrics: {
     highRiskCount: number;
     mediumRiskCount: number;
@@ -31,6 +36,7 @@ export default function BIClient({
   currentUser,
   dropoutAlerts: initialDropoutAlerts,
   regressionAlerts: initialRegressionAlerts,
+  indicators,
   metrics
 }: BIClientProps) {
   const [activeTab, setActiveTab] = useState<"predictive" | "indicators" | "decisions" | "reports">("predictive");
@@ -144,41 +150,41 @@ export default function BIClient({
     toast.success(`Demande d'inspection transmise avec succès pour la classe ${newInspection.class} !`);
   };
 
-  // Indicators Data
-  const weakSubjects = [
-    { name: "Mathématiques", avg: "8.4 / 20", passRate: 48, status: "Critique" },
-    { name: "Sciences Physiques", avg: "9.1 / 20", passRate: 55, status: "Faible" },
-    { name: "SVT", avg: "10.2 / 20", passRate: 64, status: "Moyen" }
-  ];
+  // Real Indicators Data with Fallbacks
+  const weakSubjects = indicators?.weakSubjects && indicators.weakSubjects.length > 0 
+    ? indicators.weakSubjects 
+    : [
+        { name: "Mathématiques", avg: "8.4 / 20", passRate: 48, status: "Critique" },
+        { name: "Sciences Physiques", avg: "9.1 / 20", passRate: 55, status: "Faible" },
+        { name: "SVT", avg: "10.2 / 20", passRate: 64, status: "Moyen" }
+      ];
 
-  const weakClasses = [
-    { name: "CM2 B", avg: "9.2 / 20", passRate: 52, status: "Critique" },
-    { name: "CM1 A", avg: "9.6 / 20", passRate: 58, status: "Faible" },
-    { name: "CE1 C", avg: "10.1 / 20", passRate: 66, status: "Moyen" }
-  ];
-
-  const classSuccessRates = [
-    { name: "CI", rate: 94 },
-    { name: "CP", rate: 90 },
-    { name: "CE1", rate: 86 },
-    { name: "CE2", rate: 84 },
-    { name: "CM1", rate: 78 },
-    { name: "CM2", rate: 72 }
-  ];
+  const classSuccessRates = indicators?.classSuccessRates && indicators.classSuccessRates.length > 0 
+    ? indicators.classSuccessRates 
+    : [
+        { name: "CI", rate: 94 },
+        { name: "CP", rate: 90 },
+        { name: "CE1", rate: 86 },
+        { name: "CE2", rate: 84 },
+        { name: "CM1", rate: 78 },
+        { name: "CM2", rate: 72 }
+      ];
 
   const trimesterProgression = [
     { name: "Trimestre 1", avg: "11.8/20", studentsRisk: 18 },
     { name: "Trimestre 2", avg: "12.4/20", studentsRisk: 12 },
-    { name: "Trimestre 3 (Actuel)", avg: "11.2/20", studentsRisk: 22 }
+    { name: "Trimestre 3 (Actuel)", avg: "11.2/20", studentsRisk: initialDropoutAlerts.length }
   ];
 
-  // Correlation Absence / Academic Failure
-  const absencesFailureCorrelation = [
-    { range: "0 - 2 jours", avgGrade: "14.8 / 20", status: "Excellent" },
-    { range: "3 - 5 jours", avgGrade: "11.2 / 20", status: "Moyen" },
-    { range: "6 - 10 jours", avgGrade: "8.5 / 20", status: "Risque modéré" },
-    { range: "+ 10 jours", avgGrade: "5.4 / 20", status: "Risque élevé" }
-  ];
+  // Real Correlation Absence / Academic Failure
+  const absencesFailureCorrelation = indicators?.absencesFailureCorrelation && indicators.absencesFailureCorrelation.length > 0 
+    ? indicators.absencesFailureCorrelation 
+    : [
+        { range: "0 - 2 jours", avgGrade: "14.8 / 20", status: "Excellent" },
+        { range: "3 - 5 jours", avgGrade: "11.2 / 20", status: "Moyen" },
+        { range: "6 - 10 jours", avgGrade: "8.5 / 20", status: "Risque modéré" },
+        { range: "+ 10 jours", avgGrade: "5.4 / 20", status: "Risque élevé" }
+      ];
 
   // Homework Non Submission / Grade Impact
   const homeworkGradeImpact = [
