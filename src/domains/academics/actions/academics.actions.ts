@@ -2680,15 +2680,74 @@ export async function deleteCanevasReferenceItem(idOrValue: number | string, cat
 }
 
 // ─── Subjects ─────────────────────────────────────────────────────────────────
-export async function createSubject(data: { subjectName: string; subjectCode?: string; category?: string; sectionId?: number }) {
+export async function createSubject(data: { 
+  subjectName: string; 
+  subjectCode?: string; 
+  category?: string; 
+  sectionId?: number;
+  educationalLevel?: string;
+  defaultCoef?: number;
+  credits?: number;
+}) {
   return protectedDbAction("Academics", "canEdit", async () => {
     const schoolId = await getActiveSchoolId();
-    await db.insert(schoolSubjects).values({
+    const [newSubject] = await db.insert(schoolSubjects).values({
       subjectName: data.subjectName,
       subjectCode: data.subjectCode || null,
       category: data.category || null,
       schoolId: schoolId,
-    });
+    }).returning();
+
+    if (newSubject && (data.sectionId || data.educationalLevel)) {
+      let targetSectionIds: number[] = [];
+      if (data.sectionId) {
+        targetSectionIds.push(data.sectionId);
+      } else if (data.educationalLevel) {
+        const sections = await readDb.query.schoolSections.findMany({
+          where: and(
+            eq(schoolSections.schoolId, schoolId),
+            ilike(schoolSections.educationalLevel, data.educationalLevel)
+          )
+        });
+        targetSectionIds = sections.map(s => s.id);
+      }
+
+      const coef = data.defaultCoef || 2;
+      const cred = data.credits || 0;
+      for (const secId of targetSectionIds) {
+        await db.insert(sectionSubjects).values({
+          sectionId: secId,
+          subjectId: newSubject.id,
+          defaultCoef: coef,
+          credits: cred,
+          isEliminatory: false,
+        }).onConflictDoNothing().catch(() => {});
+      }
+    }
+
+    revalidatePath("/dashboard/settings");
+    revalidatePath("/dashboard/academics");
+    revalidatePath("/dashboard/academics/grades");
+    revalidateTag(ACADEMICS_CACHE_TAG);
+    return { success: true, data: newSubject };
+  });
+}
+
+export async function updateSubject(id: number, data: { subjectName: string; subjectCode?: string; category?: string }) {
+  return protectedDbAction("Academics", "canEdit", async () => {
+    const schoolId = await getActiveSchoolId();
+    await db.update(schoolSubjects)
+      .set({
+        subjectName: data.subjectName,
+        subjectCode: data.subjectCode || null,
+        category: data.category || null,
+      })
+      .where(
+        and(
+          eq(schoolSubjects.id, id),
+          eq(schoolSubjects.schoolId, schoolId)
+        )
+      );
     revalidatePath("/dashboard/settings");
     revalidatePath("/dashboard/academics");
     revalidatePath("/dashboard/academics/grades");

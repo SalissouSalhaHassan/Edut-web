@@ -3,13 +3,14 @@
 import { useState, useTransition, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { 
-  Search, Wand2, Download, FileSpreadsheet, Trash2, 
+  Search, Wand2, Download, FileSpreadsheet, Trash2, Edit3,
   Plus, Check, X, Loader2, Sparkles, Filter, 
-  BarChart3, Copy, Zap, Info, AlertTriangle, ArrowRightLeft
+  BarChart3, Copy, Zap, Info, AlertTriangle, ArrowRightLeft, Layers, GraduationCap
 } from "lucide-react";
+import { toast } from "sonner";
 import { 
   batchSaveMatrixLinks, applyStandardCurriculumTemplate, 
-  createSubject, deleteSubject, autoLinkSubjectByType 
+  createSubject, updateSubject, deleteSubject, autoLinkSubjectByType 
 } from "@/domains/academics/actions/academics.actions";
 
 export function CurriculumMatrix({ 
@@ -18,21 +19,36 @@ export function CurriculumMatrix({
 }: any) {
   const [isPending, startTransition] = useTransition();
   const [searchQuery, setSearchQuery] = useState("");
-  const [eduSystemType, setEduSystemType] = useState("Franco-Arabe");
+  const [eduSystemType, setEduSystemType] = useState("Tous");
   const [categoryFilter, setCategoryFilter] = useState("Toutes");
+  
+  // Dynamic Subjects List State
+  const [subjectsList, setSubjectsList] = useState<any[]>(initialSubjects || []);
   
   // Unsaved changes tracking
   const [unsavedIds, setUnsavedIds] = useState<Set<string>>(new Set());
 
-  // New Subject Form
+  // New Subject Form State
   const [newSubCode, setNewSubCode] = useState("");
   const [newSubName, setNewSubName] = useState("");
   const [newSubCat, setNewSubCat] = useState("Catégorie");
+  const [targetScope, setTargetScope] = useState<"all" | "level" | "section">("all");
+  const [selectedTargetLevel, setSelectedTargetLevel] = useState("all");
+  const [selectedTargetSectionId, setSelectedTargetSectionId] = useState<string>("all");
+  const [newDefaultCoef, setNewDefaultCoef] = useState<number>(2);
+  const [newDefaultCredits, setNewDefaultCredits] = useState<number>(0);
+
+  // Edit Subject Modal State
+  const [editingSubject, setEditingSubject] = useState<any | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editCode, setEditCode] = useState("");
+  const [editCat, setEditCat] = useState("Catégorie");
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   // Matrix State: { [subId_secId]: { coef, cred } }
   const [matrixData, setMatrixData] = useState<Record<string, { coef: string, cred: string }>>(() => {
     const initial: Record<string, { coef: string, cred: string }> = {};
-    initialSubjects.forEach((sub: any) => {
+    (initialSubjects || []).forEach((sub: any) => {
       sub.sectionLinks?.forEach((link: any) => {
         if (!link.term) {
           initial[`${sub.id}_${link.sectionId}`] = { 
@@ -46,6 +62,12 @@ export function CurriculumMatrix({
   });
 
   const categories = ["Langues", "Sciences", "Religion", "Sciences Humaines", "Sport", "Technologie", "Arts", "Autre"];
+
+  const availableLevels = useMemo(() => {
+    const levelsFromSec = (initialSections || []).map((s: any) => s.educationalLevel).filter(Boolean);
+    const defaults = ["Primaire", "Collège", "Lycée", "Licence", "Master", "Doctorat"];
+    return Array.from(new Set([...defaults, ...levelsFromSec]));
+  }, [initialSections]);
 
   const filteredSections = useMemo(() => {
     let secs = initialSections;
@@ -63,12 +85,12 @@ export function CurriculumMatrix({
   }, [initialSections, eduSystemType]);
 
   const filteredSubjects = useMemo(() => {
-    let subs = initialSubjects;
+    let subs = subjectsList;
     const q = searchQuery.toLowerCase();
     
     if (q) {
       subs = subs.filter((s: any) => 
-        s.subjectName.toLowerCase().includes(q) || 
+        (s.subjectName || "").toLowerCase().includes(q) || 
         (s.subjectCode && s.subjectCode.toLowerCase().includes(q))
       );
     }
@@ -78,7 +100,115 @@ export function CurriculumMatrix({
     }
     
     return subs;
-  }, [initialSubjects, searchQuery, categoryFilter]);
+  }, [subjectsList, searchQuery, categoryFilter]);
+
+  const handleAddSubjectSubmit = async () => {
+    const cleanName = newSubName.trim();
+    if (!cleanName) {
+      toast.error("Veuillez saisir le nom de la matière.");
+      return;
+    }
+
+    startTransition(async () => {
+      const sectionId = targetScope === "section" && selectedTargetSectionId !== "all" ? Number(selectedTargetSectionId) : undefined;
+      const educationalLevel = targetScope === "level" && selectedTargetLevel !== "all" ? selectedTargetLevel : undefined;
+
+      const res = await createSubject({
+        subjectName: cleanName,
+        subjectCode: newSubCode.trim() || undefined,
+        category: newSubCat === "Catégorie" ? undefined : newSubCat,
+        sectionId,
+        educationalLevel,
+        defaultCoef: newDefaultCoef,
+        credits: newDefaultCredits,
+      });
+
+      if (res.success) {
+        const createdSub = (res as any).data || {
+          id: Date.now(),
+          subjectName: cleanName,
+          subjectCode: newSubCode.trim() || null,
+          category: newSubCat === "Catégorie" ? null : newSubCat,
+        };
+
+        setSubjectsList(prev => [createdSub, ...prev]);
+
+        // Auto populate matrix cells if target was specified
+        if (targetScope !== "all") {
+          let targetSecs: any[] = [];
+          if (sectionId) {
+            targetSecs = initialSections.filter((s: any) => s.id === sectionId);
+          } else if (educationalLevel) {
+            targetSecs = initialSections.filter((s: any) => s.educationalLevel?.toLowerCase() === educationalLevel.toLowerCase());
+          }
+
+          if (targetSecs.length > 0) {
+            setMatrixData(prev => {
+              const next = { ...prev };
+              targetSecs.forEach((sec: any) => {
+                const key = `${createdSub.id}_${sec.id}`;
+                next[key] = { coef: String(newDefaultCoef), cred: String(newDefaultCredits) };
+                setUnsavedIds(u => new Set(u).add(key));
+              });
+              return next;
+            });
+          }
+        }
+
+        setNewSubName("");
+        setNewSubCode("");
+        toast.success(`Matière "${cleanName}" ajoutée avec succès !`);
+      } else {
+        toast.error(res.error || "Erreur lors de la création de la matière.");
+      }
+    });
+  };
+
+  const handleOpenEditModal = (sub: any) => {
+    setEditingSubject(sub);
+    setEditName(sub.subjectName || "");
+    setEditCode(sub.subjectCode || "");
+    setEditCat(sub.category || "Catégorie");
+  };
+
+  const handleSaveSubjectEdit = async () => {
+    if (!editingSubject) return;
+    const cleanName = editName.trim();
+    if (!cleanName) {
+      toast.error("Le nom de la matière est obligatoire.");
+      return;
+    }
+
+    setIsSavingEdit(true);
+    const res = await updateSubject(editingSubject.id, {
+      subjectName: cleanName,
+      subjectCode: editCode.trim() || undefined,
+      category: editCat === "Catégorie" ? undefined : editCat,
+    });
+    setIsSavingEdit(false);
+
+    if (res.success) {
+      setSubjectsList(prev => prev.map(s => s.id === editingSubject.id ? { ...s, subjectName: cleanName, subjectCode: editCode.trim() || null, category: editCat === "Catégorie" ? null : editCat } : s));
+      setEditingSubject(null);
+      toast.success(`Matière "${cleanName}" mise à jour avec succès !`);
+    } else {
+      toast.error(res.error || "Erreur lors de la mise à jour.");
+    }
+  };
+
+  const handleDeleteSubjectClick = (sub: any) => {
+    if (confirm(`Voulez-vous vraiment supprimer la matière "${sub.subjectName}" ?`)) {
+      startTransition(async () => {
+        const res = await deleteSubject(sub.id);
+        if (res.success) {
+          setSubjectsList(prev => prev.filter(s => s.id !== sub.id));
+          toast.success(`Matière "${sub.subjectName}" supprimée.`);
+        } else {
+          toast.error(res.error || "Erreur lors de la suppression.");
+        }
+      });
+    }
+  };
 
   const handleMatrixChange = (subId: number, secId: number, field: 'coef' | 'cred', value: string) => {
     const key = `${subId}_${secId}`;
@@ -313,52 +443,154 @@ export function CurriculumMatrix({
           </div>
         </div>
 
-        <div className="lg:col-span-8 bg-white p-10 rounded-[3rem] border border-slate-100 shadow-sm flex flex-col justify-between">
+        <div className="lg:col-span-8 bg-white p-10 rounded-[3rem] border border-slate-100 shadow-sm flex flex-col justify-between space-y-6">
           <div>
             <div className="flex items-center justify-between border-b border-slate-50 pb-6 mb-8">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
                   <Plus size={24} />
                 </div>
-                <h3 className="font-black text-slate-900 uppercase tracking-widest text-xs">Ajout Intelligent de Matière</h3>
+                <div>
+                  <h3 className="font-black text-slate-900 uppercase tracking-widest text-xs">Création & Affectation de Matière</h3>
+                  <p className="text-[11px] font-bold text-slate-400">Créer une matière et l'attribuer à une section ou niveau d'étude</p>
+                </div>
               </div>
               <div className="flex items-center gap-2 text-[10px] font-black text-emerald-500 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100">
-                <Sparkles size={12} /> AUTO-DETECTION ACTIVE
+                <Sparkles size={12} /> CIBLAGE DYNAMIQUE
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Nom de la Matière</label>
-                <input 
-                  type="text" 
-                  placeholder="Ex: Algorithmique Avancée"
-                  value={newSubName}
-                  onChange={(e) => setNewSubName(e.target.value)}
-                  className="w-full h-16 bg-slate-50 border-none rounded-2xl px-6 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all text-lg"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-6 mb-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Code Matière</label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Nom de la Matière *</label>
                   <input 
                     type="text" 
-                    placeholder="ALG-201"
-                    value={newSubCode}
-                    onChange={(e) => setNewSubCode(e.target.value)}
-                    className="w-full h-16 bg-slate-50 border-none rounded-2xl px-6 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all uppercase"
+                    placeholder="Ex: Algorithmique Avancée, Physique-Chimie..."
+                    value={newSubName}
+                    onChange={(e) => setNewSubName(e.target.value)}
+                    className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-300 transition-all text-base"
                   />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Catégorie</label>
-                  <select 
-                    value={newSubCat}
-                    onChange={(e) => setNewSubCat(e.target.value)}
-                    className="w-full h-16 bg-slate-50 border-none rounded-2xl px-6 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all"
-                  >
-                    <option>Catégorie</option>
-                    {categories.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Code Matière</label>
+                    <input 
+                      type="text" 
+                      placeholder="ALG-201"
+                      value={newSubCode}
+                      onChange={(e) => setNewSubCode(e.target.value)}
+                      className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-300 transition-all uppercase"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Catégorie</label>
+                    <select 
+                      value={newSubCat}
+                      onChange={(e) => setNewSubCat(e.target.value)}
+                      className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-4 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all text-xs"
+                    >
+                      <option>Catégorie</option>
+                      {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Target / Scope Options */}
+              <div className="p-5 bg-slate-50/80 border border-slate-100 rounded-3xl space-y-4">
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-indigo-600 flex items-center gap-1.5">
+                    <GraduationCap size={14} /> Affectation de la matière (Cible)
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setTargetScope("all")}
+                      className={`px-3 py-1 rounded-xl text-[10px] font-black uppercase transition ${targetScope === "all" ? "bg-indigo-600 text-white shadow-xs" : "bg-white text-slate-600 border border-slate-200"}`}
+                    >
+                      Toutes les sections
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTargetScope("level")}
+                      className={`px-3 py-1 rounded-xl text-[10px] font-black uppercase transition ${targetScope === "level" ? "bg-indigo-600 text-white shadow-xs" : "bg-white text-slate-600 border border-slate-200"}`}
+                    >
+                      Par Niveau d'Étude
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTargetScope("section")}
+                      className={`px-3 py-1 rounded-xl text-[10px] font-black uppercase transition ${targetScope === "section" ? "bg-indigo-600 text-white shadow-xs" : "bg-white text-slate-600 border border-slate-200"}`}
+                    >
+                      Par Section Spécifique
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {targetScope === "level" && (
+                    <div className="space-y-1 md:col-span-2">
+                      <label className="text-[9px] font-black text-slate-400 uppercase px-1">Sélectionner le Niveau d'Étude</label>
+                      <select
+                        value={selectedTargetLevel}
+                        onChange={(e) => setSelectedTargetLevel(e.target.value)}
+                        className="w-full h-11 bg-white border border-slate-200 rounded-xl px-4 text-xs font-bold text-slate-800 outline-none"
+                      >
+                        <option value="all">Tous les Niveaux d'Étude</option>
+                        {availableLevels.map((lvl: string) => (
+                          <option key={lvl} value={lvl}>{lvl}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {targetScope === "section" && (
+                    <div className="space-y-1 md:col-span-2">
+                      <label className="text-[9px] font-black text-slate-400 uppercase px-1">Sélectionner la Section</label>
+                      <select
+                        value={selectedTargetSectionId}
+                        onChange={(e) => setSelectedTargetSectionId(e.target.value)}
+                        className="w-full h-11 bg-white border border-slate-200 rounded-xl px-4 text-xs font-bold text-slate-800 outline-none"
+                      >
+                        <option value="all">Toutes les sections</option>
+                        {(initialSections || []).map((sec: any) => (
+                          <option key={sec.id} value={sec.id}>{sec.sectionName} ({sec.educationalLevel || "Section"})</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {targetScope === "all" && (
+                    <div className="md:col-span-2 flex items-center px-2 text-xs font-bold text-slate-500">
+                      La matière sera disponible dans la matrice pour toutes les sections de l'établissement.
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black text-slate-400 uppercase px-1">Coef. Initial</label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={20}
+                        value={newDefaultCoef}
+                        onChange={(e) => setNewDefaultCoef(Number(e.target.value) || 1)}
+                        className="w-full h-11 bg-white border border-slate-200 rounded-xl text-center font-black text-slate-800 text-xs outline-none"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black text-slate-400 uppercase px-1">Crédits (LMD)</label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={60}
+                        value={newDefaultCredits}
+                        onChange={(e) => setNewDefaultCredits(Number(e.target.value) || 0)}
+                        className="w-full h-11 bg-white border border-slate-200 rounded-xl text-center font-black text-slate-800 text-xs outline-none"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -369,27 +601,15 @@ export function CurriculumMatrix({
               <Info size={24} />
             </div>
             <div className="flex-1">
-              <h4 className="font-bold text-slate-900 text-sm">Prêt pour l'ajout ?</h4>
-              <p className="text-xs text-slate-500">L'IA détectera automatiquement le système et proposera des coefficients types.</p>
+              <h4 className="font-bold text-slate-900 text-sm">Créer la matière dans la matrice</h4>
+              <p className="text-xs text-slate-500">La matière sera automatiquement ajoutée et affectée aux sections choisies.</p>
             </div>
             <Button 
-              onClick={() => {
-                const hasArabic = /[\u0600-\u06FF]/.test(newSubName);
-                const sysType = hasArabic ? "Franco-Arabe" : "Général";
-                if(confirm(`Ajouter "${newSubName}" dans le système ${sysType} ?`)) {
-                   startTransition(async () => {
-                      const res = await createSubject({ subjectName: newSubName, subjectCode: newSubCode, category: newSubCat === "Catégorie" ? undefined : newSubCat });
-                      if(res.success) {
-                         setNewSubName(""); setNewSubCode("");
-                         alert("Matière ajoutée !");
-                      }
-                   });
-                }
-              }} 
-              disabled={isPending || !newSubName} 
+              onClick={handleAddSubjectSubmit} 
+              disabled={isPending || !newSubName.trim()} 
               className="h-14 bg-slate-900 hover:bg-black text-white rounded-2xl px-10 font-black gap-3 shadow-xl shadow-slate-200"
             >
-              <Check size={20} className="text-emerald-400" /> Confirmer l'Ajout
+              <Check size={20} className="text-emerald-400" /> Confirmer & Créer
             </Button>
           </div>
         </div>
@@ -444,7 +664,7 @@ export function CurriculumMatrix({
                     </div>
                   </th>
                 ))}
-                <th className="p-6 w-20 bg-slate-900 sticky right-0 z-20"></th>
+                <th className="p-6 w-24 bg-slate-900 sticky right-0 z-20 text-center text-[10px] font-black uppercase tracking-widest">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -492,12 +712,22 @@ export function CurriculumMatrix({
                     );
                   })}
                   <td className="p-4 text-center sticky right-0 bg-inherit border-l border-slate-50 shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.02)]">
-                    <button 
-                      onClick={() => { if(confirm('Supprimer?')) startTransition(async () => { await deleteSubject(sub.id); }); }}
-                      className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-all active:scale-90"
-                    >
-                      <Trash2 size={18} />
-                    </button>
+                    <div className="flex items-center justify-center gap-1">
+                      <button 
+                        onClick={() => handleOpenEditModal(sub)}
+                        className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all active:scale-90"
+                        title="Modifier la matière"
+                      >
+                        <Edit3 size={15} />
+                      </button>
+                      <button 
+                        onClick={() => handleDeleteSubjectClick(sub)}
+                        className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-all active:scale-90"
+                        title="Supprimer la matière"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -534,6 +764,83 @@ export function CurriculumMatrix({
           </div>
         </div>
       </div>
+
+      {/* ─── MODAL EDIT SUBJECT ─── */}
+      {editingSubject && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-2xl max-w-lg w-full p-8 relative space-y-6">
+            <button 
+              onClick={() => setEditingSubject(null)}
+              className="absolute right-6 top-6 w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors"
+            >
+              <X size={20} />
+            </button>
+
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                <Edit3 size={24} />
+              </div>
+              <div>
+                <h3 className="text-xl font-black text-slate-900">Modifier la Matière</h3>
+                <p className="text-xs text-slate-400 font-semibold">Mettre à jour la désignation, le code ou la catégorie.</p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Nom de la Matière *</label>
+                <input 
+                  type="text" 
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 font-bold text-slate-900 outline-none focus:border-indigo-500 text-sm"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Code Matière</label>
+                  <input 
+                    type="text" 
+                    value={editCode}
+                    onChange={(e) => setEditCode(e.target.value)}
+                    className="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 font-bold text-slate-900 outline-none focus:border-indigo-500 uppercase text-sm"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Catégorie</label>
+                  <select 
+                    value={editCat}
+                    onChange={(e) => setEditCat(e.target.value)}
+                    className="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 font-bold text-slate-900 outline-none focus:border-indigo-500 text-sm"
+                  >
+                    <option value="Catégorie">Catégorie (Autre)</option>
+                    {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+              <Button 
+                type="button" 
+                variant="ghost" 
+                onClick={() => setEditingSubject(null)}
+                className="h-12 px-6 rounded-xl font-bold text-xs"
+              >
+                Annuler
+              </Button>
+              <Button 
+                onClick={handleSaveSubjectEdit}
+                disabled={isSavingEdit || !editName.trim()}
+                className="h-12 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md shadow-indigo-100"
+              >
+                {isSavingEdit ? <Loader2 className="animate-spin" /> : "Sauvegarder les modifications"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
