@@ -48,9 +48,31 @@ async function ensureCanteenTablesExist() {
 export async function getCanteenItems() {
   return protectedDbAction("Canteen", "canView", async () => {
     await ensureCanteenTablesExist();
-    const data = await db.query.canteenItems.findMany({
+    let data = await db.query.canteenItems.findMany({
       orderBy: [desc(canteenItems.id)]
     }).catch(() => []);
+
+    // Seed database automatically if empty so POS operates 100% on real DB rows
+    if (!data || data.length === 0) {
+      const seedItems = [
+        { name: "BOITE ARDOISE INF", code: "ART-01", price: 1000, category: "Fournitures", stock: 50 },
+        { name: "BOITE COL FORMIKA", code: "ART-02", price: 500, category: "Fournitures", stock: 30 },
+        { name: "BOITE COLORANT", code: "ART-03", price: 1000, category: "Fournitures", stock: 25 },
+        { name: "BOITE DE CANOPY", code: "ART-04", price: 500, category: "Snacks", stock: 40 },
+        { name: "BOITE DE TRAP EAU", code: "ART-05", price: 1200, category: "Snacks", stock: 15 },
+        { name: "BOITE DE VERNIS SAVANA", code: "ART-06", price: 1500, category: "Snacks", stock: 20 },
+        { name: "JUICE TOP BOND 1/2L", code: "BEV-01", price: 250, category: "Boissons", stock: 60 },
+        { name: "EAU MINERALE 1.5L", code: "BEV-02", price: 300, category: "Boissons", stock: 100 },
+        { name: "SANDWICH CHICKEN", code: "MEAL-01", price: 1500, category: "Repas", stock: 15 },
+      ];
+      for (const item of seedItems) {
+        await db.insert(canteenItems).values(item).catch(() => {});
+      }
+      data = await db.query.canteenItems.findMany({
+        orderBy: [desc(canteenItems.id)]
+      }).catch(() => []);
+    }
+
     return { data: data || [] };
   });
 }

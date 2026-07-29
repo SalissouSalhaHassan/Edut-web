@@ -42,20 +42,8 @@ export default function CanteenPosSystem({
   // Active Main View Tab: 'pos' | 'articles' | 'invoices'
   const [activeTab, setActiveTab] = useState<"pos" | "articles" | "invoices">("pos");
 
-  // Items State
-  const [items, setItems] = useState<any[]>(initialItems.length > 0 ? initialItems : [
-    { id: 1, name: "BOITE ARDOISE INF", code: "ART-01", price: 1000, category: "Fournitures", stock: 50 },
-    { id: 2, name: "BOITE COL FORMIKA", code: "ART-02", price: 0, category: "Fournitures", stock: 30 },
-    { id: 3, name: "BOITE COLORANT", code: "ART-03", price: 1000, category: "Fournitures", stock: 25 },
-    { id: 4, name: "BOITE DE CANOPY", code: "ART-04", price: 500, category: "Snacks", stock: 40 },
-    { id: 5, name: "BOITE DE TRAP EAU", code: "ART-05", price: 1200, category: "Snacks", stock: 15 },
-    { id: 6, name: "BOITE DE VERNIS SAVANA", code: "ART-06", price: 1500, category: "Snacks", stock: 20 },
-    { id: 7, name: "JUICE TOP BOND 1/2L", code: "BEV-01", price: 250, category: "Boissons", stock: 60 },
-    { id: 8, name: "EAU MINERALE 1.5L", code: "BEV-02", price: 300, category: "Boissons", stock: 100 },
-    { id: 9, name: "SANDWICH CHICKEN", code: "MEAL-01", price: 1500, category: "Repas", stock: 15 },
-  ]);
-
-  // Invoices State
+  // Real Database State
+  const [items, setItems] = useState<any[]>(initialItems);
   const [invoices, setInvoices] = useState<any[]>(initialInvoices);
   const [students, setStudents] = useState<any[]>([]);
 
@@ -74,16 +62,19 @@ export default function CanteenPosSystem({
     return () => clearInterval(interval);
   }, []);
 
-  // Fetch initial data
+  // Fetch real data from PostgreSQL database
   useEffect(() => {
     getCanteenItems().then((res: any) => {
-      if (res.data && res.data.length > 0) setItems(res.data);
+      const dbItems = res.data?.data || res.data || [];
+      if (Array.isArray(dbItems)) setItems(dbItems);
     });
     getCanteenInvoices().then((res: any) => {
-      if (res.data) setInvoices(res.data);
+      const dbInvoices = res.data?.data || res.data || [];
+      if (Array.isArray(dbInvoices)) setInvoices(dbInvoices);
     });
     getCanteenStudents().then((res: any) => {
-      if (res.data) setStudents(res.data);
+      const dbStudents = res.data?.data || res.data || [];
+      if (Array.isArray(dbStudents)) setStudents(dbStudents);
     });
   }, []);
 
