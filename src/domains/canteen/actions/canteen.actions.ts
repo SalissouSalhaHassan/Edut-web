@@ -140,6 +140,11 @@ export async function createCanteenItem(data: {
     const cleanStock = Number(data.stock) ?? 100;
     const cleanImage = (data.imageUrl && data.imageUrl.trim().length > 0) ? data.imageUrl.trim() : null;
 
+    // Synchronize PostgreSQL sequence to avoid unique key constraint violation
+    await db.execute(sql`
+      SELECT setval(pg_get_serial_sequence('canteen_items', 'id'), COALESCE((SELECT MAX(id) FROM canteen_items), 1));
+    `).catch(() => {});
+
     try {
       const [newItem] = await db.insert(canteenItems).values({
         name: cleanName,
@@ -155,13 +160,18 @@ export async function createCanteenItem(data: {
       return { success: true, data: newItem };
     } catch (e) {
       console.error("Insert canteen item Drizzle error:", e);
+      
+      // Calculate max id explicitly to prevent primary key collisions
+      const maxRes = await db.execute(sql`SELECT COALESCE(MAX(id), 0) + 1 AS next_id FROM canteen_items`) as any;
+      const nextId = Number((maxRes && maxRes[0]) ? (maxRes[0].next_id || maxRes[0].nextid || maxRes[0].count) : Date.now());
+
       try {
         const res = await db.execute(sql`
-          INSERT INTO canteen_items (name, code, price, category, stock, image_url)
-          VALUES (${cleanName}, ${cleanCode}, ${cleanPrice}, ${cleanCategory}, ${cleanStock}, ${cleanImage})
+          INSERT INTO canteen_items (id, name, code, price, category, stock, image_url)
+          VALUES (${nextId}, ${cleanName}, ${cleanCode}, ${cleanPrice}, ${cleanCategory}, ${cleanStock}, ${cleanImage})
           RETURNING *;
         `) as any;
-        const newItem = (res && res[0]) ? res[0] : { id: Date.now(), name: cleanName, code: cleanCode, price: cleanPrice, category: cleanCategory, stock: cleanStock };
+        const newItem = (res && res[0]) ? res[0] : { id: nextId, name: cleanName, code: cleanCode, price: cleanPrice, category: cleanCategory, stock: cleanStock };
         
         revalidatePath("/dashboard/canteen");
         revalidatePath("/dashboard/pos");
@@ -169,11 +179,11 @@ export async function createCanteenItem(data: {
       } catch (err2) {
         console.error("Fallback insert error:", err2);
         const res = await db.execute(sql`
-          INSERT INTO canteen_items (name, price, category, stock)
-          VALUES (${cleanName}, ${cleanPrice}, ${cleanCategory}, ${cleanStock})
+          INSERT INTO canteen_items (id, name, price, category, stock)
+          VALUES (${nextId}, ${cleanName}, ${cleanPrice}, ${cleanCategory}, ${cleanStock})
           RETURNING *;
         `) as any;
-        const newItem = (res && res[0]) ? res[0] : { id: Date.now(), name: cleanName, code: cleanCode, price: cleanPrice, category: cleanCategory, stock: cleanStock };
+        const newItem = (res && res[0]) ? res[0] : { id: nextId, name: cleanName, code: cleanCode, price: cleanPrice, category: cleanCategory, stock: cleanStock };
         
         revalidatePath("/dashboard/canteen");
         revalidatePath("/dashboard/pos");
