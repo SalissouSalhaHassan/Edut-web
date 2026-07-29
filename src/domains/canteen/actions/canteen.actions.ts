@@ -142,11 +142,19 @@ export async function createCanteenItem(data: {
 
     // Synchronize PostgreSQL sequence to avoid unique key constraint violation
     await db.execute(sql`
-      SELECT setval(pg_get_serial_sequence('canteen_items', 'id'), COALESCE((SELECT MAX(id) FROM canteen_items), 1));
+      SELECT setval(pg_get_serial_sequence('canteen_items', 'id'), COALESCE((SELECT MAX(id) FROM canteen_items), 1) + 1, false);
     `).catch(() => {});
+
+    // Calculate next id reliably across all Postgres driver result formats
+    const rawMax = await db.execute(sql`SELECT COALESCE(MAX(id), 0) AS max_id FROM canteen_items`).catch(() => null);
+    const rows = Array.isArray(rawMax) ? rawMax : (rawMax as any)?.rows || [];
+    const firstRow = rows[0] || {};
+    const maxVal = Number(firstRow.max_id ?? firstRow.maxid ?? firstRow.max ?? 0);
+    const nextId = maxVal > 0 ? maxVal + 1 : (Math.floor(Date.now() / 1000) % 1000000) + 100;
 
     try {
       const [newItem] = await db.insert(canteenItems).values({
+        id: nextId,
         name: cleanName,
         code: cleanCode,
         price: cleanPrice,
@@ -160,10 +168,6 @@ export async function createCanteenItem(data: {
       return { success: true, data: newItem };
     } catch (e) {
       console.error("Insert canteen item Drizzle error:", e);
-      
-      // Calculate max id explicitly to prevent primary key collisions
-      const maxRes = await db.execute(sql`SELECT COALESCE(MAX(id), 0) + 1 AS next_id FROM canteen_items`) as any;
-      const nextId = Number((maxRes && maxRes[0]) ? (maxRes[0].next_id || maxRes[0].nextid || maxRes[0].count) : Date.now());
 
       try {
         const res = await db.execute(sql`
@@ -171,7 +175,8 @@ export async function createCanteenItem(data: {
           VALUES (${nextId}, ${cleanName}, ${cleanCode}, ${cleanPrice}, ${cleanCategory}, ${cleanStock}, ${cleanImage})
           RETURNING *;
         `) as any;
-        const newItem = (res && res[0]) ? res[0] : { id: nextId, name: cleanName, code: cleanCode, price: cleanPrice, category: cleanCategory, stock: cleanStock };
+        const resRows = Array.isArray(res) ? res : (res as any)?.rows || [];
+        const newItem = resRows[0] || { id: nextId, name: cleanName, code: cleanCode, price: cleanPrice, category: cleanCategory, stock: cleanStock };
         
         revalidatePath("/dashboard/canteen");
         revalidatePath("/dashboard/pos");
@@ -183,7 +188,8 @@ export async function createCanteenItem(data: {
           VALUES (${nextId}, ${cleanName}, ${cleanPrice}, ${cleanCategory}, ${cleanStock})
           RETURNING *;
         `) as any;
-        const newItem = (res && res[0]) ? res[0] : { id: nextId, name: cleanName, code: cleanCode, price: cleanPrice, category: cleanCategory, stock: cleanStock };
+        const resRows = Array.isArray(res) ? res : (res as any)?.rows || [];
+        const newItem = resRows[0] || { id: nextId, name: cleanName, code: cleanCode, price: cleanPrice, category: cleanCategory, stock: cleanStock };
         
         revalidatePath("/dashboard/canteen");
         revalidatePath("/dashboard/pos");
