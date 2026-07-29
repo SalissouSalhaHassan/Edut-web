@@ -7,6 +7,10 @@ export const libraryBookSchema = z.object({
   category: z.string().nullish(),
   totalQuantity: z.number().min(1).default(1),
   shelfLocation: z.string().nullish(),
+  fileUrl: z.string().nullish(),
+  fileType: z.string().nullish(),
+  isDigital: z.string().nullish(),
+  description: z.string().nullish(),
 });
 
 export const libraryIssueSchema = z.object({

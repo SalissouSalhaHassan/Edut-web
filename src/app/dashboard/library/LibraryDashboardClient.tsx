@@ -106,12 +106,12 @@ export default function LibraryDashboardClient({ books, issues }: LibraryDashboa
     const availableCopies = books.reduce((acc, book) => acc + Number(book.availableQuantity || 0), 0);
     const borrowedCopies = Math.max(totalCopies - availableCopies, activeIssues.length);
     const circulationRate = totalCopies ? Math.round((borrowedCopies / totalCopies) * 100) : 0;
-    const lowStock = books.filter((book) => Number(book.availableQuantity || 0) > 0 && Number(book.availableQuantity || 0) <= 2).length;
+    const digitalCount = books.filter((book) => book.isDigital === "true" || !!book.fileUrl).length;
 
     return [
-      { label: "Titres", value: books.length, helper: "Références catalogue", icon: Book, tone: "bg-indigo-50 text-indigo-700" },
-      { label: "Exemplaires", value: totalCopies, helper: `${availableCopies} disponibles`, icon: Bookmark, tone: "bg-blue-50 text-blue-700" },
-      { label: "Emprunts actifs", value: activeIssues.length, helper: `${returnedIssues.length} retours enregistrés`, icon: Repeat, tone: "bg-amber-50 text-amber-700" },
+      { label: "Ressources Totales", value: books.length, helper: `${digitalCount} numériques (PDF/E-Books)`, icon: Book, tone: "bg-indigo-50 text-indigo-700" },
+      { label: "Numérique (E-Books)", value: digitalCount, helper: "Accès illimité en ligne", icon: Bookmark, tone: "bg-violet-50 text-violet-700" },
+      { label: "Emprunts Physiques", value: activeIssues.length, helper: `${returnedIssues.length} retours enregistrés`, icon: Repeat, tone: "bg-amber-50 text-amber-700" },
       { label: "En retard", value: overdueIssues.length, helper: "À relancer rapidement", icon: AlertCircle, tone: "bg-rose-50 text-rose-700" },
       { label: "Rotation", value: `${circulationRate}%`, helper: "Taux de circulation", icon: TrendingUp, tone: "bg-emerald-50 text-emerald-700" },
       { label: "Stock faible", value: lowStock, helper: "Disponibilité limitée", icon: CalendarClock, tone: "bg-orange-50 text-orange-700" },
@@ -126,9 +126,9 @@ export default function LibraryDashboardClient({ books, issues }: LibraryDashboa
             <Book size={28} />
           </div>
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.22em] text-indigo-600">Centre documentaire</p>
-            <h1 className="text-4xl font-black tracking-tight text-slate-950">Bibliothèque</h1>
-            <p className="mt-1 text-sm font-bold text-slate-500">Catalogue, emprunts, retours, retards et suivi des disponibilités.</p>
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-indigo-600">Centre documentaire & Bibliothèque Numérique</p>
+            <h1 className="text-4xl font-black tracking-tight text-slate-950">Bibliothèque Numérique & Centre Documentaire</h1>
+            <p className="mt-1 text-sm font-bold text-slate-500">Catalogue hybride, consultation en ligne (PDF / E-Books), emprunts et gestion des fonds documentaires.</p>
           </div>
         </div>
         <div className="flex flex-wrap gap-3">
@@ -228,27 +228,53 @@ export default function LibraryDashboardClient({ books, issues }: LibraryDashboa
                     return (
                       <tr key={book.id} className="hover:bg-slate-50/60">
                         <td className="px-6 py-5">
-                          <p className="font-black text-slate-950">{book.title}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-black text-slate-950">{book.title}</p>
+                            {book.isDigital === "true" ? (
+                              <span className="rounded-md bg-indigo-100 px-2 py-0.5 text-[9px] font-black text-indigo-700 uppercase">💻 Numérique ({book.fileType || "PDF"})</span>
+                            ) : (
+                              <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[9px] font-bold text-slate-600 uppercase">📖 Physique</span>
+                            )}
+                          </div>
                           <p className="mt-1 text-xs font-bold text-slate-400">{book.author || "Auteur inconnu"}</p>
+                          {book.description && <p className="mt-1 text-[11px] font-medium text-slate-500 line-clamp-1">{book.description}</p>}
                         </td>
                         <td className="px-6 py-5">
                           <span className="rounded-full bg-slate-100 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-slate-600">{book.category || "Non classé"}</span>
                         </td>
                         <td className="px-6 py-5 text-xs font-bold text-slate-500">{book.isbn || "-"}</td>
                         <td className="px-6 py-5">
-                          <span className="inline-flex items-center gap-1 text-xs font-bold text-slate-500"><MapPin size={12} /> {book.shelfLocation || "N/A"}</span>
+                          <span className="inline-flex items-center gap-1 text-xs font-bold text-slate-500"><MapPin size={12} /> {book.shelfLocation || (book.isDigital === "true" ? "Serveur / Cloud" : "N/A")}</span>
                         </td>
                         <td className="px-6 py-5 text-center">
-                          <p className={`text-lg font-black ${available <= 0 ? "text-rose-600" : available <= 2 ? "text-amber-600" : "text-emerald-600"}`}>
-                            {available}<span className="text-xs text-slate-400"> / {total}</span>
-                          </p>
-                          <div className="mx-auto mt-2 h-1.5 w-24 overflow-hidden rounded-full bg-slate-100">
-                            <div className={`h-full ${available <= 0 ? "bg-rose-500" : available <= 2 ? "bg-amber-500" : "bg-emerald-500"}`} style={{ width: `${Math.min(ratio, 100)}%` }} />
-                          </div>
+                          {book.isDigital === "true" ? (
+                            <span className="rounded-full bg-emerald-50 border border-emerald-200 px-3 py-1 text-[10px] font-black text-emerald-700 uppercase">
+                              ∞ Accès Illimité
+                            </span>
+                          ) : (
+                            <>
+                              <p className={`text-lg font-black ${available <= 0 ? "text-rose-600" : available <= 2 ? "text-amber-600" : "text-emerald-600"}`}>
+                                {available}<span className="text-xs text-slate-400"> / {total}</span>
+                              </p>
+                              <div className="mx-auto mt-2 h-1.5 w-24 overflow-hidden rounded-full bg-slate-100">
+                                <div className={`h-full ${available <= 0 ? "bg-rose-500" : available <= 2 ? "bg-amber-500" : "bg-emerald-500"}`} style={{ width: `${Math.min(ratio, 100)}%` }} />
+                              </div>
+                            </>
+                          )}
                         </td>
                         <td className="px-6 py-5 text-right print:hidden">
                           <div className="flex items-center justify-end gap-2">
-                            {available > 0 && (
+                            {book.fileUrl && (
+                              <a
+                                href={book.fileUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="rounded-xl bg-indigo-600 px-4 py-2 text-xs font-black text-white hover:bg-indigo-700 shadow-xs flex items-center gap-1"
+                              >
+                                📥 Consulter / Lire
+                              </a>
+                            )}
+                            {book.isDigital !== "true" && available > 0 && (
                               <IssueBookDialog
                                 bookId={book.id}
                                 bookTitle={book.title}
@@ -256,7 +282,7 @@ export default function LibraryDashboardClient({ books, issues }: LibraryDashboa
                               />
                             )}
                             <ActionMenu
-                              title="Gérer le livre"
+                              title="Gérer la ressource"
                               onDelete={deleteLibraryBook.bind(null, book.id)}
                               editDialog={<BookDialog mode="edit" initialData={book} />}
                             />

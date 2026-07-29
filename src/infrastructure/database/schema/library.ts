@@ -13,6 +13,10 @@ export const libraryBooks = pgTable("library_books", {
   totalQuantity: integer("total_quantity").notNull().default(1),
   availableQuantity: integer("available_quantity").notNull().default(1),
   shelfLocation: varchar("shelf_location", { length: 100 }),
+  fileUrl: varchar("file_url", { length: 500 }),
+  fileType: varchar("file_type", { length: 50 }).default("PDF"), // PDF, EPUB, LINK, AUDIO, VIDEO
+  isDigital: text("is_digital").default("false"), // "true" | "false"
+  description: text("description"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

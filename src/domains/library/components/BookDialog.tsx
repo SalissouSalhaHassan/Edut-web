@@ -25,13 +25,18 @@ export default function BookDialog({ mode = "add", initialData, trigger }: BookD
     setError("");
 
     const form = new FormData(e.currentTarget);
+    const isDig = form.get("isDigital") === "true";
     const data: LibraryBookFormData = {
       title: form.get("title") as string,
       author: form.get("author") as string,
       isbn: form.get("isbn") as string,
       category: form.get("category") as string,
-      totalQuantity: Number(form.get("totalQuantity")) || 1,
+      totalQuantity: isDig ? 9999 : (Number(form.get("totalQuantity")) || 1),
       shelfLocation: form.get("shelfLocation") as string,
+      fileUrl: form.get("fileUrl") as string,
+      fileType: form.get("fileType") as string || "PDF",
+      isDigital: isDig ? "true" : "false",
+      description: form.get("description") as string,
     };
 
     let result;
@@ -50,21 +55,23 @@ export default function BookDialog({ mode = "add", initialData, trigger }: BookD
     }
   }
 
+  const [isDigitalState, setIsDigitalState] = useState(initialData?.isDigital === "true");
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <div onClick={() => setOpen(true)} className="inline-block cursor-pointer">
         {trigger || (
 
         <button className="rounded-2xl px-6 py-4 bg-slate-900 text-white hover:bg-slate-800 shadow-xl shadow-slate-200 transition-all font-bold gap-2 flex items-center justify-center">
-          Ajouter un Livre
+          Ajouter une Ressource / Livre
         </button>
       
         )}
       </div>
-      <DialogContent className="sm:max-w-xl rounded-[2.5rem] glass p-8 border-none shadow-2xl">
+      <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto rounded-[2.5rem] glass p-8 border-none shadow-2xl">
         <DialogHeader className="mb-6">
           <DialogTitle className="text-3xl font-black text-slate-900 tracking-tight">
-            {mode === "edit" ? "Modifier le Livre" : "Nouveau Livre"}
+            {mode === "edit" ? "Modifier la Ressource" : "Nouvelle Ressource Documentaire"}
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -75,18 +82,35 @@ export default function BookDialog({ mode = "add", initialData, trigger }: BookD
           )}
 
           <div className="space-y-4">
+            {/* Format Selection: Physical vs Digital */}
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between">
+              <div>
+                <p className="text-xs font-black uppercase text-slate-900">Format de la ressource</p>
+                <p className="text-[11px] font-semibold text-slate-500">Choisissez si la ressource est un e-book/document numérique ou physique</p>
+              </div>
+              <select
+                name="isDigital"
+                value={isDigitalState ? "true" : "false"}
+                onChange={(e) => setIsDigitalState(e.target.value === "true")}
+                className="h-10 px-3 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-800 outline-none"
+              >
+                <option value="false">📖 Livre Physique</option>
+                <option value="true">💻 Numérique (E-Book / PDF / Lien)</option>
+              </select>
+            </div>
+
             <div className="space-y-2">
-              <Label className="text-xs font-bold text-slate-500 ml-1">Titre du Livre *</Label>
+              <Label className="text-xs font-bold text-slate-500 ml-1">Titre de la ressource / Livre *</Label>
               <Input name="title" defaultValue={initialData?.title} required className="rounded-xl border-slate-200 h-11" />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="text-xs font-bold text-slate-500 ml-1">Auteur</Label>
+                <Label className="text-xs font-bold text-slate-500 ml-1">Auteur / Source</Label>
                 <Input name="author" defaultValue={initialData?.author} className="rounded-xl border-slate-200 h-11" />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs font-bold text-slate-500 ml-1">ISBN / Code</Label>
+                <Label className="text-xs font-bold text-slate-500 ml-1">ISBN / Code de référence</Label>
                 <Input name="isbn" defaultValue={initialData?.isbn} className="rounded-xl border-slate-200 h-11" />
               </div>
             </div>
@@ -102,19 +126,51 @@ export default function BookDialog({ mode = "add", initialData, trigger }: BookD
                   <option value="Informatique">Informatique</option>
                   <option value="Langues">Langues</option>
                   <option value="Dictionnaires">Dictionnaires</option>
+                  <option value="Manuels Scolaires">Manuels Scolaires</option>
+                  <option value="Recherche & Thèses">Recherche & Thèses</option>
                   <option value="Autre">Autre</option>
                 </select>
               </div>
               <div className="space-y-2">
                 <Label className="text-xs font-bold text-slate-500 ml-1">Rayon / Emplacement</Label>
-                <Input name="shelfLocation" defaultValue={initialData?.shelfLocation} placeholder="ex: A1" className="rounded-xl border-slate-200 h-11" />
+                <Input name="shelfLocation" defaultValue={initialData?.shelfLocation} placeholder={isDigitalState ? "ex: Serveur / Cloud" : "ex: A1"} className="rounded-xl border-slate-200 h-11" />
               </div>
             </div>
 
-            <div className="space-y-2 w-1/2">
-              <Label className="text-xs font-bold text-slate-500 ml-1">Quantité Totale *</Label>
-              <Input name="totalQuantity" type="number" defaultValue={initialData?.totalQuantity || 1} required className="rounded-xl border-slate-200 h-11" />
+            {/* Digital specific fields */}
+            {isDigitalState && (
+              <div className="p-4 bg-indigo-50/50 border border-indigo-100 rounded-2xl space-y-4">
+                <p className="text-xs font-black uppercase text-indigo-700">Détails de la ressource numérique</p>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="col-span-2 space-y-1.5">
+                    <Label className="text-xs font-bold text-slate-600 ml-1">Lien / URL du Fichier PDF ou Document</Label>
+                    <Input name="fileUrl" defaultValue={initialData?.fileUrl} placeholder="https://... ou path/to/document.pdf" className="rounded-xl border-slate-200 h-10 bg-white" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-bold text-slate-600 ml-1">Type Fichier</Label>
+                    <select name="fileType" defaultValue={initialData?.fileType || "PDF"} className="w-full rounded-xl border border-slate-200 bg-white px-2 h-10 text-xs font-bold outline-none">
+                      <option value="PDF">PDF</option>
+                      <option value="EPUB">EPUB / E-Book</option>
+                      <option value="LINK">Lien Web</option>
+                      <option value="AUDIO">Audio</option>
+                      <option value="VIDEO">Vidéo</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label className="text-xs font-bold text-slate-500 ml-1">Résumé / Description</Label>
+              <textarea name="description" defaultValue={initialData?.description} rows={2} placeholder="Brève présentation du document..." className="w-full p-3 rounded-xl border border-slate-200 bg-white text-xs outline-none" />
             </div>
+
+            {!isDigitalState && (
+              <div className="space-y-2 w-1/2">
+                <Label className="text-xs font-bold text-slate-500 ml-1">Quantité Totale en stock *</Label>
+                <Input name="totalQuantity" type="number" defaultValue={initialData?.totalQuantity || 1} required className="rounded-xl border-slate-200 h-11" />
+              </div>
+            )}
           </div>
 
           <div className="flex justify-end gap-4 pt-4">
