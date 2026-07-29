@@ -106,6 +106,7 @@ export default function LibraryDashboardClient({ books, issues }: LibraryDashboa
     const availableCopies = books.reduce((acc, book) => acc + Number(book.availableQuantity || 0), 0);
     const borrowedCopies = Math.max(totalCopies - availableCopies, activeIssues.length);
     const circulationRate = totalCopies ? Math.round((borrowedCopies / totalCopies) * 100) : 0;
+    const lowStock = books.filter((book) => Number(book.availableQuantity || 0) > 0 && Number(book.availableQuantity || 0) <= 2).length;
     const digitalCount = books.filter((book) => book.isDigital === "true" || !!book.fileUrl).length;
 
     return [
