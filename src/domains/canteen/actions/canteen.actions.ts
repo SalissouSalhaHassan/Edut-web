@@ -59,10 +59,12 @@ async function ensureCanteenTablesExist() {
         image_url TEXT,
         created_at TIMESTAMP DEFAULT NOW()
       );
+    `).catch(() => {});
 
-      ALTER TABLE canteen_items ADD COLUMN IF NOT EXISTS code VARCHAR(50);
-      ALTER TABLE canteen_items ADD COLUMN IF NOT EXISTS image_url TEXT;
+    await db.execute(sql`ALTER TABLE canteen_items ADD COLUMN IF NOT EXISTS code VARCHAR(50);`).catch(() => {});
+    await db.execute(sql`ALTER TABLE canteen_items ADD COLUMN IF NOT EXISTS image_url TEXT;`).catch(() => {});
 
+    await db.execute(sql`
       CREATE TABLE IF NOT EXISTS canteen_invoices (
         id SERIAL PRIMARY KEY,
         invoice_number VARCHAR(100) NOT NULL UNIQUE,
@@ -79,7 +81,9 @@ async function ensureCanteenTablesExist() {
         cashier_name VARCHAR(100) DEFAULT 'admin',
         created_at TIMESTAMP DEFAULT NOW()
       );
-    `);
+    `).catch(() => {});
+
+    await db.execute(sql`ALTER TABLE canteen_invoices ADD COLUMN IF NOT EXISTS cashier_name VARCHAR(100) DEFAULT 'admin';`).catch(() => {});
   } catch (err) {
     console.error("Canteen table auto-creation info:", err);
   }
@@ -130,11 +134,11 @@ export async function createCanteenItem(data: {
     await ensureCanteenTablesExist();
     
     const cleanName = data.name.trim();
-    const cleanCode = data.code?.trim() || null;
+    const cleanCode = (data.code && data.code.trim().length > 0) ? data.code.trim() : null;
     const cleanPrice = Number(data.price) || 0;
     const cleanCategory = data.category || "Snacks";
     const cleanStock = Number(data.stock) ?? 100;
-    const cleanImage = data.imageUrl || null;
+    const cleanImage = (data.imageUrl && data.imageUrl.trim().length > 0) ? data.imageUrl.trim() : null;
 
     try {
       const [newItem] = await db.insert(canteenItems).values({
@@ -150,17 +154,31 @@ export async function createCanteenItem(data: {
       revalidatePath("/dashboard/pos");
       return { success: true, data: newItem };
     } catch (e) {
-      console.error("Insert canteen item error:", e);
-      const res = await db.execute(sql`
-        INSERT INTO canteen_items (name, code, price, category, stock, image_url)
-        VALUES (${cleanName}, ${cleanCode}, ${cleanPrice}, ${cleanCategory}, ${cleanStock}, ${cleanImage})
-        RETURNING *;
-      `) as any;
-      const newItem = (res && res[0]) ? res[0] : { id: Date.now(), name: cleanName, code: cleanCode, price: cleanPrice, category: cleanCategory, stock: cleanStock };
-      
-      revalidatePath("/dashboard/canteen");
-      revalidatePath("/dashboard/pos");
-      return { success: true, data: newItem };
+      console.error("Insert canteen item Drizzle error:", e);
+      try {
+        const res = await db.execute(sql`
+          INSERT INTO canteen_items (name, code, price, category, stock, image_url)
+          VALUES (${cleanName}, ${cleanCode}, ${cleanPrice}, ${cleanCategory}, ${cleanStock}, ${cleanImage})
+          RETURNING *;
+        `) as any;
+        const newItem = (res && res[0]) ? res[0] : { id: Date.now(), name: cleanName, code: cleanCode, price: cleanPrice, category: cleanCategory, stock: cleanStock };
+        
+        revalidatePath("/dashboard/canteen");
+        revalidatePath("/dashboard/pos");
+        return { success: true, data: newItem };
+      } catch (err2) {
+        console.error("Fallback insert error:", err2);
+        const res = await db.execute(sql`
+          INSERT INTO canteen_items (name, price, category, stock)
+          VALUES (${cleanName}, ${cleanPrice}, ${cleanCategory}, ${cleanStock})
+          RETURNING *;
+        `) as any;
+        const newItem = (res && res[0]) ? res[0] : { id: Date.now(), name: cleanName, code: cleanCode, price: cleanPrice, category: cleanCategory, stock: cleanStock };
+        
+        revalidatePath("/dashboard/canteen");
+        revalidatePath("/dashboard/pos");
+        return { success: true, data: newItem };
+      }
     }
   });
 }
