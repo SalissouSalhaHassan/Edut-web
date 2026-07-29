@@ -94,6 +94,10 @@ async function ensureCanteenTablesExist() {
     await db.execute(sql`ALTER TABLE canteen_invoices ADD COLUMN IF NOT EXISTS cashier_name VARCHAR(100) DEFAULT 'admin';`).catch(() => {});
     await db.execute(sql`ALTER TABLE canteen_invoices ADD COLUMN IF NOT EXISTS school_id INTEGER;`).catch(() => {});
     await db.execute(sql`ALTER TABLE canteen_invoices ALTER COLUMN school_id DROP NOT NULL;`).catch(() => {});
+
+    // Auto-repair existing legacy database rows with missing codes or 0 stock
+    await db.execute(sql`UPDATE canteen_items SET stock = 100 WHERE stock IS NULL OR stock = 0;`).catch(() => {});
+    await db.execute(sql`UPDATE canteen_items SET code = CONCAT('ART-', LPAD(id::text, 3, '0')) WHERE code IS NULL OR code = '';`).catch(() => {});
   } catch (err) {
     console.error("Canteen table auto-creation info:", err);
   }
@@ -170,10 +174,10 @@ export async function createCanteenItem(data: {
     await db.execute(sql`ALTER TABLE canteen_items ADD COLUMN IF NOT EXISTS school_id INTEGER;`).catch(() => {});
 
     const cleanName = data.name.trim();
-    const cleanCode = (data.code && data.code.trim().length > 0) ? data.code.trim() : null;
+    const cleanCode = (data.code && data.code.trim().length > 0) ? data.code.trim().toUpperCase() : `ART-${Math.floor(100 + Math.random() * 900)}`;
     const cleanPrice = Number(data.price) || 0;
     const cleanCategory = data.category || "Snacks";
-    const cleanStock = Number(data.stock) ?? 100;
+    const cleanStock = (data.stock !== undefined && data.stock !== null && !isNaN(Number(data.stock))) ? Number(data.stock) : 100;
     const cleanImage = (data.imageUrl && data.imageUrl.trim().length > 0) ? data.imageUrl.trim() : null;
     const schoolId = user?.schoolId || null;
 

@@ -721,7 +721,14 @@ export default function CanteenPosSystem({
             <Button
               onClick={() => {
                 setIsEditingArticle(false);
-                setArticleForm({ id: 0, name: "", code: "", price: 0, category: "Snacks", stock: 100 });
+                setArticleForm({ 
+                  id: 0, 
+                  name: "", 
+                  code: `ART-${String(items.length + 1).padStart(3, '0')}`, 
+                  price: 0, 
+                  category: "Snacks", 
+                  stock: 100 
+                });
                 setShowArticleModal(true);
               }}
               className="h-12 px-6 bg-purple-600 hover:bg-purple-700 text-white rounded-2xl font-black gap-2 shadow-lg shadow-purple-600/30"
@@ -746,7 +753,9 @@ export default function CanteenPosSystem({
               <tbody className="divide-y divide-slate-800 text-sm font-bold">
                 {items.map((art) => (
                   <tr key={art.id} className="hover:bg-slate-800/50">
-                    <td className="p-4 text-purple-400 font-mono text-xs">{art.code || "---"}</td>
+                    <td className="p-4 text-purple-400 font-mono text-xs">
+                      {art.code || `ART-${String(art.id).padStart(3, '0')}`}
+                    </td>
                     <td className="p-4 text-white font-extrabold">{art.name}</td>
                     <td className="p-4">
                       <span className="bg-slate-800 text-slate-300 px-3 py-1 rounded-lg text-xs font-black border border-slate-700">
@@ -756,9 +765,9 @@ export default function CanteenPosSystem({
                     <td className="p-4 text-right text-emerald-400 font-black">{formatCurrency(art.price)}</td>
                     <td className="p-4 text-center">
                       <span className={`px-3 py-1 rounded-lg text-xs font-black ${
-                        (art.stock || 0) < 10 ? "bg-rose-950 text-rose-400 border border-rose-800" : "bg-slate-800 text-slate-200"
+                        (art.stock ?? 100) < 10 ? "bg-rose-950 text-rose-400 border border-rose-800" : "bg-slate-800 text-slate-200"
                       }`}>
-                        {art.stock || 0}
+                        {art.stock ?? 100}
                       </span>
                     </td>
                     <td className="p-4 text-center">
