@@ -162,10 +162,9 @@ export async function getCanteenStudents() {
       limit: 100,
       columns: {
         id: true,
-        firstName: true,
-        lastName: true,
-        matricule: true,
-        studentClass: true,
+        nomEtudiant: true,
+        numAdmission: true,
+        classe: true,
       }
     });
     return { data };

@@ -133,8 +133,8 @@ export default function CanteenPosSystem({
     if (!clientSearch) return students.slice(0, 10);
     const q = clientSearch.toLowerCase();
     return students.filter((s: any) => 
-      `${s.firstName} ${s.lastName}`.toLowerCase().includes(q) || 
-      (s.matricule && s.matricule.toLowerCase().includes(q))
+      (s.nomEtudiant && s.nomEtudiant.toLowerCase().includes(q)) || 
+      (s.numAdmission && s.numAdmission.toLowerCase().includes(q))
     ).slice(0, 10);
   }, [students, clientSearch]);
 
@@ -611,14 +611,14 @@ export default function CanteenPosSystem({
                         <button
                           key={st.id}
                           onClick={() => {
-                            setSelectedClient({ id: st.id, name: `${st.firstName} ${st.lastName}` });
+                            setSelectedClient({ id: st.id, name: st.nomEtudiant || "Élève" });
                             setShowClientDropdown(false);
                             setClientSearch("");
                           }}
                           className="w-full p-2 text-left text-xs font-bold text-slate-200 hover:bg-slate-700 flex justify-between"
                         >
-                          <span>{st.firstName} {st.lastName}</span>
-                          <span className="text-[10px] text-slate-400">{st.studentClass || "Élève"}</span>
+                          <span>{st.nomEtudiant}</span>
+                          <span className="text-[10px] text-slate-400">{st.classe || "Élève"}</span>
                         </button>
                       ))}
                     </div>
