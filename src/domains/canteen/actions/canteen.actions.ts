@@ -3,17 +3,55 @@
 import { db } from "@/infrastructure/database";
 import { canteenItems, studentWallets, canteenTransactions, canteenInvoices } from "@/infrastructure/database/schema/canteen";
 import { students } from "@/infrastructure/database/schema/students";
-import { eq, desc, and, like, or } from "drizzle-orm";
+import { eq, desc, and, like, or, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { protectedDbAction } from "@/lib/protected-action";
+
+// Helper to ensure tables exist in PostgreSQL database
+async function ensureCanteenTablesExist() {
+  try {
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS canteen_items (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(150) NOT NULL,
+        code VARCHAR(50),
+        price DOUBLE PRECISION NOT NULL,
+        category VARCHAR(50) DEFAULT 'Général',
+        stock INTEGER DEFAULT 100,
+        image_url TEXT,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+
+      CREATE TABLE IF NOT EXISTS canteen_invoices (
+        id SERIAL PRIMARY KEY,
+        invoice_number VARCHAR(100) NOT NULL UNIQUE,
+        client_name VARCHAR(150) DEFAULT 'CLIENT COMPTANT',
+        student_id INTEGER REFERENCES students(id) ON DELETE SET NULL,
+        subtotal DOUBLE PRECISION NOT NULL,
+        tva DOUBLE PRECISION DEFAULT 0,
+        total_ttc DOUBLE PRECISION NOT NULL,
+        amount_received DOUBLE PRECISION DEFAULT 0,
+        change_given DOUBLE PRECISION DEFAULT 0,
+        payment_method VARCHAR(50) DEFAULT 'Cash',
+        status VARCHAR(50) DEFAULT 'Payée',
+        items_json TEXT,
+        cashier_name VARCHAR(100) DEFAULT 'admin',
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+  } catch (err) {
+    console.error("Canteen table auto-creation info:", err);
+  }
+}
 
 // ─── Articles / Products CRUD ──────────────────────────────────────────────────
 export async function getCanteenItems() {
   return protectedDbAction("Canteen", "canView", async () => {
+    await ensureCanteenTablesExist();
     const data = await db.query.canteenItems.findMany({
       orderBy: [desc(canteenItems.id)]
-    });
-    return { data };
+    }).catch(() => []);
+    return { data: data || [] };
   });
 }
 
@@ -26,6 +64,7 @@ export async function createCanteenItem(data: {
   imageUrl?: string;
 }) {
   return protectedDbAction("Canteen", "canEdit", async () => {
+    await ensureCanteenTablesExist();
     const [newItem] = await db.insert(canteenItems).values({
       name: data.name,
       code: data.code || null,
@@ -50,6 +89,7 @@ export async function updateCanteenItem(id: number, data: {
   imageUrl?: string;
 }) {
   return protectedDbAction("Canteen", "canEdit", async () => {
+    await ensureCanteenTablesExist();
     await db.update(canteenItems)
       .set({
         name: data.name,
@@ -80,11 +120,12 @@ export async function deleteCanteenItem(id: number) {
 // ─── Invoices / Factures CRUD ──────────────────────────────────────────────────
 export async function getCanteenInvoices() {
   return protectedDbAction("Canteen", "canView", async () => {
+    await ensureCanteenTablesExist();
     const data = await db.query.canteenInvoices.findMany({
       orderBy: [desc(canteenInvoices.id)],
       limit: 100,
-    });
-    return { data };
+    }).catch(() => []);
+    return { data: data || [] };
   });
 }
 
@@ -101,13 +142,16 @@ export async function createCanteenInvoice(data: {
   cashierName?: string;
 }) {
   return protectedDbAction("Canteen", "canEdit", async () => {
+    await ensureCanteenTablesExist();
+
+    const validStudentId = data.studentId && !isNaN(Number(data.studentId)) && Number(data.studentId) > 0 ? Number(data.studentId) : null;
     const randomSuffix = Math.floor(10000 + Math.random() * 90000);
     const invoiceNumber = `FAC-${Date.now().toString().slice(-6)}-${randomSuffix}`;
 
     const [newInvoice] = await db.insert(canteenInvoices).values({
       invoiceNumber,
       clientName: data.clientName || "CLIENT COMPTANT",
-      studentId: data.studentId || null,
+      studentId: validStudentId,
       subtotal: Number(data.subtotal) || 0,
       tva: Number(data.tva) || 0,
       totalTtc: Number(data.totalTtc) || 0,
@@ -121,13 +165,13 @@ export async function createCanteenInvoice(data: {
 
     // Deduct stock for items if possible
     try {
-      const items = JSON.parse(data.itemsJson || "[]");
-      for (const item of items) {
+      const itemsList = JSON.parse(data.itemsJson || "[]");
+      for (const item of itemsList) {
         if (item.id) {
           const currentItem = await db.query.canteenItems.findFirst({
             where: eq(canteenItems.id, item.id)
           });
-          if (currentItem && currentItem.stock) {
+          if (currentItem && typeof currentItem.stock === 'number') {
             const newStock = Math.max(0, currentItem.stock - (item.quantity || 1));
             await db.update(canteenItems).set({ stock: newStock }).where(eq(canteenItems.id, item.id));
           }
