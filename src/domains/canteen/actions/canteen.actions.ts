@@ -3,9 +3,47 @@
 import { db } from "@/infrastructure/database";
 import { canteenItems, studentWallets, canteenTransactions, canteenInvoices } from "@/infrastructure/database/schema/canteen";
 import { students } from "@/infrastructure/database/schema/students";
+import { schoolBranches, settings } from "@/infrastructure/database/schema/settings";
+import { schools } from "@/infrastructure/database/schema/auth";
+import { getActiveSchoolId } from "@/domains/auth/services/school";
 import { eq, desc, and, like, or, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { protectedDbAction } from "@/lib/protected-action";
+
+export async function getActiveSchoolProfile() {
+  return protectedDbAction("Canteen", "canView", async () => {
+    try {
+      const schoolId = await getActiveSchoolId();
+
+      const branch = await db.query.schoolBranches.findFirst({
+        where: eq(schoolBranches.schoolId, schoolId),
+      }).catch(() => null);
+
+      if (branch && branch.name) {
+        return { data: { schoolName: branch.name } };
+      }
+
+      const school = await db.query.schools.findFirst({
+        where: eq(schools.id, schoolId),
+      }).catch(() => null);
+
+      if (school && school.name) {
+        return { data: { schoolName: school.name } };
+      }
+
+      const nameSetting = await db.query.settings.findFirst({
+        where: and(eq(settings.key, "school_name"), eq(settings.schoolId, schoolId))
+      }).catch(() => null);
+
+      if (nameSetting?.value) {
+        return { data: { schoolName: nameSetting.value } };
+      }
+    } catch (e) {
+      console.error("School profile fetch error:", e);
+    }
+    return { data: { schoolName: "Établissement Scolaire" } };
+  });
+}
 
 // Helper to ensure tables exist in PostgreSQL database
 async function ensureCanteenTablesExist() {

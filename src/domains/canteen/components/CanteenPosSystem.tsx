@@ -18,7 +18,8 @@ import {
   getCanteenInvoices, 
   createCanteenInvoice, 
   voidCanteenInvoice, 
-  getCanteenStudents 
+  getCanteenStudents,
+  getActiveSchoolProfile
 } from "@/domains/canteen/actions/canteen.actions";
 
 interface CartItem {
@@ -33,14 +34,19 @@ interface CartItem {
 interface CanteenPosSystemProps {
   initialItems?: any[];
   initialInvoices?: any[];
+  schoolName?: string;
 }
 
 export default function CanteenPosSystem({ 
   initialItems = [], 
-  initialInvoices = [] 
+  initialInvoices = [],
+  schoolName = ""
 }: CanteenPosSystemProps) {
   // Active Main View Tab: 'pos' | 'articles' | 'invoices'
   const [activeTab, setActiveTab] = useState<"pos" | "articles" | "invoices">("pos");
+
+  // School Name State
+  const [displaySchoolName, setDisplaySchoolName] = useState<string>(schoolName || "Établissement Scolaire");
 
   // Real Database State
   const [items, setItems] = useState<any[]>(initialItems);
@@ -64,6 +70,9 @@ export default function CanteenPosSystem({
 
   // Fetch real data from PostgreSQL database
   useEffect(() => {
+    getActiveSchoolProfile().then((res: any) => {
+      if (res.data?.schoolName) setDisplaySchoolName(res.data.schoolName);
+    });
     getCanteenItems().then((res: any) => {
       const dbItems = res.data?.data || res.data || [];
       if (Array.isArray(dbItems)) setItems(dbItems);
@@ -265,7 +274,7 @@ export default function CanteenPosSystem({
 
           <div className="flex items-center gap-2 border-l border-slate-700/80 pl-4">
             <Store className="text-purple-400" size={22} />
-            <span className="font-black text-lg tracking-wider text-white uppercase">ETS SOUNO</span>
+            <span className="font-black text-lg tracking-wider text-white uppercase">{displaySchoolName}</span>
           </div>
 
           {/* Navigation View Switcher */}
@@ -888,7 +897,7 @@ export default function CanteenPosSystem({
             </button>
 
             <div className="text-center border-b border-slate-200 pb-3 space-y-1">
-              <h3 className="font-black text-lg text-slate-900 tracking-wider">ETS SOUNO</h3>
+              <h3 className="font-black text-lg text-slate-900 tracking-wider">{displaySchoolName}</h3>
               <p className="text-[10px] text-slate-500 font-bold uppercase">Point de Vente - Ticket de Caisse</p>
               <p className="text-[10px] text-slate-400 font-semibold">{new Date(printableReceipt.createdAt || Date.now()).toLocaleString('fr-FR')}</p>
               <p className="text-[10px] text-purple-700 font-bold">{printableReceipt.invoiceNumber}</p>
