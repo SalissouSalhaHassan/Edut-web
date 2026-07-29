@@ -57,12 +57,19 @@ async function ensureCanteenTablesExist() {
         category VARCHAR(50) DEFAULT 'Général',
         stock INTEGER DEFAULT 100,
         image_url TEXT,
+        school_id INTEGER,
         created_at TIMESTAMP DEFAULT NOW()
       );
     `).catch(() => {});
 
     await db.execute(sql`ALTER TABLE canteen_items ADD COLUMN IF NOT EXISTS code VARCHAR(50);`).catch(() => {});
     await db.execute(sql`ALTER TABLE canteen_items ADD COLUMN IF NOT EXISTS image_url TEXT;`).catch(() => {});
+    await db.execute(sql`ALTER TABLE canteen_items ADD COLUMN IF NOT EXISTS school_id INTEGER;`).catch(() => {});
+
+    await db.execute(sql`ALTER TABLE canteen_items ALTER COLUMN school_id DROP NOT NULL;`).catch(() => {});
+    await db.execute(sql`ALTER TABLE canteen_items ALTER COLUMN category DROP NOT NULL;`).catch(() => {});
+    await db.execute(sql`ALTER TABLE canteen_items ALTER COLUMN stock DROP NOT NULL;`).catch(() => {});
+    await db.execute(sql`ALTER TABLE canteen_items ALTER COLUMN code DROP NOT NULL;`).catch(() => {});
 
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS canteen_invoices (
@@ -79,11 +86,14 @@ async function ensureCanteenTablesExist() {
         status VARCHAR(50) DEFAULT 'Payée',
         items_json TEXT,
         cashier_name VARCHAR(100) DEFAULT 'admin',
+        school_id INTEGER,
         created_at TIMESTAMP DEFAULT NOW()
       );
     `).catch(() => {});
 
     await db.execute(sql`ALTER TABLE canteen_invoices ADD COLUMN IF NOT EXISTS cashier_name VARCHAR(100) DEFAULT 'admin';`).catch(() => {});
+    await db.execute(sql`ALTER TABLE canteen_invoices ADD COLUMN IF NOT EXISTS school_id INTEGER;`).catch(() => {});
+    await db.execute(sql`ALTER TABLE canteen_invoices ALTER COLUMN school_id DROP NOT NULL;`).catch(() => {});
   } catch (err) {
     console.error("Canteen table auto-creation info:", err);
   }
@@ -130,7 +140,7 @@ export async function createCanteenItem(data: {
   stock?: number;
   imageUrl?: string;
 }) {
-  return protectedDbAction("Canteen", "canEdit", async () => {
+  return protectedDbAction("Canteen", "canEdit", async (user: any) => {
     await ensureCanteenTablesExist();
     
     const cleanName = data.name.trim();
@@ -139,12 +149,9 @@ export async function createCanteenItem(data: {
     const cleanCategory = data.category || "Snacks";
     const cleanStock = Number(data.stock) ?? 100;
     const cleanImage = (data.imageUrl && data.imageUrl.trim().length > 0) ? data.imageUrl.trim() : null;
+    const schoolId = user?.schoolId || null;
 
-    // 1. Guarantee missing columns exist in PostgreSQL
-    await db.execute(sql`ALTER TABLE canteen_items ADD COLUMN IF NOT EXISTS code VARCHAR(50);`).catch(() => {});
-    await db.execute(sql`ALTER TABLE canteen_items ADD COLUMN IF NOT EXISTS image_url TEXT;`).catch(() => {});
-
-    // 2. Reset PostgreSQL sequence to safely exceed max(id)
+    // Reset sequence safely
     await db.execute(sql`
       SELECT setval(
         pg_get_serial_sequence('canteen_items', 'id'), 
@@ -153,22 +160,21 @@ export async function createCanteenItem(data: {
       );
     `).catch(() => {});
 
-    // 3. Perform clean insert using Drizzle without forcing explicit id
+    // Try multi-level insert
     try {
-      const [newItem] = await db.insert(canteenItems).values({
-        name: cleanName,
-        code: cleanCode,
-        price: cleanPrice,
-        category: cleanCategory,
-        stock: cleanStock,
-        imageUrl: cleanImage,
-      }).returning();
+      const res = await db.execute(sql`
+        INSERT INTO canteen_items (name, code, price, category, stock, image_url, school_id)
+        VALUES (${cleanName}, ${cleanCode}, ${cleanPrice}, ${cleanCategory}, ${cleanStock}, ${cleanImage}, ${schoolId})
+        RETURNING *;
+      `) as any;
+      const resRows = Array.isArray(res) ? res : (res as any)?.rows || [];
+      const newItem = resRows[0] || { name: cleanName, code: cleanCode, price: cleanPrice, category: cleanCategory, stock: cleanStock };
 
       revalidatePath("/dashboard/canteen");
       revalidatePath("/dashboard/pos");
       return { success: true, data: newItem };
-    } catch (e: any) {
-      console.error("Standard Drizzle insert failed, attempting raw SQL insert:", e?.message || e);
+    } catch (e1: any) {
+      console.error("Insert attempt 1 failed:", e1?.message || e1);
 
       try {
         const res = await db.execute(sql`
@@ -178,24 +184,29 @@ export async function createCanteenItem(data: {
         `) as any;
         const resRows = Array.isArray(res) ? res : (res as any)?.rows || [];
         const newItem = resRows[0] || { name: cleanName, code: cleanCode, price: cleanPrice, category: cleanCategory, stock: cleanStock };
-        
+
         revalidatePath("/dashboard/canteen");
         revalidatePath("/dashboard/pos");
         return { success: true, data: newItem };
-      } catch (err2: any) {
-        console.error("Raw SQL insert with code failed, attempting base insert:", err2?.message || err2);
-        
-        const res = await db.execute(sql`
-          INSERT INTO canteen_items (name, price, category, stock)
-          VALUES (${cleanName}, ${cleanPrice}, ${cleanCategory}, ${cleanStock})
-          RETURNING *;
-        `) as any;
-        const resRows = Array.isArray(res) ? res : (res as any)?.rows || [];
-        const newItem = resRows[0] || { name: cleanName, price: cleanPrice, category: cleanCategory, stock: cleanStock };
-        
-        revalidatePath("/dashboard/canteen");
-        revalidatePath("/dashboard/pos");
-        return { success: true, data: newItem };
+      } catch (e2: any) {
+        console.error("Insert attempt 2 failed:", e2?.message || e2);
+
+        try {
+          const res = await db.execute(sql`
+            INSERT INTO canteen_items (name, price)
+            VALUES (${cleanName}, ${cleanPrice})
+            RETURNING *;
+          `) as any;
+          const resRows = Array.isArray(res) ? res : (res as any)?.rows || [];
+          const newItem = resRows[0] || { name: cleanName, price: cleanPrice, category: cleanCategory, stock: cleanStock };
+
+          revalidatePath("/dashboard/canteen");
+          revalidatePath("/dashboard/pos");
+          return { success: true, data: newItem };
+        } catch (e3: any) {
+          console.error("Insert attempt 3 failed:", e3?.message || e3);
+          return { success: false, error: e3?.message || "Erreur d'insertion dans la base de données" };
+        }
       }
     }
   });
