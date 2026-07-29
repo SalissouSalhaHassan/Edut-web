@@ -103,9 +103,22 @@ async function ensureCanteenTablesExist() {
 export async function getCanteenItems() {
   return protectedDbAction("Canteen", "canView", async () => {
     await ensureCanteenTablesExist();
-    let data = await db.query.canteenItems.findMany({
-      orderBy: [desc(canteenItems.id)]
-    }).catch(() => []);
+
+    let data: any[] = [];
+    try {
+      data = await db.query.canteenItems.findMany({
+        orderBy: [desc(canteenItems.id)]
+      });
+    } catch (err1) {
+      console.error("Drizzle canteenItems query failed, trying raw SQL:", err1);
+      try {
+        const rawRes = await db.execute(sql`SELECT * FROM canteen_items ORDER BY id DESC`) as any;
+        data = Array.isArray(rawRes) ? rawRes : (rawRes as any)?.rows || [];
+      } catch (err2) {
+        console.error("Raw SQL canteen_items fetch failed:", err2);
+        data = [];
+      }
+    }
 
     // Seed database automatically if empty so POS operates 100% on real DB rows
     if (!data || data.length === 0) {
@@ -121,11 +134,17 @@ export async function getCanteenItems() {
         { name: "SANDWICH CHICKEN", code: "MEAL-01", price: 1500, category: "Repas", stock: 15 },
       ];
       for (const item of seedItems) {
-        await db.insert(canteenItems).values(item).catch(() => {});
+        await db.execute(sql`
+          INSERT INTO canteen_items (name, code, price, category, stock)
+          VALUES (${item.name}, ${item.code}, ${item.price}, ${item.category}, ${item.stock})
+        `).catch(() => {});
       }
-      data = await db.query.canteenItems.findMany({
-        orderBy: [desc(canteenItems.id)]
-      }).catch(() => []);
+      try {
+        const rawRes = await db.execute(sql`SELECT * FROM canteen_items ORDER BY id DESC`) as any;
+        data = Array.isArray(rawRes) ? rawRes : (rawRes as any)?.rows || [];
+      } catch (e) {
+        data = [];
+      }
     }
 
     return { data: data || [] };
