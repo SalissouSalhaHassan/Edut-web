@@ -19,8 +19,8 @@ export async function getActiveSchoolProfile() {
         where: eq(schoolBranches.schoolId, schoolId),
       }).catch(() => null);
 
-      if (branch && branch.name) {
-        return { data: { schoolName: branch.name } };
+      if (branch && branch.branchName) {
+        return { data: { schoolName: branch.branchName } };
       }
 
       const school = await db.query.schools.findFirst({
