@@ -227,18 +227,22 @@ export default function CanteenPosSystem({
 
     if (isEditingArticle) {
       const res = await updateCanteenItem(articleForm.id, articleForm) as any;
-      if (res.success) {
+      if (res.success || res.data?.success) {
         setItems(prev => prev.map(i => i.id === articleForm.id ? { ...i, ...articleForm } : i));
-        toast.success("Article mis à jour !");
+        toast.success("Article mis à jour avec succès !");
         setShowArticleModal(false);
+      } else {
+        toast.error(res.error || res.data?.error || "Erreur lors de la mise à jour");
       }
     } else {
       const res = await createCanteenItem(articleForm) as any;
-      if (res.success) {
-        const newItem = res.data || { ...articleForm, id: Date.now() };
+      if (res.success || res.data?.success) {
+        const newItem = res.data?.data || res.data?.newItem || res.data || { ...articleForm, id: Date.now() };
         setItems(prev => [newItem, ...prev]);
-        toast.success("Article ajouté !");
+        toast.success("Article ajouté avec succès !");
         setShowArticleModal(false);
+      } else {
+        toast.error(res.error || res.data?.error || "Erreur lors de la création du produit");
       }
     }
   };

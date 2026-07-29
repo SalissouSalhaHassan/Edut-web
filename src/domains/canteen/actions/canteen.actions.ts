@@ -60,6 +60,9 @@ async function ensureCanteenTablesExist() {
         created_at TIMESTAMP DEFAULT NOW()
       );
 
+      ALTER TABLE canteen_items ADD COLUMN IF NOT EXISTS code VARCHAR(50);
+      ALTER TABLE canteen_items ADD COLUMN IF NOT EXISTS image_url TEXT;
+
       CREATE TABLE IF NOT EXISTS canteen_invoices (
         id SERIAL PRIMARY KEY,
         invoice_number VARCHAR(100) NOT NULL UNIQUE,
@@ -125,18 +128,40 @@ export async function createCanteenItem(data: {
 }) {
   return protectedDbAction("Canteen", "canEdit", async () => {
     await ensureCanteenTablesExist();
-    const [newItem] = await db.insert(canteenItems).values({
-      name: data.name,
-      code: data.code || null,
-      price: Number(data.price) || 0,
-      category: data.category || "Général",
-      stock: Number(data.stock) ?? 100,
-      imageUrl: data.imageUrl || null,
-    }).returning();
+    
+    const cleanName = data.name.trim();
+    const cleanCode = data.code?.trim() || null;
+    const cleanPrice = Number(data.price) || 0;
+    const cleanCategory = data.category || "Snacks";
+    const cleanStock = Number(data.stock) ?? 100;
+    const cleanImage = data.imageUrl || null;
 
-    revalidatePath("/dashboard/canteen");
-    revalidatePath("/dashboard/pos");
-    return { success: true, data: newItem };
+    try {
+      const [newItem] = await db.insert(canteenItems).values({
+        name: cleanName,
+        code: cleanCode,
+        price: cleanPrice,
+        category: cleanCategory,
+        stock: cleanStock,
+        imageUrl: cleanImage,
+      }).returning();
+
+      revalidatePath("/dashboard/canteen");
+      revalidatePath("/dashboard/pos");
+      return { success: true, data: newItem };
+    } catch (e) {
+      console.error("Insert canteen item error:", e);
+      const res = await db.execute(sql`
+        INSERT INTO canteen_items (name, code, price, category, stock, image_url)
+        VALUES (${cleanName}, ${cleanCode}, ${cleanPrice}, ${cleanCategory}, ${cleanStock}, ${cleanImage})
+        RETURNING *;
+      `) as any;
+      const newItem = (res && res[0]) ? res[0] : { id: Date.now(), name: cleanName, code: cleanCode, price: cleanPrice, category: cleanCategory, stock: cleanStock };
+      
+      revalidatePath("/dashboard/canteen");
+      revalidatePath("/dashboard/pos");
+      return { success: true, data: newItem };
+    }
   });
 }
 
@@ -150,16 +175,24 @@ export async function updateCanteenItem(id: number, data: {
 }) {
   return protectedDbAction("Canteen", "canEdit", async () => {
     await ensureCanteenTablesExist();
-    await db.update(canteenItems)
-      .set({
-        name: data.name,
-        code: data.code || null,
-        price: Number(data.price) || 0,
-        category: data.category || "Général",
-        stock: Number(data.stock) ?? 100,
-        imageUrl: data.imageUrl || null,
-      })
-      .where(eq(canteenItems.id, id));
+    try {
+      await db.update(canteenItems)
+        .set({
+          name: data.name,
+          code: data.code || null,
+          price: Number(data.price) || 0,
+          category: data.category || "Snacks",
+          stock: Number(data.stock) ?? 100,
+          imageUrl: data.imageUrl || null,
+        })
+        .where(eq(canteenItems.id, id));
+    } catch (e) {
+      await db.execute(sql`
+        UPDATE canteen_items 
+        SET name = ${data.name}, code = ${data.code || null}, price = ${Number(data.price) || 0}, category = ${data.category || 'Snacks'}, stock = ${Number(data.stock) ?? 100}
+        WHERE id = ${id};
+      `);
+    }
 
     revalidatePath("/dashboard/canteen");
     revalidatePath("/dashboard/pos");
