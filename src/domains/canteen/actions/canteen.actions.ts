@@ -140,21 +140,22 @@ export async function createCanteenItem(data: {
     const cleanStock = Number(data.stock) ?? 100;
     const cleanImage = (data.imageUrl && data.imageUrl.trim().length > 0) ? data.imageUrl.trim() : null;
 
-    // Synchronize PostgreSQL sequence to avoid unique key constraint violation
+    // 1. Guarantee missing columns exist in PostgreSQL
+    await db.execute(sql`ALTER TABLE canteen_items ADD COLUMN IF NOT EXISTS code VARCHAR(50);`).catch(() => {});
+    await db.execute(sql`ALTER TABLE canteen_items ADD COLUMN IF NOT EXISTS image_url TEXT;`).catch(() => {});
+
+    // 2. Reset PostgreSQL sequence to safely exceed max(id)
     await db.execute(sql`
-      SELECT setval(pg_get_serial_sequence('canteen_items', 'id'), COALESCE((SELECT MAX(id) FROM canteen_items), 1) + 1, false);
+      SELECT setval(
+        pg_get_serial_sequence('canteen_items', 'id'), 
+        GREATEST((SELECT COALESCE(MAX(id), 0) FROM canteen_items) + 1, 1000), 
+        false
+      );
     `).catch(() => {});
 
-    // Calculate next id reliably across all Postgres driver result formats
-    const rawMax = await db.execute(sql`SELECT COALESCE(MAX(id), 0) AS max_id FROM canteen_items`).catch(() => null);
-    const rows = Array.isArray(rawMax) ? rawMax : (rawMax as any)?.rows || [];
-    const firstRow = rows[0] || {};
-    const maxVal = Number(firstRow.max_id ?? firstRow.maxid ?? firstRow.max ?? 0);
-    const nextId = maxVal > 0 ? maxVal + 1 : (Math.floor(Date.now() / 1000) % 1000000) + 100;
-
+    // 3. Perform clean insert using Drizzle without forcing explicit id
     try {
       const [newItem] = await db.insert(canteenItems).values({
-        id: nextId,
         name: cleanName,
         code: cleanCode,
         price: cleanPrice,
@@ -166,30 +167,31 @@ export async function createCanteenItem(data: {
       revalidatePath("/dashboard/canteen");
       revalidatePath("/dashboard/pos");
       return { success: true, data: newItem };
-    } catch (e) {
-      console.error("Insert canteen item Drizzle error:", e);
+    } catch (e: any) {
+      console.error("Standard Drizzle insert failed, attempting raw SQL insert:", e?.message || e);
 
       try {
         const res = await db.execute(sql`
-          INSERT INTO canteen_items (id, name, code, price, category, stock, image_url)
-          VALUES (${nextId}, ${cleanName}, ${cleanCode}, ${cleanPrice}, ${cleanCategory}, ${cleanStock}, ${cleanImage})
+          INSERT INTO canteen_items (name, code, price, category, stock, image_url)
+          VALUES (${cleanName}, ${cleanCode}, ${cleanPrice}, ${cleanCategory}, ${cleanStock}, ${cleanImage})
           RETURNING *;
         `) as any;
         const resRows = Array.isArray(res) ? res : (res as any)?.rows || [];
-        const newItem = resRows[0] || { id: nextId, name: cleanName, code: cleanCode, price: cleanPrice, category: cleanCategory, stock: cleanStock };
+        const newItem = resRows[0] || { name: cleanName, code: cleanCode, price: cleanPrice, category: cleanCategory, stock: cleanStock };
         
         revalidatePath("/dashboard/canteen");
         revalidatePath("/dashboard/pos");
         return { success: true, data: newItem };
-      } catch (err2) {
-        console.error("Fallback insert error:", err2);
+      } catch (err2: any) {
+        console.error("Raw SQL insert with code failed, attempting base insert:", err2?.message || err2);
+        
         const res = await db.execute(sql`
-          INSERT INTO canteen_items (id, name, price, category, stock)
-          VALUES (${nextId}, ${cleanName}, ${cleanPrice}, ${cleanCategory}, ${cleanStock})
+          INSERT INTO canteen_items (name, price, category, stock)
+          VALUES (${cleanName}, ${cleanPrice}, ${cleanCategory}, ${cleanStock})
           RETURNING *;
         `) as any;
         const resRows = Array.isArray(res) ? res : (res as any)?.rows || [];
-        const newItem = resRows[0] || { id: nextId, name: cleanName, code: cleanCode, price: cleanPrice, category: cleanCategory, stock: cleanStock };
+        const newItem = resRows[0] || { name: cleanName, price: cleanPrice, category: cleanCategory, stock: cleanStock };
         
         revalidatePath("/dashboard/canteen");
         revalidatePath("/dashboard/pos");
