@@ -345,15 +345,13 @@ export async function createCanteenInvoice(data: {
             SET stock = GREATEST(0, COALESCE(stock, 100) - ${qty})
             WHERE id = ${itemId};
           `).catch(() => {});
-        }
-        if (itemCode.length > 0) {
+        } else if (itemCode.length > 0) {
           await db.execute(sql`
             UPDATE canteen_items 
             SET stock = GREATEST(0, COALESCE(stock, 100) - ${qty})
             WHERE code = ${itemCode};
           `).catch(() => {});
-        }
-        if (itemName.length > 0) {
+        } else if (itemName.length > 0) {
           await db.execute(sql`
             UPDATE canteen_items 
             SET stock = GREATEST(0, COALESCE(stock, 100) - ${qty})
