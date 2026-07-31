@@ -6,11 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { saveBatchAttendance } from "@/domains/attendance/actions/attendance.actions";
-import { Check, X, Clock, Info, Save, Scan, List, Search, MessageSquare, Phone, Printer } from "lucide-react";
+import { Check, X, Clock, Info, Save, Scan, List, Search, MessageSquare, Phone, Printer, Fingerprint } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { toast } from "sonner";
 import { AttendanceScanner } from "./AttendanceScanner";
+import { BiometricScanner } from "./BiometricScanner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { useOfflineMutation } from "@/hooks/use-offline-mutation";
@@ -317,6 +318,9 @@ export default function AttendanceGrid({ students, classId, subjectId, employeeI
             <TabsTrigger value="scanner" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm px-6 py-2 flex gap-2">
               <Scan size={16} /> Scanner Mode
             </TabsTrigger>
+            <TabsTrigger value="biometric" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm px-6 py-2 flex gap-2 text-indigo-600 font-bold">
+              <Fingerprint size={16} /> Pointage Biométrique
+            </TabsTrigger>
           </TabsList>
 
           <div className="flex flex-wrap items-center gap-6">
@@ -433,6 +437,21 @@ export default function AttendanceGrid({ students, classId, subjectId, employeeI
                               <span className="hidden md:inline ml-1.5">{opt.val}</span>
                             </button>
                           ))}
+                          <button
+                            onClick={() => {
+                              if (!canEdit) return;
+                              updateStatus(s.id, "Présent");
+                              updateRemark(s.id, "Vérifié par Empreinte");
+                              toast.success(`Empreinte validée pour ${s.nomEtudiant}`, {
+                                icon: <Fingerprint className="text-emerald-500" size={18} />
+                              });
+                            }}
+                            disabled={!canEdit}
+                            title="Valider par Empreinte Digitale"
+                            className="p-2 rounded-xl text-indigo-600 bg-indigo-50 hover:bg-indigo-600 hover:text-white border border-indigo-100 font-bold transition-all shrink-0"
+                          >
+                            <Fingerprint size={16} />
+                          </button>
                         </div>
                       </td>
                       <td className="px-8 py-5">
@@ -462,6 +481,16 @@ export default function AttendanceGrid({ students, classId, subjectId, employeeI
             classId={classId} 
             subjectId={subjectId} 
             employeeId={employeeId} 
+          />
+        </TabsContent>
+
+        <TabsContent value="biometric">
+          <BiometricScanner
+            students={students}
+            onMarkPresent={(studentId, remark) => {
+              updateStatus(studentId, "Présent");
+              if (remark) updateRemark(studentId, remark);
+            }}
           />
         </TabsContent>
       </Tabs>
