@@ -8,7 +8,7 @@ import {
   Search, ShoppingCart, CreditCard, Trash2, User, Wallet, Sparkles, 
   ArrowLeft, Clock, Calendar, Store, Plus, Minus, Check, X, Printer, 
   FileText, Package, Settings, Lock, RotateCcw, AlertTriangle, ChevronDown, 
-  DollarSign, CheckCircle2, RefreshCw, Barcode, Eye, Loader2
+  DollarSign, CheckCircle2, RefreshCw, Barcode, Eye, Loader2, Download, TrendingUp, Filter
 } from "lucide-react";
 import { 
   createCanteenItem, 
@@ -140,6 +140,77 @@ export default function CanteenPosSystem({
       (s.numAdmission && s.numAdmission.toLowerCase().includes(q))
     ).slice(0, 10);
   }, [students, clientSearch]);
+
+  // Invoices Tab Filtering & Analytics States
+  const [invoiceSearchQuery, setInvoiceSearchQuery] = useState("");
+  const [invoicePaymentFilter, setInvoicePaymentFilter] = useState("Tous");
+  const [invoiceStatusFilter, setInvoiceStatusFilter] = useState("Tous");
+  const [invoiceDateFilter, setInvoiceDateFilter] = useState("Tous");
+
+  // Memoized Filtered Invoices
+  const filteredInvoices = useMemo(() => {
+    return invoices.filter((inv) => {
+      const q = invoiceSearchQuery.toLowerCase().trim();
+      const matchSearch = !q || 
+        (inv.invoiceNumber && inv.invoiceNumber.toLowerCase().includes(q)) ||
+        (inv.clientName && inv.clientName.toLowerCase().includes(q)) ||
+        (inv.cashierName && inv.cashierName.toLowerCase().includes(q));
+
+      const matchPayment = invoicePaymentFilter === "Tous" || inv.paymentMethod === invoicePaymentFilter;
+      const matchStatus = invoiceStatusFilter === "Tous" || (inv.status || "Payée") === invoiceStatusFilter;
+
+      let matchDate = true;
+      if (invoiceDateFilter === "Aujourd'hui" && inv.createdAt) {
+        const invDate = new Date(inv.createdAt).toDateString();
+        const today = new Date().toDateString();
+        matchDate = invDate === today;
+      }
+
+      return matchSearch && matchPayment && matchStatus && matchDate;
+    });
+  }, [invoices, invoiceSearchQuery, invoicePaymentFilter, invoiceStatusFilter, invoiceDateFilter]);
+
+  // Memoized Invoice Key Metrics
+  const invoiceMetrics = useMemo(() => {
+    const validInvoices = invoices.filter(inv => inv.status !== "Annulée");
+    const voidedInvoices = invoices.filter(inv => inv.status === "Annulée");
+    const totalRevenue = validInvoices.reduce((sum, inv) => sum + (inv.totalTtc || 0), 0);
+    const avgBasket = validInvoices.length > 0 ? totalRevenue / validInvoices.length : 0;
+    return {
+      totalCount: invoices.length,
+      validCount: validInvoices.length,
+      voidedCount: voidedInvoices.length,
+      totalRevenue,
+      avgBasket,
+    };
+  }, [invoices]);
+
+  // Export Invoices to CSV
+  const exportInvoicesToCSV = () => {
+    if (filteredInvoices.length === 0) {
+      toast.error("Aucune facture à exporter.");
+      return;
+    }
+    const headers = ["N° Facture", "Date", "Client", "Mode Paiement", "Montant Total (FCFA)", "Statut", "Caissier"];
+    const rows = filteredInvoices.map(inv => [
+      inv.invoiceNumber,
+      new Date(inv.createdAt).toLocaleString('fr-FR'),
+      `"${inv.clientName || 'CLIENT COMPTANT'}"`,
+      inv.paymentMethod || 'Cash',
+      inv.totalTtc || 0,
+      inv.status || 'Payée',
+      inv.cashierName || 'admin'
+    ]);
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `Rapport_Ventes_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success("Rapport CSV téléchargé avec succès !");
+  };
 
   // Cart Calculations
   const subtotal = useMemo(() => {
@@ -839,62 +910,205 @@ export default function CanteenPosSystem({
         </div>
       )}
 
-      {/* ─── TAB 3: GESTION DES FACTURES ─── */}
+      {/* ─── TAB 3: GESTION ADVANCÉE DES FACTURES & VENTES (WORLD-CLASS POS INVOICES) ─── */}
       {activeTab === "invoices" && (
         <div className="flex-1 p-8 overflow-y-auto bg-slate-950 space-y-6">
-          <div className="bg-slate-900 p-6 rounded-3xl border border-slate-800 flex justify-between items-center">
+          {/* Header Banner */}
+          <div className="bg-slate-900 p-6 rounded-3xl border border-slate-800 flex justify-between items-center flex-wrap gap-4 shadow-xl">
             <div>
-              <h2 className="text-2xl font-black text-white">Gestion des Factures & Ventes</h2>
-              <p className="text-xs font-bold text-slate-400">Historique complet des ventes effectuées à la caisse.</p>
-            </div>
-            <div className="flex items-center gap-4 text-xs font-black">
-              <div className="bg-slate-800 px-4 py-2 rounded-2xl border border-slate-700">
-                Total Factures: <span className="text-purple-400">{invoices.length}</span>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-purple-600/20 text-purple-400 border border-purple-500/30 flex items-center justify-center font-black">
+                  <FileText size={20} />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-black text-white tracking-wide">Gestion des Factures & Ventes</h2>
+                  <p className="text-xs font-bold text-slate-400">Système avancé d'historique, de contrôle et d'analyse globale des caisses.</p>
+                </div>
               </div>
-              <div className="bg-emerald-950/60 text-emerald-400 px-4 py-2 rounded-2xl border border-emerald-800">
-                Revenu Total: {formatCurrency(invoices.reduce((sum, inv) => sum + (inv.totalTtc || 0), 0))}
+            </div>
+
+            <Button
+              onClick={exportInvoicesToCSV}
+              className="h-11 px-5 bg-purple-600 hover:bg-purple-700 text-white rounded-2xl font-black text-xs gap-2 shadow-lg shadow-purple-600/30 transition-all cursor-pointer"
+            >
+              <Download size={16} /> Exporter Rapport CSV
+            </Button>
+          </div>
+
+          {/* KPI Analytics Cards Row */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* Card 1: Total Revenue */}
+            <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950/40 p-5 rounded-3xl border border-emerald-900/40 shadow-xl space-y-2">
+              <div className="flex justify-between items-center text-slate-400 text-xs font-bold uppercase tracking-wider">
+                <span>Revenu Total</span>
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                  <TrendingUp size={16} />
+                </div>
+              </div>
+              <div className="text-2xl font-black text-emerald-400 font-mono">
+                {formatCurrency(invoiceMetrics.totalRevenue)}
+              </div>
+              <p className="text-[10px] text-slate-400 font-semibold">Cumul des ventes valides encaissées</p>
+            </div>
+
+            {/* Card 2: Total Invoices */}
+            <div className="bg-slate-900 p-5 rounded-3xl border border-slate-800 shadow-xl space-y-2">
+              <div className="flex justify-between items-center text-slate-400 text-xs font-bold uppercase tracking-wider">
+                <span>Total Factures</span>
+                <div className="w-8 h-8 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center">
+                  <FileText size={16} />
+                </div>
+              </div>
+              <div className="text-2xl font-black text-white font-mono">
+                {invoiceMetrics.totalCount} <span className="text-xs text-slate-500 font-sans">factures</span>
+              </div>
+              <p className="text-[10px] text-slate-400 font-semibold">Toutes transactions confondues</p>
+            </div>
+
+            {/* Card 3: Average Basket */}
+            <div className="bg-slate-900 p-5 rounded-3xl border border-slate-800 shadow-xl space-y-2">
+              <div className="flex justify-between items-center text-slate-400 text-xs font-bold uppercase tracking-wider">
+                <span>Panier Moyen</span>
+                <div className="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center">
+                  <ShoppingCart size={16} />
+                </div>
+              </div>
+              <div className="text-2xl font-black text-blue-400 font-mono">
+                {formatCurrency(invoiceMetrics.avgBasket)}
+              </div>
+              <p className="text-[10px] text-slate-400 font-semibold">Valeur moyenne par ticket de caisse</p>
+            </div>
+
+            {/* Card 4: Voided Sales */}
+            <div className="bg-slate-900 p-5 rounded-3xl border border-slate-800 shadow-xl space-y-2">
+              <div className="flex justify-between items-center text-slate-400 text-xs font-bold uppercase tracking-wider">
+                <span>Factures Annulées</span>
+                <div className="w-8 h-8 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center">
+                  <AlertTriangle size={16} />
+                </div>
+              </div>
+              <div className="text-2xl font-black text-rose-400 font-mono">
+                {invoiceMetrics.voidedCount} <span className="text-xs text-slate-500 font-sans">annulations</span>
+              </div>
+              <p className="text-[10px] text-slate-400 font-semibold">Ventes annulées hors chiffre d'affaires</p>
+            </div>
+          </div>
+
+          {/* Interactive Search & Filter Bar */}
+          <div className="bg-slate-900 p-4 rounded-3xl border border-slate-800 flex flex-wrap gap-4 items-center justify-between shadow-xl">
+            {/* Live Search */}
+            <div className="relative flex-1 min-w-[280px]">
+              <Search className="absolute left-4 top-3.5 text-slate-500" size={16} />
+              <input
+                type="text"
+                placeholder="Rechercher par N° Facture, Client, Caissier..."
+                value={invoiceSearchQuery}
+                onChange={(e) => setInvoiceSearchQuery(e.target.value)}
+                className="w-full h-11 pl-11 pr-4 bg-slate-950 border border-slate-700/80 rounded-2xl text-xs font-bold text-white placeholder-slate-500 outline-none focus:border-purple-500 transition-all"
+              />
+            </div>
+
+            {/* Filter Group */}
+            <div className="flex flex-wrap items-center gap-3 text-xs font-bold">
+              {/* Payment Filter */}
+              <div className="flex items-center gap-2">
+                <span className="text-slate-400 text-[10px] uppercase font-black">Paiement:</span>
+                <select
+                  value={invoicePaymentFilter}
+                  onChange={(e) => setInvoicePaymentFilter(e.target.value)}
+                  className="h-11 bg-slate-950 border border-slate-700 rounded-2xl px-3 text-xs font-bold text-white outline-none focus:border-purple-500"
+                >
+                  <option value="Tous">Tous</option>
+                  <option value="Cash">Cash</option>
+                  <option value="Carte">Carte</option>
+                  <option value="Mobile Money">Mobile Money</option>
+                  <option value="Crédit">Crédit</option>
+                  <option value="Dépôt/Avance">Dépôt/Avance</option>
+                </select>
+              </div>
+
+              {/* Status Filter */}
+              <div className="flex items-center gap-2">
+                <span className="text-slate-400 text-[10px] uppercase font-black">Statut:</span>
+                <select
+                  value={invoiceStatusFilter}
+                  onChange={(e) => setInvoiceStatusFilter(e.target.value)}
+                  className="h-11 bg-slate-950 border border-slate-700 rounded-2xl px-3 text-xs font-bold text-white outline-none focus:border-purple-500"
+                >
+                  <option value="Tous">Tous</option>
+                  <option value="Payée">Payée</option>
+                  <option value="Annulée">Annulée</option>
+                </select>
+              </div>
+
+              {/* Date Filter */}
+              <div className="flex items-center gap-2">
+                <span className="text-slate-400 text-[10px] uppercase font-black">Date:</span>
+                <select
+                  value={invoiceDateFilter}
+                  onChange={(e) => setInvoiceDateFilter(e.target.value)}
+                  className="h-11 bg-slate-950 border border-slate-700 rounded-2xl px-3 text-xs font-bold text-white outline-none focus:border-purple-500"
+                >
+                  <option value="Tous">Historique Global</option>
+                  <option value="Aujourd'hui">Aujourd'hui</option>
+                </select>
               </div>
             </div>
           </div>
 
+          {/* Invoices Table */}
           <div className="bg-slate-900 rounded-3xl border border-slate-800 overflow-hidden shadow-2xl">
             <table className="w-full border-collapse text-left">
               <thead>
                 <tr className="bg-slate-950 text-slate-400 text-xs font-black uppercase border-b border-slate-800">
                   <th className="p-4">N° Facture</th>
-                  <th className="p-4">Date</th>
+                  <th className="p-4">Date & Heure</th>
                   <th className="p-4">Client</th>
-                  <th className="p-4">Paiement</th>
+                  <th className="p-4">Mode Paiement</th>
                   <th className="p-4 text-right">Montant Total</th>
                   <th className="p-4 text-center">Statut</th>
                   <th className="p-4 text-center">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800 text-sm font-bold">
-                {invoices.length === 0 ? (
+                {filteredInvoices.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="p-8 text-center text-slate-500 font-bold">
-                      Aucune facture enregistrée pour le moment.
+                    <td colSpan={7} className="p-12 text-center text-slate-500 font-bold">
+                      Aucune facture ne correspond aux critères de recherche.
                     </td>
                   </tr>
                 ) : (
-                  invoices.map((inv) => (
-                    <tr key={inv.id} className="hover:bg-slate-800/50">
-                      <td className="p-4 text-purple-400 font-mono text-xs">{inv.invoiceNumber}</td>
+                  filteredInvoices.map((inv) => (
+                    <tr key={inv.id} className="hover:bg-slate-800/60 transition-all">
+                      <td className="p-4 text-purple-400 font-mono text-xs font-black tracking-wider">
+                        {inv.invoiceNumber}
+                      </td>
                       <td className="p-4 text-slate-300 text-xs">
                         {new Date(inv.createdAt).toLocaleString('fr-FR')}
                       </td>
-                      <td className="p-4 text-white font-extrabold">{inv.clientName || "CLIENT COMPTANT"}</td>
-                      <td className="p-4 text-xs text-slate-300">
-                        <span className="bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-700">
+                      <td className="p-4 text-white font-extrabold">
+                        {inv.clientName || "CLIENT COMPTANT"}
+                      </td>
+                      <td className="p-4 text-xs">
+                        <span className={`px-3 py-1 rounded-xl font-extrabold text-[11px] border ${
+                          inv.paymentMethod === "Carte" ? "bg-blue-950/70 text-blue-400 border-blue-800" :
+                          inv.paymentMethod === "Mobile Money" ? "bg-purple-950/70 text-purple-400 border-purple-800" :
+                          inv.paymentMethod === "Crédit" ? "bg-amber-950/70 text-amber-400 border-amber-800" :
+                          "bg-slate-800 text-slate-200 border-slate-700"
+                        }`}>
                           {inv.paymentMethod || "Cash"}
                         </span>
                       </td>
-                      <td className="p-4 text-right text-emerald-400 font-black">{formatCurrency(inv.totalTtc || 0)}</td>
+                      <td className="p-4 text-right font-black text-emerald-400 text-base font-mono">
+                        {formatCurrency(inv.totalTtc || 0)}
+                      </td>
                       <td className="p-4 text-center">
-                        <span className={`px-3 py-1 rounded-lg text-xs font-black ${
-                          inv.status === "Annulée" ? "bg-rose-950 text-rose-400 border border-rose-800" : "bg-emerald-950 text-emerald-400 border border-emerald-800"
+                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-black border ${
+                          inv.status === "Annulée" 
+                            ? "bg-rose-950/80 text-rose-400 border-rose-800" 
+                            : "bg-emerald-950/80 text-emerald-400 border-emerald-800"
                         }`}>
+                          <span className={`w-2 h-2 rounded-full ${inv.status === "Annulée" ? "bg-rose-500" : "bg-emerald-500"}`} />
                           {inv.status || "Payée"}
                         </span>
                       </td>
@@ -902,33 +1116,35 @@ export default function CanteenPosSystem({
                         <div className="flex justify-center gap-2">
                           <button
                             onClick={() => setPrintableReceipt(inv)}
-                            className="w-8 h-8 rounded-lg bg-slate-800 text-slate-300 hover:text-blue-400 flex items-center justify-center"
+                            className="w-9 h-9 rounded-xl bg-slate-800 hover:bg-blue-600 text-slate-300 hover:text-white transition-all flex items-center justify-center border border-slate-700"
                             title="Imprimer Reçu"
                           >
-                            <Printer size={14} />
+                            <Printer size={15} />
                           </button>
                           <button
                             onClick={() => setSelectedInvoiceDetails(inv)}
-                            className="w-8 h-8 rounded-lg bg-slate-800 text-slate-300 hover:text-purple-400 flex items-center justify-center"
+                            className="w-9 h-9 rounded-xl bg-slate-800 hover:bg-purple-600 text-slate-300 hover:text-white transition-all flex items-center justify-center border border-slate-700"
                             title="Détails"
                           >
-                            <Eye size={14} />
+                            <Eye size={15} />
                           </button>
                           {inv.status !== "Annulée" && (
                             <button
                               onClick={async () => {
-                                if (confirm("Annuler cette facture ?")) {
+                                if (confirm(`Êtes-vous sûr de vouloir annuler la facture ${inv.invoiceNumber} ?`)) {
                                   const res = await voidCanteenInvoice(inv.id) as any;
-                                  if (res.success) {
+                                  if (res.success || res.data?.success) {
                                     setInvoices(prev => prev.map(i => i.id === inv.id ? { ...i, status: "Annulée" } : i));
-                                    toast.success("Facture annulée.");
+                                    toast.success(`Facture ${inv.invoiceNumber} annulée avec succès.`);
+                                  } else {
+                                    toast.error("Erreur lors de l'annulation.");
                                   }
                                 }
                               }}
-                              className="w-8 h-8 rounded-lg bg-slate-800 text-slate-300 hover:text-rose-400 flex items-center justify-center"
-                              title="Annuler"
+                              className="w-9 h-9 rounded-xl bg-slate-800 hover:bg-rose-600 text-slate-300 hover:text-white transition-all flex items-center justify-center border border-slate-700"
+                              title="Annuler Facture"
                             >
-                              <X size={14} />
+                              <X size={15} />
                             </button>
                           )}
                         </div>
