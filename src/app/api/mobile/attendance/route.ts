@@ -322,6 +322,54 @@ export async function POST(request: NextRequest) {
       return mobileJsonError("Paramètres 'action' ou 'payload' manquants", 400);
     }
 
+    if (action === "recordBiometricStudentAttendance") {
+      const { classId, studentId, dateStr, subjectId, employeeId, remark } = payload;
+      if (!classId || !studentId) {
+        return mobileJsonError("Paramètres classId ou studentId manquants", 400);
+      }
+
+      const targetDate = dateStr ? new Date(dateStr) : new Date();
+
+      // Check if attendance record exists for today
+      const existing = await readDb.query.studentAttendance.findFirst({
+        where: and(
+          eq(studentAttendance.classId, Number(classId)),
+          eq(studentAttendance.studentId, Number(studentId)),
+          subjectId ? eq(studentAttendance.subjectId, Number(subjectId)) : isNull(studentAttendance.subjectId),
+          sql`DATE(${studentAttendance.date}) = DATE(${targetDate.toISOString()})`
+        )
+      });
+
+      const biometricRemark = remark ? String(remark) : "Vérifié par empreinte digitale";
+
+      if (existing) {
+        await db
+          .update(studentAttendance)
+          .set({
+            status: "Présent",
+            remark: biometricRemark,
+            employeeId: employeeId ? Number(employeeId) : null,
+          })
+          .where(eq(studentAttendance.id, existing.id));
+      } else {
+        await db.insert(studentAttendance).values({
+          studentId: Number(studentId),
+          classId: Number(classId),
+          subjectId: subjectId ? Number(subjectId) : null,
+          employeeId: employeeId ? Number(employeeId) : null,
+          date: targetDate,
+          status: "Présent",
+          remark: biometricRemark,
+          recordedBy: "Application Mobile (Biométrie)",
+        });
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: "Présence par empreinte digitale enregistrée avec succès !"
+      });
+    }
+
     if (action === "recordTeacherSessionScan") {
       const { classId, employeeId } = payload;
       if (!classId || !employeeId) {
