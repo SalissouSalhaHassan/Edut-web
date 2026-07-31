@@ -32,10 +32,12 @@ export const studentSchema = z.object({
   fraisCogesCard: z.number().min(0).default(0),
   fraisTransportInternat: z.number().min(0).default(0),
   
-  // Statut
+  // Statut & Sécurité Biométrique
   statut: z.string().default("Actif"),
   behaviorScore: z.number().min(0).max(20).default(0),
   photoPath: z.string().optional(),
+  activationPin: z.string().nullish(),
+  fingerprintHash: z.string().nullish(),
 });
 
 export type StudentFormData = z.infer<typeof studentSchema>;

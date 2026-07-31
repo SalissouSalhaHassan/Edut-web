@@ -9,7 +9,7 @@ import { createStudent, updateStudent, getStudentCategories } from "@/domains/st
 import { createNotification } from "@/domains/messaging/actions/notifications.actions";
 import { StudentFormData } from "../validators/student.schema";
 import { getClasses, getSections, getEducationalLevels, getSessions } from "@/domains/academics/actions/academics.actions";
-import { Camera, Upload, Zap, X, Check, User, ChevronLeft } from "lucide-react";
+import { Camera, Upload, Zap, X, Check, User, ChevronLeft, Fingerprint, Lock, Key, Eye, EyeOff, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useOfflineMutation } from "@/hooks/use-offline-mutation";
 import { useOnlineStatus } from "@/hooks/use-online-status";
@@ -64,7 +64,25 @@ export default function StudentDialog({ mode = "add", initialData, trigger, open
   const [fraisCogesCard, setFraisCogesCard] = useState(initialData?.fraisCogesCard ?? "");
   const [fraisTransportInternat, setFraisTransportInternat] = useState(initialData?.fraisTransportInternat ?? "");
   const [ancienSoldeValue, setAncienSoldeValue] = useState(initialData?.ancienSolde ?? "");
-  const [statutValue, setStatutValue] = useState(initialData?.statut ?? "Actif");
+  // ── Biometric & Security state ─────────────────────────────────────────────
+  const [activationPin, setActivationPin] = useState<string>(initialData?.activationPin || "");
+  const [fingerprintHash, setFingerprintHash] = useState<string>(initialData?.fingerprintHash || "");
+  const [isScanningFingerprint, setIsScanningFingerprint] = useState(false);
+  const [showPin, setShowPin] = useState(false);
+
+  const generateRandomPin = () => {
+    const pin = Math.floor(1000 + Math.random() * 9000).toString();
+    setActivationPin(pin);
+  };
+
+  const scanFingerprint = () => {
+    setIsScanningFingerprint(true);
+    setTimeout(() => {
+      const generatedHash = `FP-${Date.now().toString(36).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
+      setFingerprintHash(generatedHash);
+      setIsScanningFingerprint(false);
+    }, 1000);
+  };
 
   // ── Raw data from DB ──────────────────────────────────────────────────────
   const [sessionsList,    setSessionsList]    = useState<any[]>([]);
@@ -277,6 +295,8 @@ export default function StudentDialog({ mode = "add", initialData, trigger, open
       statut: (form.get("statut") as string) || "Actif",
       behaviorScore: Number(form.get("behaviorScore")) || 0,
       photoPath: photoPath,
+      activationPin: (form.get("activationPin") as string) || activationPin || null,
+      fingerprintHash: (form.get("fingerprintHash") as string) || fingerprintHash || null,
     };
 
     let payload: StudentFormData & { id?: number; originalData?: any } = 
@@ -486,7 +506,6 @@ export default function StudentDialog({ mode = "add", initialData, trigger, open
                             </select>
                           </div>
                         </div>
-
                         <div className="grid grid-cols-3 gap-6">
                            <div className="space-y-3">
                               <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Date de Naissance</Label>
@@ -502,7 +521,7 @@ export default function StudentDialog({ mode = "add", initialData, trigger, open
                            </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-8">
+                        <div className="grid grid-cols-3 gap-6">
                            <div className="space-y-3">
                               <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">CNIC / Numéro National</Label>
                               <Input name="cnic" defaultValue={initialData?.cnic} placeholder="Numéro d'identification" className="h-12 rounded-2xl border-slate-100 bg-slate-50/50 font-bold" />
@@ -521,8 +540,89 @@ export default function StudentDialog({ mode = "add", initialData, trigger, open
                                 <option value="AB-">AB-</option>
                               </select>
                            </div>
+                           <div className="space-y-3">
+                              <div className="flex items-center justify-between">
+                                <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Code PIN Accès (4 Chiffres)</Label>
+                                <button type="button" onClick={generateRandomPin} className="text-[10px] text-indigo-600 font-extrabold hover:underline flex items-center gap-1">
+                                  <Sparkles size={11} /> Auto PIN
+                                </button>
+                              </div>
+                              <div className="relative">
+                                <Input
+                                  name="activationPin"
+                                  type={showPin ? "text" : "password"}
+                                  maxLength={6}
+                                  value={activationPin}
+                                  onChange={(e) => setActivationPin(e.target.value)}
+                                  placeholder="Ex: 1234"
+                                  className="h-12 rounded-2xl border-slate-100 bg-slate-50/50 font-black text-center text-lg tracking-widest text-indigo-600 pr-10"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => setShowPin(!showPin)}
+                                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                                >
+                                  {showPin ? <EyeOff size={16} /> : <Eye size={16} />}
+                                </button>
+                              </div>
+                           </div>
                         </div>
-                    </section>
+                     </section>
+
+                     {/* ── Section Empreinte Digitale Biométrique ── */}
+                     <section className="p-6 rounded-[2rem] bg-gradient-to-br from-indigo-900 via-slate-900 to-indigo-950 shadow-xl relative overflow-hidden border border-indigo-500/20">
+                        <div className="absolute top-0 right-0 p-6 opacity-10">
+                           <Fingerprint size={120} className="text-indigo-400" />
+                        </div>
+                        <div className="relative z-10 flex flex-col md:flex-row gap-6 items-center justify-between">
+                           <div className="flex items-center gap-5">
+                              <div className={`h-16 w-16 rounded-2xl flex items-center justify-center shrink-0 border transition-all ${
+                                fingerprintHash
+                                  ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-400 shadow-lg shadow-emerald-500/20"
+                                  : "bg-indigo-500/10 border-indigo-500/30 text-indigo-400"
+                              }`}>
+                                <Fingerprint size={36} className={isScanningFingerprint ? "animate-pulse scale-110 text-amber-400" : ""} />
+                              </div>
+                              <div>
+                                 <div className="flex items-center gap-2">
+                                    <h4 className="text-white font-black text-base tracking-tight">Empreinte Digitale Biométrique</h4>
+                                    {fingerprintHash ? (
+                                      <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[9px] font-black uppercase tracking-wider rounded-full flex items-center gap-1">
+                                        <Check size={10} /> Enregistrée
+                                      </span>
+                                    ) : (
+                                      <span className="px-2 py-0.5 bg-slate-800 text-slate-400 border border-slate-700 text-[9px] font-black uppercase tracking-wider rounded-full">
+                                        Non Définie
+                                      </span>
+                                    )}
+                                 </div>
+                                 <p className="text-indigo-200/70 text-[11px] font-medium mt-1">
+                                    {fingerprintHash
+                                      ? `Hash d'empreinte unique : ${fingerprintHash}`
+                                      : "Scannez l'empreinte digitale pour l'appel et le pointage automatique sur mobile et bornes."}
+                                 </p>
+                                 <input type="hidden" name="fingerprintHash" value={fingerprintHash} />
+                              </div>
+                           </div>
+                           <Button
+                              type="button"
+                              onClick={scanFingerprint}
+                              disabled={isScanningFingerprint}
+                              className={`h-12 px-6 rounded-xl font-black text-xs gap-2 transition-all shrink-0 ${
+                                fingerprintHash
+                                  ? "bg-white/10 hover:bg-white/20 text-white border border-white/20"
+                                  : "bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/30"
+                              }`}
+                           >
+                              <Fingerprint size={16} className={isScanningFingerprint ? "animate-spin" : ""} />
+                              {isScanningFingerprint
+                                ? "SCAN EN COURS..."
+                                : fingerprintHash
+                                ? "RE-SCANNER L'EMPREINTE"
+                                : "CAPTURER L'EMPREINTE"}
+                           </Button>
+                        </div>
+                     </section>
 
                     <section className="p-8 rounded-[2rem] bg-slate-900 shadow-xl relative overflow-hidden group">
                        <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition-opacity">

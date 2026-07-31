@@ -409,49 +409,60 @@ export default function AttendanceGrid({ students, classId, subjectId, employeeI
                         </span>
                       </td>
                       <td className="px-8 py-5">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <p className="font-bold text-slate-900">{s.nomEtudiant}</p>
                           <AttendanceStatusBadge status={batchStatus} />
+                          {records[s.id].remark?.includes("Empreinte") && (
+                            <span className="px-2 py-0.5 bg-indigo-500/10 text-indigo-600 border border-indigo-500/20 text-[9px] font-black uppercase tracking-wider rounded-full flex items-center gap-1">
+                              <Fingerprint size={11} /> Empreinte Validée
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td className="px-8 py-5">
-                        <div className="flex items-center justify-center gap-1.5 bg-slate-100/50 p-1.5 rounded-2xl w-fit mx-auto border border-slate-100">
+                        <div className="flex items-center justify-center gap-1.5 bg-slate-100/50 p-1.5 rounded-2xl w-fit mx-auto border border-slate-100 flex-wrap">
                           {[
-                            { val: "Présent", icon: Check, color: "bg-emerald-500", text: "text-emerald-500" },
-                            { val: "Absent", icon: X, color: "bg-rose-500", text: "text-rose-500" },
-                            { val: "En Retard", icon: Clock, color: "bg-amber-500", text: "text-amber-500" },
-                            { val: "Excusé", icon: Info, color: "bg-blue-500", text: "text-blue-500" },
-                          ].map((opt) => (
-                            <button
-                              key={opt.val}
-                              onClick={() => canEdit && updateStatus(s.id, opt.val)}
-                              disabled={!canEdit}
-                              title={opt.val}
-                              className={`flex items-center justify-center w-10 h-10 md:w-auto md:h-auto md:px-4 md:py-2 rounded-xl text-xs font-bold transition-all ${
-                                records[s.id].status === opt.val
-                                  ? `${opt.color} text-white shadow-lg scale-105`
-                                  : "text-slate-400 hover:text-slate-600 hover:bg-white"
-                                } ${!canEdit && "cursor-not-allowed opacity-80"}`}
-                            >
-                              <opt.icon size={16} strokeWidth={3} />
-                              <span className="hidden md:inline ml-1.5">{opt.val}</span>
-                            </button>
-                          ))}
-                          <button
-                            onClick={() => {
-                              if (!canEdit) return;
-                              updateStatus(s.id, "Présent");
-                              updateRemark(s.id, "Vérifié par Empreinte");
-                              toast.success(`Empreinte validée pour ${s.nomEtudiant}`, {
-                                icon: <Fingerprint className="text-emerald-500" size={18} />
-                              });
-                            }}
-                            disabled={!canEdit}
-                            title="Valider par Empreinte Digitale"
-                            className="p-2 rounded-xl text-indigo-600 bg-indigo-50 hover:bg-indigo-600 hover:text-white border border-indigo-100 font-bold transition-all shrink-0"
-                          >
-                            <Fingerprint size={16} />
-                          </button>
+                            { val: "Présent", label: "Présent", icon: Check, color: "bg-emerald-500", text: "text-emerald-500" },
+                            { val: "Absent", label: "Absent", icon: X, color: "bg-rose-500", text: "text-rose-500" },
+                            { val: "En Retard", label: "Retard", icon: Clock, color: "bg-amber-500", text: "text-amber-500" },
+                            { val: "Excusé", label: "Excusé", icon: Info, color: "bg-blue-500", text: "text-blue-500" },
+                            { val: "Empreinte", label: "Empreinte", icon: Fingerprint, color: "bg-indigo-600", text: "text-indigo-600" },
+                          ].map((opt) => {
+                            const isSelected = opt.val === "Empreinte"
+                              ? records[s.id].remark?.includes("Empreinte")
+                              : records[s.id].status === opt.val && !records[s.id].remark?.includes("Empreinte");
+
+                            return (
+                              <button
+                                key={opt.val}
+                                onClick={() => {
+                                  if (!canEdit) return;
+                                  if (opt.val === "Empreinte") {
+                                    updateStatus(s.id, "Présent");
+                                    updateRemark(s.id, "Vérifié par empreinte digitale");
+                                    toast.success(`Empreinte validée : ${s.nomEtudiant}`, {
+                                      icon: <Fingerprint className="text-emerald-500" size={18} />
+                                    });
+                                  } else {
+                                    updateStatus(s.id, opt.val);
+                                    if (records[s.id].remark?.includes("Empreinte")) {
+                                      updateRemark(s.id, "");
+                                    }
+                                  }
+                                }}
+                                disabled={!canEdit}
+                                title={opt.label}
+                                className={`flex items-center justify-center px-3 py-2 rounded-xl text-[11px] font-extrabold transition-all ${
+                                  isSelected
+                                    ? `${opt.color} text-white shadow-md scale-105`
+                                    : "text-slate-500 hover:text-slate-900 bg-white border border-slate-200/60"
+                                  } ${!canEdit && "cursor-not-allowed opacity-80"}`}
+                              >
+                                <opt.icon size={14} strokeWidth={2.5} />
+                                <span className="ml-1 font-bold">{opt.label}</span>
+                              </button>
+                            );
+                          })}
                         </div>
                       </td>
                       <td className="px-8 py-5">

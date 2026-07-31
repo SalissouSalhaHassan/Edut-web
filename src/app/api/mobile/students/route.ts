@@ -132,6 +132,8 @@ export async function POST(request: NextRequest) {
         fraisInscription: payload.frais_inscription ? Number(payload.frais_inscription) : 0,
         statut: payload.statut || "Actif",
         photoPath: payload.photo_path || null,
+        activationPin: payload.activation_pin || payload.activationPin || null,
+        fingerprintHash: payload.fingerprint_hash || payload.fingerprintHash || null,
       };
 
       if (studentId) {
