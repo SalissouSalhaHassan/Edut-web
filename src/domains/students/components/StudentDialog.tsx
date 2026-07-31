@@ -64,6 +64,7 @@ export default function StudentDialog({ mode = "add", initialData, trigger, open
   const [fraisCogesCard, setFraisCogesCard] = useState(initialData?.fraisCogesCard ?? "");
   const [fraisTransportInternat, setFraisTransportInternat] = useState(initialData?.fraisTransportInternat ?? "");
   const [ancienSoldeValue, setAncienSoldeValue] = useState(initialData?.ancienSolde ?? "");
+  const [statutValue, setStatutValue] = useState(initialData?.statut ?? "Actif");
   // ── Biometric & Security state ─────────────────────────────────────────────
   const [activationPin, setActivationPin] = useState<string>(initialData?.activationPin || "");
   const [fingerprintHash, setFingerprintHash] = useState<string>(initialData?.fingerprintHash || "");
