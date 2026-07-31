@@ -232,6 +232,19 @@ export async function saveTimetableEntry(data: any) {
     });
 
     if (conflict && conflict.id !== data.id) {
+    // Check for conflicts: either class is busy OR teacher is busy at the same day/period
+    const conflict = await db.query.timetableEntries.findFirst({
+      where: and(
+        eq(timetableEntries.dayName, data.dayName),
+        eq(timetableEntries.periodNumber, data.periodNumber),
+        or(
+          eq(timetableEntries.classId, data.classId),
+          eq(timetableEntries.employeeId, data.employeeId)
+        )
+      )
+    });
+
+    if (conflict && conflict.id !== data.id) {
        // Identify which conflict occurred for better error message
        const isClassBusy = conflict.classId === data.classId;
        const msg = isClassBusy 
@@ -247,6 +260,7 @@ export async function saveTimetableEntry(data: any) {
       await db.insert(timetableEntries).values(data);
     }
     revalidatePath("/dashboard/academics/timetable");
+    revalidatePath("/dashboard/hr/attendance/qrcodes");
     return { success: true };
   });
 }
@@ -257,6 +271,7 @@ export async function deleteTimetableEntry(id: number) {
     await assertTimetableEntryInActiveSchool(id);
     await db.delete(timetableEntries).where(eq(timetableEntries.id, id));
     revalidatePath("/dashboard/academics/timetable");
+    revalidatePath("/dashboard/hr/attendance/qrcodes");
     return { success: true };
   });
 }
@@ -297,6 +312,7 @@ export async function moveTimetableEntry(id: number, dayName: string, periodNumb
       .where(eq(timetableEntries.id, id));
 
     revalidatePath("/dashboard/academics/timetable");
+    revalidatePath("/dashboard/hr/attendance/qrcodes");
     return { success: true };
   });
 }

@@ -6,7 +6,7 @@ import { schoolBranches } from "@/infrastructure/database/schema/settings";
 import { getActiveSchoolId } from "@/domains/auth/services/school";
 import { getCurrentUser } from "@/domains/auth/services/session";
 import { getUserRoleType, getCompatibleLevels } from "@/domains/auth/services/rbac";
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and, inArray, sql } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import ClassroomQRCodes from "./qrcodes-client";
 
@@ -49,9 +49,49 @@ export default async function ClassroomQRCodesPage() {
     return true;
   });
 
+  // Query all timetable entries for these classes with teacher and subject info
+  const classIds = filteredClasses.map((c) => c.id);
+  
+  let allTimetableEntries: any[] = [];
+  if (classIds.length > 0) {
+    try {
+      const rawEntries = await db.execute(sql`
+        SELECT 
+          te.id,
+          te.class_id as "classId",
+          te.subject_id as "subjectId",
+          te.employee_id as "employeeId",
+          te.day_name as "dayName",
+          te.start_time as "startTime",
+          te.end_time as "endTime",
+          te.period_number as "periodNumber",
+          sub.subject_name as "subjectName",
+          emp.nom as "employeeNom",
+          emp.prenom as "employeePrenom"
+        FROM timetable_entries te
+        LEFT JOIN school_subjects sub ON te.subject_id = sub.id
+        LEFT JOIN employees emp ON te.employee_id = emp.id
+        WHERE te.class_id IN (${sql.join(classIds.map(id => sql`${id}`), sql`, `)})
+      `).catch(() => []);
+
+      allTimetableEntries = Array.isArray(rawEntries) ? rawEntries : (rawEntries as any)?.rows || [];
+    } catch (e) {
+      console.error("Timetable entries query info:", e);
+    }
+  }
+
+  // Attach timetable entries to each class object
+  const classesWithSchedule = filteredClasses.map((cls) => {
+    const entries = allTimetableEntries.filter((e) => Number(e.classId) === Number(cls.id));
+    return {
+      ...cls,
+      timetableEntries: entries,
+    };
+  });
+
   return (
     <ClassroomQRCodes
-      classes={filteredClasses}
+      classes={classesWithSchedule}
       schoolName={schoolName}
     />
   );

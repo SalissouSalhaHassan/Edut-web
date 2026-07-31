@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { QRCodeSVG } from "qrcode.react";
 import { 
-  Printer, Download, Search, ArrowLeft, Grid, LayoutGrid, FileText, CheckCircle 
+  Printer, Download, Search, ArrowLeft, Grid, LayoutGrid, FileText, CheckCircle, Clock, User, BookOpen, Sparkles
 } from "lucide-react";
 
 interface ClassroomQRCodesProps {
@@ -15,6 +15,15 @@ interface ClassroomQRCodesProps {
 export default function ClassroomQRCodes({ classes, schoolName }: ClassroomQRCodesProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedClass, setSelectedClass] = useState<any | null>(null);
+  const [currentTime, setCurrentTime] = useState<Date>(new Date());
+
+  // Update clock every 30 seconds to refresh session status dynamically
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 30000);
+    return () => clearInterval(timer);
+  }, []);
 
   // Filter classes by name or section
   const filteredClasses = classes.filter((c) =>
@@ -22,11 +31,91 @@ export default function ClassroomQRCodes({ classes, schoolName }: ClassroomQRCod
     (c.section?.sectionName && c.section.sectionName.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
-  const getQRValue = (classId: number) => {
-    if (typeof window !== "undefined") {
-      return `${window.location.origin}/dashboard/hr/attendance/scan?classId=${classId}`;
+  // Smart Timetable Session Logic
+  const getActiveSessionForClass = (timetableEntries: any[] = []) => {
+    const daysMap = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
+    const todayDayName = daysMap[currentTime.getDay()];
+
+    const currentMinutes = currentTime.getHours() * 60 + currentTime.getMinutes();
+
+    // Filter entries for today
+    const todayEntries = (timetableEntries || []).filter((e) => {
+      const dName = (e.dayName || e.day_name || "").trim();
+      return dName.toLowerCase() === todayDayName.toLowerCase();
+    });
+
+    if (todayEntries.length === 0) {
+      return { 
+        status: "none", 
+        message: "Aucun cours aujourd'hui", 
+        session: null 
+      };
     }
-    return `https://edut.pro/dashboard/hr/attendance/scan?classId=${classId}`;
+
+    // Find currently active session
+    for (const entry of todayEntries) {
+      const startTimeStr = entry.startTime || entry.start_time || "08:00";
+      const endTimeStr = entry.endTime || entry.end_time || "09:30";
+
+      const [sH, sM] = startTimeStr.split(":").map(Number);
+      const [eH, eM] = endTimeStr.split(":").map(Number);
+
+      const startMin = (sH || 0) * 60 + (sM || 0);
+      const endMin = (eH || 0) * 60 + (eM || 0);
+
+      if (currentMinutes >= startMin && currentMinutes <= endMin) {
+        const teacher = entry.employeeNom 
+          ? `${entry.employeePrenom || ''} ${entry.employeeNom}` 
+          : (entry.employee_nom ? `${entry.employee_prenom || ''} ${entry.employee_nom}` : "Professeur N/A");
+        const subject = entry.subjectName || entry.subject_name || "Matière N/A";
+
+        return {
+          status: "active",
+          message: "SÉANCE EN COURS",
+          session: entry,
+          startTime: startTimeStr,
+          endTime: endTimeStr,
+          teacherName: teacher,
+          subjectName: subject
+        };
+      }
+    }
+
+    // Find next upcoming session today
+    const upcomingEntries = todayEntries.filter((e) => {
+      const startTimeStr = e.startTime || e.start_time || "08:00";
+      const [sH, sM] = startTimeStr.split(":").map(Number);
+      const startMin = (sH || 0) * 60 + (sM || 0);
+      return startMin > currentMinutes;
+    });
+
+    if (upcomingEntries.length > 0) {
+      const nextEntry = upcomingEntries[0];
+      const teacher = nextEntry.employeeNom 
+        ? `${nextEntry.employeePrenom || ''} ${nextEntry.employeeNom}` 
+        : (nextEntry.employee_nom ? `${nextEntry.employee_prenom || ''} ${nextEntry.employee_nom}` : "Professeur N/A");
+      const subject = nextEntry.subjectName || nextEntry.subject_name || "Matière N/A";
+
+      return {
+        status: "upcoming",
+        message: "PROCHAINE SÉANCE",
+        session: nextEntry,
+        startTime: nextEntry.startTime || nextEntry.start_time || "08:00",
+        endTime: nextEntry.endTime || nextEntry.end_time || "09:30",
+        teacherName: teacher,
+        subjectName: subject
+      };
+    }
+
+    return { status: "ended", message: "Fin des cours du jour", session: null };
+  };
+
+  const getQRValue = (classId: number, sessionId?: number, employeeId?: number) => {
+    const baseUrl = typeof window !== "undefined" ? window.location.origin : "https://edut.pro";
+    let url = `${baseUrl}/dashboard/hr/attendance/scan?classId=${classId}`;
+    if (sessionId) url += `&sessionId=${sessionId}`;
+    if (employeeId) url += `&teacherId=${employeeId}`;
+    return url;
   };
 
   const handleDownload = (classId: number, className: string) => {
@@ -180,15 +269,26 @@ export default function ClassroomQRCodes({ classes, schoolName }: ClassroomQRCod
       <div className="print-area">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 print-grid">
           {filteredClasses.map((cls) => {
-            const qrVal = getQRValue(cls.id);
+            const sessionInfo = getActiveSessionForClass(cls.timetableEntries);
+            const qrVal = getQRValue(cls.id, sessionInfo.session?.id, sessionInfo.session?.employeeId);
+
             return (
               <div 
                 key={cls.id} 
                 className="bg-white p-6 rounded-[2.2rem] border border-slate-100 shadow-xl shadow-slate-100/40 flex flex-col items-center text-center transition-all hover:shadow-2xl hover:shadow-slate-200/50 relative overflow-hidden group print-card"
               >
-                {/* Header Badge */}
-                <div className="w-full bg-slate-50/50 py-2.5 rounded-2xl border border-slate-100 text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-4 no-print">
-                  {cls.section?.sectionName || "Scolarité"}
+                {/* Dynamic Session Status Badge */}
+                <div className={`w-full py-2 rounded-2xl border text-[10px] font-black uppercase tracking-wider mb-3 flex items-center justify-center gap-1.5 no-print ${
+                  sessionInfo.status === "active" ? "bg-emerald-500/10 text-emerald-600 border-emerald-200 animate-pulse" :
+                  sessionInfo.status === "upcoming" ? "bg-amber-500/10 text-amber-600 border-amber-200" :
+                  "bg-slate-100 text-slate-500 border-slate-200"
+                }`}>
+                  <span className={`w-2 h-2 rounded-full ${
+                    sessionInfo.status === "active" ? "bg-emerald-500" :
+                    sessionInfo.status === "upcoming" ? "bg-amber-500" :
+                    "bg-slate-400"
+                  }`} />
+                  {sessionInfo.message}
                 </div>
 
                 {/* School Name in QR Card */}
@@ -197,24 +297,42 @@ export default function ClassroomQRCodes({ classes, schoolName }: ClassroomQRCod
                 </h4>
                 
                 {/* Classroom Name */}
-                <h2 className="text-xl font-black text-slate-900 tracking-tight mb-4 uppercase">
+                <h2 className="text-2xl font-black text-slate-900 tracking-tight mb-3 uppercase">
                   {cls.className}
                 </h2>
 
+                {/* Dynamic Teacher & Subject Box (if active or upcoming) */}
+                {(sessionInfo.status === "active" || sessionInfo.status === "upcoming") && (
+                  <div className="w-full bg-indigo-50/70 border border-indigo-100 p-3 rounded-2xl mb-4 text-left space-y-1.5 no-print">
+                    <div className="flex items-center gap-2 text-indigo-900 font-extrabold text-xs">
+                      <User size={14} className="text-indigo-600 shrink-0" />
+                      <span className="truncate">{sessionInfo.teacherName}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-slate-600 font-bold text-[11px]">
+                      <BookOpen size={13} className="text-indigo-500 shrink-0" />
+                      <span className="truncate">{sessionInfo.subjectName}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-slate-500 font-semibold text-[10px]">
+                      <Clock size={12} className="text-indigo-400 shrink-0" />
+                      <span>{sessionInfo.startTime} - {sessionInfo.endTime}</span>
+                    </div>
+                  </div>
+                )}
+
                 {/* QR Code Graphic */}
-                <div className="p-4 bg-slate-50 rounded-3xl border border-slate-100/50 mb-4 flex items-center justify-center">
+                <div className="p-4 bg-slate-50 rounded-3xl border border-slate-100/50 mb-3 flex items-center justify-center">
                   <QRCodeSVG
                     id={`qr-svg-${cls.id}`}
                     value={qrVal}
-                    size={160}
+                    size={150}
                     level="H"
                     includeMargin={false}
                   />
                 </div>
 
                 {/* Footer Label */}
-                <p className="text-[10px] font-bold text-slate-400 tracking-wide mb-6">
-                  SCANNER POUR ENREGISTRER VOTRE PRÉSENCE
+                <p className="text-[9px] font-bold text-slate-400 tracking-wider mb-4 uppercase">
+                  Scanner pour présence enseignant
                 </p>
 
                 {/* Actions (Hidden in Print) */}
