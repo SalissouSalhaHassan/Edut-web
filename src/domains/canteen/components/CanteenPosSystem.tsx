@@ -8,7 +8,7 @@ import {
   Search, ShoppingCart, CreditCard, Trash2, User, Wallet, Sparkles, 
   ArrowLeft, Clock, Calendar, Store, Plus, Minus, Check, X, Printer, 
   FileText, Package, Settings, Lock, RotateCcw, AlertTriangle, ChevronDown, 
-  DollarSign, CheckCircle2, RefreshCw, Barcode, Eye
+  DollarSign, CheckCircle2, RefreshCw, Barcode, Eye, Loader2
 } from "lucide-react";
 import { 
   createCanteenItem, 
@@ -44,6 +44,9 @@ export default function CanteenPosSystem({
 }: CanteenPosSystemProps) {
   // Active Main View Tab: 'pos' | 'articles' | 'invoices'
   const [activeTab, setActiveTab] = useState<"pos" | "articles" | "invoices">("pos");
+
+  // Loading & Processing state
+  const [isValidatingSale, setIsValidatingSale] = useState(false);
 
   // School Name State
   const [displaySchoolName, setDisplaySchoolName] = useState<string>(schoolName || "Établissement Scolaire");
@@ -193,49 +196,58 @@ export default function CanteenPosSystem({
       return;
     }
 
-    const currentCart = [...cart];
+    if (isValidatingSale) return;
+    setIsValidatingSale(true);
 
-    const payload = {
-      clientName: selectedClient.name,
-      studentId: selectedClient.id || undefined,
-      subtotal,
-      tva,
-      totalTtc,
-      amountReceived: numAmountReceived || totalTtc,
-      changeGiven: numAmountReceived > totalTtc ? changeGiven : 0,
-      paymentMethod,
-      itemsJson: JSON.stringify(currentCart),
-      cashierName,
-    };
+    try {
+      const currentCart = [...cart];
 
-    const res = await createCanteenInvoice(payload) as any;
-    if (res.success || res.data?.success) {
-      const createdInvoice = res.data?.data || res.data || res;
-      setInvoices(prev => [createdInvoice, ...prev]);
-      setPrintableReceipt(createdInvoice);
+      const payload = {
+        clientName: selectedClient.name,
+        studentId: selectedClient.id || undefined,
+        subtotal,
+        tva,
+        totalTtc,
+        amountReceived: numAmountReceived || totalTtc,
+        changeGiven: numAmountReceived > totalTtc ? changeGiven : 0,
+        paymentMethod,
+        itemsJson: JSON.stringify(currentCart),
+        cashierName,
+      };
 
-      // Deduct stock locally in UI state immediately
-      setItems(prevItems => prevItems.map(prod => {
-        const cartItem = currentCart.find(c => c.id === prod.id || c.name === prod.name || (c.code && c.code === prod.code));
-        if (cartItem) {
-          const currentStock = prod.stock ?? 100;
-          return { ...prod, stock: Math.max(0, currentStock - (cartItem.quantity || 1)) };
-        }
-        return prod;
-      }));
+      const res = await createCanteenInvoice(payload) as any;
+      if (res.success || res.data?.success) {
+        const createdInvoice = res.data?.data || res.data || res;
+        setInvoices(prev => [createdInvoice, ...prev]);
+        setPrintableReceipt(createdInvoice);
 
-      // Re-fetch fresh items from server to stay 100% in sync with PostgreSQL
-      getCanteenItems().then((freshRes: any) => {
-        const freshData = freshRes.data?.data || freshRes.data || [];
-        if (Array.isArray(freshData) && freshData.length > 0) {
-          setItems(freshData);
-        }
-      }).catch(() => {});
+        // Deduct stock locally in UI state immediately
+        setItems(prevItems => prevItems.map(prod => {
+          const cartItem = currentCart.find(c => c.id === prod.id || c.name === prod.name || (c.code && c.code === prod.code));
+          if (cartItem) {
+            const currentStock = prod.stock ?? 100;
+            return { ...prod, stock: Math.max(0, currentStock - (cartItem.quantity || 1)) };
+          }
+          return prod;
+        }));
 
-      toast.success(`Vente enregistrée avec succès ! Facture: ${createdInvoice.invoiceNumber || ''}`);
-      clearTicket();
-    } else {
-      toast.error(res.error || res.data?.error || "Erreur lors de la validation de la vente.");
+        // Re-fetch fresh items from server to stay 100% in sync with PostgreSQL
+        getCanteenItems().then((freshRes: any) => {
+          const freshData = freshRes.data?.data || freshRes.data || [];
+          if (Array.isArray(freshData) && freshData.length > 0) {
+            setItems(freshData);
+          }
+        }).catch(() => {});
+
+        toast.success(`Vente enregistrée avec succès ! Facture: ${createdInvoice.invoiceNumber || ''}`);
+        clearTicket();
+      } else {
+        toast.error(res.error || res.data?.error || "Erreur lors de la validation de la vente.");
+      }
+    } catch (e: any) {
+      toast.error(e?.message || "Erreur lors de la validation de la vente.");
+    } finally {
+      setIsValidatingSale(false);
     }
   };
 
@@ -702,10 +714,18 @@ export default function CanteenPosSystem({
             {/* LARGE GREEN VALIDATE SALE BUTTON */}
             <Button
               onClick={handleValidateSale}
-              disabled={cart.length === 0}
-              className="flex-1 h-12 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-sm uppercase tracking-wider gap-3 shadow-xl shadow-emerald-500/30 disabled:opacity-50 transition-all"
+              disabled={cart.length === 0 || isValidatingSale}
+              className="flex-1 h-12 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-sm uppercase tracking-wider gap-3 shadow-xl shadow-emerald-500/30 disabled:opacity-50 transition-all cursor-pointer"
             >
-              <Check size={20} /> VALIDER VENTE
+              {isValidatingSale ? (
+                <>
+                  <Loader2 className="animate-spin" size={20} /> VALIDATION EN COURS...
+                </>
+              ) : (
+                <>
+                  <Check size={20} /> VALIDER VENTE
+                </>
+              )}
             </Button>
 
             <Button
