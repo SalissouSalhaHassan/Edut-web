@@ -105,11 +105,12 @@ export async function getInventoryCategories() {
 
 export async function saveInventoryItem(data: {
   name: string;
-  sku?: string;
-  quantity?: number;
-  unitPrice?: number;
-  condition?: string;
-  location?: string;
+  sku?: string | null;
+  categoryId?: number | null;
+  quantity?: number | null;
+  unitPrice?: number | null;
+  condition?: string | null;
+  location?: string | null;
 }, id?: number) {
   return protectedDbAction("Inventory", "canEdit", async () => {
     await ensureInventoryTablesExist();
@@ -121,18 +122,19 @@ export async function saveInventoryItem(data: {
     const cleanUnitPrice = Number(data.unitPrice) || 0;
     const cleanCondition = data.condition || "Neuf";
     const cleanLocation = data.location ? data.location.trim() : "Stock Principal";
+    const cleanCategoryId = data.categoryId ? Number(data.categoryId) : null;
 
     if (id && id > 0) {
       await db.execute(sql`
         UPDATE inventory_items
         SET name = ${cleanName}, sku = ${cleanSku}, quantity = ${cleanQty}, 
-            unit_price = ${cleanUnitPrice}, condition = ${cleanCondition}, location = ${cleanLocation}
+            unit_price = ${cleanUnitPrice}, condition = ${cleanCondition}, location = ${cleanLocation}, category_id = ${cleanCategoryId}
         WHERE id = ${id};
       `).catch(() => {});
     } else {
       await db.execute(sql`
-        INSERT INTO inventory_items (school_id, name, sku, quantity, unit_price, condition, location)
-        VALUES (${schoolId}, ${cleanName}, ${cleanSku}, ${cleanQty}, ${cleanUnitPrice}, ${cleanCondition}, ${cleanLocation});
+        INSERT INTO inventory_items (school_id, name, sku, quantity, unit_price, condition, location, category_id)
+        VALUES (${schoolId}, ${cleanName}, ${cleanSku}, ${cleanQty}, ${cleanUnitPrice}, ${cleanCondition}, ${cleanLocation}, ${cleanCategoryId});
       `).catch(() => {});
     }
 
