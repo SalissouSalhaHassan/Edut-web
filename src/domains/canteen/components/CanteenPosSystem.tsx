@@ -8,7 +8,7 @@ import {
   Search, ShoppingCart, CreditCard, Trash2, User, Wallet, Sparkles, 
   ArrowLeft, Clock, Calendar, Store, Plus, Minus, Check, X, Printer, 
   FileText, Package, Settings, Lock, RotateCcw, AlertTriangle, ChevronDown, 
-  DollarSign, CheckCircle2, RefreshCw, Barcode, Eye, Loader2, Download, TrendingUp, Filter
+  DollarSign, CheckCircle2, RefreshCw, Barcode, Eye, Loader2, Download, TrendingUp, Filter, Pencil
 } from "lucide-react";
 import { 
   createCanteenItem, 
@@ -18,6 +18,7 @@ import {
   getCanteenInvoices, 
   createCanteenInvoice, 
   voidCanteenInvoice, 
+  updateCanteenInvoice,
   getCanteenStudents,
   getActiveSchoolProfile
 } from "@/domains/canteen/actions/canteen.actions";
@@ -114,6 +115,39 @@ export default function CanteenPosSystem({
   const [articleForm, setArticleForm] = useState({ id: 0, name: "", code: "", price: 0, category: "Snacks", stock: 100 });
   const [isEditingArticle, setIsEditingArticle] = useState(false);
   const [selectedInvoiceDetails, setSelectedInvoiceDetails] = useState<any | null>(null);
+
+  // Edit Invoice State
+  const [editingInvoice, setEditingInvoice] = useState<any | null>(null);
+  const [editInvoiceForm, setEditInvoiceForm] = useState({
+    id: 0,
+    invoiceNumber: "",
+    clientName: "CLIENT COMPTANT",
+    paymentMethod: "Cash",
+    status: "Payée"
+  });
+
+  const handleSaveEditedInvoice = async () => {
+    if (!editingInvoice) return;
+
+    const res = await updateCanteenInvoice(editingInvoice.id, {
+      clientName: editInvoiceForm.clientName,
+      paymentMethod: editInvoiceForm.paymentMethod,
+      status: editInvoiceForm.status,
+    }) as any;
+
+    if (res.success || res.data?.success) {
+      setInvoices(prev => prev.map(inv => inv.id === editingInvoice.id ? {
+        ...inv,
+        clientName: editInvoiceForm.clientName,
+        paymentMethod: editInvoiceForm.paymentMethod,
+        status: editInvoiceForm.status,
+      } : inv));
+      toast.success(`Facture ${editInvoiceForm.invoiceNumber} modifiée avec succès !`);
+      setEditingInvoice(null);
+    } else {
+      toast.error(res.error || res.data?.error || "Erreur lors de la modification de la facture.");
+    }
+  };
 
   // Categories List
   const categories = useMemo(() => {
@@ -1128,6 +1162,22 @@ export default function CanteenPosSystem({
                           >
                             <Eye size={15} />
                           </button>
+                          <button
+                            onClick={() => {
+                              setEditingInvoice(inv);
+                              setEditInvoiceForm({
+                                id: inv.id,
+                                invoiceNumber: inv.invoiceNumber,
+                                clientName: inv.clientName || "CLIENT COMPTANT",
+                                paymentMethod: inv.paymentMethod || "Cash",
+                                status: inv.status || "Payée"
+                              });
+                            }}
+                            className="w-9 h-9 rounded-xl bg-slate-800 hover:bg-amber-600 text-slate-300 hover:text-white transition-all flex items-center justify-center border border-slate-700"
+                            title="Modifier Facture"
+                          >
+                            <Pencil size={15} />
+                          </button>
                           {inv.status !== "Annulée" && (
                             <button
                               onClick={async () => {
@@ -1409,6 +1459,85 @@ export default function CanteenPosSystem({
                 className="h-11 px-6 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs gap-2"
               >
                 <Lock size={16} /> Valider la Clôture
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL 5: MODIFIER LA FACTURE ─── */}
+      {editingInvoice && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 text-white rounded-3xl border border-slate-800 max-w-md w-full p-6 shadow-2xl space-y-5 relative">
+            <button 
+              onClick={() => setEditingInvoice(null)}
+              className="absolute top-6 right-6 text-slate-400 hover:text-white"
+            >
+              <X size={20} />
+            </button>
+
+            <div>
+              <h3 className="text-xl font-black text-white">Modifier la Facture</h3>
+              <p className="text-xs font-bold text-purple-400 font-mono tracking-wider">{editInvoiceForm.invoiceNumber}</p>
+            </div>
+
+            <div className="space-y-4">
+              {/* Client Name Input */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase">Nom du Client</label>
+                <input 
+                  type="text"
+                  placeholder="Ex: CLIENT COMPTANT"
+                  value={editInvoiceForm.clientName}
+                  onChange={(e) => setEditInvoiceForm(prev => ({ ...prev, clientName: e.target.value }))}
+                  className="w-full h-12 bg-slate-950 border border-slate-700 rounded-xl px-4 text-sm font-bold text-white outline-none focus:border-purple-500"
+                />
+              </div>
+
+              {/* Mode of Payment & Status */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase">Mode de Paiement</label>
+                  <select
+                    value={editInvoiceForm.paymentMethod}
+                    onChange={(e) => setEditInvoiceForm(prev => ({ ...prev, paymentMethod: e.target.value }))}
+                    className="w-full h-12 bg-slate-950 border border-slate-700 rounded-xl px-3 text-xs font-bold text-white outline-none focus:border-purple-500"
+                  >
+                    <option value="Cash">Cash</option>
+                    <option value="Carte">Carte</option>
+                    <option value="Mobile Money">Mobile Money</option>
+                    <option value="Crédit">Crédit</option>
+                    <option value="Dépôt/Avance">Dépôt/Avance</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase">Statut Facture</label>
+                  <select
+                    value={editInvoiceForm.status}
+                    onChange={(e) => setEditInvoiceForm(prev => ({ ...prev, status: e.target.value }))}
+                    className="w-full h-12 bg-slate-950 border border-slate-700 rounded-xl px-3 text-xs font-bold text-white outline-none focus:border-purple-500"
+                  >
+                    <option value="Payée">Payée</option>
+                    <option value="Annulée">Annulée</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-4 flex justify-end gap-3 border-t border-slate-800">
+              <Button 
+                variant="ghost" 
+                onClick={() => setEditingInvoice(null)}
+                className="h-11 px-4 font-bold text-xs"
+              >
+                Annuler
+              </Button>
+              <Button 
+                onClick={handleSaveEditedInvoice}
+                className="h-11 px-6 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl text-xs shadow-md"
+              >
+                Enregistrer Modifs
               </Button>
             </div>
           </div>

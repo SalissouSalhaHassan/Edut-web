@@ -381,6 +381,45 @@ export async function voidCanteenInvoice(id: number) {
   });
 }
 
+export async function updateCanteenInvoice(id: number, data: {
+  clientName?: string;
+  paymentMethod?: string;
+  status?: string;
+  amountReceived?: number;
+  changeGiven?: number;
+}) {
+  return protectedDbAction("Canteen", "canEdit", async () => {
+    await ensureCanteenTablesExist();
+
+    const cleanClientName = data.clientName ? data.clientName.trim() : undefined;
+    const cleanPaymentMethod = data.paymentMethod ? data.paymentMethod.trim() : undefined;
+    const cleanStatus = data.status ? data.status.trim() : undefined;
+
+    const updateFields: any = {};
+    if (cleanClientName !== undefined) updateFields.clientName = cleanClientName;
+    if (cleanPaymentMethod !== undefined) updateFields.paymentMethod = cleanPaymentMethod;
+    if (cleanStatus !== undefined) updateFields.status = cleanStatus;
+
+    try {
+      await db.update(canteenInvoices)
+        .set(updateFields)
+        .where(eq(canteenInvoices.id, id));
+    } catch (e) {
+      await db.execute(sql`
+        UPDATE canteen_invoices 
+        SET client_name = COALESCE(${cleanClientName}, client_name),
+            payment_method = COALESCE(${cleanPaymentMethod}, payment_method),
+            status = COALESCE(${cleanStatus}, status)
+        WHERE id = ${id};
+      `).catch(() => {});
+    }
+
+    revalidatePath("/dashboard/canteen");
+    revalidatePath("/dashboard/pos");
+    return { success: true };
+  });
+}
+
 // ─── Students for Client Selector ─────────────────────────────────────────────
 export async function getCanteenStudents() {
   return protectedDbAction("Canteen", "canView", async () => {
