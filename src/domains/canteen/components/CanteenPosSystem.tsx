@@ -193,6 +193,8 @@ export default function CanteenPosSystem({
       return;
     }
 
+    const currentCart = [...cart];
+
     const payload = {
       clientName: selectedClient.name,
       studentId: selectedClient.id || undefined,
@@ -202,19 +204,38 @@ export default function CanteenPosSystem({
       amountReceived: numAmountReceived || totalTtc,
       changeGiven: numAmountReceived > totalTtc ? changeGiven : 0,
       paymentMethod,
-      itemsJson: JSON.stringify(cart),
+      itemsJson: JSON.stringify(currentCart),
       cashierName,
     };
 
     const res = await createCanteenInvoice(payload) as any;
-    if (res.success) {
-      const createdInvoice = res.data;
+    if (res.success || res.data?.success) {
+      const createdInvoice = res.data?.data || res.data || res;
       setInvoices(prev => [createdInvoice, ...prev]);
       setPrintableReceipt(createdInvoice);
-      toast.success(`Vente enregistrée avec succès ! Facture: ${createdInvoice.invoiceNumber}`);
+
+      // Deduct stock locally in UI state immediately
+      setItems(prevItems => prevItems.map(prod => {
+        const cartItem = currentCart.find(c => c.id === prod.id || c.name === prod.name || (c.code && c.code === prod.code));
+        if (cartItem) {
+          const currentStock = prod.stock ?? 100;
+          return { ...prod, stock: Math.max(0, currentStock - (cartItem.quantity || 1)) };
+        }
+        return prod;
+      }));
+
+      // Re-fetch fresh items from server to stay 100% in sync with PostgreSQL
+      getCanteenItems().then((freshRes: any) => {
+        const freshData = freshRes.data?.data || freshRes.data || [];
+        if (Array.isArray(freshData) && freshData.length > 0) {
+          setItems(freshData);
+        }
+      }).catch(() => {});
+
+      toast.success(`Vente enregistrée avec succès ! Facture: ${createdInvoice.invoiceNumber || ''}`);
       clearTicket();
     } else {
-      toast.error(res.error || "Erreur lors de la validation de la vente.");
+      toast.error(res.error || res.data?.error || "Erreur lors de la validation de la vente.");
     }
   };
 

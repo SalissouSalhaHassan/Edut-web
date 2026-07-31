@@ -330,18 +330,35 @@ export async function createCanteenInvoice(data: {
       status: "Payée",
     }).returning();
 
-    // Deduct stock for items if possible
+    // Deduct stock for items in PostgreSQL database
     try {
       const itemsList = JSON.parse(data.itemsJson || "[]");
       for (const item of itemsList) {
-        if (item.id) {
-          const currentItem = await db.query.canteenItems.findFirst({
-            where: eq(canteenItems.id, item.id)
-          });
-          if (currentItem && typeof currentItem.stock === 'number') {
-            const newStock = Math.max(0, currentItem.stock - (item.quantity || 1));
-            await db.update(canteenItems).set({ stock: newStock }).where(eq(canteenItems.id, item.id));
-          }
+        const qty = Number(item.quantity) || 1;
+        const itemId = Number(item.id) || 0;
+        const itemCode = item.code ? String(item.code).trim() : "";
+        const itemName = item.name ? String(item.name).trim() : "";
+
+        if (itemId > 0) {
+          await db.execute(sql`
+            UPDATE canteen_items 
+            SET stock = GREATEST(0, COALESCE(stock, 100) - ${qty})
+            WHERE id = ${itemId};
+          `).catch(() => {});
+        }
+        if (itemCode.length > 0) {
+          await db.execute(sql`
+            UPDATE canteen_items 
+            SET stock = GREATEST(0, COALESCE(stock, 100) - ${qty})
+            WHERE code = ${itemCode};
+          `).catch(() => {});
+        }
+        if (itemName.length > 0) {
+          await db.execute(sql`
+            UPDATE canteen_items 
+            SET stock = GREATEST(0, COALESCE(stock, 100) - ${qty})
+            WHERE name = ${itemName};
+          `).catch(() => {});
         }
       }
     } catch (e) {
