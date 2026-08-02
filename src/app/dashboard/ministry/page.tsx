@@ -1203,7 +1203,7 @@ export default function MinistryDashboardPage() {
       </div>
       
       {/* Header */}
-      <header className="rounded-[2rem] border border-slate-200/70 dark:border-slate-800/80 bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <header className="relative z-50 rounded-[2rem] border border-slate-200/70 dark:border-slate-800/80 bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="flex items-center gap-4">
           <Link href="/dashboard" className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-[#1f2232] transition print:hidden">
             <ArrowLeft size={19} />
@@ -1220,7 +1220,7 @@ export default function MinistryDashboardPage() {
 
         <div className="flex flex-wrap items-center gap-3 print:hidden">
           {/* Dropdown Menu Multi-Formats */}
-          <div className="relative">
+          <div className="relative z-50">
             <button 
               onClick={() => setExportDropdownOpen(!exportDropdownOpen)}
               className="flex h-11 items-center gap-2 rounded-xl bg-gradient-to-r from-rose-600 via-purple-600 to-indigo-600 px-5 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-rose-500/20 hover:opacity-95 transition cursor-pointer"
@@ -1230,7 +1230,7 @@ export default function MinistryDashboardPage() {
 
             {exportDropdownOpen && (
               <div 
-                className="absolute right-0 mt-2 w-72 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-[#181b2a]/95 backdrop-blur-xl shadow-2xl p-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200 space-y-1"
+                className="absolute right-0 mt-2 w-72 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#181b2a] shadow-2xl p-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200 space-y-1"
               >
                 <div className="px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-100 dark:border-slate-800 mb-1">
                   Formats Ministériels Officiels
