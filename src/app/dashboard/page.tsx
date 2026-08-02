@@ -274,7 +274,7 @@ export default async function DashboardPage() {
   const user = await getCurrentUser();
   const schoolId = await getActiveSchoolId();
 
-  const [stats, unreadCount, { branchData }, activeSessionLabel] = await Promise.all([
+  const [stats, unreadCount, { branchData, allBranches }, activeSessionLabel] = await Promise.all([
     getStats(user),
     getUnreadNotificationsCount().catch(() => 0),
     getActiveBranchData(user),
@@ -288,7 +288,20 @@ export default async function DashboardPage() {
 
   const bd = branchData as any;
   const us = user?.school as any;
-  const schoolLogo = bd?.logoPath || bd?.logo_path || bd?.logoUrl || us?.logoPath || us?.logo_path || us?.logoUrl || us?.logo || null;
+  const ab = (allBranches as any[]) || [];
+  const firstBranch = ab.find((x: any) => x.logoPath || x.logo_path || x.logoUrl);
+  const schoolLogo = bd?.logoPath || 
+                     bd?.logo_path || 
+                     bd?.logoUrl || 
+                     us?.logoPath || 
+                     us?.logo_path || 
+                     us?.logoUrl || 
+                     us?.logo || 
+                     firstBranch?.logoPath || 
+                     firstBranch?.logo_path || 
+                     firstBranch?.logoUrl || 
+                     null;
+
   const branding = {
     name: branchData?.branchName || user?.school?.name || "GROUP AIIU-NIGER",
     logoPath: schoolLogo,

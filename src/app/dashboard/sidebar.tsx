@@ -476,6 +476,8 @@ export default function DashboardSidebar({
               const b = branding as any;
               const br = branch as any;
               const s = user?.school as any;
+              const ab = (allBranches as any[]) || [];
+              const firstBranch = ab.find((x: any) => x.logoPath || x.logo_path || x.logoUrl);
               const logo = b?.logoPath || 
                            b?.logo_path || 
                            b?.logoUrl || 
@@ -485,7 +487,10 @@ export default function DashboardSidebar({
                            s?.logoPath || 
                            s?.logo_path || 
                            s?.logoUrl || 
-                           s?.logo;
+                           s?.logo ||
+                           firstBranch?.logoPath ||
+                           firstBranch?.logo_path ||
+                           firstBranch?.logoUrl;
               return (
                 <div className="w-12 h-12 rounded-[18px] bg-gradient-to-br from-indigo-600 to-indigo-800 text-white flex items-center justify-center shadow-lg shadow-indigo-200 dark:shadow-none overflow-hidden shrink-0 border border-indigo-500/30">
                   {logo ? (

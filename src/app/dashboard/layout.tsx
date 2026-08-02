@@ -28,7 +28,20 @@ export default async function DashboardLayout({
   const isGeneralAdmin = !branchData && allBranches && allBranches.length > 0;
   const bd = branchData as any;
   const us = user?.school as any;
-  const schoolLogo = bd?.logoPath || bd?.logo_path || bd?.logoUrl || us?.logoPath || us?.logo_path || us?.logoUrl || us?.logo || null;
+  const ab = (allBranches as any[]) || [];
+  const firstBranch = ab.find((x: any) => x.logoPath || x.logo_path || x.logoUrl);
+  const schoolLogo = bd?.logoPath || 
+                     bd?.logo_path || 
+                     bd?.logoUrl || 
+                     us?.logoPath || 
+                     us?.logo_path || 
+                     us?.logoUrl || 
+                     us?.logo || 
+                     firstBranch?.logoPath || 
+                     firstBranch?.logo_path || 
+                     firstBranch?.logoUrl || 
+                     null;
+
   const branding = {
     name: branchData?.branchName || user?.school?.name || "Edut Pro",
     logoPath: schoolLogo,
