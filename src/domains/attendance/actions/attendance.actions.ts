@@ -108,10 +108,11 @@ export async function saveBatchAttendance(data: BatchAttendanceFormData) {
     const { sendSMS, sendWhatsApp } = validation.data;
     const flaggedRecords = records.filter(r => r.status === "Absent" || r.status === "En Retard");
     
-    if (flaggedRecords.length > 0 && (sendSMS || sendWhatsApp)) {
-      console.log(`[Messaging Log] Processing deferred alerts for ${flaggedRecords.length} students (sendSMS: ${sendSMS}, sendWhatsApp: ${sendWhatsApp})`);
+    if (flaggedRecords.length > 0) {
+      console.log(`[Messaging Log] Processing deferred alerts & mobile push for ${flaggedRecords.length} students`);
       try {
         const { MessagingService } = await import("@/shared/services/messaging.service");
+        const { PushNotificationService } = await import("@/shared/services/push-notification.service");
         const studentIds = flaggedRecords.map(r => r.studentId);
         
         const targetStudents = await db.query.students.findMany({
@@ -128,12 +129,24 @@ export async function saveBatchAttendance(data: BatchAttendanceFormData) {
 
         for (const record of flaggedRecords) {
           const s = targetStudents.find(st => st.id === record.studentId);
-          if (s && (s.mobile || s.whatsapp)) {
-            console.log(`[Messaging Log] Deferred Alert Sent: ${s.nomEtudiant} | Status: ${record.status} | Phone: ${s.mobile || s.whatsapp}`);
+          const studentName = s ? `${s.nomEtudiant} ${s.prenomEtudiant || ''}`.trim() : `Élève #${record.studentId}`;
+          
+          // 1. Mobile Push Notification
+          await PushNotificationService.sendAbsenceAlert({
+            studentId: record.studentId,
+            studentName,
+            status: record.status as "Absent" | "En Retard",
+            date: dateStr,
+            subjectName: subName,
+          });
+
+          // 2. SMS / WhatsApp if requested
+          if (s && (s.mobile || s.whatsapp) && (sendSMS || sendWhatsApp)) {
+            console.log(`[Messaging Log] Deferred Alert Sent: ${studentName} | Status: ${record.status} | Phone: ${s.mobile || s.whatsapp}`);
             await MessagingService.sendAttendanceAlert({
               to: s.mobile || "",
               whatsapp: s.whatsapp || s.mobile || "",
-              studentName: s.nomEtudiant,
+              studentName,
               status: record.status as any,
               subject: subName,
               date: dateStr,
@@ -143,7 +156,7 @@ export async function saveBatchAttendance(data: BatchAttendanceFormData) {
           }
         }
       } catch (err) {
-        console.error("[Messaging Log] Failed to process smart alerts:", err);
+        console.error("[Messaging Log] Failed to process smart alerts & push notifications:", err);
       }
     }
 

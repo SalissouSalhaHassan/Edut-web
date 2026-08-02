@@ -105,6 +105,37 @@ export async function createHomework(formData: HomeworkFormData) {
       ...validation.data,
       dateDue: new Date(validation.data.dateDue),
     });
+
+    // Trigger Real-time Mobile Push Notification for Homework
+    try {
+      const { PushNotificationService } = await import("@/shared/services/push-notification.service");
+      
+      let className = "";
+      let subjectName = "";
+
+      if (validation.data.classId) {
+        const cls = await db.query.schoolClasses.findFirst({ where: eq(schoolClasses.id, validation.data.classId) });
+        if (cls) className = cls.className;
+      }
+
+      if (validation.data.subjectId) {
+        const sub = await db.query.schoolSubjects.findFirst({ where: eq(schoolSubjects.id, validation.data.subjectId) });
+        if (sub) subjectName = sub.subjectName;
+      }
+
+      const dateDueFormatted = new Date(validation.data.dateDue).toLocaleDateString("fr-FR");
+
+      await PushNotificationService.sendHomeworkAlert({
+        homeworkTitle: validation.data.title,
+        classId: validation.data.classId,
+        className,
+        subjectName,
+        dateDue: dateDueFormatted,
+      });
+    } catch (pushErr) {
+      console.error("[Push Notification] Failed to dispatch homework push alert:", pushErr);
+    }
+
     revalidatePath("/dashboard/academics/homework");
     return { success: true };
   });
