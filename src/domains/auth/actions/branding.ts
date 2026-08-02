@@ -20,6 +20,7 @@ export async function getSchoolBranding() {
       const school = await readDb.query.schools.findFirst({
         where: eq(schools.slug, slug),
         columns: {
+          id: true,
           name: true,
           logoPath: true,
           slug: true,
