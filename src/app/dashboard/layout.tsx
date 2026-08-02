@@ -26,9 +26,10 @@ export default async function DashboardLayout({
 
   // Final branding fallback: if no branch data found, use school data from user object
   const isGeneralAdmin = !branchData && allBranches && allBranches.length > 0;
+  const schoolLogo = branchData?.logoPath || branchData?.logo_path || branchData?.logoUrl || user?.school?.logoPath || user?.school?.logo_path || user?.school?.logoUrl || user?.school?.logo || null;
   const branding = {
     name: branchData?.branchName || user?.school?.name || "Edut Pro",
-    logoPath: branchData?.logoPath || user?.school?.logoPath || null,
+    logoPath: schoolLogo,
     level: isGeneralAdmin ? "Administration Générale" : (branchData?.instType || user?.educationalLevel || "Gestion Scolaire")
   };
 

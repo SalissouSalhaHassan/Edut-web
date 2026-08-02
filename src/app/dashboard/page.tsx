@@ -286,9 +286,10 @@ export default async function DashboardPage() {
     schoolId ? getUpcomingEvents(schoolId) : Promise.resolve(null)
   ]);
 
+  const schoolLogo = branchData?.logoPath || branchData?.logo_path || branchData?.logoUrl || user?.school?.logoPath || user?.school?.logo_path || user?.school?.logoUrl || user?.school?.logo || null;
   const branding = {
     name: branchData?.branchName || user?.school?.name || "GROUP AIIU-NIGER",
-    logoPath: branchData?.logoPath || user?.school?.logoPath || null,
+    logoPath: schoolLogo,
     level: branchData?.instType || user?.educationalLevel || "Gestion Scolaire"
   };
 

@@ -472,13 +472,25 @@ export default function DashboardSidebar({
       <div className="p-6 shrink-0 flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-12 h-12 rounded-[18px] bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-200 dark:shadow-none overflow-hidden shrink-0">
-              {branding?.logoPath || branch?.logoPath ? (
-                <img src={branding?.logoPath || branch.logoPath} alt="Logo" className="w-full h-full object-cover" />
-              ) : (
-                <GraduationCap className="size-[22px]" />
-              )}
-            </div>
+            {(() => {
+              const logo = branding?.logoPath || 
+                           branch?.logoPath || 
+                           user?.school?.logoPath || 
+                           user?.school?.logo_path || 
+                           user?.school?.logoUrl || 
+                           user?.school?.logo;
+              return (
+                <div className="w-12 h-12 rounded-[18px] bg-gradient-to-br from-indigo-600 to-indigo-800 text-white flex items-center justify-center shadow-lg shadow-indigo-200 dark:shadow-none overflow-hidden shrink-0 border border-indigo-500/30">
+                  {logo ? (
+                    <img src={logo} alt="Logo" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="flex items-center justify-center w-full h-full bg-indigo-600 font-black text-xl text-white">
+                      {(branding?.name || branch?.branchName || user?.school?.name || "E").charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
             <div className="min-w-0">
               <p className="font-bold text-slate-900 dark:text-white text-[17px] leading-tight truncate">
                 {branding?.name || branch?.branchName || "École Plus"}

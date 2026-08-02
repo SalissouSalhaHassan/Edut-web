@@ -263,11 +263,26 @@ export default function DashboardUI(props: DashboardUIProps) {
       {/* Header + Topbar */}
       <div className="flex flex-col 2xl:flex-row 2xl:items-center justify-between gap-6">
         <div className="space-y-2 flex items-start gap-4">
-          {props.branding?.logoPath && (
-            <div className="w-16 h-16 rounded-[20px] bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-800/40 flex items-center justify-center overflow-hidden shrink-0 shadow-sm mt-1">
-              <img src={props.branding.logoPath} alt="Logo" className="w-full h-full object-cover" />
-            </div>
-          )}
+          {(() => {
+            const logo = props.branding?.logoPath || 
+                         props.branding?.logo_path || 
+                         props.branding?.logoUrl || 
+                         props.user?.school?.logoPath || 
+                         props.user?.school?.logo_path || 
+                         props.user?.school?.logoUrl || 
+                         props.user?.school?.logo;
+            return (
+              <div className="w-16 h-16 rounded-[22px] bg-gradient-to-br from-indigo-600 to-indigo-800 text-white border border-indigo-200 dark:border-indigo-800/40 flex items-center justify-center overflow-hidden shrink-0 shadow-lg shadow-indigo-100 dark:shadow-none mt-1">
+                {logo ? (
+                  <img src={logo} alt="Logo" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="flex items-center justify-center w-full h-full bg-indigo-600 font-black text-2xl text-white">
+                    {(props.branding?.name || props.user?.school?.name || "E").charAt(0).toUpperCase()}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
           <div>
             <div className="flex items-center gap-3 flex-wrap">
               <h1 className="text-5xl font-black text-slate-900 dark:text-white tracking-tight">Tableau de Bord</h1>
