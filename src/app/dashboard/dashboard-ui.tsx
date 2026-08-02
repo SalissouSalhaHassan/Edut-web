@@ -232,12 +232,11 @@ function Pill({ tone, children }: { tone: "purple" | "green" | "orange"; childre
 }
 
 export default function DashboardUI(props: DashboardUIProps) {
-  const [isDark, setIsDark] = React.useState(false);
+  const [isDark, setIsDark] = React.useState(true);
 
   React.useEffect(() => {
     const savedTheme = localStorage.getItem("edut_theme");
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const shouldBeDark = savedTheme === "dark" || (!savedTheme && prefersDark);
+    const shouldBeDark = savedTheme !== "light";
     setIsDark(shouldBeDark);
     if (shouldBeDark) {
       document.documentElement.classList.add("dark");

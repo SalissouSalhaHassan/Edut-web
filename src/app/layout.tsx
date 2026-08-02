@@ -41,9 +41,27 @@ export default function RootLayout({
     <html
       lang="fr"
       data-scroll-behavior="smooth"
-      className={`${plusJakarta.variable} ${cairo.variable} h-full antialiased font-sans`}
+      className={`${plusJakarta.variable} ${cairo.variable} h-full antialiased font-sans dark`}
     >
-      <body className="min-h-full flex flex-col bg-slate-50/50">
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  var saved = localStorage.getItem('edut_theme');
+                  if (saved === 'light') {
+                    document.documentElement.classList.remove('dark');
+                  } else {
+                    document.documentElement.classList.add('dark');
+                  }
+                } catch(e){}
+              })();
+            `,
+          }}
+        />
+      </head>
+      <body className="min-h-full flex flex-col bg-slate-950 text-slate-100 dark:bg-[#0c0e14] dark:text-slate-100 transition-colors duration-300">
         <ClientProviders>
           {children}
         </ClientProviders>
