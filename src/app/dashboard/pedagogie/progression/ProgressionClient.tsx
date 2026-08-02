@@ -384,19 +384,33 @@ export default function ProgressionClient({
     }
   };
 
-  const KpiCard = ({ icon, label, value, color, sub }: any) => (
-    <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
-      <div className={`p-3.5 rounded-xl ${color} shrink-0`}>{icon}</div>
-      <div>
-        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</p>
-        <p className="text-2xl font-black text-slate-900 mt-0.5 leading-none">{value}</p>
-        {sub && <p className="text-xs text-slate-400 font-medium mt-1">{sub}</p>}
+  const KpiCard = ({ icon, label, value, color, sub }: any) => {
+    const gradientMap: Record<string, string> = {
+      blue: "from-blue-500 via-indigo-500 to-cyan-500",
+      emerald: "from-emerald-400 via-teal-500 to-emerald-600",
+      violet: "from-violet-500 via-purple-500 to-fuchsia-600",
+      rose: "from-rose-500 via-pink-500 to-red-600",
+      red: "from-red-500 via-rose-500 to-pink-600",
+      amber: "from-amber-400 via-orange-500 to-yellow-500",
+    };
+    const key = Object.keys(gradientMap).find(k => (color || "").includes(k)) || "blue";
+    const gradient = gradientMap[key];
+
+    return (
+      <div className="group relative overflow-hidden bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl p-5 rounded-2xl border border-slate-200/70 dark:border-slate-800/80 shadow-sm hover:shadow-xl hover:border-indigo-300 dark:hover:border-indigo-500/50 hover:-translate-y-1 transition-all duration-300 flex items-center gap-4">
+        <div className={`absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r ${gradient} opacity-80 group-hover:opacity-100 transition-opacity`} />
+        <div className={`p-3.5 rounded-xl ${color} dark:bg-opacity-20 shrink-0 group-hover:scale-105 transition-transform shadow-xs`}>{icon}</div>
+        <div className="min-w-0 flex-1">
+          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-400">{label}</p>
+          <p className="text-2xl font-black text-slate-900 dark:text-white mt-0.5 leading-none">{value}</p>
+          {sub && <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-1">{sub}</p>}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
-    <div className="min-h-screen bg-slate-50/60 p-5 lg:p-7 space-y-6 print:bg-white print:p-0 print:m-0 print:w-full print:min-h-0">
+    <div className="min-h-screen p-5 lg:p-7 space-y-6 text-slate-900 dark:text-slate-100 print:bg-white print:p-0 print:m-0 print:w-full print:min-h-0">
 
       <style dangerouslySetInnerHTML={{__html: `
         @media print {
@@ -434,25 +448,25 @@ export default function ProgressionClient({
       {/* ─── HEADER ─── */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 print:hidden">
         <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-700 flex items-center justify-center shadow-lg shadow-indigo-200 shrink-0">
+          <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-700 flex items-center justify-center shadow-lg shadow-indigo-500/20 shrink-0">
             <TrendingUp size={20} className="text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-black text-slate-900 leading-none">Suivi de progression pédagogique</h1>
-            <p className="text-slate-500 text-sm font-medium mt-0.5">Avancement des programmes par matière et classe</p>
+            <h1 className="text-2xl font-black text-slate-900 dark:text-white leading-none">Suivi de progression pédagogique</h1>
+            <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mt-0.5">Avancement des programmes par matière et classe</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           {canExport && (
             <>
-              <button onClick={() => window.print()} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-700 text-xs font-bold hover:bg-slate-50 transition-all shadow-sm">
-                <Printer size={14} className="text-indigo-600" /> Imprimer
+              <button onClick={() => window.print()} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#1a1d2d] text-slate-700 dark:text-slate-200 text-xs font-bold hover:bg-slate-50 dark:hover:bg-[#222638] transition-all shadow-sm">
+                <Printer size={14} className="text-indigo-600 dark:text-indigo-400" /> Imprimer
               </button>
-              <button onClick={handleExportPdf} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-700 text-xs font-bold hover:bg-slate-50 transition-all shadow-sm">
+              <button onClick={handleExportPdf} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#1a1d2d] text-slate-700 dark:text-slate-200 text-xs font-bold hover:bg-slate-50 dark:hover:bg-[#222638] transition-all shadow-sm">
                 <FileText size={14} className="text-rose-500" /> Exporter PDF
               </button>
-              <button onClick={handleExportCsv} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-700 text-xs font-bold hover:bg-slate-50 transition-all shadow-sm">
-                <Download size={14} className="text-emerald-600" /> CSV
+              <button onClick={handleExportCsv} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#1a1d2d] text-slate-700 dark:text-slate-200 text-xs font-bold hover:bg-slate-50 dark:hover:bg-[#222638] transition-all shadow-sm">
+                <Download size={14} className="text-emerald-600 dark:text-emerald-400" /> CSV
               </button>
             </>
           )}
@@ -461,47 +475,47 @@ export default function ProgressionClient({
 
       {/* ─── KPIs ─── */}
       <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 print:hidden">
-        <KpiCard icon={<BookOpen size={18} className="text-blue-600" />} label="Programme prévu" value={kpis.planned} color="bg-blue-50" sub="Leçons au total" />
-        <KpiCard icon={<CheckCircle2 size={18} className="text-emerald-600" />} label="Programme réalisé" value={kpis.realised} color="bg-emerald-50" sub="Leçons validées" />
-        <KpiCard icon={<TrendingUp size={18} className="text-violet-600" />} label="Taux progression" value={`${kpis.rate}%`} color="bg-violet-50" sub="Moyenne exécution" />
-        <KpiCard icon={<Clock size={18} className="text-rose-600" />} label="Cours en retard" value={kpis.lateCount} color="bg-rose-50" sub="Hors échéances" />
-        <KpiCard icon={<ShieldAlert size={18} className="text-red-600" />} label="Classes à risque" value={kpis.atRisk} color="bg-red-50" sub="Progression < 50%" />
-        <KpiCard icon={<Users size={18} className="text-amber-600" />} label="Enseignants à relancer" value={kpis.teachersCount} color="bg-amber-50" sub="Relances prêtes" />
+        <KpiCard icon={<BookOpen size={18} className="text-blue-600 dark:text-blue-400" />} label="Programme prévu" value={kpis.planned} color="bg-blue-50 dark:bg-blue-950/60" sub="Leçons au total" />
+        <KpiCard icon={<CheckCircle2 size={18} className="text-emerald-600 dark:text-emerald-400" />} label="Programme réalisé" value={kpis.realised} color="bg-emerald-50 dark:bg-emerald-950/60" sub="Leçons validées" />
+        <KpiCard icon={<TrendingUp size={18} className="text-violet-600 dark:text-violet-400" />} label="Taux progression" value={`${kpis.rate}%`} color="bg-violet-50 dark:bg-violet-950/60" sub="Moyenne exécution" />
+        <KpiCard icon={<Clock size={18} className="text-rose-600 dark:text-rose-400" />} label="Cours en retard" value={kpis.lateCount} color="bg-rose-50 dark:bg-rose-950/60" sub="Hors échéances" />
+        <KpiCard icon={<ShieldAlert size={18} className="text-red-600 dark:text-red-400" />} label="Classes à risque" value={kpis.atRisk} color="bg-red-50 dark:bg-red-950/60" sub="Progression < 50%" />
+        <KpiCard icon={<Users size={18} className="text-amber-600 dark:text-amber-400" />} label="Enseignants à relancer" value={kpis.teachersCount} color="bg-amber-50 dark:bg-amber-950/60" sub="Relances prêtes" />
       </div>
 
       {/* ─── CHARTS SECTION ─── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 print:hidden">
         {/* Progression par classe (BarChart) */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
-          <h3 className="text-xs font-black text-slate-700 uppercase tracking-wider mb-4">Progression par classe (%)</h3>
+        <div className="bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl p-5 rounded-2xl border border-slate-200/70 dark:border-slate-800/80 shadow-sm">
+          <h3 className="text-xs font-black text-slate-700 dark:text-slate-200 uppercase tracking-wider mb-4">Progression par classe (%)</h3>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={classProgressChart.slice(0, 6)}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} />
               <XAxis dataKey="name" tick={{ fontSize: 10, fontWeight: 700 }} axisLine={false} />
               <YAxis unit="%" tick={{ fontSize: 10 }} axisLine={false} />
-              <Tooltip formatter={(v: any) => `${v}%`} />
+              <Tooltip formatter={(v: any) => `${v}%`} contentStyle={{ borderRadius: 12, border: "none", boxShadow: "0 4px 20px rgba(0,0,0,0.15)" }} />
               <Bar dataKey="Taux" fill="#6366f1" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
         {/* Progression par matière */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
-          <h3 className="text-xs font-black text-slate-700 uppercase tracking-wider mb-4">Progression par matière (%)</h3>
+        <div className="bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl p-5 rounded-2xl border border-slate-200/70 dark:border-slate-800/80 shadow-sm">
+          <h3 className="text-xs font-black text-slate-700 dark:text-slate-200 uppercase tracking-wider mb-4">Progression par matière (%)</h3>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={subjectProgressChart}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} />
               <XAxis dataKey="name" tick={{ fontSize: 9, fontWeight: 700 }} axisLine={false} />
               <YAxis unit="%" tick={{ fontSize: 10 }} axisLine={false} />
-              <Tooltip formatter={(v: any) => `${v}%`} />
+              <Tooltip formatter={(v: any) => `${v}%`} contentStyle={{ borderRadius: 12, border: "none", boxShadow: "0 4px 20px rgba(0,0,0,0.15)" }} />
               <Bar dataKey="Taux" fill="#10b981" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
         {/* Retards par niveau */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between">
-          <h3 className="text-xs font-black text-slate-700 uppercase tracking-wider mb-2">Retards par niveau</h3>
+        <div className="bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl p-5 rounded-2xl border border-slate-200/70 dark:border-slate-800/80 shadow-sm flex flex-col justify-between">
+          <h3 className="text-xs font-black text-slate-700 dark:text-slate-200 uppercase tracking-wider mb-2">Retards par niveau</h3>
           {levelsPieChart.length > 0 ? (
             <>
               <ResponsiveContainer width="100%" height={140}>
@@ -509,12 +523,12 @@ export default function ProgressionClient({
                   <Pie data={levelsPieChart} cx="50%" cy="50%" outerRadius={50} dataKey="value" label={{ fontSize: 10 }}>
                     {levelsPieChart.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                   </Pie>
-                  <Tooltip />
+                  <Tooltip contentStyle={{ borderRadius: 12, border: "none", boxShadow: "0 4px 20px rgba(0,0,0,0.15)" }} />
                 </PieChart>
               </ResponsiveContainer>
               <div className="flex justify-center gap-3 flex-wrap">
                 {levelsPieChart.map((l, i) => (
-                  <span key={i} className="text-[10px] font-bold text-slate-500 flex items-center gap-1">
+                  <span key={i} className="text-[10px] font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1">
                     <span className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
                     {l.name} ({l.value})
                   </span>
@@ -528,7 +542,7 @@ export default function ProgressionClient({
       </div>
 
       {/* ─── FILTERS ─── */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex flex-wrap items-center gap-3 print:hidden">
+      <div className="bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl rounded-2xl border border-slate-200/70 dark:border-slate-800/80 shadow-sm p-4 flex flex-wrap items-center gap-3 print:hidden">
         <div className="relative flex-1 min-w-[240px]">
           <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
@@ -536,22 +550,22 @@ export default function ProgressionClient({
             placeholder="Rechercher classe, matière, enseignant..."
             value={search}
             onChange={e => { setSearch(e.target.value); setPage(1); }}
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm font-medium focus:outline-none"
+            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#1a1d2d] text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 text-sm font-medium focus:outline-none"
           />
         </div>
-        <select value={filterNiveau} onChange={e => { setFilterNiveau(e.target.value); setPage(1); }} className={fSel}>
+        <select value={filterNiveau} onChange={e => { setFilterNiveau(e.target.value); setPage(1); }} className="h-10 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#1a1d2d] px-3 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none cursor-pointer">
           <option value="">Niveau (Tous)</option>
           {uniqueNiveaux.map((nv: any) => <option key={nv} value={nv}>{nv}</option>)}
         </select>
-        <select value={filterClass} onChange={e => { setFilterClass(e.target.value); setPage(1); }} className={fSel}>
+        <select value={filterClass} onChange={e => { setFilterClass(e.target.value); setPage(1); }} className="h-10 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#1a1d2d] px-3 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none cursor-pointer">
           <option value="">Classe (Toutes)</option>
           {classes.map((c: any) => <option key={c.id} value={c.id}>{c.className}</option>)}
         </select>
-        <select value={filterSubject} onChange={e => { setFilterSubject(e.target.value); setPage(1); }} className={fSel}>
+        <select value={filterSubject} onChange={e => { setFilterSubject(e.target.value); setPage(1); }} className="h-10 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#1a1d2d] px-3 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none cursor-pointer">
           <option value="">Matière (Toutes)</option>
           {subjects.map((s: any) => <option key={s.id} value={s.id}>{s.subjectName}</option>)}
         </select>
-        <select value={filterStatus} onChange={e => { setFilterStatus(e.target.value); setPage(1); }} className={fSel}>
+        <select value={filterStatus} onChange={e => { setFilterStatus(e.target.value); setPage(1); }} className="h-10 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#1a1d2d] px-3 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none cursor-pointer">
           <option value="">Statut (Tous)</option>
           <option value="Excellent">Excellent (&gt;=80%)</option>
           <option value="En cours">En cours (40-79%)</option>
@@ -560,45 +574,45 @@ export default function ProgressionClient({
       </div>
 
       {/* ─── DATA TABLE ─── */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden print:hidden">
+      <div className="bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl rounded-2xl border border-slate-200/70 dark:border-slate-800/80 shadow-sm overflow-hidden print:hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
-              <tr className="bg-slate-50/70 border-b border-slate-100">
+              <tr className="bg-slate-50/70 dark:bg-slate-900/60 border-b border-slate-200/60 dark:border-slate-800/60">
                 {["N°", "Classe", "Niveau", "Matière", "Enseignant", "Prévues", "Réalisées", "Restantes", "Progression", "Dernière séance", "Statut", "Actions"].map(h => (
-                  <th key={h} className="px-4 py-3.5 text-[10px] font-black uppercase tracking-widest text-slate-400 whitespace-nowrap">{h}</th>
+                  <th key={h} className="px-4 py-3.5 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-400 whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-50">
+            <tbody className="divide-y divide-slate-100/60 dark:divide-slate-800/40">
               {paginated.length === 0 ? (
                 <tr>
                   <td colSpan={12} className="text-center py-16 text-slate-400 font-bold">Aucune donnée de progression correspondante</td>
                 </tr>
               ) : paginated.map((r, idx) => {
-                let badgeClass = "bg-amber-50 text-amber-700";
-                if (r.status === "Excellent") badgeClass = "bg-emerald-50 text-emerald-700";
-                else if (r.status === "En retard") badgeClass = "bg-rose-50 text-rose-700";
+                let badgeClass = "bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400";
+                if (r.status === "Excellent") badgeClass = "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400";
+                else if (r.status === "En retard") badgeClass = "bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400";
 
                 return (
-                  <tr key={r.id} className="hover:bg-slate-50/50 transition-colors group">
-                    <td className="px-4 py-3.5 font-black text-slate-400 text-xs">{(page - 1) * PAGE_SIZE + idx + 1}</td>
-                    <td className="px-4 py-3.5 font-bold text-indigo-700 whitespace-nowrap">{r.className}</td>
-                    <td className="px-4 py-3.5 text-xs text-slate-500 font-medium">{r.niveau}</td>
-                    <td className="px-4 py-3.5 text-slate-700 font-semibold">{r.subjectName}</td>
-                    <td className="px-4 py-3.5 text-slate-600">{r.teacherName}</td>
-                    <td className="px-4 py-3.5 font-bold text-slate-400">{r.totalPlanned}</td>
-                    <td className="px-4 py-3.5 font-bold text-emerald-600">{r.totalRealised}</td>
-                    <td className="px-4 py-3.5 font-bold text-slate-400">{r.remaining}</td>
+                  <tr key={r.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors group">
+                    <td className="px-4 py-3.5 font-black text-slate-400 dark:text-slate-500 text-xs">{(page - 1) * PAGE_SIZE + idx + 1}</td>
+                    <td className="px-4 py-3.5 font-bold text-indigo-600 dark:text-indigo-400 whitespace-nowrap">{r.className}</td>
+                    <td className="px-4 py-3.5 text-xs text-slate-500 dark:text-slate-400 font-medium">{r.niveau}</td>
+                    <td className="px-4 py-3.5 text-slate-800 dark:text-slate-200 font-semibold">{r.subjectName}</td>
+                    <td className="px-4 py-3.5 text-slate-600 dark:text-slate-300">{r.teacherName}</td>
+                    <td className="px-4 py-3.5 font-bold text-slate-400 dark:text-slate-400">{r.totalPlanned}</td>
+                    <td className="px-4 py-3.5 font-bold text-emerald-600 dark:text-emerald-400">{r.totalRealised}</td>
+                    <td className="px-4 py-3.5 font-bold text-slate-400 dark:text-slate-400">{r.remaining}</td>
                     <td className="px-4 py-3.5">
                       <div className="flex items-center gap-2">
-                        <span className="font-black text-slate-800 w-10 text-xs">{r.rate}%</span>
-                        <div className="w-16 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                        <span className="font-black text-slate-800 dark:text-white w-10 text-xs">{r.rate}%</span>
+                        <div className="w-16 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
                           <div className={`h-full rounded-full ${r.rate >= 80 ? "bg-emerald-500" : r.rate >= 50 ? "bg-amber-500" : "bg-rose-500"}`} style={{ width: `${r.rate}%` }} />
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3.5 text-slate-400 text-xs whitespace-nowrap">{r.latestDate}</td>
+                    <td className="px-4 py-3.5 text-slate-400 dark:text-slate-400 text-xs whitespace-nowrap">{r.latestDate}</td>
                     <td className="px-4 py-3.5 whitespace-nowrap">
                       <span className={`px-2.5 py-1 rounded-xl text-[10px] font-black uppercase ${badgeClass}`}>{r.status}</span>
                     </td>
@@ -620,16 +634,16 @@ export default function ProgressionClient({
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="p-4 border-t border-slate-50 flex items-center justify-between">
-            <button disabled={page <= 1} onClick={() => setPage(p => p - 1)} className="flex items-center gap-1 px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-bold disabled:opacity-40 hover:bg-slate-50">
+          <div className="p-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+            <button disabled={page <= 1} onClick={() => setPage(p => p - 1)} className="flex items-center gap-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#1a1d2d] text-slate-600 dark:text-slate-200 text-xs font-bold disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-[#222638]">
               <ChevronLeft size={13} /> Précédent
             </button>
             <div className="flex items-center gap-1">
               {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map(p => (
-                <button key={p} onClick={() => setPage(p)} className={`w-8 h-8 rounded-lg text-xs font-black ${p === page ? "bg-indigo-600 text-white" : "bg-slate-50 text-slate-500 hover:bg-slate-100"}`}>{p}</button>
+                <button key={p} onClick={() => setPage(p)} className={`w-8 h-8 rounded-lg text-xs font-black ${p === page ? "bg-indigo-600 text-white" : "bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"}`}>{p}</button>
               ))}
             </div>
-            <button disabled={page >= totalPages} onClick={() => setPage(p => p + 1)} className="flex items-center gap-1 px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-bold disabled:opacity-40 hover:bg-slate-50">
+            <button disabled={page >= totalPages} onClick={() => setPage(p => p + 1)} className="flex items-center gap-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#1a1d2d] text-slate-600 dark:text-slate-200 text-xs font-bold disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-[#222638]">
               Suivant <ChevronRight size={13} />
             </button>
           </div>
@@ -638,13 +652,13 @@ export default function ProgressionClient({
 
       {/* ─── DETAILS MODAL ─── */}
       {showDetails && selectedProgress && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm print:hidden">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
-                <FileText size={18} className="text-indigo-600" /> Détails progression & Programme officiel
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm print:hidden">
+          <div className="bg-white dark:bg-[#131622] border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <h2 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
+                <FileText size={18} className="text-indigo-600 dark:text-indigo-400" /> Détails progression & Programme officiel
               </h2>
-              <button onClick={() => setShowDetails(false)} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200">
+              <button onClick={() => setShowDetails(false)} className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700">
                 <X size={16} />
               </button>
             </div>
