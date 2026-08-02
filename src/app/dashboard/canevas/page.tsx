@@ -117,18 +117,34 @@ const alerts = [
   { title: "Incohérences effectifs", count: 19, level: "Contrôle", color: "orange" },
 ];
 
+function getGradient(color: string) {
+  const map: Record<string, string> = {
+    indigo: "from-indigo-500 via-purple-500 to-indigo-600",
+    emerald: "from-emerald-400 via-teal-500 to-emerald-600",
+    violet: "from-violet-500 via-purple-500 to-fuchsia-600",
+    blue: "from-blue-500 via-indigo-500 to-cyan-500",
+    pink: "from-pink-500 via-rose-400 to-purple-500",
+    cyan: "from-cyan-400 via-blue-500 to-teal-500",
+    amber: "from-amber-400 via-orange-500 to-yellow-500",
+    slate: "from-slate-400 via-slate-500 to-zinc-600",
+    rose: "from-rose-500 via-pink-500 to-red-600",
+    orange: "from-orange-500 via-amber-500 to-rose-500",
+  };
+  return map[color] || map.indigo;
+}
+
 function colorClasses(color: string) {
   const map: Record<string, string> = {
-    indigo: "border-indigo-100 bg-indigo-50 text-indigo-600",
-    emerald: "border-emerald-100 bg-emerald-50 text-emerald-600",
-    violet: "border-violet-100 bg-violet-50 text-violet-600",
-    blue: "border-blue-100 bg-blue-50 text-blue-600",
-    pink: "border-pink-100 bg-pink-50 text-pink-600",
-    cyan: "border-cyan-100 bg-cyan-50 text-cyan-600",
-    amber: "border-amber-100 bg-amber-50 text-amber-600",
-    slate: "border-slate-100 bg-slate-50 text-slate-600",
-    rose: "border-rose-100 bg-rose-50 text-rose-600",
-    orange: "border-orange-100 bg-orange-50 text-orange-600",
+    indigo: "border-indigo-200/60 bg-indigo-50/80 text-indigo-600 dark:border-indigo-500/30 dark:bg-indigo-950/60 dark:text-indigo-400",
+    emerald: "border-emerald-200/60 bg-emerald-50/80 text-emerald-600 dark:border-emerald-500/30 dark:bg-emerald-950/60 dark:text-emerald-400",
+    violet: "border-violet-200/60 bg-violet-50/80 text-violet-600 dark:border-violet-500/30 dark:bg-violet-950/60 dark:text-violet-400",
+    blue: "border-blue-200/60 bg-blue-50/80 text-blue-600 dark:border-blue-500/30 dark:bg-blue-950/60 dark:text-blue-400",
+    pink: "border-pink-200/60 bg-pink-50/80 text-pink-600 dark:border-pink-500/30 dark:bg-pink-950/60 dark:text-pink-400",
+    cyan: "border-cyan-200/60 bg-cyan-50/80 text-cyan-600 dark:border-cyan-500/30 dark:bg-cyan-950/60 dark:text-cyan-400",
+    amber: "border-amber-200/60 bg-amber-50/80 text-amber-600 dark:border-amber-500/30 dark:bg-amber-950/60 dark:text-amber-400",
+    slate: "border-slate-200/60 bg-slate-50/80 text-slate-600 dark:border-slate-700/40 dark:bg-slate-900/60 dark:text-slate-400",
+    rose: "border-rose-200/60 bg-rose-50/80 text-rose-600 dark:border-rose-500/30 dark:bg-rose-950/60 dark:text-rose-400",
+    orange: "border-orange-200/60 bg-orange-50/80 text-orange-600 dark:border-orange-500/30 dark:bg-orange-950/60 dark:text-orange-400",
   };
   return map[color] || map.slate;
 }
@@ -431,52 +447,52 @@ export default function CanevasDashboardPage() {
         }
       `}} />
       
-      <header className="rounded-[30px] border border-slate-200 bg-white p-5 shadow-sm print:hidden">
+      <header className="rounded-[30px] border border-slate-200/80 dark:border-slate-800/80 bg-white/95 dark:bg-[#121420]/90 backdrop-blur-xl p-5 shadow-sm print:hidden">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex items-center gap-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-100">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-500/20">
               <FileSpreadsheet size={26} />
             </div>
             <div>
-              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-indigo-600">Gestion des Canevas Scolaires</p>
-              <h1 className="text-3xl font-black tracking-tight text-slate-950">Tableau de bord</h1>
-              <p className="mt-1 text-sm font-bold text-slate-500">Vue globale des données importées ou saisies</p>
+              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-indigo-600 dark:text-indigo-400">Gestion des Canevas Scolaires</p>
+              <h1 className="text-3xl font-black tracking-tight text-slate-950 dark:text-white">Tableau de bord</h1>
+              <p className="mt-1 text-sm font-bold text-slate-500 dark:text-slate-400">Vue globale des données importées ou saisies</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 print:hidden">
             <select 
               value={selectedYear}
               onChange={(e) => setSelectedYear(e.target.value)}
-              className="h-11 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black text-slate-700 outline-none cursor-pointer"
+              className="h-11 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#1a1d2d] px-4 text-xs font-black text-slate-700 dark:text-slate-200 outline-none cursor-pointer"
             >
               <option value="2025 - 2026">Année scolaire 2025 - 2026</option>
               <option value="2024 - 2025">Année scolaire 2024 - 2025</option>
             </select>
-            <Link href="/dashboard/canevas/import" className="flex h-11 items-center gap-2 rounded-xl bg-indigo-600 px-4 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-colors">
+            <Link href="/dashboard/canevas/import" className="flex h-11 items-center gap-2 rounded-xl bg-indigo-600 px-4 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-indigo-500/20 hover:bg-indigo-700 transition-colors">
               <Upload size={16} /> Importer Excel
             </Link>
-            <Link href="/dashboard/canevas/etablissements" className="flex h-11 items-center gap-2 rounded-xl border border-indigo-100 bg-indigo-50 px-4 text-xs font-black uppercase tracking-widest text-indigo-700 hover:bg-indigo-100 transition-colors">
+            <Link href="/dashboard/canevas/etablissements" className="flex h-11 items-center gap-2 rounded-xl border border-indigo-100 dark:border-indigo-900/50 bg-indigo-50/80 dark:bg-indigo-950/50 px-4 text-xs font-black uppercase tracking-widest text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 transition-colors">
               <School size={16} /> Établissements
             </Link>
-            <Link href="/dashboard/canevas/reporting" className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 active:scale-95 transition-all">
+            <Link href="/dashboard/canevas/reporting" className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#1a1d2d] px-4 text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#222638] active:scale-95 transition-all">
               <BarChart3 size={16} /> Reporting
             </Link>
-            <Link href="/dashboard/canevas/export" className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 active:scale-95 transition-all">
+            <Link href="/dashboard/canevas/export" className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#1a1d2d] px-4 text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#222638] active:scale-95 transition-all">
               <Download size={16} /> Exporter
             </Link>
             <button 
               onClick={handleExportPdf}
-              className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 active:scale-95 transition-all cursor-pointer"
+              className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#1a1d2d] px-4 text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#222638] active:scale-95 transition-all cursor-pointer"
             >
               <FileText size={16} className="text-rose-500" /> PDF
             </button>
             <button 
               onClick={() => setIsNewOpen(true)}
-              className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 active:scale-95 transition-all"
+              className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#1a1d2d] px-4 text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#222638] active:scale-95 transition-all"
             >
               <Plus size={16} /> Nouveau Canevas
             </button>
-            <button onClick={() => window.print()} className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 active:scale-95 transition-all cursor-pointer">
+            <button onClick={() => window.print()} className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#1a1d2d] px-4 text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#222638] active:scale-95 transition-all cursor-pointer">
               <Printer size={16} /> Imprimer
             </button>
           </div>
@@ -488,38 +504,43 @@ export default function CanevasDashboardPage() {
         {activeData.kpis.map((kpi: any) => {
           const Icon = typeof kpi.icon === "string" ? (ICON_MAP[kpi.icon] || School) : kpi.icon;
           return (
-            <Link href={kpi.label.includes("tablissements") ? "/dashboard/canevas/etablissements" : "/dashboard/canevas"} key={kpi.label} className="rounded-[24px] border border-slate-100 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
+            <Link
+              href={kpi.label.includes("tablissements") ? "/dashboard/canevas/etablissements" : "/dashboard/canevas"}
+              key={kpi.label}
+              className="group relative overflow-hidden rounded-[24px] border border-slate-200/70 dark:border-slate-800/80 bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:border-indigo-300 dark:hover:border-indigo-500/50"
+            >
+              <div className={cn("absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r opacity-80 group-hover:opacity-100 transition-opacity", getGradient(kpi.color))} />
               <div className="flex items-start justify-between gap-3">
-                <div className={cn("flex h-11 w-11 items-center justify-center rounded-2xl border", colorClasses(kpi.color))}>
+                <div className={cn("flex h-11 w-11 items-center justify-center rounded-2xl border shadow-sm transition-transform group-hover:scale-105", colorClasses(kpi.color))}>
                   <Icon size={20} />
                 </div>
               </div>
-              <p className="mt-5 text-[10px] font-black uppercase tracking-widest text-slate-400">{kpi.label}</p>
-              <p className="mt-1 text-2xl font-black text-slate-950">{kpi.value}</p>
-              <p className="mt-1 text-xs font-bold text-slate-500">{kpi.sub}</p>
+              <p className="mt-5 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-400">{kpi.label}</p>
+              <p className="mt-1 text-2xl font-black text-slate-950 dark:text-white">{kpi.value}</p>
+              <p className="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">{kpi.sub}</p>
             </Link>
           );
         })}
       </section>
 
       {/* Access links */}
-      <section className="rounded-[30px] border border-slate-100 bg-white p-5 shadow-sm print:hidden">
+      <section className="rounded-[30px] border border-slate-200/70 dark:border-slate-800/80 bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl p-5 shadow-sm print:hidden">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h2 className="text-base font-black text-slate-950">Accès rapide aux nouvelles interfaces</h2>
-            <p className="mt-1 text-xs font-bold text-slate-500">Fiche établissement, saisies détaillées, mapping Excel et contrôle qualité</p>
+            <h2 className="text-base font-black text-slate-950 dark:text-white">Accès rapide aux nouvelles interfaces</h2>
+            <p className="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">Fiche établissement, saisies détaillées, mapping Excel et contrôle qualité</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Link href="/dashboard/canevas/etablissements" className="flex h-11 items-center gap-2 rounded-xl bg-indigo-600 px-4 text-xs font-black uppercase tracking-widest text-white">
+            <Link href="/dashboard/canevas/etablissements" className="flex h-11 items-center gap-2 rounded-xl bg-indigo-600 px-4 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-indigo-500/20">
               <School size={16} /> Établissements
             </Link>
-            <Link href="/dashboard/canevas/reporting" className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700">
+            <Link href="/dashboard/canevas/reporting" className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#1a1d2d] px-4 text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-200">
               <BarChart3 size={16} /> Centre de Reporting
             </Link>
-            <Link href="/dashboard/canevas/export" className="flex h-11 items-center gap-2 rounded-xl border border-indigo-100 bg-indigo-50 px-4 text-xs font-black uppercase tracking-widest text-indigo-700">
+            <Link href="/dashboard/canevas/export" className="flex h-11 items-center gap-2 rounded-xl border border-indigo-100 dark:border-indigo-900/50 bg-indigo-50/80 dark:bg-indigo-950/50 px-4 text-xs font-black uppercase tracking-widest text-indigo-700 dark:text-indigo-300">
               <Download size={16} /> Exporter Canevas
             </Link>
-            <Link href="/dashboard/canevas/import" className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700">
+            <Link href="/dashboard/canevas/import" className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#1a1d2d] px-4 text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-200">
               <Upload size={16} /> Importer Excel
             </Link>
           </div>
@@ -536,22 +557,22 @@ export default function CanevasDashboardPage() {
           <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
             <div className="space-y-5">
               <div className="grid gap-5 xl:grid-cols-3">
-                <div className="rounded-[26px] border border-slate-100 bg-white p-5 shadow-sm">
-                  <h2 className="text-sm font-black text-slate-900">Établissements par commune</h2>
-                  <p className="mb-5 mt-1 text-xs font-bold text-slate-500">Répartition géographique</p>
+                <div className="rounded-[26px] border border-slate-200/70 dark:border-slate-800/80 bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl p-5 shadow-sm">
+                  <h2 className="text-sm font-black text-slate-900 dark:text-white">Établissements par commune</h2>
+                  <p className="mb-5 mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">Répartition géographique</p>
                   <BarMiniChart />
                 </div>
-                <div className="rounded-[26px] border border-slate-100 bg-white p-5 shadow-sm">
-                  <h2 className="text-sm font-black text-slate-900">Public vs Privé</h2>
-                  <p className="mb-4 mt-1 text-xs font-bold text-slate-500">Répartition des statuts</p>
+                <div className="rounded-[26px] border border-slate-200/70 dark:border-slate-800/80 bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl p-5 shadow-sm">
+                  <h2 className="text-sm font-black text-slate-900 dark:text-white">Public vs Privé</h2>
+                  <p className="mb-4 mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">Répartition des statuts</p>
                   <Donut 
                     publicValue={activeData.publicSchools ?? activeData.publicValue} 
                     privateValue={activeData.privateSchools ?? activeData.privateValue} 
                   />
                 </div>
-                <div className="rounded-[26px] border border-slate-100 bg-white p-5 shadow-sm">
-                  <h2 className="text-sm font-black text-slate-900">Filles / Garçons</h2>
-                  <p className="mb-4 mt-1 text-xs font-bold text-slate-500">Composition globale</p>
+                <div className="rounded-[26px] border border-slate-200/70 dark:border-slate-800/80 bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl p-5 shadow-sm">
+                  <h2 className="text-sm font-black text-slate-900 dark:text-white">Filles / Garçons</h2>
+                  <p className="mb-4 mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">Composition globale</p>
                   <Donut 
                     publicValue={boysVal} 
                     privateValue={girlsVal} 
@@ -559,13 +580,13 @@ export default function CanevasDashboardPage() {
                   />
                 </div>
               </div>
-              <div className="rounded-[26px] border border-slate-100 bg-white p-6 shadow-sm">
+              <div className="rounded-[26px] border border-slate-200/70 dark:border-slate-800/80 bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl p-6 shadow-sm">
                 <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                   <div>
-                    <h2 className="text-sm font-black text-slate-900">Effectifs par niveau</h2>
-                    <p className="mt-1 text-xs font-bold text-slate-500">Barres indigo: total, barres roses: filles</p>
+                    <h2 className="text-sm font-black text-slate-900 dark:text-white">Effectifs par niveau</h2>
+                    <p className="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">Barres indigo: total, barres roses: filles</p>
                   </div>
-                  <div className="flex items-center gap-4 text-xs font-black text-slate-500">
+                  <div className="flex items-center gap-4 text-xs font-black text-slate-500 dark:text-slate-400">
                     <LegendDot color="bg-indigo-500" label="Total" value={totalStudentsVal} />
                     <LegendDot color="bg-pink-400" label="Filles" value={girlsVal} />
                   </div>
@@ -573,8 +594,8 @@ export default function CanevasDashboardPage() {
                 <LevelChart levelsData={activeData.levels} />
               </div>
               <div className="grid gap-5 lg:grid-cols-2">
-                <div className="rounded-[26px] border border-slate-100 bg-white p-5 shadow-sm">
-                  <h2 className="text-sm font-black text-slate-900">Besoins par type</h2>
+                <div className="rounded-[26px] border border-slate-200/70 dark:border-slate-800/80 bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl p-5 shadow-sm">
+                  <h2 className="text-sm font-black text-slate-900 dark:text-white">Besoins par type</h2>
                   <div className="mt-5 space-y-3">
                     {[
                       ["Salles de classe", 74, "bg-rose-500"],
@@ -591,8 +612,8 @@ export default function CanevasDashboardPage() {
                     ))}
                   </div>
                 </div>
-                <div className="rounded-[26px] border border-slate-100 bg-white p-5 shadow-sm">
-                  <h2 className="text-sm font-black text-slate-900">Infrastructures par état</h2>
+                <div className="rounded-[26px] border border-slate-200/70 dark:border-slate-800/80 bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl p-5 shadow-sm">
+                  <h2 className="text-sm font-black text-slate-900 dark:text-white">Infrastructures par état</h2>
                   <div className="mt-5 space-y-3">
                     {[
                       ["Fonctionnelles", 78, "bg-emerald-500"],
@@ -600,10 +621,10 @@ export default function CanevasDashboardPage() {
                       ["Critiques", 8, "bg-rose-500"],
                     ].map(([label, value, color]) => (
                       <div key={String(label)}>
-                        <div className="mb-1 flex justify-between text-xs font-black">
+                        <div className="mb-1 flex justify-between text-xs font-black text-slate-800 dark:text-slate-200">
                           <span>{label}</span><span>{value}%</span>
                         </div>
-                        <div className="h-2 rounded-full bg-slate-100"><div className={cn("h-2 rounded-full", String(color))} style={{ width: `${Number(value)}%` }} /></div>
+                        <div className="h-2 rounded-full bg-slate-100 dark:bg-slate-800"><div className={cn("h-2 rounded-full", String(color))} style={{ width: `${Number(value)}%` }} /></div>
                       </div>
                     ))}
                   </div>
@@ -613,36 +634,35 @@ export default function CanevasDashboardPage() {
 
 
         <aside className="space-y-5">
-          <div className="rounded-[26px] border border-slate-100 bg-white p-5 shadow-sm">
+          <div className="rounded-[26px] border border-slate-200/70 dark:border-slate-800/80 bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl p-5 shadow-sm">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-sm font-black text-slate-900">Alertes</h2>
+              <h2 className="text-sm font-black text-slate-900 dark:text-white">Alertes</h2>
               <AlertTriangle className="text-amber-500" size={18} />
             </div>
             <div className="space-y-3">
               {alerts.map((alert) => (
-                <div key={alert.title} className="rounded-2xl border border-slate-100 bg-slate-50/70 p-3">
+                <div key={alert.title} className="rounded-2xl border border-slate-100 dark:border-slate-800/60 bg-slate-50/70 dark:bg-[#181b29]/80 p-3">
                   <div className="flex items-start gap-3">
-                    <span className={cn("mt-1.5 h-2.5 w-2.5 rounded-full", alert.color === "rose" && "bg-rose-500", alert.color === "amber" && "bg-amber-500", alert.color === "indigo" && "bg-indigo-500", alert.color === "orange" && "bg-orange-500")} />
+                    <span className={cn("mt-1.5 h-2.5 w-2.5 rounded-full shrink-0", alert.color === "rose" && "bg-rose-500", alert.color === "amber" && "bg-amber-500", alert.color === "indigo" && "bg-indigo-500", alert.color === "orange" && "bg-orange-500")} />
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs font-black text-slate-900">{alert.title}</p>
-                      <p className="mt-1 text-[11px] font-bold text-slate-500">{alert.count} établissements concernés</p>
+                      <p className="text-xs font-black text-slate-900 dark:text-white">{alert.title}</p>
+                      <p className="mt-1 text-[11px] font-bold text-slate-500 dark:text-slate-400">{alert.count} établissements concernés</p>
                     </div>
-                    <span className="rounded-full bg-white px-2 py-1 text-[10px] font-black text-slate-600">{alert.level}</span>
+                    <span className="rounded-full bg-white dark:bg-slate-800 px-2 py-1 text-[10px] font-black text-slate-600 dark:text-slate-300 shadow-xs">{alert.level}</span>
                   </div>
                 </div>
               ))}
             </div>
           </div>
-          <div className="rounded-[26px] border border-indigo-100 bg-white p-5 shadow-sm">
-            <h2 className="text-sm font-black text-slate-900">Qualité des données</h2>
-            <p className="mt-1 text-xs font-bold text-slate-500">Complétude globale des canevas</p>
+          <div className="rounded-[26px] border border-indigo-100 dark:border-indigo-900/40 bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl p-5 shadow-sm">
+            <h2 className="text-sm font-black text-slate-900 dark:text-white">Qualité des données</h2>
+            <p className="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">Complétude globale des canevas</p>
             <div className="mt-5 flex items-end justify-between">
-              <span className="text-5xl font-black text-indigo-600">{selectedYear === "2024 - 2025" ? "100%" : "87%"}</span>
-              <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">Bon niveau</span>
+              <span className="text-5xl font-black text-indigo-600 dark:text-indigo-400">{selectedYear === "2024 - 2025" ? "100%" : "87%"}</span>
+              <span className="rounded-full bg-emerald-50 dark:bg-emerald-950/60 px-3 py-1 text-xs font-black text-emerald-700 dark:text-emerald-400">Bon niveau</span>
             </div>
-            <div className="mt-5 h-2 overflow-hidden rounded-full bg-slate-100">
-              <div className="h-full rounded-full bg-indigo-600 transition-all duration-500" style={{ width: selectedYear === "2024 - 2025" ? "100%" : "87%" }} />
-            </div>
+            <div className="mt-5 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+              <div className="h-full rounded-full bg-indigo-600 dark:bg-indigo-500 transition-all duration-500" style={{ width: selectedYear === "2024 - 2025" ? "100%" : "87%" }} />
           </div>
         </aside>
       </section>
