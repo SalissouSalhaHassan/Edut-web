@@ -317,10 +317,24 @@ export default function StudentsClient({ initialStudents, currentUser, activeSch
               <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-rose-500 border-2 border-[#F8FAFC] rounded-full"></span>
             </button>
             <div className="flex items-center gap-3">
-              <img src="https://i.pravatar.cc/150?img=11" alt="Admin" className="w-10 h-10 rounded-full border border-slate-200" />
+              {currentUser?.avatarUrl || currentUser?.photoUrl || currentUser?.photo_url || currentUser?.photoPath || currentUser?.avatar || currentUser?.user_metadata?.avatar_url ? (
+                <img
+                  src={currentUser?.avatarUrl || currentUser?.photoUrl || currentUser?.photo_url || currentUser?.photoPath || currentUser?.avatar || currentUser?.user_metadata?.avatar_url}
+                  alt={currentUser?.nomPrenom || currentUser?.utilisateur || "User"}
+                  className="w-10 h-10 rounded-full border border-slate-200 object-cover shadow-sm"
+                />
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow-sm border border-indigo-500">
+                  {(currentUser?.nomPrenom?.charAt(0) || currentUser?.name?.charAt(0) || currentUser?.utilisateur?.charAt(0) || "A").toUpperCase()}
+                </div>
+              )}
               <div className="hidden md:block text-right">
-                <p className="text-sm font-bold text-slate-900 leading-none">Admin École</p>
-                <p className="text-[10px] font-medium text-slate-500 mt-1">Administrateur</p>
+                <p className="text-sm font-bold text-slate-900 leading-none">
+                  {currentUser?.nomPrenom || currentUser?.name || currentUser?.utilisateur || "Admin École"}
+                </p>
+                <p className="text-[10px] font-medium text-slate-500 mt-1">
+                  {currentUser?.admin ? "Administrateur" : currentUser?.role?.roleName || currentUser?.role || "Administrateur"}
+                </p>
               </div>
               <ChevronDown size={14} className="text-slate-400" />
             </div>
