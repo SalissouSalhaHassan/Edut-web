@@ -473,12 +473,19 @@ export default function DashboardSidebar({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3 min-w-0">
             {(() => {
-              const logo = branding?.logoPath || 
-                           branch?.logoPath || 
-                           user?.school?.logoPath || 
-                           user?.school?.logo_path || 
-                           user?.school?.logoUrl || 
-                           user?.school?.logo;
+              const b = branding as any;
+              const br = branch as any;
+              const s = user?.school as any;
+              const logo = b?.logoPath || 
+                           b?.logo_path || 
+                           b?.logoUrl || 
+                           br?.logoPath || 
+                           br?.logo_path || 
+                           br?.logoUrl || 
+                           s?.logoPath || 
+                           s?.logo_path || 
+                           s?.logoUrl || 
+                           s?.logo;
               return (
                 <div className="w-12 h-12 rounded-[18px] bg-gradient-to-br from-indigo-600 to-indigo-800 text-white flex items-center justify-center shadow-lg shadow-indigo-200 dark:shadow-none overflow-hidden shrink-0 border border-indigo-500/30">
                   {logo ? (

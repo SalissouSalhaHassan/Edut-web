@@ -264,13 +264,15 @@ export default function DashboardUI(props: DashboardUIProps) {
       <div className="flex flex-col 2xl:flex-row 2xl:items-center justify-between gap-6">
         <div className="space-y-2 flex items-start gap-4">
           {(() => {
-            const logo = props.branding?.logoPath || 
-                         props.branding?.logo_path || 
-                         props.branding?.logoUrl || 
-                         props.user?.school?.logoPath || 
-                         props.user?.school?.logo_path || 
-                         props.user?.school?.logoUrl || 
-                         props.user?.school?.logo;
+            const b = props.branding as any;
+            const s = props.user?.school as any;
+            const logo = b?.logoPath || 
+                         b?.logo_path || 
+                         b?.logoUrl || 
+                         s?.logoPath || 
+                         s?.logo_path || 
+                         s?.logoUrl || 
+                         s?.logo;
             return (
               <div className="w-16 h-16 rounded-[22px] bg-gradient-to-br from-indigo-600 to-indigo-800 text-white border border-indigo-200 dark:border-indigo-800/40 flex items-center justify-center overflow-hidden shrink-0 shadow-lg shadow-indigo-100 dark:shadow-none mt-1">
                 {logo ? (
