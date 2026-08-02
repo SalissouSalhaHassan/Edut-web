@@ -6,41 +6,87 @@ import { getActiveBranchData } from "@/domains/auth/services/school";
 import ReportsDashboard from "./reports-dashboard";
 
 export default async function ReportsPage() {
-  const user = await getCurrentUser();
-  const [unifiedRes, branchRes] = await Promise.all([
-    getUnifiedReportsData(),
-    getActiveBranchData(user)
-  ]);
-  const branchData = (branchRes as any)?.branchData || null;
+  try {
+    const user = await getCurrentUser().catch(() => null);
+    
+    let branchData = null;
+    let unifiedData = {
+      students: [],
+      classes: [],
+      subjects: [],
+      employees: [],
+      feePayments: [],
+      expenses: [],
+      attendance: [],
+      seances: [],
+      plans: [],
+      resources: [],
+      courses: [],
+      lessons: [],
+      assignments: [],
+      submissions: [],
+      progress: [],
+      virtualClasses: [],
+      auditLogs: [],
+      grades: [],
+      sessions: [],
+      periods: []
+    };
 
-  const unifiedData = (unifiedRes as any)?.data || {
-    students: [],
-    classes: [],
-    subjects: [],
-    employees: [],
-    feePayments: [],
-    expenses: [],
-    attendance: [],
-    seances: [],
-    plans: [],
-    resources: [],
-    courses: [],
-    lessons: [],
-    assignments: [],
-    submissions: [],
-    progress: [],
-    virtualClasses: [],
-    auditLogs: [],
-    grades: [],
-    sessions: [],
-    periods: []
-  };
+    if (user) {
+      const [unifiedRes, branchRes] = await Promise.all([
+        getUnifiedReportsData().catch((e) => {
+          console.error("[ReportsPage] getUnifiedReportsData error:", e);
+          return null;
+        }),
+        getActiveBranchData(user).catch((e) => {
+          console.error("[ReportsPage] getActiveBranchData error:", e);
+          return null;
+        })
+      ]);
 
-  const branding = {
-    name: branchData?.branchName || user?.school?.name || "Edut Pro",
-    logoPath: branchData?.logoPath || user?.school?.logoPath || null,
-    level: branchData?.instType || user?.educationalLevel || "Gestion Scolaire"
-  };
+      branchData = (branchRes as any)?.branchData || null;
+      if (unifiedRes?.data) {
+        unifiedData = { ...unifiedData, ...unifiedRes.data };
+      }
+    }
 
-  return <ReportsDashboard unifiedData={unifiedData} branding={branding} currentUser={user} />;
+    const branding = {
+      name: branchData?.branchName || user?.school?.name || "Edut Pro",
+      logoPath: branchData?.logoPath || user?.school?.logoPath || null,
+      level: branchData?.instType || user?.educationalLevel || "Gestion Scolaire"
+    };
+
+    return <ReportsDashboard unifiedData={unifiedData} branding={branding} currentUser={user} />;
+  } catch (error) {
+    console.error("[ReportsPage] Critical error:", error);
+    return (
+      <ReportsDashboard
+        unifiedData={{
+          students: [],
+          classes: [],
+          subjects: [],
+          employees: [],
+          feePayments: [],
+          expenses: [],
+          attendance: [],
+          seances: [],
+          plans: [],
+          resources: [],
+          courses: [],
+          lessons: [],
+          assignments: [],
+          submissions: [],
+          progress: [],
+          virtualClasses: [],
+          auditLogs: [],
+          grades: [],
+          sessions: [],
+          periods: []
+        }}
+        branding={{ name: "Edut Pro", logoPath: null, level: "Gestion Scolaire" }}
+        currentUser={null}
+      />
+    );
+  }
 }
