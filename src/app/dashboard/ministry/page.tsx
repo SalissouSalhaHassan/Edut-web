@@ -367,7 +367,12 @@ import {
   TrendingDown,
   Layers,
   BookOpen,
-  AlertCircle
+  AlertCircle,
+  ChevronDown,
+  Download,
+  FileCode,
+  Share2,
+  Sparkles
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
@@ -451,6 +456,7 @@ export default function MinistryDashboardPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
   const [selectedSchoolDetail, setSelectedSchoolDetail] = useState<SchoolData | null>(null);
+  const [exportDropdownOpen, setExportDropdownOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -738,10 +744,37 @@ export default function MinistryDashboardPage() {
     return alerts;
   }, [filteredSchools]);
 
-  // Export Excel function
+  // 1. Export Excel Multi-Feuilles SDMX
   const handleExcelExport = () => {
     try {
-      const data = filteredSchools.map((s, idx) => ({
+      const wb = XLSX.utils.book_new();
+
+      // Sheet 1: Synthese KPIs
+      const kpisData = [
+        { Indicateur: "Total Établissements", Valeur: kpis.totalSchools },
+        { Indicateur: "Total Élèves", Valeur: kpis.totalEleves },
+        { Indicateur: "Total Filles", Valeur: kpis.totalFilles },
+        { Indicateur: "Total Garçons", Valeur: kpis.totalGarcons },
+        { Indicateur: "Total Enseignants", Valeur: kpis.totalEnseignants },
+        { Indicateur: "Ratio Élève/Enseignant", Valeur: kpis.pupilTeacherRatio },
+        { Indicateur: "Taux Réussite Moyen (%)", Valeur: kpis.avgSuccess },
+        { Indicateur: "Taux Présence Moyen (%)", Valeur: kpis.avgAttendance },
+        { Indicateur: "Taux Abandon Moyen (%)", Valeur: kpis.avgAbandon },
+        { Indicateur: "Écoles Sans Eau Potable", Valeur: kpis.noWater },
+        { Indicateur: "Écoles Sans Électricité", Valeur: kpis.noElec },
+        { Indicateur: "Écoles Sans Latrines", Valeur: kpis.noLatrines },
+        { Indicateur: "Manque Enseignants", Valeur: kpis.missingTeachers },
+        { Indicateur: "Manque Salles de Classe", Valeur: kpis.missingSalles },
+        { Indicateur: "Manque Manuels Scolaires", Valeur: kpis.missingBooks },
+        { Indicateur: "Taux Complétude Données (%)", Valeur: kpis.avgCompletion },
+        { Indicateur: "Zones Prioritaires", Valeur: kpis.priorityZones },
+        { Indicateur: "Retards Déclarations", Valeur: kpis.lateDeclaration }
+      ];
+      const wsKpis = XLSX.utils.json_to_sheet(kpisData);
+      XLSX.utils.book_append_sheet(wb, wsKpis, "Synthèse KPIs");
+
+      // Sheet 2: Établissements
+      const schoolsData = filteredSchools.map((s, idx) => ({
         "N°": idx + 1,
         "Code": s.code,
         "Nom": s.name,
@@ -756,7 +789,7 @@ export default function MinistryDashboardPage() {
         "Garçons": s.garcons,
         "Enseignants": s.enseignants,
         "Salles": s.salles,
-        "Eau": s.eau ? "Oui" : "Non",
+        "Eau Potable": s.eau ? "Oui" : "Non",
         "Électricité": s.electricite ? "Oui" : "Non",
         "Latrines": s.latrines ? "Oui" : "Non",
         "Manque Enseignants": s.manqueEnseignants,
@@ -768,19 +801,290 @@ export default function MinistryDashboardPage() {
         "Taux Présence (%)": s.attendanceRate,
         "Dernière Déclaration": s.lastDeclaration
       }));
+      const wsSchools = XLSX.utils.json_to_sheet(schoolsData);
+      XLSX.utils.book_append_sheet(wb, wsSchools, "Registre Établissements");
 
-      const worksheet = XLSX.utils.json_to_sheet(data);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Rapport National");
-      XLSX.writeFile(workbook, `Edut_Indicateurs_Nationaux_${Date.now()}.xlsx`);
-      toast.success("Rapport Excel généré et téléchargé !");
+      // Sheet 3: Statistiques Régionales
+      const wsRegion = XLSX.utils.json_to_sheet(regionStats);
+      XLSX.utils.book_append_sheet(wb, wsRegion, "Stats Régionales");
+
+      // Sheet 4: Alertes Critiques
+      const wsAlerts = XLSX.utils.json_to_sheet(nationalAlerts);
+      XLSX.utils.book_append_sheet(wb, wsAlerts, "Alertes Critiques");
+
+      XLSX.writeFile(wb, `Edut_Rapport_Ministeriel_SDMX_${selectedYear}_${Date.now()}.xlsx`);
+      toast.success("Rapport Excel Multi-Feuilles SDMX téléchargé !");
     } catch (e) {
       console.error(e);
       toast.error("Erreur lors de l'export Excel");
     }
   };
 
-  // Export PDF function
+  // 2. Export JSON EMIS / UNESCO-UIS
+  const handleJsonEmisExport = () => {
+    try {
+      const payload = {
+        standard: "UNESCO-UIS EMIS SDMX 3.0",
+        schemaVersion: "1.0",
+        organization: "Ministère de l'Éducation Nationale",
+        exportTimestamp: new Date().toISOString(),
+        academicYear: selectedYear,
+        filters: {
+          region: selectedRegion,
+          department: selectedDept,
+          inspection: selectedInsp,
+          commune: selectedCommune,
+          type: selectedType,
+          cycle: selectedCycle
+        },
+        nationalSummary: kpis,
+        sectorBreakdown: publicPrivateRatio,
+        regionalAggregates: regionStats,
+        inspectionAggregates: inspectionStats,
+        activeAlerts: nationalAlerts,
+        establishments: filteredSchools
+      };
+
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `EMIS_UNESCO_Data_${selectedYear}_${Date.now()}.json`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success("Fichier JSON (Norme EMIS/UNESCO) généré avec succès !");
+    } catch (e) {
+      console.error(e);
+      toast.error("Erreur lors de l'export JSON EMIS");
+    }
+  };
+
+  // 3. Export XML SIGE / Ministère
+  const handleXmlSigeExport = () => {
+    try {
+      let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+      xml += `<RapportMinisteriel xmlns="http://education.gov/sige/v2">\n`;
+      xml += `  <Metadonnees>\n`;
+      xml += `    <Ministere>Ministère de l'Éducation Nationale</Ministere>\n`;
+      xml += `    <AnneeScolaire>${selectedYear}</AnneeScolaire>\n`;
+      xml += `    <DateExport>${new Date().toISOString()}</DateExport>\n`;
+      xml += `    <NombreEtablissements>${kpis.totalSchools}</NombreEtablissements>\n`;
+      xml += `  </Metadonnees>\n`;
+
+      xml += `  <IndicateursNationaux>\n`;
+      xml += `    <TotalEleves>${kpis.totalEleves}</TotalEleves>\n`;
+      xml += `    <TotalEnseignants>${kpis.totalEnseignants}</TotalEnseignants>\n`;
+      xml += `    <RatioPupilTeacher>${kpis.pupilTeacherRatio}</RatioPupilTeacher>\n`;
+      xml += `    <TauxReussite>${kpis.avgSuccess}</TauxReussite>\n`;
+      xml += `    <TauxAbandon>${kpis.avgAbandon}</TauxAbandon>\n`;
+      xml += `  </IndicateursNationaux>\n`;
+
+      xml += `  <Etablissements>\n`;
+      filteredSchools.forEach(s => {
+        xml += `    <Etablissement code="${s.code}">\n`;
+        xml += `      <Nom><![CDATA[${s.name}]]></Nom>\n`;
+        xml += `      <Type>${s.type}</Type>\n`;
+        xml += `      <Cycle>${s.cycle}</Cycle>\n`;
+        xml += `      <Region><![CDATA[${s.region}]]></Region>\n`;
+        xml += `      <Department><![CDATA[${s.department}]]></Department>\n`;
+        xml += `      <Commune><![CDATA[${s.commune}]]></Commune>\n`;
+        xml += `      <Eleves>${s.eleves}</Eleves>\n`;
+        xml += `      <Filles>${s.filles}</Filles>\n`;
+        xml += `      <Garcons>${s.garcons}</Garcons>\n`;
+        xml += `      <Enseignants>${s.enseignants}</Enseignants>\n`;
+        xml += `      <Eau>${s.eau ? "true" : "false"}</Eau>\n`;
+        xml += `      <Electricite>${s.electricite ? "true" : "false"}</Electricite>\n`;
+        xml += `      <Latrines>${s.latrines ? "true" : "false"}</Latrines>\n`;
+        xml += `      <TauxReussite>${s.successRate}</TauxReussite>\n`;
+        xml += `    </Etablissement>\n`;
+      });
+      xml += `  </Etablissements>\n`;
+      xml += `</RapportMinisteriel>`;
+
+      const blob = new Blob([xml], { type: "application/xml;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `SIGE_Ministere_Export_${selectedYear}_${Date.now()}.xml`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success("Rapport XML (Norme SIGE) généré avec succès !");
+    } catch (e) {
+      console.error(e);
+      toast.error("Erreur lors de l'export XML");
+    }
+  };
+
+  // 4. Export CSV UTF-8 (Données Brutes)
+  const handleCsvExport = () => {
+    try {
+      const headers = ["N°", "Code", "Nom", "Type", "Cycle", "Région", "Département", "Inspection", "Commune", "Élèves", "Filles", "Garçons", "Enseignants", "Ratio E/E", "Réussite (%)", "Abandon (%)", "Eau", "Électricité", "Latrines"];
+      const rows = filteredSchools.map((s, idx) => [
+        idx + 1,
+        `"${s.code}"`,
+        `"${s.name.replace(/"/g, '""')}"`,
+        `"${s.type}"`,
+        `"${s.cycle}"`,
+        `"${s.region}"`,
+        `"${s.department}"`,
+        `"${s.inspection}"`,
+        `"${s.commune}"`,
+        s.eleves,
+        s.filles,
+        s.garcons,
+        s.enseignants,
+        (s.eleves / (s.enseignants || 1)).toFixed(1),
+        s.successRate,
+        s.abandonRate,
+        s.eau ? "Oui" : "Non",
+        s.electricite ? "Oui" : "Non",
+        s.latrines ? "Oui" : "Non"
+      ]);
+
+      const csvContent = "\uFEFF" + [headers.join(";"), ...rows.map(r => r.join(";"))].join("\n");
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `Edut_Data_SIGE_${selectedYear}_${Date.now()}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success("Fichier CSV (Données brutes) téléchargé !");
+    } catch (e) {
+      console.error(e);
+      toast.error("Erreur lors de l'export CSV");
+    }
+  };
+
+  // 5. Export PDF Fiche Synthèse Ministérielle (1-Page Executive Summary)
+  const handlePdfOnePagerExport = () => {
+    try {
+      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const W = doc.internal.pageSize.getWidth();
+
+      // Header Banner
+      doc.setFillColor(225, 29, 72);
+      doc.rect(0, 0, W, 22, "F");
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(255, 255, 255);
+      doc.text("MINISTÈRE DE L'ÉDUCATION NATIONALE", 12, 10);
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "normal");
+      doc.text("FICHE DE SYNTHÈSE MINISTÉRIELLE DÉCISIONNELLE — EXÉCUTIF 1-PAGE", 12, 16);
+
+      // Metadata
+      doc.setTextColor(15, 23, 42);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.text(`Année scolaire : ${selectedYear}`, 12, 30);
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(100, 116, 139);
+      doc.text(`Généré le : ${new Date().toLocaleDateString("fr-FR")} à ${new Date().toLocaleTimeString("fr-FR")}`, W - 12, 30, { align: "right" });
+
+      doc.setLineWidth(0.5);
+      doc.setDrawColor(226, 232, 240);
+      doc.line(12, 33, W - 12, 33);
+
+      // Section 1: Indicators Boxes
+      let Y = 40;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(15, 23, 42);
+      doc.text("1. MACRO-INDICATEURS NATIONAUX", 12, Y);
+
+      Y += 5;
+      const kpiItems = [
+        { t: "ÉTABLISSEMENTS", v: String(kpis.totalSchools) },
+        { t: "TOTAL ÉLÈVES", v: kpis.totalEleves.toLocaleString("fr-FR") },
+        { t: "TOTAL FILLES", v: kpis.totalFilles.toLocaleString("fr-FR") },
+        { t: "RATIO ÉLÈVE/ENS", v: String(kpis.pupilTeacherRatio) },
+        { t: "TAUX RÉUSSITE", v: `${kpis.avgSuccess}%` },
+        { t: "TAUX ABANDON", v: `${kpis.avgAbandon}%` }
+      ];
+
+      const boxW = (W - 24 - 10) / 3;
+      kpiItems.forEach((item, idx) => {
+        const row = Math.floor(idx / 3);
+        const col = idx % 3;
+        const bx = 12 + col * (boxW + 5);
+        const by = Y + row * 16;
+
+        doc.setFillColor(248, 250, 252);
+        doc.setDrawColor(226, 232, 240);
+        doc.rect(bx, by, boxW, 13, "DF");
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(6.5);
+        doc.setTextColor(100, 116, 139);
+        doc.text(item.t, bx + 3, by + 4);
+
+        doc.setFontSize(10);
+        doc.setTextColor(225, 29, 72);
+        doc.text(item.v, bx + 3, by + 10);
+      });
+
+      Y += 38;
+
+      // Section 2: Infrastructure Alerts
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(15, 23, 42);
+      doc.text("2. DÉFICITS EN INFRASTRUCTURES & ANOMALIES CRITIQUES", 12, Y);
+
+      Y += 5;
+      const alertItems = [
+        { t: "Écoles sans eau potable", v: String(kpis.noWater) },
+        { t: "Écoles sans électricité", v: String(kpis.noElec) },
+        { t: "Écoles sans latrines", v: String(kpis.noLatrines) },
+        { t: "Manque d'enseignants", v: String(kpis.missingTeachers) },
+        { t: "Manque de salles de classe", v: String(kpis.missingSalles) },
+        { t: "Manque de manuels scolaires", v: String(kpis.missingBooks) }
+      ];
+
+      autoTable(doc, {
+        startY: Y,
+        head: [["Anomalie / Déficit détecté", "Nombre d'établissements concernés"]],
+        body: alertItems.map(a => [a.t, a.v]),
+        theme: "plain",
+        headStyles: { fillColor: [241, 245, 249], textColor: [15, 23, 42], fontSize: 8, fontStyle: "bold" },
+        bodyStyles: { fontSize: 8, textColor: [51, 65, 85] },
+        margin: { left: 12, right: 12 }
+      });
+
+      Y = (doc as any).lastAutoTable.finalY + 10;
+
+      // Section 3: Regional Table
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(15, 23, 42);
+      doc.text("3. SYNTHÈSE DES STOCKS PAR RÉGION", 12, Y);
+
+      Y += 4;
+      autoTable(doc, {
+        startY: Y,
+        head: [["Région", "Nombre d'éts", "Élèves inscrits", "Taux de complétude"]],
+        body: regionStats.map(r => [r.region, String(r.schoolsCount), r.studentsCount.toLocaleString("fr-FR"), `${r.avgCompletion}%`]),
+        theme: "striped",
+        headStyles: { fillColor: [225, 29, 72], textColor: [255, 255, 255], fontSize: 8 },
+        bodyStyles: { fontSize: 8 },
+        margin: { left: 12, right: 12 }
+      });
+
+      doc.save(`Fiche_Synthese_Ministerielle_${selectedYear}_${Date.now()}.pdf`);
+      toast.success("Fiche Synthèse Ministérielle (1 Page) PDF téléchargeable !");
+    } catch (e) {
+      console.error(e);
+      toast.error("Erreur lors de la génération de la Fiche Synthèse PDF");
+    }
+  };
+
+  // 6. Export PDF Officiel Multipages
   const handlePdfExport = () => {
     try {
       const doc = new jsPDF({
@@ -915,21 +1219,95 @@ export default function MinistryDashboardPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3 print:hidden">
-          <button 
-            onClick={handlePdfExport}
-            className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#1a1d2d] px-4 text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#222638] transition"
-          >
-            <FileText size={16} className="text-rose-600 dark:text-rose-400" /> Export PDF
-          </button>
-          <button 
-            onClick={handleExcelExport}
-            className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#1a1d2d] px-4 text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#222638] transition"
-          >
-            <FileSpreadsheet size={16} className="text-emerald-600 dark:text-emerald-400" /> Export Excel
-          </button>
+          {/* Dropdown Menu Multi-Formats */}
+          <div className="relative">
+            <button 
+              onClick={() => setExportDropdownOpen(!exportDropdownOpen)}
+              className="flex h-11 items-center gap-2 rounded-xl bg-gradient-to-r from-rose-600 via-purple-600 to-indigo-600 px-5 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-rose-500/20 hover:opacity-95 transition cursor-pointer"
+            >
+              <Download size={16} /> Exporter le Rapport <ChevronDown size={14} className={`transition-transform ${exportDropdownOpen ? "rotate-180" : ""}`} />
+            </button>
+
+            {exportDropdownOpen && (
+              <div 
+                className="absolute right-0 mt-2 w-72 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-[#181b2a]/95 backdrop-blur-xl shadow-2xl p-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200 space-y-1"
+              >
+                <div className="px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-100 dark:border-slate-800 mb-1">
+                  Formats Ministériels Officiels
+                </div>
+
+                <button
+                  onClick={() => { setExportDropdownOpen(false); handlePdfExport(); }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/40 text-left text-xs font-bold text-slate-700 dark:text-slate-200 transition cursor-pointer"
+                >
+                  <FileText size={15} className="text-rose-600 dark:text-rose-400 shrink-0" />
+                  <div>
+                    <p className="leading-none">PDF Officiel Complet</p>
+                    <p className="text-[10px] text-slate-400 font-medium mt-0.5">Rapport multi-pages avec autoTable</p>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => { setExportDropdownOpen(false); handlePdfOnePagerExport(); }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-left text-xs font-bold text-slate-700 dark:text-slate-200 transition cursor-pointer"
+                >
+                  <Sparkles size={15} className="text-indigo-600 dark:text-indigo-400 shrink-0" />
+                  <div>
+                    <p className="leading-none">Fiche Synthèse Ministérielle</p>
+                    <p className="text-[10px] text-slate-400 font-medium mt-0.5">Résumé exécutif 1-Page A4</p>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => { setExportDropdownOpen(false); handleExcelExport(); }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-left text-xs font-bold text-slate-700 dark:text-slate-200 transition cursor-pointer"
+                >
+                  <FileSpreadsheet size={15} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <div>
+                    <p className="leading-none">Excel SDMX (Multi-Feuilles)</p>
+                    <p className="text-[10px] text-slate-400 font-medium mt-0.5">Classeur 4 onglets statistiques</p>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => { setExportDropdownOpen(false); handleCsvExport(); }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl hover:bg-amber-50 dark:hover:bg-amber-950/40 text-left text-xs font-bold text-slate-700 dark:text-slate-200 transition cursor-pointer"
+                >
+                  <FileCode size={15} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                  <div>
+                    <p className="leading-none">CSV UTF-8 (Données Brutes)</p>
+                    <p className="text-[10px] text-slate-400 font-medium mt-0.5">Pour SPSS, Stata & BigQuery</p>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => { setExportDropdownOpen(false); handleJsonEmisExport(); }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl hover:bg-cyan-50 dark:hover:bg-cyan-950/40 text-left text-xs font-bold text-slate-700 dark:text-slate-200 transition cursor-pointer"
+                >
+                  <Globe size={15} className="text-cyan-600 dark:text-cyan-400 shrink-0" />
+                  <div>
+                    <p className="leading-none">JSON EMIS / UNESCO-UIS</p>
+                    <p className="text-[10px] text-slate-400 font-medium mt-0.5">Format d'échange international</p>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => { setExportDropdownOpen(false); handleXmlSigeExport(); }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl hover:bg-violet-50 dark:hover:bg-violet-950/40 text-left text-xs font-bold text-slate-700 dark:text-slate-200 transition cursor-pointer"
+                >
+                  <Share2 size={15} className="text-violet-600 dark:text-violet-400 shrink-0" />
+                  <div>
+                    <p className="leading-none">XML SIGE Ministère</p>
+                    <p className="text-[10px] text-slate-400 font-medium mt-0.5">Format échange inter-administrations</p>
+                  </div>
+                </button>
+              </div>
+            )}
+          </div>
+
           <button 
             onClick={() => window.print()}
-            className="flex h-11 items-center gap-2 rounded-xl bg-slate-900 dark:bg-slate-100 dark:text-slate-900 px-5 text-xs font-black uppercase tracking-widest text-white hover:bg-slate-800 transition"
+            className="flex h-11 items-center gap-2 rounded-xl bg-slate-900 dark:bg-slate-100 dark:text-slate-900 px-5 text-xs font-black uppercase tracking-widest text-white hover:bg-slate-800 transition cursor-pointer"
           >
             <Printer size={16} /> Imprimer
           </button>
