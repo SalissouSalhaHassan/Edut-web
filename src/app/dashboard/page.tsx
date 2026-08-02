@@ -286,7 +286,9 @@ export default async function DashboardPage() {
     schoolId ? getUpcomingEvents(schoolId) : Promise.resolve(null)
   ]);
 
-  const schoolLogo = branchData?.logoPath || branchData?.logo_path || branchData?.logoUrl || user?.school?.logoPath || user?.school?.logo_path || user?.school?.logoUrl || user?.school?.logo || null;
+  const bd = branchData as any;
+  const us = user?.school as any;
+  const schoolLogo = bd?.logoPath || bd?.logo_path || bd?.logoUrl || us?.logoPath || us?.logo_path || us?.logoUrl || us?.logo || null;
   const branding = {
     name: branchData?.branchName || user?.school?.name || "GROUP AIIU-NIGER",
     logoPath: schoolLogo,
