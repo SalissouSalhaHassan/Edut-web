@@ -892,44 +892,44 @@ export default function MinistryDashboardPage() {
   };
 
   return (
-    <div className="min-h-screen space-y-8 p-4 text-slate-950 md:p-6 xl:p-8 bg-[#fcfdff] print:bg-white print:p-0 animate-in fade-in duration-300">
+    <div className="min-h-screen space-y-8 p-4 text-slate-900 dark:text-slate-100 md:p-6 xl:p-8 print:bg-white print:p-0 animate-in fade-in duration-300">
       {/* Printable Official Header */}
       <div className="hidden print:block mb-6 border-b-[2.5px] border-blue-900 pb-5">
         <OfficialDocumentHeader config={activeHeaderConfig} title="RAPPORT STATISTIQUE NATIONAL DÉCISIONNEL" />
       </div>
       
       {/* Header */}
-      <header className="rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <header className="rounded-[2rem] border border-slate-200/70 dark:border-slate-800/80 bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="flex items-center gap-4">
-          <Link href="/dashboard" className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 text-slate-500 hover:bg-slate-50 transition print:hidden">
+          <Link href="/dashboard" className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-[#1f2232] transition print:hidden">
             <ArrowLeft size={19} />
           </Link>
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-600 text-white shadow-lg shadow-rose-100">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-600 text-white shadow-lg shadow-rose-500/20">
             <Globe size={26} />
           </div>
           <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-600">Portail National Décisionnel</p>
-            <h1 className="text-3xl font-black tracking-tight text-slate-900">Ministère de l&apos;Éducation</h1>
-            <p className="mt-1 text-xs font-bold text-slate-500">Tableau de Bord Réglementaire du Secteur Éducatif National</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-600 dark:text-rose-400">Portail National Décisionnel</p>
+            <h1 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white">Ministère de l&apos;Éducation</h1>
+            <p className="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">Tableau de Bord Réglementaire du Secteur Éducatif National</p>
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-3 print:hidden">
           <button 
             onClick={handlePdfExport}
-            className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 transition"
+            className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#1a1d2d] px-4 text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#222638] transition"
           >
-            <FileText size={16} className="text-rose-600" /> Export PDF
+            <FileText size={16} className="text-rose-600 dark:text-rose-400" /> Export PDF
           </button>
           <button 
             onClick={handleExcelExport}
-            className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 transition"
+            className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#1a1d2d] px-4 text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#222638] transition"
           >
-            <FileSpreadsheet size={16} className="text-emerald-600" /> Export Excel
+            <FileSpreadsheet size={16} className="text-emerald-600 dark:text-emerald-400" /> Export Excel
           </button>
           <button 
             onClick={() => window.print()}
-            className="flex h-11 items-center gap-2 rounded-xl bg-slate-900 px-5 text-xs font-black uppercase tracking-widest text-white hover:bg-slate-800 transition"
+            className="flex h-11 items-center gap-2 rounded-xl bg-slate-900 dark:bg-slate-100 dark:text-slate-900 px-5 text-xs font-black uppercase tracking-widest text-white hover:bg-slate-800 transition"
           >
             <Printer size={16} /> Imprimer
           </button>
@@ -937,8 +937,8 @@ export default function MinistryDashboardPage() {
       </header>
 
       {/* Filter panel */}
-      <section className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm space-y-4 print:hidden">
-        <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+      <section className="bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl p-6 rounded-[2rem] border border-slate-200/70 dark:border-slate-800/80 shadow-sm space-y-4 print:hidden">
+        <h3 className="text-xs font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest flex items-center gap-2">
           <Filter size={14} /> Filtres Nationaux
         </h3>
         
@@ -1060,34 +1060,35 @@ export default function MinistryDashboardPage() {
       {/* KPI Cards Grid */}
       <section className="grid gap-4 grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-9">
         {[
-          { label: "Établissements", value: kpis.totalSchools, icon: Building2, color: "text-indigo-600", bg: "bg-indigo-50" },
-          { label: "Total Élèves", value: kpis.totalEleves.toLocaleString("fr-FR"), icon: Users, color: "text-blue-600", bg: "bg-blue-50" },
-          { label: "Total Filles", value: kpis.totalFilles.toLocaleString("fr-FR"), icon: Users, color: "text-pink-600", bg: "bg-pink-50" },
-          { label: "Total Garçons", value: kpis.totalGarcons.toLocaleString("fr-FR"), icon: Users, color: "text-sky-600", bg: "bg-sky-50" },
-          { label: "Total Enseignants", value: kpis.totalEnseignants.toLocaleString("fr-FR"), icon: Users, color: "text-emerald-600", bg: "bg-emerald-50" },
-          { label: "Ratio Élève/Ens", value: kpis.pupilTeacherRatio, icon: Layers, color: "text-slate-700", bg: "bg-slate-100" },
-          { label: "Taux Réussite", value: `${kpis.avgSuccess}%`, icon: Award, color: "text-amber-600", bg: "bg-amber-50" },
-          { label: "Taux Présence", value: `${kpis.avgAttendance}%`, icon: Activity, color: "text-teal-600", bg: "bg-teal-50" },
-          { label: "Taux Abandon", value: `${kpis.avgAbandon}%`, icon: TrendingDown, color: "text-rose-600", bg: "bg-rose-50" },
-          { label: "Écoles Sans Eau", value: kpis.noWater, icon: Droplets, color: kpis.noWater > 0 ? "text-rose-600" : "text-slate-400", bg: kpis.noWater > 0 ? "bg-rose-50" : "bg-slate-50" },
-          { label: "Écoles Sans Élec.", value: kpis.noElec, icon: Lightbulb, color: kpis.noElec > 0 ? "text-rose-600" : "text-slate-400", bg: kpis.noElec > 0 ? "bg-rose-50" : "bg-slate-50" },
-          { label: "Sans Latrines", value: kpis.noLatrines, icon: AlertCircle, color: kpis.noLatrines > 0 ? "text-rose-600" : "text-slate-400", bg: kpis.noLatrines > 0 ? "bg-rose-50" : "bg-slate-50" },
-          { label: "Manque Enseignants", value: kpis.missingTeachers, icon: Users, color: kpis.missingTeachers > 0 ? "text-rose-600" : "text-slate-400", bg: kpis.missingTeachers > 0 ? "bg-rose-50" : "bg-slate-50" },
-          { label: "Manque Salles", value: kpis.missingSalles, icon: Building2, color: kpis.missingSalles > 0 ? "text-rose-600" : "text-slate-400", bg: kpis.missingSalles > 0 ? "bg-rose-50" : "bg-slate-50" },
-          { label: "Manque Livres", value: kpis.missingBooks, icon: BookOpen, color: kpis.missingBooks > 0 ? "text-rose-600" : "text-slate-400", bg: kpis.missingBooks > 0 ? "bg-rose-50" : "bg-slate-50" },
-          { label: "Complétude Données", value: `${kpis.avgCompletion}%`, icon: CheckCircle2, color: "text-emerald-700", bg: "bg-emerald-50" },
-          { label: "Zones Prioritaires", value: kpis.priorityZones, icon: ShieldAlert, color: kpis.priorityZones > 0 ? "text-rose-600" : "text-slate-400", bg: kpis.priorityZones > 0 ? "bg-rose-50" : "bg-slate-50" },
-          { label: "Retards Décl.", value: kpis.lateDeclaration, icon: Clock, color: kpis.lateDeclaration > 0 ? "text-rose-600" : "text-slate-400", bg: kpis.lateDeclaration > 0 ? "bg-rose-50" : "bg-slate-50" },
+          { label: "Établissements", value: kpis.totalSchools, icon: Building2, color: "text-indigo-600 dark:text-indigo-400", bg: "bg-indigo-50 dark:bg-indigo-950/60", grad: "from-indigo-500 to-purple-500" },
+          { label: "Total Élèves", value: kpis.totalEleves.toLocaleString("fr-FR"), icon: Users, color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-50 dark:bg-blue-950/60", grad: "from-blue-500 to-cyan-500" },
+          { label: "Total Filles", value: kpis.totalFilles.toLocaleString("fr-FR"), icon: Users, color: "text-pink-600 dark:text-pink-400", bg: "bg-pink-50 dark:bg-pink-950/60", grad: "from-pink-500 to-rose-500" },
+          { label: "Total Garçons", value: kpis.totalGarcons.toLocaleString("fr-FR"), icon: Users, color: "text-sky-600 dark:text-sky-400", bg: "bg-sky-50 dark:bg-sky-950/60", grad: "from-sky-500 to-indigo-500" },
+          { label: "Total Enseignants", value: kpis.totalEnseignants.toLocaleString("fr-FR"), icon: Users, color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-50 dark:bg-emerald-950/60", grad: "from-emerald-400 to-teal-500" },
+          { label: "Ratio Élève/Ens", value: kpis.pupilTeacherRatio, icon: Layers, color: "text-slate-700 dark:text-slate-300", bg: "bg-slate-100 dark:bg-slate-800", grad: "from-slate-400 to-slate-600" },
+          { label: "Taux Réussite", value: `${kpis.avgSuccess}%`, icon: Award, color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-50 dark:bg-amber-950/60", grad: "from-amber-400 to-orange-500" },
+          { label: "Taux Présence", value: `${kpis.avgAttendance}%`, icon: Activity, color: "text-teal-600 dark:text-teal-400", bg: "bg-teal-50 dark:bg-teal-950/60", grad: "from-teal-400 to-emerald-500" },
+          { label: "Taux Abandon", value: `${kpis.avgAbandon}%`, icon: TrendingDown, color: "text-rose-600 dark:text-rose-400", bg: "bg-rose-50 dark:bg-rose-950/60", grad: "from-rose-500 to-red-600" },
+          { label: "Écoles Sans Eau", value: kpis.noWater, icon: Droplets, color: kpis.noWater > 0 ? "text-rose-600 dark:text-rose-400" : "text-slate-400 dark:text-slate-500", bg: kpis.noWater > 0 ? "bg-rose-50 dark:bg-rose-950/60" : "bg-slate-50 dark:bg-slate-900/60", grad: "from-rose-500 to-red-500" },
+          { label: "Écoles Sans Élec.", value: kpis.noElec, icon: Lightbulb, color: kpis.noElec > 0 ? "text-rose-600 dark:text-rose-400" : "text-slate-400 dark:text-slate-500", bg: kpis.noElec > 0 ? "bg-rose-50 dark:bg-rose-950/60" : "bg-slate-50 dark:bg-slate-900/60", grad: "from-amber-500 to-rose-500" },
+          { label: "Sans Latrines", value: kpis.noLatrines, icon: AlertCircle, color: kpis.noLatrines > 0 ? "text-rose-600 dark:text-rose-400" : "text-slate-400 dark:text-slate-500", bg: kpis.noLatrines > 0 ? "bg-rose-50 dark:bg-rose-950/60" : "bg-slate-50 dark:bg-slate-900/60", grad: "from-red-500 to-rose-600" },
+          { label: "Manque Enseignants", value: kpis.missingTeachers, icon: Users, color: kpis.missingTeachers > 0 ? "text-rose-600 dark:text-rose-400" : "text-slate-400 dark:text-slate-500", bg: kpis.missingTeachers > 0 ? "bg-rose-50 dark:bg-rose-950/60" : "bg-slate-50 dark:bg-slate-900/60", grad: "from-violet-500 to-rose-500" },
+          { label: "Manque Salles", value: kpis.missingSalles, icon: Building2, color: kpis.missingSalles > 0 ? "text-rose-600 dark:text-rose-400" : "text-slate-400 dark:text-slate-500", bg: kpis.missingSalles > 0 ? "bg-rose-50 dark:bg-rose-950/60" : "bg-slate-50 dark:bg-slate-900/60", grad: "from-indigo-500 to-rose-500" },
+          { label: "Manque Livres", value: kpis.missingBooks, icon: BookOpen, color: kpis.missingBooks > 0 ? "text-rose-600 dark:text-rose-400" : "text-slate-400 dark:text-slate-500", bg: kpis.missingBooks > 0 ? "bg-rose-50 dark:bg-rose-950/60" : "bg-slate-50 dark:bg-slate-900/60", grad: "from-orange-500 to-rose-500" },
+          { label: "Complétude Données", value: `${kpis.avgCompletion}%`, icon: CheckCircle2, color: "text-emerald-700 dark:text-emerald-400", bg: "bg-emerald-50 dark:bg-emerald-950/60", grad: "from-emerald-400 to-teal-500" },
+          { label: "Zones Prioritaires", value: kpis.priorityZones, icon: ShieldAlert, color: kpis.priorityZones > 0 ? "text-rose-600 dark:text-rose-400" : "text-slate-400 dark:text-slate-500", bg: kpis.priorityZones > 0 ? "bg-rose-50 dark:bg-rose-950/60" : "bg-slate-50 dark:bg-slate-900/60", grad: "from-rose-500 to-pink-500" },
+          { label: "Retards Décl.", value: kpis.lateDeclaration, icon: Clock, color: kpis.lateDeclaration > 0 ? "text-rose-600 dark:text-rose-400" : "text-slate-400 dark:text-slate-500", bg: kpis.lateDeclaration > 0 ? "bg-rose-50 dark:bg-rose-950/60" : "bg-slate-50 dark:bg-slate-900/60", grad: "from-amber-500 to-orange-600" },
         ].map((item) => {
           const Icon = item.icon;
           return (
-            <div key={item.label} className="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm hover:shadow-md transition flex flex-col justify-between">
-              <div className={cn("flex h-8 w-8 items-center justify-center rounded-xl", item.bg, item.color)}>
+            <div key={item.label} className="group relative overflow-hidden rounded-3xl border border-slate-200/70 dark:border-slate-800/80 bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl p-4 shadow-sm hover:shadow-xl hover:border-indigo-300 dark:hover:border-indigo-500/50 hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between">
+              <div className={`absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r ${item.grad} opacity-80 group-hover:opacity-100 transition-opacity`} />
+              <div className={cn("flex h-8 w-8 items-center justify-center rounded-xl transition-transform group-hover:scale-105", item.bg, item.color)}>
                 <Icon size={16} />
               </div>
               <div className="mt-3">
-                <p className="text-[9px] font-black uppercase tracking-widest text-slate-450 leading-snug">{item.label}</p>
-                <p className="mt-1 text-lg font-black text-slate-900">{item.value}</p>
+                <p className="text-[9px] font-black uppercase tracking-widest text-slate-450 dark:text-slate-400 leading-snug">{item.label}</p>
+                <p className="mt-1 text-lg font-black text-slate-900 dark:text-white">{item.value}</p>
               </div>
             </div>
           );
@@ -1099,13 +1100,13 @@ export default function MinistryDashboardPage() {
         
         {/* Left Side: Establishments List / Map */}
         <div className="xl:col-span-8 space-y-6">
-          <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden">
+          <div className="bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl rounded-[2.5rem] border border-slate-200/70 dark:border-slate-800/80 shadow-sm overflow-hidden">
             
             {/* Header controls */}
-            <div className="p-6 border-b border-slate-50 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
-                <h2 className="text-lg font-black text-slate-900">Registre Éducatif National</h2>
-                <p className="text-xs font-bold text-slate-400">Visualisation des données par établissement</p>
+                <h2 className="text-lg font-black text-slate-900 dark:text-white">Registre Éducatif National</h2>
+                <p className="text-xs font-bold text-slate-400 dark:text-slate-400">Visualisation des données par établissement</p>
               </div>
 
               <div className="flex items-center gap-3">
@@ -1115,21 +1116,21 @@ export default function MinistryDashboardPage() {
                     value={searchQuery}
                     onChange={e => setSearchQuery(e.target.value)}
                     placeholder="Nom, code, commune..."
-                    className="h-10 w-full pl-9 pr-4 rounded-xl border border-slate-100 bg-slate-50/50 text-xs font-bold outline-none placeholder:text-slate-450 text-slate-850"
+                    className="h-10 w-full pl-9 pr-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-[#1a1d2d] text-xs font-bold outline-none placeholder:text-slate-450 text-slate-900 dark:text-slate-100"
                   />
                   {searchQuery && <X size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 cursor-pointer" onClick={() => setSearchQuery("")} />}
                 </div>
 
-                <div className="flex border border-slate-100 rounded-xl p-1 bg-slate-50/50">
+                <div className="flex border border-slate-200 dark:border-slate-800 rounded-xl p-1 bg-slate-50/50 dark:bg-[#1a1d2d]">
                   <button 
                     onClick={() => setViewMode("list")}
-                    className={cn("px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition", viewMode === "list" ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-700")}
+                    className={cn("px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition", viewMode === "list" ? "bg-white dark:bg-[#222638] text-slate-900 dark:text-white shadow-sm" : "text-slate-400 hover:text-slate-700 dark:hover:text-slate-200")}
                   >
                     Liste
                   </button>
                   <button 
                     onClick={() => setViewMode("map")}
-                    className={cn("px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition", viewMode === "map" ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-700")}
+                    className={cn("px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition", viewMode === "map" ? "bg-white dark:bg-[#222638] text-slate-900 dark:text-white shadow-sm" : "text-slate-400 hover:text-slate-700 dark:hover:text-slate-200")}
                   >
                     Carte
                   </button>
@@ -1141,14 +1142,14 @@ export default function MinistryDashboardPage() {
               <div className="overflow-x-auto">
                 {loadingSchools ? (
                   <div className="p-16 text-center">
-                    <Building2 className="mx-auto size-12 text-slate-200 animate-pulse" />
-                    <p className="mt-4 text-sm font-black text-slate-800">Chargement des établissements...</p>
+                    <Building2 className="mx-auto size-12 text-slate-200 dark:text-slate-700 animate-pulse" />
+                    <p className="mt-4 text-sm font-black text-slate-800 dark:text-white">Chargement des établissements...</p>
                     <p className="text-xs text-slate-400 mt-1">Lecture des données ministérielles depuis la base.</p>
                   </div>
                 ) : filteredSchools.length > 0 ? (
                   <table className="w-full text-left min-w-[900px]">
                     <thead>
-                      <tr className="border-b border-slate-50 bg-slate-50/40 text-[9px] font-black uppercase tracking-widest text-slate-400">
+                      <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-900/60 text-[9px] font-black uppercase tracking-widest text-slate-400">
                         <th className="px-6 py-4">Établissement</th>
                         <th className="px-6 py-4">Type/Cycle</th>
                         <th className="px-6 py-4">Localisation</th>
@@ -1159,30 +1160,30 @@ export default function MinistryDashboardPage() {
                         <th className="px-6 py-4 text-right">Actions</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-50 font-bold text-slate-700 text-xs">
+                    <tbody className="divide-y divide-slate-100/60 dark:divide-slate-800/40 font-bold text-slate-700 dark:text-slate-300 text-xs">
                       {filteredSchools.map((s) => (
-                        <tr key={s.code} className="hover:bg-slate-50/50 transition">
+                        <tr key={s.code} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition">
                           <td className="px-6 py-4">
-                            <p className="font-black text-slate-900">{s.name}</p>
+                            <p className="font-black text-slate-900 dark:text-white">{s.name}</p>
                             <p className="text-[10px] text-slate-400 mt-0.5">{s.code}</p>
                           </td>
                           <td className="px-6 py-4">
-                            <span className={cn("px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider mr-1.5", s.type === "Public" ? "bg-emerald-50 text-emerald-700" : "bg-indigo-50 text-indigo-700")}>
+                            <span className={cn("px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider mr-1.5", s.type === "Public" ? "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400" : "bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-400")}>
                               {s.type}
                             </span>
-                            <span className="text-[10px] font-black text-slate-500">{s.cycle}</span>
+                            <span className="text-[10px] font-black text-slate-500 dark:text-slate-400">{s.cycle}</span>
                           </td>
                           <td className="px-6 py-4">
-                            <p className="text-slate-800">{s.commune}</p>
+                            <p className="text-slate-800 dark:text-slate-200">{s.commune}</p>
                             <p className="text-[10px] text-slate-400 mt-0.5">{s.region} / {s.department}</p>
                           </td>
                           <td className="px-6 py-4">
-                            <p className="text-slate-950 font-black">{s.eleves} élèves</p>
+                            <p className="text-slate-950 dark:text-white font-black">{s.eleves} élèves</p>
                             <p className="text-[9px] text-slate-400 mt-0.5">Ratio: {(s.eleves / (s.enseignants || 1)).toFixed(0)} E/E</p>
                           </td>
                           <td className="px-6 py-4">
-                            <p className="text-amber-600 font-black">Réussite: {s.successRate}%</p>
-                            <p className="text-[9px] text-rose-600 mt-0.5">Abandon: {s.abandonRate}%</p>
+                            <p className="text-amber-600 dark:text-amber-400 font-black">Réussite: {s.successRate}%</p>
+                            <p className="text-[9px] text-rose-600 dark:text-rose-400 mt-0.5">Abandon: {s.abandonRate}%</p>
                           </td>
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-1.5">
@@ -1193,16 +1194,16 @@ export default function MinistryDashboardPage() {
                           </td>
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-2">
-                              <div className="w-12 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                              <div className="w-12 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                                 <div className="h-full bg-emerald-500" style={{ width: `${s.completion}%` }} />
                               </div>
-                              <span className="text-[10px] font-black text-slate-900">{s.completion}%</span>
+                              <span className="text-[10px] font-black text-slate-900 dark:text-white">{s.completion}%</span>
                             </div>
                           </td>
                           <td className="px-6 py-4 text-right">
                             <button 
                               onClick={() => setSelectedSchoolDetail(s)}
-                              className="px-3 py-1.5 rounded-lg border border-slate-100 hover:border-indigo-200 hover:bg-indigo-50/50 text-[10px] font-black text-slate-500 hover:text-indigo-600 uppercase tracking-widest transition"
+                              className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:border-indigo-200 hover:bg-indigo-50/50 text-[10px] font-black text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 uppercase tracking-widest transition"
                             >
                               Voir détails
                             </button>
@@ -1245,21 +1246,21 @@ export default function MinistryDashboardPage() {
         <div className="xl:col-span-4 space-y-8">
           
           {/* Public vs Private Breakdown */}
-          <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm space-y-4">
+          <div className="bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl p-6 rounded-[2rem] border border-slate-200/70 dark:border-slate-800/80 shadow-sm space-y-4">
             <div>
-              <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider">Répartition Secteurs</h3>
-              <p className="text-[10px] font-bold text-slate-400 mt-0.5">Ratio établissements Publics vs Privés</p>
+              <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">Répartition Secteurs</h3>
+              <p className="text-[10px] font-bold text-slate-400 dark:text-slate-400 mt-0.5">Ratio établissements Publics vs Privés</p>
             </div>
             
             <div className="space-y-3">
               <div className="flex justify-between text-xs font-black">
-                <span className="text-emerald-700">Public ({publicPrivateRatio.publicCount} éts)</span>
-                <span className="text-indigo-700">Privé ({publicPrivateRatio.privateCount} éts)</span>
+                <span className="text-emerald-700 dark:text-emerald-400">Public ({publicPrivateRatio.publicCount} éts)</span>
+                <span className="text-indigo-700 dark:text-indigo-400">Privé ({publicPrivateRatio.privateCount} éts)</span>
               </div>
               
-              <div className="h-3 w-full bg-indigo-200 rounded-full overflow-hidden flex">
+              <div className="h-3 w-full bg-indigo-100 dark:bg-indigo-950/80 rounded-full overflow-hidden flex">
                 <div className="bg-emerald-500 h-full" style={{ width: `${publicPrivateRatio.publicPct}%` }} />
-                <div className="bg-indigo-600 h-full flex-1" style={{ width: `${publicPrivateRatio.privatePct}%` }} />
+                <div className="bg-indigo-600 dark:bg-indigo-500 h-full flex-1" style={{ width: `${publicPrivateRatio.privatePct}%` }} />
               </div>
               
               <div className="flex justify-between text-[10px] text-slate-400 font-bold">
@@ -1270,20 +1271,20 @@ export default function MinistryDashboardPage() {
           </div>
 
           {/* Regional Statistics */}
-          <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm space-y-6">
+          <div className="bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl p-6 rounded-[2rem] border border-slate-200/70 dark:border-slate-800/80 shadow-sm space-y-6">
             <div>
-              <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider">Statistiques par Région</h3>
-              <p className="text-[10px] font-bold text-slate-400 mt-0.5">Complétude des dossiers</p>
+              <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">Statistiques par Région</h3>
+              <p className="text-[10px] font-bold text-slate-400 dark:text-slate-400 mt-0.5">Complétude des dossiers</p>
             </div>
             
             <div className="space-y-4">
               {regionStats.length > 0 ? regionStats.map(stat => (
                 <div key={stat.region} className="space-y-1.5">
                   <div className="flex justify-between text-xs font-black">
-                    <span className="text-slate-800">{stat.region} ({stat.schoolsCount} éts)</span>
-                    <span className="text-slate-900">{stat.avgCompletion}% Complétude</span>
+                    <span className="text-slate-800 dark:text-slate-200">{stat.region} ({stat.schoolsCount} éts)</span>
+                    <span className="text-slate-900 dark:text-white">{stat.avgCompletion}% Complétude</span>
                   </div>
-                  <div className="h-2 bg-slate-50 rounded-full overflow-hidden border border-slate-100/50">
+                  <div className="h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden border border-slate-100/50 dark:border-slate-800/50">
                     <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${stat.avgCompletion}%` }} />
                   </div>
                   <p className="text-[9px] text-slate-400 font-bold">{stat.studentsCount.toLocaleString("fr-FR")} Élèves inscrits</p>
@@ -1295,20 +1296,20 @@ export default function MinistryDashboardPage() {
           </div>
 
           {/* Inspection Statistics */}
-          <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm space-y-6">
+          <div className="bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl p-6 rounded-[2rem] border border-slate-200/70 dark:border-slate-800/80 shadow-sm space-y-6">
             <div>
-              <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider">Statistiques par Inspection</h3>
-              <p className="text-[10px] font-bold text-slate-400 mt-0.5">Performance (Réussite)</p>
+              <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">Statistiques par Inspection</h3>
+              <p className="text-[10px] font-bold text-slate-400 dark:text-slate-400 mt-0.5">Performance (Réussite)</p>
             </div>
             
             <div className="space-y-4">
               {inspectionStats.length > 0 ? inspectionStats.map(stat => (
                 <div key={stat.inspection} className="space-y-1.5">
                   <div className="flex justify-between text-xs font-black">
-                    <span className="text-slate-800">{stat.inspection}</span>
-                    <span className="text-slate-900">{stat.avgSuccess}% Réussite</span>
+                    <span className="text-slate-800 dark:text-slate-200">{stat.inspection}</span>
+                    <span className="text-slate-900 dark:text-white">{stat.avgSuccess}% Réussite</span>
                   </div>
-                  <div className="h-2 bg-slate-50 rounded-full overflow-hidden border border-slate-100/50">
+                  <div className="h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden border border-slate-100/50 dark:border-slate-800/50">
                     <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${stat.avgSuccess}%` }} />
                   </div>
                   <p className="text-[9px] text-slate-400 font-bold">{stat.schoolsCount} Établissement(s) sous tutelle</p>
@@ -1320,10 +1321,10 @@ export default function MinistryDashboardPage() {
           </div>
 
           {/* National Alerts */}
-          <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm space-y-6">
+          <div className="bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl p-6 rounded-[2rem] border border-slate-200/70 dark:border-slate-800/80 shadow-sm space-y-6">
             <div>
-              <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider">Alertes Critiques Secteur</h3>
-              <p className="text-[10px] font-bold text-slate-400 mt-0.5">Logistiques, Ratios & anomalies de Fichiers</p>
+              <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">Alertes Critiques Secteur</h3>
+              <p className="text-[10px] font-bold text-slate-400 dark:text-slate-400 mt-0.5">Logistiques, Ratios & anomalies de Fichiers</p>
             </div>
             
             <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
@@ -1332,20 +1333,20 @@ export default function MinistryDashboardPage() {
                   key={idx} 
                   className={cn(
                     "p-4 rounded-2xl border flex gap-3 items-start",
-                    alert.severity === "critical" ? "bg-rose-50 border-rose-100 text-rose-800" : "bg-amber-50 border-amber-100 text-amber-800"
+                    alert.severity === "critical" ? "bg-rose-50 dark:bg-rose-950/60 border-rose-100 dark:border-rose-900/50 text-rose-800 dark:text-rose-300" : "bg-amber-50 dark:bg-amber-950/60 border-amber-100 dark:border-amber-900/50 text-amber-800 dark:text-amber-300"
                   )}
                 >
                   <ShieldAlert className="size-5 shrink-0 mt-0.5" />
                   <div>
                     <p className="text-xs font-black">{alert.school}</p>
                     <p className="text-[10px] font-bold opacity-80 mt-0.5">{alert.type}</p>
-                    <span className="inline-block text-[8px] font-black uppercase tracking-widest mt-1 bg-white/40 px-2 py-0.5 rounded">
+                    <span className="inline-block text-[8px] font-black uppercase tracking-widest mt-1 bg-white/40 dark:bg-black/30 px-2 py-0.5 rounded">
                       {alert.code}
                     </span>
                   </div>
                 </div>
               )) : (
-                <div className="p-6 text-center rounded-2xl border border-slate-50 bg-slate-50/20 text-slate-400">
+                <div className="p-6 text-center rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/20 dark:bg-slate-900/20 text-slate-400">
                   <CheckCircle2 className="mx-auto size-8 text-emerald-500" />
                   <p className="text-xs font-bold mt-2">Aucune alerte active</p>
                 </div>
