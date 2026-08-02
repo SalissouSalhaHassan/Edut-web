@@ -21,9 +21,23 @@ export default function LoginPage() {
 
   useEffect(() => {
     async function fetchBranding() {
-      const branding = await getSchoolBranding();
-      if (branding) {
-        setSchool(branding);
+      try {
+        const branding = await getSchoolBranding();
+        if (branding && (branding.logoPath || branding.name)) {
+          setSchool(branding);
+          if (typeof window !== "undefined") {
+            if (branding.logoPath) localStorage.setItem("edut_school_logo", branding.logoPath);
+            if (branding.name) localStorage.setItem("edut_school_name", branding.name);
+          }
+        } else {
+          const cachedLogo = typeof window !== "undefined" ? localStorage.getItem("edut_school_logo") : null;
+          const cachedName = typeof window !== "undefined" ? localStorage.getItem("edut_school_name") : null;
+          if (cachedLogo || cachedName) {
+            setSchool({ name: cachedName, logoPath: cachedLogo });
+          }
+        }
+      } catch (e) {
+        console.warn("Failed to fetch branding on login:", e);
       }
     }
     fetchBranding();

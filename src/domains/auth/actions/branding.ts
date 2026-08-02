@@ -3,33 +3,61 @@
 import { headers } from "next/headers";
 import { db, readDb } from "@/infrastructure/database";
 import { schools } from "@/infrastructure/database/schema/auth";
-import { eq } from "drizzle-orm";
+import { schoolBranches } from "@/infrastructure/database/schema/settings";
+import { eq, asc } from "drizzle-orm";
 import { cache as redisCache } from "@/lib/redis";
 
 export async function getSchoolBranding() {
-  const headerList = await headers();
-  const slug = headerList.get("x-school-slug");
-
-  if (!slug) return null;
-
-  // Try Redis Cache first
-  const cacheKey = `school_branding:${slug}`;
-  const cached = await redisCache.get<any>(cacheKey);
-  if (cached) return cached;
-
   try {
-    const school = await readDb.query.schools.findFirst({
-      where: eq(schools.slug, slug),
-      columns: {
-        name: true,
-        logoPath: true,
-        slug: true,
+    const headerList = await headers();
+    const slug = headerList.get("x-school-slug");
+
+    if (slug) {
+      const cacheKey = `school_branding:${slug}`;
+      const cached = await redisCache.get<any>(cacheKey);
+      if (cached) return cached;
+
+      const school = await readDb.query.schools.findFirst({
+        where: eq(schools.slug, slug),
+        columns: {
+          name: true,
+          logoPath: true,
+          slug: true,
+        }
+      });
+
+      if (school) {
+        let logo = school.logoPath;
+        if (!logo) {
+          const branch = await readDb.query.schoolBranches.findFirst({
+            where: eq(schoolBranches.schoolId, school.id as any),
+          });
+          logo = branch?.logoPath || null;
+        }
+        const result = { ...school, logoPath: logo };
+        await redisCache.set(cacheKey, result, 3600);
+        return result;
       }
+    }
+
+    // Fallback for main domain: fetch primary school & logo
+    const primarySchool = await readDb.query.schools.findFirst({
+      orderBy: [asc(schools.id)],
     });
 
-    if (school) {
-      await redisCache.set(cacheKey, school, 3600); // Cache for 1 hour
-      return school;
+    if (primarySchool) {
+      let logo = primarySchool.logoPath;
+      if (!logo) {
+        const branch = await readDb.query.schoolBranches.findFirst({
+          where: eq(schoolBranches.schoolId, primarySchool.id),
+        });
+        logo = branch?.logoPath || null;
+      }
+      return {
+        name: primarySchool.name,
+        logoPath: logo,
+        slug: primarySchool.slug,
+      };
     }
   } catch (error) {
     console.error("Error fetching school branding:", error);
