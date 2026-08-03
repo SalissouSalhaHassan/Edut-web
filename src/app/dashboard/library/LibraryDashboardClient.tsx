@@ -110,33 +110,33 @@ export default function LibraryDashboardClient({ books, issues }: LibraryDashboa
     const digitalCount = books.filter((book) => book.isDigital === "true" || !!book.fileUrl).length;
 
     return [
-      { label: "Ressources Totales", value: books.length, helper: `${digitalCount} numériques (PDF/E-Books)`, icon: Book, tone: "bg-indigo-50 text-indigo-700" },
-      { label: "Numérique (E-Books)", value: digitalCount, helper: "Accès illimité en ligne", icon: Bookmark, tone: "bg-violet-50 text-violet-700" },
-      { label: "Emprunts Physiques", value: activeIssues.length, helper: `${returnedIssues.length} retours enregistrés`, icon: Repeat, tone: "bg-amber-50 text-amber-700" },
-      { label: "En retard", value: overdueIssues.length, helper: "À relancer rapidement", icon: AlertCircle, tone: "bg-rose-50 text-rose-700" },
-      { label: "Rotation", value: `${circulationRate}%`, helper: "Taux de circulation", icon: TrendingUp, tone: "bg-emerald-50 text-emerald-700" },
-      { label: "Stock faible", value: lowStock, helper: "Disponibilité limitée", icon: CalendarClock, tone: "bg-orange-50 text-orange-700" },
+      { label: "Ressources Totales", value: books.length, helper: `${digitalCount} numériques (PDF/E-Books)`, icon: Book, tone: "bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400" },
+      { label: "Numérique (E-Books)", value: digitalCount, helper: "Accès illimité en ligne", icon: Bookmark, tone: "bg-violet-50 dark:bg-violet-500/10 text-violet-700 dark:text-violet-400" },
+      { label: "Emprunts Physiques", value: activeIssues.length, helper: `${returnedIssues.length} retours enregistrés`, icon: Repeat, tone: "bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400" },
+      { label: "En retard", value: overdueIssues.length, helper: "À relancer rapidement", icon: AlertCircle, tone: "bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-400" },
+      { label: "Rotation", value: `${circulationRate}%`, helper: "Taux de circulation", icon: TrendingUp, tone: "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" },
+      { label: "Stock faible", value: lowStock, helper: "Disponibilité limitée", icon: CalendarClock, tone: "bg-orange-50 dark:bg-orange-500/10 text-orange-700 dark:text-orange-400" },
     ];
   }, [activeIssues.length, books, overdueIssues.length, returnedIssues.length]);
 
   return (
     <div className="p-6 lg:p-10 space-y-8 animate-in fade-in duration-700 print:bg-white print:p-0">
-      <div className="flex flex-col gap-5 rounded-[2.5rem] border border-slate-100 bg-white p-6 shadow-sm lg:flex-row lg:items-center lg:justify-between print:hidden">
+      <div className="flex flex-col gap-5 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 bg-white dark:bg-[#131622] p-6 shadow-sm dark:shadow-none lg:flex-row lg:items-center lg:justify-between print:hidden">
         <div className="flex items-start gap-4">
-          <div className="rounded-3xl bg-slate-950 p-4 text-white shadow-xl shadow-slate-200">
+          <div className="rounded-3xl bg-slate-950 dark:bg-slate-900 border border-transparent dark:border-slate-800 p-4 text-white shadow-xl shadow-slate-200 dark:shadow-none">
             <Book size={28} />
           </div>
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.22em] text-indigo-600">Centre documentaire & Bibliothèque Numérique</p>
-            <h1 className="text-4xl font-black tracking-tight text-slate-950">Bibliothèque Numérique & Centre Documentaire</h1>
-            <p className="mt-1 text-sm font-bold text-slate-500">Catalogue hybride, consultation en ligne (PDF / E-Books), emprunts et gestion des fonds documentaires.</p>
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-indigo-600 dark:text-indigo-400">Centre documentaire & Bibliothèque Numérique</p>
+            <h1 className="text-4xl font-black tracking-tight text-slate-950 dark:text-white">Bibliothèque Numérique & Centre Documentaire</h1>
+            <p className="mt-1 text-sm font-bold text-slate-500 dark:text-slate-400">Catalogue hybride, consultation en ligne (PDF / E-Books), emprunts et gestion des fonds documentaires.</p>
           </div>
         </div>
         <div className="flex flex-wrap gap-3">
-          <button onClick={() => exportCsv(filteredBooks)} className="flex h-12 items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50">
+          <button onClick={() => exportCsv(filteredBooks)} className="flex h-12 items-center gap-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800">
             <FileSpreadsheet size={16} /> CSV
           </button>
-          <button onClick={() => window.print()} className="flex h-12 items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50">
+          <button onClick={() => window.print()} className="flex h-12 items-center gap-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800">
             <Printer size={16} /> Imprimer
           </button>
           <BookDialog mode="add" />
@@ -150,19 +150,19 @@ export default function LibraryDashboardClient({ books, issues }: LibraryDashboa
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
         {stats.map((stat) => (
-          <div key={stat.label} className="rounded-[2rem] border border-slate-100 bg-white p-5 shadow-sm print:break-inside-avoid print:shadow-none">
+          <div key={stat.label} className="rounded-[2rem] border border-slate-100 dark:border-slate-800 bg-white dark:bg-[#131622] p-5 shadow-sm dark:shadow-none print:break-inside-avoid print:shadow-none">
             <div className={`mb-5 inline-flex rounded-2xl p-3 ${stat.tone}`}>
               <stat.icon size={21} />
             </div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{stat.label}</p>
-            <p className="mt-2 text-3xl font-black text-slate-950">{stat.value}</p>
-            <p className="mt-1 text-xs font-bold text-slate-500">{stat.helper}</p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-400">{stat.label}</p>
+            <p className="mt-2 text-3xl font-black text-slate-950 dark:text-white">{stat.value}</p>
+            <p className="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">{stat.helper}</p>
           </div>
         ))}
       </div>
 
       {overdueIssues.length > 0 && (
-        <div className="rounded-[2rem] border border-rose-100 bg-rose-50/70 p-5 text-rose-800 print:break-inside-avoid">
+        <div className="rounded-[2rem] border border-rose-100 dark:border-rose-500/20 bg-rose-50/70 dark:bg-rose-500/10 p-5 text-rose-800 dark:text-rose-300 print:break-inside-avoid">
           <div className="flex items-start gap-3">
             <AlertCircle className="mt-0.5 shrink-0" size={20} />
             <div>
@@ -177,22 +177,22 @@ export default function LibraryDashboardClient({ books, issues }: LibraryDashboa
 
       <div className="grid grid-cols-1 gap-8 xl:grid-cols-[minmax(0,2fr)_minmax(360px,1fr)]">
         <section className="space-y-5">
-          <div className="rounded-[2rem] border border-slate-100 bg-white p-4 shadow-sm print:hidden">
+          <div className="rounded-[2rem] border border-slate-100 dark:border-slate-800 bg-white dark:bg-[#131622] p-4 shadow-sm dark:shadow-none print:hidden">
             <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_220px_220px]">
               <div className="relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" size={18} />
                 <input
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
                   placeholder="Rechercher titre, auteur, ISBN, catégorie, rayon..."
-                  className="h-12 w-full rounded-2xl border border-slate-200 bg-white pl-11 pr-4 text-sm font-bold outline-none focus:border-indigo-300"
+                  className="h-12 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 pl-11 pr-4 text-sm font-bold text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none focus:border-indigo-300 dark:focus:border-indigo-500"
                 />
               </div>
-              <select value={category} onChange={(event) => setCategory(event.target.value)} className="h-12 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold outline-none">
+              <select value={category} onChange={(event) => setCategory(event.target.value)} className="h-12 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 text-sm font-bold text-slate-900 dark:text-white outline-none">
                 <option value="all">Toutes les catégories</option>
                 {categories.map((item) => <option key={item} value={item}>{item}</option>)}
               </select>
-              <select value={availability} onChange={(event) => setAvailability(event.target.value)} className="h-12 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold outline-none">
+              <select value={availability} onChange={(event) => setAvailability(event.target.value)} className="h-12 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 text-sm font-bold text-slate-900 dark:text-white outline-none">
                 <option value="all">Toutes disponibilités</option>
                 <option value="available">Disponible</option>
                 <option value="low">Stock faible</option>
@@ -201,17 +201,17 @@ export default function LibraryDashboardClient({ books, issues }: LibraryDashboa
             </div>
           </div>
 
-          <div className="overflow-hidden rounded-[2rem] border border-slate-100 bg-white shadow-sm print:shadow-none">
-            <div className="flex items-center justify-between border-b border-slate-100 p-5">
+          <div className="overflow-hidden rounded-[2rem] border border-slate-100 dark:border-slate-800 bg-white dark:bg-[#131622] shadow-sm dark:shadow-none print:shadow-none">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 p-5">
               <div>
-                <h2 className="text-xl font-black text-slate-950">Catalogue des livres</h2>
-                <p className="text-xs font-bold text-slate-400">{filteredBooks.length} résultat(s) affiché(s)</p>
+                <h2 className="text-xl font-black text-slate-950 dark:text-white">Catalogue des livres</h2>
+                <p className="text-xs font-bold text-slate-400 dark:text-slate-400">{filteredBooks.length} résultat(s) affiché(s)</p>
               </div>
-              <Download className="text-slate-300 print:hidden" size={20} />
+              <Download className="text-slate-300 dark:text-slate-600 print:hidden" size={20} />
             </div>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[860px] text-left">
-                <thead className="bg-slate-50 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                <thead className="bg-slate-50 dark:bg-slate-900/60 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-400 border-b border-slate-100 dark:border-slate-800">
                   <tr>
                     <th className="px-6 py-4">Livre / Auteur</th>
                     <th className="px-6 py-4">Catégorie</th>
@@ -221,43 +221,43 @@ export default function LibraryDashboardClient({ books, issues }: LibraryDashboa
                     <th className="px-6 py-4 text-right print:hidden">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
                   {filteredBooks.map((book) => {
                     const available = Number(book.availableQuantity || 0);
                     const total = Number(book.totalQuantity || 0);
                     const ratio = total ? Math.round((available / total) * 100) : 0;
                     return (
-                      <tr key={book.id} className="hover:bg-slate-50/60">
+                      <tr key={book.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
                         <td className="px-6 py-5">
                           <div className="flex items-center gap-2">
-                            <p className="font-black text-slate-950">{book.title}</p>
+                            <p className="font-black text-slate-950 dark:text-white">{book.title}</p>
                             {book.isDigital === "true" ? (
-                              <span className="rounded-md bg-indigo-100 px-2 py-0.5 text-[9px] font-black text-indigo-700 uppercase">💻 Numérique ({book.fileType || "PDF"})</span>
+                              <span className="rounded-md bg-indigo-100 dark:bg-indigo-500/20 px-2 py-0.5 text-[9px] font-black text-indigo-700 dark:text-indigo-400 uppercase">💻 Numérique ({book.fileType || "PDF"})</span>
                             ) : (
-                              <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[9px] font-bold text-slate-600 uppercase">📖 Physique</span>
+                              <span className="rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-[9px] font-bold text-slate-600 dark:text-slate-300 uppercase">📖 Physique</span>
                             )}
                           </div>
-                          <p className="mt-1 text-xs font-bold text-slate-400">{book.author || "Auteur inconnu"}</p>
-                          {book.description && <p className="mt-1 text-[11px] font-medium text-slate-500 line-clamp-1">{book.description}</p>}
+                          <p className="mt-1 text-xs font-bold text-slate-400 dark:text-slate-400">{book.author || "Auteur inconnu"}</p>
+                          {book.description && <p className="mt-1 text-[11px] font-medium text-slate-500 dark:text-slate-400 line-clamp-1">{book.description}</p>}
                         </td>
                         <td className="px-6 py-5">
-                          <span className="rounded-full bg-slate-100 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-slate-600">{book.category || "Non classé"}</span>
+                          <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300">{book.category || "Non classé"}</span>
                         </td>
-                        <td className="px-6 py-5 text-xs font-bold text-slate-500">{book.isbn || "-"}</td>
+                        <td className="px-6 py-5 text-xs font-bold text-slate-500 dark:text-slate-400">{book.isbn || "-"}</td>
                         <td className="px-6 py-5">
-                          <span className="inline-flex items-center gap-1 text-xs font-bold text-slate-500"><MapPin size={12} /> {book.shelfLocation || (book.isDigital === "true" ? "Serveur / Cloud" : "N/A")}</span>
+                          <span className="inline-flex items-center gap-1 text-xs font-bold text-slate-500 dark:text-slate-400"><MapPin size={12} /> {book.shelfLocation || (book.isDigital === "true" ? "Serveur / Cloud" : "N/A")}</span>
                         </td>
                         <td className="px-6 py-5 text-center">
                           {book.isDigital === "true" ? (
-                            <span className="rounded-full bg-emerald-50 border border-emerald-200 px-3 py-1 text-[10px] font-black text-emerald-700 uppercase">
+                            <span className="rounded-full bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 px-3 py-1 text-[10px] font-black text-emerald-700 dark:text-emerald-400 uppercase">
                               ∞ Accès Illimité
                             </span>
                           ) : (
                             <>
-                              <p className={`text-lg font-black ${available <= 0 ? "text-rose-600" : available <= 2 ? "text-amber-600" : "text-emerald-600"}`}>
-                                {available}<span className="text-xs text-slate-400"> / {total}</span>
+                              <p className={`text-lg font-black ${available <= 0 ? "text-rose-600 dark:text-rose-400" : available <= 2 ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}`}>
+                                {available}<span className="text-xs text-slate-400 dark:text-slate-500"> / {total}</span>
                               </p>
-                              <div className="mx-auto mt-2 h-1.5 w-24 overflow-hidden rounded-full bg-slate-100">
+                              <div className="mx-auto mt-2 h-1.5 w-24 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
                                 <div className={`h-full ${available <= 0 ? "bg-rose-500" : available <= 2 ? "bg-amber-500" : "bg-emerald-500"}`} style={{ width: `${Math.min(ratio, 100)}%` }} />
                               </div>
                             </>
@@ -279,7 +279,7 @@ export default function LibraryDashboardClient({ books, issues }: LibraryDashboa
                               <IssueBookDialog
                                 bookId={book.id}
                                 bookTitle={book.title}
-                                trigger={<button className="rounded-xl bg-indigo-50 px-4 py-2 text-xs font-black text-indigo-700 hover:bg-indigo-100"><Repeat size={14} className="mr-1 inline" /> Prêter</button>}
+                                trigger={<button className="rounded-xl bg-indigo-50 dark:bg-indigo-500/10 px-4 py-2 text-xs font-black text-indigo-700 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-500/20"><Repeat size={14} className="mr-1 inline" /> Prêter</button>}
                               />
                             )}
                             <ActionMenu
@@ -294,7 +294,7 @@ export default function LibraryDashboardClient({ books, issues }: LibraryDashboa
                   })}
                   {filteredBooks.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="px-6 py-16 text-center text-sm font-black uppercase tracking-widest text-slate-300">
+                      <td colSpan={6} className="px-6 py-16 text-center text-sm font-black uppercase tracking-widest text-slate-300 dark:text-slate-600">
                         Aucun livre trouvé
                       </td>
                     </tr>
@@ -306,13 +306,13 @@ export default function LibraryDashboardClient({ books, issues }: LibraryDashboa
         </section>
 
         <aside className="space-y-5">
-          <div className="rounded-[2rem] border border-slate-100 bg-white p-5 shadow-sm print:break-inside-avoid print:shadow-none">
+          <div className="rounded-[2rem] border border-slate-100 dark:border-slate-800 bg-white dark:bg-[#131622] p-5 shadow-sm dark:shadow-none print:break-inside-avoid print:shadow-none">
             <div className="mb-4 flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-black text-slate-950">Suivi des emprunts</h2>
-                <p className="text-xs font-bold text-slate-400">{visibleIssues.length} mouvement(s)</p>
+                <h2 className="text-xl font-black text-slate-950 dark:text-white">Suivi des emprunts</h2>
+                <p className="text-xs font-bold text-slate-400 dark:text-slate-400">{visibleIssues.length} mouvement(s)</p>
               </div>
-              <Users className="text-slate-300" size={20} />
+              <Users className="text-slate-300 dark:text-slate-600" size={20} />
             </div>
             <div className="mb-4 grid grid-cols-2 gap-2 print:hidden">
               {[
@@ -324,7 +324,7 @@ export default function LibraryDashboardClient({ books, issues }: LibraryDashboa
                 <button
                   key={value}
                   onClick={() => setIssueFilter(value)}
-                  className={`rounded-xl px-3 py-2 text-xs font-black uppercase tracking-widest ${issueFilter === value ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-500"}`}
+                  className={`rounded-xl px-3 py-2 text-xs font-black uppercase tracking-widest ${issueFilter === value ? "bg-slate-950 dark:bg-slate-800 text-white" : "bg-slate-100 dark:bg-slate-900 text-slate-500 dark:text-slate-400"}`}
                 >
                   {label}
                 </button>
@@ -334,20 +334,20 @@ export default function LibraryDashboardClient({ books, issues }: LibraryDashboa
               {visibleIssues.map((issue) => {
                 const overdue = isIssueOverdue(issue);
                 return (
-                  <div key={issue.id} className={`rounded-3xl border p-4 ${overdue ? "border-rose-100 bg-rose-50/60" : "border-slate-100 bg-white"}`}>
+                  <div key={issue.id} className={`rounded-3xl border p-4 ${overdue ? "border-rose-100 dark:border-rose-500/20 bg-rose-50/60 dark:bg-rose-500/10" : "border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900"}`}>
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="font-black leading-tight text-slate-950">{issue.book?.title || "Livre"}</p>
-                        <p className="mt-1 text-xs font-bold text-slate-500">Emprunté par: {borrowerName(issue)}</p>
+                        <p className="font-black leading-tight text-slate-950 dark:text-white">{issue.book?.title || "Livre"}</p>
+                        <p className="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">Emprunté par: {borrowerName(issue)}</p>
                       </div>
-                      <span className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-widest ${overdue ? "bg-rose-100 text-rose-700" : issue.status === "Retourné" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
+                      <span className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-widest ${overdue ? "bg-rose-100 dark:bg-rose-500/20 text-rose-700 dark:text-rose-400" : issue.status === "Retourné" ? "bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400" : "bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400"}`}>
                         {overdue ? "Retard" : issue.status}
                       </span>
                     </div>
-                    <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
+                    <div className="mt-4 flex items-center justify-between border-t border-slate-100 dark:border-slate-800/80 pt-3">
                       <div>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Échéance</p>
-                        <p className={`text-xs font-black ${overdue ? "text-rose-700" : "text-slate-600"}`}>{issue.dueDate ? new Date(issue.dueDate).toLocaleDateString("fr-FR") : "-"}</p>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-400">Échéance</p>
+                        <p className={`text-xs font-black ${overdue ? "text-rose-700 dark:text-rose-400" : "text-slate-600 dark:text-slate-300"}`}>{issue.dueDate ? new Date(issue.dueDate).toLocaleDateString("fr-FR") : "-"}</p>
                       </div>
                       {issue.status !== "Retourné" && (
                         <ReturnBookDialog
@@ -362,9 +362,9 @@ export default function LibraryDashboardClient({ books, issues }: LibraryDashboa
                 );
               })}
               {visibleIssues.length === 0 && (
-                <div className="rounded-[2rem] border-2 border-dashed border-slate-200 py-14 text-center">
-                  <Bookmark className="mx-auto mb-3 text-slate-200" size={38} />
-                  <p className="text-xs font-black uppercase tracking-widest text-slate-400">Aucun mouvement</p>
+                <div className="rounded-[2rem] border-2 border-dashed border-slate-200 dark:border-slate-800 py-14 text-center">
+                  <Bookmark className="mx-auto mb-3 text-slate-200 dark:text-slate-700" size={38} />
+                  <p className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Aucun mouvement</p>
                 </div>
               )}
             </div>
