@@ -155,59 +155,6 @@ export default function ClassroomQRCodes({ classes, schoolName }: ClassroomQRCod
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans p-6 lg:p-10 space-y-8 print:p-0 print:bg-white">
-      {/* Print-only CSS stylesheet */}
-      <style jsx global>{`
-        @media print {
-          body {
-            background-color: white !important;
-            color: black !important;
-          }
-          nav, aside, header, footer, button, .no-print, input, .breadcrumbs {
-            display: none !important;
-          }
-          .print-area {
-            display: block !important;
-            width: 100% !important;
-            margin: 0 !important;
-            padding: 0 !important;
-          }
-          .print-grid {
-            display: grid !important;
-            grid-template-columns: repeat(2, 1fr) !important;
-            gap: 20px !important;
-            page-break-inside: auto !important;
-          }
-          .print-card {
-            border: 2px dashed #cbd5e1 !important;
-            border-radius: 16px !important;
-            padding: 24px !important;
-            text-align: center !important;
-            page-break-inside: avoid !important;
-            background-color: white !important;
-            box-shadow: none !important;
-            margin-bottom: 20px !important;
-            display: flex !important;
-            flex-direction: column !important;
-            align-items: center !important;
-            justify-content: center !important;
-            height: 380px !important;
-          }
-          .print-card h2 {
-            font-size: 20px !important;
-            font-weight: 900 !important;
-            margin-top: 10px !important;
-            text-transform: uppercase !important;
-          }
-          .print-card p {
-            font-size: 11px !important;
-            color: #64748b !important;
-            margin-bottom: 15px !important;
-          }
-        }
-      `}</style>
-
-  return (
     <div className="min-h-screen bg-slate-50/50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans p-6 lg:p-10 space-y-8 animate-in fade-in duration-500">
       {/* Print-only stylesheet */}
       <style jsx global>{`
