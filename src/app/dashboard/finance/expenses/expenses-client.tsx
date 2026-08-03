@@ -182,16 +182,16 @@ export default function ExpensesClient({ initialExpenses, categories }: Expenses
   };
 
   return (
-    <div className="p-8 space-y-8 animate-in fade-in duration-300">
+    <div className="p-8 space-y-8 animate-in fade-in duration-300 bg-slate-50/50 dark:bg-[#0A0C10] min-h-screen">
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <div className="w-13 h-13 rounded-2xl bg-rose-500 text-white flex items-center justify-center shadow-lg shadow-rose-200">
+          <div className="w-13 h-13 rounded-2xl bg-rose-500 text-white flex items-center justify-center shadow-lg shadow-rose-200 dark:shadow-none">
             <TrendingDown size={28} />
           </div>
           <div>
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight">Gestion des Dépenses</h1>
-            <p className="text-slate-500 text-sm font-medium mt-0.5">
+            <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Gestion des Dépenses</h1>
+            <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mt-0.5">
               Enregistrement et suivi analytique des charges financières de l'établissement
             </p>
           </div>
@@ -199,7 +199,7 @@ export default function ExpensesClient({ initialExpenses, categories }: Expenses
 
         <Button
           onClick={() => setShowModal(true)}
-          className="bg-rose-600 hover:bg-rose-700 text-white font-bold px-5 py-3 rounded-2xl shadow-lg shadow-rose-200 transition-all hover:scale-[1.02] flex items-center gap-2"
+          className="bg-rose-600 hover:bg-rose-700 text-white font-bold px-5 py-3 rounded-2xl shadow-lg shadow-rose-200 dark:shadow-none transition-all hover:scale-[1.02] flex items-center gap-2"
         >
           <Plus size={18} />
           Nouvelle Dépense
@@ -208,74 +208,74 @@ export default function ExpensesClient({ initialExpenses, categories }: Expenses
 
       {/* Analytics KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-3 relative overflow-hidden">
+        <div className="bg-white dark:bg-[#131622] p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm space-y-3 relative overflow-hidden">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-black text-slate-400 uppercase tracking-wider">Total Dépenses</span>
-            <div className="w-10 h-10 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold">
+            <span className="text-xs font-black text-slate-400 dark:text-slate-400 uppercase tracking-wider">Total Dépenses</span>
+            <div className="w-10 h-10 rounded-2xl bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center font-bold">
               <TrendingDown size={20} />
             </div>
           </div>
           <div>
-            <p className="text-2xl font-black text-slate-900 tracking-tight">
-              {stats.total.toLocaleString("fr-FR")} <span className="text-xs font-bold text-slate-400">FCFA</span>
+            <p className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+              {stats.total.toLocaleString("fr-FR")} <span className="text-xs font-bold text-slate-400 dark:text-slate-500">FCFA</span>
             </p>
-            <p className="text-[11px] font-semibold text-slate-400 mt-1">Cumul total des charges enregistrées</p>
+            <p className="text-[11px] font-semibold text-slate-400 dark:text-slate-400 mt-1">Cumul total des charges enregistrées</p>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-3 relative overflow-hidden">
+        <div className="bg-white dark:bg-[#131622] p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm space-y-3 relative overflow-hidden">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-black text-slate-400 uppercase tracking-wider">Dépenses ce Mois</span>
-            <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
+            <span className="text-xs font-black text-slate-400 dark:text-slate-400 uppercase tracking-wider">Dépenses ce Mois</span>
+            <div className="w-10 h-10 rounded-2xl bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold">
               <Calendar size={20} />
             </div>
           </div>
           <div>
-            <p className="text-2xl font-black text-amber-600 tracking-tight">
-              {stats.monthTotal.toLocaleString("fr-FR")} <span className="text-xs font-bold text-slate-400">FCFA</span>
+            <p className="text-2xl font-black text-amber-600 dark:text-amber-400 tracking-tight">
+              {stats.monthTotal.toLocaleString("fr-FR")} <span className="text-xs font-bold text-slate-400 dark:text-slate-500">FCFA</span>
             </p>
-            <p className="text-[11px] font-semibold text-slate-400 mt-1">Dépenses engagées ce mois-ci</p>
+            <p className="text-[11px] font-semibold text-slate-400 dark:text-slate-400 mt-1">Dépenses engagées ce mois-ci</p>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-3 relative overflow-hidden">
+        <div className="bg-white dark:bg-[#131622] p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm space-y-3 relative overflow-hidden">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-black text-slate-400 uppercase tracking-wider">Nombre de Dépenses</span>
-            <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+            <span className="text-xs font-black text-slate-400 dark:text-slate-400 uppercase tracking-wider">Nombre de Dépenses</span>
+            <div className="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold">
               <FileText size={20} />
             </div>
           </div>
           <div>
-            <p className="text-2xl font-black text-slate-900 tracking-tight">{stats.count}</p>
-            <p className="text-[11px] font-semibold text-slate-400 mt-1">Nombre d'opérations de dépense</p>
+            <p className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">{stats.count}</p>
+            <p className="text-[11px] font-semibold text-slate-400 dark:text-slate-400 mt-1">Nombre d'opérations de dépense</p>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-3 relative overflow-hidden">
+        <div className="bg-white dark:bg-[#131622] p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm space-y-3 relative overflow-hidden">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-black text-slate-400 uppercase tracking-wider">Moyenne par Dépense</span>
-            <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+            <span className="text-xs font-black text-slate-400 dark:text-slate-400 uppercase tracking-wider">Moyenne par Dépense</span>
+            <div className="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold">
               <PieChart size={20} />
             </div>
           </div>
           <div>
-            <p className="text-2xl font-black text-slate-900 tracking-tight">
-              {stats.average.toLocaleString("fr-FR")} <span className="text-xs font-bold text-slate-400">FCFA</span>
+            <p className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+              {stats.average.toLocaleString("fr-FR")} <span className="text-xs font-bold text-slate-400 dark:text-slate-500">FCFA</span>
             </p>
-            <p className="text-[11px] font-semibold text-slate-400 mt-1">Coût moyen par facture/dépense</p>
+            <p className="text-[11px] font-semibold text-slate-400 dark:text-slate-400 mt-1">Coût moyen par facture/dépense</p>
           </div>
         </div>
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+      <div className="bg-white dark:bg-[#131622] p-5 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="relative w-full md:w-80">
-          <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+          <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
           <Input
             placeholder="Rechercher une dépense, motif..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-10 h-11 bg-slate-50 border-slate-200 rounded-xl text-xs font-medium focus:bg-white"
+            className="pl-10 h-11 bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-xl text-xs font-medium focus:bg-white focus:dark:bg-slate-900"
           />
         </div>
 
@@ -284,7 +284,7 @@ export default function ExpensesClient({ initialExpenses, categories }: Expenses
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
-            className="h-11 px-4 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none"
+            className="h-11 px-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-700 dark:text-white focus:outline-none"
           >
             <option value="all">Toutes les catégories</option>
             {categories.map((c) => (
@@ -298,7 +298,7 @@ export default function ExpensesClient({ initialExpenses, categories }: Expenses
           <select
             value={paymentModeFilter}
             onChange={(e) => setPaymentModeFilter(e.target.value)}
-            className="h-11 px-4 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none"
+            className="h-11 px-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-700 dark:text-white focus:outline-none"
           >
             <option value="all">Tous les modes de paiement</option>
             <option value="Espèces">Espèces</option>
@@ -310,15 +310,15 @@ export default function ExpensesClient({ initialExpenses, categories }: Expenses
       </div>
 
       {/* Table Section */}
-      <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+      <div className="bg-white dark:bg-[#131622] rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden">
         {filteredExpenses.length === 0 ? (
           <div className="p-16 text-center space-y-4">
-            <div className="w-16 h-16 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center mx-auto">
+            <div className="w-16 h-16 rounded-full bg-rose-50 dark:bg-rose-500/10 text-rose-500 dark:text-rose-400 flex items-center justify-center mx-auto">
               <TrendingDown size={32} />
             </div>
             <div>
-              <p className="text-base font-black text-slate-800">Aucune dépense trouvée</p>
-              <p className="text-xs font-medium text-slate-400 mt-1 max-w-sm mx-auto">
+              <p className="text-base font-black text-slate-800 dark:text-white">Aucune dépense trouvée</p>
+              <p className="text-xs font-medium text-slate-400 dark:text-slate-400 mt-1 max-w-sm mx-auto">
                 Aucune enregistrement ne correspond aux filtres appliqués. Vous pouvez ajouter une nouvelle dépense ci-dessus.
               </p>
             </div>
@@ -327,7 +327,7 @@ export default function ExpensesClient({ initialExpenses, categories }: Expenses
           <div className="overflow-x-auto">
             <table className="w-full text-xs text-left">
               <thead>
-                <tr className="bg-slate-50/80 border-b border-slate-100 text-slate-400 uppercase tracking-widest text-[10px] font-black">
+                <tr className="bg-slate-50/80 dark:bg-slate-900/60 border-b border-slate-100 dark:border-slate-800 text-slate-400 dark:text-slate-400 uppercase tracking-widest text-[10px] font-black">
                   <th className="px-6 py-4">Référence</th>
                   <th className="px-6 py-4">Date</th>
                   <th className="px-6 py-4">Catégorie</th>
@@ -337,7 +337,7 @@ export default function ExpensesClient({ initialExpenses, categories }: Expenses
                   <th className="px-6 py-4 text-center">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
                 {filteredExpenses.map((expense) => {
                   const dateStr = expense.dateExpense
                     ? new Date(expense.dateExpense).toLocaleDateString("fr-FR", {
@@ -348,27 +348,27 @@ export default function ExpensesClient({ initialExpenses, categories }: Expenses
                     : "-";
 
                   return (
-                    <tr key={expense.id} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="px-6 py-4 font-black text-slate-900">
-                        <code className="bg-slate-100 px-2 py-1 rounded text-rose-700 font-black">
+                    <tr key={expense.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
+                      <td className="px-6 py-4 font-black text-slate-900 dark:text-white">
+                        <code className="bg-slate-100 dark:bg-rose-500/10 px-2 py-1 rounded text-rose-700 dark:text-rose-400 font-black">
                           {expense.reference}
                         </code>
                       </td>
-                      <td className="px-6 py-4 text-slate-500 font-medium">{dateStr}</td>
+                      <td className="px-6 py-4 text-slate-500 dark:text-slate-300 font-medium">{dateStr}</td>
                       <td className="px-6 py-4">
-                        <span className="px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 text-[11px] font-bold">
+                        <span className="px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[11px] font-bold">
                           {expense.category?.name || "Général"}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-slate-600 font-medium max-w-xs truncate">
+                      <td className="px-6 py-4 text-slate-600 dark:text-slate-300 font-medium max-w-xs truncate">
                         {expense.description || "Aucune description"}
                       </td>
                       <td className="px-6 py-4">
-                        <span className="px-2 py-0.5 rounded bg-slate-50 border border-slate-200 text-slate-600 font-bold text-[10px]">
+                        <span className="px-2 py-0.5 rounded bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 font-bold text-[10px]">
                           {expense.paymentMode || "Espèces"}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-right font-black text-rose-600 text-sm">
+                      <td className="px-6 py-4 text-right font-black text-rose-600 dark:text-rose-400 text-sm">
                         {(expense.amount || 0).toLocaleString("fr-FR")} FCFA
                       </td>
                       <td className="px-6 py-4 text-center">
@@ -377,7 +377,7 @@ export default function ExpensesClient({ initialExpenses, categories }: Expenses
                           size="icon"
                           onClick={() => handleDelete(expense.id, expense.reference)}
                           disabled={deletingId === expense.id}
-                          className="h-8 w-8 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl"
+                          className="h-8 w-8 text-rose-500 hover:text-rose-700 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-xl"
                         >
                           {deletingId === expense.id ? (
                             <Loader2 size={14} className="animate-spin" />
@@ -398,20 +398,20 @@ export default function ExpensesClient({ initialExpenses, categories }: Expenses
       {/* Modal Nueva Dépense */}
       {showModal && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-8 shadow-2xl space-y-6 relative border border-slate-100">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+          <div className="bg-white dark:bg-[#0E1017] rounded-3xl max-w-lg w-full p-8 shadow-2xl space-y-6 relative border border-slate-100 dark:border-slate-800 text-slate-900 dark:text-white">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold">
+                <div className="w-10 h-10 rounded-xl bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center font-bold">
                   <TrendingDown size={20} />
                 </div>
                 <div>
-                  <h3 className="text-lg font-black text-slate-900">Nouvelle Dépense</h3>
-                  <p className="text-xs text-slate-400 font-medium">Saisissez les informations de la charge</p>
+                  <h3 className="text-lg font-black text-slate-900 dark:text-white">Nouvelle Dépense</h3>
+                  <p className="text-xs text-slate-400 dark:text-slate-400 font-medium">Saisissez les informations de la charge</p>
                 </div>
               </div>
               <button
                 onClick={() => setShowModal(false)}
-                className="text-slate-400 hover:text-slate-600 font-bold text-sm p-2 rounded-full hover:bg-slate-50"
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-white font-bold text-sm p-2 rounded-full hover:bg-slate-50 dark:hover:bg-slate-800"
               >
                 ✕
               </button>
@@ -421,37 +421,37 @@ export default function ExpensesClient({ initialExpenses, categories }: Expenses
               <div className="grid grid-cols-2 gap-4">
                 {/* Reference */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700">Référence</label>
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Référence</label>
                   <Input
                     value={formData.reference}
                     onChange={(e) => setFormData({ ...formData, reference: e.target.value })}
                     required
-                    className="h-10 text-xs font-black bg-slate-50"
+                    className="h-10 text-xs font-black bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white"
                   />
                 </div>
 
                 {/* Amount */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700">Montant (FCFA) *</label>
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Montant (FCFA) *</label>
                   <Input
                     type="number"
                     placeholder="ex: 50000"
                     value={formData.amount}
                     onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
                     required
-                    className="h-10 text-xs font-black text-rose-600 bg-slate-50"
+                    className="h-10 text-xs font-black text-rose-600 dark:text-rose-400 bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800"
                   />
                 </div>
               </div>
 
               {/* Category */}
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700">Catégorie de Dépense *</label>
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Catégorie de Dépense *</label>
                 <select
                   value={formData.categoryId}
                   onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
                   required
-                  className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none"
+                  className="w-full h-10 px-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-700 dark:text-white focus:outline-none"
                 >
                   {categories.map((c) => (
                     <option key={c.id} value={c.id.toString()}>
@@ -464,23 +464,23 @@ export default function ExpensesClient({ initialExpenses, categories }: Expenses
               <div className="grid grid-cols-2 gap-4">
                 {/* Date */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700">Date de Dépense *</label>
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Date de Dépense *</label>
                   <Input
                     type="date"
                     value={formData.dateExpense}
                     onChange={(e) => setFormData({ ...formData, dateExpense: e.target.value })}
                     required
-                    className="h-10 text-xs font-medium bg-slate-50"
+                    className="h-10 text-xs font-medium bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white"
                   />
                 </div>
 
                 {/* Mode de Paiement */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700">Mode de Paiement</label>
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Mode de Paiement</label>
                   <select
                     value={formData.paymentMode}
                     onChange={(e) => setFormData({ ...formData, paymentMode: e.target.value })}
-                    className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none"
+                    className="w-full h-10 px-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-700 dark:text-white focus:outline-none"
                   >
                     <option value="Espèces">Espèces</option>
                     <option value="Chèque">Chèque</option>
@@ -492,29 +492,29 @@ export default function ExpensesClient({ initialExpenses, categories }: Expenses
 
               {/* Description / Motif */}
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700">Motif / Description</label>
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Motif / Description</label>
                 <textarea
                   rows={3}
                   placeholder="Détails du paiement, fournisseur, matériel..."
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:outline-none"
+                  className="w-full p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-medium text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:bg-white focus:dark:bg-slate-900 focus:outline-none"
                 />
               </div>
 
-              <div className="pt-4 flex items-center justify-end gap-3 border-t border-slate-100">
+              <div className="pt-4 flex items-center justify-end gap-3 border-t border-slate-100 dark:border-slate-800">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => setShowModal(false)}
-                  className="rounded-xl text-xs font-bold px-4"
+                  className="rounded-xl text-xs font-bold px-4 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800"
                 >
                   Annuler
                 </Button>
                 <Button
                   type="submit"
                   disabled={isSubmitting}
-                  className="bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold px-6 shadow-md shadow-rose-200"
+                  className="bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold px-6 shadow-md shadow-rose-200 dark:shadow-none"
                 >
                   {isSubmitting ? (
                     <div className="flex items-center gap-2">
@@ -529,7 +529,6 @@ export default function ExpensesClient({ initialExpenses, categories }: Expenses
             </form>
           </div>
         </div>
-      )}
     </div>
   );
 }
