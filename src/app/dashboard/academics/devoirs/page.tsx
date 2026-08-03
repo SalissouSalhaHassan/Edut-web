@@ -8,9 +8,11 @@ import {
   ArrowLeft
 } from "lucide-react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import dynamic from "next/dynamic";
 import { toast } from "sonner";
+const AcademicFilters = dynamic(() => import("@/domains/academics/components/AcademicFilters"), { ssr: false });
+const DevoirEntryGrid = dynamic(() => import("@/domains/academics/components/DevoirEntryGrid"), { ssr: false });
+import { getDevoirGrid, saveDevoirGrades } from "@/domains/academics/actions/academics.actions";
 
 import { Sparkles, BrainCircuit, Wand2 } from "lucide-react";
 import AITeacherAssistantModal from "@/domains/ai/components/AITeacherAssistantModal";
