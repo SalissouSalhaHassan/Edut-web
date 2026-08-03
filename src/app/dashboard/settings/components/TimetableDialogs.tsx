@@ -544,9 +544,30 @@ export function ConstraintsDialog({ open, onOpenChange, teachers }: { open: bool
 
 // --- 2. Global Config Dialog (📅 CONFIG) ---
 // --- 3. PDF Export Menu Dialog ---
-export function PrintOptionsDialog({ open, onOpenChange }: { open: boolean, onOpenChange: (open: boolean) => void }) {
+export function PrintOptionsDialog({ 
+  open, 
+  onOpenChange,
+  currentClassId,
+  currentTeacherId,
+  currentMode,
+  selectedName,
+}: { 
+  open: boolean; 
+  onOpenChange: (open: boolean) => void;
+  currentClassId?: number | null;
+  currentTeacherId?: number | null;
+  currentMode?: 'class' | 'teacher' | 'global' | 'up';
+  selectedName?: string;
+}) {
   const [loading, setLoading] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const currentViewLabel = useMemo(() => {
+    if (selectedName) return `Vue Actuelle (${selectedName})`;
+    if (currentMode === 'teacher' && currentTeacherId) return `Vue Actuelle (Professeur Sélectionné)`;
+    if (currentClassId) return `Vue Actuelle (Classe Sélectionnée)`;
+    return `Vue Actuelle (Toutes les Classes)`;
+  }, [selectedName, currentMode, currentTeacherId, currentClassId]);
 
   const handleExport = async (type: string) => {
     setLoading(type);
@@ -554,12 +575,22 @@ export function PrintOptionsDialog({ open, onOpenChange }: { open: boolean, onOp
     try {
       const { generateTimetablePDF } = await import('@/domains/academics/utils/timetable-pdf');
       
-      if (type === 'classes') {
+      if (type === 'current') {
+        if (currentMode === 'teacher' && currentTeacherId) {
+          await generateTimetablePDF({ type: 'current', id: currentTeacherId, mode: 'teacher' });
+        } else if (currentClassId) {
+          await generateTimetablePDF({ type: 'current', id: currentClassId, mode: 'class' });
+        } else {
+          await generateTimetablePDF({ type: 'all-classes' });
+        }
+      } else if (type === 'classes') {
         await generateTimetablePDF({ type: 'all-classes' });
       } else if (type === 'teachers') {
         await generateTimetablePDF({ type: 'all-teachers' });
       } else if (type === 'teachers_a4') {
         await generateTimetablePDF({ type: 'teachers-4-per-page' });
+      } else if (type === 'quick_print') {
+        window.print();
       }
       onOpenChange(false);
     } catch (error: any) {
@@ -572,34 +603,35 @@ export function PrintOptionsDialog({ open, onOpenChange }: { open: boolean, onOp
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] bg-[#0A0B10] border-white/5 text-slate-200 rounded-[3rem] overflow-hidden p-0 shadow-2xl">
-        <div className="p-8 text-center bg-gradient-to-b from-[#1A1C26] to-transparent">
-           <h2 className="text-2xl font-black text-indigo-400 tracking-tight mb-2">Options d'Impression</h2>
-           <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.3em]">Menu d'Exportation PDF</p>
+      <DialogContent className="sm:max-w-[520px] bg-[#0A0B10] border-white/10 text-slate-200 rounded-[3rem] overflow-hidden p-0 shadow-2xl">
+        <div className="p-8 text-center bg-gradient-to-b from-[#1A1C26] to-transparent border-b border-white/5">
+           <h2 className="text-2xl font-black text-indigo-400 tracking-tight mb-1">Options d'Impression</h2>
+           <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">Menu d'Exportation PDF &amp; Impression</p>
         </div>
 
         <div className="p-8 space-y-6">
            {errorMsg && (
-             <div className="bg-rose-500/10 border border-rose-500/20 rounded-2xl p-4 text-rose-400 text-xs font-bold">
-               ⚠️ {errorMsg}
+             <div className="bg-rose-500/10 border border-rose-500/20 rounded-2xl p-4 text-rose-400 text-xs font-bold flex items-center gap-2">
+               <span>⚠️</span> {errorMsg}
              </div>
            )}
-           <div className="space-y-4 text-center">
-              <span className="text-xs font-bold text-slate-400">Choisissez le type d'exportation :</span>
+
+           <div className="space-y-3">
+              <span className="text-xs font-black text-slate-400 uppercase tracking-wider block text-center">--- Impression / Export Vue Active ---</span>
               <Button 
                 onClick={() => handleExport('current')}
                 disabled={!!loading}
-                className="w-full h-16 bg-indigo-500 hover:bg-indigo-600 rounded-2xl font-black text-white gap-3 shadow-lg shadow-indigo-500/20 transition-all active:scale-95"
+                className="w-full h-16 bg-indigo-600 hover:bg-indigo-700 rounded-2xl font-black text-white gap-3 shadow-lg shadow-indigo-500/20 transition-all active:scale-95 text-xs uppercase tracking-wider"
               >
                 {loading === 'current' ? <Loader2 className="animate-spin" /> : <FileText size={20} />}
-                Vue Actuelle (Sélectionner...)
+                {currentViewLabel}
               </Button>
            </div>
 
-           <div className="relative py-4">
+           <div className="relative py-2">
               <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/5" /></div>
               <div className="relative flex justify-center">
-                 <span className="bg-[#0A0B10] px-4 text-[10px] font-black text-slate-600 uppercase tracking-widest italic">--- Rapports Complets ---</span>
+                 <span className="bg-[#0A0B10] px-4 text-[10px] font-black text-slate-600 uppercase tracking-widest italic">Rapports Complets (Bulk)</span>
               </div>
            </div>
 
@@ -608,26 +640,26 @@ export function PrintOptionsDialog({ open, onOpenChange }: { open: boolean, onOp
                 variant="outline"
                 onClick={() => handleExport('classes')}
                 disabled={!!loading}
-                className="w-full h-14 bg-white/5 border-white/5 hover:bg-white/10 rounded-2xl font-black text-slate-200 gap-3 transition-all"
+                className="w-full h-14 bg-white/5 border-white/5 hover:bg-white/10 rounded-2xl font-black text-slate-200 gap-3 transition-all text-xs uppercase tracking-wider"
               >
                  {loading === 'classes' ? <Loader2 className="animate-spin" /> : <LayoutGrid size={18} className="text-indigo-400" />}
-                 Toutes les Classes (Bulk)
+                 Toutes les Classes (Bulk PDF)
               </Button>
 
               <Button 
                 variant="outline"
                 onClick={() => handleExport('teachers')}
                 disabled={!!loading}
-                className="w-full h-14 bg-white/5 border-white/5 hover:bg-white/10 rounded-2xl font-black text-slate-200 gap-3 transition-all"
+                className="w-full h-14 bg-white/5 border-white/5 hover:bg-white/10 rounded-2xl font-black text-slate-200 gap-3 transition-all text-xs uppercase tracking-wider"
               >
                  {loading === 'teachers' ? <Loader2 className="animate-spin" /> : <Users size={18} className="text-indigo-400" />}
-                 Tous les Professeurs (Bulk)
+                 Tous les Professeurs (Bulk PDF)
               </Button>
 
               <Button 
                 onClick={() => handleExport('teachers_a4')}
                 disabled={!!loading}
-                className="w-full h-14 bg-emerald-500/80 hover:bg-emerald-500 rounded-2xl font-black text-white gap-3 transition-all shadow-lg shadow-emerald-500/10"
+                className="w-full h-14 bg-emerald-600 hover:bg-emerald-700 rounded-2xl font-black text-white gap-3 transition-all shadow-lg shadow-emerald-500/20 text-xs uppercase tracking-wider"
               >
                  {loading === 'teachers_a4' ? <Loader2 className="animate-spin" /> : <Printer size={18} />}
                  Profs (4 par Page - A4)
@@ -635,8 +667,15 @@ export function PrintOptionsDialog({ open, onOpenChange }: { open: boolean, onOp
            </div>
         </div>
 
-        <div className="p-6 bg-black/20 flex justify-center">
-           <Button variant="ghost" onClick={() => onOpenChange(false)} className="text-slate-500 font-bold hover:text-white">Fermer</Button>
+        <div className="p-6 bg-black/40 border-t border-white/5 flex items-center justify-between px-8">
+           <Button 
+             variant="ghost" 
+             onClick={() => handleExport('quick_print')} 
+             className="text-xs font-black text-slate-400 hover:text-white flex items-center gap-2"
+           >
+             <Printer size={15} /> Print Écran (Navigateur)
+           </Button>
+           <Button variant="ghost" onClick={() => onOpenChange(false)} className="text-slate-500 font-bold hover:text-white text-xs">Fermer</Button>
         </div>
       </DialogContent>
     </Dialog>

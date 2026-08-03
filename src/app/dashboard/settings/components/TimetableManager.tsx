@@ -133,7 +133,20 @@ export default function TimetableManager({ classes, teachers, subjects, currentS
       <ConstraintsDialog open={showConstraints} onOpenChange={setShowConstraints} teachers={teachers} />
       <TimetableSettingsDialog open={showSettings} onOpenChange={setShowSettings} />
       <AssignmentsDialog open={showAssignments} onOpenChange={setShowAssignments} classes={classes} teachers={teachers} subjects={subjects} />
-      <PrintOptionsDialog open={showPrintOptions} onOpenChange={setShowPrintOptions} />
+      <PrintOptionsDialog
+        open={showPrintOptions}
+        onOpenChange={setShowPrintOptions}
+        currentClassId={selectedClassId}
+        currentTeacherId={selectedTeacherId}
+        currentMode={viewMode}
+        selectedName={
+          viewMode === "class"
+            ? classes.find((c) => c.id === selectedClassId)?.className
+            : viewMode === "teacher"
+            ? teachers.find((t) => t.id === selectedTeacherId)?.nom
+            : undefined
+        }
+      />
 
       {/* 1. Ultra-Premium Header */}
       <header className="relative z-10 flex items-center justify-between px-8 py-5 bg-white/[0.04] backdrop-blur-3xl border-b border-white/10">

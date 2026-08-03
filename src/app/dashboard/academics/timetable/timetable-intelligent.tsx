@@ -710,7 +710,20 @@ export default function IntelligentTimetable({ classes, teachers, subjects, curr
         teachers={teachers}
         subjects={subjects}
       />
-      <PrintOptionsDialog open={showPrintOptions} onOpenChange={setShowPrintOptions} />
+      <PrintOptionsDialog
+        open={showPrintOptions}
+        onOpenChange={setShowPrintOptions}
+        currentClassId={viewMode === "class" ? selectedId : lastClassId}
+        currentTeacherId={viewMode === "teacher" ? selectedId : lastTeacherId}
+        currentMode={viewMode}
+        selectedName={
+          viewMode === "class"
+            ? classes.find((c) => c.id === (selectedId || lastClassId))?.className
+            : viewMode === "teacher"
+            ? teachers.find((t) => t.id === (selectedId || lastTeacherId))?.nom
+            : undefined
+        }
+      />
 
       <Dialog
         open={entryDialogOpen}
