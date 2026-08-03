@@ -665,6 +665,7 @@ export default function ResultsReportsPanel({
                 <span>Taux de réussite</span>
                 <span className="text-emerald-600 dark:text-emerald-400 font-black">{numberFormat.format(genderStats.girls.successRate)}%</span>
               </div>
+            </div>
           </div>
         </div>
       )}
