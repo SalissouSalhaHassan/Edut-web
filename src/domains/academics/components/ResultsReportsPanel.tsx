@@ -665,31 +665,6 @@ export default function ResultsReportsPanel({
                 <span>Taux de réussite</span>
                 <span className="text-emerald-600 dark:text-emerald-400 font-black">{numberFormat.format(genderStats.girls.successRate)}%</span>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <span className="px-3 py-1 bg-rose-500 text-white rounded-xl text-xs font-black uppercase tracking-widest">Filles (Féminin)</span>
-                <Users className="text-rose-500" size={24} />
-              </div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Effectif évalué</p>
-              <p className="text-4xl font-black text-slate-900 mt-1">{genderStats.girls.count} élèves</p>
-            </div>
-            <div className="mt-8 space-y-4">
-              <div className="flex items-center justify-between font-bold text-slate-700 text-sm">
-                <span>Moyenne générale</span>
-                <span className="text-indigo-600 font-black">{numberFormat.format(genderStats.girls.average)}/20</span>
-              </div>
-              <div className="flex items-center justify-between font-bold text-slate-700 text-sm">
-                <span>Taux de réussite</span>
-                <span className="text-emerald-600 font-black">{numberFormat.format(genderStats.girls.successRate)}%</span>
-              </div>
-            </div>
           </div>
         </div>
       )}
