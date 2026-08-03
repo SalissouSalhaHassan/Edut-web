@@ -207,20 +207,73 @@ export default function ClassroomQRCodes({ classes, schoolName }: ClassroomQRCod
         }
       `}</style>
 
+  return (
+    <div className="min-h-screen bg-slate-50/50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans p-6 lg:p-10 space-y-8 animate-in fade-in duration-500">
+      {/* Print-only stylesheet */}
+      <style jsx global>{`
+        @media print {
+          body {
+            background-color: white !important;
+            color: black !important;
+          }
+          nav, aside, header, footer, button, .no-print, input, .breadcrumbs {
+            display: none !important;
+          }
+          .print-area {
+            display: block !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+          .print-grid {
+            display: grid !important;
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 20px !important;
+            page-break-inside: auto !important;
+          }
+          .print-card {
+            border: 2px dashed #cbd5e1 !important;
+            border-radius: 16px !important;
+            padding: 24px !important;
+            text-align: center !important;
+            page-break-inside: avoid !important;
+            background-color: white !important;
+            box-shadow: none !important;
+            margin-bottom: 20px !important;
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            justify-content: center !important;
+            height: 380px !important;
+          }
+          .print-card h2 {
+            font-size: 20px !important;
+            font-weight: 900 !important;
+            margin-top: 10px !important;
+            text-transform: uppercase !important;
+          }
+          .print-card p {
+            font-size: 11px !important;
+            color: #64748b !important;
+            margin-bottom: 15px !important;
+          }
+        }
+      `}</style>
+
       {/* Header (Hidden in Print) */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 no-print">
-        <div className="space-y-2">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-white dark:bg-[#131622]/90 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm no-print">
+        <div className="space-y-1">
           <Link 
             href="/dashboard/hr" 
-            className="inline-flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-indigo-600 transition-colors breadcrumbs"
+            className="inline-flex items-center gap-2 text-xs font-bold text-slate-400 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors breadcrumbs mb-1 block"
           >
             <ArrowLeft size={14} /> Retour à l'Annuaire
           </Link>
           <div className="flex items-center gap-4">
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight">QR Codes des Salles de Classe</h1>
-            <span className="text-xl font-bold text-slate-400 font-arabic">رموز الاستجابة السريعة للفصول</span>
+            <h1 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight">QR Codes des Salles de Classe</h1>
+            <span className="text-lg font-bold text-slate-400 font-arabic">رموز الاستجابة السريعة للفصول</span>
           </div>
-          <p className="text-slate-500 font-medium text-sm">
+          <p className="text-slate-500 dark:text-slate-400 font-medium text-xs">
             Générez et imprimez les QR codes à suspendre dans chaque salle pour la présence des enseignants.
           </p>
         </div>
@@ -228,7 +281,7 @@ export default function ClassroomQRCodes({ classes, schoolName }: ClassroomQRCod
         <div className="flex items-center gap-3">
           <button
             onClick={triggerPrintAll}
-            className="h-11 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold flex items-center gap-2 shadow-lg shadow-indigo-100 hover:shadow-indigo-200 transition-all text-sm"
+            className="h-11 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-indigo-100 dark:shadow-none transition-all"
           >
             <Printer size={16} /> Imprimer Tous les QR Codes
           </button>
@@ -236,9 +289,9 @@ export default function ClassroomQRCodes({ classes, schoolName }: ClassroomQRCod
       </div>
 
       {/* Info Card (Hidden in Print) */}
-      <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 p-6 rounded-[2rem] text-white shadow-xl shadow-indigo-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 no-print">
+      <div className="bg-gradient-to-br from-indigo-600 to-purple-600 p-6 rounded-[2rem] text-white shadow-xl shadow-indigo-100 dark:shadow-none flex flex-col md:flex-row justify-between items-start md:items-center gap-6 no-print">
         <div className="space-y-2 max-w-xl">
-          <h3 className="text-lg font-black uppercase tracking-wider">Instructions pour l'affichage</h3>
+          <h3 className="text-base font-black uppercase tracking-wider">Instructions pour l'affichage</h3>
           <p className="text-xs text-indigo-100 leading-relaxed font-semibold">
             Chaque QR Code ci-dessous correspond à une classe spécifique. Imprimez-les, plastifiez-les et suspendez-les à l'entrée de chaque salle de classe. L'enseignant pourra simplement scanner le code avec son appareil mobile dès son arrivée pour valider son heure de présence.
           </p>
@@ -250,17 +303,17 @@ export default function ClassroomQRCodes({ classes, schoolName }: ClassroomQRCod
       </div>
 
       {/* Search Filter (Hidden in Print) */}
-      <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4 no-print">
+      <div className="bg-white dark:bg-[#131622]/90 p-5 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4 no-print">
         <form className="relative w-full md:w-[450px]" onSubmit={(e) => e.preventDefault()}>
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" size={18} />
           <input
             placeholder="Rechercher une classe (ex: Terminale, 6ème)..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-12 pr-4 h-12 bg-slate-50/50 rounded-2xl border border-slate-200 outline-none text-sm font-medium placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+            className="w-full pl-12 pr-4 h-12 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white outline-none text-xs font-bold placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-950 transition-all"
           />
         </form>
-        <div className="text-xs font-bold text-slate-500">
+        <div className="text-xs font-bold text-slate-500 dark:text-slate-400">
           {filteredClasses.length} classe(s) disponible(s)
         </div>
       </div>
@@ -275,13 +328,13 @@ export default function ClassroomQRCodes({ classes, schoolName }: ClassroomQRCod
             return (
               <div 
                 key={cls.id} 
-                className="bg-white p-6 rounded-[2.2rem] border border-slate-100 shadow-xl shadow-slate-100/40 flex flex-col items-center text-center transition-all hover:shadow-2xl hover:shadow-slate-200/50 relative overflow-hidden group print-card"
+                className="bg-white dark:bg-[#131622]/90 p-6 rounded-[2.2rem] border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col items-center text-center transition-all hover:shadow-lg dark:hover:shadow-slate-900 relative overflow-hidden group print-card"
               >
                 {/* Dynamic Session Status Badge */}
                 <div className={`w-full py-2 rounded-2xl border text-[10px] font-black uppercase tracking-wider mb-3 flex items-center justify-center gap-1.5 no-print ${
-                  sessionInfo.status === "active" ? "bg-emerald-500/10 text-emerald-600 border-emerald-200 animate-pulse" :
-                  sessionInfo.status === "upcoming" ? "bg-amber-500/10 text-amber-600 border-amber-200" :
-                  "bg-slate-100 text-slate-500 border-slate-200"
+                  sessionInfo.status === "active" ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900/50 animate-pulse" :
+                  sessionInfo.status === "upcoming" ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-900/50" :
+                  "bg-slate-100 dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-800"
                 }`}>
                   <span className={`w-2 h-2 rounded-full ${
                     sessionInfo.status === "active" ? "bg-emerald-500" :
@@ -292,27 +345,27 @@ export default function ClassroomQRCodes({ classes, schoolName }: ClassroomQRCod
                 </div>
 
                 {/* School Name in QR Card */}
-                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">
+                <h4 className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none mb-1">
                   {schoolName}
                 </h4>
                 
                 {/* Classroom Name */}
-                <h2 className="text-2xl font-black text-slate-900 tracking-tight mb-3 uppercase">
+                <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight mb-3 uppercase">
                   {cls.className}
                 </h2>
 
                 {/* Dynamic Teacher & Subject Box (if active or upcoming) */}
                 {(sessionInfo.status === "active" || sessionInfo.status === "upcoming") && (
-                  <div className="w-full bg-indigo-50/70 border border-indigo-100 p-3 rounded-2xl mb-4 text-left space-y-1.5 no-print">
-                    <div className="flex items-center gap-2 text-indigo-900 font-extrabold text-xs">
-                      <User size={14} className="text-indigo-600 shrink-0" />
+                  <div className="w-full bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/50 p-3 rounded-2xl mb-4 text-left space-y-1.5 no-print">
+                    <div className="flex items-center gap-2 text-indigo-900 dark:text-indigo-200 font-extrabold text-xs">
+                      <User size={14} className="text-indigo-600 dark:text-indigo-400 shrink-0" />
                       <span className="truncate">{sessionInfo.teacherName}</span>
                     </div>
-                    <div className="flex items-center gap-2 text-slate-600 font-bold text-[11px]">
-                      <BookOpen size={13} className="text-indigo-500 shrink-0" />
+                    <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300 font-bold text-[11px]">
+                      <BookOpen size={13} className="text-indigo-500 dark:text-indigo-400 shrink-0" />
                       <span className="truncate">{sessionInfo.subjectName}</span>
                     </div>
-                    <div className="flex items-center gap-2 text-slate-500 font-semibold text-[10px]">
+                    <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 font-semibold text-[10px]">
                       <Clock size={12} className="text-indigo-400 shrink-0" />
                       <span>{sessionInfo.startTime} - {sessionInfo.endTime}</span>
                     </div>
@@ -320,7 +373,7 @@ export default function ClassroomQRCodes({ classes, schoolName }: ClassroomQRCod
                 )}
 
                 {/* QR Code Graphic */}
-                <div className="p-4 bg-slate-50 rounded-3xl border border-slate-100/50 mb-3 flex items-center justify-center">
+                <div className="p-4 bg-white dark:bg-white rounded-3xl border border-slate-100 dark:border-slate-800 mb-3 flex items-center justify-center shadow-inner">
                   <QRCodeSVG
                     id={`qr-svg-${cls.id}`}
                     value={qrVal}
@@ -331,26 +384,22 @@ export default function ClassroomQRCodes({ classes, schoolName }: ClassroomQRCod
                 </div>
 
                 {/* Footer Label */}
-                <p className="text-[9px] font-bold text-slate-400 tracking-wider mb-4 uppercase">
+                <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 tracking-wider mb-4 uppercase">
                   Scanner pour présence enseignant
                 </p>
 
                 {/* Actions (Hidden in Print) */}
-                <div className="flex items-center gap-2 w-full mt-auto no-print pt-2 border-t border-slate-50">
+                <div className="flex items-center gap-2 w-full mt-auto no-print pt-2 border-t border-slate-50 dark:border-slate-800">
                   <button
                     onClick={() => handleDownload(cls.id, cls.className)}
-                    className="flex-1 h-10 rounded-xl border border-slate-200 hover:bg-slate-50 hover:border-slate-300 text-slate-600 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
+                    className="flex-1 h-10 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
                   >
                     <Download size={13} />
                     Télécharger
                   </button>
                   <button
                     onClick={() => {
-                      // print this card only
                       const printContents = document.getElementById(`qr-svg-${cls.id}`)?.outerHTML;
-                      const originalContents = document.body.innerHTML;
-                      
-                      // Small custom iframe or print win for individual class printing
                       const printWin = window.open("", "_blank");
                       if (printWin) {
                         printWin.document.write(`
@@ -376,7 +425,7 @@ export default function ClassroomQRCodes({ classes, schoolName }: ClassroomQRCod
                         printWin.document.close();
                       }
                     }}
-                    className="h-10 w-10 rounded-xl border border-slate-200 hover:bg-slate-50 hover:border-slate-300 text-slate-600 flex items-center justify-center shrink-0 transition-colors"
+                    className="h-10 w-10 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center shrink-0 transition-colors"
                     title="Imprimer cette fiche"
                   >
                     <Printer size={14} />

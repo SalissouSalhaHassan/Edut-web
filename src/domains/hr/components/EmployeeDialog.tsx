@@ -29,7 +29,7 @@ function FieldGroup({
 }) {
   return (
     <div className={`flex flex-col gap-1.5 ${span ?? ""}`}>
-      <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+      <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-400">
         {label}
       </label>
       {children}
@@ -48,13 +48,13 @@ function SectionHeader({
   color: string;
 }) {
   return (
-    <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
+    <div className="flex items-center gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
       <span
         className={`flex h-9 w-9 items-center justify-center rounded-xl ${color} shadow-sm`}
       >
         {icon}
       </span>
-      <h3 className="text-sm font-black uppercase tracking-[0.18em] text-slate-600">
+      <h3 className="text-sm font-black uppercase tracking-[0.18em] text-slate-600 dark:text-slate-300">
         {label}
       </h3>
     </div>
@@ -62,10 +62,10 @@ function SectionHeader({
 }
 
 const inputCls =
-  "h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-800 shadow-sm outline-none transition-all placeholder:text-slate-300 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100";
+  "h-11 w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 text-sm font-medium text-slate-800 dark:text-white shadow-sm outline-none transition-all placeholder:text-slate-300 dark:placeholder:text-slate-600 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-950";
 
 const selectCls =
-  "h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-800 shadow-sm outline-none cursor-pointer focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 appearance-none";
+  "h-11 w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 text-sm font-medium text-slate-800 dark:text-white shadow-sm outline-none cursor-pointer focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-950 appearance-none";
 
 // ─── Main Component ─────────────────────────────────────────────────────────
 export default function EmployeeDialog({
@@ -184,11 +184,10 @@ export default function EmployeeDialog({
     }
 
     setLoading(false);
-
-    if (result.success) {
-      handleClose();
-    } else if (result.error) {
+    if (result.error) {
       setError(result.error);
+    } else {
+      handleClose();
     }
   }
 
@@ -198,7 +197,7 @@ export default function EmployeeDialog({
       {/* Backdrop */}
       <div
         onClick={handleClose}
-        className="fixed inset-0 z-[200] bg-slate-900/50 backdrop-blur-[3px]"
+        className="fixed inset-0 z-[200] bg-slate-950/60 dark:bg-slate-950/80 backdrop-blur-[3px]"
         aria-hidden="true"
       />
 
@@ -210,19 +209,19 @@ export default function EmployeeDialog({
         className="fixed left-1/2 top-1/2 z-[201] -translate-x-1/2 -translate-y-1/2
                    w-[96vw] max-w-[1100px] max-h-[92vh]
                    flex flex-col
-                   rounded-3xl bg-white
+                   rounded-3xl bg-white dark:bg-[#131622] text-slate-900 dark:text-slate-100 border border-slate-100 dark:border-slate-800
                    shadow-[0_32px_80px_-12px_rgba(0,0,0,0.25)]
-                   overflow-hidden"
+                   overflow-hidden animate-in zoom-in-95 duration-200"
       >
         {/* ── Sticky Header ── */}
-        <div className="flex items-center justify-between px-8 py-5 border-b border-slate-100 bg-white shrink-0">
+        <div className="flex items-center justify-between px-8 py-5 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-[#131622] shrink-0">
           <div className="flex items-center gap-4">
             <span className="h-10 w-1.5 rounded-full bg-gradient-to-b from-indigo-500 to-violet-500 shrink-0" />
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-indigo-500 mb-0.5">
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-indigo-500 dark:text-indigo-400 mb-0.5">
                 Ressources Humaines
               </p>
-              <h2 className="text-2xl font-black text-slate-900 tracking-tight leading-none">
+              <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight leading-none">
                 {mode === "edit" ? "Modifier l'Employé" : "Nouvel Employé"}
               </h2>
             </div>
@@ -584,8 +583,8 @@ export default function EmployeeDialog({
         </div>
 
         {/* ── Sticky Footer ── */}
-        <div className="shrink-0 flex items-center justify-between px-8 py-4 border-t border-slate-100 bg-slate-50/80">
-          <p className="text-xs text-slate-400 font-medium">
+        <div className="shrink-0 flex items-center justify-between px-8 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-[#131622]">
+          <p className="text-xs text-slate-400 dark:text-slate-400 font-medium">
             Les champs <span className="text-rose-500 font-bold">*</span> sont
             obligatoires
           </p>
@@ -593,7 +592,7 @@ export default function EmployeeDialog({
             <button
               type="button"
               onClick={handleClose}
-              className="h-11 px-6 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-bold hover:bg-slate-50 transition-colors"
+              className="h-11 px-6 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 text-sm font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
             >
               Annuler
             </button>
@@ -601,7 +600,7 @@ export default function EmployeeDialog({
               type="submit"
               form="employee-form"
               disabled={loading}
-              className="h-11 px-8 rounded-xl bg-indigo-600 text-white text-sm font-bold shadow-md shadow-indigo-200 hover:bg-indigo-700 active:scale-[0.98] transition-all disabled:opacity-60 flex items-center gap-2"
+              className="h-11 px-8 rounded-xl bg-indigo-600 text-white text-sm font-bold shadow-md shadow-indigo-200 dark:shadow-none hover:bg-indigo-700 active:scale-[0.98] transition-all disabled:opacity-60 flex items-center gap-2"
             >
               {loading ? (
                 <>
