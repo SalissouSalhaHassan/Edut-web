@@ -53,38 +53,38 @@ function StatCard({
 }) {
   return (
     <div className={cn(
-      "bg-white rounded-[22px] border p-5 min-h-[118px] space-y-3 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all group cursor-default",
-      color === "indigo" && "border-indigo-100 hover:border-indigo-200",
-      color === "emerald" && "border-emerald-100 hover:border-emerald-200",
-      color === "rose" && "border-rose-100 hover:border-rose-200",
-      color === "violet" && "border-violet-100 hover:border-violet-200",
-      color === "amber" && "border-amber-100 hover:border-amber-200",
-      color === "sky" && "border-sky-100 hover:border-sky-200",
-      color === "teal" && "border-teal-100 hover:border-teal-200",
-      color === "orange" && "border-orange-100 hover:border-orange-200",
-      (!color || color === "slate") && "border-slate-100"
+      "bg-white dark:bg-[#131622]/90 rounded-[22px] border p-5 min-h-[118px] space-y-3 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all group cursor-default",
+      color === "indigo" && "border-indigo-100 dark:border-indigo-900/40 hover:border-indigo-200 dark:hover:border-indigo-800",
+      color === "emerald" && "border-emerald-100 dark:border-emerald-900/40 hover:border-emerald-200 dark:hover:border-emerald-800",
+      color === "rose" && "border-rose-100 dark:border-rose-900/40 hover:border-rose-200 dark:hover:border-rose-800",
+      color === "violet" && "border-violet-100 dark:border-violet-900/40 hover:border-violet-200 dark:hover:border-violet-800",
+      color === "amber" && "border-amber-100 dark:border-amber-900/40 hover:border-amber-200 dark:hover:border-amber-800",
+      color === "sky" && "border-sky-100 dark:border-sky-900/40 hover:border-sky-200 dark:hover:border-sky-800",
+      color === "teal" && "border-teal-100 dark:border-teal-900/40 hover:border-teal-200 dark:hover:border-teal-800",
+      color === "orange" && "border-orange-100 dark:border-orange-900/40 hover:border-orange-200 dark:hover:border-orange-800",
+      (!color || color === "slate") && "border-slate-100 dark:border-slate-800"
     )}>
       <div className="flex items-center justify-between">
         <div className={cn(
           "w-10 h-10 rounded-2xl flex items-center justify-center",
-          color === "indigo" && "bg-indigo-50 text-indigo-500",
-          color === "emerald" && "bg-emerald-50 text-emerald-500",
-          color === "rose" && "bg-rose-50 text-rose-500",
-          color === "violet" && "bg-violet-50 text-violet-500",
-          color === "amber" && "bg-amber-50 text-amber-500",
-          color === "sky" && "bg-sky-50 text-sky-500",
-          color === "teal" && "bg-teal-50 text-teal-500",
-          color === "orange" && "bg-orange-50 text-orange-500",
-          (!color || color === "slate") && "bg-slate-50 text-slate-500"
+          color === "indigo" && "bg-indigo-50 dark:bg-indigo-950/50 text-indigo-500 dark:text-indigo-400",
+          color === "emerald" && "bg-emerald-50 dark:bg-emerald-950/50 text-emerald-500 dark:text-emerald-400",
+          color === "rose" && "bg-rose-50 dark:bg-rose-950/50 text-rose-500 dark:text-rose-400",
+          color === "violet" && "bg-violet-50 dark:bg-violet-950/50 text-violet-500 dark:text-violet-400",
+          color === "amber" && "bg-amber-50 dark:bg-amber-950/50 text-amber-500 dark:text-amber-400",
+          color === "sky" && "bg-sky-50 dark:bg-sky-950/50 text-sky-500 dark:text-sky-400",
+          color === "teal" && "bg-teal-50 dark:bg-teal-950/50 text-teal-500 dark:text-teal-400",
+          color === "orange" && "bg-orange-50 dark:bg-orange-950/50 text-orange-500 dark:text-orange-400",
+          (!color || color === "slate") && "bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400"
         )}>
           <Icon size={18} />
         </div>
         {trend && (
           <div className={cn(
             "flex items-center gap-1 text-[10px] font-black px-2 py-1 rounded-full",
-            trendUp === true && "text-emerald-600 bg-emerald-50",
-            trendUp === false && "text-rose-600 bg-rose-50",
-            trendUp === null && "text-slate-500 bg-slate-50"
+            trendUp === true && "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50",
+            trendUp === false && "text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/50",
+            trendUp === null && "text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800"
           )}>
             {trendUp === true ? <ArrowUpRight size={10} /> : trendUp === false ? <ArrowDownRight size={10} /> : <Minus size={10} />}
             {trend}
@@ -92,20 +92,20 @@ function StatCard({
         )}
       </div>
       <div>
-        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{label}</p>
+        <p className="text-[9px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest">{label}</p>
         <p className={cn(
           "text-xl font-black mt-1 leading-none",
-          color === "indigo" && "text-indigo-700",
-          color === "emerald" && "text-emerald-700",
-          color === "rose" && "text-rose-700",
-          color === "violet" && "text-violet-700",
-          color === "amber" && "text-amber-700",
-          color === "sky" && "text-sky-700",
-          color === "teal" && "text-teal-700",
-          color === "orange" && "text-orange-700",
-          (!color || color === "slate") && "text-slate-900"
+          color === "indigo" && "text-indigo-700 dark:text-indigo-300",
+          color === "emerald" && "text-emerald-700 dark:text-emerald-300",
+          color === "rose" && "text-rose-700 dark:text-rose-300",
+          color === "violet" && "text-violet-700 dark:text-violet-300",
+          color === "amber" && "text-amber-700 dark:text-amber-300",
+          color === "sky" && "text-sky-700 dark:text-sky-300",
+          color === "teal" && "text-teal-700 dark:text-teal-300",
+          color === "orange" && "text-orange-700 dark:text-orange-300",
+          (!color || color === "slate") && "text-slate-900 dark:text-white"
         )}>{value}</p>
-        {sub && <p className="text-[10px] text-slate-400 font-bold mt-1">{sub}</p>}
+        {sub && <p className="text-[10px] text-slate-400 dark:text-slate-400 font-bold mt-1">{sub}</p>}
       </div>
     </div>
   );
@@ -340,14 +340,16 @@ export default function FinanceDashboard({ stats, isMounted }: FinanceDashboardP
 
       {/* CHARTS ROW */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* CHARTS ROW */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Bar chart - monthly revenue */}
-        <div className="lg:col-span-2 bg-white rounded-[22px] border border-slate-100 p-6 shadow-sm hover:shadow-md transition-all">
+        <div className="lg:col-span-2 bg-white dark:bg-[#131622]/90 rounded-[22px] border border-slate-100 dark:border-slate-800 p-6 shadow-sm hover:shadow-md transition-all">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Revenus Mensuels</p>
-              <p className="text-sm font-black text-slate-800 mt-0.5">Encaissements • Année Scolaire</p>
+              <p className="text-[9px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest">Revenus Mensuels</p>
+              <p className="text-sm font-black text-slate-800 dark:text-white mt-0.5">Encaissements • Année Scolaire</p>
             </div>
-            <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-500 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-500 dark:text-indigo-400 flex items-center justify-center">
               <BarChart3 size={16} />
             </div>
           </div>
@@ -355,13 +357,13 @@ export default function FinanceDashboard({ stats, isMounted }: FinanceDashboardP
         </div>
 
         {/* Donut + gauge */}
-        <div className="bg-white rounded-[22px] border border-slate-100 p-6 space-y-6 shadow-sm hover:shadow-md transition-all">
+        <div className="bg-white dark:bg-[#131622]/90 rounded-[22px] border border-slate-100 dark:border-slate-800 p-6 space-y-6 shadow-sm hover:shadow-md transition-all">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Répartition Statuts</p>
-              <p className="text-sm font-black text-slate-800 mt-0.5">Distribution élèves</p>
+              <p className="text-[9px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest">Répartition Statuts</p>
+              <p className="text-sm font-black text-slate-800 dark:text-white mt-0.5">Distribution élèves</p>
             </div>
-            <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-500 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-500 dark:text-rose-400 flex items-center justify-center">
               <PieChart size={16} />
             </div>
           </div>
@@ -372,7 +374,7 @@ export default function FinanceDashboard({ stats, isMounted }: FinanceDashboardP
             total={stats?.totalStudents || 0}
             isMounted={isMounted}
           />
-          <div className="border-t border-slate-50 pt-4">
+          <div className="border-t border-slate-50 dark:border-slate-800 pt-4">
             <RecoveryGauge rate={stats?.recoveryRate || 0} isMounted={isMounted} />
           </div>
         </div>
@@ -380,44 +382,44 @@ export default function FinanceDashboard({ stats, isMounted }: FinanceDashboardP
 
       {/* Class Summary Table */}
       {stats?.classSummary && stats.classSummary.length > 0 && (
-        <div className="bg-white rounded-[22px] border border-slate-100 overflow-hidden shadow-sm hover:shadow-md transition-all">
-          <div className="p-6 border-b border-slate-50">
-            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Récapitulatif par Classe</p>
-            <p className="text-sm font-black text-slate-800 mt-0.5">Performance de recouvrement</p>
+        <div className="bg-white dark:bg-[#131622]/90 rounded-[22px] border border-slate-100 dark:border-slate-800 overflow-hidden shadow-sm hover:shadow-md transition-all">
+          <div className="p-6 border-b border-slate-50 dark:border-slate-800">
+            <p className="text-[9px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest">Récapitulatif par Classe</p>
+            <p className="text-sm font-black text-slate-800 dark:text-white mt-0.5">Performance de recouvrement</p>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="bg-slate-50/50">
-                  <th className="px-6 py-3 text-[9px] font-black text-slate-400 uppercase tracking-widest text-left">Classe</th>
-                  <th className="px-6 py-3 text-[9px] font-black text-slate-400 uppercase tracking-widest text-left">Élèves</th>
-                  <th className="px-6 py-3 text-[9px] font-black text-slate-400 uppercase tracking-widest text-right">Attendu</th>
-                  <th className="px-6 py-3 text-[9px] font-black text-slate-400 uppercase tracking-widest text-right">Encaissé</th>
-                  <th className="px-6 py-3 text-[9px] font-black text-slate-400 uppercase tracking-widest text-right">Impayé</th>
-                  <th className="px-6 py-3 text-[9px] font-black text-slate-400 uppercase tracking-widest text-left">Taux</th>
+                <tr className="bg-slate-50/50 dark:bg-slate-900">
+                  <th className="px-6 py-3 text-[9px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest text-left">Classe</th>
+                  <th className="px-6 py-3 text-[9px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest text-left">Élèves</th>
+                  <th className="px-6 py-3 text-[9px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest text-right">Attendu</th>
+                  <th className="px-6 py-3 text-[9px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest text-right">Encaissé</th>
+                  <th className="px-6 py-3 text-[9px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest text-right">Impayé</th>
+                  <th className="px-6 py-3 text-[9px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest text-left">Taux</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-50">
+              <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
                 {stats.classSummary.map((cls) => (
-                  <tr key={cls.className} className="hover:bg-slate-50/50 transition-colors">
+                  <tr key={cls.className} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
                     <td className="px-6 py-3">
-                      <span className="text-[11px] font-black text-slate-800">{cls.className}</span>
+                      <span className="text-[11px] font-black text-slate-800 dark:text-white">{cls.className}</span>
                     </td>
                     <td className="px-6 py-3">
-                      <span className="text-[11px] font-bold text-slate-500">{cls.count}</span>
+                      <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">{cls.count}</span>
                     </td>
                     <td className="px-6 py-3 text-right">
-                      <span className="text-[11px] font-black text-indigo-600">{isMounted ? cls.expected.toLocaleString("fr-FR") : "—"}</span>
+                      <span className="text-[11px] font-black text-indigo-600 dark:text-indigo-400">{isMounted ? cls.expected.toLocaleString("fr-FR") : "—"}</span>
                     </td>
                     <td className="px-6 py-3 text-right">
-                      <span className="text-[11px] font-black text-emerald-600">{isMounted ? cls.paid.toLocaleString("fr-FR") : "—"}</span>
+                      <span className="text-[11px] font-black text-emerald-600 dark:text-emerald-400">{isMounted ? cls.paid.toLocaleString("fr-FR") : "—"}</span>
                     </td>
                     <td className="px-6 py-3 text-right">
-                      <span className="text-[11px] font-black text-rose-500">{isMounted ? cls.unpaid.toLocaleString("fr-FR") : "—"}</span>
+                      <span className="text-[11px] font-black text-rose-500 dark:text-rose-400">{isMounted ? cls.unpaid.toLocaleString("fr-FR") : "—"}</span>
                     </td>
                     <td className="px-6 py-3">
                       <div className="flex items-center gap-2">
-                        <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div className="flex-1 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                           <div
                             className={cn("h-full rounded-full transition-all", cls.rate >= 80 ? "bg-emerald-400" : cls.rate >= 50 ? "bg-amber-400" : "bg-rose-400")}
                             style={{ width: `${cls.rate}%` }}
@@ -425,7 +427,7 @@ export default function FinanceDashboard({ stats, isMounted }: FinanceDashboardP
                         </div>
                         <span className={cn(
                           "text-[10px] font-black w-8 text-right",
-                          cls.rate >= 80 ? "text-emerald-600" : cls.rate >= 50 ? "text-amber-600" : "text-rose-600"
+                          cls.rate >= 80 ? "text-emerald-600 dark:text-emerald-400" : cls.rate >= 50 ? "text-amber-600 dark:text-amber-400" : "text-rose-600 dark:text-rose-400"
                         )}>{cls.rate}%</span>
                       </div>
                     </td>
@@ -439,9 +441,9 @@ export default function FinanceDashboard({ stats, isMounted }: FinanceDashboardP
       </div>
 
       <aside className="space-y-4">
-        <div className="rounded-[22px] border border-slate-100 bg-white p-5 shadow-sm">
+        <div className="rounded-[22px] border border-slate-100 dark:border-slate-800 bg-white dark:bg-[#131622]/90 p-5 shadow-sm">
           <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-sm font-black text-slate-900">Alertes financières</h3>
+            <h3 className="text-sm font-black text-slate-900 dark:text-white">Alertes financières</h3>
             <Bell size={17} className="text-amber-500" />
           </div>
           <div className="space-y-3">
@@ -450,12 +452,12 @@ export default function FinanceDashboard({ stats, isMounted }: FinanceDashboardP
               { label: "paiements partiels", value: stats?.countPartial || 0, amount: stats?.totalDebts || 0, color: "amber" },
               { label: "échéances proches", value: Math.max(0, Math.round((stats?.countPartial || 0) / 2)), amount: 0, color: "indigo" },
             ].map((item) => (
-              <div key={item.label} className="rounded-xl border border-slate-100 bg-slate-50/70 p-3">
+              <div key={item.label} className="rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/70 p-3">
                 <div className="flex items-start gap-2">
                   <span className={cn("mt-1 h-2 w-2 rounded-full", item.color === "rose" && "bg-rose-500", item.color === "amber" && "bg-amber-500", item.color === "indigo" && "bg-indigo-500")} />
                   <div>
-                    <p className="text-[11px] font-black text-slate-800">{item.value} {item.label}</p>
-                    <p className="mt-0.5 text-[10px] font-bold text-slate-500">{item.amount > 0 ? `Montant total: ${fmt(item.amount)}` : "À surveiller cette semaine"}</p>
+                    <p className="text-[11px] font-black text-slate-800 dark:text-slate-200">{item.value} {item.label}</p>
+                    <p className="mt-0.5 text-[10px] font-bold text-slate-500 dark:text-slate-400">{item.amount > 0 ? `Montant total: ${fmt(item.amount)}` : "À surveiller cette semaine"}</p>
                   </div>
                 </div>
               </div>
@@ -463,43 +465,43 @@ export default function FinanceDashboard({ stats, isMounted }: FinanceDashboardP
           </div>
         </div>
 
-        <div className="rounded-[22px] border border-slate-100 bg-white p-5 shadow-sm">
+        <div className="rounded-[22px] border border-slate-100 dark:border-slate-800 bg-white dark:bg-[#131622]/90 p-5 shadow-sm">
           <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-sm font-black text-slate-900">Top Classes</h3>
+            <h3 className="text-sm font-black text-slate-900 dark:text-white">Top Classes</h3>
             <BarChart3 size={17} className="text-indigo-500" />
           </div>
           <div className="space-y-3">
             {topClasses.length === 0 ? (
-              <p className="py-6 text-center text-xs font-bold text-slate-400">Aucune donnée classe</p>
+              <p className="py-6 text-center text-xs font-bold text-slate-400 dark:text-slate-400">Aucune donnée classe</p>
             ) : topClasses.map((cls) => (
               <div key={cls.className}>
                 <div className="mb-1 flex items-center justify-between">
-                  <span className="text-[11px] font-black text-slate-700">{cls.className}</span>
-                  <span className="text-[11px] font-black text-indigo-600">{cls.rate}%</span>
+                  <span className="text-[11px] font-black text-slate-700 dark:text-slate-300">{cls.className}</span>
+                  <span className="text-[11px] font-black text-indigo-600 dark:text-indigo-400">{cls.rate}%</span>
                 </div>
-                <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
-                  <div className="h-full rounded-full bg-indigo-600" style={{ width: `${Math.max(6, (cls.rate / maxClassRate) * 100)}%` }} />
+                <div className="h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                  <div className="h-full rounded-full bg-indigo-600 dark:bg-indigo-500" style={{ width: `${Math.max(6, (cls.rate / maxClassRate) * 100)}%` }} />
                 </div>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="rounded-[22px] border border-emerald-100 bg-white p-5 shadow-sm">
-          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Prévision de trésorerie</p>
-          <p className="mt-2 text-2xl font-black text-emerald-600">{fmt((stats?.revenueMonth || 0) + Math.round((stats?.revenueWeek || 0) * 2))}</p>
-          <div className="mt-4 h-20 rounded-xl bg-gradient-to-t from-emerald-50 to-white" />
+        <div className="rounded-[22px] border border-emerald-100 dark:border-emerald-900/50 bg-white dark:bg-[#131622]/90 p-5 shadow-sm">
+          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-400">Prévision de trésorerie</p>
+          <p className="mt-2 text-2xl font-black text-emerald-600 dark:text-emerald-400">{fmt((stats?.revenueMonth || 0) + Math.round((stats?.revenueWeek || 0) * 2))}</p>
+          <div className="mt-4 h-20 rounded-xl bg-gradient-to-t from-emerald-50 dark:from-emerald-950/40 to-transparent" />
         </div>
 
-        <div className="rounded-[22px] border border-slate-100 bg-white p-5 shadow-sm">
-          <h3 className="mb-4 text-sm font-black text-slate-900">Actions rapides</h3>
+        <div className="rounded-[22px] border border-slate-100 dark:border-slate-800 bg-white dark:bg-[#131622]/90 p-5 shadow-sm">
+          <h3 className="mb-4 text-sm font-black text-slate-900 dark:text-white">Actions rapides</h3>
           <div className="space-y-2">
             {[
               { label: "Générer un rapport", icon: FileText },
               { label: "Export Excel", icon: Download },
               { label: "Impression", icon: Printer },
             ].map((action) => (
-              <button key={action.label} className="flex w-full items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-left text-[11px] font-black text-slate-700 hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600">
+              <button key={action.label} className="flex w-full items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-800 px-3 py-2 text-left text-[11px] font-black text-slate-700 dark:text-slate-200 hover:border-indigo-200 dark:hover:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 hover:text-indigo-600 dark:hover:text-indigo-400">
                 <action.icon size={15} />
                 {action.label}
               </button>

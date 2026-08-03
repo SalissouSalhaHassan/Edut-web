@@ -73,14 +73,14 @@ const getStatusBadge = (status: string) => {
     case "Soldé":
     case "Payé":
       return (
-        <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full border border-emerald-100">
+        <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-300 rounded-full border border-emerald-100 dark:border-emerald-900/50">
           <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
           <span className="text-[10px] font-black uppercase tracking-widest">Payé</span>
         </div>
       );
     case "Partiel":
       return (
-        <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-600 rounded-full border border-amber-100">
+        <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-300 rounded-full border border-amber-100 dark:border-amber-900/50">
           <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
           <span className="text-[10px] font-black uppercase tracking-widest">Partiel</span>
         </div>
@@ -88,7 +88,7 @@ const getStatusBadge = (status: string) => {
     case "En retard":
     case "Impayé":
       return (
-        <div className="flex items-center gap-1.5 px-3 py-1 bg-rose-50 text-rose-600 rounded-full border border-rose-100">
+        <div className="flex items-center gap-1.5 px-3 py-1 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-300 rounded-full border border-rose-100 dark:border-rose-900/50">
           <div className="w-1.5 h-1.5 rounded-full bg-rose-500" />
           <span className="text-[10px] font-black uppercase tracking-widest">En Retard</span>
         </div>
@@ -383,27 +383,27 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, hea
   ];
 
   return (
-    <div className="min-h-screen bg-[#f7f9fc] font-sans text-slate-950">
+    <div className="min-h-screen bg-[#f7f9fc] dark:bg-[#0B0D14] font-sans text-slate-950 dark:text-slate-100">
 
 
       <main className="min-w-0 space-y-0 p-0">
       {/* ── ÉCOLE EXCELLENCE — HORIZONTAL TOP BAR ── */}
-      <div className="border-b border-slate-200/80 bg-white/95 shadow-[0_2px_20px_rgba(15,23,42,0.05)] backdrop-blur sticky top-0 z-30">
+      <div className="border-b border-slate-200/80 dark:border-slate-800 bg-white/95 dark:bg-[#131622]/95 shadow-[0_2px_20px_rgba(15,23,42,0.05)] backdrop-blur sticky top-0 z-30">
         {/* Row 1: Branding + Stats */}
-        <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-3 border-b border-slate-100">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-3 border-b border-slate-100 dark:border-slate-800">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-md shadow-indigo-200">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-md shadow-indigo-200 dark:shadow-none">
               <Wallet size={18} />
             </div>
             <div className="leading-tight">
-              <p className="text-[12px] font-black uppercase tracking-widest text-slate-900">École Excellence</p>
-              <p className="text-[10px] font-bold text-slate-400">Année 2024 – 2025</p>
+              <p className="text-[12px] font-black uppercase tracking-widest text-slate-900 dark:text-white">École Excellence</p>
+              <p className="text-[10px] font-bold text-slate-400 dark:text-slate-400">Année 2024 – 2025</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-widest">
-            <span className="rounded-lg bg-slate-100 px-3 py-1.5 text-slate-600">Total élèves: {advancedStats?.totalStudents || localFees.length}</span>
-            <span className="rounded-lg bg-emerald-50 px-3 py-1.5 text-emerald-700">Recouvrement: {advancedStats?.recoveryRate || 0}%</span>
-            <span className="rounded-lg bg-rose-50 px-3 py-1.5 text-rose-600">Alertes: {alertCount}</span>
+            <span className="rounded-lg bg-slate-100 dark:bg-slate-800 px-3 py-1.5 text-slate-600 dark:text-slate-300">Total élèves: {advancedStats?.totalStudents || localFees.length}</span>
+            <span className="rounded-lg bg-emerald-50 dark:bg-emerald-950/40 px-3 py-1.5 text-emerald-700 dark:text-emerald-300">Recouvrement: {advancedStats?.recoveryRate || 0}%</span>
+            <span className="rounded-lg bg-rose-50 dark:bg-rose-950/40 px-3 py-1.5 text-rose-600 dark:text-rose-400">Alertes: {alertCount}</span>
             <div className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-white">
               <div className="h-1 w-16 overflow-hidden rounded-full bg-white/30">
                 <div className="h-full rounded-full bg-white transition-all" style={{ width: `${Math.min(100, advancedStats?.recoveryRate || 0)}%` }} />
@@ -424,8 +424,8 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, hea
                 className={cn(
                   "relative flex shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-[11px] font-black uppercase tracking-widest transition-all",
                   active
-                    ? "bg-indigo-600 text-white shadow-md shadow-indigo-100"
-                    : "text-slate-500 hover:bg-slate-50 hover:text-indigo-600"
+                    ? "bg-indigo-600 text-white shadow-md shadow-indigo-100 dark:shadow-none"
+                    : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-indigo-600 dark:hover:text-indigo-400"
                 )}
               >
                 <Icon size={14} />
@@ -447,21 +447,21 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, hea
       <div className="space-y-6 p-4 md:p-6 xl:p-8">
       
       {/* ── HEADER ── */}
-      <div className="flex flex-col gap-5 rounded-[28px] border border-slate-200/70 bg-white/85 p-5 shadow-sm backdrop-blur md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col gap-5 rounded-[28px] border border-slate-200/70 dark:border-slate-800 bg-white/85 dark:bg-[#131622]/90 p-5 shadow-sm backdrop-blur md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 shadow-sm">
+          <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shadow-sm">
             <Wallet size={24} />
           </div>
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-3xl font-black text-slate-900 tracking-tight">Gestion Financière</h1>
+              <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Gestion Financière</h1>
               {isLocal && (
                 <span className="px-3 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-black uppercase tracking-widest rounded-xl animate-pulse">
                   Données locales
                 </span>
               )}
             </div>
-            <p className="text-slate-500 font-medium text-sm mt-1">Centre de Reporting Financier Intelligent</p>
+            <p className="text-slate-500 dark:text-slate-400 font-medium text-sm mt-1">Centre de Reporting Financier Intelligent</p>
           </div>
         </div>
         
@@ -470,7 +470,7 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, hea
             <PaymentDialog
               feeData={localFees[0] || { id: 0, balance: 0, totalExpected: 0, totalPaid: 0, student: null }}
               trigger={
-                <Button className="h-12 px-6 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-indigo-100 transition-all cursor-pointer">
+                <Button className="h-12 px-6 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-indigo-100 dark:shadow-none transition-all cursor-pointer">
                   <Plus size={18} /> Ajouter un paiement
                 </Button>
               }
@@ -482,7 +482,7 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, hea
               onClick={handleRepair}
               disabled={isRepairing}
               title="Recalculer les montants payés depuis les transactions réelles"
-              className="h-12 px-5 rounded-2xl border border-amber-200 bg-amber-50 text-amber-700 font-black text-xs uppercase tracking-widest flex items-center gap-2 hover:bg-amber-100 transition-all"
+              className="h-12 px-5 rounded-2xl border border-amber-200 dark:border-amber-900/50 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 font-black text-xs uppercase tracking-widest flex items-center gap-2 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-all"
             >
               {isRepairing
                 ? <><RefreshCw size={16} className="animate-spin" /> Réparation...</>
@@ -494,7 +494,7 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, hea
             <Button
               variant="ghost"
               onClick={() => document.querySelector<HTMLButtonElement>("[data-print-btn]")?.click()}
-              className="h-12 px-6 rounded-2xl text-slate-600 font-bold text-xs uppercase tracking-widest flex items-center gap-2 hover:bg-slate-100"
+              className="h-12 px-6 rounded-2xl text-slate-600 dark:text-slate-300 font-bold text-xs uppercase tracking-widest flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-slate-800"
             >
               <Printer size={18} /> Exporter PDF
             </Button>
@@ -536,27 +536,27 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, hea
 
       {/* PAYMENTS TAB */}
       {activeTab === "payments" && (
-        <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden">
+        <div className="bg-white dark:bg-[#131622]/90 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden">
           <div className="p-8 space-y-6">
             <div className="flex flex-col lg:flex-row gap-6 items-end lg:items-center">
               <form onSubmit={handleSearch} className="relative flex-1">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 dark:text-slate-500" size={18} />
                 <Input 
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Rechercher un élève, une classe, un paiement..." 
-                  className="pl-12 rounded-2xl border-slate-100 bg-slate-50/50 h-12 text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500/20" 
+                  className="pl-12 rounded-2xl border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 h-12 text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500/20" 
                 />
               </form>
               
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full lg:w-auto">
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Classe</label>
+                  <label className="text-[9px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest ml-1">Classe</label>
                   <div className="relative">
                     <select 
                       value={selectedClass}
                       onChange={(e) => { setSelectedClass(e.target.value); updateFilters({ class: e.target.value }); }}
-                      className="w-full md:w-32 h-11 bg-slate-50 border border-slate-100 rounded-xl px-3 text-[11px] font-bold text-slate-700 appearance-none outline-none"
+                      className="w-full md:w-32 h-11 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl px-3 text-[11px] font-bold text-slate-700 dark:text-slate-200 appearance-none outline-none"
                     >
                       <option value="Toutes">Toutes</option>
                       {classes.map(c => <option key={c.id} value={c.className}>{c.className}</option>)}
@@ -566,12 +566,12 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, hea
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Statut</label>
+                  <label className="text-[9px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest ml-1">Statut</label>
                   <div className="relative">
                     <select 
                       value={selectedStatus}
                       onChange={(e) => { setSelectedStatus(e.target.value); updateFilters({ status: e.target.value }); }}
-                      className="w-full md:w-32 h-11 bg-slate-50 border border-slate-100 rounded-xl px-3 text-[11px] font-bold text-slate-700 appearance-none outline-none"
+                      className="w-full md:w-32 h-11 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl px-3 text-[11px] font-bold text-slate-700 dark:text-slate-200 appearance-none outline-none"
                     >
                       <option value="Tous">Tous</option>
                       <option value="Soldé">Soldé</option>
@@ -583,12 +583,12 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, hea
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Période</label>
+                  <label className="text-[9px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest ml-1">Période</label>
                   <div className="relative">
                     <select 
                       value={selectedPeriod}
                       onChange={(e) => setSelectedPeriod(e.target.value)}
-                      className="w-full md:w-40 h-11 bg-slate-50 border border-slate-100 rounded-xl px-3 text-[11px] font-bold text-slate-700 appearance-none outline-none cursor-pointer"
+                      className="w-full md:w-40 h-11 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl px-3 text-[11px] font-bold text-slate-700 dark:text-slate-200 appearance-none outline-none cursor-pointer"
                     >
                       <option value="all">Toute période</option>
                       <option value="today">Aujourd'hui</option>
@@ -604,7 +604,7 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, hea
                   <Button 
                     type="button"
                     onClick={() => updateFilters({ search, class: selectedClass, status: selectedStatus })}
-                    className="w-full md:w-auto h-11 px-6 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100 font-black text-[10px] uppercase tracking-widest flex items-center gap-2 hover:bg-indigo-100 transition-all cursor-pointer"
+                    className="w-full md:w-auto h-11 px-6 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/50 font-black text-[10px] uppercase tracking-widest flex items-center gap-2 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-all cursor-pointer"
                   >
                     <Filter size={14} /> Filtrer
                   </Button>
@@ -620,46 +620,46 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, hea
                 {COL_KEYS.map(k => <col key={k} style={{ width: colWidths[k] }} />)}
               </colgroup>
               <thead>
-                <tr className="bg-slate-50/50 border-y border-slate-100">
+                <tr className="bg-slate-50/50 dark:bg-slate-900 border-y border-slate-100 dark:border-slate-800">
                   {/* Checkbox */}
                   <th className="relative px-4 py-5 text-left" style={{ width: colWidths.check }}>
-                    <Checkbox className="rounded-md border-slate-200" />
+                    <Checkbox className="rounded-md border-slate-200 dark:border-slate-700" />
                     <ResizeHandle col="check" />
                   </th>
-                  <th className="relative px-4 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left" style={{ width: colWidths.student }}>
+                  <th className="relative px-4 py-5 text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest text-left" style={{ width: colWidths.student }}>
                     ÉLÈVE / CLASSE
                     <ResizeHandle col="student" />
                   </th>
-                  <th className="relative px-4 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left" style={{ width: colWidths.attendu }}>
+                  <th className="relative px-4 py-5 text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest text-left" style={{ width: colWidths.attendu }}>
                     ATTENDU
                     <ResizeHandle col="attendu" />
                   </th>
-                  <th className="relative px-4 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left" style={{ width: colWidths.paye }}>
+                  <th className="relative px-4 py-5 text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest text-left" style={{ width: colWidths.paye }}>
                     PAYÉ
                     <ResizeHandle col="paye" />
                   </th>
-                  <th className="relative px-4 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left" style={{ width: colWidths.solde }}>
+                  <th className="relative px-4 py-5 text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest text-left" style={{ width: colWidths.solde }}>
                     SOLDE
                     <ResizeHandle col="solde" />
                   </th>
-                  <th className="relative px-4 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left" style={{ width: colWidths.statut }}>
+                  <th className="relative px-4 py-5 text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest text-left" style={{ width: colWidths.statut }}>
                     STATUT
                     <ResizeHandle col="statut" />
                   </th>
-                  <th className="relative px-4 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left" style={{ width: colWidths.date }}>
+                  <th className="relative px-4 py-5 text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest text-left" style={{ width: colWidths.date }}>
                     DATE
                     <ResizeHandle col="date" />
                   </th>
-                  <th className="relative px-4 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left" style={{ width: colWidths.mode }}>
+                  <th className="relative px-4 py-5 text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest text-left" style={{ width: colWidths.mode }}>
                     MODE DE PAIEMENT
                     <ResizeHandle col="mode" />
                   </th>
-                  <th className="relative px-4 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right" style={{ width: colWidths.actions }}>
+                  <th className="relative px-4 py-5 text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest text-right" style={{ width: colWidths.actions }}>
                     ACTIONS
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-50">
+              <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
                 {paginatedFees.length > 0 ? (
                   paginatedFees.map((fee) => {
                     const lastPayment = fee.payments?.[0];
@@ -667,37 +667,37 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, hea
                     const mode = lastPayment?.paymentMode || "Non spécifié";
 
                     return (
-                      <tr key={fee.id} className="group hover:bg-slate-50/50 transition-colors">
+                      <tr key={fee.id} className="group hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
                         <td className="px-8 py-4">
-                          <Checkbox className="rounded-md border-slate-200" />
+                          <Checkbox className="rounded-md border-slate-200 dark:border-slate-700" />
                         </td>
                         <td className="px-4 py-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center overflow-hidden border border-slate-100 shrink-0">
+                            <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 flex items-center justify-center overflow-hidden border border-slate-100 dark:border-slate-800 shrink-0">
                               {fee.student?.photoPath && !fee.student.photoPath.startsWith("file://") ? (
                                 <img src={fee.student.photoPath} alt={fee.student.nomEtudiant} className="w-full h-full object-cover" />
                               ) : (
-                                <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center">
-                                  <span className="text-xs font-black text-indigo-300">{fee.student?.nomEtudiant?.[0]}</span>
+                                <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 flex items-center justify-center">
+                                  <span className="text-xs font-black text-indigo-300 dark:text-indigo-400">{fee.student?.nomEtudiant?.[0]}</span>
                                 </div>
                               )}
                             </div>
                             <div className="min-w-0">
-                              <p className="text-[13px] font-black text-slate-900 leading-none truncate">{fee.student?.nomEtudiant}</p>
-                              <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-tight">{fee.student?.classe}</p>
+                              <p className="text-[13px] font-black text-slate-900 dark:text-white leading-none truncate">{fee.student?.nomEtudiant}</p>
+                              <p className="text-[10px] font-bold text-slate-400 dark:text-slate-400 mt-1 uppercase tracking-tight">{fee.student?.classe}</p>
                             </div>
                           </div>
                         </td>
                         <td className="px-4 py-4">
-                          <p className="text-[11px] font-black text-indigo-600">{formatAmount(fee.totalExpected || 0)}</p>
+                          <p className="text-[11px] font-black text-indigo-600 dark:text-indigo-400">{formatAmount(fee.totalExpected || 0)}</p>
                         </td>
                         <td className="px-4 py-4">
-                          <p className="text-[11px] font-black text-emerald-600">{formatAmount(fee.totalPaid || 0)}</p>
+                          <p className="text-[11px] font-black text-emerald-600 dark:text-emerald-400">{formatAmount(fee.totalPaid || 0)}</p>
                         </td>
                         <td className="px-4 py-4">
                           <p className={cn(
                             "text-[11px] font-black",
-                            fee.balance > 0 ? "text-rose-500" : "text-emerald-500"
+                            fee.balance > 0 ? "text-rose-500 dark:text-rose-400" : "text-emerald-500 dark:text-emerald-400"
                           )}>
                             {formatAmount(fee.balance || 0)}
                           </p>
@@ -706,10 +706,10 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, hea
                           {getStatusBadge(fee.status)}
                         </td>
                         <td className="px-4 py-4">
-                          <p className="text-[11px] font-bold text-slate-600 whitespace-nowrap">{isMounted ? date : "-"}</p>
+                          <p className="text-[11px] font-bold text-slate-600 dark:text-slate-300 whitespace-nowrap">{isMounted ? date : "-"}</p>
                         </td>
                         <td className="px-4 py-4">
-                          <div className="flex items-center gap-2 text-slate-500">
+                          <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
                             {getModeIcon(mode)}
                             <span className="text-[11px] font-bold">{mode}</span>
                           </div>
@@ -718,7 +718,7 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, hea
                           <div className="flex items-center justify-end gap-1.5">
                             <button 
                               onClick={() => setPreviewFee(fee)}
-                              className="p-2 text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                              className="p-2 text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 rounded-lg transition-all"
                             >
                               <Eye size={16} />
                             </button>
@@ -726,7 +726,7 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, hea
                               <PaymentDialog 
                                 feeData={fee}
                                 trigger={
-                                  <div className="p-2 text-amber-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all cursor-pointer">
+                                  <div className="p-2 text-amber-400 hover:text-amber-600 dark:hover:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/50 rounded-lg transition-all cursor-pointer">
                                     <Edit size={16} />
                                   </div>
                                 }
@@ -735,12 +735,12 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, hea
                             {canDelete && (
                               <button 
                                 onClick={() => handleDelete(fee.id)}
-                                className="p-2 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                                className="p-2 text-rose-400 hover:text-rose-600 dark:hover:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg transition-all"
                               >
                                 <Trash2 size={16} />
                               </button>
                             )}
-                            <button className="p-2 text-slate-300 hover:text-slate-600 transition-colors ml-1">
+                            <button className="p-2 text-slate-300 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors ml-1">
                               <History size={16} />
                             </button>
                           </div>
@@ -751,7 +751,7 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, hea
                 ) : (
                   <tr>
                     <td colSpan={9} className="py-32 text-center">
-                      <div className="flex flex-col items-center gap-4 opacity-20">
+                      <div className="flex flex-col items-center gap-4 opacity-20 dark:opacity-40">
                         <Wallet size={64} />
                         <p className="text-xl font-bold italic">Aucune donnée financière trouvée</p>
                       </div>
@@ -763,15 +763,15 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, hea
           </div>
 
           {/* Pagination */}
-          <div className="p-8 border-t border-slate-100 flex flex-col md:flex-row justify-between items-center gap-6">
+          <div className="p-8 border-t border-slate-100 dark:border-slate-800 flex flex-col md:flex-row justify-between items-center gap-6">
             <div className="flex items-center gap-4">
                <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-bold text-slate-400">Affichage</span>
+                  <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400">Affichage</span>
                   <div className="relative">
                      <select 
                        value={pageSize}
                        onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
-                       className="bg-slate-50 border border-slate-100 rounded-lg px-3 py-1.5 text-[11px] font-black text-slate-700 appearance-none pr-8 outline-none cursor-pointer"
+                       className="bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-lg px-3 py-1.5 text-[11px] font-black text-slate-700 dark:text-slate-200 appearance-none pr-8 outline-none cursor-pointer"
                      >
                         <option value={10}>10</option>
                         <option value={25}>25</option>
@@ -780,7 +780,7 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, hea
                      <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400" size={10} />
                   </div>
                </div>
-               <p className="text-[11px] font-bold text-slate-400">
+               <p className="text-[11px] font-bold text-slate-400 dark:text-slate-400">
                  Affichage de {Math.min(filteredFees.length, (currentPage - 1) * pageSize + 1)}-{Math.min(filteredFees.length, currentPage * pageSize)} sur {filteredFees.length} élèves
                </p>
             </div>
@@ -790,7 +790,7 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, hea
                 type="button"
                 onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                 disabled={currentPage === 1}
-                className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-100 text-slate-400 hover:bg-slate-50 disabled:opacity-50 transition-all cursor-pointer"
+                className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-100 dark:border-slate-800 text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50 transition-all cursor-pointer"
               >
                 <ChevronLeft size={16} />
               </button>
@@ -803,8 +803,8 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, hea
                   className={cn(
                     "w-8 h-8 flex items-center justify-center rounded-lg font-bold text-xs transition-all cursor-pointer",
                     p === currentPage
-                      ? "bg-indigo-600 text-white shadow-md shadow-indigo-100"
-                      : "hover:bg-slate-50 text-slate-600"
+                      ? "bg-indigo-600 text-white shadow-md shadow-indigo-100 dark:shadow-none"
+                      : "hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300"
                   )}
                 >
                   {p}
@@ -815,7 +815,7 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, hea
                 type="button"
                 onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                 disabled={currentPage === totalPages}
-                className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-100 text-slate-400 hover:bg-slate-50 disabled:opacity-50 transition-all cursor-pointer"
+                className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-100 dark:border-slate-800 text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50 transition-all cursor-pointer"
               >
                 <ChevronRight size={16} />
               </button>

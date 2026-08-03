@@ -672,7 +672,7 @@ export default function FinanceReports({ fees = [], classes = [], classSummary =
   return (
     <div className="grid gap-6 xl:grid-cols-[280px_minmax(0,1fr)]">
       {/* ── SIDEBAR ── */}
-      <aside className="rounded-[28px] border border-slate-200/50 bg-white p-5 shadow-sm">
+      <aside className="rounded-[28px] border border-slate-200/50 dark:border-slate-800 bg-white dark:bg-[#131622]/90 p-5 shadow-sm">
         <div className="mb-4 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-700 p-4 text-white shadow-md">
           <p className="text-[10px] font-black uppercase tracking-widest text-indigo-200">Centre Comptable</p>
           <h2 className="mt-1 text-base font-black tracking-tight">Rapports &amp; Balance</h2>
@@ -681,9 +681,9 @@ export default function FinanceReports({ fees = [], classes = [], classSummary =
           {ACCOUNTING_REPORTS.map((report) => (
             <button key={report.id} onClick={() => setActiveReport(report.id)}
               className={cn("flex w-full items-center gap-2.5 rounded-xl px-3 py-3 text-left text-[12px] font-black transition-all cursor-pointer",
-                activeReport === report.id ? "bg-indigo-50 text-indigo-700 ring-1 ring-indigo-100" : "text-slate-600 hover:bg-slate-50 hover:text-indigo-600"
+                activeReport === report.id ? "bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 ring-1 ring-indigo-100 dark:ring-indigo-900/50" : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-indigo-600 dark:hover:text-indigo-400"
               )}>
-              <FileText size={14} className={activeReport === report.id ? "text-indigo-500" : "text-slate-400"} />
+              <FileText size={14} className={activeReport === report.id ? "text-indigo-500 dark:text-indigo-400" : "text-slate-400"} />
               <span className="flex-1 truncate">{report.label}</span>
             </button>
           ))}
@@ -694,43 +694,43 @@ export default function FinanceReports({ fees = [], classes = [], classSummary =
       <section className="min-w-0 space-y-5">
 
         {/* Filters */}
-        <div className="bg-white rounded-3xl border border-slate-200/60 p-6 shadow-sm space-y-4">
-          <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-            <Filter size={15} className="text-indigo-600" />
-            <span className="text-xs font-black uppercase tracking-widest text-slate-700">Filtres Avancés</span>
+        <div className="bg-white dark:bg-[#131622]/90 rounded-3xl border border-slate-200/60 dark:border-slate-800 p-6 shadow-sm space-y-4">
+          <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+            <Filter size={15} className="text-indigo-600 dark:text-indigo-400" />
+            <span className="text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-200">Filtres Avancés</span>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
             <div>
-              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Classe</label>
-              <select value={classFilter} onChange={e => setClassFilter(e.target.value)} className="w-full h-9 bg-slate-50 border border-slate-100 rounded-xl px-3 text-[11px] font-bold text-slate-700 outline-none">
+              <label className="text-[9px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest block mb-1">Classe</label>
+              <select value={classFilter} onChange={e => setClassFilter(e.target.value)} className="w-full h-9 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl px-3 text-[11px] font-bold text-slate-700 dark:text-slate-200 outline-none">
                 <option value="Tous">Toutes classes</option>
                 {classes.map((c: any) => <option key={c.id} value={c.className}>{c.className}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Niveau</label>
-              <select value={levelFilter} onChange={e => setLevelFilter(e.target.value)} className="w-full h-9 bg-slate-50 border border-slate-100 rounded-xl px-3 text-[11px] font-bold text-slate-700 outline-none">
+              <label className="text-[9px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest block mb-1">Niveau</label>
+              <select value={levelFilter} onChange={e => setLevelFilter(e.target.value)} className="w-full h-9 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl px-3 text-[11px] font-bold text-slate-700 dark:text-slate-200 outline-none">
                 <option value="Tous">Tous niveaux</option>
                 {uniqueLevels.map((l: any) => <option key={l} value={l}>{l}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Caissier</label>
-              <select value={cashierFilter} onChange={e => setCashierFilter(e.target.value)} className="w-full h-9 bg-slate-50 border border-slate-100 rounded-xl px-3 text-[11px] font-bold text-slate-700 outline-none">
+              <label className="text-[9px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest block mb-1">Caissier</label>
+              <select value={cashierFilter} onChange={e => setCashierFilter(e.target.value)} className="w-full h-9 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl px-3 text-[11px] font-bold text-slate-700 dark:text-slate-200 outline-none">
                 <option value="Tous">Tous caissiers</option>
                 {uniqueCashiers.map((c: any) => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Mode Paiement</label>
-              <select value={modeFilter} onChange={e => setModeFilter(e.target.value)} className="w-full h-9 bg-slate-50 border border-slate-100 rounded-xl px-3 text-[11px] font-bold text-slate-700 outline-none">
+              <label className="text-[9px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest block mb-1">Mode Paiement</label>
+              <select value={modeFilter} onChange={e => setModeFilter(e.target.value)} className="w-full h-9 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl px-3 text-[11px] font-bold text-slate-700 dark:text-slate-200 outline-none">
                 <option value="Tous">Tous modes</option>
                 {uniqueModes.map((m: any) => <option key={m} value={m}>{m}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Statut</label>
-              <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="w-full h-9 bg-slate-50 border border-slate-100 rounded-xl px-3 text-[11px] font-bold text-slate-700 outline-none">
+              <label className="text-[9px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest block mb-1">Statut</label>
+              <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="w-full h-9 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl px-3 text-[11px] font-bold text-slate-700 dark:text-slate-200 outline-none">
                 <option value="Tous">Tous</option>
                 <option value="Soldé">Soldé</option>
                 <option value="Partiel">Partiel</option>
@@ -738,40 +738,40 @@ export default function FinanceReports({ fees = [], classes = [], classSummary =
               </select>
             </div>
             <div>
-              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Date Début</label>
-              <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="h-9 text-[11px] font-bold rounded-xl border-slate-100 bg-slate-50/50" />
+              <label className="text-[9px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest block mb-1">Date Début</label>
+              <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="h-9 text-[11px] font-bold rounded-xl border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900 text-slate-900 dark:text-slate-100" />
             </div>
             <div>
-              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Date Fin</label>
-              <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="h-9 text-[11px] font-bold rounded-xl border-slate-100 bg-slate-50/50" />
+              <label className="text-[9px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest block mb-1">Date Fin</label>
+              <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="h-9 text-[11px] font-bold rounded-xl border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900 text-slate-900 dark:text-slate-100" />
             </div>
             <div>
-              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Élève</label>
-              <Input value={studentSearch} onChange={e => setStudentSearch(e.target.value)} placeholder="Rechercher..." className="h-9 text-[11px] font-bold rounded-xl border-slate-100 bg-slate-50/50" />
+              <label className="text-[9px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest block mb-1">Élève</label>
+              <Input value={studentSearch} onChange={e => setStudentSearch(e.target.value)} placeholder="Rechercher..." className="h-9 text-[11px] font-bold rounded-xl border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900 text-slate-900 dark:text-slate-100" />
             </div>
             <div>
-              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Référence</label>
-              <Input value={refSearch} onChange={e => setRefSearch(e.target.value)} placeholder="REC-XXXX..." className="h-9 text-[11px] font-bold rounded-xl border-slate-100 bg-slate-50/50" />
+              <label className="text-[9px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest block mb-1">Référence</label>
+              <Input value={refSearch} onChange={e => setRefSearch(e.target.value)} placeholder="REC-XXXX..." className="h-9 text-[11px] font-bold rounded-xl border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900 text-slate-900 dark:text-slate-100" />
             </div>
           </div>
         </div>
 
         {/* Action bar + Exports */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white px-6 py-4 rounded-3xl border border-slate-200/50 shadow-sm">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white dark:bg-[#131622]/90 px-6 py-4 rounded-3xl border border-slate-200/50 dark:border-slate-800 shadow-sm">
           <div>
-            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Rapport Actuel</p>
-            <h3 className="text-sm font-black text-slate-800 mt-0.5">{ACCOUNTING_REPORTS.find(r => r.id === activeReport)?.label}</h3>
+            <p className="text-[9px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest">Rapport Actuel</p>
+            <h3 className="text-sm font-black text-slate-800 dark:text-white mt-0.5">{ACCOUNTING_REPORTS.find(r => r.id === activeReport)?.label}</h3>
           </div>
           <div className="flex flex-wrap gap-2">
             {/* Paper Size selector */}
-            <div className="flex items-center gap-0.5 rounded-xl border border-slate-200 bg-slate-50/50 p-1">
+            <div className="flex items-center gap-0.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900 p-1">
               <button
                 type="button"
                 onClick={() => setSelectedPaperSize("A4")}
                 className={`h-7 px-2.5 rounded-lg text-[10px] font-bold transition-all ${
                   selectedPaperSize === "A4"
-                    ? "bg-white text-slate-800 shadow-sm"
-                    : "text-slate-400 hover:text-slate-600"
+                    ? "bg-white dark:bg-slate-800 text-slate-800 dark:text-white shadow-sm"
+                    : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
                 }`}
               >
                 A4
@@ -781,24 +781,24 @@ export default function FinanceReports({ fees = [], classes = [], classSummary =
                 onClick={() => setSelectedPaperSize("A5")}
                 className={`h-7 px-2.5 rounded-lg text-[10px] font-bold transition-all ${
                   selectedPaperSize === "A5"
-                    ? "bg-white text-slate-800 shadow-sm"
-                    : "text-slate-400 hover:text-slate-600"
+                    ? "bg-white dark:bg-slate-800 text-slate-800 dark:text-white shadow-sm"
+                    : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
                 }`}
               >
                 A5
               </button>
             </div>
 
-            <button onClick={exportToPDF} className="h-9 px-4 rounded-xl border border-slate-200 hover:bg-red-50 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 text-red-600 cursor-pointer transition-all">
+            <button onClick={exportToPDF} className="h-9 px-4 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-red-50 dark:hover:bg-red-950/50 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 text-red-600 dark:text-red-400 cursor-pointer transition-all">
               <FileText size={13} /> PDF
             </button>
-            <button onClick={exportToExcel} className="h-9 px-4 rounded-xl border border-slate-200 hover:bg-emerald-50 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 text-emerald-600 cursor-pointer transition-all">
+            <button onClick={exportToExcel} className="h-9 px-4 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 cursor-pointer transition-all">
               <FileSpreadsheet size={13} /> Excel
             </button>
-            <button onClick={() => exportToCSV(filteredPayments.map((p: any) => ({ Date: isMounted ? new Date(p.datePaid).toLocaleDateString("fr-FR") : "-", Référence: p.reference || "-", Élève: p.studentName, Classe: p.classe, Montant: p.amount })), `finance_${Date.now()}.csv`)} className="h-9 px-4 rounded-xl border border-slate-200 hover:bg-indigo-50 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 text-indigo-600 cursor-pointer transition-all">
+            <button onClick={() => exportToCSV(filteredPayments.map((p: any) => ({ Date: isMounted ? new Date(p.datePaid).toLocaleDateString("fr-FR") : "-", Référence: p.reference || "-", Élève: p.studentName, Classe: p.classe, Montant: p.amount })), `finance_${Date.now()}.csv`)} className="h-9 px-4 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400 cursor-pointer transition-all">
               <FileText size={13} /> CSV
             </button>
-            <button onClick={handlePrint} className="h-9 px-5 rounded-xl bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 hover:bg-slate-800 cursor-pointer transition-all">
+            <button onClick={handlePrint} className="h-9 px-5 rounded-xl bg-slate-900 dark:bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 hover:bg-slate-800 dark:hover:bg-indigo-500 cursor-pointer transition-all">
               <Printer size={13} /> Imprimer
             </button>
           </div>
@@ -812,20 +812,20 @@ export default function FinanceReports({ fees = [], classes = [], classSummary =
             { label: "Transactions", value: String(filteredPayments.length), color: "indigo" },
             { label: "Taux Recouvrement", value: `${stats.recoveryRate}%`, color: "slate" },
           ].map(kpi => (
-            <div key={kpi.label} className="bg-white rounded-3xl border border-slate-100 p-5 shadow-sm">
-              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{kpi.label}</p>
+            <div key={kpi.label} className="bg-white dark:bg-[#131622]/90 rounded-3xl border border-slate-100 dark:border-slate-800 p-5 shadow-sm">
+              <p className="text-[9px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest">{kpi.label}</p>
               <p className={cn("text-xl font-black mt-1",
-                kpi.color === "emerald" && "text-emerald-600",
-                kpi.color === "amber" && "text-amber-600",
-                kpi.color === "indigo" && "text-indigo-600",
-                kpi.color === "slate" && "text-slate-800"
+                kpi.color === "emerald" && "text-emerald-600 dark:text-emerald-400",
+                kpi.color === "amber" && "text-amber-600 dark:text-amber-400",
+                kpi.color === "indigo" && "text-indigo-600 dark:text-indigo-400",
+                kpi.color === "slate" && "text-slate-800 dark:text-white"
               )}>{kpi.value}</p>
             </div>
           ))}
         </div>
 
         {/* ── REPORT TABLE AREA ── */}
-        <div id="finance-report-print" data-paper-size={selectedPaperSize} className="bg-white rounded-[2.5rem] border border-slate-200/50 shadow-sm overflow-hidden p-6 space-y-6">
+        <div id="finance-report-print" data-paper-size={selectedPaperSize} className="bg-white dark:bg-[#131622]/90 rounded-[2.5rem] border border-slate-200/50 dark:border-slate-800 shadow-sm overflow-hidden p-6 space-y-6">
           {/* Printable Official Header */}
           <div className="hidden print:block mb-6">
             <OfficialDocumentHeader config={headerConfig} title={ACCOUNTING_REPORTS.find(r => r.id === activeReport)?.label || "Rapport Financier"} />
