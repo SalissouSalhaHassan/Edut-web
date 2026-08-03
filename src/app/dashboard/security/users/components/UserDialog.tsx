@@ -353,7 +353,7 @@ export default function UserDialog({
 
       {/* Panel — stopPropagation so clicks inside don't reach backdrop */}
       <div
-        className="relative w-full max-w-[1100px] bg-white rounded-3xl shadow-2xl
+        className="relative w-full max-w-[1100px] bg-white dark:bg-[#0E1017] dark:border dark:border-slate-800 rounded-3xl shadow-2xl
           flex flex-col max-h-[90vh] overflow-hidden
           animate-in zoom-in-95 fade-in duration-200"
         onClick={(e) => e.stopPropagation()}
@@ -361,7 +361,7 @@ export default function UserDialog({
         {/* ── Sticky Header ───────────────────────────────────────────── */}
         <div className="shrink-0">
           <div className="h-1.5 w-full rounded-t-3xl bg-gradient-to-r from-indigo-500 via-violet-500 to-purple-600" />
-          <div className="flex items-center justify-between px-8 py-5 border-b border-slate-100">
+          <div className="flex items-center justify-between px-8 py-5 border-b border-slate-100 dark:border-slate-800/80">
             <div className="flex items-center gap-4">
               <div
                 className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg
@@ -373,10 +373,10 @@ export default function UserDialog({
                 {user ? <Pencil size={22} /> : <User size={22} />}
               </div>
               <div>
-                <h2 className="text-xl font-black text-slate-900 tracking-tight">
+                <h2 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
                   {user ? "Modifier l'utilisateur" : "Nouvel utilisateur"}
                 </h2>
-                <p className="text-xs text-slate-400 font-medium mt-0.5">
+                <p className="text-xs text-slate-400 dark:text-slate-400 font-medium mt-0.5">
                   {user
                     ? "Mettez à jour les informations de compte"
                     : "Créez un nouveau compte d'accès au système"}
@@ -390,7 +390,7 @@ export default function UserDialog({
               onClick={close}
               aria-label="Fermer"
               className="w-9 h-9 rounded-xl flex items-center justify-center
-                text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+                text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
             >
               <X size={18} />
             </button>
@@ -412,18 +412,18 @@ export default function UserDialog({
             />
             
             {/* Avatar Photo Picker */}
-            <div className="mb-5 flex items-center gap-5 p-4 rounded-2xl bg-slate-50/80 border border-slate-100">
-              <div className="relative w-16 h-16 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center justify-center overflow-hidden shrink-0 group">
+            <div className="mb-5 flex items-center gap-5 p-4 rounded-2xl bg-slate-50/80 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800">
+              <div className="relative w-16 h-16 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-center overflow-hidden shrink-0 group">
                 {formData.avatarUrl ? (
                   <img src={formData.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                 ) : (
-                  <span className="font-black text-xl text-indigo-600">
+                  <span className="font-black text-xl text-indigo-600 dark:text-indigo-400">
                     {formData.nomPrenom?.charAt(0)?.toUpperCase() || formData.utilisateur?.charAt(0)?.toUpperCase() || "U"}
                   </span>
                 )}
               </div>
               <div className="space-y-1">
-                <p className="text-xs font-black text-slate-800 uppercase tracking-wider">Photo de profil / Avatar</p>
+                <p className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider">Photo de profil / Avatar</p>
                 <div className="flex items-center gap-2 pt-0.5">
                   <label className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-black tracking-wide cursor-pointer transition-colors inline-flex items-center gap-1.5 shadow-sm">
                     <Camera size={13} />
@@ -434,14 +434,14 @@ export default function UserDialog({
                     <button
                       type="button"
                       onClick={() => setFormData((prev) => ({ ...prev, avatarUrl: "" }))}
-                      className="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 text-[11px] font-bold transition-colors inline-flex items-center gap-1"
+                      className="px-3 py-1.5 rounded-xl bg-rose-50 dark:bg-rose-500/10 hover:bg-rose-100 dark:hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 text-[11px] font-bold transition-colors inline-flex items-center gap-1"
                     >
                       <TrashIcon size={12} />
                       <span>Supprimer</span>
                     </button>
                   )}
                 </div>
-                <p className="text-[10px] text-slate-400 font-medium">Formats acceptés : PNG, JPG, WEBP (Max: 3 Mo)</p>
+                <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">Formats acceptés : PNG, JPG, WEBP (Max: 3 Mo)</p>
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -825,10 +825,10 @@ export default function UserDialog({
         </form>
 
         {/* ── Sticky Footer ────────────────────────────────────────────── */}
-        <div className="shrink-0 border-t border-slate-100 bg-white px-8 py-4
+        <div className="shrink-0 border-t border-slate-100 dark:border-slate-800/80 bg-white dark:bg-[#0E1017] px-8 py-4
           flex items-center justify-between gap-4 rounded-b-3xl">
           {/* Required fields notice */}
-          <div className="flex items-center gap-2 text-xs text-slate-400 font-medium">
+          <div className="flex items-center gap-2 text-xs text-slate-400 dark:text-slate-400 font-medium">
             {requiredMissing ? (
               <>
                 <AlertCircle size={14} className="text-amber-400 shrink-0" />
@@ -846,7 +846,7 @@ export default function UserDialog({
             ) : (
               <>
                 <CheckCircle2 size={14} className="text-emerald-500 shrink-0" />
-                <span className="text-emerald-600 font-semibold">
+                <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
                   Tous les champs requis sont remplis
                 </span>
               </>
@@ -858,7 +858,7 @@ export default function UserDialog({
               type="button"
               variant="ghost"
               onClick={close}
-              className="rounded-xl font-bold px-6 text-slate-600 hover:bg-slate-100"
+              className="rounded-xl font-bold px-6 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
             >
               Annuler
             </Button>

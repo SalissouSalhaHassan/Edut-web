@@ -44,11 +44,11 @@ export default async function UsersPage() {
           </div>
           <div>
             <div className="flex items-center gap-3 mb-1">
-              <h1 className="text-4xl font-black text-slate-900 tracking-tight">Utilisateurs & Équipes</h1>
-              <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-600 text-[10px] font-black uppercase tracking-widest border border-emerald-100">Live</span>
+              <h1 className="text-4xl font-black text-slate-900 dark:text-white tracking-tight">Utilisateurs & Équipes</h1>
+              <span className="px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase tracking-widest border border-emerald-100 dark:border-emerald-500/20">Live</span>
             </div>
-            <p className="text-slate-500 font-medium flex items-center gap-2">
-              <ShieldCheck size={16} className="text-indigo-500" />
+            <p className="text-slate-500 dark:text-slate-400 font-medium flex items-center gap-2">
+              <ShieldCheck size={16} className="text-indigo-500 dark:text-indigo-400" />
               Gérez les accès, les rôles et la sécurité de votre espace de gestion
             </p>
           </div>
@@ -56,44 +56,44 @@ export default async function UsersPage() {
 
         {/* User Badge */}
         <div className="flex items-center gap-4">
-          <div className="hidden lg:flex items-center gap-4 px-6 py-4 rounded-[2rem] bg-white border border-slate-100 shadow-sm hover:shadow-md transition-shadow cursor-pointer group">
-            <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center text-lg font-black shadow-lg shadow-indigo-200 group-hover:scale-105 transition-transform">
+          <div className="hidden lg:flex items-center gap-4 px-6 py-4 rounded-[2rem] bg-white dark:bg-[#131622] border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md transition-shadow cursor-pointer group">
+            <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center text-lg font-black shadow-lg shadow-indigo-200 dark:shadow-none group-hover:scale-105 transition-transform">
               {userName.charAt(0).toUpperCase()}
             </div>
             <div className="min-w-[120px]">
-              <p className="text-sm font-black text-slate-900 leading-tight">{userName}</p>
-              <div className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-1 flex items-center gap-1.5">
+              <p className="text-sm font-black text-slate-900 dark:text-white leading-tight">{userName}</p>
+              <div className="text-[10px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-widest mt-1 flex items-center gap-1.5">
                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                 {userRole}
               </div>
             </div>
-            <ChevronDown size={16} className="text-slate-300 group-hover:text-indigo-500 transition-colors" />
+            <ChevronDown size={16} className="text-slate-300 dark:text-slate-600 group-hover:text-indigo-500 transition-colors" />
           </div>
         </div>
       </div>
 
       {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        <div className="bg-white p-1 rounded-[2.8rem] border border-slate-100 shadow-sm group hover:shadow-2xl hover:shadow-indigo-50 transition-all duration-500 overflow-hidden relative">
-          <div className="bg-slate-50/50 rounded-[2.5rem] p-8 flex items-center gap-6">
-            <div className="w-16 h-16 rounded-2xl bg-white border border-slate-100 text-indigo-600 flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform duration-500">
+        <div className="bg-white dark:bg-[#131622] p-1 rounded-[2.8rem] border border-slate-100 dark:border-slate-800 shadow-sm group hover:shadow-2xl hover:shadow-indigo-50 dark:hover:shadow-indigo-500/10 transition-all duration-500 overflow-hidden relative">
+          <div className="bg-slate-50/50 dark:bg-slate-900/60 rounded-[2.5rem] p-8 flex items-center gap-6">
+            <div className="w-16 h-16 rounded-2xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform duration-500">
               <Users size={28} />
             </div>
             <div>
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Utilisateurs</p>
-              <p className="text-4xl font-black text-slate-900 leading-tight tracking-tight">{users.length}</p>
+              <p className="text-4xl font-black text-slate-900 dark:text-white leading-tight tracking-tight">{users.length}</p>
             </div>
           </div>
         </div>
         
-        <div className="bg-white p-1 rounded-[2.8rem] border border-slate-100 shadow-sm group hover:shadow-2xl hover:shadow-amber-50 transition-all duration-500 overflow-hidden relative">
-          <div className="bg-slate-50/50 rounded-[2.5rem] p-8 flex items-center gap-6">
-            <div className="w-16 h-16 rounded-2xl bg-white border border-slate-100 text-amber-600 flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform duration-500">
+        <div className="bg-white dark:bg-[#131622] p-1 rounded-[2.8rem] border border-slate-100 dark:border-slate-800 shadow-sm group hover:shadow-2xl hover:shadow-amber-50 dark:hover:shadow-amber-500/10 transition-all duration-500 overflow-hidden relative">
+          <div className="bg-slate-50/50 dark:bg-slate-900/60 rounded-[2.5rem] p-8 flex items-center gap-6">
+            <div className="w-16 h-16 rounded-2xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 text-amber-600 dark:text-amber-400 flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform duration-500">
               <ShieldAlert size={28} />
             </div>
             <div>
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Administrateurs</p>
-              <p className="text-4xl font-black text-slate-900 leading-tight tracking-tight">{users.filter((u: any) => u.admin).length}</p>
+              <p className="text-4xl font-black text-slate-900 dark:text-white leading-tight tracking-tight">{users.filter((u: any) => u.admin).length}</p>
             </div>
           </div>
         </div>
