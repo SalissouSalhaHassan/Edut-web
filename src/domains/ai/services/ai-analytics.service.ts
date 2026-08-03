@@ -89,8 +89,8 @@ export class AIAnalyticsService {
       const resultStats = await db
         .select({
           studentId: studentResults.studentId,
-          avgGrade: sql<number>`avg(case when ${studentResults.marksObtained} is not null then ${studentResults.marksObtained} end)`,
-          totalGrades: sql<number>`count(${studentResults.marksObtained})`,
+          avgGrade: sql<number>`avg(case when ${studentResults.totalScore} is not null then ${studentResults.totalScore} end)`,
+          totalGrades: sql<number>`count(${studentResults.totalScore})`,
         })
         .from(studentResults)
         .where(inArray(studentResults.studentId, studentIds))
@@ -98,7 +98,9 @@ export class AIAnalyticsService {
 
       const gradesMap = new Map<number, number>();
       for (const res of resultStats) {
-        gradesMap.set(res.studentId, Number(res.avgGrade) || 12.0);
+        if (res.studentId != null) {
+          gradesMap.set(res.studentId, Number(res.avgGrade) || 12.0);
+        }
       }
 
       // 4. Calculate Risk Profile for each student
