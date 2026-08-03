@@ -19,8 +19,9 @@ export default function AIAnalyticsClient({ initialOverview }: { initialOverview
   const handleRefresh = () => {
     startTransition(async () => {
       const res = await getDropoutRiskAnalysisAction();
-      if (res?.data) {
-        setOverview(res.data);
+      const overviewData = (res as any)?.data?.data || (res as any)?.data;
+      if (overviewData && typeof overviewData === "object" && "totalStudentsAnalyzed" in overviewData) {
+        setOverview(overviewData as DropoutRiskOverview);
         toast.success("تمت تحديث التحليلات والتنبؤات الذكية بنجاح");
       } else {
         toast.error((res as any)?.error || "Erreur lors de l'actualisation");
