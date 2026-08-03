@@ -11,6 +11,7 @@ import {
   BookOpen,
   BookMarked,
   Brain,
+  BrainCircuit,
   BriefcaseBusiness,
   Bus,
   Building2,
@@ -111,6 +112,7 @@ const sections: NavSection[] = [
     dotColor: "bg-violet-500",
     items: [
       { href: "/dashboard/pedagogie", label: "Tableau de bord pédagogique", icon: <LayoutDashboard className="size-[18px]" />, color: "text-violet-600" },
+      { href: "/dashboard/pedagogie/ai-analytics", label: "Analytique IA & Décrochage", icon: <BrainCircuit className="size-[18px]" />, color: "text-purple-500" },
       { href: "/dashboard/analytics", label: "Analyses prédictives & BI", icon: <BarChart3 className="size-[18px]" />, color: "text-indigo-500" },
       { href: "/dashboard/pedagogie/cahier-textes", label: "Cahier de textes", icon: <BookMarked className="size-[18px]" />, color: "text-violet-500" },
       { href: "/dashboard/pedagogie/planification", label: "Planification pédagogique", icon: <CalendarCheck2 className="size-[18px]" />, color: "text-indigo-500" },

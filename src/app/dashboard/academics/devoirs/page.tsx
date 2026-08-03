@@ -12,14 +12,14 @@ import { Button } from "@/components/ui/button";
 import dynamic from "next/dynamic";
 import { toast } from "sonner";
 
-const AcademicFilters = dynamic(() => import("@/domains/academics/components/AcademicFilters"), { ssr: false });
-const DevoirEntryGrid = dynamic(() => import("@/domains/academics/components/DevoirEntryGrid"), { ssr: false });
-import { getDevoirGrid, saveDevoirGrades } from "@/domains/academics/actions/academics.actions";
+import { Sparkles, BrainCircuit, Wand2 } from "lucide-react";
+import AITeacherAssistantModal from "@/domains/ai/components/AITeacherAssistantModal";
 
 export default function DevoirEntryPage() {
   const [loading, setLoading] = useState(false);
   const [students, setStudents] = useState<any[]>([]);
   const [activeFilters, setActiveFilters] = useState<any>(null);
+  const [showAIModal, setShowAIModal] = useState(false);
 
   const handleLoad = async (filters: any) => {
     console.log("[DevoirEntry] Loading with filters:", filters);
@@ -116,6 +116,15 @@ export default function DevoirEntryPage() {
               </p>
             </div>
           </div>
+
+          <div className="flex items-center gap-3">
+            <Button
+              onClick={() => setShowAIModal(true)}
+              className="h-14 px-6 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-black hover:from-indigo-700 hover:to-purple-700 shadow-lg shadow-indigo-200 transition-all flex items-center gap-2 text-sm"
+            >
+              <Wand2 size={18} /> Assistant IA Devoirs 🪄
+            </Button>
+          </div>
         </div>
 
         {/* Filters */}
@@ -143,13 +152,23 @@ export default function DevoirEntryPage() {
               className="py-32 text-center bg-white rounded-[4rem] border-2 border-dashed border-slate-200 shadow-sm"
             >
               <div className="p-8 bg-slate-50 rounded-full w-fit mx-auto mb-6">
-                <GraduationCap size={64} className="text-slate-300" />
+                <GraduationCap size={48} className="text-slate-400" />
               </div>
-              <h3 className="text-xl font-bold text-slate-400">Aucune donnée chargée</h3>
-              <p className="text-slate-400 mt-2">Veuillez sélectionner les filtres et cliquer sur "Charger la grille".</p>
+              <h3 className="text-2xl font-black text-slate-900 mb-2 tracking-tight">
+                Sélectionnez une classe et une matière
+              </h3>
+              <p className="text-slate-500 font-medium max-w-md mx-auto">
+                Choisissez les filtres académiques ci-dessus pour charger la grille de saisie des devoirs.
+              </p>
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* AI Teacher Assistant Generator Modal */}
+        <AITeacherAssistantModal
+          isOpen={showAIModal}
+          onClose={() => setShowAIModal(false)}
+        />
       </div>
     </div>
   );
