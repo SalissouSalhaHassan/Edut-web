@@ -17,7 +17,7 @@ export default async function CogesPage() {
   const initialLedger = (ledgerResult?.success ? ledgerResult.data : []) as any[];
 
   return (
-    <div className="flex-1 h-full overflow-hidden bg-slate-50">
+    <div className="flex-1 h-full overflow-hidden bg-slate-50 dark:bg-[#0A0C10]">
       <CogesUI initialPayments={initialPayments} initialLedger={initialLedger} />
     </div>
   );

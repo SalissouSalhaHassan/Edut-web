@@ -85,7 +85,7 @@ function numberToFrench(num: number): string {
 const getCogesStatusBadge = (status: string) => {
   if (status === "Payé") {
     return (
-      <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-emerald-600">
+      <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-100 dark:border-emerald-500/20 bg-emerald-50 dark:bg-emerald-500/10 px-3 py-1 text-emerald-600 dark:text-emerald-400">
         <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
         <span className="text-[10px] font-black uppercase tracking-widest">Payé</span>
       </div>
@@ -94,7 +94,7 @@ const getCogesStatusBadge = (status: string) => {
 
   if (status === "Partiel") {
     return (
-      <div className="inline-flex items-center gap-1.5 rounded-full border border-amber-100 bg-amber-50 px-3 py-1 text-amber-600">
+      <div className="inline-flex items-center gap-1.5 rounded-full border border-amber-100 dark:border-amber-500/20 bg-amber-50 dark:bg-amber-500/10 px-3 py-1 text-amber-600 dark:text-amber-400">
         <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
         <span className="text-[10px] font-black uppercase tracking-widest">Partiel</span>
       </div>
@@ -103,15 +103,15 @@ const getCogesStatusBadge = (status: string) => {
 
   if (status === "Non défini") {
     return (
-      <div className="inline-flex items-center gap-1.5 rounded-full border border-slate-100 bg-slate-50 px-3 py-1 text-slate-500">
-        <span className="h-1.5 w-1.5 rounded-full bg-slate-300" />
+      <div className="inline-flex items-center gap-1.5 rounded-full border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 px-3 py-1 text-slate-500 dark:text-slate-400">
+        <span className="h-1.5 w-1.5 rounded-full bg-slate-300 dark:bg-slate-600" />
         <span className="text-[10px] font-black uppercase tracking-widest">Non défini</span>
       </div>
     );
   }
 
   return (
-    <div className="inline-flex items-center gap-1.5 rounded-full border border-rose-100 bg-rose-50 px-3 py-1 text-rose-600">
+    <div className="inline-flex items-center gap-1.5 rounded-full border border-rose-100 dark:border-rose-500/20 bg-rose-50 dark:bg-rose-500/10 px-3 py-1 text-rose-600 dark:text-rose-400">
       <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
       <span className="text-[10px] font-black uppercase tracking-widest">En retard</span>
     </div>
@@ -175,18 +175,18 @@ function StudentSearch({
 
   if (selected) {
     return (
-      <div className="flex items-center gap-3 h-14 px-4 rounded-xl border-2 border-indigo-200 bg-indigo-50 text-left">
+      <div className="flex items-center gap-3 h-14 px-4 rounded-xl border-2 border-indigo-200 dark:border-indigo-500/30 bg-indigo-50 dark:bg-indigo-500/10 text-left">
         <div className="w-9 h-9 rounded-lg bg-indigo-600 flex items-center justify-center shrink-0">
           <GraduationCap className="size-5 text-white" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-black text-slate-900 text-sm leading-tight truncate">{selected.nomEtudiant}</p>
-          <p className="text-xs font-semibold text-indigo-500 leading-tight">{selected.numAdmission} · {selected.classe || "Non Classé"}</p>
+          <p className="font-black text-slate-900 dark:text-white text-sm leading-tight truncate">{selected.nomEtudiant}</p>
+          <p className="text-xs font-semibold text-indigo-500 dark:text-indigo-400 leading-tight">{selected.numAdmission} · {selected.classe || "Non Classé"}</p>
         </div>
         <button
           type="button"
           onClick={onClear}
-          className="shrink-0 w-7 h-7 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-red-500 hover:border-red-200 transition-colors cursor-pointer"
+          className="shrink-0 w-7 h-7 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-400 hover:text-red-500 hover:border-red-200 transition-colors cursor-pointer"
         >
           <X className="size-3.5" />
         </button>
@@ -197,7 +197,7 @@ function StudentSearch({
   return (
     <div ref={containerRef} className="relative">
       <div className="relative">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-slate-400 pointer-events-none" />
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-slate-400 dark:text-slate-500 pointer-events-none" />
         {loading && <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 size-4 text-indigo-400 animate-spin" />}
         <input
           type="text"
@@ -205,18 +205,18 @@ function StudentSearch({
           onChange={handleChange}
           onFocus={() => results.length > 0 && setOpen(true)}
           placeholder="Rechercher un élève par nom, N° ou père..."
-          className="w-full h-14 pl-10 pr-12 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-semibold text-sm outline-none"
+          className="w-full h-14 pl-10 pr-12 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:bg-white dark:focus:bg-slate-900/90 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-semibold text-sm outline-none"
         />
       </div>
 
       {open && results.length > 0 && (
-        <div className="absolute top-[calc(100%+6px)] left-0 right-0 z-50 bg-white border border-slate-200 rounded-2xl shadow-2xl shadow-slate-200/80 overflow-hidden">
-          <div className="px-3 py-2 border-b border-slate-100">
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 text-left">
+        <div className="absolute top-[calc(100%+6px)] left-0 right-0 z-50 bg-white dark:bg-[#131622] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl shadow-slate-200/80 dark:shadow-black/50 overflow-hidden">
+          <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800/80">
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 text-left">
               {results.length} élève(s) trouvé(s)
             </p>
           </div>
-          <div className="max-h-56 overflow-y-auto divide-y divide-slate-50">
+          <div className="max-h-56 overflow-y-auto divide-y divide-slate-50 dark:divide-slate-800/50">
             {results.map((s) => (
               <button
                 key={s.id}
@@ -227,22 +227,22 @@ function StudentSearch({
                   setOpen(false);
                   setResults([]);
                 }}
-                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-indigo-50 transition-colors text-left group cursor-pointer"
+                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-colors text-left group cursor-pointer"
               >
                 <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shrink-0 text-white font-black text-sm">
                   {s.nomEtudiant.charAt(0).toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-bold text-slate-900 text-sm truncate group-hover:text-indigo-700">
+                  <p className="font-bold text-slate-900 dark:text-white text-sm truncate group-hover:text-indigo-700 dark:group-hover:text-indigo-400">
                     {s.nomEtudiant}
                   </p>
-                  <p className="text-xs text-slate-400 font-medium">
+                  <p className="text-xs text-slate-400 dark:text-slate-500 font-medium">
                     {s.numAdmission}
-                    {s.classe && <span> · <span className="text-indigo-500 font-semibold">{s.classe}</span></span>}
+                    {s.classe && <span> · <span className="text-indigo-500 dark:text-indigo-400 font-semibold">{s.classe}</span></span>}
                     {s.nomPere && <span> · Père: {s.nomPere}</span>}
                   </p>
                 </div>
-                <ChevronDown className="size-4 text-slate-300 rotate-[-90deg] group-hover:text-indigo-400 shrink-0" />
+                <ChevronDown className="size-4 text-slate-300 dark:text-slate-600 rotate-[-90deg] group-hover:text-indigo-400 shrink-0" />
               </button>
             ))}
           </div>
@@ -757,7 +757,7 @@ export default function CogesUI({
   ];
 
   return (
-    <div className="h-full flex flex-col relative bg-slate-50/50">
+    <div className="h-full flex flex-col relative bg-slate-50/50 dark:bg-[#0A0C10]">
       {/* ── PRINT STYLES ─────────────────────────────────────────────────── */}
       <style dangerouslySetInnerHTML={{__html: `
         @media print {
@@ -788,17 +788,17 @@ export default function CogesUI({
         <div className="mx-auto max-w-[1500px] space-y-8">
           <header className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
             <div className="flex items-center gap-4">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 shadow-sm shadow-indigo-100">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 shadow-sm shadow-indigo-100 dark:shadow-none">
                 <Banknote className="size-7" />
               </div>
               <div>
                 <div className="flex flex-wrap items-center gap-3">
-                  <h1 className="text-4xl font-black tracking-normal text-slate-950">Paiement COGES</h1>
-                  <span className="rounded-full bg-indigo-50 px-3 py-1 text-[11px] font-black text-indigo-600 ring-1 ring-indigo-100">
+                  <h1 className="text-4xl font-black tracking-normal text-slate-950 dark:text-white">Paiement COGES</h1>
+                  <span className="rounded-full bg-indigo-50 dark:bg-indigo-500/10 px-3 py-1 text-[11px] font-black text-indigo-600 dark:text-indigo-400 ring-1 ring-indigo-100 dark:ring-indigo-500/20">
                     École Plus
                   </span>
                 </div>
-                <p className="mt-1 text-sm font-semibold text-slate-500">
+                <p className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">
                   Suivi des cotisations COGES, des élèves et des reçus de paiement.
                 </p>
               </div>
@@ -807,7 +807,7 @@ export default function CogesUI({
             <div className="flex flex-wrap items-center gap-3">
               <Button
                 onClick={() => openDialog()}
-                className="h-12 rounded-xl bg-indigo-600 px-7 text-xs font-black uppercase tracking-wide text-white shadow-lg shadow-indigo-100 hover:bg-indigo-700"
+                className="h-12 rounded-xl bg-indigo-600 px-7 text-xs font-black uppercase tracking-wide text-white shadow-lg shadow-indigo-100 dark:shadow-none hover:bg-indigo-700"
               >
                 <Plus className="mr-2 size-4" />
                 Ajouter un paiement
@@ -817,9 +817,9 @@ export default function CogesUI({
                 <Button
                   onClick={() => setReportsOpen(!reportsOpen)}
                   variant="ghost"
-                  className="h-12 rounded-xl px-4 text-xs font-black uppercase tracking-wide text-slate-600 hover:bg-white"
+                  className="h-12 rounded-xl px-4 text-xs font-black uppercase tracking-wide text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800"
                 >
-                  <FileText className="mr-2 size-4 text-slate-500" />
+                  <FileText className="mr-2 size-4 text-slate-500 dark:text-slate-400" />
                   Rapports
                   <ChevronDown className={`ml-2 size-4 text-slate-400 transition-transform ${reportsOpen ? "rotate-180" : ""}`} />
                 </Button>
@@ -827,8 +827,8 @@ export default function CogesUI({
                 {reportsOpen && (
                   <>
                     <div className="fixed inset-0 z-30" onClick={() => setReportsOpen(false)} />
-                    <div className="absolute right-0 top-[calc(100%+8px)] z-40 w-64 overflow-hidden rounded-2xl border border-slate-100 bg-white py-2 shadow-2xl shadow-slate-200/70">
-                      <div className="border-b border-slate-50 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                    <div className="absolute right-0 top-[calc(100%+8px)] z-40 w-64 overflow-hidden rounded-2xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-[#131622] py-2 shadow-2xl shadow-slate-200/70 dark:shadow-black/50">
+                      <div className="border-b border-slate-50 dark:border-slate-800/80 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
                         Sélectionner un rapport
                       </div>
                       {reportOptions.map(({ type, label, Icon }) => (
@@ -838,9 +838,9 @@ export default function CogesUI({
                             setActiveReportType(type);
                             setReportsOpen(false);
                           }}
-                          className="flex w-full items-center gap-3 px-4 py-3 text-left text-xs font-bold text-slate-700 transition-colors hover:bg-slate-50"
+                          className="flex w-full items-center gap-3 px-4 py-3 text-left text-xs font-bold text-slate-700 dark:text-slate-200 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/60"
                         >
-                          <Icon className="size-4 text-indigo-500" />
+                          <Icon className="size-4 text-indigo-500 dark:text-indigo-400" />
                           {label}
                         </button>
                       ))}
@@ -852,61 +852,61 @@ export default function CogesUI({
           </header>
 
           <section className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-            <div className="rounded-[28px] border border-slate-200/80 bg-white p-8 shadow-sm">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
+            <div className="rounded-[28px] border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-[#131622] p-8 shadow-sm">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400">
                 <Coins className="size-6" />
               </div>
               <div className="mt-7">
                 <p className="text-xs font-black uppercase tracking-widest text-slate-400">Attendu total</p>
-                <p className="mt-2 text-3xl font-black tracking-normal text-slate-950">
+                <p className="mt-2 text-3xl font-black tracking-normal text-slate-950 dark:text-white">
                   {totalExpected.toLocaleString("fr-FR")} CFA
                 </p>
-                <p className="mt-2 text-xs font-black text-emerald-600">↗ {filteredLedger.length} élève(s) actif(s)</p>
+                <p className="mt-2 text-xs font-black text-emerald-600 dark:text-emerald-400">↗ {filteredLedger.length} élève(s) actif(s)</p>
               </div>
             </div>
 
-            <div className="rounded-[28px] border border-slate-200/80 bg-white p-8 shadow-sm">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
+            <div className="rounded-[28px] border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-[#131622] p-8 shadow-sm">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
                 <TrendingUp className="size-6" />
               </div>
               <div className="mt-7">
                 <p className="text-xs font-black uppercase tracking-widest text-slate-400">Encaissé</p>
-                <p className="mt-2 text-3xl font-black tracking-normal text-slate-950">
+                <p className="mt-2 text-3xl font-black tracking-normal text-slate-950 dark:text-white">
                   {filteredTotal.toLocaleString("fr-FR")} CFA
                 </p>
-                <p className="mt-2 text-xs font-black text-emerald-600">↗ {successfulCount} élève(s) payé(s)</p>
+                <p className="mt-2 text-xs font-black text-emerald-600 dark:text-emerald-400">↗ {successfulCount} élève(s) payé(s)</p>
               </div>
             </div>
 
-            <div className="rounded-[28px] border border-slate-200/80 bg-white p-8 shadow-sm">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-50 text-rose-600">
+            <div className="rounded-[28px] border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-[#131622] p-8 shadow-sm">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400">
                 <AlertTriangle className="size-6" />
               </div>
               <div className="mt-7">
                 <p className="text-xs font-black uppercase tracking-widest text-slate-400">Impayés</p>
-                <p className="mt-2 text-3xl font-black tracking-normal text-slate-950">
+                <p className="mt-2 text-3xl font-black tracking-normal text-slate-950 dark:text-white">
                   {totalBalance.toLocaleString("fr-FR")} CFA
                 </p>
-                <p className="mt-2 text-xs font-black text-rose-500">↘ {failedCount} élève(s) en retard</p>
+                <p className="mt-2 text-xs font-black text-rose-500 dark:text-rose-400">↘ {failedCount} élève(s) en retard</p>
               </div>
             </div>
           </section>
 
-          <section className="overflow-hidden rounded-[28px] border border-slate-200/80 bg-white shadow-sm">
-            <div className="grid gap-4 border-b border-slate-100 p-6 xl:grid-cols-[1fr_auto] xl:items-end">
+          <section className="overflow-hidden rounded-[28px] border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-[#131622] shadow-sm">
+            <div className="grid gap-4 border-b border-slate-100 dark:border-slate-800/80 p-6 xl:grid-cols-[1fr_auto] xl:items-end">
               <div className="relative">
-                <Search className="absolute left-4 top-1/2 size-5 -translate-y-1/2 text-slate-300" />
+                <Search className="absolute left-4 top-1/2 size-5 -translate-y-1/2 text-slate-300 dark:text-slate-500" />
                 <input
                   type="text"
                   placeholder="Rechercher un élève, une classe, un reçu COGES..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="h-12 w-full rounded-2xl border border-slate-100 bg-slate-50 pl-12 pr-10 text-sm font-semibold text-slate-700 outline-none transition focus:border-indigo-200 focus:bg-white focus:ring-4 focus:ring-indigo-50"
+                  className="h-12 w-full rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 pl-12 pr-10 text-sm font-semibold text-slate-700 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none transition focus:border-indigo-200 dark:focus:border-indigo-500/50 focus:bg-white dark:focus:bg-slate-900 focus:ring-4 focus:ring-indigo-50 dark:focus:ring-indigo-500/10"
                 />
                 {search && (
                   <button
                     onClick={() => setSearch("")}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300"
                     title="Effacer"
                   >
                     <X className="size-4" />
@@ -916,29 +916,29 @@ export default function CogesUI({
 
               <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
                 <label className="space-y-1">
-                  <span className="block text-[10px] font-black uppercase tracking-widest text-slate-400">Classe</span>
+                  <span className="block text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Classe</span>
                   <div className="relative">
                     <select
                       value={selectedClass}
                       onChange={(e) => setSelectedClass(e.target.value)}
-                      className="h-12 min-w-[130px] appearance-none rounded-xl border border-slate-100 bg-slate-50 px-4 pr-9 text-xs font-bold text-slate-700 outline-none"
+                      className="h-12 min-w-[130px] appearance-none rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-4 pr-9 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none"
                     >
                       <option value="all">Toutes</option>
                       {uniqueClasses.map((c) => (
                         <option key={c} value={c}>{c}</option>
                       ))}
                     </select>
-                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
                   </div>
                 </label>
 
                 <label className="space-y-1">
-                  <span className="block text-[10px] font-black uppercase tracking-widest text-slate-400">Statut</span>
+                  <span className="block text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Statut</span>
                   <div className="relative">
                     <select
                       value={selectedStatus}
                       onChange={(e) => setSelectedStatus(e.target.value)}
-                      className="h-12 min-w-[130px] appearance-none rounded-xl border border-slate-100 bg-slate-50 px-4 pr-9 text-xs font-bold text-slate-700 outline-none"
+                      className="h-12 min-w-[130px] appearance-none rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-4 pr-9 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none"
                     >
                       <option value="all">Tous</option>
                       <option value="Payé">Payé</option>
@@ -946,17 +946,17 @@ export default function CogesUI({
                       <option value="En retard">En retard</option>
                       <option value="Non défini">Non défini</option>
                     </select>
-                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
                   </div>
                 </label>
 
                 <label className="space-y-1">
-                  <span className="block text-[10px] font-black uppercase tracking-widest text-slate-400">Période</span>
+                  <span className="block text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Période</span>
                   <div className="relative">
                     <select
                       value={selectedPeriod}
                       onChange={(e) => setSelectedPeriod(e.target.value)}
-                      className="h-12 min-w-[145px] appearance-none rounded-xl border border-slate-100 bg-slate-50 px-4 pr-9 text-xs font-bold text-slate-700 outline-none"
+                      className="h-12 min-w-[145px] appearance-none rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-4 pr-9 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none"
                     >
                       <option value="all">Toutes</option>
                       <option value="today">Aujourd'hui</option>
@@ -965,7 +965,7 @@ export default function CogesUI({
                       <option value="year">Cette année</option>
                       <option value="custom">Personnalisé</option>
                     </select>
-                    <Calendar className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+                    <Calendar className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
                   </div>
                 </label>
 
@@ -973,7 +973,7 @@ export default function CogesUI({
                   type="button"
                   variant="outline"
                   onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-                  className={`mt-5 h-12 rounded-xl border-indigo-100 px-5 text-xs font-black uppercase tracking-wide ${showAdvancedFilters ? "bg-indigo-50 text-indigo-600" : "bg-indigo-50/50 text-indigo-600"}`}
+                  className={`mt-5 h-12 rounded-xl border-indigo-100 dark:border-indigo-500/20 px-5 text-xs font-black uppercase tracking-wide ${showAdvancedFilters ? "bg-indigo-50 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400" : "bg-indigo-50/50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400"}`}
                 >
                   <Filter className="mr-2 size-4" />
                   Filtrer
@@ -981,54 +981,54 @@ export default function CogesUI({
               </div>
 
               {showAdvancedFilters && (
-                <div className="grid gap-3 border-t border-slate-100 pt-4 md:grid-cols-4 xl:col-span-2">
+                <div className="grid gap-3 border-t border-slate-100 dark:border-slate-800/80 pt-4 md:grid-cols-4 xl:col-span-2">
                   {selectedPeriod === "custom" && (
                     <>
                       <label className="space-y-1">
-                        <span className="block text-[10px] font-black uppercase tracking-widest text-slate-400">Du</span>
+                        <span className="block text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Du</span>
                         <input
                           type="date"
                           value={startDate}
                           onChange={(e) => setStartDate(e.target.value)}
-                          className="h-11 w-full rounded-xl border border-slate-100 bg-slate-50 px-3 text-xs font-bold text-slate-700 outline-none"
+                          className="h-11 w-full rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-3 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none"
                         />
                       </label>
                       <label className="space-y-1">
-                        <span className="block text-[10px] font-black uppercase tracking-widest text-slate-400">Au</span>
+                        <span className="block text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Au</span>
                         <input
                           type="date"
                           value={endDate}
                           onChange={(e) => setEndDate(e.target.value)}
-                          className="h-11 w-full rounded-xl border border-slate-100 bg-slate-50 px-3 text-xs font-bold text-slate-700 outline-none"
+                          className="h-11 w-full rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-3 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none"
                         />
                       </label>
                     </>
                   )}
                   <label className="space-y-1">
-                    <span className="block text-[10px] font-black uppercase tracking-widest text-slate-400">Montant min</span>
+                    <span className="block text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Montant min</span>
                     <input
                       type="number"
                       placeholder="Min CFA"
                       value={minAmount}
                       onChange={(e) => setMinAmount(e.target.value)}
-                      className="h-11 w-full rounded-xl border border-slate-100 bg-slate-50 px-3 text-xs font-bold text-slate-700 outline-none"
+                      className="h-11 w-full rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-3 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none"
                     />
                   </label>
                   <label className="space-y-1">
-                    <span className="block text-[10px] font-black uppercase tracking-widest text-slate-400">Montant max</span>
+                    <span className="block text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Montant max</span>
                     <input
                       type="number"
                       placeholder="Max CFA"
                       value={maxAmount}
                       onChange={(e) => setMaxAmount(e.target.value)}
-                      className="h-11 w-full rounded-xl border border-slate-100 bg-slate-50 px-3 text-xs font-bold text-slate-700 outline-none"
+                      className="h-11 w-full rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-3 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none"
                     />
                   </label>
                   <Button
                     type="button"
                     variant="ghost"
                     onClick={handleResetFilters}
-                    className="self-end rounded-xl text-xs font-black text-slate-500 hover:bg-slate-50"
+                    className="self-end rounded-xl text-xs font-black text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"
                   >
                     <RefreshCw className="mr-2 size-4" />
                     Réinitialiser
@@ -1040,29 +1040,29 @@ export default function CogesUI({
             <div className="overflow-x-auto">
               <table className="w-full min-w-[1180px] text-left">
                 <thead>
-                  <tr className="border-b border-slate-100 bg-slate-50/40">
+                  <tr className="border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/40 dark:bg-slate-900/60">
                     <th className="w-14 px-6 py-5">
-                      <span className="block h-5 w-5 rounded-full border-2 border-slate-200" />
+                      <span className="block h-5 w-5 rounded-full border-2 border-slate-200 dark:border-slate-700" />
                     </th>
-                    <th className="px-4 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Élève / classe</th>
-                    <th className="px-4 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Attendu</th>
-                    <th className="px-4 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Payé</th>
-                    <th className="px-4 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Solde</th>
-                    <th className="px-4 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Statut</th>
-                    <th className="px-4 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Date</th>
-                    <th className="px-4 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Mode de paiement</th>
-                    <th className="px-6 py-5 text-right text-[10px] font-black uppercase tracking-widest text-slate-400">Actions</th>
+                    <th className="px-4 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Élève / classe</th>
+                    <th className="px-4 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Attendu</th>
+                    <th className="px-4 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Payé</th>
+                    <th className="px-4 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Solde</th>
+                    <th className="px-4 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Statut</th>
+                    <th className="px-4 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Date</th>
+                    <th className="px-4 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Mode de paiement</th>
+                    <th className="px-6 py-5 text-right text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
                   {filteredLedger.map((row) => (
-                    <tr key={row.studentId} className="group transition-colors hover:bg-slate-50/70">
+                    <tr key={row.studentId} className="group transition-colors hover:bg-slate-50/70 dark:hover:bg-slate-800/40">
                       <td className="px-6 py-4">
-                        <span className="block h-5 w-5 rounded-full border-2 border-slate-200" />
+                        <span className="block h-5 w-5 rounded-full border-2 border-slate-200 dark:border-slate-700" />
                       </td>
                       <td className="px-4 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-100 bg-indigo-50 text-sm font-black text-indigo-300">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-100 dark:border-slate-800 bg-indigo-50 dark:bg-indigo-500/10 text-sm font-black text-indigo-300 dark:text-indigo-400">
                             {row.photoPath && !row.photoPath.startsWith("file://") ? (
                               <img src={row.photoPath} alt={row.studentName} className="h-full w-full object-cover" />
                             ) : (
@@ -1070,32 +1070,32 @@ export default function CogesUI({
                             )}
                           </div>
                           <div className="min-w-0">
-                            <p className="truncate text-[13px] font-black leading-none text-slate-950">{row.studentName}</p>
-                            <p className="mt-1 text-[10px] font-bold uppercase tracking-tight text-slate-400">
+                            <p className="truncate text-[13px] font-black leading-none text-slate-950 dark:text-white">{row.studentName}</p>
+                            <p className="mt-1 text-[10px] font-bold uppercase tracking-tight text-slate-400 dark:text-slate-500">
                               {row.classe || "Classe non renseignée"}{row.studentNumAdmission ? ` • ${row.studentNumAdmission}` : ""}
                             </p>
                           </div>
                         </div>
                       </td>
                       <td className="px-4 py-4">
-                        <p className="text-[11px] font-black text-indigo-600">{Number(row.expected || 0).toLocaleString("fr-FR")} CFA</p>
+                        <p className="text-[11px] font-black text-indigo-600 dark:text-indigo-400">{Number(row.expected || 0).toLocaleString("fr-FR")} CFA</p>
                       </td>
                       <td className="px-4 py-4">
-                        <p className="text-[11px] font-black text-emerald-600">{Number(row.paid || 0).toLocaleString("fr-FR")} CFA</p>
+                        <p className="text-[11px] font-black text-emerald-600 dark:text-emerald-400">{Number(row.paid || 0).toLocaleString("fr-FR")} CFA</p>
                       </td>
                       <td className="px-4 py-4">
-                        <p className={`text-[11px] font-black ${Number(row.balance || 0) > 0 ? "text-rose-500" : "text-emerald-500"}`}>
+                        <p className={`text-[11px] font-black ${Number(row.balance || 0) > 0 ? "text-rose-500 dark:text-rose-400" : "text-emerald-500 dark:text-emerald-400"}`}>
                           {Number(row.balance || 0).toLocaleString("fr-FR")} CFA
                         </p>
                       </td>
                       <td className="px-4 py-4">
                         {getCogesStatusBadge(row.status)}
                       </td>
-                      <td className="px-4 py-4 text-xs font-bold text-slate-500">
+                      <td className="px-4 py-4 text-xs font-bold text-slate-500 dark:text-slate-400">
                         {row.lastPaymentDate ? format(new Date(row.lastPaymentDate), "dd MMM yyyy", { locale: fr }) : "-"}
                       </td>
                       <td className="max-w-[180px] px-4 py-4">
-                        <div className="flex items-center gap-2 text-slate-500">
+                        <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
                           {getCogesModeIcon(row.paymentMode)}
                           <span className="text-[11px] font-bold">{row.paymentMode || "Non spécifié"}</span>
                         </div>
@@ -1104,7 +1104,7 @@ export default function CogesUI({
                         <div className="flex items-center justify-end gap-1.5">
                           <button
                             onClick={() => row.lastReceiptNumber && handlePrint(buildReceiptFromLedgerRow(row))}
-                            className="flex h-9 w-9 items-center justify-center rounded-xl text-indigo-400 transition hover:bg-indigo-50 hover:text-indigo-600 disabled:cursor-not-allowed disabled:opacity-30"
+                            className="flex h-9 w-9 items-center justify-center rounded-xl text-indigo-400 transition hover:bg-indigo-50 dark:hover:bg-indigo-500/10 hover:text-indigo-600 dark:hover:text-indigo-400 disabled:cursor-not-allowed disabled:opacity-30"
                             disabled={!row.lastReceiptNumber}
                             title="Voir le dernier reçu"
                           >
@@ -1112,7 +1112,7 @@ export default function CogesUI({
                           </button>
                           <button
                             onClick={() => openDialog(row)}
-                            className="flex h-9 w-9 items-center justify-center rounded-xl text-amber-400 transition hover:bg-amber-50 hover:text-amber-600"
+                            className="flex h-9 w-9 items-center justify-center rounded-xl text-amber-400 transition hover:bg-amber-50 dark:hover:bg-amber-500/10 hover:text-amber-600 dark:hover:text-amber-400"
                             title="Ajouter un paiement"
                           >
                             <Pencil className="size-4" />
@@ -1126,7 +1126,7 @@ export default function CogesUI({
                           </button>
                           <button
                             onClick={() => row.lastReceiptNumber && handlePrint(buildReceiptFromLedgerRow(row))}
-                            className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-300 transition hover:text-slate-600 disabled:cursor-not-allowed disabled:opacity-30"
+                            className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-300 dark:text-slate-600 transition hover:text-slate-600 dark:hover:text-slate-300 disabled:cursor-not-allowed disabled:opacity-30"
                             disabled={!row.lastReceiptNumber}
                             title="Historique"
                           >
@@ -1140,11 +1140,11 @@ export default function CogesUI({
                   {filteredLedger.length === 0 && (
                     <tr>
                       <td colSpan={9} className="px-6 py-20 text-center">
-                        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-slate-50">
-                          <Banknote className="size-8 text-slate-300" />
+                        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-slate-50 dark:bg-slate-800/60">
+                          <Banknote className="size-8 text-slate-300 dark:text-slate-600" />
                         </div>
-                        <p className="mt-4 text-sm font-black text-slate-500">Aucun élève trouvé</p>
-                        <p className="mt-1 text-xs font-semibold text-slate-300">
+                        <p className="mt-4 text-sm font-black text-slate-500 dark:text-slate-400">Aucun élève trouvé</p>
+                        <p className="mt-1 text-xs font-semibold text-slate-300 dark:text-slate-500">
                           Ajustez les filtres ou ajoutez un paiement COGES pour un élève.
                         </p>
                       </td>
@@ -1154,18 +1154,18 @@ export default function CogesUI({
               </table>
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-6 py-5">
-              <div className="flex items-center gap-3 text-xs font-black text-slate-500">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 dark:border-slate-800/80 px-6 py-5">
+              <div className="flex items-center gap-3 text-xs font-black text-slate-500 dark:text-slate-400">
                 <span>Affichage</span>
-                <span className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-indigo-600">{filteredLedger.length}</span>
+                <span className="rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-3 py-2 text-indigo-600 dark:text-indigo-400">{filteredLedger.length}</span>
                 <span>sur {studentLedger.length} élève(s)</span>
               </div>
-              <div className="flex items-center gap-2 text-xs font-black text-slate-400">
-                <span className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-100 text-slate-300">
+              <div className="flex items-center gap-2 text-xs font-black text-slate-400 dark:text-slate-500">
+                <span className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-100 dark:border-slate-800 text-slate-300 dark:text-slate-600">
                   <ArrowLeft className="size-4" />
                 </span>
                 <span className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-600 text-white">1</span>
-                <span className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-100 text-slate-300">
+                <span className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-100 dark:border-slate-800 text-slate-300 dark:text-slate-600">
                   <ArrowRight className="size-4" />
                 </span>
               </div>
@@ -1176,7 +1176,7 @@ export default function CogesUI({
 
       {/* ── DIALOG STEPPER FORM (NEW PAYMENT WIZARD) ────────────────────── */}
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="sm:max-w-[560px] p-0 rounded-3xl overflow-visible border-none shadow-2xl bg-white">
+        <DialogContent className="sm:max-w-[560px] p-0 rounded-3xl overflow-visible border-none shadow-2xl bg-white dark:bg-[#0E1017] dark:border dark:border-slate-800">
           {/* Header */}
           <div className="p-6 bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-800 text-white rounded-t-3xl relative overflow-hidden">
             <div className="absolute right-0 bottom-0 opacity-10 translate-y-1/4 translate-x-1/4 pointer-events-none">
@@ -1222,44 +1222,44 @@ export default function CogesUI({
           </div>
 
           {/* Form / Wizard Content */}
-          <div className="p-0 overflow-hidden bg-white rounded-b-3xl">
+          <div className="p-0 overflow-hidden bg-white dark:bg-[#0E1017] rounded-b-3xl">
             {wizardStatus === "success" && successData ? (
               /* Success screen */
               <div className="p-8 text-center space-y-6">
-                <div className="w-16 h-16 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto shadow-md border border-emerald-100 animate-bounce">
+                <div className="w-16 h-16 rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto shadow-md border border-emerald-100 dark:border-emerald-500/20 animate-bounce">
                   <CheckCircle2 size={36} />
                 </div>
                 <div>
-                  <h4 className="text-lg font-black text-slate-900">Paiement enregistré avec succès !</h4>
-                  <p className="text-xs font-semibold text-slate-400 mt-1">L'opération a été effectuée. Reçu N° #{successData.receiptNumber}</p>
+                  <h4 className="text-lg font-black text-slate-900 dark:text-white">Paiement enregistré avec succès !</h4>
+                  <p className="text-xs font-semibold text-slate-400 dark:text-slate-400 mt-1">L'opération a été effectuée. Reçu N° #{successData.receiptNumber}</p>
                 </div>
                 
                 {/* Transaction details card */}
-                <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 text-left space-y-2 text-xs font-bold text-slate-600">
-                  <div className="flex justify-between border-b border-slate-100/80 pb-2">
-                    <span className="text-slate-400">Payeur</span>
-                    <span className="text-slate-800">{successData.receivedFrom}</span>
+                <div className="bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800 rounded-2xl p-4 text-left space-y-2 text-xs font-bold text-slate-600 dark:text-slate-300">
+                  <div className="flex justify-between border-b border-slate-100/80 dark:border-slate-800 pb-2">
+                    <span className="text-slate-400 dark:text-slate-500">Payeur</span>
+                    <span className="text-slate-800 dark:text-white">{successData.receivedFrom}</span>
                   </div>
                   {selectedStudent && (
-                    <div className="flex justify-between border-b border-slate-100/80 pb-2">
-                      <span className="text-slate-400">Élève</span>
-                      <span className="text-slate-800">{selectedStudent.nomEtudiant}</span>
+                    <div className="flex justify-between border-b border-slate-100/80 dark:border-slate-800 pb-2">
+                      <span className="text-slate-400 dark:text-slate-500">Élève</span>
+                      <span className="text-slate-800 dark:text-white">{selectedStudent.nomEtudiant}</span>
                     </div>
                   )}
-                  <div className="flex justify-between border-b border-slate-100/80 pb-2">
-                    <span className="text-slate-400">Motif</span>
-                    <span className="text-slate-800">{successData.purpose}</span>
+                  <div className="flex justify-between border-b border-slate-100/80 dark:border-slate-800 pb-2">
+                    <span className="text-slate-400 dark:text-slate-500">Motif</span>
+                    <span className="text-slate-800 dark:text-white">{successData.purpose}</span>
                   </div>
                   <div className="flex justify-between pt-1 text-sm">
-                    <span className="text-slate-400 font-bold">Montant</span>
-                    <span className="text-indigo-600 font-black">{successData.amount.toLocaleString()} F CFA</span>
+                    <span className="text-slate-400 dark:text-slate-500 font-bold">Montant</span>
+                    <span className="text-indigo-600 dark:text-indigo-400 font-black">{successData.amount.toLocaleString()} F CFA</span>
                   </div>
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-3 pt-3">
                   <Button
                     onClick={() => handlePrint(successData)}
-                    className="flex-1 h-11 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold gap-2 text-xs cursor-pointer shadow-lg shadow-indigo-100"
+                    className="flex-1 h-11 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold gap-2 text-xs cursor-pointer shadow-lg shadow-indigo-100 dark:shadow-none"
                   >
                     <Printer size={15} />
                     <span>Imprimer le reçu</span>
@@ -1267,15 +1267,15 @@ export default function CogesUI({
                   <Button
                     onClick={() => openDialog()}
                     variant="outline"
-                    className="flex-1 h-11 rounded-xl border-slate-200 font-bold text-xs text-slate-700 cursor-pointer"
+                    className="flex-1 h-11 rounded-xl border-slate-200 dark:border-slate-800 font-bold text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer"
                   >
-                    <Plus size={15} className="text-slate-400" />
+                    <Plus size={15} className="text-slate-400 dark:text-slate-500" />
                     <span>Nouveau Reçu</span>
                   </Button>
                   <Button
                     onClick={() => setIsOpen(false)}
                     variant="ghost"
-                    className="h-11 rounded-xl font-bold text-xs text-slate-400 cursor-pointer"
+                    className="h-11 rounded-xl font-bold text-xs text-slate-400 dark:text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer"
                   >
                     <span>Fermer</span>
                   </Button>
@@ -1284,14 +1284,14 @@ export default function CogesUI({
             ) : wizardStatus === "error" ? (
               /* Error screen */
               <div className="p-8 text-center space-y-6">
-                <div className="w-16 h-16 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mx-auto border border-rose-100 shadow-md">
+                <div className="w-16 h-16 rounded-full bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto border border-rose-100 dark:border-rose-500/20 shadow-md">
                   <AlertTriangle size={36} />
                 </div>
                 <div>
-                  <h4 className="text-lg font-black text-rose-600">Échec de l'enregistrement du reçu</h4>
-                  <p className="text-xs font-semibold text-slate-400 mt-1">Une erreur est survenue lors du traitement en base de données.</p>
+                  <h4 className="text-lg font-black text-rose-600 dark:text-rose-400">Échec de l'enregistrement du reçu</h4>
+                  <p className="text-xs font-semibold text-slate-400 dark:text-slate-400 mt-1">Une erreur est survenue lors du traitement en base de données.</p>
                 </div>
-                <div className="bg-rose-50/50 border border-rose-100/50 rounded-2xl p-4 text-xs font-bold text-rose-700 text-center leading-relaxed">
+                <div className="bg-rose-50/50 dark:bg-rose-500/10 border border-rose-100/50 dark:border-rose-500/20 rounded-2xl p-4 text-xs font-bold text-rose-700 dark:text-rose-300 text-center leading-relaxed">
                   {errorMessage || "Échec inconnu. Veuillez contacter l'administrateur ou vérifier votre connexion."}
                 </div>
                 <div className="flex gap-3 pt-3">
@@ -1305,7 +1305,7 @@ export default function CogesUI({
                   <Button
                     onClick={() => setIsOpen(false)}
                     variant="ghost"
-                    className="h-11 rounded-xl border-slate-200 font-bold text-xs text-slate-400 cursor-pointer"
+                    className="h-11 rounded-xl border-slate-200 dark:border-slate-800 font-bold text-xs text-slate-400 dark:text-slate-500 cursor-pointer"
                   >
                     <span>Fermer</span>
                   </Button>
@@ -1317,16 +1317,16 @@ export default function CogesUI({
                 {step === 1 && (
                   /* Step 1: Student selection */
                   <div className="p-7 space-y-5 animate-in fade-in duration-200">
-                    <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex gap-3.5 items-start text-left">
-                      <Info className="size-5 text-indigo-500 shrink-0 mt-0.5" />
-                      <div className="text-xs font-semibold text-slate-500 leading-relaxed">
-                        <span className="font-bold text-indigo-700">Simplification & Précision</span>: Recherchez un élève pour pré-remplir ses données et sa classe, ou continuez sans sélectionner d'élève pour un paiement libre.
+                    <div className="bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800 rounded-2xl p-4 flex gap-3.5 items-start text-left">
+                      <Info className="size-5 text-indigo-500 dark:text-indigo-400 shrink-0 mt-0.5" />
+                      <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 leading-relaxed">
+                        <span className="font-bold text-indigo-700 dark:text-indigo-400">Simplification & Précision</span>: Recherchez un élève pour pré-remplir ses données et sa classe, ou continuez sans sélectionner d'élève pour un paiement libre.
                       </div>
                     </div>
 
                     <div className="space-y-2 text-left">
-                      <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
-                        <GraduationCap className="size-3.5 text-indigo-500" />
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                        <GraduationCap className="size-3.5 text-indigo-500 dark:text-indigo-400" />
                         <span>Rechercher et sélectionner un élève (Optionnel)</span>
                       </Label>
                       <StudentSearch
@@ -1337,18 +1337,18 @@ export default function CogesUI({
                     </div>
 
                     {selectedStudent && (
-                      <div className="bg-indigo-50/50 border border-indigo-100 rounded-2xl p-4 text-xs font-bold text-indigo-700 space-y-1 animate-in fade-in duration-200 text-left">
-                        <p>✓ Élève sélectionné : <span className="font-black text-slate-900">{selectedStudent.nomEtudiant}</span></p>
-                        {selectedStudent.classe && <p>✓ Classe : <span className="font-black text-slate-900">{selectedStudent.classe}</span></p>}
-                        {selectedStudent.nomPere && <p>✓ Nom du père : <span className="font-black text-slate-900">{selectedStudent.nomPere}</span></p>}
+                      <div className="bg-indigo-50/50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 rounded-2xl p-4 text-xs font-bold text-indigo-700 dark:text-indigo-300 space-y-1 animate-in fade-in duration-200 text-left">
+                        <p>✓ Élève sélectionné : <span className="font-black text-slate-900 dark:text-white">{selectedStudent.nomEtudiant}</span></p>
+                        {selectedStudent.classe && <p>✓ Classe : <span className="font-black text-slate-900 dark:text-white">{selectedStudent.classe}</span></p>}
+                        {selectedStudent.nomPere && <p>✓ Nom du père : <span className="font-black text-slate-900 dark:text-white">{selectedStudent.nomPere}</span></p>}
                       </div>
                     )}
 
-                    <div className="pt-4 border-t border-slate-100 flex justify-end">
+                    <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex justify-end">
                       <Button
                         type="button"
                         onClick={() => setStep(2)}
-                        className="h-11 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold gap-2 text-xs cursor-pointer shadow-lg shadow-indigo-100/50"
+                        className="h-11 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold gap-2 text-xs cursor-pointer shadow-lg shadow-indigo-100/50 dark:shadow-none"
                       >
                         <span>Continuer vers le paiement</span>
                         <ArrowRight size={14} />
@@ -1362,17 +1362,17 @@ export default function CogesUI({
                   <div className="p-7 space-y-5 text-left animate-in fade-in duration-200">
                     {/* receivedFrom */}
                     <div className="space-y-2">
-                      <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
                         Reçu de M. / Mme *
                       </Label>
                       <div className="relative">
-                        <User className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
+                        <User className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-slate-400 dark:text-slate-500" />
                         <Input
                           required
                           value={formData.receivedFrom}
                           onChange={(e) => setFormData({ ...formData, receivedFrom: e.target.value })}
                           placeholder="Nom complet du payeur"
-                          className="h-12 pl-10 rounded-xl border-slate-200 bg-slate-50/50 font-bold focus:bg-white text-xs text-slate-800"
+                          className="h-12 pl-10 rounded-xl border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900 font-bold focus:bg-white dark:focus:bg-slate-900 text-xs text-slate-800 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
                         />
                       </div>
                     </div>
@@ -1380,7 +1380,7 @@ export default function CogesUI({
                     {/* Amount + Purpose */}
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
                           Montant (F CFA) *
                         </Label>
                         <Input
@@ -1390,32 +1390,32 @@ export default function CogesUI({
                           value={formData.amount}
                           onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
                           placeholder="0"
-                          className="h-12 rounded-xl border-slate-200 bg-slate-50/50 font-black text-lg text-indigo-600 focus:bg-white"
+                          className="h-12 rounded-xl border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900 font-black text-lg text-indigo-600 dark:text-indigo-400 focus:bg-white dark:focus:bg-slate-900"
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
                           Motif du paiement *
                         </Label>
                         <div className="relative">
                           <select
                             value={formData.purpose}
                             onChange={(e) => setFormData({ ...formData, purpose: e.target.value })}
-                            className="w-full h-12 px-3.5 rounded-xl border border-slate-200 bg-slate-50/50 font-bold text-xs text-slate-700 outline-none focus:bg-white cursor-pointer appearance-none pr-8"
+                            className="w-full h-12 px-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900 font-bold text-xs text-slate-700 dark:text-white outline-none focus:bg-white dark:focus:bg-slate-900 cursor-pointer appearance-none pr-8"
                           >
                             <option value="Cotisation Annuelle COGES">Cotisation Annuelle COGES</option>
                             <option value="Droit d'inscription">Frais d'inscription</option>
                             <option value="Frais de scolarité additionnels">Frais scolaires additionnels</option>
                             <option value="Autre">Autre motif...</option>
                           </select>
-                          <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 size-4 text-slate-400 pointer-events-none" />
+                          <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 size-4 text-slate-400 dark:text-slate-500 pointer-events-none" />
                         </div>
                       </div>
                     </div>
 
                     {formData.purpose === "Autre" && (
                       <div className="space-y-2 animate-in fade-in duration-200">
-                        <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
                           Saisir le motif personnalisé *
                         </Label>
                         <Input
@@ -1423,31 +1423,31 @@ export default function CogesUI({
                           value={customPurpose}
                           onChange={(e) => setCustomPurpose(e.target.value)}
                           placeholder="Ex: Contribution peinture classe"
-                          className="h-12 rounded-xl border-slate-200 bg-slate-50/50 font-bold focus:bg-white text-xs text-slate-800"
+                          className="h-12 rounded-xl border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900 font-bold focus:bg-white dark:focus:bg-slate-900 text-xs text-slate-800 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
                         />
                       </div>
                     )}
 
                     {/* Amount in letters */}
                     <div className="space-y-2">
-                      <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center justify-between">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 flex items-center justify-between">
                         <span>Montant en lettres</span>
-                        <span className="text-[8px] bg-slate-100 px-2 py-0.5 rounded-full text-slate-400 font-bold">Génération automatique</span>
+                        <span className="text-[8px] bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full text-slate-400 dark:text-slate-400 font-bold">Génération automatique</span>
                       </Label>
                       <Input
                         value={formData.amountLetters}
                         onChange={(e) => setFormData({ ...formData, amountLetters: e.target.value })}
                         placeholder={formData.amount ? numberToFrench(Number(formData.amount)) : "ex: Mille deux cents Francs CFA"}
-                        className="h-11 rounded-xl border-slate-200 bg-slate-50/50 font-semibold focus:bg-white text-xs text-slate-500 italic"
+                        className="h-11 rounded-xl border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900 font-semibold focus:bg-white dark:focus:bg-slate-900 text-xs text-slate-500 dark:text-slate-400 italic placeholder:text-slate-400 dark:placeholder:text-slate-500"
                       />
                     </div>
 
-                    <div className="pt-4 border-t border-slate-100 flex justify-between">
+                    <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex justify-between">
                       <Button
                         type="button"
                         variant="ghost"
                         onClick={() => setStep(1)}
-                        className="h-11 px-5 rounded-xl border-slate-200 font-bold text-xs text-slate-500 gap-1.5 cursor-pointer"
+                        className="h-11 px-5 rounded-xl border-slate-200 dark:border-slate-800 font-bold text-xs text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 gap-1.5 cursor-pointer"
                       >
                         <ArrowLeft size={14} />
                         <span>Précédent</span>
@@ -1456,7 +1456,7 @@ export default function CogesUI({
                         type="button"
                         disabled={!formData.receivedFrom || !formData.amount}
                         onClick={() => setStep(3)}
-                        className="h-11 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold gap-2 text-xs cursor-pointer shadow-lg shadow-indigo-100/50 disabled:opacity-50"
+                        className="h-11 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold gap-2 text-xs cursor-pointer shadow-lg shadow-indigo-100/50 dark:shadow-none disabled:opacity-50"
                       >
                         <span>Vérifier & Confirmer</span>
                         <ArrowRight size={14} />
@@ -1468,60 +1468,60 @@ export default function CogesUI({
                 {step === 3 && (
                   /* Step 3: Confirmation and summary preview */
                   <div className="p-7 space-y-5 text-left animate-in fade-in duration-200">
-                    <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 flex gap-3.5 items-start">
-                      <AlertTriangle className="size-5 text-amber-500 shrink-0 mt-0.5 animate-pulse" />
-                      <div className="text-xs font-semibold text-amber-800 leading-relaxed">
+                    <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-100 dark:border-amber-500/20 rounded-2xl p-4 flex gap-3.5 items-start">
+                      <AlertTriangle className="size-5 text-amber-500 dark:text-amber-400 shrink-0 mt-0.5 animate-pulse" />
+                      <div className="text-xs font-semibold text-amber-800 dark:text-amber-300 leading-relaxed">
                         <span className="font-bold">Veuillez confirmer les informations</span>: Veuillez vérifier les détails du reçu avant de valider. Après confirmation, le montant sera immédiatement enregistré dans les comptes du COGES.
                       </div>
                     </div>
 
                     {/* Summary cards */}
-                    <div className="bg-slate-50 border border-slate-100 rounded-2xl overflow-hidden divide-y divide-slate-100">
+                    <div className="bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800 rounded-2xl overflow-hidden divide-y divide-slate-100 dark:divide-slate-800">
                       {/* Big amount strip */}
-                      <div className="p-5 text-center bg-indigo-50/30">
-                        <p className="text-[10px] font-black text-indigo-700 uppercase tracking-widest leading-none mb-2">Montant Total du Paiement</p>
-                        <h4 className="text-3xl font-black text-indigo-700 tracking-tight leading-none">
+                      <div className="p-5 text-center bg-indigo-50/30 dark:bg-indigo-500/10">
+                        <p className="text-[10px] font-black text-indigo-700 dark:text-indigo-400 uppercase tracking-widest leading-none mb-2">Montant Total du Paiement</p>
+                        <h4 className="text-3xl font-black text-indigo-700 dark:text-indigo-400 tracking-tight leading-none">
                           {Number(formData.amount).toLocaleString()}
-                          <span className="text-sm font-black text-slate-900 ml-1.5">F CFA</span>
+                          <span className="text-sm font-black text-slate-900 dark:text-white ml-1.5">F CFA</span>
                         </h4>
-                        <p className="text-[10px] text-slate-400 font-bold italic mt-2.5">
+                        <p className="text-[10px] text-slate-400 dark:text-slate-400 font-bold italic mt-2.5">
                           « {formData.amountLetters || numberToFrench(Number(formData.amount))} »
                         </p>
                       </div>
 
                       {/* Details */}
-                      <div className="p-5 space-y-3.5 text-xs font-bold text-slate-600">
+                      <div className="p-5 space-y-3.5 text-xs font-bold text-slate-600 dark:text-slate-300">
                         <div className="flex justify-between">
-                          <span className="text-slate-400">Payeur :</span>
-                          <span className="text-slate-800">{formData.receivedFrom}</span>
+                          <span className="text-slate-400 dark:text-slate-500">Payeur :</span>
+                          <span className="text-slate-800 dark:text-white">{formData.receivedFrom}</span>
                         </div>
                         {selectedStudent && (
                           <>
                             <div className="flex justify-between">
-                              <span className="text-slate-400">Élève :</span>
-                              <span className="text-indigo-600">{selectedStudent.nomEtudiant}</span>
+                              <span className="text-slate-400 dark:text-slate-500">Élève :</span>
+                              <span className="text-indigo-600 dark:text-indigo-400">{selectedStudent.nomEtudiant}</span>
                             </div>
                             {selectedStudent.classe && (
                               <div className="flex justify-between">
-                                <span className="text-slate-400">Classe :</span>
-                                <span className="text-slate-800 bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full text-[10px]">{selectedStudent.classe}</span>
+                                <span className="text-slate-400 dark:text-slate-500">Classe :</span>
+                                <span className="text-slate-800 dark:text-white bg-purple-50 dark:bg-purple-500/20 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded-full text-[10px]">{selectedStudent.classe}</span>
                               </div>
                             )}
                           </>
                         )}
                         <div className="flex justify-between">
-                          <span className="text-slate-400">Motif :</span>
-                          <span className="text-slate-800">{formData.purpose === "Autre" ? customPurpose : formData.purpose}</span>
+                          <span className="text-slate-400 dark:text-slate-500">Motif :</span>
+                          <span className="text-slate-800 dark:text-white">{formData.purpose === "Autre" ? customPurpose : formData.purpose}</span>
                         </div>
                       </div>
                     </div>
 
-                    <div className="pt-4 border-t border-slate-100 flex justify-between">
+                    <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex justify-between">
                       <Button
                         type="button"
                         variant="ghost"
                         onClick={() => setStep(2)}
-                        className="h-11 px-5 rounded-xl border-slate-200 font-bold text-xs text-slate-500 gap-1.5 cursor-pointer"
+                        className="h-11 px-5 rounded-xl border-slate-200 dark:border-slate-800 font-bold text-xs text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 gap-1.5 cursor-pointer"
                       >
                         <ArrowLeft size={14} />
                         <span>Modifier</span>
@@ -1529,7 +1529,7 @@ export default function CogesUI({
                       <Button
                         type="submit"
                         disabled={loading}
-                        className="h-11 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black gap-2 text-xs cursor-pointer shadow-lg shadow-indigo-200"
+                        className="h-11 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black gap-2 text-xs cursor-pointer shadow-lg shadow-indigo-200 dark:shadow-none"
                       >
                         {loading ? (
                           <><Loader2 className="size-4 animate-spin" /> Enregistrement...</>
@@ -1548,7 +1548,7 @@ export default function CogesUI({
 
       {/* ── DIALOG REPORT DETAILS ────────────────────────────────────────── */}
       <Dialog open={activeReportType !== null} onOpenChange={() => setActiveReportType(null)}>
-        <DialogContent className="sm:max-w-[700px] p-0 rounded-3xl overflow-visible border-none shadow-2xl bg-white max-h-[85vh] flex flex-col">
+        <DialogContent className="sm:max-w-[700px] p-0 rounded-3xl overflow-visible border-none shadow-2xl bg-white dark:bg-[#0E1017] dark:border dark:border-slate-800 max-h-[85vh] flex flex-col">
           {activeReportType && getReportDetails() && (
             <>
               {/* Header */}
@@ -1573,31 +1573,31 @@ export default function CogesUI({
               </div>
 
               {/* Summary Metrics Strip */}
-              <div className="grid grid-cols-2 divide-x divide-slate-100 bg-slate-50 border-b border-slate-100 p-4 text-center shrink-0">
+              <div className="grid grid-cols-2 divide-x divide-slate-100 dark:divide-slate-800 bg-slate-50 dark:bg-slate-900/60 border-b border-slate-100 dark:border-slate-800 p-4 text-center shrink-0">
                 <div className="py-1">
-                  <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Total des Recettes</span>
-                  <p className="text-xl font-black text-indigo-700 mt-1">{getReportDetails()?.totalAmount.toLocaleString()} F CFA</p>
+                  <span className="text-[9px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">Total des Recettes</span>
+                  <p className="text-xl font-black text-indigo-700 dark:text-indigo-400 mt-1">{getReportDetails()?.totalAmount.toLocaleString()} F CFA</p>
                 </div>
                 <div className="py-1 col-span-1">
-                  <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Nombre de reçus émis</span>
-                  <p className="text-xl font-black text-slate-900 mt-1">{getReportDetails()?.totalCount} reçu(s)</p>
+                  <span className="text-[9px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">Nombre de reçus émis</span>
+                  <p className="text-xl font-black text-slate-900 dark:text-white mt-1">{getReportDetails()?.totalCount} reçu(s)</p>
                 </div>
               </div>
 
               {/* Table details (Scrollable) */}
               <div className="flex-1 overflow-y-auto p-6">
-                <div className="border border-slate-100 rounded-2xl overflow-hidden shadow-inner">
+                <div className="border border-slate-100 dark:border-slate-800 rounded-2xl overflow-hidden shadow-inner">
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
-                      <tr className="bg-slate-50 border-b border-slate-100">
+                      <tr className="bg-slate-50 dark:bg-slate-900/80 border-b border-slate-100 dark:border-slate-800">
                         {getReportDetails()?.headers.map((h, i) => (
-                          <th key={i} className="p-3 font-black text-slate-500 uppercase tracking-wider">{h}</th>
+                          <th key={i} className="p-3 font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">{h}</th>
                         ))}
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-50 text-slate-600">
+                    <tbody className="divide-y divide-slate-50 dark:divide-slate-800/60 text-slate-600 dark:text-slate-300">
                       {getReportDetails()?.dataRows.map((row: any[], i) => (
-                        <tr key={i} className="hover:bg-slate-50/50 transition-colors">
+                        <tr key={i} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
                           {row.map((cell: any, j: number) => (
                             <td key={j} className="p-3 font-semibold">{cell}</td>
                           ))}
@@ -1606,7 +1606,7 @@ export default function CogesUI({
 
                       {getReportDetails()?.dataRows.length === 0 && (
                         <tr>
-                          <td colSpan={getReportDetails()?.headers.length || 5} className="p-10 text-center text-slate-400 font-bold">
+                          <td colSpan={getReportDetails()?.headers.length || 5} className="p-10 text-center text-slate-400 dark:text-slate-500 font-bold">
                             Aucun paiement enregistré pour cette période.
                           </td>
                         </tr>
@@ -1617,25 +1617,25 @@ export default function CogesUI({
               </div>
 
               {/* Actions Footer */}
-              <div className="p-5 bg-slate-50 border-t border-slate-100 rounded-b-3xl flex justify-end gap-3 shrink-0">
+              <div className="p-5 bg-slate-50 dark:bg-[#0E1017] border-t border-slate-100 dark:border-slate-800 rounded-b-3xl flex justify-end gap-3 shrink-0">
                 <Button
                   onClick={() => setActiveReportType(null)}
                   variant="ghost"
-                  className="h-10 px-5 rounded-xl font-bold text-xs text-slate-500 cursor-pointer"
+                  className="h-10 px-5 rounded-xl font-bold text-xs text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
                 >
                   Fermer
                 </Button>
                 <Button
                   onClick={handleExportCSV}
                   variant="outline"
-                  className="h-10 px-4 rounded-xl border-slate-200 font-bold text-xs text-slate-700 gap-2 cursor-pointer bg-white"
+                  className="h-10 px-4 rounded-xl border-slate-200 dark:border-slate-800 font-bold text-xs text-slate-700 dark:text-slate-200 gap-2 cursor-pointer bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800"
                 >
-                  <Download size={14} className="text-slate-400" />
+                  <Download size={14} className="text-slate-400 dark:text-slate-500" />
                   <span>Exporter CSV</span>
                 </Button>
                 <Button
                   onClick={handlePrintReport}
-                  className="h-10 px-5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold gap-2 text-xs cursor-pointer shadow-md shadow-indigo-100"
+                  className="h-10 px-5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold gap-2 text-xs cursor-pointer shadow-md shadow-indigo-100 dark:shadow-none"
                 >
                   <Printer size={14} />
                   <span>Imprimer le rapport</span>
