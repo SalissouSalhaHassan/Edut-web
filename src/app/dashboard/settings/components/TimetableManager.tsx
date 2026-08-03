@@ -136,14 +136,14 @@ export default function TimetableManager({ classes, teachers, subjects, currentS
       <PrintOptionsDialog
         open={showPrintOptions}
         onOpenChange={setShowPrintOptions}
-        currentClassId={selectedClassId}
-        currentTeacherId={selectedTeacherId}
+        currentClassId={viewMode === "class" ? selectedId : null}
+        currentTeacherId={viewMode === "teacher" ? selectedId : null}
         currentMode={viewMode}
         selectedName={
           viewMode === "class"
-            ? classes.find((c) => c.id === selectedClassId)?.className
+            ? classes.find((c) => c.id === selectedId)?.className
             : viewMode === "teacher"
-            ? teachers.find((t) => t.id === selectedTeacherId)?.nom
+            ? teachers.find((t) => t.id === selectedId)?.nom
             : undefined
         }
       />
