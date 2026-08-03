@@ -444,7 +444,7 @@ export default function AcademicResultsPage() {
           </div>
           <div>
             <div className="flex items-center gap-3 mb-1">
-              <h1 className="text-3xl font-black text-slate-900 tracking-tight">
+              <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
                 Notes & Résultats
               </h1>
               {isLocal && (
@@ -463,7 +463,7 @@ export default function AcademicResultsPage() {
                 </span>
               )}
             </div>
-            <p className="text-slate-600 font-medium ml-1">
+            <p className="text-slate-600 dark:text-slate-400 font-medium ml-1">
               Gestion académique, saisie des notes et matrice des résultats.
             </p>
           </div>
@@ -471,29 +471,29 @@ export default function AcademicResultsPage() {
 
         <div className="flex items-center gap-4">
           <Link href="/dashboard/academics/devoirs">
-            <Button className="h-12 px-6 rounded-xl bg-white border-2 border-indigo-100 text-indigo-600 hover:bg-indigo-50 font-bold text-sm uppercase tracking-widest transition-all flex items-center gap-2 shadow-sm">
+            <Button className="h-12 px-6 rounded-xl bg-white dark:bg-slate-900 border-2 border-indigo-100 dark:border-slate-800 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-slate-800 font-bold text-sm uppercase tracking-widest transition-all flex items-center gap-2 shadow-sm">
               <ClipboardCheck size={18} />
               Saisie des Devoirs (DS)
             </Button>
           </Link>
 
-          <Tabs value={view} onValueChange={setView} className="bg-slate-100/80 p-1.5 rounded-[1.25rem] border border-slate-200">
+          <Tabs value={view} onValueChange={setView} className="bg-slate-100/80 dark:bg-slate-900/80 p-1.5 rounded-[1.25rem] border border-slate-200 dark:border-slate-800">
             <TabsList className="bg-transparent border-none">
               <TabsTrigger
                 value="entry"
-                className="rounded-xl px-5 h-10 data-[state=active]:bg-white data-[state=active]:text-indigo-600 data-[state=active]:shadow-sm font-bold flex items-center gap-2 text-sm"
+                className="rounded-xl px-5 h-10 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 data-[state=active]:text-indigo-600 dark:data-[state=active]:text-indigo-400 text-slate-600 dark:text-slate-400 data-[state=active]:shadow-sm font-bold flex items-center gap-2 text-sm"
               >
                 <LayoutGrid size={16} /> Saisie des Notes
               </TabsTrigger>
               <TabsTrigger
                 value="matrix"
-                className="rounded-xl px-5 h-10 data-[state=active]:bg-white data-[state=active]:text-indigo-600 data-[state=active]:shadow-sm font-bold flex items-center gap-2 text-sm"
+                className="rounded-xl px-5 h-10 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 data-[state=active]:text-indigo-600 dark:data-[state=active]:text-indigo-400 text-slate-600 dark:text-slate-400 data-[state=active]:shadow-sm font-bold flex items-center gap-2 text-sm"
               >
                 <BarChart3 size={16} /> Broadsheet
               </TabsTrigger>
               <TabsTrigger
                 value="reports"
-                className="rounded-xl px-5 h-10 data-[state=active]:bg-white data-[state=active]:text-indigo-600 data-[state=active]:shadow-sm font-bold flex items-center gap-2 text-sm"
+                className="rounded-xl px-5 h-10 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 data-[state=active]:text-indigo-600 dark:data-[state=active]:text-indigo-400 text-slate-600 dark:text-slate-400 data-[state=active]:shadow-sm font-bold flex items-center gap-2 text-sm"
               >
                 <FileText size={16} /> Rapports
               </TabsTrigger>
@@ -506,18 +506,18 @@ export default function AcademicResultsPage() {
 
       {/* Workflow Status Action Bar */}
       {activeFilters && (
-        <div className="bg-white border border-slate-200 p-5 rounded-[2rem] flex flex-col md:flex-row justify-between items-center gap-4 shadow-sm animate-in fade-in slide-in-from-top-4 duration-500 print:hidden">
+        <div className="bg-white dark:bg-[#131622]/90 border border-slate-200 dark:border-slate-800 p-5 rounded-[2rem] flex flex-col md:flex-row justify-between items-center gap-4 shadow-sm animate-in fade-in slide-in-from-top-4 duration-500 print:hidden">
           <div className="flex items-center gap-3">
             <span className="text-xs font-black uppercase tracking-wider text-slate-400">Circuit Approbation:</span>
             <span className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-widest border ${
-              workflowStatus === "BROUILLON" ? "bg-slate-100 text-slate-600 border-slate-200" :
-              workflowStatus === "SAISIE_TERMINEE" ? "bg-blue-50 text-blue-600 border-blue-100" :
-              workflowStatus === "CONTROLE_PEDAGOGIQUE" ? "bg-amber-50 text-amber-600 border-amber-100" :
-              workflowStatus === "CORRECTION_DEMANDEE" ? "bg-rose-50 text-rose-600 border-rose-100 animate-pulse" :
-              workflowStatus === "VALIDATION_CONSEIL" ? "bg-indigo-50 text-indigo-600 border-indigo-100" :
-              workflowStatus === "VERROUILLE" ? "bg-red-50 text-red-600 border-red-100 font-bold" :
-              workflowStatus === "PUBLIE" ? "bg-emerald-50 text-emerald-600 border-emerald-100 font-bold" :
-              "bg-violet-50 text-violet-600 border-violet-100"
+              workflowStatus === "BROUILLON" ? "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700" :
+              workflowStatus === "SAISIE_TERMINEE" ? "bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border-blue-100 dark:border-blue-900/50" :
+              workflowStatus === "CONTROLE_PEDAGOGIQUE" ? "bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border-amber-100 dark:border-amber-900/50" :
+              workflowStatus === "CORRECTION_DEMANDEE" ? "bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border-rose-100 dark:border-rose-900/50 animate-pulse" :
+              workflowStatus === "VALIDATION_CONSEIL" ? "bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border-indigo-100 dark:border-indigo-900/50" :
+              workflowStatus === "VERROUILLE" ? "bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 border-red-100 dark:border-red-900/50 font-bold" :
+              workflowStatus === "PUBLIE" ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900/50 font-bold" :
+              "bg-violet-50 dark:bg-violet-950/40 text-violet-600 dark:text-violet-400 border-violet-100 dark:border-violet-900/50"
             }`}>
               {workflowStatus.replace("_", " ")}
             </span>

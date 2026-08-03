@@ -417,12 +417,12 @@ export default function AcademicFilters({ onLoad, loading }: AcademicFiltersProp
   }, [periodOptions]);
 
   return (
-    <div className="bg-white rounded-[2rem] border border-slate-200 shadow-lg p-8 print:hidden">
+    <div className="bg-white dark:bg-[#131622]/90 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-lg p-8 print:hidden">
       <div className="flex items-center gap-3 mb-6">
-        <div className="p-2 bg-indigo-50 rounded-xl">
-          <Filter size={20} className="text-indigo-600" />
+        <div className="p-2 bg-indigo-50 dark:bg-indigo-950/50 rounded-xl">
+          <Filter size={20} className="text-indigo-600 dark:text-indigo-400" />
         </div>
-        <h3 className="text-lg font-black text-slate-900">Filtres Académiques</h3>
+        <h3 className="text-lg font-black text-slate-900 dark:text-white">Filtres Académiques</h3>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-5">
@@ -489,18 +489,18 @@ export default function AcademicFilters({ onLoad, loading }: AcademicFiltersProp
 function FilterGroup({ label, value, onChange, options }: any) {
   return (
     <div className="space-y-2">
-      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">{label}</label>
+      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 ml-1">{label}</label>
       <Select value={value} onValueChange={onChange}>
-        <SelectTrigger className="bg-slate-50 border-slate-200 rounded-xl h-11 font-medium focus:ring-indigo-500/20">
+        <SelectTrigger className="bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl h-11 font-medium focus:ring-indigo-500/20">
           <SelectValue placeholder={`Choisir...`} />
         </SelectTrigger>
-        <SelectContent className="bg-white border-slate-200 rounded-xl">
+        <SelectContent className="bg-white dark:bg-[#131622] border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl">
           {options.map((opt: { id: string, name: string }) => (
-            <SelectItem key={opt.id} value={opt.id} className="focus:bg-slate-50 focus:text-slate-900">
+            <SelectItem key={opt.id} value={opt.id} className="focus:bg-slate-50 dark:focus:bg-slate-800 focus:text-slate-900 dark:focus:text-white text-slate-900 dark:text-slate-100">
               {opt.name}
             </SelectItem>
           ))}
-          {options.length === 0 && <div className="p-4 text-xs text-slate-500 text-center">Aucune option</div>}
+          {options.length === 0 && <div className="p-4 text-xs text-slate-500 dark:text-slate-400 text-center">Aucune option</div>}
         </SelectContent>
       </Select>
     </div>

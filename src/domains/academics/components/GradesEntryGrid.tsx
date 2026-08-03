@@ -180,7 +180,7 @@ export default function GradesEntryGrid({
       </div>
 
       {/* Action Bar */}
-      <div className="flex flex-col xl:flex-row justify-between items-center gap-4 bg-white/50 backdrop-blur-sm p-4 rounded-[2rem] border border-slate-200/60 shadow-sm">
+      <div className="flex flex-col xl:flex-row justify-between items-center gap-4 bg-white/50 dark:bg-[#131622]/90 backdrop-blur-sm p-4 rounded-[2rem] border border-slate-200/60 dark:border-slate-800 shadow-sm">
         <div className="relative w-full xl:w-96 group">
           <div className="absolute inset-y-0 left-4 flex items-center text-slate-400 group-focus-within:text-indigo-500 transition-colors">
             <Search size={18} />
@@ -190,14 +190,14 @@ export default function GradesEntryGrid({
             value={search}
             disabled={isBusy}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-12 h-12 bg-white rounded-2xl border-slate-200 shadow-inner focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-medium disabled:opacity-60"
+            className="pl-12 h-12 bg-white dark:bg-slate-900 rounded-2xl border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 shadow-inner focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-medium disabled:opacity-60"
           />
         </div>
 
         <div className="flex flex-wrap items-center justify-center gap-3">
           <Button 
             variant="outline"
-            className="h-11 px-5 rounded-xl border-slate-200 text-slate-600 font-bold flex items-center gap-2 hover:bg-slate-50 transition-all disabled:opacity-30"
+            className="h-11 px-5 rounded-xl border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 font-bold flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all disabled:opacity-30"
             disabled={!selectedId || isBusy}
           >
             <History size={18} /> <span className="hidden sm:inline">Historique</span>
@@ -205,7 +205,7 @@ export default function GradesEntryGrid({
 
           <Button 
             variant="outline"
-            className="h-11 px-5 rounded-xl border-indigo-100 bg-indigo-50/50 text-indigo-600 font-bold flex items-center gap-2 hover:bg-indigo-100 transition-all disabled:opacity-30"
+            className="h-11 px-5 rounded-xl border-indigo-100 dark:border-indigo-900/50 bg-indigo-50/50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 font-bold flex items-center gap-2 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-all disabled:opacity-30"
             disabled={!selectedId || isBusy}
             onClick={() => onPrintBulletin?.(selectedId!)}
           >
@@ -214,7 +214,7 @@ export default function GradesEntryGrid({
 
           <Button 
             onClick={handleDeleteResult}
-            className="h-11 px-5 rounded-xl bg-rose-50 text-rose-600 border border-rose-100 font-bold flex items-center gap-2 hover:bg-rose-100 transition-all disabled:opacity-30 shadow-sm shadow-rose-100"
+            className="h-11 px-5 rounded-xl bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 border border-rose-100 dark:border-rose-900/50 font-bold flex items-center gap-2 hover:bg-rose-100 dark:hover:bg-rose-900/50 transition-all disabled:opacity-30 shadow-sm"
             disabled={!selectedId}
           >
             <Trash2 size={18} /> <span className="hidden sm:inline">Supprimer</span>
@@ -225,7 +225,7 @@ export default function GradesEntryGrid({
             initialData={selectedStudent} 
             trigger={
               <Button 
-                className="h-11 px-5 rounded-xl bg-amber-50 text-amber-600 border border-amber-100 font-bold flex items-center gap-2 hover:bg-amber-100 transition-all disabled:opacity-30 shadow-sm shadow-amber-100"
+                className="h-11 px-5 rounded-xl bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-900/50 font-bold flex items-center gap-2 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-all disabled:opacity-30 shadow-sm"
                 disabled={!selectedId}
               >
                 <Edit3 size={18} /> <span className="hidden sm:inline">Modifier</span>
@@ -236,7 +236,7 @@ export default function GradesEntryGrid({
           <StudentDialog 
             mode="add" 
             trigger={
-              <Button className="h-11 px-6 rounded-xl bg-indigo-600 text-white font-bold flex items-center gap-2 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 active:scale-95">
+              <Button className="h-11 px-6 rounded-xl bg-indigo-600 text-white font-bold flex items-center gap-2 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 dark:shadow-none active:scale-95">
                 <Plus size={18} /> <span>Ajouter</span>
               </Button>
             }
@@ -245,7 +245,7 @@ export default function GradesEntryGrid({
       </div>
 
       {/* Main Grid Container */}
-      <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-2xl overflow-hidden relative group/grid">
+      <div className="bg-white dark:bg-[#131622]/90 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden relative group/grid">
         <div className="overflow-x-auto custom-scrollbar">
           <table className="w-full text-left border-collapse min-w-[1400px]">
             <thead>
@@ -426,23 +426,23 @@ export default function GradesEntryGrid({
   );
 }
 
-function StatsCard({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: string; color: string }) {
+function StatsCard({ icon, label, value, color }: any) {
   const bgColors: any = {
-    indigo: "from-indigo-500/10 to-transparent border-indigo-100",
-    amber: "from-amber-500/10 to-transparent border-amber-100",
-    emerald: "from-emerald-500/10 to-transparent border-emerald-100",
-    rose: "from-rose-500/10 to-transparent border-rose-100"
+    indigo: "from-indigo-500/10 to-transparent border-indigo-100 dark:border-indigo-900/30",
+    amber: "from-amber-500/10 to-transparent border-amber-100 dark:border-amber-900/30",
+    emerald: "from-emerald-500/10 to-transparent border-emerald-100 dark:border-emerald-900/30",
+    rose: "from-rose-500/10 to-transparent border-rose-100 dark:border-rose-900/30"
   };
 
   return (
-    <div className={`bg-white rounded-[2rem] p-6 border-2 border-slate-100 shadow-sm hover:shadow-xl transition-all duration-500 group relative overflow-hidden bg-gradient-to-br ${bgColors[color]}`}>
+    <div className={`bg-white dark:bg-[#131622]/90 rounded-[2rem] p-6 border-2 border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-xl transition-all duration-500 group relative overflow-hidden bg-gradient-to-br ${bgColors[color]}`}>
       <div className="relative z-10 flex flex-col gap-4">
-        <div className="p-3 bg-white rounded-2xl w-fit shadow-sm border border-slate-100 group-hover:scale-110 group-hover:rotate-6 transition-all duration-500">
+        <div className="p-3 bg-white dark:bg-slate-900 rounded-2xl w-fit shadow-sm border border-slate-100 dark:border-slate-800 group-hover:scale-110 group-hover:rotate-6 transition-all duration-500">
           {icon}
         </div>
         <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-1">{label}</p>
-          <p className="text-3xl font-black text-slate-900 tracking-tighter italic">{value}</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-400 mb-1">{label}</p>
+          <p className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter italic">{value}</p>
         </div>
       </div>
     </div>
@@ -464,7 +464,7 @@ function GradeInput({ value, onChange, placeholder, disabled }: { value: string;
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder || "0.00"}
       disabled={disabled}
-      className="w-20 h-10 text-center rounded-xl bg-slate-50 border-slate-100 font-black text-slate-800 focus:bg-white focus:ring-indigo-500/10 focus:border-indigo-300 transition-all text-sm"
+      className="w-20 h-10 text-center rounded-xl bg-slate-50 dark:bg-slate-900 border-slate-100 dark:border-slate-800 font-black text-slate-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-800 focus:ring-indigo-500/10 focus:border-indigo-300 transition-all text-sm"
     />
   );
 }
