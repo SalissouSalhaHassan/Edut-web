@@ -39,7 +39,7 @@ const arabicMap: Record<number, { isolated: number; initial: number; medial: num
 
 // Returns true if the string has any Arabic characters
 export function hasArabicCharacters(text: string): boolean {
-  return /[\u0600-\u06FF]/.test(text);
+  return /[\u0600-\u06FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(text);
 }
 
 // Simple Arabic reshaper and RTL string reverser
@@ -61,7 +61,7 @@ export function reshapeArabicText(text: string): string {
     chars.push(code);
   }
 
-  // 2. Determine shapes
+  // 2. Determine shapes for Arabic characters
   const shapedChars: number[] = [];
   const len = chars.length;
 
@@ -95,19 +95,52 @@ export function reshapeArabicText(text: string): string {
     }
   }
 
-  // 3. Convert back to string and reverse Arabic segments to render RTL in LTR PDF engines
-  const resultText = String.fromCharCode(...shapedChars);
-  
-  // Regex to split into Arabic and non-Arabic segments
-  const segments = resultText.split(/([^\u0600-\u06FF\uFB50-\uFDFF\uFE70-\uFEFF]+)/g);
-  
-  return segments
-    .map(seg => {
-      if (/[\u0600-\u06FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(seg)) {
-        // Reverse Arabic segments
-        return seg.split("").reverse().join("");
+  const shapedText = String.fromCharCode(...shapedChars);
+
+  // 3. Reverse Arabic text segments (including spaces & numbers between Arabic words) for LTR PDF rendering
+  const isArabicChar = (c: string) => /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(c);
+
+  const tokens: string[] = [];
+  let currentToken = "";
+  let currentIsArabic = false;
+
+  for (let i = 0; i < shapedText.length; i++) {
+    const char = shapedText[i];
+    const charIsAr = isArabicChar(char);
+    
+    // Include spaces, numbers, colons, slashes, and common punctuation inside Arabic phrases
+    if (!charIsAr && (char === ' ' || char === ':' || char === '-' || char === '(' || char === ')' || char === '/' || char === '+' || /^\d$/.test(char))) {
+      let hasArabicAhead = false;
+      for (let j = i + 1; j < shapedText.length; j++) {
+        if (isArabicChar(shapedText[j])) {
+          hasArabicAhead = true;
+          break;
+        }
+        if (shapedText[j] === '\n' || shapedText[j] === '\r') break;
       }
-      return seg;
+
+      if (currentIsArabic && hasArabicAhead) {
+        currentToken += char;
+        continue;
+      }
+    }
+
+    if (charIsAr === currentIsArabic) {
+      currentToken += char;
+    } else {
+      if (currentToken) tokens.push(currentToken);
+      currentToken = char;
+      currentIsArabic = charIsAr;
+    }
+  }
+  if (currentToken) tokens.push(currentToken);
+
+  return tokens
+    .map((token) => {
+      if (hasArabicCharacters(token) || /[\uFB50-\uFDFF\uFE70-\uFEFF]/.test(token)) {
+        return token.split("").reverse().join("");
+      }
+      return token;
     })
     .join("");
 }
