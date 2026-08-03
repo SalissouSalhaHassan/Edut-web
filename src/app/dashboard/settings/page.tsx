@@ -20,49 +20,82 @@ import DocumentHeaderManager from "@/domains/settings/components/DocumentHeaderM
 
 import { SettingsTabsContainer } from "./components/SettingsTabsContainer";
 
+function safeArray(res: any): any[] {
+  if (!res) return [];
+  if (Array.isArray(res)) return res;
+  if (Array.isArray(res?.data)) return res.data;
+  if (Array.isArray(res?.data?.data)) return res.data.data;
+  return [];
+}
+
 export default async function SettingsPage({
   searchParams,
 }: {
   searchParams: Promise<{ tab?: string }>;
 }) {
-  const { tab: activeTab = 'general' } = await searchParams;
-  const settingsRes = await getSettings() as any;
-  const allSettings = settingsRes.data?.data || settingsRes.data || [];
-  const branchesRes = await getBranches() as any;
-  const branches = branchesRes.data?.data || branchesRes.data || [];
-  const sessionsRes = await getSessions() as any;
-  const sessions = sessionsRes.data?.data || sessionsRes.data || [];
-  const classesRes = await getClasses(true) as any;
-  const classes = classesRes.data?.data || classesRes.data || [];
-  const sectionsRes = await getSections(true) as any;
-  const sections = sectionsRes.data?.data || sectionsRes.data || [];
-  const subjectsRes = await getSubjects() as any;
-  const subjects = subjectsRes.data?.data || subjectsRes.data || [];
-  const sectionSubjectsRes = await getSectionSubjects() as any;
-  const sectionSubjects = sectionSubjectsRes.data?.data || sectionSubjectsRes.data || [];
-  const classSubjectsRes = await getClassSubjects() as any;
-  const classSubjects = classSubjectsRes.data?.data || classSubjectsRes.data || [];
-  const gradingAppreciationsRes = await getGradingAppreciations() as any;
-  const gradingAppreciations = gradingAppreciationsRes.data?.data || gradingAppreciationsRes.data || [];
-  const schoolRemarksRes = await getSchoolRemarks() as any;
-  const schoolRemarks = schoolRemarksRes.data?.data || schoolRemarksRes.data || [];
-  const periodsRes = await getPeriods() as any;
-  const periods = periodsRes.data?.data || periodsRes.data || [];
-  const levelsRes = await getEducationalLevels(true) as any;
-  const educationalLevels = levelsRes.data?.data || levelsRes.data || [];
-  const canevasReferencesRes = await getCanevasReferenceLists() as any;
-  const canevasReferences = canevasReferencesRes.data?.data || canevasReferencesRes.data || { type: [], cycle: [], commune: [] };
-  const employeesRes = await getEmployees() as any;
-  const employees = employeesRes.data?.data || employeesRes.data || [];
-  const currentUser = await getCurrentUser();
-  const currentSchool = await getCurrentSchool();
-  const headerConfigRes = await getDocumentHeaderConfig() as any;
-  const documentHeaderConfig = headerConfigRes.data?.data || headerConfigRes.data || null;
+  let activeTab = 'general';
+  try {
+    const resolvedParams = searchParams ? await searchParams : {};
+    activeTab = resolvedParams?.tab || 'general';
+  } catch {
+    activeTab = 'general';
+  }
 
-  const canEditAcademics = currentUser?.admin || currentUser?.role?.permissions?.some((p: any) => p.moduleName?.toLowerCase() === "academics" && p.canEdit);
+  const settingsRes = await getSettings().catch(() => null) as any;
+  const allSettings = safeArray(settingsRes);
 
-  const getVal = (key: string) => allSettings.find((s: any) => s.key === key)?.value || "";
-  const currentSession = sessions.find((s: any) => s.isActive) || sessions[0];
+  const branchesRes = await getBranches().catch(() => null) as any;
+  const branches = safeArray(branchesRes);
+
+  const sessionsRes = await getSessions().catch(() => null) as any;
+  const sessions = safeArray(sessionsRes);
+
+  const classesRes = await getClasses(true).catch(() => null) as any;
+  const classes = safeArray(classesRes);
+
+  const sectionsRes = await getSections(true).catch(() => null) as any;
+  const sections = safeArray(sectionsRes);
+
+  const subjectsRes = await getSubjects().catch(() => null) as any;
+  const subjects = safeArray(subjectsRes);
+
+  const sectionSubjectsRes = await getSectionSubjects().catch(() => null) as any;
+  const sectionSubjects = safeArray(sectionSubjectsRes);
+
+  const classSubjectsRes = await getClassSubjects().catch(() => null) as any;
+  const classSubjects = safeArray(classSubjectsRes);
+
+  const gradingAppreciationsRes = await getGradingAppreciations().catch(() => null) as any;
+  const gradingAppreciations = safeArray(gradingAppreciationsRes);
+
+  const schoolRemarksRes = await getSchoolRemarks().catch(() => null) as any;
+  const schoolRemarks = safeArray(schoolRemarksRes);
+
+  const periodsRes = await getPeriods().catch(() => null) as any;
+  const periods = safeArray(periodsRes);
+
+  const levelsRes = await getEducationalLevels(true).catch(() => null) as any;
+  const educationalLevels = safeArray(levelsRes);
+
+  const canevasReferencesRes = await getCanevasReferenceLists().catch(() => null) as any;
+  const canevasReferences = (canevasReferencesRes?.data?.data || canevasReferencesRes?.data || canevasReferencesRes) ?? { type: [], cycle: [], commune: [] };
+
+  const employeesRes = await getEmployees().catch(() => null) as any;
+  const employees = safeArray(employeesRes);
+
+  const currentUser = await getCurrentUser().catch(() => null);
+  const currentSchool = await getCurrentSchool().catch(() => null);
+  const headerConfigRes = await getDocumentHeaderConfig().catch(() => null) as any;
+  const documentHeaderConfig = headerConfigRes?.data?.data || headerConfigRes?.data || null;
+
+  const permissionsList = safeArray(currentUser?.role?.permissions);
+  const canEditAcademics = Boolean(
+    currentUser?.admin || 
+    permissionsList.some((p: any) => p.moduleName?.toLowerCase() === "academics" && p.canEdit)
+  );
+
+  const getVal = (key: string) => allSettings.find((s: any) => s?.key === key)?.value || "";
+  const currentSession = sessions.find((s: any) => s?.isActive) || sessions[0] || null;
 
   return (
     <div className="p-10 space-y-10 animate-in fade-in duration-700">

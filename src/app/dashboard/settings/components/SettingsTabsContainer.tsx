@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { School, CreditCard, BookOpen, LayoutGrid, Shield, Bell, Database, FileText } from "lucide-react";
@@ -17,22 +17,12 @@ interface SettingsTabsContainerProps {
   headersContent: React.ReactNode;
 }
 
-export function SettingsTabsContainer({
-  initialTab,
-  generalContent,
-  financeContent,
-  academicContent,
-  curriculumContent,
-  securityContent,
-  notificationsContent,
-  systemContent,
-  headersContent,
-}: SettingsTabsContainerProps) {
+function SettingsTabsInner(props: SettingsTabsContainerProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
 
-  const currentTabFromUrl = searchParams.get("tab") || initialTab || "general";
+  const currentTabFromUrl = searchParams.get("tab") || props.initialTab || "general";
   const [activeTab, setActiveTab] = useState(currentTabFromUrl);
 
   useEffect(() => {
@@ -76,37 +66,45 @@ export function SettingsTabsContainer({
 
       <div className="lg:col-span-9">
         <TabsContent value="general" className="m-0 space-y-8 animate-in slide-in-from-right-4 duration-500">
-          {generalContent}
+          {props.generalContent}
         </TabsContent>
 
         <TabsContent value="finance" className="m-0 animate-in slide-in-from-right-4 duration-500">
-          {financeContent}
+          {props.financeContent}
         </TabsContent>
 
         <TabsContent value="academic" className="m-0 animate-in slide-in-from-right-4 duration-500">
-          {academicContent}
+          {props.academicContent}
         </TabsContent>
 
         <TabsContent value="curriculum" className="m-0 animate-in slide-in-from-right-4 duration-500">
-          {curriculumContent}
+          {props.curriculumContent}
         </TabsContent>
 
         <TabsContent value="security" className="m-0 animate-in slide-in-from-right-4 duration-500">
-          {securityContent}
+          {props.securityContent}
         </TabsContent>
 
         <TabsContent value="notifications" className="m-0 animate-in slide-in-from-right-4 duration-500">
-          {notificationsContent}
+          {props.notificationsContent}
         </TabsContent>
 
         <TabsContent value="system" className="m-0 animate-in slide-in-from-right-4 duration-500">
-          {systemContent}
+          {props.systemContent}
         </TabsContent>
 
         <TabsContent value="headers" className="m-0 animate-in slide-in-from-right-4 duration-500">
-          {headersContent}
+          {props.headersContent}
         </TabsContent>
       </div>
     </Tabs>
+  );
+}
+
+export function SettingsTabsContainer(props: SettingsTabsContainerProps) {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-slate-400 font-bold">Chargement des paramètres...</div>}>
+      <SettingsTabsInner {...props} />
+    </Suspense>
   );
 }
