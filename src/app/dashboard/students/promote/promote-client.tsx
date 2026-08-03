@@ -191,20 +191,20 @@ export default function PromoteClient({
   };
 
   return (
-    <div className="p-8 space-y-8 bg-[#fdfdff] min-h-screen font-sans">
+    <div className="p-8 space-y-8 bg-[#fdfdff] dark:bg-[#0A0C10] min-h-screen font-sans">
       
       {/* Header */}
       <div className="flex justify-between items-start">
         <div className="flex gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 shadow-sm">
+          <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-500/10 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shadow-sm dark:shadow-none">
             <ArrowUpRight size={24} />
           </div>
           <div>
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight">Promotion des Élèves</h1>
-            <p className="text-slate-500 font-medium text-sm mt-1">Transférez les élèves vers la classe supérieure pour la nouvelle année</p>
+            <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Promotion des Élèves</h1>
+            <p className="text-slate-500 dark:text-slate-400 font-medium text-sm mt-1">Transférez les élèves vers la classe supérieure pour la nouvelle année</p>
           </div>
         </div>
-        <Button variant="ghost" className="text-indigo-600 font-bold flex items-center gap-2 hover:bg-indigo-50 transition-colors">
+        <Button variant="ghost" className="text-indigo-600 dark:text-indigo-400 font-bold flex items-center gap-2 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-colors">
           <Clock size={18} />
           Historique des promotions
         </Button>
@@ -213,12 +213,12 @@ export default function PromoteClient({
       {/* Selection Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Source Class */}
-        <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-6 relative overflow-hidden">
+        <div className="bg-white dark:bg-[#131622] p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-sm space-y-6 relative overflow-hidden">
           <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-500 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-rose-50 dark:bg-rose-500/10 text-rose-500 dark:text-rose-400 flex items-center justify-center">
               <ArrowRight size={20} className="rotate-180" />
             </div>
-            <h3 className="font-bold text-slate-900 text-lg">Classe Actuelle (Source)</h3>
+            <h3 className="font-bold text-slate-900 dark:text-white text-lg">Classe Actuelle (Source)</h3>
           </div>
           <p className="text-xs text-slate-400 font-medium -mt-4">Sélectionnez la classe actuelle des élèves</p>
           
@@ -229,7 +229,7 @@ export default function PromoteClient({
                 <select 
                   value={sourceClass}
                   onChange={(e) => setSourceClass(e.target.value)}
-                  className="w-full h-12 bg-slate-50 border border-slate-100 rounded-xl px-4 font-bold text-slate-700 appearance-none outline-none focus:ring-2 focus:ring-indigo-500/20"
+                  className="w-full h-12 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl px-4 font-bold text-slate-700 dark:text-white appearance-none outline-none focus:ring-2 focus:ring-indigo-500/20"
                 >
                   <option value="">Sélectionner</option>
                   {classes.map(c => {
@@ -237,7 +237,7 @@ export default function PromoteClient({
                     return className ? <option key={c.id} value={className}>{className}</option> : null;
                   })}
                 </select>
-                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" size={16} />
               </div>
             </div>
             <div className="space-y-2">
@@ -246,29 +246,29 @@ export default function PromoteClient({
                 <select 
                   value={sourceSession}
                   onChange={(e) => setSourceSession(e.target.value)}
-                  className="w-full h-12 bg-slate-50 border border-slate-100 rounded-xl px-4 font-bold text-slate-700 appearance-none outline-none focus:ring-2 focus:ring-indigo-500/20"
+                  className="w-full h-12 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl px-4 font-bold text-slate-700 dark:text-white appearance-none outline-none focus:ring-2 focus:ring-indigo-500/20"
                 >
                   <option value="">Sélectionner</option>
                   {sessions.map(s => <option key={s.id} value={s.sessionName}>{s.sessionName}</option>)}
                 </select>
-                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" size={16} />
               </div>
             </div>
           </div>
           
-          <div className="flex items-center gap-3 p-4 bg-indigo-50/50 rounded-2xl text-indigo-600">
+          <div className="flex items-center gap-3 p-4 bg-indigo-50/50 dark:bg-indigo-500/10 rounded-2xl text-indigo-600 dark:text-indigo-400">
             <Info size={18} />
             <span className="text-xs font-bold">Effectif total : {stats.total} élèves</span>
           </div>
         </div>
 
         {/* Target Class */}
-        <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-6 relative overflow-hidden">
+        <div className="bg-white dark:bg-[#131622] p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-sm space-y-6 relative overflow-hidden">
           <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-500 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 flex items-center justify-center">
               <ArrowRight size={20} />
             </div>
-            <h3 className="font-bold text-slate-900 text-lg">Classe Suivante (Destination)</h3>
+            <h3 className="font-bold text-slate-900 dark:text-white text-lg">Classe Suivante (Destination)</h3>
           </div>
           <p className="text-xs text-slate-400 font-medium -mt-4">Sélectionnez la classe de destination</p>
           
@@ -279,7 +279,7 @@ export default function PromoteClient({
                 <select 
                   value={targetClass}
                   onChange={(e) => setTargetClass(e.target.value)}
-                  className="w-full h-12 bg-slate-50 border border-slate-100 rounded-xl px-4 font-bold text-slate-700 appearance-none outline-none focus:ring-2 focus:ring-indigo-500/20"
+                  className="w-full h-12 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl px-4 font-bold text-slate-700 dark:text-white appearance-none outline-none focus:ring-2 focus:ring-indigo-500/20"
                 >
                   <option value="">Sélectionner</option>
                   {classes.map(c => {
@@ -287,7 +287,7 @@ export default function PromoteClient({
                     return className ? <option key={c.id} value={className}>{className}</option> : null;
                   })}
                 </select>
-                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" size={16} />
               </div>
             </div>
             <div className="space-y-2">
@@ -296,17 +296,17 @@ export default function PromoteClient({
                 <select 
                   value={targetSession}
                   onChange={(e) => setTargetSession(e.target.value)}
-                  className="w-full h-12 bg-slate-50 border border-slate-100 rounded-xl px-4 font-bold text-slate-700 appearance-none outline-none focus:ring-2 focus:ring-indigo-500/20"
+                  className="w-full h-12 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl px-4 font-bold text-slate-700 dark:text-white appearance-none outline-none focus:ring-2 focus:ring-indigo-500/20"
                 >
                   <option value="">Sélectionner</option>
                   {sessions.map(s => <option key={s.id} value={s.sessionName}>{s.sessionName}</option>)}
                 </select>
-                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" size={16} />
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 p-4 bg-emerald-50/50 rounded-2xl text-emerald-600">
+          <div className="flex items-center gap-3 p-4 bg-emerald-50/50 dark:bg-emerald-500/10 rounded-2xl text-emerald-600 dark:text-emerald-400">
             <CheckCircle2 size={18} />
             <span className="text-xs font-bold">Les élèves retenus seront transférés vers la classe sélectionnée.</span>
           </div>
@@ -314,45 +314,45 @@ export default function PromoteClient({
       </div>
 
       {/* Stats Bar */}
-      <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm flex items-center justify-between">
-        <div className="flex items-center gap-10 divide-x divide-slate-100 overflow-x-auto pb-2 md:pb-0">
+      <div className="bg-white dark:bg-[#131622] p-6 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-sm flex items-center justify-between">
+        <div className="flex items-center gap-10 divide-x divide-slate-100 dark:divide-slate-800 overflow-x-auto pb-2 md:pb-0">
           <div className="flex items-center gap-4 shrink-0">
-            <div className="w-10 h-10 rounded-full bg-indigo-50 text-indigo-500 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-full bg-indigo-50 dark:bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 flex items-center justify-center">
               <Users size={18} />
             </div>
             <div>
               <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Élèves dans la classe</p>
-              <p className="text-xl font-black text-slate-900">{stats.total}</p>
+              <p className="text-xl font-black text-slate-900 dark:text-white">{stats.total}</p>
             </div>
           </div>
 
           <div className="flex items-center gap-4 pl-10 shrink-0">
-            <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 flex items-center justify-center">
               <CheckCircle2 size={18} />
             </div>
             <div>
               <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Éligibles à la promotion</p>
-              <p className="text-xl font-black text-slate-900">{stats.eligibles} <span className="text-sm font-bold text-slate-400">({stats.total > 0 ? ((stats.eligibles / stats.total) * 100).toFixed(1) : 0}%)</span></p>
+              <p className="text-xl font-black text-slate-900 dark:text-white">{stats.eligibles} <span className="text-sm font-bold text-slate-400 dark:text-slate-500">({stats.total > 0 ? ((stats.eligibles / stats.total) * 100).toFixed(1) : 0}%)</span></p>
             </div>
           </div>
 
           <div className="flex items-center gap-4 pl-10 shrink-0">
-            <div className="w-10 h-10 rounded-full bg-amber-50 text-amber-500 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-full bg-amber-50 dark:bg-amber-500/10 text-amber-500 dark:text-amber-400 flex items-center justify-center">
               <AlertTriangle size={18} />
             </div>
             <div>
               <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">En risque</p>
-              <p className="text-xl font-black text-slate-900">{stats.atRisk} <span className="text-sm font-bold text-slate-400">({stats.total > 0 ? ((stats.atRisk / stats.total) * 100).toFixed(1) : 0}%)</span></p>
+              <p className="text-xl font-black text-slate-900 dark:text-white">{stats.atRisk} <span className="text-sm font-bold text-slate-400 dark:text-slate-500">({stats.total > 0 ? ((stats.atRisk / stats.total) * 100).toFixed(1) : 0}%)</span></p>
             </div>
           </div>
 
           <div className="flex items-center gap-4 pl-10 shrink-0">
-            <div className="w-10 h-10 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-full bg-rose-50 dark:bg-rose-500/10 text-rose-500 dark:text-rose-400 flex items-center justify-center">
               <XCircle size={18} />
             </div>
             <div>
               <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Non éligibles</p>
-              <p className="text-xl font-black text-slate-900">{stats.nonEligibles} <span className="text-sm font-bold text-slate-400">({stats.total > 0 ? ((stats.nonEligibles / stats.total) * 100).toFixed(1) : 0}%)</span></p>
+              <p className="text-xl font-black text-slate-900 dark:text-white">{stats.nonEligibles} <span className="text-sm font-bold text-slate-400 dark:text-slate-500">({stats.total > 0 ? ((stats.nonEligibles / stats.total) * 100).toFixed(1) : 0}%)</span></p>
             </div>
           </div>
         </div>
@@ -380,9 +380,9 @@ export default function PromoteClient({
               <div key={idx} className="flex items-center justify-between gap-6">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
-                  <span className="text-[10px] font-bold text-slate-500">{entry.name}</span>
+                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">{entry.name}</span>
                 </div>
-                <span className="text-[10px] font-black text-slate-900">{entry.value.toFixed(1)}%</span>
+                <span className="text-[10px] font-black text-slate-900 dark:text-white">{entry.value.toFixed(1)}%</span>
               </div>
             ))}
           </div>
@@ -390,30 +390,30 @@ export default function PromoteClient({
       </div>
 
       {/* Main Content Card */}
-      <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
+      <div className="bg-white dark:bg-[#131622] rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
         {/* Table Header/Toolbar */}
         <div className="p-8 space-y-6">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
-              <h3 className="text-xl font-black text-slate-900 tracking-tight">Liste des élèves à promouvoir</h3>
-              <p className="text-slate-500 font-medium text-xs mt-1">Sélectionnez les élèves et lancez le processus de promotion.</p>
+              <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">Liste des élèves à promouvoir</h3>
+              <p className="text-slate-500 dark:text-slate-400 font-medium text-xs mt-1">Sélectionnez les élèves et lancez le processus de promotion.</p>
             </div>
             <div className="flex items-center gap-3 w-full md:w-auto">
               <div className="relative flex-1 md:w-64">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={16} />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 dark:text-slate-500" size={16} />
                 <input 
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Rechercher un élève..." 
-                  className="w-full pl-10 pr-4 h-11 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500/20"
+                  className="w-full pl-10 pr-4 h-11 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-indigo-500/20"
                 />
               </div>
-              <Button variant="outline" className="h-11 px-5 rounded-xl border-slate-100 text-slate-600 font-bold flex items-center gap-2">
+              <Button variant="outline" className="h-11 px-5 rounded-xl border-slate-100 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 font-bold flex items-center gap-2">
                 <Filter size={16} /> Filtres
               </Button>
               <Button 
                 onClick={handleOpenPreview}
-                className="h-11 px-5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold flex items-center gap-2 shadow-lg shadow-indigo-100 transition-all"
+                className="h-11 px-5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold flex items-center gap-2 shadow-lg shadow-indigo-100 dark:shadow-none transition-all"
               >
                 <Eye size={16} /> Aperçu de la promotion
               </Button>
@@ -425,23 +425,23 @@ export default function PromoteClient({
         <div className="flex-grow overflow-x-auto">
           <table className="w-full border-collapse">
             <thead>
-              <tr className="bg-slate-50/50 border-y border-slate-100">
+              <tr className="bg-slate-50/50 dark:bg-slate-900/60 border-y border-slate-100 dark:border-slate-800">
                 <th className="px-8 py-4 text-left">
                   <Checkbox 
                     checked={selectedIds.length > 0 && selectedIds.length === filteredStudents.length}
                     onCheckedChange={toggleAll}
-                    className="rounded-md border-slate-200" 
+                    className="rounded-md border-slate-200 dark:border-slate-700" 
                   />
                 </th>
-                <th className="px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left">Élève</th>
-                <th className="px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left">Moy. Générale</th>
-                <th className="px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left">Décision</th>
-                <th className="px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left">Commentaire</th>
-                <th className="px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left">Statut</th>
+                <th className="px-4 py-4 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest text-left">Élève</th>
+                <th className="px-4 py-4 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest text-left">Moy. Générale</th>
+                <th className="px-4 py-4 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest text-left">Décision</th>
+                <th className="px-4 py-4 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest text-left">Commentaire</th>
+                <th className="px-4 py-4 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest text-left">Statut</th>
                 <th className="px-8 py-4 text-right"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-50">
+            <tbody className="divide-y divide-slate-50 dark:divide-slate-800/60">
               {filteredStudents.length > 0 ? (
                 filteredStudents.map((student) => {
                   const moyenne = student.moyenne || 12;
@@ -449,38 +449,38 @@ export default function PromoteClient({
                   const decision = moyenne >= 10 ? "Promu" : "En risque";
 
                   return (
-                    <tr key={student.id} className="group hover:bg-slate-50/50 transition-colors">
+                    <tr key={student.id} className="group hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
                       <td className="px-8 py-4">
                         <Checkbox 
                           checked={selectedIds.includes(student.id)} 
                           onCheckedChange={() => toggleSelect(student.id)}
-                          className="rounded-md border-slate-200" 
+                          className="rounded-md border-slate-200 dark:border-slate-700" 
                         />
                       </td>
                       <td className="px-4 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center overflow-hidden border border-slate-100">
-                            <Users size={20} className="text-indigo-300" />
+                          <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 flex items-center justify-center overflow-hidden border border-slate-100 dark:border-slate-800">
+                            <Users size={20} className="text-indigo-300 dark:text-indigo-400" />
                           </div>
                           <div>
                             <div className="flex items-center gap-2">
-                              <p className="text-sm font-bold text-slate-900 leading-none">{student.nomEtudiant}</p>
+                              <p className="text-sm font-bold text-slate-900 dark:text-white leading-none">{student.nomEtudiant}</p>
                               {student.session && (
-                                <span className="px-1.5 py-0.5 bg-indigo-50 text-indigo-600 rounded text-[9px] font-bold">
+                                <span className="px-1.5 py-0.5 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded text-[9px] font-bold">
                                   {student.session}
                                 </span>
                               )}
                             </div>
-                            <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-tight">{student.numAdmission}</p>
+                            <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 mt-1 uppercase tracking-tight">{student.numAdmission}</p>
                           </div>
                         </div>
                       </td>
                       <td className="px-4 py-4">
                         <p className={cn(
                           "text-sm font-black",
-                          moyenne >= 10 ? "text-indigo-600" : "text-rose-500"
+                          moyenne >= 10 ? "text-indigo-600 dark:text-indigo-400" : "text-rose-500 dark:text-rose-400"
                         )}>
-                          {moyenne.toFixed(2)} <span className="text-[10px] text-slate-400">/ 20</span>
+                          {moyenne.toFixed(2)} <span className="text-[10px] text-slate-400 dark:text-slate-500">/ 20</span>
                         </p>
                       </td>
                       <td className="px-4 py-4">
@@ -488,21 +488,21 @@ export default function PromoteClient({
                           <select 
                             defaultValue={decision}
                             className={cn(
-                              "w-full h-9 px-3 rounded-lg border border-slate-100 text-[11px] font-bold outline-none appearance-none cursor-pointer",
-                              decision === "Promu" ? "text-emerald-600" : decision === "En risque" ? "text-amber-600" : "text-rose-500"
+                              "w-full h-9 px-3 rounded-lg border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 text-[11px] font-bold outline-none appearance-none cursor-pointer",
+                              decision === "Promu" ? "text-emerald-600 dark:text-emerald-400" : decision === "En risque" ? "text-amber-600 dark:text-amber-400" : "text-rose-500 dark:text-rose-400"
                             )}
                           >
                             <option value="Promu">Promu</option>
                             <option value="En risque">En risque</option>
                             <option value="Non promu">Non promu</option>
                           </select>
-                          <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" size={12} />
+                          <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-300 dark:text-slate-600 pointer-events-none" size={12} />
                         </div>
                       </td>
                       <td className="px-4 py-4">
                         <input 
                           placeholder="Ajouter un commentaire..."
-                          className="w-full h-10 px-4 bg-slate-50 border border-transparent rounded-xl text-[11px] font-medium text-slate-600 outline-none focus:border-slate-200 focus:bg-white transition-all"
+                          className="w-full h-10 px-4 bg-slate-50 dark:bg-slate-900 border border-transparent dark:border-slate-800 rounded-xl text-[11px] font-medium text-slate-600 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none focus:border-slate-200 dark:focus:border-slate-700 focus:bg-white dark:focus:bg-slate-900 transition-all"
                         />
                       </td>
                       <td className="px-4 py-4">
@@ -513,14 +513,14 @@ export default function PromoteClient({
                           )} />
                           <span className={cn(
                             "text-[10px] font-black uppercase tracking-widest",
-                            status === "Éligible" ? "text-emerald-600" : status === "En risque" ? "text-amber-600" : "text-rose-600"
+                            status === "Éligible" ? "text-emerald-600 dark:text-emerald-400" : status === "En risque" ? "text-amber-600 dark:text-amber-400" : "text-rose-600 dark:text-rose-400"
                           )}>
                             {status}
                           </span>
                         </div>
                       </td>
                       <td className="px-8 py-4 text-right">
-                        <button className="p-2 text-slate-300 hover:text-slate-600 transition-colors">
+                        <button className="p-2 text-slate-300 dark:text-slate-600 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
                           <MoreVertical size={16} />
                         </button>
                       </td>
@@ -530,9 +530,9 @@ export default function PromoteClient({
               ) : (
                 <tr>
                   <td colSpan={7} className="py-20 text-center">
-                    <div className="flex flex-col items-center gap-4 opacity-20">
+                    <div className="flex flex-col items-center gap-4 opacity-20 text-slate-400 dark:text-slate-500">
                       <Users size={64} />
-                      <p className="text-xl font-bold">Aucun étudiant trouvé</p>
+                      <p className="text-xl font-bold text-slate-900 dark:text-white">Aucun étudiant trouvé</p>
                     </div>
                   </td>
                 </tr>
@@ -542,26 +542,26 @@ export default function PromoteClient({
         </div>
 
         {/* Footer */}
-        <div className="p-8 border-t border-slate-100 flex flex-col md:flex-row justify-between items-center gap-6">
+        <div className="p-8 border-t border-slate-100 dark:border-slate-800 flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex items-center gap-4">
-            <div className="px-4 py-2 bg-slate-50 rounded-xl">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{selectedIds.length} sélectionnés</span>
+            <div className="px-4 py-2 bg-slate-50 dark:bg-slate-900 rounded-xl">
+              <span className="text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest">{selectedIds.length} sélectionnés</span>
             </div>
             <button 
               onClick={() => setSelectedIds([])}
-              className="text-[11px] font-black text-indigo-600 uppercase tracking-widest hover:underline"
+              className="text-[11px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest hover:underline"
             >
               Tout désélectionner
             </button>
           </div>
           <div className="flex items-center gap-3">
-            <Button variant="outline" className="h-12 px-6 rounded-xl border-indigo-100 text-indigo-600 font-bold flex items-center gap-2 hover:bg-indigo-50">
+            <Button variant="outline" className="h-12 px-6 rounded-xl border-indigo-100 dark:border-indigo-500/20 text-indigo-600 dark:text-indigo-400 font-bold flex items-center gap-2 hover:bg-indigo-50 dark:hover:bg-indigo-500/10">
               <Download size={18} /> Exporter la liste
             </Button>
             <Button 
               disabled={isPromoting || selectedIds.length === 0}
               onClick={handlePromote}
-              className="h-12 px-8 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest flex items-center gap-3 shadow-lg shadow-indigo-100 transition-all disabled:opacity-50"
+              className="h-12 px-8 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest flex items-center gap-3 shadow-lg shadow-indigo-100 dark:shadow-none transition-all disabled:opacity-50"
             >
               {isPromoting ? "Traitement..." : <><ArrowUpRight size={18} /> Lancer la promotion</>}
             </Button>
@@ -612,17 +612,17 @@ export default function PromoteClient({
 
       {/* PREVIEW MODAL */}
       {isPreviewOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[85vh]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-[#0E1017] rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-2xl dark:shadow-black/60 w-full max-w-2xl overflow-hidden flex flex-col max-h-[85vh]">
             {/* Modal Header */}
-            <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+            <div className="p-8 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/60">
               <div>
-                <h3 className="text-xl font-black text-slate-900 tracking-tight">Aperçu de la Promotion</h3>
-                <p className="text-slate-500 font-medium text-xs mt-1">Vérifiez les détails avant de valider.</p>
+                <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">Aperçu de la Promotion</h3>
+                <p className="text-slate-500 dark:text-slate-400 font-medium text-xs mt-1">Vérifiez les détails avant de valider.</p>
               </div>
               <button 
                 onClick={() => setIsPreviewOpen(false)}
-                className="w-10 h-10 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-colors"
+                className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-300 flex items-center justify-center transition-colors"
               >
                 ✕
               </button>
@@ -631,40 +631,40 @@ export default function PromoteClient({
             {/* Modal Body */}
             <div className="p-8 overflow-y-auto space-y-6 flex-grow">
               {/* Transfer Details Card */}
-              <div className="grid grid-cols-2 gap-4 p-6 bg-indigo-50/30 border border-indigo-50 rounded-3xl">
+              <div className="grid grid-cols-2 gap-4 p-6 bg-indigo-50/30 dark:bg-indigo-500/10 border border-indigo-50 dark:border-indigo-500/20 rounded-3xl">
                 <div>
                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Classe de Départ (Source)</span>
-                  <span className="text-sm font-black text-indigo-900 mt-1 block">{sourceClass || "Non spécifiée"}</span>
-                  <span className="text-[11px] font-bold text-indigo-500 block">{sourceSession || "Toutes les sessions"}</span>
+                  <span className="text-sm font-black text-indigo-900 dark:text-white mt-1 block">{sourceClass || "Non spécifiée"}</span>
+                  <span className="text-[11px] font-bold text-indigo-500 dark:text-indigo-400 block">{sourceSession || "Toutes les sessions"}</span>
                 </div>
                 <div>
                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Classe d'Arrivée (Destination)</span>
-                  <span className="text-sm font-black text-emerald-900 mt-1 block">{targetClass}</span>
-                  <span className="text-[11px] font-bold text-emerald-600 block">{targetSession}</span>
+                  <span className="text-sm font-black text-emerald-900 dark:text-white mt-1 block">{targetClass}</span>
+                  <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 block">{targetSession}</span>
                 </div>
               </div>
 
               {/* Selected Students List */}
               <div className="space-y-3">
                 <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">Élèves sélectionnés ({selectedIds.length})</h4>
-                <div className="border border-slate-100 rounded-3xl divide-y divide-slate-50 overflow-hidden max-h-60 overflow-y-auto bg-slate-50/20">
+                <div className="border border-slate-100 dark:border-slate-800 rounded-3xl divide-y divide-slate-50 dark:divide-slate-800/60 overflow-hidden max-h-60 overflow-y-auto bg-slate-50/20 dark:bg-slate-900/40">
                   {allStudents.filter(s => selectedIds.includes(s.id)).map(student => (
                     <div key={student.id} className="p-4 flex justify-between items-center">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center">
+                        <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 flex items-center justify-center">
                           <Users size={16} className="text-indigo-400" />
                         </div>
                         <div>
-                          <p className="text-xs font-bold text-slate-800">{student.nomEtudiant}</p>
-                          <p className="text-[9px] font-bold text-slate-400">{student.numAdmission}</p>
+                          <p className="text-xs font-bold text-slate-800 dark:text-white">{student.nomEtudiant}</p>
+                          <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500">{student.numAdmission}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-4">
-                        <span className="px-2 py-1 bg-indigo-50 text-indigo-600 rounded text-[9px] font-bold">
+                        <span className="px-2 py-1 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded text-[9px] font-bold">
                           {(student.moyenne || 10).toFixed(2)} / 20
                         </span>
-                        <span className="text-slate-400 text-xs">➔</span>
-                        <span className="text-emerald-600 text-xs font-bold">{targetClass}</span>
+                        <span className="text-slate-400 dark:text-slate-500 text-xs">➔</span>
+                        <span className="text-emerald-600 dark:text-emerald-400 text-xs font-bold">{targetClass}</span>
                       </div>
                     </div>
                   ))}
@@ -673,11 +673,11 @@ export default function PromoteClient({
             </div>
 
             {/* Modal Footer */}
-            <div className="p-8 border-t border-slate-100 flex justify-between items-center bg-slate-50/50">
+            <div className="p-8 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-[#0E1017]">
               <Button 
                 variant="outline" 
                 onClick={() => setIsPreviewOpen(false)}
-                className="h-12 px-6 rounded-xl border-slate-200 font-bold"
+                className="h-12 px-6 rounded-xl border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 font-bold"
               >
                 Annuler
               </Button>
@@ -687,7 +687,7 @@ export default function PromoteClient({
                   setIsPreviewOpen(false);
                   await handlePromote();
                 }}
-                className="h-12 px-8 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest flex items-center gap-3 shadow-lg shadow-indigo-100 transition-all"
+                className="h-12 px-8 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest flex items-center gap-3 shadow-lg shadow-indigo-100 dark:shadow-none transition-all"
               >
                 {isPromoting ? "Traitement..." : <><CheckCircle2 size={18} /> Confirmer la promotion</>}
               </Button>
