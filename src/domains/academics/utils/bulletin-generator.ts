@@ -1778,14 +1778,33 @@ export function generateOfficialAnnualReportPDF(data: {
     const pob = student.lieuNaissance || student.placeOfBirth || "-";
     const dateAndPlace = `${dob} à ${pob}`;
 
-    const s1Summary = student.summaryS1 || student.history?.find((h: any) => h.term?.toLowerCase().includes("1") || h.term?.toLowerCase().includes("première"));
-    const s2Summary = student.summaryS2 || student.history?.find((h: any) => h.term?.toLowerCase().includes("2") || h.term?.toLowerCase().includes("deuxième"));
+    const s1Summary = student.summaryS1 || student.history?.find((h: any) => {
+      if (!h.term) return false;
+      const norm = String(h.term).toLowerCase();
+      return norm.includes("1") || norm.includes("première") || norm.includes("s1");
+    });
+    const s2Summary = student.summaryS2 || student.history?.find((h: any) => {
+      if (!h.term) return false;
+      const norm = String(h.term).toLowerCase();
+      return norm.includes("2") || norm.includes("deuxième") || norm.includes("s2");
+    });
 
-    const s1Avg = typeof s1Summary?.average === 'number' ? s1Summary.average.toFixed(2) : (student.s1Average ? Number(student.s1Average).toFixed(2) : "-");
-    const s1Rank = s1Summary?.rank || student.s1Rank || "-";
+    const formatAvgPdf = (v: any) => {
+      if (v === null || v === undefined || v === "" || v === "-") return "-";
+      const n = typeof v === 'number' ? v : parseFloat(String(v));
+      return !isNaN(n) ? n.toFixed(2) : "-";
+    };
 
-    const s2Avg = typeof s2Summary?.average === 'number' ? s2Summary.average.toFixed(2) : (student.s2Average ? Number(student.s2Average).toFixed(2) : "-");
-    const s2Rank = s2Summary?.rank || student.s2Rank || "-";
+    const formatRankPdf = (v: any) => {
+      if (!v || v === "-" || v === "N/A") return "-";
+      return String(v);
+    };
+
+    const s1Avg = formatAvgPdf(s1Summary?.average ?? student.s1Average);
+    const s1Rank = formatRankPdf(s1Summary?.rank ?? student.s1Rank);
+
+    const s2Avg = formatAvgPdf(s2Summary?.average ?? student.s2Average);
+    const s2Rank = formatRankPdf(s2Summary?.rank ?? student.s2Rank);
 
     const safeAvg = typeof student.average === 'number' && !isNaN(student.average) ? student.average : 0;
     const annualAvg = typeof student.annualAverage === 'number' ? student.annualAverage.toFixed(2) : safeAvg.toFixed(2);

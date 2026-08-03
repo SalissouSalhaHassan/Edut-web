@@ -117,11 +117,11 @@ function matchTerm(termInDb?: string | null, requestedTerm?: string | null): boo
   
   if (normDb === normReq) return true;
 
-  const numDb = normDb.match(/\b(\d+)\b/)?.[1];
-  const numReq = normReq.match(/\b(\d+)\b/)?.[1];
+  const dbDigits = normDb.replace(/\D/g, "");
+  const reqDigits = normReq.replace(/\D/g, "");
 
-  if (numDb && numReq) {
-    return numDb === numReq;
+  if (dbDigits && reqDigits && dbDigits === reqDigits) {
+    return true;
   }
 
   return normDb.includes(normReq) || normReq.includes(normDb);
@@ -1406,6 +1406,10 @@ async function fetchBroadsheetMatrixDirect(params: { classId: number, sessionId:
       annualRank,
       summaryS1,
       summaryS2,
+      s1Average: s1Avg,
+      s1Rank: s1Rank,
+      s2Average: s2Avg,
+      s2Rank: s2Rank,
       totalCoef: resListToUse.reduce((acc, r) => acc + (parseFloat(String(r.coefficient ?? "1")) || 1), 0),
       behaviorScore: s.behaviorScore || 20.0,
       conduite: summary?.conduite || 0.0,
