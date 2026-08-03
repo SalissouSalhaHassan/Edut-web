@@ -302,50 +302,48 @@ export default function AttendanceGrid({ students, classId, subjectId, employeeI
     doc.setFillColor(79, 70, 229);
     doc.rect(0, H - 6, W, 6, "F");
     doc.setFont("helvetica", "bold"); doc.setFontSize(7); doc.setTextColor(255, 255, 255);
-    doc.text(`Edut Pro \u2013 Liste de pr\u00e9sence ${date}`, W / 2, H - 2, { align: "center" });
-
     doc.save(`Presence_Classe${classId}_${date}.pdf`);
   };
 
   return (
     <div className="space-y-6">
       <Tabs defaultValue="list" className="w-full">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-4 rounded-3xl border border-slate-100 shadow-sm mb-6">
-          <TabsList className="bg-slate-100 p-1 rounded-2xl">
-            <TabsTrigger value="list" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm px-6 py-2 flex gap-2">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white dark:bg-[#131622] p-4 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm mb-6">
+          <TabsList className="bg-slate-100 dark:bg-slate-900 p-1 rounded-2xl">
+            <TabsTrigger value="list" className="rounded-xl data-[state=active]:bg-white data-[state=active]:dark:bg-[#0E1017] dark:text-slate-300 data-[state=active]:dark:text-white data-[state=active]:shadow-sm px-6 py-2 flex gap-2">
               <List size={16} /> Liste
             </TabsTrigger>
-            <TabsTrigger value="scanner" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm px-6 py-2 flex gap-2">
+            <TabsTrigger value="scanner" className="rounded-xl data-[state=active]:bg-white data-[state=active]:dark:bg-[#0E1017] dark:text-slate-300 data-[state=active]:dark:text-white data-[state=active]:shadow-sm px-6 py-2 flex gap-2">
               <Scan size={16} /> Scanner Mode
             </TabsTrigger>
-            <TabsTrigger value="biometric" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm px-6 py-2 flex gap-2 text-indigo-600 font-bold">
+            <TabsTrigger value="biometric" className="rounded-xl data-[state=active]:bg-white data-[state=active]:dark:bg-[#0E1017] data-[state=active]:shadow-sm px-6 py-2 text-indigo-600 dark:text-indigo-400 font-bold">
               <Fingerprint size={16} /> Pointage Biométrique
             </TabsTrigger>
           </TabsList>
 
           <div className="flex flex-wrap items-center gap-6">
-            <div className="flex items-center gap-6 pr-6 border-r border-slate-100">
+            <div className="flex items-center gap-6 pr-6 border-r border-slate-100 dark:border-slate-800">
                <div className="flex items-center space-x-2">
                 <Switch id="sms-mode" checked={sendSMS} onCheckedChange={setSendSMS} />
-                <Label htmlFor="sms-mode" className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5 cursor-pointer">
+                <Label htmlFor="sms-mode" className="text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest flex items-center gap-1.5 cursor-pointer">
                   <MessageSquare size={14} className={sendSMS ? "text-primary" : ""} /> SMS
                 </Label>
               </div>
               <div className="flex items-center space-x-2">
                 <Switch id="whatsapp-mode" checked={sendWhatsApp} onCheckedChange={setSendWhatsApp} />
-                <Label htmlFor="whatsapp-mode" className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5 cursor-pointer">
+                <Label htmlFor="whatsapp-mode" className="text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest flex items-center gap-1.5 cursor-pointer">
                   <Phone size={14} className={sendWhatsApp ? "text-emerald-500" : ""} /> WhatsApp
                 </Label>
               </div>
             </div>
             <div className="flex gap-2">
-              <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-100 px-3 py-1">
+              <Badge variant="outline" className="bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-100 dark:border-emerald-500/20 px-3 py-1">
                 Présents: {stats.Presents}
               </Badge>
-              <Badge variant="outline" className="bg-rose-50 text-rose-700 border-rose-100 px-3 py-1">
+              <Badge variant="outline" className="bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-100 dark:border-rose-500/20 px-3 py-1">
                 Absents: {stats.Absents}
               </Badge>
-              <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-100 px-3 py-1">
+              <Badge variant="outline" className="bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-100 dark:border-amber-500/20 px-3 py-1">
                 Retards: {stats.Lates}
               </Badge>
             </div>
@@ -353,14 +351,14 @@ export default function AttendanceGrid({ students, classId, subjectId, employeeI
         </div>
 
         <TabsContent value="list" className="space-y-6">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-slate-50 p-6 rounded-[2rem] border border-slate-100">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-slate-50 dark:bg-slate-900/60 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800">
             <div className="relative w-full md:w-96">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" size={18} />
               <Input
                 placeholder="Rechercher un élève..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 rounded-2xl border-none bg-white shadow-sm h-11"
+                className="pl-10 rounded-2xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm h-11 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
               />
             </div>
             <div className="flex gap-4 w-full md:w-auto">
@@ -368,14 +366,14 @@ export default function AttendanceGrid({ students, classId, subjectId, employeeI
                 variant="outline" 
                 onClick={markAllPresent} 
                 disabled={!canEdit}
-                className="rounded-xl font-bold bg-white h-11 flex-1 md:flex-none disabled:opacity-50"
+                className="rounded-xl font-bold bg-white dark:bg-slate-900 dark:border-slate-800 dark:text-white dark:hover:bg-slate-800 h-11 flex-1 md:flex-none disabled:opacity-50"
               >
                 ✅ Tout Présent
               </Button>
               <Button
                 variant="outline"
                 onClick={handlePrintList}
-                className="rounded-xl font-bold bg-white h-11 flex-1 md:flex-none flex items-center gap-2 border-indigo-200 text-indigo-600 hover:bg-indigo-50"
+                className="rounded-xl font-bold bg-white dark:bg-slate-900 dark:border-indigo-500/30 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 h-11 flex-1 md:flex-none flex items-center gap-2 border-indigo-200"
               >
                 <Printer size={16} /> Imprimer
               </Button>
@@ -389,38 +387,38 @@ export default function AttendanceGrid({ students, classId, subjectId, employeeI
             </div>
           </div>
 
-          <div className="bg-white rounded-[3rem] border border-slate-100 shadow-xl overflow-hidden">
+          <div className="bg-white dark:bg-[#131622] rounded-[3rem] border border-slate-100 dark:border-slate-800 shadow-xl overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-slate-50/50 border-b border-slate-100">
-                    <th className="px-8 py-6 text-xs font-black text-slate-400 uppercase tracking-widest">Matricule</th>
-                    <th className="px-8 py-6 text-xs font-black text-slate-400 uppercase tracking-widest">Élève</th>
-                    <th className="px-8 py-6 text-xs font-black text-slate-400 uppercase tracking-widest text-center">Présence</th>
-                    <th className="px-8 py-6 text-xs font-black text-slate-400 uppercase tracking-widest">Note</th>
+                  <tr className="bg-slate-50/50 dark:bg-slate-900/60 border-b border-slate-100 dark:border-slate-800">
+                    <th className="px-8 py-6 text-xs font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest">Matricule</th>
+                    <th className="px-8 py-6 text-xs font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest">Élève</th>
+                    <th className="px-8 py-6 text-xs font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest text-center">Présence</th>
+                    <th className="px-8 py-6 text-xs font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest">Note</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-50">
+                <tbody className="divide-y divide-slate-50 dark:divide-slate-800/60">
                   {filteredStudents.map((s) => (
-                    <tr key={s.id} className="group hover:bg-slate-50/50 transition-colors">
+                    <tr key={s.id} className="group hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
                       <td className="px-8 py-5">
-                        <span className="font-mono font-bold text-primary bg-primary/5 px-3 py-1 rounded-lg">
+                        <span className="font-mono font-bold text-primary bg-primary/5 dark:bg-indigo-500/10 dark:text-indigo-400 px-3 py-1 rounded-lg">
                           {s.numAdmission || "-"}
                         </span>
                       </td>
                       <td className="px-8 py-5">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <p className="font-bold text-slate-900">{s.nomEtudiant}</p>
+                          <p className="font-bold text-slate-900 dark:text-white">{s.nomEtudiant}</p>
                           <AttendanceStatusBadge status={batchStatus} />
                           {records[s.id].remark?.includes("Empreinte") && (
-                            <span className="px-2 py-0.5 bg-indigo-500/10 text-indigo-600 border border-indigo-500/20 text-[9px] font-black uppercase tracking-wider rounded-full flex items-center gap-1">
+                            <span className="px-2 py-0.5 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 text-[9px] font-black uppercase tracking-wider rounded-full flex items-center gap-1">
                               <Fingerprint size={11} /> Empreinte Validée
                             </span>
                           )}
                         </div>
                       </td>
                       <td className="px-8 py-5">
-                        <div className="flex items-center justify-center gap-1.5 bg-slate-100/50 p-1.5 rounded-2xl w-fit mx-auto border border-slate-100 flex-wrap">
+                        <div className="flex items-center justify-center gap-1.5 bg-slate-100/50 dark:bg-slate-900/80 p-1.5 rounded-2xl w-fit mx-auto border border-slate-100 dark:border-slate-800 flex-wrap">
                           {[
                             { val: "Présent", label: "Présent", icon: Check, color: "bg-emerald-500", text: "text-emerald-500" },
                             { val: "Absent", label: "Absent", icon: X, color: "bg-rose-500", text: "text-rose-500" },
@@ -455,7 +453,7 @@ export default function AttendanceGrid({ students, classId, subjectId, employeeI
                                 className={`flex items-center justify-center px-3 py-2 rounded-xl text-[11px] font-extrabold transition-all ${
                                   isSelected
                                     ? `${opt.color} text-white shadow-md scale-105`
-                                    : "text-slate-500 hover:text-slate-900 bg-white border border-slate-200/60"
+                                    : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800"
                                   } ${!canEdit && "cursor-not-allowed opacity-80"}`}
                               >
                                 <opt.icon size={14} strokeWidth={2.5} />
@@ -471,7 +469,7 @@ export default function AttendanceGrid({ students, classId, subjectId, employeeI
                           value={records[s.id].remark}
                           disabled={!canEdit}
                           onChange={(e) => updateRemark(s.id, e.target.value)}
-                          className="rounded-xl border-slate-100 h-10 text-xs focus:ring-primary/20 disabled:bg-slate-50 disabled:text-slate-400"
+                          className="rounded-xl border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 h-10 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:ring-primary/20 disabled:bg-slate-50 disabled:dark:bg-slate-950 disabled:text-slate-400 disabled:dark:text-slate-600"
                         />
                       </td>
                     </tr>
@@ -480,7 +478,7 @@ export default function AttendanceGrid({ students, classId, subjectId, employeeI
               </table>
             </div>
             {filteredStudents.length === 0 && (
-              <div className="p-12 text-center text-slate-400">
+              <div className="p-12 text-center text-slate-400 dark:text-slate-500">
                 Aucun élève trouvé pour cette recherche.
               </div>
             )}

@@ -34,28 +34,28 @@ export function AttendanceFilters({ date, classId, subjectId, classes, subjects 
   };
 
   return (
-    <div className="bg-white p-8 rounded-[3rem] border border-slate-100 shadow-sm flex flex-wrap items-end gap-6">
+    <div className="bg-white dark:bg-[#131622] p-8 rounded-[3rem] border border-slate-100 dark:border-slate-800 shadow-sm flex flex-wrap items-end gap-6">
       <div className="space-y-2 flex-1 min-w-[200px]">
-        <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Date</label>
+        <label className="text-xs font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest ml-1">Date</label>
         <div className="relative">
-          <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+          <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" size={18} />
           <input 
             type="date" 
             name="date"
             defaultValue={date}
-            className="w-full pl-12 pr-4 h-14 rounded-2xl border border-slate-100 bg-slate-50/50 font-bold text-slate-700 focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+            className="w-full pl-12 pr-4 h-14 rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900 font-bold text-slate-700 dark:text-white focus:ring-2 focus:ring-primary/20 outline-none transition-all"
             onChange={(e) => updateFilters("date", e.target.value)}
           />
         </div>
       </div>
 
       <div className="space-y-2 flex-1 min-w-[200px]">
-        <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Classe</label>
+        <label className="text-xs font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest ml-1">Classe</label>
         <select 
           name="classId"
           defaultValue={classId || ""}
           onChange={(e) => updateFilters("classId", e.target.value)}
-          className="w-full px-6 h-14 rounded-2xl border border-slate-100 bg-slate-50/50 font-bold text-slate-700 focus:ring-2 focus:ring-primary/20 outline-none transition-all appearance-none"
+          className="w-full px-6 h-14 rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900 font-bold text-slate-700 dark:text-white focus:ring-2 focus:ring-primary/20 outline-none transition-all appearance-none"
         >
           <option value="">-- Choisir une classe --</option>
           {classes.map(c => (
@@ -65,12 +65,12 @@ export function AttendanceFilters({ date, classId, subjectId, classes, subjects 
       </div>
 
       <div className="space-y-2 flex-1 min-w-[200px]">
-        <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Matière (Optionnel)</label>
+        <label className="text-xs font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest ml-1">Matière (Optionnel)</label>
         <select 
           name="subjectId"
           value={subjectId || ""}
           onChange={(e) => updateFilters("subjectId", e.target.value)}
-          className="w-full px-6 h-14 rounded-2xl border border-slate-100 bg-slate-50/50 font-bold text-slate-700 focus:ring-2 focus:ring-primary/20 outline-none transition-all appearance-none"
+          className="w-full px-6 h-14 rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900 font-bold text-slate-700 dark:text-white focus:ring-2 focus:ring-primary/20 outline-none transition-all appearance-none"
         >
           <option value="">-- Appel Global --</option>
           {subjects.map(s => {

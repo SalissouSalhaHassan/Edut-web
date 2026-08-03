@@ -75,14 +75,14 @@ export default function AttendanceClient({
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <div className="flex items-center gap-4">
-            <h1 className="text-5xl font-black text-slate-900 tracking-tight">Appel & Présence</h1>
+            <h1 className="text-5xl font-black text-slate-900 dark:text-white tracking-tight">Appel & Présence</h1>
             {isLocal && (
               <span className="px-3 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-black uppercase tracking-widest rounded-xl animate-pulse self-center">
                 Données locales
               </span>
             )}
           </div>
-          <p className="text-slate-500 mt-2 font-medium">Enregistrez la présence quotidienne des élèves</p>
+          <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium">Enregistrez la présence quotidienne des élèves</p>
         </div>
       </div>
 
@@ -97,20 +97,20 @@ export default function AttendanceClient({
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         {[
-          { label: "Presents", value: stats?.presents || 0, icon: ClipboardCheck, color: "text-emerald-600", bg: "bg-emerald-50" },
-          { label: "Absents", value: stats?.absents || 0, icon: Users, color: "text-rose-600", bg: "bg-rose-50" },
-          { label: "Retards", value: stats?.lates || 0, icon: Calendar, color: "text-amber-600", bg: "bg-amber-50" },
-          { label: "Excusés", value: stats?.excused || 0, icon: BookOpen, color: "text-blue-600", bg: "bg-blue-50" },
+          { label: "Presents", value: stats?.presents || 0, icon: ClipboardCheck, color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-50 dark:bg-emerald-500/10" },
+          { label: "Absents", value: stats?.absents || 0, icon: Users, color: "text-rose-600 dark:text-rose-400", bg: "bg-rose-50 dark:bg-rose-500/10" },
+          { label: "Retards", value: stats?.lates || 0, icon: Calendar, color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-50 dark:bg-amber-500/10" },
+          { label: "Excusés", value: stats?.excused || 0, icon: BookOpen, color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-50 dark:bg-blue-500/10" },
         ].map((s, i) => {
           const Icon = s.icon;
           return (
-            <div key={i} className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4">
+            <div key={i} className="bg-white dark:bg-[#131622] p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm flex items-center gap-4">
               <div className={`p-4 rounded-2xl ${s.bg} ${s.color}`}>
                 <Icon size={24} />
               </div>
               <div>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{s.label}</p>
-                <p className="text-2xl font-black text-slate-900">{s.value}</p>
+                <p className="text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest">{s.label}</p>
+                <p className="text-2xl font-black text-slate-900 dark:text-white">{s.value}</p>
               </div>
             </div>
           );
@@ -128,12 +128,12 @@ export default function AttendanceClient({
           canEdit={canEdit}
         />
       ) : (
-        <div className="flex flex-col items-center justify-center py-20 bg-slate-50/50 rounded-[3rem] border-2 border-dashed border-slate-200">
-          <div className="p-6 bg-white rounded-full shadow-sm mb-4">
-            <ClipboardCheck size={48} className="text-slate-300" />
+        <div className="flex flex-col items-center justify-center py-20 bg-slate-50/50 dark:bg-slate-900/40 rounded-[3rem] border-2 border-dashed border-slate-200 dark:border-slate-800">
+          <div className="p-6 bg-white dark:bg-[#131622] rounded-full shadow-sm mb-4 border border-slate-100 dark:border-slate-800">
+            <ClipboardCheck size={48} className="text-slate-300 dark:text-slate-600" />
           </div>
-          <h3 className="text-xl font-bold text-slate-600">Prêt pour l'appel</h3>
-          <p className="text-slate-400 font-medium">Veuillez sélectionner une classe pour commencer</p>
+          <h3 className="text-xl font-bold text-slate-600 dark:text-slate-200">Prêt pour l'appel</h3>
+          <p className="text-slate-400 dark:text-slate-400 font-medium">Veuillez sélectionner une classe pour commencer</p>
         </div>
       )}
     </div>

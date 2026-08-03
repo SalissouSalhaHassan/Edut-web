@@ -58,7 +58,7 @@ export function BiometricScanner({ students, onMarkPresent }: BiometricScannerPr
   };
 
   return (
-    <div className="bg-white rounded-[2.5rem] border border-slate-100 p-8 shadow-xl space-y-8 animate-in fade-in duration-300">
+    <div className="bg-white dark:bg-[#131622] rounded-[2.5rem] border border-slate-100 dark:border-slate-800 p-8 shadow-xl space-y-8 animate-in fade-in duration-300">
       {/* Sensor Hero Scanner Banner */}
       <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 rounded-[2rem] p-8 text-white flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden shadow-2xl">
         <div className="absolute -right-10 -bottom-10 opacity-10 pointer-events-none">
@@ -108,14 +108,14 @@ export function BiometricScanner({ students, onMarkPresent }: BiometricScannerPr
 
       {/* Verified Success Confirmation Card */}
       {lastScannedStudent && (
-        <div className="bg-emerald-50 border border-emerald-200/80 rounded-2xl p-4 flex items-center justify-between gap-4 animate-in slide-in-from-top-3 duration-300">
+        <div className="bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200/80 dark:border-emerald-500/20 rounded-2xl p-4 flex items-center justify-between gap-4 animate-in slide-in-from-top-3 duration-300">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-emerald-500 text-white flex items-center justify-center font-black">
               <ShieldCheck size={20} />
             </div>
             <div>
-              <p className="text-xs font-black text-emerald-900">{lastScannedStudent.nomEtudiant}</p>
-              <p className="text-[10px] text-emerald-700 font-bold font-mono">
+              <p className="text-xs font-black text-emerald-900 dark:text-emerald-300">{lastScannedStudent.nomEtudiant}</p>
+              <p className="text-[10px] text-emerald-700 dark:text-emerald-400 font-bold font-mono">
                 Matricule: {lastScannedStudent.numAdmission} • Empreinte Digitale Certifiée
               </p>
             </div>
@@ -130,15 +130,15 @@ export function BiometricScanner({ students, onMarkPresent }: BiometricScannerPr
       <div className="space-y-4">
         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="relative w-full md:w-96">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" size={18} />
             <Input
               placeholder="Rechercher élève pour empreinte..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 rounded-2xl border-slate-200 bg-slate-50/50 h-11 text-xs font-bold"
+              className="pl-10 rounded-2xl border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900 h-11 text-xs font-bold text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
             />
           </div>
-          <p className="text-xs font-bold text-slate-400">
+          <p className="text-xs font-bold text-slate-400 dark:text-slate-400">
             {filteredStudents.length} élève(s) disponible(s)
           </p>
         </div>
@@ -147,13 +147,13 @@ export function BiometricScanner({ students, onMarkPresent }: BiometricScannerPr
           {filteredStudents.map((s) => (
             <div
               key={s.id}
-              className="bg-slate-50/50 p-5 rounded-2xl border border-slate-100 flex items-center justify-between gap-4 hover:border-indigo-200 hover:bg-white transition-all shadow-sm group"
+              className="bg-slate-50/50 dark:bg-slate-900/60 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 flex items-center justify-between gap-4 hover:border-indigo-200 dark:hover:border-indigo-500/40 hover:bg-white dark:hover:bg-slate-900 transition-all shadow-sm group"
             >
               <div>
-                <p className="font-extrabold text-slate-900 text-sm group-hover:text-indigo-600 transition-colors">
+                <p className="font-extrabold text-slate-900 dark:text-white text-sm group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
                   {s.nomEtudiant}
                 </p>
-                <p className="text-[10px] font-mono font-bold text-slate-400 mt-0.5">
+                <p className="text-[10px] font-mono font-bold text-slate-400 dark:text-slate-500 mt-0.5">
                   {s.numAdmission || "EDUT-2024-N/A"}
                 </p>
               </div>
@@ -172,20 +172,20 @@ export function BiometricScanner({ students, onMarkPresent }: BiometricScannerPr
 
       {/* Recent Biometric Scans History Table */}
       {scannedHistory.length > 0 && (
-        <div className="pt-6 border-t border-slate-100 space-y-3">
-          <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+        <div className="pt-6 border-t border-slate-100 dark:border-slate-800 space-y-3">
+          <h4 className="text-xs font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest flex items-center gap-2">
             <UserCheck size={16} className="text-emerald-500" /> Historique des Empreintes Scannées
           </h4>
 
           <div className="space-y-2">
             {scannedHistory.slice(0, 5).map((item, idx) => (
-              <div key={idx} className="flex items-center justify-between bg-slate-50 p-3 rounded-xl text-xs font-bold text-slate-700 border border-slate-100">
+              <div key={idx} className="flex items-center justify-between bg-slate-50 dark:bg-slate-900/80 p-3 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 border border-slate-100 dark:border-slate-800">
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-emerald-500" />
                   <span>{item.student.nomEtudiant}</span>
-                  <span className="text-[10px] text-slate-400 font-mono">({item.student.numAdmission})</span>
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">({item.student.numAdmission})</span>
                 </div>
-                <span className="text-[10px] text-slate-500 font-semibold font-mono">{item.time}</span>
+                <span className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold font-mono">{item.time}</span>
               </div>
             ))}
           </div>
