@@ -95,14 +95,14 @@ export default function DevoirEntryPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] p-4 md:p-8">
+    <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0A0C10] p-4 md:p-8">
       <div className="max-w-[1600px] mx-auto space-y-8">
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
           <div className="flex items-center gap-6">
             <Link href="/dashboard/academics/grades">
-              <Button variant="ghost" className="rounded-2xl h-14 w-14 p-0 bg-white shadow-sm hover:bg-slate-50 transition-all">
-                <ArrowLeft size={24} className="text-slate-600" />
+              <Button variant="ghost" className="rounded-2xl h-14 w-14 p-0 bg-white dark:bg-[#131622] border border-transparent dark:border-slate-800 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">
+                <ArrowLeft size={24} className="text-slate-600 dark:text-slate-300" />
               </Button>
             </Link>
             <div>
@@ -110,11 +110,11 @@ export default function DevoirEntryPage() {
                 <div className="p-2 bg-indigo-500 rounded-lg text-white">
                   <ClipboardCheck size={20} />
                 </div>
-                <h1 className="text-3xl font-black text-slate-900 tracking-tight">
+                <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
                   Gestion des Devoirs (DS)
                 </h1>
               </div>
-              <p className="text-slate-500 font-medium ml-1">
+              <p className="text-slate-500 dark:text-slate-400 font-medium ml-1">
                 Saisie détaillée des évaluations continues et calcul des moyennes de classe.
               </p>
             </div>
@@ -123,7 +123,7 @@ export default function DevoirEntryPage() {
           <div className="flex items-center gap-3">
             <Button
               onClick={() => setShowAIModal(true)}
-              className="h-14 px-6 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-black hover:from-indigo-700 hover:to-purple-700 shadow-lg shadow-indigo-200 transition-all flex items-center gap-2 text-sm"
+              className="h-14 px-6 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-black hover:from-indigo-700 hover:to-purple-700 shadow-lg shadow-indigo-200 dark:shadow-none transition-all flex items-center gap-2 text-sm"
             >
               <Wand2 size={18} /> Assistant IA Devoirs 🪄
             </Button>
@@ -152,15 +152,15 @@ export default function DevoirEntryPage() {
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="py-32 text-center bg-white rounded-[4rem] border-2 border-dashed border-slate-200 shadow-sm"
+              className="py-32 text-center bg-white dark:bg-[#131622] rounded-[4rem] border-2 border-dashed border-slate-200 dark:border-slate-800 shadow-sm"
             >
-              <div className="p-8 bg-slate-50 rounded-full w-fit mx-auto mb-6">
-                <GraduationCap size={48} className="text-slate-400" />
+              <div className="p-8 bg-slate-50 dark:bg-slate-900 rounded-full w-fit mx-auto mb-6">
+                <GraduationCap size={48} className="text-slate-400 dark:text-slate-500" />
               </div>
-              <h3 className="text-2xl font-black text-slate-900 mb-2 tracking-tight">
+              <h3 className="text-2xl font-black text-slate-900 dark:text-white mb-2 tracking-tight">
                 Sélectionnez une classe et une matière
               </h3>
-              <p className="text-slate-500 font-medium max-w-md mx-auto">
+              <p className="text-slate-500 dark:text-slate-400 font-medium max-w-md mx-auto">
                 Choisissez les filtres académiques ci-dessus pour charger la grille de saisie des devoirs.
               </p>
             </motion.div>
