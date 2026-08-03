@@ -340,8 +340,6 @@ export default function FinanceDashboard({ stats, isMounted }: FinanceDashboardP
 
       {/* CHARTS ROW */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      {/* CHARTS ROW */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Bar chart - monthly revenue */}
         <div className="lg:col-span-2 bg-white dark:bg-[#131622]/90 rounded-[22px] border border-slate-100 dark:border-slate-800 p-6 shadow-sm hover:shadow-md transition-all">
           <div className="flex items-center justify-between mb-6">
