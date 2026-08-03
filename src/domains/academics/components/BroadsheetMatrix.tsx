@@ -268,18 +268,18 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
         <MatrixStatsCard icon={<Award className="text-amber-500" />} label="Élèves" value={globalStats.count.toString()} />
         <MatrixStatsCard icon={<Eye className="text-indigo-500" />} label="Classe" value={`${globalStats.classAvg.toFixed(2)}/20`} />
         <MatrixStatsCard icon={<BadgeCheck className="text-emerald-500" />} label="Admis" value={globalStats.passed.toString()} />
-        <MatrixStatsCard icon={<Printer className="text-slate-600" />} label="Non admis" value={globalStats.failed.toString()} />
+        <MatrixStatsCard icon={<Printer className="text-slate-600 dark:text-slate-400" />} label="Non admis" value={globalStats.failed.toString()} />
       </div>
 
       {/* Header Actions */}
-      <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-6 rounded-[1.5rem] border border-slate-200 shadow-md">
+      <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white dark:bg-[#131622]/90 p-6 rounded-[1.5rem] border border-slate-200 dark:border-slate-800 shadow-md">
         <div className="flex items-center gap-4">
-          <div className="p-3 bg-gradient-to-br from-amber-50 to-amber-100 rounded-xl text-amber-600">
+          <div className="p-3 bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-950/40 dark:to-amber-900/20 rounded-xl text-amber-600 dark:text-amber-400">
             <Award size={24} />
           </div>
           <div>
-            <h3 className="text-xl font-black text-slate-900">Matrice des Résultats</h3>
-            <p className="text-sm text-slate-500 font-medium">{students.length} élèves compilés</p>
+            <h3 className="text-xl font-black text-slate-900 dark:text-white">Matrice des Résultats</h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">{students.length} élèves compilés</p>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -298,7 +298,7 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
           </Button>
           <Button 
             onClick={onPrintPV} 
-            className="bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold flex items-center gap-2"
+            className="bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 text-white rounded-xl font-bold flex items-center gap-2"
           >
             <FileText size={18} /> Version PV (PDF)
           </Button>
@@ -312,7 +312,7 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
       </div>
 
       {/* Grid Container */}
-      <div className="bg-white rounded-[1.5rem] border border-slate-200 shadow-xl overflow-hidden">
+      <div className="bg-white dark:bg-[#131622]/90 rounded-[1.5rem] border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[1800px]">
             <thead>
@@ -752,14 +752,14 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
 
 function MatrixStatsCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
-    <div className="bg-white rounded-[1.25rem] p-5 border border-slate-200 shadow-md hover:shadow-lg transition-shadow">
+    <div className="bg-white dark:bg-[#131622]/90 rounded-[1.25rem] p-5 border border-slate-200 dark:border-slate-800 shadow-md hover:shadow-lg transition-shadow">
       <div className="flex items-center gap-3">
-        <div className="p-2.5 bg-slate-50 rounded-xl">
+        <div className="p-2.5 bg-slate-50 dark:bg-slate-900 rounded-xl">
           {icon}
         </div>
         <div>
-          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</p>
-          <p className="text-lg font-black text-slate-900">{value}</p>
+          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-400">{label}</p>
+          <p className="text-lg font-black text-slate-900 dark:text-white">{value}</p>
         </div>
       </div>
     </div>
