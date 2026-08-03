@@ -198,22 +198,22 @@ export default function RoleManager({ roles: initialRoles }: RoleManagerProps) {
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
       {/* Left Panel – Roles */}
       <div className="lg:col-span-4">
-        <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+        <div className="bg-white dark:bg-[#131622] rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden">
           {/* Panel Header */}
           <div className="p-6 pb-4">
-            <h3 className="text-lg font-black text-slate-900 tracking-tight">Rôles Utilisateurs</h3>
-            <p className="text-xs text-slate-400 font-medium mt-0.5">Définissez et gérez les rôles du système</p>
+            <h3 className="text-lg font-black text-slate-900 dark:text-white tracking-tight">Rôles Utilisateurs</h3>
+            <p className="text-xs text-slate-400 dark:text-slate-400 font-medium mt-0.5">Définissez et gérez les rôles du système</p>
           </div>
 
           {/* Search + Add */}
           <div className="px-6 pb-4 flex items-center gap-2">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300" size={16} />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 dark:text-slate-500" size={16} />
               <Input 
                 placeholder="Rechercher un rôle..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 h-10 rounded-xl border-slate-100 bg-slate-50 text-sm"
+                className="pl-9 h-10 rounded-xl border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 text-sm"
               />
             </div>
             <div className="flex gap-1.5">
@@ -223,7 +223,7 @@ export default function RoleManager({ roles: initialRoles }: RoleManagerProps) {
                   value={newRoleName}
                   onChange={(e) => setNewRoleName(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleCreateRole()}
-                  className="h-10 w-32 rounded-xl border-slate-100 bg-slate-50 text-sm"
+                  className="h-10 w-32 rounded-xl border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-sm"
                   autoFocus
                 />
               )}
@@ -260,8 +260,8 @@ export default function RoleManager({ roles: initialRoles }: RoleManagerProps) {
                   className={cn(
                     "group flex items-center gap-3 px-4 py-3.5 rounded-2xl cursor-pointer transition-all duration-200",
                     isSelected 
-                      ? "bg-indigo-600 text-white shadow-lg shadow-indigo-200" 
-                      : "hover:bg-slate-50 text-slate-700"
+                      ? "bg-indigo-600 text-white shadow-lg shadow-indigo-200 dark:shadow-none" 
+                      : "hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-200"
                   )}
                 >
                   <div className={cn(
@@ -271,10 +271,10 @@ export default function RoleManager({ roles: initialRoles }: RoleManagerProps) {
                     <IconComp size={18} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className={cn("text-sm font-bold truncate", isSelected ? "text-white" : "text-slate-800")}>
+                    <p className={cn("text-sm font-bold truncate", isSelected ? "text-white" : "text-slate-800 dark:text-slate-100")}>
                       {role.roleName}
                     </p>
-                    <p className={cn("text-[11px] font-medium", isSelected ? "text-indigo-200" : "text-slate-400")}>
+                    <p className={cn("text-[11px] font-medium", isSelected ? "text-indigo-200" : "text-slate-400 dark:text-slate-500")}>
                       {userCount} utilisateur{userCount !== 1 ? 's' : ''}
                     </p>
                   </div>
@@ -285,12 +285,12 @@ export default function RoleManager({ roles: initialRoles }: RoleManagerProps) {
                         "p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all",
                         isSelected 
                           ? "hover:bg-white/20 text-white" 
-                          : "hover:bg-rose-50 text-rose-400 hover:text-rose-600"
+                          : "hover:bg-rose-50 dark:hover:bg-rose-500/20 text-rose-400 hover:text-rose-600"
                       )}
                     >
                       <Trash2 size={14} />
                     </button>
-                    <ChevronRight size={16} className={cn(isSelected ? "text-white/60" : "text-slate-300")} />
+                    <ChevronRight size={16} className={cn(isSelected ? "text-white/60" : "text-slate-300 dark:text-slate-600")} />
                   </div>
                 </div>
               );
@@ -308,24 +308,24 @@ export default function RoleManager({ roles: initialRoles }: RoleManagerProps) {
       {/* Right Panel – Permissions */}
       <div className="lg:col-span-8">
         {selectedRole ? (
-          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+          <div className="bg-white dark:bg-[#131622] rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden">
             {/* Permissions Header */}
-            <div className="p-6 flex items-center justify-between border-b border-slate-50">
+            <div className="p-6 flex items-center justify-between border-b border-slate-50 dark:border-slate-800/80">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-indigo-100 text-indigo-600 flex items-center justify-center">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-100 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
                   <Shield size={24} />
                 </div>
                 <div>
-                  <h3 className="text-xl font-black text-slate-900 tracking-tight">
-                    Permissions: <span className="text-indigo-600">{selectedRole.roleName}</span>
+                  <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
+                    Permissions: <span className="text-indigo-600 dark:text-indigo-400">{selectedRole.roleName}</span>
                   </h3>
-                  <p className="text-xs text-slate-400 font-medium mt-0.5">Gérez les accès aux modules pour ce rôle</p>
+                  <p className="text-xs text-slate-400 dark:text-slate-400 font-medium mt-0.5">Gérez les accès aux modules pour ce rôle</p>
                 </div>
               </div>
               <Button
                 onClick={handleSavePermissions}
                 disabled={isPending}
-                className="h-11 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white px-6 font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-indigo-100 transition-all disabled:opacity-50"
+                className="h-11 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white px-6 font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-indigo-100 dark:shadow-none transition-all disabled:opacity-50"
               >
                 <Save size={16} />
                 {isPending ? "Sauvegarde..." : "Enregistrer"}
@@ -345,8 +345,8 @@ export default function RoleManager({ roles: initialRoles }: RoleManagerProps) {
                     className={cn(
                       "rounded-2xl border p-5 transition-all duration-200",
                       isActive 
-                        ? "border-slate-100 bg-white shadow-sm" 
-                        : "border-slate-50 bg-slate-50/50"
+                        ? "border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900/60 shadow-sm" 
+                        : "border-slate-100/60 dark:border-slate-800/40 bg-slate-50/50 dark:bg-slate-900/20"
                     )}
                   >
                     {/* Module Header */}
@@ -355,13 +355,13 @@ export default function RoleManager({ roles: initialRoles }: RoleManagerProps) {
                         <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center", mod.color)}>
                           <IconComp size={16} />
                         </div>
-                        <span className="text-sm font-bold text-slate-800">{mod.label}</span>
+                        <span className="text-sm font-bold text-slate-800 dark:text-slate-100">{mod.label}</span>
                       </div>
                       <span className={cn(
                         "px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider",
                         isActive 
-                          ? "bg-emerald-50 text-emerald-600" 
-                          : "bg-slate-100 text-slate-400"
+                          ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" 
+                          : "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500"
                       )}>
                         {isActive ? "Actif" : "Inactif"}
                       </span>
@@ -375,8 +375,8 @@ export default function RoleManager({ roles: initialRoles }: RoleManagerProps) {
                         className={cn(
                           "flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border text-[11px] font-bold uppercase tracking-wider transition-all duration-200",
                           perms.canView
-                            ? "bg-emerald-50 border-emerald-200 text-emerald-700"
-                            : "bg-white border-slate-100 text-slate-400 hover:border-slate-200 hover:text-slate-500"
+                            ? "bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-400"
+                            : "bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 text-slate-400 dark:text-slate-400 hover:border-slate-200 dark:hover:border-slate-600 hover:text-slate-500 dark:hover:text-slate-200"
                         )}
                       >
                         <Eye size={13} />
@@ -389,8 +389,8 @@ export default function RoleManager({ roles: initialRoles }: RoleManagerProps) {
                         className={cn(
                           "flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border text-[11px] font-bold uppercase tracking-wider transition-all duration-200",
                           perms.canEdit
-                            ? "bg-amber-50 border-amber-200 text-amber-700"
-                            : "bg-white border-slate-100 text-slate-400 hover:border-slate-200 hover:text-slate-500"
+                            ? "bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/30 text-amber-700 dark:text-amber-400"
+                            : "bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 text-slate-400 dark:text-slate-400 hover:border-slate-200 dark:hover:border-slate-600 hover:text-slate-500 dark:hover:text-slate-200"
                         )}
                       >
                         <Edit size={13} />
@@ -403,8 +403,8 @@ export default function RoleManager({ roles: initialRoles }: RoleManagerProps) {
                         className={cn(
                           "flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border text-[11px] font-bold uppercase tracking-wider transition-all duration-200",
                           perms.canDelete
-                            ? "bg-rose-50 border-rose-200 text-rose-700"
-                            : "bg-white border-slate-100 text-slate-400 hover:border-slate-200 hover:text-slate-500"
+                            ? "bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-500/30 text-rose-700 dark:text-rose-400"
+                            : "bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 text-slate-400 dark:text-slate-400 hover:border-slate-200 dark:hover:border-slate-600 hover:text-slate-500 dark:hover:text-slate-200"
                         )}
                       >
                         <Trash size={13} />
@@ -414,10 +414,10 @@ export default function RoleManager({ roles: initialRoles }: RoleManagerProps) {
 
                     {/* Field Permissions (Expansion) */}
                     {mod.fields && (
-                      <div className="mt-4 pt-4 border-t border-slate-50">
+                      <div className="mt-4 pt-4 border-t border-slate-50 dark:border-slate-800/60">
                         <button 
                           onClick={() => setExpandedModule(expandedModule === mod.name ? null : mod.name)}
-                          className="flex items-center justify-between w-full text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-indigo-600 transition-colors"
+                          className="flex items-center justify-between w-full text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                         >
                           <span>الصلاحيات على مستوى الحقول</span>
                           <ChevronRight size={14} className={cn("transition-transform", expandedModule === mod.name ? "rotate-90" : "")} />
@@ -428,14 +428,14 @@ export default function RoleManager({ roles: initialRoles }: RoleManagerProps) {
                             {mod.fields.map(field => {
                               const fieldConfig = perms.fieldPermissions?.[field] || { view: true, edit: true };
                               return (
-                                <div key={field} className="flex items-center justify-between p-2 rounded-xl bg-slate-50/50">
-                                  <span className="text-xs font-bold text-slate-600">{field}</span>
+                                <div key={field} className="flex items-center justify-between p-2 rounded-xl bg-slate-50/50 dark:bg-slate-800/50">
+                                  <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{field}</span>
                                   <div className="flex gap-1">
                                     <button
                                       onClick={() => toggleFieldPermission(mod.name, field, 'view')}
                                       className={cn(
                                         "px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-tighter transition-all",
-                                        fieldConfig.view ? "bg-indigo-100 text-indigo-700" : "bg-slate-200 text-slate-400"
+                                        fieldConfig.view ? "bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300" : "bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-400"
                                       )}
                                     >
                                       عرض
@@ -444,7 +444,7 @@ export default function RoleManager({ roles: initialRoles }: RoleManagerProps) {
                                       onClick={() => toggleFieldPermission(mod.name, field, 'edit')}
                                       className={cn(
                                         "px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-tighter transition-all",
-                                        fieldConfig.edit ? "bg-amber-100 text-amber-700" : "bg-slate-200 text-slate-400"
+                                        fieldConfig.edit ? "bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300" : "bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-400"
                                       )}
                                     >
                                       تعديل
@@ -463,12 +463,12 @@ export default function RoleManager({ roles: initialRoles }: RoleManagerProps) {
             </div>
           </div>
         ) : (
-          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center p-16 min-h-[540px]">
-            <div className="w-20 h-20 rounded-3xl bg-slate-50 text-slate-200 flex items-center justify-center mb-6">
+          <div className="bg-white dark:bg-[#131622] rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col items-center justify-center text-center p-16 min-h-[540px]">
+            <div className="w-20 h-20 rounded-3xl bg-slate-50 dark:bg-slate-800/60 text-slate-200 dark:text-slate-600 flex items-center justify-center mb-6">
               <Shield size={40} />
             </div>
-            <h3 className="text-xl font-black text-slate-900 tracking-tight">Aucun rôle sélectionné</h3>
-            <p className="text-slate-400 max-w-xs mx-auto mt-2 text-sm font-medium">
+            <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">Aucun rôle sélectionné</h3>
+            <p className="text-slate-400 dark:text-slate-400 max-w-xs mx-auto mt-2 text-sm font-medium">
               Sélectionnez un rôle à gauche pour gérer ses permissions d'accès aux modules.
             </p>
           </div>
