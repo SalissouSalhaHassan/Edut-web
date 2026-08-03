@@ -24,10 +24,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const userLabel = user.utilisateur || `User #${user.id}`;
+
     // Log device token registration
     await db.insert(messageLogs).values({
       msgType: "PUSH_TOKEN_REGISTRATION",
-      targetAudience: `User ID: ${user.id} (${user.email || user.username})`,
+      targetAudience: `User ID: ${user.id} (${userLabel})`,
       subject: `Token enregistre: ${deviceType}`,
       content: pushToken,
       recipientCount: 1,
@@ -35,7 +37,7 @@ export async function POST(request: NextRequest) {
       sentBy: "Application Mobile Flutter",
     });
 
-    console.log(`[PUSH TOKEN REGISTERED] User ${user.id} (${user.username}): ${pushToken.slice(0, 20)}...`);
+    console.log(`[PUSH TOKEN REGISTERED] User ${user.id} (${userLabel}): ${pushToken.slice(0, 20)}...`);
 
     return NextResponse.json({
       success: true,
