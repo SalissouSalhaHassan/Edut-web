@@ -8,6 +8,7 @@ import {
   ArrowLeft
 } from "lucide-react";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import dynamic from "next/dynamic";
 import { toast } from "sonner";
 const AcademicFilters = dynamic(() => import("@/domains/academics/components/AcademicFilters"), { ssr: false });
