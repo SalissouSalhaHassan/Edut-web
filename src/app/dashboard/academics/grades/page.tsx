@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { GraduationCap, LayoutGrid, FileCheck, ClipboardCheck, BarChart3, Sparkles, FileText } from "lucide-react";
+import { GraduationCap, LayoutGrid, FileCheck, ClipboardCheck, BarChart3, Sparkles, FileText, Printer } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -745,61 +746,27 @@ export default function AcademicResultsPage() {
 
       {/* Bulletin Preview Dialog */}
       <Dialog open={showPreview} onOpenChange={setShowPreview}>
-        <DialogContent className="max-w-6xl w-[95vw] bg-white p-8 rounded-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-bold text-slate-900">
-              Aperçu du Bulletin - {previewData?.student?.nomEtudiant}
-            </DialogTitle>
-          </DialogHeader>
-
-          {previewData && (
-            <div className="space-y-4 mt-4">
-              {/* Student Info */}
-              <div className="grid grid-cols-2 gap-4 text-sm bg-slate-50 p-4 rounded-xl">
-                <div>
-                  <p><span className="font-bold">Élève:</span> {previewData.student?.nomEtudiant}</p>
-                  <p><span className="font-bold">Matricule:</span> {previewData.student?.numAdmission}</p>
-                  <p><span className="font-bold">Classe:</span> {previewData.student?.classe}</p>
+        <DialogContent className="sm:max-w-5xl md:max-w-6xl w-[94vw] max-h-[92vh] bg-white dark:bg-[#0E1017] text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-800 rounded-[2.5rem] p-6 md:p-8 overflow-y-auto shadow-2xl space-y-6">
+          <DialogHeader className="border-b border-slate-100 dark:border-slate-800/80 pb-5">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-3">
+                  <span className="px-3 py-1 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 rounded-xl text-[11px] font-black uppercase tracking-widest">
+                    Aperçu du Bulletin Officiel
+                  </span>
+                  <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
+                    {previewData?.session || "Année Scolaire"} • {previewData?.term || "Période"}
+                  </span>
                 </div>
-                <div>
-                  <p><span className="font-bold">Période:</span> {previewData.term}</p>
-                  <p><span className="font-bold">Moyenne:</span> {previewData.summary?.average?.toFixed(2) || "-"}</p>
-                  <p><span className="font-bold">Rang:</span> {previewData.summary?.rank || "-"}</p>
-                </div>
+                <DialogTitle className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white mt-2 tracking-tight">
+                  {previewData?.student?.nomEtudiant || "Nom de l'élève"}
+                </DialogTitle>
+                <p className="text-xs font-bold text-slate-600 dark:text-slate-400 mt-1">
+                  Matricule : <span className="text-slate-900 dark:text-slate-200 font-mono font-black">{previewData?.student?.numAdmission || "N/A"}</span> | Classe : <span className="text-indigo-600 dark:text-indigo-400 font-black">{previewData?.student?.classe || "N/A"}</span> {previewData?.totalStudents ? `(${previewData.totalStudents} élèves)` : ""}
+                </p>
               </div>
 
-              {/* Table */}
-              <div className="overflow-x-auto border rounded-xl">
-                <table className="w-full text-sm">
-                  <thead className="bg-slate-100 text-slate-600">
-                    <tr>
-                      <th className="p-2 text-left">Discipline</th>
-                      <th className="p-2 text-center">Note 1</th>
-                      <th className="p-2 text-center">Note 2</th>
-                      <th className="p-2 text-center">Total</th>
-                      <th className="p-2 text-center">Coef</th>
-                      <th className="p-2 text-center">Moyenne</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {previewData.results?.map((r: any, idx: number) => (
-                      <tr key={idx} className="border-t">
-                        <td className="p-2">{r.subject?.subjectName || "Matière"}</td>
-                        <td className="p-2 text-center">{r.classWorkScore?.toFixed(2) || "-"}</td>
-                        <td className="p-2 text-center">{r.examScore?.toFixed(2) || "-"}</td>
-                        <td className="p-2 text-center">{r.totalScore?.toFixed(2) || "-"}</td>
-                        <td className="p-2 text-center">{r.coefficient || 1}</td>
-                        <td className="p-2 text-center">{r.average?.toFixed(2) || "-"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="flex justify-end gap-2 mt-6">
-                <Button variant="outline" onClick={() => setShowPreview(false)}>
-                  Fermer
-                </Button>
+              <div className="flex items-center gap-3">
                 <Button
                   onClick={() => {
                     const isOffline = !navigator.onLine;
@@ -809,12 +776,193 @@ export default function AcademicResultsPage() {
                     } else {
                       generateBulletinPDF({ ...previewData, headerConfig, isOffline });
                     }
-                    setShowPreview(false);
                   }}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-black px-6 h-12 rounded-2xl shadow-lg shadow-indigo-500/20 gap-2 transition-all text-xs uppercase tracking-wider"
                 >
-                  Confirmer et Imprimer (PDF)
+                  <Printer size={18} />
+                  Télécharger / Imprimer (PDF)
                 </Button>
+              </div>
+            </div>
+          </DialogHeader>
+
+          {previewData && (
+            <div className="space-y-6 mt-2">
+              {/* Summary KPIs */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                {/* 1. Moyenne General */}
+                <div className="bg-slate-50 dark:bg-slate-900/60 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between">
+                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Moyenne Générale</span>
+                  <div className="flex items-baseline gap-2 mt-2">
+                    <span className={cn(
+                      "text-3xl font-black tracking-tight",
+                      (previewData.summary?.average ?? 0) >= 14 ? "text-emerald-600 dark:text-emerald-400" :
+                      (previewData.summary?.average ?? 0) >= 12 ? "text-indigo-600 dark:text-indigo-400" :
+                      (previewData.summary?.average ?? 0) >= 10 ? "text-amber-600 dark:text-amber-400" : "text-rose-600 dark:text-rose-400"
+                    )}>
+                      {previewData.summary?.average !== undefined && previewData.summary?.average !== null ? Number(previewData.summary.average).toFixed(2) : "-"}
+                    </span>
+                    <span className="text-xs font-bold text-slate-400">/ 20</span>
+                  </div>
+                </div>
+
+                {/* 2. Rang */}
+                <div className="bg-slate-50 dark:bg-slate-900/60 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between">
+                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Rang dans la Classe</span>
+                  <div className="flex items-baseline gap-1.5 mt-2">
+                    <span className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
+                      {previewData.summary?.rank ? `${previewData.summary.rank}${previewData.summary.rank === 1 ? "er" : "ème"}` : "-"}
+                    </span>
+                    <span className="text-xs font-bold text-slate-400">
+                      {previewData.totalStudents ? `/ ${previewData.totalStudents} élèves` : ""}
+                    </span>
+                  </div>
+                </div>
+
+                {/* 3. Statistique Classe */}
+                <div className="bg-slate-50 dark:bg-slate-900/60 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between">
+                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Statistiques Classe</span>
+                  <div className="space-y-1 mt-2 text-xs font-bold text-slate-700 dark:text-slate-300">
+                    <div className="flex justify-between">
+                      <span className="text-slate-400 font-semibold">Moy. Classe:</span>
+                      <span className="font-black text-slate-900 dark:text-white">{previewData.summary?.classAverage ? Number(previewData.summary.classAverage).toFixed(2) : "-"}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400 font-semibold">Min / Max:</span>
+                      <span className="font-black text-slate-900 dark:text-white">{previewData.summary?.minAverage ? Number(previewData.summary.minAverage).toFixed(2) : "-"} / {previewData.summary?.maxAverage ? Number(previewData.summary.maxAverage).toFixed(2) : "-"}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 4. Mention / Appréciation */}
+                <div className="bg-slate-50 dark:bg-slate-900/60 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between">
+                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Appréciation & Mention</span>
+                  <div className="mt-2">
+                    <span className="inline-block px-3 py-1.5 rounded-xl bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/20 text-xs font-black uppercase tracking-wider">
+                      {previewData.summary?.mentions || previewData.summary?.decision || "Satisfaisant"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* High-Contrast Grades Table */}
+              <div className="overflow-hidden border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-left border-collapse">
+                    <thead>
+                      <tr className="bg-slate-900 text-white text-[11px] uppercase font-black tracking-wider">
+                        <th className="py-4 px-4 text-left">Discipline / Matière</th>
+                        <th className="py-4 px-3 text-center">Coef</th>
+                        <th className="py-4 px-3 text-center">Note CC / 20</th>
+                        <th className="py-4 px-3 text-center">Note Ex / 20</th>
+                        <th className="py-4 px-4 text-center">Moyenne / 20</th>
+                        <th className="py-4 px-4 text-center">Points</th>
+                        <th className="py-4 px-4 text-left">Appréciation Enseignant</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200 dark:divide-slate-800 bg-white dark:bg-[#131622]">
+                      {previewData.results?.map((r: any, idx: number) => {
+                        const avg = r.average !== undefined && r.average !== null ? Number(r.average) : (r.totalScore ?? null);
+                        const coef = r.coefficient || 1;
+                        const points = avg !== null ? (avg * coef).toFixed(2) : "-";
+                        return (
+                          <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                            <td className="py-3.5 px-4 font-black text-slate-900 dark:text-white">
+                              {r.subject?.subjectName || r.subjectName || "Matière"}
+                              {r.teacherName && (
+                                <span className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 mt-0.5">
+                                  Prof: {r.teacherName}
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-3.5 px-3 text-center font-bold text-slate-800 dark:text-slate-200">
+                              {coef}
+                            </td>
+                            <td className="py-3.5 px-3 text-center font-bold text-slate-800 dark:text-slate-200">
+                              {r.classWorkScore !== undefined && r.classWorkScore !== null ? Number(r.classWorkScore).toFixed(2) : "-"}
+                            </td>
+                            <td className="py-3.5 px-3 text-center font-bold text-slate-800 dark:text-slate-200">
+                              {r.examScore !== undefined && r.examScore !== null ? Number(r.examScore).toFixed(2) : "-"}
+                            </td>
+                            <td className="py-3.5 px-4 text-center font-black">
+                              <span className={cn(
+                                "inline-block px-2.5 py-1 rounded-lg text-xs font-black",
+                                avg === null ? "text-slate-400" :
+                                avg >= 14 ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" :
+                                avg >= 10 ? "bg-indigo-500/10 text-indigo-700 dark:text-indigo-400" :
+                                "bg-rose-500/10 text-rose-700 dark:text-rose-400"
+                              )}>
+                                {avg !== null ? avg.toFixed(2) : "-"}
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-4 text-center font-black text-slate-900 dark:text-slate-100">
+                              {points}
+                            </td>
+                            <td className="py-3.5 px-4 text-xs font-semibold text-slate-600 dark:text-slate-400 italic">
+                              {r.appreciation || "Travail régulier"}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    <tfoot className="bg-slate-100 dark:bg-slate-900/80 font-black text-slate-900 dark:text-white text-xs border-t-2 border-slate-300 dark:border-slate-700">
+                      <tr>
+                        <td className="py-4 px-4 uppercase tracking-wider">TOTAL GÉNÉRAL</td>
+                        <td className="py-4 px-3 text-center text-indigo-600 dark:text-indigo-400 font-black text-sm">{previewData.summary?.totalCoef || "-"}</td>
+                        <td className="py-4 px-3 text-center">—</td>
+                        <td className="py-4 px-3 text-center">—</td>
+                        <td className="py-4 px-4 text-center text-indigo-600 dark:text-indigo-400 text-sm font-black">
+                          {previewData.summary?.average !== undefined ? Number(previewData.summary.average).toFixed(2) : "-"} / 20
+                        </td>
+                        <td className="py-4 px-4 text-center text-indigo-600 dark:text-indigo-400 text-sm font-black">
+                          {previewData.summary?.totalScore !== undefined ? Number(previewData.summary.totalScore).toFixed(2) : "-"}
+                        </td>
+                        <td className="py-4 px-4 text-slate-500 font-semibold italic">Résultats arrêtés au conseil de classe</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+
+              {/* Signatures & Footer info */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2 text-center text-xs font-bold text-slate-500 dark:text-slate-400">
+                <div className="p-4 bg-slate-50 dark:bg-slate-900/40 rounded-2xl border border-slate-200/80 dark:border-slate-800">
+                  <span className="uppercase font-black text-slate-800 dark:text-slate-200">Le Professeur Principal</span>
+                  <div className="h-14 mt-2 flex items-center justify-center text-slate-400 italic text-[11px]">
+                    (Signature &amp; Observations)
+                  </div>
+                </div>
+                <div className="p-4 bg-slate-50 dark:bg-slate-900/40 rounded-2xl border border-slate-200/80 dark:border-slate-800">
+                  <span className="uppercase font-black text-slate-800 dark:text-slate-200">Le Chef d'Établissement</span>
+                  <div className="h-14 mt-2 flex items-center justify-center text-slate-400 italic text-[11px]">
+                    (Cachet et Signature Officielle)
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons Footer */}
+              <div className="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-slate-200 dark:border-slate-800">
+                <Button variant="outline" onClick={() => setShowPreview(false)} className="rounded-xl font-bold">
+                  Fermer
+                </Button>
+                <div className="flex items-center gap-3">
+                  <Button
+                    onClick={() => {
+                      const isOffline = !navigator.onLine;
+                      const isHigherEd = ["Licence", "Master", "Doctorat", "Supérieur", "Université"].includes(activeFilters?.level || "Lycée");
+                      if (isHigherEd) {
+                        generateReleveNotesPDF({ ...previewData, headerConfig, isOffline });
+                      } else {
+                        generateBulletinPDF({ ...previewData, headerConfig, isOffline });
+                      }
+                      setShowPreview(false);
+                    }}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-black px-6 h-12 rounded-2xl shadow-lg shadow-indigo-500/20 gap-2 text-xs uppercase tracking-wider"
+                  >
+                    <Printer size={18} />
+                    Confirmer et Imprimer (PDF)
+                  </Button>
+                </div>
               </div>
             </div>
           )}
