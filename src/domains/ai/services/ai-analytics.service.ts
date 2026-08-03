@@ -1,6 +1,6 @@
 import { db } from "@/infrastructure/database";
 import { students } from "@/infrastructure/database/schema/students";
-import { attendanceRecords } from "@/infrastructure/database/schema/attendance";
+import { studentAttendance } from "@/infrastructure/database/schema/attendance";
 import { studentResults } from "@/infrastructure/database/schema/academics";
 import { eq, and, sql, desc, inArray } from "drizzle-orm";
 import { getActiveSchoolId } from "@/domains/auth/services/school";
@@ -65,22 +65,24 @@ export class AIAnalyticsService {
       // 2. Aggregate Attendance Statistics
       const attendanceStats = await db
         .select({
-          studentId: attendanceRecords.studentId,
+          studentId: studentAttendance.studentId,
           total: sql<number>`count(*)`,
-          absentCount: sql<number>`count(case when ${attendanceRecords.status} = 'Absent' then 1 end)`,
-          delayCount: sql<number>`count(case when ${attendanceRecords.status} = 'En Retard' then 1 end)`,
+          absentCount: sql<number>`count(case when ${studentAttendance.status} = 'Absent' then 1 end)`,
+          delayCount: sql<number>`count(case when ${studentAttendance.status} = 'En Retard' then 1 end)`,
         })
-        .from(attendanceRecords)
-        .where(inArray(attendanceRecords.studentId, studentIds))
-        .groupBy(attendanceRecords.studentId);
+        .from(studentAttendance)
+        .where(inArray(studentAttendance.studentId, studentIds))
+        .groupBy(studentAttendance.studentId);
 
       const attendanceMap = new Map<number, { total: number; absentCount: number; delayCount: number }>();
       for (const stat of attendanceStats) {
-        attendanceMap.set(stat.studentId, {
-          total: Number(stat.total) || 0,
-          absentCount: Number(stat.absentCount) || 0,
-          delayCount: Number(stat.delayCount) || 0,
-        });
+        if (stat.studentId != null) {
+          attendanceMap.set(stat.studentId, {
+            total: Number(stat.total) || 0,
+            absentCount: Number(stat.absentCount) || 0,
+            delayCount: Number(stat.delayCount) || 0,
+          });
+        }
       }
 
       // 3. Aggregate Student Results / Grades
@@ -117,7 +119,6 @@ export class AIAnalyticsService {
         const avgGrade = gradesMap.get(st.id) ?? (st.id % 5 === 0 ? 8.5 : st.id % 3 === 0 ? 10.2 : 14.5);
 
         // Compute AI Weighted Risk Score (0 - 100)
-        // Absence weight: 45%, Grade weight: 45%, Random variance/behavior: 10%
         const absenceRisk = Math.min((absenceRate / 30) * 100, 100);
         const gradeRisk = Math.max(0, ((16 - avgGrade) / 12) * 100);
         

@@ -1,6 +1,6 @@
 "use server";
 
-import { protectedDbAction } from "@/domains/auth/services/action-protection";
+import { protectedDbAction } from "@/lib/protected-action";
 import { AIAnalyticsService } from "../services/ai-analytics.service";
 
 /**
