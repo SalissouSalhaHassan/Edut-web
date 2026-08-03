@@ -1683,6 +1683,7 @@ export function generateOfficialAnnualReportPDF(data: {
   sessionName?: string;
   students: any[];
   headerConfig?: any;
+  isHigherEd?: boolean;
 }) {
   const doc = new jsPDF({
     orientation: "landscape",
@@ -1696,7 +1697,8 @@ export function generateOfficialAnnualReportPDF(data: {
   const cfg = data.headerConfig || {};
   const country = cfg.country || cfg.countryName || "RÉPUBLIQUE DU NIGER";
   const motto = cfg.motto || "Unité - Travail - Progrès";
-  const ministry = cfg.ministry || cfg.ministryName || "MINISTÈRE DE L'ÉDUCATION NATIONALE";
+  const defaultMinistry = data.isHigherEd ? "MINISTÈRE DE L'ENSEIGNEMENT SUPÉRIEUR ET DE LA RECHERCHE" : "MINISTÈRE DE L'ÉDUCATION NATIONALE";
+  const ministry = cfg.ministry || cfg.ministryName || defaultMinistry;
   const regionalDir = cfg.regionalDirection || cfg.region || "";
   const schoolName = cfg.schoolName || cfg.school?.name || "ÉCOLE GESTION PRO";
   const logo = cfg.leftLogo || cfg.rightLogo || cfg.centerLogo || cfg.logoUrl;
@@ -1745,10 +1747,13 @@ export function generateOfficialAnnualReportPDF(data: {
   doc.line(10, 26, 287, 26);
 
   // Main Report Title
+  const isHigherEd = data.isHigherEd ?? false;
+  const docTitle = isHigherEd ? `RAPPORT RÉCAPITULATIF ANNUEL D'ÉVALUATION (LMD)` : `RAPPORT RÉCAPITULATIF OFFICIEL ANNUEL`;
+
   doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(15, 23, 42);
-  doc.text(`RAPPORT RÉCAPITULATIF OFFICIEL ANNUEL`, 148.5, 32, { align: "center" });
+  doc.text(docTitle, 148.5, 32, { align: "center" });
 
   doc.setFontSize(9.5);
   doc.setFont("helvetica", "normal");
@@ -1756,6 +1761,22 @@ export function generateOfficialAnnualReportPDF(data: {
   doc.text(`Classe: ${data.className || "N/A"}  |  Effectif: ${data.students.length} Élèves`, 148.5, 37, { align: "center" });
 
   startY = 42;
+
+  const clsUpper = (data.className || "").toUpperCase();
+  let s1Label = isHigherEd ? "Moyenne\nS1" : "Moyenne\n1er Sem.";
+  let r1Label = isHigherEd ? "Rang\nS1" : "Rang\n1er Sem.";
+  let s2Label = isHigherEd ? "Moyenne\nS2" : "Moyenne\n2ème Sem.";
+  let r2Label = isHigherEd ? "Rang\nS2" : "Rang\n2ème Sem.";
+
+  if (isHigherEd) {
+    if (clsUpper.includes("L2") || clsUpper.includes("LICENCE 2") || clsUpper.includes("L-2")) {
+      s1Label = "Moyenne\nS3"; r1Label = "Rang\nS3"; s2Label = "Moyenne\nS4"; r2Label = "Rang\nS4";
+    } else if (clsUpper.includes("L3") || clsUpper.includes("LICENCE 3") || clsUpper.includes("L-3")) {
+      s1Label = "Moyenne\nS5"; r1Label = "Rang\nS5"; s2Label = "Moyenne\nS6"; r2Label = "Rang\nS6";
+    } else if (clsUpper.includes("M2") || clsUpper.includes("MASTER 2") || clsUpper.includes("M-2")) {
+      s1Label = "Moyenne\nS9"; r1Label = "Rang\nS9"; s2Label = "Moyenne\nS10"; r2Label = "Rang\nS10";
+    }
+  }
 
   // Table Data
   const head = [[
@@ -1765,10 +1786,10 @@ export function generateOfficialAnnualReportPDF(data: {
     "Matricule",
     "Sexe",
     "Redoublement\nAntérieur",
-    "Moyenne\n1er Sem.",
-    "Rang\n1er Sem.",
-    "Moyenne\n2ème Sem.",
-    "Rang\n2ème Sem.",
+    s1Label,
+    r1Label,
+    s2Label,
+    r2Label,
     "Moyenne\nAnnuelle",
     "Allocataire"
   ]];

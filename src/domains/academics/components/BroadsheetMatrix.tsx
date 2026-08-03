@@ -125,6 +125,25 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
   const handleExportAnnualReportCSV = () => {
     if (!data || !data.students) return;
 
+    const getSemLabels = (className?: string) => {
+      if (!isHigherEd) {
+        return { s1: "Moy. 1er Sem.", r1: "Rang 1er Sem.", s2: "Moy. 2ème Sem.", r2: "Rang 2ème Sem." };
+      }
+      const cls = (className || activeFilters?.className || "").toUpperCase();
+      if (cls.includes("L2") || cls.includes("LICENCE 2") || cls.includes("L-2")) {
+        return { s1: "Moy. S3", r1: "Rang S3", s2: "Moy. S4", r2: "Rang S4" };
+      }
+      if (cls.includes("L3") || cls.includes("LICENCE 3") || cls.includes("L-3")) {
+        return { s1: "Moy. S5", r1: "Rang S5", s2: "Moy. S6", r2: "Rang S6" };
+      }
+      if (cls.includes("M2") || cls.includes("MASTER 2") || cls.includes("M-2")) {
+        return { s1: "Moy. S9", r1: "Rang S9", s2: "Moy. S10", r2: "Rang S10" };
+      }
+      return { s1: "Moy. S1", r1: "Rang S1", s2: "Moy. S2", r2: "Rang S2" };
+    };
+
+    const semLabels = getSemLabels();
+
     const headers = [
       "N°",
       "Noms et Prénoms",
@@ -132,10 +151,10 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
       "Matricule",
       "Sexe",
       "Redoublement Antérieur",
-      "Moyenne 1er Semestre",
-      "Rang 1er Semestre",
-      "Moyenne 2ème Semestre",
-      "Rang 2ème Semestre",
+      semLabels.s1,
+      semLabels.r1,
+      semLabels.s2,
+      semLabels.r2,
       "Moyenne Annuelle",
       "Allocataire"
     ];
@@ -215,6 +234,7 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
         sessionName: activeFilters?.sessionName || "2025-2026",
         students: data.students,
         headerConfig: headerConfig,
+        isHigherEd: isHigherEd,
       });
       toast.success("PDF Officiel Annuel généré avec succès !");
     } catch (e) {
@@ -693,20 +713,38 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                 <table className="w-full text-left text-xs border-collapse print-table">
                   <thead>
-                    <tr className="bg-slate-900 text-white text-[10px] font-black uppercase tracking-wider">
-                      <th className="p-2 border-r border-slate-800 text-center w-[3%]">N°</th>
-                      <th className="p-2 border-r border-slate-800 w-[16%]">Noms et Prénoms</th>
-                      <th className="p-2 border-r border-slate-800 w-[13%]">Date et lieu de naissance</th>
-                      <th className="p-2 border-r border-slate-800 text-center w-[10%]">Matricule</th>
-                      <th className="p-2 border-r border-slate-800 text-center w-[4%]">Sexe</th>
-                      <th className="p-2 border-r border-slate-800 text-center w-[7%]">Redoublement Antérieur</th>
-                      <th className="p-2 border-r border-slate-800 text-center text-cyan-300 w-[7%]">Moy. 1er Sem.</th>
-                      <th className="p-2 border-r border-slate-800 text-center text-cyan-300 w-[6%]">Rang 1er Sem.</th>
-                      <th className="p-2 border-r border-slate-800 text-center text-indigo-300 w-[7%]">Moy. 2ème Sem.</th>
-                      <th className="p-2 border-r border-slate-800 text-center text-indigo-300 w-[6%]">Rang 2ème Sem.</th>
-                      <th className="p-2 border-r border-slate-800 text-center text-amber-300 w-[9%]">Moy. Annuelle</th>
-                      <th className="p-2 text-center w-[12%]">Allocataire</th>
-                    </tr>
+                    {(() => {
+                      const cls = (activeFilters?.className || "").toUpperCase();
+                      let s1 = isHigherEd ? "Moy. S1" : "Moy. 1er Sem.";
+                      let r1 = isHigherEd ? "Rang S1" : "Rang 1er Sem.";
+                      let s2 = isHigherEd ? "Moy. S2" : "Moy. 2ème Sem.";
+                      let r2 = isHigherEd ? "Rang S2" : "Rang 2ème Sem.";
+                      if (isHigherEd) {
+                        if (cls.includes("L2") || cls.includes("LICENCE 2") || cls.includes("L-2")) {
+                          s1 = "Moy. S3"; r1 = "Rang S3"; s2 = "Moy. S4"; r2 = "Rang S4";
+                        } else if (cls.includes("L3") || cls.includes("LICENCE 3") || cls.includes("L-3")) {
+                          s1 = "Moy. S5"; r1 = "Rang S5"; s2 = "Moy. S6"; r2 = "Rang S6";
+                        } else if (cls.includes("M2") || cls.includes("MASTER 2") || cls.includes("M-2")) {
+                          s1 = "Moy. S9"; r1 = "Rang S9"; s2 = "Moy. S10"; r2 = "Rang S10";
+                        }
+                      }
+                      return (
+                        <tr className="bg-slate-900 text-white text-[10px] font-black uppercase tracking-wider">
+                          <th className="p-2 border-r border-slate-800 text-center w-[3%]">N°</th>
+                          <th className="p-2 border-r border-slate-800 w-[16%]">Noms et Prénoms</th>
+                          <th className="p-2 border-r border-slate-800 w-[13%]">Date et lieu de naissance</th>
+                          <th className="p-2 border-r border-slate-800 text-center w-[10%]">Matricule</th>
+                          <th className="p-2 border-r border-slate-800 text-center w-[4%]">Sexe</th>
+                          <th className="p-2 border-r border-slate-800 text-center w-[7%]">Redoublement Antérieur</th>
+                          <th className="p-2 border-r border-slate-800 text-center text-cyan-300 w-[7%]">{s1}</th>
+                          <th className="p-2 border-r border-slate-800 text-center text-cyan-300 w-[6%]">{r1}</th>
+                          <th className="p-2 border-r border-slate-800 text-center text-indigo-300 w-[7%]">{s2}</th>
+                          <th className="p-2 border-r border-slate-800 text-center text-indigo-300 w-[6%]">{r2}</th>
+                          <th className="p-2 border-r border-slate-800 text-center text-amber-300 w-[9%]">Moy. Annuelle</th>
+                          <th className="p-2 text-center w-[12%]">Allocataire</th>
+                        </tr>
+                      );
+                    })()}
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
                     {students.map((student: any, idx: number) => {
