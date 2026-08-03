@@ -129,7 +129,7 @@ export async function saveBatchAttendance(data: BatchAttendanceFormData) {
 
         for (const record of flaggedRecords) {
           const s = targetStudents.find(st => st.id === record.studentId);
-          const studentName = s ? `${s.nomEtudiant} ${s.prenomEtudiant || ''}`.trim() : `Élève #${record.studentId}`;
+          const studentName = s ? s.nomEtudiant : `Élève #${record.studentId}`;
           
           // 1. Mobile Push Notification
           await PushNotificationService.sendAbsenceAlert({
