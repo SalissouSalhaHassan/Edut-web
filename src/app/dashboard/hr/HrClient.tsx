@@ -188,7 +188,7 @@ export default function HrClient({
 
         <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
           {/* Sub-Navigation Selector */}
-          <Select value={tab} onValueChange={setTab}>
+          <Select value={tab} onValueChange={(v) => setTab(v || "employees")}>
             <SelectTrigger className="w-48 h-11 rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-xs font-bold">
               <SelectValue placeholder="Navigation..." />
             </SelectTrigger>
@@ -239,7 +239,7 @@ export default function HrClient({
       </div>
 
       {/* ─── TAB NAVIGATION & CONTENTS ────────────────────────────────────────── */}
-      <Tabs value={tab} onValueChange={setTab} className="w-full space-y-6">
+      <Tabs value={tab} onValueChange={(v) => setTab(v || "employees")} className="w-full space-y-6">
 
         {/* ─── TABS HEADER LIST ─── */}
         <div className="bg-white dark:bg-[#131622]/90 rounded-2xl border border-slate-100 dark:border-slate-800 p-2 shadow-sm">
@@ -282,7 +282,7 @@ export default function HrClient({
             </div>
 
             <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-              <Select value={deptFilter} onValueChange={(v) => { setDeptFilter(v); setPage(1); }}>
+              <Select value={deptFilter} onValueChange={(v) => { setDeptFilter(v || "all"); setPage(1); }}>
                 <SelectTrigger className="h-11 rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-xs font-bold w-44">
                   <SelectValue placeholder="Tous les dépts." />
                 </SelectTrigger>
@@ -292,7 +292,7 @@ export default function HrClient({
                 </SelectContent>
               </Select>
 
-              <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
+              <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v || "all"); setPage(1); }}>
                 <SelectTrigger className="h-11 rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-xs font-bold w-36">
                   <SelectValue placeholder="Statut" />
                 </SelectTrigger>
