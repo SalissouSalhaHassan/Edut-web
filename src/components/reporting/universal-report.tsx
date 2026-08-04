@@ -127,26 +127,33 @@ function drawWrappedText(doc: jsPDF, text: string, x: number, y: number, maxWidt
   }
 }
 
+function sanitizePDFText(value: any): string {
+  if (value == null) return "";
+  const str = String(value);
+  return str.replace(/[\u00A0\u202F\u2000-\u200B\xa0]/g, " ").trim();
+}
+
 function drawPDFHeader(
   doc: jsPDF,
   headerConfig: any,
   title: string
 ): number {
-  const style = headerConfig?.style || "classic_dual_logo";
-  const schoolName = headerConfig?.schoolName || "ÉCOLE EXCELLENCE";
-  const address = headerConfig?.address || "";
-  const phone = headerConfig?.phone || "";
-  const email = headerConfig?.email || "";
-  const registrationNo = headerConfig?.registrationNo || "";
-  const schoolYear = headerConfig?.schoolYear || "";
-  const ministry = headerConfig?.ministry || "Ministère de l'Éducation Nationale";
-  const service = headerConfig?.service || "Service de la Scolarité";
-  const bp = headerConfig?.bp || "";
-  const motto = headerConfig?.motto || "";
+  const mergedCfg = mergeDocumentHeaderConfig(headerConfig);
+  const style = mergedCfg.style || "bilingual_center_logo";
+  const schoolName = mergedCfg.schoolName || "ÉCOLE EXCELLENCE";
+  const address = mergedCfg.address || "";
+  const phone = mergedCfg.phone || "";
+  const email = mergedCfg.email || "";
+  const registrationNo = mergedCfg.schoolCode || "";
+  const schoolYear = mergedCfg.schoolYear || "";
+  const ministry = mergedCfg.ministry || "Ministère de l'Éducation Nationale";
+  const service = mergedCfg.service || "Service de la Scolarité";
+  const bp = mergedCfg.bp || "";
+  const motto = mergedCfg.motto || "";
   
-  const leftLogo = headerConfig?.leftLogo || "";
-  const rightLogo = headerConfig?.rightLogo || leftLogo;
-  const centerLogo = headerConfig?.centerLogo || leftLogo;
+  const leftLogo = mergedCfg.leftLogo || "";
+  const rightLogo = mergedCfg.rightLogo || leftLogo;
+  const centerLogo = mergedCfg.centerLogo || leftLogo;
 
   const W = doc.internal.pageSize.getWidth();
   const margin = 10;
@@ -185,7 +192,7 @@ function drawPDFHeader(
     return 38;
   }
   
-  if (style === "bilingual_center_logo") {
+  if (style === "bilingual_center_logo" || style === "classic_dual_logo") {
     if (centerLogo) {
       try {
         doc.addImage(centerLogo, 'PNG', centerX - 13, 8, 26, 26);
@@ -193,11 +200,13 @@ function drawPDFHeader(
     }
     
     const leftLines = [
-      headerConfig?.country || "RÉPUBLIQUE DU NIGER",
+      mergedCfg.country || "RÉPUBLIQUE DU NIGER",
       ministry,
-      headerConfig?.regionalDirection || "",
-      headerConfig?.departmentalDirection || "",
-      headerConfig?.inspection || "",
+      mergedCfg.regionalDirection || "",
+      mergedCfg.departmentalDirection || "",
+      mergedCfg.inspection || "",
+      mergedCfg.commune || "",
+      mergedCfg.schoolCode ? `Code Étab. : ${mergedCfg.schoolCode}` : "",
       schoolName,
       service,
       address,
@@ -207,14 +216,16 @@ function drawPDFHeader(
     ].filter(Boolean);
 
     const rightLines = [
-      headerConfig?.countryAr || "جمهورية النيجر",
-      headerConfig?.ministryAr || "وزارة التربية الوطنية",
-      headerConfig?.regionalDirectionAr || "",
-      headerConfig?.departmentalDirectionAr || "",
-      headerConfig?.inspectionAr || "",
-      headerConfig?.schoolNameAr || schoolName,
-      headerConfig?.serviceAr || "",
-      headerConfig?.addressAr || "",
+      mergedCfg.countryAr || "جمهورية النيجر",
+      mergedCfg.ministryAr || "وزارة التربية الوطنية",
+      mergedCfg.regionalDirectionAr || "",
+      mergedCfg.departmentalDirectionAr || "",
+      mergedCfg.inspectionAr || "",
+      mergedCfg.communeAr || "",
+      mergedCfg.schoolCode ? `رمز المؤسسة: ${mergedCfg.schoolCode}` : "",
+      mergedCfg.schoolNameAr || schoolName,
+      mergedCfg.serviceAr || "",
+      mergedCfg.addressAr || "",
       bp ? `ص.ب: ${bp}` : "",
       phone ? `الهاتف: ${phone}` : "",
       email ? `البريد: ${email}` : "",
@@ -404,6 +415,22 @@ export default function UniversalReport({ metadata, kpis = [], table, onSendEmai
   const [recipientEmail, setRecipientEmail] = useState("");
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [selectedPaperSize, setSelectedPaperSize] = useState<"A4" | "A5">("A4");
+  const [dbHeaderConfig, setDbHeaderConfig] = useState<any>(null);
+
+  React.useEffect(() => {
+    if (!metadata.documentHeaderConfig) {
+      import("@/domains/settings/actions/settings.actions").then(({ getDocumentHeaderConfig }) => {
+        getDocumentHeaderConfig().then((res) => {
+          if (res?.data) {
+            const cfg = (res.data as any).data || res.data;
+            setDbHeaderConfig(cfg);
+          }
+        });
+      });
+    }
+  }, [metadata.documentHeaderConfig]);
+
+  const activeHeaderConfig = metadata.documentHeaderConfig || dbHeaderConfig;
 
   React.useEffect(() => {
     const styleId = "universal-report-print-style";
@@ -520,7 +547,7 @@ export default function UniversalReport({ metadata, kpis = [], table, onSendEmai
       const pageWidth = doc.internal.pageSize.getWidth();
       const pageHeight = doc.internal.pageSize.getHeight();
 
-      const startY = drawPDFHeader(doc, metadata.documentHeaderConfig || null, metadata.title);
+      const startY = drawPDFHeader(doc, activeHeaderConfig, metadata.title);
       let currentY = startY + 8;
 
       if (kpis && kpis.length > 0) {
@@ -541,14 +568,14 @@ export default function UniversalReport({ metadata, kpis = [], table, onSendEmai
           doc.setFont("helvetica", "bold");
           doc.setFontSize(7);
           doc.setTextColor(100, 116, 139);
-          drawTextBilingual(doc, kpi.label.toUpperCase(), sx + 3, currentY + 5);
+          drawTextBilingual(doc, sanitizePDFText(kpi.label).toUpperCase(), sx + 3, currentY + 5);
           doc.setFontSize(12);
           doc.setTextColor(37, 99, 235);
-          drawTextBilingual(doc, String(kpi.value), sx + 3, currentY + 14);
+          drawTextBilingual(doc, sanitizePDFText(kpi.value), sx + 3, currentY + 14);
           if (kpi.subtext) {
             doc.setFontSize(6);
             doc.setTextColor(148, 163, 184);
-            drawTextBilingual(doc, kpi.subtext, sx + 3, currentY + 19);
+            drawTextBilingual(doc, sanitizePDFText(kpi.subtext), sx + 3, currentY + 19);
           }
         });
         currentY += 28;
@@ -557,8 +584,8 @@ export default function UniversalReport({ metadata, kpis = [], table, onSendEmai
       if (table && table.rows.length > 0) {
         autoTable(doc, {
           startY: currentY,
-          head: [table.headers],
-          body: table.rows.map((row) => row.map((cell) => String(cell ?? ""))),
+          head: [table.headers.map((h) => sanitizePDFText(h))],
+          body: table.rows.map((row) => row.map((cell) => sanitizePDFText(cell))),
           styles: { font: "helvetica", fontSize: 8, cellPadding: 3 },
           headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255], fontStyle: "bold" },
           alternateRowStyles: { fillColor: [248, 250, 252] },
@@ -571,7 +598,7 @@ export default function UniversalReport({ metadata, kpis = [], table, onSendEmai
           doc.setFont("helvetica", "bold");
           doc.setTextColor(100, 116, 139);
           table.summary.forEach((sum, idx) => {
-            drawTextBilingual(doc, `${sum.label}: ${sum.value}`, 10 + idx * 60, currentY);
+            drawTextBilingual(doc, sanitizePDFText(`${sum.label}: ${sum.value}`), 10 + idx * 60, currentY);
           });
           currentY += 8;
         }
@@ -581,7 +608,7 @@ export default function UniversalReport({ metadata, kpis = [], table, onSendEmai
         doc.setFont("helvetica", "italic");
         doc.setFontSize(8);
         doc.setTextColor(71, 85, 105);
-        const splitDesc = doc.splitTextToSize(metadata.description, pageWidth - 20);
+        const splitDesc = doc.splitTextToSize(sanitizePDFText(metadata.description), pageWidth - 20);
         doc.text(splitDesc, 10, currentY);
       }
 
@@ -782,7 +809,7 @@ export default function UniversalReport({ metadata, kpis = [], table, onSendEmai
       <article data-paper-size={selectedPaperSize} className="bg-white dark:bg-[#131622] rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm p-8 print:p-0 print:border-none print:shadow-none space-y-8 print:bg-white print:text-black">
         
         {/* ─── PRINTABLE OFFICIAL HEADER ─── */}
-        <OfficialDocumentHeader config={metadata.documentHeaderConfig || null} title={metadata.title} />
+        <OfficialDocumentHeader config={activeHeaderConfig} title={metadata.title} />
         {/* ─── GENERAL SUMMARY SECTION ─── */}
         {kpis && kpis.length > 0 && (
           <div className="space-y-3">
