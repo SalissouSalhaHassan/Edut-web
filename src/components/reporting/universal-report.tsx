@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import OfficialDocumentHeader from "@/domains/printing/components/OfficialDocumentHeader";
-import type { DocumentHeaderConfig } from "@/domains/printing/document-header";
+import { mergeDocumentHeaderConfig, type DocumentHeaderConfig } from "@/domains/printing/document-header";
 import { amiriFontBase64 } from "@/domains/printing/utils/amiri-font";
 import { hasArabicCharacters, reshapeArabicText } from "@/domains/printing/utils/arabic-reshaper";
 
