@@ -448,7 +448,7 @@ function ReportsDashboardContent({ unifiedData: initialData, branding, currentUs
     const paid = filteredPayments.reduce((acc, p) => acc + (Number(p?.amount) || 0), 0);
     const spent = filteredExpenses.reduce((acc, e) => acc + (Number(e?.amount) || 0), 0);
     const balance = paid - spent;
-    const recoveryRate = expected > 0 ? Math.min(100, Math.round((paid / expected) * 100)) : 84;
+    const recoveryRate = expected > 0 ? Math.min(100, Math.round((paid / expected) * 100)) : 0;
 
     reportKpis = [
       { label: "Total Recettes", value: `${paid.toLocaleString("fr-FR")} CFA`, icon: <DollarSign size={18} />, color: "text-emerald-600", bgColor: "bg-emerald-50 dark:bg-emerald-500/10" },
@@ -497,7 +497,7 @@ function ReportsDashboardContent({ unifiedData: initialData, branding, currentUs
 
   else if (activeReport === "pedagogie") {
     const validated = filteredSeances.filter(s => s?.statut === "Validé").length;
-    const progressRate = filteredPlans.length > 0 ? Math.round((validated / filteredPlans.length) * 100) : 75;
+    const progressRate = filteredPlans.length > 0 ? Math.round((validated / filteredPlans.length) * 100) : 0;
 
     reportKpis = [
       { label: "Séances Réalisées", value: filteredSeances.length, icon: <BookOpen size={18} />, color: "text-blue-600", bgColor: "bg-blue-50 dark:bg-blue-500/10" },
@@ -556,7 +556,7 @@ function ReportsDashboardContent({ unifiedData: initialData, branding, currentUs
     const lates = filteredAttendance.filter(a => a?.status === "En Retard").length;
     const excused = filteredAttendance.filter(a => a?.status === "Excusé").length;
     const total = filteredAttendance.length;
-    const rate = total > 0 ? Math.round(((presents + lates + excused) / total) * 100) : 94;
+    const rate = total > 0 ? Math.round(((presents + lates + excused) / total) * 100) : 0;
 
     reportKpis = [
       { label: "Taux Présence", value: `${rate}%`, icon: <Activity size={18} />, color: "text-emerald-600", bgColor: "bg-emerald-50 dark:bg-emerald-500/10" },
@@ -639,20 +639,31 @@ function ReportsDashboardContent({ unifiedData: initialData, branding, currentUs
   }
 
   else if (activeReport === "library") {
+    const totalResources = (data.resources || []).length;
+    const digitalDocs = (data.resources || []).filter(r => r?.fileUrl || r?.url).length;
+    const totalCourses = (data.courses || []).length;
+    const lessonsWithDocs = (data.lessons || []).filter(l => l?.content || l?.resourceUrl).length;
+
     reportKpis = [
-      { label: "Total Livres", value: 1250, icon: <Library size={18} />, color: "text-indigo-600", bgColor: "bg-indigo-50 dark:bg-indigo-500/10" },
-      { label: "Disponibles", value: 1180, icon: <Library size={18} />, color: "text-emerald-600", bgColor: "bg-emerald-50 dark:bg-emerald-500/10" },
-      { label: "Emprunts Actifs", value: 70, icon: <Users size={18} />, color: "text-blue-600", bgColor: "bg-blue-50 dark:bg-blue-500/10" },
-      { label: "Retards Détectés", value: 12, icon: <Clock size={18} />, color: "text-rose-600", bgColor: "bg-rose-50 dark:bg-rose-500/10" }
+      { label: "Ressources Numériques", value: totalResources, icon: <Library size={18} />, color: "text-indigo-600", bgColor: "bg-indigo-50 dark:bg-indigo-500/10" },
+      { label: "Fichiers & Liens", value: digitalDocs, icon: <FileText size={18} />, color: "text-emerald-600", bgColor: "bg-emerald-50 dark:bg-emerald-500/10" },
+      { label: "Cours Référencés", value: totalCourses, icon: <BookOpen size={18} />, color: "text-blue-600", bgColor: "bg-blue-50 dark:bg-blue-500/10" },
+      { label: "Leçons Détaillées", value: lessonsWithDocs, icon: <Layers size={18} />, color: "text-amber-600", bgColor: "bg-amber-50 dark:bg-amber-500/10" }
     ];
 
     reportTable = {
-      headers: ["Code Livre", "Titre du Livre", "Auteur", "Exemplaires Stock", "Disponibles", "Emprunté Par", "Date Emprunt", "Statut / Retard"],
-      rows: [
-        ["LIB-092", "Physique Lycée", "Dr. Ibrahim", 50, 55, "Sani Mamane", "01/06/2026", "Retard (37 jours)"],
-        ["LIB-104", "Chimie Organique", "Prof. Kallo", 30, 28, "Aminata Diallo", "24/06/2026", "Rendu"],
-        ["LIB-203", "Histoire du Niger", "Djibo Hamani", 100, 94, "Ali Ousmane", "20/06/2026", "Emprunt actif"],
-      ]
+      headers: ["Réf / ID", "Titre de la Ressource", "Type / Format", "Auteur / Enseignant", "Date de Publication", "Statut / Disponibilité"],
+      rows: (data.resources || []).map(r => {
+        const safeDate = r?.createdAt ? new Date(r.createdAt) : null;
+        return [
+          `RES-${r?.id || "N/A"}`,
+          r?.title || "Document sans titre",
+          r?.type || r?.format || "Fichier Pédagogique",
+          r?.author || r?.createdByName || "Enseignant",
+          safeDate && !isNaN(safeDate.getTime()) ? safeDate.toLocaleDateString("fr-FR") : "-",
+          "Disponible en ligne"
+        ];
+      })
     };
   }
 
@@ -661,16 +672,16 @@ function ReportsDashboardContent({ unifiedData: initialData, branding, currentUs
     const totalTeachers = (data.employees || []).filter(e => (e?.poste || "").toLowerCase().includes("prof") || (e?.fonction || "").toLowerCase().includes("prof")).length;
 
     reportKpis = [
-      { label: "Structures Éducatives", value: 1, icon: <Building2 size={18} />, color: "text-indigo-600", bgColor: "bg-indigo-50 dark:bg-indigo-500/10" },
+      { label: "Structures Éducatives", value: (data.classes || []).length > 0 ? 1 : 0, icon: <Building2 size={18} />, color: "text-indigo-600", bgColor: "bg-indigo-50 dark:bg-indigo-500/10" },
       { label: "Total Élèves", value: totalStudentsVal, icon: <Users size={18} />, color: "text-blue-600", bgColor: "bg-blue-50 dark:bg-blue-500/10" },
       { label: "Enseignants Canevas", value: totalTeachers, icon: <UserCheck size={18} />, color: "text-amber-600", bgColor: "bg-amber-50 dark:bg-amber-500/10" },
       { label: "Ratio Élèves / Prof", value: totalTeachers > 0 ? Math.round(totalStudentsVal / totalTeachers) : totalStudentsVal, icon: <Layers size={18} />, color: "text-emerald-600", bgColor: "bg-emerald-50 dark:bg-emerald-500/10" }
     ];
 
     const groups = [
-      { level: "Primaire", effectif: (data.students || []).filter(s => (s?.educationalLevel || "").toLowerCase().includes("prim")).length, teacherCount: Math.round(totalTeachers * 0.6) || 1 },
-      { level: "Collège", effectif: (data.students || []).filter(s => (s?.educationalLevel || "").toLowerCase().includes("coll")).length, teacherCount: Math.round(totalTeachers * 0.3) || 1 },
-      { level: "Lycée", effectif: (data.students || []).filter(s => (s?.educationalLevel || "").toLowerCase().includes("lyc")).length, teacherCount: Math.round(totalTeachers * 0.1) || 1 }
+      { level: "Primaire", effectif: (data.students || []).filter(s => (s?.educationalLevel || "").toLowerCase().includes("prim")).length, teacherCount: Math.round(totalTeachers * 0.6) || (totalTeachers > 0 ? 1 : 0) },
+      { level: "Collège", effectif: (data.students || []).filter(s => (s?.educationalLevel || "").toLowerCase().includes("coll")).length, teacherCount: Math.round(totalTeachers * 0.3) || 0 },
+      { level: "Lycée", effectif: (data.students || []).filter(s => (s?.educationalLevel || "").toLowerCase().includes("lyc")).length, teacherCount: Math.round(totalTeachers * 0.1) || 0 }
     ];
 
     reportTable = {
@@ -699,58 +710,76 @@ function ReportsDashboardContent({ unifiedData: initialData, branding, currentUs
   }
 
   else if (activeReport === "inspection") {
+    const totalClasses = (data.classes || []).length;
+    const totalStudentsVal = (data.students || []).length;
+    const totalTeachers = (data.employees || []).filter(e => (e?.poste || "").toLowerCase().includes("prof") || (e?.fonction || "").toLowerCase().includes("prof")).length;
+    const validatedPlans = (data.plans || []).filter(p => p?.statut === "Validé").length;
+
     reportKpis = [
-      { label: "Écoles Suivies", value: 6, icon: <Building2 size={18} />, color: "text-indigo-600", bgColor: "bg-indigo-50 dark:bg-indigo-500/10" },
-      { label: "Canevas Validés", value: 2, icon: <ShieldCheck size={18} />, color: "text-emerald-600", bgColor: "bg-emerald-50 dark:bg-emerald-500/10" },
-      { label: "Rejets Déclarations", value: 1, icon: <ShieldAlert size={18} />, color: "text-rose-600", bgColor: "bg-rose-50 dark:bg-rose-500/10" },
-      { label: "En Retard", value: 1, icon: <Clock size={18} />, color: "text-amber-600", bgColor: "bg-amber-50 dark:bg-amber-500/10" }
+      { label: "Classes Suivies", value: totalClasses, icon: <Building2 size={18} />, color: "text-indigo-600", bgColor: "bg-indigo-50 dark:bg-indigo-500/10" },
+      { label: "Total Élèves Inspection", value: totalStudentsVal, icon: <Users size={18} />, color: "text-blue-600", bgColor: "bg-blue-50 dark:bg-blue-500/10" },
+      { label: "Professeurs Audités", value: totalTeachers, icon: <UserCheck size={18} />, color: "text-emerald-600", bgColor: "bg-emerald-50 dark:bg-emerald-500/10" },
+      { label: "Canevas & Plans Validés", value: validatedPlans, icon: <ShieldCheck size={18} />, color: "text-amber-600", bgColor: "bg-amber-50 dark:bg-amber-500/10" }
     ];
 
     reportTable = {
-      headers: ["Code Éts", "Nom de l'Établissement", "Commune", "Type / Cycle", "Dossier Complété", "Inspecteur Responsable", "Dernier Audit", "Statut Validation"],
-      rows: [
-        ["ETB-2026-001", "Ecole Excellence", "Niamey IV", "Privé / Primaire", "98%", "Inspecteur Niamey IV", "27/06/2026", "Validé inspection"],
-        ["ETB-2026-067", "Ecole Publique Lazaret B", "Niamey IV", "Public / Primaire", "70%", "Inspecteur Niamey IV", "25/06/2026", "En attente"],
-        ["ETB-2026-202", "Collège CEG 14", "Niamey IV", "Public / Collège", "65%", "Inspecteur Niamey IV", "24/06/2026", "En attente"],
-        ["ETB-2026-521", "Complexe Privé Al-Barka", "Niamey IV", "Privé / Collège", "55%", "Inspecteur Niamey IV", "10/05/2026", "Rejeté inspection"],
-      ]
+      headers: ["Classe / Section", "Cycle D'enseignement", "Effectif Élèves", "Professeurs Associés", "Planifications Validées", "Dossier Conformité"],
+      rows: (data.classes || []).map(c => {
+        const classStudents = (data.students || []).filter(s => s && (String(s.classe) === c.className || String(s.classId) === String(c.id)));
+        const classPlans = (data.plans || []).filter(p => p && String(p.classId) === String(c.id) && p.statut === "Validé");
+        return [
+          c.className || "Classe",
+          c.section?.educationalLevel || c.educationalLevel || "Général",
+          classStudents.length.toLocaleString("fr-FR"),
+          totalTeachers > 0 ? "Affecté" : "Non affecté",
+          `${classPlans.length} leçons validées`,
+          classStudents.length > 0 ? "Dossier Conforme" : "En attente d'élèves"
+        ];
+      })
     };
   }
 
   else if (activeReport === "ministry") {
+    const totalStudentsVal = (data.students || []).length;
+    const girls = (data.students || []).filter(s => (s?.sexe || "").toLowerCase().startsWith("f")).length;
+    const boys = totalStudentsVal - girls;
+    const totalTeachers = (data.employees || []).filter(e => (e?.poste || "").toLowerCase().includes("prof") || (e?.fonction || "").toLowerCase().includes("prof")).length;
+    const studentTeacherRatio = totalTeachers > 0 ? (totalStudentsVal / totalTeachers).toFixed(1) : String(totalStudentsVal);
+
+    const presents = (data.attendance || []).filter(a => a?.status === "Présent" || a?.status === "Excusé").length;
+    const totalAtt = (data.attendance || []).length;
+    const attendanceRate = totalAtt > 0 ? ((presents / totalAtt) * 100).toFixed(1) + "%" : "100.0%";
+
+    const paid = (data.feePayments || []).reduce((acc, p) => acc + (Number(p?.amount) || 0), 0);
+    const expected = (data.students || []).reduce((acc, s) => acc + (Number(s?.fraisMensuels) || 0), 0);
+    const recoveryRate = expected > 0 ? Math.min(100, Math.round((paid / expected) * 100)) + "%" : "100.0%";
+
     reportKpis = [
-      { label: "Écoles", value: 10, icon: <Building2 size={18} />, color: "text-indigo-600", bgColor: "bg-indigo-50 dark:bg-indigo-500/10" },
-      { label: "Total Élèves", value: 6303, icon: <Users size={18} />, color: "text-blue-600", bgColor: "bg-blue-50 dark:bg-blue-500/10" },
-      { label: "Taux Réussite", value: "76.8%", icon: <Award size={18} />, color: "text-amber-600", bgColor: "bg-amber-50 dark:bg-amber-500/10" },
-      { label: "Ratio Élève/Ens", value: "24.5", icon: <Layers size={18} />, color: "text-slate-600", bgColor: "bg-slate-50 dark:bg-slate-500/10" },
-      { label: "Taux Abandon", value: "4.9%", icon: <TrendingDown size={18} />, color: "text-rose-600", bgColor: "bg-rose-50 dark:bg-rose-500/10" },
-      { label: "Complétude Données", value: "83%", icon: <CheckCircle2 size={18} />, color: "text-emerald-600", bgColor: "bg-emerald-50 dark:bg-emerald-500/10" },
-      { label: "Zones Prioritaires", value: 3, icon: <ShieldAlert size={18} />, color: "text-rose-600", bgColor: "bg-rose-50 dark:bg-rose-500/10" }
+      { label: "Établissements Suivis", value: totalStudentsVal > 0 ? 1 : 0, icon: <Building2 size={18} />, color: "text-indigo-600", bgColor: "bg-indigo-50 dark:bg-indigo-500/10" },
+      { label: "Effectif Élèves Réel", value: totalStudentsVal, icon: <Users size={18} />, color: "text-blue-600", bgColor: "bg-blue-50 dark:bg-blue-500/10" },
+      { label: "Effectif Enseignants", value: totalTeachers, icon: <UserCheck size={18} />, color: "text-emerald-600", bgColor: "bg-emerald-50 dark:bg-emerald-500/10" },
+      { label: "Ratio Élève/Prof", value: studentTeacherRatio, icon: <Layers size={18} />, color: "text-slate-600", bgColor: "bg-slate-50 dark:bg-slate-500/10" },
+      { label: "Taux de Présence", value: attendanceRate, icon: <Activity size={18} />, color: "text-amber-600", bgColor: "bg-amber-50 dark:bg-amber-500/10" },
+      { label: "Recouvrement Caisse", value: recoveryRate, icon: <Award size={18} />, color: "text-emerald-600", bgColor: "bg-emerald-50 dark:bg-emerald-500/10" },
+      { label: "Complétude Données", value: totalStudentsVal > 0 ? "100%" : "0%", icon: <CheckCircle2 size={18} />, color: "text-indigo-600", bgColor: "bg-indigo-50 dark:bg-indigo-500/10" }
     ];
 
     reportTable = {
       headers: [
         "Indicateur MEN-NE", 
-        "Valeur Nationale Concl.", 
+        "Valeur Réelle Consolidée", 
         "Cible Sectorielle (ODD4)",
         "Statut / Niveau d'Alerte"
       ],
       rows: [
-        ["Nombre d'établissements", "10 écoles", "N/A", "Stable"],
-        ["Effectif Élèves total", "6 303 élèves (dont 3 041 filles)", "Parité 1.0", "Conforme"],
-        ["Effectif Enseignants", "249 enseignants", "N/A", "Stable"],
-        ["Ratio Élèves / Enseignant", "24.5 E/E", "40.0 maximum", "Optimal"],
-        ["Taux de Réussite Moyen", "76.8 %", "80.0 % minimum", "À surveiller"],
-        ["Taux de Présence Moyen", "90.1 %", "95.0 % minimum", "Conforme"],
-        ["Taux d'Abandon Moyen", "4.9 %", "5.0 % maximum", "Stable"],
-        ["Écoles sans accès eau potable", "2 écoles (20%)", "0 écoles", "Risque moyen"],
-        ["Écoles sans électricité", "3 écoles (30%)", "0 écoles", "Risque élevé"],
-        ["Écoles sans latrines séparées", "3 écoles (30%)", "0 écoles", "Critique"],
-        ["Déficit enseignants (Postes)", "11 postes", "0 postes", "À recruter"],
-        ["Déficit de salles de classe", "13 salles", "0 salles", "Déficit modéré"],
-        ["Déficit de manuels scolaires", "545 livres", "Ratio 1:1 élève/manuel", "Alerte logistique"],
-        ["Taux de complétude des données", "83.6 %", "100.0 %", "À valider"],
-        ["Zones d'intervention prioritaires", "3 zones prioritaires", "0 zones", "Intervention urgente"]
+        ["Effectif Élèves total", `${totalStudentsVal} élèves (${girls} filles, ${boys} garçons)`, "Parité 1.0", girls === boys ? "Parité Parfaite" : "Conforme"],
+        ["Effectif Enseignants", `${totalTeachers} enseignants`, "N/A", totalTeachers > 0 ? "Opérationnel" : "À recruter"],
+        ["Ratio Élèves / Enseignant", `${studentTeacherRatio} E/E`, "40.0 maximum", Number(studentTeacherRatio) <= 40 ? "Optimal" : "Surchargé"],
+        ["Taux de Présence Moyen", attendanceRate, "95.0 % minimum", "Conforme"],
+        ["Taux de Recouvrement Financier", recoveryRate, "100.0 % cible", "Suivi caisse"],
+        ["Classes en Activité", `${(data.classes || []).length} classes`, "N/A", "Opérationnel"],
+        ["Cours LMS Ouverts", `${(data.courses || []).length} cours`, "N/A", "En ligne"],
+        ["Taux de complétude des données", totalStudentsVal > 0 ? "100.0 %" : "0.0 %", "100.0 %", totalStudentsVal > 0 ? "Validé" : "En attente"]
       ]
     };
   }
