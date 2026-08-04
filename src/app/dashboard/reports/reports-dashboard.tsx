@@ -6,12 +6,14 @@ import {
   Download, Printer, Mail, Clock, Filter, Eye, RefreshCw,
   Search, ShieldAlert, Award, FileSpreadsheet, Building2,
   Droplets, Lightbulb, AlertTriangle, Layers, UserCheck, Activity,
-  Globe, Library, FileText, TrendingDown, CheckCircle2
+  Globe, Library, FileText, TrendingDown, CheckCircle2,
+  Sparkles, BrainCircuit, Bot, Copy, Check, X
 } from "lucide-react";
 import { toast } from "sonner";
 import { localDb } from "@/infrastructure/local-db/dexie";
 import dynamicImport from "next/dynamic";
 import { Label } from "@/components/ui/label";
+import { generateAIReportSummaryAction, getDropoutRiskAnalysisAction } from "@/domains/ai/actions/ai.actions";
 
 const UniversalReport = dynamicImport(() => import("@/components/reporting/universal-report"), { 
   ssr: false,
@@ -140,7 +142,32 @@ function ReportsDashboardContent({ unifiedData: initialData, branding, currentUs
   const [selectedCommune, setSelectedCommune] = useState("All");
   const [selectedEstablishment, setSelectedEstablishment] = useState("All");
 
-  // Filter periods based on selected academic year
+  // ─── AI GEMINI & PREDICTIVE DROPOUT STATES ───
+  const [isAISummaryOpen, setIsAISummaryOpen] = useState(false);
+  const [isGeneratingAISummary, setIsGeneratingAISummary] = useState(false);
+  const [aiSummaryData, setAiSummaryData] = useState<any>(null);
+  const [aiSummaryLang, setAiSummaryLang] = useState<"FR" | "AR">("FR");
+  const [isCopied, setIsCopied] = useState(false);
+
+  const [dropoutRiskData, setDropoutRiskData] = useState<any>(null);
+  const [isLoadingRiskData, setIsLoadingRiskData] = useState(false);
+
+  useEffect(() => {
+    const loadRiskAnalysis = async () => {
+      setIsLoadingRiskData(true);
+      try {
+        const res = await getDropoutRiskAnalysisAction();
+        if (res && (res as any).data) {
+          setDropoutRiskData((res as any).data);
+        }
+      } catch (err) {
+        console.error("Failed to load AI risk data:", err);
+      } finally {
+        setIsLoadingRiskData(false);
+      }
+    };
+    loadRiskAnalysis();
+  }, []);
   const filteredPeriods = React.useMemo(() => {
     const allPeriods = data.periods || [];
     if (academicYear === "All") return allPeriods;
@@ -810,7 +837,45 @@ function ReportsDashboardContent({ unifiedData: initialData, branding, currentUs
         ];
       })
     };
-  }
+  const handleGenerateAISummary = async () => {
+    setIsGeneratingAISummary(true);
+    try {
+      const activeTitle = getReportTitle(activeReport);
+      const res = await generateAIReportSummaryAction({
+        reportType: activeReport,
+        reportTitleFr: activeTitle,
+        reportTitleAr: activeTitle,
+        kpis: reportKpis,
+        totalRecords: reportTable?.rows?.length || 0
+      });
+
+      if (res && (res as any).data) {
+        setAiSummaryData((res as any).data);
+        setIsAISummaryOpen(true);
+        toast.success("Synthèse IA Gemini générée avec succès !");
+      } else {
+        toast.error("Impossible de générer la synthèse IA pour le moment.");
+      }
+    } catch (err) {
+      console.error("Error generating AI summary:", err);
+      toast.error("Erreur lors de la génération de la synthèse IA.");
+    } finally {
+      setIsGeneratingAISummary(false);
+    }
+  };
+
+  const handleCopyAISummary = () => {
+    if (!aiSummaryData) return;
+    const isAr = aiSummaryLang === "AR";
+    const text = isAr 
+      ? `${aiSummaryData.summaryAr}\n\nأبرز النقاط:\n${aiSummaryData.highlightsAr.map((h: string) => `• ${h}`).join("\n")}\n\nالمخاطر والإنذارات:\n${aiSummaryData.risksAr.map((r: string) => `• ${r}`).join("\n")}\n\nالتوصيات:\n${aiSummaryData.recommendationsAr.map((rc: string) => `• ${rc}`).join("\n")}`
+      : `${aiSummaryData.summaryFr}\n\nPoints Forts :\n${aiSummaryData.highlightsFr.map((h: string) => `• ${h}`).join("\n")}\n\nRisques :\n${aiSummaryData.risksFr.map((r: string) => `• ${r}`).join("\n")}\n\nRecommandations :\n${aiSummaryData.recommendationsFr.map((rc: string) => `• ${rc}`).join("\n")}`;
+
+    navigator.clipboard.writeText(text);
+    setIsCopied(true);
+    toast.success("Synthèse copiée dans le presse-papier !");
+    setTimeout(() => setIsCopied(false), 2000);
+  };
 
   const universalMetadata = {
     title: getReportTitle(activeReport),
@@ -854,14 +919,25 @@ function ReportsDashboardContent({ unifiedData: initialData, branding, currentUs
           </div>
         </div>
 
-        {/* Offline Status */}
-        <div className={`px-4 py-2 rounded-2xl border text-xs font-bold flex items-center gap-2 ${
-          isOnline 
-            ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-150 dark:border-emerald-500/20" 
-            : "bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-150 dark:border-amber-500/20"
-        }`}>
-          <span className={`w-2.5 h-2.5 rounded-full ${isOnline ? "bg-emerald-500 animate-pulse" : "bg-amber-500"}`} />
-          {isOnline ? "Connecté (Mise en cache active)" : "Hors ligne (Mode Cache activé)"}
+        {/* Actions & Offline Status */}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleGenerateAISummary}
+            disabled={isGeneratingAISummary}
+            className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 text-white text-xs font-black uppercase tracking-wider shadow-lg shadow-purple-500/20 hover:opacity-95 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+          >
+            <Sparkles size={16} className={isGeneratingAISummary ? "animate-spin" : "animate-pulse"} />
+            {isGeneratingAISummary ? "Génération IA..." : "Synthèse IA Gemini"}
+          </button>
+
+          <div className={`px-4 py-2.5 rounded-2xl border text-xs font-bold flex items-center gap-2 ${
+            isOnline 
+              ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-150 dark:border-emerald-500/20" 
+              : "bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-150 dark:border-amber-500/20"
+          }`}>
+            <span className={`w-2.5 h-2.5 rounded-full ${isOnline ? "bg-emerald-500 animate-pulse" : "bg-amber-500"}`} />
+            {isOnline ? "Connecté (Cache actif)" : "Hors ligne (Cache)"}
+          </div>
         </div>
       </div>
 
@@ -1107,7 +1183,230 @@ function ReportsDashboardContent({ unifiedData: initialData, branding, currentUs
                 </table>
               </div>
             )}
+          {/* ─── SECTION: PREDICTIVE DROPOUT AI RISK ANALYSIS CARD ─── */}
+          <div className="bg-white/90 dark:bg-[#131622] backdrop-blur-sm rounded-[2rem] border border-slate-100 dark:border-slate-800 p-6 shadow-sm space-y-6 print:hidden">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center shadow-sm">
+                  <BrainCircuit size={22} />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+                    Analyses Tendance & Prédiction IA 
+                    <span className="text-[10px] font-bold bg-rose-100 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400 px-2 py-0.5 rounded-full">
+                      Prévention du Décrochage
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold">
+                    Algorithme prédictif d'analyse croisée des absences, moyennes et indicateurs de risque académique.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={async () => {
+                  setIsLoadingRiskData(true);
+                  const res = await getDropoutRiskAnalysisAction();
+                  if (res && (res as any).data) setDropoutRiskData((res as any).data);
+                  setIsLoadingRiskData(false);
+                  toast.success("Modèle prédictif IA mis à jour !");
+                }}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold hover:bg-slate-200 transition-all self-start md:self-auto cursor-pointer"
+              >
+                <RefreshCw size={14} className={isLoadingRiskData ? "animate-spin" : ""} />
+                Actualiser le modèle IA
+              </button>
+            </div>
+
+            {dropoutRiskData && (
+              <div className="space-y-6">
+                {/* Risk KPI Overview */}
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                  <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800 text-center space-y-1">
+                    <p className="text-[10px] font-black text-slate-400 uppercase">Élèves Analysés</p>
+                    <p className="text-lg font-black text-slate-900 dark:text-white">{dropoutRiskData.totalStudentsAnalyzed}</p>
+                  </div>
+                  <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 text-center space-y-1">
+                    <p className="text-[10px] font-black text-rose-600 dark:text-rose-400 uppercase">Risque Critique 🔴</p>
+                    <p className="text-lg font-black text-rose-600 dark:text-rose-400">{dropoutRiskData.criticalCount}</p>
+                  </div>
+                  <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-500/10 border border-amber-100 dark:border-amber-500/20 text-center space-y-1">
+                    <p className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase">Risque Élevé 🟠</p>
+                    <p className="text-lg font-black text-amber-600 dark:text-amber-400">{dropoutRiskData.highCount}</p>
+                  </div>
+                  <div className="p-3.5 rounded-2xl bg-blue-50 dark:bg-blue-500/10 border border-blue-100 dark:border-blue-500/20 text-center space-y-1">
+                    <p className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase">Risque Modéré 🟡</p>
+                    <p className="text-lg font-black text-blue-600 dark:text-blue-400">{dropoutRiskData.moderateCount}</p>
+                  </div>
+                  <div className="p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20 text-center space-y-1">
+                    <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase">Score Moyen Risque</p>
+                    <p className="text-lg font-black text-emerald-600 dark:text-emerald-400">{dropoutRiskData.averageRiskScore}%</p>
+                  </div>
+                </div>
+
+                {/* Flagged Students Risk List */}
+                {dropoutRiskData.highRiskStudents && dropoutRiskData.highRiskStudents.length > 0 ? (
+                  <div className="overflow-x-auto border border-slate-100 dark:border-slate-800 rounded-2xl">
+                    <table className="w-full text-left border-collapse text-xs font-bold">
+                      <thead>
+                        <tr className="bg-slate-50 dark:bg-slate-900/60 border-b border-slate-100 dark:border-slate-800 text-[10px] uppercase text-slate-400">
+                          <th className="p-3">Élève & Classe</th>
+                          <th className="p-3">Niveau Risque</th>
+                          <th className="p-3 text-center">Score Risque</th>
+                          <th className="p-3 text-center">Assiduité & Moyenne</th>
+                          <th className="p-3">Facteur Principal de Risque</th>
+                          <th className="p-3">Recommandation IA</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+                        {dropoutRiskData.highRiskStudents.slice(0, 10).map((st: any) => (
+                          <tr key={st.studentId} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-all">
+                            <td className="p-3">
+                              <p className="font-black text-slate-900 dark:text-white">{st.studentName}</p>
+                              <p className="text-[10px] text-slate-400">{st.className} ({st.educationalLevel})</p>
+                            </td>
+                            <td className="p-3">
+                              <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                                st.riskLevel === "CRITICAL"
+                                  ? "bg-rose-100 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-500/30"
+                                  : st.riskLevel === "HIGH"
+                                    ? "bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-500/30"
+                                    : "bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/30"
+                              }`}>
+                                {st.riskLevel}
+                              </span>
+                            </td>
+                            <td className="p-3 text-center">
+                              <span className="font-black text-slate-800 dark:text-slate-200">{st.riskScore}%</span>
+                            </td>
+                            <td className="p-3 text-center space-y-0.5">
+                              <p className="text-slate-700 dark:text-slate-300">{st.absenceCount} absences ({st.absenceRate.toFixed(1)}%)</p>
+                              <p className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400">Moy. {st.averageGrade}/20</p>
+                            </td>
+                            <td className="p-3 text-slate-600 dark:text-slate-300 font-semibold max-w-xs">
+                              <p>{st.primaryRiskFactorFr}</p>
+                              <p className="text-[10px] text-slate-400 font-arabic mt-0.5">{st.primaryRiskFactorAr}</p>
+                            </td>
+                            <td className="p-3 text-indigo-700 dark:text-indigo-300 font-semibold max-w-xs">
+                              <p>{st.aiRecommendationFr}</p>
+                              <p className="text-[10px] text-slate-400 font-arabic mt-0.5">{st.aiRecommendationAr}</p>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="p-6 text-center text-slate-400 text-xs font-semibold bg-slate-50 dark:bg-slate-900/40 rounded-2xl">
+                    Aucun élève présentant un risque élevé ou critique n'a été détecté pour le moment.
+                  </div>
+                )}
+              </div>
+            )}
           </div>
+
+          {/* ─── AI GEMINI EXECUTIVE SUMMARY MODAL ─── */}
+          {isAISummaryOpen && aiSummaryData && (
+            <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300 print:hidden">
+              <div className="bg-white dark:bg-[#131622] rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-2xl max-w-2xl w-full p-8 space-y-6 max-h-[90vh] overflow-y-auto">
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white flex items-center justify-center shadow-md">
+                      <Sparkles size={20} />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-black text-slate-900 dark:text-white">Synthèse IA Gemini - {getReportTitle(activeReport)}</h3>
+                      <p className="text-xs text-slate-400 font-semibold">Analyse décisionnelle bilingue générée le {new Date(aiSummaryData.generatedAt).toLocaleDateString("fr-FR")}</p>
+                    </div>
+                  </div>
+
+                  {/* Language Tabs */}
+                  <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl">
+                    <button
+                      onClick={() => setAiSummaryLang("FR")}
+                      className={`px-3 py-1 text-xs font-black rounded-lg transition-all ${aiSummaryLang === "FR" ? "bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm" : "text-slate-400"}`}
+                    >
+                      🇫🇷 Français
+                    </button>
+                    <button
+                      onClick={() => setAiSummaryLang("AR")}
+                      className={`px-3 py-1 text-xs font-black rounded-lg transition-all ${aiSummaryLang === "AR" ? "bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm" : "text-slate-400"}`}
+                    >
+                      🇳🇪 العربية
+                    </button>
+                  </div>
+                </div>
+
+                <div className={`space-y-6 ${aiSummaryLang === "AR" ? "text-right font-arabic" : "text-left"}`}>
+                  {/* Executive Text */}
+                  <div className="p-4 rounded-2xl bg-purple-50/60 dark:bg-purple-500/10 border border-purple-100 dark:border-purple-500/20 text-purple-900 dark:text-purple-200 text-xs font-bold leading-relaxed">
+                    {aiSummaryLang === "AR" ? aiSummaryData.summaryAr : aiSummaryData.summaryFr}
+                  </div>
+
+                  {/* Highlights */}
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-200 flex items-center gap-2">
+                      <CheckCircle2 size={16} className="text-emerald-500" />
+                      {aiSummaryLang === "AR" ? "أبرز النقاط والمؤشرات" : "Points Forts & Consolidation"}
+                    </h4>
+                    <ul className="space-y-1.5 text-xs text-slate-600 dark:text-slate-300 font-semibold pl-5">
+                      {(aiSummaryLang === "AR" ? aiSummaryData.highlightsAr : aiSummaryData.highlightsFr).map((item: string, idx: number) => (
+                        <li key={idx} className="list-disc">{item}</li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {/* Risks */}
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-200 flex items-center gap-2">
+                      <AlertTriangle size={16} className="text-amber-500" />
+                      {aiSummaryLang === "AR" ? "المخاطر ومواضع الانتباه" : "Risques & Points de Vigilance"}
+                    </h4>
+                    <ul className="space-y-1.5 text-xs text-slate-600 dark:text-slate-300 font-semibold pl-5">
+                      {(aiSummaryLang === "AR" ? aiSummaryData.risksAr : aiSummaryData.risksFr).map((item: string, idx: number) => (
+                        <li key={idx} className="list-disc">{item}</li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {/* Recommendations */}
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-200 flex items-center gap-2">
+                      <Lightbulb size={16} className="text-indigo-500" />
+                      {aiSummaryLang === "AR" ? "التوصيات الاستراتيجية" : "Recommandations Stratégiques"}
+                    </h4>
+                    <ul className="space-y-1.5 text-xs text-slate-600 dark:text-slate-300 font-semibold pl-5">
+                      {(aiSummaryLang === "AR" ? aiSummaryData.recommendationsAr : aiSummaryData.recommendationsFr).map((item: string, idx: number) => (
+                        <li key={idx} className="list-disc">{item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+                  <button
+                    onClick={handleCopyAISummary}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer"
+                  >
+                    {isCopied ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
+                    {isCopied ? "Copié !" : "Copier la synthèse"}
+                  </button>
+                  <button
+                    onClick={() => window.print()}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-200 transition-all cursor-pointer"
+                  >
+                    <Printer size={14} /> Imprimer
+                  </button>
+                  <button
+                    onClick={() => setIsAISummaryOpen(false)}
+                    className="px-5 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 transition-all cursor-pointer"
+                  >
+                    Fermer
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
         </div>
       </div>
