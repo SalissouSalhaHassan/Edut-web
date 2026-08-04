@@ -803,7 +803,7 @@ function ReportsDashboardContent({ unifiedData: initialData, branding, currentUs
     <div className="p-8 space-y-8 animate-in fade-in duration-700 bg-slate-50/60 dark:bg-[#0A0C10] min-h-screen">
       
       {/* HEADER */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 print:hidden">
         <div className="flex items-start gap-4">
           <div className="w-14 h-14 rounded-2xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shadow-sm overflow-hidden shrink-0">
             {branding.logoPath ? (
@@ -840,7 +840,7 @@ function ReportsDashboardContent({ unifiedData: initialData, branding, currentUs
       <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-8 items-start">
         
         {/* Sidebar / Tabs Selection */}
-        <div className="bg-white/90 dark:bg-[#131622] backdrop-blur-sm rounded-[2rem] border border-slate-100 dark:border-slate-800 p-4 space-y-2 shadow-sm">
+        <div className="bg-white/90 dark:bg-[#131622] backdrop-blur-sm rounded-[2rem] border border-slate-100 dark:border-slate-800 p-4 space-y-2 shadow-sm print:hidden">
           <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-3 mb-3">Sélectionner un rapport</p>
           {[
             { id: "students", label: "Rapports étudiants", icon: <Users size={16} />, color: "text-blue-500 dark:text-blue-400" },
@@ -874,7 +874,7 @@ function ReportsDashboardContent({ unifiedData: initialData, branding, currentUs
         <div className="space-y-8">
           
           {/* General Filters Area */}
-          <div className="bg-white/90 dark:bg-[#131622] backdrop-blur-sm rounded-[2rem] border border-slate-100 dark:border-slate-800 p-6 shadow-sm space-y-4">
+          <div className="bg-white/90 dark:bg-[#131622] backdrop-blur-sm rounded-[2rem] border border-slate-100 dark:border-slate-800 p-6 shadow-sm space-y-4 print:hidden">
             <div className="flex items-center gap-2 text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider border-b border-slate-100 dark:border-slate-800 pb-3 mb-2">
               <Filter size={16} className="text-indigo-600 dark:text-indigo-400" />
               Filtres généraux consolidés
@@ -1047,7 +1047,7 @@ function ReportsDashboardContent({ unifiedData: initialData, branding, currentUs
           </div>
 
           {/* Export Action Logger / Log Table */}
-          <div className="bg-white/90 dark:bg-[#131622] backdrop-blur-sm rounded-[2rem] border border-slate-100 dark:border-slate-800 p-6 shadow-sm space-y-4">
+          <div className="bg-white/90 dark:bg-[#131622] backdrop-blur-sm rounded-[2rem] border border-slate-100 dark:border-slate-800 p-6 shadow-sm space-y-4 print:hidden">
             <div className="flex items-center gap-2 text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider border-b border-slate-100 dark:border-slate-800 pb-3 mb-2">
               <Clock size={16} className="text-slate-400 dark:text-slate-500" />
               Historique récent des exports

@@ -725,6 +725,7 @@ export default function UniversalReport({ metadata, kpis = [], table, onSendEmai
           }
           html, body {
             background: #ffffff !important;
+            background-color: #ffffff !important;
             color: #000000 !important;
             width: 100% !important;
             margin: 0 !important;
@@ -734,25 +735,42 @@ export default function UniversalReport({ metadata, kpis = [], table, onSendEmai
             print-color-adjust: exact !important;
           }
           article[data-paper-size] {
+            background: #ffffff !important;
             background-color: #ffffff !important;
             color: #000000 !important;
             border: none !important;
             box-shadow: none !important;
+            margin: 0 auto !important;
+            width: 100% !important;
+            max-width: 100% !important;
           }
-          article[data-paper-size] *,
-          .french-text, .arabic-text, h1, h2, h3, p, span, th, td {
+          article[data-paper-size] div,
+          article[data-paper-size] section,
+          article[data-paper-size] table,
+          article[data-paper-size] tr,
+          article[data-paper-size] td {
+            background: #ffffff !important;
+            background-color: #ffffff !important;
+            color: #000000 !important;
+            border-color: #cbd5e1 !important;
+            box-shadow: none !important;
+          }
+          article[data-paper-size] th {
+            background: #f1f5f9 !important;
+            background-color: #f1f5f9 !important;
+            color: #000000 !important;
+            border-color: #cbd5e1 !important;
+          }
+          .french-text, .arabic-text, h1, h2, h3, p, span {
             color: #000000 !important;
           }
           * {
-            overflow: visible !important;
             box-shadow: none !important;
             scrollbar-width: none !important;
             -ms-overflow-style: none !important;
           }
           ::-webkit-scrollbar {
             display: none !important;
-            width: 0 !important;
-            height: 0 !important;
           }
           .no-print, .print\\:hidden {
             display: none !important;
