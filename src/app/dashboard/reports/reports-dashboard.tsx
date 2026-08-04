@@ -800,7 +800,7 @@ function ReportsDashboardContent({ unifiedData: initialData, branding, currentUs
   if (!mounted) return null;
 
   return (
-    <div className="p-8 space-y-8 animate-in fade-in duration-700 bg-slate-50/60 dark:bg-[#0A0C10] min-h-screen">
+    <div className="p-8 space-y-8 animate-in fade-in duration-700 bg-slate-50/60 dark:bg-[#0A0C10] min-h-screen print:p-0 print:m-0 print:bg-white print:min-h-0 print:border-none">
       
       {/* HEADER */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 print:hidden">

@@ -747,17 +747,19 @@ export default function UniversalReport({ metadata, kpis = [], table, onSendEmai
       <style dangerouslySetInnerHTML={{__html: `
         @media print {
           @page {
-            size: ${selectedPaperSize === "A5" ? (metadata.isLandscape ? "A5 landscape" : "A5 portrait") : (metadata.isLandscape ? "A4 landscape" : "A4 portrait")};
-            margin: ${selectedPaperSize === "A5" ? "6mm 8mm" : "8mm 10mm"};
+            size: ${metadata.isLandscape !== false ? "landscape" : "portrait"};
+            margin: 5mm 6mm;
           }
-          html, body {
+          html, body, main, #__next, div, section, article {
             background: #ffffff !important;
             background-color: #ffffff !important;
             color: #000000 !important;
-            width: 100% !important;
-            margin: 0 !important;
+            box-shadow: none !important;
+          }
+          body {
             padding: 0 !important;
-            overflow: visible !important;
+            margin: 0 !important;
+            width: 100% !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
@@ -767,7 +769,8 @@ export default function UniversalReport({ metadata, kpis = [], table, onSendEmai
             color: #000000 !important;
             border: none !important;
             box-shadow: none !important;
-            margin: 0 auto !important;
+            margin: 0 !important;
+            padding: 0 !important;
             width: 100% !important;
             max-width: 100% !important;
           }
