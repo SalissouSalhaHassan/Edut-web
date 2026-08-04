@@ -78,7 +78,7 @@ export interface InitiatePaymentParams {
   studentId?: number;
   feeId?: number;
   amount: number;
-  provider: "ORANGE_MONEY" | "MOOV_MONEY" | "WAVE" | "BANK_CARD" | "CINETPAY";
+  provider: "AIRTEL_MONEY" | "MOOV_MONEY" | "FLOOZ" | "ORANGE_MONEY" | "WAVE" | "NITA" | "BANK_CARD" | "CINETPAY";
   phoneNumber?: string;
   purpose: "Scolarité" | "Inscription" | "COGES" | "Autre";
 }

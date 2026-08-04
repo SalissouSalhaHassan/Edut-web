@@ -90,6 +90,7 @@ const sections: NavSection[] = [
     title: "SCOLARITÉ",
     dotColor: "bg-blue-500",
     items: [
+      { href: "/dashboard/parent", label: "Portail Parents & App", icon: <Smartphone className="size-[18px]" />, color: "text-purple-500", badge: "Mobile", badgeColor: "bg-purple-100 text-purple-600 dark:bg-purple-500/20 dark:text-purple-400" },
       { href: "/dashboard/students", label: "Élèves", icon: <Users className="size-[18px]" />, color: "text-blue-500" },
       { href: "/dashboard/students/discipline", label: "Discipline", icon: <Shield className="size-[18px]" />, color: "text-rose-500" },
       { href: "/dashboard/students/promote", label: "Promotions", icon: <GraduationCap className="size-[18px]" />, color: "text-indigo-500" },
