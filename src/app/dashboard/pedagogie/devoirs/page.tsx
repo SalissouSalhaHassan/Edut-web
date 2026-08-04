@@ -21,13 +21,13 @@ export default async function DevoirsPage() {
   const role = getPedagogieRole(currentUser);
   if (role === "guest" || role === "consultation") {
     return (
-      <div className="min-h-[70vh] flex items-center justify-center p-5">
-        <div className="bg-white rounded-3xl p-8 border border-slate-150 max-w-md text-center space-y-4 shadow-sm">
-          <div className="w-12 h-12 rounded-full bg-rose-50 flex items-center justify-center text-rose-500 mx-auto">
+      <div className="min-h-[70vh] flex items-center justify-center p-5 bg-[#F8FAFC] dark:bg-[#0A0C10]">
+        <div className="bg-white dark:bg-[#131622] rounded-3xl p-8 border border-slate-200 dark:border-slate-800 max-w-md text-center space-y-4 shadow-sm text-slate-900 dark:text-white">
+          <div className="w-12 h-12 rounded-full bg-rose-50 dark:bg-rose-500/10 flex items-center justify-center text-rose-500 dark:text-rose-400 mx-auto">
             <X size={24} />
           </div>
-          <h2 className="text-lg font-black text-slate-800">Accès non autorisé</h2>
-          <p className="text-slate-500 text-sm font-medium">
+          <h2 className="text-lg font-black text-slate-800 dark:text-white">Accès non autorisé</h2>
+          <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">
             Vous ne disposez pas des permissions nécessaires pour accéder aux Devoirs & Corrections.
           </p>
         </div>

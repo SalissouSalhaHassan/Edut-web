@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, Component } from "react";
 import { 
   Users, DollarSign, BookOpen, Calendar, ShieldCheck, 
   Download, Printer, Mail, Clock, Filter, Eye, RefreshCw,
@@ -11,8 +11,58 @@ import {
 import { toast } from "sonner";
 import { localDb } from "@/infrastructure/local-db/dexie";
 import dynamicImport from "next/dynamic";
-const UniversalReport = dynamicImport(() => import("@/components/reporting/universal-report"), { ssr: false });
 import { Label } from "@/components/ui/label";
+
+const UniversalReport = dynamicImport(() => import("@/components/reporting/universal-report"), { 
+  ssr: false,
+  loading: () => (
+    <div className="bg-white dark:bg-[#131622] rounded-[32px] border border-slate-100 dark:border-slate-800 p-12 text-center text-slate-400 dark:text-slate-500 space-y-3">
+      <div className="w-8 h-8 rounded-full border-2 border-indigo-600 border-t-transparent animate-spin mx-auto" />
+      <p className="text-xs font-bold">Chargement du moteur de rapport...</p>
+    </div>
+  )
+});
+
+// ─── Error Boundary ───
+class DashboardErrorBoundary extends Component<{ children: React.ReactNode }, { hasError: boolean; error: any }> {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: any) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: any, errorInfo: any) {
+    console.error("[ReportsDashboard] Error caught by boundary:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-8 min-h-[400px] flex flex-col items-center justify-center text-center bg-white dark:bg-[#131622] rounded-3xl border border-slate-100 dark:border-slate-800 space-y-4">
+          <div className="w-14 h-14 rounded-2xl bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center">
+            <ShieldAlert size={28} />
+          </div>
+          <div className="space-y-1">
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white">Une erreur d'affichage est survenue</h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md">
+              {this.state.error?.message || "Impossible de calculer les synthèses pour ce module."}
+            </p>
+          </div>
+          <button
+            onClick={() => { this.setState({ hasError: false, error: null }); }}
+            className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-lg transition-all"
+          >
+            Réinitialiser le rapport
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 interface ReportsDashboardProps {
   unifiedData: {
@@ -58,7 +108,7 @@ type ReportType =
   | "ministry"
   | "security";
 
-export default function ReportsDashboard({ unifiedData: initialData, branding, currentUser }: ReportsDashboardProps) {
+function ReportsDashboardContent({ unifiedData: initialData, branding, currentUser }: ReportsDashboardProps) {
   const [mounted, setMounted] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
   const [data, setData] = useState(initialData);
@@ -66,10 +116,10 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
 
   // Dynamic Academic Years (Sessions) extracted from real database students
   const uniqueSessions = React.useMemo(() => {
-    const dbSess = (data.sessions || []).map((s: any) => s.sessionName).filter(Boolean);
+    const dbSess = (data.sessions || []).map((s: any) => s?.sessionName).filter(Boolean);
     if (dbSess.length > 0) return Array.from(new Set(dbSess)).sort();
 
-    const sess = Array.from(new Set((data.students || []).map(s => s.session).filter(Boolean))) as string[];
+    const sess = Array.from(new Set((data.students || []).map((s: any) => s?.session).filter(Boolean))) as string[];
     return sess.length > 0 ? sess.sort() : ["2024-2025", "2025-2026", "2026-2027"];
   }, [data.sessions, data.students]);
 
@@ -96,16 +146,16 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
     if (academicYear === "All") return allPeriods;
     
     // Find the session object
-    const sessionObj = (data.sessions || []).find((s: any) => s.sessionName === academicYear);
+    const sessionObj = (data.sessions || []).find((s: any) => s?.sessionName === academicYear);
     if (!sessionObj) return allPeriods;
     
-    return allPeriods.filter((p: any) => p.sessionId === sessionObj.id);
+    return allPeriods.filter((p: any) => p && p.sessionId === sessionObj.id);
   }, [academicYear, data.periods, data.sessions]);
 
   // Find the selected period object from the database periods
   const selectedPeriodObj = React.useMemo(() => {
     if (period === "All") return null;
-    return (data.periods || []).find((p: any) => String(p.id) === period);
+    return (data.periods || []).find((p: any) => p && String(p.id) === period);
   }, [period, data.periods]);
 
   // Get active period name for display
@@ -130,45 +180,47 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
 
   useEffect(() => {
     setMounted(true);
-    setIsOnline(navigator.onLine);
+    setIsOnline(typeof navigator !== "undefined" ? navigator.onLine : true);
 
     // Load export history from local storage
-    const storedHistory = localStorage.getItem("reports_export_history");
-    if (storedHistory) {
-      try {
-        setExportHistory(JSON.parse(storedHistory));
-      } catch (e) {}
+    if (typeof window !== "undefined") {
+      const storedHistory = localStorage.getItem("reports_export_history");
+      if (storedHistory) {
+        try {
+          setExportHistory(JSON.parse(storedHistory));
+        } catch (e) {}
+      }
+
+      const handleOnline = () => setIsOnline(true);
+      const handleOffline = () => setIsOnline(false);
+      window.addEventListener("online", handleOnline);
+      window.addEventListener("offline", handleOffline);
+
+      // Dexie Cache Management
+      if (navigator.onLine) {
+        setData(initialData);
+        localDb.references.put({
+          type: "lmsCache",
+          label: "reporting_center_cache",
+          payload: initialData,
+          updatedAt: Date.now()
+        }).catch(() => {});
+      } else {
+        localDb.references.where("label").equals("reporting_center_cache").first()
+          .then(r => {
+            if (r?.payload) {
+              setData(r.payload);
+              toast.info("Données de reporting chargées depuis le cache hors-ligne.");
+            }
+          })
+          .catch(() => {});
+      }
+
+      return () => {
+        window.removeEventListener("online", handleOnline);
+        window.removeEventListener("offline", handleOffline);
+      };
     }
-
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
-
-    // Dexie Cache Management: If online, write to cache; if offline, read from cache
-    if (navigator.onLine) {
-      setData(initialData);
-      localDb.references.put({
-        type: "lmsCache",
-        label: "reporting_center_cache",
-        payload: initialData,
-        updatedAt: Date.now()
-      }).catch(() => {});
-    } else {
-      localDb.references.where("label").equals("reporting_center_cache").first()
-        .then(r => {
-          if (r?.payload) {
-            setData(r.payload);
-            toast.info("Données de reporting chargées depuis le cache hors-ligne.");
-          }
-        })
-        .catch(() => {});
-    }
-
-    return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
-    };
   }, [initialData]);
 
   // Log export action to history helper
@@ -182,7 +234,9 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
     };
     const updated = [newLog, ...exportHistory].slice(0, 50); // Keep last 50 logs
     setExportHistory(updated);
-    localStorage.setItem("reports_export_history", JSON.stringify(updated));
+    if (typeof window !== "undefined") {
+      localStorage.setItem("reports_export_history", JSON.stringify(updated));
+    }
   };
 
   const getReportTitle = (type: string) => {
@@ -224,7 +278,7 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
   // ─── FILTERING LOGIC ───
   
   // Resolve class name from class ID to support students table
-  const selectedClassObj = (data.classes || []).find(c => String(c.id) === selectedClassId);
+  const selectedClassObj = (data.classes || []).find(c => c && String(c.id) === selectedClassId);
   const selectedClassName = selectedClassObj?.className || "";
 
   // Dynamic helper to check if a date falls inside the selected period
@@ -233,7 +287,6 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
     const date = new Date(dateVal);
     if (isNaN(date.getTime())) return true;
 
-    // 1. If we have a real academic period from the database
     if (selectedPeriodObj) {
       const start = selectedPeriodObj.startDate ? new Date(selectedPeriodObj.startDate) : null;
       const end = selectedPeriodObj.endDate ? new Date(selectedPeriodObj.endDate) : null;
@@ -242,7 +295,6 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
       return true;
     }
 
-    // 2. Legacy fallback
     const month = date.getMonth(); 
 
     if (academicYear === "All") {
@@ -252,35 +304,35 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
       return true;
     }
 
-    // Parse starting year
     const startYear = parseInt(academicYear.split("-")[0]) || 2024;
 
     if (period === "T1") {
-      const start = new Date(startYear, 8, 1); // Sept 1st
-      const end = new Date(startYear, 11, 31, 23, 59, 59); // Dec 31st
+      const start = new Date(startYear, 8, 1);
+      const end = new Date(startYear, 11, 31, 23, 59, 59);
       return date >= start && date <= end;
     }
     if (period === "T2") {
-      const start = new Date(startYear + 1, 0, 1); // Jan 1st
-      const end = new Date(startYear + 1, 3, 30, 23, 59, 59); // April 30th
+      const start = new Date(startYear + 1, 0, 1);
+      const end = new Date(startYear + 1, 3, 30, 23, 59, 59);
       return date >= start && date <= end;
     }
     if (period === "T3") {
-      const start = new Date(startYear + 1, 4, 1); // May 1st
-      const end = new Date(startYear + 1, 7, 31, 23, 59, 59); // August 31st
+      const start = new Date(startYear + 1, 4, 1);
+      const end = new Date(startYear + 1, 7, 31, 23, 59, 59);
       return date >= start && date <= end;
     }
     return true;
   };
 
   const availableLevels = useMemo(() => {
-    const studentLevels = (data.students || []).map((s: any) => s.educationalLevel).filter(Boolean);
+    const studentLevels = (data.students || []).map((s: any) => s?.educationalLevel).filter(Boolean);
     const defaults = ["Préscolaire", "Maternelle", "Primaire", "Collège", "Lycée", "Licence", "Master", "Technique", "Supérieur"];
     return Array.from(new Set([...defaults, ...studentLevels]));
   }, [data.students]);
 
   // Filter students
   const filteredStudents = (data.students || []).filter(s => {
+    if (!s) return false;
     if (academicYear !== "All" && s.session && s.session !== academicYear) return false;
     if (selectedLevel !== "All" && s.educationalLevel !== selectedLevel) return false;
     if (selectedClassId !== "All" && s.classe !== selectedClassName) return false;
@@ -291,7 +343,8 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
 
   // Filter finances
   const filteredPayments = (data.feePayments || []).filter(p => {
-    const student = (data.students || []).find(s => s.id === p.studentId);
+    if (!p) return false;
+    const student = (data.students || []).find(s => s && s.id === p.studentId);
     if (academicYear !== "All" && student?.session && student?.session !== academicYear) return false;
     if (selectedClassId !== "All" && student?.classe !== selectedClassName) return false;
     if (selectedLevel !== "All" && student?.educationalLevel !== selectedLevel) return false;
@@ -303,6 +356,7 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
   });
 
   const filteredExpenses = (data.expenses || []).filter(e => {
+    if (!e) return false;
     if (selectedLevel !== "All" && e.educationalLevel !== selectedLevel) return false;
     if (!isInPeriod(e.dateExpense)) return false;
     if (startDate && e.dateExpense && new Date(e.dateExpense) < new Date(startDate)) return false;
@@ -312,6 +366,7 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
 
   // Filter pedagogy (seances & plans)
   const filteredSeances = (data.seances || []).filter(s => {
+    if (!s) return false;
     if (selectedClassId !== "All" && String(s.classId) !== selectedClassId) return false;
     if (selectedTeacherId !== "All" && String(s.employeeId) !== selectedTeacherId) return false;
     if (selectedStatus !== "All" && s.statut !== selectedStatus) return false;
@@ -322,6 +377,7 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
   });
 
   const filteredPlans = (data.plans || []).filter(p => {
+    if (!p) return false;
     if (selectedClassId !== "All" && String(p.classId) !== selectedClassId) return false;
     if (selectedTeacherId !== "All" && String(p.employeeId) !== selectedTeacherId) return false;
     if (selectedStatus !== "All" && p.statut !== selectedStatus) return false;
@@ -330,7 +386,8 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
 
   // Filter attendance
   const filteredAttendance = (data.attendance || []).filter(a => {
-    const student = (data.students || []).find(s => s.id === a.studentId);
+    if (!a) return false;
+    const student = (data.students || []).find(s => s && s.id === a.studentId);
     if (academicYear !== "All" && student?.session && student?.session !== academicYear) return false;
     if (selectedClassId !== "All" && String(a.classId) !== selectedClassId) return false;
     if (selectedLevel !== "All" && student?.educationalLevel !== selectedLevel) return false;
@@ -344,12 +401,14 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
 
   // Filter Employees (RH)
   const filteredEmployees = (data.employees || []).filter(e => {
+    if (!e) return false;
     if (selectedStatus !== "All" && e.statut !== selectedStatus) return false;
     return true;
   });
 
   // Filter LMS
   const filteredCourses = (data.courses || []).filter(c => {
+    if (!c) return false;
     if (selectedClassId !== "All" && String(c.classId) !== selectedClassId) return false;
     if (selectedTeacherId !== "All" && String(c.teacherId) !== selectedTeacherId) return false;
     return true;
@@ -357,6 +416,7 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
 
   // Filter security audit logs
   const filteredAuditLogs = (data.auditLogs || []).filter(log => {
+    if (!log) return false;
     if (selectedTeacherId !== "All" && String(log.userId) !== selectedTeacherId) return false;
     if (!isInPeriod(log.timestamp)) return false;
     if (startDate && log.timestamp && new Date(log.timestamp) < new Date(startDate)) return false;
@@ -369,175 +429,182 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
   let reportTable: any = { headers: [], rows: [] };
 
   if (activeReport === "students") {
-    const girls = filteredStudents.filter(s => (s.sexe || "").toLowerCase().startsWith("f")).length;
+    const girls = filteredStudents.filter(s => (s?.sexe || "").toLowerCase().startsWith("f")).length;
     const boys = filteredStudents.length - girls;
-    const active = filteredStudents.filter(s => s.statut === "Actif").length;
+    const active = filteredStudents.filter(s => s?.statut === "Actif").length;
     reportKpis = [
-      { label: "Total Élèves", value: filteredStudents.length, icon: <Users size={18} />, color: "text-blue-600", bgColor: "bg-blue-50" },
-      { label: "Filles", value: `${girls} (${filteredStudents.length > 0 ? Math.round((girls/filteredStudents.length)*100) : 0}%)`, icon: <Users size={18} />, color: "text-pink-600", bgColor: "bg-pink-50" },
-      { label: "Garçons", value: `${boys} (${filteredStudents.length > 0 ? Math.round((boys/filteredStudents.length)*100) : 0}%)`, icon: <Users size={18} />, color: "text-indigo-600", bgColor: "bg-indigo-50" },
-      { label: "Inscrits Actifs", value: active, icon: <UserCheck size={18} />, color: "text-emerald-600", bgColor: "bg-emerald-50" }
+      { label: "Total Élèves", value: filteredStudents.length, icon: <Users size={18} />, color: "text-blue-600", bgColor: "bg-blue-50 dark:bg-blue-500/10" },
+      { label: "Filles", value: `${girls} (${filteredStudents.length > 0 ? Math.round((girls/filteredStudents.length)*100) : 0}%)`, icon: <Users size={18} />, color: "text-pink-600", bgColor: "bg-pink-50 dark:bg-pink-500/10" },
+      { label: "Garçons", value: `${boys} (${filteredStudents.length > 0 ? Math.round((boys/filteredStudents.length)*100) : 0}%)`, icon: <Users size={18} />, color: "text-indigo-600", bgColor: "bg-indigo-50 dark:bg-indigo-500/10" },
+      { label: "Inscrits Actifs", value: active, icon: <UserCheck size={18} />, color: "text-emerald-600", bgColor: "bg-emerald-50 dark:bg-emerald-500/10" }
     ];
     reportTable = {
       headers: ["Num Admission", "Nom & Prénom", "Sexe", "Niveau", "Classe", "Statut"],
-      rows: filteredStudents.map(s => [s.numAdmission, s.nomEtudiant, s.sexe || "N/A", s.educationalLevel || "N/A", s.classe || "N/A", s.statut || "Actif"])
+      rows: filteredStudents.map(s => [s?.numAdmission || "—", s?.nomEtudiant || "—", s?.sexe || "N/A", s?.educationalLevel || "N/A", s?.classe || "N/A", s?.statut || "Actif"])
     };
   }
 
   else if (activeReport === "finances") {
-    const expected = (data.students || []).reduce((acc, s) => acc + (s.fraisMensuels || 0), 0);
-    const paid = filteredPayments.reduce((acc, p) => acc + (p.amount || 0), 0);
-    const spent = filteredExpenses.reduce((acc, e) => acc + (e.amount || 0), 0);
+    const expected = (data.students || []).reduce((acc, s) => acc + (Number(s?.fraisMensuels) || 0), 0);
+    const paid = filteredPayments.reduce((acc, p) => acc + (Number(p?.amount) || 0), 0);
+    const spent = filteredExpenses.reduce((acc, e) => acc + (Number(e?.amount) || 0), 0);
     const balance = paid - spent;
     const recoveryRate = expected > 0 ? Math.min(100, Math.round((paid / expected) * 100)) : 84;
 
     reportKpis = [
-      { label: "Total Recettes", value: `${paid.toLocaleString("fr-FR")} CFA`, icon: <DollarSign size={18} />, color: "text-emerald-600", bgColor: "bg-emerald-50" },
-      { label: "Total Dépenses", value: `${spent.toLocaleString("fr-FR")} CFA`, icon: <Activity size={18} />, color: "text-rose-600", bgColor: "bg-rose-50" },
-      { label: "Solde Net", value: `${balance.toLocaleString("fr-FR")} CFA`, icon: <DollarSign size={18} />, color: "text-indigo-600", bgColor: "bg-indigo-50" },
-      { label: "Taux Recouvrement", value: `${recoveryRate}%`, icon: <Award size={18} />, color: "text-amber-600", bgColor: "bg-amber-50" }
+      { label: "Total Recettes", value: `${paid.toLocaleString("fr-FR")} CFA`, icon: <DollarSign size={18} />, color: "text-emerald-600", bgColor: "bg-emerald-50 dark:bg-emerald-500/10" },
+      { label: "Total Dépenses", value: `${spent.toLocaleString("fr-FR")} CFA`, icon: <Activity size={18} />, color: "text-rose-600", bgColor: "bg-rose-50 dark:bg-rose-500/10" },
+      { label: "Solde Net", value: `${balance.toLocaleString("fr-FR")} CFA`, icon: <DollarSign size={18} />, color: "text-indigo-600", bgColor: "bg-indigo-50 dark:bg-indigo-500/10" },
+      { label: "Taux Recouvrement", value: `${recoveryRate}%`, icon: <Award size={18} />, color: "text-amber-600", bgColor: "bg-amber-50 dark:bg-amber-500/10" }
     ];
 
     const sortedRows = [
       ...filteredPayments.map(p => ({
-        date: p.datePaid ? new Date(p.datePaid) : new Date(),
+        date: p?.datePaid ? new Date(p.datePaid) : new Date(),
         type: "RECETTE",
-        ref: p.reference || `PAY-${p.id}`,
-        desc: `Frais scolarité - ${p.monthConcerned || "Mois"}`,
-        amount: p.amount,
-        mode: p.paymentMode || "Espèces",
-        author: p.recordedBy || "Agent caisse"
+        ref: p?.reference || `PAY-${p?.id}`,
+        desc: `Frais scolarité - ${p?.monthConcerned || "Mois"}`,
+        amount: Number(p?.amount) || 0,
+        mode: p?.paymentMode || "Espèces",
+        author: p?.recordedBy || "Agent caisse"
       })),
       ...filteredExpenses.map(e => ({
-        date: e.dateExpense ? new Date(e.dateExpense) : new Date(),
+        date: e?.dateExpense ? new Date(e.dateExpense) : new Date(),
         type: "DÉPENSE",
-        ref: e.reference || `EXP-${e.id}`,
-        desc: e.description || "Dépense de fonctionnement",
-        amount: -e.amount,
-        mode: e.paymentMode || "Espèces",
-        author: e.recordedBy || "Comptable"
+        ref: e?.reference || `EXP-${e?.id}`,
+        desc: e?.description || "Dépense de fonctionnement",
+        amount: -(Number(e?.amount) || 0),
+        mode: e?.paymentMode || "Espèces",
+        author: e?.recordedBy || "Comptable"
       }))
     ].sort((a, b) => b.date.getTime() - a.date.getTime());
 
     reportTable = {
       headers: ["Date & Heure", "Flux", "Référence", "Description", "Montant", "Mode", "Auteur"],
-      rows: sortedRows.map(r => [
-        r.date.toLocaleDateString("fr-FR") + " " + r.date.toLocaleTimeString("fr-FR", { hour: '2-digit', minute: '2-digit' }),
-        r.type,
-        r.ref,
-        r.desc,
-        `${r.amount.toLocaleString("fr-FR")} CFA`,
-        r.mode,
-        r.author
-      ])
+      rows: sortedRows.map(r => {
+        const safeDate = isNaN(r.date.getTime()) ? new Date() : r.date;
+        return [
+          safeDate.toLocaleDateString("fr-FR") + " " + safeDate.toLocaleTimeString("fr-FR", { hour: '2-digit', minute: '2-digit' }),
+          r.type,
+          r.ref,
+          r.desc,
+          `${(r.amount || 0).toLocaleString("fr-FR")} CFA`,
+          r.mode,
+          r.author
+        ];
+      })
     };
   }
 
   else if (activeReport === "pedagogie") {
-    const validated = filteredSeances.filter(s => s.statut === "Validé").length;
+    const validated = filteredSeances.filter(s => s?.statut === "Validé").length;
     const progressRate = filteredPlans.length > 0 ? Math.round((validated / filteredPlans.length) * 100) : 75;
 
     reportKpis = [
-      { label: "Séances Réalisées", value: filteredSeances.length, icon: <BookOpen size={18} />, color: "text-blue-600", bgColor: "bg-blue-50" },
-      { label: "Séances Validées", value: validated, icon: <UserCheck size={18} />, color: "text-emerald-600", bgColor: "bg-emerald-50" },
-      { label: "Leçons Planifiées", value: filteredPlans.length, icon: <Layers size={18} />, color: "text-indigo-600", bgColor: "bg-indigo-50" },
-      { label: "Taux Complétude", value: `${progressRate}%`, icon: <Award size={18} />, color: "text-amber-600", bgColor: "bg-amber-50" }
+      { label: "Séances Réalisées", value: filteredSeances.length, icon: <BookOpen size={18} />, color: "text-blue-600", bgColor: "bg-blue-50 dark:bg-blue-500/10" },
+      { label: "Séances Validées", value: validated, icon: <UserCheck size={18} />, color: "text-emerald-600", bgColor: "bg-emerald-50 dark:bg-emerald-500/10" },
+      { label: "Leçons Planifiées", value: filteredPlans.length, icon: <Layers size={18} />, color: "text-indigo-600", bgColor: "bg-indigo-50 dark:bg-indigo-500/10" },
+      { label: "Taux Complétude", value: `${progressRate}%`, icon: <Award size={18} />, color: "text-amber-600", bgColor: "bg-amber-50 dark:bg-amber-500/10" }
     ];
 
     const pedRows = [
       ...filteredSeances.map(s => {
-        const teacher = (data.employees || []).find(e => e.id === s.employeeId);
-        const subject = (data.subjects || []).find(sub => sub.id === s.subjectId);
-        const cls = (data.classes || []).find(c => c.id === s.classId);
+        const teacher = (data.employees || []).find(e => e && e.id === s?.employeeId);
+        const subject = (data.subjects || []).find(sub => sub && sub.id === s?.subjectId);
+        const cls = (data.classes || []).find(c => c && c.id === s?.classId);
         return {
-          date: s.sessionDate ? new Date(s.sessionDate) : new Date(),
+          date: s?.sessionDate ? new Date(s.sessionDate) : new Date(),
           cls: cls?.className || "Classe",
           teacher: teacher?.nomPrenom || "Professeur",
           subject: subject?.subjectName || "Matière",
-          details: `Séance : ${s.titreLecon}`,
-          status: s.statut || "En attente"
+          details: `Séance : ${s?.titreLecon || "Général"}`,
+          status: s?.statut || "En attente"
         };
       }),
       ...filteredPlans.map(p => {
-        const teacher = (data.employees || []).find(e => e.id === p.employeeId);
-        const subject = (data.subjects || []).find(sub => sub.id === p.subjectId);
-        const cls = (data.classes || []).find(c => c.id === p.classId);
+        const teacher = (data.employees || []).find(e => e && e.id === p?.employeeId);
+        const subject = (data.subjects || []).find(sub => sub && sub.id === p?.subjectId);
+        const cls = (data.classes || []).find(c => c && c.id === p?.classId);
         return {
-          date: p.datePrevue ? new Date(p.datePrevue) : new Date(),
+          date: p?.datePrevue ? new Date(p.datePrevue) : new Date(),
           cls: cls?.className || "Classe",
           teacher: teacher?.nomPrenom || "Professeur",
           subject: subject?.subjectName || "Matière",
-          details: `Planifié : ${p.chapitre} - ${p.leconPrevue}`,
-          status: p.statut || "Planifié"
+          details: `Planifié : ${p?.chapitre || ""} - ${p?.leconPrevue || ""}`,
+          status: p?.statut || "Planifié"
         };
       })
     ].sort((a, b) => b.date.getTime() - a.date.getTime());
 
     reportTable = {
       headers: ["Date", "Classe", "Professeur", "Matière", "Sujet / Chapitre", "Statut"],
-      rows: pedRows.map(r => [
-        r.date.toLocaleDateString("fr-FR"),
-        r.cls,
-        r.teacher,
-        r.subject,
-        r.details,
-        r.status
-      ])
+      rows: pedRows.map(r => {
+        const safeDate = isNaN(r.date.getTime()) ? new Date() : r.date;
+        return [
+          safeDate.toLocaleDateString("fr-FR"),
+          r.cls,
+          r.teacher,
+          r.subject,
+          r.details,
+          r.status
+        ];
+      })
     };
   }
 
   else if (activeReport === "presence") {
-    const presents = filteredAttendance.filter(a => a.status === "Présent").length;
-    const lates = filteredAttendance.filter(a => a.status === "En Retard").length;
-    const excused = filteredAttendance.filter(a => a.status === "Excusé").length;
+    const presents = filteredAttendance.filter(a => a?.status === "Présent").length;
+    const lates = filteredAttendance.filter(a => a?.status === "En Retard").length;
+    const excused = filteredAttendance.filter(a => a?.status === "Excusé").length;
     const total = filteredAttendance.length;
     const rate = total > 0 ? Math.round(((presents + lates + excused) / total) * 100) : 94;
 
     reportKpis = [
-      { label: "Taux Présence", value: `${rate}%`, icon: <Activity size={18} />, color: "text-emerald-600", bgColor: "bg-emerald-50" },
-      { label: "Retards", value: lates, icon: <Clock size={18} />, color: "text-amber-600", bgColor: "bg-amber-50" },
-      { label: "Absences Non Justifiées", value: total - presents - lates - excused, icon: <ShieldAlert size={18} />, color: "text-rose-600", bgColor: "bg-rose-50" },
-      { label: "Absences Justifiées", value: excused, icon: <UserCheck size={18} />, color: "text-blue-600", bgColor: "bg-blue-50" }
+      { label: "Taux Présence", value: `${rate}%`, icon: <Activity size={18} />, color: "text-emerald-600", bgColor: "bg-emerald-50 dark:bg-emerald-500/10" },
+      { label: "Retards", value: lates, icon: <Clock size={18} />, color: "text-amber-600", bgColor: "bg-amber-50 dark:bg-amber-500/10" },
+      { label: "Absences Non Justifiées", value: Math.max(0, total - presents - lates - excused), icon: <ShieldAlert size={18} />, color: "text-rose-600", bgColor: "bg-rose-50 dark:bg-rose-500/10" },
+      { label: "Absences Justifiées", value: excused, icon: <UserCheck size={18} />, color: "text-blue-600", bgColor: "bg-blue-50 dark:bg-blue-500/10" }
     ];
 
     reportTable = {
       headers: ["Date", "Élève", "Classe", "Matière", "Statut", "Remarque / Enregistré par"],
       rows: filteredAttendance.map(a => {
-        const student = (data.students || []).find(s => s.id === a.studentId);
-        const cls = (data.classes || []).find(c => c.id === a.classId);
-        const subject = (data.subjects || []).find(sub => sub.id === a.subjectId);
+        const student = (data.students || []).find(s => s && s.id === a?.studentId);
+        const cls = (data.classes || []).find(c => c && c.id === a?.classId);
+        const subject = (data.subjects || []).find(sub => sub && sub.id === a?.subjectId);
+        const safeDate = a?.date ? new Date(a.date) : null;
         return [
-          a.date ? new Date(a.date).toLocaleDateString("fr-FR") : "-",
+          safeDate && !isNaN(safeDate.getTime()) ? safeDate.toLocaleDateString("fr-FR") : "-",
           student?.nomEtudiant || "Élève",
           cls?.className || "Classe",
           subject?.subjectName || "Général",
-          a.status || "Présent",
-          a.remark || `Par ${a.recordedBy || "Système"}`
+          a?.status || "Présent",
+          a?.remark || `Par ${a?.recordedBy || "Système"}`
         ];
       })
     };
   }
 
   else if (activeReport === "rh") {
-    const active = filteredEmployees.filter(e => e.statut === "Actif").length;
-    const totalSalary = filteredEmployees.reduce((acc, e) => acc + (e.salaire || 0), 0);
+    const active = filteredEmployees.filter(e => e?.statut === "Actif").length;
+    const totalSalary = filteredEmployees.reduce((acc, e) => acc + (Number(e?.salaire) || 0), 0);
 
     reportKpis = [
-      { label: "Total Personnel", value: filteredEmployees.length, icon: <Users size={18} />, color: "text-indigo-600", bgColor: "bg-indigo-50" },
-      { label: "Personnel Actif", value: active, icon: <UserCheck size={18} />, color: "text-emerald-600", bgColor: "bg-emerald-50" },
-      { label: "Professeurs", value: filteredEmployees.filter(e => (e.poste || "").toLowerCase().includes("prof") || (e.fonction || "").toLowerCase().includes("prof")).length, icon: <BookOpen size={18} />, color: "text-blue-600", bgColor: "bg-blue-50" },
-      { label: "Masse Salariale", value: `${totalSalary.toLocaleString("fr-FR")} CFA`, icon: <DollarSign size={18} />, color: "text-emerald-600", bgColor: "bg-emerald-50" }
+      { label: "Total Personnel", value: filteredEmployees.length, icon: <Users size={18} />, color: "text-indigo-600", bgColor: "bg-indigo-50 dark:bg-indigo-500/10" },
+      { label: "Personnel Actif", value: active, icon: <UserCheck size={18} />, color: "text-emerald-600", bgColor: "bg-emerald-50 dark:bg-emerald-500/10" },
+      { label: "Professeurs", value: filteredEmployees.filter(e => (e?.poste || "").toLowerCase().includes("prof") || (e?.fonction || "").toLowerCase().includes("prof")).length, icon: <BookOpen size={18} />, color: "text-blue-600", bgColor: "bg-blue-50 dark:bg-blue-500/10" },
+      { label: "Masse Salariale", value: `${totalSalary.toLocaleString("fr-FR")} CFA`, icon: <DollarSign size={18} />, color: "text-emerald-600", bgColor: "bg-emerald-50 dark:bg-emerald-500/10" }
     ];
 
     reportTable = {
       headers: ["Code Employé", "Nom & Prénom", "Poste / Fonction", "Téléphone", "Salaire Mensuel", "Statut"],
       rows: filteredEmployees.map(e => [
-        e.employeeCode || `EMP-${e.id}`,
-        e.nomPrenom || "N/A",
-        e.poste || e.fonction || "N/A",
-        e.telephone || "N/A",
-        `${(e.salaire || 0).toLocaleString("fr-FR")} CFA`,
-        e.statut || "Actif"
+        e?.employeeCode || `EMP-${e?.id}`,
+        e?.nomPrenom || "N/A",
+        e?.poste || e?.fonction || "N/A",
+        e?.telephone || "N/A",
+        `${(Number(e?.salaire) || 0).toLocaleString("fr-FR")} CFA`,
+        e?.statut || "Actif"
       ])
     };
   }
@@ -547,25 +614,26 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
     const totalVirtual = (data.virtualClasses || []).length;
 
     reportKpis = [
-      { label: "Cours E-Learning", value: filteredCourses.length, icon: <BookOpen size={18} />, color: "text-indigo-600", bgColor: "bg-indigo-50" },
-      { label: "Modules / Leçons", value: `${(data.lessons || []).filter(l => filteredCourses.some(c => c.id === l.courseId)).length} leçons`, icon: <Layers size={18} />, color: "text-blue-600", bgColor: "bg-blue-50" },
-      { label: "Devoirs Soumis", value: totalSubmissions, icon: <Clock size={18} />, color: "text-amber-600", bgColor: "bg-amber-50" },
-      { label: "Classes Virtuelles", value: totalVirtual, icon: <Activity size={18} />, color: "text-emerald-600", bgColor: "bg-emerald-50" }
+      { label: "Cours E-Learning", value: filteredCourses.length, icon: <BookOpen size={18} />, color: "text-indigo-600", bgColor: "bg-indigo-50 dark:bg-indigo-500/10" },
+      { label: "Modules / Leçons", value: `${(data.lessons || []).filter(l => l && filteredCourses.some(c => c && c.id === l.courseId)).length} leçons`, icon: <Layers size={18} />, color: "text-blue-600", bgColor: "bg-blue-50 dark:bg-blue-500/10" },
+      { label: "Devoirs Soumis", value: totalSubmissions, icon: <Clock size={18} />, color: "text-amber-600", bgColor: "bg-amber-50 dark:bg-amber-500/10" },
+      { label: "Classes Virtuelles", value: totalVirtual, icon: <Activity size={18} />, color: "text-emerald-600", bgColor: "bg-emerald-50 dark:bg-emerald-500/10" }
     ];
 
     reportTable = {
       headers: ["Cours", "Classe", "Matière", "Enseignant", "Statut", "Date de Création"],
       rows: filteredCourses.map(c => {
-        const cls = (data.classes || []).find(cl => cl.id === c.classId);
-        const subject = (data.subjects || []).find(sub => sub.id === c.subjectId);
-        const teacher = (data.employees || []).find(emp => emp.id === c.teacherId);
+        const cls = (data.classes || []).find(cl => cl && cl.id === c?.classId);
+        const subject = (data.subjects || []).find(sub => sub && sub.id === c?.subjectId);
+        const teacher = (data.employees || []).find(emp => emp && emp.id === c?.teacherId);
+        const safeDate = c?.createdAt ? new Date(c.createdAt) : null;
         return [
-          c.title,
+          c?.title || "Cours sans titre",
           cls?.className || "Classe",
           subject?.subjectName || "Matière",
           teacher?.nomPrenom || "Professeur",
-          c.status || "Draft",
-          c.createdAt ? new Date(c.createdAt).toLocaleDateString("fr-FR") : "-"
+          c?.status || "Draft",
+          safeDate && !isNaN(safeDate.getTime()) ? safeDate.toLocaleDateString("fr-FR") : "-"
         ];
       })
     };
@@ -573,10 +641,10 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
 
   else if (activeReport === "library") {
     reportKpis = [
-      { label: "Total Livres", value: 1250, icon: <Library size={18} />, color: "text-indigo-600", bgColor: "bg-indigo-50" },
-      { label: "Disponibles", value: 1180, icon: <Library size={18} />, color: "text-emerald-600", bgColor: "bg-emerald-50" },
-      { label: "Emprunts Actifs", value: 70, icon: <Users size={18} />, color: "text-blue-600", bgColor: "bg-blue-50" },
-      { label: "Retards Détectés", value: 12, icon: <Clock size={18} />, color: "text-rose-600", bgColor: "bg-rose-50" }
+      { label: "Total Livres", value: 1250, icon: <Library size={18} />, color: "text-indigo-600", bgColor: "bg-indigo-50 dark:bg-indigo-500/10" },
+      { label: "Disponibles", value: 1180, icon: <Library size={18} />, color: "text-emerald-600", bgColor: "bg-emerald-50 dark:bg-emerald-500/10" },
+      { label: "Emprunts Actifs", value: 70, icon: <Users size={18} />, color: "text-blue-600", bgColor: "bg-blue-50 dark:bg-blue-500/10" },
+      { label: "Retards Détectés", value: 12, icon: <Clock size={18} />, color: "text-rose-600", bgColor: "bg-rose-50 dark:bg-rose-500/10" }
     ];
 
     reportTable = {
@@ -591,31 +659,31 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
 
   else if (activeReport === "canevas") {
     const totalStudentsVal = (data.students || []).length;
-    const totalTeachers = (data.employees || []).filter(e => (e.poste || "").toLowerCase().includes("prof") || (e.fonction || "").toLowerCase().includes("prof")).length;
+    const totalTeachers = (data.employees || []).filter(e => (e?.poste || "").toLowerCase().includes("prof") || (e?.fonction || "").toLowerCase().includes("prof")).length;
 
     reportKpis = [
-      { label: "Structures Éducatives", value: 1, icon: <Building2 size={18} />, color: "text-indigo-600", bgColor: "bg-indigo-50" },
-      { label: "Total Élèves", value: totalStudentsVal, icon: <Users size={18} />, color: "text-blue-600", bgColor: "bg-blue-50" },
-      { label: "Enseignants Canevas", value: totalTeachers, icon: <UserCheck size={18} />, color: "text-amber-600", bgColor: "bg-amber-50" },
-      { label: "Ratio Élèves / Prof", value: totalTeachers > 0 ? Math.round(totalStudentsVal / totalTeachers) : totalStudentsVal, icon: <Layers size={18} />, color: "text-emerald-600", bgColor: "bg-emerald-50" }
+      { label: "Structures Éducatives", value: 1, icon: <Building2 size={18} />, color: "text-indigo-600", bgColor: "bg-indigo-50 dark:bg-indigo-500/10" },
+      { label: "Total Élèves", value: totalStudentsVal, icon: <Users size={18} />, color: "text-blue-600", bgColor: "bg-blue-50 dark:bg-blue-500/10" },
+      { label: "Enseignants Canevas", value: totalTeachers, icon: <UserCheck size={18} />, color: "text-amber-600", bgColor: "bg-amber-50 dark:bg-amber-500/10" },
+      { label: "Ratio Élèves / Prof", value: totalTeachers > 0 ? Math.round(totalStudentsVal / totalTeachers) : totalStudentsVal, icon: <Layers size={18} />, color: "text-emerald-600", bgColor: "bg-emerald-50 dark:bg-emerald-500/10" }
     ];
 
     const groups = [
-      { level: "Primaire", effectif: (data.students || []).filter(s => (s.educationalLevel || "").toLowerCase().includes("prim")).length, teacherCount: Math.round(totalTeachers * 0.6) || 1 },
-      { level: "Collège", effectif: (data.students || []).filter(s => (s.educationalLevel || "").toLowerCase().includes("coll")).length, teacherCount: Math.round(totalTeachers * 0.3) || 1 },
-      { level: "Lycée", effectif: (data.students || []).filter(s => (s.educationalLevel || "").toLowerCase().includes("lyc")).length, teacherCount: Math.round(totalTeachers * 0.1) || 1 }
+      { level: "Primaire", effectif: (data.students || []).filter(s => (s?.educationalLevel || "").toLowerCase().includes("prim")).length, teacherCount: Math.round(totalTeachers * 0.6) || 1 },
+      { level: "Collège", effectif: (data.students || []).filter(s => (s?.educationalLevel || "").toLowerCase().includes("coll")).length, teacherCount: Math.round(totalTeachers * 0.3) || 1 },
+      { level: "Lycée", effectif: (data.students || []).filter(s => (s?.educationalLevel || "").toLowerCase().includes("lyc")).length, teacherCount: Math.round(totalTeachers * 0.1) || 1 }
     ];
 
     reportTable = {
       headers: ["Niveau / Cycle d'enseignement", "Effectif Élèves", "Filles", "Garçons", "Enseignants", "Ratio Élèves / Professeur"],
       rows: groups.map(g => {
         const cycleStudents = (data.students || []).filter(s => {
-          const l = (s.educationalLevel || "").toLowerCase();
+          const l = (s?.educationalLevel || "").toLowerCase();
           if (g.level === "Primaire") return l.includes("prim");
           if (g.level === "Collège") return l.includes("coll");
           return l.includes("lyc");
         });
-        const gGirls = cycleStudents.filter(s => (s.sexe || "").toLowerCase().startsWith("f")).length;
+        const gGirls = cycleStudents.filter(s => (s?.sexe || "").toLowerCase().startsWith("f")).length;
         const gBoys = cycleStudents.length - gGirls;
         const ratio = g.teacherCount > 0 ? Math.round(cycleStudents.length / g.teacherCount) : cycleStudents.length;
 
@@ -633,10 +701,10 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
 
   else if (activeReport === "inspection") {
     reportKpis = [
-      { label: "Écoles Suivies", value: 6, icon: <Building2 size={18} />, color: "text-indigo-600", bgColor: "bg-indigo-50" },
-      { label: "Canevas Validés", value: 2, icon: <ShieldCheck size={18} />, color: "text-emerald-600", bgColor: "bg-emerald-50" },
-      { label: "Rejets Déclarations", value: 1, icon: <ShieldAlert size={18} />, color: "text-rose-600", bgColor: "bg-rose-50" },
-      { label: "En Retard", value: 1, icon: <Clock size={18} />, color: "text-amber-600", bgColor: "bg-amber-50" }
+      { label: "Écoles Suivies", value: 6, icon: <Building2 size={18} />, color: "text-indigo-600", bgColor: "bg-indigo-50 dark:bg-indigo-500/10" },
+      { label: "Canevas Validés", value: 2, icon: <ShieldCheck size={18} />, color: "text-emerald-600", bgColor: "bg-emerald-50 dark:bg-emerald-500/10" },
+      { label: "Rejets Déclarations", value: 1, icon: <ShieldAlert size={18} />, color: "text-rose-600", bgColor: "bg-rose-50 dark:bg-rose-500/10" },
+      { label: "En Retard", value: 1, icon: <Clock size={18} />, color: "text-amber-600", bgColor: "bg-amber-50 dark:bg-amber-500/10" }
     ];
 
     reportTable = {
@@ -652,13 +720,13 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
 
   else if (activeReport === "ministry") {
     reportKpis = [
-      { label: "Écoles", value: 10, icon: <Building2 size={18} />, color: "text-indigo-600", bgColor: "bg-indigo-50" },
-      { label: "Total Élèves", value: 6303, icon: <Users size={18} />, color: "text-blue-600", bgColor: "bg-blue-50" },
-      { label: "Taux Réussite", value: "76.8%", icon: <Award size={18} />, color: "text-amber-600", bgColor: "bg-amber-50" },
-      { label: "Ratio Élève/Ens", value: "24.5", icon: <Layers size={18} />, color: "text-slate-600", bgColor: "bg-slate-50" },
-      { label: "Taux Abandon", value: "4.9%", icon: <TrendingDown size={18} />, color: "text-rose-600", bgColor: "bg-rose-50" },
-      { label: "Complétude Données", value: "83%", icon: <CheckCircle2 size={18} />, color: "text-emerald-600", bgColor: "bg-emerald-50" },
-      { label: "Zones Prioritaires", value: 3, icon: <ShieldAlert size={18} />, color: "text-rose-600", bgColor: "bg-rose-50" }
+      { label: "Écoles", value: 10, icon: <Building2 size={18} />, color: "text-indigo-600", bgColor: "bg-indigo-50 dark:bg-indigo-500/10" },
+      { label: "Total Élèves", value: 6303, icon: <Users size={18} />, color: "text-blue-600", bgColor: "bg-blue-50 dark:bg-blue-500/10" },
+      { label: "Taux Réussite", value: "76.8%", icon: <Award size={18} />, color: "text-amber-600", bgColor: "bg-amber-50 dark:bg-amber-500/10" },
+      { label: "Ratio Élève/Ens", value: "24.5", icon: <Layers size={18} />, color: "text-slate-600", bgColor: "bg-slate-50 dark:bg-slate-500/10" },
+      { label: "Taux Abandon", value: "4.9%", icon: <TrendingDown size={18} />, color: "text-rose-600", bgColor: "bg-rose-50 dark:bg-rose-500/10" },
+      { label: "Complétude Données", value: "83%", icon: <CheckCircle2 size={18} />, color: "text-emerald-600", bgColor: "bg-emerald-50 dark:bg-emerald-500/10" },
+      { label: "Zones Prioritaires", value: 3, icon: <ShieldAlert size={18} />, color: "text-rose-600", bgColor: "bg-rose-50 dark:bg-rose-500/10" }
     ];
 
     reportTable = {
@@ -689,33 +757,32 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
   }
 
   else if (activeReport === "security") {
-    const sensitives = filteredAuditLogs.filter(log => log.action === "CANEDIT" || log.action === "CANDELETE" || log.action === "UPDATE" || log.action === "DELETE").length;
-    const usersCount = new Set(filteredAuditLogs.map(l => l.userId)).size;
+    const sensitives = filteredAuditLogs.filter(log => log?.action === "CANEDIT" || log?.action === "CANDELETE" || log?.action === "UPDATE" || log?.action === "DELETE").length;
+    const usersCount = new Set(filteredAuditLogs.map(l => l?.userId).filter(Boolean)).size;
 
     reportKpis = [
-      { label: "Total Journaux", value: filteredAuditLogs.length, icon: <ShieldCheck size={18} />, color: "text-indigo-600", bgColor: "bg-indigo-50" },
-      { label: "Modifs Sensibles", value: sensitives, icon: <ShieldAlert size={18} />, color: "text-amber-600", bgColor: "bg-amber-50" },
-      { label: "Opérateurs Actifs", value: usersCount, icon: <Users size={18} />, color: "text-blue-600", bgColor: "bg-blue-50" },
-      { label: "Alertes Sécurité", value: 0, icon: <ShieldCheck size={18} />, color: "text-emerald-600", bgColor: "bg-emerald-50" }
+      { label: "Total Journaux", value: filteredAuditLogs.length, icon: <ShieldCheck size={18} />, color: "text-indigo-600", bgColor: "bg-indigo-50 dark:bg-indigo-500/10" },
+      { label: "Modifs Sensibles", value: sensitives, icon: <ShieldAlert size={18} />, color: "text-amber-600", bgColor: "bg-amber-50 dark:bg-amber-500/10" },
+      { label: "Opérateurs Actifs", value: usersCount, icon: <Users size={18} />, color: "text-blue-600", bgColor: "bg-blue-50 dark:bg-blue-500/10" },
+      { label: "Alertes Sécurité", value: 0, icon: <ShieldCheck size={18} />, color: "text-emerald-600", bgColor: "bg-emerald-50 dark:bg-emerald-500/10" }
     ];
 
     reportTable = {
       headers: ["Date & Heure", "Utilisateur / Opérateur", "Action", "Module affecté", "Adresse IP", "Système / Navigateur"],
       rows: filteredAuditLogs.map(log => {
-        const username = log.user?.nomPrenom || `Utilisateur ID ${log.userId}`;
+        const username = log?.user?.nomPrenom || `Utilisateur ID ${log?.userId || "N/A"}`;
+        const safeDate = log?.timestamp ? new Date(log.timestamp) : null;
         return [
-          log.timestamp ? new Date(log.timestamp).toLocaleString("fr-FR") : "-",
+          safeDate && !isNaN(safeDate.getTime()) ? safeDate.toLocaleString("fr-FR") : "-",
           username,
-          log.action || "ACCÈS",
-          log.tableName || "Général",
-          log.ipAddress || "Local",
-          log.userAgent ? log.userAgent.substring(0, 45) + "..." : "Inconnu"
+          log?.action || "ACCÈS",
+          log?.tableName || "Général",
+          log?.ipAddress || "Local",
+          log?.userAgent ? log.userAgent.substring(0, 45) + "..." : "Inconnu"
         ];
       })
     };
   }
-
-
 
   const universalMetadata = {
     title: getReportTitle(activeReport),
@@ -729,13 +796,15 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
     qrValue: `https://edut.ne/verify/report/RPT-${activeReport.substring(0, 3).toUpperCase()}-${Date.now().toString().slice(-6)}`
   };
 
+  const fSel = "w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-2.5 rounded-2xl text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-300 dark:focus:ring-indigo-600";
+
   return (
-    <div className="p-8 space-y-8 animate-in fade-in duration-700">
+    <div className="p-8 space-y-8 animate-in fade-in duration-700 bg-slate-50/60 dark:bg-[#0A0C10] min-h-screen">
       
       {/* HEADER */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="flex items-start gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center shadow-sm overflow-hidden shrink-0">
+          <div className="w-14 h-14 rounded-2xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shadow-sm overflow-hidden shrink-0">
             {branding.logoPath ? (
               <img src={branding.logoPath} alt="Logo" className="w-full h-full object-cover" />
             ) : (
@@ -744,12 +813,12 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
           </div>
           <div>
             <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-4xl font-black text-slate-900 tracking-tight">Centre de Reporting</h1>
-              <span className="text-xs font-black text-indigo-600 bg-indigo-50 border border-indigo-100/60 px-3 py-1 rounded-full shadow-sm">
+              <h1 className="text-4xl font-black text-slate-900 dark:text-white tracking-tight">Centre de Reporting</h1>
+              <span className="text-xs font-black text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100/60 dark:border-indigo-500/20 px-3 py-1 rounded-full shadow-sm">
                 {branding.name}
               </span>
             </div>
-            <p className="text-slate-500 mt-1.5 font-medium text-sm">
+            <p className="text-slate-500 dark:text-slate-400 mt-1.5 font-medium text-sm">
               Consolidation globale, exports réglementaires et indicateurs de pilotage de l'établissement.
             </p>
           </div>
@@ -757,7 +826,9 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
 
         {/* Offline Status */}
         <div className={`px-4 py-2 rounded-2xl border text-xs font-bold flex items-center gap-2 ${
-          isOnline ? "bg-emerald-50 text-emerald-700 border-emerald-150" : "bg-amber-50 text-amber-700 border-amber-150"
+          isOnline 
+            ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-150 dark:border-emerald-500/20" 
+            : "bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-150 dark:border-amber-500/20"
         }`}>
           <span className={`w-2.5 h-2.5 rounded-full ${isOnline ? "bg-emerald-500 animate-pulse" : "bg-amber-500"}`} />
           {isOnline ? "Connecté (Mise en cache active)" : "Hors ligne (Mode Cache activé)"}
@@ -768,31 +839,31 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
       <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-8 items-start">
         
         {/* Sidebar / Tabs Selection */}
-        <div className="bg-white/90 backdrop-blur-sm rounded-[2rem] border border-slate-100 p-4 space-y-2 shadow-sm">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-3 mb-3">Sélectionner un rapport</p>
+        <div className="bg-white/90 dark:bg-[#131622] backdrop-blur-sm rounded-[2rem] border border-slate-100 dark:border-slate-800 p-4 space-y-2 shadow-sm">
+          <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-3 mb-3">Sélectionner un rapport</p>
           {[
-            { id: "students", label: "Rapports étudiants", icon: <Users size={16} />, color: "text-blue-500" },
-            { id: "finances", label: "Rapports financiers", icon: <DollarSign size={16} />, color: "text-emerald-500" },
-            { id: "pedagogie", label: "Rapports pédagogiques", icon: <BookOpen size={16} />, color: "text-blue-500" },
-            { id: "presence", label: "Rapports présence", icon: <Calendar size={16} />, color: "text-amber-500" },
-            { id: "rh", label: "Rapports RH", icon: <UserCheck size={16} />, color: "text-indigo-500" },
-            { id: "lms", label: "Rapports LMS", icon: <Layers size={16} />, color: "text-purple-500" },
-            { id: "library", label: "Rapports bibliothèque", icon: <Library size={16} />, color: "text-blue-500" },
-            { id: "canevas", label: "Rapports canevas", icon: <Building2 size={16} />, color: "text-cyan-500" },
-            { id: "inspection", label: "Rapports inspection", icon: <ShieldCheck size={16} />, color: "text-rose-500" },
-            { id: "ministry", label: "Rapports ministère", icon: <Globe size={16} />, color: "text-rose-600" },
-            { id: "security", label: "Rapports sécurité", icon: <ShieldCheck size={16} />, color: "text-rose-500" }
+            { id: "students", label: "Rapports étudiants", icon: <Users size={16} />, color: "text-blue-500 dark:text-blue-400" },
+            { id: "finances", label: "Rapports financiers", icon: <DollarSign size={16} />, color: "text-emerald-500 dark:text-emerald-400" },
+            { id: "pedagogie", label: "Rapports pédagogiques", icon: <BookOpen size={16} />, color: "text-blue-500 dark:text-blue-400" },
+            { id: "presence", label: "Rapports présence", icon: <Calendar size={16} />, color: "text-amber-500 dark:text-amber-400" },
+            { id: "rh", label: "Rapports RH", icon: <UserCheck size={16} />, color: "text-indigo-500 dark:text-indigo-400" },
+            { id: "lms", label: "Rapports LMS", icon: <Layers size={16} />, color: "text-purple-500 dark:text-purple-400" },
+            { id: "library", label: "Rapports bibliothèque", icon: <Library size={16} />, color: "text-blue-500 dark:text-blue-400" },
+            { id: "canevas", label: "Rapports canevas", icon: <Building2 size={16} />, color: "text-cyan-500 dark:text-cyan-400" },
+            { id: "inspection", label: "Rapports inspection", icon: <ShieldCheck size={16} />, color: "text-rose-500 dark:text-rose-400" },
+            { id: "ministry", label: "Rapports ministère", icon: <Globe size={16} />, color: "text-rose-600 dark:text-rose-400" },
+            { id: "security", label: "Rapports sécurité", icon: <ShieldCheck size={16} />, color: "text-rose-500 dark:text-rose-400" }
           ].map(r => (
             <button
               key={r.id}
               onClick={() => setActiveReport(r.id as any)}
               className={`w-full text-left px-4 py-3 rounded-2xl text-xs font-bold transition-all flex items-center gap-3 ${
                 activeReport === r.id 
-                  ? "bg-slate-100 text-slate-900 shadow-sm" 
-                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                  ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm" 
+                  : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-900/60 hover:text-slate-900 dark:hover:text-white"
               }`}
             >
-              <span className={activeReport === r.id ? r.color : "text-slate-400"}>{r.icon}</span>
+              <span className={activeReport === r.id ? r.color : "text-slate-400 dark:text-slate-500"}>{r.icon}</span>
               {r.label}
             </button>
           ))}
@@ -802,19 +873,19 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
         <div className="space-y-8">
           
           {/* General Filters Area */}
-          <div className="bg-white/90 backdrop-blur-sm rounded-[2rem] border border-slate-100 p-6 shadow-sm space-y-4">
-            <div className="flex items-center gap-2 text-xs font-black text-slate-800 uppercase tracking-wider border-b pb-3 mb-2">
-              <Filter size={16} className="text-indigo-600" />
+          <div className="bg-white/90 dark:bg-[#131622] backdrop-blur-sm rounded-[2rem] border border-slate-100 dark:border-slate-800 p-6 shadow-sm space-y-4">
+            <div className="flex items-center gap-2 text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider border-b border-slate-100 dark:border-slate-800 pb-3 mb-2">
+              <Filter size={16} className="text-indigo-600 dark:text-indigo-400" />
               Filtres généraux consolidés
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
               <div className="space-y-1">
-                <Label className="text-[9px] font-black text-slate-400">ANNÉE SCOLAIRE</Label>
+                <Label className="text-[9px] font-black text-slate-400 dark:text-slate-500">ANNÉE SCOLAIRE</Label>
                 <select
                   value={academicYear}
                   onChange={(e) => setAcademicYear(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-2xl text-xs font-bold outline-none"
+                  className={fSel}
                 >
                   <option value="All">Toutes les années</option>
                   {uniqueSessions.map(s => <option key={s} value={s}>{s}</option>)}
@@ -822,11 +893,11 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
               </div>
 
               <div className="space-y-1">
-                <Label className="text-[9px] font-black text-slate-400">RÉGION</Label>
+                <Label className="text-[9px] font-black text-slate-400 dark:text-slate-500">RÉGION</Label>
                 <select
                   value={selectedRegion}
                   onChange={(e) => setSelectedRegion(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-2xl text-xs font-bold outline-none"
+                  className={fSel}
                 >
                   <option value="All">Toutes</option>
                   <option value="Niamey">Niamey</option>
@@ -837,11 +908,11 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
               </div>
 
               <div className="space-y-1">
-                <Label className="text-[9px] font-black text-slate-400">INSPECTION</Label>
+                <Label className="text-[9px] font-black text-slate-400 dark:text-slate-500">INSPECTION</Label>
                 <select
                   value={selectedInspection}
                   onChange={(e) => setSelectedInspection(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-2xl text-xs font-bold outline-none"
+                  className={fSel}
                 >
                   <option value="All">Toutes</option>
                   <option value="Niamey I">Niamey I</option>
@@ -855,11 +926,11 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
               </div>
 
               <div className="space-y-1">
-                <Label className="text-[9px] font-black text-slate-400">COMMUNE</Label>
+                <Label className="text-[9px] font-black text-slate-400 dark:text-slate-500">COMMUNE</Label>
                 <select
                   value={selectedCommune}
                   onChange={(e) => setSelectedCommune(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-2xl text-xs font-bold outline-none"
+                  className={fSel}
                 >
                   <option value="All">Toutes</option>
                   <option value="Niamey I">Niamey I</option>
@@ -874,11 +945,11 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
               </div>
 
               <div className="space-y-1">
-                <Label className="text-[9px] font-black text-slate-400">ÉTABLISSEMENT</Label>
+                <Label className="text-[9px] font-black text-slate-400 dark:text-slate-500">ÉTABLISSEMENT</Label>
                 <select
                   value={selectedEstablishment}
                   onChange={(e) => setSelectedEstablishment(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-2xl text-xs font-bold outline-none"
+                  className={fSel}
                 >
                   <option value="All">Tous</option>
                   <option value="Ecole Excellence">Ecole Excellence</option>
@@ -892,15 +963,16 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
               </div>
 
               <div className="space-y-1">
-                <Label className="text-[9px] font-black text-slate-400">CLASSE</Label>
+                <Label className="text-[9px] font-black text-slate-400 dark:text-slate-500">CLASSE</Label>
                 <select
                   value={selectedClassId}
                   onChange={(e) => { setSelectedClassId(e.target.value); setSelectedStudentId("All"); }}
-                  className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-2xl text-xs font-bold outline-none"
+                  className={fSel}
                 >
                   <option value="All">Toutes les classes</option>
                   {(data.classes || [])
                     .filter(c => {
+                      if (!c) return false;
                       if (selectedLevel === "All") return true;
                       return c.section?.educationalLevel === selectedLevel;
                     })
@@ -909,11 +981,11 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
               </div>
 
               <div className="space-y-1">
-                <Label className="text-[9px] font-black text-slate-400">NIVEAU / CYCLE</Label>
+                <Label className="text-[9px] font-black text-slate-400 dark:text-slate-500">NIVEAU / CYCLE</Label>
                 <select
                   value={selectedLevel}
                   onChange={(e) => { setSelectedLevel(e.target.value); setSelectedClassId("All"); setSelectedStudentId("All"); }}
-                  className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-2xl text-xs font-bold outline-none"
+                  className={fSel}
                 >
                   <option value="All">Tous les cycles</option>
                   {availableLevels.map(lvl => (
@@ -923,31 +995,31 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
               </div>
 
               <div className="space-y-1">
-                <Label className="text-[9px] font-black text-slate-400">DATE DÉBUT</Label>
+                <Label className="text-[9px] font-black text-slate-400 dark:text-slate-500">DATE DÉBUT</Label>
                 <input
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-2xl text-xs font-bold outline-none"
+                  className={fSel}
                 />
               </div>
 
               <div className="space-y-1">
-                <Label className="text-[9px] font-black text-slate-400">DATE FIN</Label>
+                <Label className="text-[9px] font-black text-slate-400 dark:text-slate-500">DATE FIN</Label>
                 <input
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-2xl text-xs font-bold outline-none"
+                  className={fSel}
                 />
               </div>
 
               <div className="space-y-1">
-                <Label className="text-[9px] font-black text-slate-400">STATUT</Label>
+                <Label className="text-[9px] font-black text-slate-400 dark:text-slate-500">STATUT</Label>
                 <select
                   value={selectedStatus}
                   onChange={(e) => setSelectedStatus(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-2xl text-xs font-bold outline-none"
+                  className={fSel}
                 >
                   <option value="All">Tous les statuts</option>
                   <option value="Actif">Actif</option>
@@ -974,31 +1046,31 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
           </div>
 
           {/* Export Action Logger / Log Table */}
-          <div className="bg-white/90 backdrop-blur-sm rounded-[2rem] border border-slate-100 p-6 shadow-sm space-y-4">
-            <div className="flex items-center gap-2 text-xs font-black text-slate-800 uppercase tracking-wider border-b pb-3 mb-2">
-              <Clock size={16} className="text-slate-400" />
+          <div className="bg-white/90 dark:bg-[#131622] backdrop-blur-sm rounded-[2rem] border border-slate-100 dark:border-slate-800 p-6 shadow-sm space-y-4">
+            <div className="flex items-center gap-2 text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider border-b border-slate-100 dark:border-slate-800 pb-3 mb-2">
+              <Clock size={16} className="text-slate-400 dark:text-slate-500" />
               Historique récent des exports
             </div>
             {exportHistory.length === 0 ? (
-              <p className="text-xs text-slate-400 font-semibold italic text-center py-4">Aucun export enregistré récemment.</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500 font-semibold italic text-center py-4">Aucun export enregistré récemment.</p>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-xs font-bold text-slate-600">
+                <table className="w-full text-left border-collapse text-xs font-bold text-slate-600 dark:text-slate-300">
                   <thead>
-                    <tr className="border-b border-slate-100 bg-slate-50 text-[10px] uppercase text-slate-400">
+                    <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 text-[10px] uppercase text-slate-400 dark:text-slate-500">
                       <th className="p-3">Rapport généré</th>
                       <th className="p-3">Format / Canal</th>
                       <th className="p-3">Opérateur</th>
                       <th className="p-3 text-right">Date & Heure</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-50">
+                  <tbody className="divide-y divide-slate-50 dark:divide-slate-800/60">
                     {exportHistory.map((h) => (
-                      <tr key={h.id} className="hover:bg-slate-50/50">
-                        <td className="p-3 text-slate-900">{h.reportName}</td>
-                        <td className="p-3 text-indigo-600 font-black">{h.format}</td>
-                        <td className="p-3 text-slate-500">{h.operator}</td>
-                        <td className="p-3 text-right text-slate-400 font-mono">{h.date}</td>
+                      <tr key={h.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                        <td className="p-3 text-slate-900 dark:text-white">{h.reportName}</td>
+                        <td className="p-3 text-indigo-600 dark:text-indigo-400 font-black">{h.format}</td>
+                        <td className="p-3 text-slate-500 dark:text-slate-400">{h.operator}</td>
+                        <td className="p-3 text-right text-slate-400 dark:text-slate-500 font-mono">{h.date}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -1010,5 +1082,13 @@ export default function ReportsDashboard({ unifiedData: initialData, branding, c
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ReportsDashboard(props: ReportsDashboardProps) {
+  return (
+    <DashboardErrorBoundary>
+      <ReportsDashboardContent {...props} />
+    </DashboardErrorBoundary>
   );
 }

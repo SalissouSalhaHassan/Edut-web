@@ -643,29 +643,29 @@ export default function UniversalReport({ metadata, kpis = [], table, onSendEmai
       )}
       
       {/* ─── WEB CONTROLS HEADER (Hidden on print) ─── */}
-      <header className="rounded-[30px] border border-slate-200 bg-white p-5 shadow-sm print:hidden">
+      <header className="rounded-[30px] border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131622] p-5 shadow-sm print:hidden">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
               <FileText size={24} />
             </div>
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-indigo-600">{metadata.moduleName}</p>
-              <h2 className="text-xl font-black tracking-tight text-slate-950">{metadata.title}</h2>
-              {metadata.subtitle && <p className="text-xs font-bold text-slate-400 mt-0.5">{metadata.subtitle}</p>}
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-indigo-600 dark:text-indigo-400">{metadata.moduleName}</p>
+              <h2 className="text-xl font-black tracking-tight text-slate-950 dark:text-white">{metadata.title}</h2>
+              {metadata.subtitle && <p className="text-xs font-bold text-slate-400 dark:text-slate-500 mt-0.5">{metadata.subtitle}</p>}
             </div>
           </div>
           
           <div className="flex flex-wrap items-center gap-2">
             {/* Paper Size Selector */}
-            <div className="flex items-center gap-0.5 rounded-xl border border-slate-200 bg-slate-50/50 p-1">
+            <div className="flex items-center gap-0.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900 p-1">
               <button
                 type="button"
                 onClick={() => setSelectedPaperSize("A4")}
                 className={`h-8 px-3 rounded-lg text-xs font-bold transition-all ${
                   selectedPaperSize === "A4"
-                    ? "bg-white text-slate-800 shadow-sm"
-                    : "text-slate-400 hover:text-slate-600"
+                    ? "bg-white dark:bg-slate-800 text-slate-800 dark:text-white shadow-sm"
+                    : "text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300"
                 }`}
               >
                 A4
@@ -675,8 +675,8 @@ export default function UniversalReport({ metadata, kpis = [], table, onSendEmai
                 onClick={() => setSelectedPaperSize("A5")}
                 className={`h-8 px-3 rounded-lg text-xs font-bold transition-all ${
                   selectedPaperSize === "A5"
-                    ? "bg-white text-slate-800 shadow-sm"
-                    : "text-slate-400 hover:text-slate-600"
+                    ? "bg-white dark:bg-slate-800 text-slate-800 dark:text-white shadow-sm"
+                    : "text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300"
                 }`}
               >
                 A5
@@ -685,31 +685,31 @@ export default function UniversalReport({ metadata, kpis = [], table, onSendEmai
 
             <button 
               onClick={handleExportPDF}
-              className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 active:scale-95 transition-all"
+              className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 active:scale-95 transition-all"
             >
               <FileText size={15} className="text-rose-500" /> Exporter PDF
             </button>
             <button 
               onClick={() => handleExportSpreadsheet("excel")}
-              className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 active:scale-95 transition-all"
+              className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 active:scale-95 transition-all"
             >
               <FileSpreadsheet size={15} className="text-emerald-600" /> Excel
             </button>
             <button 
               onClick={() => handleExportSpreadsheet("csv")}
-              className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 active:scale-95 transition-all"
+              className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 active:scale-95 transition-all"
             >
               <Download size={15} className="text-slate-500" /> CSV
             </button>
             <button 
               onClick={() => setEmailModalOpen(true)}
-              className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 active:scale-95 transition-all"
+              className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 active:scale-95 transition-all"
             >
-              <Mail size={15} className="text-indigo-600" /> E-mail
+              <Mail size={15} className="text-indigo-600 dark:text-indigo-400" /> E-mail
             </button>
             <button 
               onClick={() => window.print()}
-              className="flex h-11 items-center gap-2 rounded-xl bg-indigo-600 px-5 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-indigo-100 hover:bg-indigo-700 active:scale-95 transition-all"
+              className="flex h-11 items-center gap-2 rounded-xl bg-indigo-600 dark:bg-indigo-600 px-5 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-indigo-100 dark:shadow-none hover:bg-indigo-700 active:scale-95 transition-all"
             >
               <Printer size={15} /> Imprimer
             </button>
@@ -751,24 +751,24 @@ export default function UniversalReport({ metadata, kpis = [], table, onSendEmai
       `}} />
 
       {/* ─── PRINTABLE DOCUMENT WRAPPER ─── */}
-      <article data-paper-size={selectedPaperSize} className="bg-white rounded-[32px] border border-slate-100 shadow-sm p-8 print:p-0 print:border-none print:shadow-none space-y-8 print:bg-white print:text-black">
+      <article data-paper-size={selectedPaperSize} className="bg-white dark:bg-[#131622] rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm p-8 print:p-0 print:border-none print:shadow-none space-y-8 print:bg-white print:text-black">
         
         {/* ─── PRINTABLE OFFICIAL HEADER ─── */}
         <OfficialDocumentHeader config={metadata.documentHeaderConfig || null} title={metadata.title} />
         {/* ─── GENERAL SUMMARY SECTION ─── */}
         {kpis && kpis.length > 0 && (
           <div className="space-y-3">
-            <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
-              <ShieldCheck size={14} className="text-indigo-600" /> Résumé Général
+            <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 flex items-center gap-2">
+              <ShieldCheck size={14} className="text-indigo-600 dark:text-indigo-400" /> Résumé Général
             </h3>
             
             <div className="grid gap-4 grid-cols-2 lg:grid-cols-4 print:grid-cols-4 print:gap-2.5">
               {kpis.map((kpi, idx) => (
-                <div key={idx} className="rounded-2xl border border-slate-100 bg-white p-5 print:p-3 shadow-sm flex items-center justify-between gap-4 print:border-slate-300">
+                <div key={idx} className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900/60 p-5 print:p-3 shadow-sm flex items-center justify-between gap-4 print:border-slate-300 print:bg-white">
                   <div>
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">{kpi.label}</span>
-                    <span className="text-2xl font-black text-slate-950 mt-1 block">{kpi.value}</span>
-                    {kpi.subtext && <span className="text-[10px] font-bold text-slate-400 block mt-0.5">{kpi.subtext}</span>}
+                    <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider block">{kpi.label}</span>
+                    <span className="text-2xl font-black text-slate-950 dark:text-white print:text-black mt-1 block">{kpi.value}</span>
+                    {kpi.subtext && <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 block mt-0.5">{kpi.subtext}</span>}
                   </div>
                   <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center shrink-0 print:hidden", kpi.bgColor, kpi.color)}>
                     {kpi.icon}
@@ -781,21 +781,21 @@ export default function UniversalReport({ metadata, kpis = [], table, onSendEmai
 
         {/* ─── DESCRIPTION / INFO SECTION ─── */}
         {metadata.description && (
-          <div className="rounded-[24px] border border-slate-100 bg-slate-50/50 p-5 print:p-3 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 print:border-slate-300 print:bg-white">
+          <div className="rounded-[24px] border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 p-5 print:p-3 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 print:border-slate-300 print:bg-white">
             <div className="space-y-1">
-              <p className="text-[10px] font-black uppercase tracking-widest text-indigo-600 flex items-center gap-1.5">
+              <p className="text-[10px] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5">
                 <Info size={13} /> À propos de ce rapport
               </p>
-              <p className="text-xs font-bold leading-relaxed text-slate-500 max-w-2xl">{metadata.description}</p>
+              <p className="text-xs font-bold leading-relaxed text-slate-500 dark:text-slate-400 print:text-slate-600 max-w-2xl">{metadata.description}</p>
             </div>
             
             {/* QR Code and Reference */}
             <div className="flex items-center gap-3 shrink-0">
               <div className="text-right">
-                <p className="text-[9px] font-black text-slate-400">VÉRIFICATION D'AUTHENTICITÉ</p>
-                <p className="text-[10px] font-mono font-bold text-slate-700 mt-0.5">{metadata.reportId}</p>
+                <p className="text-[9px] font-black text-slate-400 dark:text-slate-500">VÉRIFICATION D'AUTHENTICITÉ</p>
+                <p className="text-[10px] font-mono font-bold text-slate-700 dark:text-slate-300 print:text-slate-700 mt-0.5">{metadata.reportId}</p>
               </div>
-              <div className="w-14 h-14 border border-slate-300 rounded-lg bg-slate-50 flex items-center justify-center text-[8px] font-mono text-slate-400 select-none">
+              <div className="w-14 h-14 border border-slate-300 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-900 flex items-center justify-center text-[8px] font-mono text-slate-400 dark:text-slate-500 select-none">
                 [QR CODE]
               </div>
             </div>
@@ -805,22 +805,22 @@ export default function UniversalReport({ metadata, kpis = [], table, onSendEmai
         {/* ─── DATA TABLE SECTION ─── */}
         {table && (
           <div className="space-y-3">
-            <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-2 print:text-black">
-              <Building size={14} className="text-indigo-600" /> Données détaillées
+            <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 flex items-center gap-2 print:text-black">
+              <Building size={14} className="text-indigo-600 dark:text-indigo-400" /> Données détaillées
             </h3>
             
-            <div className="overflow-x-auto print:overflow-visible rounded-[24px] border border-slate-100 print:border-slate-300">
+            <div className="overflow-x-auto print:overflow-visible rounded-[24px] border border-slate-100 dark:border-slate-800 print:border-slate-300">
               <table className="w-full border-collapse text-left text-sm print:text-xs print:border print:border-slate-300">
                 <thead>
-                  <tr className="bg-indigo-600 text-[10px] font-black uppercase tracking-widest text-white print:bg-slate-100 print:text-black print:border-b print:border-slate-300">
+                  <tr className="bg-indigo-600 dark:bg-indigo-700 text-[10px] font-black uppercase tracking-widest text-white print:bg-slate-100 print:text-black print:border-b print:border-slate-300">
                     {table.headers.map((head, idx) => (
                       <th key={idx} className="px-5 py-4 first:rounded-tl-[24px] last:rounded-tr-[24px] print:rounded-none">{head}</th>
                     ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 font-bold text-slate-700 print:divide-slate-300 print:text-black">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-bold text-slate-700 dark:text-slate-200 print:divide-slate-300 print:text-black">
                   {table.rows.map((row, rowIdx) => (
-                    <tr key={rowIdx} className="hover:bg-slate-50/50 transition-colors odd:bg-white even:bg-slate-50/30 print:odd:bg-white print:even:bg-slate-50/30">
+                    <tr key={rowIdx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors odd:bg-white dark:odd:bg-[#131622] even:bg-slate-50/30 dark:even:bg-slate-900/30 print:odd:bg-white print:even:bg-slate-50/30">
                       {row.map((cell, cellIdx) => (
                         <td key={cellIdx} className="px-5 py-4">{cell}</td>
                       ))}
@@ -832,13 +832,13 @@ export default function UniversalReport({ metadata, kpis = [], table, onSendEmai
 
             {/* Recapitulative Table Footer */}
             {table.summary && table.summary.length > 0 && (
-              <div className="rounded-[20px] border border-slate-100 bg-slate-50/70 p-4 flex flex-wrap gap-6 items-center justify-between text-xs font-black text-slate-700 print:bg-white print:border-slate-300 print:text-black">
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Récapitulatif</span>
+              <div className="rounded-[20px] border border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/50 p-4 flex flex-wrap gap-6 items-center justify-between text-xs font-black text-slate-700 dark:text-slate-200 print:bg-white print:border-slate-300 print:text-black">
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Récapitulatif</span>
                 <div className="flex flex-wrap gap-6">
                   {table.summary.map((sum, idx) => (
                     <div key={idx} className="flex items-center gap-2">
                       {sum.icon && <span className={sum.color}>{sum.icon}</span>}
-                      <span>{sum.label} : <span className="text-slate-900">{sum.value}</span></span>
+                      <span>{sum.label} : <span className="text-slate-900 dark:text-white print:text-black">{sum.value}</span></span>
                     </div>
                   ))}
                 </div>
