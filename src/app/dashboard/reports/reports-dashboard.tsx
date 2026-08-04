@@ -1183,6 +1183,8 @@ function ReportsDashboardContent({ unifiedData: initialData, branding, currentUs
                 </table>
               </div>
             )}
+          </div>
+
           {/* ─── SECTION: PREDICTIVE DROPOUT AI RISK ANALYSIS CARD ─── */}
           <div className="bg-white/90 dark:bg-[#131622] backdrop-blur-sm rounded-[2rem] border border-slate-100 dark:border-slate-800 p-6 shadow-sm space-y-6 print:hidden">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
