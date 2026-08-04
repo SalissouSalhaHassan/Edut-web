@@ -1,6 +1,6 @@
 import React from "react";
 import ParentDashboard from "./parent-dashboard";
-import { getParentPortalDataAction } from "@/domains/parent/actions/parent.actions";
+import { getParentPortalDataAction, ParentPortalData } from "@/domains/parent/actions/parent.actions";
 import { getCurrentUser } from "@/domains/auth/services/session";
 
 export const metadata = {
@@ -12,7 +12,7 @@ export default async function ParentPage() {
   const currentUser = await getCurrentUser();
   const res = await getParentPortalDataAction();
 
-  const initialData = (res && res.success && res.data) ? res.data : {
+  const fallbackData: ParentPortalData = {
     children: [],
     selectedChild: null,
     attendance: { totalSessions: 0, presents: 0, absents: 0, retards: 0, excused: 0, rate: 100, logs: [] },
@@ -21,6 +21,8 @@ export default async function ParentPage() {
     studentCard: { cardId: "CARD-000", schoolName: currentUser?.schoolName || "Établissement Scolaire", academicYear: "2024-2025", qrCodeUrl: "https://edut.ne" },
     announcements: []
   };
+
+  const initialData: ParentPortalData = (res && res.success && res.data) ? (res.data as ParentPortalData) : fallbackData;
 
   const branding = {
     name: currentUser?.schoolName || "Établissement Scolaire Edut Pro",
