@@ -168,6 +168,13 @@ function ReportsDashboardContent({ unifiedData: initialData, branding, currentUs
     return period;
   }, [period, selectedPeriodObj]);
 
+  // Available levels list
+  const availableLevels = useMemo(() => {
+    const studentLevels = (data.students || []).map((s: any) => s?.educationalLevel).filter(Boolean);
+    const defaults = ["Préscolaire", "Maternelle", "Primaire", "Collège", "Lycée", "Licence", "Master", "Technique", "Supérieur"];
+    return Array.from(new Set([...defaults, ...studentLevels]));
+  }, [data.students]);
+
   // Export History State
   const [exportHistory, setExportHistory] = useState<any[]>([]);
 
@@ -273,8 +280,6 @@ function ReportsDashboardContent({ unifiedData: initialData, branding, currentUs
     }
   };
 
-  if (!mounted) return null;
-
   // ─── FILTERING LOGIC ───
   
   // Resolve class name from class ID to support students table
@@ -323,12 +328,6 @@ function ReportsDashboardContent({ unifiedData: initialData, branding, currentUs
     }
     return true;
   };
-
-  const availableLevels = useMemo(() => {
-    const studentLevels = (data.students || []).map((s: any) => s?.educationalLevel).filter(Boolean);
-    const defaults = ["Préscolaire", "Maternelle", "Primaire", "Collège", "Lycée", "Licence", "Master", "Technique", "Supérieur"];
-    return Array.from(new Set([...defaults, ...studentLevels]));
-  }, [data.students]);
 
   // Filter students
   const filteredStudents = (data.students || []).filter(s => {
@@ -797,6 +796,8 @@ function ReportsDashboardContent({ unifiedData: initialData, branding, currentUs
   };
 
   const fSel = "w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-2.5 rounded-2xl text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-300 dark:focus:ring-indigo-600";
+
+  if (!mounted) return null;
 
   return (
     <div className="p-8 space-y-8 animate-in fade-in duration-700 bg-slate-50/60 dark:bg-[#0A0C10] min-h-screen">
