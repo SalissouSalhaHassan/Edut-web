@@ -46,28 +46,29 @@ export default async function ReportsPage() {
       ]);
 
       branchData = (branchRes as any)?.branchData || null;
-      if (unifiedRes?.data) {
+      const reportData = (unifiedRes as any)?.data;
+      if (reportData) {
         unifiedData = {
-          students: Array.isArray(unifiedRes.data.students) ? unifiedRes.data.students : [],
-          classes: Array.isArray(unifiedRes.data.classes) ? unifiedRes.data.classes : [],
-          subjects: Array.isArray(unifiedRes.data.subjects) ? unifiedRes.data.subjects : [],
-          employees: Array.isArray(unifiedRes.data.employees) ? unifiedRes.data.employees : [],
-          feePayments: Array.isArray(unifiedRes.data.feePayments) ? unifiedRes.data.feePayments : [],
-          expenses: Array.isArray(unifiedRes.data.expenses) ? unifiedRes.data.expenses : [],
-          attendance: Array.isArray(unifiedRes.data.attendance) ? unifiedRes.data.attendance : [],
-          seances: Array.isArray(unifiedRes.data.seances) ? unifiedRes.data.seances : [],
-          plans: Array.isArray(unifiedRes.data.plans) ? unifiedRes.data.plans : [],
-          resources: Array.isArray(unifiedRes.data.resources) ? unifiedRes.data.resources : [],
-          courses: Array.isArray(unifiedRes.data.courses) ? unifiedRes.data.courses : [],
-          lessons: Array.isArray(unifiedRes.data.lessons) ? unifiedRes.data.lessons : [],
-          assignments: Array.isArray(unifiedRes.data.assignments) ? unifiedRes.data.assignments : [],
-          submissions: Array.isArray(unifiedRes.data.submissions) ? unifiedRes.data.submissions : [],
-          progress: Array.isArray(unifiedRes.data.progress) ? unifiedRes.data.progress : [],
-          virtualClasses: Array.isArray(unifiedRes.data.virtualClasses) ? unifiedRes.data.virtualClasses : [],
-          auditLogs: Array.isArray(unifiedRes.data.auditLogs) ? unifiedRes.data.auditLogs : [],
-          grades: Array.isArray(unifiedRes.data.grades) ? unifiedRes.data.grades : [],
-          sessions: Array.isArray(unifiedRes.data.sessions) ? unifiedRes.data.sessions : [],
-          periods: Array.isArray(unifiedRes.data.periods) ? unifiedRes.data.periods : []
+          students: Array.isArray(reportData.students) ? reportData.students : [],
+          classes: Array.isArray(reportData.classes) ? reportData.classes : [],
+          subjects: Array.isArray(reportData.subjects) ? reportData.subjects : [],
+          employees: Array.isArray(reportData.employees) ? reportData.employees : [],
+          feePayments: Array.isArray(reportData.feePayments) ? reportData.feePayments : [],
+          expenses: Array.isArray(reportData.expenses) ? reportData.expenses : [],
+          attendance: Array.isArray(reportData.attendance) ? reportData.attendance : [],
+          seances: Array.isArray(reportData.seances) ? reportData.seances : [],
+          plans: Array.isArray(reportData.plans) ? reportData.plans : [],
+          resources: Array.isArray(reportData.resources) ? reportData.resources : [],
+          courses: Array.isArray(reportData.courses) ? reportData.courses : [],
+          lessons: Array.isArray(reportData.lessons) ? reportData.lessons : [],
+          assignments: Array.isArray(reportData.assignments) ? reportData.assignments : [],
+          submissions: Array.isArray(reportData.submissions) ? reportData.submissions : [],
+          progress: Array.isArray(reportData.progress) ? reportData.progress : [],
+          virtualClasses: Array.isArray(reportData.virtualClasses) ? reportData.virtualClasses : [],
+          auditLogs: Array.isArray(reportData.auditLogs) ? reportData.auditLogs : [],
+          grades: Array.isArray(reportData.grades) ? reportData.grades : [],
+          sessions: Array.isArray(reportData.sessions) ? reportData.sessions : [],
+          periods: Array.isArray(reportData.periods) ? reportData.periods : []
         };
       }
     }
