@@ -529,6 +529,7 @@ export default function ExpensesClient({ initialExpenses, categories }: Expenses
             </form>
           </div>
         </div>
+      )}
     </div>
   );
 }
