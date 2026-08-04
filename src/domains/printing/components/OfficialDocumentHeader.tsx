@@ -56,7 +56,7 @@ function MetaLines({ cfg, align = "left" }: { cfg: DocumentHeaderConfig; align?:
   ].filter(Boolean);
 
   return (
-    <div dir="ltr" lang="fr" className={`space-y-0.5 text-${align} text-[11px] font-bold leading-tight text-slate-950 print:text-black french-text`}>
+    <div dir="ltr" lang="fr" className={`space-y-0.5 text-${align} text-[11px] font-bold leading-tight text-slate-900 dark:text-slate-200 print:text-black french-text`}>
       {lines.map((line) => <p key={line}>{cleanHeaderText(line)}</p>)}
     </div>
   );
@@ -84,10 +84,10 @@ function ArabicMetaLines({ cfg }: { cfg: DocumentHeaderConfig }) {
     <div
       dir="rtl"
       lang="ar"
-      className="arabic-text space-y-1 text-right text-[12px] font-bold leading-relaxed text-slate-950 print:text-black"
+      className="arabic-text space-y-1 text-right text-[12px] font-bold leading-relaxed text-slate-900 dark:text-slate-200 print:text-black"
     >
       {lines.map((line, index) => (
-        <p key={`${line}-${index}`} className={line === schoolNameAr ? "text-[13px] font-black" : undefined}>
+        <p key={`${line}-${index}`} className={line === schoolNameAr ? "text-[13px] font-black text-slate-950 dark:text-white print:text-black" : undefined}>
           {line}
         </p>
       ))}
@@ -195,7 +195,7 @@ export default function OfficialDocumentHeader({
 
   if (cfg.style === "bilingual_center_logo") {
     return (
-      <header className={`official-document-header relative border-b-2 border-slate-900 pb-3 print:border-black ${className}`}>
+      <header className={`official-document-header relative border-b-2 border-slate-900 dark:border-slate-700 pb-3 print:border-black ${className}`}>
         {qrSection}
         <div className="official-document-header-grid grid grid-cols-[1fr_auto_1fr] items-start gap-6">
           <MetaLines cfg={cfg} />
@@ -204,7 +204,7 @@ export default function OfficialDocumentHeader({
           
           <ArabicMetaLines cfg={cfg} />
         </div>
-        {title && <h1 className="mt-3 text-center text-xl font-black uppercase tracking-wide">{title}</h1>}
+        {title && <h1 className="mt-3 text-center text-xl font-black uppercase tracking-wide text-slate-900 dark:text-white print:text-black">{title}</h1>}
         {metaFooter}
         {sigArea}
       </header>
@@ -218,18 +218,18 @@ export default function OfficialDocumentHeader({
         <div className="grid grid-cols-[110px_1fr_110px] items-center gap-5">
           <LogoBox src={cfg.leftLogo || cfg.centerLogo} alt={cfg.schoolName} size={104} />
           <div className="space-y-1">
-            <h2 className="text-2xl font-black uppercase tracking-wide">{cfg.country || "République du Niger"}</h2>
-            <p className="text-xl font-black">{cfg.schoolName}</p>
+            <h2 className="text-2xl font-black uppercase tracking-wide text-slate-900 dark:text-white print:text-black">{cfg.country || "République du Niger"}</h2>
+            <p className="text-xl font-black text-slate-900 dark:text-white print:text-black">{cfg.schoolName}</p>
             <div className="border-y py-1" style={{ borderColor: secondary }}>
-              <p className="text-sm font-black">{cfg.service || "Service de la Scolarité"}</p>
+              <p className="text-sm font-black text-slate-900 dark:text-white print:text-black">{cfg.service || "Service de la Scolarité"}</p>
             </div>
-            <p className="text-sm font-bold">{[cfg.bp && `BP : ${cfg.bp}`, cfg.address, cfg.phone && `Tél. ${cfg.phone}`].filter(Boolean).join(", ")}</p>
-            {cfg.email && <p className="text-sm font-bold">Email : {cfg.email}</p>}
-            {cfg.authorizationText && <p className="text-sm font-black uppercase">{cfg.authorizationText}</p>}
+            <p className="text-sm font-bold text-slate-700 dark:text-slate-300 print:text-black">{[cfg.bp && `BP : ${cfg.bp}`, cfg.address, cfg.phone && `Tél. ${cfg.phone}`].filter(Boolean).join(", ")}</p>
+            {cfg.email && <p className="text-sm font-bold text-slate-700 dark:text-slate-300 print:text-black">Email : {cfg.email}</p>}
+            {cfg.authorizationText && <p className="text-sm font-black uppercase text-slate-900 dark:text-white print:text-black">{cfg.authorizationText}</p>}
           </div>
           <LogoBox src={cfg.rightLogo || cfg.leftLogo || cfg.centerLogo} alt={cfg.schoolName} size={104} />
         </div>
-        {title && <h1 className="mt-3 text-lg font-black uppercase">{title}</h1>}
+        {title && <h1 className="mt-3 text-lg font-black uppercase text-slate-900 dark:text-white print:text-black">{title}</h1>}
         {metaFooter}
         {sigArea}
       </header>
@@ -238,7 +238,7 @@ export default function OfficialDocumentHeader({
 
   if (cfg.style === "minimal_administrative") {
     return (
-      <header className={`official-document-header relative border-b border-slate-300 pb-3 ${className}`}>
+      <header className={`official-document-header relative border-b border-slate-300 dark:border-slate-700 pb-3 ${className}`}>
         {qrSection}
         <div className="flex items-center justify-between gap-6">
           <div>
@@ -247,7 +247,7 @@ export default function OfficialDocumentHeader({
           </div>
           <LogoBox src={cfg.centerLogo || cfg.leftLogo} alt={cfg.schoolName} size={72} />
         </div>
-        {title && <h1 className="mt-3 text-center text-lg font-black uppercase">{title}</h1>}
+        {title && <h1 className="mt-3 text-center text-lg font-black uppercase text-slate-900 dark:text-white print:text-black">{title}</h1>}
         {metaFooter}
         {sigArea}
       </header>
@@ -255,24 +255,24 @@ export default function OfficialDocumentHeader({
   }
 
   return (
-    <header className={`official-document-header relative border-b-2 border-slate-900 pb-3 print:border-black ${className}`}>
+    <header className={`official-document-header relative border-b-2 border-slate-900 dark:border-slate-700 pb-3 print:border-black ${className}`}>
       {qrSection}
       <div className="grid grid-cols-[120px_1fr_120px] items-center gap-6 text-center">
         <LogoBox src={cfg.leftLogo || cfg.centerLogo} alt={cfg.schoolName} size={104} />
         <div>
           <h2
-            className="font-black uppercase tracking-wide text-slate-950 print:text-black"
+            className="font-black uppercase tracking-wide text-slate-950 dark:text-white print:text-black"
             style={{ fontFamily: cfg.titleFont || "serif", fontSize: titleSize }}
           >
             {cfg.schoolName}
           </h2>
-          {cfg.motto && <p className="mt-1 text-xs font-bold text-slate-500">{cfg.motto}</p>}
+          {cfg.motto && <p className="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400 print:text-slate-600">{cfg.motto}</p>}
         </div>
         <LogoBox src={cfg.rightLogo || cfg.leftLogo || cfg.centerLogo} alt={cfg.schoolName} size={104} />
       </div>
-      <div className="mt-3 grid grid-cols-[1fr_220px] gap-4 border-t border-slate-300 pt-3">
+      <div className="mt-3 grid grid-cols-[1fr_220px] gap-4 border-t border-slate-300 dark:border-slate-700 pt-3">
         <MetaLines cfg={cfg} />
-        <div className="text-center text-sm font-black">
+        <div className="text-center text-sm font-black text-slate-900 dark:text-white print:text-black">
           <p>ANNÉE SCOLAIRE : {cfg.schoolYear || "-"}</p>
           {title && <p className="mt-2 uppercase">{title}</p>}
         </div>
