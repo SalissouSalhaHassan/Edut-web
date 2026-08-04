@@ -837,6 +837,8 @@ function ReportsDashboardContent({ unifiedData: initialData, branding, currentUs
         ];
       })
     };
+  }
+
   const handleGenerateAISummary = async () => {
     setIsGeneratingAISummary(true);
     try {
