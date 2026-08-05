@@ -142,12 +142,7 @@ export async function getParentPortalDataAction(selectedStudentId?: number) {
     const attendanceRecords = await db
       .select()
       .from(studentAttendance)
-      .where(
-        and(
-          eq(studentAttendance.schoolId, schoolId),
-          eq(studentAttendance.studentId, currentChild.id)
-        )
-      )
+      .where(eq(studentAttendance.studentId, currentChild.id))
       .orderBy(desc(studentAttendance.date));
 
     const totalSessions = attendanceRecords.length;
@@ -161,7 +156,7 @@ export async function getParentPortalDataAction(selectedStudentId?: number) {
       id: r.id,
       date: r.date ? new Date(r.date).toLocaleDateString("fr-FR") : "-",
       status: r.status,
-      remarks: r.remarks
+      remarks: r.remark
     }));
 
     // 3. Fetch Financial Status & Payments
@@ -377,11 +372,10 @@ export async function submitParentAbsenceExcuseAction(data: {
 
     // Record or update attendance remark / justification request
     await db.insert(studentAttendance).values({
-      schoolId,
       studentId: data.studentId,
       date: new Date(data.date),
       status: "Excusé",
-      remarks: `Motif Parent: ${data.reason}${data.notes ? ` (${data.notes})` : ""}`
+      remark: `Motif Parent: ${data.reason}${data.notes ? ` (${data.notes})` : ""}`
     });
 
     revalidatePath("/dashboard/parent");
