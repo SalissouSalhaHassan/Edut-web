@@ -28,7 +28,10 @@ export default async function ParentPage() {
     announcements: []
   };
 
-  const initialData: ParentPortalData = (res && res.success && res.data) ? (res.data as ParentPortalData) : fallbackData;
+  let initialData: ParentPortalData = fallbackData;
+  if (res && res.success && (res as any).data) {
+    initialData = (res as any).data as ParentPortalData;
+  }
 
   const branding = {
     name: schoolNameStr,

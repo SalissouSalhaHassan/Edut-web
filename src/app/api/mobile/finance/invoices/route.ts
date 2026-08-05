@@ -34,6 +34,54 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    const isAdminOrManager = ["admin", "super_admin", "director", "directeur", "staff", "level_director", "level_comptable", "level_caissier", "comptable", "caissier"].includes(roleType);
+
+    // Auto-ensure student_fees records exist for all active students if requested by staff/admin
+    if (isAdminOrManager) {
+      const activeStudents = await readDb.query.students.findMany({
+        where: and(
+          eq(students.schoolId, targetSchoolId),
+          eq(students.statut, "Actif")
+        ),
+        columns: { id: true, fraisMensuels: true, ancienSolde: true, fraisInscription: true }
+      });
+
+      if (activeStudents.length > 0) {
+        const existingFees = await readDb.query.studentFees.findMany({
+          where: and(
+            eq(studentFees.schoolId, targetSchoolId),
+            eq(studentFees.sessionId, sessionId)
+          ),
+          columns: { studentId: true }
+        });
+
+        const existingIds = new Set(existingFees.map(f => f.studentId));
+        const missingStudents = activeStudents.filter(s => !existingIds.has(s.id));
+
+        if (missingStudents.length > 0) {
+          await Promise.all(
+            missingStudents.map(async (s) => {
+              const monthly = Number(s.fraisMensuels || 0);
+              const inscr = Number(s.fraisInscription || 0);
+              const oldBal = Number(s.ancienSolde || 0);
+              const expected = inscr + oldBal + monthly;
+
+              await db.insert(studentFees).values({
+                schoolId: targetSchoolId,
+                studentId: s.id,
+                sessionId,
+                totalExpected: expected,
+                totalPaid: 0.0,
+                totalReduction: 0.0,
+                balance: expected,
+                status: "Impayé",
+              }).catch(() => {});
+            })
+          );
+        }
+      }
+    }
+
     const cond = [
       eq(studentFees.schoolId, targetSchoolId),
       eq(studentFees.sessionId, sessionId)
@@ -56,12 +104,24 @@ export async function GET(request: NextRequest) {
       }
     });
 
+    // ── DEDUP GUARD: Ensure each student appears once with highest totalPaid ──
+    const dedupedMap = new Map<number, typeof rows[0]>();
+    for (const r of rows) {
+      if (!r.studentId) continue;
+      const existing = dedupedMap.get(r.studentId);
+      if (!existing || (r.totalPaid || 0) > (existing.totalPaid || 0)) {
+        dedupedMap.set(r.studentId, r);
+      }
+    }
+    const dedupedRows = Array.from(dedupedMap.values());
+    // ─────────────────────────────────────────────────────────────────────────────
+
     // ── Level scoping for level_director / level_comptable / level_caissier ──
     const isLevelScoped = (roleType === "level_director" || roleType === "level_comptable" || roleType === "level_caissier") && user.educationalLevel;
-    let filteredRows = rows;
+    let filteredRows = dedupedRows;
     if (isLevelScoped) {
       const compatibleNorms = getCompatibleLevels(user.educationalLevel!).map(l => normalizeLevel(l));
-      filteredRows = rows.filter(row =>
+      filteredRows = dedupedRows.filter(row =>
         row.student?.educationalLevel &&
         compatibleNorms.includes(normalizeLevel(row.student.educationalLevel))
       );
@@ -179,7 +239,7 @@ export async function POST(request: NextRequest) {
             totalPaid: 0.0,
             totalReduction: 0.0,
             balance: expected,
-            status: "Impaye",
+            status: "Impayé",
           });
 
           inserted++;
