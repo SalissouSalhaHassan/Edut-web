@@ -452,7 +452,7 @@ export default function RoleManager({ roles: initialRoles }: RoleManagerProps) {
                           onClick={() => setExpandedModule(expandedModule === mod.name ? null : mod.name)}
                           className="flex items-center justify-between w-full text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                         >
-                          <span>الصلاحيات على مستوى الحقول</span>
+                          <span>Permissions par sous-module / champ</span>
                           <ChevronRight size={14} className={cn("transition-transform", expandedModule === mod.name ? "rotate-90" : "")} />
                         </button>
 
@@ -471,7 +471,7 @@ export default function RoleManager({ roles: initialRoles }: RoleManagerProps) {
                                         fieldConfig.view ? "bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300" : "bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-400"
                                       )}
                                     >
-                                      عرض
+                                      Voir
                                     </button>
                                     <button
                                       onClick={() => toggleFieldPermission(mod.name, field, 'edit')}
@@ -480,7 +480,7 @@ export default function RoleManager({ roles: initialRoles }: RoleManagerProps) {
                                         fieldConfig.edit ? "bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300" : "bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-400"
                                       )}
                                     >
-                                      تعديل
+                                      Éditer
                                     </button>
                                   </div>
                                 </div>
