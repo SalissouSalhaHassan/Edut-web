@@ -24,6 +24,8 @@ export const academicPeriods = pgTable("academic_periods", {
   periodType: varchar("period_type", { length: 50 }).notNull(), // "Trimestre" or "Semestre"
   startDate: timestamp("start_date"),
   endDate: timestamp("end_date"),
+  gradesDeadline: timestamp("grades_deadline"),
+  isLocked: boolean("is_locked").default(false),
   sessionId: integer("session_id").references(() => schoolSessions.id, { onDelete: "cascade" }),
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
