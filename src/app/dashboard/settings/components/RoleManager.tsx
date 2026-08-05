@@ -14,6 +14,27 @@ import { toast } from 'sonner';
 import { createRole, deleteRole, updateRolePermissions } from '@/domains/auth/actions/roles.actions';
 import { cn } from '@/lib/utils';
 
+const FIELD_LABELS: Record<string, string> = {
+  nomEtudiant: "Nom de l'élève",
+  dateNaissance: "Date de naissance",
+  mobile: "Téléphone Mobile",
+  fraisMensuels: "Frais Mensuels",
+  behaviorScore: "Note de conduite",
+  montantPaye: "Montant Payé",
+  modePaiement: "Mode de Paiement",
+  revenueAmount: "Montant des Revenus",
+  expenseAmount: "Montant des Dépenses",
+  salaireBase: "Salaire de Base",
+  cnic: "Carte d'identité / CNIC",
+  saisieNotes: "Saisie des Notes",
+  gestionDevoirs: "Gestion des Devoirs (DS)",
+  bulletins: "Bulletins & Résultats",
+  emploisDuTemps: "Emplois du temps",
+  examens: "Examens & Évaluations",
+  appelEleves: "Appel des Élèves",
+  appelEnseignants: "Appel des Enseignants",
+};
+
 const MODULE_CONFIG = [
   { 
     name: "Students",   
@@ -36,8 +57,20 @@ const MODULE_CONFIG = [
     color: "bg-rose-100 text-rose-600",
     fields: ["salaireBase", "dateNaissance", "mobile", "cnic"]
   },
-  { name: "Attendance", label: "Attendance", icon: CalendarCheck2, color: "bg-sky-100 text-sky-600" },
-  { name: "Academics",  label: "Academics",  icon: BookOpen,       color: "bg-indigo-100 text-indigo-600" },
+  { 
+    name: "Attendance", 
+    label: "Attendance", 
+    icon: CalendarCheck2, 
+    color: "bg-sky-100 text-sky-600",
+    fields: ["appelEleves", "appelEnseignants"]
+  },
+  { 
+    name: "Academics",  
+    label: "Academics",  
+    icon: BookOpen,       
+    color: "bg-indigo-100 text-indigo-600",
+    fields: ["saisieNotes", "gestionDevoirs", "bulletins", "emploisDuTemps", "examens"]
+  },
   { name: "Inventory",  label: "Inventory",  icon: Package,        color: "bg-amber-100 text-amber-600" },
   { name: "Security",   label: "Security",   icon: ShieldCheck,    color: "bg-red-100 text-red-600" },
   { name: "Messaging",  label: "Messaging",  icon: MessageSquare,  color: "bg-teal-100 text-teal-600" },
@@ -429,7 +462,7 @@ export default function RoleManager({ roles: initialRoles }: RoleManagerProps) {
                               const fieldConfig = perms.fieldPermissions?.[field] || { view: true, edit: true };
                               return (
                                 <div key={field} className="flex items-center justify-between p-2 rounded-xl bg-slate-50/50 dark:bg-slate-800/50">
-                                  <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{field}</span>
+                                  <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{FIELD_LABELS[field] || field}</span>
                                   <div className="flex gap-1">
                                     <button
                                       onClick={() => toggleFieldPermission(mod.name, field, 'view')}
