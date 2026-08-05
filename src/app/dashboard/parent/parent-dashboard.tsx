@@ -56,11 +56,11 @@ export default function ParentDashboard({ initialData, currentUser, branding }: 
         notes: excuseNotes
       });
       if (res && res.success) {
-        toast.success(res.message);
+        toast.success((res as any).message || (res as any).data?.message || "Justification transmise avec succès !");
         setIsExcuseModalOpen(false);
         setExcuseNotes("");
       } else {
-        toast.error(res?.error || "Erreur lors de la soumission de la justification.");
+        toast.error((res as any)?.error || "Erreur lors de la soumission de la justification.");
       }
     } catch (err) {
       toast.error("Erreur serveur lors de l'envoi de la justification.");
