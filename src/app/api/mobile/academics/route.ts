@@ -17,6 +17,47 @@ import { getUserRoleType } from "@/domains/auth/services/rbac";
 
 export const dynamic = "force-dynamic";
 
+async function checkPeriodLock(
+  sessionId: number,
+  termName: string,
+  targetSchoolId: number,
+  roleType: string
+): Promise<{ isLocked: boolean; reason?: string }> {
+  const isAdmin =
+    roleType === "admin" ||
+    roleType === "super_admin" ||
+    roleType === "director" ||
+    roleType === "owner";
+  if (isAdmin) return { isLocked: false };
+
+  try {
+    const period = await readDb.query.academicPeriods.findFirst({
+      where: and(
+        eq(academicPeriods.sessionId, sessionId),
+        ilike(academicPeriods.name, `%${termName}%`)
+      )
+    });
+
+    if (period) {
+      if (period.isLocked) {
+        return {
+          isLocked: true,
+          reason: "La période a été verrouillée par l'administration."
+        };
+      }
+      if (period.gradesDeadline && new Date() > new Date(period.gradesDeadline)) {
+        return {
+          isLocked: true,
+          reason: "La date limite de saisie des notes pour cette période est dépassée."
+        };
+      }
+    }
+  } catch (e) {
+    // Fallback if columns not migrated yet
+  }
+  return { isLocked: false };
+}
+
 export async function GET(request: NextRequest) {
   const { user, response } = await getMobileUser(request);
   if (response || !user) return response || mobileJsonError("Non autorisé", 401);
@@ -380,47 +421,6 @@ export async function GET(request: NextRequest) {
           rank: res?.rank ?? "-",
         };
       });
-
-async function checkPeriodLock(
-  sessionId: number,
-  termName: string,
-  targetSchoolId: number,
-  roleType: string
-): Promise<{ isLocked: boolean; reason?: string }> {
-  const isAdmin =
-    roleType === "admin" ||
-    roleType === "super_admin" ||
-    roleType === "director" ||
-    roleType === "owner";
-  if (isAdmin) return { isLocked: false };
-
-  try {
-    const period = await readDb.query.academicPeriods.findFirst({
-      where: and(
-        eq(academicPeriods.sessionId, sessionId),
-        ilike(academicPeriods.name, `%${termName}%`)
-      )
-    });
-
-    if (period) {
-      if (period.isLocked) {
-        return {
-          isLocked: true,
-          reason: "La période a été verrouillée par l'administration."
-        };
-      }
-      if (period.gradesDeadline && new Date() > new Date(period.gradesDeadline)) {
-        return {
-          isLocked: true,
-          reason: "La date limite de saisie des notes pour cette période est dépassée."
-        };
-      }
-    }
-  } catch (e) {
-    // Fallback if columns not migrated yet
-  }
-  return { isLocked: false };
-}
 
       const lockStatus = await checkPeriodLock(sessionId, term, targetSchoolId, roleType);
 
