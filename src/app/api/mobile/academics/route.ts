@@ -58,6 +58,33 @@ async function checkPeriodLock(
   return { isLocked: false };
 }
 
+function matchTerm(termInDb?: string | null, requestedTerm?: string | null): boolean {
+  if (!requestedTerm || requestedTerm === "All" || requestedTerm === "Tout") return true;
+  if (!termInDb) return false;
+  
+  const normDb = termInDb.toLowerCase().trim();
+  const normReq = requestedTerm.toLowerCase().trim();
+  
+  if (normDb === normReq) return true;
+
+  // Extract main term digits e.g. "1" from "1er Semestre", "1ère Semester", "Trimestre 1", "S1"
+  const dbMatch = normDb.match(/(\d+)/);
+  const reqMatch = normReq.match(/(\d+)/);
+
+  if (dbMatch && reqMatch && dbMatch[1] === reqMatch[1]) {
+    const isDbSem = normDb.includes("semest") || normDb.includes("s");
+    const isReqSem = normReq.includes("semest") || normReq.includes("s");
+    const isDbTrim = normDb.includes("trimest") || normDb.includes("t");
+    const isReqTrim = normReq.includes("trimest") || normReq.includes("t");
+
+    if ((isDbSem && isReqSem) || (isDbTrim && isReqTrim) || (!isDbSem && !isReqSem && !isDbTrim && !isReqTrim)) {
+      return true;
+    }
+  }
+
+  return normDb.includes(normReq) || normReq.includes(normDb);
+}
+
 export async function GET(request: NextRequest) {
   const { user, response } = await getMobileUser(request);
   if (response || !user) return response || mobileJsonError("Non autorisé", 401);
@@ -393,15 +420,15 @@ export async function GET(request: NextRequest) {
       }
 
       // Existing results
-      const results = await readDb.query.studentResults.findMany({
+      const allResults = await readDb.query.studentResults.findMany({
         where: and(
           eq(studentResults.classId, classId),
           eq(studentResults.subjectId, subjectId),
-          eq(studentResults.sessionId, sessionId),
-          eq(studentResults.term, term)
+          eq(studentResults.sessionId, sessionId)
         )
       });
 
+      const results = allResults.filter(r => matchTerm(r.term, term));
       const resultsMap = new Map(results.map((r) => [r.studentId, r]));
 
       const gridData = activeStudents.map((student) => {
@@ -482,15 +509,15 @@ export async function GET(request: NextRequest) {
       }
 
       // Existing results
-      const results = await readDb.query.studentResults.findMany({
+      const allResults = await readDb.query.studentResults.findMany({
         where: and(
           eq(studentResults.classId, classId),
           eq(studentResults.subjectId, subjectId),
-          eq(studentResults.sessionId, sessionId),
-          eq(studentResults.term, term)
+          eq(studentResults.sessionId, sessionId)
         )
       });
 
+      const results = allResults.filter(r => matchTerm(r.term, term));
       const resultsMap = new Map(results.map((r) => [r.studentId, r]));
 
       const gridData = activeStudentsDev.map((student) => {
@@ -568,15 +595,15 @@ export async function POST(request: NextRequest) {
       }
 
       // Existing results map
-      const existing = await readDb.query.studentResults.findMany({
+      const allExisting = await readDb.query.studentResults.findMany({
         where: and(
           eq(studentResults.classId, classId),
           eq(studentResults.subjectId, subjectId),
-          eq(studentResults.sessionId, sessionId),
-          eq(studentResults.term, term)
+          eq(studentResults.sessionId, sessionId)
         )
       });
 
+      const existing = allExisting.filter(r => matchTerm(r.term, term));
       const existingMap = new Map(existing.map((r) => [r.studentId, r.id]));
 
       await Promise.all(
@@ -639,15 +666,15 @@ export async function POST(request: NextRequest) {
         return mobileJsonError("Accès refusé.", 403);
       }
 
-      const existing = await readDb.query.studentResults.findMany({
+      const allExisting = await readDb.query.studentResults.findMany({
         where: and(
           eq(studentResults.classId, classId),
           eq(studentResults.subjectId, subjectId),
-          eq(studentResults.sessionId, sessionId),
-          eq(studentResults.term, term)
+          eq(studentResults.sessionId, sessionId)
         )
       });
 
+      const existing = allExisting.filter(r => matchTerm(r.term, term));
       const existingMap = new Map(existing.map((r) => [r.studentId, r.id]));
 
       await Promise.all(
