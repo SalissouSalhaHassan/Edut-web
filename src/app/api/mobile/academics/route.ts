@@ -223,9 +223,9 @@ export async function GET(request: NextRequest) {
           list = dbTrim;
         } else {
           list = [
-            { id: 1, name: "1er Trimestre", period_type: "Trimestre", is_active: true, session_id: sessionId, school_id: targetSchoolId },
-            { id: 2, name: "2ème Trimestre", period_type: "Trimestre", is_active: true, session_id: sessionId, school_id: targetSchoolId },
-            { id: 3, name: "3ème Trimestre", period_type: "Trimestre", is_active: true, session_id: sessionId, school_id: targetSchoolId },
+            { id: 1, name: "1er Trimestre", period_type: "Trimestre", is_active: true, grades_deadline: null, is_locked: false, session_id: sessionId, school_id: targetSchoolId },
+            { id: 2, name: "2ème Trimestre", period_type: "Trimestre", is_active: true, grades_deadline: null, is_locked: false, session_id: sessionId, school_id: targetSchoolId },
+            { id: 3, name: "3ème Trimestre", period_type: "Trimestre", is_active: true, grades_deadline: null, is_locked: false, session_id: sessionId, school_id: targetSchoolId },
           ];
         }
       } else if (isSuperior) {
@@ -233,7 +233,7 @@ export async function GET(request: NextRequest) {
         const superiorPresets = Array.from({ length: 14 }, (_, i) => {
           const num = i + 1;
           const label = `${num === 1 ? "1er" : `${num}ème`} Semestre (S${num})`;
-          return { id: num, name: label, period_type: "Semestre", is_active: true, session_id: sessionId, school_id: targetSchoolId };
+          return { id: num, name: label, period_type: "Semestre", is_active: true, grades_deadline: null, is_locked: false, session_id: sessionId, school_id: targetSchoolId };
         });
 
         if (dbSem.length >= 6) {
@@ -255,8 +255,8 @@ export async function GET(request: NextRequest) {
           list = dbCollegeSem.slice(0, 2);
         } else {
           list = [
-            { id: 1, name: "1er Semestre", period_type: "Semestre", is_active: true, session_id: sessionId, school_id: targetSchoolId },
-            { id: 2, name: "2ème Semestre", period_type: "Semestre", is_active: true, session_id: sessionId, school_id: targetSchoolId },
+            { id: 1, name: "1er Semestre", period_type: "Semestre", is_active: true, grades_deadline: null, is_locked: false, session_id: sessionId, school_id: targetSchoolId },
+            { id: 2, name: "2ème Semestre", period_type: "Semestre", is_active: true, grades_deadline: null, is_locked: false, session_id: sessionId, school_id: targetSchoolId },
           ];
         }
       }
