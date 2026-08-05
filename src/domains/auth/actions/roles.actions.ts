@@ -89,8 +89,8 @@ export const updateRolePermissions = async (roleId: number, permissions: any[]) 
     // Delete existing permissions for this role
     await db.delete(rolePermissions).where(eq(rolePermissions.roleId, roleId));
     
-    // Insert new permissions (only those with at least one true value)
-    const validPerms = permissions.filter(p => p.canView || p.canEdit || p.canDelete);
+    // Insert new permissions (only those with at least one true value or custom fieldPermissions)
+    const validPerms = permissions.filter(p => p.canView || p.canEdit || p.canDelete || (p.fieldPermissions && Object.keys(p.fieldPermissions).length > 0));
     if (validPerms.length > 0) {
       await db.insert(rolePermissions).values(
         validPerms.map(p => ({

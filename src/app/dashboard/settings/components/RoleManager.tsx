@@ -180,18 +180,21 @@ export default function RoleManager({ roles: initialRoles }: RoleManagerProps) {
 
   const toggleFieldPermission = (moduleName: string, fieldName: string, type: 'view' | 'edit') => {
     setEditPermissions(prev => {
-      const currentFields = prev[moduleName]?.fieldPermissions || {};
-      const fieldConfig = currentFields[fieldName] || { view: true, edit: true };
-      
+      const modulePerms = prev[moduleName] || { canView: false, canEdit: false, canDelete: false };
+      const currentFields = modulePerms.fieldPermissions || {};
+      const defaultView = modulePerms.canView ?? false;
+      const defaultEdit = modulePerms.canEdit ?? false;
+      const currentField = currentFields[fieldName] || { view: defaultView, edit: defaultEdit };
+
       return {
         ...prev,
         [moduleName]: {
-          ...prev[moduleName],
+          ...modulePerms,
           fieldPermissions: {
             ...currentFields,
             [fieldName]: {
-              ...fieldConfig,
-              [type]: !fieldConfig[type],
+              ...currentField,
+              [type]: !currentField[type],
             }
           }
         }
@@ -212,7 +215,7 @@ export default function RoleManager({ roles: initialRoles }: RoleManagerProps) {
         // Update local roles state
         setRoles(prev => prev.map(r => 
           r.id === selectedRoleId 
-            ? { ...r, permissions: permArray.filter(p => p.canView || p.canEdit || p.canDelete) }
+            ? { ...r, permissions: permArray.filter(p => p.canView || p.canEdit || p.canDelete || (p.fieldPermissions && Object.keys(p.fieldPermissions).length > 0)) }
             : r
         ));
       } else {
@@ -459,7 +462,9 @@ export default function RoleManager({ roles: initialRoles }: RoleManagerProps) {
                         {expandedModule === mod.name && (
                           <div className="mt-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
                             {mod.fields.map(field => {
-                              const fieldConfig = perms.fieldPermissions?.[field] || { view: true, edit: true };
+                              const defaultView = perms.canView ?? false;
+                              const defaultEdit = perms.canEdit ?? false;
+                              const fieldConfig = perms.fieldPermissions?.[field] || { view: defaultView, edit: defaultEdit };
                               return (
                                 <div key={field} className="flex items-center justify-between p-2 rounded-xl bg-slate-50/50 dark:bg-slate-800/50">
                                   <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{FIELD_LABELS[field] || field}</span>
