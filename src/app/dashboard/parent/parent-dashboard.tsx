@@ -84,8 +84,9 @@ export default function ParentDashboard({ initialData, currentUser, branding }: 
         purpose: payPurpose
       });
 
-      if (initRes && initRes.success && initRes.data) {
-        const txnId = initRes.data.transaction.id;
+      if (initRes && initRes.success && (initRes as any).data) {
+        const dataObj = (initRes as any).data;
+        const txnId = dataObj.transaction.id;
         
         // Simulate Mobile Money Push Notification / OTP validation delay (1.5s)
         await new Promise((r) => setTimeout(r, 1500));
@@ -94,7 +95,7 @@ export default function ParentDashboard({ initialData, currentUser, branding }: 
         if (confirmRes && confirmRes.success) {
           toast.success(`Paiement de ${payAmount.toLocaleString("fr-FR")} FCFA validé via ${payProvider} !`);
           setPaymentSuccessTxn({
-            ref: initRes.data.transaction.transactionReference,
+            ref: dataObj.transaction.transactionReference,
             amount: payAmount,
             provider: payProvider,
             date: new Date().toLocaleDateString("fr-FR"),
@@ -116,7 +117,7 @@ export default function ParentDashboard({ initialData, currentUser, branding }: 
                 paymentHistory: [
                   {
                     id: Date.now(),
-                    receiptNo: initRes.data.transaction.transactionReference,
+                    receiptNo: dataObj.transaction.transactionReference,
                     amount: payAmount,
                     datePaid: new Date().toLocaleDateString("fr-FR"),
                     paymentMode: `Mobile Money (${payProvider})`,
@@ -129,7 +130,7 @@ export default function ParentDashboard({ initialData, currentUser, branding }: 
           });
         }
       } else {
-        toast.error(initRes?.error || "Erreur lors de l'initialisation du paiement Mobile Money.");
+        toast.error((initRes as any)?.error || "Erreur lors de l'initialisation du paiement Mobile Money.");
       }
     } catch (err) {
       toast.error("Erreur serveur lors de la transaction.");
