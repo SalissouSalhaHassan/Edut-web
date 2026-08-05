@@ -193,7 +193,8 @@ export const getUserRoleType = cache(async (user: any): Promise<UserRoleType> =>
 export const hasPermission = cache(async (
   userId: number,
   moduleName: string,
-  action: PermissionAction
+  action: PermissionAction,
+  subFeatureName?: string
 ): Promise<boolean> => {
   const userBase = await db.query.users.findFirst({
     where: eq(users.id, userId),
@@ -237,56 +238,6 @@ export const hasPermission = cache(async (
     return true;
   }
 
-  // 7. Censeur: academics, HR, attendance, discipline, pedagogy, lms. No finance/security.
-  if (roleType === "censeur") {
-    const isAllowed = ["pedagogie", "pedagogy", "academics", "hr", "attendance", "discipline", "students", "lms"].includes(modLower);
-    if (!isAllowed) return false;
-    return true;
-  }
-
-  // 8. Surveillant: attendance, discipline, students. Students is read-only.
-  if (roleType === "surveillant") {
-    const isAllowed = ["attendance", "discipline", "students"].includes(modLower);
-    if (!isAllowed) return false;
-    if (modLower === "students" && action !== "canView") return false;
-    return true;
-  }
-
-  // 9. Comptable: finance and coges only
-  if (roleType === "comptable" || roleType === "level_comptable") {
-    return ["finance", "coges"].includes(modLower);
-  }
-
-  // 10. Caissier: finance payments only. No edit/delete of configs.
-  if (roleType === "caissier" || roleType === "level_caissier") {
-    if (modLower !== "finance") return false;
-    return action === "canView" || action === "canEdit";
-  }
-
-  // 11. Enseignant / Teacher: pedagogy, academics, attendance, lms. Read/write for classes.
-  if (roleType === "enseignant" || roleType === "teacher") {
-    return ["pedagogie", "pedagogy", "academics", "attendance", "lms", "library"].includes(modLower);
-  }
-
-  // 12. Élève: academics, homework, attendance, lms. Read-only.
-  if (roleType === "eleve") {
-    const isAllowed = ["academics", "homework", "devoirs", "attendance", "lms", "library"].includes(modLower);
-    if (!isAllowed) return false;
-    return action === "canView";
-  }
-
-  // 13. Parent: academics, homework, attendance, lms. Read-only.
-  if (roleType === "parent") {
-    const isAllowed = ["academics", "homework", "devoirs", "attendance", "lms", "library"].includes(modLower);
-    if (!isAllowed) return false;
-    return action === "canView";
-  }
-
-  // 14. Consultation: read-only access for permitted modules
-  if (roleType === "consultation") {
-    return action === "canView";
-  }
-
   // Fallback to database-configured role permissions
   const userWithPerms = await db.query.users.findFirst({
     where: eq(users.id, userId),
@@ -306,6 +257,20 @@ export const hasPermission = cache(async (
   }
 
   const permission = userWithPerms.role.permissions[0];
+
+  if (subFeatureName && permission.fieldPermissions) {
+    try {
+      const fieldPerms = typeof permission.fieldPermissions === 'string'
+        ? JSON.parse(permission.fieldPermissions)
+        : permission.fieldPermissions;
+      const subConfig = fieldPerms[subFeatureName];
+      if (subConfig) {
+        if (action === "canView" && subConfig.view !== undefined) return subConfig.view;
+        if (action === "canEdit" && subConfig.edit !== undefined) return subConfig.edit;
+      }
+    } catch (_) {}
+  }
+
   return permission[action] ?? false;
 });
 

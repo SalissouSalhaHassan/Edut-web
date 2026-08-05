@@ -13,7 +13,7 @@ import {
 import { students } from "@/infrastructure/database/schema/students";
 import { employees } from "@/infrastructure/database/schema/hr";
 import { getMobileUser, mobileJsonError } from "../_lib/auth";
-import { getUserRoleType } from "@/domains/auth/services/rbac";
+import { getUserRoleType, hasPermission } from "@/domains/auth/services/rbac";
 
 export const dynamic = "force-dynamic";
 
@@ -577,9 +577,10 @@ export async function POST(request: NextRequest) {
 
       const first = grades[0]!;
       const classId = Number(first.class_id);
-      const subjectId = Number(first.subject_id);
-      const sessionId = Number(first.session_id);
-      const term = String(first.term);
+      const canEditSaisie = await hasPermission(user.id, "Academics", "canEdit", "saisieNotes");
+      if (!canEditSaisie) {
+        return mobileJsonError("Accès refusé. La modification de la Saisie des Notes n'est pas autorisée pour votre rôle.", 403);
+      }
 
       const lockStatus = await checkPeriodLock(sessionId, term, schoolId || 1, roleType);
       if (lockStatus.isLocked) {
@@ -653,6 +654,11 @@ export async function POST(request: NextRequest) {
       const subjectId = Number(first.subject_id);
       const sessionId = Number(first.session_id);
       const term = String(first.term);
+
+      const canEditDevoirs = await hasPermission(user.id, "Academics", "canEdit", "gestionDevoirs");
+      if (!canEditDevoirs) {
+        return mobileJsonError("Accès refusé. La modification de la Gestion des Devoirs n'est pas autorisée pour votre rôle.", 403);
+      }
 
       const lockStatus = await checkPeriodLock(sessionId, term, schoolId || 1, roleType);
       if (lockStatus.isLocked) {
