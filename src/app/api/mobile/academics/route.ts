@@ -387,34 +387,22 @@ export async function GET(request: NextRequest) {
 
       // ── Tier 1: classId FK (most reliable) ──────────────────────────────
       let activeStudents = await readDb.query.students.findMany({
-        where: and(
-          eq(students.classId, classId),
-          eq(students.statut, "Actif"),
-          eq(students.schoolId, targetSchoolId)
-        ),
+        where: eq(students.classId, classId),
         orderBy: [students.nomEtudiant]
       });
 
       // ── Tier 2: classe text match fallback ───────────────────────────────
       if (activeStudents.length === 0) {
         activeStudents = await readDb.query.students.findMany({
-          where: and(
-            eq(students.classe, className),
-            eq(students.statut, "Actif"),
-            eq(students.schoolId, targetSchoolId)
-          ),
+          where: eq(students.classe, className),
           orderBy: [students.nomEtudiant]
         });
       }
 
-      // ── Tier 3: school-wide fallback (any class_id=null or unlinked) ─────
-      if (activeStudents.length === 0) {
+      // ── Tier 3: school-wide fallback ─────────────────────────────────────
+      if (activeStudents.length === 0 && targetSchoolId) {
         activeStudents = await readDb.query.students.findMany({
-          where: and(
-            eq(students.statut, "Actif"),
-            eq(students.schoolId, targetSchoolId),
-            isNull(students.classId)
-          ),
+          where: eq(students.schoolId, targetSchoolId),
           orderBy: [students.nomEtudiant]
         });
       }
@@ -488,22 +476,22 @@ export async function GET(request: NextRequest) {
 
       // ── Tier 1: classId FK (most reliable) ──────────────────────────────
       let activeStudentsDev = await readDb.query.students.findMany({
-        where: and(
-          eq(students.classId, classId),
-          eq(students.statut, "Actif"),
-          eq(students.schoolId, targetSchoolId)
-        ),
+        where: eq(students.classId, classId),
         orderBy: [students.nomEtudiant]
       });
 
       // ── Tier 2: classe text match fallback ───────────────────────────────
       if (activeStudentsDev.length === 0) {
         activeStudentsDev = await readDb.query.students.findMany({
-          where: and(
-            eq(students.classe, className),
-            eq(students.statut, "Actif"),
-            eq(students.schoolId, targetSchoolId)
-          ),
+          where: eq(students.classe, className),
+          orderBy: [students.nomEtudiant]
+        });
+      }
+
+      // ── Tier 3: school-wide fallback ─────────────────────────────────────
+      if (activeStudentsDev.length === 0 && targetSchoolId) {
+        activeStudentsDev = await readDb.query.students.findMany({
+          where: eq(students.schoolId, targetSchoolId),
           orderBy: [students.nomEtudiant]
         });
       }
