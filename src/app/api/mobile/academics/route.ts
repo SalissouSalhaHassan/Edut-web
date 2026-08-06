@@ -577,6 +577,10 @@ export async function POST(request: NextRequest) {
 
       const first = grades[0]!;
       const classId = Number(first.class_id);
+      const subjectId = Number(first.subject_id);
+      const sessionId = Number(first.session_id);
+      const term = String(first.term);
+
       const canEditSaisie = await hasPermission(user.id, "Academics", "canEdit", "saisieNotes");
       if (!canEditSaisie) {
         return mobileJsonError("Accès refusé. La modification de la Saisie des Notes n'est pas autorisée pour votre rôle.", 403);
