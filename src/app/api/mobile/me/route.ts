@@ -15,6 +15,7 @@ type PermissionRow = {
   canView?: boolean | null;
   canEdit?: boolean | null;
   canDelete?: boolean | null;
+  fieldPermissions?: any;
 };
 
 type StudentProfile = {
@@ -200,6 +201,29 @@ function mapRolePermission(row: PermissionRow) {
   if (matchesModule(moduleName, ["academics", "notes", "devoirs", "homework"])) {
     if (row.canView) permissions.add("academics.view");
     if (row.canEdit || row.canDelete) permissions.add("academics.manage");
+
+    let fieldPerms: Record<string, any> | null = null;
+    if (row.fieldPermissions) {
+      try {
+        fieldPerms = typeof row.fieldPermissions === "string"
+          ? JSON.parse(row.fieldPermissions)
+          : row.fieldPermissions;
+      } catch (_) {}
+    }
+
+    const snConfig = fieldPerms?.saisieNotes;
+    const snView = snConfig?.view !== undefined ? Boolean(snConfig.view) : Boolean(row.canView);
+    const snEdit = snConfig?.edit !== undefined ? Boolean(snConfig.edit) : Boolean(row.canEdit);
+
+    if (snView) permissions.add("academics.saisieNotes.view");
+    if (snEdit) permissions.add("academics.saisieNotes.edit");
+
+    const gdConfig = fieldPerms?.gestionDevoirs;
+    const gdView = gdConfig?.view !== undefined ? Boolean(gdConfig.view) : Boolean(row.canView);
+    const gdEdit = gdConfig?.edit !== undefined ? Boolean(gdConfig.edit) : Boolean(row.canEdit);
+
+    if (gdView) permissions.add("academics.gestionDevoirs.view");
+    if (gdEdit) permissions.add("academics.gestionDevoirs.edit");
   }
 
   if (matchesModule(moduleName, ["messaging", "messages", "notifications"])) {
@@ -368,7 +392,7 @@ export async function GET(request: NextRequest) {
 
   const roleType = await getUserRoleType(dbUser);
   const mobileRole = mobileRoleFromWebRole(roleType);
-  const permissions = defaultPermissionsForRole(roleType);
+  let permissions = defaultPermissionsForRole(roleType);
 
   const configuredPermissions = dbUser.role?.permissions?.length
     ? dbUser.role.permissions
@@ -378,10 +402,14 @@ export async function GET(request: NextRequest) {
         })
       : [];
 
-  for (const row of configuredPermissions) {
-    for (const permission of mapRolePermission(row)) {
-      permissions.add(permission);
+  if (configuredPermissions.length > 0) {
+    const dbPermissions = new Set<string>();
+    for (const row of configuredPermissions) {
+      for (const permission of mapRolePermission(row)) {
+        dbPermissions.add(permission);
+      }
     }
+    permissions = dbPermissions;
   }
 
   const branch = dbUser.schoolId
