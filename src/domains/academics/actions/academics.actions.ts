@@ -408,17 +408,19 @@ export async function getSubjects() {
 
 export async function getPeriods(sessionId?: number | null) {
   return protectedDbAction("Academics", "canView", async () => {
-    const schoolId = await getActiveSchoolId();
-    const whereConditions = [
-      schoolId 
-        ? or(eq(academicPeriods.schoolId, schoolId), isNull(academicPeriods.schoolId))
-        : isNull(academicPeriods.schoolId)
-    ];
+    const user = await getCurrentUser().catch(() => null);
+    const schoolId = await getActiveSchoolId().catch(() => null) || user?.schoolId;
+    const whereConditions: any[] = [];
+    
+    if (schoolId) {
+      whereConditions.push(or(eq(academicPeriods.schoolId, schoolId), isNull(academicPeriods.schoolId)));
+    }
     if (sessionId) {
       whereConditions.push(eq(academicPeriods.sessionId, sessionId));
     }
+
     return await db.query.academicPeriods.findMany({
-      where: and(...whereConditions),
+      where: whereConditions.length > 0 ? and(...whereConditions) : undefined,
       with: { session: true },
       orderBy: academicPeriods.name
     });
@@ -427,11 +429,12 @@ export async function getPeriods(sessionId?: number | null) {
 
 export async function getSessions() {
   return protectedDbAction("Academics", "canView", async () => {
-    const schoolId = await getActiveSchoolId();
+    const user = await getCurrentUser().catch(() => null);
+    const schoolId = await getActiveSchoolId().catch(() => null) || user?.schoolId;
     return await db.query.schoolSessions.findMany({
       where: schoolId 
         ? or(eq(schoolSessions.schoolId, schoolId), isNull(schoolSessions.schoolId))
-        : isNull(schoolSessions.schoolId),
+        : undefined,
       orderBy: schoolSessions.sessionName
     });
   });
