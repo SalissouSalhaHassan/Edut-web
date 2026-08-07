@@ -143,14 +143,8 @@ export async function GET(request: NextRequest) {
     }
 
     if (action === "getAllClassesAndSubjects") {
-      const targetSchoolId = Number(searchParams.get("schoolId"));
-      if (!targetSchoolId) {
-        return mobileJsonError("schoolId manquant", 400);
-      }
-
-      if (schoolId && schoolId !== targetSchoolId) {
-        return mobileJsonError("Accès refusé. Autre école.", 403);
-      }
+      const rawSchoolId = Number(searchParams.get("schoolId"));
+      const targetSchoolId = rawSchoolId || schoolId || 1;
 
       const rows = await readDb.query.classSubjects.findMany({
         where: eq(classSubjects.schoolId, targetSchoolId),
@@ -183,14 +177,8 @@ export async function GET(request: NextRequest) {
     }
 
     if (action === "getSessions") {
-      const targetSchoolId = Number(searchParams.get("schoolId"));
-      if (!targetSchoolId) {
-        return mobileJsonError("schoolId manquant", 400);
-      }
-
-      if (schoolId && schoolId !== targetSchoolId) {
-        return mobileJsonError("Accès refusé", 403);
-      }
+      const rawSchoolId = Number(searchParams.get("schoolId"));
+      const targetSchoolId = rawSchoolId || schoolId || 1;
 
       let rows = await readDb.query.schoolSessions.findMany({
         where: eq(schoolSessions.schoolId, targetSchoolId),
@@ -216,17 +204,14 @@ export async function GET(request: NextRequest) {
     }
 
     if (action === "getPeriods") {
-      const targetSchoolId = Number(searchParams.get("schoolId"));
+      const rawSchoolId = Number(searchParams.get("schoolId"));
+      const targetSchoolId = rawSchoolId || schoolId || 1;
       const sessionId = Number(searchParams.get("sessionId"));
       const level = searchParams.get("level") || searchParams.get("educationalLevel") || "";
       const classIdStr = searchParams.get("classId");
 
-      if (!targetSchoolId || !sessionId) {
-        return mobileJsonError("Paramètres manquants", 400);
-      }
-
-      if (schoolId && schoolId !== targetSchoolId) {
-        return mobileJsonError("Accès refusé", 403);
+      if (!sessionId) {
+        return mobileJsonError("sessionId manquant", 400);
       }
 
       let resolvedLevel = level;
@@ -351,14 +336,11 @@ export async function GET(request: NextRequest) {
       const subjectId = Number(searchParams.get("subjectId"));
       const sessionId = Number(searchParams.get("sessionId"));
       const term = searchParams.get("term") || "";
-      const targetSchoolId = Number(searchParams.get("schoolId"));
+      const rawSchoolId = Number(searchParams.get("schoolId"));
+      const targetSchoolId = rawSchoolId || schoolId || 1;
 
-      if (!classId || !subjectId || !sessionId || !targetSchoolId) {
+      if (!classId || !subjectId || !sessionId) {
         return mobileJsonError("Paramètres manquants", 400);
-      }
-
-      if (schoolId && schoolId !== targetSchoolId) {
-        return mobileJsonError("Accès refusé", 403);
       }
 
       // Fetch class details
@@ -454,14 +436,11 @@ export async function GET(request: NextRequest) {
       const subjectId = Number(searchParams.get("subjectId"));
       const sessionId = Number(searchParams.get("sessionId"));
       const term = searchParams.get("term") || "";
-      const targetSchoolId = Number(searchParams.get("schoolId"));
+      const rawSchoolId = Number(searchParams.get("schoolId"));
+      const targetSchoolId = rawSchoolId || schoolId || 1;
 
-      if (!classId || !subjectId || !sessionId || !targetSchoolId) {
+      if (!classId || !subjectId || !sessionId) {
         return mobileJsonError("Paramètres manquants", 400);
-      }
-
-      if (schoolId && schoolId !== targetSchoolId) {
-        return mobileJsonError("Accès refusé", 403);
       }
 
       const classRes = await readDb.query.schoolClasses.findFirst({
