@@ -298,13 +298,6 @@ export function AcademicSettings({
     });
   };
 
-  const startEditPeriod = (p: any) => {
-    setEditingPeriodId(p.id);
-    setPeriodName(p.name);
-    setPeriodType(p.periodType);
-    setPeriodSessionId(p.sessionId?.toString() || "");
-  };
-
   const handleCreateClass = () => {
     if (!className || !classSectionId) return;
     startTransition(async () => {
