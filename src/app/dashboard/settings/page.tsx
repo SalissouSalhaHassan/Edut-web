@@ -71,8 +71,13 @@ export default async function SettingsPage({
   const schoolRemarksRes = await getSchoolRemarks().catch(() => null) as any;
   const schoolRemarks = safeArray(schoolRemarksRes);
 
-  const periodsRes = await getPeriods().catch(() => null) as any;
+  const periodsRes = await getPeriods().catch((err) => {
+    console.error("🔍 [DIAGNOSTIC SettingsPage] getPeriods error:", err);
+    return null;
+  }) as any;
+  console.log("🔍 [DIAGNOSTIC SettingsPage] periodsRes:", JSON.stringify(periodsRes, null, 2));
   const periods = safeArray(periodsRes);
+  console.log("🔍 [DIAGNOSTIC SettingsPage] safeArray(periodsRes) count:", periods.length);
 
   const levelsRes = await getEducationalLevels(true).catch(() => null) as any;
   const educationalLevels = safeArray(levelsRes);

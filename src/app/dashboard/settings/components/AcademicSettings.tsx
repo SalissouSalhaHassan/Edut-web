@@ -970,8 +970,13 @@ export function AcademicSettings({
             const isSelectedActive = activeSessionObj && activeSessionObj.id?.toString() === selectedPeriodSessionId;
             return pSid === selectedPeriodSessionId || (!pSid && isSelectedActive);
           }).length === 0) && (
-            <div className="text-center p-6 text-slate-400 bg-[#181924]/50 rounded-2xl border border-dashed border-slate-800 text-sm">
-              Aucune période définie pour cette année scolaire. Utilisez <strong className="text-teal-400 font-semibold">Génération rapide</strong> ou <strong className="text-teal-400 font-semibold">+ Ajouter</strong> ci-dessus.
+            <div className="text-center p-6 text-slate-400 bg-[#181924]/50 rounded-2xl border border-dashed border-slate-800 text-sm space-y-2">
+              <p>Aucune période définie pour cette année scolaire. Utilisez <strong className="text-teal-400 font-semibold">Génération rapide</strong> ou <strong className="text-teal-400 font-semibold">+ Ajouter</strong> ci-dessus.</p>
+              {periodsList && periodsList.length > 0 && (
+                <p className="text-xs text-amber-400/90 font-medium">
+                  ℹ️ {periodsList.length} période(s) au total existent dans le système (sélectionnez "-- Toutes les années --" pour les voir toutes).
+                </p>
+              )}
             </div>
           )}
         </div>

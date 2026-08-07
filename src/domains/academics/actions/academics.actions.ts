@@ -407,32 +407,39 @@ export async function getSubjects() {
 }
 
 export async function getPeriods(sessionId?: number | null) {
-  return protectedDbAction("Academics", "canView", async () => {
-    const user = await getCurrentUser().catch(() => null);
-    const schoolId = await getActiveSchoolId().catch(() => null) || user?.schoolId;
+  return protectedDbAction("Academics", "canView", async (user: any) => {
+    const activeSchoolId = await getActiveSchoolId().catch(() => null);
+    const schoolId = activeSchoolId || user?.schoolId;
+
+    console.log("🔍 [DIAGNOSTIC getPeriods] User:", user?.id, "IsSuperAdmin:", user?.superAdmin, "SchoolId:", schoolId, "ActiveSchoolId:", activeSchoolId, "SessionId Filter:", sessionId);
+
     const whereConditions: any[] = [];
     
-    if (schoolId) {
+    if (!user?.superAdmin && schoolId) {
       whereConditions.push(or(eq(academicPeriods.schoolId, schoolId), isNull(academicPeriods.schoolId)));
     }
     if (sessionId) {
       whereConditions.push(eq(academicPeriods.sessionId, sessionId));
     }
 
-    return await db.query.academicPeriods.findMany({
+    const periods = await db.query.academicPeriods.findMany({
       where: whereConditions.length > 0 ? and(...whereConditions) : undefined,
       with: { session: true },
       orderBy: academicPeriods.name
     });
+
+    console.log("🔍 [DIAGNOSTIC getPeriods] Fetched periods count:", periods?.length, "Sample:", periods?.[0]);
+
+    return periods;
   });
 }
 
 export async function getSessions() {
-  return protectedDbAction("Academics", "canView", async () => {
-    const user = await getCurrentUser().catch(() => null);
-    const schoolId = await getActiveSchoolId().catch(() => null) || user?.schoolId;
+  return protectedDbAction("Academics", "canView", async (user: any) => {
+    const activeSchoolId = await getActiveSchoolId().catch(() => null);
+    const schoolId = activeSchoolId || user?.schoolId;
     return await db.query.schoolSessions.findMany({
-      where: schoolId 
+      where: (!user?.superAdmin && schoolId)
         ? or(eq(schoolSessions.schoolId, schoolId), isNull(schoolSessions.schoolId))
         : undefined,
       orderBy: schoolSessions.sessionName
