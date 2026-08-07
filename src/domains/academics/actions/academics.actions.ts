@@ -423,11 +423,30 @@ export async function getPeriods(sessionId?: number | null) {
       whereConditions.push(eq(academicPeriods.sessionId, sessionId));
     }
 
-    const periods = await db.query.academicPeriods.findMany({
-      where: whereConditions.length > 0 ? and(...whereConditions) : undefined,
-      with: { session: true },
-      orderBy: academicPeriods.name
-    });
+    const periods = await db
+      .select({
+        id: academicPeriods.id,
+        schoolId: academicPeriods.schoolId,
+        name: academicPeriods.name,
+        periodType: academicPeriods.periodType,
+        startDate: academicPeriods.startDate,
+        endDate: academicPeriods.endDate,
+        gradesDeadline: academicPeriods.gradesDeadline,
+        isLocked: academicPeriods.isLocked,
+        sessionId: academicPeriods.sessionId,
+        isActive: academicPeriods.isActive,
+        createdAt: academicPeriods.createdAt,
+        session: {
+          id: schoolSessions.id,
+          sessionName: schoolSessions.sessionName,
+          schoolId: schoolSessions.schoolId,
+          isActive: schoolSessions.isActive,
+        }
+      })
+      .from(academicPeriods)
+      .leftJoin(schoolSessions, eq(academicPeriods.sessionId, schoolSessions.id))
+      .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
+      .orderBy(academicPeriods.name);
 
     console.log("🔍 [DIAGNOSTIC getPeriods] Fetched periods count:", periods?.length, "Sample:", periods?.[0]);
 
@@ -444,12 +463,13 @@ export async function getSessions() {
     const activeSchoolId = await getActiveSchoolId().catch(() => null);
     const schoolId = activeSchoolId || user?.schoolId;
     
-    const sessions = await db.query.schoolSessions.findMany({
-      where: (!user?.superAdmin && schoolId)
+    const sessions = await db
+      .select()
+      .from(schoolSessions)
+      .where((!user?.superAdmin && schoolId)
         ? or(eq(schoolSessions.schoolId, schoolId), isNull(schoolSessions.schoolId))
-        : undefined,
-      orderBy: schoolSessions.sessionName
-    });
+        : undefined)
+      .orderBy(schoolSessions.sessionName);
 
     return { success: true, data: sessions };
   } catch (error: any) {
@@ -2452,26 +2472,33 @@ export async function createPeriod(data: { name: string; periodType: string; ses
     let targetSessionId = data.sessionId || null;
 
     if (targetSessionId) {
-      const validSession = await db.query.schoolSessions.findFirst({
-        where: and(
+      const validSessionRows = await db
+        .select()
+        .from(schoolSessions)
+        .where(and(
           eq(schoolSessions.id, targetSessionId),
           schoolId ? eq(schoolSessions.schoolId, schoolId) : undefined
-        )
-      });
-      if (!validSession) {
+        ))
+        .limit(1);
+      if (validSessionRows.length === 0) {
         throw new Error("La session académique sélectionnée n'est pas valide pour cet établissement.");
       }
     } else if (schoolId) {
-      const activeSession = await db.query.schoolSessions.findFirst({
-        where: and(
+      const activeSessionRows = await db
+        .select()
+        .from(schoolSessions)
+        .where(and(
           eq(schoolSessions.schoolId, schoolId),
           eq(schoolSessions.isActive, true)
-        )
-      }) || await db.query.schoolSessions.findFirst({
-        where: eq(schoolSessions.schoolId, schoolId)
-      });
-      if (activeSession) {
-        targetSessionId = activeSession.id;
+        ))
+        .limit(1);
+      const sessionFallbackRows = activeSessionRows.length > 0 ? activeSessionRows : await db
+        .select()
+        .from(schoolSessions)
+        .where(eq(schoolSessions.schoolId, schoolId))
+        .limit(1);
+      if (sessionFallbackRows.length > 0) {
+        targetSessionId = sessionFallbackRows[0].id;
       }
     }
 
@@ -2487,12 +2514,14 @@ export async function createPeriod(data: { name: string; periodType: string; ses
         existingConditions.push(eq(academicPeriods.sessionId, targetSessionId));
       }
 
-      const existing = await db.query.academicPeriods.findFirst({
-        where: and(...existingConditions)
-      });
+      const existingRows = await db
+        .select()
+        .from(academicPeriods)
+        .where(and(...existingConditions))
+        .limit(1);
 
-      if (existing) {
-        return existing;
+      if (existingRows.length > 0) {
+        return existingRows[0];
       }
     } catch (e) {
       console.warn("Check existing period warning:", e);
@@ -2528,14 +2557,16 @@ export async function createPeriod(data: { name: string; periodType: string; ses
         }).returning();
         inserted = res[0];
       } catch (retryErr) {
-        const existing = await db.query.academicPeriods.findFirst({
-          where: and(
+        const existingRows = await db
+          .select()
+          .from(academicPeriods)
+          .where(and(
             eq(academicPeriods.name, trimmedName),
             targetSessionId ? eq(academicPeriods.sessionId, targetSessionId) : undefined
-          )
-        });
-        if (existing) {
-          return existing;
+          ))
+          .limit(1);
+        if (existingRows.length > 0) {
+          return existingRows[0];
         }
         throw retryErr;
       }
@@ -2555,13 +2586,15 @@ export async function updatePeriod(id: number, data: { name: string; periodType:
     let targetSessionId = data.sessionId || null;
 
     if (targetSessionId && schoolId) {
-      const validSession = await db.query.schoolSessions.findFirst({
-        where: and(
+      const validSessionRows = await db
+        .select()
+        .from(schoolSessions)
+        .where(and(
           eq(schoolSessions.id, targetSessionId),
           eq(schoolSessions.schoolId, schoolId)
-        )
-      });
-      if (!validSession) {
+        ))
+        .limit(1);
+      if (validSessionRows.length === 0) {
         throw new Error("La session académique sélectionnée n'est pas valide pour cet établissement.");
       }
     }
