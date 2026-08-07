@@ -177,6 +177,7 @@ export function AcademicSettings({
         });
         if (res.success) {
           toast.success("Période mise à jour avec succès");
+          setPeriodsList((prev: any[]) => prev.map((p: any) => p.id === editingPeriodId ? { ...p, name: periodName, periodType: periodType, sessionId: periodSessionId ? Number(periodSessionId) : null } : p));
           setEditingPeriodId(null);
           setPeriodName("");
           router.refresh();
@@ -192,6 +193,9 @@ export function AcademicSettings({
         });
         if (res.success) {
           toast.success(`Période "${periodName}" créée avec succès`);
+          if (res.data) {
+            setPeriodsList((prev: any[]) => [...prev, res.data]);
+          }
           setPeriodName("");
           router.refresh();
         } else {
@@ -228,15 +232,20 @@ export function AcademicSettings({
       const sid = periodSessionId ? Number(periodSessionId) : null;
       let count = 0;
       for (const p of periodsToCreate) {
-        const exists = initialPeriods?.some((ip: any) => ip.name === p.name && (sid === null || ip.sessionId === sid));
+        const exists = periodsList?.some((ip: any) => ip.name === p.name && (sid === null || ip.sessionId === sid));
         if (!exists) {
-          await createPeriod({
+          const res = await createPeriod({
             name: p.name,
             periodType: p.periodType,
             sessionId: sid,
             isActive: true,
           });
-          count++;
+          if (res.success) {
+            if (res.data) {
+              setPeriodsList((prev: any[]) => [...prev, res.data]);
+            }
+            count++;
+          }
         }
       }
       toast.success(`${count} période(s) générée(s) avec succès !`);
@@ -766,7 +775,7 @@ export function AcademicSettings({
           )}
         </div>
         <div className="space-y-2">
-          {initialPeriods?.map((p: any) => (
+          {periodsList?.map((p: any) => (
             <div key={p.id} className={`flex items-center justify-between p-3 rounded-xl border ${editingPeriodId === p.id ? 'bg-teal-500/10 border-teal-500/50' : 'bg-[#181924] border-slate-800/50'}`}>
               <div className="flex items-center gap-3">
                 <span className="text-slate-300 font-bold">{p.name}</span>
@@ -787,6 +796,7 @@ export function AcademicSettings({
                       startTransition(async () => {
                         const res = await deletePeriod(p.id);
                         if (res.success) {
+                          setPeriodsList((prev: any[]) => prev.filter((item: any) => item.id !== p.id));
                           toast.success("Période supprimée avec succès");
                         } else {
                           toast.error(res.error || "Erreur lors de la suppression");
@@ -802,7 +812,7 @@ export function AcademicSettings({
               </div>
             </div>
           ))}
-          {(!initialPeriods || initialPeriods.length === 0) && (
+          {(!periodsList || periodsList.length === 0) && (
             <div className="text-center p-4 text-slate-500 text-sm">Aucune période définie.</div>
           )}
         </div>

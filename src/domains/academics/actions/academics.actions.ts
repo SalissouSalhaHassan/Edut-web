@@ -409,6 +409,7 @@ export async function getPeriods() {
     const schoolId = await getActiveSchoolId();
     return await db.query.academicPeriods.findMany({
       where: eq(academicPeriods.schoolId, schoolId),
+      with: { session: true },
       orderBy: academicPeriods.name
     });
   });
@@ -2417,20 +2418,20 @@ export async function deleteSession(id: number) {
 export async function createPeriod(data: { name: string; periodType: string; sessionId?: number | null; isActive?: boolean }) {
   return protectedDbAction("Academics", "canEdit", async () => {
     const schoolId = await getActiveSchoolId();
-    await db.insert(academicPeriods).values({
+    const [inserted] = await db.insert(academicPeriods).values({
       name: data.name,
       periodType: data.periodType,
       sessionId: data.sessionId || null,
       isActive: data.isActive ?? true,
       schoolId: schoolId,
-    });
+    }).returning();
     revalidatePath("/dashboard/settings");
     revalidateTag(ACADEMICS_CACHE_TAG);
-    return { success: true };
+    return { success: true, data: inserted };
   });
 }
 
-export async function updatePeriod(id: number, data: { name: string; periodType: string; sessionId?: number | null; isActive?: boolean }) {
+export async function updatePeriod(id: number, data: { name: string; periodType: string; sessionId?: number | null; isActive?: boolean; isLocked?: boolean; gradesDeadline?: Date | null }) {
   return protectedDbAction("Academics", "canEdit", async () => {
     const schoolId = await getActiveSchoolId();
     await db.update(academicPeriods).set({
@@ -2438,6 +2439,27 @@ export async function updatePeriod(id: number, data: { name: string; periodType:
       periodType: data.periodType,
       sessionId: data.sessionId || null,
       isActive: data.isActive ?? true,
+      ...(data.isLocked !== undefined ? { isLocked: data.isLocked } : {}),
+      ...(data.gradesDeadline !== undefined ? { gradesDeadline: data.gradesDeadline } : {}),
+    }).where(
+      and(
+        eq(academicPeriods.id, id),
+        eq(academicPeriods.schoolId, schoolId)
+      )
+    );
+    revalidatePath("/dashboard/settings");
+    revalidatePath("/dashboard/academics");
+    revalidatePath("/dashboard/academics/grades");
+    revalidateTag(ACADEMICS_CACHE_TAG);
+    return { success: true };
+  });
+}
+
+export async function togglePeriodLock(id: number, isLocked: boolean) {
+  return protectedDbAction("Academics", "canEdit", async () => {
+    const schoolId = await getActiveSchoolId();
+    await db.update(academicPeriods).set({
+      isLocked: isLocked,
     }).where(
       and(
         eq(academicPeriods.id, id),
