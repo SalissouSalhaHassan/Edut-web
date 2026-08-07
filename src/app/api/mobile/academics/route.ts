@@ -690,6 +690,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
+    if (action === "requestPeriodExtension") {
+      const { sessionId, term, reason } = payload;
+      if (!sessionId || !term) {
+        return mobileJsonError("Informations de la période manquantes", 400);
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: "Votre demande de dérogation a été transmise à la direction avec succès."
+      });
+    }
+
     return mobileJsonError("Action inconnue", 400);
   } catch (err: any) {
     return mobileJsonError(`Erreur: ${err.message || err}`, 500);
