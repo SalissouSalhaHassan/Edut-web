@@ -406,13 +406,19 @@ export async function getSubjects() {
   });
 }
 
-export async function getPeriods() {
+export async function getPeriods(sessionId?: number | null) {
   return protectedDbAction("Academics", "canView", async () => {
     const schoolId = await getActiveSchoolId();
-    return await db.query.academicPeriods.findMany({
-      where: schoolId 
+    const whereConditions = [
+      schoolId 
         ? or(eq(academicPeriods.schoolId, schoolId), isNull(academicPeriods.schoolId))
-        : isNull(academicPeriods.schoolId),
+        : isNull(academicPeriods.schoolId)
+    ];
+    if (sessionId) {
+      whereConditions.push(eq(academicPeriods.sessionId, sessionId));
+    }
+    return await db.query.academicPeriods.findMany({
+      where: and(...whereConditions),
       with: { session: true },
       orderBy: academicPeriods.name
     });
@@ -2422,14 +2428,62 @@ export async function deleteSession(id: number) {
 export async function createPeriod(data: { name: string; periodType: string; sessionId?: number | null; isActive?: boolean }) {
   return protectedDbAction("Academics", "canEdit", async () => {
     const schoolId = await getActiveSchoolId();
+    let targetSessionId = data.sessionId || null;
+
+    if (targetSessionId) {
+      const validSession = await readDb.query.schoolSessions.findFirst({
+        where: and(
+          eq(schoolSessions.id, targetSessionId),
+          schoolId ? eq(schoolSessions.schoolId, schoolId) : undefined
+        )
+      });
+      if (!validSession) {
+        throw new Error("La session académique sélectionnée n'est pas valide pour cet établissement.");
+      }
+    } else if (schoolId) {
+      const activeSession = await readDb.query.schoolSessions.findFirst({
+        where: and(
+          eq(schoolSessions.schoolId, schoolId),
+          eq(schoolSessions.isActive, true)
+        )
+      }) || await readDb.query.schoolSessions.findFirst({
+        where: eq(schoolSessions.schoolId, schoolId)
+      });
+      if (activeSession) {
+        targetSessionId = activeSession.id;
+      }
+    }
+
+    const trimmedName = data.name.trim();
+
+    // Check existing period to prevent duplicate creation
+    const existingConditions = [
+      ilike(academicPeriods.name, trimmedName),
+      schoolId ? or(eq(academicPeriods.schoolId, schoolId), isNull(academicPeriods.schoolId)) : isNull(academicPeriods.schoolId)
+    ];
+    if (targetSessionId) {
+      existingConditions.push(eq(academicPeriods.sessionId, targetSessionId));
+    }
+
+    const existing = await readDb.query.academicPeriods.findFirst({
+      where: and(...existingConditions)
+    });
+
+    if (existing) {
+      return existing;
+    }
+
     const [inserted] = await db.insert(academicPeriods).values({
-      name: data.name,
+      name: trimmedName,
       periodType: data.periodType,
-      sessionId: data.sessionId || null,
+      sessionId: targetSessionId,
       isActive: data.isActive ?? true,
       schoolId: schoolId,
     }).returning();
+
     revalidatePath("/dashboard/settings");
+    revalidatePath("/dashboard/academics");
+    revalidatePath("/dashboard/academics/grades");
     revalidateTag(ACADEMICS_CACHE_TAG);
     return inserted;
   });
@@ -2438,10 +2492,24 @@ export async function createPeriod(data: { name: string; periodType: string; ses
 export async function updatePeriod(id: number, data: { name: string; periodType: string; sessionId?: number | null; isActive?: boolean; isLocked?: boolean; gradesDeadline?: Date | null }) {
   return protectedDbAction("Academics", "canEdit", async () => {
     const schoolId = await getActiveSchoolId();
+    let targetSessionId = data.sessionId || null;
+
+    if (targetSessionId && schoolId) {
+      const validSession = await readDb.query.schoolSessions.findFirst({
+        where: and(
+          eq(schoolSessions.id, targetSessionId),
+          eq(schoolSessions.schoolId, schoolId)
+        )
+      });
+      if (!validSession) {
+        throw new Error("La session académique sélectionnée n'est pas valide pour cet établissement.");
+      }
+    }
+
     await db.update(academicPeriods).set({
-      name: data.name,
+      name: data.name.trim(),
       periodType: data.periodType,
-      sessionId: data.sessionId || null,
+      sessionId: targetSessionId,
       isActive: data.isActive ?? true,
       ...(data.isLocked !== undefined ? { isLocked: data.isLocked } : {}),
       ...(data.gradesDeadline !== undefined ? { gradesDeadline: data.gradesDeadline } : {}),

@@ -99,7 +99,15 @@ export function AcademicSettings({
   const [periodName, setPeriodName] = useState("");
   const [periodType, setPeriodType] = useState("Trimestre");
   const [periodSessionId, setPeriodSessionId] = useState("");
+  const [selectedPeriodSessionId, setSelectedPeriodSessionId] = useState<string>("");
   const [editingPeriodId, setEditingPeriodId] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!selectedPeriodSessionId && sessionsList && sessionsList.length > 0) {
+      const active = sessionsList.find((s: any) => s.isActive) || sessionsList[0];
+      if (active) setSelectedPeriodSessionId(active.id.toString());
+    }
+  }, [sessionsList, selectedPeriodSessionId]);
 
   const [sectionName, setSectionName] = useState("");
   const [sectionLevel, setSectionLevel] = useState("");
@@ -175,24 +183,29 @@ export function AcademicSettings({
   const handleCreatePeriod = () => {
     if (!periodName || !periodType) return;
     const activeSessionObj = sessionsList?.find((s: any) => s.isActive) || sessionsList?.[0];
-    const targetSessionId = periodSessionId ? Number(periodSessionId) : (activeSessionObj?.id || null);
+    const targetSessionId = periodSessionId 
+      ? Number(periodSessionId) 
+      : (selectedPeriodSessionId && selectedPeriodSessionId !== "all" 
+          ? Number(selectedPeriodSessionId) 
+          : (activeSessionObj?.id || null));
 
     startTransition(async () => {
       if (editingPeriodId) {
         const res = await updatePeriod(editingPeriodId, {
-          name: periodName,
+          name: periodName.trim(),
           periodType: periodType,
           sessionId: targetSessionId,
           isActive: true
         });
         if (res.success) {
           toast.success("Période / Séquence mise à jour avec succès");
+          const sessionObj = sessionsList?.find((s: any) => s.id === targetSessionId);
           setPeriodsList((prev: any[]) => prev.map((p: any) => p.id === editingPeriodId ? { 
             ...p, 
-            name: periodName, 
+            name: periodName.trim(), 
             periodType: periodType, 
             sessionId: targetSessionId,
-            session: sessionsList?.find((s: any) => s.id === targetSessionId) || p.session
+            session: sessionObj || p.session
           } : p));
           setEditingPeriodId(null);
           setPeriodName("");
@@ -202,21 +215,23 @@ export function AcademicSettings({
         }
       } else {
         const res = await createPeriod({ 
-          name: periodName, 
+          name: periodName.trim(), 
           periodType: periodType, 
           sessionId: targetSessionId,
           isActive: true
         });
         if (res.success) {
-          toast.success(`Période / Séquence "${periodName}" créée avec succès`);
           const createdObj = (res.data as any)?.data || res.data;
-          if (createdObj) {
+          if (createdObj && createdObj.id) {
             const sessionObj = sessionsList?.find((s: any) => s.id === targetSessionId);
             const fullObj = { ...createdObj, session: sessionObj };
             setPeriodsList((prev: any[]) => {
               const exists = prev.some((p: any) => p.id === fullObj.id);
               return exists ? prev : [...prev, fullObj];
             });
+            toast.success(`Période / Séquence "${createdObj.name || periodName}" enregistrée avec succès`);
+          } else {
+            toast.success(`Période / Séquence "${periodName}" créée avec succès`);
           }
           setPeriodName("");
           router.refresh();
@@ -268,10 +283,26 @@ export function AcademicSettings({
       }
 
       const activeSessionObj = sessionsList?.find((s: any) => s.isActive) || sessionsList?.[0];
-      const sid = periodSessionId ? Number(periodSessionId) : (activeSessionObj?.id || null);
+      const sid = periodSessionId 
+        ? Number(periodSessionId) 
+        : (selectedPeriodSessionId && selectedPeriodSessionId !== "all" 
+            ? Number(selectedPeriodSessionId) 
+            : (activeSessionObj?.id || null));
+
+      if (!sid) {
+        toast.error("Veuillez d'abord sélectionner une année scolaire.");
+        return;
+      }
+
       let count = 0;
       for (const p of periodsToCreate) {
-        const exists = periodsList?.some((ip: any) => ip.name === p.name && (sid === null || ip.sessionId === sid));
+        const exists = periodsList?.some((ip: any) => {
+          const isSameSession = ip.sessionId === sid || ip.sessionId === null;
+          const normIp = ip.name?.toLowerCase().trim();
+          const normP = p.name.toLowerCase().trim();
+          return isSameSession && (normIp === normP || normIp?.replace(/s$/, '') === normP?.replace(/s$/, ''));
+        });
+
         if (!exists) {
           const res = await createPeriod({
             name: p.name,
@@ -281,19 +312,24 @@ export function AcademicSettings({
           });
           if (res.success) {
             const createdObj = (res.data as any)?.data || res.data;
-            if (createdObj) {
+            if (createdObj && createdObj.id) {
               const sessionObj = sessionsList?.find((s: any) => s.id === sid);
               const fullObj = { ...createdObj, session: sessionObj };
               setPeriodsList((prev: any[]) => {
                 const existsInPrev = prev.some((item: any) => item.id === fullObj.id || (item.name === fullObj.name && item.sessionId === fullObj.sessionId));
                 return existsInPrev ? prev : [...prev, fullObj];
               });
+              count++;
             }
-            count++;
           }
         }
       }
-      toast.success(`${count} période(s) / séquence(s) générée(s) avec succès !`);
+
+      if (count > 0) {
+        toast.success(`${count} nouvelle(s) période(s) générée(s) avec succès !`);
+      } else {
+        toast.info("Les périodes pour l'année scolaire sélectionnée existent déjà.");
+      }
       router.refresh();
     });
   };
@@ -743,13 +779,35 @@ export function AcademicSettings({
 
       {/* 1.5 Périodes & Séquences */}
       <div className="bg-[#1F222B] border border-slate-800 rounded-3xl p-6 shadow-sm">
-        <div className="flex items-center justify-between flex-wrap gap-3 mb-6">
+        <div className="flex items-center justify-between flex-wrap gap-4 mb-6 pb-4 border-b border-slate-800/60">
           <div className="flex items-center gap-3">
             <CalendarDays className="text-teal-500" />
-            <h2 className="text-xl font-bold text-white">Périodes & Séquences (Trimestres / Semestres / Séquences)</h2>
+            <div>
+              <h2 className="text-xl font-bold text-white">Périodes & Séquences (Trimestres / Semestres / Séquences)</h2>
+              <p className="text-xs text-slate-400">Gérez les découpages académiques par année scolaire.</p>
+            </div>
           </div>
+          
+          <div className="flex items-center gap-3 bg-[#181924] p-2 rounded-2xl border border-slate-700/60">
+            <span className="text-xs font-bold text-slate-400 pl-2">Année scolaire :</span>
+            <select 
+              value={selectedPeriodSessionId}
+              onChange={(e) => setSelectedPeriodSessionId(e.target.value)}
+              className="bg-[#1F222B] text-teal-400 font-bold border border-teal-500/30 rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:border-teal-500 cursor-pointer"
+            >
+              <option value="all">-- Toutes les années --</option>
+              {sessionsList.map((s: any) => (
+                <option key={s.id} value={s.id.toString()}>
+                  {s.sessionName} {s.isActive ? " (Active)" : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between flex-wrap gap-3 mb-6">
+          <span className="text-xs font-bold text-slate-400">Génération rapide :</span>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-bold text-slate-400">Génération rapide :</span>
             <button
               type="button"
               disabled={isPending || !canEdit}
@@ -792,6 +850,7 @@ export function AcademicSettings({
             </button>
           </div>
         </div>
+
         <div className="flex flex-wrap md:flex-nowrap gap-4 mb-6">
           <input 
             type="text" 
@@ -818,8 +877,8 @@ export function AcademicSettings({
             onChange={(e) => setPeriodSessionId(e.target.value)}
             className="flex-1 bg-[#181924] border border-slate-700 text-white rounded-xl px-4 h-12 focus:outline-none disabled:opacity-50"
           >
-            <option value="">-- Année Active (Par défaut) --</option>
-            {initialSessions.map((s: any) => (
+            <option value="">-- Année Sélectionnée --</option>
+            {sessionsList.map((s: any) => (
               <option key={s.id} value={s.id}>{s.sessionName}</option>
             ))}
           </select>
@@ -831,12 +890,19 @@ export function AcademicSettings({
           )}
         </div>
         <div className="space-y-2">
-          {periodsList?.map((p: any) => (
+          {periodsList?.filter((p: any) => {
+            if (!selectedPeriodSessionId || selectedPeriodSessionId === "all") return true;
+            return p.sessionId?.toString() === selectedPeriodSessionId;
+          }).map((p: any) => (
             <div key={p.id} className={`flex items-center justify-between p-3 rounded-xl border ${editingPeriodId === p.id ? 'bg-teal-500/10 border-teal-500/50' : 'bg-[#181924] border-slate-800/50'}`}>
               <div className="flex items-center gap-3">
                 <span className="text-slate-300 font-bold">{p.name}</span>
                 <span className="text-[10px] uppercase font-black tracking-widest text-teal-500 bg-teal-500/10 px-2 py-1 rounded-md">{p.periodType}</span>
-                {p.session && <span className="text-[10px] text-slate-500 uppercase tracking-widest">{p.session.sessionName}</span>}
+                {(p.session || p.sessionId) && (
+                  <span className="text-[10px] text-slate-500 uppercase tracking-widest bg-slate-800/60 px-2 py-0.5 rounded-md">
+                    {p.session?.sessionName || sessionsList.find((s: any) => s.id === p.sessionId)?.sessionName || `Session #${p.sessionId}`}
+                  </span>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 <button 
@@ -868,8 +934,10 @@ export function AcademicSettings({
               </div>
             </div>
           ))}
-          {(!periodsList || periodsList.length === 0) && (
-            <div className="text-center p-4 text-slate-500 text-sm">Aucune période définie.</div>
+          {(!periodsList || periodsList.filter((p: any) => !selectedPeriodSessionId || selectedPeriodSessionId === "all" || p.sessionId?.toString() === selectedPeriodSessionId).length === 0) && (
+            <div className="text-center p-6 text-slate-400 bg-[#181924]/50 rounded-2xl border border-dashed border-slate-800 text-sm">
+              Aucune période définie pour cette année scolaire. Utilisez <strong className="text-teal-400 font-semibold">Génération rapide</strong> ou <strong className="text-teal-400 font-semibold">+ Ajouter</strong> ci-dessus.
+            </div>
           )}
         </div>
       </div>
