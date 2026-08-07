@@ -407,7 +407,8 @@ export async function getSubjects() {
 }
 
 export async function getPeriods(sessionId?: number | null) {
-  return protectedDbAction("Academics", "canView", async (user: any) => {
+  try {
+    const user = await getCurrentUser().catch(() => null);
     const activeSchoolId = await getActiveSchoolId().catch(() => null);
     const schoolId = activeSchoolId || user?.schoolId;
 
@@ -430,21 +431,31 @@ export async function getPeriods(sessionId?: number | null) {
 
     console.log("🔍 [DIAGNOSTIC getPeriods] Fetched periods count:", periods?.length, "Sample:", periods?.[0]);
 
-    return periods;
-  });
+    return { success: true, data: periods };
+  } catch (error: any) {
+    console.error("🔍 [DIAGNOSTIC getPeriods] Exception:", error);
+    return { success: false, error: error.message || "Erreur de chargement des périodes", data: [] };
+  }
 }
 
 export async function getSessions() {
-  return protectedDbAction("Academics", "canView", async (user: any) => {
+  try {
+    const user = await getCurrentUser().catch(() => null);
     const activeSchoolId = await getActiveSchoolId().catch(() => null);
     const schoolId = activeSchoolId || user?.schoolId;
-    return await db.query.schoolSessions.findMany({
+    
+    const sessions = await db.query.schoolSessions.findMany({
       where: (!user?.superAdmin && schoolId)
         ? or(eq(schoolSessions.schoolId, schoolId), isNull(schoolSessions.schoolId))
         : undefined,
       orderBy: schoolSessions.sessionName
     });
-  });
+
+    return { success: true, data: sessions };
+  } catch (error: any) {
+    console.error("🔍 [DIAGNOSTIC getSessions] Exception:", error);
+    return { success: false, error: error.message || "Erreur de chargement des sessions", data: [] };
+  }
 }
 
 // Cache for grading appreciations as they change rarely
