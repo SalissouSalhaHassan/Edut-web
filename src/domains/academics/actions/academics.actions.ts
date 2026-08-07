@@ -2431,7 +2431,7 @@ export async function createPeriod(data: { name: string; periodType: string; ses
     let targetSessionId = data.sessionId || null;
 
     if (targetSessionId) {
-      const validSession = await readDb.query.schoolSessions.findFirst({
+      const validSession = await db.query.schoolSessions.findFirst({
         where: and(
           eq(schoolSessions.id, targetSessionId),
           schoolId ? eq(schoolSessions.schoolId, schoolId) : undefined
@@ -2441,12 +2441,12 @@ export async function createPeriod(data: { name: string; periodType: string; ses
         throw new Error("La session académique sélectionnée n'est pas valide pour cet établissement.");
       }
     } else if (schoolId) {
-      const activeSession = await readDb.query.schoolSessions.findFirst({
+      const activeSession = await db.query.schoolSessions.findFirst({
         where: and(
           eq(schoolSessions.schoolId, schoolId),
           eq(schoolSessions.isActive, true)
         )
-      }) || await readDb.query.schoolSessions.findFirst({
+      }) || await db.query.schoolSessions.findFirst({
         where: eq(schoolSessions.schoolId, schoolId)
       });
       if (activeSession) {
@@ -2457,20 +2457,24 @@ export async function createPeriod(data: { name: string; periodType: string; ses
     const trimmedName = data.name.trim();
 
     // Check existing period to prevent duplicate creation
-    const existingConditions = [
-      ilike(academicPeriods.name, trimmedName),
-      schoolId ? or(eq(academicPeriods.schoolId, schoolId), isNull(academicPeriods.schoolId)) : isNull(academicPeriods.schoolId)
-    ];
-    if (targetSessionId) {
-      existingConditions.push(eq(academicPeriods.sessionId, targetSessionId));
-    }
+    try {
+      const existingConditions = [
+        eq(academicPeriods.name, trimmedName),
+        schoolId ? or(eq(academicPeriods.schoolId, schoolId), isNull(academicPeriods.schoolId)) : isNull(academicPeriods.schoolId)
+      ];
+      if (targetSessionId) {
+        existingConditions.push(eq(academicPeriods.sessionId, targetSessionId));
+      }
 
-    const existing = await readDb.query.academicPeriods.findFirst({
-      where: and(...existingConditions)
-    });
+      const existing = await db.query.academicPeriods.findFirst({
+        where: and(...existingConditions)
+      });
 
-    if (existing) {
-      return existing;
+      if (existing) {
+        return existing;
+      }
+    } catch (e) {
+      console.warn("Check existing period warning:", e);
     }
 
     const [inserted] = await db.insert(academicPeriods).values({
@@ -2495,7 +2499,7 @@ export async function updatePeriod(id: number, data: { name: string; periodType:
     let targetSessionId = data.sessionId || null;
 
     if (targetSessionId && schoolId) {
-      const validSession = await readDb.query.schoolSessions.findFirst({
+      const validSession = await db.query.schoolSessions.findFirst({
         where: and(
           eq(schoolSessions.id, targetSessionId),
           eq(schoolSessions.schoolId, schoolId)
