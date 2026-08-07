@@ -2498,13 +2498,48 @@ export async function createPeriod(data: { name: string; periodType: string; ses
       console.warn("Check existing period warning:", e);
     }
 
-    const [inserted] = await db.insert(academicPeriods).values({
-      name: trimmedName,
-      periodType: data.periodType,
-      sessionId: targetSessionId,
-      isActive: data.isActive ?? true,
-      schoolId: schoolId,
-    }).returning();
+    // Sync sequence to MAX(id) before insertion to prevent primary key sequence collisions
+    try {
+      await db.execute(sql`SELECT setval(pg_get_serial_sequence('academic_periods', 'id'), COALESCE((SELECT MAX(id) FROM academic_periods), 1));`);
+    } catch (e) {
+      console.warn("Sequence sync warning:", e);
+    }
+
+    let inserted;
+    try {
+      const res = await db.insert(academicPeriods).values({
+        name: trimmedName,
+        periodType: data.periodType,
+        sessionId: targetSessionId,
+        isActive: data.isActive ?? true,
+        schoolId: schoolId,
+      }).returning();
+      inserted = res[0];
+    } catch (insertErr: any) {
+      console.warn("Initial insert failed, attempting fallback recovery:", insertErr);
+      try {
+        await db.execute(sql`SELECT setval(pg_get_serial_sequence('academic_periods', 'id'), COALESCE((SELECT MAX(id) + 1 FROM academic_periods), 1), false);`);
+        const res = await db.insert(academicPeriods).values({
+          name: trimmedName,
+          periodType: data.periodType,
+          sessionId: targetSessionId,
+          isActive: data.isActive ?? true,
+          schoolId: schoolId,
+        }).returning();
+        inserted = res[0];
+      } catch (retryErr) {
+        const existing = await db.query.academicPeriods.findFirst({
+          where: and(
+            eq(academicPeriods.name, trimmedName),
+            targetSessionId ? eq(academicPeriods.sessionId, targetSessionId) : undefined
+          )
+        });
+        if (existing) {
+          return existing;
+        }
+        throw retryErr;
+      }
+    }
 
     revalidatePath("/dashboard/settings");
     revalidatePath("/dashboard/academics");
