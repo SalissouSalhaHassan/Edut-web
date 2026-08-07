@@ -105,7 +105,10 @@ export function AcademicSettings({
   useEffect(() => {
     if (!selectedPeriodSessionId && sessionsList && sessionsList.length > 0) {
       const active = sessionsList.find((s: any) => s.isActive) || sessionsList[0];
-      if (active) setSelectedPeriodSessionId(active.id.toString());
+      if (active) {
+        setSelectedPeriodSessionId(active.id.toString());
+        setPeriodSessionId(active.id.toString());
+      }
     }
   }, [sessionsList, selectedPeriodSessionId]);
 
@@ -297,7 +300,7 @@ export function AcademicSettings({
       let count = 0;
       for (const p of periodsToCreate) {
         const exists = periodsList?.some((ip: any) => {
-          const isSameSession = ip.sessionId === sid || ip.sessionId === null;
+          const isSameSession = ip.sessionId && Number(ip.sessionId) === Number(sid);
           const normIp = ip.name?.toLowerCase().trim();
           const normP = p.name.toLowerCase().trim();
           return isSameSession && (normIp === normP || normIp?.replace(/s$/, '') === normP?.replace(/s$/, ''));
@@ -792,7 +795,13 @@ export function AcademicSettings({
             <span className="text-xs font-bold text-slate-400 pl-2">Année scolaire :</span>
             <select 
               value={selectedPeriodSessionId}
-              onChange={(e) => setSelectedPeriodSessionId(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                setSelectedPeriodSessionId(val);
+                if (val && val !== "all") {
+                  setPeriodSessionId(val);
+                }
+              }}
               className="bg-[#1F222B] text-teal-400 font-bold border border-teal-500/30 rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:border-teal-500 cursor-pointer"
             >
               <option value="all">-- Toutes les années --</option>
@@ -892,7 +901,9 @@ export function AcademicSettings({
         <div className="space-y-2">
           {periodsList?.filter((p: any) => {
             if (!selectedPeriodSessionId || selectedPeriodSessionId === "all") return true;
-            return p.sessionId?.toString() === selectedPeriodSessionId;
+            const activeSessionObj = sessionsList?.find((s: any) => s.isActive) || sessionsList?.[0];
+            const isSelectedActive = activeSessionObj && activeSessionObj.id?.toString() === selectedPeriodSessionId;
+            return p.sessionId?.toString() === selectedPeriodSessionId || (!p.sessionId && isSelectedActive);
           }).map((p: any) => (
             <div key={p.id} className={`flex items-center justify-between p-3 rounded-xl border ${editingPeriodId === p.id ? 'bg-teal-500/10 border-teal-500/50' : 'bg-[#181924] border-slate-800/50'}`}>
               <div className="flex items-center gap-3">
@@ -934,7 +945,12 @@ export function AcademicSettings({
               </div>
             </div>
           ))}
-          {(!periodsList || periodsList.filter((p: any) => !selectedPeriodSessionId || selectedPeriodSessionId === "all" || p.sessionId?.toString() === selectedPeriodSessionId).length === 0) && (
+          {(!periodsList || periodsList.filter((p: any) => {
+            if (!selectedPeriodSessionId || selectedPeriodSessionId === "all") return true;
+            const activeSessionObj = sessionsList?.find((s: any) => s.isActive) || sessionsList?.[0];
+            const isSelectedActive = activeSessionObj && activeSessionObj.id?.toString() === selectedPeriodSessionId;
+            return p.sessionId?.toString() === selectedPeriodSessionId || (!p.sessionId && isSelectedActive);
+          }).length === 0) && (
             <div className="text-center p-6 text-slate-400 bg-[#181924]/50 rounded-2xl border border-dashed border-slate-800 text-sm">
               Aucune période définie pour cette année scolaire. Utilisez <strong className="text-teal-400 font-semibold">Génération rapide</strong> ou <strong className="text-teal-400 font-semibold">+ Ajouter</strong> ci-dessus.
             </div>
