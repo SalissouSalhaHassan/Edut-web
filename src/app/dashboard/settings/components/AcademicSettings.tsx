@@ -179,8 +179,9 @@ export function AcademicSettings({
   const startEditPeriod = (p: any) => {
     setEditingPeriodId(p.id);
     setPeriodName(p.name);
-    setPeriodType(p.periodType || "Trimestre");
-    setPeriodSessionId(p.sessionId ? p.sessionId.toString() : "");
+    setPeriodType(p.periodType || p.period_type || "Trimestre");
+    const sid = p.sessionId ?? p.session_id;
+    setPeriodSessionId(sid ? sid.toString() : "");
   };
 
   const handleCreatePeriod = () => {
@@ -208,6 +209,7 @@ export function AcademicSettings({
             name: periodName.trim(), 
             periodType: periodType, 
             sessionId: targetSessionId,
+            session_id: targetSessionId,
             session: sessionObj || p.session
           } : p));
           setEditingPeriodId(null);
@@ -227,7 +229,7 @@ export function AcademicSettings({
           const createdObj = (res.data as any)?.data || res.data;
           if (createdObj && createdObj.id) {
             const sessionObj = sessionsList?.find((s: any) => s.id === targetSessionId);
-            const fullObj = { ...createdObj, session: sessionObj };
+            const fullObj = { ...createdObj, sessionId: createdObj.sessionId ?? createdObj.session_id ?? targetSessionId, session_id: createdObj.session_id ?? createdObj.sessionId ?? targetSessionId, session: sessionObj };
             setPeriodsList((prev: any[]) => {
               const exists = prev.some((p: any) => p.id === fullObj.id);
               return exists ? prev : [...prev, fullObj];
@@ -297,13 +299,28 @@ export function AcademicSettings({
         return;
       }
 
+      const normStr = (str: string) => {
+        if (!str) return "";
+        return str
+          .toLowerCase()
+          .trim()
+          .replace(/semester/g, "semestre")
+          .replace(/è/g, "e")
+          .replace(/é/g, "e")
+          .replace(/ê/g, "e")
+          .replace(/1ère/g, "1er")
+          .replace(/1ere/g, "1er")
+          .replace(/s$/g, "");
+      };
+
       let count = 0;
       for (const p of periodsToCreate) {
         const exists = periodsList?.some((ip: any) => {
-          const isSameSession = ip.sessionId && Number(ip.sessionId) === Number(sid);
-          const normIp = ip.name?.toLowerCase().trim();
-          const normP = p.name.toLowerCase().trim();
-          return isSameSession && (normIp === normP || normIp?.replace(/s$/, '') === normP?.replace(/s$/, ''));
+          const ipSid = ip.sessionId ?? ip.session_id ?? ip.session?.id;
+          const isSameSession = ipSid && Number(ipSid) === Number(sid);
+          const normIp = normStr(ip.name);
+          const normP = normStr(p.name);
+          return isSameSession && (normIp === normP || normIp.includes(normP) || normP.includes(normIp));
         });
 
         if (!exists) {
@@ -317,9 +334,9 @@ export function AcademicSettings({
             const createdObj = (res.data as any)?.data || res.data;
             if (createdObj && createdObj.id) {
               const sessionObj = sessionsList?.find((s: any) => s.id === sid);
-              const fullObj = { ...createdObj, session: sessionObj };
+              const fullObj = { ...createdObj, sessionId: createdObj.sessionId ?? createdObj.session_id ?? sid, session_id: createdObj.session_id ?? createdObj.sessionId ?? sid, session: sessionObj };
               setPeriodsList((prev: any[]) => {
-                const existsInPrev = prev.some((item: any) => item.id === fullObj.id || (item.name === fullObj.name && item.sessionId === fullObj.sessionId));
+                const existsInPrev = prev.some((item: any) => item.id === fullObj.id);
                 return existsInPrev ? prev : [...prev, fullObj];
               });
               count++;
@@ -901,17 +918,18 @@ export function AcademicSettings({
         <div className="space-y-2">
           {periodsList?.filter((p: any) => {
             if (!selectedPeriodSessionId || selectedPeriodSessionId === "all") return true;
+            const pSid = (p.sessionId ?? p.session_id ?? p.session?.id)?.toString();
             const activeSessionObj = sessionsList?.find((s: any) => s.isActive) || sessionsList?.[0];
             const isSelectedActive = activeSessionObj && activeSessionObj.id?.toString() === selectedPeriodSessionId;
-            return p.sessionId?.toString() === selectedPeriodSessionId || (!p.sessionId && isSelectedActive);
+            return pSid === selectedPeriodSessionId || (!pSid && isSelectedActive);
           }).map((p: any) => (
             <div key={p.id} className={`flex items-center justify-between p-3 rounded-xl border ${editingPeriodId === p.id ? 'bg-teal-500/10 border-teal-500/50' : 'bg-[#181924] border-slate-800/50'}`}>
               <div className="flex items-center gap-3">
                 <span className="text-slate-300 font-bold">{p.name}</span>
-                <span className="text-[10px] uppercase font-black tracking-widest text-teal-500 bg-teal-500/10 px-2 py-1 rounded-md">{p.periodType}</span>
-                {(p.session || p.sessionId) && (
+                <span className="text-[10px] uppercase font-black tracking-widest text-teal-500 bg-teal-500/10 px-2 py-1 rounded-md">{p.periodType || p.period_type}</span>
+                {(p.session || p.sessionId || p.session_id) && (
                   <span className="text-[10px] text-slate-500 uppercase tracking-widest bg-slate-800/60 px-2 py-0.5 rounded-md">
-                    {p.session?.sessionName || sessionsList.find((s: any) => s.id === p.sessionId)?.sessionName || `Session #${p.sessionId}`}
+                    {p.session?.sessionName || sessionsList.find((s: any) => s.id === (p.sessionId ?? p.session_id))?.sessionName || `Session #${p.sessionId ?? p.session_id}`}
                   </span>
                 )}
               </div>
@@ -947,9 +965,10 @@ export function AcademicSettings({
           ))}
           {(!periodsList || periodsList.filter((p: any) => {
             if (!selectedPeriodSessionId || selectedPeriodSessionId === "all") return true;
+            const pSid = (p.sessionId ?? p.session_id ?? p.session?.id)?.toString();
             const activeSessionObj = sessionsList?.find((s: any) => s.isActive) || sessionsList?.[0];
             const isSelectedActive = activeSessionObj && activeSessionObj.id?.toString() === selectedPeriodSessionId;
-            return p.sessionId?.toString() === selectedPeriodSessionId || (!p.sessionId && isSelectedActive);
+            return pSid === selectedPeriodSessionId || (!pSid && isSelectedActive);
           }).length === 0) && (
             <div className="text-center p-6 text-slate-400 bg-[#181924]/50 rounded-2xl border border-dashed border-slate-800 text-sm">
               Aucune période définie pour cette année scolaire. Utilisez <strong className="text-teal-400 font-semibold">Génération rapide</strong> ou <strong className="text-teal-400 font-semibold">+ Ajouter</strong> ci-dessus.
