@@ -186,7 +186,9 @@ const fetchFilterOptions = (
             : isNull(schoolSessions.schoolId)
         }),
         db.query.academicPeriods.findMany({
-          where: eq(academicPeriods.schoolId, schoolId)
+          where: schoolId 
+            ? or(eq(academicPeriods.schoolId, schoolId), isNull(academicPeriods.schoolId))
+            : isNull(academicPeriods.schoolId)
         }),
         db.query.schoolSubjects.findMany({
           where: eq(schoolSubjects.schoolId, schoolId),
@@ -408,7 +410,9 @@ export async function getPeriods() {
   return protectedDbAction("Academics", "canView", async () => {
     const schoolId = await getActiveSchoolId();
     return await db.query.academicPeriods.findMany({
-      where: eq(academicPeriods.schoolId, schoolId),
+      where: schoolId 
+        ? or(eq(academicPeriods.schoolId, schoolId), isNull(academicPeriods.schoolId))
+        : isNull(academicPeriods.schoolId),
       with: { session: true },
       orderBy: academicPeriods.name
     });
@@ -2427,7 +2431,7 @@ export async function createPeriod(data: { name: string; periodType: string; ses
     }).returning();
     revalidatePath("/dashboard/settings");
     revalidateTag(ACADEMICS_CACHE_TAG);
-    return { success: true, data: inserted };
+    return inserted;
   });
 }
 
@@ -2444,7 +2448,7 @@ export async function updatePeriod(id: number, data: { name: string; periodType:
     }).where(
       and(
         eq(academicPeriods.id, id),
-        eq(academicPeriods.schoolId, schoolId)
+        schoolId ? or(eq(academicPeriods.schoolId, schoolId), isNull(academicPeriods.schoolId)) : isNull(academicPeriods.schoolId)
       )
     );
     revalidatePath("/dashboard/settings");
@@ -2463,7 +2467,7 @@ export async function togglePeriodLock(id: number, isLocked: boolean) {
     }).where(
       and(
         eq(academicPeriods.id, id),
-        eq(academicPeriods.schoolId, schoolId)
+        schoolId ? or(eq(academicPeriods.schoolId, schoolId), isNull(academicPeriods.schoolId)) : isNull(academicPeriods.schoolId)
       )
     );
     revalidatePath("/dashboard/settings");
@@ -2480,7 +2484,7 @@ export async function deletePeriod(id: number) {
     await db.delete(academicPeriods).where(
       and(
         eq(academicPeriods.id, id),
-        eq(academicPeriods.schoolId, schoolId)
+        schoolId ? or(eq(academicPeriods.schoolId, schoolId), isNull(academicPeriods.schoolId)) : isNull(academicPeriods.schoolId)
       )
     );
     revalidatePath("/dashboard/settings");

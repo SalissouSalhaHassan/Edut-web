@@ -193,8 +193,12 @@ export function AcademicSettings({
         });
         if (res.success) {
           toast.success(`Période "${periodName}" créée avec succès`);
-          if (res.data) {
-            setPeriodsList((prev: any[]) => [...prev, res.data]);
+          const createdObj = (res.data as any)?.data || res.data;
+          if (createdObj) {
+            setPeriodsList((prev: any[]) => {
+              const exists = prev.some((p: any) => p.id === createdObj.id);
+              return exists ? prev : [...prev, createdObj];
+            });
           }
           setPeriodName("");
           router.refresh();
@@ -229,7 +233,8 @@ export function AcademicSettings({
         });
       }
 
-      const sid = periodSessionId ? Number(periodSessionId) : null;
+      const activeSessionObj = sessionsList?.find((s: any) => s.isActive) || sessionsList?.[0];
+      const sid = periodSessionId ? Number(periodSessionId) : (activeSessionObj?.id || null);
       let count = 0;
       for (const p of periodsToCreate) {
         const exists = periodsList?.some((ip: any) => ip.name === p.name && (sid === null || ip.sessionId === sid));
@@ -241,8 +246,12 @@ export function AcademicSettings({
             isActive: true,
           });
           if (res.success) {
-            if (res.data) {
-              setPeriodsList((prev: any[]) => [...prev, res.data]);
+            const createdObj = (res.data as any)?.data || res.data;
+            if (createdObj) {
+              setPeriodsList((prev: any[]) => {
+                const existsInPrev = prev.some((item: any) => item.id === createdObj.id || (item.name === createdObj.name && item.sessionId === createdObj.sessionId));
+                return existsInPrev ? prev : [...prev, createdObj];
+              });
             }
             count++;
           }
