@@ -104,7 +104,12 @@ function defaultPermissionsForRole(roleType: UserRoleType) {
   }
 
   if (roleType === "directeur" || roleType === "general_director" || roleType === "level_director") {
-    return new Set(fullMobilePermissions.filter((permission) => !permission.startsWith("owner.")));
+    const perms = new Set(fullMobilePermissions.filter((permission) => !permission.startsWith("owner.")));
+    perms.add("academics.saisieNotes.view");
+    perms.add("academics.saisieNotes.edit");
+    perms.add("academics.gestionDevoirs.view");
+    perms.add("academics.gestionDevoirs.edit");
+    return perms;
   }
 
   if (roleType === "teacher" || roleType === "enseignant") {
@@ -116,6 +121,10 @@ function defaultPermissionsForRole(roleType: UserRoleType) {
       "attendance.manage",
       "academics.view",
       "academics.manage",
+      "academics.saisieNotes.view",
+      "academics.saisieNotes.edit",
+      "academics.gestionDevoirs.view",
+      "academics.gestionDevoirs.edit",
       "messaging.view",
       "messaging.manage",
     ]);
@@ -132,6 +141,10 @@ function defaultPermissionsForRole(roleType: UserRoleType) {
       "attendance.manage",
       "academics.view",
       "academics.manage",
+      "academics.saisieNotes.view",
+      "academics.saisieNotes.edit",
+      "academics.gestionDevoirs.view",
+      "academics.gestionDevoirs.edit",
     ]);
   }
 

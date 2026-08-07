@@ -165,19 +165,35 @@ export function AcademicSettings({
     });
   };
 
+  const startEditPeriod = (p: any) => {
+    setEditingPeriodId(p.id);
+    setPeriodName(p.name);
+    setPeriodType(p.periodType || "Trimestre");
+    setPeriodSessionId(p.sessionId ? p.sessionId.toString() : "");
+  };
+
   const handleCreatePeriod = () => {
     if (!periodName || !periodType) return;
+    const activeSessionObj = sessionsList?.find((s: any) => s.isActive) || sessionsList?.[0];
+    const targetSessionId = periodSessionId ? Number(periodSessionId) : (activeSessionObj?.id || null);
+
     startTransition(async () => {
       if (editingPeriodId) {
         const res = await updatePeriod(editingPeriodId, {
           name: periodName,
           periodType: periodType,
-          sessionId: periodSessionId ? Number(periodSessionId) : null,
+          sessionId: targetSessionId,
           isActive: true
         });
         if (res.success) {
-          toast.success("Période mise à jour avec succès");
-          setPeriodsList((prev: any[]) => prev.map((p: any) => p.id === editingPeriodId ? { ...p, name: periodName, periodType: periodType, sessionId: periodSessionId ? Number(periodSessionId) : null } : p));
+          toast.success("Période / Séquence mise à jour avec succès");
+          setPeriodsList((prev: any[]) => prev.map((p: any) => p.id === editingPeriodId ? { 
+            ...p, 
+            name: periodName, 
+            periodType: periodType, 
+            sessionId: targetSessionId,
+            session: sessionsList?.find((s: any) => s.id === targetSessionId) || p.session
+          } : p));
           setEditingPeriodId(null);
           setPeriodName("");
           router.refresh();
@@ -188,16 +204,18 @@ export function AcademicSettings({
         const res = await createPeriod({ 
           name: periodName, 
           periodType: periodType, 
-          sessionId: periodSessionId ? Number(periodSessionId) : null,
+          sessionId: targetSessionId,
           isActive: true
         });
         if (res.success) {
-          toast.success(`Période "${periodName}" créée avec succès`);
+          toast.success(`Période / Séquence "${periodName}" créée avec succès`);
           const createdObj = (res.data as any)?.data || res.data;
           if (createdObj) {
+            const sessionObj = sessionsList?.find((s: any) => s.id === targetSessionId);
+            const fullObj = { ...createdObj, session: sessionObj };
             setPeriodsList((prev: any[]) => {
-              const exists = prev.some((p: any) => p.id === createdObj.id);
-              return exists ? prev : [...prev, createdObj];
+              const exists = prev.some((p: any) => p.id === fullObj.id);
+              return exists ? prev : [...prev, fullObj];
             });
           }
           setPeriodName("");
@@ -209,7 +227,7 @@ export function AcademicSettings({
     });
   };
 
-  const handleGeneratePresetPeriods = (type: "Primaire" | "CollegeLycee" | "Superior") => {
+  const handleGeneratePresetPeriods = (type: "Primaire" | "CollegeLycee" | "Superior" | "Sequences6" | "Sequences4") => {
     startTransition(async () => {
       let periodsToCreate: { name: string; periodType: string }[] = [];
       if (type === "Primaire") {
@@ -222,6 +240,22 @@ export function AcademicSettings({
         periodsToCreate = [
           { name: "1er Semestre", periodType: "Semestre" },
           { name: "2ème Semestre", periodType: "Semestre" },
+        ];
+      } else if (type === "Sequences6") {
+        periodsToCreate = [
+          { name: "1ère Séquence", periodType: "Séquence" },
+          { name: "2ème Séquence", periodType: "Séquence" },
+          { name: "3ème Séquence", periodType: "Séquence" },
+          { name: "4ème Séquence", periodType: "Séquence" },
+          { name: "5ème Séquence", periodType: "Séquence" },
+          { name: "6ème Séquence", periodType: "Séquence" },
+        ];
+      } else if (type === "Sequences4") {
+        periodsToCreate = [
+          { name: "1ère Séquence", periodType: "Séquence" },
+          { name: "2ème Séquence", periodType: "Séquence" },
+          { name: "3ème Séquence", periodType: "Séquence" },
+          { name: "4ème Séquence", periodType: "Séquence" },
         ];
       } else if (type === "Superior") {
         periodsToCreate = Array.from({ length: 14 }, (_, i) => {
@@ -248,16 +282,18 @@ export function AcademicSettings({
           if (res.success) {
             const createdObj = (res.data as any)?.data || res.data;
             if (createdObj) {
+              const sessionObj = sessionsList?.find((s: any) => s.id === sid);
+              const fullObj = { ...createdObj, session: sessionObj };
               setPeriodsList((prev: any[]) => {
-                const existsInPrev = prev.some((item: any) => item.id === createdObj.id || (item.name === createdObj.name && item.sessionId === createdObj.sessionId));
-                return existsInPrev ? prev : [...prev, createdObj];
+                const existsInPrev = prev.some((item: any) => item.id === fullObj.id || (item.name === fullObj.name && item.sessionId === fullObj.sessionId));
+                return existsInPrev ? prev : [...prev, fullObj];
               });
             }
             count++;
           }
         }
       }
-      toast.success(`${count} période(s) générée(s) avec succès !`);
+      toast.success(`${count} période(s) / séquence(s) générée(s) avec succès !`);
       router.refresh();
     });
   };
@@ -712,12 +748,12 @@ export function AcademicSettings({
         </div>
       </div>
 
-      {/* 1.5 Périodes */}
+      {/* 1.5 Périodes & Séquences */}
       <div className="bg-[#1F222B] border border-slate-800 rounded-3xl p-6 shadow-sm">
         <div className="flex items-center justify-between flex-wrap gap-3 mb-6">
           <div className="flex items-center gap-3">
             <CalendarDays className="text-teal-500" />
-            <h2 className="text-xl font-bold text-white">Périodes (Trimestres / Semestres)</h2>
+            <h2 className="text-xl font-bold text-white">Périodes & Séquences (Trimestres / Semestres / Séquences)</h2>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-bold text-slate-400">Génération rapide :</span>
@@ -727,7 +763,7 @@ export function AcademicSettings({
               onClick={() => handleGeneratePresetPeriods("Primaire")}
               className="text-xs bg-teal-500/10 text-teal-400 hover:bg-teal-500/20 px-3 py-1.5 rounded-lg border border-teal-500/30 transition-all font-semibold disabled:opacity-40"
             >
-              ⚡ Primaire (3 Trimestres)
+              ⚡ 3 Trimestres
             </button>
             <button
               type="button"
@@ -735,7 +771,23 @@ export function AcademicSettings({
               onClick={() => handleGeneratePresetPeriods("CollegeLycee")}
               className="text-xs bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 px-3 py-1.5 rounded-lg border border-blue-500/30 transition-all font-semibold disabled:opacity-40"
             >
-              ⚡ Collège / Lycée (2 Semestres)
+              ⚡ 2 Semestres
+            </button>
+            <button
+              type="button"
+              disabled={isPending || !canEdit}
+              onClick={() => handleGeneratePresetPeriods("Sequences6")}
+              className="text-xs bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 px-3 py-1.5 rounded-lg border border-amber-500/30 transition-all font-semibold disabled:opacity-40"
+            >
+              ⚡ 6 Séquences (S1-S6)
+            </button>
+            <button
+              type="button"
+              disabled={isPending || !canEdit}
+              onClick={() => handleGeneratePresetPeriods("Sequences4")}
+              className="text-xs bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 px-3 py-1.5 rounded-lg border border-emerald-500/30 transition-all font-semibold disabled:opacity-40"
+            >
+              ⚡ 4 Séquences (S1-S4)
             </button>
             <button
               type="button"
@@ -743,14 +795,14 @@ export function AcademicSettings({
               onClick={() => handleGeneratePresetPeriods("Superior")}
               className="text-xs bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 px-3 py-1.5 rounded-lg border border-purple-500/30 transition-all font-semibold disabled:opacity-40"
             >
-              ⚡ Licence/Master/Doctorat (S1 - S14)
+              ⚡ Supérieur (S1 - S14)
             </button>
           </div>
         </div>
         <div className="flex flex-wrap md:flex-nowrap gap-4 mb-6">
           <input 
             type="text" 
-            placeholder="Nom (ex: 1er Trimestre)"
+            placeholder="Nom (ex: 1er Trimestre ou 1ère Séquence)"
             value={periodName}
             disabled={!canEdit}
             onChange={(e) => setPeriodName(e.target.value)}
@@ -760,10 +812,12 @@ export function AcademicSettings({
             value={periodType}
             disabled={!canEdit}
             onChange={(e) => setPeriodType(e.target.value)}
-            className="flex-1 bg-[#181924] border border-slate-700 text-white rounded-xl px-4 h-12 focus:outline-none disabled:opacity-50"
+            className="flex-1 bg-[#181924] border border-slate-700 text-white rounded-xl px-4 h-12 focus:outline-none disabled:opacity-50 font-bold"
           >
             <option value="Trimestre">Trimestre</option>
             <option value="Semestre">Semestre</option>
+            <option value="Séquence">Séquence</option>
+            <option value="Autre">Autre / Mois</option>
           </select>
           <select 
             value={periodSessionId}
@@ -771,12 +825,12 @@ export function AcademicSettings({
             onChange={(e) => setPeriodSessionId(e.target.value)}
             className="flex-1 bg-[#181924] border border-slate-700 text-white rounded-xl px-4 h-12 focus:outline-none disabled:opacity-50"
           >
-            <option value="">-- Année Scolaire --</option>
+            <option value="">-- Année Active (Par défaut) --</option>
             {initialSessions.map((s: any) => (
               <option key={s.id} value={s.id}>{s.sessionName}</option>
             ))}
           </select>
-          <Button onClick={handleCreatePeriod} disabled={isPending || !periodName || !canEdit} className="h-12 bg-teal-600 hover:bg-teal-700 text-white rounded-xl px-6 disabled:opacity-50">
+          <Button onClick={handleCreatePeriod} disabled={isPending || !periodName || !canEdit} className="h-12 bg-teal-600 hover:bg-teal-700 text-white rounded-xl px-6 disabled:opacity-50 font-bold">
             {editingPeriodId ? "Modifier" : "+ Ajouter"}
           </Button>
           {editingPeriodId && (

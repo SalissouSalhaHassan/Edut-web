@@ -394,7 +394,7 @@ export async function GET(request: NextRequest) {
         where: and(
           eq(studentResults.classId, classId),
           eq(studentResults.subjectId, subjectId),
-          eq(studentResults.sessionId, sessionId)
+          sessionId ? or(eq(studentResults.sessionId, sessionId), isNull(studentResults.sessionId)) : undefined
         )
       });
 
@@ -480,7 +480,7 @@ export async function GET(request: NextRequest) {
         where: and(
           eq(studentResults.classId, classId),
           eq(studentResults.subjectId, subjectId),
-          eq(studentResults.sessionId, sessionId)
+          sessionId ? or(eq(studentResults.sessionId, sessionId), isNull(studentResults.sessionId)) : undefined
         )
       });
 

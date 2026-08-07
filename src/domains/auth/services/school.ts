@@ -130,10 +130,9 @@ export async function getActiveSchoolId() {
   const school = await getCurrentSchool();
   if (school) return school.id;
 
-  // Fallback for Super Admin: if no school context, they might be on platform admin
   const user = await getCurrentUser();
-  if (user?.superAdmin) {
-    return user.schoolId || null;
+  if (user?.schoolId) {
+    return user.schoolId;
   }
 
   return null;
