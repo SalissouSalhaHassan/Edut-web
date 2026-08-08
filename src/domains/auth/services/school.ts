@@ -13,7 +13,20 @@ import { cache as redisCache } from "@/lib/redis";
  */
 export const getCurrentSchool = cache(async () => {
   const headerList = await headers();
-  const slug = headerList.get("x-school-slug");
+  let slug = headerList.get("x-school-slug");
+
+  // Fallback: extract subdomain slug directly from host header if missing
+  if (!slug) {
+    const host = headerList.get("x-forwarded-host") || headerList.get("host");
+    if (host && host.includes(".edut.pro")) {
+      const mainDomainPart = host.split(".edut.pro")[0];
+      const parts = mainDomainPart.split(".");
+      const candidateSlug = parts[parts.length - 1];
+      if (candidateSlug && candidateSlug !== "www" && candidateSlug !== "app") {
+        slug = candidateSlug;
+      }
+    }
+  }
 
   // 0. Check for Impersonation (Super Admin only)
   const user = await getCurrentUser();
