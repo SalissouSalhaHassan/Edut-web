@@ -2,6 +2,7 @@
 
 import { db, readDb, withTenant } from "@/infrastructure/database";
 import { getCurrentUser } from "@/domains/auth/services/session";
+import { getCurrentSchool, getActiveSchoolId } from "@/domains/auth/services/school";
 import {
   getActiveEducationalLevel,
   getCompatibleLevels,
