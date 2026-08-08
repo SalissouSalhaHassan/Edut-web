@@ -95,22 +95,21 @@ export function AcademicSettings({
   const [editAncienSolde, setEditAncienSolde] = useState("");
   const [editStatutInitial, setEditStatutInitial] = useState("");
   
-  // Period states
+  // Period states — default to "all" to immediately display all periods without filter gaps on refresh
   const [periodName, setPeriodName] = useState("");
   const [periodType, setPeriodType] = useState("Trimestre");
   const [periodSessionId, setPeriodSessionId] = useState("");
-  const [selectedPeriodSessionId, setSelectedPeriodSessionId] = useState<string>("");
+  const [selectedPeriodSessionId, setSelectedPeriodSessionId] = useState<string>("all");
   const [editingPeriodId, setEditingPeriodId] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!selectedPeriodSessionId && sessionsList && sessionsList.length > 0) {
+    if (sessionsList && sessionsList.length > 0) {
       const active = sessionsList.find((s: any) => s.isActive) || sessionsList[0];
-      if (active) {
-        setSelectedPeriodSessionId(active.id.toString());
+      if (active && (!periodSessionId || periodSessionId === "")) {
         setPeriodSessionId(active.id.toString());
       }
     }
-  }, [sessionsList, selectedPeriodSessionId]);
+  }, [sessionsList]);
 
   const [sectionName, setSectionName] = useState("");
   const [sectionLevel, setSectionLevel] = useState("");
@@ -927,9 +926,8 @@ export function AcademicSettings({
           {periodsList?.filter((p: any) => {
             if (!selectedPeriodSessionId || selectedPeriodSessionId === "all") return true;
             const pSid = (p.sessionId ?? p.session_id ?? p.session?.id)?.toString();
-            const activeSessionObj = sessionsList?.find((s: any) => s.isActive) || sessionsList?.[0];
-            const isSelectedActive = activeSessionObj && activeSessionObj.id?.toString() === selectedPeriodSessionId;
-            return pSid === selectedPeriodSessionId || (!pSid && isSelectedActive);
+            if (!pSid) return true;
+            return pSid === selectedPeriodSessionId;
           }).map((p: any) => (
             <div key={p.id} className={`flex items-center justify-between p-3 rounded-xl border ${editingPeriodId === p.id ? 'bg-teal-500/10 border-teal-500/50' : 'bg-[#181924] border-slate-800/50'}`}>
               <div className="flex items-center gap-3">
@@ -974,9 +972,8 @@ export function AcademicSettings({
           {(!periodsList || periodsList.filter((p: any) => {
             if (!selectedPeriodSessionId || selectedPeriodSessionId === "all") return true;
             const pSid = (p.sessionId ?? p.session_id ?? p.session?.id)?.toString();
-            const activeSessionObj = sessionsList?.find((s: any) => s.isActive) || sessionsList?.[0];
-            const isSelectedActive = activeSessionObj && activeSessionObj.id?.toString() === selectedPeriodSessionId;
-            return pSid === selectedPeriodSessionId || (!pSid && isSelectedActive);
+            if (!pSid) return true;
+            return pSid === selectedPeriodSessionId;
           }).length === 0) && (
             <div className="text-center p-6 text-slate-400 bg-[#181924]/50 rounded-2xl border border-dashed border-slate-800 text-sm space-y-2">
               <p>Aucune période définie pour cette année scolaire. Utilisez <strong className="text-teal-400 font-semibold">Génération rapide</strong> ou <strong className="text-teal-400 font-semibold">+ Ajouter</strong> ci-dessus.</p>
