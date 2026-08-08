@@ -834,8 +834,15 @@ export function AcademicSettings({
                   {s.sessionName} {s.isActive ? " (Active)" : ""}
                 </option>
               ))}
-            </select>
-          </div>
+        </div>
+
+        {/* DIAGNOSTIC PANEL FOR USER & DEBUGGING */}
+        <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs text-amber-300 font-mono space-y-1">
+          <p>🔍 [DIAGNOSTIC MODE] initialPeriods: {initialPeriods?.length ?? 0} | periodsList: {periodsList?.length ?? 0}</p>
+          <p>🔍 Filter Selected: "{selectedPeriodSessionId}" | sessionsList: {sessionsList?.map((s: any) => `${s.id}:${s.sessionName}`).join(", ")}</p>
+          {periodsList && periodsList.length > 0 && (
+            <p>🔍 Sample Period 0: ID={periodsList[0]?.id}, Name={periodsList[0]?.name}, SessionId={periodsList[0]?.sessionId ?? periodsList[0]?.session_id}, SchoolId={periodsList[0]?.schoolId ?? periodsList[0]?.school_id}</p>
+          )}
         </div>
 
         <div className="flex items-center justify-between flex-wrap gap-3 mb-6">
