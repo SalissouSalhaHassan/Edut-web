@@ -35,7 +35,10 @@ function normalizeDatabaseUrl(value: string | undefined) {
   return url || undefined;
 }
 
-const connectionString = normalizeDatabaseUrl(process.env.DATABASE_URL) || "postgres://postgres:postgres@localhost:5432/edut";
+const connectionString = 
+  normalizeDatabaseUrl(process.env.REMOTE_DATABASE_URL) || 
+  normalizeDatabaseUrl(process.env.DATABASE_URL) || 
+  "postgres://postgres.gkarotahjtyvmhjqejts:salissou1994S@aws-1-eu-central-2.pooler.supabase.com:6543/postgres";
 const readReplicaUrl = normalizeDatabaseUrl(process.env.READ_REPLICA_URL);
 
 // Log connection target for debugging (masking password)

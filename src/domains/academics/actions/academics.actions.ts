@@ -419,7 +419,7 @@ export async function getPeriods(sessionId?: number | null) {
     // FIXED: Use strict schoolId match only. Previously `isNull(schoolId)` caused
     // periods from other tenants (with NULL schoolId) to appear in this school's list,
     // making the dedup check think periods already exist when the table was empty.
-    if (!user?.superAdmin && schoolId) {
+    if (schoolId) {
       whereConditions.push(eq(academicPeriods.schoolId, schoolId));
     }
     if (sessionId) {
