@@ -2604,7 +2604,23 @@ export async function createPeriod(data: { name: string; periodType: string; ses
           console.warn("Select fallback error:", selErr);
         }
 
-        // Try fallback insert using user's direct schoolId (to satisfy Postgres RLS get_my_school_id policy)
+        // Direct Raw SQL Insert Fallback (bypasses ORM schema mismatches)
+        try {
+          console.log(`[createPeriod] Attempting Direct Raw SQL Insert fallback for school ${schoolId}...`);
+          const sqlRes = await dbClient.execute(sql`
+            INSERT INTO academic_periods (school_id, name, period_type, session_id, is_active)
+            VALUES (${schoolId}, ${trimmedName}, ${data.periodType}, ${targetSessionId}, true)
+            RETURNING *;
+          `);
+          const rawRows = sqlRes?.rows || sqlRes;
+          if (Array.isArray(rawRows) && rawRows.length > 0) {
+            return rawRows[0];
+          }
+        } catch (rawSqlErr) {
+          console.warn("Direct Raw SQL insert fallback failed:", rawSqlErr);
+        }
+
+        // Try fallback insert using user's direct schoolId
         if (user?.schoolId && user.schoolId !== schoolId) {
           console.warn(`[createPeriod] Retrying insert with user's DB schoolId (${user.schoolId}) instead of activeSchoolId (${schoolId})...`);
           try {
