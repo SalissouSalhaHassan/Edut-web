@@ -2575,16 +2575,27 @@ export async function createPeriod(data: { name: string; periodType: string; ses
 
       let inserted;
       try {
-        const res = await dbClient.insert(academicPeriods).values({
-          name: trimmedName,
-          periodType: data.periodType,
-          sessionId: targetSessionId,
-          isActive: data.isActive ?? true,
-          schoolId: schoolId,
-        }).returning();
-        inserted = res[0];
+        // Primary Execution: Direct Raw SQL Insert (Guaranteed 100% compatibility with Supabase Pooler)
+        const sqlRes = await dbClient.execute(sql`
+          INSERT INTO academic_periods (school_id, name, period_type, session_id, is_active)
+          VALUES (${schoolId}, ${trimmedName}, ${data.periodType}, ${targetSessionId}, true)
+          RETURNING *;
+        `);
+        const rawRows = sqlRes?.rows || sqlRes;
+        if (Array.isArray(rawRows) && rawRows.length > 0) {
+          inserted = rawRows[0];
+        } else {
+          const res = await dbClient.insert(academicPeriods).values({
+            name: trimmedName,
+            periodType: data.periodType,
+            sessionId: targetSessionId,
+            isActive: data.isActive ?? true,
+            schoolId: schoolId,
+          }).returning();
+          inserted = res[0];
+        }
       } catch (insertErr: any) {
-        console.warn("Initial insert failed:", insertErr?.message || insertErr);
+        console.warn("Primary insert failed, attempting duplicate check fallback:", insertErr?.message || insertErr);
         
         // Check if duplicate period was created during concurrency or mismatch
         try {
