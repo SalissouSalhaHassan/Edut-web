@@ -1,6 +1,6 @@
 "use server";
 
-import { db, readDb } from "@/infrastructure/database";
+import { db, readDb, withTenant } from "@/infrastructure/database";
 import { getCurrentUser } from "@/domains/auth/services/session";
 import {
   getActiveEducationalLevel,
@@ -2470,114 +2470,93 @@ export async function deleteSession(id: number) {
 
 // ─── Periods ─────────────────────────────────────────────────────────────────
 export async function createPeriod(data: { name: string; periodType: string; sessionId?: number | null; isActive?: boolean }) {
-  return protectedDbAction("Academics", "canEdit", async () => {
-    const schoolId = await getActiveSchoolId();
+  return protectedDbAction("Academics", "canEdit", async (user) => {
+    const activeSchoolId = await getActiveSchoolId();
+    const schoolId = activeSchoolId || user?.schoolId;
     let targetSessionId = data.sessionId || null;
-    // DIAGNOSTIC: log the resolved values for debugging
     console.log("[createPeriod] schoolId:", schoolId, "targetSessionId:", targetSessionId, "data.name:", data.name);
 
-    if (targetSessionId) {
-      // FIXED: Accept sessions that belong to this school OR have NULL school_id (global/shared sessions).
-      // Previously, strict eq(schoolId) caused validation to fail when getActiveSchoolId()
-      // returned a different value than the session's stored schoolId.
-      const sessionWhereConditions: any[] = [eq(schoolSessions.id, targetSessionId)];
-      if (schoolId) {
-        sessionWhereConditions.push(
-          or(eq(schoolSessions.schoolId, schoolId), isNull(schoolSessions.schoolId))
-        );
-      }
-      const validSessionRows = await db
-        .select()
-        .from(schoolSessions)
-        .where(and(...sessionWhereConditions))
-        .limit(1);
-      if (validSessionRows.length === 0) {
-        // Last-resort: try finding by ID alone (avoid blocking user if RLS / schoolId mismatch)
-        const sessionById = await db
+    const executeInsert = async (dbClient: any) => {
+      if (targetSessionId) {
+        const sessionWhereConditions: any[] = [eq(schoolSessions.id, targetSessionId)];
+        if (schoolId) {
+          sessionWhereConditions.push(
+            or(eq(schoolSessions.schoolId, schoolId), isNull(schoolSessions.schoolId))
+          );
+        }
+        const validSessionRows = await dbClient
           .select()
           .from(schoolSessions)
-          .where(eq(schoolSessions.id, targetSessionId))
+          .where(and(...sessionWhereConditions))
           .limit(1);
-        if (sessionById.length === 0) {
-          throw new Error(`Session ID ${targetSessionId} introuvable dans la base de données.`);
+        if (validSessionRows.length === 0) {
+          const sessionById = await dbClient
+            .select()
+            .from(schoolSessions)
+            .where(eq(schoolSessions.id, targetSessionId))
+            .limit(1);
+          if (sessionById.length === 0) {
+            throw new Error(`Session ID ${targetSessionId} introuvable dans la base de données.`);
+          }
+          console.warn("[createPeriod] Session trouvée par ID seulement.");
         }
-        console.warn("[createPeriod] Session trouvée par ID seulement (schoolId mismatch ignoré).");
-        // Proceed without throwing — session exists, just schoolId context differs
-      }
-    } else if (schoolId) {
-      const activeSessionRows = await db
-        .select()
-        .from(schoolSessions)
-        .where(and(
-          eq(schoolSessions.schoolId, schoolId),
-          eq(schoolSessions.isActive, true)
-        ))
-        .limit(1);
-      const sessionFallbackRows = activeSessionRows.length > 0 ? activeSessionRows : await db
-        .select()
-        .from(schoolSessions)
-        .where(eq(schoolSessions.schoolId, schoolId))
-        .limit(1);
-      if (sessionFallbackRows.length > 0) {
-        targetSessionId = sessionFallbackRows[0].id;
-      }
-    }
-
-    const trimmedName = data.name.trim();
-
-    // Check existing period to prevent duplicate creation
-    // FIXED: Only check by the EXACT schoolId of this school — never match NULL-schoolId rows
-    // from other tenants, which caused false "period already exists" errors.
-    try {
-      const duplicateCheckConditions: any[] = [
-        eq(academicPeriods.name, trimmedName),
-      ];
-      // Strict schoolId match: if we have a schoolId, only look within this school
-      if (schoolId) {
-        duplicateCheckConditions.push(eq(academicPeriods.schoolId, schoolId));
-      }
-      // Strict sessionId match: only look within the selected session
-      if (targetSessionId) {
-        duplicateCheckConditions.push(eq(academicPeriods.sessionId, targetSessionId));
+      } else if (schoolId) {
+        const activeSessionRows = await dbClient
+          .select()
+          .from(schoolSessions)
+          .where(and(
+            eq(schoolSessions.schoolId, schoolId),
+            eq(schoolSessions.isActive, true)
+          ))
+          .limit(1);
+        const sessionFallbackRows = activeSessionRows.length > 0 ? activeSessionRows : await dbClient
+          .select()
+          .from(schoolSessions)
+          .where(eq(schoolSessions.schoolId, schoolId))
+          .limit(1);
+        if (sessionFallbackRows.length > 0) {
+          targetSessionId = sessionFallbackRows[0].id;
+        }
       }
 
-      const existingRows = await db
-        .select()
-        .from(academicPeriods)
-        .where(and(...duplicateCheckConditions))
-        .limit(1);
+      const trimmedName = data.name.trim();
 
-      if (existingRows.length > 0) {
-        // Return existing row but signal it's not a new creation
-        console.log(`[createPeriod] Period "${trimmedName}" already exists (id=${existingRows[0].id}). Returning existing.`);
-        return { ...existingRows[0], _alreadyExisted: true };
-      }
-    } catch (e) {
-      console.warn("Check existing period warning:", e);
-    }
-
-    // Sync sequence to MAX(id) before insertion to prevent primary key sequence collisions
-    try {
-      await db.execute(sql`SELECT setval(pg_get_serial_sequence('academic_periods', 'id'), COALESCE((SELECT MAX(id) FROM academic_periods), 1));`);
-    } catch (e) {
-      console.warn("Sequence sync warning:", e);
-    }
-
-    let inserted;
-    try {
-      const res = await db.insert(academicPeriods).values({
-        name: trimmedName,
-        periodType: data.periodType,
-        sessionId: targetSessionId,
-        isActive: data.isActive ?? true,
-        schoolId: schoolId,
-      }).returning();
-      inserted = res[0];
-    } catch (insertErr: any) {
-      console.warn("Initial insert failed, attempting fallback recovery:", insertErr);
+      // Check existing period to prevent duplicate creation
       try {
-        await db.execute(sql`SELECT setval(pg_get_serial_sequence('academic_periods', 'id'), COALESCE((SELECT MAX(id) + 1 FROM academic_periods), 1), false);`);
-        const res = await db.insert(academicPeriods).values({
+        const duplicateCheckConditions: any[] = [
+          eq(academicPeriods.name, trimmedName),
+        ];
+        if (schoolId) {
+          duplicateCheckConditions.push(eq(academicPeriods.schoolId, schoolId));
+        }
+        if (targetSessionId) {
+          duplicateCheckConditions.push(eq(academicPeriods.sessionId, targetSessionId));
+        }
+
+        const existingRows = await dbClient
+          .select()
+          .from(academicPeriods)
+          .where(and(...duplicateCheckConditions))
+          .limit(1);
+
+        if (existingRows.length > 0) {
+          console.log(`[createPeriod] Period "${trimmedName}" already exists (id=${existingRows[0].id}). Returning existing.`);
+          return { ...existingRows[0], _alreadyExisted: true };
+        }
+      } catch (e) {
+        console.warn("Check existing period warning:", e);
+      }
+
+      // Sync sequence to MAX(id) before insertion
+      try {
+        await dbClient.execute(sql`SELECT setval(pg_get_serial_sequence('academic_periods', 'id'), COALESCE((SELECT MAX(id) FROM academic_periods), 1));`);
+      } catch (e) {
+        console.warn("Sequence sync warning:", e);
+      }
+
+      let inserted;
+      try {
+        const res = await dbClient.insert(academicPeriods).values({
           name: trimmedName,
           periodType: data.periodType,
           sessionId: targetSessionId,
@@ -2585,27 +2564,50 @@ export async function createPeriod(data: { name: string; periodType: string; ses
           schoolId: schoolId,
         }).returning();
         inserted = res[0];
-      } catch (retryErr) {
-        const existingRows = await db
-          .select()
-          .from(academicPeriods)
-          .where(and(
-            eq(academicPeriods.name, trimmedName),
-            targetSessionId ? eq(academicPeriods.sessionId, targetSessionId) : undefined
-          ))
-          .limit(1);
-        if (existingRows.length > 0) {
-          return existingRows[0];
+      } catch (insertErr: any) {
+        console.warn("Initial insert failed, attempting fallback recovery:", insertErr);
+        try {
+          await dbClient.execute(sql`SELECT setval(pg_get_serial_sequence('academic_periods', 'id'), COALESCE((SELECT MAX(id) + 1 FROM academic_periods), 1), false);`);
+          const res = await dbClient.insert(academicPeriods).values({
+            name: trimmedName,
+            periodType: data.periodType,
+            sessionId: targetSessionId,
+            isActive: data.isActive ?? true,
+            schoolId: schoolId,
+          }).returning();
+          inserted = res[0];
+        } catch (retryErr) {
+          try {
+            const existingRows = await dbClient
+              .select()
+              .from(academicPeriods)
+              .where(and(
+                eq(academicPeriods.name, trimmedName),
+                targetSessionId ? eq(academicPeriods.sessionId, targetSessionId) : undefined
+              ))
+              .limit(1);
+            if (existingRows.length > 0) {
+              return existingRows[0];
+            }
+          } catch (selErr) {
+            console.warn("Select fallback error:", selErr);
+          }
+          throw retryErr;
         }
-        throw retryErr;
       }
-    }
 
-    revalidatePath("/dashboard/settings");
-    revalidatePath("/dashboard/academics");
-    revalidatePath("/dashboard/academics/grades");
-    revalidateTag(ACADEMICS_CACHE_TAG);
-    return inserted;
+      revalidatePath("/dashboard/settings");
+      revalidatePath("/dashboard/academics");
+      revalidatePath("/dashboard/academics/grades");
+      revalidateTag(ACADEMICS_CACHE_TAG);
+      return inserted;
+    };
+
+    if (schoolId) {
+      return await withTenant(schoolId, (tx) => executeInsert(tx));
+    } else {
+      return await executeInsert(db);
+    }
   });
 }
 
