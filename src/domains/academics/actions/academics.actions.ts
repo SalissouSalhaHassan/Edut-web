@@ -2547,11 +2547,11 @@ export async function createPeriod(data: { name: string; periodType: string; ses
         console.warn("Check existing period warning:", e);
       }
 
-      // Sync sequence to MAX(id) before insertion
+      // Sync sequence to MAX(id) before insertion (safeguarded)
       try {
         await dbClient.execute(sql`SELECT setval(pg_get_serial_sequence('academic_periods', 'id'), COALESCE((SELECT MAX(id) FROM academic_periods), 1));`);
       } catch (e) {
-        console.warn("Sequence sync warning:", e);
+        console.warn("Sequence sync warning (ignored due to RLS/permission):", e);
       }
 
       let inserted;
@@ -2565,34 +2565,40 @@ export async function createPeriod(data: { name: string; periodType: string; ses
         }).returning();
         inserted = res[0];
       } catch (insertErr: any) {
-        console.warn("Initial insert failed, attempting fallback recovery:", insertErr);
+        console.warn("Initial insert failed:", insertErr?.message || insertErr);
+        
+        // Check if duplicate period was created during concurrency or mismatch
+        try {
+          const existingRows = await dbClient
+            .select()
+            .from(academicPeriods)
+            .where(and(
+              eq(academicPeriods.name, trimmedName),
+              schoolId ? eq(academicPeriods.schoolId, schoolId) : undefined,
+              targetSessionId ? eq(academicPeriods.sessionId, targetSessionId) : undefined
+            ))
+            .limit(1);
+          if (existingRows.length > 0) {
+            return { ...existingRows[0], _alreadyExisted: true };
+          }
+        } catch (selErr) {
+          console.warn("Select fallback error:", selErr);
+        }
+
+        // Try one sequence sync with silence on error
         try {
           await dbClient.execute(sql`SELECT setval(pg_get_serial_sequence('academic_periods', 'id'), COALESCE((SELECT MAX(id) + 1 FROM academic_periods), 1), false);`);
-          const res = await dbClient.insert(academicPeriods).values({
+          const retryRes = await dbClient.insert(academicPeriods).values({
             name: trimmedName,
             periodType: data.periodType,
             sessionId: targetSessionId,
             isActive: data.isActive ?? true,
             schoolId: schoolId,
           }).returning();
-          inserted = res[0];
-        } catch (retryErr) {
-          try {
-            const existingRows = await dbClient
-              .select()
-              .from(academicPeriods)
-              .where(and(
-                eq(academicPeriods.name, trimmedName),
-                targetSessionId ? eq(academicPeriods.sessionId, targetSessionId) : undefined
-              ))
-              .limit(1);
-            if (existingRows.length > 0) {
-              return existingRows[0];
-            }
-          } catch (selErr) {
-            console.warn("Select fallback error:", selErr);
-          }
-          throw retryErr;
+          inserted = retryRes[0];
+        } catch (retryErr: any) {
+          console.error("Retry insert also failed:", retryErr?.message || retryErr);
+          throw new Error(insertErr?.message || retryErr?.message || "Erreur lors de l'insertion de la période");
         }
       }
 
