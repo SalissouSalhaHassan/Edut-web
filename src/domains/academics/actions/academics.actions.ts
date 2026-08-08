@@ -2477,30 +2477,34 @@ export async function createPeriod(data: { name: string; periodType: string; ses
     console.log("[createPeriod] schoolId:", schoolId, "targetSessionId:", targetSessionId, "data.name:", data.name);
 
     const executeInsert = async (dbClient: any) => {
-      if (targetSessionId) {
-        const sessionWhereConditions: any[] = [eq(schoolSessions.id, targetSessionId)];
-        if (schoolId) {
-          sessionWhereConditions.push(
-            or(eq(schoolSessions.schoolId, schoolId), isNull(schoolSessions.schoolId))
-          );
-        }
-        const validSessionRows = await dbClient
+      // Strict Session Validation: Ensure targetSessionId belongs to current schoolId
+      if (targetSessionId && schoolId) {
+        const matchingSession = await dbClient
           .select()
           .from(schoolSessions)
-          .where(and(...sessionWhereConditions))
+          .where(and(
+            eq(schoolSessions.id, targetSessionId),
+            or(eq(schoolSessions.schoolId, schoolId), isNull(schoolSessions.schoolId))
+          ))
           .limit(1);
-        if (validSessionRows.length === 0) {
-          const sessionById = await dbClient
+
+        if (matchingSession.length === 0) {
+          console.warn(`[createPeriod] Session ${targetSessionId} does not belong to school ${schoolId}. Finding correct session for school...`);
+          const schoolSession = await dbClient
             .select()
             .from(schoolSessions)
-            .where(eq(schoolSessions.id, targetSessionId))
+            .where(eq(schoolSessions.schoolId, schoolId))
             .limit(1);
-          if (sessionById.length === 0) {
-            throw new Error(`Session ID ${targetSessionId} introuvable dans la base de données.`);
+          
+          if (schoolSession.length > 0) {
+            targetSessionId = schoolSession[0].id;
+          } else {
+            targetSessionId = null;
           }
-          console.warn("[createPeriod] Session trouvée par ID seulement.");
         }
-      } else if (schoolId) {
+      }
+
+      if (!targetSessionId && schoolId) {
         const activeSessionRows = await dbClient
           .select()
           .from(schoolSessions)
@@ -2514,8 +2518,23 @@ export async function createPeriod(data: { name: string; periodType: string; ses
           .from(schoolSessions)
           .where(eq(schoolSessions.schoolId, schoolId))
           .limit(1);
+        
         if (sessionFallbackRows.length > 0) {
           targetSessionId = sessionFallbackRows[0].id;
+        } else {
+          // Auto-create active school session if school has none
+          const currentYear = new Date().getFullYear();
+          const defaultSessionName = `${currentYear}-${currentYear + 1}`;
+          console.log(`[createPeriod] Auto-creating initial school session "${defaultSessionName}" for school ${schoolId}`);
+          const newSessionRes = await dbClient.insert(schoolSessions).values({
+            schoolId: schoolId,
+            sessionName: defaultSessionName,
+            isActive: true,
+            status: "Actif"
+          }).returning();
+          if (newSessionRes.length > 0) {
+            targetSessionId = newSessionRes[0].id;
+          }
         }
       }
 
