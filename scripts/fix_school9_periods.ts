@@ -30,13 +30,19 @@ async function fixPeriodsForSchool9() {
     console.log("Updated session 10 to belong to school 9 and set is_active = true!");
     }
 
-    // 2. Insert standard Semestres & Trimestres for School 9 & Session 10
+    // 2. Insert standard Semestres, Trimestres & Sequences for School 9 & Session 10
     const periodsToEnsure = [
       { name: "1er Semestre", type: "Semestre" },
       { name: "2ème Semestre", type: "Semestre" },
       { name: "1er Trimestre", type: "Trimestre" },
       { name: "2ème Trimestre", type: "Trimestre" },
       { name: "3ème Trimestre", type: "Trimestre" },
+      { name: "1ère Séquence", type: "Séquence" },
+      { name: "2ème Séquence", type: "Séquence" },
+      { name: "3ème Séquence", type: "Séquence" },
+      { name: "4ème Séquence", type: "Séquence" },
+      { name: "5ème Séquence", type: "Séquence" },
+      { name: "6ème Séquence", type: "Séquence" },
     ];
 
     for (const p of periodsToEnsure) {
