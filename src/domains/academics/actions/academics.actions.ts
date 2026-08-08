@@ -408,18 +408,16 @@ export async function getSubjects() {
 
 export async function getPeriods(sessionId?: number | null) {
   try {
+    const currentSchool = await getCurrentSchool().catch(() => null);
     const user = await getCurrentUser().catch(() => null);
     const activeSchoolId = await getActiveSchoolId().catch(() => null);
-    const schoolId = activeSchoolId || user?.schoolId;
+    const schoolId = currentSchool?.id || activeSchoolId || user?.schoolId;
 
-    console.log("🔍 [DIAGNOSTIC getPeriods] User:", user?.id, "IsSuperAdmin:", user?.superAdmin, "SchoolId:", schoolId, "ActiveSchoolId:", activeSchoolId, "SessionId Filter:", sessionId);
+    console.log("🔍 [DIAGNOSTIC getPeriods] CurrentSchool:", currentSchool?.id, currentSchool?.slug, "User:", user?.id, "SchoolId:", schoolId);
 
     const whereConditions: any[] = [];
     
-    // FIXED: Use strict schoolId match only. Previously `isNull(schoolId)` caused
-    // periods from other tenants (with NULL schoolId) to appear in this school's list,
-    // making the dedup check think periods already exist when the table was empty.
-    if (!user?.superAdmin && schoolId) {
+    if (schoolId) {
       whereConditions.push(or(eq(academicPeriods.schoolId, schoolId), isNull(academicPeriods.schoolId)));
     }
     if (sessionId) {
