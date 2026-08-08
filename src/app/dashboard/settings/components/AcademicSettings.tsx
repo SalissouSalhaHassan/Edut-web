@@ -834,6 +834,8 @@ export function AcademicSettings({
                   {s.sessionName} {s.isActive ? " (Active)" : ""}
                 </option>
               ))}
+            </select>
+          </div>
         </div>
 
         {/* DIAGNOSTIC PANEL FOR USER & DEBUGGING */}
