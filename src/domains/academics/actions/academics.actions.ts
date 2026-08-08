@@ -39,7 +39,6 @@ const ACADEMICS_CACHE_TAG = "academics-cache";
 const LOCKED_RESULT_WORKFLOW_STATUSES = ["VERROUILLE", "PUBLIE", "ARCHIVE"];
 const RESULT_WORKFLOW_LOCK_MESSAGE = "Les résultats sont verrouillés, publiés ou archivés. Modification interdite.";
 import { protectedDbAction } from "@/lib/protected-action";
-import { getActiveSchoolId } from "@/domains/auth/services/school";
 
 async function assertResultsWorkflowEditable(params: {
   classId: number;
