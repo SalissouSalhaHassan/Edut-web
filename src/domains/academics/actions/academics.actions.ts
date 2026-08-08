@@ -460,16 +460,19 @@ export async function getPeriods(sessionId?: number | null) {
 
 export async function getSessions() {
   try {
+    const currentSchool = await getCurrentSchool().catch(() => null);
     const user = await getCurrentUser().catch(() => null);
     const activeSchoolId = await getActiveSchoolId().catch(() => null);
-    const schoolId = activeSchoolId || user?.schoolId;
+    const schoolId = currentSchool?.id || activeSchoolId || user?.schoolId;
     
+    const whereClause = schoolId 
+      ? or(eq(schoolSessions.schoolId, schoolId), isNull(schoolSessions.schoolId))
+      : undefined;
+
     const sessions = await db
       .select()
       .from(schoolSessions)
-      .where((!user?.superAdmin && schoolId)
-        ? or(eq(schoolSessions.schoolId, schoolId), isNull(schoolSessions.schoolId))
-        : undefined)
+      .where(whereClause)
       .orderBy(schoolSessions.sessionName);
 
     return { success: true, data: sessions };
