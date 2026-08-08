@@ -425,31 +425,12 @@ export async function getPeriods(sessionId?: number | null) {
     }
 
     const periods = await db
-      .select({
-        id: academicPeriods.id,
-        schoolId: academicPeriods.schoolId,
-        name: academicPeriods.name,
-        periodType: academicPeriods.periodType,
-        startDate: academicPeriods.startDate,
-        endDate: academicPeriods.endDate,
-        gradesDeadline: academicPeriods.gradesDeadline,
-        isLocked: academicPeriods.isLocked,
-        sessionId: academicPeriods.sessionId,
-        isActive: academicPeriods.isActive,
-        createdAt: academicPeriods.createdAt,
-        session: {
-          id: schoolSessions.id,
-          sessionName: schoolSessions.sessionName,
-          schoolId: schoolSessions.schoolId,
-          isActive: schoolSessions.isActive,
-        }
-      })
+      .select()
       .from(academicPeriods)
-      .leftJoin(schoolSessions, eq(academicPeriods.sessionId, schoolSessions.id))
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
       .orderBy(academicPeriods.name);
 
-    console.log("🔍 [DIAGNOSTIC getPeriods] Fetched periods count:", periods?.length, "Sample:", periods?.[0]);
+    console.log("🔍 [DIAGNOSTIC getPeriods] Fetched periods count:", periods?.length);
 
     return { success: true, data: periods };
   } catch (error: any) {
