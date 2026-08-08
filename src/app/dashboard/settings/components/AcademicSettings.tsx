@@ -227,19 +227,24 @@ export function AcademicSettings({
         });
         if (res.success) {
           const createdObj = (res.data as any)?.data || res.data;
-          if (createdObj && createdObj.id) {
+          const alreadyExisted = (createdObj as any)?._alreadyExisted === true;
+          if (createdObj && createdObj.id && !alreadyExisted) {
             const sessionObj = sessionsList?.find((s: any) => s.id === targetSessionId);
             const fullObj = { ...createdObj, sessionId: createdObj.sessionId ?? createdObj.session_id ?? targetSessionId, session_id: createdObj.session_id ?? createdObj.sessionId ?? targetSessionId, session: sessionObj };
             setPeriodsList((prev: any[]) => {
               const exists = prev.some((p: any) => p.id === fullObj.id);
               return exists ? prev : [...prev, fullObj];
             });
-            toast.success(`Période / Séquence "${createdObj.name || periodName}" enregistrée avec succès`);
+            toast.success(`Période / Séquence "${createdObj.name || periodName}" créée avec succès`);
+            setPeriodName("");
+            router.refresh();
+          } else if (alreadyExisted) {
+            toast.warning(`La période "${periodName}" existe déjà pour cette année scolaire.`);
           } else {
             toast.success(`Période / Séquence "${periodName}" créée avec succès`);
+            setPeriodName("");
+            router.refresh();
           }
-          setPeriodName("");
-          router.refresh();
         } else {
           toast.error(res.error || "Erreur lors de la création de la période");
         }
@@ -299,58 +304,51 @@ export function AcademicSettings({
         return;
       }
 
-      const normStr = (str: string) => {
-        if (!str) return "";
-        return str
-          .toLowerCase()
-          .trim()
-          .replace(/semester/g, "semestre")
-          .replace(/è/g, "e")
-          .replace(/é/g, "e")
-          .replace(/ê/g, "e")
-          .replace(/1ère/g, "1er")
-          .replace(/1ere/g, "1er")
-          .replace(/s$/g, "");
-      };
+      // FIXED: Remove the pre-check against local `periodsList` state which can be stale
+      // (e.g., loaded from another school or outdated). The server-side `createPeriod` now
+      // handles deduplication correctly and returns `_alreadyExisted: true` for existing periods.
+      let countCreated = 0;
+      let countSkipped = 0;
 
-      let count = 0;
       for (const p of periodsToCreate) {
-        const exists = periodsList?.some((ip: any) => {
-          const ipSid = ip.sessionId ?? ip.session_id ?? ip.session?.id;
-          const isSameSession = ipSid && Number(ipSid) === Number(sid);
-          const normIp = normStr(ip.name);
-          const normP = normStr(p.name);
-          return isSameSession && (normIp === normP || normIp.includes(normP) || normP.includes(normIp));
+        const res = await createPeriod({
+          name: p.name,
+          periodType: p.periodType,
+          sessionId: sid,
+          isActive: true,
         });
-
-        if (!exists) {
-          const res = await createPeriod({
-            name: p.name,
-            periodType: p.periodType,
-            sessionId: sid,
-            isActive: true,
-          });
-          if (res.success) {
-            const createdObj = (res.data as any)?.data || res.data;
-            if (createdObj && createdObj.id) {
-              const sessionObj = sessionsList?.find((s: any) => s.id === sid);
-              const fullObj = { ...createdObj, sessionId: createdObj.sessionId ?? createdObj.session_id ?? sid, session_id: createdObj.session_id ?? createdObj.sessionId ?? sid, session: sessionObj };
-              setPeriodsList((prev: any[]) => {
-                const existsInPrev = prev.some((item: any) => item.id === fullObj.id);
-                return existsInPrev ? prev : [...prev, fullObj];
-              });
-              count++;
-            }
+        if (res.success) {
+          const createdObj = (res.data as any)?.data || res.data;
+          const alreadyExisted = (createdObj as any)?._alreadyExisted === true;
+          if (createdObj && createdObj.id && !alreadyExisted) {
+            const sessionObj = sessionsList?.find((s: any) => s.id === sid);
+            const fullObj = { 
+              ...createdObj, 
+              sessionId: createdObj.sessionId ?? createdObj.session_id ?? sid, 
+              session_id: createdObj.session_id ?? createdObj.sessionId ?? sid, 
+              session: sessionObj 
+            };
+            setPeriodsList((prev: any[]) => {
+              const existsInPrev = prev.some((item: any) => item.id === fullObj.id);
+              return existsInPrev ? prev : [...prev, fullObj];
+            });
+            countCreated++;
+          } else {
+            countSkipped++;
           }
         }
       }
 
-      if (count > 0) {
-        toast.success(`${count} nouvelle(s) période(s) générée(s) avec succès !`);
+      if (countCreated > 0) {
+        toast.success(`${countCreated} nouvelle(s) période(s) générée(s) avec succès !${
+          countSkipped > 0 ? ` (${countSkipped} déjà existante(s) ignorée(s))` : ""
+        }`);
+        router.refresh();
+      } else if (countSkipped > 0) {
+        toast.info("Toutes les périodes sélectionnées existent déjà pour cette année scolaire.");
       } else {
-        toast.info("Les périodes pour l'année scolaire sélectionnée existent déjà.");
+        toast.warning("Aucune période n'a pu être créée. Vérifiez votre connexion.");
       }
-      router.refresh();
     });
   };
 

@@ -416,8 +416,11 @@ export async function getPeriods(sessionId?: number | null) {
 
     const whereConditions: any[] = [];
     
+    // FIXED: Use strict schoolId match only. Previously `isNull(schoolId)` caused
+    // periods from other tenants (with NULL schoolId) to appear in this school's list,
+    // making the dedup check think periods already exist when the table was empty.
     if (!user?.superAdmin && schoolId) {
-      whereConditions.push(or(eq(academicPeriods.schoolId, schoolId), isNull(academicPeriods.schoolId)));
+      whereConditions.push(eq(academicPeriods.schoolId, schoolId));
     }
     if (sessionId) {
       whereConditions.push(eq(academicPeriods.sessionId, sessionId));
@@ -2505,23 +2508,31 @@ export async function createPeriod(data: { name: string; periodType: string; ses
     const trimmedName = data.name.trim();
 
     // Check existing period to prevent duplicate creation
+    // FIXED: Only check by the EXACT schoolId of this school — never match NULL-schoolId rows
+    // from other tenants, which caused false "period already exists" errors.
     try {
-      const existingConditions = [
+      const duplicateCheckConditions: any[] = [
         eq(academicPeriods.name, trimmedName),
-        schoolId ? or(eq(academicPeriods.schoolId, schoolId), isNull(academicPeriods.schoolId)) : isNull(academicPeriods.schoolId)
       ];
+      // Strict schoolId match: if we have a schoolId, only look within this school
+      if (schoolId) {
+        duplicateCheckConditions.push(eq(academicPeriods.schoolId, schoolId));
+      }
+      // Strict sessionId match: only look within the selected session
       if (targetSessionId) {
-        existingConditions.push(eq(academicPeriods.sessionId, targetSessionId));
+        duplicateCheckConditions.push(eq(academicPeriods.sessionId, targetSessionId));
       }
 
       const existingRows = await db
         .select()
         .from(academicPeriods)
-        .where(and(...existingConditions))
+        .where(and(...duplicateCheckConditions))
         .limit(1);
 
       if (existingRows.length > 0) {
-        return existingRows[0];
+        // Return existing row but signal it's not a new creation
+        console.log(`[createPeriod] Period "${trimmedName}" already exists (id=${existingRows[0].id}). Returning existing.`);
+        return { ...existingRows[0], _alreadyExisted: true };
       }
     } catch (e) {
       console.warn("Check existing period warning:", e);
