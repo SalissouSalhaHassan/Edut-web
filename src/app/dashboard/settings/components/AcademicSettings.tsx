@@ -309,6 +309,7 @@ export function AcademicSettings({
       // handles deduplication correctly and returns `_alreadyExisted: true` for existing periods.
       let countCreated = 0;
       let countSkipped = 0;
+      const errors: string[] = [];
 
       for (const p of periodsToCreate) {
         const res = await createPeriod({
@@ -336,6 +337,11 @@ export function AcademicSettings({
           } else {
             countSkipped++;
           }
+        } else {
+          // Collect the real error message for diagnostic feedback
+          const errMsg = res.error || `Erreur inconnue pour "${p.name}"`;
+          errors.push(errMsg);
+          console.error(`[Génération rapide] Failed "${p.name}":`, errMsg);
         }
       }
 
@@ -346,8 +352,12 @@ export function AcademicSettings({
         router.refresh();
       } else if (countSkipped > 0) {
         toast.info("Toutes les périodes sélectionnées existent déjà pour cette année scolaire.");
+      } else if (errors.length > 0) {
+        // Show the first real error so the user knows what's wrong
+        const uniqueErrors = [...new Set(errors)];
+        toast.error(`Échec de la génération : ${uniqueErrors[0]}`, { duration: 8000 });
       } else {
-        toast.warning("Aucune période n'a pu être créée. Vérifiez votre connexion.");
+        toast.warning("Aucune période n'a pu être créée.");
       }
     });
   };
