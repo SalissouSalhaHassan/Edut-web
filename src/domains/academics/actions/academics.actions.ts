@@ -2604,6 +2604,25 @@ export async function createPeriod(data: { name: string; periodType: string; ses
           console.warn("Select fallback error:", selErr);
         }
 
+        // Try fallback insert using user's direct schoolId (to satisfy Postgres RLS get_my_school_id policy)
+        if (user?.schoolId && user.schoolId !== schoolId) {
+          console.warn(`[createPeriod] Retrying insert with user's DB schoolId (${user.schoolId}) instead of activeSchoolId (${schoolId})...`);
+          try {
+            const userSchoolRes = await dbClient.insert(academicPeriods).values({
+              name: trimmedName,
+              periodType: data.periodType,
+              sessionId: targetSessionId,
+              isActive: data.isActive ?? true,
+              schoolId: user.schoolId,
+            }).returning();
+            if (userSchoolRes.length > 0) {
+              return userSchoolRes[0];
+            }
+          } catch (userSchoolErr) {
+            console.warn("User schoolId fallback insert failed:", userSchoolErr);
+          }
+        }
+
         // Try one sequence sync with silence on error
         try {
           await dbClient.execute(sql`SELECT setval(pg_get_serial_sequence('academic_periods', 'id'), COALESCE((SELECT MAX(id) + 1 FROM academic_periods), 1), false);`);
