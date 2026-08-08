@@ -170,18 +170,28 @@ export async function saveBatchExamResults(formData: BatchExamResultFormData) {
       return { error: "Accès refusé. Vous n'êtes pas autorisé à modifier ces résultats." };
     }
 
-    // Verify Period Lock & Freeze Status (congelation des notes)
+    // Verify Period Lock & Freeze Status (congelation automatique par dates et statut)
     if (exam.periodId) {
       const period = await db.query.academicPeriods.findFirst({
         where: eq(academicPeriods.id, exam.periodId)
       });
       if (period) {
         const isLocked = Boolean(period.isLocked);
-        const isExpired = period.gradesDeadline ? new Date() > new Date(period.gradesDeadline) : false;
-        if (isLocked || isExpired) {
-          return {
-            error: "🔒 Cette période d'évaluation est verrouillée ou congelée. La saisie et modification des notes est désactivée par l'administration."
-          };
+        const now = new Date();
+        
+        // Date checks
+        const notStartedYet = period.startDate ? now < new Date(period.startDate) : false;
+        const isEnded = period.endDate ? now > new Date(period.endDate) : false;
+        const isDeadlineExpired = period.gradesDeadline ? now > new Date(period.gradesDeadline) : false;
+
+        if (isLocked) {
+          return { error: "🔒 Cette période d'évaluation est verrouillée manuellement par l'administration. La saisie des notes est congelée." };
+        }
+        if (notStartedYet) {
+          return { error: "⏳ La période d'évaluation n'a pas encore commencé. La saisie des notes s'ouvrira à la date de début prévue." };
+        }
+        if (isEnded || isDeadlineExpired) {
+          return { error: "🔒 La période d'évaluation est expirée ou clôturée (Date de fin dépassée). La saisie et la modification des notes sont congelées." };
         }
       }
     }

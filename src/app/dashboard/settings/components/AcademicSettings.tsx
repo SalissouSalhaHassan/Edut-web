@@ -939,8 +939,16 @@ export function AcademicSettings({
             return pSid === selectedPeriodSessionId;
           }).map((p: any) => {
             const isLocked = Boolean(p.isLocked || p.is_locked);
+            const now = new Date();
+            const startDate = p.startDate || p.start_date ? new Date(p.startDate || p.start_date) : null;
+            const endDate = p.endDate || p.end_date ? new Date(p.endDate || p.end_date) : null;
+
+            const isNotStarted = startDate ? now < startDate : false;
+            const isEnded = endDate ? now > endDate : false;
+            const isFrozen = isLocked || isEnded;
+
             return (
-              <div key={p.id} className={`flex items-center justify-between p-3.5 rounded-xl border transition-all ${isLocked ? 'bg-rose-500/5 border-rose-500/30' : editingPeriodId === p.id ? 'bg-teal-500/10 border-teal-500/50' : 'bg-[#181924] border-slate-800/50'}`}>
+              <div key={p.id} className={`flex items-center justify-between p-3.5 rounded-xl border transition-all ${isFrozen ? 'bg-rose-500/5 border-rose-500/30' : isNotStarted ? 'bg-amber-500/5 border-amber-500/30' : editingPeriodId === p.id ? 'bg-teal-500/10 border-teal-500/50' : 'bg-[#181924] border-slate-800/50'}`}>
                 <div className="flex items-center gap-3">
                   <span className="text-slate-200 font-bold text-sm">{p.name}</span>
                   <span className="text-[10px] uppercase font-black tracking-widest text-teal-400 bg-teal-500/10 px-2.5 py-1 rounded-md">{p.periodType || p.period_type}</span>
@@ -951,7 +959,15 @@ export function AcademicSettings({
                   )}
                   {isLocked ? (
                     <span className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2.5 py-0.5 rounded-full">
-                      <Lock size={11} /> Verrouillée (Congelée)
+                      <Lock size={11} /> Verrouillée (Gélée)
+                    </span>
+                  ) : isEnded ? (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2.5 py-0.5 rounded-full">
+                      <Lock size={11} /> Clôturée (Fin dépassée)
+                    </span>
+                  ) : isNotStarted ? (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-0.5 rounded-full">
+                      ⏳ À venir (Fermée)
                     </span>
                   ) : (
                     <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-full">

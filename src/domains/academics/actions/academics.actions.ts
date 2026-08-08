@@ -2677,7 +2677,7 @@ export async function createPeriod(data: { name: string; periodType: string; ses
   });
 }
 
-export async function updatePeriod(id: number, data: { name: string; periodType: string; sessionId?: number | null; isActive?: boolean; isLocked?: boolean; gradesDeadline?: Date | null }) {
+export async function updatePeriod(id: number, data: { name: string; periodType: string; sessionId?: number | null; isActive?: boolean; isLocked?: boolean; gradesDeadline?: Date | string | null; startDate?: Date | string | null; endDate?: Date | string | null }) {
   return protectedDbAction("Academics", "canEdit", async () => {
     const schoolId = await getActiveSchoolId();
     let targetSessionId = data.sessionId || null;
@@ -2702,7 +2702,9 @@ export async function updatePeriod(id: number, data: { name: string; periodType:
       sessionId: targetSessionId,
       isActive: data.isActive ?? true,
       ...(data.isLocked !== undefined ? { isLocked: data.isLocked } : {}),
-      ...(data.gradesDeadline !== undefined ? { gradesDeadline: data.gradesDeadline } : {}),
+      ...(data.gradesDeadline !== undefined ? { gradesDeadline: data.gradesDeadline ? new Date(data.gradesDeadline) : null } : {}),
+      ...(data.startDate !== undefined ? { startDate: data.startDate ? new Date(data.startDate) : null } : {}),
+      ...(data.endDate !== undefined ? { endDate: data.endDate ? new Date(data.endDate) : null } : {}),
     }).where(
       and(
         eq(academicPeriods.id, id),
