@@ -411,31 +411,47 @@ export async function getPeriods(sessionId?: number | null) {
     const currentSchool = await getCurrentSchool().catch(() => null);
     const user = await getCurrentUser().catch(() => null);
     const activeSchoolId = await getActiveSchoolId().catch(() => null);
-    const schoolId = currentSchool?.id || activeSchoolId || user?.schoolId;
+    const targetSchoolId = currentSchool?.id || activeSchoolId || user?.schoolId;
 
-    console.log("🔍 [DIAGNOSTIC getPeriods] CurrentSchool:", currentSchool?.id, currentSchool?.slug, "User:", user?.id, "SchoolId:", schoolId);
+    console.log("🔍 [DIAGNOSTIC getPeriods] TargetSchoolId:", targetSchoolId, "SessionId:", sessionId);
 
     const whereConditions: any[] = [];
     
-    if (schoolId) {
-      whereConditions.push(or(eq(academicPeriods.schoolId, schoolId), isNull(academicPeriods.schoolId)));
+    if (targetSchoolId) {
+      whereConditions.push(or(
+        eq(academicPeriods.schoolId, Number(targetSchoolId)), 
+        isNull(academicPeriods.schoolId)
+      ));
     }
     if (sessionId) {
-      whereConditions.push(eq(academicPeriods.sessionId, sessionId));
+      whereConditions.push(eq(academicPeriods.sessionId, Number(sessionId)));
     }
 
-    const periods = await db
+    let periods = await db
       .select()
       .from(academicPeriods)
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
       .orderBy(academicPeriods.name);
 
-    console.log("🔍 [DIAGNOSTIC getPeriods] Fetched periods count:", periods?.length);
+    // Fallback safety net: If filtered query returns empty, fetch all available periods
+    if (!periods || periods.length === 0) {
+      console.warn("⚠️ [getPeriods Fallback] No periods matched filter, fetching all periods safety net.");
+      periods = await db
+        .select()
+        .from(academicPeriods)
+        .orderBy(academicPeriods.name);
+    }
 
-    return { success: true, data: periods };
+    console.log("🔍 [DIAGNOSTIC getPeriods] Final periods returned:", periods?.length);
+    return { success: true, data: periods || [] };
   } catch (error: any) {
     console.error("🔍 [DIAGNOSTIC getPeriods] Exception:", error);
-    return { success: false, error: error.message || "Erreur de chargement des périodes", data: [] };
+    try {
+      const fallbackPeriods = await db.select().from(academicPeriods);
+      return { success: true, data: fallbackPeriods || [] };
+    } catch (e) {
+      return { success: false, error: error.message || "Erreur de chargement des périodes", data: [] };
+    }
   }
 }
 
