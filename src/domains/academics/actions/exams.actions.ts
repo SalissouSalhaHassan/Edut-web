@@ -170,6 +170,22 @@ export async function saveBatchExamResults(formData: BatchExamResultFormData) {
       return { error: "Accès refusé. Vous n'êtes pas autorisé à modifier ces résultats." };
     }
 
+    // Verify Period Lock & Freeze Status (congelation des notes)
+    if (exam.periodId) {
+      const period = await db.query.academicPeriods.findFirst({
+        where: eq(academicPeriods.id, exam.periodId)
+      });
+      if (period) {
+        const isLocked = Boolean(period.isLocked);
+        const isExpired = period.gradesDeadline ? new Date() > new Date(period.gradesDeadline) : false;
+        if (isLocked || isExpired) {
+          return {
+            error: "🔒 Cette période d'évaluation est verrouillée ou congelée. La saisie et modification des notes est désactivée par l'administration."
+          };
+        }
+      }
+    }
+
     for (const res of results) {
       const existing = await db.query.examResults.findFirst({
         where: and(

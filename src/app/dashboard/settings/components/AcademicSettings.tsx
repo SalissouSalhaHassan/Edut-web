@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Trash2, CalendarDays, GraduationCap, Bookmark, BookOpen, Link as LinkIcon, Loader2, Bell, FileUp, Search, Pencil, Building2, Layers, MapPin, Plus, Check, Sparkles, Filter, CheckCircle2, X, AlertTriangle, ChevronRight, Hash } from "lucide-react";
+import { Trash2, CalendarDays, GraduationCap, Bookmark, BookOpen, Link as LinkIcon, Loader2, Bell, FileUp, Search, Pencil, Building2, Layers, MapPin, Plus, Check, Sparkles, Filter, CheckCircle2, X, AlertTriangle, ChevronRight, Hash, Lock, Unlock } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { 
@@ -15,7 +15,7 @@ import {
   clearAllSectionSubjectLinks, clearAllClassSubjectLinks, clearAllAcademicSubjectLinks,
   createGradingAppreciation, deleteGradingAppreciation,
   createSchoolRemark, deleteSchoolRemark,
-  createPeriod, deletePeriod, updatePeriod,
+  createPeriod, deletePeriod, updatePeriod, togglePeriodLock,
   createEducationalLevel, deleteEducationalLevel, createCanevasReferenceItem, deleteCanevasReferenceItem
 } from "@/domains/academics/actions/academics.actions";
 
@@ -937,47 +937,86 @@ export function AcademicSettings({
             const pSid = (p.sessionId ?? p.session_id ?? p.session?.id)?.toString();
             if (!pSid) return true;
             return pSid === selectedPeriodSessionId;
-          }).map((p: any) => (
-            <div key={p.id} className={`flex items-center justify-between p-3 rounded-xl border ${editingPeriodId === p.id ? 'bg-teal-500/10 border-teal-500/50' : 'bg-[#181924] border-slate-800/50'}`}>
-              <div className="flex items-center gap-3">
-                <span className="text-slate-300 font-bold">{p.name}</span>
-                <span className="text-[10px] uppercase font-black tracking-widest text-teal-500 bg-teal-500/10 px-2 py-1 rounded-md">{p.periodType || p.period_type}</span>
-                {(p.session || p.sessionId || p.session_id) && (
-                  <span className="text-[10px] text-slate-500 uppercase tracking-widest bg-slate-800/60 px-2 py-0.5 rounded-md">
-                    {p.session?.sessionName || sessionsList.find((s: any) => s.id === (p.sessionId ?? p.session_id))?.sessionName || `Session #${p.sessionId ?? p.session_id}`}
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                <button 
-                  onClick={() => startEditPeriod(p)}
-                  disabled={isPending || !canEdit}
-                  className="text-slate-500 hover:text-teal-400 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                >
-                  <Pencil size={16} />
-                </button>
-                <button 
-                  onClick={() => {
-                    if (confirm(`Supprimer la période "${p.name}" ?`)) {
+          }).map((p: any) => {
+            const isLocked = Boolean(p.isLocked || p.is_locked);
+            return (
+              <div key={p.id} className={`flex items-center justify-between p-3.5 rounded-xl border transition-all ${isLocked ? 'bg-rose-500/5 border-rose-500/30' : editingPeriodId === p.id ? 'bg-teal-500/10 border-teal-500/50' : 'bg-[#181924] border-slate-800/50'}`}>
+                <div className="flex items-center gap-3">
+                  <span className="text-slate-200 font-bold text-sm">{p.name}</span>
+                  <span className="text-[10px] uppercase font-black tracking-widest text-teal-400 bg-teal-500/10 px-2.5 py-1 rounded-md">{p.periodType || p.period_type}</span>
+                  {(p.session || p.sessionId || p.session_id) && (
+                    <span className="text-[10px] text-slate-400 uppercase font-semibold tracking-widest bg-slate-800/70 px-2 py-0.5 rounded-md">
+                      {p.session?.sessionName || sessionsList.find((s: any) => s.id === (p.sessionId ?? p.session_id))?.sessionName || `Session #${p.sessionId ?? p.session_id}`}
+                    </span>
+                  )}
+                  {isLocked ? (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2.5 py-0.5 rounded-full">
+                      <Lock size={11} /> Verrouillée (Congelée)
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-full">
+                      <Unlock size={11} /> Saisie Ouverte
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => {
+                      const newLocked = !isLocked;
                       startTransition(async () => {
-                        const res = await deletePeriod(p.id);
+                        const res = await togglePeriodLock(p.id, newLocked);
                         if (res.success) {
-                          setPeriodsList((prev: any[]) => prev.filter((item: any) => item.id !== p.id));
-                          toast.success("Période supprimée avec succès");
+                          setPeriodsList((prev: any[]) =>
+                            prev.map((item: any) =>
+                              item.id === p.id ? { ...item, isLocked: newLocked, is_locked: newLocked } : item
+                            )
+                          );
+                          toast.success(newLocked ? "🔒 Période verrouillée (Saisie congelée)" : "🔓 Période déverrouillée (Saisie ouverte)");
                         } else {
-                          toast.error(res.error || "Erreur lors de la suppression");
+                          toast.error(res.error || "Erreur de modification du verrouillage");
                         }
                       });
-                    }
-                  }}
-                  disabled={isPending || !canEdit}
-                  className="text-rose-500/70 hover:text-rose-500 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                >
-                  <Trash2 size={16} />
-                </button>
+                    }}
+                    disabled={isPending || !canEdit}
+                    title={isLocked ? "Déverrouiller la période (Ouvrir la saisie)" : "Verrouiller la période (Geler la saisie des notes)"}
+                    className={`p-1.5 rounded-lg border transition-all ${
+                      isLocked 
+                        ? "text-rose-400 border-rose-500/40 bg-rose-500/10 hover:bg-rose-500/20" 
+                        : "text-slate-400 border-slate-700 hover:text-amber-400 hover:border-amber-500/30 hover:bg-amber-500/10"
+                    }`}
+                  >
+                    {isLocked ? <Lock size={15} /> : <Unlock size={15} />}
+                  </button>
+                  <button 
+                    onClick={() => startEditPeriod(p)}
+                    disabled={isPending || !canEdit}
+                    className="p-1.5 text-slate-400 hover:text-teal-400 border border-slate-800 hover:border-teal-500/30 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  >
+                    <Pencil size={15} />
+                  </button>
+                  <button 
+                    onClick={() => {
+                      if (confirm(`Supprimer la période "${p.name}" ?`)) {
+                        startTransition(async () => {
+                          const res = await deletePeriod(p.id);
+                          if (res.success) {
+                            setPeriodsList((prev: any[]) => prev.filter((item: any) => item.id !== p.id));
+                            toast.success("Période supprimée avec succès");
+                          } else {
+                            toast.error(res.error || "Erreur lors de la suppression");
+                          }
+                        });
+                      }
+                    }}
+                    disabled={isPending || !canEdit}
+                    className="p-1.5 text-rose-500/70 hover:text-rose-500 border border-slate-800 hover:border-rose-500/30 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
           {(!periodsList || periodsList.filter((p: any) => {
             if (!selectedPeriodSessionId || selectedPeriodSessionId === "all") return true;
             const pSid = (p.sessionId ?? p.session_id ?? p.session?.id)?.toString();
