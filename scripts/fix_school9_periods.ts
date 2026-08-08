@@ -7,30 +7,14 @@ const connectionString =
 console.log("🔌 Connecting to Supabase Remote Database Pooler...");
 const client = postgres(connectionString, { prepare: false, ssl: { rejectUnauthorized: false } });
 
-async function fixPeriodsForSchool9() {
+async function fixPeriodsForSchool9And1AllSessions() {
   try {
-    console.log("🚀 Starting Period & Session Fix for School ID 9...");
+    console.log("🚀 Starting Period Fix for ALL Sessions of Schools 1 and 9...");
 
-    // 1. Check existing sessions for school 9 or fallback
-    let sessions = await client`SELECT * FROM school_sessions WHERE school_id = 9 OR id = 10`;
-    console.log("Found sessions:", sessions);
+    // Get all sessions for schools 1 and 9
+    const sessions = await client`SELECT * FROM school_sessions WHERE school_id IN (1, 9) OR school_id IS NULL`;
+    console.log("Found sessions:", sessions.map(s => ({ id: s.id, school_id: s.school_id, name: s.session_name })));
 
-    if (sessions.length === 0) {
-      const createdSession = await client`
-        INSERT INTO school_sessions (id, school_id, session_name, is_active, status)
-        VALUES (10, 9, '2025-2026', true, 'Actif')
-        ON CONFLICT (id) DO UPDATE SET school_id = 9, is_active = true
-        RETURNING *;
-      `;
-      console.log("Created/Updated Session 10 for school 9:", createdSession);
-    } else {
-    // Ensure session 10 has school_id = 9 and is_active = true
-    await client`UPDATE school_sessions SET is_active = false WHERE school_id = 9`;
-    await client`UPDATE school_sessions SET school_id = 9, is_active = true WHERE id = 10`;
-    console.log("Updated session 10 to belong to school 9 and set is_active = true!");
-    }
-
-    // 2. Insert standard Semestres, Trimestres & Sequences for School 9 & Session 10
     const periodsToEnsure = [
       { name: "1er Semestre", type: "Semestre" },
       { name: "2ème Semestre", type: "Semestre" },
@@ -45,24 +29,27 @@ async function fixPeriodsForSchool9() {
       { name: "6ème Séquence", type: "Séquence" },
     ];
 
-    for (const p of periodsToEnsure) {
-      const existing = await client`
-        SELECT * FROM academic_periods 
-        WHERE school_id = 9 AND session_id = 10 AND name = ${p.name}
-      `;
-      if (existing.length === 0) {
-        const inserted = await client`
-          INSERT INTO academic_periods (school_id, name, period_type, session_id, is_active)
-          VALUES (9, ${p.name}, ${p.type}, 10, true)
-          RETURNING *;
+    for (const sess of sessions) {
+      const schoolId = sess.school_id || 1;
+      for (const p of periodsToEnsure) {
+        const existing = await client`
+          SELECT * FROM academic_periods 
+          WHERE session_id = ${sess.id} AND name = ${p.name}
         `;
-        console.log(`✅ Created period "${p.name}" (ID: ${inserted[0]?.id})`);
-      } else {
-        console.log(`ℹ️ Period "${p.name}" already exists (ID: ${existing[0]?.id})`);
+        if (existing.length === 0) {
+          const inserted = await client`
+            INSERT INTO academic_periods (school_id, name, period_type, session_id, is_active)
+            VALUES (${schoolId}, ${p.name}, ${p.type}, ${sess.id}, true)
+            RETURNING *;
+          `;
+          console.log(`✅ Session ${sess.id} (${sess.session_name}): Created "${p.name}"`);
+        } else {
+          console.log(`ℹ️ Session ${sess.id} (${sess.session_name}): "${p.name}" exists`);
+        }
       }
     }
 
-    console.log("🎉 Successfully populated academic periods for school 9!");
+    console.log("🎉 Successfully populated academic periods for ALL sessions!");
     process.exit(0);
   } catch (error) {
     console.error("❌ Error fixing periods:", error);
@@ -70,4 +57,4 @@ async function fixPeriodsForSchool9() {
   }
 }
 
-fixPeriodsForSchool9();
+fixPeriodsForSchool9And1AllSessions();
