@@ -226,6 +226,144 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
     toast.success("Rapport récapitulatif annuel exporté avec succès !");
   };
 
+  const handlePrintAnnualReport = () => {
+    if (!students || students.length === 0) return;
+    const printWin = window.open('', '_blank', 'width=1300,height=900');
+    if (!printWin) {
+      window.print();
+      return;
+    }
+
+    const isLmd = isHigherEd;
+    const clsName = (activeFilters?.className || "").toUpperCase();
+    let s1Lbl = isLmd ? "Moy. S1" : "Moy. 1er Sem.";
+    let r1Lbl = isLmd ? "Rang S1" : "Rang 1er Sem.";
+    let s2Lbl = isLmd ? "Moy. S2" : "Moy. 2ème Sem.";
+    let r2Lbl = isLmd ? "Rang S2" : "Rang 2ème Sem.";
+    if (isLmd) {
+      if (clsName.includes("L2") || clsName.includes("LICENCE 2")) { s1Lbl = "Moy. S3"; r1Lbl = "Rang S3"; s2Lbl = "Moy. S4"; r2Lbl = "Rang S4"; }
+      else if (clsName.includes("L3") || clsName.includes("LICENCE 3")) { s1Lbl = "Moy. S5"; r1Lbl = "Rang S5"; s2Lbl = "Moy. S6"; r2Lbl = "Rang S6"; }
+      else if (clsName.includes("M2") || clsName.includes("MASTER 2")) { s1Lbl = "Moy. S9"; r1Lbl = "Rang S9"; s2Lbl = "Moy. S10"; r2Lbl = "Rang S10"; }
+    }
+
+    const rows = students.map((student: any, idx: number) => {
+      const dob = student.dateNaissance || student.dateOfBirth || student.birthDate || "-";
+      const pob = student.lieuNaissance || student.placeOfBirth || "-";
+      const dateAndPlace = `${dob} à ${pob}`;
+
+      const s1Summary = student.summaryS1 || student.history?.find((h: any) => h.term && String(h.term).toLowerCase().includes("1"));
+      const s2Summary = student.summaryS2 || student.history?.find((h: any) => h.term && String(h.term).toLowerCase().includes("2"));
+
+      const formatAvg = (v: any) => {
+        if (v === null || v === undefined || v === "" || v === "-") return "-";
+        const n = typeof v === 'number' ? v : parseFloat(String(v));
+        return !isNaN(n) ? n.toFixed(2) : "-";
+      };
+
+      const s1Avg = formatAvg(s1Summary?.average ?? student.s1Average);
+      const s1Rank = s1Summary?.rank || student.s1Rank || "-";
+      const s2Avg = formatAvg(s2Summary?.average ?? student.s2Average);
+      const s2Rank = s2Summary?.rank || student.s2Rank || "-";
+
+      const safeAvg = typeof student.average === 'number' && !isNaN(student.average) ? student.average : 0;
+      const annualAvg = typeof student.annualAverage === 'number' ? student.annualAverage.toFixed(2) : safeAvg.toFixed(2);
+      const allocataire = student.allocataire || (student.isScholarship ? "Boursier" : "Non Boursier") || "Non";
+
+      const decisionStr = student.decision || (parseFloat(annualAvg) >= 10 ? "ADMIS(E) EN CLASSE SUPÉRIEURE ✅" : parseFloat(annualAvg) >= 8 ? "AUTORISÉ(E) À REDOUBLER ❌" : "EXCLU(E) ⛔");
+      const isRedouble = decisionStr.includes("REDOUBLE");
+      const targetClass = student.targetClassName || (isRedouble ? `Redouble en ${activeFilters?.className || "Classe"}` : "Niveau Supérieur");
+
+      return `
+        <tr>
+          <td style="text-align: center; font-weight: bold;">${idx + 1}</td>
+          <td style="font-weight: bold;">${student.name || student.studentName || "Élève"}</td>
+          <td>${dateAndPlace}</td>
+          <td style="text-align: center; font-family: monospace; font-weight: bold; color: #4338ca;">${student.matricule || "-"}</td>
+          <td style="text-align: center; font-weight: bold;">${student.sexe || student.gender || "M"}</td>
+          <td style="text-align: center; font-weight: bold;">${s1Avg}</td>
+          <td style="text-align: center;">${s1Rank}</td>
+          <td style="text-align: center; font-weight: bold;">${s2Avg}</td>
+          <td style="text-align: center;">${s2Rank}</td>
+          <td style="text-align: center; font-weight: 900; color: #d97706; font-size: 9.5pt;">${annualAvg}</td>
+          <td style="text-align: center; font-size: 7.5pt; font-weight: bold;">${decisionStr}</td>
+          <td style="text-align: center; font-size: 7.5pt; font-weight: bold; color: #6b21a8;">${targetClass}</td>
+          <td style="text-align: center;">${allocataire}</td>
+        </tr>
+      `;
+    }).join('');
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Rapport Récapitulatif Officiel Annuel - ${activeFilters?.className || "Classe"}</title>
+          <style>
+            @page { size: A4 landscape; margin: 6mm; }
+            body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 12px; color: #0f172a; }
+            .header-banner { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #0f172a; padding-bottom: 8px; margin-bottom: 12px; }
+            .title-box { text-align: center; margin-bottom: 14px; }
+            .title-box h1 { margin: 0; font-size: 15pt; text-transform: uppercase; font-weight: 900; letter-spacing: 0.5px; }
+            .title-box p { margin: 3px 0 0 0; font-size: 9.5pt; color: #475569; font-weight: 600; }
+            table { width: 100%; border-collapse: collapse; font-size: 8pt; margin-top: 8px; }
+            th, td { border: 0.5pt solid #334155; padding: 4.5px 3px; word-break: break-word; }
+            th { background-color: #0f172a; color: #ffffff; text-transform: uppercase; font-size: 7pt; font-weight: bold; }
+            tr { page-break-inside: avoid; break-inside: avoid; }
+            tr:nth-child(even) { background-color: #f8fafc; }
+          </style>
+        </head>
+        <body>
+          <div class="header-banner">
+            <div>
+              <strong style="font-size: 10.5pt; text-transform: uppercase;">${headerConfig?.country || "RÉPUBLIQUE DU NIGER"}</strong><br/>
+              <span style="font-size: 8pt; font-style: italic; color: #475569;">${headerConfig?.motto || "Unité - Travail - Progrès"}</span><br/>
+              <span style="font-size: 8.5pt; font-weight: bold;">${headerConfig?.ministry || "MINISTÈRE DE L'ÉDUCATION NATIONALE"}</span>
+            </div>
+            <div style="text-align: right;">
+              <strong style="font-size: 11.5pt; text-transform: uppercase; color: #0f172a;">${headerConfig?.schoolName || "ÉCOLE GESTION PRO"}</strong><br/>
+              <span style="font-size: 9pt; font-weight: 600; color: #334155;">Année Scolaire: ${activeFilters?.sessionName || "2025-2026"}</span>
+            </div>
+          </div>
+
+          <div class="title-box">
+            <h1>Rapport Récapitulatif Officiel Annuel</h1>
+            <p>Classe: <strong>${activeFilters?.className || "N/A"}</strong> • <strong>${students.length} Élèves inscrits</strong></p>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 3%;">N°</th>
+                <th style="width: 16%;">Noms et Prénoms</th>
+                <th style="width: 14%;">Date et lieu de naissance</th>
+                <th style="width: 10%;">Matricule</th>
+                <th style="width: 4%;">Sexe</th>
+                <th style="width: 6%;">${s1Lbl}</th>
+                <th style="width: 5%;">${r1Lbl}</th>
+                <th style="width: 6%;">${s2Lbl}</th>
+                <th style="width: 5%;">${r2Lbl}</th>
+                <th style="width: 8%;">Moy. Annuelle</th>
+                <th style="width: 11%;">Décision du Conseil</th>
+                <th style="width: 8%;">Affectation / Classe</th>
+                <th style="width: 6%;">Allocataire</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows}
+            </tbody>
+          </table>
+        </body>
+      </html>
+    `;
+
+    printWin.document.write(htmlContent);
+    printWin.document.close();
+    printWin.focus();
+    setTimeout(() => {
+      printWin.print();
+      printWin.close();
+    }, 450);
+  };
+
   const handleDownloadAnnualReportPDF = () => {
     if (!data || !data.students) return;
     try {
@@ -686,7 +824,7 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
                   <Download size={18} /> Exporter Excel (CSV)
                 </Button>
                 <Button
-                  onClick={() => window.print()}
+                  onClick={handlePrintAnnualReport}
                   className="bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-xl flex items-center gap-2"
                 >
                   <Printer size={18} /> Imprimer (Paysage)
