@@ -731,17 +731,19 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
                       return (
                         <tr className="bg-slate-900 text-white text-[10px] font-black uppercase tracking-wider">
                           <th className="p-2 border-r border-slate-800 text-center w-[3%]">N°</th>
-                          <th className="p-2 border-r border-slate-800 w-[16%]">Noms et Prénoms</th>
-                          <th className="p-2 border-r border-slate-800 w-[13%]">Date et lieu de naissance</th>
-                          <th className="p-2 border-r border-slate-800 text-center w-[10%]">Matricule</th>
+                          <th className="p-2 border-r border-slate-800 w-[14%]">Noms et Prénoms</th>
+                          <th className="p-2 border-r border-slate-800 w-[12%]">Date et lieu de naissance</th>
+                          <th className="p-2 border-r border-slate-800 text-center w-[9%]">Matricule</th>
                           <th className="p-2 border-r border-slate-800 text-center w-[4%]">Sexe</th>
-                          <th className="p-2 border-r border-slate-800 text-center w-[7%]">Redoublement Antérieur</th>
-                          <th className="p-2 border-r border-slate-800 text-center text-cyan-300 w-[7%]">{s1}</th>
-                          <th className="p-2 border-r border-slate-800 text-center text-cyan-300 w-[6%]">{r1}</th>
-                          <th className="p-2 border-r border-slate-800 text-center text-indigo-300 w-[7%]">{s2}</th>
-                          <th className="p-2 border-r border-slate-800 text-center text-indigo-300 w-[6%]">{r2}</th>
-                          <th className="p-2 border-r border-slate-800 text-center text-amber-300 w-[9%]">Moy. Annuelle</th>
-                          <th className="p-2 text-center w-[12%]">Allocataire</th>
+                          <th className="p-2 border-r border-slate-800 text-center w-[6%]">Redoublement Antérieur</th>
+                          <th className="p-2 border-r border-slate-800 text-center text-cyan-300 w-[6%]">{s1}</th>
+                          <th className="p-2 border-r border-slate-800 text-center text-cyan-300 w-[5%]">{r1}</th>
+                          <th className="p-2 border-r border-slate-800 text-center text-indigo-300 w-[6%]">{s2}</th>
+                          <th className="p-2 border-r border-slate-800 text-center text-indigo-300 w-[5%]">{r2}</th>
+                          <th className="p-2 border-r border-slate-800 text-center text-amber-300 w-[7%]">Moy. Annuelle</th>
+                          <th className="p-2 border-r border-slate-800 text-center text-emerald-400 w-[11%]">Décision du Conseil</th>
+                          <th className="p-2 border-r border-slate-800 text-center text-purple-300 w-[8%]">Affectation / Classe</th>
+                          <th className="p-2 text-center w-[6%]">Allocataire</th>
                         </tr>
                       );
                     })()}
@@ -786,6 +788,10 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
                       const redoublement = student.redoublement === true || student.isRepeater === true || student.redoublement === "Oui" ? "Oui" : "Non";
                       const allocataire = student.allocataire || (student.isScholarship ? "Boursier" : "Non Boursier") || "Non";
 
+                      const decisionStr = student.decision || (parseFloat(annualAvg) >= 10 ? "ADMIS(E) EN CLASSE SUPÉRIEURE ✅" : parseFloat(annualAvg) >= 8 ? "AUTORISÉ(E) À REDOUBLER ❌" : "EXCLU(E) ⛔");
+                      const isAdmis = decisionStr.includes("ADMIS");
+                      const isRedouble = decisionStr.includes("REDOUBLE");
+
                       return (
                         <tr key={student.id} className="hover:bg-slate-50 transition-colors">
                           <td className="p-2 border-r border-slate-100 text-center font-bold text-slate-400">{idx + 1}</td>
@@ -803,6 +809,18 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
                           <td className="p-2 border-r border-slate-100 text-center font-bold text-slate-900 bg-indigo-50/20">{s2Avg}</td>
                           <td className="p-2 border-r border-slate-100 text-center font-bold text-indigo-700 bg-indigo-50/20">{s2Rank}</td>
                           <td className="p-2 border-r border-slate-100 text-center font-black text-amber-600 text-sm bg-amber-50/30">{annualAvg}</td>
+                          <td className="p-2 border-r border-slate-100 text-center">
+                            <span className={`px-2 py-1 rounded-lg text-[10px] font-bold inline-block ${
+                              isAdmis ? "bg-emerald-100 text-emerald-800 border border-emerald-300" :
+                              isRedouble ? "bg-amber-100 text-amber-800 border border-amber-300" :
+                              "bg-rose-100 text-rose-800 border border-rose-300"
+                            }`}>
+                              {decisionStr}
+                            </span>
+                          </td>
+                          <td className="p-2 border-r border-slate-100 text-center font-bold text-purple-700 text-[11px]">
+                            {student.targetClassName || (isRedouble ? `Redouble en ${activeFilters?.className || "Classe"}` : "Niveau Supérieur")}
+                          </td>
                           <td className="p-2 text-center font-semibold text-slate-700">{allocataire}</td>
                         </tr>
                       );
