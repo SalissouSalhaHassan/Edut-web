@@ -1905,3 +1905,219 @@ export function generateOfficialAnnualReportPDF(data: {
   const cleanClassName = (data.className || "Classe").replace(/\s+/g, "_");
   doc.save(`Rapport_Annuel_Officiel_${cleanClassName}_${Date.now()}.pdf`);
 }
+
+// ─── University LMD Official PV Generator ──────────────────────────────────
+
+export function generateOfficialUniversityPV(data: {
+  className: string;
+  sessionName: string;
+  students: any[];
+  headerConfig?: any;
+  juryPresident?: string;
+  juryMembers?: string[];
+  isOffline?: boolean;
+}) {
+  const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+  const isOffline = data.isOffline ?? false;
+
+  const headerConfig = data.headerConfig || {};
+  const schoolName = headerConfig.schoolName || "ÉCOLE SUPÉRIEURE / UNIVERSITÉ";
+  const country = headerConfig.country || headerConfig.countryName || "RÉPUBLIQUE DU NIGER";
+  const motto = headerConfig.motto || "Unité - Travail - Progrès";
+  const ministry = headerConfig.ministry || headerConfig.ministryName || "MINISTÈRE DE L'ENSEIGNEMENT SUPÉRIEUR ET DE LA RECHERCHE";
+
+  let startY = 12;
+
+  // University Header
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(15, 23, 42);
+  doc.text(country.toUpperCase(), 14, startY);
+  
+  doc.setFontSize(7.5);
+  doc.setFont("helvetica", "italic");
+  doc.setTextColor(100, 116, 139);
+  doc.text(motto, 14, startY + 4);
+
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(30, 41, 59);
+  doc.text(ministry.toUpperCase(), 14, startY + 8);
+
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(30, 58, 138);
+  doc.text(schoolName.toUpperCase(), 285, startY + 2, { align: "right" });
+
+  doc.setFontSize(8.5);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(100, 116, 139);
+  doc.text(`Année Académique: ${data.sessionName || "2025-2026"}`, 285, startY + 7, { align: "right" });
+  doc.text(`Session: Principale (Mdaolation)`, 285, startY + 11, { align: "right" });
+
+  doc.setDrawColor(30, 58, 138);
+  doc.setLineWidth(0.8);
+  doc.line(10, startY + 14, 287, startY + 14);
+
+  // Main PV Title Box
+  doc.setFillColor(241, 245, 249);
+  doc.rect(10, startY + 17, 277, 12, "F");
+  
+  doc.setFontSize(13);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(15, 23, 42);
+  doc.text("PROCES-VERBAL DÉFINITIF DES RÉSULTATS D'ÉVALUATION (LMD)", 148.5, startY + 23, { align: "center" });
+
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(51, 65, 85);
+  doc.text(`Filière / Parcours: ${data.className || "Licence"}  |  Effectif du Jury: ${data.students.length} Étudiants`, 148.5, startY + 27, { align: "center" });
+
+  // Table Columns for University LMD PV
+  const head = [[
+    "N°",
+    "Matricule",
+    "Noms et Prénoms",
+    "Date & Lieu de Naissance",
+    "Sexe",
+    "Crédits\nECTS",
+    "Moyenne\nS1 / S3",
+    "Moyenne\nS2 / S4",
+    "Moyenne\nGénérale",
+    "Décision du Jury\nLMD",
+    "Mention\nUniversitaire"
+  ]];
+
+  let admisCount = 0;
+  let ajourneCount = 0;
+
+  const body = data.students.map((student: any, idx: number) => {
+    const dob = student.dateNaissance || student.dateOfBirth || student.birthDate || "-";
+    const pob = student.lieuNaissance || student.placeOfBirth || "-";
+    const dateAndPlace = `${dob} à ${pob}`;
+
+    const s1Summary = student.summaryS1 || student.history?.find((h: any) => h.term && String(h.term).toLowerCase().includes("1"));
+    const s2Summary = student.summaryS2 || student.history?.find((h: any) => h.term && String(h.term).toLowerCase().includes("2"));
+
+    const formatAvg = (v: any) => {
+      if (v === null || v === undefined || v === "" || v === "-") return "-";
+      const n = typeof v === 'number' ? v : parseFloat(String(v));
+      return !isNaN(n) ? n.toFixed(2) : "-";
+    };
+
+    const s1Avg = formatAvg(s1Summary?.average ?? student.s1Average);
+    const s2Avg = formatAvg(s2Summary?.average ?? student.s2Average);
+
+    const safeAvg = typeof student.average === 'number' && !isNaN(student.average) ? student.average : 0;
+    const annualAvg = typeof student.annualAverage === 'number' ? student.annualAverage : safeAvg;
+    const annualAvgStr = annualAvg.toFixed(2);
+
+    let decision = "AJOURNÉ (NV)";
+    let mention = "-";
+    const ects = annualAvg >= 10.0 ? "60 / 60 ECTS" : "30 / 60 ECTS";
+
+    if (annualAvg >= 10.0) {
+      admisCount++;
+      decision = "ADMIS (V)";
+      if (annualAvg >= 16.0) mention = "Très Bien";
+      else if (annualAvg >= 14.0) mention = "Bien";
+      else if (annualAvg >= 12.0) mention = "Assez Bien";
+      else mention = "Passable";
+    } else {
+      ajourneCount++;
+      decision = "AJOURNÉ (NV)";
+      mention = "Ajourné";
+    }
+
+    return [
+      idx + 1,
+      student.matricule || "-",
+      student.name || student.studentName || "Étudiant",
+      dateAndPlace,
+      student.sexe || student.gender || "M",
+      ects,
+      s1Avg,
+      s2Avg,
+      annualAvgStr,
+      decision,
+      mention
+    ];
+  });
+
+  autoTable(doc, {
+    startY: startY + 32,
+    head: head,
+    body: body,
+    theme: "grid",
+    styles: {
+      fontSize: 7.5,
+      cellPadding: 2.5,
+      textColor: [15, 23, 42],
+      lineColor: [203, 213, 225],
+      lineWidth: 0.2
+    },
+    headStyles: {
+      fillColor: [15, 23, 42],
+      textColor: [255, 255, 255],
+      fontStyle: "bold",
+      halign: "center",
+      valign: "middle",
+      fontSize: 7
+    },
+    columnStyles: {
+      0: { cellWidth: 10, halign: "center" },
+      1: { cellWidth: 28, halign: "center", fontStyle: "bold" },
+      2: { cellWidth: 55, fontStyle: "bold" },
+      3: { cellWidth: 45 },
+      4: { cellWidth: 12, halign: "center" },
+      5: { cellWidth: 22, halign: "center", fontStyle: "bold" },
+      6: { cellWidth: 22, halign: "center" },
+      7: { cellWidth: 22, halign: "center" },
+      8: { cellWidth: 22, halign: "center", fontStyle: "bold" },
+      9: { cellWidth: 24, halign: "center", fontStyle: "bold" },
+      10: { cellWidth: 15, halign: "center" }
+    },
+    didParseCell: handleBilingualCell
+  });
+
+  const finalY = (doc as any).lastAutoTable.finalY + 10;
+  const pageHeight = doc.internal.pageSize.getHeight();
+
+  if (finalY + 30 < pageHeight) {
+    // Jury Statistics Box
+    doc.setFillColor(248, 250, 252);
+    doc.setDrawColor(203, 213, 225);
+    doc.rect(10, finalY, 277, 10, "FD");
+
+    const totalStudents = data.students.length;
+    const rate = totalStudents > 0 ? ((admisCount / totalStudents) * 100).toFixed(1) : "0.0";
+
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(15, 23, 42);
+    doc.text(`RÉSUMÉ DES DÉLIBÉRATIONS DU JURY :   Effectif Total: ${totalStudents}  |  Admis (V): ${admisCount}  |  Ajournés (NV): ${ajourneCount}  |  Taux de Réussite: ${rate}%`, 14, finalY + 6);
+
+    // Jury Signatures
+    const sigY = finalY + 18;
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.text("Les Membres du Jury de Délibération", 50, sigY, { align: "center" });
+    doc.text("Le Président du Jury de Délibération", 230, sigY, { align: "center" });
+    
+    doc.setFontSize(7.5);
+    doc.setFont("helvetica", "italic");
+    doc.setTextColor(100, 116, 139);
+    doc.text("(Noms, Titres & Signatures)", 50, sigY + 4, { align: "center" });
+    doc.text("(Nom, Sceau & Signature)", 230, sigY + 4, { align: "center" });
+  }
+
+  if (isOffline) {
+    doc.setFillColor(254, 243, 199);
+    doc.setTextColor(180, 83, 9);
+    doc.setFontSize(8);
+    doc.text("⚠️ PV GÉNÉRÉ HORS LIGNE - EN ATTENTE DE SYNCHRONISATION", 148.5, pageHeight - 8, { align: "center" });
+  }
+
+  const cleanClassName = (data.className || "Parcours").replace(/\s+/g, "_");
+  doc.save(`PV_Resultats_LMD_${cleanClassName}_${Date.now()}.pdf`);
+}

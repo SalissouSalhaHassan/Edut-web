@@ -11,7 +11,7 @@ import { BroadsheetData } from "../types";
 import { formatRank } from "../utils/calculations";
 import { toast } from "sonner";
 import { saveTermSummaries } from "../actions/academics.actions";
-import { generateOfficialAnnualReportPDF } from "../utils/bulletin-generator";
+import { generateOfficialAnnualReportPDF, generateOfficialUniversityPV } from "../utils/bulletin-generator";
 
 interface BroadsheetMatrixProps {
   data: BroadsheetData;
@@ -384,6 +384,22 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
     } catch (e) {
       console.error("PDF generation failed:", e);
       toast.error("Erreur lors de la génération du PDF.");
+    }
+  };
+
+  const handleDownloadUniversityPVPDF = () => {
+    if (!data || !data.students) return;
+    try {
+      generateOfficialUniversityPV({
+        className: activeFilters?.className || "Licence",
+        sessionName: activeFilters?.sessionName || "2025-2026",
+        students: data.students,
+        headerConfig: headerConfig,
+      });
+      toast.success("Procès-Verbal Officiel LMD (PV الجامعي) généré avec succès !");
+    } catch (e) {
+      console.error("PV generation failed:", e);
+      toast.error("Erreur lors de la génération du PV d'évaluation.");
     }
   };
 
@@ -817,6 +833,12 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
                 </div>
               </div>
               <div className="flex items-center gap-3 no-print">
+                <Button
+                  onClick={handleDownloadUniversityPVPDF}
+                  className="bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl flex items-center gap-2 border border-purple-400/30 shadow-md"
+                >
+                  <Award size={18} /> 🎓 Télécharger PV LMD (PDF)
+                </Button>
                 <Button
                   onClick={handleDownloadAnnualReportPDF}
                   className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl flex items-center gap-2"
