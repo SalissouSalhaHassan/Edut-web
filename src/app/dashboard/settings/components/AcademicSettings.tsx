@@ -112,8 +112,10 @@ export function AcademicSettings({
         setPeriodSessionId(active.id.toString());
       }
     }
-    getPeriodExtensionRequests().then(res => {
-      if (res?.data) setExtensionRequests(res.data);
+    getPeriodExtensionRequests().then((res: any) => {
+      if (res && Array.isArray(res.data)) {
+        setExtensionRequests(res.data);
+      }
     });
   }, [sessionsList]);
 
