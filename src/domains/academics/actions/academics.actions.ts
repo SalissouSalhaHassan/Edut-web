@@ -2467,11 +2467,14 @@ export async function deleteSession(id: number) {
 }
 
 // ─── Periods ─────────────────────────────────────────────────────────────────
-export async function createPeriod(data: { name: string; periodType: string; sessionId?: number | null; isActive?: boolean }) {
+export async function createPeriod(data: { name: string; periodType: string; sessionId?: number | null; isActive?: boolean; startDate?: Date | string | null; endDate?: Date | string | null }) {
   return protectedDbAction("Academics", "canEdit", async (user) => {
     const activeSchoolId = await getActiveSchoolId();
     const schoolId = activeSchoolId || user?.schoolId;
     let targetSessionId = data.sessionId || null;
+    const startDateVal = data.startDate ? new Date(data.startDate) : null;
+    const endDateVal = data.endDate ? new Date(data.endDate) : null;
+
     console.log("[createPeriod] schoolId:", schoolId, "targetSessionId:", targetSessionId, "data.name:", data.name);
 
     const executeInsert = async (dbClient: any) => {
@@ -2575,8 +2578,8 @@ export async function createPeriod(data: { name: string; periodType: string; ses
       try {
         // Primary Execution: Direct Raw SQL Insert (Guaranteed 100% compatibility with Supabase Pooler)
         const sqlRes = await dbClient.execute(sql`
-          INSERT INTO academic_periods (school_id, name, period_type, session_id, is_active)
-          VALUES (${schoolId}, ${trimmedName}, ${data.periodType}, ${targetSessionId}, true)
+          INSERT INTO academic_periods (school_id, name, period_type, session_id, is_active, start_date, end_date)
+          VALUES (${schoolId}, ${trimmedName}, ${data.periodType}, ${targetSessionId}, true, ${startDateVal}, ${endDateVal})
           RETURNING *;
         `);
         const rawRows = sqlRes?.rows || sqlRes;
@@ -2589,6 +2592,8 @@ export async function createPeriod(data: { name: string; periodType: string; ses
             sessionId: targetSessionId,
             isActive: data.isActive ?? true,
             schoolId: schoolId,
+            startDate: startDateVal,
+            endDate: endDateVal,
           }).returning();
           inserted = res[0];
         }
@@ -2617,8 +2622,8 @@ export async function createPeriod(data: { name: string; periodType: string; ses
         try {
           console.log(`[createPeriod] Attempting Direct Raw SQL Insert fallback for school ${schoolId}...`);
           const sqlRes = await dbClient.execute(sql`
-            INSERT INTO academic_periods (school_id, name, period_type, session_id, is_active)
-            VALUES (${schoolId}, ${trimmedName}, ${data.periodType}, ${targetSessionId}, true)
+            INSERT INTO academic_periods (school_id, name, period_type, session_id, is_active, start_date, end_date)
+            VALUES (${schoolId}, ${trimmedName}, ${data.periodType}, ${targetSessionId}, true, ${startDateVal}, ${endDateVal})
             RETURNING *;
           `);
           const rawRows = sqlRes?.rows || sqlRes;
@@ -2639,6 +2644,8 @@ export async function createPeriod(data: { name: string; periodType: string; ses
               sessionId: targetSessionId,
               isActive: data.isActive ?? true,
               schoolId: user.schoolId,
+              startDate: startDateVal,
+              endDate: endDateVal,
             }).returning();
             if (userSchoolRes.length > 0) {
               return userSchoolRes[0];
@@ -2657,6 +2664,8 @@ export async function createPeriod(data: { name: string; periodType: string; ses
             sessionId: targetSessionId,
             isActive: data.isActive ?? true,
             schoolId: schoolId,
+            startDate: startDateVal,
+            endDate: endDateVal,
           }).returning();
           inserted = retryRes[0];
         } catch (retryErr: any) {
