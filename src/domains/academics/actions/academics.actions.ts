@@ -1159,7 +1159,10 @@ export async function saveDevoirGrades(payload: any[]) {
 
 // Broadsheet Matrix - Direct query without static caching for dynamic multi-year support
 async function fetchBroadsheetMatrixDirect(params: { classId: number, sessionId: number, term: string }) {
-  const cls = await readDb.query.schoolClasses.findFirst({ where: eq(schoolClasses.id, params.classId) });
+  const cls = await readDb.query.schoolClasses.findFirst({
+    where: eq(schoolClasses.id, params.classId),
+    with: { section: true }
+  });
   if (!cls) return { error: "Classe non trouvée" };
 
   const classIdNum = Number(params.classId);
@@ -1432,9 +1435,25 @@ async function fetchBroadsheetMatrixDirect(params: { classId: number, sessionId:
     });
 
     const average = currentAveragesMap.get(s.id) || 0;
-    const decision = summary?.decision ?? (average >= 10 ? "ADMIS ✅" : "REDOUBLE ❌");
-    const rank = summary?.rank ?? "N/A";
     const annualAverage = annualAveragesList.find(a => a.studentId === s.id)?.annualAverage || average;
+
+    const minPass = (cls as any)?.section?.minPassingGrade ?? 10.0;
+    const minRedouble = (cls as any)?.section?.redoublementThreshold ?? 8.0;
+    const minExclusion = (cls as any)?.section?.exclusionThreshold ?? 5.0;
+
+    let computedDecision = "ADMIS ✅";
+    if (annualAverage >= minPass) {
+      computedDecision = "ADMIS(E) EN CLASSE SUPÉRIEURE ✅";
+    } else if (annualAverage >= minRedouble && annualAverage >= minExclusion) {
+      computedDecision = "AUTORISÉ(E) À REDOUBLER ❌";
+    } else {
+      computedDecision = "EXCLU(E) DE L'ÉTABLISSEMENT ⛔";
+    }
+
+    const decision = summary?.decision ?? computedDecision;
+    const targetClassId = (summary as any)?.targetClassId || null;
+    const targetClassName = (summary as any)?.targetClassName || null;
+    const rank = summary?.rank ?? "N/A";
     const annualRank = annualRanksMap.get(s.id) || 1;
 
     const studentHistory = studentSummaries.map(h => ({
@@ -3717,6 +3736,50 @@ export async function handlePeriodExtensionRequest(requestId: number, action: "A
     }
 
     revalidatePath("/dashboard/settings");
+    revalidatePath("/dashboard/academics");
+    revalidatePath("/dashboard/academics/grades");
+    return { success: true };
+  });
+}
+
+// ─── Target Class Assignment for Redoublants ───────────────────────────────
+
+export async function saveRedoublementTargetClass(data: {
+  studentId: number;
+  classId: number;
+  sessionId: number;
+  term: string;
+  targetClassId: number;
+  targetClassName: string;
+}) {
+  return protectedDbAction("Academics", "canEdit", async () => {
+    const existing = await readDb.query.studentTermSummaries.findFirst({
+      where: and(
+        eq(studentTermSummaries.studentId, data.studentId),
+        eq(studentTermSummaries.classId, data.classId),
+        eq(studentTermSummaries.sessionId, data.sessionId),
+        eq(studentTermSummaries.term, data.term)
+      )
+    });
+
+    if (existing) {
+      await db.update(studentTermSummaries).set({
+        targetClassId: data.targetClassId,
+        targetClassName: data.targetClassName,
+        decision: "AUTORISÉ(E) À REDOUBLER ❌"
+      }).where(eq(studentTermSummaries.id, existing.id));
+    } else {
+      await db.insert(studentTermSummaries).values({
+        studentId: data.studentId,
+        classId: data.classId,
+        sessionId: data.sessionId,
+        term: data.term,
+        targetClassId: data.targetClassId,
+        targetClassName: data.targetClassName,
+        decision: "AUTORISÉ(E) À REDOUBLER ❌"
+      });
+    }
+
     revalidatePath("/dashboard/academics");
     revalidatePath("/dashboard/academics/grades");
     return { success: true };

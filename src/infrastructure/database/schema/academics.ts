@@ -333,7 +333,9 @@ export const studentTermSummaries = pgTable("student_term_summaries", {
   
   average: doublePrecision("average").default(0.0),
   rank: varchar("rank", { length: 20 }),
-  decision: varchar("decision", { length: 50 }),
+  decision: varchar("decision", { length: 100 }),
+  targetClassId: integer("target_class_id").references(() => schoolClasses.id),
+  targetClassName: varchar("target_class_name", { length: 100 }),
   
   createdAt: timestamp("created_at").defaultNow(),
 });
