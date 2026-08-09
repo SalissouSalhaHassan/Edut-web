@@ -6,7 +6,7 @@ import { Trash2, CalendarDays, GraduationCap, Bookmark, BookOpen, Link as LinkIc
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { 
-  createSession, deleteSession, 
+  createSession, deleteSession, setActiveSession, toggleSessionLock,
   createClass, updateClass, deleteClass, 
   createSection, updateSection, deleteSection, 
   createSubject, deleteSubject, importSubjects,
@@ -802,30 +802,69 @@ export function AcademicSettings({
           </Button>
         </div>
         <div className="space-y-2">
-          {initialSessions.map((s: any) => (
-            <div key={s.id} className="flex items-center justify-between p-3 rounded-xl bg-[#181924] border border-slate-800/50">
-              <span className="text-slate-300 font-medium">{s.sessionName} {s.isActive && <span className="text-xs ml-2 bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded-full">Active</span>}</span>
-              <button 
-                onClick={() => {
-                  if (confirm(`Supprimer l'année scolaire "${s.sessionName}" ?`)) {
-                    startTransition(async () => {
-                      const res = await deleteSession(s.id);
-                      if (res.success) {
-                        toast.success("Année scolaire supprimée avec succès");
-                        router.refresh();
-                      } else {
-                        toast.error(res.error || "Erreur lors de la suppression");
+          {sessionsList?.map((s: any) => {
+            const isClosed = !s.isActive || s.status === "Clôturé" || s.status === "Archivé";
+            return (
+              <div key={s.id} className={`flex items-center justify-between p-3.5 rounded-xl border transition-all ${!isClosed ? 'bg-emerald-500/5 border-emerald-500/30' : 'bg-[#181924] border-slate-800/50'}`}>
+                <div className="flex items-center gap-3">
+                  <span className="text-slate-200 font-bold text-base">{s.sessionName}</span>
+                  {!isClosed ? (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-full">
+                      🟢 Année Actuelle (En Cours)
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2.5 py-0.5 rounded-full">
+                      🔒 Clôturée & Archivée (Lecture Seule)
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  {isClosed ? (
+                    <Button 
+                      onClick={() => {
+                        startTransition(async () => {
+                          const res = await setActiveSession(s.id);
+                          if (res.success) {
+                            toast.success(`Année scolaire "${s.sessionName}" activée comme année actuelle !`);
+                            router.refresh();
+                          } else {
+                            toast.error(res.error || "Erreur d'activation de la session");
+                          }
+                        });
+                      }}
+                      disabled={isPending || !canEdit}
+                      className="h-8 text-xs bg-emerald-600/20 text-emerald-300 hover:bg-emerald-600/30 border border-emerald-500/40 rounded-lg px-3 font-semibold"
+                    >
+                      🟢 Définir comme Année Actuelle
+                    </Button>
+                  ) : (
+                    <span className="text-xs text-emerald-400 font-bold px-2.5 py-1 bg-emerald-500/10 rounded-lg border border-emerald-500/20">
+                      ✓ Année Active
+                    </span>
+                  )}
+                  <button 
+                    onClick={() => {
+                      if (confirm(`Supprimer l'année scolaire "${s.sessionName}" ?`)) {
+                        startTransition(async () => {
+                          const res = await deleteSession(s.id);
+                          if (res.success) {
+                            toast.success("Année scolaire supprimée avec succès");
+                            router.refresh();
+                          } else {
+                            toast.error(res.error || "Erreur lors de la suppression");
+                          }
+                        });
                       }
-                    });
-                  }
-                }}
-                disabled={isPending || !canEdit}
-                className="text-rose-500/70 hover:text-rose-500 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-              >
-                <Trash2 size={16} />
-              </button>
-            </div>
-          ))}
+                    }}
+                    disabled={isPending || !canEdit}
+                    className="p-1.5 text-rose-500/70 hover:text-rose-500 border border-slate-800 hover:border-rose-500/30 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 

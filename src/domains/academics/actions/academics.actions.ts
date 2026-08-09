@@ -2466,6 +2466,53 @@ export async function deleteSession(id: number) {
   });
 }
 
+export async function setActiveSession(id: number) {
+  return protectedDbAction("Academics", "canEdit", async () => {
+    const schoolId = await getActiveSchoolId();
+    if (!schoolId) throw new Error("Établissement non identifié.");
+
+    // 1. Mark all other sessions for this school as inactive & closed/archived
+    await db.update(schoolSessions).set({
+      isActive: false,
+      status: "Clôturé"
+    }).where(eq(schoolSessions.schoolId, schoolId));
+
+    // 2. Activate target session
+    await db.update(schoolSessions).set({
+      isActive: true,
+      status: "Actif"
+    }).where(and(
+      eq(schoolSessions.id, id),
+      eq(schoolSessions.schoolId, schoolId)
+    ));
+
+    revalidatePath("/dashboard/settings");
+    revalidatePath("/dashboard/academics");
+    revalidateTag(ACADEMICS_CACHE_TAG);
+    return { success: true };
+  });
+}
+
+export async function toggleSessionLock(id: number, isClosed: boolean) {
+  return protectedDbAction("Academics", "canEdit", async () => {
+    const schoolId = await getActiveSchoolId();
+    if (!schoolId) throw new Error("Établissement non identifié.");
+
+    await db.update(schoolSessions).set({
+      status: isClosed ? "Clôturé" : "Actif",
+      isActive: isClosed ? false : true,
+    }).where(and(
+      eq(schoolSessions.id, id),
+      eq(schoolSessions.schoolId, schoolId)
+    ));
+
+    revalidatePath("/dashboard/settings");
+    revalidatePath("/dashboard/academics");
+    revalidateTag(ACADEMICS_CACHE_TAG);
+    return { success: true };
+  });
+}
+
 // ─── Periods ─────────────────────────────────────────────────────────────────
 export async function createPeriod(data: { name: string; periodType: string; sessionId?: number | null; isActive?: boolean; startDate?: Date | string | null; endDate?: Date | string | null }) {
   return protectedDbAction("Academics", "canEdit", async (user) => {

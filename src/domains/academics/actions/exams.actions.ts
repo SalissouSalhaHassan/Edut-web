@@ -170,12 +170,23 @@ export async function saveBatchExamResults(formData: BatchExamResultFormData) {
       return { error: "Accès refusé. Vous n'êtes pas autorisé à modifier ces résultats." };
     }
 
-    // Verify Period Lock & Freeze Status (congelation automatique par dates et statut)
+    // Verify Full Academic Session Freeze & Period Lock Status
     if (exam.periodId) {
       const period = await db.query.academicPeriods.findFirst({
         where: eq(academicPeriods.id, exam.periodId)
       });
       if (period) {
+        if (period.sessionId) {
+          const session = await db.query.schoolSessions.findFirst({
+            where: eq(schoolSessions.id, period.sessionId)
+          });
+          if (session && (!session.isActive || session.status === "Clôturé" || session.status === "Archivé")) {
+            return {
+              error: `🔒 L'année scolaire (${session.sessionName}) est totalement clôturée et archivée. Aucune modification n'est autorisée (Consultation seule).`
+            };
+          }
+        }
+
         const isLocked = Boolean(period.isLocked);
         const now = new Date();
         
