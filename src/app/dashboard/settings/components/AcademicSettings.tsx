@@ -1025,6 +1025,22 @@ export function AcademicSettings({
                     </span>
                   )}
                 </div>
+
+                {/* Display Opening & Closing Dates inside the row */}
+                <div className="hidden md:flex items-center gap-3 text-xs border-l border-slate-800/80 pl-4 my-0.5">
+                  <span className="inline-flex items-center gap-1.5 text-slate-300 font-medium bg-slate-800/40 px-2.5 py-1 rounded-lg border border-slate-700/50">
+                    <CalendarDays size={13} className="text-teal-400" />
+                    <span className="text-slate-400 text-[11px] font-semibold">Début:</span>
+                    <span className="font-mono text-teal-300 font-bold">{startDate ? startDate.toLocaleDateString('fr-FR') : "--/--/----"}</span>
+                  </span>
+                  <span className="text-slate-600 font-bold">➔</span>
+                  <span className="inline-flex items-center gap-1.5 text-slate-300 font-medium bg-slate-800/40 px-2.5 py-1 rounded-lg border border-slate-700/50">
+                    <Lock size={12} className="text-rose-400" />
+                    <span className="text-slate-400 text-[11px] font-semibold">Fin:</span>
+                    <span className="font-mono text-rose-300 font-bold">{endDate ? endDate.toLocaleDateString('fr-FR') : "--/--/----"}</span>
+                  </span>
+                </div>
+
                 <div className="flex items-center gap-2">
                   <button 
                     onClick={() => {
