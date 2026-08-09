@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/infrastructure/database";
-import { exams, examResults, schoolClasses, schoolSubjects, academicPeriods, schoolSections, classSubjects } from "@/infrastructure/database/schema/academics";
+import { exams, examResults, schoolClasses, schoolSubjects, academicPeriods, schoolSessions, schoolSections, classSubjects } from "@/infrastructure/database/schema/academics";
 import { students } from "@/infrastructure/database/schema/students";
 import { pedagogieRemediation } from "@/infrastructure/database/schema/pedagogie";
 import { lmsAssignments } from "@/infrastructure/database/schema/lms";
