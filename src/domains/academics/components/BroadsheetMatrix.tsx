@@ -313,14 +313,20 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
         </head>
         <body>
           <div class="header-banner">
-            <div>
-              <strong style="font-size: 10.5pt; text-transform: uppercase;">${headerConfig?.country || "RÉPUBLIQUE DU NIGER"}</strong><br/>
-              <span style="font-size: 8pt; font-style: italic; color: #475569;">${headerConfig?.motto || "Unité - Travail - Progrès"}</span><br/>
-              <span style="font-size: 8.5pt; font-weight: bold;">${headerConfig?.ministry || "MINISTÈRE DE L'ÉDUCATION NATIONALE"}</span>
+            <div style="display: flex; align-items: center; gap: 12px;">
+              ${(headerConfig?.logoUrl || headerConfig?.leftLogo) ? `<img src="${headerConfig.logoUrl || headerConfig.leftLogo}" style="height: 55px; width: auto; max-width: 80px; object-fit: contain;" />` : ''}
+              <div>
+                <strong style="font-size: 10.5pt; text-transform: uppercase;">${headerConfig?.country || headerConfig?.countryName || "RÉPUBLIQUE DU NIGER"}</strong><br/>
+                <span style="font-size: 8pt; font-style: italic; color: #475569;">${headerConfig?.motto || "Unité - Travail - Progrès"}</span><br/>
+                <span style="font-size: 8.5pt; font-weight: bold;">${headerConfig?.ministry || headerConfig?.ministryName || "MINISTÈRE DE L'ÉDUCATION NATIONALE"}</span>
+              </div>
             </div>
-            <div style="text-align: right;">
-              <strong style="font-size: 11.5pt; text-transform: uppercase; color: #0f172a;">${headerConfig?.schoolName || "ÉCOLE GESTION PRO"}</strong><br/>
-              <span style="font-size: 9pt; font-weight: 600; color: #334155;">Année Scolaire: ${activeFilters?.sessionName || "2025-2026"}</span>
+            <div style="display: flex; align-items: center; gap: 12px; text-align: right;">
+              <div>
+                <strong style="font-size: 11.5pt; text-transform: uppercase; color: #0f172a;">${headerConfig?.schoolName || "ÉCOLE GESTION PRO"}</strong><br/>
+                <span style="font-size: 9pt; font-weight: 600; color: #334155;">Année Scolaire: ${activeFilters?.sessionName || "2025-2026"}</span>
+              </div>
+              ${headerConfig?.rightLogo ? `<img src="${headerConfig.rightLogo}" style="height: 55px; width: auto; max-width: 80px; object-fit: contain;" />` : ''}
             </div>
           </div>
 
