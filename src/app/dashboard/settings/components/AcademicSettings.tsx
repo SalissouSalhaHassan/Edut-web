@@ -99,6 +99,8 @@ export function AcademicSettings({
   const [periodName, setPeriodName] = useState("");
   const [periodType, setPeriodType] = useState("Trimestre");
   const [periodSessionId, setPeriodSessionId] = useState("");
+  const [periodStartDate, setPeriodStartDate] = useState("");
+  const [periodEndDate, setPeriodEndDate] = useState("");
   const [selectedPeriodSessionId, setSelectedPeriodSessionId] = useState<string>("all");
   const [editingPeriodId, setEditingPeriodId] = useState<number | null>(null);
 
@@ -181,6 +183,8 @@ export function AcademicSettings({
     setPeriodType(p.periodType || p.period_type || "Trimestre");
     const sid = p.sessionId ?? p.session_id;
     setPeriodSessionId(sid ? sid.toString() : "");
+    setPeriodStartDate(p.startDate || p.start_date ? new Date(p.startDate || p.start_date).toISOString().split('T')[0] : "");
+    setPeriodEndDate(p.endDate || p.end_date ? new Date(p.endDate || p.end_date).toISOString().split('T')[0] : "");
   };
 
   const handleCreatePeriod = () => {
@@ -198,7 +202,9 @@ export function AcademicSettings({
           name: periodName.trim(),
           periodType: periodType,
           sessionId: targetSessionId,
-          isActive: true
+          isActive: true,
+          startDate: periodStartDate || null,
+          endDate: periodEndDate || null,
         });
         if (res.success) {
           toast.success("Période / Séquence mise à jour avec succès");
@@ -209,10 +215,16 @@ export function AcademicSettings({
             periodType: periodType, 
             sessionId: targetSessionId,
             session_id: targetSessionId,
+            startDate: periodStartDate || null,
+            start_date: periodStartDate || null,
+            endDate: periodEndDate || null,
+            end_date: periodEndDate || null,
             session: sessionObj || p.session
           } : p));
           setEditingPeriodId(null);
           setPeriodName("");
+          setPeriodStartDate("");
+          setPeriodEndDate("");
           router.refresh();
         } else {
           toast.error(res.error || "Erreur lors de la modification de la période");
@@ -222,26 +234,39 @@ export function AcademicSettings({
           name: periodName.trim(), 
           periodType: periodType, 
           sessionId: targetSessionId,
-          isActive: true
+          isActive: true,
+          startDate: periodStartDate || null,
+          endDate: periodEndDate || null,
         });
         if (res.success) {
           const createdObj = (res.data as any)?.data || res.data;
           const alreadyExisted = (createdObj as any)?._alreadyExisted === true;
           if (createdObj && createdObj.id && !alreadyExisted) {
             const sessionObj = sessionsList?.find((s: any) => s.id === targetSessionId);
-            const fullObj = { ...createdObj, sessionId: createdObj.sessionId ?? createdObj.session_id ?? targetSessionId, session_id: createdObj.session_id ?? createdObj.sessionId ?? targetSessionId, session: sessionObj };
+            const fullObj = { 
+              ...createdObj, 
+              sessionId: createdObj.sessionId ?? createdObj.session_id ?? targetSessionId, 
+              session_id: createdObj.session_id ?? createdObj.sessionId ?? targetSessionId, 
+              startDate: periodStartDate || null,
+              endDate: periodEndDate || null,
+              session: sessionObj 
+            };
             setPeriodsList((prev: any[]) => {
               const exists = prev.some((p: any) => p.id === fullObj.id);
               return exists ? prev : [...prev, fullObj];
             });
             toast.success(`Période / Séquence "${createdObj.name || periodName}" créée avec succès`);
             setPeriodName("");
+            setPeriodStartDate("");
+            setPeriodEndDate("");
             router.refresh();
           } else if (alreadyExisted) {
             toast.warning(`La période "${periodName}" existe déjà pour cette année scolaire.`);
           } else {
             toast.success(`Période / Séquence "${periodName}" créée avec succès`);
             setPeriodName("");
+            setPeriodStartDate("");
+            setPeriodEndDate("");
             router.refresh();
           }
         } else {
@@ -893,20 +918,20 @@ export function AcademicSettings({
           </div>
         </div>
 
-        <div className="flex flex-wrap md:flex-nowrap gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <input 
             type="text" 
             placeholder="Nom (ex: 1er Trimestre ou 1ère Séquence)"
             value={periodName}
             disabled={!canEdit}
             onChange={(e) => setPeriodName(e.target.value)}
-            className="flex-[2] bg-[#181924] border border-slate-700 text-white rounded-xl px-4 h-12 focus:outline-none focus:border-teal-500 disabled:opacity-50"
+            className="md:col-span-2 bg-[#181924] border border-slate-700 text-white rounded-xl px-4 h-12 focus:outline-none focus:border-teal-500 disabled:opacity-50 font-medium"
           />
           <select 
             value={periodType}
             disabled={!canEdit}
             onChange={(e) => setPeriodType(e.target.value)}
-            className="flex-1 bg-[#181924] border border-slate-700 text-white rounded-xl px-4 h-12 focus:outline-none disabled:opacity-50 font-bold"
+            className="bg-[#181924] border border-slate-700 text-white rounded-xl px-4 h-12 focus:outline-none disabled:opacity-50 font-bold"
           >
             <option value="Trimestre">Trimestre</option>
             <option value="Semestre">Semestre</option>
@@ -917,19 +942,44 @@ export function AcademicSettings({
             value={periodSessionId}
             disabled={!canEdit}
             onChange={(e) => setPeriodSessionId(e.target.value)}
-            className="flex-1 bg-[#181924] border border-slate-700 text-white rounded-xl px-4 h-12 focus:outline-none disabled:opacity-50"
+            className="bg-[#181924] border border-slate-700 text-white rounded-xl px-4 h-12 focus:outline-none disabled:opacity-50 font-medium"
           >
             <option value="">-- Année Sélectionnée --</option>
             {sessionsList.map((s: any) => (
               <option key={s.id} value={s.id}>{s.sessionName}</option>
             ))}
           </select>
-          <Button onClick={handleCreatePeriod} disabled={isPending || !periodName || !canEdit} className="h-12 bg-teal-600 hover:bg-teal-700 text-white rounded-xl px-6 disabled:opacity-50 font-bold">
-            {editingPeriodId ? "Modifier" : "+ Ajouter"}
-          </Button>
-          {editingPeriodId && (
-             <Button variant="ghost" onClick={() => { setEditingPeriodId(null); setPeriodName(""); }} className="h-12 text-slate-400">Annuler</Button>
-          )}
+
+          <div className="md:col-span-4 flex flex-wrap md:flex-nowrap items-end gap-4 bg-[#14151F] p-4 rounded-xl border border-slate-800/80">
+            <div className="flex-1 space-y-1">
+              <label className="text-[11px] uppercase font-bold text-slate-400 flex items-center gap-1">📅 Date de Début (Ouverture)</label>
+              <input 
+                type="date" 
+                value={periodStartDate}
+                disabled={!canEdit}
+                onChange={(e) => setPeriodStartDate(e.target.value)}
+                className="w-full bg-[#181924] border border-slate-700 text-white rounded-xl px-4 h-11 focus:outline-none focus:border-teal-500 text-xs font-medium"
+              />
+            </div>
+            <div className="flex-1 space-y-1">
+              <label className="text-[11px] uppercase font-bold text-slate-400 flex items-center gap-1">🔒 Date de Fin (Clôture automatique)</label>
+              <input 
+                type="date" 
+                value={periodEndDate}
+                disabled={!canEdit}
+                onChange={(e) => setPeriodEndDate(e.target.value)}
+                className="w-full bg-[#181924] border border-slate-700 text-white rounded-xl px-4 h-11 focus:outline-none focus:border-teal-500 text-xs font-medium"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <Button onClick={handleCreatePeriod} disabled={isPending || !periodName || !canEdit} className="h-11 bg-teal-600 hover:bg-teal-700 text-white rounded-xl px-6 disabled:opacity-50 font-bold">
+                {editingPeriodId ? "Modifier la période" : "+ Ajouter la période"}
+              </Button>
+              {editingPeriodId && (
+                 <Button variant="ghost" onClick={() => { setEditingPeriodId(null); setPeriodName(""); setPeriodStartDate(""); setPeriodEndDate(""); }} className="h-11 text-slate-400">Annuler</Button>
+              )}
+            </div>
+          </div>
         </div>
         <div className="space-y-2">
           {periodsList?.filter((p: any) => {
