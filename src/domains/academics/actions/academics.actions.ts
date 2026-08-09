@@ -3786,3 +3786,94 @@ export async function saveRedoublementTargetClass(data: {
   });
 }
 
+// ─── Mass Student Promotion Engine (Passage de Classe en Masse) ────────────
+
+export async function promoteClassStudents(data: {
+  sourceClassId: number;
+  targetClassId: number;
+  newSessionId: number;
+}) {
+  return protectedDbAction("Academics", "canEdit", async () => {
+    const schoolId = await getActiveSchoolId();
+    if (!schoolId) throw new Error("Établissement non trouvé.");
+
+    // Fetch Source Class & Target Class & New Session
+    const [sourceClass, targetClass, newSession] = await Promise.all([
+      readDb.query.schoolClasses.findFirst({ where: eq(schoolClasses.id, data.sourceClassId) }),
+      readDb.query.schoolClasses.findFirst({ where: eq(schoolClasses.id, data.targetClassId) }),
+      readDb.query.schoolSessions.findFirst({ where: eq(schoolSessions.id, data.newSessionId) }),
+    ]);
+
+    if (!sourceClass || !targetClass || !newSession) {
+      throw new Error("Classe source, classe cible ou année scolaire introuvable.");
+    }
+
+    // Fetch all students belonging to source class
+    const studentList = await readDb.select().from(students)
+      .where(and(
+        eq(students.schoolId, schoolId),
+        or(
+          ilike(students.classe, sourceClass.className.trim()),
+          ilike(students.classe, `${sourceClass.className.trim()}%`)
+        )
+      ));
+
+    if (!studentList || studentList.length === 0) {
+      return { success: false, error: "Aucun élève trouvé dans la classe source." };
+    }
+
+    const studentIds = studentList.map(s => s.id);
+
+    // Fetch term summaries for decisions
+    const summaries = await readDb.select().from(studentTermSummaries)
+      .where(inArray(studentTermSummaries.studentId, studentIds));
+
+    let promotedCount = 0;
+    let repeatedCount = 0;
+    let excludedCount = 0;
+
+    for (const st of studentList) {
+      const studentSummaries = summaries.filter(s => s.studentId === st.id);
+      const latestSummary = studentSummaries[studentSummaries.length - 1];
+
+      const decisionStr = latestSummary?.decision || "";
+      const isExclu = decisionStr.includes("EXCLU");
+      const isRedouble = decisionStr.includes("REDOUBLE");
+
+      if (isExclu) {
+        // Excluded student: mark as inactive / excluded
+        await db.update(students).set({
+          statutInitial: "EXCLU"
+        }).where(eq(students.id, st.id));
+        excludedCount++;
+      } else if (isRedouble) {
+        // Repeat student: keep in repeat class or target repeat class
+        const repeatClassName = latestSummary?.targetClassName || sourceClass.className;
+        await db.update(students).set({
+          classe: repeatClassName,
+          session: newSession.sessionName,
+          redoublement: true
+        }).where(eq(students.id, st.id));
+        repeatedCount++;
+      } else {
+        // Promoted student (ADMIS): Move to target class for new session
+        await db.update(students).set({
+          classe: targetClass.className,
+          session: newSession.sessionName,
+          redoublement: false
+        }).where(eq(students.id, st.id));
+        promotedCount++;
+      }
+    }
+
+    revalidatePath("/dashboard/academics");
+    revalidatePath("/dashboard/settings");
+    revalidatePath("/dashboard/students");
+    return {
+      success: true,
+      message: `Promotion exécutée avec succès ! ${promotedCount} promus en ${targetClass.className}, ${repeatedCount} redoublants, ${excludedCount} exclus.`,
+      stats: { promotedCount, repeatedCount, excludedCount }
+    };
+  });
+}
+

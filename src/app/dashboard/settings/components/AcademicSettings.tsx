@@ -15,7 +15,7 @@ import {
   clearAllSectionSubjectLinks, clearAllClassSubjectLinks, clearAllAcademicSubjectLinks,
   createGradingAppreciation, deleteGradingAppreciation,
   createSchoolRemark, deleteSchoolRemark,
-  createPeriod, deletePeriod, updatePeriod, togglePeriodLock, handlePeriodExtensionRequest, getPeriodExtensionRequests,
+  createPeriod, deletePeriod, updatePeriod, togglePeriodLock, handlePeriodExtensionRequest, getPeriodExtensionRequests, promoteClassStudents,
   createEducationalLevel, deleteEducationalLevel, createCanevasReferenceItem, deleteCanevasReferenceItem
 } from "@/domains/academics/actions/academics.actions";
 
@@ -118,6 +118,10 @@ export function AcademicSettings({
       }
     });
   }, [sessionsList]);
+
+  const [promoSourceClassId, setPromoSourceClassId] = useState("");
+  const [promoTargetClassId, setPromoTargetClassId] = useState("");
+  const [promoTargetSessionId, setPromoTargetSessionId] = useState("");
 
   const [sectionName, setSectionName] = useState("");
   const [sectionLevel, setSectionLevel] = useState("");
@@ -871,6 +875,93 @@ export function AcademicSettings({
               </div>
             );
           })}
+        </div>
+      </div>
+
+      {/* 1.4 Mass Promotion Wizard */}
+      <div className="bg-[#1F222B] border border-indigo-500/30 rounded-3xl p-6 shadow-sm">
+        <div className="flex items-center gap-3 mb-4 pb-3 border-b border-slate-800/80">
+          <Award className="text-indigo-400" size={24} />
+          <div>
+            <h2 className="text-lg font-bold text-white">🚀 Assistant de Promotion & Passage de Classe en Masse</h2>
+            <p className="text-xs text-slate-400">Exécutez le transfert annuel des élèves admis vers leur classe supérieure et réassignez les redoublants en 1 clic.</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          <div>
+            <label className="text-xs font-semibold text-slate-300 mb-1 block">1. Classe Source (Année المنتهية)</label>
+            <select 
+              value={promoSourceClassId}
+              onChange={(e) => setPromoSourceClassId(e.target.value)}
+              className="w-full bg-[#181924] border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+            >
+              <option value="">Sélectionner la classe source...</option>
+              {classesList?.map((c: any) => (
+                <option key={c.id} value={c.id}>{c.className}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-slate-300 mb-1 block">2. Classe Cible de Promotion (Année الجديد)</label>
+            <select 
+              value={promoTargetClassId}
+              onChange={(e) => setPromoTargetClassId(e.target.value)}
+              className="w-full bg-[#181924] border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+            >
+              <option value="">Sélectionner la classe cible...</option>
+              {classesList?.map((c: any) => (
+                <option key={c.id} value={c.id}>{c.className}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-slate-300 mb-1 block">3. Année Scolaire Cible</label>
+            <select 
+              value={promoTargetSessionId}
+              onChange={(e) => setPromoTargetSessionId(e.target.value)}
+              className="w-full bg-[#181924] border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+            >
+              <option value="">Sélectionner l'année scolaire cible...</option>
+              {sessionsList?.map((s: any) => (
+                <option key={s.id} value={s.id}>{s.sessionName} {s.isActive ? "(🟢 Active)" : ""}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="flex justify-end">
+          <Button
+            onClick={() => {
+              if (!promoSourceClassId || !promoTargetClassId || !promoTargetSessionId) {
+                toast.error("Veuillez sélectionner la classe source, la classe cible et l'année scolaire.");
+                return;
+              }
+              if (confirm("Êtes-vous sûr d'exécuter la promotion en masse des élèves pour ces classes ?")) {
+                startTransition(async () => {
+                  const res = await promoteClassStudents({
+                    sourceClassId: Number(promoSourceClassId),
+                    targetClassId: Number(promoTargetClassId),
+                    newSessionId: Number(promoTargetSessionId),
+                  });
+                  if (res.success) {
+                    toast.success(res.message);
+                    setPromoSourceClassId("");
+                    setPromoTargetClassId("");
+                    router.refresh();
+                  } else {
+                    toast.error(res.error || "Erreur lors de la promotion des élèves");
+                  }
+                });
+              }
+            }}
+            disabled={isPending || !canEdit || !promoSourceClassId || !promoTargetClassId || !promoTargetSessionId}
+            className="h-10 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs px-5 flex items-center gap-2 shadow-md"
+          >
+            🚀 Exécuter la Promotion en Masse (1-Click)
+          </Button>
         </div>
       </div>
 
