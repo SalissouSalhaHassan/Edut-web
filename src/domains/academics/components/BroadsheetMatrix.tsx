@@ -574,36 +574,35 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
                 size: A4 landscape !important;
                 margin: 4mm !important;
               }
-              body * {
-                visibility: hidden !important;
+              body {
+                background: #ffffff !important;
+                color: #000000 !important;
               }
-              #official-annual-report-modal-wrapper, 
-              #official-annual-report-modal-wrapper *, 
-              #official-annual-report-printable, 
-              #official-annual-report-printable * {
-                visibility: visible !important;
+              .no-print {
+                display: none !important;
               }
-              .print-modal-wrapper {
-                position: static !important;
-                inset: auto !important;
-                background: transparent !important;
+              #official-annual-report-modal-wrapper {
+                position: absolute !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 100% !important;
+                height: auto !important;
+                background: #ffffff !important;
                 padding: 0 !important;
                 margin: 0 !important;
                 display: block !important;
                 overflow: visible !important;
-                height: auto !important;
-                max-height: none !important;
-                width: 100% !important;
+                z-index: 999999 !important;
               }
               #official-annual-report-printable {
-                position: static !important;
-                left: auto !important;
-                top: auto !important;
+                position: relative !important;
+                left: 0 !important;
+                top: 0 !important;
                 width: 100% !important;
                 max-width: 100% !important;
                 height: auto !important;
                 max-height: none !important;
-                background: white !important;
+                background: #ffffff !important;
                 padding: 0 !important;
                 margin: 0 !important;
                 box-shadow: none !important;
@@ -611,24 +610,16 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
                 overflow: visible !important;
                 border-radius: 0 !important;
               }
-              .print-container {
+              .print-container, .print-scroll-area {
+                overflow: visible !important;
+                max-height: none !important;
+                height: auto !important;
+                background: #ffffff !important;
                 padding: 0 !important;
-                background: white !important;
-                max-height: none !important;
-                height: auto !important;
-                overflow: visible !important;
-              }
-              .print-scroll-area {
-                overflow: visible !important;
-                max-height: none !important;
-                height: auto !important;
-              }
-              .no-print {
-                display: none !important;
               }
               .print-header {
                 background: #0f172a !important;
-                color: white !important;
+                color: #ffffff !important;
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
                 padding: 8px 12px !important;
@@ -641,7 +632,6 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
                 font-size: 7.5pt !important;
                 border-collapse: collapse !important;
                 table-layout: fixed !important;
-                page-break-inside: auto !important;
               }
               .print-table tr {
                 page-break-inside: avoid !important;
@@ -649,7 +639,7 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
               }
               .print-table th, .print-table td {
                 padding: 3.5px 2px !important;
-                border: 0.5pt solid #334155 !important;
+                border: 0.5pt solid #1e293b !important;
                 word-break: break-word !important;
                 overflow-wrap: break-word !important;
                 white-space: normal !important;
