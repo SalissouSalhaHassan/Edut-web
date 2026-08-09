@@ -731,16 +731,15 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
                       return (
                         <tr className="bg-slate-900 text-white text-[10px] font-black uppercase tracking-wider">
                           <th className="p-2 border-r border-slate-800 text-center w-[3%]">N°</th>
-                          <th className="p-2 border-r border-slate-800 w-[14%]">Noms et Prénoms</th>
-                          <th className="p-2 border-r border-slate-800 w-[12%]">Date et lieu de naissance</th>
-                          <th className="p-2 border-r border-slate-800 text-center w-[9%]">Matricule</th>
+                          <th className="p-2 border-r border-slate-800 w-[16%]">Noms et Prénoms</th>
+                          <th className="p-2 border-r border-slate-800 w-[14%]">Date et lieu de naissance</th>
+                          <th className="p-2 border-r border-slate-800 text-center w-[10%]">Matricule</th>
                           <th className="p-2 border-r border-slate-800 text-center w-[4%]">Sexe</th>
-                          <th className="p-2 border-r border-slate-800 text-center w-[6%]">Redoublement Antérieur</th>
                           <th className="p-2 border-r border-slate-800 text-center text-cyan-300 w-[6%]">{s1}</th>
                           <th className="p-2 border-r border-slate-800 text-center text-cyan-300 w-[5%]">{r1}</th>
                           <th className="p-2 border-r border-slate-800 text-center text-indigo-300 w-[6%]">{s2}</th>
                           <th className="p-2 border-r border-slate-800 text-center text-indigo-300 w-[5%]">{r2}</th>
-                          <th className="p-2 border-r border-slate-800 text-center text-amber-300 w-[7%]">Moy. Annuelle</th>
+                          <th className="p-2 border-r border-slate-800 text-center text-amber-300 w-[8%]">Moy. Annuelle</th>
                           <th className="p-2 border-r border-slate-800 text-center text-emerald-400 w-[11%]">Décision du Conseil</th>
                           <th className="p-2 border-r border-slate-800 text-center text-purple-300 w-[8%]">Affectation / Classe</th>
                           <th className="p-2 text-center w-[6%]">Allocataire</th>
@@ -785,7 +784,6 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
                       const safeAvg = typeof student.average === 'number' && !isNaN(student.average) ? student.average : 0;
                       const annualAvg = typeof student.annualAverage === 'number' ? student.annualAverage.toFixed(2) : safeAvg.toFixed(2);
 
-                      const redoublement = student.redoublement === true || student.isRepeater === true || student.redoublement === "Oui" ? "Oui" : "Non";
                       const allocataire = student.allocataire || (student.isScholarship ? "Boursier" : "Non Boursier") || "Non";
 
                       const decisionStr = student.decision || (parseFloat(annualAvg) >= 10 ? "ADMIS(E) EN CLASSE SUPÉRIEURE ✅" : parseFloat(annualAvg) >= 8 ? "AUTORISÉ(E) À REDOUBLER ❌" : "EXCLU(E) ⛔");
@@ -799,11 +797,6 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
                           <td className="p-2 border-r border-slate-100 text-slate-600">{dateAndPlace}</td>
                           <td className="p-2 border-r border-slate-100 text-center font-mono font-bold text-indigo-600">{student.matricule || "-"}</td>
                           <td className="p-2 border-r border-slate-100 text-center font-bold">{student.sexe || student.gender || "M"}</td>
-                          <td className="p-2 border-r border-slate-100 text-center">
-                            <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${redoublement === "Oui" ? "bg-rose-100 text-rose-700" : "bg-emerald-100 text-emerald-700"}`}>
-                              {redoublement}
-                            </span>
-                          </td>
                           <td className="p-2 border-r border-slate-100 text-center font-bold text-slate-900 bg-cyan-50/20">{s1Avg}</td>
                           <td className="p-2 border-r border-slate-100 text-center font-bold text-cyan-700 bg-cyan-50/20">{s1Rank}</td>
                           <td className="p-2 border-r border-slate-100 text-center font-bold text-slate-900 bg-indigo-50/20">{s2Avg}</td>
