@@ -25,7 +25,8 @@ import {
   sectionSubjects,
   studentResults,
   studentTermSummaries,
-  resultsWorkflows
+  resultsWorkflows,
+  periodExtensionRequests
 } from "@/infrastructure/database/schema/academics";
 import { students } from "@/infrastructure/database/schema/students";
 import { studentAttendance } from "@/infrastructure/database/schema/attendance";
@@ -3630,6 +3631,94 @@ export async function clearAllAcademicSubjectLinks() {
     revalidatePath("/dashboard/academics");
     revalidatePath("/dashboard/academics/grades");
     revalidateTag(ACADEMICS_CACHE_TAG);
+    return { success: true };
+  });
+}
+
+// ─── Period Extension Requests (Demandes de Dérogation) ────────────────────
+
+export async function requestPeriodExtension(data: { periodId?: number; periodName?: string; sessionId?: number; reason: string }) {
+  return protectedDbAction("Academics", "canView", async (user) => {
+    const activeSchoolId = await getActiveSchoolId();
+    const schoolId = activeSchoolId || user?.schoolId;
+    if (!schoolId) throw new Error("Établissement non trouvé.");
+
+    let targetPeriodId = data.periodId || null;
+    let targetPeriodName = data.periodName || null;
+
+    if (!targetPeriodId && data.periodName && data.sessionId) {
+      const p = await readDb.query.academicPeriods.findFirst({
+        where: and(
+          eq(academicPeriods.sessionId, data.sessionId),
+          ilike(academicPeriods.name, data.periodName.trim())
+        )
+      });
+      if (p) {
+        targetPeriodId = p.id;
+        targetPeriodName = p.name;
+      }
+    }
+
+    await db.insert(periodExtensionRequests).values({
+      schoolId: schoolId,
+      periodId: targetPeriodId,
+      periodName: targetPeriodName || data.periodName || "Période académique",
+      teacherId: user.id,
+      teacherName: user.name || user.email || "Enseignant",
+      reason: data.reason.trim(),
+      status: "En attente",
+    });
+
+    revalidatePath("/dashboard/settings");
+    return { success: true, message: "Demande de dérogation transmise avec succès à l'administration !" };
+  });
+}
+
+export async function getPeriodExtensionRequests() {
+  return protectedDbAction("Academics", "canView", async () => {
+    const schoolId = await getActiveSchoolId();
+    if (!schoolId) return { data: [] };
+
+    const requests = await readDb.select().from(periodExtensionRequests)
+      .where(eq(periodExtensionRequests.schoolId, schoolId))
+      .orderBy(desc(periodExtensionRequests.requestedAt))
+      .limit(20);
+
+    return { data: requests };
+  });
+}
+
+export async function handlePeriodExtensionRequest(requestId: number, action: "Approuver" | "Refuser") {
+  return protectedDbAction("Academics", "canEdit", async () => {
+    const schoolId = await getActiveSchoolId();
+    if (!schoolId) throw new Error("Établissement non trouvé.");
+
+    const req = await readDb.query.periodExtensionRequests.findFirst({
+      where: and(
+        eq(periodExtensionRequests.id, requestId),
+        eq(periodExtensionRequests.schoolId, schoolId)
+      )
+    });
+
+    if (!req) throw new Error("Demande non trouvée.");
+
+    const newStatus = action === "Approuver" ? "Approuvé" : "Rejeté";
+
+    await db.update(periodExtensionRequests).set({
+      status: newStatus,
+      handledAt: new Date(),
+    }).where(eq(periodExtensionRequests.id, requestId));
+
+    // If approved, automatically unlock the target period
+    if (action === "Approuver" && req.periodId) {
+      await db.update(academicPeriods).set({
+        isLocked: false,
+      }).where(eq(academicPeriods.id, req.periodId));
+    }
+
+    revalidatePath("/dashboard/settings");
+    revalidatePath("/dashboard/academics");
+    revalidatePath("/dashboard/academics/grades");
     return { success: true };
   });
 }

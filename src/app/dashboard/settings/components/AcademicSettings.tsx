@@ -15,7 +15,7 @@ import {
   clearAllSectionSubjectLinks, clearAllClassSubjectLinks, clearAllAcademicSubjectLinks,
   createGradingAppreciation, deleteGradingAppreciation,
   createSchoolRemark, deleteSchoolRemark,
-  createPeriod, deletePeriod, updatePeriod, togglePeriodLock,
+  createPeriod, deletePeriod, updatePeriod, togglePeriodLock, handlePeriodExtensionRequest, getPeriodExtensionRequests,
   createEducationalLevel, deleteEducationalLevel, createCanevasReferenceItem, deleteCanevasReferenceItem
 } from "@/domains/academics/actions/academics.actions";
 
@@ -103,6 +103,7 @@ export function AcademicSettings({
   const [periodEndDate, setPeriodEndDate] = useState("");
   const [selectedPeriodSessionId, setSelectedPeriodSessionId] = useState<string>("all");
   const [editingPeriodId, setEditingPeriodId] = useState<number | null>(null);
+  const [extensionRequests, setExtensionRequests] = useState<any[]>([]);
 
   useEffect(() => {
     if (sessionsList && sessionsList.length > 0) {
@@ -111,6 +112,9 @@ export function AcademicSettings({
         setPeriodSessionId(active.id.toString());
       }
     }
+    getPeriodExtensionRequests().then(res => {
+      if (res?.data) setExtensionRequests(res.data);
+    });
   }, [sessionsList]);
 
   const [sectionName, setSectionName] = useState("");
@@ -867,6 +871,89 @@ export function AcademicSettings({
           })}
         </div>
       </div>
+
+      {/* Extension Requests Panel (Demandes de Dérogation) */}
+      {extensionRequests && extensionRequests.length > 0 && (
+        <div className="bg-[#1F222B] border border-amber-500/40 rounded-3xl p-6 shadow-md">
+          <div className="flex items-center gap-3 mb-4 pb-3 border-b border-slate-800/80">
+            <Bell className="text-amber-400 animate-pulse" size={22} />
+            <div>
+              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                ⚡ Demandes de Dérogation & Déblocage 
+                <span className="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full font-bold">
+                  {extensionRequests.filter(r => r.status === "En attente").length} en attente
+                </span>
+              </h2>
+              <p className="text-xs text-slate-400">Demandes de réouverture de la saisie des notes soumises par les enseignants depuis l'application mobile.</p>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            {extensionRequests.map((req: any) => (
+              <div key={req.id} className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${req.status === 'En attente' ? 'bg-amber-500/5 border-amber-500/30' : 'bg-[#181924] border-slate-800/60'}`}>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-white font-bold text-sm">{req.teacherName || "Enseignant"}</span>
+                    <span className="text-[11px] bg-teal-500/10 text-teal-400 border border-teal-500/20 px-2.5 py-0.5 rounded-md font-semibold">
+                      {req.periodName}
+                    </span>
+                    <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold ${
+                      req.status === "Approuvé" ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" :
+                      req.status === "Rejeté" ? "bg-rose-500/10 text-rose-400 border border-rose-500/20" :
+                      "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                    }`}>
+                      {req.status === "En attente" ? "⏳ En attente d'approbation" : req.status === "Approuvé" ? "✅ Approuvé & Débloqué" : "❌ Rejeté"}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-300 italic">💬 Motif : "{req.reason}"</p>
+                </div>
+
+                {req.status === "En attente" && (
+                  <div className="flex items-center gap-2">
+                    <Button 
+                      onClick={() => {
+                        startTransition(async () => {
+                          const res = await handlePeriodExtensionRequest(req.id, "Approuver");
+                          if (res.success) {
+                            toast.success("Demande approuvée avec succès ! La période a été déverrouillée.");
+                            setExtensionRequests(prev => prev.map(r => r.id === req.id ? { ...r, status: "Approuvé" } : r));
+                            router.refresh();
+                          } else {
+                            toast.error(res.error || "Erreur de traitement de la demande");
+                          }
+                        });
+                      }}
+                      disabled={isPending || !canEdit}
+                      className="h-9 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold px-4 shadow-sm"
+                    >
+                      ✅ Approuver & Débloquer
+                    </Button>
+                    <Button 
+                      onClick={() => {
+                        startTransition(async () => {
+                          const res = await handlePeriodExtensionRequest(req.id, "Refuser");
+                          if (res.success) {
+                            toast.info("Demande de dérogation refusée.");
+                            setExtensionRequests(prev => prev.map(r => r.id === req.id ? { ...r, status: "Rejeté" } : r));
+                            router.refresh();
+                          } else {
+                            toast.error(res.error || "Erreur de traitement de la demande");
+                          }
+                        });
+                      }}
+                      disabled={isPending || !canEdit}
+                      variant="ghost"
+                      className="h-9 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-xl text-xs font-bold px-3 border border-rose-500/20"
+                    >
+                      ❌ Refuser
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* 1.5 Périodes & Séquences */}
       <div className="bg-[#1F222B] border border-slate-800 rounded-3xl p-6 shadow-sm">

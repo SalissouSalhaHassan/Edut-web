@@ -739,5 +739,18 @@ export const cardTemplates = pgTable("card_templates", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+export const periodExtensionRequests = pgTable("period_extension_requests", {
+  id: serial("id").primaryKey(),
+  schoolId: integer("school_id").references(() => schools.id),
+  periodId: integer("period_id").references(() => academicPeriods.id),
+  periodName: varchar("period_name", { length: 100 }),
+  teacherId: integer("teacher_id"),
+  teacherName: varchar("teacher_name", { length: 150 }),
+  reason: text("reason").notNull(),
+  status: varchar("status", { length: 20 }).default("En attente"),
+  requestedAt: timestamp("requested_at").defaultNow(),
+  handledAt: timestamp("handled_at"),
+});
+
 
 
