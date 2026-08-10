@@ -947,7 +947,7 @@ export function AcademicSettings({
                     newSessionId: Number(promoTargetSessionId),
                   });
                   if (res.success) {
-                    toast.success(res.message);
+                    toast.success((res as any).message || "Promotion exécutée avec succès !");
                     setPromoSourceClassId("");
                     setPromoTargetClassId("");
                     router.refresh();
