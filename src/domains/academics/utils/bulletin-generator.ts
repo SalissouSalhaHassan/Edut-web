@@ -1903,7 +1903,7 @@ export function generateOfficialAnnualReportPDF(data: {
 
     const decisionStr = student.decision || (annualAvgNum >= 10 ? "ADMIS(E) EN CLASSE SUPÉRIEURE ✅" : annualAvgNum >= 8 ? "AUTORISÉ(E) À REDOUBLER ❌" : "EXCLU(E) ⛔");
     const isRedouble = decisionStr.includes("REDOUBLE");
-    const currentClassStr = className || student.classe || "";
+    const currentClassStr = data.className || student.classe || "";
     const targetClassStr = student.targetClassName || (isRedouble ? `Redouble en ${currentClassStr}` : computeNextClassStrPdf(currentClassStr));
 
     const allocataire = student.allocataire || (student.isScholarship ? "Boursier" : "Non Boursier") || "Non";
