@@ -713,7 +713,21 @@ export async function generateBulletinPDF(data: any) {
     margin: { left: 10, right: 10 }
   });
 
-  // 3. Table: Résultat annuel & Signatures
+  // 3. Table: Résultat annuel & Signatures (Automated decision linkage)
+  const rawDecision = String(summary?.decision || "").toUpperCase();
+  const annualAvgVal = typeof summary?.annualAverage === 'number' ? summary.annualAverage : (typeof student?.annualAverage === 'number' ? student.annualAverage : (parseFloat(studentAvg) || 0));
+
+  const isPassage = rawDecision.includes("ADMIS") || rawDecision.includes("PASSAGE") || (!rawDecision && annualAvgVal >= 10.0);
+  const isRedoublement = rawDecision.includes("REDOUBLE") || (!rawDecision && annualAvgVal >= 8.0 && annualAvgVal < 10.0);
+  const isExclusion = rawDecision.includes("EXCLU") || (!rawDecision && annualAvgVal < 8.0 && annualAvgVal > 0);
+
+  const targetClassStr = (summary as any)?.targetClassName || "classe supérieure";
+
+  const passageLabel = isPassage ? `[X] Passage en ${targetClassStr}` : `[  ] Passage en`;
+  const redoublementLabel = isRedoublement ? `[X] Redoublement` : `[  ] Redoublement`;
+  const exclusionLabel = isExclusion ? `[X] Exclusion` : `[  ] Exclusion`;
+  const computedDecisionLabel = summary?.decision || (isPassage ? "ADMIS(E) EN CLASSE SUPÉRIEURE ✅" : isRedoublement ? "AUTORISÉ(E) À REDOUBLER ❌" : "EXCLU(E) DE L'ÉTABLISSEMENT ⛔");
+
   const finalY3 = (doc as any).lastAutoTable.finalY + 3;
   autoTable(doc, {
     startY: finalY3,
@@ -724,13 +738,13 @@ export async function generateBulletinPDF(data: any) {
       ],
       [
         { content: "Proposé pour", rowSpan: 3, styles: { halign: "center", valign: "middle", fontStyle: "bold" } },
-        { content: "Passage en", styles: { fontStyle: "bold" } },
+        { content: passageLabel, styles: { fontStyle: isPassage ? "bold" : "normal" } },
         { content: summary?.observation || "", rowSpan: 3, styles: { halign: "center", valign: "middle", fontStyle: "italic", fontSize: 10, textColor: [63, 81, 181] } }
       ],
-      [{ content: "Redoublement", styles: { fontStyle: "bold" } }],
-      [{ content: "Exclusion", styles: { fontStyle: "bold" } }],
+      [{ content: redoublementLabel, styles: { fontStyle: isRedoublement ? "bold" : "normal" } }],
+      [{ content: exclusionLabel, styles: { fontStyle: isExclusion ? "bold" : "normal" } }],
       [
-        { content: summary?.decision || "", colSpan: 2, styles: { halign: "center", fontStyle: "bold", fontSize: 11, textColor: [63, 81, 181] } },
+        { content: computedDecisionLabel, colSpan: 2, styles: { halign: "center", fontStyle: "bold", fontSize: 10, textColor: [63, 81, 181] } },
         { content: "VISA DES PARENTS", styles: { halign: "center", fontStyle: "bold", valign: "bottom", minCellHeight: 18 } }
       ]
     ],
