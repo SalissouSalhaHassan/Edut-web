@@ -3843,7 +3843,7 @@ export async function promoteClassStudents(data: {
       if (isExclu) {
         // Excluded student: mark as inactive / excluded
         await db.update(students).set({
-          statutInitial: "EXCLU"
+          statut: "EXCLU"
         }).where(eq(students.id, st.id));
         excludedCount++;
       } else if (isRedouble) {
@@ -3851,16 +3851,18 @@ export async function promoteClassStudents(data: {
         const repeatClassName = latestSummary?.targetClassName || sourceClass.className;
         await db.update(students).set({
           classe: repeatClassName,
+          classId: sourceClass.id,
           session: newSession.sessionName,
-          redoublement: true
+          statut: "Actif"
         }).where(eq(students.id, st.id));
         repeatedCount++;
       } else {
         // Promoted student (ADMIS): Move to target class for new session
         await db.update(students).set({
           classe: targetClass.className,
+          classId: targetClass.id,
           session: newSession.sessionName,
-          redoublement: false
+          statut: "Actif"
         }).where(eq(students.id, st.id));
         promotedCount++;
       }
