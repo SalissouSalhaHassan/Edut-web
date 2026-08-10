@@ -748,11 +748,14 @@ export async function generateBulletinPDF(data: any) {
   };
 
   const nextClassName = computeNextClassStr(student?.classe, (summary as any)?.targetClassName);
+  const currentOrTargetRepeatClass = (summary as any)?.targetClassName || student?.classe || "classe actuelle";
 
   const passageLabel = isPassage ? `[X] Passage en ${nextClassName}` : `[  ] Passage en`;
-  const redoublementLabel = isRedoublement ? `[X] Redoublement` : `[  ] Redoublement`;
+  const redoublementLabel = isRedoublement ? `[X] Redoublement en ${currentOrTargetRepeatClass}` : `[  ] Redoublement`;
   const exclusionLabel = isExclusion ? `[X] Exclusion` : `[  ] Exclusion`;
-  const computedDecisionLabel = summary?.decision || (isPassage ? `ADMIS(E) EN ${nextClassName.toUpperCase()} ✅` : isRedoublement ? "AUTORISÉ(E) À REDOUBLER ❌" : "EXCLU(E) DE L'ÉTABLISSEMENT ⛔");
+  
+  const rawComputedLabel = summary?.decision || (isPassage ? `ADMIS(E) EN ${nextClassName.toUpperCase()} ✅` : isRedoublement ? "AUTORISÉ(E) À REDOUBLER ❌" : "EXCLU(E) DE L'ÉTABLISSEMENT ⛔");
+  const computedDecisionLabel = String(rawComputedLabel).replace(/[✅❌⛔]/g, '').trim();
 
   const finalY3 = (doc as any).lastAutoTable.finalY + 3;
   autoTable(doc, {
@@ -765,20 +768,20 @@ export async function generateBulletinPDF(data: any) {
       [
         { content: "Proposé pour", rowSpan: 3, styles: { halign: "center", valign: "middle", fontStyle: "bold" } },
         { content: passageLabel, styles: { fontStyle: isPassage ? "bold" : "normal" } },
-        { content: summary?.observation || "", rowSpan: 3, styles: { halign: "center", valign: "middle", fontStyle: "italic", fontSize: 10, textColor: [63, 81, 181] } }
+        { content: summary?.observation || "", rowSpan: 3, styles: { halign: "center", valign: "middle", fontStyle: "italic", fontSize: 9, textColor: [63, 81, 181] } }
       ],
       [{ content: redoublementLabel, styles: { fontStyle: isRedoublement ? "bold" : "normal" } }],
       [{ content: exclusionLabel, styles: { fontStyle: isExclusion ? "bold" : "normal" } }],
       [
-        { content: computedDecisionLabel, colSpan: 2, styles: { halign: "center", fontStyle: "bold", fontSize: 10, textColor: [63, 81, 181] } },
-        { content: "VISA DES PARENTS", styles: { halign: "center", fontStyle: "bold", valign: "bottom", minCellHeight: 18 } }
+        { content: computedDecisionLabel, colSpan: 2, styles: { halign: "center", valign: "middle", fontStyle: "bold", fontSize: 8.5, textColor: [63, 81, 181] } },
+        { content: "VISA DES PARENTS", styles: { halign: "center", fontStyle: "bold", valign: "bottom", minCellHeight: 16 } }
       ]
     ],
     theme: "grid",
-    styles: { fontSize: 8.5, cellPadding: 1.2, lineColor: 0, lineWidth: 0.1, textColor: 0 },
+    styles: { fontSize: 8, cellPadding: 1.2, lineColor: 0, lineWidth: 0.1, textColor: 0 },
     columnStyles: {
-      0: { cellWidth: 35 },
-      1: { cellWidth: 50 }
+      0: { cellWidth: 32 },
+      1: { cellWidth: 53 }
     },
     margin: { left: 10, right: 10 }
   });
