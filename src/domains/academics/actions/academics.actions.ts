@@ -414,45 +414,28 @@ export async function getPeriods(sessionId?: number | null) {
     const activeSchoolId = await getActiveSchoolId().catch(() => null);
     const targetSchoolId = currentSchool?.id || activeSchoolId || user?.schoolId;
 
-    console.log("🔍 [DIAGNOSTIC getPeriods] TargetSchoolId:", targetSchoolId, "SessionId:", sessionId);
-
-    const whereConditions: any[] = [];
-    
-    if (targetSchoolId) {
-      whereConditions.push(or(
-        eq(academicPeriods.schoolId, Number(targetSchoolId)), 
-        isNull(academicPeriods.schoolId)
-      ));
+    if (!targetSchoolId) {
+      return { success: true, data: [] };
     }
+
+    const whereConditions: any[] = [
+      eq(academicPeriods.schoolId, Number(targetSchoolId))
+    ];
+    
     if (sessionId) {
       whereConditions.push(eq(academicPeriods.sessionId, Number(sessionId)));
     }
 
-    let periods = await db
+    const periods = await db
       .select()
       .from(academicPeriods)
-      .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
+      .where(and(...whereConditions))
       .orderBy(academicPeriods.name);
 
-    // Fallback safety net: If filtered query returns empty, fetch all available periods
-    if (!periods || periods.length === 0) {
-      console.warn("⚠️ [getPeriods Fallback] No periods matched filter, fetching all periods safety net.");
-      periods = await db
-        .select()
-        .from(academicPeriods)
-        .orderBy(academicPeriods.name);
-    }
-
-    console.log("🔍 [DIAGNOSTIC getPeriods] Final periods returned:", periods?.length);
     return { success: true, data: periods || [] };
   } catch (error: any) {
-    console.error("🔍 [DIAGNOSTIC getPeriods] Exception:", error);
-    try {
-      const fallbackPeriods = await db.select().from(academicPeriods);
-      return { success: true, data: fallbackPeriods || [] };
-    } catch (e) {
-      return { success: false, error: error.message || "Erreur de chargement des périodes", data: [] };
-    }
+    console.error("🔍 [getPeriods Error]:", error);
+    return { success: false, error: error.message || "Erreur de chargement des périodes", data: [] };
   }
 }
 
@@ -463,19 +446,19 @@ export async function getSessions() {
     const activeSchoolId = await getActiveSchoolId().catch(() => null);
     const schoolId = currentSchool?.id || activeSchoolId || user?.schoolId;
     
-    const whereClause = schoolId 
-      ? or(eq(schoolSessions.schoolId, schoolId), isNull(schoolSessions.schoolId))
-      : undefined;
+    if (!schoolId) {
+      return { success: true, data: [] };
+    }
 
     const sessions = await db
       .select()
       .from(schoolSessions)
-      .where(whereClause)
+      .where(eq(schoolSessions.schoolId, Number(schoolId)))
       .orderBy(schoolSessions.sessionName);
 
     return { success: true, data: sessions };
   } catch (error: any) {
-    console.error("🔍 [DIAGNOSTIC getSessions] Exception:", error);
+    console.error("🔍 [getSessions Error]:", error);
     return { success: false, error: error.message || "Erreur de chargement des sessions", data: [] };
   }
 }
