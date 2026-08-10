@@ -44,6 +44,7 @@ export const students = pgTable("students", {
   behaviorScore: doublePrecision("behavior_score").default(0.0),
   photoPath: text("photo_path"),
   activationPin: varchar("activation_pin", { length: 50 }),
+  redoublementCount: integer("redoublement_count").default(0),
   
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({

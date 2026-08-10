@@ -50,6 +50,7 @@ export const schoolSections = pgTable("school_sections", {
   minPassingGrade: doublePrecision("min_passing_grade").default(10.0),
   redoublementThreshold: doublePrecision("redoublement_threshold").default(8.0),
   exclusionThreshold: doublePrecision("exclusion_threshold").default(5.0),
+  maxRedoublement: integer("max_redoublement").default(2),
   termLabels: varchar("term_labels", { length: 255 }), // e.g. "1er Trimestre, 2ème Trimestre, 3ème Trimestre"
   createdAt: timestamp("created_at").defaultNow(),
 });

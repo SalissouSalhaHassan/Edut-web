@@ -1440,12 +1440,18 @@ async function fetchBroadsheetMatrixDirect(params: { classId: number, sessionId:
     const minPass = (cls as any)?.section?.minPassingGrade ?? 10.0;
     const minRedouble = (cls as any)?.section?.redoublementThreshold ?? 8.0;
     const minExclusion = (cls as any)?.section?.exclusionThreshold ?? 5.0;
+    const maxRedoubleAllowed = (cls as any)?.section?.maxRedoublement ?? 2;
+    const currentStudentRepeats = s.redoublementCount || 0;
 
     let computedDecision = "ADMIS ✅";
     if (annualAverage >= minPass) {
       computedDecision = "ADMIS(E) EN CLASSE SUPÉRIEURE ✅";
     } else if (annualAverage >= minRedouble && annualAverage >= minExclusion) {
-      computedDecision = "AUTORISÉ(E) À REDOUBLER ❌";
+      if (currentStudentRepeats >= maxRedoubleAllowed) {
+        computedDecision = "EXCLU(E) (QUOTA REDOUBLEMENT DÉPASSÉ) ⛔";
+      } else {
+        computedDecision = `AUTORISÉ(E) À REDOUBLER (${currentStudentRepeats + 1}/${maxRedoubleAllowed}) ❌`;
+      }
     } else {
       computedDecision = "EXCLU(E) DE L'ÉTABLISSEMENT ⛔";
     }
@@ -3847,13 +3853,15 @@ export async function promoteClassStudents(data: {
         }).where(eq(students.id, st.id));
         excludedCount++;
       } else if (isRedouble) {
-        // Repeat student: keep in repeat class or target repeat class
+        // Repeat student: keep in repeat class or target repeat class AND increment redoublementCount
         const repeatClassName = latestSummary?.targetClassName || sourceClass.className;
+        const currentCount = st.redoublementCount || 0;
         await db.update(students).set({
           classe: repeatClassName,
           classId: sourceClass.id,
           session: newSession.sessionName,
-          statut: "Actif"
+          statut: "Actif",
+          redoublementCount: currentCount + 1
         }).where(eq(students.id, st.id));
         repeatedCount++;
       } else {
