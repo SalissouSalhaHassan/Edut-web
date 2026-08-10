@@ -271,7 +271,35 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
 
       const decisionStr = student.decision || (parseFloat(annualAvg) >= 10 ? "ADMIS(E) EN CLASSE SUPÉRIEURE ✅" : parseFloat(annualAvg) >= 8 ? "AUTORISÉ(E) À REDOUBLER ❌" : "EXCLU(E) ⛔");
       const isRedouble = decisionStr.includes("REDOUBLE");
-      const targetClass = student.targetClassName || (isRedouble ? `Redouble en ${activeFilters?.className || "Classe"}` : "Niveau Supérieur");
+      
+      const computeNextClassStr = (currentCls?: string, explicitTarget?: string) => {
+        if (explicitTarget && explicitTarget.trim()) return explicitTarget.trim();
+        if (!currentCls) return "Passage en Classe Supérieure";
+        const cls = currentCls.trim();
+        const u = cls.toUpperCase();
+
+        if (u.includes("6ÈME") || u.includes("6EME") || u.includes("6E")) return cls.replace(/6è?m?e?/i, "Passage en 5ème");
+        if (u.includes("5ÈME") || u.includes("5EME") || u.includes("5E")) return cls.replace(/5è?m?e?/i, "Passage en 4ème");
+        if (u.includes("4ÈME") || u.includes("4EME") || u.includes("4E")) return cls.replace(/4è?m?e?/i, "Passage en 3ème");
+        if (u.includes("3ÈME") || u.includes("3EME") || u.includes("3E")) return cls.replace(/3è?m?e?/i, "Passage en 2nde");
+        if (u.includes("2NDE") || u.includes("2ND")) return cls.replace(/2nde?/i, "Passage en 1ère");
+        if (u.includes("1ÈRE") || u.includes("1ERE") || u.includes("1ER")) return cls.replace(/1è?r?e?/i, "Passage en Tle");
+
+        if (u.includes("CI")) return cls.replace(/CI/i, "Passage en CP");
+        if (u.includes("CP")) return cls.replace(/CP/i, "Passage en CE1");
+        if (u.includes("CE1")) return cls.replace(/CE1/i, "Passage en CE2");
+        if (u.includes("CE2")) return cls.replace(/CE2/i, "Passage en CM1");
+        if (u.includes("CM1")) return cls.replace(/CM1/i, "Passage en CM2");
+
+        if (u.includes("L1")) return cls.replace(/L1/i, "Passage en L2");
+        if (u.includes("L2")) return cls.replace(/L2/i, "Passage en L3");
+        if (u.includes("M1")) return cls.replace(/M1/i, "Passage en M2");
+
+        return `Passage en ${cls}`;
+      };
+
+      const currentClass = activeFilters?.className || student.classe || "";
+      const targetClass = student.targetClassName || (isRedouble ? `Redouble en ${currentClass}` : computeNextClassStr(currentClass));
 
       return `
         <tr>
@@ -994,7 +1022,7 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
                             </span>
                           </td>
                           <td className="p-2 border-r border-slate-100 text-center font-bold text-purple-700 text-[11px]">
-                            {student.targetClassName || (isRedouble ? `Redouble en ${activeFilters?.className || "Classe"}` : "Niveau Supérieur")}
+                            {student.targetClassName || (isRedouble ? `Redouble en ${activeFilters?.className || "Classe"}` : computeNextClassStr(activeFilters?.className || student.classe))}
                           </td>
                           <td className="p-2 text-center font-semibold text-slate-700">{allocataire}</td>
                         </tr>
