@@ -713,7 +713,7 @@ export async function generateBulletinPDF(data: any) {
     margin: { left: 10, right: 10 }
   });
 
-  // 3. Table: Résultat annuel & Signatures (Automated decision linkage)
+  // 3. Table: Résultat annuel & Signatures (Automated decision linkage & Target Class Computation)
   const rawDecision = String(summary?.decision || "").toUpperCase();
   const annualAvgVal = typeof summary?.annualAverage === 'number' ? summary.annualAverage : (typeof student?.annualAverage === 'number' ? student.annualAverage : (parseFloat(displayAnnualAvg) || summary?.average || 0));
 
@@ -721,12 +721,38 @@ export async function generateBulletinPDF(data: any) {
   const isRedoublement = rawDecision.includes("REDOUBLE") || (!rawDecision && annualAvgVal >= 8.0 && annualAvgVal < 10.0);
   const isExclusion = rawDecision.includes("EXCLU") || (!rawDecision && annualAvgVal < 8.0 && annualAvgVal > 0);
 
-  const targetClassStr = (summary as any)?.targetClassName || "classe supérieure";
+  const computeNextClassStr = (currentCls?: string, explicitTarget?: string) => {
+    if (explicitTarget && explicitTarget.trim()) return explicitTarget.trim();
+    if (!currentCls) return "Classe Supérieure";
+    const cls = currentCls.trim();
+    const u = cls.toUpperCase();
 
-  const passageLabel = isPassage ? `[X] Passage en ${targetClassStr}` : `[  ] Passage en`;
+    if (u.includes("6ÈME") || u.includes("6EME") || u.includes("6E")) return cls.replace(/6è?m?e?/i, "5ème");
+    if (u.includes("5ÈME") || u.includes("5EME") || u.includes("5E")) return cls.replace(/5è?m?e?/i, "4ème");
+    if (u.includes("4ÈME") || u.includes("4EME") || u.includes("4E")) return cls.replace(/4è?m?e?/i, "3ème");
+    if (u.includes("3ÈME") || u.includes("3EME") || u.includes("3E")) return cls.replace(/3è?m?e?/i, "2nde");
+    if (u.includes("2NDE") || u.includes("2ND")) return cls.replace(/2nde?/i, "1ère");
+    if (u.includes("1ÈRE") || u.includes("1ERE") || u.includes("1ER")) return cls.replace(/1è?r?e?/i, "Tle");
+
+    if (u.includes("CI")) return cls.replace(/CI/i, "CP");
+    if (u.includes("CP")) return cls.replace(/CP/i, "CE1");
+    if (u.includes("CE1")) return cls.replace(/CE1/i, "CE2");
+    if (u.includes("CE2")) return cls.replace(/CE2/i, "CM1");
+    if (u.includes("CM1")) return cls.replace(/CM1/i, "CM2");
+
+    if (u.includes("L1")) return cls.replace(/L1/i, "L2");
+    if (u.includes("L2")) return cls.replace(/L2/i, "L3");
+    if (u.includes("M1")) return cls.replace(/M1/i, "M2");
+
+    return `${cls} (Niveau Supé.)`;
+  };
+
+  const nextClassName = computeNextClassStr(student?.classe, (summary as any)?.targetClassName);
+
+  const passageLabel = isPassage ? `[X] Passage en ${nextClassName}` : `[  ] Passage en`;
   const redoublementLabel = isRedoublement ? `[X] Redoublement` : `[  ] Redoublement`;
   const exclusionLabel = isExclusion ? `[X] Exclusion` : `[  ] Exclusion`;
-  const computedDecisionLabel = summary?.decision || (isPassage ? "ADMIS(E) EN CLASSE SUPÉRIEURE ✅" : isRedoublement ? "AUTORISÉ(E) À REDOUBLER ❌" : "EXCLU(E) DE L'ÉTABLISSEMENT ⛔");
+  const computedDecisionLabel = summary?.decision || (isPassage ? `ADMIS(E) EN ${nextClassName.toUpperCase()} ✅` : isRedoublement ? "AUTORISÉ(E) À REDOUBLER ❌" : "EXCLU(E) DE L'ÉTABLISSEMENT ⛔");
 
   const finalY3 = (doc as any).lastAutoTable.finalY + 3;
   autoTable(doc, {
