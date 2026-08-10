@@ -715,7 +715,7 @@ export async function generateBulletinPDF(data: any) {
 
   // 3. Table: Résultat annuel & Signatures (Automated decision linkage)
   const rawDecision = String(summary?.decision || "").toUpperCase();
-  const annualAvgVal = typeof summary?.annualAverage === 'number' ? summary.annualAverage : (typeof student?.annualAverage === 'number' ? student.annualAverage : (parseFloat(studentAvg) || 0));
+  const annualAvgVal = typeof summary?.annualAverage === 'number' ? summary.annualAverage : (typeof student?.annualAverage === 'number' ? student.annualAverage : (parseFloat(displayAnnualAvg) || summary?.average || 0));
 
   const isPassage = rawDecision.includes("ADMIS") || rawDecision.includes("PASSAGE") || (!rawDecision && annualAvgVal >= 10.0);
   const isRedoublement = rawDecision.includes("REDOUBLE") || (!rawDecision && annualAvgVal >= 8.0 && annualAvgVal < 10.0);
