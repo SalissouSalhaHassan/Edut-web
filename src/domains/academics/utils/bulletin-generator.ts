@@ -1939,24 +1939,25 @@ export function generateOfficialAnnualReportPDF(data: {
       valign: "middle"
     },
     styles: {
-      fontSize: 8,
-      cellPadding: 2,
+      fontSize: 7.5,
+      cellPadding: 1.5,
       valign: "middle",
       overflow: "linebreak"
     },
     columnStyles: {
-      0: { cellWidth: 10, halign: "center" },
-      1: { cellWidth: 45, fontStyle: "bold" },
-      2: { cellWidth: 42 },
+      0: { cellWidth: 8, halign: "center" },
+      1: { cellWidth: 40, fontStyle: "bold" },
+      2: { cellWidth: 38 },
       3: { cellWidth: 28, halign: "center", fontStyle: "bold" },
-      4: { cellWidth: 12, halign: "center" },
-      5: { cellWidth: 22, halign: "center" },
-      6: { cellWidth: 20, halign: "center", fontStyle: "bold" },
+      4: { cellWidth: 16, halign: "center" },
+      5: { cellWidth: 16, halign: "center" },
+      6: { cellWidth: 12, halign: "center" },
       7: { cellWidth: 16, halign: "center" },
-      8: { cellWidth: 20, halign: "center", fontStyle: "bold" },
-      9: { cellWidth: 16, halign: "center" },
-      10: { cellWidth: 22, halign: "center", fontStyle: "bold" },
-      11: { cellWidth: 24, halign: "center" }
+      8: { cellWidth: 12, halign: "center" },
+      9: { cellWidth: 16, halign: "center", fontStyle: "bold" },
+      10: { cellWidth: 28, halign: "center", fontStyle: "bold" },
+      11: { cellWidth: 28, halign: "center", fontStyle: "bold" },
+      12: { cellWidth: 18, halign: "center" }
     },
     didParseCell: handleBilingualCell
   });
