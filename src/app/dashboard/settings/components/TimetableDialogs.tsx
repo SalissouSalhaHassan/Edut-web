@@ -367,9 +367,9 @@ export function AssignmentsDialog({ open, onOpenChange, classes, teachers: initi
                                 onChange={(e) => setDraftTeacherId(e.target.value)}
                                 className="w-full h-11 bg-white/5 border border-white/10 rounded-xl px-4 text-xs font-bold text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500/30 disabled:opacity-40 disabled:cursor-not-allowed"
                               >
-                                 <option value="">{selectedAssignmentId ? `-- Choisir Prof (${filteredTeachers.length} disponibles) --` : "-- Sélectionner une matière --"}</option>
+                                 <option value="" className="bg-[#0F111A] text-slate-400">{selectedAssignmentId ? `-- Choisir Prof (${filteredTeachers.length} disponibles) --` : "-- Sélectionner une matière --"}</option>
                                  {filteredTeachers.map(t => (
-                                   <option key={t.id} value={t.id}>
+                                   <option key={t.id} value={t.id} className="bg-[#0F111A] text-slate-200 font-semibold">
                                      {t.nom} ({t.workload}h) {t.workload > 22 ? "⚠️" : "✓"}
                                    </option>
                                  ))}

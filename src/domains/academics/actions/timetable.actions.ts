@@ -469,9 +469,61 @@ export async function getTeacherWorkloads() {
 }
 
 /**
+ * Normalizes educational level strings to clean lowercase ASCII
+ */
+function normalizeEduLevel(str: string): string {
+  return (str || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+}
+
+/**
+ * Checks if a teacher's HR educationalLevel (comma-separated, e.g. "Supérieur, Lycée")
+ * matches a target class section level (e.g. "Licence", "Master", "Collège").
+ */
+function isLevelCompatible(teacherLevelStr: string | null | undefined, targetLevelStr: string | null | undefined): boolean {
+  if (!targetLevelStr) return true;
+  if (!teacherLevelStr) return false;
+
+  const teacherLevels = teacherLevelStr.split(",").map(normalizeEduLevel);
+  const target = normalizeEduLevel(targetLevelStr);
+
+  const globalTerms = ["tous", "all", "global", "tous niveaux", "administration generale"];
+  if (teacherLevels.some(l => globalTerms.includes(l))) return true;
+
+  const familyGroups: string[][] = [
+    // University / Higher Ed
+    ["supeur", "superieur", "universite", "university", "licence", "master", "doctorat", "bts", "dts", "lmd", "faculte", "sup"],
+    // Lycée / High School
+    ["lycee", "secondaire", "high school"],
+    // Collège / Middle School
+    ["college", "moyen", "middle school"],
+    // Primaire / Primary
+    ["primaire", "elementaire", "fondamental", "basic"],
+    // Maternelle / Preschool
+    ["maternelle", "prescolaire", "jardin d'enfants"]
+  ];
+
+  for (const tL of teacherLevels) {
+    if (!tL) continue;
+    if (tL === target || tL.includes(target) || target.includes(tL)) return true;
+
+    for (const group of familyGroups) {
+      const teacherInGroup = group.some(g => tL.includes(g) || g.includes(tL));
+      const targetInGroup = group.some(g => target.includes(g) || g.includes(tL));
+      if (teacherInGroup && targetInGroup) return true;
+    }
+  }
+
+  return false;
+}
+
+/**
  * Returns teachers whose educationalLevel (set in HR) includes
- * the educationalLevel of the given class's section.
- * e.g. if class is "Collège", returns teachers whose HR profile contains "Collège".
+ * or is compatible with the educationalLevel of the given class's section.
+ * e.g. if class section is "Licence", matches teachers with "Supérieur", "Licence", "Université", etc.
  * Falls back to ALL active teachers if the class has no section level or none match.
  */
 export async function getTeachersByClassLevel(classId: number) {
@@ -506,16 +558,12 @@ export async function getTeachersByClassLevel(classId: number) {
       where: and(eq(employees.statut, "Actif"), eq(employees.schoolId, schoolId))
     });
 
-    // 4. Filter by HR educationalLevel field (comma-separated, e.g. "Collège,Lycée")
+    // 4. Filter by HR educationalLevel field using fuzzy family compatibility
     let filteredTeachers = allTeachers;
     let isFiltered = false;
 
     if (targetLevel) {
-      const matched = allTeachers.filter(t => {
-        if (!t.educationalLevel) return false;
-        const levels = t.educationalLevel.split(",").map(l => l.trim().toLowerCase());
-        return levels.includes(targetLevel.toLowerCase()) || levels.includes("tous");
-      });
+      const matched = allTeachers.filter(t => isLevelCompatible(t.educationalLevel, targetLevel));
 
       // Only apply filter if we actually found matching teachers
       if (matched.length > 0) {
