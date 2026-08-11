@@ -15,6 +15,7 @@ import {
   saveClassAssignment,
   deleteClassAssignment,
   getTeacherWorkloads,
+  getTeachersByClassLevel,
   aiSyncCursus,
   getTeacherConstraints, 
   saveTeacherConstraints,
@@ -39,6 +40,8 @@ export function AssignmentsDialog({ open, onOpenChange, classes, teachers: initi
   const [selectedClassId, setSelectedClassId] = useState<number | null>(classes[0]?.id || null);
   const [assignments, setAssignments] = useState<any[]>([]);
   const [teacherWorkloads, setTeacherWorkloads] = useState<any[]>([]);
+  const [filteredTeachers, setFilteredTeachers] = useState<any[]>([]);
+  const [levelInfo, setLevelInfo] = useState<{ level: string | null; isFiltered: boolean }>({ level: null, isFiltered: false });
   const [loading, setLoading] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [searchQuery, setSearchQuery] = useState("");
@@ -54,12 +57,20 @@ export function AssignmentsDialog({ open, onOpenChange, classes, teachers: initi
   const loadData = async () => {
     if (selectedClassId) {
       setLoading(true);
-      const [assignRes, workloadRes] = await Promise.all([
+      const [assignRes, workloadRes, levelRes] = await Promise.all([
         getClassAssignments(selectedClassId),
-        getTeacherWorkloads()
+        getTeacherWorkloads(),
+        getTeachersByClassLevel(selectedClassId)
       ]);
       if (assignRes.success) setAssignments(assignRes.data || []);
       if (workloadRes.success) setTeacherWorkloads(workloadRes.data || []);
+      if (levelRes.success && levelRes.data) {
+        setFilteredTeachers(levelRes.data.teachers || []);
+        setLevelInfo({ level: levelRes.data.educationalLevel, isFiltered: levelRes.data.isFiltered });
+      } else {
+        setFilteredTeachers(workloadRes.success ? (workloadRes.data || []) : []);
+        setLevelInfo({ level: null, isFiltered: false });
+      }
       setLoading(false);
     }
   };
@@ -142,9 +153,12 @@ export function AssignmentsDialog({ open, onOpenChange, classes, teachers: initi
     if (!selectedAssignmentId) return;
     const assignment = assignments.find(a => a.id === selectedAssignmentId);
     if (!assignment) return;
-    const bestTeacher = [...teacherWorkloads].sort((a, b) => (a.workload || 0) - (b.workload || 0))[0];
+    // Use filteredTeachers (level-filtered) for smarter AI suggestion
+    const pool = filteredTeachers.length > 0 ? filteredTeachers : teacherWorkloads;
+    const bestTeacher = [...pool].sort((a, b) => (a.workload || 0) - (b.workload || 0))[0];
     if (bestTeacher) {
-      setAiInsight(`Suggestion IA : ${bestTeacher.nom} (Charge : ${bestTeacher.workload}h)`);
+      const levelTag = levelInfo.isFiltered ? ` [${levelInfo.level}]` : '';
+      setAiInsight(`Suggestion IA${levelTag} : ${bestTeacher.nom} (Charge : ${bestTeacher.workload}h)`);
       // Pre-fill the draft — user confirms via Appliquer
       setDraftTeacherId(String(bestTeacher.id));
     }
@@ -334,6 +348,16 @@ export function AssignmentsDialog({ open, onOpenChange, classes, teachers: initi
                     <div className="flex-1 space-y-3">
                        <h4 className="text-[9px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
                           <Activity size={12} /> Affectation Manuelle
+                          {levelInfo.level && (
+                             <span className={cn(
+                               "ml-auto px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest border",
+                               levelInfo.isFiltered
+                                 ? "bg-indigo-500/10 text-indigo-400 border-indigo-500/20"
+                                 : "bg-slate-500/10 text-slate-400 border-slate-500/20"
+                             )}>
+                               {levelInfo.isFiltered ? `🎓 ${levelInfo.level}` : "Tous niveaux"}
+                             </span>
+                           )}
                        </h4>
                        <div className="flex items-center gap-3">
                           <div className="flex-1">
@@ -343,10 +367,10 @@ export function AssignmentsDialog({ open, onOpenChange, classes, teachers: initi
                                 onChange={(e) => setDraftTeacherId(e.target.value)}
                                 className="w-full h-11 bg-white/5 border border-white/10 rounded-xl px-4 text-xs font-bold text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500/30 disabled:opacity-40 disabled:cursor-not-allowed"
                               >
-                                 <option value="">{selectedAssignmentId ? "-- Choisir Prof --" : "-- Sélectionner une matière --"}</option>
-                                 {teacherWorkloads.map(t => (
+                                 <option value="">{selectedAssignmentId ? `-- Choisir Prof (${filteredTeachers.length} disponibles) --` : "-- Sélectionner une matière --"}</option>
+                                 {filteredTeachers.map(t => (
                                    <option key={t.id} value={t.id}>
-                                     {t.nom} ({t.workload}h) {t.workload > 22 ? "⚠️" : ""}
+                                     {t.nom} ({t.workload}h) {t.workload > 22 ? "⚠️" : "✓"}
                                    </option>
                                  ))}
                               </select>

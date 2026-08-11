@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/infrastructure/database";
-import { timetableEntries, timetableSettings, teacherConstraints, schoolClasses, schoolSubjects, classSubjects, sectionSubjects } from "@/infrastructure/database/schema/academics";
+import { timetableEntries, timetableSettings, teacherConstraints, schoolClasses, schoolSubjects, classSubjects, sectionSubjects, schoolSections } from "@/infrastructure/database/schema/academics";
 import { employees } from "@/infrastructure/database/schema/hr";
 import { schoolBranches, settings } from "@/infrastructure/database/schema/settings";
 import { eq, and, isNull, inArray, sql, or } from "drizzle-orm";
@@ -465,6 +465,102 @@ export async function getTeacherWorkloads() {
       ...t,
       workload: workloadMap[t.id] || 0
     }));
+  });
+}
+
+/**
+ * Returns teachers who have been assigned to at least one class
+ * of the same educationalLevel as the given classId.
+ * Falls back to ALL active teachers if no match is found.
+ */
+export async function getTeachersByClassLevel(classId: number) {
+  return protectedDbAction("Academics", "canView", async () => {
+    const schoolId = await getActiveSchoolId();
+
+    // 1. Resolve the section & educationalLevel of the target class
+    const targetClass = await db.query.schoolClasses.findFirst({
+      where: and(eq(schoolClasses.id, classId), eq(schoolClasses.schoolId, schoolId)),
+      with: { section: true }
+    });
+
+    const targetLevel: string | null = (targetClass as any)?.section?.educationalLevel ?? null;
+
+    // 2. Find all classIds at the same level
+    let levelClassIds: number[] = [];
+    if (targetLevel) {
+      const sectionsAtLevel = await db.query.schoolSections.findMany({
+        where: and(
+          eq(schoolSections.schoolId, schoolId),
+          eq(schoolSections.educationalLevel, targetLevel)
+        )
+      });
+      const sectionIds = sectionsAtLevel.map(s => s.id);
+
+      if (sectionIds.length > 0) {
+        const classesAtLevel = await db.query.schoolClasses.findMany({
+          where: and(
+            eq(schoolClasses.schoolId, schoolId),
+            inArray(schoolClasses.sectionId, sectionIds)
+          )
+        });
+        levelClassIds = classesAtLevel.map(c => c.id);
+      }
+    }
+
+    // 3. Find employee IDs assigned in those classes
+    let qualifiedEmployeeIds: number[] = [];
+    if (levelClassIds.length > 0) {
+      const assignments = await db.query.classSubjects.findMany({
+        where: and(
+          eq(classSubjects.schoolId, schoolId),
+          inArray(classSubjects.classId, levelClassIds)
+        )
+      });
+      qualifiedEmployeeIds = [
+        ...new Set(assignments.map(a => a.employeeId).filter(Boolean) as number[])
+      ];
+    }
+
+    // 4. Workload map for ALL active teachers
+    const workloads = await db
+      .select({
+        employeeId: classSubjects.employeeId,
+        totalHours: sql<number>`sum(${classSubjects.coefficient})`,
+      })
+      .from(classSubjects)
+      .where(eq(classSubjects.schoolId, schoolId))
+      .groupBy(classSubjects.employeeId);
+
+    const workloadMap: Record<number, number> = {};
+    workloads.forEach(w => {
+      if (w.employeeId) workloadMap[w.employeeId] = Number(w.totalHours);
+    });
+
+    // 5. Fetch matched teachers; fallback to ALL if none matched
+    let teachers;
+    if (qualifiedEmployeeIds.length > 0) {
+      teachers = await db.query.employees.findMany({
+        where: and(
+          eq(employees.statut, "Actif"),
+          eq(employees.schoolId, schoolId),
+          inArray(employees.id, qualifiedEmployeeIds)
+        )
+      });
+    } else {
+      // Fallback: no prior assignments found, return ALL active teachers
+      teachers = await db.query.employees.findMany({
+        where: and(eq(employees.statut, "Actif"), eq(employees.schoolId, schoolId))
+      });
+    }
+
+    return {
+      teachers: teachers.map(t => ({
+        ...t,
+        workload: workloadMap[t.id] || 0
+      })),
+      educationalLevel: targetLevel,
+      isFiltered: qualifiedEmployeeIds.length > 0
+    };
   });
 }
 
