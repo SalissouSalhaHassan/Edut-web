@@ -176,12 +176,13 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
       "Date et lieu de naissance",
       "Matricule",
       "Sexe",
-      "Redoublement Antérieur",
       semLabels.s1,
       semLabels.r1,
       semLabels.s2,
       semLabels.r2,
       "Moyenne Annuelle",
+      "Décision du Conseil",
+      "Affectation / Classe",
       "Allocataire"
     ];
 
@@ -221,7 +222,11 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
       const safeAvg = typeof student.average === 'number' && !isNaN(student.average) ? student.average : 0;
       const annualAvg = typeof student.annualAverage === 'number' ? student.annualAverage.toFixed(2) : safeAvg.toFixed(2);
 
-      const redoublement = student.redoublement === true || student.isRepeater === true || student.redoublement === "Oui" ? "Oui" : "Non";
+      const decisionStr = student.decision || (parseFloat(annualAvg) >= 10 ? "ADMIS(E) EN CLASSE SUPÉRIEURE ✅" : parseFloat(annualAvg) >= 8 ? "AUTORISÉ(E) À REDOUBLER ❌" : "EXCLU(E) ⛔");
+      const isRedouble = decisionStr.includes("REDOUBLE");
+      const currentClass = activeFilters?.className || student.classe || "";
+      const targetClass = student.targetClassName || (isRedouble ? `Redouble en ${currentClass}` : computeNextClassStr(currentClass));
+
       const allocataire = student.allocataire || (student.isScholarship ? "Boursier" : "Non Boursier") || "Non";
 
       return [
@@ -230,17 +235,18 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
         `"${dateAndPlace.replace(/"/g, '""')}"`,
         `"${(student.matricule || '-').replace(/"/g, '""')}"`,
         `"${(student.sexe || student.gender || 'M').replace(/"/g, '""')}"`,
-        `"${redoublement}"`,
         `"${s1Avg}"`,
         `"${s1Rank}"`,
         `"${s2Avg}"`,
         `"${s2Rank}"`,
         `"${annualAvg}"`,
+        `"${decisionStr.replace(/[✅❌⛔]/g, '').trim()}"`,
+        `"${targetClass}"`,
         `"${allocataire}"`
-      ].join(",");
+      ].join(";");
     });
 
-    const csvContent = "\uFEFF" + [headers.join(","), ...rows].join("\n");
+    const csvContent = "\uFEFFsep=;\n" + [headers.join(";"), ...rows].join("\n");
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
