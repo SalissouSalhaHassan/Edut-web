@@ -807,53 +807,324 @@ export async function generateBulletinPDF(data: any) {
 }
 
 export async function generatePVMatrixPDF(matrixData: any, classInfo: any, filters: any) {
-  const doc = new jsPDF({ orientation: "landscape" });
-  const { students, subjects } = matrixData || {};
-  const safePeriod = String(filters?.period || "Periode").toUpperCase();
+  const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+  ensureAmiriRegistered(doc);
+
+  const { students = [], subjects = [] } = matrixData || {};
+  const classNameStr = classInfo?.className || filters?.className || "CLASSE";
+  const sessionStr = filters?.sessionName || filters?.session || "2025-2026";
+  const periodStr = String(filters?.period || "PÉRIODE").toUpperCase();
+  const currentDateStr = new Date().toLocaleDateString("fr-FR");
+
+  const headerConfig = classInfo?.headerConfig || filters?.headerConfig || {};
+  const schoolName = headerConfig.schoolName || headerConfig.school?.name || "ÉCOLE EXCELLENCE";
+  const country = headerConfig.country || headerConfig.countryName || "RÉPUBLIQUE DU NIGER";
+  const motto = headerConfig.motto || "Unité - Travail - Progrès";
+  const defaultMinistry = classInfo?.isHigherEd ? "MINISTÈRE DE L'ENSEIGNEMENT SUPÉRIEUR ET DE LA RECHERCHE" : "MINISTÈRE DE L'ÉDUCATION NATIONALE";
+  const ministry = headerConfig.ministry || headerConfig.ministryName || defaultMinistry;
+  const logo = headerConfig.leftLogo || headerConfig.rightLogo || headerConfig.centerLogo || headerConfig.logoUrl;
+
   const toDisplayNumber = (value: any, digits = 1) => {
+    if (value === null || value === undefined || value === "" || value === "-") return "-";
     const numeric = Number(value);
     return Number.isFinite(numeric) ? numeric.toFixed(digits) : "-";
   };
+
   const readResultTotal = (result: any) => {
     if (!result) return null;
     return result.total ?? result.totalScore ?? result.moy ?? result.average ?? result.weightedScore ?? result.note ?? null;
   };
 
-  doc.setFontSize(16);
-  doc.text(`PROCES VERBAL DES RESULTATS - ${classInfo?.className || "CLASSE"}`, 148, 15, { align: "center" });
-  doc.setFontSize(11);
-  doc.text(`Periode: ${safePeriod} | Session: ${filters?.sessionName || ""}`, 148, 22, { align: "center" });
+  // Helper for ordinal rank formatting
+  const getOrdinalRank = (rankNum: number) => {
+    if (!rankNum || isNaN(rankNum)) return "-";
+    if (rankNum === 1) return "1er";
+    return `${rankNum}ème`;
+  };
 
-  const headers = ["Matricule", "Nom de l'eleve", ...(subjects || []).map((s: any) => s.subjectName || s.name || "Matiere"), "Moyenne", "Rang", "Decision"];
+  let startY = 12;
+
+  // Render Header Logo & Info
+  if (logo) {
+    try {
+      doc.addImage(logo, 'PNG', 12, 8, 20, 20);
+    } catch (e) {}
+  }
+
+  // Left Header Block
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(15, 23, 42);
+  doc.text(country.toUpperCase(), logo ? 35 : 12, startY);
   
-  const body = (students || []).map((s: any) => [
-    s.matricule || s.numAdmission || "-",
-    s.name || s.studentName || s.nomEtudiant || "-",
-    ...(subjects || []).map((subj: any) => {
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "italic");
+  doc.setTextColor(100, 116, 139);
+  doc.text(motto, logo ? 35 : 12, startY + 4);
+
+  doc.setFontSize(7.5);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(30, 41, 59);
+  doc.text(ministry.toUpperCase(), logo ? 35 : 12, startY + 8);
+
+  // Right Header Block
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(30, 58, 138);
+  doc.text(schoolName.toUpperCase(), 285, startY + 2, { align: "right" });
+
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(100, 116, 139);
+  doc.text(`Année Scolaire: ${sessionStr}`, 285, startY + 7, { align: "right" });
+  doc.text(`Édition du: ${currentDateStr}`, 285, startY + 11, { align: "right" });
+
+  // Divider Line
+  doc.setDrawColor(30, 58, 138);
+  doc.setLineWidth(0.6);
+  doc.line(10, startY + 14, 287, startY + 14);
+
+  // Document Title Box
+  doc.setFillColor(241, 245, 249);
+  doc.rect(10, startY + 17, 277, 12, "F");
+  
+  doc.setFontSize(13);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(15, 23, 42);
+  doc.text(`PROCÈS VERBAL DES RÉSULTATS — ${classNameStr.toUpperCase()}`, 148.5, startY + 23, { align: "center" });
+
+  doc.setFontSize(8.5);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(71, 85, 105);
+  doc.text(`Période: ${periodStr}   |   Session: ${sessionStr}   |   Effectif: ${students.length} Élèves`, 148.5, startY + 27, { align: "center" });
+
+  // Calculate ranks dynamically if needed
+  const sortedStudents = [...students].sort((a, b) => {
+    const avgA = Number(a.average ?? a.moyenne ?? a.annualAverage ?? 0);
+    const avgB = Number(b.average ?? b.moyenne ?? b.annualAverage ?? 0);
+    return avgB - avgA;
+  });
+
+  const rankMap = new Map<any, number>();
+  sortedStudents.forEach((st, idx) => {
+    rankMap.set(st.id || st.studentId || st.matricule || idx, idx + 1);
+  });
+
+  // Prepare Subject Headers (Subject Name on Line 1, Subject Code on Line 2)
+  const subjectHeaderTitles = (subjects || []).map((s: any, idx: number) => {
+    const sName = s.subjectName || s.name || `Matière ${idx + 1}`;
+    const sCode = s.subjectCode || s.code || s.shortCode || `SUBJ${String(idx + 1).padStart(3, '0')}`;
+    return `${sName}\n${sCode}`;
+  });
+
+  const headers = ["N°", "Matricule", "Nom et Prénoms de l'Élève", ...subjectHeaderTitles, "Moyenne\n/20", "Rang", "Décision du Conseil"];
+
+  // Table Body Rows
+  let totalClassAvgSum = 0;
+  let validAvgStudentsCount = 0;
+  let admisCount = 0;
+  let redoubleCount = 0;
+  let excluCount = 0;
+
+  // Subject Stats Aggregator
+  const subjectStats: Record<string, { name: string; code: string; scores: number[] }> = {};
+  (subjects || []).forEach((subj: any, idx: number) => {
+    const sName = subj.subjectName || subj.name || `Matière ${idx + 1}`;
+    const sCode = subj.subjectCode || subj.code || subj.shortCode || `SUBJ${String(idx + 1).padStart(3, '0')}`;
+    const key = String(subj.id || subj.subjectId || sCode);
+    subjectStats[key] = { name: sName, code: sCode, scores: [] };
+  });
+
+  const body = (students || []).map((s: any, idx: number) => {
+    const stKey = s.id || s.studentId || s.matricule || idx;
+    const calcRank = rankMap.get(stKey) || idx + 1;
+    const rankStr = getOrdinalRank(calcRank);
+
+    const safeAvgNum = Number(s.average ?? s.moyenne ?? s.annualAverage ?? 0);
+    if (!isNaN(safeAvgNum) && safeAvgNum > 0) {
+      totalClassAvgSum += safeAvgNum;
+      validAvgStudentsCount++;
+    }
+
+    const decisionStr = s.decision || (safeAvgNum >= 10.0 ? "ADMIS(E) EN CLASSE SUPÉRIEURE ✅" : safeAvgNum >= 8.0 ? "AUTORISÉ(E) À REDOUBLER ❌" : "EXCLU(E) DE L'ÉTABLISSEMENT ⛔");
+    const isAdmis = decisionStr.includes("ADMIS");
+    const isRedouble = decisionStr.includes("REDOUBLE");
+    const isExclu = decisionStr.includes("EXCLU");
+
+    if (isAdmis) admisCount++;
+    else if (isRedouble) redoubleCount++;
+    else if (isExclu) excluCount++;
+    else admisCount++;
+
+    const rowSubjectScores = (subjects || []).map((subj: any, sIdx: number) => {
       const resultMap = s.results || {};
       const res = resultMap[subj.id] || resultMap[subj.subjectId] || resultMap[subj.subjectName] || resultMap[subj.name];
-      return toDisplayNumber(readResultTotal(res), 1);
-    }),
-    toDisplayNumber(s.average ?? s.moyenne ?? s.weighted ?? s.total, 2),
-    s.rank || "-",
-    s.decision || (Number(s.average ?? s.moyenne ?? 0) >= 10 ? "Admis" : "A remedier")
-  ]);
+      const valNum = readResultTotal(res);
+      
+      const key = String(subj.id || subj.subjectId || subj.subjectCode || subj.code || `SUBJ${String(sIdx + 1).padStart(3, '0')}`);
+      if (valNum !== null && valNum !== undefined && !isNaN(Number(valNum))) {
+        if (subjectStats[key]) {
+          subjectStats[key].scores.push(Number(valNum));
+        }
+      }
 
+      return toDisplayNumber(valNum, 1);
+    });
+
+    return [
+      idx + 1,
+      s.matricule || s.numAdmission || "-",
+      s.name || s.studentName || s.nomEtudiant || "Élève",
+      ...rowSubjectScores,
+      toDisplayNumber(safeAvgNum, 2),
+      rankStr,
+      decisionStr.replace(/[✅❌⛔]/g, '').trim()
+    ];
+  });
+
+  // Render Main Results Table
+  const mainTableStartY = startY + 32;
   autoTable(doc, {
-    startY: 30,
+    startY: mainTableStartY,
     head: [headers],
     body: body,
     theme: "grid",
-    headStyles: { fillColor: [44, 62, 80], textColor: 255, fontSize: 8 },
-    styles: { fontSize: 7, cellPadding: 1 },
+    headStyles: { 
+      fillColor: [15, 23, 42], 
+      textColor: [255, 255, 255], 
+      fontSize: 7.5, 
+      fontStyle: "bold",
+      halign: "center",
+      valign: "middle"
+    },
+    styles: { 
+      fontSize: 7, 
+      cellPadding: 1.2, 
+      valign: "middle" 
+    },
     columnStyles: {
-      1: { cellWidth: 40 },
-      [headers.length - 3]: { fontStyle: "bold" }
-    }
+      0: { cellWidth: 8, halign: "center" },
+      1: { cellWidth: 26, halign: "center", fontStyle: "bold" },
+      2: { cellWidth: 38, fontStyle: "bold" },
+      [headers.length - 3]: { cellWidth: 16, halign: "center", fontStyle: "bold" }, // Moyenne
+      [headers.length - 2]: { cellWidth: 14, halign: "center" },                    // Rang
+      [headers.length - 1]: { cellWidth: 35, halign: "center", fontStyle: "bold" }  // Decision
+    },
+    didParseCell: handleBilingualCell
   });
 
-  const classInfoName = (classInfo?.className || "Classe").replace(/\s+/g, "_");
-  doc.save(`PV_Moyennes_${classInfoName}_${Date.now()}.pdf`);
+  let currentY = (doc as any).lastAutoTable.finalY + 6;
+  const pageHeight = doc.internal.pageSize.getHeight();
+
+  // Check page overflow for summary sections
+  if (currentY + 60 > pageHeight) {
+    doc.addPage();
+    currentY = 15;
+  }
+
+  // 1. STATISTICAL SUMMARY BOX (RÉSUMÉ STATISTIQUE)
+  const classAvg = validAvgStudentsCount > 0 ? (totalClassAvgSum / validAvgStudentsCount).toFixed(2) : "0.00";
+  const successRate = students.length > 0 ? ((admisCount / students.length) * 100).toFixed(1) : "0.0";
+
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(15, 23, 42);
+  doc.text("📊 RÉSUMÉ STATISTIQUE DE LA CLASSE", 10, currentY);
+
+  autoTable(doc, {
+    startY: currentY + 3,
+    head: [["Effectif Total", "Admis(es)", "Redoublants", "Exclus / Ajournés", "Taux de Réussite", "Moyenne Générale Classe"]],
+    body: [[
+      `${students.length} Élèves`,
+      `${admisCount} (${successRate}%)`,
+      `${redoubleCount}`,
+      `${excluCount}`,
+      `${successRate} %`,
+      `${classAvg} / 20`
+    ]],
+    theme: "grid",
+    headStyles: { fillColor: [30, 58, 138], textColor: 255, fontSize: 8, halign: "center" },
+    styles: { fontSize: 8, cellPadding: 1.5, halign: "center", fontStyle: "bold" },
+    margin: { left: 10, right: 10 }
+  });
+
+  currentY = (doc as any).lastAutoTable.finalY + 6;
+  if (currentY + 50 > pageHeight) {
+    doc.addPage();
+    currentY = 15;
+  }
+
+  // 2. SUBJECTS ANALYSIS TABLE (RÉCAPITULATIF & ANALYSE DES MATIÈRES)
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(15, 23, 42);
+  doc.text("📚 RÉCAPITULATIF ET ANALYSE DES MATIÈRES", 10, currentY);
+
+  const subjectAnalysisHead = [["Code Matière", "Nom de la Matière", "Moyenne Classe", "Meilleure Note", "Plus Faible Note", "Taux de Réussite (>=10)"]];
+  const subjectAnalysisBody = Object.values(subjectStats).map((st) => {
+    const scs = st.scores;
+    if (scs.length === 0) {
+      return [st.code, st.name, "-", "-", "-", "-"];
+    }
+    const sum = scs.reduce((a, b) => a + b, 0);
+    const avg = (sum / scs.length).toFixed(2);
+    const max = Math.max(...scs).toFixed(2);
+    const min = Math.min(...scs).toFixed(2);
+    const passCount = scs.filter(s => s >= 10.0).length;
+    const passRate = ((passCount / scs.length) * 100).toFixed(1);
+
+    return [st.code, st.name, `${avg} / 20`, `${max} / 20`, `${min} / 20`, `${passRate} %`];
+  });
+
+  autoTable(doc, {
+    startY: currentY + 3,
+    head: subjectAnalysisHead,
+    body: subjectAnalysisBody,
+    theme: "grid",
+    headStyles: { fillColor: [51, 65, 85], textColor: 255, fontSize: 8, halign: "center" },
+    styles: { fontSize: 7.5, cellPadding: 1.2, halign: "center" },
+    columnStyles: {
+      0: { fontStyle: "bold", cellWidth: 30 },
+      1: { fontStyle: "bold", halign: "left", cellWidth: 65 }
+    },
+    margin: { left: 10, right: 10 }
+  });
+
+  currentY = (doc as any).lastAutoTable.finalY + 15;
+  if (currentY + 25 > pageHeight) {
+    doc.addPage();
+    currentY = 20;
+  }
+
+  // Official Footer & Signatures
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(15, 23, 42);
+  doc.text("Le Directeur des Études", 45, currentY, { align: "center" });
+  doc.text("Le Président du Conseil de Classe", 235, currentY, { align: "center" });
+
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "italic");
+  doc.setTextColor(148, 163, 184);
+  doc.text("Signature : _______________________", 45, currentY + 10, { align: "center" });
+  doc.text("Cachet : _______________________", 45, currentY + 16, { align: "center" });
+
+  doc.text("Signature : _______________________", 235, currentY + 10, { align: "center" });
+  doc.text("Cachet : _______________________", 235, currentY + 16, { align: "center" });
+
+  // Add Dynamic Page Numbers (Page X / Y)
+  const totalPages = doc.getNumberOfPages();
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(100, 116, 139);
+    doc.text(`Page ${i} / ${totalPages}`, 285, pageHeight - 6, { align: "right" });
+    doc.text(`Document Académique Officiel — Edut-Pro`, 10, pageHeight - 6, { align: "left" });
+  }
+
+  const classInfoName = (classNameStr || "Classe").replace(/\s+/g, "_");
+  doc.save(`PV_Resultats_Officiel_${classInfoName}_${Date.now()}.pdf`);
 }
 
 

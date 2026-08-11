@@ -576,10 +576,15 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
                   </th>
                 )}
 
-                {subjects.map((sub) => (
-                  <th key={sub.id} className="px-6 py-6 text-center border-r border-slate-700 min-w-[200px]">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-indigo-400">{sub.subjectName}</p>
-                    <div className="flex justify-center gap-4 mt-2 text-[8px] font-bold text-slate-400">
+                {subjects.map((sub, sIdx) => {
+                  const sCode = sub.subjectCode || sub.code || sub.shortCode || `SUBJ${String(sIdx + 1).padStart(3, '0')}`;
+                  return (
+                    <th key={sub.id} className="px-6 py-6 text-center border-r border-slate-700 min-w-[200px]">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-indigo-400">{sub.subjectName}</p>
+                      <span className="inline-block text-[8px] font-extrabold tracking-wider text-indigo-300/90 bg-indigo-950/80 px-2 py-0.5 rounded border border-indigo-700/50 mt-1 uppercase">
+                        {sCode}
+                      </span>
+                      <div className="flex justify-center gap-4 mt-2 text-[8px] font-bold text-slate-400">
                       {isHigherEd ? (
                         <>
                           <span className="text-white">NOTES</span>

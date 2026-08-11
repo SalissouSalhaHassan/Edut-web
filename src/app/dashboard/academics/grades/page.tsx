@@ -393,7 +393,7 @@ export default function AcademicResultsPage() {
     setLoading(true);
     try {
       const classInfo = activeFilters.className || `Classe_${activeFilters.classId}`;
-      await generatePVMatrixPDF(matrixData, { className: classInfo }, activeFilters);
+      await generatePVMatrixPDF(matrixData, { className: classInfo, headerConfig }, activeFilters);
       toast.success("PV généré avec succès !");
     } catch (err: any) {
       toast.error("Erreur d'impression", { description: err.message });
