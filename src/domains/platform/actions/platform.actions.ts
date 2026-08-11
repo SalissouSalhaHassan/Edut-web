@@ -222,19 +222,126 @@ export async function updateSchool(id: number, data: { name: string; slug: strin
 }
 
 /**
- * Delete a school and its associated data
+ * Delete a school and all its associated data in proper dependency order
  */
 export async function deleteSchool(id: number) {
   return superAdminAction(async () => {
-    // Delete related records in all tables referencing school_id
-    try {
-      await db.execute(sql`DELETE FROM audit_logs WHERE school_id = ${id}`);
-    } catch {}
-    try {
-      await db.execute(sql`DELETE FROM users WHERE school_id = ${id}`);
-    } catch {}
-    
-    await db.delete(schools).where(eq(schools.id, id));
+    const schoolId = id;
+
+    // Execute table cleanups in bottom-up dependency order to avoid FK constraint errors
+    const cleanupQueries = [
+      // 1. LMS Submissions, Progress, Virtual Attendance, Quiz Answers, Discussions
+      sql`DELETE FROM lms_answers WHERE question_id IN (SELECT id FROM lms_questions WHERE quiz_id IN (SELECT id FROM lms_quizzes WHERE course_id IN (SELECT id FROM lms_courses WHERE school_id = ${schoolId})))`,
+      sql`DELETE FROM lms_questions WHERE quiz_id IN (SELECT id FROM lms_quizzes WHERE course_id IN (SELECT id FROM lms_courses WHERE school_id = ${schoolId}))`,
+      sql`DELETE FROM lms_quizzes WHERE course_id IN (SELECT id FROM lms_courses WHERE school_id = ${schoolId})`,
+      sql`DELETE FROM lms_submissions WHERE assignment_id IN (SELECT id FROM lms_assignments WHERE course_id IN (SELECT id FROM lms_courses WHERE school_id = ${schoolId}))`,
+      sql`DELETE FROM lms_assignments WHERE course_id IN (SELECT id FROM lms_courses WHERE school_id = ${schoolId})`,
+      sql`DELETE FROM lms_virtual_attendance WHERE virtual_class_id IN (SELECT id FROM lms_virtual_classes WHERE school_id = ${schoolId})`,
+      sql`DELETE FROM lms_virtual_classes WHERE school_id = ${schoolId}`,
+      sql`DELETE FROM lms_progress WHERE course_id IN (SELECT id FROM lms_courses WHERE school_id = ${schoolId})`,
+      sql`DELETE FROM lms_enrollments WHERE course_id IN (SELECT id FROM lms_courses WHERE school_id = ${schoolId})`,
+      sql`DELETE FROM lms_resources WHERE module_id IN (SELECT id FROM lms_modules WHERE course_id IN (SELECT id FROM lms_courses WHERE school_id = ${schoolId}))`,
+      sql`DELETE FROM lms_lessons WHERE module_id IN (SELECT id FROM lms_modules WHERE course_id IN (SELECT id FROM lms_courses WHERE school_id = ${schoolId}))`,
+      sql`DELETE FROM lms_modules WHERE course_id IN (SELECT id FROM lms_courses WHERE school_id = ${schoolId})`,
+      sql`DELETE FROM lms_discussions WHERE course_id IN (SELECT id FROM lms_courses WHERE school_id = ${schoolId})`,
+      sql`DELETE FROM lms_certificates WHERE course_id IN (SELECT id FROM lms_courses WHERE school_id = ${schoolId})`,
+      sql`DELETE FROM lms_courses WHERE school_id = ${schoolId}`,
+
+      // 2. Exam Results, Exams, Homework, Student Results
+      sql`DELETE FROM exam_results WHERE exam_id IN (SELECT id FROM exams WHERE school_id = ${schoolId}) OR student_id IN (SELECT id FROM students WHERE school_id = ${schoolId})`,
+      sql`DELETE FROM student_results WHERE school_id = ${schoolId} OR student_id IN (SELECT id FROM students WHERE school_id = ${schoolId})`,
+      sql`DELETE FROM homework_submissions WHERE homework_id IN (SELECT id FROM homework WHERE school_id = ${schoolId})`,
+      sql`DELETE FROM homework WHERE school_id = ${schoolId}`,
+      sql`DELETE FROM exams WHERE school_id = ${schoolId}`,
+
+      // 3. Class Subjects, Section Subjects, Timetable
+      sql`DELETE FROM class_subjects WHERE school_id = ${schoolId} OR class_id IN (SELECT id FROM school_classes WHERE school_id = ${schoolId})`,
+      sql`DELETE FROM section_subjects WHERE section_id IN (SELECT id FROM school_sections WHERE school_id = ${schoolId})`,
+      sql`DELETE FROM timetable_entries WHERE school_id = ${schoolId} OR class_id IN (SELECT id FROM school_classes WHERE school_id = ${schoolId})`,
+      sql`DELETE FROM timetable_settings WHERE school_id = ${schoolId}`,
+      sql`DELETE FROM teacher_constraints WHERE school_id = ${schoolId}`,
+
+      // 4. Attendance
+      sql`DELETE FROM attendance WHERE school_id = ${schoolId} OR student_id IN (SELECT id FROM students WHERE school_id = ${schoolId})`,
+      sql`DELETE FROM teacher_attendance WHERE school_id = ${schoolId}`,
+
+      // 5. Pedagogie
+      sql`DELETE FROM cahier_textes WHERE school_id = ${schoolId}`,
+      sql`DELETE FROM pedagogie_planifications WHERE school_id = ${schoolId}`,
+      sql`DELETE FROM pedagogie_ressources WHERE school_id = ${schoolId}`,
+      sql`DELETE FROM pedagogie_remediations WHERE school_id = ${schoolId}`,
+      sql`DELETE FROM pedagogie_inspections WHERE school_id = ${schoolId}`,
+
+      // 6. Finance
+      sql`DELETE FROM fee_payments WHERE school_id = ${schoolId} OR student_fee_id IN (SELECT id FROM student_fees WHERE school_id = ${schoolId})`,
+      sql`DELETE FROM student_fees WHERE school_id = ${schoolId} OR student_id IN (SELECT id FROM students WHERE school_id = ${schoolId})`,
+      sql`DELETE FROM fee_structures WHERE school_id = ${schoolId}`,
+      sql`DELETE FROM online_transactions WHERE school_id = ${schoolId}`,
+      sql`DELETE FROM expenses WHERE school_id = ${schoolId}`,
+      sql`DELETE FROM expense_categories WHERE school_id = ${schoolId}`,
+      sql`DELETE FROM revenues WHERE school_id = ${schoolId}`,
+      sql`DELETE FROM revenue_categories WHERE school_id = ${schoolId}`,
+      sql`DELETE FROM salary_records WHERE school_id = ${schoolId}`,
+      sql`DELETE FROM payroll_rules WHERE school_id = ${schoolId}`,
+      sql`DELETE FROM financial_transactions WHERE school_id = ${schoolId}`,
+
+      // 7. Discipline, Transport, Hostel, Library, Inventory, Front Office
+      sql`DELETE FROM discipline_actions WHERE incident_id IN (SELECT id FROM discipline_incidents WHERE school_id = ${schoolId})`,
+      sql`DELETE FROM discipline_incidents WHERE school_id = ${schoolId}`,
+      sql`DELETE FROM transport_subscriptions WHERE school_id = ${schoolId}`,
+      sql`DELETE FROM transport_routes WHERE school_id = ${schoolId}`,
+      sql`DELETE FROM hostel_allocations WHERE room_id IN (SELECT id FROM hostel_rooms WHERE school_id = ${schoolId})`,
+      sql`DELETE FROM hostel_rooms WHERE school_id = ${schoolId}`,
+      sql`DELETE FROM library_issues WHERE book_id IN (SELECT id FROM library_books WHERE school_id = ${schoolId})`,
+      sql`DELETE FROM library_books WHERE school_id = ${schoolId}`,
+      sql`DELETE FROM inventory_assignments WHERE item_id IN (SELECT id FROM inventory_items WHERE school_id = ${schoolId})`,
+      sql`DELETE FROM inventory_items WHERE school_id = ${schoolId}`,
+      sql`DELETE FROM inventory_categories WHERE school_id = ${schoolId}`,
+      sql`DELETE FROM visitor_logs WHERE school_id = ${schoolId}`,
+      sql`DELETE FROM admission_enquiries WHERE school_id = ${schoolId}`,
+      sql`DELETE FROM postal_dispatch WHERE school_id = ${schoolId}`,
+
+      // 8. Messaging, Notifications, Logs
+      sql`DELETE FROM message_logs WHERE school_id = ${schoolId}`,
+      sql`DELETE FROM message_templates WHERE school_id = ${schoolId}`,
+      sql`DELETE FROM scheduled_messages WHERE school_id = ${schoolId}`,
+      sql`DELETE FROM notifications WHERE school_id = ${schoolId}`,
+      sql`DELETE FROM audit_logs WHERE school_id = ${schoolId}`,
+      sql`DELETE FROM system_logs WHERE school_id = ${schoolId}`,
+
+      // 9. Subscriptions, Branches, Settings
+      sql`DELETE FROM school_subscriptions WHERE school_id = ${schoolId}`,
+      sql`DELETE FROM school_branches WHERE school_id = ${schoolId}`,
+      sql`DELETE FROM settings WHERE school_id = ${schoolId}`,
+
+      // 10. Academic Core (Classes, Sections, Subjects, Periods, Sessions, Levels)
+      sql`DELETE FROM school_classes WHERE school_id = ${schoolId}`,
+      sql`DELETE FROM school_sections WHERE school_id = ${schoolId}`,
+      sql`DELETE FROM school_subjects WHERE school_id = ${schoolId}`,
+      sql`DELETE FROM academic_periods WHERE school_id = ${schoolId}`,
+      sql`DELETE FROM school_sessions WHERE school_id = ${schoolId}`,
+      sql`DELETE FROM educational_levels WHERE school_id = ${schoolId}`,
+
+      // 11. Parent Links, Students, Employees, Users
+      sql`DELETE FROM parent_students WHERE student_id IN (SELECT id FROM students WHERE school_id = ${schoolId})`,
+      sql`DELETE FROM parent_profiles WHERE user_id IN (SELECT id FROM users WHERE school_id = ${schoolId})`,
+      sql`DELETE FROM students WHERE school_id = ${schoolId}`,
+      sql`DELETE FROM employee_attendance WHERE employee_id IN (SELECT id FROM employees WHERE school_id = ${schoolId})`,
+      sql`DELETE FROM employees WHERE school_id = ${schoolId}`,
+      sql`DELETE FROM user_roles WHERE user_id IN (SELECT id FROM users WHERE school_id = ${schoolId})`,
+      sql`DELETE FROM users WHERE school_id = ${schoolId}`,
+
+      // 12. Finally, Schools table!
+      sql`DELETE FROM schools WHERE id = ${schoolId}`
+    ];
+
+    for (const query of cleanupQueries) {
+      try {
+        await db.execute(query);
+      } catch (err) {
+        console.warn(`[deleteSchool] Non-fatal deletion warning for step:`, err);
+      }
+    }
 
     revalidatePath("/platform-admin");
     return { success: true };
