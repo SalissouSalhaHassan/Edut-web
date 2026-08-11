@@ -577,7 +577,8 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
                 )}
 
                 {subjects.map((sub, sIdx) => {
-                  const sCode = sub.subjectCode || sub.code || sub.shortCode || `SUBJ${String(sIdx + 1).padStart(3, '0')}`;
+                  const sSub = sub as any;
+                  const sCode = sSub.subjectCode || sSub.code || sSub.shortCode || `SUBJ${String(sIdx + 1).padStart(3, '0')}`;
                   return (
                     <th key={sub.id} className="px-6 py-6 text-center border-r border-slate-700 min-w-[200px]">
                       <p className="text-[10px] font-black uppercase tracking-widest text-indigo-400">{sub.subjectName}</p>
