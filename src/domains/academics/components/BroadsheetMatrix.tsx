@@ -603,7 +603,8 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
                       )}
                     </div>
                   </th>
-                ))}
+                );
+              })}
 
                 {/* Cumulative Headers (New) */}
                 {isCumulative && (
