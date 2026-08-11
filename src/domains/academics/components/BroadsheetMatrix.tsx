@@ -210,7 +210,7 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
 
       const formatRank = (v: any) => {
         if (!v || v === "-" || v === "N/A") return "-";
-        return String(v);
+        return String(v).replace(/ème/g, "eme").replace(/ère/g, "ere");
       };
 
       const s1Avg = formatAvg(s1Summary?.average ?? student.s1Average);
@@ -229,25 +229,35 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
 
       const allocataire = student.allocataire || (student.isScholarship ? "Boursier" : "Non Boursier") || "Non";
 
+      const cleanText = (txt: any) => {
+        return String(txt || "")
+          .replace(/ème/g, "eme")
+          .replace(/ère/g, "ere")
+          .replace(/[✅❌⛔]/g, "")
+          .replace(/"/g, '""')
+          .trim();
+      };
+
       return [
         idx + 1,
-        `"${(student.name || student.studentName || 'Élève').replace(/"/g, '""')}"`,
-        `"${dateAndPlace.replace(/"/g, '""')}"`,
-        `"${(student.matricule || '-').replace(/"/g, '""')}"`,
-        `"${(student.sexe || student.gender || 'M').replace(/"/g, '""')}"`,
+        `"${cleanText(student.name || student.studentName || 'Élève')}"`,
+        `"${cleanText(dateAndPlace)}"`,
+        `"${cleanText(student.matricule || '-')}"`,
+        `"${cleanText(student.sexe || student.gender || 'M')}"`,
         `"${s1Avg}"`,
         `"${s1Rank}"`,
         `"${s2Avg}"`,
         `"${s2Rank}"`,
         `"${annualAvg}"`,
-        `"${decisionStr.replace(/[✅❌⛔]/g, '').trim()}"`,
-        `"${targetClass}"`,
-        `"${allocataire}"`
+        `"${cleanText(decisionStr)}"`,
+        `"${cleanText(targetClass)}"`,
+        `"${cleanText(allocataire)}"`
       ].join(";");
     });
 
-    const csvContent = "\uFEFFsep=;\n" + [headers.join(";"), ...rows].join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const csvBody = [headers.join(";"), ...rows].join("\r\n");
+    const csvContent = "sep=;\r\n" + csvBody;
+    const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
