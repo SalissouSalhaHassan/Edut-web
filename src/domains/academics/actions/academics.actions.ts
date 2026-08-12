@@ -732,8 +732,6 @@ async function resolveStudentsForClass(params: {
 }): Promise<any[]> {
   const { cls, schoolId, existingResultStudentIds = [] } = params;
   const classNameClean = cls.className.trim();
-  const sectionNameClean = cls.section?.sectionName?.trim();
-  const sectionIdNum = cls.sectionId || cls.section?.id;
 
   // ── TIER 1: Direct classId match ──────────────────────────────────────────
   const tier1Results = await readDb.select()
@@ -746,56 +744,63 @@ async function resolveStudentsForClass(params: {
 
   if (tier1Results.length > 0) return tier1Results;
 
-  // Direct section name match if available
-  if (sectionNameClean) {
-    const sectionIdResults = await readDb.select()
-      .from(students)
-      .where(and(
-        eq(students.section, sectionNameClean),
-        eq(students.schoolId, schoolId),
-      ))
-      .orderBy(students.nomEtudiant);
-
-    if (sectionIdResults.length > 0) return sectionIdResults;
-  }
-
   // ── TIER 2: Flexible class name text matching ────────────────────────────────
   const classAliases = new Set<string>([classNameClean]);
 
-  // University / LMD level aliases (e.g. L1 Adm -> L1, Licence 1, L1-ADM)
+  // University / LMD level aliases (e.g. L1 Administration -> L1 ADM, Licence 1 Administration, L1-ADM)
   const lmdMatch = classNameClean.match(/\b(L1|L2|L3|M1|M2|D1|D2|D3|Licence\s*1|Licence\s*2|Licence\s*3|Master\s*1|Master\s*2|Doctorat)\b/i);
   if (lmdMatch) {
-    const raw = lmdMatch[1].toUpperCase();
-    if (raw.includes("LICENCE 1") || raw === "L1") {
-      classAliases.add("L1"); classAliases.add("Licence 1"); classAliases.add("L-1"); classAliases.add("L1-ADM"); classAliases.add("L1 ADM");
-    } else if (raw.includes("LICENCE 2") || raw === "L2") {
-      classAliases.add("L2"); classAliases.add("Licence 2"); classAliases.add("L-2"); classAliases.add("L2-ADM"); classAliases.add("L2 ADM");
-    } else if (raw.includes("LICENCE 3") || raw === "L3") {
-      classAliases.add("L3"); classAliases.add("Licence 3"); classAliases.add("L-3"); classAliases.add("L3-ADM"); classAliases.add("L3 ADM");
-    } else if (raw.includes("MASTER 1") || raw === "M1") {
-      classAliases.add("M1"); classAliases.add("Master 1"); classAliases.add("M-1");
-    } else if (raw.includes("MASTER 2") || raw === "M2") {
-      classAliases.add("M2"); classAliases.add("Master 2"); classAliases.add("M-2");
-    }
-  }
+    const rawLevel = lmdMatch[1];
+    const rawLevelUpper = rawLevel.toUpperCase();
+    const specialty = classNameClean.replace(new RegExp(rawLevel, "i"), "").trim();
 
-  // Lycée / Collège aliases (e.g. 6ème A)
-  const gradeMatch = classNameClean.match(/^(\d+)(?:è|ème|e)?\s*([a-zA-Z0-9]+)?/i);
-  if (gradeMatch && gradeMatch[1]) {
-    const num = gradeMatch[1];
-    const letter = gradeMatch[2] || "";
-    if (letter) {
-      classAliases.add(`${num}ème ${letter}`);
-      classAliases.add(`${num}eme ${letter}`);
-      classAliases.add(`${num}${letter}`);
-      classAliases.add(`${num}-${letter}`);
-      classAliases.add(`${num}e${letter}`);
-      classAliases.add(`${num} ${letter}`);
+    const levelVariants: string[] = [];
+    if (rawLevelUpper.includes("LICENCE 1") || rawLevelUpper === "L1") {
+      levelVariants.push("L1", "Licence 1", "L-1");
+    } else if (rawLevelUpper.includes("LICENCE 2") || rawLevelUpper === "L2") {
+      levelVariants.push("L2", "Licence 2", "L-2");
+    } else if (rawLevelUpper.includes("LICENCE 3") || rawLevelUpper === "L3") {
+      levelVariants.push("L3", "Licence 3", "L-3");
+    } else if (rawLevelUpper.includes("MASTER 1") || rawLevelUpper === "M1") {
+      levelVariants.push("M1", "Master 1", "M-1");
+    } else if (rawLevelUpper.includes("MASTER 2") || rawLevelUpper === "M2") {
+      levelVariants.push("M2", "Master 2", "M-2");
+    } else {
+      levelVariants.push(rawLevel);
     }
+
+    if (specialty) {
+      const specAbbr = specialty.length > 3 ? specialty.substring(0, 3) : specialty;
+      for (const lvl of levelVariants) {
+        classAliases.add(`${lvl} ${specialty}`);
+        classAliases.add(`${lvl}-${specialty}`);
+        classAliases.add(`${lvl} ${specAbbr}`);
+        classAliases.add(`${lvl}-${specAbbr}`);
+      }
+    } else {
+      for (const lvl of levelVariants) {
+        classAliases.add(lvl);
+      }
+    }
+  } else {
+    // Lycée / Collège aliases (e.g. 6ème A)
+    const gradeMatch = classNameClean.match(/^(\d+)(?:è|ème|e)?\s*([a-zA-Z0-9]+)?/i);
+    if (gradeMatch && gradeMatch[1]) {
+      const num = gradeMatch[1];
+      const letter = gradeMatch[2] || "";
+      if (letter) {
+        classAliases.add(`${num}ème ${letter}`);
+        classAliases.add(`${num}eme ${letter}`);
+        classAliases.add(`${num}${letter}`);
+        classAliases.add(`${num}-${letter}`);
+        classAliases.add(`${num}e${letter}`);
+        classAliases.add(`${num} ${letter}`);
+      }
+    }
+    if (/terminale/i.test(classNameClean)) { classAliases.add("Term"); classAliases.add("Tle"); classAliases.add("Terminale"); }
+    if (/première|1ère|1ere/i.test(classNameClean)) { classAliases.add("1ère"); classAliases.add("1ere"); classAliases.add("Premiere"); }
+    if (/seconde/i.test(classNameClean)) { classAliases.add("2nde"); classAliases.add("Seconde"); }
   }
-  if (/terminale/i.test(classNameClean)) { classAliases.add("Term"); classAliases.add("Tle"); classAliases.add("Terminale"); }
-  if (/première|1ère|1ere/i.test(classNameClean)) { classAliases.add("1ère"); classAliases.add("1ere"); classAliases.add("Premiere"); }
-  if (/seconde/i.test(classNameClean)) { classAliases.add("2nde"); classAliases.add("Seconde"); }
 
   const aliasList = Array.from(classAliases);
   const classConditions = aliasList.flatMap(alias => [
@@ -803,7 +808,6 @@ async function resolveStudentsForClass(params: {
     ilike(students.classe, alias),
     ilike(students.classe, `${alias}%`),
     ilike(students.classe, `%${alias}`),
-    ilike(students.classe, `%${alias}%`),
   ]);
 
   const tier2Results = await readDb.select()
@@ -816,22 +820,16 @@ async function resolveStudentsForClass(params: {
 
   if (tier2Results.length > 0) return tier2Results;
 
-  // ── TIER 3: Specific Section Name Fallback (Program specific, NOT macro ed level) ──
-  if (sectionNameClean) {
-    const tier3Results = await readDb.select()
-      .from(students)
-      .where(and(
-        eq(students.schoolId, schoolId),
-        or(
-          ilike(students.section, sectionNameClean),
-          ilike(students.section, `%${sectionNameClean}%`),
-          ilike(students.classe, `%${sectionNameClean}%`)
-        )
-      ))
-      .orderBy(students.nomEtudiant);
+  // ── TIER 3: Match by className substring fallback ──────────────────────────
+  const tier3Results = await readDb.select()
+    .from(students)
+    .where(and(
+      eq(students.schoolId, schoolId),
+      ilike(students.classe, `%${classNameClean}%`)
+    ))
+    .orderBy(students.nomEtudiant);
 
-    if (tier3Results.length > 0) return tier3Results;
-  }
+  if (tier3Results.length > 0) return tier3Results;
 
   // ── TIER 4: Students with existing results in this specific class ──────────
   if (existingResultStudentIds.length > 0) {
@@ -1172,33 +1170,13 @@ async function fetchBroadsheetMatrixDirect(params: { classId: number, sessionId:
   const sessionNameStr = sessionObj?.sessionName?.trim();
 
   // 1. Fetch all primary data components in parallel using readDb for ALL terms of the session
-  const [studentsWithResults, studentsByClassName, results, summaries] = await Promise.all([
+  const [studentsWithResults, results, summaries] = await Promise.all([
     readDb.selectDistinct({ studentId: studentResults.studentId })
       .from(studentResults)
       .where(and(
         eq(studentResults.classId, classIdNum),
         eq(studentResults.sessionId, sessionIdNum)
       )),
-    readDb.select({ id: students.id })
-      .from(students)
-      .where(
-        and(
-          or(
-            eq(students.classId, classIdNum),
-            cls.section?.sectionName ? eq(students.section, cls.section.sectionName.trim()) : undefined,
-            ilike(students.classe, cls.className.trim()),
-            ilike(students.classe, `${cls.className.trim()}%`)
-          ),
-          eq(students.schoolId, cls.schoolId ?? 0),
-          sessionNameStr
-            ? or(
-                ilike(students.session, sessionNameStr),
-                isNull(students.session),
-                eq(students.session, "")
-              )
-            : undefined
-        )
-      ),
     readDb.query.studentResults.findMany({
       where: and(
         eq(studentResults.classId, classIdNum),
@@ -1219,23 +1197,26 @@ async function fetchBroadsheetMatrixDirect(params: { classId: number, sessionId:
     })
   ]);
 
-  // 2. Process student IDs and fetch full student data
+  // 2. Process student IDs and fetch full student data using resolveStudentsForClass
   const studentIdsFromResults = studentsWithResults.map(r => r.studentId).filter((id): id is number => id !== null);
-  const studentIdsByClass = studentsByClassName.map(s => s.id);
-  const allStudentIds = Array.from(new Set([...studentIdsFromResults, ...studentIdsByClass]));
 
-  let studentList: any[] = [];
-  if (allStudentIds.length > 0) {
-    studentList = await readDb.select()
+  let baseStudents = await resolveStudentsForClass({
+    cls,
+    sessionNameStr,
+    schoolId: cls.schoolId ?? 0,
+    existingResultStudentIds: studentIdsFromResults,
+  });
+
+  const classStudentIds = new Set(baseStudents.map(s => s.id));
+  const missingIds = studentIdsFromResults.filter(id => !classStudentIds.has(id));
+  if (missingIds.length > 0) {
+    const extraStudents = await readDb.select()
       .from(students)
-      .where(
-        and(
-          inArray(students.id, allStudentIds),
-          eq(students.schoolId, cls.schoolId ?? 0)
-        )
-      )
-      .orderBy(students.nomEtudiant);
+      .where(inArray(students.id, missingIds));
+    baseStudents = [...baseStudents, ...extraStudents];
   }
+
+  const studentList = baseStudents.sort((a, b) => a.nomEtudiant.localeCompare(b.nomEtudiant));
 
   // 3. Fetch all assigned subjects for this class from classSubjects, merged with results
   const classSubjLinks = await readDb.query.classSubjects.findMany({
