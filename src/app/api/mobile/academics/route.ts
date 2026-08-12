@@ -430,7 +430,10 @@ export async function GET(request: NextRequest) {
       }
 
       const classRes = await readDb.query.schoolClasses.findFirst({
-        where: eq(schoolClasses.id, classId)
+        where: eq(schoolClasses.id, classId),
+        with: {
+          section: true
+        }
       });
 
       if (!classRes) {
