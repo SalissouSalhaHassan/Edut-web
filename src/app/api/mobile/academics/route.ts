@@ -14,6 +14,7 @@ import { students } from "@/infrastructure/database/schema/students";
 import { employees } from "@/infrastructure/database/schema/hr";
 import { getMobileUser, mobileJsonError } from "../_lib/auth";
 import { getUserRoleType, hasPermission } from "@/domains/auth/services/rbac";
+import { resolveStudentsForClass } from "@/domains/academics/actions/academics.actions";
 
 export const dynamic = "force-dynamic";
 
@@ -367,27 +368,12 @@ export async function GET(request: NextRequest) {
       });
       const coeff = subLink?.coefficient || 1;
 
-      // ── Tier 1: classId FK (most reliable) ──────────────────────────────
-      let activeStudents = await readDb.query.students.findMany({
-        where: eq(students.classId, classId),
-        orderBy: [students.nomEtudiant]
+      // ── Resolve students for this specific class using 4-tier logic ──
+      const activeStudents = await resolveStudentsForClass({
+        cls: classRes,
+        sessionNameStr: undefined,
+        schoolId: targetSchoolId,
       });
-
-      // ── Tier 2: classe text match fallback ───────────────────────────────
-      if (activeStudents.length === 0) {
-        activeStudents = await readDb.query.students.findMany({
-          where: eq(students.classe, className),
-          orderBy: [students.nomEtudiant]
-        });
-      }
-
-      // ── Tier 3: school-wide fallback ─────────────────────────────────────
-      if (activeStudents.length === 0 && targetSchoolId) {
-        activeStudents = await readDb.query.students.findMany({
-          where: eq(students.schoolId, targetSchoolId),
-          orderBy: [students.nomEtudiant]
-        });
-      }
 
       // Existing results
       const allResults = await readDb.query.studentResults.findMany({
@@ -453,27 +439,12 @@ export async function GET(request: NextRequest) {
 
       const className = classRes.className;
 
-      // ── Tier 1: classId FK (most reliable) ──────────────────────────────
-      let activeStudentsDev = await readDb.query.students.findMany({
-        where: eq(students.classId, classId),
-        orderBy: [students.nomEtudiant]
+      // ── Resolve students for this specific class using 4-tier logic ──
+      const activeStudentsDev = await resolveStudentsForClass({
+        cls: classRes,
+        sessionNameStr: undefined,
+        schoolId: targetSchoolId,
       });
-
-      // ── Tier 2: classe text match fallback ───────────────────────────────
-      if (activeStudentsDev.length === 0) {
-        activeStudentsDev = await readDb.query.students.findMany({
-          where: eq(students.classe, className),
-          orderBy: [students.nomEtudiant]
-        });
-      }
-
-      // ── Tier 3: school-wide fallback ─────────────────────────────────────
-      if (activeStudentsDev.length === 0 && targetSchoolId) {
-        activeStudentsDev = await readDb.query.students.findMany({
-          where: eq(students.schoolId, targetSchoolId),
-          orderBy: [students.nomEtudiant]
-        });
-      }
 
       // Existing results
       const allResults = await readDb.query.studentResults.findMany({

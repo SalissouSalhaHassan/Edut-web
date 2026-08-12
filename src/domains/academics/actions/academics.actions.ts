@@ -718,7 +718,7 @@ export async function deleteSection(id: number) {
 // TIER 2: Flexible class name text matching via ilike on students.classe
 // TIER 3: Specific Section Name Fallback (Program specific, NOT macro ed level)
 // TIER 4: Students already linked via studentResults
-async function resolveStudentsForClass(params: {
+export async function resolveStudentsForClass(params: {
   cls: {
     id: number;
     className: string;
