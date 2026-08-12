@@ -746,12 +746,12 @@ async function resolveStudentsForClass(params: {
 
   if (tier1Results.length > 0) return tier1Results;
 
-  // Direct sectionId match if available (matches all students in that specific section/degree)
-  if (sectionIdNum) {
+  // Direct section name match if available
+  if (sectionNameClean) {
     const sectionIdResults = await readDb.select()
       .from(students)
       .where(and(
-        eq(students.sectionId, sectionIdNum),
+        eq(students.section, sectionNameClean),
         eq(students.schoolId, schoolId),
       ))
       .orderBy(students.nomEtudiant);
@@ -1185,7 +1185,7 @@ async function fetchBroadsheetMatrixDirect(params: { classId: number, sessionId:
         and(
           or(
             eq(students.classId, classIdNum),
-            cls.sectionId ? eq(students.sectionId, cls.sectionId) : undefined,
+            cls.section?.sectionName ? eq(students.section, cls.section.sectionName.trim()) : undefined,
             ilike(students.classe, cls.className.trim()),
             ilike(students.classe, `${cls.className.trim()}%`)
           ),
