@@ -714,14 +714,18 @@ export async function deleteSection(id: number) {
 }
 
 // ─── Shared helper: fetch students for a class ────────────────────────────────
-// TIER 1: Direct classId FK match (fastest, requires students.class_id populated via SQL)
+// TIER 1: Direct classId FK match or sectionId match
 // TIER 2: Flexible class name text matching via ilike on students.classe
-// TIER 3: section name OR educational level fallback
+// TIER 3: Specific Section Name Fallback (Program specific, NOT macro ed level)
 // TIER 4: Students already linked via studentResults
-// NOTE: We intentionally do NOT filter by session here because students.session
-// represents the enrollment year, which may differ from the grading session name.
 async function resolveStudentsForClass(params: {
-  cls: { id: number; className: string; schoolId: number | null; section: { sectionName: string; educationalLevel: string | null } | null };
+  cls: {
+    id: number;
+    className: string;
+    schoolId: number | null;
+    sectionId?: number | null;
+    section: { id?: number; sectionName: string; educationalLevel: string | null } | null;
+  };
   sessionNameStr: string | undefined;
   schoolId: number;
   existingResultStudentIds?: number[];
@@ -729,9 +733,9 @@ async function resolveStudentsForClass(params: {
   const { cls, schoolId, existingResultStudentIds = [] } = params;
   const classNameClean = cls.className.trim();
   const sectionNameClean = cls.section?.sectionName?.trim();
-  const edLevelClean = cls.section?.educationalLevel?.trim();
+  const sectionIdNum = cls.sectionId || cls.section?.id;
 
-  // ── TIER 1: Direct classId match (most precise & fast) ──────────────────────
+  // ── TIER 1: Direct classId match ──────────────────────────────────────────
   const tier1Results = await readDb.select()
     .from(students)
     .where(and(
@@ -742,38 +746,59 @@ async function resolveStudentsForClass(params: {
 
   if (tier1Results.length > 0) return tier1Results;
 
+  // Direct sectionId match if available (matches all students in that specific section/degree)
+  if (sectionIdNum) {
+    const sectionIdResults = await readDb.select()
+      .from(students)
+      .where(and(
+        eq(students.sectionId, sectionIdNum),
+        eq(students.schoolId, schoolId),
+      ))
+      .orderBy(students.nomEtudiant);
+
+    if (sectionIdResults.length > 0) return sectionIdResults;
+  }
+
   // ── TIER 2: Flexible class name text matching ────────────────────────────────
-  const classAliases = [classNameClean];
+  const classAliases = new Set<string>([classNameClean]);
 
-  // University / LMD aliases
-  if (/licence\s*1/i.test(classNameClean)) classAliases.push("L1", "Licence 1", "L-1", "l1", "licence1");
-  else if (/licence\s*2/i.test(classNameClean)) classAliases.push("L2", "Licence 2", "L-2", "l2", "licence2");
-  else if (/licence\s*3/i.test(classNameClean)) classAliases.push("L3", "Licence 3", "L-3", "l3", "licence3");
-  else if (/master\s*1/i.test(classNameClean)) classAliases.push("M1", "Master 1", "M-1", "m1", "master1");
-  else if (/master\s*2/i.test(classNameClean)) classAliases.push("M2", "Master 2", "M-2", "m2", "master2");
-  else if (/doctorat/i.test(classNameClean)) classAliases.push("D", "Doc", "Doctorat", "PhD");
+  // University / LMD level aliases (e.g. L1 Adm -> L1, Licence 1, L1-ADM)
+  const lmdMatch = classNameClean.match(/\b(L1|L2|L3|M1|M2|D1|D2|D3|Licence\s*1|Licence\s*2|Licence\s*3|Master\s*1|Master\s*2|Doctorat)\b/i);
+  if (lmdMatch) {
+    const raw = lmdMatch[1].toUpperCase();
+    if (raw.includes("LICENCE 1") || raw === "L1") {
+      classAliases.add("L1"); classAliases.add("Licence 1"); classAliases.add("L-1"); classAliases.add("L1-ADM"); classAliases.add("L1 ADM");
+    } else if (raw.includes("LICENCE 2") || raw === "L2") {
+      classAliases.add("L2"); classAliases.add("Licence 2"); classAliases.add("L-2"); classAliases.add("L2-ADM"); classAliases.add("L2 ADM");
+    } else if (raw.includes("LICENCE 3") || raw === "L3") {
+      classAliases.add("L3"); classAliases.add("Licence 3"); classAliases.add("L-3"); classAliases.add("L3-ADM"); classAliases.add("L3 ADM");
+    } else if (raw.includes("MASTER 1") || raw === "M1") {
+      classAliases.add("M1"); classAliases.add("Master 1"); classAliases.add("M-1");
+    } else if (raw.includes("MASTER 2") || raw === "M2") {
+      classAliases.add("M2"); classAliases.add("Master 2"); classAliases.add("M-2");
+    }
+  }
 
-  // Lycée / Collège aliases
+  // Lycée / Collège aliases (e.g. 6ème A)
   const gradeMatch = classNameClean.match(/^(\d+)(?:è|ème|e)?\s*([a-zA-Z0-9]+)?/i);
   if (gradeMatch && gradeMatch[1]) {
     const num = gradeMatch[1];
     const letter = gradeMatch[2] || "";
     if (letter) {
-      classAliases.push(
-        `${num}ème ${letter}`, `${num}eme ${letter}`, `${num}${letter}`,
-        `${num}-${letter}`, `${num}e${letter}`, `${num} ${letter}`
-      );
+      classAliases.add(`${num}ème ${letter}`);
+      classAliases.add(`${num}eme ${letter}`);
+      classAliases.add(`${num}${letter}`);
+      classAliases.add(`${num}-${letter}`);
+      classAliases.add(`${num}e${letter}`);
+      classAliases.add(`${num} ${letter}`);
     }
   }
-  if (/terminale/i.test(classNameClean)) classAliases.push("Term", "Tle", "Terminale");
-  if (/première|1ère|1ere/i.test(classNameClean)) classAliases.push("1ère", "1ere", "Premiere", "1ere A");
-  if (/seconde/i.test(classNameClean)) classAliases.push("2nde", "Seconde");
+  if (/terminale/i.test(classNameClean)) { classAliases.add("Term"); classAliases.add("Tle"); classAliases.add("Terminale"); }
+  if (/première|1ère|1ere/i.test(classNameClean)) { classAliases.add("1ère"); classAliases.add("1ere"); classAliases.add("Premiere"); }
+  if (/seconde/i.test(classNameClean)) { classAliases.add("2nde"); classAliases.add("Seconde"); }
 
-  // Token from composite name e.g. "L1 Arabic" → already included; "Informatique L1" → "L1"
-  const tokenMatch = classNameClean.match(/\b(l\d|m\d|d\d)\b/i);
-  if (tokenMatch) classAliases.push(tokenMatch[1].toUpperCase(), tokenMatch[1].toLowerCase());
-
-  const classConditions = classAliases.flatMap(alias => [
+  const aliasList = Array.from(classAliases);
+  const classConditions = aliasList.flatMap(alias => [
     eq(students.classe, alias),
     ilike(students.classe, alias),
     ilike(students.classe, `${alias}%`),
@@ -791,32 +816,24 @@ async function resolveStudentsForClass(params: {
 
   if (tier2Results.length > 0) return tier2Results;
 
-  // ── TIER 3: Section name OR educational level fallback ───────────────────────
-  const tier3OrClauses: any[] = [];
+  // ── TIER 3: Specific Section Name Fallback (Program specific, NOT macro ed level) ──
   if (sectionNameClean) {
-    tier3OrClauses.push(ilike(students.section, sectionNameClean));
-    tier3OrClauses.push(ilike(students.section, `%${sectionNameClean}%`));
-  }
-  if (edLevelClean) {
-    tier3OrClauses.push(ilike(students.educationalLevel, edLevelClean));
-    tier3OrClauses.push(ilike(students.educationalLevel, `%${edLevelClean}%`));
-    const edKeywords = edLevelClean.split(/\s+/).filter(w => w.length > 3);
-    for (const kw of edKeywords) {
-      tier3OrClauses.push(ilike(students.educationalLevel, `%${kw}%`));
-    }
-  }
-  if (tier3OrClauses.length > 0) {
     const tier3Results = await readDb.select()
       .from(students)
       .where(and(
         eq(students.schoolId, schoolId),
-        or(...tier3OrClauses),
+        or(
+          ilike(students.section, sectionNameClean),
+          ilike(students.section, `%${sectionNameClean}%`),
+          ilike(students.classe, `%${sectionNameClean}%`)
+        )
       ))
       .orderBy(students.nomEtudiant);
+
     if (tier3Results.length > 0) return tier3Results;
   }
 
-  // ── TIER 4: Students already linked via existing results ─────────────────────
+  // ── TIER 4: Students with existing results in this specific class ──────────
   if (existingResultStudentIds.length > 0) {
     return await readDb.select()
       .from(students)
@@ -1167,6 +1184,8 @@ async function fetchBroadsheetMatrixDirect(params: { classId: number, sessionId:
       .where(
         and(
           or(
+            eq(students.classId, classIdNum),
+            cls.sectionId ? eq(students.sectionId, cls.sectionId) : undefined,
             ilike(students.classe, cls.className.trim()),
             ilike(students.classe, `${cls.className.trim()}%`)
           ),
