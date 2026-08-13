@@ -1430,10 +1430,36 @@ export async function generateReleveNotesPDF(data: any) {
   doc.text("Matricule:", 10, studentInfoY + 4.5);
   doc.text("Parcours:", 10, studentInfoY + 9);
   
+  const studentNameStr = student?.nomEtudiant || student?.name || "ADIATULLAHI RABIU AHMAD Nigeria";
   doc.setFont("helvetica", "bold");
-  drawTextBilingual(doc, student?.nomEtudiant || student?.name || "ADIATULLAHI RABIU AHMAD Nigeria", 30, studentInfoY);
+  drawTextBilingual(doc, studentNameStr, 30, studentInfoY);
   drawTextBilingual(doc, student?.numAdmission || student?.matricule || "20 D 004", 30, studentInfoY + 4.5);
   drawTextBilingual(doc, student?.classe || student?.className || "Première année de licence en Shari'a and Law", 30, studentInfoY + 9);
+
+  // Date de naissance (Date of birth) on the student name line
+  const rawDob = student?.dateNaissance || student?.dateOfBirth || student?.birthDate || student?.dob;
+  let dobVal = "";
+  if (rawDob) {
+    if (rawDob instanceof Date) {
+      dobVal = rawDob.toLocaleDateString("fr-FR");
+    } else {
+      let str = String(rawDob).trim();
+      if (str.includes("T")) str = str.split("T")[0];
+      const parts = str.split("-");
+      if (parts.length === 3 && parts[0].length === 4) {
+        dobVal = `${parts[2]}/${parts[1]}/${parts[0]}`;
+      } else {
+        dobVal = str;
+      }
+    }
+  }
+  const finalDob = dobVal || "15/01/2002";
+  const nameWidth = doc.getTextWidth(studentNameStr);
+  const dobLabelX = Math.max(90, 30 + nameWidth + 8);
+  doc.setFont("helvetica", "normal");
+  doc.text("Né(e) le :", dobLabelX, studentInfoY);
+  doc.setFont("helvetica", "bold");
+  drawTextBilingual(doc, finalDob, dobLabelX + 15, studentInfoY);
 
   // --- 4. DETERMINE SEMESTER PAIR ---
   const isDoctorate = student?.educationalLevel?.toLowerCase().includes("doc") || student?.classe?.toLowerCase().includes("doc") || term?.toLowerCase().includes("ann") || term?.toLowerCase().includes("annee");
