@@ -936,13 +936,14 @@ export async function generatePVMatrixPDF(matrixData: any, classInfo: any, filte
   let redoubleCount = 0;
   let excluCount = 0;
 
-  // Subject Stats Aggregator
-  const subjectStats: Record<string, { name: string; code: string; scores: number[] }> = {};
+  // Subject Stats Aggregator — track raw scores and coefficient per subject
+  const subjectStats: Record<string, { name: string; code: string; coef: number; scores: number[] }> = {};
   (subjects || []).forEach((subj: any, idx: number) => {
     const sName = subj.subjectName || subj.name || `Matière ${idx + 1}`;
     const sCode = subj.subjectCode || subj.code || subj.shortCode || `SUBJ${String(idx + 1).padStart(3, '0')}`;
+    const sCoef = parseFloat(subj.coefficient) || 1;
     const key = String(subj.id || subj.subjectId || sCode);
-    subjectStats[key] = { name: sName, code: sCode, scores: [] };
+    subjectStats[key] = { name: sName, code: sCode, coef: sCoef, scores: [] };
   });
 
   const body = (students || []).map((s: any, idx: number) => {
@@ -1002,11 +1003,20 @@ export async function generatePVMatrixPDF(matrixData: any, classInfo: any, filte
   const subjectColStyles: Record<number, any> = {};
   const subjectStartCol = 3;
   const subjectColCount = (subjects || []).length; // 1 col per subject
+
+  // Dynamic width: fill 277mm (A4 landscape usable width with 10mm margins each side)
+  const FIXED_COLS_WIDTH = 7 + 26 + 38 + 14 + 13 + 34; // N° + Matricule + Nom + MOY + Rang + Decision
+  const USABLE_WIDTH = 277;
+  const availForSubjects = USABLE_WIDTH - FIXED_COLS_WIDTH;
+  const subjColW = subjectColCount > 0
+    ? Math.max(12, Math.floor(availForSubjects / subjectColCount))
+    : 16;
+
   for (let i = 0; i < subjectColCount; i++) {
     subjectColStyles[subjectStartCol + i] = {
-      cellWidth: 16,
+      cellWidth: subjColW,
       halign: "center",
-      fontSize: 10,
+      fontSize: 9,
       fontStyle: "bold"
     };
   }
@@ -1036,14 +1046,16 @@ export async function generatePVMatrixPDF(matrixData: any, classInfo: any, filte
       valign: "middle"
     },
     columnStyles: {
-      0: { cellWidth: 7, halign: "center", fontSize: 10, fontStyle: "bold" },
-      1: { cellWidth: 24, halign: "center", fontSize: 9, fontStyle: "bold" },
-      2: { cellWidth: 36, fontSize: 10, fontStyle: "bold" },
+      0: { cellWidth: 7,  halign: "center", fontSize: 10, fontStyle: "bold" },
+      1: { cellWidth: 26, halign: "center", fontSize: 8,  fontStyle: "bold" },
+      2: { cellWidth: 38, fontSize: 10, fontStyle: "bold" },
       ...subjectColStyles,
       [moyCol]:  { cellWidth: 14, halign: "center", fontSize: 12, fontStyle: "bold" },
-      [rangCol]: { cellWidth: 12, halign: "center", fontSize: 10, fontStyle: "bold" },
-      [decCol]:  { cellWidth: 32, halign: "center", fontSize: 8,  fontStyle: "bold" }
+      [rangCol]: { cellWidth: 13, halign: "center", fontSize: 10, fontStyle: "bold" },
+      [decCol]:  { cellWidth: 34, halign: "center", fontSize: 8,  fontStyle: "bold" }
     },
+    tableWidth: USABLE_WIDTH,
+    margin: { left: 10, right: 10 },
     didParseCell: (data: any) => {
       handleBilingualCell(data);
       // Color-code final MOY /20 column
@@ -1094,6 +1106,7 @@ export async function generatePVMatrixPDF(matrixData: any, classInfo: any, filte
     theme: "grid",
     headStyles: { fillColor: [30, 58, 138], textColor: 255, fontSize: 10, fontStyle: "bold", halign: "center" },
     styles: { fontSize: 11, cellPadding: 2, halign: "center", fontStyle: "bold" },
+    tableWidth: USABLE_WIDTH,
     margin: { left: 10, right: 10 }
   });
 
@@ -1109,20 +1122,23 @@ export async function generatePVMatrixPDF(matrixData: any, classInfo: any, filte
   doc.setTextColor(15, 23, 42);
   doc.text("📚 RÉCAPITULATIF ET ANALYSE DES MATIÈRES", 10, currentY);
 
-  const subjectAnalysisHead = [["Code Matière", "Nom de la Matière", "Moyenne Classe", "Meilleure Note", "Plus Faible Note", "Taux de Réussite (>=10)"]];
+  const subjectAnalysisHead = [["Code", "Nom de la Matière", "Coef", "MOY.COEF Classe", "Meilleur MOY.COEF", "Plus Faible MOY.COEF", "Total Points", "Taux Réussite (>=10)"]];
   const subjectAnalysisBody = Object.values(subjectStats).map((st) => {
     const scs = st.scores;
+    const coef = st.coef || 1;
     if (scs.length === 0) {
-      return [st.code, st.name, "-", "-", "-", "-"];
+      return [st.code, st.name, String(coef), "-", "-", "-", "-", "-"];
     }
-    const sum = scs.reduce((a, b) => a + b, 0);
-    const avg = (sum / scs.length).toFixed(2);
-    const max = Math.max(...scs).toFixed(2);
-    const min = Math.min(...scs).toFixed(2);
-    const passCount = scs.filter(s => s >= 10.0).length;
-    const passRate = ((passCount / scs.length) * 100).toFixed(1);
+    // MOY.COEF = Moyenne de la matière × Coefficient
+    const moyCoefScores = scs.map(s => s * coef);
+    const avgMoyCoef   = (moyCoefScores.reduce((a, b) => a + b, 0) / moyCoefScores.length).toFixed(2);
+    const maxMoyCoef   = Math.max(...moyCoefScores).toFixed(2);
+    const minMoyCoef   = Math.min(...moyCoefScores).toFixed(2);
+    const totalPoints  = moyCoefScores.reduce((a, b) => a + b, 0).toFixed(2);
+    const passCount    = scs.filter(s => s >= 10.0).length;
+    const passRate     = ((passCount / scs.length) * 100).toFixed(1);
 
-    return [st.code, st.name, `${avg} / 20`, `${max} / 20`, `${min} / 20`, `${passRate} %`];
+    return [st.code, st.name, String(coef), avgMoyCoef, maxMoyCoef, minMoyCoef, totalPoints, `${passRate} %`];
   });
 
   autoTable(doc, {
@@ -1130,12 +1146,19 @@ export async function generatePVMatrixPDF(matrixData: any, classInfo: any, filte
     head: subjectAnalysisHead,
     body: subjectAnalysisBody,
     theme: "grid",
-    headStyles: { fillColor: [51, 65, 85], textColor: 255, fontSize: 10, fontStyle: "bold", halign: "center" },
+    headStyles: { fillColor: [51, 65, 85], textColor: 255, fontSize: 9, fontStyle: "bold", halign: "center" },
     styles: { fontSize: 10, fontStyle: "bold", cellPadding: 1.5, halign: "center" },
     columnStyles: {
-      0: { fontStyle: "bold", cellWidth: 30 },
-      1: { fontStyle: "bold", halign: "left", cellWidth: 65 }
+      0: { fontStyle: "bold", cellWidth: 22, halign: "center" },
+      1: { fontStyle: "bold", halign: "left", cellWidth: 60 },
+      2: { cellWidth: 14, halign: "center" },
+      3: { cellWidth: 30, halign: "center", textColor: [30, 64, 175] },
+      4: { cellWidth: 30, halign: "center", textColor: [0, 128, 0] },
+      5: { cellWidth: 30, halign: "center", textColor: [200, 0, 0] },
+      6: { cellWidth: 28, halign: "center" },
+      7: { cellWidth: 28, halign: "center" }
     },
+    tableWidth: USABLE_WIDTH,
     margin: { left: 10, right: 10 }
   });
 
