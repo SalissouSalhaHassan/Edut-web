@@ -94,31 +94,68 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
     }));
   };
 
+  // Pre-compute synchronized student metrics (average & totalCoef) for absolute accuracy
+  const studentMetrics = useMemo(() => {
+    if (!data || !data.students) return {};
+    const map: Record<number, { average: number; totalCoef: number }> = {};
+
+    data.students.forEach((student: any) => {
+      let totalWeighted = 0;
+      let totalCoef = 0;
+
+      (data.subjects || []).forEach((sub: any) => {
+        const res = student.results?.[sub.id];
+        const coef = sub.coefficient || res?.coef || 1;
+        if (res) {
+          const noteStr = res.note !== undefined && res.note !== "-" ? res.note : (res.total !== undefined && res.total !== "-" ? res.total : (res.n2 !== undefined && res.n2 !== "-" ? res.n2 : null));
+          const moyNum = res.moyVal !== undefined ? res.moyVal : (res.moy !== undefined && res.moy !== "-" ? parseFloat(String(res.moy)) : (noteStr !== null ? parseFloat(String(noteStr)) : null));
+
+          if (moyNum !== null && !isNaN(moyNum)) {
+            totalWeighted += moyNum * coef;
+            totalCoef += coef;
+          }
+        }
+      });
+
+      const calcAvg = totalCoef > 0 ? totalWeighted / totalCoef : (typeof student.average === 'number' && !isNaN(student.average) ? student.average : 0);
+      const fallbackCoef = (data.subjects || []).reduce((acc: number, sb: any) => acc + (sb.coefficient || 1), 0);
+      const displayCoef = totalCoef > 0 ? totalCoef : (student.totalCoef || fallbackCoef);
+
+      map[student.id] = { average: calcAvg, totalCoef: displayCoef };
+    });
+
+    return map;
+  }, [data]);
+
   const globalStats = useMemo(() => {
     if (!data || !data.students) return { count: 0, classAvg: 0, passed: 0, failed: 0 };
     const students = data.students;
     const count = students.length;
-    const avgSum = students.reduce((acc, s) => acc + (s.average || 0), 0);
+    const avgSum = students.reduce((acc, s) => acc + (studentMetrics[s.id]?.average ?? (s.average || 0)), 0);
     const classAvg = count > 0 ? avgSum / count : 0;
-    const passed = students.filter(s => s.average >= 10).length;
+    const passed = students.filter(s => (studentMetrics[s.id]?.average ?? (s.average || 0)) >= 10).length;
     return { count, classAvg, passed, failed: count - passed };
-  }, [data]);
+  }, [data, studentMetrics]);
 
   // Compute ranks client-side (sorted by descending average)
   const studentRanks = useMemo(() => {
     if (!data || !data.students) return {};
-    const sorted = [...data.students].sort((a, b) => (b.average || 0) - (a.average || 0));
+    const sorted = [...data.students].sort((a, b) => {
+      const avgA = studentMetrics[a.id]?.average ?? (a.average || 0);
+      const avgB = studentMetrics[b.id]?.average ?? (b.average || 0);
+      return avgB - avgA;
+    });
     const ranks: Record<number, number> = {};
     let currentRank = 0;
     let lastAvg = -1;
     sorted.forEach((s, idx) => {
-      const avg = s.average || 0;
+      const avg = studentMetrics[s.id]?.average ?? (s.average || 0);
       if (avg !== lastAvg) currentRank = idx + 1;
       ranks[s.id] = currentRank;
       lastAvg = avg;
     });
     return ranks;
-  }, [data]);
+  }, [data, studentMetrics]);
 
   if (!data) {
     return (
@@ -643,8 +680,11 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
               {students.map((student: any, idx: number) => {
+                const metrics = studentMetrics[student.id] || { average: student.average || 0, totalCoef: student.totalCoef || 0 };
+                const safeAvg = metrics.average;
+                const displayTotalCoef = metrics.totalCoef;
+
                 const t1 = student.history?.find((h: any) => h.term && (h.term.includes("1er") || h.term.toLowerCase().includes("1") || h.term.toLowerCase().includes("première")));
-                const safeAvg = typeof student.average === 'number' && !isNaN(student.average) ? student.average : 0;
                 const annualAvg = typeof student.annualAverage === 'number' ? student.annualAverage : (t1 ? (t1.average + safeAvg) / 2 : safeAvg);
                 const computedRank = studentRanks[student.id] || 0;
                 const totalStudents = students.length;
@@ -806,8 +846,8 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
 
                     <td className="px-8 py-4 text-center bg-slate-50/60 dark:bg-slate-900/40 border-r border-slate-200 dark:border-slate-800">
                       <div className="flex items-center justify-center gap-6">
-                        <span className="text-xs font-black text-slate-700 dark:text-slate-300">
-                          {student.totalCoef || "-"}
+                        <span className="text-xs font-black text-slate-700 dark:text-slate-300" title="Σ COEF">
+                          {displayTotalCoef || "-"}
                         </span>
                         <span className={`text-base font-black px-3 py-1 rounded-lg ${safeAvg >= 10 ? 'text-emerald-800 bg-emerald-100 border border-emerald-300 dark:bg-emerald-950 dark:text-emerald-200' : 'text-rose-800 bg-rose-100 border border-rose-300 dark:bg-rose-950 dark:text-rose-200'} shadow-sm`}>
                           {safeAvg.toFixed(2)}

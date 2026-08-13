@@ -1229,6 +1229,7 @@ async function fetchBroadsheetMatrixDirect(params: { classId: number, sessionId:
     if (cs.subject) {
       subjectMapFromLinks.set(cs.subject.id, {
         ...cs.subject,
+        coefficient: cs.coefficient || cs.subject.coefficient || 1,
         teacherName: cs.teacher?.nom || "—"
       });
     }
@@ -1241,7 +1242,7 @@ async function fetchBroadsheetMatrixDirect(params: { classId: number, sessionId:
     });
     rawSubjects.forEach(sub => {
       if (!subjectMapFromLinks.has(sub.id)) {
-        subjectMapFromLinks.set(sub.id, { ...sub, teacherName: "—" });
+        subjectMapFromLinks.set(sub.id, { ...sub, coefficient: sub.coefficient || 1, teacherName: "—" });
       }
     });
   }
@@ -1265,25 +1266,48 @@ async function fetchBroadsheetMatrixDirect(params: { classId: number, sessionId:
     }
   });
 
-  // Pre-compute current term averages for all students
-  const currentAveragesMap = new Map<number, number>();
+  // Pre-compute current term averages and total coefficients for all students
+  const currentAveragesMap = new Map<number, { average: number; totalCoef: number }>();
   studentList.forEach(s => {
     const studentRes = (resultsByStudent.get(s.id) || []).filter(r => matchTerm(r.term, params.term));
     const summary = (summariesByStudent.get(s.id) || []).find(sum => matchTerm(sum.term, params.term));
-    if (summary) {
-      currentAveragesMap.set(s.id, summary.average || 0);
-    } else {
-      let totalWeighted = 0;
-      let totalCoef = 0;
-      studentRes.forEach(r => {
-        const cw = parseFloat(String(r.classWorkScore ?? "0")) || 0;
-        const ex = parseFloat(String(r.examScore ?? "0")) || 0;
-        const coef = parseFloat(String(r.coefficient ?? "1")) || 1;
-        totalWeighted += ((cw + ex) / 2) * coef;
-        totalCoef += coef;
-      });
-      currentAveragesMap.set(s.id, totalCoef > 0 ? totalWeighted / totalCoef : 0);
-    }
+    
+    let totalWeighted = 0;
+    let totalCoef = 0;
+
+    studentRes.forEach(r => {
+      if (r.subjectId) {
+        const subInfo = subjectMapFromLinks.get(r.subjectId);
+        const coef = subInfo?.coefficient || (r.coefficient ? parseFloat(String(r.coefficient)) : 1);
+        
+        const cw = r.classWorkScore !== null ? parseFloat(String(r.classWorkScore)) : null;
+        const ex = r.examScore !== null ? parseFloat(String(r.examScore)) : null;
+        const totalScore = r.totalScore !== null ? parseFloat(String(r.totalScore)) : null;
+
+        let avg: number | null = null;
+        if (totalScore !== null && !isNaN(totalScore)) {
+          avg = totalScore;
+        } else if (cw !== null && ex !== null) {
+          avg = (cw + ex) / 2;
+        } else if (ex !== null) {
+          avg = ex;
+        } else if (cw !== null) {
+          avg = cw;
+        }
+
+        if (avg !== null && !isNaN(avg)) {
+          totalWeighted += avg * coef;
+          totalCoef += coef;
+        }
+      }
+    });
+
+    const calculatedAvg = totalCoef > 0 ? totalWeighted / totalCoef : 0;
+    const finalAvg = summary?.average ?? calculatedAvg;
+    const fallbackCoefSum = subjectsList.reduce((acc, sub) => acc + (sub.coefficient || 1), 0);
+    const finalTotalCoef = totalCoef > 0 ? totalCoef : fallbackCoefSum;
+
+    currentAveragesMap.set(s.id, { average: finalAvg, totalCoef: finalTotalCoef });
   });
 
   // Dynamic fallback calculation for S1 and S2 if studentTermSummaries table is empty
@@ -1302,11 +1326,22 @@ async function fetchBroadsheetMatrixDirect(params: { classId: number, sessionId:
       if (resS1.length > 0) {
         let tw = 0, tc = 0;
         resS1.forEach(r => {
-          const cw = parseFloat(String(r.classWorkScore ?? "0")) || 0;
-          const ex = parseFloat(String(r.examScore ?? "0")) || 0;
-          const coef = parseFloat(String(r.coefficient ?? "1")) || 1;
-          tw += ((cw + ex) / 2) * coef;
-          tc += coef;
+          const subInfo = subjectMapFromLinks.get(r.subjectId);
+          const coef = subInfo?.coefficient || (r.coefficient ? parseFloat(String(r.coefficient)) : 1);
+          const cw = r.classWorkScore !== null ? parseFloat(String(r.classWorkScore)) : null;
+          const ex = r.examScore !== null ? parseFloat(String(r.examScore)) : null;
+          const totalScore = r.totalScore !== null ? parseFloat(String(r.totalScore)) : null;
+
+          let avg: number | null = null;
+          if (totalScore !== null && !isNaN(totalScore)) avg = totalScore;
+          else if (cw !== null && ex !== null) avg = (cw + ex) / 2;
+          else if (ex !== null) avg = ex;
+          else if (cw !== null) avg = cw;
+
+          if (avg !== null && !isNaN(avg)) {
+            tw += avg * coef;
+            tc += coef;
+          }
         });
         if (tc > 0) s1AveragesMap.set(s.id, tw / tc);
       }
@@ -1321,11 +1356,22 @@ async function fetchBroadsheetMatrixDirect(params: { classId: number, sessionId:
       if (resS2.length > 0) {
         let tw = 0, tc = 0;
         resS2.forEach(r => {
-          const cw = parseFloat(String(r.classWorkScore ?? "0")) || 0;
-          const ex = parseFloat(String(r.examScore ?? "0")) || 0;
-          const coef = parseFloat(String(r.coefficient ?? "1")) || 1;
-          tw += ((cw + ex) / 2) * coef;
-          tc += coef;
+          const subInfo = subjectMapFromLinks.get(r.subjectId);
+          const coef = subInfo?.coefficient || (r.coefficient ? parseFloat(String(r.coefficient)) : 1);
+          const cw = r.classWorkScore !== null ? parseFloat(String(r.classWorkScore)) : null;
+          const ex = r.examScore !== null ? parseFloat(String(r.examScore)) : null;
+          const totalScore = r.totalScore !== null ? parseFloat(String(r.totalScore)) : null;
+
+          let avg: number | null = null;
+          if (totalScore !== null && !isNaN(totalScore)) avg = totalScore;
+          else if (cw !== null && ex !== null) avg = (cw + ex) / 2;
+          else if (ex !== null) avg = ex;
+          else if (cw !== null) avg = cw;
+
+          if (avg !== null && !isNaN(avg)) {
+            tw += avg * coef;
+            tc += coef;
+          }
         });
         if (tc > 0) s2AveragesMap.set(s.id, tw / tc);
       }
@@ -1365,7 +1411,7 @@ async function fetchBroadsheetMatrixDirect(params: { classId: number, sessionId:
     const availableTermAvgs = [s1Avg, s2Avg].filter((v): v is number => typeof v === 'number' && !isNaN(v));
     const annualAvg = availableTermAvgs.length > 0 
       ? (availableTermAvgs.reduce((a, b) => a + b, 0) / availableTermAvgs.length)
-      : (currentAveragesMap.get(s.id) || 0);
+      : (currentAveragesMap.get(s.id)?.average || 0);
     return { studentId: s.id, annualAverage: annualAvg };
   });
 
@@ -1402,13 +1448,29 @@ async function fetchBroadsheetMatrixDirect(params: { classId: number, sessionId:
     
     resListToUse.forEach(r => {
       if (r.subjectId) {
-        const cw = parseFloat(String(r.classWorkScore ?? "0")) || 0;
-        const ex = parseFloat(String(r.examScore ?? "0")) || 0;
-        const coef = parseFloat(String(r.coefficient ?? "1")) || 1;
+        const subInfo = subjectMapFromLinks.get(r.subjectId);
+        const coef = subInfo?.coefficient || (r.coefficient ? parseFloat(String(r.coefficient)) : 1);
+
+        const cw = r.classWorkScore !== null ? parseFloat(String(r.classWorkScore)) : null;
+        const ex = r.examScore !== null ? parseFloat(String(r.examScore)) : null;
         const totalScore = r.totalScore !== null ? parseFloat(String(r.totalScore)) : null;
         
-        const note = totalScore !== null ? totalScore : (r.examScore !== null ? ex : (r.classWorkScore !== null ? cw : 0));
-        const avg = totalScore !== null ? totalScore : (cw > 0 && ex > 0 ? (cw + ex) / 2 : (ex > 0 ? ex : cw));
+        let avg = 0;
+        let note = 0;
+        if (totalScore !== null && !isNaN(totalScore)) {
+          avg = totalScore;
+          note = totalScore;
+        } else if (cw !== null && ex !== null) {
+          avg = (cw + ex) / 2;
+          note = ex;
+        } else if (ex !== null) {
+          avg = ex;
+          note = ex;
+        } else if (cw !== null) {
+          avg = cw;
+          note = cw;
+        }
+
         const moyCoef = avg * coef;
 
         let mention = r.appreciation || r.observation || "";
@@ -1438,7 +1500,10 @@ async function fetchBroadsheetMatrixDirect(params: { classId: number, sessionId:
       }
     });
 
-    const average = currentAveragesMap.get(s.id) || 0;
+    const currentAvgObj = currentAveragesMap.get(s.id) || { average: 0, totalCoef: 0 };
+    const average = currentAvgObj.average;
+    const totalCoef = currentAvgObj.totalCoef;
+
     const annualAverage = annualAveragesList.find(a => a.studentId === s.id)?.annualAverage || average;
 
     const minPass = (cls as any)?.section?.minPassingGrade ?? 10.0;
@@ -1493,7 +1558,7 @@ async function fetchBroadsheetMatrixDirect(params: { classId: number, sessionId:
       s1Rank: s1Rank,
       s2Average: s2Avg,
       s2Rank: s2Rank,
-      totalCoef: resListToUse.reduce((acc, r) => acc + (parseFloat(String(r.coefficient ?? "1")) || 1), 0),
+      totalCoef,
       behaviorScore: s.behaviorScore || 20.0,
       conduite: summary?.conduite || 0.0,
       travail: summary?.travail || "-",
