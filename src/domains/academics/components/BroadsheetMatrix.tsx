@@ -559,16 +559,16 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[1800px]">
             <thead>
-              <tr className="bg-gradient-to-r from-slate-900 to-slate-800 text-white">
-                <th className="sticky left-0 z-20 bg-slate-900 px-6 py-6 text-[10px] font-black uppercase tracking-widest border-r border-slate-700">
+              <tr className="bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 text-white">
+                <th className="sticky left-0 z-20 bg-slate-950 px-6 py-6 text-xs font-black uppercase tracking-widest border-r border-slate-700">
                   N° | NOM ET PRÉNOMS
                 </th>
                 
-                {/* Behavioral Headers (New) */}
+                {/* Behavioral Headers */}
                 {!isHigherEd && (
-                  <th className="px-4 py-6 text-center border-r border-slate-700">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-orange-400">Comportement</p>
-                    <div className="flex justify-center gap-4 mt-2 text-[8px] font-bold text-slate-400 uppercase">
+                  <th className="px-4 py-6 text-center border-r border-slate-700 bg-slate-900/80">
+                    <p className="text-xs font-black uppercase tracking-wider text-orange-400">Comportement</p>
+                    <div className="flex justify-center gap-4 mt-2 text-[10px] font-bold text-orange-300 uppercase">
                       <span>Cond.</span>
                       <span>Trav.</span>
                       <span>Tab.</span>
@@ -580,28 +580,28 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
                   const sSub = sub as any;
                   const sCode = sSub.subjectCode || sSub.code || sSub.shortCode || `SUBJ${String(sIdx + 1).padStart(3, '0')}`;
                   return (
-                    <th key={sub.id} className={`px-4 py-6 text-center border-r border-slate-700 ${isHigherEd ? 'min-w-[320px]' : 'min-w-[200px]'}`}>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-indigo-400">{sub.subjectName}</p>
-                      <span className="inline-block text-[8px] font-extrabold tracking-wider text-indigo-300/90 bg-indigo-950/80 px-2 py-0.5 rounded border border-indigo-700/50 mt-1 uppercase">
+                    <th key={sub.id} className={`px-4 py-6 text-center border-r border-slate-700/80 ${isHigherEd ? 'min-w-[340px]' : 'min-w-[220px]'}`}>
+                      <p className="text-xs font-black uppercase tracking-wider text-indigo-300">{sub.subjectName}</p>
+                      <span className="inline-block text-[10px] font-black tracking-wider text-indigo-200 bg-indigo-950/90 px-2 py-0.5 rounded border border-indigo-700/60 mt-1 uppercase">
                         {sCode}
                       </span>
-                      <div className="flex justify-center gap-2 mt-2 text-[8px] font-bold text-slate-400">
+                      <div className="flex justify-center gap-2 mt-2 text-[10px] font-black">
                       {isHigherEd ? (
                         <>
-                          <span className="text-white w-9 text-center">NOTE /20</span>
-                          <span className="text-cyan-300 w-9 text-center">MOY /20</span>
-                          <span className="text-emerald-300 w-11 text-center">MOY. COEF</span>
-                          <span className="text-slate-300 w-6 text-center">CRÉDITS</span>
-                          <span className="text-indigo-300 w-14 text-center">MENTION</span>
-                          <span className="text-amber-400 w-6 text-center">RNG</span>
+                          <span className="text-slate-100 w-10 text-center">NOTE /20</span>
+                          <span className="text-cyan-300 w-10 text-center">MOY /20</span>
+                          <span className="text-emerald-300 w-12 text-center">MOY. COEF</span>
+                          <span className="text-amber-300 w-7 text-center">CRÉDITS</span>
+                          <span className="text-indigo-300 w-16 text-center">MENTION</span>
+                          <span className="text-yellow-400 w-7 text-center">RNG</span>
                         </>
                       ) : (
                         <>
-                          <span>N1</span>
-                          <span>N2</span>
-                          <span className="text-white">TOT</span>
-                          <span className="text-indigo-300">MOY</span>
-                          <span className="text-amber-400">RNG</span>
+                          <span className="text-slate-300 w-7 text-center">N1</span>
+                          <span className="text-slate-300 w-7 text-center">N2</span>
+                          <span className="text-sky-300 w-9 text-center">TOT</span>
+                          <span className="text-emerald-300 w-9 text-center">MOY</span>
+                          <span className="text-amber-400 w-7 text-center">RNG</span>
                         </>
                       )}
                     </div>
@@ -609,19 +609,19 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
                 );
               })}
 
-                {/* Cumulative Headers (New) */}
+                {/* Cumulative Headers */}
                 {isCumulative && (
                   <>
-                    <th className="px-6 py-6 text-center border-r border-slate-700 bg-slate-800/30">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-cyan-400">1er Semestre</p>
-                      <div className="flex justify-center gap-4 mt-2 text-[8px] font-bold text-slate-400">
+                    <th className="px-6 py-6 text-center border-r border-slate-700 bg-slate-900/60">
+                      <p className="text-xs font-black uppercase tracking-wider text-cyan-400">1er Semestre</p>
+                      <div className="flex justify-center gap-4 mt-2 text-[10px] font-bold text-slate-300">
                         <span>MOY</span>
                         <span>RNG</span>
                       </div>
                     </th>
-                    <th className="px-6 py-6 text-center border-r border-slate-700 bg-slate-800/30">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-yellow-400">Annuel</p>
-                      <div className="flex justify-center gap-4 mt-2 text-[8px] font-bold text-slate-400">
+                    <th className="px-6 py-6 text-center border-r border-slate-700 bg-slate-900/60">
+                      <p className="text-xs font-black uppercase tracking-wider text-yellow-400">Annuel</p>
+                      <div className="flex justify-center gap-4 mt-2 text-[10px] font-bold text-slate-300">
                         <span>MOY</span>
                         <span>RNG</span>
                       </div>
@@ -629,19 +629,19 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
                   </>
                 )}
 
-                <th className="px-8 py-6 text-center bg-slate-800/50">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-amber-400">Période Actuelle</p>
-                  <div className="flex justify-center gap-6 mt-2 text-[8px] font-bold text-slate-400">
-                    <span>Σ COEF</span>
+                <th className="px-8 py-6 text-center bg-slate-900/90 border-r border-slate-700">
+                  <p className="text-xs font-black uppercase tracking-wider text-amber-400">Période Actuelle</p>
+                  <div className="flex justify-center gap-6 mt-2 text-[10px] font-black">
+                    <span className="text-slate-300">Σ COEF</span>
                     <span className="text-indigo-300">MOY/20</span>
-                    <span className="text-amber-400">RANG</span>
+                    <span className="text-amber-300">RANG</span>
                     <span className="text-emerald-400">DECISION</span>
                   </div>
                 </th>
-                <th className="px-6 py-6 text-center bg-slate-900">Actions</th>
+                <th className="px-6 py-6 text-center bg-slate-950">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
               {students.map((student: any, idx: number) => {
                 const t1 = student.history?.find((h: any) => h.term && (h.term.includes("1er") || h.term.toLowerCase().includes("1") || h.term.toLowerCase().includes("première")));
                 const safeAvg = typeof student.average === 'number' && !isNaN(student.average) ? student.average : 0;
@@ -650,33 +650,33 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
                 const totalStudents = students.length;
 
                 return (
-                  <tr key={student.id} className="group hover:bg-slate-50 transition-colors">
-                    <td className="sticky left-0 z-10 bg-white group-hover:bg-slate-50 px-6 py-5 border-r border-slate-100 min-w-[280px]">
+                  <tr key={student.id} className="group hover:bg-indigo-50/40 dark:hover:bg-indigo-950/20 transition-colors">
+                    <td className="sticky left-0 z-10 bg-white dark:bg-[#131622] group-hover:bg-indigo-50/60 dark:group-hover:bg-indigo-950/40 px-6 py-5 border-r border-slate-200 dark:border-slate-800 min-w-[280px]">
                       <div className="flex items-center gap-3">
-                        <span className="text-[10px] font-black text-slate-400 w-6">{idx + 1}.</span>
+                        <span className="text-xs font-black text-slate-400 w-6">{idx + 1}.</span>
                         <div>
-                          <p className="font-bold text-slate-800 text-sm leading-tight">{student.name}</p>
-                          <p className="text-[10px] font-black text-indigo-600 uppercase tracking-tighter mt-0.5">{student.matricule}</p>
+                          <p className="font-extrabold text-slate-900 dark:text-white text-sm leading-tight">{student.name}</p>
+                          <p className="text-xs font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-tight mt-0.5">{student.matricule}</p>
                         </div>
                       </div>
                     </td>
 
                     {/* Behavior Data */}
                     {!isHigherEd && (
-                      <td className="px-2 py-4 text-center border-r border-slate-50 bg-orange-50/10 min-w-[200px]">
+                      <td className="px-2 py-4 text-center border-r border-slate-200 dark:border-slate-800 bg-orange-50/20 dark:bg-orange-950/10 min-w-[200px]">
                         <div className="flex items-center justify-center gap-2">
                           <input
                             type="number"
                             step="0.1"
                             min="0"
                             max="20"
-                            className="w-14 h-7 text-[10px] font-bold text-orange-600 bg-white border border-orange-200 rounded text-center focus:ring-2 focus:ring-orange-400 outline-none"
+                            className="w-14 h-8 text-xs font-black text-orange-600 dark:text-orange-400 bg-white dark:bg-slate-900 border border-orange-300 dark:border-orange-800 rounded-md text-center focus:ring-2 focus:ring-orange-400 outline-none"
                             value={appreciations[student.id]?.conduite ?? ""}
                             onChange={(e) => updateAppreciation(student.id, 'conduite', e.target.value)}
                             title="Note de conduite (/20)"
                           />
                           <select
-                            className="w-24 h-7 text-[9px] font-bold text-slate-600 bg-white border border-slate-200 rounded px-1 focus:ring-2 focus:ring-slate-400 outline-none"
+                            className="w-26 h-8 text-xs font-bold text-slate-800 dark:text-slate-200 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-md px-1 focus:ring-2 focus:ring-slate-400 outline-none"
                             value={appreciations[student.id]?.travail || "-"}
                             onChange={(e) => updateAppreciation(student.id, 'travail', e.target.value)}
                           >
@@ -736,49 +736,49 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
                       }
 
                       return (
-                        <td key={sub.id} className={`px-2 py-4 text-center border-r border-slate-50 ${isHigherEd ? 'min-w-[320px]' : ''}`}>
+                        <td key={sub.id} className={`px-2 py-4 text-center border-r border-slate-200 dark:border-slate-800 ${isHigherEd ? 'min-w-[340px]' : 'min-w-[220px]'}`}>
                           <div className="flex items-center justify-center gap-2">
                             {isHigherEd ? (
                               <>
                                 {/* NOTE /20 */}
-                                <span className="text-[11px] font-black text-slate-800 w-9 text-center" title="Note /20">
+                                <span className="text-xs font-black text-slate-900 dark:text-slate-100 w-10 text-center" title="Note /20">
                                   {noteStr}
                                 </span>
                                 
                                 {/* MOY /20 */}
-                                <span className={`text-[11px] font-black w-9 text-center ${moyNum !== null && moyNum >= 10 ? 'text-indigo-600' : 'text-rose-600'}`} title="Moyenne /20">
+                                <span className={`text-xs font-black w-10 text-center py-0.5 px-1 rounded-md ${moyNum !== null && moyNum >= 10 ? 'text-indigo-700 bg-indigo-100/90 dark:bg-indigo-950 dark:text-indigo-300 border border-indigo-200/80' : 'text-rose-700 bg-rose-100/90 dark:bg-rose-950 dark:text-rose-300 border border-rose-200/80'}`} title="Moyenne /20">
                                   {moyStr}
                                 </span>
 
                                 {/* MOY. COEF */}
-                                <span className="text-[10px] font-bold text-emerald-600 w-11 text-center" title="Moyenne × Coef">
+                                <span className="text-xs font-extrabold text-emerald-700 dark:text-emerald-400 w-12 text-center" title="Moyenne × Coef">
                                   {moyCoefStr}
                                 </span>
 
                                 {/* CRÉDITS */}
-                                <span className="text-[10px] font-medium text-slate-500 w-6 text-center" title="Crédits (Coef)">
+                                <span className="text-xs font-bold text-slate-700 dark:text-slate-300 w-7 text-center" title="Crédits (Coef)">
                                   {coef}
                                 </span>
 
                                 {/* MENTION */}
-                                <span className={`text-[9px] font-black px-1.5 py-0.5 rounded ${moyNum !== null && moyNum >= 10 ? 'bg-indigo-50 text-indigo-600' : 'bg-rose-50 text-rose-600'} uppercase tracking-tighter truncate max-w-[65px] text-center`} title={mention}>
+                                <span className={`text-[10px] font-black px-2 py-0.5 rounded-md ${moyNum !== null && moyNum >= 10 ? 'bg-indigo-600 text-white dark:bg-indigo-500' : 'bg-rose-600 text-white dark:bg-rose-500'} uppercase tracking-tight text-center truncate max-w-[75px] shadow-xs`} title={mention}>
                                   {mention}
                                 </span>
 
                                 {/* RNG */}
-                                <span className="text-[10px] font-black text-amber-500 w-6 text-center" title="Rang">
+                                <span className="text-xs font-black text-amber-600 dark:text-amber-400 w-7 text-center" title="Rang">
                                   {res.rank || "-"}
                                 </span>
                               </>
                             ) : (
                               <>
-                                <span className="text-[10px] font-medium text-slate-500 w-6">{res.n1 || "-"}</span>
-                                <span className="text-[10px] font-medium text-slate-500 w-6">{res.n2 || "-"}</span>
-                                <span className="text-[11px] font-black text-slate-800 w-8">{res.total || "-"}</span>
-                                <span className={`text-[11px] font-black w-8 ${res.moy >= 10 ? 'text-indigo-600' : 'text-rose-600'}`}>
+                                <span className="text-xs font-bold text-slate-600 dark:text-slate-300 w-7 text-center">{res.n1 || "-"}</span>
+                                <span className="text-xs font-bold text-slate-600 dark:text-slate-300 w-7 text-center">{res.n2 || "-"}</span>
+                                <span className="text-xs font-black text-slate-900 dark:text-white w-9 text-center">{res.total || "-"}</span>
+                                <span className={`text-xs font-black w-9 text-center py-0.5 px-1.5 rounded-md ${parseFloat(String(res.moy || '0')) >= 10 ? 'text-emerald-700 bg-emerald-100/90 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200/80' : 'text-rose-700 bg-rose-100/90 dark:bg-rose-950 dark:text-rose-300 border border-rose-200/80'}`}>
                                   {res.moy || "-"}
                                 </span>
-                                <span className="text-[10px] font-black text-amber-500 w-6">{res.rank || "-"}</span>
+                                <span className="text-xs font-black text-amber-600 dark:text-amber-400 w-7 text-center">{res.rank || "-"}</span>
                               </>
                             )}
                           </div>
@@ -789,30 +789,30 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
                     {/* Cumulative Data Rows */}
                     {isCumulative && (
                       <>
-                        <td className="px-6 py-4 text-center border-r border-slate-50 bg-cyan-50/10">
-                          <div className="flex items-center justify-center gap-4 text-[10px] font-black">
-                            <span className="text-cyan-600 w-10">{t1?.average?.toFixed(2) || "-"}</span>
-                            <span className="text-slate-400 w-8">{t1?.rank || "-"}</span>
+                        <td className="px-6 py-4 text-center border-r border-slate-200 dark:border-slate-800 bg-cyan-50/20 dark:bg-cyan-950/10">
+                          <div className="flex items-center justify-center gap-4 text-xs font-black">
+                            <span className="text-cyan-700 dark:text-cyan-300 w-10">{t1?.average?.toFixed(2) || "-"}</span>
+                            <span className="text-slate-500 w-8">{t1?.rank || "-"}</span>
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-center border-r border-slate-50 bg-yellow-50/10">
-                          <div className="flex items-center justify-center gap-4 text-[10px] font-black">
-                            <span className={`w-10 ${annualAvg >= 10 ? 'text-emerald-600' : 'text-rose-600'}`}>{annualAvg.toFixed(2)}</span>
-                            <span className="text-amber-500 w-8">{student.annualRank || "-"}</span>
+                        <td className="px-6 py-4 text-center border-r border-slate-200 dark:border-slate-800 bg-yellow-50/20 dark:bg-yellow-950/10">
+                          <div className="flex items-center justify-center gap-4 text-xs font-black">
+                            <span className={`w-10 ${annualAvg >= 10 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'}`}>{annualAvg.toFixed(2)}</span>
+                            <span className="text-amber-600 dark:text-amber-400 w-8">{student.annualRank || "-"}</span>
                           </div>
                         </td>
                       </>
                     )}
 
-                    <td className="px-8 py-4 text-center bg-slate-50/30">
+                    <td className="px-8 py-4 text-center bg-slate-50/60 dark:bg-slate-900/40 border-r border-slate-200 dark:border-slate-800">
                       <div className="flex items-center justify-center gap-6">
-                        <span className="text-xs font-black text-slate-400">
+                        <span className="text-xs font-black text-slate-700 dark:text-slate-300">
                           {student.totalCoef || "-"}
                         </span>
-                        <span className={`text-sm font-black ${safeAvg >= 10 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                        <span className={`text-base font-black px-3 py-1 rounded-lg ${safeAvg >= 10 ? 'text-emerald-800 bg-emerald-100 border border-emerald-300 dark:bg-emerald-950 dark:text-emerald-200' : 'text-rose-800 bg-rose-100 border border-rose-300 dark:bg-rose-950 dark:text-rose-200'} shadow-sm`}>
                           {safeAvg.toFixed(2)}
                         </span>
-                        <span className="text-xs font-black text-amber-500">
+                        <span className="text-xs font-black text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950 px-2.5 py-1 rounded-md border border-amber-300/50">
                           {computedRank > 0 ? formatRank(computedRank) : "-"} / {totalStudents}
                         </span>
                         <DecisionBadge decision={safeAvg >= 10 ? "ADMIS ✅" : "REDOUBLE ❌"} />
@@ -1147,11 +1147,18 @@ function MatrixStatsCard({ icon, label, value }: { icon: React.ReactNode; label:
 }
 
 function DecisionBadge({ decision }: { decision: string }) {
-  const isAdmis = decision === "ADMIS" || decision === "Passage" || decision.includes("ADMIS");
+  const isAdmis = decision.includes("ADMIS") || decision.includes("Passage");
+  const isRedouble = decision.includes("REDOUBLE") || decision.includes("AUTORISÉ");
+  
+  let bgClass = "bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-950 dark:text-rose-200";
+  if (isAdmis) {
+    bgClass = "bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-200";
+  } else if (isRedouble) {
+    bgClass = "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950 dark:text-amber-200";
+  }
+
   return (
-    <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-tighter ${
-      isAdmis ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
-    }`}>
+    <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-tight border shadow-xs ${bgClass}`}>
       {decision}
     </span>
   );
