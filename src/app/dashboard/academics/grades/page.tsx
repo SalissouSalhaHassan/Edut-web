@@ -24,7 +24,7 @@ import {
   getStudentBulletinData,
   getBatchBulletinData,
 } from "@/domains/academics/actions/academics.actions";
-import { generateBulletinPDF, generatePVMatrixPDF, generateReleveNotesPDF, generateResultsPedagogicalReportPDF } from "@/domains/academics/utils/bulletin-generator";
+import { generateBulletinPDF, generatePVMatrixPDF, generatePVMatrixExcel, generateReleveNotesPDF, generateResultsPedagogicalReportPDF } from "@/domains/academics/utils/bulletin-generator";
 import { getDocumentHeaderConfig } from "@/domains/settings/actions/settings.actions";
 import { useEffect } from "react";
 import { getPedagogicalReportAction } from "@/domains/pedagogie/actions/analytics.actions";

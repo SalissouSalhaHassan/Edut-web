@@ -11,13 +11,14 @@ import { BroadsheetData } from "../types";
 import { formatRank } from "../utils/calculations";
 import { toast } from "sonner";
 import { saveTermSummaries } from "../actions/academics.actions";
-import { generateOfficialAnnualReportPDF, generateOfficialUniversityPV } from "../utils/bulletin-generator";
+import { generateOfficialAnnualReportPDF, generateOfficialUniversityPV, generatePVMatrixExcel } from "../utils/bulletin-generator";
 
 interface BroadsheetMatrixProps {
   data: BroadsheetData;
   onPrintBulletin: (studentId: number) => void;
   onPrintAll?: () => void;
   onPrintPV: () => void;
+  onExportPVExcel?: () => void;
   activeFilters: any;
   headerConfig?: any;
 }
@@ -541,6 +542,16 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
     }
   };
 
+  const handleExportPVExcel = async () => {
+    try {
+      const classInfo = activeFilters?.className || `Classe_${activeFilters?.classId}`;
+      await generatePVMatrixExcel(data, { className: classInfo, headerConfig }, activeFilters);
+      toast.success("PV Excel exporté avec succès !");
+    } catch (err: any) {
+      toast.error("Erreur lors de l'exportation Excel", { description: err.message });
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header Stats */}
@@ -581,6 +592,12 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
             className="bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 text-white rounded-xl font-bold flex items-center gap-2"
           >
             <FileText size={18} /> Version PV (PDF)
+          </Button>
+          <Button 
+            onClick={handleExportPVExcel} 
+            className="bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl font-bold flex items-center gap-2 shadow-sm"
+          >
+            <FileSpreadsheet size={18} /> Version PV (Excel)
           </Button>
           <Button 
             onClick={handlePrintAll} 

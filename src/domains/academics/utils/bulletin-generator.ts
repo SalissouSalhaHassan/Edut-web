@@ -2,6 +2,7 @@ import { jsPDF } from "jspdf";
 import originalAutoTable from "jspdf-autotable";
 import { amiriFontBase64 } from "@/domains/printing/utils/amiri-font";
 import { hasArabicCharacters, reshapeArabicText } from "@/domains/printing/utils/arabic-reshaper";
+import * as XLSX from "xlsx";
 
 function ensureAmiriRegistered(doc: jsPDF) {
   try {
@@ -2544,4 +2545,193 @@ export function generateOfficialUniversityPV(data: {
 
   const cleanClassName = (data.className || "Parcours").replace(/\s+/g, "_");
   doc.save(`PV_Resultats_LMD_${cleanClassName}_${Date.now()}.pdf`);
+}
+
+export async function generatePVMatrixExcel(matrixData: any, classInfo: any, filters: any) {
+  const { students = [], subjects = [] } = matrixData || {};
+  const classNameStr = classInfo?.className || filters?.className || "CLASSE";
+  const sessionStr = filters?.sessionName || filters?.session || "2025-2026";
+  const periodStr = String(filters?.period || "PÉRIODE").toUpperCase();
+  const currentDateStr = new Date().toLocaleDateString("fr-FR");
+  const schoolName = classInfo?.headerConfig?.schoolName || filters?.headerConfig?.schoolName || "ÉCOLE EXCELLENCE";
+
+  const sortedStudents = [...students].sort((a, b) => {
+    const avgA = Number(a.average ?? a.moyenne ?? a.annualAverage ?? 0);
+    const avgB = Number(b.average ?? b.moyenne ?? b.annualAverage ?? 0);
+    return avgB - avgA;
+  });
+
+  const rankMap = new Map<any, number>();
+  sortedStudents.forEach((st, idx) => {
+    rankMap.set(st.id || st.studentId || st.matricule || idx, idx + 1);
+  });
+
+  const getOrdinalRank = (rankNum: number) => {
+    if (!rankNum || isNaN(rankNum)) return "-";
+    if (rankNum === 1) return "1er";
+    return `${rankNum}ème`;
+  };
+
+  const readResultTotal = (result: any) => {
+    if (!result) return null;
+    return result.total ?? result.totalScore ?? result.moy ?? result.average ?? result.weightedScore ?? result.note ?? null;
+  };
+
+  // --- SHEET 1: PROCÈS VERBAL (PV) ---
+  const pvRows: any[][] = [];
+
+  pvRows.push([schoolName.toUpperCase(), "", "", `Année Scolaire: ${sessionStr}`, `Édition: ${currentDateStr}`]);
+  pvRows.push([`PROCÈS VERBAL DES RÉSULTATS — ${classNameStr.toUpperCase()}`]);
+  pvRows.push([`Période: ${periodStr} | Session: ${sessionStr} | Effectif: ${students.length} Élèves`]);
+  pvRows.push([]); // Empty row
+
+  const subjectColHeaders = (subjects || []).map((s: any, idx: number) => {
+    const sName = s.subjectName || s.name || `M${idx + 1}`;
+    const sCode = s.subjectCode || s.code || s.shortCode || `S${idx + 1}`;
+    const sCoef = s.coefficient || 1;
+    return `${sName} [${sCode}] (C:${sCoef}) - MOY.COEF`;
+  });
+
+  const headers = ["N°", "Matricule", "Nom et Prénoms de l'Élève", ...subjectColHeaders, "MOY /20", "Rang", "Décision du Conseil"];
+  pvRows.push(headers);
+
+  let totalClassAvgSum = 0;
+  let validAvgStudentsCount = 0;
+  let admisCount = 0;
+  let redoubleCount = 0;
+  let excluCount = 0;
+
+  const subjectStats: Record<string, { name: string; code: string; coef: number; scores: number[] }> = {};
+  (subjects || []).forEach((subj: any, idx: number) => {
+    const sName = subj.subjectName || subj.name || `Matière ${idx + 1}`;
+    const sCode = subj.subjectCode || subj.code || subj.shortCode || `SUBJ${String(idx + 1).padStart(3, '0')}`;
+    const sCoef = parseFloat(subj.coefficient) || 1;
+    const key = String(subj.id || subj.subjectId || sCode);
+    subjectStats[key] = { name: sName, code: sCode, coef: sCoef, scores: [] };
+  });
+
+  (students || []).forEach((s: any, idx: number) => {
+    const stKey = s.id || s.studentId || s.matricule || idx;
+    const calcRank = rankMap.get(stKey) || idx + 1;
+    const rankStr = getOrdinalRank(calcRank);
+
+    const safeAvgNum = Number(s.average ?? s.moyenne ?? s.annualAverage ?? 0);
+    if (!isNaN(safeAvgNum) && safeAvgNum > 0) {
+      totalClassAvgSum += safeAvgNum;
+      validAvgStudentsCount++;
+    }
+
+    const decisionStr = s.decision || (safeAvgNum >= 10.0 ? "ADMIS(E) EN CLASSE SUPÉRIEURE" : safeAvgNum >= 8.0 ? "AUTORISÉ(E) À REDOUBLER" : "EXCLU(E) DE L'ÉTABLISSEMENT");
+    const isAdmis = decisionStr.includes("ADMIS");
+    const isRedouble = decisionStr.includes("REDOUBLE");
+    const isExclu = decisionStr.includes("EXCLU");
+
+    if (isAdmis) admisCount++;
+    else if (isRedouble) redoubleCount++;
+    else if (isExclu) excluCount++;
+    else admisCount++;
+
+    const rowSubjectCols: (number | string)[] = [];
+    (subjects || []).forEach((subj: any, sIdx: number) => {
+      const resultMap = s.results || {};
+      const res = resultMap[subj.id] || resultMap[subj.subjectId] || resultMap[subj.subjectName] || resultMap[subj.name];
+      const valNum = readResultTotal(res);
+      const coef = parseFloat(subj.coefficient) || 1;
+
+      const key = String(subj.id || subj.subjectId || subj.subjectCode || subj.code || `SUBJ${String(sIdx + 1).padStart(3, '0')}`);
+      if (valNum !== null && valNum !== undefined && !isNaN(Number(valNum))) {
+        if (subjectStats[key]) {
+          subjectStats[key].scores.push(Number(valNum));
+        }
+      }
+
+      const moyCoef = (valNum !== null && valNum !== undefined && !isNaN(Number(valNum)))
+        ? Number((Number(valNum) * coef).toFixed(2))
+        : "-";
+      rowSubjectCols.push(moyCoef);
+    });
+
+    pvRows.push([
+      idx + 1,
+      s.matricule || s.numAdmission || "-",
+      s.name || s.studentName || s.nomEtudiant || "Élève",
+      ...rowSubjectCols,
+      Number(safeAvgNum.toFixed(2)),
+      rankStr,
+      decisionStr.replace(/[✅❌⛔]/g, '').trim()
+    ]);
+  });
+
+  pvRows.push([]);
+  pvRows.push([]);
+
+  const classAvg = validAvgStudentsCount > 0 ? Number((totalClassAvgSum / validAvgStudentsCount).toFixed(2)) : 0;
+  const successRate = students.length > 0 ? Number(((admisCount / students.length) * 100).toFixed(1)) : 0;
+
+  pvRows.push(["RÉSUMÉ STATISTIQUE DE LA CLASSE"]);
+  pvRows.push(["Effectif Total", "Admis(es)", "Redoublants", "Exclus / Ajournés", "Taux de Réussite", "Moyenne Générale Classe"]);
+  pvRows.push([
+    students.length,
+    `${admisCount} (${successRate}%)`,
+    redoubleCount,
+    excluCount,
+    `${successRate}%`,
+    `${classAvg} / 20`
+  ]);
+
+  const wsPV = XLSX.utils.aoa_to_sheet(pvRows);
+
+  const colWidths = [
+    { wch: 6 },
+    { wch: 18 },
+    { wch: 32 },
+    ...subjects.map(() => ({ wch: 22 })),
+    { wch: 12 },
+    { wch: 10 },
+    { wch: 30 }
+  ];
+  wsPV['!cols'] = colWidths;
+
+  // --- SHEET 2: RÉCAPITULATIF DES MATIÈRES ---
+  const analysisRows: any[][] = [];
+  analysisRows.push([`RÉCAPITULATIF ET ANALYSE DES MATIÈRES — ${classNameStr.toUpperCase()}`]);
+  analysisRows.push([]);
+  analysisRows.push(["Code", "Nom de la Matière", "Coef", "MOY.COEF Classe", "Meilleur MOY.COEF", "Plus Faible MOY.COEF", "Total Points", "Taux Réussite (>=10)"]);
+
+  Object.values(subjectStats).forEach((st) => {
+    const scs = st.scores;
+    const coef = st.coef || 1;
+    if (scs.length === 0) {
+      analysisRows.push([st.code, st.name, coef, "-", "-", "-", "-", "-"]);
+    } else {
+      const moyCoefScores = scs.map(s => s * coef);
+      const avgMoyCoef   = Number((moyCoefScores.reduce((a, b) => a + b, 0) / moyCoefScores.length).toFixed(2));
+      const maxMoyCoef   = Number(Math.max(...moyCoefScores).toFixed(2));
+      const minMoyCoef   = Number(Math.min(...moyCoefScores).toFixed(2));
+      const totalPoints  = Number(moyCoefScores.reduce((a, b) => a + b, 0).toFixed(2));
+      const passCount    = scs.filter(s => s >= 10.0).length;
+      const passRate     = Number(((passCount / scs.length) * 100).toFixed(1));
+
+      analysisRows.push([st.code, st.name, coef, avgMoyCoef, maxMoyCoef, minMoyCoef, totalPoints, `${passRate}%`]);
+    }
+  });
+
+  const wsAnalysis = XLSX.utils.aoa_to_sheet(analysisRows);
+  wsAnalysis['!cols'] = [
+    { wch: 14 },
+    { wch: 35 },
+    { wch: 8 },
+    { wch: 18 },
+    { wch: 18 },
+    { wch: 20 },
+    { wch: 14 },
+    { wch: 20 }
+  ];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, wsPV, "PV des Résultats");
+  XLSX.utils.book_append_sheet(wb, wsAnalysis, "Analyse des Matières");
+
+  const safeClassName = classNameStr.replace(/\s+/g, "_");
+  XLSX.writeFile(wb, `PV_Resultats_${safeClassName}_${Date.now()}.xlsx`);
 }
