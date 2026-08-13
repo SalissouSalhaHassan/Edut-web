@@ -1589,7 +1589,7 @@ export async function generateReleveNotesPDF(data: any) {
 
   // Draw QR Code in top right position
   try {
-    const qrData = `RELEVE: ${student?.nomEtudiant || student?.name || "N/A"} | MATRICULE: ${student?.numAdmission || student?.matricule || "N/A"} | DECISION: ${displayDecision2} | ANNEE: ${session || "2024-2025"}`;
+    const qrData = `RELEVE: ${student?.nomEtudiant || student?.name || "N/A"} | MATRICULE: ${student?.numAdmission || student?.matricule || "N/A"} | DECISION: ${hasRealS2 ? decision2 : "—"} | ANNEE: ${session || "2024-2025"}`;
     const qrBase64 = await fetchQRCodeBase64(qrData);
     if (qrBase64) {
       doc.addImage(qrBase64, 'PNG', 175, studentInfoY - 4, 18, 18);
