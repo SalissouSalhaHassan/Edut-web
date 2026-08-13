@@ -580,18 +580,20 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
                   const sSub = sub as any;
                   const sCode = sSub.subjectCode || sSub.code || sSub.shortCode || `SUBJ${String(sIdx + 1).padStart(3, '0')}`;
                   return (
-                    <th key={sub.id} className="px-6 py-6 text-center border-r border-slate-700 min-w-[200px]">
+                    <th key={sub.id} className={`px-4 py-6 text-center border-r border-slate-700 ${isHigherEd ? 'min-w-[320px]' : 'min-w-[200px]'}`}>
                       <p className="text-[10px] font-black uppercase tracking-widest text-indigo-400">{sub.subjectName}</p>
                       <span className="inline-block text-[8px] font-extrabold tracking-wider text-indigo-300/90 bg-indigo-950/80 px-2 py-0.5 rounded border border-indigo-700/50 mt-1 uppercase">
                         {sCode}
                       </span>
-                      <div className="flex justify-center gap-4 mt-2 text-[8px] font-bold text-slate-400">
+                      <div className="flex justify-center gap-2 mt-2 text-[8px] font-bold text-slate-400">
                       {isHigherEd ? (
                         <>
-                          <span className="text-white">NOTES</span>
-                          <span>CRÉDITS</span>
-                          <span className="text-indigo-300">MENTION</span>
-                          <span className="text-amber-400">RNG</span>
+                          <span className="text-white w-9 text-center">NOTE /20</span>
+                          <span className="text-cyan-300 w-9 text-center">MOY /20</span>
+                          <span className="text-emerald-300 w-11 text-center">MOY. COEF</span>
+                          <span className="text-slate-300 w-6 text-center">CRÉDITS</span>
+                          <span className="text-indigo-300 w-14 text-center">MENTION</span>
+                          <span className="text-amber-400 w-6 text-center">RNG</span>
                         </>
                       ) : (
                         <>
@@ -698,17 +700,75 @@ export default function BroadsheetMatrix({ data, onPrintBulletin, onPrintAll, on
 
                     {subjects.map((sub) => {
                       const res = student.results[sub.id] || {};
+                      const coef = sub.coefficient || res.coef || 1;
+                      
+                      const noteStr = res.note !== undefined && res.note !== "-" 
+                        ? res.note 
+                        : (res.total !== undefined && res.total !== "-" ? res.total : (res.n2 !== undefined && res.n2 !== "-" ? res.n2 : "-"));
+                      
+                      const moyNum = res.moyVal !== undefined 
+                        ? res.moyVal 
+                        : (res.moy !== undefined && res.moy !== "-" ? parseFloat(String(res.moy)) : (noteStr !== "-" ? parseFloat(String(noteStr)) : null));
+                      
+                      const moyStr = res.moy !== undefined && res.moy !== "-" 
+                        ? res.moy 
+                        : (moyNum !== null ? moyNum.toFixed(2) : "-");
+                      
+                      const moyCoefVal = res.moyCoefVal !== undefined 
+                        ? res.moyCoefVal 
+                        : (moyNum !== null ? (moyNum * coef) : null);
+                      const moyCoefStr = res.moyCoef !== undefined && res.moyCoef !== "-" 
+                        ? res.moyCoef 
+                        : (moyCoefVal !== null ? moyCoefVal.toFixed(2) : "-");
+                      
+                      let mention = res.appreciation;
+                      if (!mention || mention === "-") {
+                        if (moyNum !== null) {
+                          if (moyNum >= 16) mention = "T.Bien";
+                          else if (moyNum >= 14) mention = "Bien";
+                          else if (moyNum >= 12) mention = "A.Bien";
+                          else if (moyNum >= 10) mention = "Passable";
+                          else if (moyNum >= 8) mention = "Rattrapage";
+                          else mention = "Ajourné";
+                        } else {
+                          mention = "-";
+                        }
+                      }
+
                       return (
-                        <td key={sub.id} className="px-4 py-4 text-center border-r border-slate-50">
-                          <div className="flex items-center justify-center gap-3">
+                        <td key={sub.id} className={`px-2 py-4 text-center border-r border-slate-50 ${isHigherEd ? 'min-w-[320px]' : ''}`}>
+                          <div className="flex items-center justify-center gap-2">
                             {isHigherEd ? (
                               <>
-                                <span className="text-[11px] font-black text-slate-800 w-8">{res.total || "-"}</span>
-                                <span className="text-[10px] font-medium text-slate-500 w-6">{sub.coefficient || 1}</span>
-                                <span className={`text-[9px] font-black w-14 ${res.moy >= 10 ? 'text-indigo-600' : 'text-rose-600'} uppercase tracking-tighter truncate`} title={res.appreciation || "-"}>
-                                  {res.appreciation || "-"}
+                                {/* NOTE /20 */}
+                                <span className="text-[11px] font-black text-slate-800 w-9 text-center" title="Note /20">
+                                  {noteStr}
                                 </span>
-                                <span className="text-[10px] font-black text-amber-500 w-6">{res.rank || "-"}</span>
+                                
+                                {/* MOY /20 */}
+                                <span className={`text-[11px] font-black w-9 text-center ${moyNum !== null && moyNum >= 10 ? 'text-indigo-600' : 'text-rose-600'}`} title="Moyenne /20">
+                                  {moyStr}
+                                </span>
+
+                                {/* MOY. COEF */}
+                                <span className="text-[10px] font-bold text-emerald-600 w-11 text-center" title="Moyenne × Coef">
+                                  {moyCoefStr}
+                                </span>
+
+                                {/* CRÉDITS */}
+                                <span className="text-[10px] font-medium text-slate-500 w-6 text-center" title="Crédits (Coef)">
+                                  {coef}
+                                </span>
+
+                                {/* MENTION */}
+                                <span className={`text-[9px] font-black px-1.5 py-0.5 rounded ${moyNum !== null && moyNum >= 10 ? 'bg-indigo-50 text-indigo-600' : 'bg-rose-50 text-rose-600'} uppercase tracking-tighter truncate max-w-[65px] text-center`} title={mention}>
+                                  {mention}
+                                </span>
+
+                                {/* RNG */}
+                                <span className="text-[10px] font-black text-amber-500 w-6 text-center" title="Rang">
+                                  {res.rank || "-"}
+                                </span>
                               </>
                             ) : (
                               <>

@@ -1405,13 +1405,34 @@ async function fetchBroadsheetMatrixDirect(params: { classId: number, sessionId:
         const cw = parseFloat(String(r.classWorkScore ?? "0")) || 0;
         const ex = parseFloat(String(r.examScore ?? "0")) || 0;
         const coef = parseFloat(String(r.coefficient ?? "1")) || 1;
-        const avg = (cw + ex) / 2;
+        const totalScore = r.totalScore !== null ? parseFloat(String(r.totalScore)) : null;
+        
+        const note = totalScore !== null ? totalScore : (r.examScore !== null ? ex : (r.classWorkScore !== null ? cw : 0));
+        const avg = totalScore !== null ? totalScore : (cw > 0 && ex > 0 ? (cw + ex) / 2 : (ex > 0 ? ex : cw));
+        const moyCoef = avg * coef;
+
+        let mention = r.appreciation || r.observation || "";
+        if (!mention || mention === "-") {
+          if (avg >= 16) mention = "T.Bien";
+          else if (avg >= 14) mention = "Bien";
+          else if (avg >= 12) mention = "A.Bien";
+          else if (avg >= 10) mention = "Passable";
+          else if (avg >= 8) mention = "Rattrapage";
+          else mention = "Ajourné";
+        }
 
         resultsObj[r.subjectId] = {
           n1: r.classWorkScore !== null ? String(r.classWorkScore) : "-",
           n2: r.examScore !== null ? String(r.examScore) : "-",
-          total: r.totalScore !== null ? String(r.totalScore) : "-",
+          total: totalScore !== null ? String(totalScore) : (note > 0 ? String(note) : "-"),
+          note: note > 0 || r.totalScore !== null || r.examScore !== null ? note.toFixed(2) : "-",
           moy: avg.toFixed(2),
+          moyVal: avg,
+          moyCoef: moyCoef.toFixed(2),
+          moyCoefVal: moyCoef,
+          coef: coef,
+          credits: avg >= 10 ? coef : 0,
+          appreciation: mention,
           rank: r.rank !== null ? String(r.rank) : "-"
         };
       }
