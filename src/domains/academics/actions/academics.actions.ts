@@ -1229,7 +1229,7 @@ async function fetchBroadsheetMatrixDirect(params: { classId: number, sessionId:
     if (cs.subject) {
       subjectMapFromLinks.set(cs.subject.id, {
         ...cs.subject,
-        coefficient: cs.coefficient || cs.subject.coefficient || 1,
+        coefficient: cs.coefficient || (cs.subject as any).coefficient || 1,
         teacherName: cs.teacher?.nom || "—"
       });
     }
@@ -1242,7 +1242,7 @@ async function fetchBroadsheetMatrixDirect(params: { classId: number, sessionId:
     });
     rawSubjects.forEach(sub => {
       if (!subjectMapFromLinks.has(sub.id)) {
-        subjectMapFromLinks.set(sub.id, { ...sub, coefficient: sub.coefficient || 1, teacherName: "—" });
+        subjectMapFromLinks.set(sub.id, { ...sub, coefficient: (sub as any).coefficient || 1, teacherName: "—" });
       }
     });
   }
