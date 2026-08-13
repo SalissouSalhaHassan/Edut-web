@@ -1746,15 +1746,29 @@ export async function fetchStudentBulletinDataRaw(sId: number, sessionId: number
 
       const classId = results[0]?.classId;
 
+      // Helper: compute subject average only from components that have data
+      const computeSubjectAvg = (r: any): number => {
+        const cwRaw = r.classWorkScore;
+        const exRaw = r.examScore;
+        const hasCw = cwRaw !== null && cwRaw !== undefined && cwRaw !== "";
+        const hasEx = exRaw !== null && exRaw !== undefined && exRaw !== "";
+        const cw = hasCw ? (parseFloat(cwRaw) || 0) : 0;
+        const ex = hasEx ? (parseFloat(exRaw) || 0) : 0;
+        if (hasCw && hasEx) return (cw + ex) / 2;
+        if (hasCw) return cw;
+        if (hasEx) return ex;
+        // Fall back to saved totalScore or average field
+        return parseFloat(r.totalScore as any) || parseFloat(r.average as any) || 0;
+      };
+
       // Dynamic S1 summary generation if not present in DB
       if (!summaryS1 && resultsS1.length > 0) {
         let totalWeightedS1 = 0;
         let totalCoefS1 = 0;
         resultsS1.forEach(r => {
-          const cw = parseFloat(r.classWorkScore as any) || 0;
-          const ex = parseFloat(r.examScore as any) || 0;
+          const avg  = computeSubjectAvg(r);
           const coef = parseFloat(r.coefficient as any) || 1;
-          totalWeightedS1 += ((cw + ex) / 2) * coef;
+          totalWeightedS1 += avg * coef;
           totalCoefS1 += coef;
         });
         const averageS1 = totalCoefS1 > 0 ? (totalWeightedS1 / totalCoefS1) : 0;
@@ -1782,10 +1796,9 @@ export async function fetchStudentBulletinDataRaw(sId: number, sessionId: number
                 studentAveragesS1.set(r.studentId as number, { totalWeighted: 0, totalCoef: 0 });
               }
               const sData = studentAveragesS1.get(r.studentId as number)!;
-              const cw = parseFloat(r.classWorkScore as any) || 0;
-              const ex = parseFloat(r.examScore as any) || 0;
+              const avg  = computeSubjectAvg(r);
               const coef = parseFloat(r.coefficient as any) || 1;
-              sData.totalWeighted += ((cw + ex) / 2) * coef;
+              sData.totalWeighted += avg * coef;
               sData.totalCoef += coef;
             });
 
@@ -1822,10 +1835,9 @@ export async function fetchStudentBulletinDataRaw(sId: number, sessionId: number
         let totalWeightedS2 = 0;
         let totalCoefS2 = 0;
         resultsS2.forEach(r => {
-          const cw = parseFloat(r.classWorkScore as any) || 0;
-          const ex = parseFloat(r.examScore as any) || 0;
+          const avg  = computeSubjectAvg(r);
           const coef = parseFloat(r.coefficient as any) || 1;
-          totalWeightedS2 += ((cw + ex) / 2) * coef;
+          totalWeightedS2 += avg * coef;
           totalCoefS2 += coef;
         });
         const averageS2 = totalCoefS2 > 0 ? (totalWeightedS2 / totalCoefS2) : 0;
@@ -1853,10 +1865,9 @@ export async function fetchStudentBulletinDataRaw(sId: number, sessionId: number
                 studentAveragesS2.set(r.studentId as number, { totalWeighted: 0, totalCoef: 0 });
               }
               const sData = studentAveragesS2.get(r.studentId as number)!;
-              const cw = parseFloat(r.classWorkScore as any) || 0;
-              const ex = parseFloat(r.examScore as any) || 0;
+              const avg  = computeSubjectAvg(r);
               const coef = parseFloat(r.coefficient as any) || 1;
-              sData.totalWeighted += ((cw + ex) / 2) * coef;
+              sData.totalWeighted += avg * coef;
               sData.totalCoef += coef;
             });
 
@@ -1910,10 +1921,8 @@ export async function fetchStudentBulletinDataRaw(sId: number, sessionId: number
               studentAverages.set(r.studentId as number, { totalWeighted: 0, totalCoef: 0 });
             }
             const sData = studentAverages.get(r.studentId as number)!;
-            const cw = parseFloat(r.classWorkScore as any) || 0;
-            const ex = parseFloat(r.examScore as any) || 0;
+            const avg  = computeSubjectAvg(r);
             const coef = parseFloat(r.coefficient as any) || 1;
-            const avg = (cw + ex) / 2;
             sData.totalWeighted += (avg * coef);
             sData.totalCoef += coef;
 
@@ -1974,10 +1983,8 @@ export async function fetchStudentBulletinDataRaw(sId: number, sessionId: number
       let studentTotalWeighted = 0;
       let studentTotalCoef = 0;
       results.forEach(r => {
-        const cw = parseFloat(r.classWorkScore as any) || 0;
-        const ex = parseFloat(r.examScore as any) || 0;
+        const avg  = computeSubjectAvg(r);
         const coef = parseFloat(r.coefficient as any) || 1;
-        const avg = (cw + ex) / 2;
         studentTotalWeighted += (avg * coef);
         studentTotalCoef += coef;
       });
@@ -2308,6 +2315,20 @@ export async function getBatchBulletinData(classId: number, sessionId: number, t
       })
     ]);
 
+    // Helper: compute subject average only from components that have data
+    const computeSubjectAvg = (r: any): number => {
+      const cwRaw = r.classWorkScore;
+      const exRaw = r.examScore;
+      const hasCw = cwRaw !== null && cwRaw !== undefined && cwRaw !== "";
+      const hasEx = exRaw !== null && exRaw !== undefined && exRaw !== "";
+      const cw = hasCw ? (parseFloat(cwRaw) || 0) : 0;
+      const ex = hasEx ? (parseFloat(exRaw) || 0) : 0;
+      if (hasCw && hasEx) return (cw + ex) / 2;
+      if (hasCw) return cw;
+      if (hasEx) return ex;
+      return parseFloat(r.totalScore as any) || parseFloat(r.average as any) || 0;
+    };
+
     // 4. Pre-calculate current term averages for all students (to determine current term rank)
     const studentAverages = new Map<number, { totalWeighted: number; totalCoef: number }>();
     const currentTermResults = allResults.filter(r => r.term === term);
@@ -2317,10 +2338,8 @@ export async function getBatchBulletinData(classId: number, sessionId: number, t
         studentAverages.set(r.studentId as number, { totalWeighted: 0, totalCoef: 0 });
       }
       const sData = studentAverages.get(r.studentId as number)!;
-      const cw = parseFloat(r.classWorkScore as any) || 0;
-      const ex = parseFloat(r.examScore as any) || 0;
+      const avg  = computeSubjectAvg(r);
       const coef = parseFloat(r.coefficient as any) || 1;
-      const avg = (cw + ex) / 2;
       sData.totalWeighted += (avg * coef);
       sData.totalCoef += coef;
     });
@@ -2365,10 +2384,9 @@ export async function getBatchBulletinData(classId: number, sessionId: number, t
       if (r.studentId) {
         if (!s1Grouped.has(r.studentId)) s1Grouped.set(r.studentId, { totalWeighted: 0, totalCoef: 0 });
         const g = s1Grouped.get(r.studentId)!;
-        const cw = parseFloat(r.classWorkScore as any) || 0;
-        const ex = parseFloat(r.examScore as any) || 0;
+        const avg  = computeSubjectAvg(r);
         const coef = parseFloat(r.coefficient as any) || 1;
-        g.totalWeighted += ((cw + ex) / 2) * coef;
+        g.totalWeighted += avg * coef;
         g.totalCoef += coef;
       }
     });
@@ -2385,10 +2403,9 @@ export async function getBatchBulletinData(classId: number, sessionId: number, t
       if (r.studentId) {
         if (!s2Grouped.has(r.studentId)) s2Grouped.set(r.studentId, { totalWeighted: 0, totalCoef: 0 });
         const g = s2Grouped.get(r.studentId)!;
-        const cw = parseFloat(r.classWorkScore as any) || 0;
-        const ex = parseFloat(r.examScore as any) || 0;
+        const avg  = computeSubjectAvg(r);
         const coef = parseFloat(r.coefficient as any) || 1;
-        g.totalWeighted += ((cw + ex) / 2) * coef;
+        g.totalWeighted += avg * coef;
         g.totalCoef += coef;
       }
     });

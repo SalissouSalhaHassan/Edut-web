@@ -1397,174 +1397,178 @@ export async function generateReleveNotesPDF(data: any) {
     secondSemesterName = isDoctorate ? "ANNEE 2" : "SEMESTRE 2";
   }
 
-  // --- 5. SEMESTRE 1 SECTION ---
   doc.setFontSize(9);
   doc.setFont("helvetica", "bold");
   doc.text(`Première session`, 10, s1SectionY);
   doc.text(`${session || "2022/2023"}`, 40, s1SectionY);
   
-  doc.setFontSize(11);
+  doc.setFontSize(12);
   doc.text(firstSemesterName, 105, s1TitleY, { align: "center" });
 
-  const defaultS1List = [
-    ["INTR 1", "Introduction au droit 1", "3", "16.00", "T.bien"],
-    ["HIST 1", "Historique du droit 1", "3", "16.00", "T.bien"],
-    ["INTR 1", "Introduction au droit islamique 1", "2", "12.00", "A.bien"],
-    ["HIST 1", "Historique du droit islamique 1", "2", "18.00", "Exllent"],
-    ["OBJE 1", "Objectifs de la Sharia 1", "2", "14.00", "Bien"],
-    ["HIST 1", "Histoire de la législation 1", "3", "16.00", "T.bien"],
-    ["DÉVE 1", "Développement de la pensée législative 1", "3", "16.00", "T.bien"],
-    ["HIST 1", "Histoire de la législation islamique 1", "2", "13.00", "A.bien"],
-    ["LÉGI 1", "Législation dans l'ère prophétique 1", "2", "10.00", "Passable"],
-    ["FOND 1", "Fondement de la Charia islamique 1", "2", "18.00", "Exllent"],
-    ["INFO 1", "Informatique 1", "2", "14.00", "Bien"],
-    ["TECH 1", "Technique expression française 1", "2", "16.00", "T.bien"],
-    ["TECH 1", "Technique expression anglaise 1", "2", "17.00", "T.bien"]
-  ];
+  const buildTableRows = (resList: any[], sfx: string) => {
+    return resList.map((r: any) => {
+      const cwRaw = r.classWorkScore;
+      const exRaw = r.examScore;
+      const hasCw = cwRaw !== null && cwRaw !== undefined && cwRaw !== "";
+      const hasEx = exRaw !== null && exRaw !== undefined && exRaw !== "";
+      const cw  = hasCw ? (parseFloat(cwRaw) || 0) : 0;
+      const ex  = hasEx ? (parseFloat(exRaw) || 0) : 0;
+      const coef = parseFloat(r.coefficient) || 1;
+      let avg: number;
+      if (hasCw && hasEx) avg = (cw + ex) / 2;
+      else if (hasCw)     avg = cw;
+      else if (hasEx)     avg = ex;
+      else avg = parseFloat(r.totalScore) || parseFloat(r.average) || 0;
+      const code = (r.subject?.subjectName || r.subjectName || "SUBJ").substring(0, 4).toUpperCase() + ` ${sfx}`;
+      const mention = r.appreciation || (
+        avg >= 16 ? "Excellent" : avg >= 14 ? "Très bien" :
+        avg >= 12 ? "Bien" : avg >= 10 ? "Assez bien" : "Ajourné"
+      );
+      return { code, name: r.subject?.subjectName || r.subjectName || "Matière", coef, avg, mention };
+    });
+  };
 
-  const hasRealS1 = activeResults1 && activeResults1.length > 0;
-  const tableData1 = hasRealS1 ? activeResults1.map((r: any) => {
-    const total = parseFloat(r.examScore) || parseFloat(r.totalScore) || 0;
-    const coef = parseFloat(r.coefficient) || 1;
-    const code = (r.subject?.subjectName || r.subjectName || "SUBJ").substring(0, 4).toUpperCase() + ` ${suffix1}`;
-    return [code, r.subject?.subjectName || r.subjectName || "Matière", coef.toString(), total.toFixed(2), r.appreciation || "Passable"];
-  }) : defaultS1List.map(row => {
-    const code = row[0].replace("1", suffix1);
-    const subject = row[1].replace("1", suffix1);
-    return [code, subject, row[2], row[3], row[4]];
-  });
+  const computeTotals = (rows: any[]) => {
+    const totalCoef   = rows.reduce((s, r) => s + r.coef, 0);
+    const totalPoints = rows.reduce((s, r) => s + r.avg * r.coef, 0);
+    const average     = totalCoef > 0 ? totalPoints / totalCoef : 0;
+    return { totalCoef, totalPoints, average };
+  };
 
-  const totalCredits1 = tableData1.reduce((acc: number, r: any) => acc + parseFloat(r[2]), 0);
-  const totalNotes1 = tableData1.reduce((acc: number, r: any) => acc + (parseFloat(r[3]) * parseFloat(r[2])), 0);
-  const average1 = activeSummary1?.average || (totalCredits1 > 0 ? (totalNotes1 / totalCredits1) : 0);
-  let decision1 = activeSummary1?.decision || "Admis avec la mention Bien";
-  if (!activeSummary1?.decision) {
-    if (average1 < 10) decision1 = "Ajourné";
-    else if (average1 >= 16) decision1 = "Admis avec la mention Très Bien";
-  }
+  const getDecision = (avg: number, savedDecision?: string): string => {
+    if (savedDecision) return savedDecision;
+    if (avg >= 16) return "Admis avec la mention Très Bien";
+    if (avg >= 14) return "Admis avec la mention Bien";
+    if (avg >= 12) return "Admis avec la mention Assez Bien";
+    if (avg >= 10) return "Admis avec la mention Passable";
+    return "Ajourné";
+  };
+
+  const hasRealS1   = activeResults1 && activeResults1.length > 0;
+  const rows1       = hasRealS1 ? buildTableRows(activeResults1, suffix1) : [];
+  const { totalCoef: tc1, totalPoints: tp1, average: avg1 } = computeTotals(rows1);
+  // Always use fresh computed average from raw data; only fall back to saved if no raw results
+  const usedAvg1    = hasRealS1 ? avg1 : (activeSummary1?.average ?? 0);
+  const decision1   = getDecision(usedAvg1, activeSummary1?.decision);
+
+  const bodyData1 = rows1.map(r => [
+    r.code,
+    r.name,
+    r.coef.toString(),
+    r.avg.toFixed(2),
+    r.mention
+  ]);
 
   autoTable(doc, {
     startY: table1StartY,
     head: [["Code", "Matières", "Crédits", "Notes/20", "Mention"]],
-    body: tableData1,
+    body: bodyData1.length > 0 ? bodyData1 : [["—", "Aucune note saisie pour ce semestre", "—", "—", "—"]],
     foot: [
       [
         { content: "TOTAL", colSpan: 2, styles: { halign: "center", fontStyle: "bold" } },
-        { content: totalCredits1.toString(), styles: { halign: "center", fontStyle: "bold" } },
-        { content: totalNotes1.toFixed(2), colSpan: 2, styles: { halign: "center", fontStyle: "bold" } }
+        { content: hasRealS1 ? tc1.toString() : "—", styles: { halign: "center", fontStyle: "bold" } },
+        { content: hasRealS1 ? tp1.toFixed(2) : "—", colSpan: 2, styles: { halign: "center", fontStyle: "bold" } }
       ],
       [
         { content: "Moyenne Semestrielle", colSpan: 2, styles: { halign: "center", fontStyle: "bold" } },
-        { content: average1.toFixed(2), colSpan: 3, styles: { halign: "center", fontStyle: "bold" } }
+        { content: hasRealS1 ? usedAvg1.toFixed(2) : "—", colSpan: 3, styles: { halign: "center", fontStyle: "bold" } }
       ],
       [
         { content: "DECISION DU JURY", colSpan: 2, styles: { halign: "center", fontStyle: "bold" } },
-        { content: decision1, colSpan: 3, styles: { halign: "center", fontStyle: "bold" } }
+        { content: hasRealS1 ? decision1 : "—", colSpan: 3, styles: { halign: "center", fontStyle: "bold" } }
       ]
     ],
     theme: "grid",
-    headStyles: { textColor: 0, fontStyle: "bold", lineWidth: 0.15, lineColor: 0 },
+    headStyles: { textColor: 0, fontStyle: "bold", lineWidth: 0.15, lineColor: 0, fillColor: [210, 230, 210] },
     bodyStyles: { textColor: 0, lineWidth: 0.15, lineColor: 0 },
     footStyles: { textColor: 0, lineWidth: 0.15, lineColor: 0 },
-    styles: { fontSize: 8, cellPadding: { top: 0.5, bottom: 0.5, left: 1, right: 1 } },
+    styles: { fontSize: 9.5, cellPadding: { top: 1, bottom: 1, left: 1.5, right: 1.5 } },
     columnStyles: {
-      0: { fontStyle: "bold", halign: "center", cellWidth: 30 },
-      1: { cellWidth: 80 },
-      2: { halign: "center", cellWidth: 25 },
-      3: { halign: "center", cellWidth: 25 },
-      4: { halign: "center", cellWidth: 30 }
+      0: { fontStyle: "bold", halign: "center", cellWidth: 28 },
+      1: { cellWidth: 82 },
+      2: { halign: "center", cellWidth: 22 },
+      3: { halign: "center", cellWidth: 26 },
+      4: { halign: "center", cellWidth: 32 }
     },
     didParseCell: (data: any) => {
-      if (data.section === 'body' || data.section === 'foot') {
+      if (data.section === 'body') {
         data.cell.styles.fillColor = false;
+        if (data.column.index === 3 && data.cell.text?.[0]) {
+          const val = parseFloat(data.cell.text[0]);
+          if (!isNaN(val)) {
+            if (val >= 16)       data.cell.styles.textColor = [0, 128, 0];
+            else if (val >= 10)  data.cell.styles.textColor = [0, 0, 150];
+            else                 data.cell.styles.textColor = [200, 0, 0];
+          }
+        }
       }
     },
     margin: { left: 10, right: 10 }
   });
 
-  const finalY1 = (doc as any).lastAutoTable.finalY + 5;
+  const finalY1 = (doc as any).lastAutoTable.finalY + 6;
 
-  // --- 6. SEMESTRE 2 SECTION ---
-  doc.setFontSize(11);
+  doc.setFontSize(12);
   doc.setFont("helvetica", "bold");
   doc.text(secondSemesterName, 105, finalY1, { align: "center" });
 
-  const defaultS2List = [
-    ["TECH 2", "Technique expression française 2", "2", "#N/A", "#N/A"],
-    ["TECH 2", "Technique expression anglaise 2", "2", "#N/A", "#N/A"],
-    ["OBJE 2", "Objectifs de la Sharia 2", "2", "#N/A", "#N/A"],
-    ["LÉGI 2", "Législation dans l'ère prophétique 2", "2", "#N/A", "#N/A"],
-    ["INTR 2", "Introduction au droit 2", "3", "#N/A", "#N/A"],
-    ["INTR 2", "Introduction au droit islamique 2", "2", "#N/A", "#N/A"],
-    ["INFO 2", "Informatique 2", "2", "#N/A", "#N/A"],
-    ["HIST 2", "Historique du droit 2", "3", "#N/A", "#N/A"],
-    ["HIST 2", "Historique du droit islamique 2", "2", "#N/A", "#N/A"],
-    ["HIST 2", "Histoire de la législation 2", "3", "#N/A", "#N/A"],
-    ["HIST 2", "Histoire de la législation islamique 2", "2", "#N/A", "#N/A"],
-    ["FOND 2", "Fondement de la Charia islamique 2", "2", "#N/A", "#N/A"],
-    ["DÉVE 2", "Développement de la pensée législative 2", "3", "#N/A", "#N/A"]
-  ];
+  const hasRealS2   = activeResults2 && activeResults2.length > 0;
+  const rows2       = hasRealS2 ? buildTableRows(activeResults2, suffix2) : [];
+  const { totalCoef: tc2, totalPoints: tp2, average: avg2 } = computeTotals(rows2);
+  // Always use fresh computed average from raw data; only fall back to saved if no raw results
+  const usedAvg2    = hasRealS2 ? avg2 : (activeSummary2?.average ?? 0);
+  const decision2   = getDecision(usedAvg2, activeSummary2?.decision);
 
-  const hasRealS2 = activeResults2 && activeResults2.length > 0;
-  const tableData2 = hasRealS2 ? activeResults2.map((r: any) => {
-    const total = parseFloat(r.examScore) || parseFloat(r.totalScore) || 0;
-    const coef = parseFloat(r.coefficient) || 1;
-    const code = (r.subject?.subjectName || r.subjectName || "SUBJ").substring(0, 4).toUpperCase() + ` ${suffix2}`;
-    return [code, r.subject?.subjectName || r.subjectName || "Matière", coef.toString(), total.toFixed(2), r.appreciation || "Passable"];
-  }) : defaultS2List.map(row => {
-    const code = row[0].replace("2", suffix2);
-    const subject = row[1].replace("2", suffix2);
-    return [code, subject, row[2], row[3], row[4]];
-  });
-
-  const totalCredits2 = hasRealS2 ? tableData2.reduce((acc: number, r: any) => acc + parseFloat(r[2]), 0) : 30;
-  const totalNotes2 = hasRealS2 ? tableData2.reduce((acc: number, r: any) => acc + (parseFloat(r[3]) * parseFloat(r[2])), 0) : 0;
-  const average2 = activeSummary2?.average || (hasRealS2 && totalCredits2 > 0 ? (totalNotes2 / totalCredits2) : 0);
-  
-  let decision2 = activeSummary2?.decision || "Admis avec la mention Bien";
-  if (!activeSummary2?.decision) {
-    if (average2 < 10) decision2 = "Ajourné";
-    else if (average2 >= 16) decision2 = "Admis avec la mention Très Bien";
-  }
-
-  const displayTotalNotes2 = hasRealS2 ? totalNotes2.toFixed(2) : "#N/A";
-  const displayAverage2 = hasRealS2 ? average2.toFixed(2) : "#N/A";
-  const displayDecision2 = hasRealS2 ? decision2 : "Admis avec la mention #N/A";
+  const bodyData2 = rows2.map(r => [
+    r.code,
+    r.name,
+    r.coef.toString(),
+    r.avg.toFixed(2),
+    r.mention
+  ]);
 
   autoTable(doc, {
-    startY: finalY1 + 2,
+    startY: finalY1 + 3,
     head: [["Code", "Matières", "Crédits", "Notes/20", "Mention"]],
-    body: tableData2,
+    body: bodyData2.length > 0 ? bodyData2 : [["—", "Aucune note saisie pour ce semestre", "—", "—", "—"]],
     foot: [
       [
         { content: "TOTAL", colSpan: 2, styles: { halign: "center", fontStyle: "bold" } },
-        { content: totalCredits2.toString(), styles: { halign: "center", fontStyle: "bold" } },
-        { content: displayTotalNotes2, colSpan: 2, styles: { halign: "center", fontStyle: "bold" } }
+        { content: hasRealS2 ? tc2.toString() : "—", styles: { halign: "center", fontStyle: "bold" } },
+        { content: hasRealS2 ? tp2.toFixed(2) : "—", colSpan: 2, styles: { halign: "center", fontStyle: "bold" } }
       ],
       [
         { content: "Moyenne Semestrielle", colSpan: 2, styles: { halign: "center", fontStyle: "bold" } },
-        { content: displayAverage2, colSpan: 3, styles: { halign: "center", fontStyle: "bold" } }
+        { content: hasRealS2 ? usedAvg2.toFixed(2) : "—", colSpan: 3, styles: { halign: "center", fontStyle: "bold" } }
       ],
       [
         { content: "DECISION DU JURY", colSpan: 2, styles: { halign: "center", fontStyle: "bold" } },
-        { content: displayDecision2, colSpan: 3, styles: { halign: "center", fontStyle: "bold" } }
+        { content: hasRealS2 ? decision2 : "—", colSpan: 3, styles: { halign: "center", fontStyle: "bold" } }
       ]
     ],
     theme: "grid",
-    headStyles: { textColor: 0, fontStyle: "bold", lineWidth: 0.15, lineColor: 0 },
+    headStyles: { textColor: 0, fontStyle: "bold", lineWidth: 0.15, lineColor: 0, fillColor: [210, 230, 210] },
     bodyStyles: { textColor: 0, lineWidth: 0.15, lineColor: 0 },
     footStyles: { textColor: 0, lineWidth: 0.15, lineColor: 0 },
-    styles: { fontSize: 8, cellPadding: { top: 0.5, bottom: 0.5, left: 1, right: 1 } },
+    styles: { fontSize: 9.5, cellPadding: { top: 1, bottom: 1, left: 1.5, right: 1.5 } },
     columnStyles: {
-      0: { fontStyle: "bold", halign: "center", cellWidth: 30 },
-      1: { cellWidth: 80 },
-      2: { halign: "center", cellWidth: 25 },
-      3: { halign: "center", cellWidth: 25 },
-      4: { halign: "center", cellWidth: 30 }
+      0: { fontStyle: "bold", halign: "center", cellWidth: 28 },
+      1: { cellWidth: 82 },
+      2: { halign: "center", cellWidth: 22 },
+      3: { halign: "center", cellWidth: 26 },
+      4: { halign: "center", cellWidth: 32 }
     },
     didParseCell: (data: any) => {
-      if (data.section === 'body' || data.section === 'foot') {
+      if (data.section === 'body') {
         data.cell.styles.fillColor = false;
+        if (data.column.index === 3 && data.cell.text?.[0]) {
+          const val = parseFloat(data.cell.text[0]);
+          if (!isNaN(val)) {
+            if (val >= 16)       data.cell.styles.textColor = [0, 128, 0];
+            else if (val >= 10)  data.cell.styles.textColor = [0, 0, 150];
+            else                 data.cell.styles.textColor = [200, 0, 0];
+          }
+        }
       }
     },
     margin: { left: 10, right: 10 }
