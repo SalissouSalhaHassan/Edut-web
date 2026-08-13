@@ -918,14 +918,13 @@ export async function generatePVMatrixPDF(matrixData: any, classInfo: any, filte
     return `${sName}\n${sCode} (C:${sCoef})`;
   });
 
-  // Build two-part subject headers: [MOY, MOY.COEF] per subject
+  // Build one column per subject: MOY.COEF only
   const subjectColHeaders: string[] = [];
   (subjects || []).forEach((s: any, idx: number) => {
     const sName = s.subjectName || s.name || `M${idx + 1}`;
     const sCode = s.subjectCode || s.code || s.shortCode || `S${idx + 1}`;
     const sCoef = s.coefficient || 1;
-    subjectColHeaders.push(`${sName}\n${sCode}\nMOY`);
-    subjectColHeaders.push(`${sCode}\nC:${sCoef}\nMOY.COEF`);
+    subjectColHeaders.push(`${sName}\n${sCode} (C:${sCoef})\nMOY.COEF`);
   });
 
   const headers = ["N°", "Matricule", "Nom et Prénoms de l'Élève", ...subjectColHeaders, "MOY\n/20", "Rang", "Décision du Conseil"];
@@ -981,11 +980,10 @@ export async function generatePVMatrixPDF(matrixData: any, classInfo: any, filte
         }
       }
 
-      const moyStr   = toDisplayNumber(valNum, 2);
-      const moyCoef  = (valNum !== null && valNum !== undefined && !isNaN(Number(valNum)))
+      // Only push MOY.COEF — no per-subject MOY column
+      const moyCoef = (valNum !== null && valNum !== undefined && !isNaN(Number(valNum)))
         ? (Number(valNum) * coef).toFixed(2)
         : "-";
-      rowSubjectCols.push(moyStr);
       rowSubjectCols.push(moyCoef);
     });
 
@@ -1000,16 +998,16 @@ export async function generatePVMatrixPDF(matrixData: any, classInfo: any, filte
     ];
   });
 
-  // Build columnStyles with 2 cols per subject (MOY + MOY.COEF)
+  // Build columnStyles — one column per subject (MOY.COEF only)
   const subjectColStyles: Record<number, any> = {};
   const subjectStartCol = 3;
-  const subjectColCount = (subjects || []).length * 2;
+  const subjectColCount = (subjects || []).length; // 1 col per subject
   for (let i = 0; i < subjectColCount; i++) {
     subjectColStyles[subjectStartCol + i] = {
-      cellWidth: i % 2 === 0 ? 14 : 13, // MOY slightly wider than MOY.COEF
+      cellWidth: 16,
       halign: "center",
       fontSize: 10,
-      fontStyle: i % 2 === 1 ? "bold" : "normal"
+      fontStyle: "bold"
     };
   }
   const moyCol   = subjectStartCol + subjectColCount;
@@ -1048,16 +1046,16 @@ export async function generatePVMatrixPDF(matrixData: any, classInfo: any, filte
     },
     didParseCell: (data: any) => {
       handleBilingualCell(data);
-      // Color-code MOY column
+      // Color-code final MOY /20 column
       if (data.section === 'body' && data.column.index === moyCol) {
         const val = parseFloat(data.cell.text?.[0]);
         if (!isNaN(val)) {
           data.cell.styles.textColor = val >= 10 ? [0, 128, 0] : [200, 0, 0];
         }
       }
-      // Light blue tint on MOY.COEF columns
+      // Blue tint on all MOY.COEF subject columns
       if (data.section === 'body' && data.column.index >= subjectStartCol &&
-          (data.column.index - subjectStartCol) % 2 === 1) {
+          data.column.index < moyCol) {
         data.cell.styles.fillColor = [235, 245, 255];
         data.cell.styles.textColor = [30, 64, 175];
       }
