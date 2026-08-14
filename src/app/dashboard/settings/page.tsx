@@ -109,83 +109,83 @@ export default async function SettingsPage({
           initialTab={activeTab}
           generalContent={
             <>
-              <div className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-sm space-y-10">
-                 <div className="flex items-center gap-4 border-b border-slate-100 pb-6">
-                    <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+              <div className="bg-white dark:bg-[#12131C] p-10 rounded-[3rem] border border-slate-100 dark:border-slate-800/60 shadow-sm space-y-10">
+                 <div className="flex items-center gap-4 border-b border-slate-100 dark:border-slate-800/60 pb-6">
+                    <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
                        <Building2 size={24} />
                     </div>
-                    <h3 className="text-2xl font-black text-slate-900 tracking-tight">Informations de l'Établissement</h3>
+                    <h3 className="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight">Informations de l'Établissement</h3>
                  </div>
 
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div className="space-y-3">
-                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Nom de l'École</label>
-                       <Input name="school_name" defaultValue={getVal('school_name') || "Edut Pro School"} className="h-14 rounded-2xl border-slate-100 shadow-sm bg-slate-50 focus:bg-white transition-all font-bold" />
+                       <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-2">Nom de l'École</label>
+                       <Input name="school_name" defaultValue={getVal('school_name') || "Edut Pro School"} className="h-14 rounded-2xl border-slate-100 dark:border-slate-800 shadow-sm bg-slate-50 dark:bg-[#0E0F18] dark:text-white focus:bg-white dark:focus:bg-[#181924] transition-all font-bold" />
                     </div>
                     <div className="space-y-3">
-                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Slogan / Devise</label>
-                       <Input name="school_slogan" defaultValue={getVal('school_slogan')} className="h-14 rounded-2xl border-slate-100 shadow-sm bg-slate-50 focus:bg-white transition-all font-bold" />
+                       <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-2">Slogan / Devise</label>
+                       <Input name="school_slogan" defaultValue={getVal('school_slogan')} className="h-14 rounded-2xl border-slate-100 dark:border-slate-800 shadow-sm bg-slate-50 dark:bg-[#0E0F18] dark:text-white focus:bg-white dark:focus:bg-[#181924] transition-all font-bold" />
                     </div>
                     <div className="space-y-3">
-                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Adresse</label>
-                       <Input name="school_address" defaultValue={getVal('school_address')} className="h-14 rounded-2xl border-slate-100 shadow-sm bg-slate-50 focus:bg-white transition-all font-bold" />
+                       <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-2">Adresse</label>
+                       <Input name="school_address" defaultValue={getVal('school_address')} className="h-14 rounded-2xl border-slate-100 dark:border-slate-800 shadow-sm bg-slate-50 dark:bg-[#0E0F18] dark:text-white focus:bg-white dark:focus:bg-[#181924] transition-all font-bold" />
                     </div>
                     <div className="space-y-3">
-                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Email de Contact</label>
-                       <Input name="school_email" defaultValue={getVal('school_email')} className="h-14 rounded-2xl border-slate-100 shadow-sm bg-slate-50 focus:bg-white transition-all font-bold" />
+                       <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-2">Email de Contact</label>
+                       <Input name="school_email" defaultValue={getVal('school_email')} className="h-14 rounded-2xl border-slate-100 dark:border-slate-800 shadow-sm bg-slate-50 dark:bg-[#0E0F18] dark:text-white focus:bg-white dark:focus:bg-[#181924] transition-all font-bold" />
                     </div>
                  </div>
 
                  {/* SaaS Multi-Tenancy Section */}
-                 <div className="pt-10 border-t border-slate-100 space-y-8">
+                 <div className="pt-10 border-t border-slate-100 dark:border-slate-800/60 space-y-8">
                     <div className="flex items-center gap-4">
-                       <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                       <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center">
                           <Globe size={20} />
                        </div>
-                       <h4 className="text-xl font-black text-slate-900 tracking-tight">Configuration du Domaine</h4>
+                       <h4 className="text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight">Configuration du Domaine</h4>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                        <div className="space-y-3">
-                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Sous-domaine Edut</label>
+                          <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-2">Sous-domaine Edut</label>
                           <div className="flex items-center gap-2">
-                             <Input readOnly disabled value={`${currentSchool?.slug || 'school'}.edut.pro`} className="h-14 rounded-2xl border-slate-100 bg-slate-100 font-bold text-slate-500 cursor-not-allowed" />
+                             <Input readOnly disabled value={`${currentSchool?.slug || 'school'}.edut.pro`} className="h-14 rounded-2xl border-slate-100 dark:border-slate-800 bg-slate-100 dark:bg-slate-800/50 font-bold text-slate-500 dark:text-slate-400 cursor-not-allowed" />
                           </div>
                        </div>
                        <div className="space-y-3">
-                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Domaine Personnalisé (Premium)</label>
+                          <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-2">Domaine Personnalisé (Premium)</label>
                           <Input 
                              name="custom_domain" 
                              placeholder="ex: portal.school.edu"
                              defaultValue={currentSchool?.customDomain || ""} 
-                             className="h-14 rounded-2xl border-slate-100 shadow-sm bg-slate-50 focus:bg-white transition-all font-bold" 
+                             className="h-14 rounded-2xl border-slate-100 dark:border-slate-800 shadow-sm bg-slate-50 dark:bg-[#0E0F18] dark:text-white focus:bg-white dark:focus:bg-[#181924] transition-all font-bold" 
                           />
-                          <p className="text-[10px] text-slate-400 font-medium px-2">Pointez votre enregistrement CNAME vers <span className="text-blue-600 font-bold">domains.edut.pro</span></p>
+                          <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium px-2">Pointez votre enregistrement CNAME vers <span className="text-blue-600 dark:text-blue-400 font-bold">domains.edut.pro</span></p>
                        </div>
                     </div>
                  </div>
               </div>
 
-              <div className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-sm space-y-8">
-                 <div className="flex items-center gap-4 border-b border-slate-100 pb-6">
-                    <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+              <div className="bg-white dark:bg-[#12131C] p-10 rounded-[3rem] border border-slate-100 dark:border-slate-800/60 shadow-sm space-y-8">
+                 <div className="flex items-center gap-4 border-b border-slate-100 dark:border-slate-800/60 pb-6">
+                    <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
                        <Globe size={24} />
                     </div>
-                    <h3 className="text-2xl font-black text-slate-900 tracking-tight">Paramètres Régionaux</h3>
+                    <h3 className="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight">Paramètres Régionaux</h3>
                  </div>
 
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div className="space-y-3">
-                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Langue par défaut</label>
-                       <select name="language" defaultValue={getVal('language') || "fr"} className="w-full h-14 bg-slate-50 border-none rounded-2xl px-4 font-bold text-slate-700 shadow-sm outline-none focus:ring-2 focus:ring-primary/20">
+                       <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-2">Langue par défaut</label>
+                       <select name="language" defaultValue={getVal('language') || "fr"} className="w-full h-14 bg-slate-50 dark:bg-[#0E0F18] dark:text-white border-none rounded-2xl px-4 font-bold text-slate-700 shadow-sm outline-none focus:ring-2 focus:ring-primary/20">
                           <option value="fr">Français (Sénégal)</option>
                           <option value="ar">العربية (السودان)</option>
                           <option value="en">English (UK)</option>
                        </select>
                     </div>
                     <div className="space-y-3">
-                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Fuseau Horaire</label>
-                       <select name="timezone" defaultValue={getVal('timezone') || "gmt"} className="w-full h-14 bg-slate-50 border-none rounded-2xl px-4 font-bold text-slate-700 shadow-sm outline-none focus:ring-2 focus:ring-primary/20">
+                       <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-2">Fuseau Horaire</label>
+                       <select name="timezone" defaultValue={getVal('timezone') || "gmt"} className="w-full h-14 bg-slate-50 dark:bg-[#0E0F18] dark:text-white border-none rounded-2xl px-4 font-bold text-slate-700 shadow-sm outline-none focus:ring-2 focus:ring-primary/20">
                           <option value="gmt">(GMT+00:00) Dakar</option>
                           <option value="gmt2">(GMT+02:00) Khartoum</option>
                        </select>
@@ -195,22 +195,22 @@ export default async function SettingsPage({
             </>
           }
           financeContent={
-            <div className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-sm space-y-10">
-               <div className="flex items-center gap-4 border-b border-slate-100 pb-6">
-                  <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+            <div className="bg-white dark:bg-[#12131C] p-10 rounded-[3rem] border border-slate-100 dark:border-slate-800/60 shadow-sm space-y-10">
+               <div className="flex items-center gap-4 border-b border-slate-100 dark:border-slate-800/60 pb-6">
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
                      <DollarSign size={24} />
                   </div>
-                  <h3 className="text-2xl font-black text-slate-900 tracking-tight">Finance & Comptabilité</h3>
+                  <h3 className="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight">Finance & Comptabilité</h3>
                </div>
 
                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-3">
-                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Devise</label>
-                     <Input name="currency" defaultValue={getVal('currency') || "F CFA"} className="h-14 rounded-2xl border-slate-100 shadow-sm bg-slate-50 font-bold" />
+                     <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-2">Devise</label>
+                     <Input name="currency" defaultValue={getVal('currency') || "F CFA"} className="h-14 rounded-2xl border-slate-100 dark:border-slate-800 shadow-sm bg-slate-50 dark:bg-[#0E0F18] dark:text-white font-bold" />
                   </div>
                   <div className="space-y-3">
-                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Préfixe Reçus</label>
-                     <Input name="receipt_prefix" defaultValue={getVal('receipt_prefix') || "REC-"} className="h-14 rounded-2xl border-slate-100 shadow-sm bg-slate-50 font-bold" />
+                     <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-2">Préfixe Reçus</label>
+                     <Input name="receipt_prefix" defaultValue={getVal('receipt_prefix') || "REC-"} className="h-14 rounded-2xl border-slate-100 dark:border-slate-800 shadow-sm bg-slate-50 dark:bg-[#0E0F18] dark:text-white font-bold" />
                   </div>
                </div>
             </div>
@@ -238,22 +238,22 @@ export default async function SettingsPage({
             />
           }
           securityContent={
-            <div className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-sm space-y-10">
-               <div className="flex items-center gap-4 border-b border-slate-100 pb-6">
-                  <div className="w-12 h-12 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center">
+            <div className="bg-white dark:bg-[#12131C] p-10 rounded-[3rem] border border-slate-100 dark:border-slate-800/60 shadow-sm space-y-10">
+               <div className="flex items-center gap-4 border-b border-slate-100 dark:border-slate-800/60 pb-6">
+                  <div className="w-12 h-12 rounded-2xl bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 flex items-center justify-center">
                      <Lock size={24} />
                   </div>
-                  <h3 className="text-2xl font-black text-slate-900 tracking-tight">Sécurité & Accès</h3>
+                  <h3 className="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight">Sécurité & Accès</h3>
                </div>
 
                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-3">
-                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Délai Expiration Session (min)</label>
-                     <Input name="session_timeout" type="number" defaultValue={getVal('session_timeout') || "120"} className="h-14 rounded-2xl border-slate-100 shadow-sm bg-slate-50 font-bold" />
+                     <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-2">Délai Expiration Session (min)</label>
+                     <Input name="session_timeout" type="number" defaultValue={getVal('session_timeout') || "120"} className="h-14 rounded-2xl border-slate-100 dark:border-slate-800 shadow-sm bg-slate-50 dark:bg-[#0E0F18] dark:text-white font-bold" />
                   </div>
                   <div className="space-y-3">
-                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Politique de Mots de Passe</label>
-                     <select name="password_policy" defaultValue={getVal('password_policy') || "strict"} className="w-full h-14 bg-slate-50 border-none rounded-2xl px-4 font-bold text-slate-700 shadow-sm outline-none focus:ring-2 focus:ring-primary/20">
+                     <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-2">Politique de Mots de Passe</label>
+                     <select name="password_policy" defaultValue={getVal('password_policy') || "strict"} className="w-full h-14 bg-slate-50 dark:bg-[#0E0F18] dark:text-white border-none rounded-2xl px-4 font-bold text-slate-700 shadow-sm outline-none focus:ring-2 focus:ring-primary/20">
                         <option value="strict">Stricte (Majuscules, Chiffres, Symboles)</option>
                         <option value="medium">Moyenne (8 caractères minimum)</option>
                      </select>
@@ -262,42 +262,42 @@ export default async function SettingsPage({
             </div>
           }
           notificationsContent={
-            <div className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-sm space-y-10">
-               <div className="flex items-center gap-4 border-b border-slate-100 pb-6">
-                  <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
+            <div className="bg-white dark:bg-[#12131C] p-10 rounded-[3rem] border border-slate-100 dark:border-slate-800/60 shadow-sm space-y-10">
+               <div className="flex items-center gap-4 border-b border-slate-100 dark:border-slate-800/60 pb-6">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
                      <Bell size={24} />
                   </div>
-                  <h3 className="text-2xl font-black text-slate-900 tracking-tight">Alertes & Communications</h3>
+                  <h3 className="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight">Alertes & Communications</h3>
                </div>
 
                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-3">
-                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Nom de l'Expéditeur SMS</label>
-                     <Input name="sms_sender_id" defaultValue={getVal('sms_sender_id') || "EDUT PRO"} className="h-14 rounded-2xl border-slate-100 shadow-sm bg-slate-50 font-bold" />
+                     <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-2">Nom de l'Expéditeur SMS</label>
+                     <Input name="sms_sender_id" defaultValue={getVal('sms_sender_id') || "EDUT PRO"} className="h-14 rounded-2xl border-slate-100 dark:border-slate-800 shadow-sm bg-slate-50 dark:bg-[#0E0F18] dark:text-white font-bold" />
                   </div>
                   <div className="space-y-3">
-                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Clé API SMS</label>
-                     <Input name="sms_api_key" type="password" defaultValue={getVal('sms_api_key')} className="h-14 rounded-2xl border-slate-100 shadow-sm bg-slate-50 font-bold" placeholder="••••••••••••••••" />
+                     <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-2">Clé API SMS</label>
+                     <Input name="sms_api_key" type="password" defaultValue={getVal('sms_api_key')} className="h-14 rounded-2xl border-slate-100 dark:border-slate-800 shadow-sm bg-slate-50 dark:bg-[#0E0F18] dark:text-white font-bold" placeholder="••••••••••••••••" />
                   </div>
                </div>
             </div>
           }
           systemContent={
-            <div className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-sm space-y-10">
-               <div className="flex items-center gap-4 border-b border-slate-100 pb-6">
-                  <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-600 flex items-center justify-center">
+            <div className="bg-white dark:bg-[#12131C] p-10 rounded-[3rem] border border-slate-100 dark:border-slate-800/60 shadow-sm space-y-10">
+               <div className="flex items-center gap-4 border-b border-slate-100 dark:border-slate-800/60 pb-6">
+                  <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 flex items-center justify-center">
                      <Server size={24} />
                   </div>
-                  <h3 className="text-2xl font-black text-slate-900 tracking-tight">Système & Avancé</h3>
+                  <h3 className="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight">Système & Avancé</h3>
                </div>
 
                <div className="grid grid-cols-1 gap-8">
-                  <div className="p-6 rounded-2xl border border-red-100 bg-red-50 flex items-start gap-4">
+                  <div className="p-6 rounded-2xl border border-red-100 dark:border-red-500/20 bg-red-50 dark:bg-red-500/5 flex items-start gap-4">
                      <AlertCircle className="text-red-500 mt-1 flex-shrink-0" size={24} />
                      <div>
-                        <h4 className="font-bold text-red-900">Mode Maintenance</h4>
-                        <p className="text-sm text-red-700/80 mt-1 mb-4">Activer ce mode bloque l'accès à tous les utilisateurs sauf les administrateurs.</p>
-                        <select name="maintenance_mode" defaultValue={getVal('maintenance_mode') || "false"} className="w-full md:w-auto h-12 bg-white border-red-200 rounded-xl px-4 font-bold text-red-900 shadow-sm outline-none focus:ring-2 focus:ring-red-500/20">
+                        <h4 className="font-bold text-red-900 dark:text-red-400">Mode Maintenance</h4>
+                        <p className="text-sm text-red-700/80 dark:text-red-400/70 mt-1 mb-4">Activer ce mode bloque l'accès à tous les utilisateurs sauf les administrateurs.</p>
+                        <select name="maintenance_mode" defaultValue={getVal('maintenance_mode') || "false"} className="w-full md:w-auto h-12 bg-white dark:bg-[#0E0F18] dark:text-white border-red-200 dark:border-red-500/30 rounded-xl px-4 font-bold text-red-900 dark:text-red-400 shadow-sm outline-none focus:ring-2 focus:ring-red-500/20">
                            <option value="false">Désactivé (Opérationnel)</option>
                            <option value="true">Activé (Maintenance en cours)</option>
                         </select>

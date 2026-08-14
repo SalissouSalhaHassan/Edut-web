@@ -42,7 +42,7 @@ function SettingsTabsInner(props: SettingsTabsContainerProps) {
   return (
     <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full grid grid-cols-1 lg:grid-cols-12 gap-10">
       <div className="lg:col-span-3">
-        <TabsList className="flex flex-col h-fit bg-white p-4 rounded-[2.5rem] border border-slate-100 shadow-sm gap-2">
+        <TabsList className="flex flex-col h-fit bg-white dark:bg-[#12131C] p-4 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/60 shadow-sm gap-2">
           {[
             { v: 'general', l: 'Général', i: <School size={18} /> },
             { v: 'finance', l: 'Finances', i: <CreditCard size={18} /> },
@@ -56,7 +56,7 @@ function SettingsTabsInner(props: SettingsTabsContainerProps) {
             <TabsTrigger 
               key={t.v} 
               value={t.v} 
-              className="w-full justify-start rounded-2xl h-14 px-6 font-black text-[10px] uppercase tracking-widest gap-4 data-[state=active]:bg-primary/5 data-[state=active]:text-primary transition-all border border-transparent data-[state=active]:border-primary/10"
+              className="w-full justify-start rounded-2xl h-14 px-6 font-black text-[10px] uppercase tracking-widest gap-4 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/50 data-[state=active]:bg-primary/5 dark:data-[state=active]:bg-primary/10 data-[state=active]:text-primary transition-all border border-transparent data-[state=active]:border-primary/10 dark:data-[state=active]:border-primary/20"
             >
               {t.i} {t.l}
             </TabsTrigger>
