@@ -246,7 +246,7 @@ export default function TemplateDesigner() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-6rem)] rounded-[2.5rem] border border-slate-200 bg-slate-100 overflow-hidden shadow-2xl">
+    <div className="flex flex-col h-[calc(100vh-6rem)] rounded-[2.5rem] border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-950 overflow-hidden shadow-2xl">
       {/* Top Toolbar */}
       <TopToolbar
         pageSize={pageSize}

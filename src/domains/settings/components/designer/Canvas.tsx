@@ -194,20 +194,20 @@ export default function Canvas({
   };
 
   return (
-    <div className="relative flex-1 overflow-auto bg-slate-200/80 p-8 flex items-center justify-center select-none" onClick={() => onSelect(null)}>
+    <div className="relative flex-1 overflow-auto bg-slate-200/80 dark:bg-slate-950 p-8 flex items-center justify-center select-none" onClick={() => onSelect(null)}>
       {/* Rulers Container */}
       {showRulers && (
         <>
-          <div className="absolute top-0 left-0 right-0 h-6 bg-slate-100 border-b border-slate-300 flex items-center px-8 text-[9px] font-mono text-slate-500 z-10 pointer-events-none">
+          <div className="absolute top-0 left-0 right-0 h-6 bg-slate-100 dark:bg-slate-900 border-b border-slate-300 dark:border-slate-800 flex items-center px-8 text-[9px] font-mono text-slate-500 dark:text-slate-400 z-10 pointer-events-none">
             {Array.from({ length: Math.ceil(pageWidth / 50) }).map((_, i) => (
-              <span key={i} style={{ width: 50 * scale }} className="border-l border-slate-300 h-3 pl-1">
+              <span key={i} style={{ width: 50 * scale }} className="border-l border-slate-300 dark:border-slate-800 h-3 pl-1">
                 {i * 50}
               </span>
             ))}
           </div>
-          <div className="absolute top-0 left-0 bottom-0 w-6 bg-slate-100 border-r border-slate-300 flex flex-col items-center py-8 text-[9px] font-mono text-slate-500 z-10 pointer-events-none">
+          <div className="absolute top-0 left-0 bottom-0 w-6 bg-slate-100 dark:bg-slate-900 border-r border-slate-300 dark:border-slate-800 flex flex-col items-center py-8 text-[9px] font-mono text-slate-500 dark:text-slate-400 z-10 pointer-events-none">
             {Array.from({ length: Math.ceil(pageHeight / 50) }).map((_, i) => (
-              <span key={i} style={{ height: 50 * scale }} className="border-t border-slate-300 w-3 pt-1">
+              <span key={i} style={{ height: 50 * scale }} className="border-t border-slate-300 dark:border-slate-800 w-3 pt-1">
                 {i * 50}
               </span>
             ))}

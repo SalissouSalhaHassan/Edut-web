@@ -25,7 +25,7 @@ const HEADER_STYLES: { value: DocumentHeaderStyle; label: string; description: s
   { value: "minimal_administrative", label: "Administratif minimal", description: "Listes, rapports internes, attestations simples." },
 ];
 
-const fieldClass = "h-11 rounded-xl border-slate-200 bg-white text-sm font-bold";
+const fieldClass = "h-11 rounded-xl border-slate-200 bg-white text-sm font-bold dark:border-slate-800 dark:bg-slate-900 dark:text-white";
 
 export default function DocumentHeaderManager({ initialConfig }: { initialConfig?: Partial<DocumentHeaderConfig> | null }) {
   const [activeTab, setActiveTab] = useState<"designer" | "preset">("designer");
@@ -53,22 +53,22 @@ export default function DocumentHeaderManager({ initialConfig }: { initialConfig
   return (
     <div className="space-y-8">
       {/* Top Selector Bar */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-4 rounded-[2rem] border border-slate-200 shadow-sm">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white dark:bg-[#131622]/90 p-4 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-sm">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-indigo-600 text-white rounded-2xl shadow-md shadow-indigo-100">
+          <div className="p-3 bg-indigo-600 text-white rounded-2xl shadow-md shadow-indigo-100 dark:shadow-none">
             <Sparkles size={24} />
           </div>
           <div>
-            <h3 className="text-xl font-black tracking-tight text-slate-900">Éditeur de Modèles Professionnel (WYSIWYG)</h3>
-            <p className="text-xs font-semibold text-slate-500">تصميم وتخصيص الترويسات والقوالب الرسمية بحرية كاملة باللسحب والإفلات.</p>
+            <h3 className="text-xl font-black tracking-tight text-slate-900 dark:text-white">Éditeur de Modèles Professionnel (WYSIWYG)</h3>
+            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">تصميم وتخصيص الترويسات والقوالب الرسمية بحرية كاملة باللسحب والإفلات.</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+        <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800/60 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800">
           <button
             onClick={() => setActiveTab("designer")}
             className={`px-5 py-2.5 rounded-xl font-black text-xs transition flex items-center gap-2 ${
-              activeTab === "designer" ? "bg-indigo-600 text-white shadow-md shadow-indigo-100" : "text-slate-600 hover:bg-slate-200"
+              activeTab === "designer" ? "bg-indigo-600 text-white shadow-md shadow-indigo-100 dark:shadow-none" : "text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
             }`}
           >
             <LayoutGrid size={16} /> المحرر التفاعلي (Canva Designer)
@@ -76,7 +76,7 @@ export default function DocumentHeaderManager({ initialConfig }: { initialConfig
           <button
             onClick={() => setActiveTab("preset")}
             className={`px-5 py-2.5 rounded-xl font-black text-xs transition flex items-center gap-2 ${
-              activeTab === "preset" ? "bg-indigo-600 text-white shadow-md shadow-indigo-100" : "text-slate-600 hover:bg-slate-200"
+              activeTab === "preset" ? "bg-indigo-600 text-white shadow-md shadow-indigo-100 dark:shadow-none" : "text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
             }`}
           >
             <Settings2 size={16} /> التكوين السريع (Presets)
@@ -88,25 +88,25 @@ export default function DocumentHeaderManager({ initialConfig }: { initialConfig
       {activeTab === "designer" ? (
         <TemplateDesigner />
       ) : (
-        <div className="rounded-[2.5rem] border border-slate-100 bg-white p-8 shadow-sm">
-          <div className="mb-8 flex flex-col gap-4 border-b border-slate-100 pb-6 xl:flex-row xl:items-center xl:justify-between">
+        <div className="rounded-[2.5rem] border border-slate-100 dark:border-slate-800 bg-white dark:bg-[#131622]/90 p-8 shadow-sm">
+          <div className="mb-8 flex flex-col gap-4 border-b border-slate-100 dark:border-slate-800 pb-6 xl:flex-row xl:items-center xl:justify-between">
             <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400">
                 <Settings2 size={24} />
               </div>
               <div>
-                <h3 className="text-2xl font-black tracking-tight text-slate-900">Gestion des En-têtes Officiels</h3>
-                <p className="text-sm font-semibold text-slate-500">Modèles réutilisables pour rapports, reçus, bulletins, attestations et cartes.</p>
+                <h3 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">Gestion des En-têtes Officiels</h3>
+                <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">Modèles réutilisables pour rapports, reçus, bulletins, attestations et cartes.</p>
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button type="button" variant="outline" onClick={() => window.print()} className="rounded-xl font-black">
+              <Button type="button" variant="outline" onClick={() => window.print()} className="rounded-xl font-black dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800">
                 <Printer size={16} /> Imprimer test
               </Button>
-              <Button type="button" variant="outline" onClick={reset} className="rounded-xl font-black">
+              <Button type="button" variant="outline" onClick={reset} className="rounded-xl font-black dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800">
                 Réinitialiser
               </Button>
-              <Button type="button" onClick={save} disabled={isPending} className="rounded-xl bg-indigo-600 font-black text-white">
+              <Button type="button" onClick={save} disabled={isPending} className="rounded-xl bg-indigo-600 font-black text-white hover:bg-indigo-500">
                 <Save size={16} /> {isPending ? "Enregistrement..." : "Enregistrer"}
               </Button>
             </div>
@@ -122,10 +122,10 @@ export default function DocumentHeaderManager({ initialConfig }: { initialConfig
                     key={style.value}
                     type="button"
                     onClick={() => update("style", style.value)}
-                    className={`rounded-2xl border p-4 text-left transition ${config.style === style.value ? "border-indigo-500 bg-indigo-50 text-indigo-900" : "border-slate-100 bg-white hover:border-slate-300"}`}
+                    className={`rounded-2xl border p-4 text-left transition ${config.style === style.value ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-900 dark:text-indigo-200" : "border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900/60 text-slate-900 dark:text-white hover:border-slate-300 dark:hover:border-slate-700"}`}
                   >
                     <p className="text-sm font-black">{style.label}</p>
-                    <p className="mt-1 text-xs font-semibold text-slate-500">{style.description}</p>
+                    <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">{style.description}</p>
                   </button>
                 ))}
               </div>
@@ -185,7 +185,7 @@ export default function DocumentHeaderManager({ initialConfig }: { initialConfig
               <Field label="Autorisations / Arrêtés" value={config.authorizationText || ""} onChange={(v) => update("authorizationText", v)} />
               
               <div className="space-y-3 pt-2">
-                <p className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Logos & Armoiries Officiels</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400">Logos & Armoiries Officiels</p>
                 <LogoUploaderField label="Logo gauche (Établissement)" value={config.leftLogo || ""} onChange={(v) => update("leftLogo", v)} />
                 <LogoUploaderField label="Logo centre (Sceau / République)" value={config.centerLogo || ""} onChange={(v) => update("centerLogo", v)} />
                 <LogoUploaderField label="Logo droite (Ministère / Armoiries)" value={config.rightLogo || ""} onChange={(v) => update("rightLogo", v)} />
@@ -199,11 +199,11 @@ export default function DocumentHeaderManager({ initialConfig }: { initialConfig
           </div>
 
           <section className="space-y-4">
-            <div className="flex items-center gap-2 text-sm font-black text-slate-700">
+            <div className="flex items-center gap-2 text-sm font-black text-slate-700 dark:text-slate-200">
               <FileText size={18} /> Aperçu A4
             </div>
-            <div className="rounded-[2rem] border border-slate-200 bg-slate-100 p-4">
-              <div className="mx-auto min-h-[720px] max-w-[794px] bg-white p-8 shadow-xl print:min-h-0 print:max-w-none print:shadow-none">
+            <div className="rounded-[2rem] border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900/50 p-4">
+              <div className="mx-auto min-h-[720px] max-w-[794px] bg-white p-8 shadow-xl print:min-h-0 print:max-w-none print:shadow-none rounded-xl">
                 <OfficialDocumentHeader config={config} title={previewTitle} />
                 <div className="mt-10 space-y-4 text-sm font-semibold text-slate-700">
                   <p>Cette zone représente le contenu du rapport, de l'attestation, du reçu ou du relevé.</p>
@@ -246,9 +246,9 @@ function ColorField({ label, value, onChange }: { label: string; value: string; 
   return (
     <label className="space-y-2">
       <span className="px-1 text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</span>
-      <div className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3">
-        <input type="color" value={value} onChange={(e) => onChange(e.target.value)} className="h-7 w-8 border-none bg-transparent" />
-        <input value={value} onChange={(e) => onChange(e.target.value)} className="w-full text-sm font-bold outline-none" />
+      <div className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3">
+        <input type="color" value={value} onChange={(e) => onChange(e.target.value)} className="h-7 w-8 border-none bg-transparent cursor-pointer" />
+        <input value={value} onChange={(e) => onChange(e.target.value)} className="w-full text-sm font-bold bg-transparent text-slate-900 dark:text-white outline-none" />
       </div>
     </label>
   );
@@ -275,12 +275,12 @@ function LogoUploaderField({ label, value, onChange }: { label: string; value: s
   return (
     <div className="space-y-2">
       <span className="px-1 text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</span>
-      <div className="flex items-center gap-3 bg-white p-3 rounded-2xl border border-slate-200">
-        <div className="w-14 h-14 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center overflow-hidden shrink-0 relative">
+      <div className="flex items-center gap-3 bg-white dark:bg-slate-900/60 p-3 rounded-2xl border border-slate-200 dark:border-slate-800">
+        <div className="w-14 h-14 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 flex items-center justify-center overflow-hidden shrink-0 relative">
           {value ? (
             <img src={value} alt={label} className="w-full h-full object-contain p-1" />
           ) : (
-            <span className="text-[10px] font-black text-slate-300 uppercase">Logo</span>
+            <span className="text-[10px] font-black text-slate-300 dark:text-slate-600 uppercase">Logo</span>
           )}
         </div>
 
@@ -289,10 +289,10 @@ function LogoUploaderField({ label, value, onChange }: { label: string; value: s
             value={value} 
             onChange={(e) => onChange(e.target.value)} 
             placeholder="URL du logo ou Data Base64..." 
-            className="h-9 text-xs font-semibold"
+            className="h-9 text-xs font-semibold dark:bg-slate-900 dark:border-slate-800 dark:text-white"
           />
           <div className="flex items-center gap-2">
-            <label className="flex h-8 items-center gap-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-3 text-[11px] font-black cursor-pointer transition">
+            <label className="flex h-8 items-center gap-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900 text-indigo-700 dark:text-indigo-300 px-3 text-[11px] font-black cursor-pointer transition">
               <Upload size={13} /> Charger image
               <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
             </label>
@@ -300,7 +300,7 @@ function LogoUploaderField({ label, value, onChange }: { label: string; value: s
               <button
                 type="button"
                 onClick={() => onChange("")}
-                className="flex h-8 items-center gap-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 px-2.5 text-[11px] font-bold transition"
+                className="flex h-8 items-center gap-1 rounded-lg bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-100 dark:hover:bg-rose-900 text-rose-600 dark:text-rose-300 px-2.5 text-[11px] font-bold transition"
               >
                 Supprimer
               </button>
