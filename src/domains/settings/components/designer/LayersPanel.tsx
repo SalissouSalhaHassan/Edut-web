@@ -32,7 +32,6 @@ export default function LayersPanel({
   const sortedLayers = [...elements].sort((a, b) => b.zIndex - a.zIndex);
 
   return (
-  return (
     <div className="bg-white dark:bg-[#131622]/90 border-t border-slate-200 dark:border-slate-800 p-4 select-none">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">

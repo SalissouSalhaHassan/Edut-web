@@ -25,7 +25,6 @@ export default function LeftSidebar({ onAddElement }: LeftSidebarProps) {
   );
 
   return (
-  return (
     <aside className="w-80 bg-white dark:bg-[#131622]/90 border-r border-slate-200 dark:border-slate-800 flex flex-col h-full select-none z-20 shadow-sm">
       {/* Header Tabs */}
       <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex gap-2">
