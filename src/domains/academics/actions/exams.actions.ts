@@ -190,9 +190,15 @@ export async function saveBatchExamResults(formData: BatchExamResultFormData) {
         const isLocked = Boolean(period.isLocked);
         const now = new Date();
         
-        // Date checks
+        // Date checks — startDate compared from beginning of day, endDate to end-of-day
+        // so the last day of a period is still open for grade entry.
         const notStartedYet = period.startDate ? now < new Date(period.startDate) : false;
-        const isEnded = period.endDate ? now > new Date(period.endDate) : false;
+        const endDateEOD = period.endDate ? (() => {
+          const d = new Date(period.endDate);
+          d.setHours(23, 59, 59, 999);
+          return d;
+        })() : null;
+        const isEnded = endDateEOD ? now > endDateEOD : false;
         const isDeadlineExpired = period.gradesDeadline ? now > new Date(period.gradesDeadline) : false;
 
         if (isLocked) {

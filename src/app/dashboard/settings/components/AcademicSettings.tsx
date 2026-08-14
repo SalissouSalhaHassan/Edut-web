@@ -199,6 +199,13 @@ export function AcademicSettings({
 
   const handleCreatePeriod = () => {
     if (!periodName || !periodType) return;
+
+    // Validate: endDate must be after startDate
+    if (periodStartDate && periodEndDate && periodEndDate <= periodStartDate) {
+      toast.error("⚠️ La Date de Fin doit être postérieure à la Date de Début.");
+      return;
+    }
+
     const activeSessionObj = sessionsList?.find((s: any) => s.isActive) || sessionsList?.[0];
     const targetSessionId = periodSessionId 
       ? Number(periodSessionId) 
@@ -1243,24 +1250,55 @@ export function AcademicSettings({
 
           <div className="md:col-span-4 flex flex-wrap md:flex-nowrap items-end gap-4 bg-[#14151F] p-4 rounded-xl border border-slate-800/80">
             <div className="flex-1 space-y-1">
-              <label className="text-[11px] uppercase font-bold text-slate-400 flex items-center gap-1">📅 Date de Début (Ouverture)</label>
+              <label className="text-[11px] uppercase font-bold text-teal-400 flex items-center gap-1.5">
+                <CalendarDays size={12} /> Date de Début (Ouverture)
+              </label>
               <input 
                 type="date" 
                 value={periodStartDate}
                 disabled={!canEdit}
+                max={periodEndDate || undefined}
                 onChange={(e) => setPeriodStartDate(e.target.value)}
-                className="w-full bg-[#181924] border border-slate-700 text-white rounded-xl px-4 h-11 focus:outline-none focus:border-teal-500 text-xs font-medium"
+                className={`w-full bg-[#181924] border text-white rounded-xl px-4 h-11 focus:outline-none focus:border-teal-500 text-xs font-medium ${
+                  periodStartDate ? "border-teal-500/50" : "border-slate-700"
+                }`}
               />
+              {periodStartDate && (
+                <p className="text-[10px] text-teal-400 font-semibold mt-0.5">
+                  📅 Ouverture : {new Date(periodStartDate + "T00:00:00").toLocaleDateString("fr-FR", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
+                </p>
+              )}
             </div>
             <div className="flex-1 space-y-1">
-              <label className="text-[11px] uppercase font-bold text-slate-400 flex items-center gap-1">🔒 Date de Fin (Clôture automatique)</label>
+              <label className="text-[11px] uppercase font-bold text-rose-400 flex items-center gap-1.5">
+                <Lock size={12} /> Date de Fin (Clôture automatique)
+              </label>
               <input 
                 type="date" 
                 value={periodEndDate}
                 disabled={!canEdit}
-                onChange={(e) => setPeriodEndDate(e.target.value)}
-                className="w-full bg-[#181924] border border-slate-700 text-white rounded-xl px-4 h-11 focus:outline-none focus:border-teal-500 text-xs font-medium"
+                min={periodStartDate || undefined}
+                onChange={(e) => {
+                  if (periodStartDate && e.target.value && e.target.value <= periodStartDate) {
+                    toast.error("⚠️ La Date de Fin doit être postérieure à la Date de Début.");
+                    return;
+                  }
+                  setPeriodEndDate(e.target.value);
+                }}
+                className={`w-full bg-[#181924] border text-white rounded-xl px-4 h-11 focus:outline-none focus:border-rose-500 text-xs font-medium ${
+                  periodEndDate && periodStartDate && periodEndDate <= periodStartDate
+                    ? "border-red-500"
+                    : periodEndDate ? "border-rose-500/50" : "border-slate-700"
+                }`}
               />
+              {periodEndDate && (
+                <p className="text-[10px] text-rose-400 font-semibold mt-0.5">
+                  🔒 Clôture : {new Date(periodEndDate + "T23:59:59").toLocaleDateString("fr-FR", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
+                </p>
+              )}
+              {!periodEndDate && (
+                <p className="text-[10px] text-slate-500 font-medium mt-0.5">Optionnel — sans date de fin, la période reste ouverte indéfiniment.</p>
+              )}
             </div>
             <div className="flex items-center gap-2">
               <Button onClick={handleCreatePeriod} disabled={isPending || !periodName || !canEdit} className="h-11 bg-teal-600 hover:bg-teal-700 text-white rounded-xl px-6 disabled:opacity-50 font-bold">
@@ -1281,8 +1319,16 @@ export function AcademicSettings({
           }).map((p: any) => {
             const isLocked = Boolean(p.isLocked || p.is_locked);
             const now = new Date();
-            const startDate = p.startDate || p.start_date ? new Date(p.startDate || p.start_date) : null;
-            const endDate = p.endDate || p.end_date ? new Date(p.endDate || p.end_date) : null;
+            // Parse dates — compare at start-of-day for startDate and end-of-day for endDate
+            // so the last day of the period is still open for grade entry.
+            const rawStart = p.startDate || p.start_date;
+            const rawEnd = p.endDate || p.end_date;
+            const startDate = rawStart ? new Date(rawStart) : null;
+            const endDate = rawEnd ? (() => {
+              const d = new Date(rawEnd);
+              d.setHours(23, 59, 59, 999); // end-of-day: last day is still open
+              return d;
+            })() : null;
 
             const isNotStarted = startDate ? now < startDate : false;
             const isEnded = endDate ? now > endDate : false;
