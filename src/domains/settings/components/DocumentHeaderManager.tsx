@@ -203,21 +203,21 @@ export default function DocumentHeaderManager({ initialConfig }: { initialConfig
               <FileText size={18} /> Aperçu A4
             </div>
             <div className="rounded-[2rem] border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900/50 p-4">
-              <div className="mx-auto min-h-[720px] max-w-[794px] bg-white p-8 shadow-xl print:min-h-0 print:max-w-none print:shadow-none rounded-xl">
+              <div className="mx-auto min-h-[720px] max-w-[794px] bg-white text-slate-900 p-8 shadow-xl print:min-h-0 print:max-w-none print:shadow-none rounded-xl">
                 <OfficialDocumentHeader config={config} title={previewTitle} />
-                <div className="mt-10 space-y-4 text-sm font-semibold text-slate-700">
+                <div className="mt-10 space-y-4 text-sm font-semibold text-slate-800">
                   <p>Cette zone représente le contenu du rapport, de l'attestation, du reçu ou du relevé.</p>
-                  <div className="overflow-hidden rounded-xl border border-slate-200">
+                  <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
                     <table className="w-full text-left">
-                      <thead className="bg-slate-50 text-[10px] uppercase tracking-widest text-slate-500">
+                      <thead className="bg-slate-50 text-[10px] uppercase tracking-widest text-slate-600">
                         <tr><th className="p-3">N°</th><th className="p-3">Libellé</th><th className="p-3">Valeur</th><th className="p-3">Observation</th></tr>
                       </thead>
                       <tbody>
-                        {[1, 2, 3].map((n) => <tr key={n} className="border-t"><td className="p-3">{n}</td><td className="p-3">Exemple</td><td className="p-3">Donnée</td><td className="p-3">Validé</td></tr>)}
+                        {[1, 2, 3].map((n) => <tr key={n} className="border-t border-slate-200 text-slate-900"><td className="p-3">{n}</td><td className="p-3">Exemple</td><td className="p-3">Donnée</td><td className="p-3">Validé</td></tr>)}
                       </tbody>
                     </table>
                   </div>
-                  <div className="mt-16 flex justify-between text-center text-xs font-black">
+                  <div className="mt-16 flex justify-between text-center text-xs font-black text-slate-900">
                     <span>Signature Directeur</span>
                     <span>Cachet</span>
                     <span>Signature Inspection</span>
