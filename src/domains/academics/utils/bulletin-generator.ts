@@ -1436,8 +1436,9 @@ export async function generateReleveNotesPDF(data: any) {
   drawTextBilingual(doc, student?.numAdmission || student?.matricule || "20 D 004", 30, studentInfoY + 4.5);
   drawTextBilingual(doc, student?.classe || student?.className || "Première année de licence en Shari'a and Law", 30, studentInfoY + 9);
 
-  // Date de naissance (Date of birth) on the student name line
+  // Date et lieu de naissance (Date & Place of birth) on the student name line
   const rawDob = student?.dateNaissance || student?.dateOfBirth || student?.birthDate || student?.dob;
+  const rawPob = student?.lieuNaissance || student?.placeOfBirth || student?.lieu || student?.pob;
   let dobVal = "";
   if (rawDob) {
     if (rawDob instanceof Date) {
@@ -1454,12 +1455,15 @@ export async function generateReleveNotesPDF(data: any) {
     }
   }
   const finalDob = dobVal || "15/01/2002";
+  const pobStr = rawPob ? ` à ${rawPob}` : " à Niamey";
+  const fullDobPobStr = `${finalDob}${pobStr}`;
+
   const nameWidth = doc.getTextWidth(studentNameStr);
-  const dobLabelX = Math.max(90, 30 + nameWidth + 8);
+  const dobLabelX = Math.max(90, 30 + nameWidth + 6);
   doc.setFont("helvetica", "normal");
   doc.text("Né(e) le :", dobLabelX, studentInfoY);
   doc.setFont("helvetica", "bold");
-  drawTextBilingual(doc, finalDob, dobLabelX + 15, studentInfoY);
+  drawTextBilingual(doc, fullDobPobStr, dobLabelX + 15, studentInfoY);
 
   // --- 4. DETERMINE SEMESTER PAIR ---
   const isDoctorate = student?.educationalLevel?.toLowerCase().includes("doc") || student?.classe?.toLowerCase().includes("doc") || term?.toLowerCase().includes("ann") || term?.toLowerCase().includes("annee");
