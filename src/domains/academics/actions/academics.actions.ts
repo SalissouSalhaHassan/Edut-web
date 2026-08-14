@@ -2583,10 +2583,9 @@ export async function setActiveSession(id: number) {
     const schoolId = await getActiveSchoolId();
     if (!schoolId) throw new Error("Établissement non identifié.");
 
-    // 1. Mark all other sessions for this school as inactive & closed/archived
+    // 1. Mark all other sessions for this school as inactive
     await db.update(schoolSessions).set({
-      isActive: false,
-      status: "Clôturé"
+      isActive: false
     }).where(eq(schoolSessions.schoolId, schoolId));
 
     // 2. Activate target session

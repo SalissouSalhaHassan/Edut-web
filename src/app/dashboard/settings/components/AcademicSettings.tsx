@@ -826,6 +826,10 @@ export function AcademicSettings({
                     <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-full">
                       🟢 Année Actuelle (En Cours)
                     </span>
+                  ) : isActive && isFrozen ? (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-0.5 rounded-full">
+                      <Lock size={12} /> Année Actuelle (Gelée - تجميد)
+                    </span>
                   ) : isFrozen ? (
                     <span className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2.5 py-0.5 rounded-full">
                       <Lock size={12} /> Année Gelée / Clôturée (تجميد - قراءة فقط)
@@ -855,7 +859,7 @@ export function AcademicSettings({
                                 };
                               }
                               if (!newFrozen) {
-                                return { ...item, isActive: false, status: "Clôturé" };
+                                return { ...item, isActive: false };
                               }
                               return item;
                             })
@@ -890,7 +894,7 @@ export function AcademicSettings({
                   </Button>
 
                   {/* Set Active Session Button */}
-                  {!isActive && !isFrozen && (
+                  {!isActive && (
                     <Button 
                       onClick={() => {
                         startTransition(async () => {
@@ -900,10 +904,10 @@ export function AcademicSettings({
                               prev.map((item) => ({
                                 ...item,
                                 isActive: item.id === s.id,
-                                status: item.id === s.id ? "Actif" : "Clôturé",
+                                status: item.id === s.id ? "Actif" : item.status,
                               }))
                             );
-                            toast.success(`Année scolaire "${s.sessionName}" activée comme année actuelle !`);
+                            toast.success(`Année scolaire "${s.sessionName}" activée comme année actuelle ! 🟢`);
                             router.refresh();
                           } else {
                             toast.error(res.error || "Erreur d'activation de la session");
@@ -911,7 +915,7 @@ export function AcademicSettings({
                         });
                       }}
                       disabled={isPending || !canEdit}
-                      className="h-8 text-xs bg-emerald-600/20 text-emerald-300 hover:bg-emerald-600/30 border border-emerald-500/40 rounded-lg px-3 font-semibold"
+                      className="h-8 text-xs bg-emerald-600/20 text-emerald-300 hover:bg-emerald-600/30 border border-emerald-500/40 rounded-lg px-3 font-semibold flex items-center gap-1.5"
                     >
                       🟢 Définir comme Année Actuelle
                     </Button>
