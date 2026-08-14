@@ -2610,13 +2610,30 @@ export async function toggleSessionLock(id: number, isClosed: boolean) {
     const schoolId = await getActiveSchoolId();
     if (!schoolId) throw new Error("Établissement non identifié.");
 
-    await db.update(schoolSessions).set({
-      status: isClosed ? "Clôturé" : "Actif",
-      isActive: isClosed ? false : true,
-    }).where(and(
-      eq(schoolSessions.id, id),
-      eq(schoolSessions.schoolId, schoolId)
-    ));
+    if (isClosed) {
+      // Freeze / Close session
+      await db.update(schoolSessions).set({
+        status: "Clôturé",
+        isActive: false,
+      }).where(and(
+        eq(schoolSessions.id, id),
+        eq(schoolSessions.schoolId, schoolId)
+      ));
+    } else {
+      // Unfreeze / Open session: deactivate all other sessions first
+      await db.update(schoolSessions).set({
+        isActive: false,
+        status: "Clôturé"
+      }).where(eq(schoolSessions.schoolId, schoolId));
+
+      await db.update(schoolSessions).set({
+        status: "Actif",
+        isActive: true,
+      }).where(and(
+        eq(schoolSessions.id, id),
+        eq(schoolSessions.schoolId, schoolId)
+      ));
+    }
 
     revalidatePath("/dashboard/settings");
     revalidatePath("/dashboard/academics");

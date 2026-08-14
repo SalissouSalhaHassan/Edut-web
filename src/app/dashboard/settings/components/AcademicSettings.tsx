@@ -813,28 +813,96 @@ export function AcademicSettings({
         </div>
         <div className="space-y-2">
           {sessionsList?.map((s: any) => {
-            const isClosed = !s.isActive || s.status === "Clôturé" || s.status === "Archivé";
+            const isFrozen = s.status === "Clôturé" || s.status === "Gelé" || s.status === "Verrouillé" || s.status === "Archivé";
+            const isActive = Boolean(s.isActive);
+
             return (
-              <div key={s.id} className={`flex items-center justify-between p-3.5 rounded-xl border transition-all ${!isClosed ? 'bg-emerald-500/5 border-emerald-500/30' : 'bg-[#181924] border-slate-800/50'}`}>
+              <div key={s.id} className={`flex items-center justify-between p-3.5 rounded-xl border transition-all ${isActive && !isFrozen ? 'bg-emerald-500/5 border-emerald-500/30' : isFrozen ? 'bg-rose-500/5 border-rose-500/30' : 'bg-[#181924] border-slate-800/50'}`}>
                 <div className="flex items-center gap-3">
                   <span className="text-slate-200 font-bold text-base">{s.sessionName}</span>
-                  {!isClosed ? (
+                  
+                  {/* Status Badges */}
+                  {isActive && !isFrozen ? (
                     <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-full">
                       🟢 Année Actuelle (En Cours)
                     </span>
-                  ) : (
+                  ) : isFrozen ? (
                     <span className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2.5 py-0.5 rounded-full">
-                      🔒 Clôturée & Archivée (Lecture Seule)
+                      <Lock size={12} /> Année Gelée / Clôturée (تجميد - قراءة فقط)
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-400 bg-slate-800/60 border border-slate-700/50 px-2.5 py-0.5 rounded-full">
+                      ⚪ Année Inactive
                     </span>
                   )}
                 </div>
+
                 <div className="flex items-center gap-2">
-                  {isClosed ? (
+                  {/* Freeze / Unfreeze Toggle Button ("تجميد / فك تجميد العام الدراسي") */}
+                  <Button
+                    onClick={() => {
+                      const newFrozen = !isFrozen;
+                      startTransition(async () => {
+                        const res = await toggleSessionLock(s.id, newFrozen);
+                        if (res.success) {
+                          setSessionsList((prev: any[]) =>
+                            prev.map((item) => {
+                              if (item.id === s.id) {
+                                return {
+                                  ...item,
+                                  status: newFrozen ? "Clôturé" : "Actif",
+                                  isActive: newFrozen ? false : true,
+                                };
+                              }
+                              if (!newFrozen) {
+                                return { ...item, isActive: false, status: "Clôturé" };
+                              }
+                              return item;
+                            })
+                          );
+                          toast.success(
+                            newFrozen
+                              ? `تم تجميد العام الدراسي "${s.sessionName}" بنجاح 🔒`
+                              : `تم فك تجميد العام الدراسي "${s.sessionName}" وتفعيله بنجاح 🔓`
+                          );
+                          router.refresh();
+                        } else {
+                          toast.error(res.error || "Erreur lors du changement d'état de verrouillage");
+                        }
+                      });
+                    }}
+                    disabled={isPending || !canEdit}
+                    className={`h-8 text-xs rounded-lg px-3 font-semibold border flex items-center gap-1.5 transition ${
+                      isFrozen
+                        ? "bg-amber-600/20 text-amber-300 hover:bg-amber-600/30 border-amber-500/40"
+                        : "bg-rose-600/20 text-rose-300 hover:bg-rose-600/30 border-rose-500/40"
+                    }`}
+                  >
+                    {isFrozen ? (
+                      <>
+                        <Unlock size={12} /> فك التجميد (Dégeler)
+                      </>
+                    ) : (
+                      <>
+                        <Lock size={12} /> تجميد العام (Geler)
+                      </>
+                    )}
+                  </Button>
+
+                  {/* Set Active Session Button */}
+                  {!isActive && !isFrozen && (
                     <Button 
                       onClick={() => {
                         startTransition(async () => {
                           const res = await setActiveSession(s.id);
                           if (res.success) {
+                            setSessionsList((prev: any[]) =>
+                              prev.map((item) => ({
+                                ...item,
+                                isActive: item.id === s.id,
+                                status: item.id === s.id ? "Actif" : "Clôturé",
+                              }))
+                            );
                             toast.success(`Année scolaire "${s.sessionName}" activée comme année actuelle !`);
                             router.refresh();
                           } else {
@@ -847,17 +915,16 @@ export function AcademicSettings({
                     >
                       🟢 Définir comme Année Actuelle
                     </Button>
-                  ) : (
-                    <span className="text-xs text-emerald-400 font-bold px-2.5 py-1 bg-emerald-500/10 rounded-lg border border-emerald-500/20">
-                      ✓ Année Active
-                    </span>
                   )}
+
+                  {/* Delete Button */}
                   <button 
                     onClick={() => {
                       if (confirm(`Supprimer l'année scolaire "${s.sessionName}" ?`)) {
                         startTransition(async () => {
                           const res = await deleteSession(s.id);
                           if (res.success) {
+                            setSessionsList((prev: any[]) => prev.filter((item) => item.id !== s.id));
                             toast.success("Année scolaire supprimée avec succès");
                             router.refresh();
                           } else {
@@ -868,6 +935,7 @@ export function AcademicSettings({
                     }}
                     disabled={isPending || !canEdit}
                     className="p-1.5 text-rose-500/70 hover:text-rose-500 border border-slate-800 hover:border-rose-500/30 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    title="Supprimer l'année scolaire"
                   >
                     <Trash2 size={16} />
                   </button>
