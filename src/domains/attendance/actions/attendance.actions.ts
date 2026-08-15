@@ -387,7 +387,7 @@ export async function getStudentPersonalAttendanceAction() {
       status: r.status,
       remark: r.remark || "",
       subjectName: r.subject?.subjectName || "Séance générale",
-      teacherName: r.teacher ? `${r.teacher.nom} ${r.teacher.prenom || ""}`.trim() : "Enseignant",
+      teacherName: r.teacher?.nom || "Enseignant",
     }));
 
     return {
