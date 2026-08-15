@@ -73,24 +73,24 @@ const getStatusBadge = (status: string) => {
     case "Soldé":
     case "Payé":
       return (
-        <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-300 rounded-full border border-emerald-100 dark:border-emerald-900/50">
-          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-          <span className="text-[10px] font-black uppercase tracking-widest">Payé</span>
+        <div className="inline-flex items-center gap-2 px-3.5 py-1 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-300 rounded-full border border-emerald-100 dark:border-emerald-900/50 shadow-sm">
+          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="text-xs font-black uppercase tracking-wider">Payé</span>
         </div>
       );
     case "Partiel":
       return (
-        <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-300 rounded-full border border-amber-100 dark:border-amber-900/50">
-          <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-          <span className="text-[10px] font-black uppercase tracking-widest">Partiel</span>
+        <div className="inline-flex items-center gap-2 px-3.5 py-1 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-300 rounded-full border border-amber-100 dark:border-amber-900/50 shadow-sm">
+          <div className="w-2 h-2 rounded-full bg-amber-500" />
+          <span className="text-xs font-black uppercase tracking-wider">Partiel</span>
         </div>
       );
     case "En retard":
     case "Impayé":
       return (
-        <div className="flex items-center gap-1.5 px-3 py-1 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-300 rounded-full border border-rose-100 dark:border-rose-900/50">
-          <div className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-          <span className="text-[10px] font-black uppercase tracking-widest">En Retard</span>
+        <div className="inline-flex items-center gap-2 px-3.5 py-1 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-300 rounded-full border border-rose-100 dark:border-rose-900/50 shadow-sm">
+          <div className="w-2 h-2 rounded-full bg-rose-500" />
+          <span className="text-xs font-black uppercase tracking-wider">En Retard</span>
         </div>
       );
     default:
@@ -232,8 +232,8 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, hea
   const COL_KEYS = ["check", "student", "attendu", "paye", "solde", "statut", "date", "mode", "actions"] as const;
   type ColKey = typeof COL_KEYS[number];
   const DEFAULT_WIDTHS: Record<ColKey, number> = {
-    check: 56, student: 240, attendu: 120, paye: 110, solde: 110,
-    statut: 130, date: 130, mode: 150, actions: 160,
+    check: 50, student: 340, attendu: 140, paye: 130, solde: 130,
+    statut: 140, date: 140, mode: 160, actions: 150,
   };
   const [colWidths, setColWidths] = React.useState<Record<ColKey, number>>(DEFAULT_WIDTHS);
   const resizing = useRef<{ col: ColKey; startX: number; startW: number } | null>(null);
@@ -641,10 +641,10 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, hea
           </div>
 
           {/* Table */}
-          <div className="overflow-x-auto">
-            <table className="border-collapse" style={{ tableLayout: "fixed", width: COL_KEYS.reduce((a, k) => a + colWidths[k], 0) }}>
+          <div className="overflow-x-auto w-full">
+            <table className="w-full border-collapse min-w-full">
               <colgroup>
-                {COL_KEYS.map(k => <col key={k} style={{ width: colWidths[k] }} />)}
+                {COL_KEYS.map(k => <col key={k} style={{ width: colWidths[k], minWidth: colWidths[k] }} />)}
               </colgroup>
               <thead>
                 <tr className="bg-slate-50/50 dark:bg-slate-900 border-y border-slate-100 dark:border-slate-800">
@@ -653,35 +653,35 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, hea
                     <Checkbox className="rounded-md border-slate-200 dark:border-slate-700" />
                     <ResizeHandle col="check" />
                   </th>
-                  <th className="relative px-4 py-5 text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest text-left" style={{ width: colWidths.student }}>
+                  <th className="relative px-4 py-5 text-[11px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest text-left" style={{ width: colWidths.student }}>
                     ÉLÈVE / CLASSE
                     <ResizeHandle col="student" />
                   </th>
-                  <th className="relative px-4 py-5 text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest text-left" style={{ width: colWidths.attendu }}>
+                  <th className="relative px-4 py-5 text-[11px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest text-left" style={{ width: colWidths.attendu }}>
                     ATTENDU
                     <ResizeHandle col="attendu" />
                   </th>
-                  <th className="relative px-4 py-5 text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest text-left" style={{ width: colWidths.paye }}>
+                  <th className="relative px-4 py-5 text-[11px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest text-left" style={{ width: colWidths.paye }}>
                     PAYÉ
                     <ResizeHandle col="paye" />
                   </th>
-                  <th className="relative px-4 py-5 text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest text-left" style={{ width: colWidths.solde }}>
+                  <th className="relative px-4 py-5 text-[11px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest text-left" style={{ width: colWidths.solde }}>
                     SOLDE
                     <ResizeHandle col="solde" />
                   </th>
-                  <th className="relative px-4 py-5 text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest text-left" style={{ width: colWidths.statut }}>
+                  <th className="relative px-4 py-5 text-[11px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest text-left" style={{ width: colWidths.statut }}>
                     STATUT
                     <ResizeHandle col="statut" />
                   </th>
-                  <th className="relative px-4 py-5 text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest text-left" style={{ width: colWidths.date }}>
+                  <th className="relative px-4 py-5 text-[11px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest text-left" style={{ width: colWidths.date }}>
                     DATE
                     <ResizeHandle col="date" />
                   </th>
-                  <th className="relative px-4 py-5 text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest text-left" style={{ width: colWidths.mode }}>
+                  <th className="relative px-4 py-5 text-[11px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest text-left" style={{ width: colWidths.mode }}>
                     MODE DE PAIEMENT
                     <ResizeHandle col="mode" />
                   </th>
-                  <th className="relative px-4 py-5 text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest text-right" style={{ width: colWidths.actions }}>
+                  <th className="relative px-4 py-5 text-[11px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest text-right" style={{ width: colWidths.actions }}>
                     ACTIONS
                   </th>
                 </tr>
@@ -695,66 +695,66 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, hea
 
                     return (
                       <tr key={fee.id} className="group hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
-                        <td className="px-8 py-4">
+                        <td className="px-4 py-4.5">
                           <Checkbox className="rounded-md border-slate-200 dark:border-slate-700" />
                         </td>
-                        <td className="px-4 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 flex items-center justify-center overflow-hidden border border-slate-100 dark:border-slate-800 shrink-0">
+                        <td className="px-4 py-4.5">
+                          <div className="flex items-center gap-3.5">
+                            <div className="w-11 h-11 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 flex items-center justify-center overflow-hidden border border-slate-100 dark:border-slate-800 shrink-0">
                               {fee.student?.photoPath && !fee.student.photoPath.startsWith("file://") ? (
                                 <img src={fee.student.photoPath} alt={fee.student.nomEtudiant} className="w-full h-full object-cover" />
                               ) : (
-                                <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 flex items-center justify-center">
-                                  <span className="text-xs font-black text-indigo-300 dark:text-indigo-400">{fee.student?.nomEtudiant?.[0]}</span>
+                                <div className="w-11 h-11 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 flex items-center justify-center">
+                                  <span className="text-sm font-black text-indigo-400 dark:text-indigo-400">{fee.student?.nomEtudiant?.[0]}</span>
                                 </div>
                               )}
                             </div>
                             <div className="min-w-0">
-                              <p className="text-[13px] font-black text-slate-900 dark:text-white leading-none truncate">{fee.student?.nomEtudiant}</p>
-                              <p className="text-[10px] font-bold text-slate-400 dark:text-slate-400 mt-1 uppercase tracking-tight">{fee.student?.classe}</p>
+                              <p className="text-sm font-black text-slate-900 dark:text-white leading-tight truncate">{fee.student?.nomEtudiant}</p>
+                              <p className="text-xs font-bold text-slate-400 dark:text-slate-400 mt-1 uppercase tracking-tight">{fee.student?.classe}</p>
                             </div>
                           </div>
                         </td>
-                        <td className="px-4 py-4">
-                          <p className="text-[11px] font-black text-indigo-600 dark:text-indigo-400">{formatAmount(fee.totalExpected || 0)}</p>
+                        <td className="px-4 py-4.5">
+                          <p className="text-sm font-black text-indigo-600 dark:text-indigo-400">{formatAmount(fee.totalExpected || 0)}</p>
                         </td>
-                        <td className="px-4 py-4">
-                          <p className="text-[11px] font-black text-emerald-600 dark:text-emerald-400">{formatAmount(fee.totalPaid || 0)}</p>
+                        <td className="px-4 py-4.5">
+                          <p className="text-sm font-black text-emerald-600 dark:text-emerald-400">{formatAmount(fee.totalPaid || 0)}</p>
                         </td>
-                        <td className="px-4 py-4">
+                        <td className="px-4 py-4.5">
                           <p className={cn(
-                            "text-[11px] font-black",
+                            "text-sm font-black",
                             fee.balance > 0 ? "text-rose-500 dark:text-rose-400" : "text-emerald-500 dark:text-emerald-400"
                           )}>
                             {formatAmount(fee.balance || 0)}
                           </p>
                         </td>
-                        <td className="px-4 py-4">
+                        <td className="px-4 py-4.5">
                           {getStatusBadge(fee.status)}
                         </td>
-                        <td className="px-4 py-4">
-                          <p className="text-[11px] font-bold text-slate-600 dark:text-slate-300 whitespace-nowrap">{isMounted ? date : "-"}</p>
+                        <td className="px-4 py-4.5">
+                          <p className="text-xs font-bold text-slate-600 dark:text-slate-300 whitespace-nowrap">{isMounted ? date : "-"}</p>
                         </td>
-                        <td className="px-4 py-4">
-                          <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
+                        <td className="px-4 py-4.5">
+                          <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
                             {getModeIcon(mode)}
-                            <span className="text-[11px] font-bold">{mode}</span>
+                            <span className="text-xs font-bold">{mode}</span>
                           </div>
                         </td>
-                        <td className="px-8 py-4 text-right">
+                        <td className="px-6 py-4.5 text-right">
                           <div className="flex items-center justify-end gap-1.5">
                             <button 
                               onClick={() => setPreviewFee(fee)}
-                              className="p-2 text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 rounded-lg transition-all"
+                              className="p-2.5 text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 rounded-xl transition-all"
                             >
-                              <Eye size={16} />
+                              <Eye size={17} />
                             </button>
                             {canEdit && (
                               <PaymentDialog 
                                 feeData={fee}
                                 trigger={
-                                  <div className="p-2 text-amber-400 hover:text-amber-600 dark:hover:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/50 rounded-lg transition-all cursor-pointer">
-                                    <Edit size={16} />
+                                  <div className="p-2.5 text-amber-400 hover:text-amber-600 dark:hover:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/50 rounded-xl transition-all cursor-pointer">
+                                    <Edit size={17} />
                                   </div>
                                 }
                               />
@@ -762,12 +762,12 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, hea
                             {canDelete && (
                               <button 
                                 onClick={() => handleDelete(fee.id)}
-                                className="p-2 text-rose-400 hover:text-rose-600 dark:hover:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg transition-all"
+                                className="p-2.5 text-rose-400 hover:text-rose-600 dark:hover:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-xl transition-all"
                               >
-                                <Trash2 size={16} />
+                                <Trash2 size={17} />
                               </button>
                             )}
-                            <button className="p-2 text-slate-300 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors ml-1">
+                            <button className="p-2.5 text-slate-300 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors ml-1">
                               <History size={16} />
                             </button>
                           </div>
@@ -807,7 +807,7 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, hea
                      <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400" size={10} />
                   </div>
                </div>
-               <p className="text-[11px] font-bold text-slate-400 dark:text-slate-400">
+               <p className="text-xs font-bold text-slate-400 dark:text-slate-400">
                  Affichage de {Math.min(filteredFees.length, (currentPage - 1) * pageSize + 1)}-{Math.min(filteredFees.length, currentPage * pageSize)} sur {filteredFees.length} élèves
                </p>
             </div>
