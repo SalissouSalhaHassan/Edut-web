@@ -38,6 +38,7 @@ import {
   unlockResultsException
 } from "@/domains/academics/actions/results-workflow.actions";
 import { getCurrentUserAction } from "@/domains/auth/actions/session.actions";
+import StudentGradesView from "./components/StudentGradesView";
 
 export default function AcademicResultsPage() {
   const [loading, setLoading] = useState(false);
@@ -70,9 +71,19 @@ export default function AcademicResultsPage() {
     loadUser();
   }, []);
 
+  const isStudent = Boolean(
+    currentUser?.studentId ||
+    currentUser?.student_id ||
+    currentUser?.role?.roleName?.toLowerCase().includes("eleve") ||
+    currentUser?.role?.roleName?.toLowerCase().includes("élève") ||
+    currentUser?.role?.roleName?.toLowerCase().includes("etudiant") ||
+    currentUser?.role?.roleName?.toLowerCase().includes("étudiant") ||
+    currentUser?.role?.roleName?.toLowerCase().includes("student")
+  );
+
   const isSuperAdmin = currentUser?.superAdmin === true || currentUser?.superAdmin === 1;
   const isDirecteur = currentUser?.admin === true || currentUser?.role?.roleName?.toLowerCase().includes("directeur");
-  const isCenseur = currentUser?.role?.roleName?.toLowerCase().includes("censeur") || currentUser?.role?.roleName?.toLowerCase().includes("responsable") || currentUser?.role?.roleName?.toLowerCase().includes("censeur") || currentUser?.role?.roleName?.toLowerCase().includes("études");
+  const isCenseur = currentUser?.role?.roleName?.toLowerCase().includes("censeur") || currentUser?.role?.roleName?.toLowerCase().includes("responsable") || currentUser?.role?.roleName?.toLowerCase().includes("études");
   const isEnseignant = currentUser?.role?.roleName?.toLowerCase().includes("enseignant") || currentUser?.role?.roleName?.toLowerCase().includes("professeur") || currentUser?.role?.roleName?.toLowerCase().includes("teacher");
 
   useEffect(() => {
@@ -434,6 +445,14 @@ export default function AcademicResultsPage() {
     : view === "reports"
       ? Boolean(matrixData || students.length > 0 || loading)
       : Boolean(matrixData || loading);
+
+  if (isStudent) {
+    return (
+      <div className="p-4 md:p-8 animate-in fade-in duration-500">
+        <StudentGradesView currentUser={currentUser} />
+      </div>
+    );
+  }
 
   return (
     <div className="p-8 space-y-8 animate-in fade-in duration-700">

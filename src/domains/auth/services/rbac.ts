@@ -701,6 +701,7 @@ export const getTeacherClassIds = cache(async (employeeId: number): Promise<numb
 export async function verifyTeacherClassAccess(user: any, classId: number): Promise<boolean> {
   if (user?.admin || user?.role?.isSystemAdmin) return true;
   const roleType = await getUserRoleType(user);
+  if (roleType === "eleve" || roleType === "parent") return false;
   if (roleType === "teacher" || roleType === "enseignant") {
     const emp = await getTeacherEmployee(user);
     if (!emp) return false;
@@ -715,6 +716,7 @@ export async function verifyTeacherClassAccess(user: any, classId: number): Prom
 export async function verifyTeacherClassSubjectAccess(user: any, classId: number, subjectId: number): Promise<boolean> {
   if (user?.admin || user?.role?.isSystemAdmin) return true;
   const roleType = await getUserRoleType(user);
+  if (roleType === "eleve" || roleType === "parent") return false;
   if (roleType === "teacher" || roleType === "enseignant") {
     const emp = await getTeacherEmployee(user);
     if (!emp) return false;
@@ -730,6 +732,7 @@ export async function verifyTeacherClassSubjectAccess(user: any, classId: number
 
     const classIds = await getTeacherClassIds(emp.id);
     if (classIds.includes(classId)) return true;
+    return false;
   }
   
   return true;

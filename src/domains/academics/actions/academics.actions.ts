@@ -844,6 +844,11 @@ export async function resolveStudentsForClass(params: {
 // Grading Grid
 export async function getGradingGrid(params: { classId: number, subjectId: number, sessionId: number, term: string }) {
   return protectedDbAction("Academics", "canView", async (user) => {
+    const roleType = await getUserRoleType(user);
+    if (roleType === "eleve" || roleType === "parent") {
+      return { error: "Accès refusé. Les élèves et parents ne peuvent pas consulter la grille générale des notes." };
+    }
+
     // Verify teacher has access to this class and subject
     const hasAccess = await verifyTeacherClassSubjectAccess(user, params.classId, params.subjectId);
     if (!hasAccess) {
@@ -948,6 +953,11 @@ export async function getGradingGrid(params: { classId: number, subjectId: numbe
 // Save Grades
 export async function saveStudentGrades(resultsData: any[]) {
   return protectedDbAction("Academics", "canEdit", async (user) => {
+    const roleType = await getUserRoleType(user);
+    if (roleType === "eleve" || roleType === "parent" || roleType === "consultation") {
+      return { error: "Action non autorisée. Vous n'avez pas l'autorisation de modifier des notes." };
+    }
+
     if (resultsData.length === 0) return { success: true };
 
     const first = resultsData[0];
@@ -1015,6 +1025,11 @@ export async function saveStudentGrades(resultsData: any[]) {
 // Devoir Grid
 export async function getDevoirGrid(params: { classId: number, subjectId: number, sessionId: number, term: string }) {
   return protectedDbAction("Academics", "canView", async (user) => {
+    const roleType = await getUserRoleType(user);
+    if (roleType === "eleve" || roleType === "parent") {
+      return { error: "Accès refusé. Les élèves et parents ne peuvent pas consulter la saisie générale des devoirs." };
+    }
+
     // Verify teacher has access to this class and subject
     const hasAccess = await verifyTeacherClassSubjectAccess(user, params.classId, params.subjectId);
     if (!hasAccess) {
@@ -1574,12 +1589,16 @@ async function fetchBroadsheetMatrixDirect(params: { classId: number, sessionId:
 
 export async function getBroadsheetMatrix(params: { classId: number, sessionId: number, term: string }) {
   return protectedDbAction("Academics", "canView", async (user) => {
+    const roleType = await getUserRoleType(user);
+    if (roleType === "eleve" || roleType === "parent") {
+      return { error: "Accès refusé. Les élèves et parents ne peuvent pas consulter le PV général de la classe." };
+    }
+
     // 1. Get raw matrix
     const matrix = await fetchBroadsheetMatrixDirect(params);
     if ('error' in matrix) return matrix;
 
     // 2. Filter if user is teacher
-    const roleType = await getUserRoleType(user);
     if (roleType === "teacher") {
       const hasClassAccess = await verifyTeacherClassAccess(user, params.classId);
       if (!hasClassAccess) {
@@ -2223,7 +2242,14 @@ export async function fetchStudentBulletinDataRaw(sId: number, sessionId: number
     };
 
 export async function getStudentBulletinData(sId: number, sessionId: number, term: string) {
-  return protectedDbAction("Academics", "canView", async () => {
+  return protectedDbAction("Academics", "canView", async (user) => {
+    const roleType = await getUserRoleType(user);
+    if (roleType === "eleve") {
+      const allowedStudentId = user.studentId || (user as any).student_id;
+      if (allowedStudentId && String(allowedStudentId) !== String(sId)) {
+        return { error: "Accès refusé. Vous ne pouvez consulter que votre propre bulletin." };
+      }
+    }
     return await fetchStudentBulletinDataRaw(sId, sessionId, term);
   });
 }
@@ -2231,7 +2257,12 @@ export async function getStudentBulletinData(sId: number, sessionId: number, ter
 // ─── Batch Bulletin Generation (Optimization) ─────────────────────────────
 
 export async function getBatchBulletinData(classId: number, sessionId: number, term: string) {
-  return protectedDbAction("Academics", "canView", async () => {
+  return protectedDbAction("Academics", "canView", async (user) => {
+    const roleType = await getUserRoleType(user);
+    if (roleType === "eleve" || roleType === "parent") {
+      return { error: "Accès refusé. Les élèves et parents ne peuvent pas générer les bulletins par lot." };
+    }
+
     console.log(`📦 [Batch Processing] Fetching bulk bulletin data for Class ${classId}, Term ${term}...`);
     
     // 1. Fetch Class and Branch Info
@@ -3987,5 +4018,200 @@ export async function promoteClassStudents(data: {
       stats: { promotedCount, repeatedCount, excludedCount }
     };
   });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  SECURE STUDENT PERSONAL GRADES (Only own results accessible)
+// ─────────────────────────────────────────────────────────────────────────────
+export async function getStudentPersonalGradesAction(params?: { period?: string; sessionId?: number }) {
+  const user = await getCurrentUser();
+  if (!user) {
+    return { success: false, error: "Non authentifié" };
+  }
+
+  const schoolId = await getActiveSchoolId();
+
+  // Resolve student record
+  let studentRecord: any = null;
+
+  if (user.studentId || (user as any).student_id) {
+    studentRecord = await readDb.query.students.findFirst({
+      where: eq(students.id, Number(user.studentId || (user as any).student_id)),
+    });
+  }
+
+  if (!studentRecord && user.email) {
+    studentRecord = await readDb.query.students.findFirst({
+      where: and(
+        schoolId ? eq(students.schoolId, schoolId) : undefined,
+        or(
+          eq(students.email, user.email),
+          eq(students.numAdmission, user.username || "")
+        )
+      ),
+    });
+  }
+
+  if (!studentRecord) {
+    return { success: false, error: "Profil étudiant introuvable pour ce compte." };
+  }
+
+  // Active Session
+  let activeSession: any = null;
+  if (params?.sessionId) {
+    activeSession = await readDb.query.schoolSessions.findFirst({
+      where: eq(schoolSessions.id, Number(params.sessionId)),
+    });
+  } else {
+    activeSession = (await readDb.query.schoolSessions.findFirst({
+      where: and(
+        schoolId ? eq(schoolSessions.schoolId, schoolId) : undefined,
+        eq(schoolSessions.isActive, true)
+      ),
+    })) || (await readDb.query.schoolSessions.findFirst({
+      where: schoolId ? eq(schoolSessions.schoolId, schoolId) : undefined,
+      orderBy: desc(schoolSessions.id),
+    }));
+  }
+
+  const sessionIdNum = activeSession?.id;
+
+  // Resolve Student's Class
+  const classRow = await readDb.query.schoolClasses.findFirst({
+    where: and(
+      schoolId ? eq(schoolClasses.schoolId, schoolId) : undefined,
+      eq(schoolClasses.className, studentRecord.classe)
+    ),
+    with: { section: true },
+  });
+
+  const classIdNum = classRow?.id;
+
+  // Academic Periods
+  const periodsList = await readDb.query.academicPeriods.findMany({
+    where: and(
+      schoolId ? eq(academicPeriods.schoolId, schoolId) : undefined,
+      sessionIdNum ? eq(academicPeriods.sessionId, sessionIdNum) : undefined
+    ),
+    orderBy: academicPeriods.name,
+  });
+
+  // Selected period or default
+  const selectedPeriod = params?.period && params.period !== "All" && params.period !== "Tout"
+    ? params.period
+    : (periodsList.length > 0 ? periodsList[0].name : "Semestre 1");
+
+  // Fetch results for this student
+  const results = await readDb.query.studentResults.findMany({
+    where: and(
+      eq(studentResults.studentId, studentRecord.id),
+      sessionIdNum ? eq(studentResults.sessionId, sessionIdNum) : undefined,
+      buildTermFilter(studentResults.term, selectedPeriod)
+    ),
+    with: { subject: true },
+  });
+
+  // Fetch class summaries for this student
+  const termSummary = await readDb.query.studentTermSummaries.findFirst({
+    where: and(
+      eq(studentTermSummaries.studentId, studentRecord.id),
+      sessionIdNum ? eq(studentTermSummaries.sessionId, sessionIdNum) : undefined,
+      buildTermFilter(studentTermSummaries.term, selectedPeriod)
+    ),
+  });
+
+  // Subjects for the class
+  const subjectsMap = new Map<number, any>();
+  if (classIdNum) {
+    const classSubs = await readDb.query.classSubjects.findMany({
+      where: eq(classSubjects.classId, classIdNum),
+      with: { subject: true },
+    });
+    for (const cs of classSubs) {
+      if (cs.subject) {
+        subjectsMap.set(cs.subjectId, {
+          id: cs.subjectId,
+          name: cs.subject.subjectName,
+          code: cs.subject.subjectCode,
+          coef: cs.coefficient || 1,
+        });
+      }
+    }
+  }
+
+  // Format student grades
+  const grades = results.map((r) => {
+    const subInfo = subjectsMap.get(r.subjectId) || {
+      id: r.subjectId,
+      name: r.subject?.subjectName || "Matière",
+      code: r.subject?.subjectCode || "",
+      coef: r.coefficient || 1,
+    };
+
+    const total = r.totalScore ? Number(r.totalScore) : 0;
+    const coef = r.coefficient || subInfo.coef || 1;
+
+    return {
+      id: r.id,
+      subjectId: r.subjectId,
+      subjectName: subInfo.name,
+      subjectCode: subInfo.code,
+      coefficient: coef,
+      classWorkScore: r.classWorkScore ? Number(r.classWorkScore) : null,
+      examScore: r.examScore ? Number(r.examScore) : null,
+      totalScore: r.totalScore ? Number(r.totalScore) : 0,
+      weightedScore: r.weightedScore ? Number(r.weightedScore) : Number((total * coef).toFixed(2)),
+      rank: r.rank || "-",
+      appreciation: r.appreciation || (total >= 16 ? "Très Bien" : total >= 14 ? "Bien" : total >= 12 ? "Assez Bien" : total >= 10 ? "Passable" : "Insuffisant"),
+      observation: r.observation || "",
+      term: r.term,
+    };
+  });
+
+  // Calculate summary metrics if not present in DB
+  let avg = termSummary?.termAverage ? Number(termSummary.termAverage) : 0;
+  let totalPoints = termSummary?.totalWeightedScore ? Number(termSummary.totalWeightedScore) : 0;
+  let totalCoef = termSummary?.totalCoefficients ? Number(termSummary.totalCoefficients) : 0;
+
+  if (avg === 0 && grades.length > 0) {
+    totalPoints = Number(grades.reduce((acc, g) => acc + (g.weightedScore || 0), 0).toFixed(2));
+    totalCoef = grades.reduce((acc, g) => acc + (g.coefficient || 1), 0);
+    avg = totalCoef > 0 ? Number((totalPoints / totalCoef).toFixed(2)) : 0;
+  }
+
+  const summary = {
+    average: avg,
+    rank: termSummary?.termRank || "-",
+    totalStudents: termSummary?.totalStudents || 0,
+    classAvg: termSummary?.classAverage ? Number(termSummary.classAverage) : 12.0,
+    totalPoints,
+    totalCoef,
+    decision: termSummary?.decision || (avg >= 10 ? "Admis(e)" : "Ajourné(e)"),
+    mention: termSummary?.mention || (avg >= 16 ? "Très Bien" : avg >= 14 ? "Bien" : avg >= 12 ? "Assez Bien" : avg >= 10 ? "Passable" : "Insuffisant"),
+  };
+
+  return {
+    success: true,
+    data: {
+      student: {
+        id: studentRecord.id,
+        nomEtudiant: studentRecord.nomEtudiant,
+        nomArabe: studentRecord.nomArabe,
+        numAdmission: studentRecord.numAdmission,
+        classe: studentRecord.classe,
+        educationalLevel: studentRecord.educationalLevel || classRow?.section?.educationalLevel || "Lycée",
+        dateNaissance: studentRecord.dateNaissance,
+        lieuNaissance: studentRecord.lieuNaissance,
+        sexe: studentRecord.sexe,
+        photoPath: studentRecord.photoPath,
+      },
+      class: classRow ? { id: classRow.id, name: classRow.className } : null,
+      session: activeSession ? { id: activeSession.id, name: activeSession.sessionName } : null,
+      selectedPeriod,
+      periods: periodsList.map(p => ({ id: p.id, name: p.name })),
+      grades,
+      summary,
+    },
+  };
 }
 
