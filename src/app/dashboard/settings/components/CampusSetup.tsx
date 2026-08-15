@@ -904,7 +904,6 @@ export function CampusSetup({ initialBranches }: { initialBranches: Branch[] }) 
                     </div>
                  </div>
                  <div className="text-center">
-                    <h4 className="text-xl font-black text-slate-900 tracking-tight">{formData.branchName || "Campus Central"}</h4>
                     <h4 className="text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight">{formData.branchName || "Campus Central"}</h4>
                     <p className="text-[11px] font-bold text-slate-400 mt-1">Excellence & Réussite</p>
                  </div>
@@ -916,8 +915,10 @@ export function CampusSetup({ initialBranches }: { initialBranches: Branch[] }) 
                  >
                     <Upload size={16} /> Changer le logo
                  </Button>
+                 <p className="text-[10px] font-bold text-slate-300 dark:text-slate-600">PNG, JPG ou SVG (Max. 2MB)</p>
+              </div>
 
-              <div className="space-y-4 pt-6 border-t border-slate-50">
+              <div className="space-y-4 pt-6 border-t border-slate-50 dark:border-slate-800/60">
                  <Label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1">COULEUR PRINCIPALE</Label>
                  <div className="flex items-center gap-3 flex-wrap">
                     {["#6366f1", "#3b82f6", "#10b981", "#f59e0b", "#ec4899", "#ef4444"].map((color, i) => (
