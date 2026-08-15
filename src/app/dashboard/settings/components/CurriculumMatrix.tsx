@@ -344,24 +344,24 @@ export function CurriculumMatrix({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         <div className="lg:col-span-4 space-y-8">
           {/* Real-time Stats Card */}
-          <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-6 relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+          <div className="bg-white dark:bg-[#12131C] p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/60 shadow-sm space-y-6 relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-4 opacity-5 dark:opacity-10 group-hover:opacity-10 dark:group-hover:opacity-20 transition-opacity">
               <BarChart3 size={120} />
             </div>
             <div className="flex items-center justify-between">
-              <h3 className="font-black text-slate-900 uppercase tracking-widest text-xs flex items-center gap-2">
+              <h3 className="font-black text-slate-900 dark:text-slate-100 uppercase tracking-widest text-xs flex items-center gap-2">
                 <BarChart3 size={16} className="text-indigo-500" /> Analyse du Curriculum
               </h3>
               <span className="text-[10px] font-bold text-slate-400">Live View</span>
             </div>
             
             <div className="grid grid-cols-2 gap-4">
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
-                <div className="text-2xl font-black text-slate-900">{stats.totalSubjects}</div>
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#0E0F18] border border-slate-100 dark:border-slate-800/80">
+                <div className="text-2xl font-black text-slate-900 dark:text-slate-100">{stats.totalSubjects}</div>
                 <div className="text-[10px] font-bold text-slate-400 uppercase">Matières</div>
               </div>
-              <div className="p-4 rounded-2xl bg-indigo-50 border border-indigo-100">
-                <div className="text-2xl font-black text-indigo-600">{stats.linkedSubjects}</div>
+              <div className="p-4 rounded-2xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20">
+                <div className="text-2xl font-black text-indigo-600 dark:text-indigo-400">{stats.linkedSubjects}</div>
                 <div className="text-[10px] font-bold text-indigo-400 uppercase">Liées</div>
               </div>
             </div>
@@ -371,7 +371,7 @@ export function CurriculumMatrix({
                 <span>Distribution par Catégorie</span>
                 <span>{stats.totalSubjects} Mat.</span>
               </div>
-              <div className="flex h-2 rounded-full overflow-hidden bg-slate-100">
+              <div className="flex h-2 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-800">
                 {stats.catDistribution.map((c, i) => (
                   <div 
                     key={c.name}
@@ -388,7 +388,7 @@ export function CurriculumMatrix({
                 {stats.catDistribution.slice(0, 4).map((c, i) => (
                   <div key={c.name} className="flex items-center gap-1.5">
                     <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: `hsl(${220 + i * 30}, 70%, 60%)` }}></div>
-                    <span className="text-[9px] font-bold text-slate-500 uppercase">{c.name}</span>
+                    <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase">{c.name}</span>
                   </div>
                 ))}
               </div>
@@ -396,10 +396,10 @@ export function CurriculumMatrix({
           </div>
 
           {/* Advanced Filters */}
-          <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-6">
-            <div className="flex items-center gap-3 border-b border-slate-50 pb-4">
+          <div className="bg-white dark:bg-[#12131C] p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/60 shadow-sm space-y-6">
+            <div className="flex items-center gap-3 border-b border-slate-50 dark:border-slate-800/60 pb-4">
               <Filter size={18} className="text-indigo-500" />
-              <h3 className="font-black text-slate-900 uppercase tracking-widest text-xs">Moteur de Recherche</h3>
+              <h3 className="font-black text-slate-900 dark:text-slate-100 uppercase tracking-widest text-xs">Moteur de Recherche</h3>
             </div>
             
             <div className="space-y-4">
@@ -410,17 +410,17 @@ export function CurriculumMatrix({
                   placeholder="Rechercher par nom ou code..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full h-14 bg-slate-50 border-none rounded-2xl pl-12 pr-4 font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all placeholder:text-slate-300"
+                  className="w-full h-14 bg-slate-50 dark:bg-[#0E0F18] border-none rounded-2xl pl-12 pr-4 font-bold text-slate-700 dark:text-white focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all placeholder:text-slate-300 dark:placeholder:text-slate-600"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Système</label>
+                  <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1">Système</label>
                   <select 
                     value={eduSystemType}
                     onChange={(e) => setEduSystemType(e.target.value)}
-                    className="w-full h-12 bg-slate-50 border-none rounded-xl px-4 font-bold text-slate-700 outline-none"
+                    className="w-full h-12 bg-slate-50 dark:bg-[#0E0F18] border-none rounded-xl px-4 font-bold text-slate-700 dark:text-white outline-none"
                   >
                     <option value="Tous">Tous</option>
                     <option value="Général">Général</option>
@@ -428,11 +428,11 @@ export function CurriculumMatrix({
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Catégorie</label>
+                  <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1">Catégorie</label>
                   <select 
                     value={categoryFilter}
                     onChange={(e) => setCategoryFilter(e.target.value)}
-                    className="w-full h-12 bg-slate-50 border-none rounded-xl px-4 font-bold text-slate-700 outline-none"
+                    className="w-full h-12 bg-slate-50 dark:bg-[#0E0F18] border-none rounded-xl px-4 font-bold text-slate-700 dark:text-white outline-none"
                   >
                     <option value="Toutes">Toutes</option>
                     {categories.map(c => <option key={c} value={c}>{c}</option>)}
@@ -443,19 +443,19 @@ export function CurriculumMatrix({
           </div>
         </div>
 
-        <div className="lg:col-span-8 bg-white p-10 rounded-[3rem] border border-slate-100 shadow-sm flex flex-col justify-between space-y-6">
+        <div className="lg:col-span-8 bg-white dark:bg-[#12131C] p-10 rounded-[3rem] border border-slate-100 dark:border-slate-800/60 shadow-sm flex flex-col justify-between space-y-6">
           <div>
-            <div className="flex items-center justify-between border-b border-slate-50 pb-6 mb-8">
+            <div className="flex items-center justify-between border-b border-slate-50 dark:border-slate-800/60 pb-6 mb-8">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
                   <Plus size={24} />
                 </div>
                 <div>
-                  <h3 className="font-black text-slate-900 uppercase tracking-widest text-xs">Création & Affectation de Matière</h3>
+                  <h3 className="font-black text-slate-900 dark:text-slate-100 uppercase tracking-widest text-xs">Création &amp; Affectation de Matière</h3>
                   <p className="text-[11px] font-bold text-slate-400">Créer une matière et l'attribuer à une section ou niveau d'étude</p>
                 </div>
               </div>
-              <div className="flex items-center gap-2 text-[10px] font-black text-emerald-500 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100">
+              <div className="flex items-center gap-2 text-[10px] font-black text-emerald-500 bg-emerald-50 dark:bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-100 dark:border-emerald-500/20">
                 <Sparkles size={12} /> CIBLAGE DYNAMIQUE
               </div>
             </div>
@@ -463,32 +463,32 @@ export function CurriculumMatrix({
             <div className="space-y-6 mb-8">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Nom de la Matière *</label>
+                  <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-2">Nom de la Matière *</label>
                   <input 
                     type="text" 
                     placeholder="Ex: Algorithmique Avancée, Physique-Chimie..."
                     value={newSubName}
                     onChange={(e) => setNewSubName(e.target.value)}
-                    className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-300 transition-all text-base"
+                    className="w-full h-14 bg-slate-50 dark:bg-[#0E0F18] border border-slate-100 dark:border-slate-800 rounded-2xl px-5 font-bold text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-300 transition-all text-base"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Code Matière</label>
+                    <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-2">Code Matière</label>
                     <input 
                       type="text" 
                       placeholder="ALG-201"
                       value={newSubCode}
                       onChange={(e) => setNewSubCode(e.target.value)}
-                      className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-5 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-300 transition-all uppercase"
+                      className="w-full h-14 bg-slate-50 dark:bg-[#0E0F18] border border-slate-100 dark:border-slate-800 rounded-2xl px-5 font-bold text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-300 transition-all uppercase"
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Catégorie</label>
+                    <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-2">Catégorie</label>
                     <select 
                       value={newSubCat}
                       onChange={(e) => setNewSubCat(e.target.value)}
-                      className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-4 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all text-xs"
+                      className="w-full h-14 bg-slate-50 dark:bg-[#0E0F18] border border-slate-100 dark:border-slate-800 rounded-2xl px-4 font-bold text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all text-xs"
                     >
                       <option>Catégorie</option>
                       {categories.map(c => <option key={c} value={c}>{c}</option>)}
@@ -498,30 +498,30 @@ export function CurriculumMatrix({
               </div>
 
               {/* Target / Scope Options */}
-              <div className="p-5 bg-slate-50/80 border border-slate-100 rounded-3xl space-y-4">
+              <div className="p-5 bg-slate-50/80 dark:bg-[#0E0F18]/80 border border-slate-100 dark:border-slate-800 rounded-3xl space-y-4">
                 <div className="flex items-center justify-between">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-indigo-600 flex items-center gap-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5">
                     <GraduationCap size={14} /> Affectation de la matière (Cible)
                   </label>
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
                       onClick={() => setTargetScope("all")}
-                      className={`px-3 py-1 rounded-xl text-[10px] font-black uppercase transition ${targetScope === "all" ? "bg-indigo-600 text-white shadow-xs" : "bg-white text-slate-600 border border-slate-200"}`}
+                      className={`px-3 py-1 rounded-xl text-[10px] font-black uppercase transition ${targetScope === "all" ? "bg-indigo-600 text-white shadow-xs" : "bg-white dark:bg-[#181926] text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700"}`}
                     >
                       Toutes les sections
                     </button>
                     <button
                       type="button"
                       onClick={() => setTargetScope("level")}
-                      className={`px-3 py-1 rounded-xl text-[10px] font-black uppercase transition ${targetScope === "level" ? "bg-indigo-600 text-white shadow-xs" : "bg-white text-slate-600 border border-slate-200"}`}
+                      className={`px-3 py-1 rounded-xl text-[10px] font-black uppercase transition ${targetScope === "level" ? "bg-indigo-600 text-white shadow-xs" : "bg-white dark:bg-[#181926] text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700"}`}
                     >
                       Par Niveau d'Étude
                     </button>
                     <button
                       type="button"
                       onClick={() => setTargetScope("section")}
-                      className={`px-3 py-1 rounded-xl text-[10px] font-black uppercase transition ${targetScope === "section" ? "bg-indigo-600 text-white shadow-xs" : "bg-white text-slate-600 border border-slate-200"}`}
+                      className={`px-3 py-1 rounded-xl text-[10px] font-black uppercase transition ${targetScope === "section" ? "bg-indigo-600 text-white shadow-xs" : "bg-white dark:bg-[#181926] text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700"}`}
                     >
                       Par Section Spécifique
                     </button>
@@ -535,7 +535,7 @@ export function CurriculumMatrix({
                       <select
                         value={selectedTargetLevel}
                         onChange={(e) => setSelectedTargetLevel(e.target.value)}
-                        className="w-full h-11 bg-white border border-slate-200 rounded-xl px-4 text-xs font-bold text-slate-800 outline-none"
+                        className="w-full h-11 bg-white dark:bg-[#181926] border border-slate-200 dark:border-slate-700 rounded-xl px-4 text-xs font-bold text-slate-800 dark:text-white outline-none"
                       >
                         <option value="all">Tous les Niveaux d'Étude</option>
                         {availableLevels.map((lvl: string) => (
@@ -551,7 +551,7 @@ export function CurriculumMatrix({
                       <select
                         value={selectedTargetSectionId}
                         onChange={(e) => setSelectedTargetSectionId(e.target.value)}
-                        className="w-full h-11 bg-white border border-slate-200 rounded-xl px-4 text-xs font-bold text-slate-800 outline-none"
+                        className="w-full h-11 bg-white dark:bg-[#181926] border border-slate-200 dark:border-slate-700 rounded-xl px-4 text-xs font-bold text-slate-800 dark:text-white outline-none"
                       >
                         <option value="all">Toutes les sections</option>
                         {(initialSections || []).map((sec: any) => (
@@ -562,7 +562,7 @@ export function CurriculumMatrix({
                   )}
 
                   {targetScope === "all" && (
-                    <div className="md:col-span-2 flex items-center px-2 text-xs font-bold text-slate-500">
+                    <div className="md:col-span-2 flex items-center px-2 text-xs font-bold text-slate-500 dark:text-slate-400">
                       La matière sera disponible dans la matrice pour toutes les sections de l'établissement.
                     </div>
                   )}
@@ -576,7 +576,7 @@ export function CurriculumMatrix({
                         max={20}
                         value={newDefaultCoef}
                         onChange={(e) => setNewDefaultCoef(Number(e.target.value) || 1)}
-                        className="w-full h-11 bg-white border border-slate-200 rounded-xl text-center font-black text-slate-800 text-xs outline-none"
+                        className="w-full h-11 bg-white dark:bg-[#181926] border border-slate-200 dark:border-slate-700 rounded-xl text-center font-black text-slate-800 dark:text-white text-xs outline-none"
                       />
                     </div>
                     <div className="space-y-1">
@@ -587,7 +587,7 @@ export function CurriculumMatrix({
                         max={60}
                         value={newDefaultCredits}
                         onChange={(e) => setNewDefaultCredits(Number(e.target.value) || 0)}
-                        className="w-full h-11 bg-white border border-slate-200 rounded-xl text-center font-black text-slate-800 text-xs outline-none"
+                        className="w-full h-11 bg-white dark:bg-[#181926] border border-slate-200 dark:border-slate-700 rounded-xl text-center font-black text-slate-800 dark:text-white text-xs outline-none"
                       />
                     </div>
                   </div>
@@ -596,35 +596,35 @@ export function CurriculumMatrix({
             </div>
           </div>
 
-          <div className="flex items-center gap-4 p-6 bg-slate-50 rounded-3xl border border-slate-100">
-            <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center shadow-sm text-indigo-500">
+          <div className="flex items-center gap-4 p-6 bg-slate-50 dark:bg-[#0E0F18] rounded-3xl border border-slate-100 dark:border-slate-800">
+            <div className="w-12 h-12 rounded-2xl bg-white dark:bg-[#181926] flex items-center justify-center shadow-sm text-indigo-500">
               <Info size={24} />
             </div>
             <div className="flex-1">
-              <h4 className="font-bold text-slate-900 text-sm">Créer la matière dans la matrice</h4>
-              <p className="text-xs text-slate-500">La matière sera automatiquement ajoutée et affectée aux sections choisies.</p>
+              <h4 className="font-bold text-slate-900 dark:text-slate-100 text-sm">Créer la matière dans la matrice</h4>
+              <p className="text-xs text-slate-500 dark:text-slate-400">La matière sera automatiquement ajoutée et affectée aux sections choisies.</p>
             </div>
             <Button 
               onClick={handleAddSubjectSubmit} 
               disabled={isPending || !newSubName.trim()} 
-              className="h-14 bg-slate-900 hover:bg-black text-white rounded-2xl px-10 font-black gap-3 shadow-xl shadow-slate-200"
+              className="h-14 bg-slate-900 dark:bg-indigo-600 hover:bg-black dark:hover:bg-indigo-700 text-white rounded-2xl px-10 font-black gap-3 shadow-xl shadow-slate-200 dark:shadow-none"
             >
-              <Check size={20} className="text-emerald-400" /> Confirmer & Créer
+              <Check size={20} className="text-emerald-400" /> Confirmer &amp; Créer
             </Button>
           </div>
         </div>
       </div>
 
       {/* 3. The Intelligent Matrix */}
-      <div className="bg-white rounded-[3.5rem] border border-slate-100 shadow-2xl shadow-slate-200/50 overflow-hidden flex flex-col h-[700px]">
+      <div className="bg-white dark:bg-[#12131C] rounded-[3.5rem] border border-slate-100 dark:border-slate-800/60 shadow-2xl shadow-slate-200/50 dark:shadow-none overflow-hidden flex flex-col h-[700px]">
         {/* Matrix Controls */}
-        <div className="p-8 border-b border-slate-50 flex items-center justify-between bg-white sticky top-0 z-20">
+        <div className="p-8 border-b border-slate-50 dark:border-slate-800/60 flex items-center justify-between bg-white dark:bg-[#12131C] sticky top-0 z-20">
           <div className="flex items-center gap-6">
-            <div className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-2xl border border-indigo-100">
+            <div className="flex items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-2xl border border-indigo-100 dark:border-indigo-500/20">
               <span className="text-xs font-black uppercase tracking-widest">{filteredSubjects.length} Matières Affichées</span>
             </div>
             {unsavedIds.size > 0 && (
-              <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-600 rounded-2xl border border-amber-100 animate-pulse">
+              <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-2xl border border-amber-100 dark:border-amber-500/20 animate-pulse">
                 <AlertTriangle size={14} />
                 <span className="text-xs font-black uppercase tracking-widest">{unsavedIds.size} modifications en attente</span>
               </div>
@@ -632,14 +632,14 @@ export function CurriculumMatrix({
           </div>
           
           <div className="flex items-center gap-4">
-            <Button variant="ghost" className="text-slate-400 font-bold hover:text-slate-900 gap-2">
+            <Button variant="ghost" className="text-slate-400 font-bold hover:text-slate-900 dark:hover:text-slate-100 gap-2">
               <ArrowRightLeft size={16} /> Comparer
             </Button>
-            <div className="w-px h-6 bg-slate-100"></div>
+            <div className="w-px h-6 bg-slate-100 dark:bg-slate-800"></div>
             <Button 
               onClick={handleSaveMatrix} 
               disabled={isPending || unsavedIds.size === 0}
-              className="h-12 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl px-8 font-black gap-2 shadow-lg shadow-indigo-100 disabled:opacity-50 transition-all"
+              className="h-12 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl px-8 font-black gap-2 shadow-lg shadow-indigo-100 dark:shadow-none disabled:opacity-50 transition-all"
             >
               {isPending ? <Loader2 className="animate-spin" /> : <Check size={18} />}
               Sauvegarder tout
@@ -651,10 +651,10 @@ export function CurriculumMatrix({
         <div className="flex-1 overflow-auto custom-scrollbar relative">
           <table className="w-full border-collapse">
             <thead className="sticky top-0 z-10">
-              <tr className="bg-slate-900 text-white">
-                <th className="p-6 text-left text-[10px] font-black uppercase tracking-widest border-r border-slate-800 sticky left-0 bg-slate-900 z-30 min-w-[80px]">Code</th>
-                <th className="p-6 text-left text-[10px] font-black uppercase tracking-widest border-r border-slate-800 sticky left-[80px] bg-slate-900 z-30 min-w-[240px]">Désignation</th>
-                <th className="p-6 text-left text-[10px] font-black uppercase tracking-widest border-r border-slate-800 bg-slate-900 z-20 min-w-[120px]">Catégorie</th>
+              <tr className="bg-slate-900 dark:bg-[#0B0C12] text-white">
+                <th className="p-6 text-left text-[10px] font-black uppercase tracking-widest border-r border-slate-800 sticky left-0 bg-slate-900 dark:bg-[#0B0C12] z-30 min-w-[80px]">Code</th>
+                <th className="p-6 text-left text-[10px] font-black uppercase tracking-widest border-r border-slate-800 sticky left-[80px] bg-slate-900 dark:bg-[#0B0C12] z-30 min-w-[240px]">Désignation</th>
+                <th className="p-6 text-left text-[10px] font-black uppercase tracking-widest border-r border-slate-800 bg-slate-900 dark:bg-[#0B0C12] z-20 min-w-[120px]">Catégorie</th>
                 {filteredSections.map((sec: any) => (
                   <th key={sec.id} className="p-4 border-r border-slate-800 min-w-[110px] group transition-all hover:bg-slate-800 cursor-pointer" onClick={() => handleBulkCopy(sec.id)}>
                     <div className="text-[10px] font-black uppercase tracking-widest opacity-40 mb-1">{sec.educationalLevel}</div>
@@ -664,20 +664,20 @@ export function CurriculumMatrix({
                     </div>
                   </th>
                 ))}
-                <th className="p-6 w-24 bg-slate-900 sticky right-0 z-20 text-center text-[10px] font-black uppercase tracking-widest">Actions</th>
+                <th className="p-6 w-24 bg-slate-900 dark:bg-[#0B0C12] sticky right-0 z-20 text-center text-[10px] font-black uppercase tracking-widest">Actions</th>
               </tr>
             </thead>
             <tbody>
               {filteredSubjects.map((sub: any, idx: number) => (
-                <tr key={sub.id} className={`group hover:bg-indigo-50/40 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'}`}>
-                  <td className={`p-5 font-black text-indigo-500 text-xs border-r border-slate-50 sticky left-0 z-10 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'} group-hover:bg-indigo-50/10`}>
+                <tr key={sub.id} className={`group hover:bg-indigo-50/40 dark:hover:bg-indigo-500/10 transition-colors ${idx % 2 === 0 ? 'bg-white dark:bg-[#12131C]' : 'bg-slate-50/30 dark:bg-[#0E0F18]/60'}`}>
+                  <td className={`p-5 font-black text-indigo-500 text-xs border-r border-slate-50 dark:border-slate-800/60 sticky left-0 z-10 transition-colors ${idx % 2 === 0 ? 'bg-white dark:bg-[#12131C]' : 'bg-slate-50/30 dark:bg-[#0E0F18]/60'} group-hover:bg-indigo-50/10 dark:group-hover:bg-indigo-500/10`}>
                     {sub.subjectCode || "???"}
                   </td>
-                  <td className={`p-5 font-bold text-slate-700 text-sm border-r border-slate-50 sticky left-[80px] z-10 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'} group-hover:bg-indigo-50/10`}>
+                  <td className={`p-5 font-bold text-slate-700 dark:text-slate-200 text-sm border-r border-slate-50 dark:border-slate-800/60 sticky left-[80px] z-10 transition-colors ${idx % 2 === 0 ? 'bg-white dark:bg-[#12131C]' : 'bg-slate-50/30 dark:bg-[#0E0F18]/60'} group-hover:bg-indigo-50/10 dark:group-hover:bg-indigo-500/10`}>
                     {sub.subjectName}
                   </td>
-                  <td className="p-5 border-r border-slate-50">
-                    <span className="text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg bg-slate-100 text-slate-500 border border-slate-200">
+                  <td className="p-5 border-r border-slate-50 dark:border-slate-800/60">
+                    <span className="text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
                       {sub.category || "Autre"}
                     </span>
                   </td>
@@ -688,17 +688,17 @@ export function CurriculumMatrix({
                     const isChanged = unsavedIds.has(key);
                     
                     return (
-                      <td key={sec.id} className={`p-3 border-r border-slate-50 text-center transition-all ${isChanged ? 'bg-indigo-50/50' : ''}`}>
-                        <div className="inline-flex items-center justify-center gap-1.5 p-1 bg-slate-50 rounded-xl border border-slate-100 focus-within:border-indigo-300 focus-within:ring-4 focus-within:ring-indigo-500/5 transition-all">
+                      <td key={sec.id} className={`p-3 border-r border-slate-50 dark:border-slate-800/60 text-center transition-all ${isChanged ? 'bg-indigo-50/50 dark:bg-indigo-500/20' : ''}`}>
+                        <div className="inline-flex items-center justify-center gap-1.5 p-1 bg-slate-50 dark:bg-[#0E0F18] rounded-xl border border-slate-100 dark:border-slate-800 focus-within:border-indigo-300 focus-within:ring-4 focus-within:ring-indigo-500/5 transition-all">
                           <input 
                             type="text"
                             value={cell.coef}
                             onChange={(e) => handleMatrixChange(sub.id, sec.id, 'coef', e.target.value)}
-                            className="w-10 h-10 bg-white border border-slate-200 rounded-lg text-center font-black text-slate-700 text-sm outline-none focus:text-indigo-600 focus:border-indigo-500"
+                            className="w-10 h-10 bg-white dark:bg-[#181926] border border-slate-200 dark:border-slate-700 rounded-lg text-center font-black text-slate-700 dark:text-white text-sm outline-none focus:text-indigo-600 focus:border-indigo-500"
                           />
                           {isUni && (
                             <>
-                              <div className="w-[1px] h-4 bg-slate-200"></div>
+                              <div className="w-[1px] h-4 bg-slate-200 dark:bg-slate-700"></div>
                               <input 
                                 type="text"
                                 value={cell.cred}
@@ -711,18 +711,18 @@ export function CurriculumMatrix({
                       </td>
                     );
                   })}
-                  <td className="p-4 text-center sticky right-0 bg-inherit border-l border-slate-50 shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.02)]">
+                  <td className="p-4 text-center sticky right-0 bg-inherit border-l border-slate-50 dark:border-slate-800/60 shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.02)]">
                     <div className="flex items-center justify-center gap-1">
                       <button 
                         onClick={() => handleOpenEditModal(sub)}
-                        className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all active:scale-90"
+                        className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-all active:scale-90"
                         title="Modifier la matière"
                       >
                         <Edit3 size={15} />
                       </button>
                       <button 
                         onClick={() => handleDeleteSubjectClick(sub)}
-                        className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-all active:scale-90"
+                        className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-all active:scale-90"
                         title="Supprimer la matière"
                       >
                         <Trash2 size={15} />
@@ -736,7 +736,7 @@ export function CurriculumMatrix({
         </div>
 
         {/* Matrix Footer Dashboard */}
-        <div className="p-8 bg-slate-900 text-white flex items-center justify-between border-t border-slate-800 z-20">
+        <div className="p-8 bg-slate-900 dark:bg-[#0B0C12] text-white flex items-center justify-between border-t border-slate-800 z-20">
           <div className="flex items-center gap-10">
              <div className="flex items-center gap-3">
                 <div className="w-1.5 h-10 rounded-full bg-indigo-500"></div>
@@ -768,51 +768,51 @@ export function CurriculumMatrix({
       {/* ─── MODAL EDIT SUBJECT ─── */}
       {editingSubject && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-2xl max-w-lg w-full p-8 relative space-y-6">
+          <div className="bg-white dark:bg-[#12131C] rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-2xl max-w-lg w-full p-8 relative space-y-6">
             <button 
               onClick={() => setEditingSubject(null)}
-              className="absolute right-6 top-6 w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors"
+              className="absolute right-6 top-6 w-10 h-10 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
             >
               <X size={20} />
             </button>
 
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
                 <Edit3 size={24} />
               </div>
               <div>
-                <h3 className="text-xl font-black text-slate-900">Modifier la Matière</h3>
+                <h3 className="text-xl font-black text-slate-900 dark:text-slate-100">Modifier la Matière</h3>
                 <p className="text-xs text-slate-400 font-semibold">Mettre à jour la désignation, le code ou la catégorie.</p>
               </div>
             </div>
 
             <div className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Nom de la Matière *</label>
+                <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1">Nom de la Matière *</label>
                 <input 
                   type="text" 
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
-                  className="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 font-bold text-slate-900 outline-none focus:border-indigo-500 text-sm"
+                  className="w-full h-12 bg-slate-50 dark:bg-[#0E0F18] border border-slate-200 dark:border-slate-800 rounded-xl px-4 font-bold text-slate-900 dark:text-white outline-none focus:border-indigo-500 text-sm"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Code Matière</label>
+                  <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1">Code Matière</label>
                   <input 
                     type="text" 
                     value={editCode}
                     onChange={(e) => setEditCode(e.target.value)}
-                    className="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 font-bold text-slate-900 outline-none focus:border-indigo-500 uppercase text-sm"
+                    className="w-full h-12 bg-slate-50 dark:bg-[#0E0F18] border border-slate-200 dark:border-slate-800 rounded-xl px-4 font-bold text-slate-900 dark:text-white outline-none focus:border-indigo-500 uppercase text-sm"
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Catégorie</label>
+                  <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1">Catégorie</label>
                   <select 
                     value={editCat}
                     onChange={(e) => setEditCat(e.target.value)}
-                    className="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 font-bold text-slate-900 outline-none focus:border-indigo-500 text-sm"
+                    className="w-full h-12 bg-slate-50 dark:bg-[#0E0F18] border border-slate-200 dark:border-slate-800 rounded-xl px-4 font-bold text-slate-900 dark:text-white outline-none focus:border-indigo-500 text-sm"
                   >
                     <option value="Catégorie">Catégorie (Autre)</option>
                     {categories.map(c => <option key={c} value={c}>{c}</option>)}
@@ -821,19 +821,19 @@ export function CurriculumMatrix({
               </div>
             </div>
 
-            <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+            <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
               <Button 
                 type="button" 
                 variant="ghost" 
                 onClick={() => setEditingSubject(null)}
-                className="h-12 px-6 rounded-xl font-bold text-xs"
+                className="h-12 px-6 rounded-xl font-bold text-xs text-slate-500 dark:text-slate-400"
               >
                 Annuler
               </Button>
               <Button 
                 onClick={handleSaveSubjectEdit}
                 disabled={isSavingEdit || !editName.trim()}
-                className="h-12 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md shadow-indigo-100"
+                className="h-12 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md shadow-indigo-100 dark:shadow-none"
               >
                 {isSavingEdit ? <Loader2 className="animate-spin" /> : "Sauvegarder les modifications"}
               </Button>

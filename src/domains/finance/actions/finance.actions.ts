@@ -74,12 +74,18 @@ export async function getStudentFees(params?: { search?: string, class?: string,
     }
 
     if (search || (className && className !== "Toutes")) {
-      const searchLower = search?.toLowerCase();
+      const searchLower = search?.toLowerCase().trim();
+      const classNorm = className?.trim().toLowerCase();
       filteredData = filteredData.filter(item => {
         const matchesSearch = !searchLower ||
           item.student?.nomEtudiant?.toLowerCase().includes(searchLower) ||
           item.student?.numAdmission?.toLowerCase().includes(searchLower);
-        const matchesClass = !className || className === "Toutes" || item.student?.classe === className;
+        
+        const studentClass = (item.student?.classe || "")?.trim().toLowerCase();
+        const matchesClass = !classNorm || classNorm === "toutes" ||
+          studentClass === classNorm ||
+          (studentClass && classNorm && (studentClass.includes(classNorm) || classNorm.includes(studentClass)));
+
         return matchesSearch && matchesClass;
       });
     }
@@ -193,8 +199,16 @@ export async function syncStudentFees(revalidate: boolean = true) {
     const schoolId = await getActiveSchoolId();
     console.log("Starting syncStudentFees...");
     
-    // Filter active students by level for level_director, level_comptable, level_caissier
-    let studentWhere = and(eq(students.statut, "Actif"), eq(students.schoolId, schoolId));
+    // Match active or newly registered students
+    let studentWhere = and(
+      or(
+        eq(students.statut, "Actif"),
+        isNull(students.statut),
+        ilike(students.statut, "actif%"),
+        eq(students.statut, "Inscrit")
+      ),
+      eq(students.schoolId, schoolId)
+    );
     const isLevelScoped = roleType === "level_director" || roleType === "level_comptable" || roleType === "level_caissier";
     if (isLevelScoped) {
       const compatibleLevels = getCompatibleLevels(user.educationalLevel);
@@ -205,7 +219,14 @@ export async function syncStudentFees(revalidate: boolean = true) {
       where: studentWhere
     });
     
-    console.log(`Found ${allStudents.length} active students to sync.`);
+    console.log(`Found ${allStudents.length} active/enrolled students to sync.`);
+
+    // Pre-fetch class fee templates for fallback defaults
+    const allClasses = await db.query.schoolClasses.findMany({
+      where: eq(schoolClasses.schoolId, schoolId)
+    });
+    const classMapByName = new Map(allClasses.map(c => [c.className.trim().toLowerCase(), c]));
+    const classMapById = new Map(allClasses.map(c => [c.id, c]));
 
     // Get current active session
     let activeSession = await db.query.schoolSessions.findFirst({
@@ -283,11 +304,14 @@ export async function syncStudentFees(revalidate: boolean = true) {
     }
 
     for (const s of allStudents) {
-      const monthly = Number(s.fraisMensuels || 0);
-      const inscr = Number(s.fraisInscription || 0);
-      const oldBal = Number(s.ancienSolde || 0);
-      const cogesCard = Number(s.fraisCogesCard || 0);
-      const transpInternat = Number(s.fraisTransportInternat || 0);
+      const classObj = (s.classId ? classMapById.get(s.classId) : null) || 
+                       (s.classe ? classMapByName.get(s.classe.trim().toLowerCase()) : null);
+
+      const monthly = Number(s.fraisMensuels || classObj?.scolariteMensuelle || 0);
+      const inscr = Number(s.fraisInscription || classObj?.droitsInscription || 0);
+      const oldBal = Number(s.ancienSolde || classObj?.ancienSolde || 0);
+      const cogesCard = Number(s.fraisCogesCard || classObj?.cogesCarteId || 0);
+      const transpInternat = Number(s.fraisTransportInternat || classObj?.transportInternat || 0);
       const expected = inscr + oldBal + cogesCard + transpInternat + monthly;
 
       const existing = feeMap.get(s.id);

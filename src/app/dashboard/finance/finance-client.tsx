@@ -130,7 +130,15 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, hea
         (fee.payments?.[0]?.paymentMode || "").toLowerCase().includes(searchLower);
 
       // 2. Class filter
-      const matchesClass = selectedClass === "Toutes" || fee.student?.classe === selectedClass;
+      const studentClassNorm = (fee.student?.classe || "").trim().toLowerCase();
+      const selectedClassNorm = selectedClass.trim().toLowerCase();
+      const matchesClass =
+        selectedClass === "Toutes" ||
+        studentClassNorm === selectedClassNorm ||
+        (studentClassNorm && selectedClassNorm && (
+          studentClassNorm.includes(selectedClassNorm) ||
+          selectedClassNorm.includes(studentClassNorm)
+        ));
 
       // 3. Status filter
       const matchesStatus =
@@ -251,7 +259,8 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, hea
 
   React.useEffect(() => {
     async function loadData() {
-      if (navigator.onLine && fees && fees.length > 0) {
+      // 1. If online, update Dexie cache with fresh server fees if available
+      if (typeof navigator !== "undefined" && navigator.onLine && fees && fees.length > 0) {
         try {
           const { cacheStudentFees } = await import("@/infrastructure/local-db/cache");
           await cacheStudentFees(fees);
@@ -260,10 +269,12 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, hea
         }
       }
 
-      let baseFees = fees;
+      let baseFees = fees || [];
       let isUsingLocal = false;
 
-      if (!fees || fees.length === 0 || !navigator.onLine) {
+      // 2. ONLY fall back to local Dexie cache if the browser is TRULY offline
+      const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
+      if (isOffline) {
         try {
           const { getCachedStudentFees } = await import("@/infrastructure/local-db/cache");
           const cached = await getCachedStudentFees();
@@ -318,7 +329,7 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, hea
           });
 
           setLocalFees(updatedFees);
-          setIsLocal(true);
+          setIsLocal(isUsingLocal || isOffline);
           return;
         }
       } catch (e) {
