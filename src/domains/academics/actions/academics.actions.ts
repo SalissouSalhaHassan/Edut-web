@@ -4034,17 +4034,24 @@ export async function getStudentPersonalGradesAction(params?: { period?: string;
   // Resolve student record
   let studentRecord: any = null;
 
-  if (user.studentId || (user as any).student_id) {
+  const rawStudentId = (user as any).studentId || (user as any).student_id;
+  if (rawStudentId) {
     studentRecord = await readDb.query.students.findFirst({
-      where: eq(students.id, Number(user.studentId || (user as any).student_id)),
+      where: eq(students.id, Number(rawStudentId)),
     });
   }
 
-  if (!studentRecord && (user.username || user.email)) {
+  const usernameStr = typeof (user as any).utilisateur === "string"
+    ? ((user as any).utilisateur as string)
+    : typeof (user as any).username === "string"
+      ? ((user as any).username as string)
+      : "";
+
+  if (!studentRecord && usernameStr.trim().length > 0) {
     studentRecord = await readDb.query.students.findFirst({
       where: and(
         schoolId ? eq(students.schoolId, schoolId) : undefined,
-        eq(students.numAdmission, user.username || "")
+        eq(students.numAdmission, usernameStr.trim())
       ),
     });
   }
