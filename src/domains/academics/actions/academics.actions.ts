@@ -4172,26 +4172,24 @@ export async function getStudentPersonalGradesAction(params?: { period?: string;
     };
   });
 
-  // Calculate summary metrics if not present in DB
-  let avg = termSummary?.termAverage ? Number(termSummary.termAverage) : 0;
-  let totalPoints = termSummary?.totalWeightedScore ? Number(termSummary.totalWeightedScore) : 0;
-  let totalCoef = termSummary?.totalCoefficients ? Number(termSummary.totalCoefficients) : 0;
+  // Calculate summary metrics
+  const totalPoints = Number(grades.reduce((acc, g) => acc + (g.weightedScore || 0), 0).toFixed(2));
+  const totalCoef = grades.reduce((acc, g) => acc + (g.coefficient || 1), 0);
+  let avg = termSummary?.average ? Number(termSummary.average) : 0;
 
-  if (avg === 0 && grades.length > 0) {
-    totalPoints = Number(grades.reduce((acc, g) => acc + (g.weightedScore || 0), 0).toFixed(2));
-    totalCoef = grades.reduce((acc, g) => acc + (g.coefficient || 1), 0);
-    avg = totalCoef > 0 ? Number((totalPoints / totalCoef).toFixed(2)) : 0;
+  if (avg === 0 && grades.length > 0 && totalCoef > 0) {
+    avg = Number((totalPoints / totalCoef).toFixed(2));
   }
 
   const summary = {
     average: avg,
-    rank: termSummary?.termRank || "-",
-    totalStudents: termSummary?.totalStudents || 0,
-    classAvg: termSummary?.classAverage ? Number(termSummary.classAverage) : 12.0,
+    rank: termSummary?.rank || "-",
+    totalStudents: 0,
+    classAvg: 12.0,
     totalPoints,
     totalCoef,
     decision: termSummary?.decision || (avg >= 10 ? "Admis(e)" : "Ajourné(e)"),
-    mention: termSummary?.mention || (avg >= 16 ? "Très Bien" : avg >= 14 ? "Bien" : avg >= 12 ? "Assez Bien" : avg >= 10 ? "Passable" : "Insuffisant"),
+    mention: avg >= 16 ? "Très Bien" : avg >= 14 ? "Bien" : avg >= 12 ? "Assez Bien" : avg >= 10 ? "Passable" : "Insuffisant",
   };
 
   return {
