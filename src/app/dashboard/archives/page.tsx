@@ -599,7 +599,7 @@ export default function ArchivesPage() {
                   placeholder="Saisir le bypass code..."
                   className="w-full h-11 px-4 rounded-xl border border-slate-250 bg-slate-50 text-xs font-bold outline-none"
                 />
-                <p className="text-[9px] text-slate-400 mt-1">Code de démonstration: SUPERADMIN2026</p>
+                <p className="text-[9px] text-slate-400 mt-1">Ce code est confidentiel. Contactez l&apos;administrateur système si nécessaire.</p>
               </div>
 
               <div className="space-y-1">

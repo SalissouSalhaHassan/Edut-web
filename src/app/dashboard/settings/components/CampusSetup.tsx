@@ -288,15 +288,15 @@ export function CampusSetup({ initialBranches }: { initialBranches: Branch[] }) 
   return (
     <div className="space-y-8 animate-in slide-in-from-right-4 duration-500 pb-20">
       {/* 1. Selectors */}
-      <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6">
+      <div className="bg-white p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800/60 dark:bg-[#12131C] shadow-sm flex flex-col md:flex-row items-center justify-between gap-6">
         <div className="flex items-center gap-4 flex-1 w-full">
-          <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+          <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
             <Building2 size={24} />
           </div>
           <div className="flex-1 max-w-md">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">SÉLECTIONNER UNE BRANCHE</label>
+            <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1">SÉLECTIONNER UNE BRANCHE</label>
             <Select onValueChange={handleBranchSelect} value={selectedBranch?.id?.toString() || "new"}>
-              <SelectTrigger className="h-12 rounded-xl border-slate-50 bg-slate-50/50 font-bold">
+              <SelectTrigger className="h-12 rounded-xl border-slate-50 dark:border-slate-800 bg-slate-50/50 dark:bg-[#0E0F18] dark:text-white font-bold">
                 <SelectValue placeholder="Choisir..." />
               </SelectTrigger>
               <SelectContent>
@@ -343,64 +343,64 @@ export function CampusSetup({ initialBranches }: { initialBranches: Branch[] }) 
         {/* Main Form */}
         <div className="xl:col-span-8 space-y-8">
            {/* Section 1: Basic Info */}
-           <div className="bg-white p-10 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-8">
-              <h3 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-3">
-                 <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+           <div className="bg-white p-10 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/60 dark:bg-[#12131C] shadow-sm space-y-8">
+              <h3 className="text-lg font-black text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-3">
+                 <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
                     <LayoutGrid size={20} />
                  </div>
                  Informations Générales
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">NOM DE LA BRANCHE</Label>
+                  <Label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1">NOM DE LA BRANCHE</Label>
                   <div className="relative">
                     <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-500" size={18} />
                     <Input 
                       value={formData.branchName || ""}
                       onChange={e => handleInputChange("branchName", e.target.value)}
                       placeholder="Campus Central" 
-                      className="h-14 pl-12 rounded-2xl border-slate-100 bg-slate-50/50 font-bold" 
+                      className="h-14 pl-12 rounded-2xl border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-[#0E0F18] dark:text-white font-bold" 
                     />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">ANNÉE D'ÉTABLISSEMENT</Label>
+                  <Label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1">ANNÉE D'ÉTABLISSEMENT</Label>
                   <div className="relative">
                     <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-500" size={18} />
                     <Input 
                       value={formData.yearEstablished || ""}
                       onChange={e => handleInputChange("yearEstablished", e.target.value)}
                       placeholder="2024" 
-                      className="h-14 pl-12 rounded-2xl border-slate-100 bg-slate-50/50 font-bold" 
+                      className="h-14 pl-12 rounded-2xl border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-[#0E0F18] dark:text-white font-bold" 
                     />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">N° ENREGISTREMENT</Label>
+                  <Label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1">N° ENREGISTREMENT</Label>
                   <div className="relative">
                     <Hash className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-500" size={18} />
                     <Input 
                       value={formData.registrationNo || ""}
                       onChange={e => handleInputChange("registrationNo", e.target.value)}
                       placeholder="REG-2024-001"
-                      className="h-14 pl-12 rounded-2xl border-slate-100 bg-slate-50/50 font-bold" 
+                      className="h-14 pl-12 rounded-2xl border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-[#0E0F18] dark:text-white font-bold" 
                     />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">ALIAS BRANCHE</Label>
+                  <Label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1">ALIAS BRANCHE</Label>
                   <div className="relative">
                     <AtSign className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-500" size={18} />
                     <Input 
                       value={formData.branchAlias || ""}
                       onChange={e => handleInputChange("branchAlias", e.target.value)}
                       placeholder="CC-01" 
-                      className="h-14 pl-12 rounded-2xl border-slate-100 bg-slate-50/50 font-bold" 
+                      className="h-14 pl-12 rounded-2xl border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-[#0E0F18] dark:text-white font-bold" 
                     />
                   </div>
                 </div>
                 <div className="md:col-span-2 space-y-4">
-                  <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 block mb-1">TYPE INSTITUTION / NIVEAU</Label>
+                  <Label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1 block mb-1">TYPE INSTITUTION / NIVEAU</Label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
                     {/* All Stages Master Card */}
                     <button
@@ -479,7 +479,7 @@ export function CampusSetup({ initialBranches }: { initialBranches: Branch[] }) 
                 </div>
 
                 <div className="md:col-span-2 space-y-4">
-                  <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 block mb-1">CATÉGORIE</Label>
+                  <Label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1 block mb-1">CATÉGORIE</Label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     {/* All Categories Master Card */}
                     <button
@@ -560,56 +560,56 @@ export function CampusSetup({ initialBranches }: { initialBranches: Branch[] }) 
            </div>
 
            {/* Section 2: Contact & Address */}
-           <div className="bg-white p-10 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-8">
-              <h3 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-3">
-                 <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+           <div className="bg-white p-10 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/60 dark:bg-[#12131C] shadow-sm space-y-8">
+              <h3 className="text-lg font-black text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-3">
+                 <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
                     <MapPin size={20} />
                  </div>
                  Contact & Adresse
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">EMAIL PRINCIPAL</Label>
+                  <Label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1">EMAIL PRINCIPAL</Label>
                   <div className="relative">
                     <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-500" size={18} />
                     <Input 
                       value={formData.email || ""}
                       onChange={e => handleInputChange("email", e.target.value)}
                       placeholder="contact@campuscentral.com"
-                      className="h-14 pl-12 rounded-2xl border-slate-100 bg-slate-50/50 font-bold" 
+                      className="h-14 pl-12 rounded-2xl border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-[#0E0F18] dark:text-white font-bold" 
                     />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">EMAIL ALTERNATIF</Label>
+                  <Label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1">EMAIL ALTERNATIF</Label>
                   <div className="relative">
                     <AtSign className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-500" size={18} />
                     <Input 
                       value={formData.altEmail || ""}
                       onChange={e => handleInputChange("altEmail", e.target.value)}
                       placeholder="admin@campuscentral.com"
-                      className="h-14 pl-12 rounded-2xl border-slate-100 bg-slate-50/50 font-bold" 
+                      className="h-14 pl-12 rounded-2xl border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-[#0E0F18] dark:text-white font-bold" 
                     />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">N° CONTACT</Label>
+                  <Label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1">N° CONTACT</Label>
                   <div className="relative">
                     <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-500" size={18} />
                     <Input 
                       value={formData.contactNo || ""}
                       onChange={e => handleInputChange("contactNo", e.target.value)}
                       placeholder="+221 77 123 45 67"
-                      className="h-14 pl-12 rounded-2xl border-slate-100 bg-slate-50/50 font-bold" 
+                      className="h-14 pl-12 rounded-2xl border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-[#0E0F18] dark:text-white font-bold" 
                     />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">FUSEAU HORAIRE</Label>
+                  <Label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1">FUSEAU HORAIRE</Label>
                   <div className="relative">
                     <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-500 z-10" size={18} />
                     <Select onValueChange={v => handleInputChange("timezone", v)} value={formData.timezone}>
-                      <SelectTrigger className="h-14 pl-12 rounded-2xl border-slate-100 bg-slate-50/50 font-bold">
+                      <SelectTrigger className="h-14 pl-12 rounded-2xl border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-[#0E0F18] dark:text-white font-bold">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -621,7 +621,7 @@ export function CampusSetup({ initialBranches }: { initialBranches: Branch[] }) 
                   </div>
                 </div>
                 <div className="md:col-span-2 space-y-2">
-                  <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">ADRESSE PHYSIQUE</Label>
+                  <Label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1">ADRESSE PHYSIQUE</Label>
                   <div className="relative">
                     <MapPin className="absolute left-4 top-6 text-indigo-500" size={18} />
                     <Textarea 
@@ -629,7 +629,7 @@ export function CampusSetup({ initialBranches }: { initialBranches: Branch[] }) 
                       onChange={e => handleInputChange("address", e.target.value)}
                       rows={3} 
                       placeholder="123 Avenue de la République, Dakar, Sénégal"
-                      className="rounded-2xl border-slate-100 bg-slate-50/50 font-bold pl-12 pr-12 pt-5 pb-4" 
+                      className="rounded-2xl border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-[#0E0F18] dark:text-white font-bold pl-12 pr-12 pt-5 pb-4" 
                     />
                     <button className="absolute right-4 top-6 text-slate-300 hover:text-indigo-500 transition-colors">
                        <Pencil size={18} />
@@ -640,114 +640,114 @@ export function CampusSetup({ initialBranches }: { initialBranches: Branch[] }) 
            </div>
 
            {/* Section 2.5: Structure Administrative & Hiérarchie Éducative */}
-           <div className="bg-white p-10 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-8">
-              <h3 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-3">
-                 <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
+           <div className="bg-white p-10 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/60 dark:bg-[#12131C] shadow-sm space-y-8">
+              <h3 className="text-lg font-black text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-3">
+                 <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center">
                     <Building2 size={20} />
                  </div>
                  Structure Administrative & Hiérarchie Éducative
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">MINISTÈRE DE TUTELLE</Label>
+                  <Label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1">MINISTÈRE DE TUTELLE</Label>
                   <div className="relative">
                     <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-500" size={18} />
                     <Input 
                       value={formData.ministry || ""}
                       onChange={e => handleInputChange("ministry", e.target.value)}
                       placeholder="Ministère de l'Éducation Nationale"
-                      className="h-14 pl-12 rounded-2xl border-slate-100 bg-slate-50/50 font-bold" 
+                      className="h-14 pl-12 rounded-2xl border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-[#0E0F18] dark:text-white font-bold" 
                     />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">RÉGION</Label>
+                  <Label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1">RÉGION</Label>
                   <div className="relative">
                     <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-500" size={18} />
                     <Input 
                       value={formData.region || ""}
                       onChange={e => handleInputChange("region", e.target.value)}
                       placeholder="Niamey"
-                      className="h-14 pl-12 rounded-2xl border-slate-100 bg-slate-50/50 font-bold" 
+                      className="h-14 pl-12 rounded-2xl border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-[#0E0F18] dark:text-white font-bold" 
                     />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">DIRECTION RÉGIONALE (DREN)</Label>
+                  <Label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1">DIRECTION RÉGIONALE (DREN)</Label>
                   <div className="relative">
                     <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-500" size={18} />
                     <Input 
                       value={formData.dren || ""}
                       onChange={e => handleInputChange("dren", e.target.value)}
                       placeholder="Direction Régionale de l'Éducation Nationale"
-                      className="h-14 pl-12 rounded-2xl border-slate-100 bg-slate-50/50 font-bold" 
+                      className="h-14 pl-12 rounded-2xl border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-[#0E0F18] dark:text-white font-bold" 
                     />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">DÉPARTEMENT</Label>
+                  <Label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1">DÉPARTEMENT</Label>
                   <div className="relative">
                     <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-500" size={18} />
                     <Input 
                       value={formData.department || ""}
                       onChange={e => handleInputChange("department", e.target.value)}
                       placeholder="Niamey"
-                      className="h-14 pl-12 rounded-2xl border-slate-100 bg-slate-50/50 font-bold" 
+                      className="h-14 pl-12 rounded-2xl border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-[#0E0F18] dark:text-white font-bold" 
                     />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">DIRECTION DÉPARTEMENTALE (DDEN)</Label>
+                  <Label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1">DIRECTION DÉPARTEMENTALE (DDEN)</Label>
                   <div className="relative">
                     <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-500" size={18} />
                     <Input 
                       value={formData.dden || ""}
                       onChange={e => handleInputChange("dden", e.target.value)}
                       placeholder="Direction Départementale de l'Éducation"
-                      className="h-14 pl-12 rounded-2xl border-slate-100 bg-slate-50/50 font-bold" 
+                      className="h-14 pl-12 rounded-2xl border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-[#0E0F18] dark:text-white font-bold" 
                     />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">INSPECTION</Label>
+                  <Label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1">INSPECTION</Label>
                   <div className="relative">
                     <ShieldCheck className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-500" size={18} />
                     <Input 
                       value={formData.inspection || ""}
                       onChange={e => handleInputChange("inspection", e.target.value)}
                       placeholder="Inspection de l'Enseignement Secondaire"
-                      className="h-14 pl-12 rounded-2xl border-slate-100 bg-slate-50/50 font-bold" 
+                      className="h-14 pl-12 rounded-2xl border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-[#0E0F18] dark:text-white font-bold" 
                     />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">COMMUNE</Label>
+                  <Label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1">COMMUNE</Label>
                   <div className="relative">
                     <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-500" size={18} />
                     <Input 
                       value={formData.commune || ""}
                       onChange={e => handleInputChange("commune", e.target.value)}
                       placeholder="Commune de Niamey IV"
-                      className="h-14 pl-12 rounded-2xl border-slate-100 bg-slate-50/50 font-bold" 
+                      className="h-14 pl-12 rounded-2xl border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-[#0E0F18] dark:text-white font-bold" 
                     />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">CODE ÉTABLISSEMENT</Label>
+                  <Label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1">CODE ÉTABLISSEMENT</Label>
                   <div className="relative">
                     <Hash className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-500" size={18} />
                     <Input 
                       value={formData.schoolCode || ""}
                       onChange={e => handleInputChange("schoolCode", e.target.value)}
                       placeholder="ETB-2026-001"
-                      className="h-14 pl-12 rounded-2xl border-slate-100 bg-slate-50/50 font-bold" 
+                      className="h-14 pl-12 rounded-2xl border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-[#0E0F18] dark:text-white font-bold" 
                     />
                   </div>
                 </div>
@@ -755,9 +755,9 @@ export function CampusSetup({ initialBranches }: { initialBranches: Branch[] }) 
            </div>
 
            {/* Section 3: Calendrier de Travail */}
-           <div className="bg-white p-10 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-8">
-              <h3 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-3">
-                 <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+           <div className="bg-white p-10 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/60 dark:bg-[#12131C] shadow-sm space-y-8">
+              <h3 className="text-lg font-black text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-3">
+                 <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
                     <Calendar size={20} />
                  </div>
                  Calendrier de Travail
@@ -874,9 +874,9 @@ export function CampusSetup({ initialBranches }: { initialBranches: Branch[] }) 
            </div>
 
            {/* Branding / Logo */}
-           <div className="bg-white p-10 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-8">
-              <h3 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-3">
-                 <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+           <div className="bg-white p-10 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/60 dark:bg-[#12131C] shadow-sm space-y-8">
+              <h3 className="text-lg font-black text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-3">
+                 <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
                     <ImageIcon size={20} />
                  </div>
                  Logo & Branding
@@ -905,21 +905,20 @@ export function CampusSetup({ initialBranches }: { initialBranches: Branch[] }) 
                  </div>
                  <div className="text-center">
                     <h4 className="text-xl font-black text-slate-900 tracking-tight">{formData.branchName || "Campus Central"}</h4>
+                    <h4 className="text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight">{formData.branchName || "Campus Central"}</h4>
                     <p className="text-[11px] font-bold text-slate-400 mt-1">Excellence & Réussite</p>
                  </div>
                  
                  <Button 
                    variant="outline" 
-                   className="h-12 px-8 rounded-2xl border-slate-100 text-slate-900 font-black text-[10px] uppercase tracking-widest flex items-center gap-2 hover:bg-slate-50 transition-all"
+                   className="h-12 px-14 rounded-2xl border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-[#0E0F18] dark:text-white font-black text-[10px] uppercase tracking-widest flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
                    onClick={() => fileInputRef.current?.click()}
                  >
                     <Upload size={16} /> Changer le logo
                  </Button>
-                 <p className="text-[10px] font-bold text-slate-300">PNG, JPG ou SVG (Max. 2MB)</p>
-              </div>
 
               <div className="space-y-4 pt-6 border-t border-slate-50">
-                 <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">COULEUR PRINCIPALE</Label>
+                 <Label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1">COULEUR PRINCIPALE</Label>
                  <div className="flex items-center gap-3 flex-wrap">
                     {["#6366f1", "#3b82f6", "#10b981", "#f59e0b", "#ec4899", "#ef4444"].map((color, i) => (
                       <button 
@@ -944,13 +943,13 @@ export function CampusSetup({ initialBranches }: { initialBranches: Branch[] }) 
                     value={formData.admPrefix || ""}
                     onChange={e => handleInputChange("admPrefix", e.target.value)}
                     placeholder="EDUT" 
-                    className="h-12 rounded-xl border-slate-50 bg-slate-50/50 font-bold" 
+                    className="h-12 rounded-xl border-slate-50 dark:border-slate-800 bg-slate-50/50 dark:bg-[#0E0F18] dark:text-white font-bold" 
                   />
                 </div>
                 <div className="space-y-2">
                   <Label className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">PADDING</Label>
                   <Select onValueChange={v => handleInputChange("admPadding", v)} value={formData.admPadding}>
-                    <SelectTrigger className="h-12 rounded-xl border-slate-50 bg-slate-50/50 font-bold">
+                    <SelectTrigger className="h-12 rounded-xl border-slate-50 dark:border-slate-800 bg-slate-50/50 dark:bg-[#0E0F18] dark:text-white font-bold">
                       <SelectValue placeholder="0001" />
                     </SelectTrigger>
                     <SelectContent>

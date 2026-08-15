@@ -23,7 +23,11 @@ export async function submitOfficialRectification(params: {
   return protectedDbAction("Academics", "canEdit", async (user) => {
     const schoolId = await getActiveSchoolId();
 
-    if (params.bypassPasscode !== "SUPERADMIN2026") {
+    const bypassCode = process.env.RECTIFICATION_BYPASS_CODE;
+    if (!bypassCode) {
+      return { success: false, error: "Configuration serveur manquante : code de dérogation non défini." };
+    }
+    if (params.bypassPasscode !== bypassCode) {
       return { success: false, error: "Code d'autorisation de dérogation incorrect." };
     }
 

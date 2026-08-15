@@ -37,8 +37,14 @@ function normalizeDatabaseUrl(value: string | undefined) {
 
 const connectionString = 
   normalizeDatabaseUrl(process.env.REMOTE_DATABASE_URL) || 
-  normalizeDatabaseUrl(process.env.DATABASE_URL) || 
-  "postgres://postgres.gkarotahjtyvmhjqejts:salissou1994S@aws-1-eu-central-2.pooler.supabase.com:6543/postgres";
+  normalizeDatabaseUrl(process.env.DATABASE_URL);
+
+if (!connectionString) {
+  throw new Error(
+    "[DB] FATAL: No database connection string found. " +
+    "Set DATABASE_URL or REMOTE_DATABASE_URL in your environment variables (.env.local or Vercel dashboard)."
+  );
+}
 const readReplicaUrl = normalizeDatabaseUrl(process.env.READ_REPLICA_URL);
 
 // Log connection target for debugging (masking password)
