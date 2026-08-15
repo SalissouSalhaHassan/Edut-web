@@ -7,8 +7,23 @@ import { FileText, Calendar, Clock, Paperclip, CheckCircle2 } from "lucide-react
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { getClassDisplayName } from "@/domains/academics/utils/class-name";
+import { getCurrentUser } from "@/domains/auth/services/session";
+import { getUserRoleType } from "@/domains/auth/services/rbac";
+import StudentHomeworkPortal from "./components/StudentHomeworkPortal";
 
 export default async function HomeworkPage() {
+  const user = await getCurrentUser();
+  const roleType = user ? await getUserRoleType(user) : null;
+  const isStudent = roleType === "eleve" || Boolean(user?.studentId) || Boolean((user as any)?.student_id);
+
+  if (isStudent) {
+    return (
+      <div className="p-4 md:p-8 bg-[#0B0D14] min-h-[calc(100vh-65px)] rounded-3xl">
+        <StudentHomeworkPortal currentUser={user} />
+      </div>
+    );
+  }
+
   const res = await getHomeworks();
   const homeworks: any[] = ((res as any).data?.data || (res as any).data || []) as any[];
 

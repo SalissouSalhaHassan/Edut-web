@@ -2,6 +2,7 @@
 
 import { db } from "@/infrastructure/database";
 import { homework } from "@/infrastructure/database/schema/homework";
+import { students } from "@/infrastructure/database/schema/students";
 import { eq, desc, inArray, and, or } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { homeworkSchema, HomeworkFormData } from "../validators/homework.schema";
@@ -17,7 +18,60 @@ export async function getHomeworks() {
 
     const roleType = await getUserRoleType(user);
 
-    // Teachers only see homework for their assigned class-subject combinations
+    // 1. ELEVE (Student) — Only homework assigned to their own class
+    if (roleType === "eleve") {
+      const studentId = user.studentId || (user as any).student_id;
+      let studentRecord: any = null;
+      if (studentId) {
+        studentRecord = await db.query.students.findFirst({ where: eq(students.id, Number(studentId)) });
+      }
+      if (!studentRecord && (user as any).utilisateur) {
+        studentRecord = await db.query.students.findFirst({ where: eq(students.numAdmission, String((user as any).utilisateur)) });
+      }
+      if (!studentRecord || !studentRecord.classe) return { data: [] };
+
+      const classRow = await db.query.schoolClasses.findFirst({
+        where: and(
+          eq(schoolClasses.schoolId, schoolId),
+          eq(schoolClasses.className, studentRecord.classe)
+        )
+      });
+      if (!classRow) return { data: [] };
+
+      const data = await db.query.homework.findMany({
+        where: eq(homework.classId, classRow.id),
+        with: { class: true, subject: true },
+        orderBy: [desc(homework.dateAssigned)],
+      });
+
+      return { data };
+    }
+
+    // 2. PARENT — Only homework assigned to their child's class
+    if (roleType === "parent") {
+      const childId = user.studentId;
+      if (!childId) return { data: [] };
+      const studentRecord = await db.query.students.findFirst({ where: eq(students.id, Number(childId)) });
+      if (!studentRecord || !studentRecord.classe) return { data: [] };
+
+      const classRow = await db.query.schoolClasses.findFirst({
+        where: and(
+          eq(schoolClasses.schoolId, schoolId),
+          eq(schoolClasses.className, studentRecord.classe)
+        )
+      });
+      if (!classRow) return { data: [] };
+
+      const data = await db.query.homework.findMany({
+        where: eq(homework.classId, classRow.id),
+        with: { class: true, subject: true },
+        orderBy: [desc(homework.dateAssigned)],
+      });
+
+      return { data };
+    }
+
+    // 3. TEACHER — Only homework for assigned classes/subjects
     if (roleType === "teacher") {
       const emp = await getTeacherEmployee(user);
       if (!emp) return { data: [] };
@@ -45,7 +99,7 @@ export async function getHomeworks() {
       return { data: filtered };
     }
 
-    // Admin/Director sees all homework for their school
+    // 4. Admin/Director sees all homework for their school
     const data = await db.query.homework.findMany({
       with: { class: true, subject: true },
       orderBy: [desc(homework.dateAssigned)],
@@ -63,6 +117,10 @@ export async function createHomework(formData: HomeworkFormData) {
   }
 
   return protectedDbAction("Academics", "canEdit", async (user) => {
+    const roleType = await getUserRoleType(user);
+    if (roleType === "eleve" || roleType === "parent") {
+      return { error: "Accès refusé. Création de devoirs interdite aux élèves et parents." };
+    }
     const schoolId = await getActiveSchoolId();
     if (!schoolId) return { error: "Aucune école active." };
 
@@ -148,6 +206,10 @@ export async function updateHomework(id: number, formData: HomeworkFormData) {
   }
 
   return protectedDbAction("Academics", "canEdit", async (user) => {
+    const roleType = await getUserRoleType(user);
+    if (roleType === "eleve" || roleType === "parent") {
+      return { error: "Accès refusé. Modification interdite aux élèves et parents." };
+    }
     const schoolId = await getActiveSchoolId();
     if (!schoolId) return { error: "Aucune école active." };
 
@@ -208,6 +270,10 @@ export async function updateHomework(id: number, formData: HomeworkFormData) {
 
 export async function deleteHomework(id: number) {
   return protectedDbAction("Academics", "canDelete", async (user) => {
+    const roleType = await getUserRoleType(user);
+    if (roleType === "eleve" || roleType === "parent") {
+      return { error: "Accès refusé. Suppression interdite aux élèves et parents." };
+    }
     const schoolId = await getActiveSchoolId();
     if (!schoolId) return { error: "Aucune école active." };
 
@@ -231,5 +297,111 @@ export async function deleteHomework(id: number) {
     await db.delete(homework).where(eq(homework.id, id));
     revalidatePath("/dashboard/academics/homework");
     return { success: true };
+  });
+}
+
+// ─── Student Personal Homework Action (Secure Isolation) ──────────────────────
+
+export async function getStudentPersonalHomeworkAction() {
+  return protectedDbAction("Academics", "canView", async (user) => {
+    const schoolId = await getActiveSchoolId();
+    if (!schoolId) return { success: false, error: "Aucune école active." };
+
+    // Resolve student record
+    let studentRecord: any = null;
+    const rawStudentId = (user as any).studentId || (user as any).student_id;
+    if (rawStudentId) {
+      studentRecord = await db.query.students.findFirst({
+        where: eq(students.id, Number(rawStudentId)),
+      });
+    }
+
+    const usernameStr = typeof (user as any).utilisateur === "string"
+      ? ((user as any).utilisateur as string)
+      : typeof (user as any).username === "string"
+        ? ((user as any).username as string)
+        : "";
+
+    if (!studentRecord && usernameStr.trim().length > 0) {
+      studentRecord = await db.query.students.findFirst({
+        where: and(
+          eq(students.schoolId, schoolId),
+          eq(students.numAdmission, usernameStr.trim())
+        ),
+      });
+    }
+
+    if (!studentRecord || !studentRecord.classe) {
+      return { success: false, error: "Profil étudiant ou classe introuvable pour ce compte." };
+    }
+
+    // Resolve student class
+    const classRow = await db.query.schoolClasses.findFirst({
+      where: and(
+        eq(schoolClasses.schoolId, schoolId),
+        eq(schoolClasses.className, studentRecord.classe)
+      ),
+      with: { section: true },
+    });
+
+    if (!classRow) {
+      return { success: false, error: "Classe introuvable pour cet élève." };
+    }
+
+    // Fetch homework assigned to this student's class
+    const homeworks = await db.query.homework.findMany({
+      where: eq(homework.classId, classRow.id),
+      with: {
+        subject: true,
+      },
+      orderBy: [desc(homework.dateDue)],
+    });
+
+    const now = new Date();
+
+    const formatted = homeworks.map((h) => {
+      const dueDate = h.dateDue ? new Date(h.dateDue) : null;
+      const isPastDue = dueDate ? dueDate < now : false;
+
+      return {
+        id: h.id,
+        title: h.title,
+        description: h.description,
+        dateAssigned: h.dateAssigned ? h.dateAssigned.toISOString() : null,
+        dateDue: h.dateDue ? h.dateDue.toISOString() : null,
+        documentPath: h.documentPath,
+        evaluationMarks: h.evaluationMarks,
+        subjectId: h.subjectId,
+        subjectName: h.subject?.subjectName || "Matière",
+        subjectCode: h.subject?.subjectCode || "",
+        isPastDue,
+      };
+    });
+
+    const pending = formatted.filter((h) => !h.isPastDue);
+    const past = formatted.filter((h) => h.isPastDue);
+
+    return {
+      success: true,
+      data: {
+        student: {
+          id: studentRecord.id,
+          nomEtudiant: studentRecord.nomEtudiant,
+          numAdmission: studentRecord.numAdmission,
+          classe: studentRecord.classe,
+        },
+        class: {
+          id: classRow.id,
+          name: classRow.className,
+          level: classRow.section?.educationalLevel || studentRecord.educationalLevel || "Lycée",
+        },
+        stats: {
+          total: formatted.length,
+          pendingCount: pending.length,
+          pastCount: past.length,
+        },
+        homeworks: formatted,
+      },
+    };
   });
 }

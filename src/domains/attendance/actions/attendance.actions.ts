@@ -5,7 +5,7 @@ import { studentAttendance } from "@/infrastructure/database/schema/attendance";
 import { students } from "@/infrastructure/database/schema/students";
 import { schoolSubjects, schoolClasses, schoolSections } from "@/infrastructure/database/schema/academics";
 import { messageLogs } from "@/infrastructure/database/schema/messaging";
-import { eq, and, sql, isNull, inArray } from "drizzle-orm";
+import { eq, and, sql, isNull, inArray, desc } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { batchAttendanceSchema, BatchAttendanceFormData } from "../validators/attendance.schema";
 import { protectedDbAction } from "@/lib/protected-action";
@@ -62,6 +62,10 @@ export async function saveBatchAttendance(data: BatchAttendanceFormData) {
   }
 
   return protectedDbAction("Attendance", "canEdit", async (user) => {
+    const roleType = await getUserRoleType(user);
+    if (roleType === "eleve" || roleType === "parent") {
+      return { error: "Accès refusé. La saisie des présences est interdite aux élèves et parents." };
+    }
     const { classId, subjectId, employeeId, date, records } = validation.data;
     
     const hasAccess = await verifyTeacherClassAccess(user, classId);
@@ -253,6 +257,10 @@ export async function getAttendanceStats(date: string, classId?: number | null, 
 
 export async function markAttendanceByAdmission(numAdmission: string, classId: number, subjectId?: number, employeeId?: number) {
   return protectedDbAction("Attendance", "canEdit", async (user) => {
+    const roleType = await getUserRoleType(user);
+    if (roleType === "eleve" || roleType === "parent") {
+      return { error: "Accès refusé. La saisie des présences est interdite aux élèves et parents." };
+    }
     const hasAccess = await verifyTeacherClassAccess(user, classId);
     if (!hasAccess) {
       return { error: "Accès refusé. Vous n'êtes pas autorisé pour cette classe." };
@@ -299,5 +307,158 @@ export async function markAttendanceByAdmission(numAdmission: string, classId: n
     attendanceEvents.emit("update", { type: "single", numAdmission, classId, subjectId, date: today });
     revalidatePath("/dashboard/attendance");
     return { success: true, message: `${student.nomEtudiant} marqué présent !`, student };
+  });
+}
+
+// ─── Student Personal Attendance Action (Secure Isolation) ───────────────────
+
+export async function getStudentPersonalAttendanceAction() {
+  return protectedDbAction("Attendance", "canView", async (user) => {
+    const schoolId = await getActiveSchoolId();
+    if (!schoolId) return { success: false, error: "Aucune école active." };
+
+    // Resolve student record
+    let studentRecord: any = null;
+    const rawStudentId = (user as any).studentId || (user as any).student_id;
+    if (rawStudentId) {
+      studentRecord = await db.query.students.findFirst({
+        where: eq(students.id, Number(rawStudentId)),
+      });
+    }
+
+    const usernameStr = typeof (user as any).utilisateur === "string"
+      ? ((user as any).utilisateur as string)
+      : typeof (user as any).username === "string"
+        ? ((user as any).username as string)
+        : "";
+
+    if (!studentRecord && usernameStr.trim().length > 0) {
+      studentRecord = await db.query.students.findFirst({
+        where: and(
+          eq(students.schoolId, schoolId),
+          eq(students.numAdmission, usernameStr.trim())
+        ),
+      });
+    }
+
+    if (!studentRecord) {
+      return { success: false, error: "Profil étudiant introuvable pour ce compte." };
+    }
+
+    // Resolve class
+    const classRow = studentRecord.classe ? await db.query.schoolClasses.findFirst({
+      where: and(
+        eq(schoolClasses.schoolId, schoolId),
+        eq(schoolClasses.className, studentRecord.classe)
+      ),
+      with: { section: true },
+    }) : null;
+
+    // Query attendance records for this student
+    const records = await db.query.studentAttendance.findMany({
+      where: eq(studentAttendance.studentId, studentRecord.id),
+      with: {
+        subject: true,
+        employee: true,
+      },
+      orderBy: [desc(studentAttendance.date)],
+    });
+
+    let presents = 0;
+    let absents = 0;
+    let retards = 0;
+    let excused = 0;
+
+    records.forEach((r) => {
+      const s = (r.status || "").toLowerCase();
+      if (s.includes("présent") || s.includes("present")) presents++;
+      else if (s.includes("retard")) retards++;
+      else if (s.includes("excus")) excused++;
+      else if (s.includes("abs")) absents++;
+    });
+
+    const totalSessions = records.length;
+    const rate = totalSessions > 0 ? Number((((presents + excused) / totalSessions) * 100).toFixed(1)) : 100.0;
+
+    const formattedRecords = records.map((r) => ({
+      id: r.id,
+      date: r.date ? r.date.toISOString() : null,
+      status: r.status,
+      remark: r.remark || "",
+      subjectName: r.subject?.subjectName || "Séance générale",
+      teacherName: r.employee ? `${r.employee.nom} ${r.employee.prenom || ""}`.trim() : "Enseignant",
+    }));
+
+    return {
+      success: true,
+      data: {
+        student: {
+          id: studentRecord.id,
+          nomEtudiant: studentRecord.nomEtudiant,
+          numAdmission: studentRecord.numAdmission,
+          classe: studentRecord.classe,
+        },
+        class: classRow ? {
+          id: classRow.id,
+          name: classRow.className,
+          level: classRow.section?.educationalLevel || "Lycée",
+        } : null,
+        stats: {
+          totalSessions,
+          presents,
+          absents,
+          retards,
+          excused,
+          rate,
+        },
+        records: formattedRecords,
+      },
+    };
+  });
+}
+
+export async function submitAbsenceJustificationAction(attendanceId: number, reason: string, note?: string) {
+  return protectedDbAction("Attendance", "canEdit", async (user) => {
+    // Resolve student record
+    let studentRecord: any = null;
+    const rawStudentId = (user as any).studentId || (user as any).student_id;
+    if (rawStudentId) {
+      studentRecord = await db.query.students.findFirst({
+        where: eq(students.id, Number(rawStudentId)),
+      });
+    }
+
+    if (!studentRecord && (user as any).utilisateur) {
+      studentRecord = await db.query.students.findFirst({
+        where: eq(students.numAdmission, String((user as any).utilisateur)),
+      });
+    }
+
+    if (!studentRecord) {
+      return { success: false, error: "Profil étudiant introuvable." };
+    }
+
+    const record = await db.query.studentAttendance.findFirst({
+      where: and(
+        eq(studentAttendance.id, attendanceId),
+        eq(studentAttendance.studentId, studentRecord.id)
+      ),
+    });
+
+    if (!record) {
+      return { success: false, error: "Fiche de présence introuvable." };
+    }
+
+    const updatedRemark = `[Justifié: ${reason}] ${note ? note.trim() : ""} (Transmis par l'élève/parent le ${new Date().toLocaleDateString("fr-FR")})`;
+
+    await db.update(studentAttendance)
+      .set({
+        status: "Excusé",
+        remark: updatedRemark,
+      })
+      .where(eq(studentAttendance.id, attendanceId));
+
+    revalidatePath("/dashboard/attendance");
+    return { success: true, message: "Justification d'absence transmise avec succès à l'administration !" };
   });
 }

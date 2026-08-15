@@ -4,10 +4,24 @@ import { getAttendanceRecords, getAttendanceStats } from "@/domains/attendance/a
 import { getClasses, getSubjectsForClass } from "@/domains/academics/actions/academics.actions";
 import { getStudentsByClass } from "@/domains/students/actions/students.actions";
 import { getCurrentUser } from "@/domains/auth/services/session";
+import { getUserRoleType } from "@/domains/auth/services/rbac";
 import { getClassDisplayName } from "@/domains/academics/utils/class-name";
 import AttendanceClient from "./attendance-client";
+import StudentAttendancePortal from "./components/StudentAttendancePortal";
 
 export default async function AttendancePage({ searchParams: searchParamsPromise }: { searchParams: Promise<{ classId?: string, subjectId?: string, date?: string }> }) {
+  const currentUser = await getCurrentUser();
+  const roleType = currentUser ? await getUserRoleType(currentUser) : null;
+  const isStudent = roleType === "eleve" || Boolean(currentUser?.studentId) || Boolean((currentUser as any)?.student_id);
+
+  if (isStudent) {
+    return (
+      <div className="p-4 md:p-8 bg-[#0B0D14] min-h-[calc(100vh-65px)] rounded-3xl">
+        <StudentAttendancePortal currentUser={currentUser} />
+      </div>
+    );
+  }
+
   const searchParams = await searchParamsPromise;
   const date = searchParams.date || new Date().toISOString().split('T')[0];
   const classId = searchParams.classId ? Number(searchParams.classId) : null;
@@ -15,22 +29,19 @@ export default async function AttendancePage({ searchParams: searchParamsPromise
 
   let classes: any[] = [];
   let stats: any = { presents: 0, absents: 0, lates: 0, excused: 0 };
-  let currentUser: any = null;
   let canEdit = false;
   let students: any[] = [];
   let subjects: any[] = [];
   let initialRecords: any[] = [];
 
   try {
-    const [classesRes, statsRes, userRes] = await Promise.all([
+    const [classesRes, statsRes] = await Promise.all([
       getClasses(true).catch(() => ({ data: [] })),
       getAttendanceStats(date, classId, subjectId).catch(() => ({ data: { data: { presents: 0, absents: 0, lates: 0, excused: 0 } } })),
-      getCurrentUser().catch(() => null)
     ]);
 
     classes = ((classesRes as any).data?.data || (classesRes as any).data || []) as any[];
     stats = (statsRes.data?.data || statsRes.data) as any;
-    currentUser = userRes;
     canEdit = !!(currentUser?.admin || currentUser?.role?.permissions?.some((p: any) => p.moduleName === "Attendance" && p.canEdit));
 
     if (classId) {

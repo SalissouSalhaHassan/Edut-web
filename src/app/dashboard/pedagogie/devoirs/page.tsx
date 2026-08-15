@@ -8,6 +8,8 @@ import { getAssignments } from "@/domains/lms/actions/lms.actions";
 import { db } from "@/infrastructure/database";
 import DevoirsClient from "./DevoirsClient";
 import { getPedagogieRole } from "@/domains/pedagogie/permissions";
+import { getUserRoleType } from "@/domains/auth/services/rbac";
+import StudentHomeworkPortal from "@/app/dashboard/academics/homework/components/StudentHomeworkPortal";
 import { X } from "lucide-react";
 
 export const metadata = {
@@ -17,6 +19,16 @@ export const metadata = {
 
 export default async function DevoirsPage() {
   const currentUser = await getCurrentUser();
+  const roleType = currentUser ? await getUserRoleType(currentUser) : null;
+  const isStudent = roleType === "eleve" || Boolean(currentUser?.studentId) || Boolean((currentUser as any)?.student_id);
+
+  if (isStudent) {
+    return (
+      <div className="p-4 md:p-8 bg-[#0B0D14] min-h-[calc(100vh-65px)] rounded-3xl">
+        <StudentHomeworkPortal currentUser={currentUser} />
+      </div>
+    );
+  }
 
   const role = getPedagogieRole(currentUser);
   if (role === "guest" || role === "consultation") {
