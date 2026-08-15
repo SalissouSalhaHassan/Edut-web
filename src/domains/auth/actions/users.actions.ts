@@ -318,6 +318,22 @@ export async function saveUser(formData: SaveUserFormData, id?: number) {
 
     const cleanUtilisateur = utilisateurValue.replace(/\s+/g, "");
 
+    // Check if username is already taken by another user
+    const existingDuplicate = await db.query.users.findFirst({
+      where: and(
+        eq(users.utilisateur, cleanUtilisateur),
+        id ? sql`${users.id} != ${id}` : undefined
+      ),
+      columns: { id: true, nomPrenom: true, utilisateur: true }
+    });
+
+    if (existingDuplicate) {
+      return {
+        error: `L'identifiant "${cleanUtilisateur}" est déjà utilisé par un autre compte (${existingDuplicate.nomPrenom || "Utilisateur"}). Veuillez choisir un identifiant unique (ex: matricule ou email personnel).`,
+        success: false,
+      };
+    }
+
     const data: Partial<typeof users.$inferInsert> & {
       utilisateur: string;
       nomPrenom: string;
