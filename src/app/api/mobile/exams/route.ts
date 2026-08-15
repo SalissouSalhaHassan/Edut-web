@@ -267,8 +267,16 @@ export async function GET(request: NextRequest) {
       if (!classRes) return mobileJsonError("Classe introuvable", 404);
 
       const cond = [
-        eq(students.classe, classRes.className),
-        eq(students.statut, "Actif"),
+        or(
+          eq(students.classe, classRes.className),
+          ilike(students.classe, `%${classRes.className.trim()}%`)
+        ),
+        or(
+          eq(students.statut, "Actif"),
+          eq(students.statut, "Inscrit"),
+          isNull(students.statut),
+          ilike(students.statut, "actif%")
+        ),
         ...(schoolId ? [eq(students.schoolId, schoolId)] : []),
       ];
 
