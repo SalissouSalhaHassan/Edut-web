@@ -8,6 +8,7 @@ import { messageLogs } from "@/infrastructure/database/schema/messaging";
 import { eq, and, sql, isNull, inArray, desc } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { batchAttendanceSchema, BatchAttendanceFormData } from "../validators/attendance.schema";
+// Attendance Security & Student Portal v2.4
 import { protectedDbAction } from "@/lib/protected-action";
 import { attendanceEvents } from "@/lib/attendance-events";
 import { getActiveSchoolId } from "@/domains/auth/services/school";
