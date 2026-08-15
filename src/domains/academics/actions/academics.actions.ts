@@ -4132,7 +4132,7 @@ export async function getStudentPersonalGradesAction(params?: { period?: string;
       with: { subject: true },
     });
     for (const cs of classSubs) {
-      if (cs.subject) {
+      if (cs.subject && cs.subjectId !== null && cs.subjectId !== undefined) {
         subjectsMap.set(cs.subjectId, {
           id: cs.subjectId,
           name: cs.subject.subjectName,
@@ -4145,8 +4145,8 @@ export async function getStudentPersonalGradesAction(params?: { period?: string;
 
   // Format student grades
   const grades = results.map((r) => {
-    const subInfo = subjectsMap.get(r.subjectId) || {
-      id: r.subjectId,
+    const subInfo = (r.subjectId ? subjectsMap.get(r.subjectId) : null) || {
+      id: r.subjectId ?? 0,
       name: r.subject?.subjectName || "Matière",
       code: r.subject?.subjectCode || "",
       coef: r.coefficient || 1,
