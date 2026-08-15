@@ -116,24 +116,40 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, hea
   const [isLocal, setIsLocal] = React.useState(false);
   const [isRepairing, setIsRepairing] = React.useState(false);
 
+  const cleanString = (val?: string | null) => {
+    if (!val) return "";
+    return String(val)
+      .replace(/\u00a0/g, " ")
+      .replace(/[\u200B-\u200D\uFEFF]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+  };
+
   // High-speed client-side instant filtering logic
   const filteredFees = React.useMemo(() => {
+    const searchLower = cleanString(search).toLowerCase();
+    const selectedClassNorm = cleanString(selectedClass).toLowerCase();
+
     return localFees.filter((fee) => {
+      const studentName = cleanString(fee.student?.nomEtudiant).toLowerCase();
+      const numAdmission = cleanString(fee.student?.numAdmission).toLowerCase();
+      const studentClassNorm = cleanString(fee.student?.classe).toLowerCase();
+      const statusLower = cleanString(fee.status).toLowerCase();
+      const paymentModeLower = cleanString(fee.payments?.[0]?.paymentMode).toLowerCase();
+
       // 1. Search filter (student name, admission number, class, status)
-      const searchLower = search.toLowerCase().trim();
       const matchesSearch =
         !searchLower ||
-        fee.student?.nomEtudiant?.toLowerCase().includes(searchLower) ||
-        fee.student?.numAdmission?.toLowerCase().includes(searchLower) ||
-        fee.student?.classe?.toLowerCase().includes(searchLower) ||
-        fee.status?.toLowerCase().includes(searchLower) ||
-        (fee.payments?.[0]?.paymentMode || "").toLowerCase().includes(searchLower);
+        studentName.includes(searchLower) ||
+        numAdmission.includes(searchLower) ||
+        studentClassNorm.includes(searchLower) ||
+        statusLower.includes(searchLower) ||
+        paymentModeLower.includes(searchLower);
 
       // 2. Class filter
-      const studentClassNorm = (fee.student?.classe || "").trim().toLowerCase();
-      const selectedClassNorm = selectedClass.trim().toLowerCase();
       const matchesClass =
         selectedClass === "Toutes" ||
+        !selectedClassNorm ||
         studentClassNorm === selectedClassNorm ||
         (studentClassNorm && selectedClassNorm && (
           studentClassNorm.includes(selectedClassNorm) ||

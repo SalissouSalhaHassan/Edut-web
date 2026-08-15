@@ -267,17 +267,82 @@ export default function StudentsClient({ initialStudents, currentUser, activeSch
     ? Math.round(((nouveaux - lastMonthNouveaux) / lastMonthNouveaux) * 100)
     : nouveaux * 100;
 
-  const filteredStudents = useMemo(() => visibleStudents.filter((s: any) => 
-    s.nomEtudiant.toLowerCase().includes(search.toLowerCase()) ||
-    (s.numAdmission && s.numAdmission.toLowerCase().includes(search.toLowerCase()))
-  ), [visibleStudents, search]);
+  const [selectedClass, setSelectedClass] = useState<string>("Toutes");
+  const [selectedLevel, setSelectedLevel] = useState<string>("Tous");
+
+  const cleanString = (val?: string | null) => {
+    if (!val) return "";
+    return String(val)
+      .replace(/\u00a0/g, " ")
+      .replace(/[\u200B-\u200D\uFEFF]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+  };
+
+  const classesList = useMemo(() => {
+    const set = new Set<string>();
+    visibleStudents.forEach((s: any) => {
+      const cl = cleanString(s.classe);
+      if (cl) set.add(cl);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "fr"));
+  }, [visibleStudents]);
+
+  const levelsList = useMemo(() => {
+    const set = new Set<string>();
+    visibleStudents.forEach((s: any) => {
+      const lv = cleanString(s.educationalLevel);
+      if (lv) set.add(lv);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "fr"));
+  }, [visibleStudents]);
+
+  const filteredStudents = useMemo(() => {
+    const searchLower = cleanString(search).toLowerCase();
+    const classNorm = cleanString(selectedClass).toLowerCase();
+    const levelNorm = cleanString(selectedLevel).toLowerCase();
+
+    return visibleStudents.filter((s: any) => {
+      const nameLower = cleanString(s.nomEtudiant).toLowerCase();
+      const numLower = cleanString(s.numAdmission).toLowerCase();
+      const studentClassLower = cleanString(s.classe).toLowerCase();
+      const studentLevelLower = cleanString(s.educationalLevel).toLowerCase();
+      const studentGenderLower = cleanString(s.sexe).toLowerCase();
+
+      // Search across name, admission number, class, educational level, gender
+      const matchesSearch =
+        !searchLower ||
+        nameLower.includes(searchLower) ||
+        numLower.includes(searchLower) ||
+        studentClassLower.includes(searchLower) ||
+        studentLevelLower.includes(searchLower) ||
+        studentGenderLower.includes(searchLower);
+
+      // Class filter
+      const matchesClass =
+        selectedClass === "Toutes" ||
+        !classNorm ||
+        studentClassLower === classNorm ||
+        studentClassLower.includes(classNorm) ||
+        classNorm.includes(studentClassLower);
+
+      // Level filter
+      const matchesLevel =
+        selectedLevel === "Tous" ||
+        !levelNorm ||
+        studentLevelLower === levelNorm ||
+        studentLevelLower.includes(levelNorm);
+
+      return matchesSearch && matchesClass && matchesLevel;
+    });
+  }, [visibleStudents, search, selectedClass, selectedLevel]);
 
   const start = (page - 1) * itemsPerPage;
   const paginatedStudents = useMemo(() => filteredStudents.slice(start, start + itemsPerPage), [filteredStudents, start, itemsPerPage]);
   const totalPages = Math.ceil(filteredStudents.length / itemsPerPage);
 
   const actifs = useMemo(() => visibleStudents.filter((s: any) => (s.statut || "").toUpperCase() === "ACTIF").length, [visibleStudents]);
-  const classesCount = useMemo(() => new Set(visibleStudents.map((s: any) => s.classe).filter(Boolean)).size, [visibleStudents]);
+  const classesCount = useMemo(() => new Set(visibleStudents.map((s: any) => cleanString(s.classe)).filter(Boolean)).size, [visibleStudents]);
 
   const stats = {
     total: visibleStudents.length,
@@ -396,12 +461,40 @@ export default function StudentsClient({ initialStudents, currentUser, activeSch
           />
         </div>
         
-        <div className="flex items-center gap-3 w-full md:w-auto">
+        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+          {/* Class Filter Dropdown */}
+          <div className="relative min-w-[140px]">
+            <select
+              value={selectedClass}
+              onChange={(e) => { setSelectedClass(e.target.value); setPage(1); }}
+              className="w-full h-12 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs px-4 pr-8 appearance-none outline-none shadow-sm cursor-pointer hover:border-indigo-400 transition-colors"
+            >
+              <option value="Toutes">Toutes les classes</option>
+              {classesList.map(c => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+            <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+          </div>
+
+          {/* Level Filter Dropdown */}
+          {levelsList.length > 1 && (
+            <div className="relative min-w-[130px]">
+              <select
+                value={selectedLevel}
+                onChange={(e) => { setSelectedLevel(e.target.value); setPage(1); }}
+                className="w-full h-12 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs px-4 pr-8 appearance-none outline-none shadow-sm cursor-pointer hover:border-indigo-400 transition-colors"
+              >
+                <option value="Tous">Tous les niveaux</option>
+                {levelsList.map(l => (
+                  <option key={l} value={l}>{l}</option>
+                ))}
+              </select>
+              <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            </div>
+          )}
+
           <RepairDataButton />
-          
-          <button className="h-12 px-6 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-semibold shadow-sm hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer">
-            <Filter size={16} /> Filtres
-          </button>
           
           <div className="flex bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-1 shadow-sm h-12">
             <button 

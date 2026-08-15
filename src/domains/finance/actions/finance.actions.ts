@@ -73,15 +73,28 @@ export async function getStudentFees(params?: { search?: string, class?: string,
       );
     }
 
+    function cleanString(val?: string | null): string {
+      if (!val) return "";
+      return String(val)
+        .replace(/\u00a0/g, " ")
+        .replace(/[\u200B-\u200D\uFEFF]/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+    }
+
     if (search || (className && className !== "Toutes")) {
-      const searchLower = search?.toLowerCase().trim();
-      const classNorm = className?.trim().toLowerCase();
+      const searchNorm = cleanString(search).toLowerCase();
+      const classNorm = cleanString(className).toLowerCase();
       filteredData = filteredData.filter(item => {
-        const matchesSearch = !searchLower ||
-          item.student?.nomEtudiant?.toLowerCase().includes(searchLower) ||
-          item.student?.numAdmission?.toLowerCase().includes(searchLower);
+        const studentName = cleanString(item.student?.nomEtudiant).toLowerCase();
+        const numAdmission = cleanString(item.student?.numAdmission).toLowerCase();
+        const studentClass = cleanString(item.student?.classe).toLowerCase();
         
-        const studentClass = (item.student?.classe || "")?.trim().toLowerCase();
+        const matchesSearch = !searchNorm ||
+          studentName.includes(searchNorm) ||
+          numAdmission.includes(searchNorm) ||
+          studentClass.includes(searchNorm);
+        
         const matchesClass = !classNorm || classNorm === "toutes" ||
           studentClass === classNorm ||
           (studentClass && classNorm && (studentClass.includes(classNorm) || classNorm.includes(studentClass)));
@@ -221,11 +234,20 @@ export async function syncStudentFees(revalidate: boolean = true) {
     
     console.log(`Found ${allStudents.length} active/enrolled students to sync.`);
 
+    function cleanString(val?: string | null): string {
+      if (!val) return "";
+      return String(val)
+        .replace(/\u00a0/g, " ")
+        .replace(/[\u200B-\u200D\uFEFF]/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+    }
+
     // Pre-fetch class fee templates for fallback defaults
     const allClasses = await db.query.schoolClasses.findMany({
       where: eq(schoolClasses.schoolId, schoolId)
     });
-    const classMapByName = new Map(allClasses.map(c => [c.className.trim().toLowerCase(), c]));
+    const classMapByName = new Map(allClasses.map(c => [cleanString(c.className).toLowerCase(), c]));
     const classMapById = new Map(allClasses.map(c => [c.id, c]));
 
     // Get current active session
@@ -304,8 +326,9 @@ export async function syncStudentFees(revalidate: boolean = true) {
     }
 
     for (const s of allStudents) {
+      const sClassNorm = cleanString(s.classe).toLowerCase();
       const classObj = (s.classId ? classMapById.get(s.classId) : null) || 
-                       (s.classe ? classMapByName.get(s.classe.trim().toLowerCase()) : null);
+                       (sClassNorm ? classMapByName.get(sClassNorm) : null);
 
       const monthly = Number(s.fraisMensuels || classObj?.scolariteMensuelle || 0);
       const inscr = Number(s.fraisInscription || classObj?.droitsInscription || 0);
@@ -730,19 +753,35 @@ export async function getAdvancedFinanceStats() {
       };
     });
 
-    // 6. Class breakdown for reports
-    const classMap = new Map<string, { expected: number; paid: number; unpaid: number; count: number }>();
+    // 6. Class breakdown for reports (normalized so whitespace variations merge together)
+    const classMap = new Map<string, { className: string; expected: number; paid: number; unpaid: number; count: number }>();
     for (const fee of fees) {
-      const cls = fee.student?.classe || "Inconnue";
-      if (!classMap.has(cls)) classMap.set(cls, { expected: 0, paid: 0, unpaid: 0, count: 0 });
-      const entry = classMap.get(cls)!;
+      const rawCls = fee.student?.classe || "Inconnue";
+      const displayCls = String(rawCls)
+        .replace(/\u00a0/g, " ")
+        .replace(/[\u200B-\u200D\uFEFF]/g, "")
+        .replace(/\s+/g, " ")
+        .trim() || "Inconnue";
+      const normalizedKey = displayCls.toLowerCase();
+
+      if (!classMap.has(normalizedKey)) {
+        classMap.set(normalizedKey, { className: displayCls, expected: 0, paid: 0, unpaid: 0, count: 0 });
+      }
+      const entry = classMap.get(normalizedKey)!;
       entry.expected += fee.totalExpected || 0;
       entry.paid += fee.totalPaid || 0;
       entry.unpaid += Math.max(0, fee.balance || 0);
       entry.count += 1;
     }
-    const classSummary = Array.from(classMap.entries())
-      .map(([className, data]) => ({ className, ...data, rate: data.expected > 0 ? Math.round((data.paid / data.expected) * 100) : 0 }))
+    const classSummary = Array.from(classMap.values())
+      .map((data) => ({ 
+        className: data.className,
+        expected: data.expected,
+        paid: data.paid,
+        unpaid: data.unpaid,
+        count: data.count,
+        rate: data.expected > 0 ? Math.round((data.paid / data.expected) * 100) : 0 
+      }))
       .sort((a, b) => b.paid - a.paid);
 
     // 7. Unpaid alerts (balance > 0, sorted by balance desc)
