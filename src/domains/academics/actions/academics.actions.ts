@@ -4040,14 +4040,11 @@ export async function getStudentPersonalGradesAction(params?: { period?: string;
     });
   }
 
-  if (!studentRecord && user.email) {
+  if (!studentRecord && (user.username || user.email)) {
     studentRecord = await readDb.query.students.findFirst({
       where: and(
         schoolId ? eq(students.schoolId, schoolId) : undefined,
-        or(
-          eq(students.email, user.email),
-          eq(students.numAdmission, user.username || "")
-        )
+        eq(students.numAdmission, user.username || "")
       ),
     });
   }
