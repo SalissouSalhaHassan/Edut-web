@@ -345,16 +345,16 @@ export default function StudentHomeworkPortal({ currentUser }: StudentHomeworkPo
                   )}
 
                   {hw.documentPath && (
-                    <Button
-                      asChild
-                      variant="outline"
-                      className="w-full border-slate-800 hover:border-indigo-500/40 bg-slate-950/50 hover:bg-indigo-950/30 text-xs text-indigo-300 font-semibold rounded-2xl h-10 gap-2"
+                    <a
+                      href={hw.documentPath}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      download
+                      className="w-full flex items-center justify-center border border-slate-800 hover:border-indigo-500/40 bg-slate-950/50 hover:bg-indigo-950/30 text-xs text-indigo-300 font-semibold rounded-2xl h-10 gap-2 transition-colors"
                     >
-                      <a href={hw.documentPath} target="_blank" rel="noopener noreferrer" download>
-                        <Download className="w-3.5 h-3.5" />
-                        Télécharger le document joint
-                      </a>
-                    </Button>
+                      <Download className="w-3.5 h-3.5" />
+                      Télécharger le document joint
+                    </a>
                   )}
                 </div>
               </motion.div>
