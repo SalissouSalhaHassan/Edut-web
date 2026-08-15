@@ -359,7 +359,7 @@ export async function getStudentPersonalAttendanceAction() {
       where: eq(studentAttendance.studentId, studentRecord.id),
       with: {
         subject: true,
-        employee: true,
+        teacher: true,
       },
       orderBy: [desc(studentAttendance.date)],
     });
@@ -386,7 +386,7 @@ export async function getStudentPersonalAttendanceAction() {
       status: r.status,
       remark: r.remark || "",
       subjectName: r.subject?.subjectName || "Séance générale",
-      teacherName: r.employee ? `${r.employee.nom} ${r.employee.prenom || ""}`.trim() : "Enseignant",
+      teacherName: r.teacher ? `${r.teacher.nom} ${r.teacher.prenom || ""}`.trim() : "Enseignant",
     }));
 
     return {
