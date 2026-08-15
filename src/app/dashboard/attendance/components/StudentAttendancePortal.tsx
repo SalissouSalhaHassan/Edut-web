@@ -58,11 +58,12 @@ export default function StudentAttendancePortal({ currentUser }: StudentAttendan
   async function loadAttendance() {
     setLoading(true);
     try {
-      const res = await getStudentPersonalAttendanceAction();
-      if (res?.success && res.data) {
-        setData(res.data);
+      const res: any = await getStudentPersonalAttendanceAction();
+      const payload = res?.data?.data || res?.data;
+      if (res?.success && payload) {
+        setData(payload);
       } else {
-        toast.error(res?.error || "Impossible de charger votre fiche d'assiduité.");
+        toast.error(res?.data?.error || res?.error || "Impossible de charger votre fiche d'assiduité.");
       }
     } catch (err) {
       toast.error("Erreur de communication avec le serveur.");
@@ -79,18 +80,18 @@ export default function StudentAttendancePortal({ currentUser }: StudentAttendan
     if (!selectedRecord) return;
     setSubmitting(true);
     try {
-      const res = await submitAbsenceJustificationAction(
+      const res: any = await submitAbsenceJustificationAction(
         selectedRecord.id,
         justificationReason,
         justificationNote
       );
-      if (res?.success) {
-        toast.success(res.message);
+      if (res?.success && res?.data?.success !== false) {
+        toast.success(res?.data?.message || res?.message || "Justification transmise avec succès !");
         setSelectedRecord(null);
         setJustificationNote("");
         await loadAttendance();
       } else {
-        toast.error(res?.error || "Échec de l'envoi de la justification.");
+        toast.error(res?.data?.error || res?.error || "Échec de l'envoi de la justification.");
       }
     } catch (err) {
       toast.error("Erreur lors de la transmission.");

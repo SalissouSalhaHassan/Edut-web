@@ -35,11 +35,12 @@ export default function StudentTimetablePortal({ currentUser }: StudentTimetable
     async function loadTimetable() {
       setLoading(true);
       try {
-        const res = await getStudentPersonalTimetableAction();
-        if (res?.success && res.data) {
-          setData(res.data);
+        const res: any = await getStudentPersonalTimetableAction();
+        const payload = res?.data?.data || res?.data;
+        if (res?.success && payload) {
+          setData(payload);
         } else {
-          toast.error(res?.error || "Impossible de charger votre emploi du temps.");
+          toast.error(res?.data?.error || res?.error || "Impossible de charger votre emploi du temps.");
         }
       } catch (err: any) {
         toast.error("Erreur de connexion au serveur.");

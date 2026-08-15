@@ -41,11 +41,12 @@ export default function StudentHomeworkPortal({ currentUser }: StudentHomeworkPo
     async function loadHomework() {
       setLoading(true);
       try {
-        const res = await getStudentPersonalHomeworkAction();
-        if (res?.success && res.data) {
-          setData(res.data);
+        const res: any = await getStudentPersonalHomeworkAction();
+        const payload = res?.data?.data || res?.data;
+        if (res?.success && payload) {
+          setData(payload);
         } else {
-          toast.error(res?.error || "Impossible de charger les devoirs.");
+          toast.error(res?.data?.error || res?.error || "Impossible de charger les devoirs.");
         }
       } catch (err) {
         toast.error("Erreur de connexion au serveur.");
