@@ -40,9 +40,30 @@ export async function getStudentFees(params?: { search?: string, class?: string,
         return and(...conditions);
       },
       with: {
-        student: true,
-        session: true,
+        student: {
+          columns: {
+            id: true,
+            nomEtudiant: true,
+            numAdmission: true,
+            classe: true,
+            educationalLevel: true,
+            photoPath: true,
+            sexe: true,
+            statut: true,
+          }
+        },
         payments: {
+          columns: {
+            id: true,
+            feeId: true,
+            amount: true,
+            reduction: true,
+            paymentMode: true,
+            reference: true,
+            datePaid: true,
+            recordedBy: true,
+            monthConcerned: true,
+          },
           orderBy: [desc(feePayments.datePaid)]
         },
       }
@@ -671,12 +692,25 @@ export async function getAdvancedFinanceStats() {
     // Base where clause for student fees
     let feesWhere = and(eq(studentFees.sessionId, activeSession.id), eq(studentFees.schoolId, schoolId));
 
-    // Get all fees with payments for this session
+    // Get all fees with payments for this session (optimized column selection)
     const allFees = await db.query.studentFees.findMany({
       where: feesWhere,
       with: {
-        student: true,
-        payments: { orderBy: [desc(feePayments.datePaid)] }
+        student: {
+          columns: {
+            educationalLevel: true,
+            classe: true,
+            nomEtudiant: true,
+            photoPath: true,
+          }
+        },
+        payments: {
+          columns: {
+            amount: true,
+            datePaid: true,
+          },
+          orderBy: [desc(feePayments.datePaid)]
+        }
       }
     });
 
