@@ -1,14 +1,23 @@
 "use server";
 
 import { db } from "@/infrastructure/database";
-import { timetableEntries, timetableSettings, teacherConstraints, schoolClasses, schoolSubjects, classSubjects, sectionSubjects } from "@/infrastructure/database/schema/academics";
+import { timetableEntries, timetableSettings, teacherConstraints, schoolClasses, schoolSubjects, classSubjects, sectionSubjects, schoolSessions } from "@/infrastructure/database/schema/academics";
+import { students } from "@/infrastructure/database/schema/students";
 import { employees } from "@/infrastructure/database/schema/hr";
 import { schoolBranches, settings } from "@/infrastructure/database/schema/settings";
-import { eq, and, isNull, inArray, sql, or } from "drizzle-orm";
+import { eq, and, isNull, inArray, sql, or, desc } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { protectedDbAction } from "@/lib/protected-action";
 import { getUserRoleType, getTeacherEmployee, verifyTeacherClassAccess } from "@/domains/auth/services/rbac";
 import { getActiveSchoolId } from "@/domains/auth/services/school";
+import { getCurrentUser } from "@/domains/auth/services/session";
+
+async function assertTimetableAdminAccess(user: any) {
+  const roleType = await getUserRoleType(user);
+  if (roleType === "eleve" || roleType === "parent" || roleType === "consultation") {
+    throw new Error("Accès refusé. Vous n'avez pas l'autorisation d'administrer ou modifier l'emploi du temps.");
+  }
+}
 
 async function assertClassInActiveSchool(classId: number | null | undefined) {
   if (!classId) throw new Error("Classe invalide.");
@@ -80,7 +89,9 @@ export async function getTimetableSettings(classId?: number) {
 }
 
 export async function saveTimetableSettings(data: any, classId?: number) {
-  return protectedDbAction("Academics", "canEdit", async () => {
+  return protectedDbAction("Academics", "canEdit", async (user) => {
+    await assertTimetableAdminAccess(user);
+
     const existing = await db.query.timetableSettings.findFirst({
       where: classId ? eq(timetableSettings.classId, classId) : isNull(timetableSettings.classId)
     });
@@ -107,20 +118,61 @@ export async function getTimetableEntries(modeOrId: "class" | "teacher" | number
       finalMode = modeOrId;
     }
 
-    if (!finalId) return [];
-
     const roleType = await getUserRoleType(user);
-    if (roleType === "teacher") {
+
+    // 1. ELEVE (Student) — Strictly lock to their own class
+    if (roleType === "eleve") {
+      const studentId = user.studentId || (user as any).student_id;
+      let studentRecord: any = null;
+      if (studentId) {
+        studentRecord = await db.query.students.findFirst({ where: eq(students.id, Number(studentId)) });
+      }
+      if (!studentRecord && (user as any).utilisateur) {
+        studentRecord = await db.query.students.findFirst({ where: eq(students.numAdmission, String((user as any).utilisateur)) });
+      }
+      if (!studentRecord) return [];
+
+      const schoolId = user.schoolId || await getActiveSchoolId();
+      const classRow = await db.query.schoolClasses.findFirst({
+        where: and(
+          schoolId ? eq(schoolClasses.schoolId, schoolId) : undefined,
+          eq(schoolClasses.className, studentRecord.classe)
+        )
+      });
+      if (!classRow) return [];
+      finalMode = "class";
+      finalId = classRow.id;
+    } else if (roleType === "parent") {
+      // 2. PARENT — Strictly lock to their child's class
+      const childId = user.studentId;
+      if (!childId) return [];
+      const studentRecord = await db.query.students.findFirst({ where: eq(students.id, Number(childId)) });
+      if (!studentRecord) return [];
+      const schoolId = user.schoolId || await getActiveSchoolId();
+      const classRow = await db.query.schoolClasses.findFirst({
+        where: and(
+          schoolId ? eq(schoolClasses.schoolId, schoolId) : undefined,
+          eq(schoolClasses.className, studentRecord.classe)
+        )
+      });
+      if (!classRow) return [];
+      finalMode = "class";
+      finalId = classRow.id;
+    } else if (roleType === "teacher") {
+      // 3. TEACHER — Only own schedule or assigned classes
       const emp = await getTeacherEmployee(user);
       if (!emp) return [];
 
       if (finalMode === "teacher") {
         finalId = emp.id;
       } else if (finalMode === "class") {
+        if (!finalId) return [];
         const hasAccess = await verifyTeacherClassAccess(user, finalId);
         if (!hasAccess) return [];
       }
     }
+
+    if (!finalId) return [];
 
     if (finalMode === "class") {
       await assertClassInActiveSchool(finalId);
@@ -140,6 +192,8 @@ export async function getTimetableEntries(modeOrId: "class" | "teacher" | number
 
 export async function getTimetableReportData() {
   return protectedDbAction("Academics", "canView", async (user) => {
+    await assertTimetableAdminAccess(user);
+
     const schoolId = user.schoolId || await getActiveSchoolId();
     const [entries, classes, teachers, settingsData, branchInfo, headerConfigRecord] = await Promise.all([
       db.query.timetableEntries.findMany({
@@ -197,7 +251,9 @@ export async function getTimetableReportData() {
 
 // Helper for dashboard overview
 export async function getGlobalOccupancy() {
-  return protectedDbAction("Academics", "canView", async () => {
+  return protectedDbAction("Academics", "canView", async (user) => {
+    await assertTimetableAdminAccess(user);
+
     const schoolId = await getActiveSchoolId();
     const entries = await db.query.timetableEntries.findMany({
       where: inArray(
@@ -216,7 +272,8 @@ export async function getGlobalOccupancy() {
 }
 
 export async function saveTimetableEntry(data: any) {
-  return protectedDbAction("Academics", "canEdit", async () => {
+  return protectedDbAction("Academics", "canEdit", async (user) => {
+    await assertTimetableAdminAccess(user);
     await assertClassInActiveSchool(data.classId);
 
     // Check for conflicts: either class is busy OR teacher is busy at the same day/period
@@ -253,7 +310,8 @@ export async function saveTimetableEntry(data: any) {
 }
 
 export async function deleteTimetableEntry(id: number) {
-  return protectedDbAction("Academics", "canDelete", async () => {
+  return protectedDbAction("Academics", "canDelete", async (user) => {
+    await assertTimetableAdminAccess(user);
     await assertTimetableEntryInActiveSchool(id);
     await db.delete(timetableEntries).where(eq(timetableEntries.id, id));
     revalidatePath("/dashboard/academics/timetable");
@@ -263,7 +321,8 @@ export async function deleteTimetableEntry(id: number) {
 }
 
 export async function moveTimetableEntry(id: number, dayName: string, periodNumber: number) {
-  return protectedDbAction("Academics", "canEdit", async () => {
+  return protectedDbAction("Academics", "canEdit", async (user) => {
+    await assertTimetableAdminAccess(user);
     const entry = await assertTimetableEntryInActiveSchool(id);
 
     if (!entry) throw new Error("Séance introuvable.");
@@ -350,7 +409,8 @@ export async function getAllSubjects(classId?: number) {
 }
 
 export async function saveTeacherConstraints(employeeId: number, data: any) {
-  return protectedDbAction("Academics", "canEdit", async () => {
+  return protectedDbAction("Academics", "canEdit", async (user) => {
+    await assertTimetableAdminAccess(user);
     const existing = await db.query.teacherConstraints.findFirst({
       where: eq(teacherConstraints.employeeId, employeeId)
     });
@@ -385,7 +445,8 @@ export async function getClassAssignments(classId: number) {
 }
 
 export async function saveClassAssignment(id: number | null, data: any) {
-  return protectedDbAction("Academics", "canEdit", async () => {
+  return protectedDbAction("Academics", "canEdit", async (user) => {
+    await assertTimetableAdminAccess(user);
     const existing = id
       ? await db.query.classSubjects.findFirst({ where: eq(classSubjects.id, id) })
       : null;
@@ -584,7 +645,8 @@ export async function getTeachersByClassLevel(classId: number) {
 }
 
 export async function aiSyncCursus(classId: number) {
-  return protectedDbAction("Academics", "canEdit", async () => {
+  return protectedDbAction("Academics", "canEdit", async (user) => {
+    await assertTimetableAdminAccess(user);
     const { schoolId } = await assertClassInActiveSchool(classId);
     const cls = await db.query.schoolClasses.findFirst({
       where: and(eq(schoolClasses.id, classId), eq(schoolClasses.schoolId, schoolId))
@@ -626,7 +688,8 @@ export async function aiSyncCursus(classId: number) {
 
 export async function addSubjectsToClass(classId: number, subjectIds: number[]) {
   if (subjectIds.length === 0) return { success: true };
-  return protectedDbAction("Academics", "canEdit", async () => {
+  return protectedDbAction("Academics", "canEdit", async (user) => {
+    await assertTimetableAdminAccess(user);
     const { schoolId } = await assertClassInActiveSchool(classId);
     const cls = await db.query.schoolClasses.findFirst({
       where: and(eq(schoolClasses.id, classId), eq(schoolClasses.schoolId, schoolId)),
@@ -662,7 +725,8 @@ export async function addSubjectsToClass(classId: number, subjectIds: number[]) 
 }
 
 export async function deleteClassAssignment(id: number) {
-  return protectedDbAction("Academics", "canDelete", async () => {
+  return protectedDbAction("Academics", "canDelete", async (user) => {
+    await assertTimetableAdminAccess(user);
     const schoolId = await getActiveSchoolId();
     if (!schoolId) throw new Error("Aucun contexte d'école trouvé.");
     await db.delete(classSubjects).where(and(eq(classSubjects.id, id), eq(classSubjects.schoolId, schoolId)));
@@ -672,7 +736,8 @@ export async function deleteClassAssignment(id: number) {
 }
 
 export async function runAISolver(sessionId: number) {
-  return protectedDbAction("Academics", "canEdit", async () => {
+  return protectedDbAction("Academics", "canEdit", async (user) => {
+    await assertTimetableAdminAccess(user);
     const schoolId = await getActiveSchoolId();
 
     await db.delete(timetableEntries).where(
@@ -791,6 +856,133 @@ export async function runAISolver(sessionId: number) {
     return { 
       success: true, 
       message: `Génération terminée : ${newEntries.length} heures programmées intelligemment.` 
+    };
+  });
+}
+
+// ─── Student Personal Timetable Action (Secure Isolation) ─────────────────────
+
+export async function getStudentPersonalTimetableAction() {
+  return protectedDbAction("Academics", "canView", async (user) => {
+    const schoolId = user.schoolId || await getActiveSchoolId();
+    if (!schoolId) return { success: false, error: "Contexte scolaire introuvable." };
+
+    // Resolve student record
+    let studentRecord: any = null;
+    const rawStudentId = (user as any).studentId || (user as any).student_id;
+    if (rawStudentId) {
+      studentRecord = await db.query.students.findFirst({
+        where: eq(students.id, Number(rawStudentId)),
+      });
+    }
+
+    const usernameStr = typeof (user as any).utilisateur === "string"
+      ? ((user as any).utilisateur as string)
+      : typeof (user as any).username === "string"
+        ? ((user as any).username as string)
+        : "";
+
+    if (!studentRecord && usernameStr.trim().length > 0) {
+      studentRecord = await db.query.students.findFirst({
+        where: and(
+          eq(students.schoolId, schoolId),
+          eq(students.numAdmission, usernameStr.trim())
+        ),
+      });
+    }
+
+    if (!studentRecord) {
+      return { success: false, error: "Profil étudiant introuvable pour ce compte." };
+    }
+
+    // Resolve student class
+    const classRow = await db.query.schoolClasses.findFirst({
+      where: and(
+        eq(schoolClasses.schoolId, schoolId),
+        eq(schoolClasses.className, studentRecord.classe)
+      ),
+      with: { section: true },
+    });
+
+    if (!classRow) {
+      return { success: false, error: "Classe introuvable pour cet élève." };
+    }
+
+    // Active session
+    const activeSession = (await db.query.schoolSessions.findFirst({
+      where: and(
+        eq(schoolSessions.schoolId, schoolId),
+        eq(schoolSessions.isActive, true)
+      )
+    })) || (await db.query.schoolSessions.findFirst({
+      where: eq(schoolSessions.schoolId, schoolId),
+      orderBy: desc(schoolSessions.id)
+    }));
+
+    // Timetable settings
+    const settingsData = (await db.query.timetableSettings.findFirst({
+      where: eq(timetableSettings.classId, classRow.id)
+    })) || (await db.query.timetableSettings.findFirst({
+      where: isNull(timetableSettings.classId)
+    })) || {
+      days: "Lundi,Mardi,Mercredi,Jeudi,Vendredi",
+      periods: 6,
+      recessAfter: 3,
+      recessDuration: 30,
+      periodDuration: 60,
+      dayStart: "08:00",
+      hideSaturday: true,
+      dailyPeriods: "{}"
+    };
+
+    // Fetch entries strictly for this student's class
+    const entries = await db.query.timetableEntries.findMany({
+      where: eq(timetableEntries.classId, classRow.id),
+      with: {
+        subject: true,
+        teacher: true,
+      },
+    });
+
+    // School info
+    const branchInfo = await db.query.schoolBranches.findFirst({
+      where: eq(schoolBranches.schoolId, schoolId)
+    });
+
+    return {
+      success: true,
+      data: {
+        student: {
+          id: studentRecord.id,
+          nomEtudiant: studentRecord.nomEtudiant,
+          numAdmission: studentRecord.numAdmission,
+          classe: studentRecord.classe,
+        },
+        class: {
+          id: classRow.id,
+          name: classRow.className,
+          section: classRow.section?.sectionName || "",
+          level: classRow.section?.educationalLevel || studentRecord.educationalLevel || "Lycée",
+        },
+        session: activeSession ? { id: activeSession.id, name: activeSession.sessionName } : null,
+        settings: settingsData,
+        entries: entries.map(e => ({
+          id: e.id,
+          dayName: e.dayName,
+          periodNumber: e.periodNumber,
+          roomName: e.roomName || "Salle de cours",
+          subjectName: e.subject?.subjectName || "Cours",
+          subjectCode: e.subject?.subjectCode || "",
+          teacherName: e.teacher?.nom || "Professeur",
+        })),
+        school: {
+          name: branchInfo?.branchName || "ÉCOLE GESTION PRO",
+          contact: branchInfo?.contactNo || "",
+          email: branchInfo?.email || "",
+          address: branchInfo?.address || "",
+          logoPath: branchInfo?.logoPath || "",
+        }
+      }
     };
   });
 }
