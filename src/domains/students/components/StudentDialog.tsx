@@ -53,10 +53,13 @@ export default function StudentDialog({ mode = "add", initialData, trigger, open
     }
   }, [mode, onClose]);
 
-  // ── Cascading select state ────────────────────────────────────────────────
+  // ── Cascading select & Academic Details state ──────────────────────────────
+  const [selectedSession, setSelectedSession] = useState(initialData?.session || "");
   const [selectedLevel,   setSelectedLevel]   = useState(initialData?.educationalLevel || "");
   const [selectedClasse,  setSelectedClasse]  = useState(initialData?.classe  || "");
   const [selectedSection, setSelectedSection] = useState(initialData?.section || "");
+  const [selectedCategorie, setSelectedCategorie] = useState(initialData?.categorie || "Général");
+  const [behaviorScoreValue, setBehaviorScoreValue] = useState(initialData?.behaviorScore ?? 18);
 
   // ── Financial planning state ──────────────────────────────────────────────
   const [fraisMensuels, setFraisMensuels] = useState(initialData?.fraisMensuels ?? "");
@@ -96,6 +99,27 @@ export default function StudentDialog({ mode = "add", initialData, trigger, open
   const [classesList,  setClassesList]  = useState<any[]>([]);
   const [sectionsList, setSectionsList] = useState<any[]>([]);
 
+  // ── Sync states whenever the dialog opens or initialData changes ───────────
+  useEffect(() => {
+    if (!open) return;
+
+    setSelectedSession(initialData?.session || "");
+    setSelectedLevel(initialData?.educationalLevel || "");
+    setSelectedClasse(initialData?.classe || "");
+    setSelectedSection(initialData?.section || "");
+    setSelectedCategorie(initialData?.categorie || "Général");
+    setBehaviorScoreValue(initialData?.behaviorScore ?? 18);
+
+    setFraisMensuels(initialData?.fraisMensuels ?? "");
+    setFraisInscription(initialData?.fraisInscription ?? "");
+    setFraisCogesCard(initialData?.fraisCogesCard ?? "");
+    setFraisTransportInternat(initialData?.fraisTransportInternat ?? "");
+    setAncienSoldeValue(initialData?.ancienSolde ?? "");
+    setStatutValue(initialData?.statut ?? "Actif");
+    setActivationPin(initialData?.activationPin || "");
+    setFingerprintHash(initialData?.fingerprintHash || "");
+  }, [open, initialData]);
+
   // ── Load everything once when the dialog opens ────────────────────────────
   useEffect(() => {
     if (!open) return;
@@ -126,6 +150,24 @@ export default function StudentDialog({ mode = "add", initialData, trigger, open
     resolveOnlineOrCached("studentCategory", () => getStudentCategories(), "label").then(setCategoriesList);
   }, [open]);
 
+  // ── Infer level and section from initialData.classe if missing ──────────────
+  useEffect(() => {
+    if (!allClassesList.length) return;
+    const targetClasse = initialData?.classe || selectedClasse;
+    if (targetClasse) {
+      const clsObj = allClassesList.find(c => c.className === targetClasse || c.id === initialData?.classId);
+      if (clsObj) {
+        const inferredLevel = clsObj.section?.educationalLevel || clsObj.educationalLevel;
+        if (inferredLevel && !selectedLevel) {
+          setSelectedLevel(inferredLevel);
+        }
+        if (clsObj.section?.sectionName && !selectedSection) {
+          setSelectedSection(clsObj.section.sectionName);
+        }
+      }
+    }
+  }, [allClassesList, initialData, selectedClasse, selectedLevel, selectedSection]);
+
   // ── Cascade filter when level changes → update classes & sections ─────────
   useEffect(() => {
     if (!selectedLevel) {
@@ -145,12 +187,6 @@ export default function StudentDialog({ mode = "add", initialData, trigger, open
     // Filter sections
     const fs = allSectionsList.filter(s => s.educationalLevel === selectedLevel);
     setSectionsList(fs.length > 0 ? fs : allSectionsList);
-
-    // Reset child dropdowns
-    if (mode === "add" || selectedLevel !== initialData?.educationalLevel) {
-      setSelectedClasse("");
-      setSelectedSection("");
-    }
   }, [selectedLevel, allClassesList, allSectionsList]);
 
   // Sync photo preview when initialData changes
@@ -684,7 +720,8 @@ export default function StudentDialog({ mode = "add", initialData, trigger, open
                             <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Session *</Label>
                             <select
                               name="session"
-                              defaultValue={initialData?.session || ""}
+                              value={selectedSession}
+                              onChange={e => setSelectedSession(e.target.value)}
                               className="w-full h-12 rounded-2xl border border-slate-100 bg-slate-50/50 px-4 font-bold text-slate-700 outline-none transition-all"
                             >
                               <option value="" disabled>-- Choisir la session --</option>
@@ -692,11 +729,15 @@ export default function StudentDialog({ mode = "add", initialData, trigger, open
                                 ? sessionsList.map(s => (
                                     <option key={s.id} value={s.sessionName}>{s.sessionName}</option>
                                   ))
-                                : /* fallback while loading */ [
+                                : [
                                     <option key="f1" value="2024-2025">2024-2025</option>,
-                                    <option key="f2" value="2023-2024">2023-2024</option>,
+                                    <option key="f2" value="2025-2026">2025-2026</option>,
+                                    <option key="f3" value="2023-2024">2023-2024</option>,
                                   ]
                               }
+                              {selectedSession && !sessionsList.some(s => s.sessionName === selectedSession) && (
+                                <option value={selectedSession}>{selectedSession}</option>
+                              )}
                             </select>
                           </div>
 
@@ -706,7 +747,12 @@ export default function StudentDialog({ mode = "add", initialData, trigger, open
                             <select
                               name="educationalLevel"
                               value={selectedLevel}
-                              onChange={e => setSelectedLevel(e.target.value)}
+                              onChange={e => {
+                                const newLevel = e.target.value;
+                                setSelectedLevel(newLevel);
+                                setSelectedClasse("");
+                                setSelectedSection("");
+                              }}
                               required
                               className="w-full h-12 rounded-2xl border border-slate-100 bg-slate-50/50 px-4 font-bold text-slate-700 outline-none transition-all"
                             >
@@ -714,13 +760,16 @@ export default function StudentDialog({ mode = "add", initialData, trigger, open
                               {levelsList.map(l => (
                                 <option key={l.id} value={l.levelName}>{l.levelName}</option>
                               ))}
+                              {selectedLevel && !levelsList.some(l => l.levelName === selectedLevel) && (
+                                <option value={selectedLevel}>{selectedLevel}</option>
+                              )}
                             </select>
                             {levelsList.length === 0 && (
                               <p className="text-[10px] text-amber-500 font-semibold ml-1">⏳ Chargement depuis Paramètres...</p>
                             )}
                           </div>
 
-                          {/* CLASSE — filtered by selected level */}
+                          {/* CLASSE — filtered by selected level with fallback */}
                           <div className="space-y-3">
                              <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Classe *</Label>
                              <select
@@ -729,9 +778,16 @@ export default function StudentDialog({ mode = "add", initialData, trigger, open
                                onChange={e => {
                                  const val = e.target.value;
                                  setSelectedClasse(val);
-                                 // Auto-fill financial planning values from selected class settings
+                                 // Auto-fill financial planning values and level from selected class settings
                                  const clsObj = allClassesList.find(c => c.className === val);
                                  if (clsObj) {
+                                   const infLevel = clsObj.section?.educationalLevel || clsObj.educationalLevel;
+                                   if (infLevel && infLevel !== selectedLevel) {
+                                     setSelectedLevel(infLevel);
+                                   }
+                                   if (clsObj.section?.sectionName) {
+                                     setSelectedSection(clsObj.section.sectionName);
+                                   }
                                    setFraisMensuels(clsObj.scolariteMensuelle ?? 0);
                                    setFraisInscription(clsObj.droitsInscription ?? 0);
                                    setFraisCogesCard(clsObj.cogesCarteId ?? 0);
@@ -749,6 +805,9 @@ export default function StudentDialog({ mode = "add", initialData, trigger, open
                                {classesList.map(c => (
                                  <option key={c.id} value={c.className}>{c.className}</option>
                                ))}
+                               {selectedClasse && !classesList.some(c => c.className === selectedClasse) && (
+                                 <option value={selectedClasse}>{selectedClasse}</option>
+                               )}
                              </select>
                           </div>
 
@@ -756,7 +815,7 @@ export default function StudentDialog({ mode = "add", initialData, trigger, open
 
                        <div className="grid grid-cols-3 gap-6">
 
-                           {/* SECTION — filtered by selected level */}
+                           {/* SECTION — filtered by selected level with fallback */}
                            <div className="space-y-3">
                              <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Section</Label>
                              <select
@@ -769,16 +828,30 @@ export default function StudentDialog({ mode = "add", initialData, trigger, open
                                {sectionsList.map(s => (
                                  <option key={s.id} value={s.sectionName}>{s.sectionName}</option>
                                ))}
+                               {selectedSection && !sectionsList.some(s => s.sectionName === selectedSection) && (
+                                 <option value={selectedSection}>{selectedSection}</option>
+                               )}
                              </select>
                            </div>
 
-                           {/* CATÉGORIE — static values */}
+                           {/* CATÉGORIE — controlled with options */}
                            <div className="space-y-3">
                              <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Catégorie</Label>
-                             <select name="categorie" defaultValue={initialData?.categorie || "Général"} className="w-full h-12 rounded-2xl border border-slate-100 bg-slate-50/50 px-4 font-bold text-slate-700 outline-none transition-all">
+                             <select
+                               name="categorie"
+                               value={selectedCategorie}
+                               onChange={e => setSelectedCategorie(e.target.value)}
+                               className="w-full h-12 rounded-2xl border border-slate-100 bg-slate-50/50 px-4 font-bold text-slate-700 outline-none transition-all"
+                             >
                                  <option value="Général">Général</option>
                                  <option value="Boursier">Boursier</option>
                                  <option value="Fils d'employé">Fils d'employé</option>
+                                 {categoriesList.filter(c => !["Général", "Boursier", "Fils d'employé"].includes(c.value)).map(c => (
+                                   <option key={c.id} value={c.value}>{c.label}</option>
+                                 ))}
+                                 {selectedCategorie && !["Général", "Boursier", "Fils d'employé"].includes(selectedCategorie) && !categoriesList.some(c => c.value === selectedCategorie) && (
+                                   <option value={selectedCategorie}>{selectedCategorie}</option>
+                                 )}
                              </select>
                            </div>
 
@@ -789,7 +862,14 @@ export default function StudentDialog({ mode = "add", initialData, trigger, open
                             <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Behavior Score (Conduite) /20</Label>
                             <span className="text-[10px] font-black text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-full">Automated Ranking</span>
                           </div>
-                          <Input name="behaviorScore" type="number" step="0.5" defaultValue={initialData?.behaviorScore} className="h-11 rounded-xl border-slate-100 bg-slate-50/50 font-bold" />
+                          <Input
+                            name="behaviorScore"
+                            type="number"
+                            step="0.5"
+                            value={behaviorScoreValue}
+                            onChange={e => setBehaviorScoreValue(e.target.value)}
+                            className="h-11 rounded-xl border-slate-100 bg-slate-50/50 font-bold"
+                          />
                        </div>
                     </section>
                 </div>
