@@ -130,7 +130,7 @@ export async function getTimetableEntries(modeOrId: "class" | "teacher" | number
       if (!studentRecord && (user as any).utilisateur) {
         studentRecord = await db.query.students.findFirst({ where: eq(students.numAdmission, String((user as any).utilisateur)) });
       }
-      if (!studentRecord) return [];
+      if (!studentRecord || !studentRecord.classe) return [];
 
       const schoolId = user.schoolId || await getActiveSchoolId();
       const classRow = await db.query.schoolClasses.findFirst({
@@ -147,7 +147,7 @@ export async function getTimetableEntries(modeOrId: "class" | "teacher" | number
       const childId = user.studentId;
       if (!childId) return [];
       const studentRecord = await db.query.students.findFirst({ where: eq(students.id, Number(childId)) });
-      if (!studentRecord) return [];
+      if (!studentRecord || !studentRecord.classe) return [];
       const schoolId = user.schoolId || await getActiveSchoolId();
       const classRow = await db.query.schoolClasses.findFirst({
         where: and(
@@ -891,8 +891,8 @@ export async function getStudentPersonalTimetableAction() {
       });
     }
 
-    if (!studentRecord) {
-      return { success: false, error: "Profil étudiant introuvable pour ce compte." };
+    if (!studentRecord || !studentRecord.classe) {
+      return { success: false, error: "Profil étudiant ou classe introuvable pour ce compte." };
     }
 
     // Resolve student class
