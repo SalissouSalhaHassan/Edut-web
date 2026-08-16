@@ -238,6 +238,29 @@ export const hasPermission = cache(async (
     return true;
   }
 
+  // 7. Élève & Parent: always have canView permission for personal student modules
+  if (roleType === "eleve" || roleType === "parent") {
+    if (action === "canView") {
+      const allowedStudentModules = [
+        "attendance",
+        "assiduite",
+        "academics",
+        "students",
+        "classes",
+        "grades",
+        "exams",
+        "bulletin",
+        "bulletins",
+        "finance",
+        "schedule",
+        "timetable",
+        "messaging",
+        "announcements",
+      ];
+      if (allowedStudentModules.includes(modLower)) return true;
+    }
+  }
+
   // Fallback to database-configured role permissions
   const userWithPerms = await db.query.users.findFirst({
     where: eq(users.id, userId),

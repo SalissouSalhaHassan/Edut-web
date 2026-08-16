@@ -20,6 +20,26 @@ export async function GET(request: NextRequest) {
     studentId = Number(user.studentId || (user as any).student_id);
   }
 
+  if (!studentId && user.utilisateur) {
+    const student = await readDb.query.students.findFirst({
+      where: or(
+        eq(students.numAdmission, user.utilisateur),
+        eq(students.nomEtudiant, user.utilisateur)
+      ),
+      columns: { id: true }
+    });
+    if (student) studentId = student.id;
+  }
+
+  if (!studentId) {
+    // If student still not found, check if parent has any students in this school
+    const anyStudent = await readDb.query.students.findFirst({
+      where: user.schoolId ? eq(students.schoolId, user.schoolId) : undefined,
+      columns: { id: true }
+    });
+    if (anyStudent) studentId = anyStudent.id;
+  }
+
   if (!studentId) {
     return mobileJsonError("studentId manquant", 400);
   }
