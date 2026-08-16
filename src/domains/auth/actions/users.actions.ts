@@ -447,6 +447,14 @@ export async function saveUser(formData: SaveUserFormData, id?: number) {
               }
             }
           });
+          if (authData?.user?.id) {
+            data.supabaseId = authData.user.id;
+          }
+        } catch (signUpErr) {
+          console.warn("[saveUser] Supabase signup bootstrap warning:", signUpErr);
+        }
+      }
+
       // Direct sync in Postgres auth.users table for Supabase Auth consistency
       if (data.motDePasse) {
         try {
