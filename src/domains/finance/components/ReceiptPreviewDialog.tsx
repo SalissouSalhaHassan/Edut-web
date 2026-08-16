@@ -783,33 +783,86 @@ export default function ReceiptPreviewDialog({
     doc.setFontSize(isA5 ? 6 : 7);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(16, 185, 129);
-    doc.text("DATE DU REÇU", rx, infoBoxY + (isA5 ? 4.5 : 6));
-    doc.setFontSize(isA5 ? 8.5 : 11);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(15, 23, 42);
-    doc.text(receiptDate, rx, infoBoxY + (isA5 ? 10.5 : 14));
+    doc.text("DATE DU REÇU & SITUATION", rx, infoBoxY + (isA5 ? 4.5 : 6));
+
+    const rightLabels = ["Date du reçu", "Total Attendu", "Total Déjà Payé", "Solde Restant"];
+    const rightVals = [
+      receiptDate,
+      formatCfaAmount(totalExpected),
+      formatCfaAmount(totalPaid),
+      formatCfaAmount(balance),
+    ];
+
+    doc.setFontSize(isA5 ? 6.5 : 8);
+    rightLabels.forEach((lbl, i) => {
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(120, 130, 150);
+      doc.text(lbl, rx, infoBoxY + (isA5 ? 9.5 : 12) + i * (isA5 ? 3.5 : 4.5));
+      doc.setFont("helvetica", "bold");
+      if (i === 3) {
+        doc.setTextColor(balance <= 0 ? 16 : 79, balance <= 0 ? 185 : 70, balance <= 0 ? 129 : 229);
+      } else {
+        doc.setTextColor(30, 35, 50);
+      }
+      doc.text(`: ${rightVals[i]}`, rx + (isA5 ? 24 : 32), infoBoxY + (isA5 ? 9.5 : 12) + i * (isA5 ? 3.5 : 4.5));
+    });
 
     doc.setDrawColor(220, 225, 240);
     doc.line(W / 2, infoBoxY + (isA5 ? 1.5 : 2), W / 2, infoBoxY + (isA5 ? 22.5 : 30));
 
+    // Table: Historique des versements
+    const tableBody = (allPayments.length > 0 ? allPayments : [
+      {
+        id: feeData.payment?.id || 1,
+        datePaid: feeData.payment?.datePaid || receiptDate,
+        paymentMode: feeData.payment?.paymentMode || "Espèces",
+        monthConcerned: feeData.payment?.monthConcerned || "Frais de scolarité",
+        amount: totalPaid,
+      }
+    ]).map((p: any, idx: number) => {
+      const refStr = `VER-${p.id || (idx + 1)}`;
+      let dStr = p.datePaid;
+      if (dStr) {
+        try {
+          const d = new Date(dStr);
+          if (!isNaN(d.getTime())) dStr = d.toLocaleDateString("fr-FR");
+        } catch (_) {}
+      } else {
+        dStr = receiptDate;
+      }
+      const modeStr = p.paymentMode || "Espèces";
+      const motifStr = p.monthConcerned || p.remark || "Frais de scolarité";
+      const amtStr = formatCfaAmount(p.amount || 0);
+      return [refStr, dStr, modeStr, motifStr, amtStr];
+    });
+
     autoTable(doc, {
-      startY: infoBoxY + (isA5 ? 27 : 36),
-      head: [["Description", "Montant"]],
-      body: [
-        ["Total Attendu — Frais annuels de scolarité", formatCfaAmount(totalExpected)],
-        ["Total Déjà Payé", formatCfaAmount(totalPaid)],
-        ...(totalReduction > 0 ? [["Réduction / Bourse", "- " + formatCfaAmount(totalReduction)]] : []),
+      startY: infoBoxY + (isA5 ? 28 : 36),
+      head: [["Réf / N°", "Date de Versement", "Mode", "Motif / Libellé", "Montant Versé"]],
+      body: tableBody,
+      foot: [
+        [
+          { content: "TOTAL DÉJÀ VERSÉ", colSpan: 4, styles: { halign: "right", fontStyle: "bold" } },
+          { content: formatCfaAmount(totalPaid), styles: { halign: "right", fontStyle: "bold" } }
+        ],
+        [
+          { content: "SOLDE RESTANT À PAYER", colSpan: 4, styles: { halign: "right", fontStyle: "bold" } },
+          { content: formatCfaAmount(balance), styles: { halign: "right", fontStyle: "bold" } }
+        ]
       ],
-      foot: [["SOLDE RESTANT", formatCfaAmount(balance)]],
       theme: "grid",
       headStyles: {
         fillColor: [15, 23, 42],
         textColor: 255,
-        fontSize: isA5 ? 7 : 9,
+        fontSize: isA5 ? 7 : 8.5,
         fontStyle: "bold",
         halign: "center",
       },
-      bodyStyles: { fontSize: isA5 ? 7 : 9, cellPadding: isA5 ? 2.5 : 4, overflow: 'linebreak' },
+      bodyStyles: {
+        fontSize: isA5 ? 6.5 : 8,
+        cellPadding: isA5 ? 2.5 : 3.5,
+        textColor: [30, 35, 50],
+      },
       didParseCell: (data: any) => {
         if (data.section === 'body') {
           data.cell.styles.fillColor = false;
@@ -818,12 +871,15 @@ export default function ReceiptPreviewDialog({
       footStyles: {
         fillColor: [79, 70, 229],
         textColor: 255,
-        fontSize: isA5 ? 7.5 : 10,
+        fontSize: isA5 ? 7 : 8.5,
         fontStyle: "bold",
       },
       columnStyles: {
-        0: { cellWidth: isA5 ? 92 : 130 },
-        1: { halign: "right", fontStyle: "bold" },
+        0: { halign: "center", cellWidth: isA5 ? 20 : 28 },
+        1: { halign: "center", cellWidth: isA5 ? 26 : 35 },
+        2: { halign: "center", cellWidth: isA5 ? 22 : 30 },
+        3: { cellWidth: isA5 ? 40 : 55 },
+        4: { halign: "right", fontStyle: "bold" },
       },
       margin: { left: margin, right: margin },
     });
@@ -1176,97 +1232,97 @@ export default function ReceiptPreviewDialog({
                       </div>
                     </div>
 
-                    {/* Right — Date */}
-                    <div className="pl-10 flex flex-col justify-center min-w-[200px]">
+                    {/* Right — Date & Situation Financière */}
+                    <div className="pl-10 flex flex-col justify-center min-w-[280px]">
                       <div className="flex items-center gap-2 mb-3">
                         <div className="w-8 h-8 rounded-lg bg-emerald-50/80 flex items-center justify-center shrink-0">
                           <Calendar size={15} className="text-emerald-600" />
                         </div>
                         <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">
-                          Date du Reçu
+                          Date du Reçu &amp; Situation
                         </p>
                       </div>
-                      <p className="text-[26px] font-black text-slate-900 leading-tight">
-                        {receiptDate}
-                      </p>
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between gap-3 text-[12.5px]">
+                          <span className="text-slate-500 font-medium">Date du reçu :</span>
+                          <span className="font-bold text-slate-800">{receiptDate}</span>
+                        </div>
+                        <div className="flex items-center justify-between gap-3 text-[12.5px]">
+                          <span className="text-slate-500 font-medium">Total Attendu :</span>
+                          <span className="font-bold text-slate-800">{formatCfaAmount(totalExpected)}</span>
+                        </div>
+                        <div className="flex items-center justify-between gap-3 text-[12.5px]">
+                          <span className="text-slate-500 font-medium">Total Déjà Payé :</span>
+                          <span className="font-bold text-slate-800">{formatCfaAmount(totalPaid)}</span>
+                        </div>
+                        <div className="flex items-center justify-between gap-3 text-[12.5px] pt-1 border-t border-slate-200">
+                          <span className="text-slate-600 font-bold">Solde Restant :</span>
+                          <span className={cn(
+                            "font-black text-[13.5px]",
+                            isSolde ? "text-emerald-600" : "text-indigo-600"
+                          )}>
+                            {formatCfaAmount(balance)}
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                {/* ── AMOUNTS TABLE ── */}
+                {/* ── HISTORIQUE DES VERSEMENTS TABLE ── */}
                 <div className="border-b border-slate-100 relative z-10">
 
                   {/* Table header — dark navy */}
-                  <div className="grid grid-cols-[1fr_220px] bg-[#0F172A] text-white px-8 py-4">
-                    <p className="text-[10px] font-black uppercase tracking-widest">Description</p>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-right">Montant</p>
+                  <div className="grid grid-cols-[100px_130px_110px_1fr_160px] bg-[#0F172A] text-white px-8 py-3.5 items-center">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-center">Réf / N°</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-center">Date</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-center">Mode</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest">Motif / Libellé</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-right">Montant Versé</p>
                   </div>
 
-                  {/* Row 1: Total Attendu */}
-                  <div className="grid grid-cols-[1fr_220px] px-8 py-4 items-center border-b border-slate-100 bg-white/75">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-blue-50/80 border border-blue-100 flex items-center justify-center shrink-0">
-                        <BookOpen size={18} className="text-blue-500" />
+                  {/* Table rows */}
+                  {(allPayments.length > 0 ? allPayments : [
+                    {
+                      id: feeData.payment?.id || 1,
+                      datePaid: feeData.payment?.datePaid || receiptDate,
+                      paymentMode: feeData.payment?.paymentMode || "Espèces",
+                      monthConcerned: feeData.payment?.monthConcerned || "Frais de scolarité",
+                      amount: totalPaid,
+                    }
+                  ]).map((p: any, idx: number) => {
+                    let dStr = p.datePaid;
+                    if (dStr) {
+                      try {
+                        const d = new Date(dStr);
+                        if (!isNaN(d.getTime())) dStr = d.toLocaleDateString("fr-FR");
+                      } catch (_) {}
+                    } else {
+                      dStr = receiptDate;
+                    }
+                    return (
+                      <div
+                        key={p.id || idx}
+                        className="grid grid-cols-[100px_130px_110px_1fr_160px] px-8 py-3.5 items-center border-b border-slate-100 bg-white/75 hover:bg-slate-50/80 transition-colors text-[12.5px]"
+                      >
+                        <p className="font-bold text-slate-600 text-center">VER-{p.id || (idx + 1)}</p>
+                        <p className="text-slate-600 text-center">{dStr}</p>
+                        <p className="text-slate-600 text-center font-medium">{p.paymentMode || "Espèces"}</p>
+                        <p className="text-slate-800 font-semibold">{p.monthConcerned || p.remark || "Frais de scolarité"}</p>
+                        <p className="font-black text-slate-800 text-right">{formatCfaAmount(p.amount || 0)}</p>
                       </div>
-                      <div>
-                        <p className="text-[13px] font-black text-slate-800">
-                          Total Attendu{" "}
-                          <span className="text-[10px] font-black text-slate-400">(ATTENDU)</span>
-                        </p>
-                        <p className="text-[11px] text-slate-400 font-medium mt-0.5">Frais annuels de scolarité</p>
-                      </div>
-                    </div>
-                    <p className="text-[14px] font-black text-slate-800 text-right">
-                      {formatCfaAmount(totalExpected)}
-                    </p>
+                    );
+                  })}
+
+                  {/* Footers */}
+                  <div className="grid grid-cols-[1fr_160px] px-8 py-3 items-center bg-slate-50 border-b border-slate-200">
+                    <p className="text-[11px] font-bold text-slate-600 uppercase tracking-wider text-right pr-4">Total Déjà Versé</p>
+                    <p className="text-[14px] font-black text-slate-800 text-right">{formatCfaAmount(totalPaid)}</p>
                   </div>
-
-                  {/* Row 2: Réduction (conditional) */}
-                  {totalReduction > 0 && (
-                    <div className="grid grid-cols-[1fr_220px] px-8 py-4 items-center border-b border-slate-100 bg-white/75">
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-xl bg-purple-50/80 border border-purple-100 flex items-center justify-center shrink-0">
-                          <GraduationCap size={18} className="text-purple-500" />
-                        </div>
-                        <div>
-                          <p className="text-[13px] font-black text-slate-800">Réduction / Bourse</p>
-                          <p className="text-[11px] text-slate-400 font-medium mt-0.5">Déduction accordée</p>
-                        </div>
-                      </div>
-                      <p className="text-[14px] font-black text-purple-600 text-right">
-                        - {formatCfaAmount(totalReduction)}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Row 3: Total Payé */}
-                  <div className="grid grid-cols-[1fr_220px] px-8 py-4 items-center border-b border-slate-100 bg-white/75">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-emerald-50/80 border border-emerald-100 flex items-center justify-center shrink-0">
-                        <Wallet size={18} className="text-emerald-500" />
-                      </div>
-                      <div>
-                        <p className="text-[13px] font-black text-slate-800">
-                          Total Déjà Payé{" "}
-                          <span className="text-[10px] font-black text-slate-400">(PAYÉ)</span>
-                        </p>
-                        {allPayments.length > 0 && (
-                          <p className="text-[11px] text-slate-400 font-medium mt-0.5">
-                            {allPayments.length} versement{allPayments.length > 1 ? "s" : ""} enregistré{allPayments.length > 1 ? "s" : ""}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    <p className="text-[14px] font-black text-slate-800 text-right">
-                      {formatCfaAmount(totalPaid)}
-                    </p>
-                  </div>
-
-                  {/* Balance row — light blue background, indigo amount */}
-                  <div className="grid grid-cols-[1fr_220px] px-8 py-5 items-center bg-slate-50/60">
-                    <p className="text-[13px] font-black text-slate-700 uppercase tracking-wider">Solde Restant</p>
+                  <div className="grid grid-cols-[1fr_160px] px-8 py-4 items-center bg-indigo-50/60">
+                    <p className="text-[12px] font-black text-indigo-900 uppercase tracking-wider text-right pr-4">Solde Restant à Payer</p>
                     <p className={cn(
-                      "text-[22px] font-black text-right",
+                      "text-[18px] font-black text-right",
                       isSolde ? "text-emerald-600" : "text-indigo-600"
                     )}>
                       {formatCfaAmount(balance)}
