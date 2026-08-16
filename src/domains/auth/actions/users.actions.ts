@@ -3,6 +3,8 @@
 import { db } from "@/infrastructure/database";
 import { users, loginLogs } from "@/infrastructure/database/schema/auth";
 import { auditLogs } from "@/infrastructure/database/schema/audit";
+import { students } from "@/infrastructure/database/schema/students";
+import { employees } from "@/infrastructure/database/schema/hr";
 import { eq, desc, and, or, isNull, inArray, sql, type SQL } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/domains/auth/services/session";
@@ -376,10 +378,13 @@ export async function saveUser(formData: SaveUserFormData, id?: number) {
       
       const targetUser = await db.query.users.findFirst({
         where: eq(users.id, id),
-        columns: { id: true, schoolId: true, educationalLevel: true, supabaseId: true, utilisateur: true }
+        columns: { id: true, schoolId: true, educationalLevel: true, supabaseId: true, utilisateur: true, studentId: true, employeeId: true }
       });
       
       if (!targetUser) return { error: "Utilisateur non trouvé", success: false };
+
+      // Multi-tenancy: preserve existing schoolId if not explicitly changing
+      data.schoolId = selectedSchoolId ?? targetUser.schoolId ?? currentSchoolId ?? null;
 
       // Multi-tenancy and level check for update (non-superAdmins only)
       if (!isSuperAdmin) {
@@ -451,6 +456,14 @@ export async function saveUser(formData: SaveUserFormData, id?: number) {
       }
 
       await db.update(users).set(data).where(eq(users.id, id));
+      
+      // Update identity links in students & employees tables
+      if (data.studentId) {
+        await db.update(students).set({ userId: id }).where(eq(students.id, data.studentId)).catch(() => {});
+      }
+      if (data.employeeId) {
+        await db.update(employees).set({ userId: id }).where(eq(employees.id, data.employeeId)).catch(() => {});
+      }
       console.log(`[saveUser] Update success for user ${id}`);
 
       const updatedRecord = await db.query.users.findFirst({

@@ -193,18 +193,18 @@ export default function UserDialog({
     setNewRoleName("");
     setFormData({
       utilisateur:      user?.utilisateur      || "",
-      nomPrenom:        user?.nomPrenom        || "",
+      nomPrenom:        user?.nomPrenom        || user?.nom_prenom || "",
       motDePasse:       "",
       admin:            user?.admin            || false,
-      superAdmin:       user?.superAdmin       || false,
-      roleId:           user?.roleId?.toString()    || "",
+      superAdmin:       user?.superAdmin       || user?.super_admin || false,
+      roleId:           (user?.roleId ?? user?.role_id)?.toString()    || "",
       langue:           user?.langue           || "FR",
-      educationalLevel: user?.educationalLevel || "Primaire",
-      avatarUrl:        user?.avatarUrl        || "",
-      supabaseId:       user?.supabaseId       || "",
-      schoolId:         user?.schoolId?.toString()  || "",
-      studentId:        user?.studentId?.toString()  || "",
-      employeeId:       user?.employeeId?.toString() || "",
+      educationalLevel: user?.educationalLevel || user?.educational_level || "Primaire",
+      avatarUrl:        user?.avatarUrl        || user?.avatar_url || "",
+      supabaseId:       user?.supabaseId       || user?.supabase_id || "",
+      schoolId:         (user?.schoolId ?? user?.school_id)?.toString()  || "",
+      studentId:        (user?.studentId ?? user?.student_id)?.toString()  || "",
+      employeeId:       (user?.employeeId ?? user?.employee_id)?.toString() || "",
     });
     speak(
       user
