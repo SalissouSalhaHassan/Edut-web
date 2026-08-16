@@ -447,11 +447,18 @@ export async function saveUser(formData: SaveUserFormData, id?: number) {
               }
             }
           });
-          if (authData?.user?.id) {
-            data.supabaseId = authData.user.id;
-          }
-        } catch (signUpErr) {
-          console.warn("[saveUser] Supabase signup bootstrap warning:", signUpErr);
+      // Direct sync in Postgres auth.users table for Supabase Auth consistency
+      if (data.motDePasse) {
+        try {
+          await db.execute(sql`
+            UPDATE auth.users 
+            SET encrypted_password = ${data.motDePasse},
+                email = ${loginEmail},
+                updated_at = NOW()
+            WHERE id = ${activeSupabaseId}::uuid OR email = ${loginEmail}
+          `);
+        } catch (authSqlErr) {
+          console.warn("[saveUser] Direct auth.users SQL sync error:", authSqlErr);
         }
       }
 

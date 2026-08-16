@@ -7,7 +7,8 @@ import { loginSchema, LoginFormData } from "../validators/auth.schema";
 import { headers } from "next/headers";
 import { db } from "@/infrastructure/database";
 import { users, schools } from "@/infrastructure/database/schema/auth";
-import { eq, and } from "drizzle-orm";
+import { eq, and, or, sql } from "drizzle-orm";
+import bcrypt from "bcryptjs";
 
 export async function login(formData: LoginFormData) {
   // Validate input using Zod
@@ -21,7 +22,7 @@ export async function login(formData: LoginFormData) {
   const schoolSlug = headerList.get("x-school-slug");
 
   let authError = null;
-  let loginEmail = formData.username;
+  let loginEmail = formData.username.trim();
   
   // Si le username n'a pas de '@', on assume que c'est '@test.com' ou un email local pour le Dev
   if (!loginEmail.includes('@')) {
@@ -32,39 +33,78 @@ export async function login(formData: LoginFormData) {
   console.log(`[LOGIN PROFILE] Starting login for: ${loginEmail}`);
 
   try {
-    const tSupabaseStart = performance.now();
     const supabase = await createClient();
-    const tSupabaseClient = performance.now();
-    console.log(`[LOGIN PROFILE] createClient took ${(tSupabaseClient - tSupabaseStart).toFixed(2)}ms`);
 
-    const { data, error } = await supabase.auth.signInWithPassword({
+    let { data, error } = await supabase.auth.signInWithPassword({
       email: loginEmail,
       password: formData.password,
     });
-    const tSupabaseAuth = performance.now();
-    console.log(`[LOGIN PROFILE] Supabase signInWithPassword took ${(tSupabaseAuth - tSupabaseClient).toFixed(2)}ms`);
     
+    // If Supabase Auth fails, check directly against local database users table
+    if (error) {
+      console.warn("[LOGIN] Supabase sign-in failed, checking database fallback for user:", loginEmail);
+      const cleanUsername = formData.username.trim().toLowerCase();
+      
+      const dbUser = await db.query.users.findFirst({
+        where: or(
+          eq(users.utilisateur, cleanUsername),
+          eq(users.utilisateur, formData.username.trim()),
+          eq(users.utilisateur, loginEmail)
+        ),
+        with: {
+          school: true
+        }
+      });
+
+      if (dbUser && dbUser.motDePasse) {
+        const isMatch = await bcrypt.compare(formData.password, dbUser.motDePasse);
+        if (isMatch) {
+          console.log(`[LOGIN] Password match in database for user ${dbUser.utilisateur}. Synchronizing auth.users...`);
+          
+          try {
+            // Self-heal and sync auth.users with the new password hash
+            await db.execute(sql`
+              UPDATE auth.users
+              SET encrypted_password = ${dbUser.motDePasse},
+                  email = ${loginEmail},
+                  updated_at = NOW()
+              WHERE id = ${dbUser.supabaseId}::uuid OR email = ${loginEmail}
+            `);
+          } catch (syncErr) {
+            console.warn("[LOGIN] Direct auth.users update warning:", syncErr);
+          }
+
+          // Retry Supabase sign in with the synchronized credentials
+          const retryRes = await supabase.auth.signInWithPassword({
+            email: loginEmail,
+            password: formData.password,
+          });
+
+          if (retryRes.data?.user) {
+            data = retryRes.data;
+            error = null;
+            authError = null;
+          }
+        }
+      }
+    }
+
     if (error) {
       console.error("Supabase Auth Error Details:", error);
       authError = error;
-    } else if (data.user) {
+    } else if (data?.user) {
       if (schoolSlug) {
-        const tUserStart = performance.now();
         const dbUser = await db.query.users.findFirst({
           where: eq(users.supabaseId, data.user.id),
           with: {
             school: true
           }
         });
-        const tUserEnd = performance.now();
-        console.log(`[LOGIN PROFILE] Drizzle joined user+school query took ${(tUserEnd - tUserStart).toFixed(2)}ms`);
 
         // If user exists but belongs to a different school
         if (dbUser && !dbUser.superAdmin) {
           if (!dbUser.school || dbUser.school.slug !== schoolSlug) {
-            const tSignOutStart = performance.now();
             await supabase.auth.signOut();
-            console.log(`[LOGIN PROFILE] supabase.auth.signOut took ${(performance.now() - tSignOutStart).toFixed(2)}ms`);
             return { error: "Accès refusé. Vous n'êtes pas membre de cette école." };
           }
         }
