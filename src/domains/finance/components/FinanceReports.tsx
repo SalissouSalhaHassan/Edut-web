@@ -446,13 +446,18 @@ export default function FinanceReports({ fees = [], classes = [], classSummary =
   const currentFeeDetails = fees.find((f: any) => f.id === selectedFeeId) || fees[0];
 
   // ── REPORT SPECIFIC EXPORT DATA GENERATOR ──
-  const getActiveReportDataset = () => {
+  const getActiveReportDataset = (): {
+    title: string;
+    headers: string[];
+    rows: (string | number)[][];
+    kpis: { label: string; value: string }[];
+  } => {
     const currentReportMeta = ACCOUNTING_REPORTS.find(r => r.id === activeReport) || ACCOUNTING_REPORTS[0];
     
     switch (activeReport) {
       case "journal": {
         const headers = ["N°", "Date", "Référence", "Élève", "Classe", "Mode", "Caissier", "Montant (CFA)"];
-        const rows = filteredPayments.map((p: any, idx: number) => [
+        const rows: (string | number)[][] = filteredPayments.map((p: any, idx: number) => [
           idx + 1,
           isMounted && p.datePaid ? new Date(p.datePaid).toLocaleDateString("fr-FR") : "-",
           p.reference || `REC-${p.id}`,
@@ -473,7 +478,7 @@ export default function FinanceReports({ fees = [], classes = [], classSummary =
       case "grandlivre": {
         const student = currentFeeDetails?.student;
         const headers = ["Date", "Réf", "Libellé de l'Opération", "Débit (Attendu)", "Crédit (Payé)", "Réduction", "Mode"];
-        const rows = [
+        const rows: (string | number)[][] = [
           [
             "-",
             "INIT",
@@ -504,7 +509,7 @@ export default function FinanceReports({ fees = [], classes = [], classSummary =
 
       case "balance": {
         const headers = ["Classe", "Élèves", "Total Attendu", "Remises", "Total Encaissé", "Créances Dues", "Taux"];
-        const rows = classSummary.map((c) => {
+        const rows: (string | number)[][] = classSummary.map((c) => {
           const totalReduc = fees.filter((f: any) => f.student?.classe === c.className).reduce((s: number, f: any) => s + (f.totalReduction || 0), 0);
           return [
             c.className,
@@ -528,7 +533,7 @@ export default function FinanceReports({ fees = [], classes = [], classSummary =
       case "creances": {
         const unpaidFees = filteredFees.filter((f: any) => f.balance > 0);
         const headers = ["Élève", "Classe", "Total Attendu", "Remise", "Payé", "Créance Restante", "Statut", "Contact"];
-        const rows = unpaidFees.map((f: any) => [
+        const rows: (string | number)[][] = unpaidFees.map((f: any) => [
           f.student?.nomEtudiant || "—",
           f.student?.classe || "—",
           `${(f.totalExpected || 0).toLocaleString("fr-FR")} CFA`,
@@ -550,7 +555,7 @@ export default function FinanceReports({ fees = [], classes = [], classSummary =
       case "annulations": {
         const remises = filteredPayments.filter((p: any) => (p.reduction || 0) > 0);
         const headers = ["Date", "Élève", "Classe", "Référence", "Montant Remise", "Caissier", "Motif"];
-        const rows = remises.map((p: any) => [
+        const rows: (string | number)[][] = remises.map((p: any) => [
           isMounted && p.datePaid ? new Date(p.datePaid).toLocaleDateString("fr-FR") : "-",
           p.studentName,
           p.classe,
@@ -570,7 +575,7 @@ export default function FinanceReports({ fees = [], classes = [], classSummary =
       case "bourses": {
         const boursiers = filteredFees.filter((f: any) => (f.student?.bourse || 0) > 0 || (f.totalReduction || 0) > 0);
         const headers = ["Élève", "Classe", "Frais Standard", "Bourse / Exonération", "Net Attendu", "Total Versé", "Solde Restant"];
-        const rows = boursiers.map((f: any) => {
+        const rows: (string | number)[][] = boursiers.map((f: any) => {
           const bv = (f.student?.bourse || 0) + (f.totalReduction || 0);
           return [
             f.student?.nomEtudiant || "—",
@@ -592,7 +597,7 @@ export default function FinanceReports({ fees = [], classes = [], classSummary =
 
       case "audit": {
         const headers = ["Date & Heure", "Type d'Opération", "Référence", "Élève", "Montant (CFA)", "Agent / Caissier", "Canal"];
-        const rows = filteredPayments.map((p: any) => [
+        const rows: (string | number)[][] = filteredPayments.map((p: any) => [
           isMounted && p.datePaid ? new Date(p.datePaid).toLocaleString("fr-FR") : "-",
           "ENCAISSEMENT",
           p.reference || `REC-${p.id}`,
@@ -610,7 +615,7 @@ export default function FinanceReports({ fees = [], classes = [], classSummary =
 
       case "caissier": {
         const headers = ["Caissier / Agent", "Transactions", "Espèces", "Mobile Money", "Virements / Autres", "Total Collecté"];
-        const rows = cashierReports.map((c) => [
+        const rows: (string | number)[][] = cashierReports.map((c) => [
           c.cashier,
           c.count,
           `${c.cash.toLocaleString("fr-FR")} CFA`,
@@ -628,7 +633,7 @@ export default function FinanceReports({ fees = [], classes = [], classSummary =
 
       case "tresorerie": {
         const headers = ["Moyen / Canal de Paiement", "Nombre de Transactions", "Total Encaissé", "Part de Marché (%)"];
-        const rows = treasuryReports.map((t) => [
+        const rows: (string | number)[][] = treasuryReports.map((t) => [
           t.mode,
           t.count,
           `${t.total.toLocaleString("fr-FR")} CFA`,
@@ -643,7 +648,7 @@ export default function FinanceReports({ fees = [], classes = [], classSummary =
 
       case "prevision": {
         const headers = ["Mois Scolaire", "Revenu Mensuel Prévu", "Encaissement Réel", "Écart de Recouvrement", "Taux de Réalisation"];
-        const rows = forecastData.map((f) => {
+        const rows: (string | number)[][] = forecastData.map((f) => {
           const rate = f.expected > 0 ? Math.round((f.actual / f.expected) * 100) : 0;
           return [
             f.month,
@@ -664,7 +669,7 @@ export default function FinanceReports({ fees = [], classes = [], classSummary =
 
       default: {
         const headers = ["Date", "Référence", "Élève", "Classe", "Mode", "Montant"];
-        const rows = filteredPayments.map((p: any) => [
+        const rows: (string | number)[][] = filteredPayments.map((p: any) => [
           isMounted && p.datePaid ? new Date(p.datePaid).toLocaleDateString("fr-FR") : "-",
           p.reference || "-",
           p.studentName,
@@ -686,7 +691,7 @@ export default function FinanceReports({ fees = [], classes = [], classSummary =
     }
     const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + [
       headers.join(","),
-      ...rows.map(row => row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(","))
+      ...rows.map((row: (string | number)[]) => row.map((v: string | number) => `"${String(v).replace(/"/g, '""')}"`).join(","))
     ].join("\n");
 
     const a = document.createElement("a");
@@ -705,9 +710,9 @@ export default function FinanceReports({ fees = [], classes = [], classSummary =
       toast.error("Aucune donnée à exporter.");
       return;
     }
-    const data = rows.map(row => {
+    const data = rows.map((row: (string | number)[]) => {
       const obj: Record<string, any> = {};
-      headers.forEach((h, i) => {
+      headers.forEach((h: string, i: number) => {
         obj[h] = row[i];
       });
       return obj;
@@ -761,7 +766,7 @@ export default function FinanceReports({ fees = [], classes = [], classSummary =
       let tableStartY = startY + (isA5 ? 12 : 14);
       if (kpis && kpis.length > 0) {
         const kpiBoxWidth = (W - 2 * margin - (kpis.length - 1) * 3) / kpis.length;
-        kpis.forEach((kpi, i) => {
+        kpis.forEach((kpi: { label: string; value: string }, i: number) => {
           const kpiX = margin + i * (kpiBoxWidth + 3);
           doc.setFillColor(241, 245, 249);
           doc.setDrawColor(203, 213, 225);
@@ -781,12 +786,12 @@ export default function FinanceReports({ fees = [], classes = [], classSummary =
       }
 
       // Prepare Arabic reshaped rows
-      const reshapedRows = rows.map(row => row.map(cell => {
+      const reshapedRows = rows.map((row: (string | number)[]) => row.map((cell: string | number) => {
         const str = String(cell);
         return hasArabicCharacters(str) ? reshapeArabicText(str) : str;
       }));
 
-      const reshapedHeaders = headers.map(h => hasArabicCharacters(h) ? reshapeArabicText(h) : h);
+      const reshapedHeaders = headers.map((h: string) => hasArabicCharacters(h) ? reshapeArabicText(h) : h);
 
       autoTable(doc, {
         head: [reshapedHeaders],
