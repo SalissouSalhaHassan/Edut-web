@@ -448,14 +448,25 @@ export async function getStudentPersonalAttendanceAction() {
     const totalSessions = records.length;
     const rate = totalSessions > 0 ? Number((((presents + excused) / totalSessions) * 100).toFixed(1)) : 100.0;
 
-    const formattedRecords = records.map((r: any) => ({
-      id: r.id,
-      date: r.date ? (typeof r.date === "string" ? r.date : r.date.toISOString()) : null,
-      status: r.status,
-      remark: r.remark || "",
-      subjectName: r.subject?.subjectName || "Séance générale",
-      teacherName: r.teacher?.nom || "Enseignant",
-    }));
+    const formattedRecords = records.map((r: any) => {
+      let isoDate = new Date().toISOString();
+      if (r.date) {
+        try {
+          const d = typeof r.date === "string" ? new Date(r.date) : r.date;
+          if (d && !isNaN(d.getTime())) {
+            isoDate = d.toISOString();
+          }
+        } catch (_) {}
+      }
+      return {
+        id: r.id,
+        date: isoDate,
+        status: r.status || "Présent",
+        remark: r.remark || "",
+        subjectName: r.subject?.subjectName || "Séance générale",
+        teacherName: r.teacher?.nom || "Enseignant",
+      };
+    });
 
     return {
       success: true,

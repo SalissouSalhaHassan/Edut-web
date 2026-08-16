@@ -39,6 +39,17 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
+function formatSafeDate(d: any, formatPattern: string = "EEEE dd MMMM yyyy"): string {
+  if (!d) return "—";
+  try {
+    const parsed = typeof d === "string" ? new Date(d) : d;
+    if (!parsed || isNaN(parsed.getTime())) return "—";
+    return format(parsed, formatPattern, { locale: fr });
+  } catch {
+    return "—";
+  }
+}
+
 interface StudentAttendancePortalProps {
   currentUser?: any;
 }
@@ -410,7 +421,7 @@ export default function StudentAttendancePortal({ currentUser }: StudentAttendan
                 return (
                   <tr key={r.id} className="hover:bg-slate-800/30 transition-colors">
                     <td className="p-3 font-mono font-medium text-slate-300">
-                      {dateObj ? format(dateObj, "EEEE dd MMMM yyyy", { locale: fr }) : "—"}
+                      {formatSafeDate(r.date, "EEEE dd MMMM yyyy")}
                     </td>
                     <td className="p-3 font-bold text-white">{r.subjectName}</td>
                     <td className="p-3 text-slate-400">{r.teacherName}</td>
@@ -451,9 +462,9 @@ export default function StudentAttendancePortal({ currentUser }: StudentAttendan
             <DialogDescription className="text-xs text-slate-400">
               Séance du{" "}
               <span className="text-white font-semibold">
-                {selectedRecord?.date ? format(new Date(selectedRecord.date), "dd MMMM yyyy", { locale: fr }) : ""}
+                {selectedRecord?.date ? formatSafeDate(selectedRecord.date, "dd MMMM yyyy") : "Aujourd'hui"}
               </span>{" "}
-              ({selectedRecord?.subjectName})
+              ({selectedRecord?.subjectName || "Séance générale"})
             </DialogDescription>
           </DialogHeader>
 
