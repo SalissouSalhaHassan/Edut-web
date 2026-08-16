@@ -5,10 +5,12 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { login } from "@/domains/auth/actions/login";
 import { getSchoolBranding } from "@/domains/auth/actions/branding";
+import { recoverAndResetAccount } from "@/domains/auth/actions/reset-password";
 import { 
   GraduationCap, Loader2, Lock, User, Eye, EyeOff, 
   Shield, Zap, Users, Settings, ArrowRight, 
-  ShieldCheck, Headphones, Mail, KeyRound
+  ShieldCheck, Headphones, Mail, KeyRound, X, CheckCircle2,
+  Phone, Sparkles, Building2
 } from "lucide-react";
 
 export default function LoginPage() {
@@ -18,6 +20,19 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [school, setSchool] = useState<any>(null);
+  const [usernameInput, setUsernameInput] = useState("");
+  const [passwordInput, setPasswordInput] = useState("");
+
+  // Forgot password modal state
+  const [showForgotModal, setShowForgotModal] = useState(false);
+  const [forgotRole, setForgotRole] = useState<"student" | "teacher">("student");
+  const [forgotSchoolSlug, setForgotSchoolSlug] = useState("");
+  const [forgotMatricule, setForgotMatricule] = useState("");
+  const [forgotVerification, setForgotVerification] = useState("");
+  const [forgotNewPassword, setForgotNewPassword] = useState("");
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotError, setForgotError] = useState<string | null>(null);
+  const [forgotResult, setForgotResult] = useState<any>(null);
 
   useEffect(() => {
     async function fetchBranding() {
@@ -43,15 +58,42 @@ export default function LoginPage() {
     fetchBranding();
   }, []);
 
+  async function handleForgotSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setForgotLoading(true);
+    setForgotError(null);
+    setForgotResult(null);
+
+    const schoolSlugToUse = forgotSchoolSlug.trim() || school?.slug || "1";
+
+    const res = await recoverAndResetAccount({
+      role: forgotRole,
+      schoolSlug: schoolSlugToUse,
+      matriculeOrEmail: forgotMatricule.trim(),
+      verificationCodeOrPhone: forgotVerification.trim(),
+      newPassword: forgotNewPassword.trim() || undefined,
+    });
+
+    setForgotLoading(false);
+    if (res.success && res.data) {
+      setForgotResult(res.data);
+      setUsernameInput(res.data.username);
+      if (forgotNewPassword) {
+        setPasswordInput(forgotNewPassword);
+      }
+    } else {
+      setForgotError(res.error || "Échec de la récupération.");
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
     
     try {
-      const formData = new FormData(e.currentTarget);
-      let username = formData.get("username") as string;
-      const password = formData.get("password") as string;
+      const username = usernameInput || (new FormData(e.currentTarget).get("username") as string);
+      const password = passwordInput || (new FormData(e.currentTarget).get("password") as string);
 
       const result = await login({ username, password });
 
@@ -212,6 +254,8 @@ export default function LoginPage() {
                       name="username"
                       type="text"
                       required
+                      value={usernameInput}
+                      onChange={(e) => setUsernameInput(e.target.value)}
                       placeholder="nom@ecole.com"
                       className="w-full h-[52px] pl-12 pr-4 bg-white/[0.04] border border-white/[0.08] rounded-xl outline-none text-white text-sm font-medium focus:border-indigo-500/50 focus:bg-white/[0.06] transition-all placeholder:text-slate-600"
                     />
@@ -227,6 +271,8 @@ export default function LoginPage() {
                       name="password"
                       type={showPassword ? "text" : "password"}
                       required
+                      value={passwordInput}
+                      onChange={(e) => setPasswordInput(e.target.value)}
                       placeholder="••••••••"
                       className="w-full h-[52px] pl-12 pr-12 bg-white/[0.04] border border-white/[0.08] rounded-xl outline-none text-white text-sm font-medium focus:border-indigo-500/50 focus:bg-white/[0.06] transition-all placeholder:text-slate-600"
                     />
@@ -257,9 +303,17 @@ export default function LoginPage() {
                     </div>
                     <span className="text-slate-400 text-xs font-medium">Se souvenir de moi</span>
                   </label>
-                  <span className="text-indigo-400 text-xs font-medium cursor-pointer hover:text-indigo-300 transition-colors">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowForgotModal(true);
+                      setForgotError(null);
+                      setForgotResult(null);
+                    }}
+                    className="text-indigo-400 text-xs font-medium cursor-pointer hover:text-indigo-300 transition-colors"
+                  >
                     Mot de passe oublié ?
-                  </span>
+                  </button>
                 </div>
 
                 {/* Submit */}
@@ -297,9 +351,13 @@ export default function LoginPage() {
                 </Link>
 
                 {/* Contact Admin */}
-                <button className="w-full h-[48px] rounded-xl border border-white/[0.08] bg-white/[0.02] text-slate-400 hover:text-white hover:bg-white/[0.05] hover:border-white/[0.15] font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2">
-                  <Headphones size={16} />
-                  Contacter l&apos;administrateur
+                <button 
+                  type="button"
+                  onClick={() => setShowForgotModal(true)}
+                  className="w-full h-[48px] rounded-xl border border-white/[0.08] bg-white/[0.02] text-slate-400 hover:text-white hover:bg-white/[0.05] hover:border-white/[0.15] font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2"
+                >
+                  <KeyRound size={16} />
+                  Récupérer mon compte
                 </button>
               </div>
             </div>
@@ -374,11 +432,204 @@ export default function LoginPage() {
               </div>
             </div>
           </div>
-          <p className="text-center text-slate-600 text-[10px] font-bold uppercase tracking-widest mt-4">
-            © 2026 Edut Enterprise. Tous droits réservés.
-          </p>
+      {/* Self-Service Account Recovery Modal */}
+      {showForgotModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <div className="relative w-full max-w-lg bg-[#111625] border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl overflow-hidden">
+            {/* Background glow */}
+            <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none" />
+            
+            {/* Header */}
+            <div className="flex items-center justify-between pb-4 border-b border-white/5">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center">
+                  <KeyRound size={20} />
+                </div>
+                <div>
+                  <h3 className="text-white font-black text-lg">Récupération de compte</h3>
+                  <p className="text-slate-400 text-xs font-medium">Élèves &amp; Enseignants</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowForgotModal(false)}
+                className="w-8 h-8 rounded-full bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 flex items-center justify-center transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Success View */}
+            {forgotResult ? (
+              <div className="py-6 space-y-5 text-center">
+                <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/10">
+                  <CheckCircle2 size={32} />
+                </div>
+                <div>
+                  <h4 className="text-white font-black text-xl mb-1">Identité Vérifiée !</h4>
+                  <p className="text-emerald-400 text-xs font-bold">{forgotResult.message}</p>
+                </div>
+
+                <div className="bg-white/[0.03] border border-white/[0.08] rounded-2xl p-4 text-left space-y-2">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-slate-400 font-medium">Nom complet :</span>
+                    <span className="text-white font-bold">{forgotResult.fullName}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-slate-400 font-medium">Établissement :</span>
+                    <span className="text-indigo-400 font-bold">{forgotResult.schoolName}</span>
+                  </div>
+                  <div className="h-px bg-white/5 my-2" />
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-slate-400 font-medium">Identifiant de connexion :</span>
+                    <span className="text-emerald-400 font-mono font-black text-sm bg-emerald-500/10 px-2 py-0.5 rounded-md">
+                      {forgotResult.username}
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowForgotModal(false);
+                  }}
+                  className="w-full h-12 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 text-white font-bold text-sm uppercase tracking-wider hover:opacity-90 transition-all shadow-lg shadow-emerald-500/20"
+                >
+                  Se connecter maintenant
+                </button>
+              </div>
+            ) : (
+              /* Form View */
+              <form onSubmit={handleForgotSubmit} className="py-4 space-y-4">
+                {forgotError && (
+                  <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 text-xs font-bold">
+                    {forgotError}
+                  </div>
+                )}
+
+                {/* Role Switch */}
+                <div>
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-2">
+                    Je suis :
+                  </label>
+                  <div className="grid grid-cols-2 gap-2 p-1 bg-white/[0.03] rounded-xl border border-white/[0.06]">
+                    <button
+                      type="button"
+                      onClick={() => setForgotRole("student")}
+                      className={`h-9 rounded-lg font-bold text-xs flex items-center justify-center gap-2 transition-all ${
+                        forgotRole === "student"
+                          ? "bg-indigo-600 text-white shadow-md"
+                          : "text-slate-400 hover:text-white"
+                      }`}
+                    >
+                      <GraduationCap size={16} />
+                      Élève
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setForgotRole("teacher")}
+                      className={`h-9 rounded-lg font-bold text-xs flex items-center justify-center gap-2 transition-all ${
+                        forgotRole === "teacher"
+                          ? "bg-indigo-600 text-white shadow-md"
+                          : "text-slate-400 hover:text-white"
+                      }`}
+                    >
+                      <User size={16} />
+                      Enseignant
+                    </button>
+                  </div>
+                </div>
+
+                {/* School Slug / ID */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                    Code École / Identifiant Établissement
+                  </label>
+                  <div className="relative">
+                    <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+                    <input
+                      type="text"
+                      required
+                      value={forgotSchoolSlug}
+                      onChange={(e) => setForgotSchoolSlug(e.target.value)}
+                      placeholder={school?.slug || "ex: aiiu-niger ou 1"}
+                      className="w-full h-11 pl-10 pr-4 bg-white/[0.04] border border-white/[0.08] rounded-xl outline-none text-white text-xs font-medium focus:border-indigo-500/50"
+                    />
+                  </div>
+                </div>
+
+                {/* Matricule / Admission */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                    {forgotRole === "student" ? "Numéro d'admission / Matricule Élève" : "Matricule ou Email Enseignant"}
+                  </label>
+                  <div className="relative">
+                    <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+                    <input
+                      type="text"
+                      required
+                      value={forgotMatricule}
+                      onChange={(e) => setForgotMatricule(e.target.value)}
+                      placeholder={forgotRole === "student" ? "ex: MAT-2025-001" : "ex: ENS-042 ou prof@gmail.com"}
+                      className="w-full h-11 pl-10 pr-4 bg-white/[0.04] border border-white/[0.08] rounded-xl outline-none text-white text-xs font-medium focus:border-indigo-500/50"
+                    />
+                  </div>
+                </div>
+
+                {/* Verification: PIN or Phone */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                    Code PIN d&apos;activation OU Téléphone enregistré
+                  </label>
+                  <div className="relative">
+                    <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+                    <input
+                      type="text"
+                      required
+                      value={forgotVerification}
+                      onChange={(e) => setForgotVerification(e.target.value)}
+                      placeholder="ex: 1234 ou 96000000"
+                      className="w-full h-11 pl-10 pr-4 bg-white/[0.04] border border-white/[0.08] rounded-xl outline-none text-white text-xs font-medium focus:border-indigo-500/50"
+                    />
+                  </div>
+                </div>
+
+                {/* New Password */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                    Nouveau Mot de Passe (Optionnel)
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+                    <input
+                      type="password"
+                      value={forgotNewPassword}
+                      onChange={(e) => setForgotNewPassword(e.target.value)}
+                      placeholder="•••••••• (laisser vide pour juste voir l'identifiant)"
+                      className="w-full h-11 pl-10 pr-4 bg-white/[0.04] border border-white/[0.08] rounded-xl outline-none text-white text-xs font-medium focus:border-indigo-500/50"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={forgotLoading}
+                  className="w-full h-12 mt-2 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-black text-xs uppercase tracking-wider transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {forgotLoading ? (
+                    <Loader2 className="animate-spin" size={18} />
+                  ) : (
+                    <>
+                      <Sparkles size={16} />
+                      Vérifier &amp; Réinitialiser
+                    </>
+                  )}
+                </button>
+              </form>
+            )}
+          </div>
         </div>
-      </footer>
+      )}
     </div>
   );
 }
