@@ -3,7 +3,7 @@
 import { db } from "@/infrastructure/database";
 import { homework } from "@/infrastructure/database/schema/homework";
 import { students } from "@/infrastructure/database/schema/students";
-import { eq, desc, inArray, and, or } from "drizzle-orm";
+import { eq, desc, inArray, and, or, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { homeworkSchema, HomeworkFormData } from "../validators/homework.schema";
 import { protectedDbAction } from "@/lib/protected-action";
