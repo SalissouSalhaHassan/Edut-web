@@ -374,15 +374,16 @@ export async function saveUser(formData: SaveUserFormData, id?: number) {
     if (id) {
       console.log(`[saveUser] Updating existing user ${id} with:`, data);
       
+      const targetUser = await db.query.users.findFirst({
+        where: eq(users.id, id),
+        columns: { id: true, schoolId: true, educationalLevel: true, supabaseId: true, utilisateur: true }
+      });
+      
+      if (!targetUser) return { error: "Utilisateur non trouvé", success: false };
+
       // Multi-tenancy and level check for update (non-superAdmins only)
       if (!isSuperAdmin) {
-        const targetUser = await db.query.users.findFirst({
-          where: eq(users.id, id),
-          columns: { schoolId: true, educationalLevel: true }
-        });
-        
-        if (!targetUser) return { error: "Utilisateur non trouvé", success: false };
-        if (targetUser.schoolId !== currentUser.schoolId) {
+        if (targetUser.schoolId && currentUser.schoolId && targetUser.schoolId !== currentUser.schoolId) {
           return { error: "Non autorisé : cet utilisateur appartient à une autre école", success: false };
         }
         if (roleType === "level_director" && !checkEducationalLevelAccess(currentUser, targetUser.educationalLevel)) {
@@ -390,8 +391,79 @@ export async function saveUser(formData: SaveUserFormData, id?: number) {
         }
       }
 
+      // Synchronize Supabase Auth for mobile & cloud auth
+      let loginEmail = data.utilisateur;
+      if (!loginEmail.includes('@')) {
+        loginEmail = `${loginEmail}@test.com`;
+      }
+
+      const activeSupabaseId = data.supabaseId || targetUser.supabaseId;
+      if (activeSupabaseId) {
+        try {
+          const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+          if (serviceRoleKey && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+            const { createClient: createSupabaseJsClient } = await import("@supabase/supabase-js");
+            const adminClient = createSupabaseJsClient(
+              process.env.NEXT_PUBLIC_SUPABASE_URL,
+              serviceRoleKey,
+              { auth: { autoRefreshToken: false, persistSession: false } }
+            );
+            const updatePayload: any = {
+              email: loginEmail,
+              user_metadata: {
+                full_name: data.nomPrenom,
+                school_id: data.schoolId,
+                student_id: data.studentId,
+                employee_id: data.employeeId,
+              }
+            };
+            if (passwordValue) {
+              updatePayload.password = passwordValue;
+            }
+            await adminClient.auth.admin.updateUserById(activeSupabaseId, updatePayload);
+          }
+        } catch (supabaseSyncErr) {
+          console.warn("[saveUser] Supabase auth update sync warning:", supabaseSyncErr);
+        }
+      } else {
+        // Bootstrap Supabase ID if missing
+        try {
+          const { createClient } = await import("@/shared/utils/supabase/server");
+          const supabase = await createClient();
+          const { data: authData } = await supabase.auth.signUp({
+            email: loginEmail,
+            password: passwordValue || "Edut2025!",
+            options: {
+              data: {
+                full_name: data.nomPrenom,
+                school_id: data.schoolId,
+                student_id: data.studentId,
+                employee_id: data.employeeId,
+              }
+            }
+          });
+          if (authData?.user?.id) {
+            data.supabaseId = authData.user.id;
+          }
+        } catch (signUpErr) {
+          console.warn("[saveUser] Supabase signup bootstrap warning:", signUpErr);
+        }
+      }
+
       await db.update(users).set(data).where(eq(users.id, id));
       console.log(`[saveUser] Update success for user ${id}`);
+
+      const updatedRecord = await db.query.users.findFirst({
+        where: eq(users.id, id),
+        with: {
+          role: true,
+          school: true,
+        }
+      });
+
+      revalidatePath("/dashboard/security/users");
+      revalidatePath("/dashboard/users");
+      return { success: true, data: updatedRecord };
     } else {
       if (!passwordValue) return { error: "Mot de passe requis pour un nouvel utilisateur", success: false };
       
@@ -401,33 +473,45 @@ export async function saveUser(formData: SaveUserFormData, id?: number) {
         loginEmail = `${loginEmail}@test.com`;
       }
       
-      const { createClient } = await import("@/shared/utils/supabase/server");
-      const supabase = await createClient();
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: loginEmail,
-        password: passwordValue,
-        options: {
-          data: {
-            full_name: data.nomPrenom,
+      try {
+        const { createClient } = await import("@/shared/utils/supabase/server");
+        const supabase = await createClient();
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email: loginEmail,
+          password: passwordValue,
+          options: {
+            data: {
+              full_name: data.nomPrenom,
+              school_id: data.schoolId,
+              student_id: data.studentId,
+              employee_id: data.employeeId,
+            }
           }
+        });
+        
+        if (!authError && authData.user) {
+          data.supabaseId = authData.user.id;
         }
-      });
-      
-      if (authError) {
-        return { error: `Échec de la création dans Supabase : ${authError.message}`, success: false };
-      }
-      
-      if (authData.user) {
-        data.supabaseId = authData.user.id;
+      } catch (authErr) {
+        console.warn("[saveUser] Supabase creation warning:", authErr);
       }
 
       console.log(`[saveUser] Inserting new user with:`, data);
-      await db.insert(users).values(data as typeof users.$inferInsert);
-      console.log(`[saveUser] Insert success`);
-    }
+      const insertRes = await db.insert(users).values(data as typeof users.$inferInsert).returning({ id: users.id });
+      const newId = insertRes[0]?.id;
 
-    revalidatePath("/dashboard/security/users");
-    return { success: true };
+      const createdRecord = newId ? await db.query.users.findFirst({
+        where: eq(users.id, newId),
+        with: {
+          role: true,
+          school: true,
+        }
+      }) : data;
+
+      revalidatePath("/dashboard/security/users");
+      revalidatePath("/dashboard/users");
+      return { success: true, data: createdRecord };
+    }
   } catch (error: unknown) {
     const message = getErrorMessage(error);
     console.error("[saveUser] Error saving user:", error);

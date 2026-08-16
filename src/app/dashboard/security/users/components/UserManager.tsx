@@ -47,6 +47,28 @@ export default function UserManager({ initialUsers, roles, currentUser, schools 
     }
   };
 
+  const handleSaveSuccess = (savedUser?: any) => {
+    if (savedUser && savedUser.id) {
+      setUsersList(prev => {
+        const exists = prev.some(u => u.id === savedUser.id);
+        if (exists) {
+          return prev.map(u => u.id === savedUser.id ? { ...u, ...savedUser } : u);
+        }
+        return [savedUser, ...prev];
+      });
+    }
+    setEditingUser(null);
+    startTransition(async () => {
+      try {
+        const { getUsers } = await import("@/domains/auth/actions/users.actions");
+        const fresh = await getUsers();
+        if (fresh.success && fresh.data) {
+          setUsersList(fresh.data);
+        }
+      } catch (_) {}
+    });
+  };
+
   return (
     <div className="space-y-6">
       {/* Hidden UserDialog for editing */}
@@ -57,7 +79,7 @@ export default function UserManager({ initialUsers, roles, currentUser, schools 
         students={students}
         employees={employees}
         currentUser={currentUser}
-        onSuccess={() => window.location.reload()} 
+        onSuccess={handleSaveSuccess} 
         openOverride={!!editingUser}
         onOpenChangeOverride={(open) => !open && setEditingUser(null)}
       />
@@ -73,7 +95,7 @@ export default function UserManager({ initialUsers, roles, currentUser, schools 
             className="pl-10 h-12 rounded-2xl border-slate-100 dark:border-slate-800 bg-white dark:bg-[#131622] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 shadow-sm focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-500/20 transition-all font-medium"
           />
         </div>
-        <UserDialog roles={roles} schools={schools} students={students} employees={employees} currentUser={currentUser} onSuccess={() => window.location.reload()} />
+        <UserDialog roles={roles} schools={schools} students={students} employees={employees} currentUser={currentUser} onSuccess={handleSaveSuccess} />
       </div>
 
       {/* Users Grid */}

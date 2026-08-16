@@ -244,7 +244,7 @@ export default function UserDialog({
       if (res.success) {
         toast.success(user ? "Utilisateur modifié avec succès" : "Utilisateur créé avec succès");
         close();
-        onSuccess?.();
+        onSuccess?.(res.data);
       } else {
         toast.error(res.error || "Une erreur est survenue lors de l'enregistrement");
       }
