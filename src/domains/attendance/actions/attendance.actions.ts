@@ -5,7 +5,7 @@ import { studentAttendance } from "@/infrastructure/database/schema/attendance";
 import { students } from "@/infrastructure/database/schema/students";
 import { schoolSubjects, schoolClasses, schoolSections } from "@/infrastructure/database/schema/academics";
 import { messageLogs } from "@/infrastructure/database/schema/messaging";
-import { eq, and, sql, isNull, inArray, desc } from "drizzle-orm";
+import { eq, and, or, sql, isNull, inArray, desc } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { batchAttendanceSchema, BatchAttendanceFormData } from "../validators/attendance.schema";
 // Attendance Security & Student Portal v2.4
