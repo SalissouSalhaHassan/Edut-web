@@ -46,15 +46,33 @@ export class PushNotificationService {
     const fullContent = `${contentFr}\n${contentAr}`;
 
     try {
-      // 1. Insert DB Notification
-      await db.insert(notifications).values({
-        title,
-        content: fullContent,
-        type: isAbsent ? "warning" : "info",
-        category: "Absence",
-        userId: null, // Broadcast / Accessible for Student & Parent in Mobile App
-        isRead: false,
+      // 1. Look up user account(s) associated with this student
+      const studentUsers = await db.query.users.findMany({
+        where: eq(users.studentId, studentId),
       });
+
+      if (studentUsers.length > 0) {
+        for (const u of studentUsers) {
+          await db.insert(notifications).values({
+            title,
+            content: fullContent,
+            type: isAbsent ? "warning" : "info",
+            category: "Absence",
+            userId: u.id,
+            isRead: false,
+          });
+        }
+      } else {
+        // Fallback: If no dedicated student account exists yet, save with null
+        await db.insert(notifications).values({
+          title,
+          content: fullContent,
+          type: isAbsent ? "warning" : "info",
+          category: "Absence",
+          userId: null,
+          isRead: false,
+        });
+      }
 
       // 2. Log in message_logs
       await db.insert(messageLogs).values({

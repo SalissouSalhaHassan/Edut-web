@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { and, count, desc, eq, isNull, or, sql } from "drizzle-orm";
+import { and, count, desc, eq, isNull, or, notInArray, sql } from "drizzle-orm";
 
 import { db, readDb } from "@/infrastructure/database";
 import { users } from "@/infrastructure/database/schema/auth";
@@ -11,15 +11,9 @@ export const dynamic = "force-dynamic";
 
 /**
  * GET /api/mobile/notifications
- * Returns notifications for the current user, scoped to their school.
- * - Broadcast notifications (userId IS NULL) are included for everyone.
- * - Private notifications (userId = user.id) are included.
- * - schoolId-scoped broadcasts are matched via the notification's related user's schoolId.
- *
- * Query params:
- *   category  — filter by category (e.g. Finance, Absence…)
- *   unreadOnly — "true" to return only unread
- *   limit      — max items (default 100)
+ * Returns notifications for the current user, strictly scoped to their personal data and school.
+ * - Students & Parents: only their direct notifications (userId = user.id) + public general broadcasts (excluding private alerts).
+ * - Staff: all broadcast & staff notifications.
  */
 export async function GET(request: NextRequest) {
   const { user, response } = await getMobileUser(request);
@@ -30,8 +24,19 @@ export async function GET(request: NextRequest) {
   const unreadOnly = sp.get("unreadOnly") === "true";
   const limit = Math.min(Number(sp.get("limit") || "100"), 500);
 
-  // Base condition: user's own notifications OR broadcast (userId NULL)
-  const userCond = or(eq(notifications.userId, user.id), isNull(notifications.userId));
+  const roleType = await getUserRoleType(user);
+  const isStudentOrParent = roleType === "eleve" || roleType === "student" || roleType === "parent";
+
+  // Base condition: For students and parents: strictly personalized
+  const userCond = isStudentOrParent
+    ? or(
+        eq(notifications.userId, user.id),
+        and(
+          isNull(notifications.userId),
+          notInArray(notifications.category, ["Absence", "Retard", "Finance", "Discipline"])
+        )
+      )
+    : or(eq(notifications.userId, user.id), isNull(notifications.userId));
 
   const conditions: any[] = [userCond];
   if (category) {

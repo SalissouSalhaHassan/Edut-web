@@ -2,12 +2,13 @@
 
 import { db } from "@/infrastructure/database";
 import { notifications } from "@/infrastructure/database/schema/messaging";
-import { eq, desc, and, isNull, or, count } from "drizzle-orm";
+import { eq, desc, and, isNull, or, count, notInArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/domains/auth/services/session";
 import { protectedDbAction } from "@/lib/protected-action";
+import { getUserRoleType } from "@/domains/auth/services/rbac";
 
-// Get notifications for current user (or globally broadcasted ones)
+// Get notifications for current user (strictly personalized: private to user + general public broadcasts)
 export async function getNotifications() {
   try {
     const user = await getCurrentUser();
@@ -15,11 +16,22 @@ export async function getNotifications() {
       return { success: false, error: "Non connecté" };
     }
 
+    const roleType = await getUserRoleType(user);
+    const isStudentOrParent = roleType === "eleve" || roleType === "student" || roleType === "parent";
+
+    // For students and parents: only their direct notifications, or public general broadcasts
+    const userFilter = isStudentOrParent
+      ? or(
+          eq(notifications.userId, user.id),
+          and(
+            isNull(notifications.userId),
+            notInArray(notifications.category, ["Absence", "Retard", "Finance", "Discipline"])
+          )
+        )
+      : or(eq(notifications.userId, user.id), isNull(notifications.userId));
+
     const data = await db.query.notifications.findMany({
-      where: or(
-        eq(notifications.userId, user.id),
-        isNull(notifications.userId)
-      ),
+      where: userFilter,
       orderBy: [desc(notifications.createdAt)],
     });
 
@@ -36,16 +48,26 @@ export async function getUnreadNotificationsCount() {
     const user = await getCurrentUser();
     if (!user) return 0;
 
+    const roleType = await getUserRoleType(user);
+    const isStudentOrParent = roleType === "eleve" || roleType === "student" || roleType === "parent";
+
+    const userFilter = isStudentOrParent
+      ? or(
+          eq(notifications.userId, user.id),
+          and(
+            isNull(notifications.userId),
+            notInArray(notifications.category, ["Absence", "Retard", "Finance", "Discipline"])
+          )
+        )
+      : or(eq(notifications.userId, user.id), isNull(notifications.userId));
+
     const res = await db
       .select({ count: count() })
       .from(notifications)
       .where(
         and(
           eq(notifications.isRead, false),
-          or(
-            eq(notifications.userId, user.id),
-            isNull(notifications.userId)
-          )
+          userFilter
         )
       );
 
