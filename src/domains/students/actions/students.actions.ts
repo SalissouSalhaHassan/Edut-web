@@ -278,10 +278,15 @@ export async function getStudentsByClass(className: string) {
     const schoolId = await getActiveSchoolId();
     const roleType = await getUserRoleType(user);
     const roleNameLower = (user.role?.roleName || "").toLowerCase().trim();
+    const cleanClassName = className.trim();
     
     let whereClause = and(
-      eq(students.classe, className),
-      eq(students.schoolId, schoolId)
+      or(
+        eq(students.classe, cleanClassName),
+        sql`LOWER(TRIM(${students.classe})) = LOWER(TRIM(${cleanClassName}))`,
+        sql`REPLACE(LOWER(${students.classe}), ' ', '') = REPLACE(LOWER(${cleanClassName}), ' ', '')`
+      ),
+      schoolId ? eq(students.schoolId, schoolId) : undefined
     ) as any;
     
     if (roleType === "level_director") {
@@ -297,7 +302,14 @@ export async function getStudentsByClass(className: string) {
         if (classIds.length > 0) {
           const classesList = await db.select({ className: schoolClasses.className })
             .from(schoolClasses)
-            .where(and(inArray(schoolClasses.id, classIds), eq(schoolClasses.className, className)));
+            .where(and(
+              inArray(schoolClasses.id, classIds),
+              or(
+                eq(schoolClasses.className, cleanClassName),
+                sql`LOWER(TRIM(${schoolClasses.className})) = LOWER(TRIM(${cleanClassName}))`,
+                sql`REPLACE(LOWER(${schoolClasses.className}), ' ', '') = REPLACE(LOWER(${cleanClassName}), ' ', '')`
+              )
+            ));
           if (classesList.length === 0) {
             return { data: [] }; // Access denied
           }
@@ -315,9 +327,9 @@ export async function getStudentsByClass(className: string) {
       roleNameLower.includes("tuteur")
     ) {
       const std = await db.query.students.findFirst({
-        where: and(eq(students.id, Number(user.studentId)), eq(students.schoolId, schoolId))
+        where: and(eq(students.id, Number(user.studentId)), schoolId ? eq(students.schoolId, schoolId) : undefined)
       });
-      if (!std || std.classe !== className) {
+      if (!std || (std.classe?.toLowerCase().trim() !== cleanClassName.toLowerCase())) {
         return { data: [] }; // Access denied to other classes
       }
     }

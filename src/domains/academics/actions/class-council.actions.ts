@@ -3,7 +3,7 @@
 import { db } from "@/infrastructure/database";
 import { studentTermSummaries, resultsWorkflows, schoolClasses, studentResults } from "@/infrastructure/database/schema/academics";
 import { students } from "@/infrastructure/database/schema/students";
-import { eq, and } from "drizzle-orm";
+import { eq, and, or, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { getActiveSchoolId } from "@/domains/auth/services/school";
 import { protectedDbAction } from "@/lib/protected-action";
@@ -29,10 +29,15 @@ export async function getClassCouncilData(params: {
     }
 
     // 1. Fetch class students
+    const cleanClassName = cls.className.trim();
     const studentsList = await db.query.students.findMany({
       where: and(
-        eq(students.schoolId, schoolId),
-        eq(students.classe, cls.className)
+        schoolId ? eq(students.schoolId, schoolId) : undefined,
+        or(
+          eq(students.classe, cleanClassName),
+          sql`LOWER(TRIM(${students.classe})) = LOWER(TRIM(${cleanClassName}))`,
+          sql`REPLACE(LOWER(${students.classe}), ' ', '') = REPLACE(LOWER(${cleanClassName}), ' ', '')`
+        )
       )
     });
 

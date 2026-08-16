@@ -193,16 +193,26 @@ export async function GET(request: NextRequest) {
     }
 
     if (action === "getStudentsByClass") {
-      const className = searchParams.get("className");
+      const className = searchParams.get("className")?.trim() || "";
 
       if (!className) {
         return mobileJsonError("className manquant", 400);
       }
 
-      // Enforce schoolId scope
+      // Enforce schoolId scope, robust case/space-insensitive class matching, and flexible active student status
       const cond = [
-        eq(students.classe, className),
-        eq(students.statut, "Actif"),
+        or(
+          eq(students.classe, className),
+          sql`LOWER(TRIM(${students.classe})) = LOWER(TRIM(${className}))`,
+          sql`REPLACE(LOWER(${students.classe}), ' ', '') = REPLACE(LOWER(${className}), ' ', '')`
+        ),
+        or(
+          isNull(students.statut),
+          eq(students.statut, "Actif"),
+          eq(sql`LOWER(${students.statut})`, "actif"),
+          eq(students.statut, "Inscrit"),
+          eq(students.statut, "Admis")
+        ),
       ];
       if (schoolId) {
         cond.push(eq(students.schoolId, schoolId));
