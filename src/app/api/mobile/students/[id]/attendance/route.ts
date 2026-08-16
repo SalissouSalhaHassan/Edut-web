@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, desc, sql } from "drizzle-orm";
 import { readDb } from "@/infrastructure/database";
 import { studentAttendance } from "@/infrastructure/database/schema/attendance";
 import { students } from "@/infrastructure/database/schema/students";
@@ -62,7 +62,7 @@ export async function GET(request: NextRequest, props: { params: Promise<{ id: s
       with: {
         subject: true
       },
-      orderBy: [sql`date DESC`]
+      orderBy: [desc(studentAttendance.date)]
     });
 
     const data = rows.map((r) => ({

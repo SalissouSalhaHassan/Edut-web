@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, desc } from "drizzle-orm";
 import { readDb } from "@/infrastructure/database";
 import { studentAttendance } from "@/infrastructure/database/schema/attendance";
 import { getMobileUser, mobileJsonError } from "../../_lib/auth";
@@ -12,7 +12,11 @@ export async function GET(request: NextRequest) {
   if (response || !user) return response || mobileJsonError("Non autorisé", 401);
 
   const searchParams = request.nextUrl.searchParams;
-  const studentId = Number(searchParams.get("studentId"));
+  let studentId = Number(searchParams.get("studentId"));
+
+  if (!studentId && (user.studentId || (user as any).student_id)) {
+    studentId = Number(user.studentId || (user as any).student_id);
+  }
 
   if (!studentId) {
     return mobileJsonError("studentId manquant", 400);
@@ -29,7 +33,7 @@ export async function GET(request: NextRequest) {
       with: {
         subject: true,
       },
-      orderBy: [sql`date DESC`]
+      orderBy: [desc(studentAttendance.date)]
     });
 
     const data = rows.map((r) => ({
