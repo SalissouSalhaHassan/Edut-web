@@ -359,10 +359,15 @@ export async function getStudentPersonalAttendanceAction() {
     }
 
     // Resolve class
-    const classRow = studentRecord.classe ? await db.query.schoolClasses.findFirst({
+    const cleanClasse = (studentRecord.classe || "").trim();
+    const classRow = cleanClasse ? await db.query.schoolClasses.findFirst({
       where: and(
-        eq(schoolClasses.schoolId, schoolId),
-        eq(schoolClasses.className, studentRecord.classe)
+        schoolId ? eq(schoolClasses.schoolId, schoolId) : undefined,
+        or(
+          eq(schoolClasses.className, cleanClasse),
+          sql`LOWER(TRIM(${schoolClasses.className})) = LOWER(TRIM(${cleanClasse}))`,
+          sql`REPLACE(LOWER(${schoolClasses.className}), ' ', '') = REPLACE(LOWER(${cleanClasse}), ' ', '')`
+        )
       ),
       with: { section: true },
     }) : null;

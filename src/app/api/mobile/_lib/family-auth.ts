@@ -35,6 +35,16 @@ export async function getParentChildrenIds(user: any): Promise<number[]> {
 }
 
 export async function verifyParentChildRelationship(user: any, studentId: number): Promise<boolean> {
+  const currentStudentId = user?.studentId || (user as any)?.student_id;
+  if (currentStudentId && Number(currentStudentId) === Number(studentId)) {
+    return true;
+  }
+
+  // Admin or staff bypass
+  if (user?.admin || user?.superAdmin) {
+    return true;
+  }
+
   const allowedIds = await getParentChildrenIds(user);
   return allowedIds.includes(studentId);
 }
