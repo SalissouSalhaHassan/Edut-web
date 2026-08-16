@@ -432,6 +432,11 @@ export default function LoginPage() {
               </div>
             </div>
           </div>
+          <p className="text-center text-slate-600 text-[10px] font-bold uppercase tracking-widest mt-4">
+            © 2026 Edut Enterprise. Tous droits réservés.
+          </p>
+        </div>
+      </footer>
       {/* Self-Service Account Recovery Modal */}
       {showForgotModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
