@@ -38,7 +38,7 @@ interface UserDialogProps {
   students?: any[];
   employees?: any[];
   currentUser?: any;
-  onSuccess?: () => void;
+  onSuccess?: (savedUser?: any) => void;
   trigger?: React.ReactNode;
   isMenuItem?: boolean;
   openOverride?: boolean;
