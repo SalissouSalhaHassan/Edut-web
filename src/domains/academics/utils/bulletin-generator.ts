@@ -1508,6 +1508,15 @@ export async function generateReleveNotesPDF(data: any) {
   doc.setFontSize(12);
   doc.text(firstSemesterName, 105, s1TitleY, { align: "center" });
 
+  const getSubjectMention = (avg: number): string => {
+    if (avg >= 18) return "Excellent";
+    if (avg >= 16) return "Très Bien";
+    if (avg >= 14) return "Bien";
+    if (avg >= 12) return "Assez Bien";
+    if (avg >= 10) return "Passable";
+    return "Ajourné";
+  };
+
   const buildTableRows = (resList: any[], sfx: string) => {
     return resList.map((r: any) => {
       const cwRaw = r.classWorkScore;
@@ -1523,10 +1532,7 @@ export async function generateReleveNotesPDF(data: any) {
       else if (hasEx)     avg = ex;
       else avg = parseFloat(r.totalScore) || parseFloat(r.average) || 0;
       const code = (r.subject?.subjectName || r.subjectName || "SUBJ").substring(0, 4).toUpperCase() + ` ${sfx}`;
-      const mention = r.appreciation || (
-        avg >= 16 ? "Excellent" : avg >= 14 ? "Très bien" :
-        avg >= 12 ? "Bien" : avg >= 10 ? "Assez bien" : "Ajourné"
-      );
+      const mention = getSubjectMention(avg);
       return { code, name: r.subject?.subjectName || r.subjectName || "Matière", coef, avg, mention };
     });
   };
@@ -1539,7 +1545,9 @@ export async function generateReleveNotesPDF(data: any) {
   };
 
   const getDecision = (avg: number, savedDecision?: string): string => {
-    if (savedDecision) return savedDecision;
+    if (avg < 10) return "Ajourné";
+    if (savedDecision && !savedDecision.toLowerCase().includes("ajourn")) return savedDecision;
+    if (avg >= 18) return "Admis avec la mention Excellent";
     if (avg >= 16) return "Admis avec la mention Très Bien";
     if (avg >= 14) return "Admis avec la mention Bien";
     if (avg >= 12) return "Admis avec la mention Assez Bien";
