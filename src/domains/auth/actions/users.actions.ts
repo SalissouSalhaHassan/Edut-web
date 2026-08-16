@@ -456,14 +456,6 @@ export async function saveUser(formData: SaveUserFormData, id?: number) {
       }
 
       await db.update(users).set(data).where(eq(users.id, id));
-      
-      // Update identity links in students & employees tables
-      if (data.studentId) {
-        await db.update(students).set({ userId: id }).where(eq(students.id, data.studentId)).catch(() => {});
-      }
-      if (data.employeeId) {
-        await db.update(employees).set({ userId: id }).where(eq(employees.id, data.employeeId)).catch(() => {});
-      }
       console.log(`[saveUser] Update success for user ${id}`);
 
       const updatedRecord = await db.query.users.findFirst({
