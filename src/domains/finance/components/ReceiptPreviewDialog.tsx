@@ -408,6 +408,7 @@ export default function ReceiptPreviewDialog({
       });
 
   const schoolName = activeHeaderConfig?.schoolName || branchInfo?.branchName || "EDUT ACADEMY";
+  const qrCodeDataUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`REC-${refNumber}|${feeData.student?.nomEtudiant || "Eleve"}|${totalPaid}|${balance}`)}`;
   const schoolAddress = activeHeaderConfig?.address || branchInfo?.address || "Secteur 5, Niamey, Niger";
   const schoolPhone = activeHeaderConfig?.phone || branchInfo?.contactNo || "+227 90 12 34 56";
   const schoolEmail = activeHeaderConfig?.email || branchInfo?.email || "contact@edutacademy.ne";
@@ -965,8 +966,29 @@ export default function ReceiptPreviewDialog({
     doc.roundedRect(qrCardX, bottomCardsY, certWidth, bottomCardHeight, isA5 ? 1.5 : 2, isA5 ? 1.5 : 2, "FD");
 
     if (qrCodeDataUrl) {
-      const qrSize = isA5 ? 14 : 20;
-      doc.addImage(qrCodeDataUrl, "PNG", qrCardX + 3, bottomCardsY + (isA5 ? 3 : 4), qrSize, qrSize);
+      try {
+        const qrBase64 = await new Promise<string>((resolve) => {
+          if (typeof window === "undefined") return resolve("");
+          const img = new Image();
+          img.crossOrigin = "Anonymous";
+          img.src = qrCodeDataUrl;
+          img.onload = () => {
+            const canvas = document.createElement("canvas");
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext("2d");
+            ctx?.drawImage(img, 0, 0);
+            resolve(canvas.toDataURL("image/png"));
+          };
+          img.onerror = () => resolve("");
+        });
+        if (qrBase64) {
+          const qrSize = isA5 ? 14 : 20;
+          doc.addImage(qrBase64, "PNG", qrCardX + 3, bottomCardsY + (isA5 ? 3 : 4), qrSize, qrSize);
+        }
+      } catch (e) {
+        console.warn("QR code render error:", e);
+      }
     }
     doc.setFontSize(isA5 ? 4.5 : 6);
     doc.setFont("helvetica", "normal");
