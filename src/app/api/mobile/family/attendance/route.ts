@@ -144,7 +144,7 @@ export async function POST(request: NextRequest) {
       date: targetDate,
       status: "Excusé",
       remark: `Justification transmise : ${reason}${notes ? ` (${notes})` : ""}`,
-      recordedBy: user.email || "Espace Parent/Élève",
+      recordedBy: user.utilisateur || (user as any).email || "Espace Parent/Élève",
     });
 
     return NextResponse.json({
