@@ -17,7 +17,7 @@ export async function getNotifications() {
     }
 
     const roleType = await getUserRoleType(user);
-    const isStudentOrParent = roleType === "eleve" || roleType === "student" || roleType === "parent";
+    const isStudentOrParent = roleType === "eleve" || roleType === "parent";
 
     // For students and parents: only their direct notifications, or public general broadcasts
     const userFilter = isStudentOrParent
@@ -49,7 +49,7 @@ export async function getUnreadNotificationsCount() {
     if (!user) return 0;
 
     const roleType = await getUserRoleType(user);
-    const isStudentOrParent = roleType === "eleve" || roleType === "student" || roleType === "parent";
+    const isStudentOrParent = roleType === "eleve" || roleType === "parent";
 
     const userFilter = isStudentOrParent
       ? or(

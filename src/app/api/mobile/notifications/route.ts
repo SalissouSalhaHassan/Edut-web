@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
   const limit = Math.min(Number(sp.get("limit") || "100"), 500);
 
   const roleType = await getUserRoleType(user);
-  const isStudentOrParent = roleType === "eleve" || roleType === "student" || roleType === "parent";
+  const isStudentOrParent = roleType === "eleve" || roleType === "parent";
 
   // Base condition: For students and parents: strictly personalized
   const userCond = isStudentOrParent
