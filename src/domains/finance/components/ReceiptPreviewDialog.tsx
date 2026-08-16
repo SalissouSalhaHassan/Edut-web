@@ -186,7 +186,7 @@ export default function ReceiptPreviewDialog({
   const [branchInfo, setBranchInfo] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<"receipt" | "history">("receipt");
   const [activeHeaderConfig, setActiveHeaderConfig] = useState<any>(headerConfig);
-  const [selectedPaperSize, setSelectedPaperSize] = useState<"A4" | "A5">("A4");
+  const [selectedPaperSize, setSelectedPaperSize] = useState<"A4" | "A5">("A5");
 
   useEffect(() => {
     if (headerConfig) {
@@ -718,25 +718,41 @@ export default function ReceiptPreviewDialog({
       selectedPaperSize
     );
 
-    // Dynamic placement of elements below header to prevent overlaps
+    // Dynamic placement of elements below header
     const titleBoxY = headerBottomY + (isA5 ? 3 : 4);
     doc.setFillColor(15, 23, 42);
-    doc.roundedRect(margin, titleBoxY, W - 2 * margin, isA5 ? 9 : 12, isA5 ? 1.5 : 2, isA5 ? 1.5 : 2, "F");
-    doc.setFontSize(isA5 ? 9 : 12);
+    doc.roundedRect(margin, titleBoxY, W - 2 * margin, isA5 ? 10 : 13, isA5 ? 1.5 : 2, isA5 ? 1.5 : 2, "F");
+    
+    // Title text & subtitle
+    doc.setFontSize(isA5 ? 9.5 : 12.5);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(255, 255, 255);
-    doc.text("REÇU DE PAIEMENT", W / 2, titleBoxY + (isA5 ? 6 : 8), { align: "center" });
+    doc.text("REÇU DE PAIEMENT", margin + (isA5 ? 6 : 8), titleBoxY + (isA5 ? 5 : 6.5));
+    
+    doc.setFontSize(isA5 ? 5.5 : 7);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(203, 213, 225);
+    doc.text("Preuve officielle de paiement des frais scolaires", margin + (isA5 ? 6 : 8), titleBoxY + (isA5 ? 8.5 : 11));
 
-    const refBoxY = titleBoxY + (isA5 ? 12 : 16);
+    // ORIGINAL badge (Right of title box)
+    doc.setFillColor(37, 99, 235);
+    doc.roundedRect(W - margin - (isA5 ? 18 : 24), titleBoxY + (isA5 ? 2.5 : 3.5), isA5 ? 14 : 18, isA5 ? 5 : 6, isA5 ? 1 : 1.5, isA5 ? 1 : 1.5, "F");
+    doc.setFontSize(isA5 ? 5.5 : 7);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(255, 255, 255);
+    doc.text("ORIGINAL", W - margin - (isA5 ? 11 : 15), titleBoxY + (isA5 ? 5.8 : 7.6), { align: "center" });
+
+    // Reference Box
+    const refBoxY = titleBoxY + (isA5 ? 13 : 17);
     doc.setFillColor(241, 245, 255);
     doc.setDrawColor(200, 210, 255);
-    doc.roundedRect(W / 2 - (isA5 ? 25 : 35), refBoxY, isA5 ? 50 : 70, isA5 ? 6 : 8, isA5 ? 1.5 : 2, isA5 ? 1.5 : 2, "FD");
-    doc.setFontSize(isA5 ? 6.5 : 8);
+    doc.roundedRect(W / 2 - (isA5 ? 28 : 38), refBoxY, isA5 ? 56 : 76, isA5 ? 5.5 : 7.5, isA5 ? 1.5 : 2, isA5 ? 1.5 : 2, "FD");
+    doc.setFontSize(isA5 ? 6.5 : 8.5);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(79, 70, 229);
-    doc.text(`RÉF : ${refNumber}`, W / 2, refBoxY + (isA5 ? 4.2 : 5.5), { align: "center" });
+    doc.text(`RÉFÉRENCE : ${refNumber}`, W / 2, refBoxY + (isA5 ? 3.8 : 5.2), { align: "center" });
 
-    let provY = refBoxY + (isA5 ? 8 : 10);
+    let provY = refBoxY + (isA5 ? 7.5 : 10);
     if (isProvisoire) {
       doc.setFillColor(254, 243, 199);
       doc.setDrawColor(251, 191, 36);
@@ -749,19 +765,21 @@ export default function ReceiptPreviewDialog({
     }
 
     const infoBoxY = provY;
+    const cardHeight = isA5 ? 27 : 35;
     doc.setFillColor(255, 255, 255);
     doc.setDrawColor(220, 225, 240);
-    doc.roundedRect(margin, infoBoxY, W - 2 * margin, isA5 ? 24 : 32, isA5 ? 1.5 : 2, isA5 ? 1.5 : 2, "FD");
+    doc.roundedRect(margin, infoBoxY, W - 2 * margin, cardHeight, isA5 ? 1.5 : 2, isA5 ? 1.5 : 2, "FD");
 
-    doc.setFontSize(isA5 ? 6 : 7);
+    // Left Column: Student Info
+    doc.setFontSize(isA5 ? 6 : 7.5);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(79, 70, 229);
     doc.text("INFORMATIONS ÉLÈVE", margin + (isA5 ? 4 : 5), infoBoxY + (isA5 ? 4.5 : 6));
 
-    doc.setFontSize(isA5 ? 8 : 10);
+    doc.setFontSize(isA5 ? 8 : 10.5);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(15, 23, 42);
-    doc.text(feeData.student?.nomEtudiant || "—", margin + (isA5 ? 4 : 5), infoBoxY + (isA5 ? 9 : 12));
+    doc.text(feeData.student?.nomEtudiant || "—", margin + (isA5 ? 4 : 5), infoBoxY + (isA5 ? 9.5 : 12.5));
 
     const leftLabels = ["Classe", "Matricule", "Année Scolaire"];
     const leftVals = [
@@ -769,7 +787,7 @@ export default function ReceiptPreviewDialog({
       feeData.student?.numAdmission || "—",
       feeData.session?.sessionName || "2024–2025",
     ];
-    doc.setFontSize(isA5 ? 6.5 : 8);
+    doc.setFontSize(isA5 ? 6 : 8);
     leftLabels.forEach((lbl, i) => {
       doc.setFont("helvetica", "normal");
       doc.setTextColor(120, 130, 150);
@@ -779,38 +797,49 @@ export default function ReceiptPreviewDialog({
       doc.text(`: ${leftVals[i]}`, margin + (isA5 ? 20 : 28), infoBoxY + (isA5 ? 14 : 18) + i * (isA5 ? 3.5 : 4.5));
     });
 
+    // Divider between left and right cards
+    doc.setDrawColor(220, 225, 240);
+    doc.line(W / 2, infoBoxY + (isA5 ? 1.5 : 2), W / 2, infoBoxY + cardHeight - (isA5 ? 1.5 : 2));
+
+    // Right Column: Date du reçu & Situation Financière
     const rx = W / 2 + (isA5 ? 4 : 5);
-    doc.setFontSize(isA5 ? 6 : 7);
+    doc.setFontSize(isA5 ? 6 : 7.5);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(16, 185, 129);
-    doc.text("DATE DU REÇU & SITUATION", rx, infoBoxY + (isA5 ? 4.5 : 6));
+    doc.text("DATE DU REÇU", rx, infoBoxY + (isA5 ? 4.5 : 6));
 
-    const rightLabels = ["Date du reçu", "Total Attendu", "Total Déjà Payé", "Solde Restant"];
+    doc.setFontSize(isA5 ? 8 : 10.5);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(15, 23, 42);
+    doc.text(receiptDate, rx, infoBoxY + (isA5 ? 9.5 : 12.5));
+
+    const rightLabels = ["Total Attendu (Frais annuels)", "Total Déjà Payé"];
     const rightVals = [
-      receiptDate,
       formatCfaAmount(totalExpected),
       formatCfaAmount(totalPaid),
-      formatCfaAmount(balance),
     ];
 
-    doc.setFontSize(isA5 ? 6.5 : 8);
+    doc.setFontSize(isA5 ? 6 : 8);
     rightLabels.forEach((lbl, i) => {
       doc.setFont("helvetica", "normal");
       doc.setTextColor(120, 130, 150);
-      doc.text(lbl, rx, infoBoxY + (isA5 ? 9.5 : 12) + i * (isA5 ? 3.5 : 4.5));
+      doc.text(lbl, rx, infoBoxY + (isA5 ? 14 : 18) + i * (isA5 ? 3.5 : 4.5));
       doc.setFont("helvetica", "bold");
-      if (i === 3) {
-        doc.setTextColor(balance <= 0 ? 16 : 79, balance <= 0 ? 185 : 70, balance <= 0 ? 129 : 229);
-      } else {
-        doc.setTextColor(30, 35, 50);
-      }
-      doc.text(`: ${rightVals[i]}`, rx + (isA5 ? 24 : 32), infoBoxY + (isA5 ? 9.5 : 12) + i * (isA5 ? 3.5 : 4.5));
+      doc.setTextColor(30, 35, 50);
+      doc.text(`: ${rightVals[i]}`, rx + (isA5 ? 34 : 44), infoBoxY + (isA5 ? 14 : 18) + i * (isA5 ? 3.5 : 4.5));
     });
 
-    doc.setDrawColor(220, 225, 240);
-    doc.line(W / 2, infoBoxY + (isA5 ? 1.5 : 2), W / 2, infoBoxY + (isA5 ? 22.5 : 30));
+    // Solde restant pill banner in the right card
+    const soldePillY = infoBoxY + (isA5 ? 21.5 : 27.5);
+    doc.setFillColor(79, 70, 229);
+    doc.roundedRect(rx, soldePillY, (W / 2) - margin - (isA5 ? 8 : 10), isA5 ? 4.5 : 6, isA5 ? 1 : 1.5, isA5 ? 1 : 1.5, "F");
+    doc.setFontSize(isA5 ? 5.5 : 7.5);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(255, 255, 255);
+    doc.text("SOLDE RESTANT", rx + 2, soldePillY + (isA5 ? 3.2 : 4.2));
+    doc.text(formatCfaAmount(balance), (W - margin) - (isA5 ? 6 : 8), soldePillY + (isA5 ? 3.2 : 4.2), { align: "right" });
 
-    // Table: Historique des versements
+    // Table: HISTORIQUE DES VERSEMENTS (6 Columns)
     const tableBody = (allPayments.length > 0 ? allPayments : [
       {
         id: feeData.payment?.id || 1,
@@ -818,9 +847,10 @@ export default function ReceiptPreviewDialog({
         paymentMode: feeData.payment?.paymentMode || "Espèces",
         monthConcerned: feeData.payment?.monthConcerned || "Frais de scolarité",
         amount: totalPaid,
+        recordedBy: feeData.payment?.recordedBy || "Admin Scolarité",
       }
     ]).map((p: any, idx: number) => {
-      const refStr = `VER-${p.id || (idx + 1)}`;
+      const numStr = String(idx + 1);
       let dStr = p.datePaid;
       if (dStr) {
         try {
@@ -830,37 +860,34 @@ export default function ReceiptPreviewDialog({
       } else {
         dStr = receiptDate;
       }
+      const refPStr = `PAY-${String(p.id || (idx + 1)).padStart(6, '0')}`;
       const modeStr = p.paymentMode || "Espèces";
-      const motifStr = p.monthConcerned || p.remark || "Frais de scolarité";
-      const amtStr = formatCfaAmount(p.amount || 0);
-      return [refStr, dStr, modeStr, motifStr, amtStr];
+      const amtStr = formatCfaAmount(p.amount || 0).replace(" CFA", "");
+      const recByStr = p.recordedBy || "Admin Scolarité";
+      return [numStr, dStr, refPStr, modeStr, amtStr, recByStr];
     });
 
     autoTable(doc, {
-      startY: infoBoxY + (isA5 ? 28 : 36),
-      head: [["Réf / N°", "Date de Versement", "Mode", "Motif / Libellé", "Montant Versé"]],
+      startY: infoBoxY + cardHeight + (isA5 ? 4 : 6),
+      head: [["N°", "Date de Paiement", "Référence Paiement", "Mode de Paiement", "Montant (CFA)", "Reçu par"]],
       body: tableBody,
       foot: [
         [
-          { content: "TOTAL DÉJÀ VERSÉ", colSpan: 4, styles: { halign: "right", fontStyle: "bold" } },
-          { content: formatCfaAmount(totalPaid), styles: { halign: "right", fontStyle: "bold" } }
-        ],
-        [
-          { content: "SOLDE RESTANT À PAYER", colSpan: 4, styles: { halign: "right", fontStyle: "bold" } },
-          { content: formatCfaAmount(balance), styles: { halign: "right", fontStyle: "bold" } }
+          { content: "TOTAL VERSÉ", colSpan: 4, styles: { halign: "left", fontStyle: "bold" } },
+          { content: formatCfaAmount(totalPaid), colSpan: 2, styles: { halign: "right", fontStyle: "bold" } }
         ]
       ],
       theme: "grid",
       headStyles: {
         fillColor: [15, 23, 42],
         textColor: 255,
-        fontSize: isA5 ? 7 : 8.5,
+        fontSize: isA5 ? 6.5 : 8,
         fontStyle: "bold",
         halign: "center",
       },
       bodyStyles: {
-        fontSize: isA5 ? 6.5 : 8,
-        cellPadding: isA5 ? 2.5 : 3.5,
+        fontSize: isA5 ? 6 : 7.5,
+        cellPadding: isA5 ? 2 : 3,
         textColor: [30, 35, 50],
       },
       didParseCell: (data: any) => {
@@ -869,124 +896,100 @@ export default function ReceiptPreviewDialog({
         }
       },
       footStyles: {
-        fillColor: [79, 70, 229],
-        textColor: 255,
-        fontSize: isA5 ? 7 : 8.5,
+        fillColor: [241, 245, 255],
+        textColor: [15, 23, 42],
+        fontSize: isA5 ? 6.5 : 8,
         fontStyle: "bold",
       },
       columnStyles: {
-        0: { halign: "center", cellWidth: isA5 ? 20 : 28 },
-        1: { halign: "center", cellWidth: isA5 ? 26 : 35 },
-        2: { halign: "center", cellWidth: isA5 ? 22 : 30 },
-        3: { cellWidth: isA5 ? 40 : 55 },
-        4: { halign: "right", fontStyle: "bold" },
+        0: { halign: "center", cellWidth: isA5 ? 8 : 12 },
+        1: { halign: "center", cellWidth: isA5 ? 22 : 30 },
+        2: { halign: "center", cellWidth: isA5 ? 24 : 32 },
+        3: { halign: "center", cellWidth: isA5 ? 22 : 30 },
+        4: { halign: "right", fontStyle: "bold", cellWidth: isA5 ? 26 : 34 },
+        5: { halign: "center", cellWidth: isA5 ? 30 : 44 },
       },
       margin: { left: margin, right: margin },
     });
 
     const tableBottom = (doc as any).lastAutoTable.finalY;
 
-    // Grid layout at bottom
-    const badgeY = tableBottom + (isA5 ? 8 : 12);
-    const isOk = balance <= 0;
-    
-    // Status Badge (Left)
-    doc.setFillColor(...(isOk ? [236, 253, 245] : [255, 251, 235]) as [number, number, number]);
-    doc.setDrawColor(...(isOk ? [167, 243, 208] : [253, 230, 138]) as [number, number, number]);
-    doc.roundedRect(margin, badgeY, isA5 ? 45 : 60, isA5 ? 7 : 10, isA5 ? 1.5 : 2, isA5 ? 1.5 : 2, "FD");
-    doc.setFontSize(isA5 ? 6 : 8);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(...(isOk ? [6, 120, 80] : [146, 64, 14]) as [number, number, number]);
-    doc.text(
-      isOk ? "✓ SOLDÉ — COMPLET" : "⏳ EN COURS — DU",
-      margin + (isA5 ? 22.5 : 30),
-      badgeY + (isA5 ? 4.8 : 6.5),
-      { align: "center" }
-    );
+    // Bottom 3 Cards: Certification (Left) | Stamp (Center) | QR Code (Right)
+    const bottomCardsY = tableBottom + (isA5 ? 4 : 6);
+    const bottomCardHeight = isA5 ? 24 : 32;
 
-    // Official circular stamp (Center)
-    const stampX = W / 2;
-    const stampY = badgeY + (isA5 ? 3.5 : 5);
-    const stampRadius = isA5 ? 9 : 14;
-    doc.setDrawColor(79, 70, 229);
-    doc.setLineWidth(isA5 ? 0.4 : 0.6);
-    doc.setGState(new (doc as any).GState({ opacity: 0.25 }));
-    doc.circle(stampX, stampY, stampRadius, "S");
-    doc.circle(stampX, stampY, stampRadius - 2, "S");
-    doc.setFontSize(isA5 ? 3.5 : 5);
+    // Left: Certification Card
+    const certWidth = isA5 ? 46 : 64;
+    doc.setFillColor(255, 255, 255);
+    doc.setDrawColor(220, 225, 240);
+    doc.roundedRect(margin, bottomCardsY, certWidth, bottomCardHeight, isA5 ? 1.5 : 2, isA5 ? 1.5 : 2, "FD");
+    
+    doc.setFontSize(isA5 ? 5.5 : 7.5);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(79, 70, 229);
-    doc.text(`${schoolName}\nNIAMEY - NIGER`, stampX, stampY - (isA5 ? 1.5 : 2), { align: "center" });
+    doc.text("CERTIFICATION", margin + 3, bottomCardsY + (isA5 ? 4 : 5.5));
+
+    doc.setFontSize(isA5 ? 4.5 : 6);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(100, 116, 139);
+    doc.text("Nous certifions que le montant", margin + 3, bottomCardsY + (isA5 ? 8 : 11));
+    doc.text("indiqué ci-dessus a été reçu", margin + 3, bottomCardsY + (isA5 ? 11 : 15));
+    doc.text("de l'élève mentionné.", margin + 3, bottomCardsY + (isA5 ? 14 : 19));
+
+    doc.setDrawColor(203, 213, 225);
+    doc.line(margin + 3, bottomCardsY + bottomCardHeight - (isA5 ? 5 : 7), margin + certWidth - 3, bottomCardsY + bottomCardHeight - (isA5 ? 5 : 7));
+    doc.setFontSize(isA5 ? 4.5 : 5.5);
+    doc.setTextColor(148, 163, 184);
+    doc.text("Signature & Cachet", margin + certWidth / 2, bottomCardsY + bottomCardHeight - (isA5 ? 2 : 2.5), { align: "center" });
+
+    // Center: Circular School Stamp
+    const stampX = W / 2;
+    const stampY = bottomCardsY + bottomCardHeight / 2;
+    const stampRadius = isA5 ? 9 : 13;
+    doc.setDrawColor(30, 58, 138);
+    doc.setLineWidth(isA5 ? 0.4 : 0.6);
+    doc.setGState(new (doc as any).GState({ opacity: 0.35 }));
+    doc.circle(stampX, stampY, stampRadius, "S");
+    doc.circle(stampX, stampY, stampRadius - 1.5, "S");
+    doc.setFontSize(isA5 ? 3.5 : 5);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(30, 58, 138);
+    doc.text(`★ ${schoolName.toUpperCase()} ★`, stampX, stampY - (isA5 ? 2 : 3), { align: "center" });
+    doc.text("SERVICE SCOLARITÉ", stampX, stampY + (isA5 ? 3 : 4), { align: "center" });
     doc.setGState(new (doc as any).GState({ opacity: 1 }));
 
-    // Signature Area & Line (Right-Center)
-    const sigX = W - margin - (isA5 ? 45 : 65);
-    const sigLineWidth = isA5 ? 30 : 45;
-    doc.setFontSize(isA5 ? 5.5 : 7);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(120, 130, 150);
-    doc.text("Signature & Cachet", sigX + (sigLineWidth / 2), badgeY, { align: "center" });
-    doc.setDrawColor(200, 210, 220);
-    doc.line(sigX, badgeY + (isA5 ? 11 : 15), sigX + sigLineWidth, badgeY + (isA5 ? 11 : 15));
-
-    const footerY = H - (isA5 ? 14 : 18);
+    // Right: QR Code Card
+    const qrCardX = W - margin - (isA5 ? 46 : 64);
+    doc.setFillColor(255, 255, 255);
     doc.setDrawColor(220, 225, 240);
-    doc.line(margin, footerY - 2, W - margin, footerY - 2);
-    doc.setFillColor(248, 250, 252);
-    doc.rect(0, footerY - 2, W, isA5 ? 16 : 20, "F");
-    doc.setFontSize(isA5 ? 5.5 : 6.5);
-    doc.setFont("helvetica", "italic");
-    doc.setTextColor(150, 160, 180);
-    doc.text(
-      "Merci pour votre confiance. Ce reçu est délivré à titre de preuve de paiement.",
-      W / 2,
-      footerY + 1.5,
-      { align: "center" }
-    );
-    doc.setFontSize(isA5 ? 5 : 6);
-    doc.text(
-      `Généré le ${new Date().toLocaleDateString("fr-FR")} — ${schoolName} — ${schoolAddress}`,
-      W / 2,
-      footerY + (isA5 ? 5.5 : 7),
-      { align: "center" }
-    );
+    doc.roundedRect(qrCardX, bottomCardsY, certWidth, bottomCardHeight, isA5 ? 1.5 : 2, isA5 ? 1.5 : 2, "FD");
 
-    doc.setFillColor(79, 70, 229);
-    doc.rect(0, H - 2, W, 2, "F");
-
-    // Fetch and append QR code containing reference, localId, and syncStatus
-    let qrBase64 = "";
-    try {
-      const qrData = `REF: ${refNumber} | LOCAL_ID: ${feeData.id || "N/A"} | STATUS: ${isProvisoire ? "provisoire" : "officiel"}`;
-      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrData)}`;
-      qrBase64 = await new Promise<string>((resolve) => {
-        const img = new Image();
-        img.crossOrigin = 'Anonymous';
-        img.src = qrUrl;
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          canvas.width = img.width;
-          canvas.height = img.height;
-          const ctx = canvas.getContext('2d');
-          ctx?.drawImage(img, 0, 0);
-          resolve(canvas.toDataURL('image/png'));
-        };
-        img.onerror = () => resolve("");
-      });
-    } catch (e) {
-      console.warn("Failed to load QR code for receipt PDF:", e);
+    if (qrCodeDataUrl) {
+      const qrSize = isA5 ? 14 : 20;
+      doc.addImage(qrCodeDataUrl, "PNG", qrCardX + 3, bottomCardsY + (isA5 ? 3 : 4), qrSize, qrSize);
     }
+    doc.setFontSize(isA5 ? 4.5 : 6);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(100, 116, 139);
+    doc.text("Scannez pour vérifier", qrCardX + (isA5 ? 19 : 26), bottomCardsY + (isA5 ? 7 : 10));
+    doc.text("l'authenticité du reçu", qrCardX + (isA5 ? 19 : 26), bottomCardsY + (isA5 ? 10 : 14));
+    doc.setFontSize(isA5 ? 5 : 6.5);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(79, 70, 229);
+    doc.text(refNumber, qrCardX + (isA5 ? 19 : 26), bottomCardsY + (isA5 ? 16 : 22));
 
-    if (qrBase64) {
-      try {
-        const qrSize = isA5 ? 12 : 18;
-        doc.addImage(qrBase64, 'PNG', W - margin - qrSize, badgeY - (isA5 ? 3.5 : 5), qrSize, qrSize);
-      } catch (e) {}
-    }
+    // Security Footer
+    const footerY = bottomCardsY + bottomCardHeight + (isA5 ? 4 : 6);
+    doc.setFontSize(isA5 ? 4.5 : 6);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(148, 163, 184);
+    doc.text(`Émis le : ${receiptDate}`, margin, footerY);
+    doc.text("Ce reçu est généré électroniquement et ne nécessite pas de signature manuscrite.", W / 2, footerY, { align: "center" });
+    doc.text(`Merci pour votre confiance. ${schoolName}`, W - margin, footerY, { align: "right" });
 
     if (save) {
       const name = feeData.student?.nomEtudiant?.replace(/\s+/g, "_") || "eleve";
-      doc.save(`Recu_${name}_${Date.now()}.pdf`);
+      doc.save(`Recu_${selectedPaperSize}_${name}_${Date.now()}.pdf`);
       setPdfSuccess(true);
     }
 
@@ -1123,293 +1126,234 @@ export default function ReceiptPreviewDialog({
                   </div>
                 )}
 
-                <div className="hidden px-10 pt-7 pb-6 border-b border-slate-100">
-                  <div className="flex items-center justify-between gap-6">
-
-                    {/* Left — Shield logo + school name */}
-                    <div className="flex items-center gap-3 shrink-0">
-                      <div className="w-[68px] h-[68px] shrink-0">
-                        <svg viewBox="0 0 68 76" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
-                          <path d="M34 3L5 15v22c0 17 13 32 29 37 16-5 29-20 29-37V15L34 3z" fill="#EEF2FF" stroke="#1E3A8A" strokeWidth="2.5" strokeLinejoin="round"/>
-                          {/* Book left page */}
-                          <rect x="19" y="28" width="13" height="16" rx="2" fill="none" stroke="#1E3A8A" strokeWidth="1.8"/>
-                          <line x1="19" y1="36" x2="32" y2="36" stroke="#1E3A8A" strokeWidth="1.2"/>
-                          <line x1="19" y1="40" x2="32" y2="40" stroke="#1E3A8A" strokeWidth="1.2"/>
-                          {/* Book right page */}
-                          <rect x="36" y="28" width="13" height="16" rx="2" fill="none" stroke="#1E3A8A" strokeWidth="1.8"/>
-                          <line x1="36" y1="36" x2="49" y2="36" stroke="#1E3A8A" strokeWidth="1.2"/>
-                          <line x1="36" y1="40" x2="49" y2="40" stroke="#1E3A8A" strokeWidth="1.2"/>
-                          {/* Book spine */}
-                          <path d="M32,28 Q34,26 36,28" fill="none" stroke="#1E3A8A" strokeWidth="1.5" strokeLinecap="round"/>
-                          <path d="M32,44 L34,47 L36,44" fill="none" stroke="#1E3A8A" strokeWidth="1.3" strokeLinejoin="round"/>
-                          {/* Graduation cap */}
-                          <polygon points="34,17 44,21 34,25 24,21" fill="none" stroke="#1E3A8A" strokeWidth="1.5" strokeLinejoin="round"/>
-                          <line x1="44" y1="21" x2="44" y2="27" stroke="#1E3A8A" strokeWidth="1.5" strokeLinecap="round"/>
-                          {/* Laurel left */}
-                          <path d="M11,50 Q8,46 11,42" fill="none" stroke="#1E3A8A" strokeWidth="1.4" strokeLinecap="round"/>
-                          <path d="M14,53 Q10,49 12,45" fill="none" stroke="#1E3A8A" strokeWidth="1.4" strokeLinecap="round"/>
-                          {/* Laurel right */}
-                          <path d="M57,50 Q60,46 57,42" fill="none" stroke="#1E3A8A" strokeWidth="1.4" strokeLinecap="round"/>
-                          <path d="M54,53 Q58,49 56,45" fill="none" stroke="#1E3A8A" strokeWidth="1.4" strokeLinecap="round"/>
-                        </svg>
-                      </div>
-                      <div>
-                        <p className="text-[17px] font-black text-[#1E3A8A] leading-tight">{schoolName}</p>
-                        <p className="text-[11px] text-slate-400 font-medium italic mt-0.5">Excellence en Éducation</p>
-                      </div>
+                {/* ── TITLE BANNER & BADGE ── */}
+                <div className="mx-8 mt-6 bg-[#0F172A] text-white p-4 rounded-2xl flex items-center justify-between shadow-md relative z-10">
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
+                      <FileText className="text-white" size={20} />
                     </div>
-
-                    {/* Center — Big title + dot line + ref badge */}
-                    <div className="flex flex-col items-center gap-2 flex-1">
-                      <h2 className="text-[2.1rem] font-black text-[#0F172A] tracking-tight text-center leading-none">
-                        REÇU DE PAIEMENT
-                      </h2>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <div className="h-px w-12 bg-slate-200" />
-                        <div className="w-2 h-2 rounded-full bg-indigo-600" />
-                        <div className="h-px w-12 bg-slate-200" />
-                      </div>
-                      <div className="px-5 py-1.5 rounded-lg border border-indigo-200 bg-white mt-1">
-                        <p className="text-[13px] font-black text-indigo-700 tracking-widest uppercase">
-                          RÉF : {refNumber}
-                        </p>
-                      </div>
+                    <div>
+                      <h2 className="text-lg font-black tracking-tight leading-none uppercase">REÇU DE PAIEMENT</h2>
+                      <p className="text-xs text-slate-300 font-medium mt-1">Preuve officielle de paiement des frais scolaires</p>
                     </div>
+                  </div>
+                  <span className="px-3.5 py-1 bg-blue-600 text-white rounded-full text-xs font-black uppercase tracking-wider shadow-sm shrink-0">
+                    ORIGINAL
+                  </span>
+                </div>
 
-                    {/* Right — Contact info list */}
-                    <div className="space-y-1.5 shrink-0">
-                      <div className="flex items-center gap-2">
-                        <MapPin size={12} className="text-slate-400 shrink-0" />
-                        <p className="text-[11.5px] text-slate-600 font-medium">{schoolAddress}</p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Calendar size={12} className="text-slate-400 shrink-0" />
-                        <p className="text-[11.5px] text-slate-600 font-medium">
-                          Année : {feeData.session?.sessionName || "2024 – 2025"}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Phone size={12} className="text-slate-400 shrink-0" />
-                        <p className="text-[11.5px] text-slate-600 font-medium">{schoolPhone}</p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Mail size={12} className="text-slate-400 shrink-0" />
-                        <p className="text-[11.5px] text-slate-600 font-medium">{schoolEmail}</p>
-                      </div>
-                    </div>
+                {/* ── REFERENCE PILL ── */}
+                <div className="flex justify-center my-3 relative z-10">
+                  <div className="px-6 py-1.5 rounded-xl border border-indigo-100 bg-indigo-50/70">
+                    <p className="text-xs font-black text-indigo-700 tracking-widest uppercase">
+                      RÉFÉRENCE : {refNumber}
+                    </p>
                   </div>
                 </div>
 
-                {/* ── STUDENT INFO + DATE (2-column with divider) ── */}
-                <div className="bg-slate-50/50 backdrop-blur-[1px] border-b border-slate-100 relative z-10">
-                  <div className="px-10 py-6 flex divide-x divide-slate-200">
+                {/* ── STUDENT INFO & FINANCIAL SITUATION (2 Cards) ── */}
+                <div className="px-8 pb-4 relative z-10">
+                  <div className="grid grid-cols-2 gap-4">
 
-                    {/* Left — Student info */}
-                    <div className="flex-1 pr-10">
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className="w-8 h-8 rounded-lg bg-slate-100/80 flex items-center justify-center shrink-0">
-                          <User size={15} className="text-slate-500" />
+                    {/* Left Card — Student Info */}
+                    <div className="bg-slate-50/80 border border-slate-200/80 rounded-2xl p-5">
+                      <div className="flex items-center gap-2 mb-2.5">
+                        <div className="w-7 h-7 rounded-lg bg-indigo-50 flex items-center justify-center shrink-0">
+                          <User size={14} className="text-indigo-600" />
                         </div>
                         <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">
                           Informations Élève
                         </p>
                       </div>
-                      <p className="text-[22px] font-black text-slate-900 leading-tight mb-4">
+                      <p className="text-[17px] font-black text-slate-900 leading-tight mb-3">
                         {feeData.student?.nomEtudiant || "—"}
                       </p>
-                      <div className="space-y-2">
+                      <div className="space-y-1.5 text-[12px]">
                         {[
                           { label: "Classe", value: feeData.student?.classe },
                           { label: "Matricule", value: feeData.student?.numAdmission },
-                          { label: "Année Scolaire", value: feeData.session?.sessionName || "2024 – 2025" },
+                          { label: "Année Scolaire", value: feeData.session?.sessionName || "2024–2025" },
                         ].map(({ label, value }) => (
-                          <div key={label} className="flex items-center gap-3 text-[12.5px]">
-                            <span className="text-slate-500 font-medium w-28">{label}</span>
+                          <div key={label} className="flex items-center gap-2">
+                            <span className="text-slate-500 font-medium w-24">{label}</span>
                             <span className="text-slate-400">:</span>
-                            <span className="font-bold text-slate-700">{value || "—"}</span>
+                            <span className="font-bold text-slate-800">{value || "—"}</span>
                           </div>
                         ))}
                       </div>
                     </div>
 
-                    {/* Right — Date & Situation Financière */}
-                    <div className="pl-10 flex flex-col justify-center min-w-[280px]">
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className="w-8 h-8 rounded-lg bg-emerald-50/80 flex items-center justify-center shrink-0">
-                          <Calendar size={15} className="text-emerald-600" />
+                    {/* Right Card — Date du reçu & Situation Financière */}
+                    <div className="bg-slate-50/80 border border-slate-200/80 rounded-2xl p-5 flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center gap-2 mb-2.5">
+                          <div className="w-7 h-7 rounded-lg bg-emerald-50 flex items-center justify-center shrink-0">
+                            <Calendar size={14} className="text-emerald-600" />
+                          </div>
+                          <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">
+                            Date du Reçu
+                          </p>
                         </div>
-                        <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">
-                          Date du Reçu &amp; Situation
+                        <p className="text-[17px] font-black text-slate-900 leading-tight mb-3">
+                          {receiptDate}
+                        </p>
+                        <div className="space-y-1.5 text-[12px]">
+                          <div className="flex items-center justify-between">
+                            <span className="text-slate-500 font-medium">Total Attendu (Frais annuels)</span>
+                            <span className="font-bold text-slate-800">{formatCfaAmount(totalExpected)}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-slate-500 font-medium">Total Déjà Payé</span>
+                            <span className="font-bold text-slate-800">{formatCfaAmount(totalPaid)}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Blue Solde Restant Pill */}
+                      <div className="mt-2.5 px-3.5 py-1.5 bg-blue-600 rounded-xl flex items-center justify-between text-white">
+                        <span className="text-[11px] font-black tracking-wider uppercase">SOLDE RESTANT</span>
+                        <span className="text-[13px] font-black">{formatCfaAmount(balance)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── HISTORIQUE DES VERSEMENTS (Card & 6-Column Table) ── */}
+                <div className="px-8 pb-4 relative z-10">
+                  <div className="border border-slate-200/80 rounded-2xl overflow-hidden shadow-sm">
+                    {/* Header with icon */}
+                    <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200/80 flex items-center gap-2">
+                      <FileText size={14} className="text-indigo-600" />
+                      <p className="text-[11px] font-black text-slate-800 uppercase tracking-wider">
+                        Historique des Versements
+                      </p>
+                    </div>
+
+                    {/* 6-Column Table header */}
+                    <div className="grid grid-cols-[40px_130px_130px_120px_1fr_130px] bg-[#0F172A] text-white px-4 py-2.5 items-center text-[10px] font-black uppercase tracking-wider">
+                      <p className="text-center">N°</p>
+                      <p className="text-center">Date de Paiement</p>
+                      <p className="text-center">Référence Paiement</p>
+                      <p className="text-center">Mode de Paiement</p>
+                      <p className="text-right">Montant (CFA)</p>
+                      <p className="text-center">Reçu par</p>
+                    </div>
+
+                    {/* Rows */}
+                    {(allPayments.length > 0 ? allPayments : [
+                      {
+                        id: feeData.payment?.id || 1,
+                        datePaid: feeData.payment?.datePaid || receiptDate,
+                        paymentMode: feeData.payment?.paymentMode || "Espèces",
+                        monthConcerned: feeData.payment?.monthConcerned || "Frais de scolarité",
+                        amount: totalPaid,
+                        recordedBy: feeData.payment?.recordedBy || "Admin Scolarité",
+                      }
+                    ]).map((p: any, idx: number) => {
+                      let dStr = p.datePaid;
+                      if (dStr) {
+                        try {
+                          const d = new Date(dStr);
+                          if (!isNaN(d.getTime())) dStr = d.toLocaleDateString("fr-FR");
+                        } catch (_) {}
+                      } else {
+                        dStr = receiptDate;
+                      }
+                      const refPStr = `PAY-${String(p.id || (idx + 1)).padStart(6, '0')}`;
+                      return (
+                        <div
+                          key={p.id || idx}
+                          className="grid grid-cols-[40px_130px_130px_120px_1fr_130px] px-4 py-2.5 items-center border-b border-slate-100 bg-white hover:bg-slate-50/80 transition-colors text-[12px]"
+                        >
+                          <p className="font-bold text-slate-500 text-center">{idx + 1}</p>
+                          <p className="text-slate-700 text-center">{dStr}</p>
+                          <p className="text-slate-600 text-center font-medium">{refPStr}</p>
+                          <p className="text-slate-600 text-center font-medium">{p.paymentMode || "Espèces"}</p>
+                          <p className="font-black text-slate-800 text-right">{formatCfaAmount(p.amount || 0).replace(" CFA", "")}</p>
+                          <p className="text-slate-600 text-center text-[11px]">{p.recordedBy || "Admin Scolarité"}</p>
+                        </div>
+                      );
+                    })}
+
+                    {/* Footer Row */}
+                    <div className="flex justify-between items-center px-6 py-2.5 bg-slate-50">
+                      <p className="text-[11px] font-black text-slate-800 uppercase tracking-wider">Total Versé</p>
+                      <p className="text-[13.5px] font-black text-slate-900">{formatCfaAmount(totalPaid)}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── BOTTOM 3 CARDS: Certification | Stamp | QR Code ── */}
+                <div className="px-8 pb-4 relative z-10">
+                  <div className="grid grid-cols-3 gap-4">
+
+                    {/* Left Card: Certification */}
+                    <div className="border border-slate-200/80 rounded-2xl p-4 bg-white flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <CheckCircle2 size={15} className="text-blue-600" />
+                          <p className="text-[10px] font-black text-blue-700 uppercase tracking-widest">
+                            Certification
+                          </p>
+                        </div>
+                        <p className="text-[10.5px] text-slate-500 leading-snug">
+                          Nous certifions que le montant indiqué ci-dessus a été reçu de l'élève mentionné.
                         </p>
                       </div>
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between gap-3 text-[12.5px]">
-                          <span className="text-slate-500 font-medium">Date du reçu :</span>
-                          <span className="font-bold text-slate-800">{receiptDate}</span>
+                      <div className="pt-4 text-center">
+                        <svg width="100" height="24" viewBox="0 0 120 38" className="text-slate-400 mx-auto">
+                          <path
+                            d="M8,28 C16,10 24,32 34,20 C44,8 52,30 62,22 C72,14 80,26 90,18 C98,12 108,20 114,16"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                          />
+                        </svg>
+                        <p className="text-[9px] font-bold text-slate-400 mt-1">Signature &amp; Cachet</p>
+                      </div>
+                    </div>
+
+                    {/* Center: Official Circular Stamp */}
+                    <div className="border border-slate-200/80 rounded-2xl p-4 bg-white flex items-center justify-center">
+                      <div className="w-[105px] h-[105px] rounded-full border-2 border-blue-900/30 flex items-center justify-center p-1 relative">
+                        <div className="w-full h-full rounded-full border border-blue-900/30 flex flex-col items-center justify-center text-center p-1 text-blue-900/50 font-black">
+                          <p className="text-[7.5px] uppercase tracking-wider">★ {schoolName.toUpperCase()} ★</p>
+                          <p className="text-[6.5px] font-bold mt-0.5">SERVICE SCOLARITÉ</p>
                         </div>
-                        <div className="flex items-center justify-between gap-3 text-[12.5px]">
-                          <span className="text-slate-500 font-medium">Total Attendu :</span>
-                          <span className="font-bold text-slate-800">{formatCfaAmount(totalExpected)}</span>
+                      </div>
+                    </div>
+
+                    {/* Right Card: QR Code */}
+                    <div className="border border-slate-200/80 rounded-2xl p-4 bg-white flex items-center gap-3">
+                      {qrCodeDataUrl ? (
+                        <img src={qrCodeDataUrl} alt="QR Code" className="w-16 h-16 rounded-lg shrink-0" />
+                      ) : (
+                        <div className="w-16 h-16 bg-slate-100 rounded-lg flex items-center justify-center shrink-0">
+                          <FileText size={20} className="text-slate-400" />
                         </div>
-                        <div className="flex items-center justify-between gap-3 text-[12.5px]">
-                          <span className="text-slate-500 font-medium">Total Déjà Payé :</span>
-                          <span className="font-bold text-slate-800">{formatCfaAmount(totalPaid)}</span>
-                        </div>
-                        <div className="flex items-center justify-between gap-3 text-[12.5px] pt-1 border-t border-slate-200">
-                          <span className="text-slate-600 font-bold">Solde Restant :</span>
-                          <span className={cn(
-                            "font-black text-[13.5px]",
-                            isSolde ? "text-emerald-600" : "text-indigo-600"
-                          )}>
-                            {formatCfaAmount(balance)}
-                          </span>
-                        </div>
+                      )}
+                      <div>
+                        <p className="text-[10px] text-slate-500 leading-snug">
+                          Scannez pour vérifier l'authenticité du reçu
+                        </p>
+                        <p className="text-[11px] font-black text-blue-600 mt-1.5">{refNumber}</p>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {/* ── HISTORIQUE DES VERSEMENTS TABLE ── */}
-                <div className="border-b border-slate-100 relative z-10">
-
-                  {/* Table header — dark navy */}
-                  <div className="grid grid-cols-[100px_130px_110px_1fr_160px] bg-[#0F172A] text-white px-8 py-3.5 items-center">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-center">Réf / N°</p>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-center">Date</p>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-center">Mode</p>
-                    <p className="text-[10px] font-black uppercase tracking-widest">Motif / Libellé</p>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-right">Montant Versé</p>
+                {/* ── SECURITY FOOTER ── */}
+                <div className="px-8 pb-5 pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400 font-medium relative z-10">
+                  <div className="flex items-center gap-1.5">
+                    <Calendar size={12} className="text-slate-400 shrink-0" />
+                    <span>Émis le : {receiptDate}</span>
                   </div>
-
-                  {/* Table rows */}
-                  {(allPayments.length > 0 ? allPayments : [
-                    {
-                      id: feeData.payment?.id || 1,
-                      datePaid: feeData.payment?.datePaid || receiptDate,
-                      paymentMode: feeData.payment?.paymentMode || "Espèces",
-                      monthConcerned: feeData.payment?.monthConcerned || "Frais de scolarité",
-                      amount: totalPaid,
-                    }
-                  ]).map((p: any, idx: number) => {
-                    let dStr = p.datePaid;
-                    if (dStr) {
-                      try {
-                        const d = new Date(dStr);
-                        if (!isNaN(d.getTime())) dStr = d.toLocaleDateString("fr-FR");
-                      } catch (_) {}
-                    } else {
-                      dStr = receiptDate;
-                    }
-                    return (
-                      <div
-                        key={p.id || idx}
-                        className="grid grid-cols-[100px_130px_110px_1fr_160px] px-8 py-3.5 items-center border-b border-slate-100 bg-white/75 hover:bg-slate-50/80 transition-colors text-[12.5px]"
-                      >
-                        <p className="font-bold text-slate-600 text-center">VER-{p.id || (idx + 1)}</p>
-                        <p className="text-slate-600 text-center">{dStr}</p>
-                        <p className="text-slate-600 text-center font-medium">{p.paymentMode || "Espèces"}</p>
-                        <p className="text-slate-800 font-semibold">{p.monthConcerned || p.remark || "Frais de scolarité"}</p>
-                        <p className="font-black text-slate-800 text-right">{formatCfaAmount(p.amount || 0)}</p>
-                      </div>
-                    );
-                  })}
-
-                  {/* Footers */}
-                  <div className="grid grid-cols-[1fr_160px] px-8 py-3 items-center bg-slate-50 border-b border-slate-200">
-                    <p className="text-[11px] font-bold text-slate-600 uppercase tracking-wider text-right pr-4">Total Déjà Versé</p>
-                    <p className="text-[14px] font-black text-slate-800 text-right">{formatCfaAmount(totalPaid)}</p>
+                  <div className="flex items-center gap-1.5">
+                    <CheckCircle2 size={12} className="text-slate-400 shrink-0" />
+                    <span>Ce reçu est généré électroniquement et ne nécessite pas de signature manuscrite.</span>
                   </div>
-                  <div className="grid grid-cols-[1fr_160px] px-8 py-4 items-center bg-indigo-50/60">
-                    <p className="text-[12px] font-black text-indigo-900 uppercase tracking-wider text-right pr-4">Solde Restant à Payer</p>
-                    <p className={cn(
-                      "text-[18px] font-black text-right",
-                      isSolde ? "text-emerald-600" : "text-indigo-600"
-                    )}>
-                      {formatCfaAmount(balance)}
-                    </p>
-                  </div>
-                </div>
-
-                {/* ── FOOTER: Status Badge | Stamp | Signature ── */}
-                <div className="px-10 py-8 flex items-center justify-between gap-6 relative z-10">
-
-                  {/* Status badge */}
-                  <div className={cn(
-                    "flex items-center gap-3 px-5 py-3 rounded-2xl border",
-                    isSolde
-                      ? "bg-emerald-50 border-emerald-200 text-emerald-700"
-                      : "bg-amber-50 border-amber-200 text-amber-700"
-                  )}>
-                    <div className={cn(
-                      "w-8 h-8 rounded-full flex items-center justify-center shrink-0",
-                      isSolde ? "bg-emerald-100" : "bg-amber-100"
-                    )}>
-                      {isSolde ? <CheckCircle2 size={16} /> : <Hourglass size={16} />}
-                    </div>
-                    <p className="text-[10.5px] font-black uppercase tracking-widest">
-                      {isSolde ? "✓ SOLDÉ — PAIEMENT COMPLET" : "EN COURS – RESTE À PAYER"}
-                    </p>
-                  </div>
-
-                  {/* Official circular stamp */}
-                  <div className="flex items-center justify-center shrink-0">
-                    <svg width="115" height="115" className="stamp-svg transition-all duration-300" viewBox="0 0 115 115" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <defs>
-                        <path id="topArc" d="M 10,57.5 A 47.5,47.5 0 0,1 105,57.5" />
-                        <path id="bottomArc" d="M 21,74 A 40,40 0 0,0 94,74" />
-                      </defs>
-                      {/* Outer ring */}
-                      <circle cx="57.5" cy="57.5" r="53" stroke="#1E40AF" strokeWidth="2.5" />
-                      {/* Inner ring */}
-                      <circle cx="57.5" cy="57.5" r="44" stroke="#1E40AF" strokeWidth="1.2" />
-                      {/* Top text — School Name */}
-                      <text fontSize="8.5" fill="#1E40AF" fontWeight="700" letterSpacing="1.5">
-                        <textPath href="#topArc" startOffset="50%" textAnchor="middle">★ {schoolName.toUpperCase()} ★</textPath>
-                      </text>
-                      {/* Bottom text — Address */}
-                      <text fontSize="7.5" fill="#1E40AF" fontWeight="700" letterSpacing="1.5">
-                        <textPath href="#bottomArc" startOffset="50%" textAnchor="middle">{schoolAddress.toUpperCase()}</textPath>
-                      </text>
-                      {/* Center: open book */}
-                      <rect x="38" y="42" width="18" height="22" rx="2.5" fill="none" stroke="#1E40AF" strokeWidth="1.8"/>
-                      <line x1="38" y1="52" x2="56" y2="52" stroke="#1E40AF" strokeWidth="1.2"/>
-                      <line x1="38" y1="57" x2="56" y2="57" stroke="#1E40AF" strokeWidth="1.2"/>
-                      <rect x="59" y="42" width="18" height="22" rx="2.5" fill="none" stroke="#1E40AF" strokeWidth="1.8"/>
-                      <line x1="59" y1="52" x2="77" y2="52" stroke="#1E40AF" strokeWidth="1.2"/>
-                      <line x1="59" y1="57" x2="77" y2="57" stroke="#1E40AF" strokeWidth="1.2"/>
-                      <path d="M56,42 Q57.5,40 59,42" fill="none" stroke="#1E40AF" strokeWidth="1.5" strokeLinecap="round"/>
-                      <path d="M56,64 L57.5,67 L59,64" fill="none" stroke="#1E40AF" strokeWidth="1.3" strokeLinejoin="round"/>
-                    </svg>
-                  </div>
-
-                  {/* Signature area */}
-                  <div className="w-52 signature-area space-y-2 transition-all duration-300">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">
-                      Signature &amp; Cachet
-                    </p>
-                    <div className="h-16 border-b border-slate-200 flex items-end justify-center pb-2">
-                      <svg width="120" height="38" viewBox="0 0 120 38" className="text-slate-300">
-                        <path
-                          d="M8,28 C16,10 24,32 34,20 C44,8 52,30 62,22 C72,14 80,26 90,18 C98,12 108,20 114,16"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="1.5"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                    </div>
-                    <p className="text-[9px] text-center font-bold text-slate-400">Le Responsable Financier</p>
-                  </div>
-                </div>
-
-                {/* Disclaimer bar */}
-                <div className="px-10 pb-7 relative z-10">
-                  <div className="flex items-center gap-2.5 px-5 py-2.5 rounded-xl bg-slate-50/80 border border-slate-100">
-                    <Info size={13} className="text-slate-400 shrink-0" />
-                    <p className="text-[11px] font-medium text-slate-400">
-                      Merci pour votre confiance. Ce reçu est délivré à titre de preuve de paiement.
-                    </p>
+                  <div className="flex items-center gap-1.5">
+                    <span>Merci pour votre confiance. {schoolName}</span>
                   </div>
                 </div>
 
