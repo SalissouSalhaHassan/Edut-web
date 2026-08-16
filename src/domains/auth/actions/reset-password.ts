@@ -66,13 +66,13 @@ export async function recoverAndResetAccount(params: ResetPasswordParams) {
         };
       }
 
-      // Vérifier soit le PIN d'activation, soit le numéro de téléphone (mobile, whatsapp, tel_pere)
+      // Vérifier soit le PIN d'activation, soit le numéro de téléphone (mobile, whatsapp, phoneFixe)
       const pinMatch = student.activationPin && student.activationPin.trim().toLowerCase() === cleanVerification;
       const mobileMatch = student.mobile && student.mobile.trim().toLowerCase().includes(cleanVerification);
       const whatsappMatch = student.whatsapp && student.whatsapp.trim().toLowerCase().includes(cleanVerification);
-      const telPereMatch = student.telPere && student.telPere.trim().toLowerCase().includes(cleanVerification);
+      const phoneFixeMatch = student.phoneFixe && student.phoneFixe.trim().toLowerCase().includes(cleanVerification);
 
-      if (!pinMatch && !mobileMatch && !whatsappMatch && !telPereMatch) {
+      if (!pinMatch && !mobileMatch && !whatsappMatch && !phoneFixeMatch) {
         return {
           success: false,
           error: "Le code d'activation ou le numéro de téléphone ne correspond pas au dossier de l'élève.",
@@ -113,7 +113,7 @@ export async function recoverAndResetAccount(params: ResetPasswordParams) {
       }
 
       const pinMatch = employee.activationPin && employee.activationPin.trim().toLowerCase() === cleanVerification;
-      const phoneMatch = employee.telephone && employee.telephone.trim().toLowerCase().includes(cleanVerification);
+      const phoneMatch = employee.mobile && employee.mobile.trim().toLowerCase().includes(cleanVerification);
       const emailMatch = employee.email && employee.email.trim().toLowerCase() === cleanVerification;
 
       if (!pinMatch && !phoneMatch && !emailMatch) {
@@ -124,7 +124,7 @@ export async function recoverAndResetAccount(params: ResetPasswordParams) {
       }
 
       employeeRecord = employee;
-      personFullName = `${employee.prenom || ""} ${employee.nom || ""}`.trim() || "Enseignant";
+      personFullName = employee.nom || "Enseignant";
 
       // Trouver le compte utilisateur lié
       linkedUser = await db.query.users.findFirst({
