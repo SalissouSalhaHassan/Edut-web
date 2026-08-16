@@ -566,76 +566,89 @@ export async function POST(request: NextRequest) {
 
       const existingMap = new Map(existing.map((r) => [r.studentId, r.id]));
 
-      await Promise.all(
-        records.map(async (record: any) => {
-          const studentId = Number(record.student_id);
-          const status = String(record.status);
-          const remark = record.remark ? String(record.remark) : null;
-          const existingId = existingMap.get(studentId);
+      const toInsert: any[] = [];
+      const updatePromises: Promise<any>[] = [];
 
-          if (existingId) {
-            await db
+      for (const record of records) {
+        const studentId = Number(record.student_id);
+        const status = String(record.status);
+        const remark = record.remark ? String(record.remark) : null;
+        const existingId = existingMap.get(studentId);
+
+        if (existingId) {
+          updatePromises.push(
+            db
               .update(studentAttendance)
               .set({
                 status,
                 remark,
                 employeeId: employeeId ? Number(employeeId) : null,
               })
-              .where(eq(studentAttendance.id, existingId));
-          } else {
-            await db.insert(studentAttendance).values({
-              studentId,
-              classId,
-              subjectId: subjectId ? Number(subjectId) : null,
-              employeeId: employeeId ? Number(employeeId) : null,
-              date: targetDate,
-              status,
-              remark,
-              recordedBy: "Mobile app",
-            });
-          }
-        })
-      );
+              .where(eq(studentAttendance.id, existingId))
+          );
+        } else {
+          toInsert.push({
+            studentId,
+            classId,
+            subjectId: subjectId ? Number(subjectId) : null,
+            employeeId: employeeId ? Number(employeeId) : null,
+            date: targetDate,
+            status,
+            remark,
+            recordedBy: "Mobile app",
+          });
+        }
+      }
 
-      // Alerts processing
+      // Execute bulk insert and updates concurrently
+      await Promise.all([
+        toInsert.length > 0 ? db.insert(studentAttendance).values(toInsert) : Promise.resolve(),
+        ...updatePromises,
+      ]);
+
+      // Fire-and-forget background alert processing to keep response instantaneous
       const flaggedRecords = records.filter((r: any) => r.status === "Absent" || r.status === "En Retard");
       if (flaggedRecords.length > 0 && (sendSMS || sendWhatsApp)) {
-        try {
-          const { MessagingService } = await import("@/shared/services/messaging.service");
-          const studentIds = flaggedRecords.map((r: any) => Number(r.student_id));
-          const targetStudents = await readDb.query.students.findMany({
-            where: inArray(students.id, studentIds)
-          });
-
-          let subName = "Général";
-          if (subjectId) {
-            const sub = await readDb.query.schoolSubjects.findFirst({
-              where: eq(schoolSubjects.id, subjectId)
+        (async () => {
+          try {
+            const { MessagingService } = await import("@/shared/services/messaging.service");
+            const studentIds = flaggedRecords.map((r: any) => Number(r.student_id));
+            const targetStudents = await readDb.query.students.findMany({
+              where: inArray(students.id, studentIds)
             });
-            if (sub) subName = sub.subjectName;
-          }
 
-          const formattedDate = targetDate.toLocaleDateString("fr-FR");
-
-          for (const record of flaggedRecords) {
-            const sId = Number(record.student_id);
-            const s = targetStudents.find((st) => st.id === sId);
-            if (s && (s.mobile || s.whatsapp)) {
-              await MessagingService.sendAttendanceAlert({
-                to: s.mobile || "",
-                whatsapp: s.whatsapp || s.mobile || "",
-                studentName: s.nomEtudiant,
-                status: record.status as any,
-                subject: subName,
-                date: formattedDate,
-                sendSMS,
-                sendWhatsApp,
+            let subName = "Général";
+            if (subjectId) {
+              const sub = await readDb.query.schoolSubjects.findFirst({
+                where: eq(schoolSubjects.id, subjectId)
               });
+              if (sub) subName = sub.subjectName;
             }
+
+            const formattedDate = targetDate.toLocaleDateString("fr-FR");
+
+            await Promise.allSettled(
+              flaggedRecords.map(async (record: any) => {
+                const sId = Number(record.student_id);
+                const s = targetStudents.find((st) => st.id === sId);
+                if (s && (s.mobile || s.whatsapp)) {
+                  await MessagingService.sendAttendanceAlert({
+                    to: s.mobile || "",
+                    whatsapp: s.whatsapp || s.mobile || "",
+                    studentName: s.nomEtudiant,
+                    status: record.status as any,
+                    subject: subName,
+                    date: formattedDate,
+                    sendSMS,
+                    sendWhatsApp,
+                  }).catch(() => {});
+                }
+              })
+            );
+          } catch (err) {
+            console.error("Failed to send messaging alerts from mobile API:", err);
           }
-        } catch (err) {
-          console.error("Failed to send messaging alerts from mobile API:", err);
-        }
+        })();
       }
 
       return NextResponse.json({ success: true });

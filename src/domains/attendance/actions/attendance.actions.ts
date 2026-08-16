@@ -87,82 +87,94 @@ export async function saveBatchAttendance(data: BatchAttendanceFormData) {
 
     const existingMap = new Map(existing.map(r => [r.studentId, r.id]));
 
-    await Promise.all(records.map(async (record) => {
+    const toInsert: any[] = [];
+    const updatePromises: Promise<any>[] = [];
+
+    for (const record of records) {
       const existingId = existingMap.get(record.studentId);
       if (existingId) {
-        await db.update(studentAttendance).set({
-          status: record.status,
-          remark: record.remark,
-          employeeId: employeeId || null,
-        }).where(
-          eq(studentAttendance.id, existingId)
+        updatePromises.push(
+          db.update(studentAttendance).set({
+            status: record.status,
+            remark: record.remark || null,
+            employeeId: employeeId || null,
+          }).where(eq(studentAttendance.id, existingId))
         );
       } else {
-        await db.insert(studentAttendance).values({
+        toInsert.push({
           studentId: record.studentId,
           classId,
           subjectId: subjectId || null,
           employeeId: employeeId || null,
           date: targetDate,
           status: record.status,
-          remark: record.remark,
+          remark: record.remark || null,
         });
       }
-    }));
+    }
+
+    // Execute bulk insert and updates concurrently
+    await Promise.all([
+      toInsert.length > 0 ? db.insert(studentAttendance).values(toInsert) : Promise.resolve(),
+      ...updatePromises
+    ]);
 
     const { sendSMS, sendWhatsApp } = validation.data;
     const flaggedRecords = records.filter(r => r.status === "Absent" || r.status === "En Retard");
     
     if (flaggedRecords.length > 0) {
-      console.log(`[Messaging Log] Processing deferred alerts & mobile push for ${flaggedRecords.length} students`);
-      try {
-        const { MessagingService } = await import("@/shared/services/messaging.service");
-        const { PushNotificationService } = await import("@/shared/services/push-notification.service");
-        const studentIds = flaggedRecords.map(r => r.studentId);
-        
-        const targetStudents = await db.query.students.findMany({
-          where: sql`${students.id} IN (${sql.join(studentIds, sql`, `)})`
-        });
-
-        let subName = "Général";
-        if (subjectId) {
-          const sub = await db.query.schoolSubjects.findFirst({ where: eq(schoolSubjects.id, subjectId) });
-          if (sub) subName = sub.subjectName;
-        }
-
-        const dateStr = targetDate.toLocaleDateString('fr-FR');
-
-        for (const record of flaggedRecords) {
-          const s = targetStudents.find(st => st.id === record.studentId);
-          const studentName = s ? s.nomEtudiant : `Élève #${record.studentId}`;
+      // Fire-and-forget background alert processing to keep save instantaneous
+      (async () => {
+        try {
+          const { MessagingService } = await import("@/shared/services/messaging.service");
+          const { PushNotificationService } = await import("@/shared/services/push-notification.service");
+          const studentIds = flaggedRecords.map(r => r.studentId);
           
-          // 1. Mobile Push Notification
-          await PushNotificationService.sendAbsenceAlert({
-            studentId: record.studentId,
-            studentName,
-            status: record.status as "Absent" | "En Retard",
-            date: dateStr,
-            subjectName: subName,
+          const targetStudents = await db.query.students.findMany({
+            where: inArray(students.id, studentIds)
           });
 
-          // 2. SMS / WhatsApp if requested
-          if (s && (s.mobile || s.whatsapp) && (sendSMS || sendWhatsApp)) {
-            console.log(`[Messaging Log] Deferred Alert Sent: ${studentName} | Status: ${record.status} | Phone: ${s.mobile || s.whatsapp}`);
-            await MessagingService.sendAttendanceAlert({
-              to: s.mobile || "",
-              whatsapp: s.whatsapp || s.mobile || "",
-              studentName,
-              status: record.status as any,
-              subject: subName,
-              date: dateStr,
-              sendSMS,
-              sendWhatsApp
-            });
+          let subName = "Général";
+          if (subjectId) {
+            const sub = await db.query.schoolSubjects.findFirst({ where: eq(schoolSubjects.id, subjectId) });
+            if (sub) subName = sub.subjectName;
           }
+
+          const dateStr = targetDate.toLocaleDateString('fr-FR');
+
+          await Promise.allSettled(
+            flaggedRecords.map(async (record) => {
+              const s = targetStudents.find(st => st.id === record.studentId);
+              const studentName = s ? s.nomEtudiant : `Élève #${record.studentId}`;
+              
+              // 1. Mobile Push Notification
+              await PushNotificationService.sendAbsenceAlert({
+                studentId: record.studentId,
+                studentName,
+                status: record.status as "Absent" | "En Retard",
+                date: dateStr,
+                subjectName: subName,
+              }).catch(() => {});
+
+              // 2. SMS / WhatsApp if requested
+              if (s && (s.mobile || s.whatsapp) && (sendSMS || sendWhatsApp)) {
+                await MessagingService.sendAttendanceAlert({
+                  to: s.mobile || "",
+                  whatsapp: s.whatsapp || s.mobile || "",
+                  studentName,
+                  status: record.status as any,
+                  subject: subName,
+                  date: dateStr,
+                  sendSMS,
+                  sendWhatsApp
+                }).catch(() => {});
+              }
+            })
+          );
+        } catch (err) {
+          console.error("[Messaging Log] Background alert processing error:", err);
         }
-      } catch (err) {
-        console.error("[Messaging Log] Failed to process smart alerts & push notifications:", err);
-      }
+      })();
     }
 
     attendanceEvents.emit("update", { type: "batch", classId, subjectId, date });
