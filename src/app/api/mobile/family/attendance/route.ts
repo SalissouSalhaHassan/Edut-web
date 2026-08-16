@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { and, eq, desc } from "drizzle-orm";
+import { and, eq, desc, or } from "drizzle-orm";
 import { db, readDb } from "@/infrastructure/database";
 import { studentAttendance } from "@/infrastructure/database/schema/attendance";
 import { studentResults } from "@/infrastructure/database/schema/academics";
