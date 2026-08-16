@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, or, sql } from "drizzle-orm";
 import { db, readDb } from "@/infrastructure/database";
 import { students } from "@/infrastructure/database/schema/students";
-import { schoolSessions, timetableEntries } from "@/infrastructure/database/schema/academics";
+import { schoolSessions, schoolClasses, timetableEntries } from "@/infrastructure/database/schema/academics";
 import { getMobileUser, mobileJsonError } from "../../_lib/auth";
 import { verifyParentChildRelationship } from "../../_lib/family-auth";
 
@@ -76,14 +76,18 @@ export async function GET(request: NextRequest) {
     }
 
     if (action === "getTimetable") {
-      const className = searchParams.get("className");
-      if (!className) {
+      const rawClassName = searchParams.get("className")?.trim() || "";
+      if (!rawClassName) {
         return mobileJsonError("className manquant", 400);
       }
 
-      // Fetch class id
+      // Fetch class id with robust case and whitespace insensitive matching
       const cls = await readDb.query.schoolClasses.findFirst({
-        where: eq(sql`LOWER(class_name)`, className.toLowerCase().trim())
+        where: or(
+          eq(schoolClasses.className, rawClassName),
+          sql`LOWER(TRIM(${schoolClasses.className})) = LOWER(TRIM(${rawClassName}))`,
+          sql`REPLACE(LOWER(${schoolClasses.className}), ' ', '') = REPLACE(LOWER(${rawClassName}), ' ', '')`
+        )
       });
 
       if (!cls) {

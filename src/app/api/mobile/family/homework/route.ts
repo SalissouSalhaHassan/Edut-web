@@ -26,8 +26,13 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    const rawClassName = className.trim();
     const cls = await readDb.query.schoolClasses.findFirst({
-      where: eq(sql`LOWER(class_name)`, className.toLowerCase().trim())
+      where: or(
+        eq(schoolClasses.className, rawClassName),
+        sql`LOWER(TRIM(${schoolClasses.className})) = LOWER(TRIM(${rawClassName}))`,
+        sql`REPLACE(LOWER(${schoolClasses.className}), ' ', '') = REPLACE(LOWER(${rawClassName}), ' ', '')`
+      )
     });
 
     if (!cls) {

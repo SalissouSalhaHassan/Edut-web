@@ -335,14 +335,30 @@ export async function getStudentPersonalHomeworkAction() {
       return { success: false, error: "Profil étudiant ou classe introuvable pour ce compte." };
     }
 
-    // Resolve student class
-    const classRow = await db.query.schoolClasses.findFirst({
+    // Resolve student class with case-insensitive and space-insensitive matching
+    const studentClassName = studentRecord.classe.trim();
+    let classRow = await db.query.schoolClasses.findFirst({
       where: and(
-        eq(schoolClasses.schoolId, schoolId),
-        eq(schoolClasses.className, studentRecord.classe)
+        schoolId ? eq(schoolClasses.schoolId, schoolId) : undefined,
+        or(
+          eq(schoolClasses.className, studentClassName),
+          sql`LOWER(TRIM(${schoolClasses.className})) = LOWER(TRIM(${studentClassName}))`,
+          sql`REPLACE(LOWER(${schoolClasses.className}), ' ', '') = REPLACE(LOWER(${studentClassName}), ' ', '')`
+        )
       ),
       with: { section: true },
     });
+
+    if (!classRow) {
+      classRow = await db.query.schoolClasses.findFirst({
+        where: or(
+          eq(schoolClasses.className, studentClassName),
+          sql`LOWER(TRIM(${schoolClasses.className})) = LOWER(TRIM(${studentClassName}))`,
+          sql`REPLACE(LOWER(${schoolClasses.className}), ' ', '') = REPLACE(LOWER(${studentClassName}), ' ', '')`
+        ),
+        with: { section: true },
+      });
+    }
 
     if (!classRow) {
       return { success: false, error: "Classe introuvable pour cet élève." };
