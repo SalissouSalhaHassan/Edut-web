@@ -332,14 +332,15 @@ async function resolveLinkedStudent(
       columns: baseColumns,
     });
 
-    if (row) {
+    const profile = normalizeStudentProfile(row);
+    if (profile) {
       // Auto-heal user's studentId link
       if (!user.studentId && user.id) {
         try {
-          await db.update(users).set({ studentId: row.id }).where(eq(users.id, user.id));
+          await db.update(users).set({ studentId: profile.id }).where(eq(users.id, user.id));
         } catch (_) {}
       }
-      return normalizeStudentProfile(row);
+      return profile;
     }
   }
 
