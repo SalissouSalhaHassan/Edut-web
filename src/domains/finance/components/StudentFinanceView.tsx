@@ -93,13 +93,14 @@ export default function StudentFinanceView({
 
   // Calculations
   const calculatedExpected =
-    fee?.totalExpected ??
-    (student.fraisMensuels || 0) * 10 +
-      (student.fraisInscription || 0) +
-      (student.fraisTransport || 0) +
-      (student.fraisCantine || 0) +
-      (student.fraisAssurance || 0) +
-      (student.fraisCogesCard || 0);
+    fee?.totalExpected && fee.totalExpected > 0
+      ? fee.totalExpected
+      : (student.fraisMensuels || 0) +
+        (student.fraisInscription || 0) +
+        (student.fraisTransport || 0) +
+        (student.fraisCantine || 0) +
+        (student.fraisAssurance || 0) +
+        (student.fraisCogesCard || 0);
 
   const totalPaid = fee?.totalPaid ?? payments.reduce((acc, p) => acc + (p.amount || 0), 0);
   const totalReduction = fee?.totalReduction ?? (student.bourse || 0);
@@ -118,6 +119,25 @@ export default function StudentFinanceView({
       : 100;
 
   const isSolde = balance === 0;
+
+  const tuitionAmount = Math.max(
+    0,
+    calculatedExpected -
+      (student.fraisInscription || 0) -
+      (student.fraisTransport || 0) -
+      (student.fraisCantine || 0) -
+      (student.fraisAssurance || 0) -
+      (student.fraisCogesCard || 0)
+  );
+
+  const breakdownItems = [
+    { label: "Frais d'inscription & dossier", amount: student.fraisInscription || 0 },
+    { label: "Frais de scolarité & cours", amount: tuitionAmount },
+    ...(student.fraisTransport ? [{ label: "Frais de transport", amount: student.fraisTransport }] : []),
+    ...(student.fraisCantine ? [{ label: "Frais de cantine", amount: student.fraisCantine }] : []),
+    ...(student.fraisAssurance ? [{ label: "Assurance scolaire", amount: student.fraisAssurance }] : []),
+    ...(student.fraisCogesCard ? [{ label: "Carte COGES / Scolaire", amount: student.fraisCogesCard }] : []),
+  ];
 
   return (
     <div className="min-h-screen p-6 lg:p-10 space-y-8 animate-in fade-in duration-500 transition-colors dark:bg-[#0c0e14]">
@@ -427,17 +447,7 @@ export default function StudentFinanceView({
                   Composantes de la Scolarité
                 </h4>
                 <div className="space-y-2">
-                  {[
-                    { label: "Frais d'inscription", amount: student.fraisInscription || 0 },
-                    {
-                      label: "Mensualité de scolarité (x10 mois)",
-                      amount: (student.fraisMensuels || 0) * 10,
-                    },
-                    { label: "Frais de transport", amount: student.fraisTransport || 0 },
-                    { label: "Frais de cantine", amount: student.fraisCantine || 0 },
-                    { label: "Assurance scolaire", amount: student.fraisAssurance || 0 },
-                    { label: "Carte COGES / Scolaire", amount: student.fraisCogesCard || 0 },
-                  ].map((item, i) => (
+                  {breakdownItems.map((item, i) => (
                     <div
                       key={i}
                       className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800"
