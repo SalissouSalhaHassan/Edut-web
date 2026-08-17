@@ -15,6 +15,150 @@ export interface ResetPasswordParams {
   newPassword?: string; // Si fourni, réinitialise le mot de passe
 }
 
+/**
+ * Synchronise et garantit la présence du compte dans auth.users et auth.identities de Supabase
+ */
+async function syncSupabaseAuthUser(params: {
+  email: string;
+  passwordText?: string;
+  hashedPassword: string;
+  fullName: string;
+  schoolId: number;
+  studentId?: number | null;
+  employeeId?: number | null;
+  existingSupabaseId?: string | null;
+}): Promise<string | null> {
+  const {
+    email,
+    passwordText,
+    hashedPassword,
+    fullName,
+    schoolId,
+    studentId,
+    employeeId,
+    existingSupabaseId,
+  } = params;
+
+  try {
+    const userMeta = JSON.stringify({
+      full_name: fullName,
+      school_id: schoolId,
+      student_id: studentId || null,
+      employee_id: employeeId || null,
+    });
+
+    const result = await db.execute(sql`
+      INSERT INTO auth.users (
+        instance_id,
+        id,
+        aud,
+        role,
+        email,
+        encrypted_password,
+        email_confirmed_at,
+        recovery_sent_at,
+        last_sign_in_at,
+        raw_app_meta_data,
+        raw_user_meta_data,
+        created_at,
+        updated_at,
+        confirmation_token,
+        email_change,
+        email_change_token_new,
+        recovery_token
+      ) VALUES (
+        '00000000-0000-0000-0000-000000000000',
+        COALESCE(${existingSupabaseId}::uuid, gen_random_uuid()),
+        'authenticated',
+        'authenticated',
+        ${email},
+        ${hashedPassword},
+        NOW(),
+        NOW(),
+        NOW(),
+        '{"provider":"email","providers":["email"]}'::jsonb,
+        ${userMeta}::jsonb,
+        NOW(),
+        NOW(),
+        '',
+        '',
+        '',
+        ''
+      )
+      ON CONFLICT (email) DO UPDATE SET
+        encrypted_password = ${hashedPassword},
+        email_confirmed_at = COALESCE(auth.users.email_confirmed_at, NOW()),
+        raw_user_meta_data = ${userMeta}::jsonb,
+        updated_at = NOW()
+      RETURNING id;
+    `);
+
+    const rows = Array.isArray(result) ? result : (result as any)?.rows || [];
+    const authId = rows[0]?.id ? String(rows[0].id) : existingSupabaseId;
+
+    if (authId) {
+      try {
+        await db.execute(sql`
+          INSERT INTO auth.identities (
+            id,
+            user_id,
+            identity_data,
+            provider,
+            provider_id,
+            last_sign_in_at,
+            created_at,
+            updated_at
+          ) VALUES (
+            gen_random_uuid(),
+            ${authId}::uuid,
+            jsonb_build_object('sub', ${authId}::text, 'email', ${email}),
+            'email',
+            ${authId}::text,
+            NOW(),
+            NOW(),
+            NOW()
+          )
+          ON CONFLICT (provider, provider_id) DO UPDATE SET
+            identity_data = jsonb_build_object('sub', ${authId}::text, 'email', ${email}),
+            updated_at = NOW();
+        `);
+      } catch (idErr) {
+        console.warn("[syncSupabaseAuthUser] auth.identities warning:", idErr);
+      }
+      return authId;
+    }
+  } catch (err) {
+    console.warn("[syncSupabaseAuthUser] SQL direct upsert failed, trying client signUp fallback:", err);
+  }
+
+  // Fallback to client signUp if SQL execution had issues
+  if (passwordText) {
+    try {
+      const { createClient } = await import("@/shared/utils/supabase/server");
+      const supabase = await createClient();
+      const { data: authData } = await supabase.auth.signUp({
+        email,
+        password: passwordText,
+        options: {
+          data: {
+            full_name: fullName,
+            school_id: schoolId,
+            student_id: studentId,
+            employee_id: employeeId,
+          },
+        },
+      });
+      if (authData?.user?.id) {
+        return authData.user.id;
+      }
+    } catch (signUpErr) {
+      console.warn("[syncSupabaseAuthUser] signUp fallback warning:", signUpErr);
+    }
+  }
+
+  return existingSupabaseId || null;
+}
+
 export async function recoverAndResetAccount(params: ResetPasswordParams) {
   const { role, schoolSlug, matriculeOrEmail, verificationCodeOrPhone, newPassword } = params;
 
@@ -54,7 +198,8 @@ export async function recoverAndResetAccount(params: ResetPasswordParams) {
           eq(students.schoolId, school.id),
           or(
             eq(students.numAdmission, cleanMatricule),
-            eq(students.numAdmission, cleanMatricule.toUpperCase())
+            eq(students.numAdmission, cleanMatricule.toUpperCase()),
+            eq(students.numAdmission, cleanMatricule.toLowerCase())
           )
         ),
       });
@@ -100,7 +245,8 @@ export async function recoverAndResetAccount(params: ResetPasswordParams) {
           eq(employees.schoolId, school.id),
           or(
             eq(employees.empId, cleanMatricule),
-            eq(employees.email, cleanMatricule)
+            eq(employees.email, cleanMatricule),
+            eq(employees.email, cleanMatricule.toLowerCase())
           )
         ),
       });
@@ -139,15 +285,43 @@ export async function recoverAndResetAccount(params: ResetPasswordParams) {
       });
     }
 
-    // 3. Si aucun compte utilisateur n'était encore créé, on l'initialise
-    recoveredUsername = cleanMatricule.toLowerCase();
+    // 3. Déterminer le nom d'utilisateur et l'email de connexion
+    recoveredUsername = linkedUser ? linkedUser.utilisateur : cleanMatricule.toLowerCase();
     let loginEmail = recoveredUsername;
-    if (!loginEmail.includes('@')) {
+    if (!loginEmail.includes("@")) {
       loginEmail = `${loginEmail}@test.com`;
     }
 
+    const effectivePassword = newPassword && newPassword.trim().length > 0
+      ? newPassword.trim()
+      : (linkedUser ? null : "Edut2025!");
+
+    if (newPassword && newPassword.trim().length > 0 && newPassword.trim().length < 4) {
+      return { success: false, error: "Le mot de passe doit contenir au moins 4 caractères." };
+    }
+
+    let hashedPassword: string | null = null;
+    if (effectivePassword) {
+      hashedPassword = await bcrypt.hash(effectivePassword, 10);
+    }
+
+    // Synchronisation Supabase Auth
+    let supabaseAuthId: string | null = linkedUser?.supabaseId || null;
+    if (hashedPassword && effectivePassword) {
+      supabaseAuthId = await syncSupabaseAuthUser({
+        email: loginEmail,
+        passwordText: effectivePassword,
+        hashedPassword,
+        fullName: personFullName,
+        schoolId: school.id,
+        studentId: studentRecord?.id,
+        employeeId: employeeRecord?.id,
+        existingSupabaseId: linkedUser?.supabaseId,
+      });
+    }
+
+    // 4. Création ou mise à jour de la table Postgres users
     if (!linkedUser) {
-      // Trouver ou créer le rôle par défaut
       const roleName = role === "student" ? "Élève" : "Enseignant";
       let roleRow = await db.query.roles.findFirst({
         where: eq(roles.roleName, roleName),
@@ -160,39 +334,14 @@ export async function recoverAndResetAccount(params: ResetPasswordParams) {
         roleRow = insertedRole[0];
       }
 
-      const defaultPassword = newPassword?.trim() || "Edut2025!";
-      const hashedPassword = await bcrypt.hash(defaultPassword, 10);
-
-      // Création Supabase Auth
-      let supabaseId: string | null = null;
-      try {
-        const { createClient } = await import("@/shared/utils/supabase/server");
-        const supabase = await createClient();
-        const { data: authData } = await supabase.auth.signUp({
-          email: loginEmail,
-          password: defaultPassword,
-          options: {
-            data: {
-              full_name: personFullName,
-              school_id: school.id,
-              student_id: studentRecord?.id,
-              employee_id: employeeRecord?.id,
-            }
-          }
-        });
-        if (authData?.user?.id) {
-          supabaseId = authData.user.id;
-        }
-      } catch (authErr) {
-        console.warn("[recoverAndResetAccount] Supabase signUp warning:", authErr);
-      }
+      const defaultHashed = hashedPassword || (await bcrypt.hash("Edut2025!", 10));
 
       const insertedUser = await db.insert(users).values({
         schoolId: school.id,
         utilisateur: recoveredUsername,
-        supabaseId,
+        supabaseId: supabaseAuthId,
         nomPrenom: personFullName,
-        motDePasse: hashedPassword,
+        motDePasse: defaultHashed,
         admin: false,
         superAdmin: false,
         roleId: roleRow?.id,
@@ -203,67 +352,11 @@ export async function recoverAndResetAccount(params: ResetPasswordParams) {
       }).returning();
 
       linkedUser = insertedUser[0];
-    } else {
-      recoveredUsername = linkedUser.utilisateur;
-      loginEmail = recoveredUsername;
-      if (!loginEmail.includes('@')) {
-        loginEmail = `${loginEmail}@test.com`;
-      }
-    }
-
-    // 4. Si un nouveau mot de passe est demandé, on le met à jour
-    if (newPassword && newPassword.trim().length > 0) {
-      if (newPassword.trim().length < 4) {
-        return { success: false, error: "Le mot de passe doit contenir au moins 4 caractères." };
-      }
-
-      const hashedPassword = await bcrypt.hash(newPassword.trim(), 10);
-
-      // Si le compte Supabase n'existait pas encore pour ce compte
-      let activeSupabaseId = linkedUser.supabaseId;
-      if (!activeSupabaseId) {
-        try {
-          const { createClient } = await import("@/shared/utils/supabase/server");
-          const supabase = await createClient();
-          const { data: authData } = await supabase.auth.signUp({
-            email: loginEmail,
-            password: newPassword.trim(),
-            options: {
-              data: {
-                full_name: personFullName,
-                school_id: school.id,
-                student_id: studentRecord?.id,
-                employee_id: employeeRecord?.id,
-              }
-            }
-          });
-          if (authData?.user?.id) {
-            activeSupabaseId = authData.user.id;
-            linkedUser.supabaseId = activeSupabaseId;
-          }
-        } catch (signUpErr) {
-          console.warn("[recoverAndResetAccount] Supabase auth signup fallback warning:", signUpErr);
-        }
-      }
-
-      // Mise à jour de la table Postgres users
+    } else if (hashedPassword) {
       await db.update(users).set({
         motDePasse: hashedPassword,
-        supabaseId: activeSupabaseId || linkedUser.supabaseId,
+        supabaseId: supabaseAuthId || linkedUser.supabaseId,
       }).where(eq(users.id, linkedUser.id));
-
-      // Mise à jour synchronisée de la table auth.users pour Supabase Auth
-      try {
-        await db.execute(sql`
-          UPDATE auth.users
-          SET encrypted_password = ${hashedPassword},
-              email = ${loginEmail},
-              updated_at = NOW()
-          WHERE id = ${activeSupabaseId || linkedUser.supabaseId}::uuid OR email = ${loginEmail}
-        `);
-      } catch (authSqlErr) {
-        console.warn("[recoverAndResetAccount] auth.users SQL sync warning:", authSqlErr);
-      }
     }
 
     return {

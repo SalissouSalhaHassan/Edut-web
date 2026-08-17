@@ -42,7 +42,7 @@ export function AttendanceFilters({ date, classId, subjectId, classes, subjects 
           <input 
             type="date" 
             name="date"
-            defaultValue={date}
+            value={date || ""}
             className="w-full pl-12 pr-4 h-14 rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900 font-bold text-slate-700 dark:text-white focus:ring-2 focus:ring-primary/20 outline-none transition-all"
             onChange={(e) => updateFilters("date", e.target.value)}
           />
@@ -53,13 +53,13 @@ export function AttendanceFilters({ date, classId, subjectId, classes, subjects 
         <label className="text-xs font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest ml-1">Classe</label>
         <select 
           name="classId"
-          defaultValue={classId || ""}
+          value={classId ? String(classId) : ""}
           onChange={(e) => updateFilters("classId", e.target.value)}
           className="w-full px-6 h-14 rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900 font-bold text-slate-700 dark:text-white focus:ring-2 focus:ring-primary/20 outline-none transition-all appearance-none"
         >
           <option value="">-- Choisir une classe --</option>
           {classes.map(c => (
-            <option key={c.id} value={c.id}>{getClassDisplayName(c)}</option>
+            <option key={c.id} value={String(c.id)}>{getClassDisplayName(c)}</option>
           ))}
         </select>
       </div>
@@ -68,7 +68,7 @@ export function AttendanceFilters({ date, classId, subjectId, classes, subjects 
         <label className="text-xs font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest ml-1">Matière (Optionnel)</label>
         <select 
           name="subjectId"
-          value={subjectId || ""}
+          value={subjectId ? String(subjectId) : ""}
           onChange={(e) => updateFilters("subjectId", e.target.value)}
           className="w-full px-6 h-14 rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900 font-bold text-slate-700 dark:text-white focus:ring-2 focus:ring-primary/20 outline-none transition-all appearance-none"
         >
@@ -77,7 +77,7 @@ export function AttendanceFilters({ date, classId, subjectId, classes, subjects 
             const id = s.subject?.id || s.subjectId || s.id;
             const name = s.subject?.subjectName || s.subjectName || "Matière inconnue";
             return (
-              <option key={s.id} value={id}>
+              <option key={s.id ?? id} value={String(id)}>
                 {name}
               </option>
             );

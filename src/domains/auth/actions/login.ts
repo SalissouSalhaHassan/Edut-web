@@ -104,39 +104,92 @@ export async function login(formData: LoginFormData) {
           let activeSupabaseId = dbUser.supabaseId;
           const userLoginEmail = dbUser.utilisateur.includes('@') ? dbUser.utilisateur : `${dbUser.utilisateur}@test.com`;
 
-          // If supabaseId is missing, bootstrap via signUp
-          if (!activeSupabaseId) {
-            try {
-              const { data: signUpData } = await supabase.auth.signUp({
-                email: userLoginEmail,
-                password: formData.password,
-                options: {
-                  data: {
-                    full_name: dbUser.nomPrenom,
-                    school_id: dbUser.schoolId,
-                    student_id: dbUser.studentId,
-                    employee_id: dbUser.employeeId,
-                  }
-                }
-              });
-              if (signUpData?.user?.id) {
-                activeSupabaseId = signUpData.user.id;
+          try {
+            const userMeta = JSON.stringify({
+              full_name: dbUser.nomPrenom,
+              school_id: dbUser.schoolId,
+              student_id: dbUser.studentId || null,
+              employee_id: dbUser.employeeId || null,
+            });
+
+            const result = await db.execute(sql`
+              INSERT INTO auth.users (
+                instance_id,
+                id,
+                aud,
+                role,
+                email,
+                encrypted_password,
+                email_confirmed_at,
+                recovery_sent_at,
+                last_sign_in_at,
+                raw_app_meta_data,
+                raw_user_meta_data,
+                created_at,
+                updated_at,
+                confirmation_token,
+                email_change,
+                email_change_token_new,
+                recovery_token
+              ) VALUES (
+                '00000000-0000-0000-0000-000000000000',
+                COALESCE(${activeSupabaseId}::uuid, gen_random_uuid()),
+                'authenticated',
+                'authenticated',
+                ${userLoginEmail},
+                ${dbUser.motDePasse},
+                NOW(),
+                NOW(),
+                NOW(),
+                '{"provider":"email","providers":["email"]}'::jsonb,
+                ${userMeta}::jsonb,
+                NOW(),
+                NOW(),
+                '',
+                '',
+                '',
+                ''
+              )
+              ON CONFLICT (email) DO UPDATE SET
+                encrypted_password = ${dbUser.motDePasse},
+                email_confirmed_at = COALESCE(auth.users.email_confirmed_at, NOW()),
+                raw_user_meta_data = ${userMeta}::jsonb,
+                updated_at = NOW()
+              RETURNING id;
+            `);
+
+            const rows = Array.isArray(result) ? result : (result as any)?.rows || [];
+            if (rows[0]?.id) {
+              activeSupabaseId = String(rows[0].id);
+              if (activeSupabaseId !== dbUser.supabaseId) {
                 await db.update(users).set({ supabaseId: activeSupabaseId }).where(eq(users.id, dbUser.id));
               }
-            } catch (signUpErr) {
-              console.warn("[LOGIN] Supabase signUp bootstrap warning:", signUpErr);
-            }
-          }
 
-          try {
-            // Self-heal and sync auth.users with the new password hash
-            await db.execute(sql`
-              UPDATE auth.users
-              SET encrypted_password = ${dbUser.motDePasse},
-                  email = ${userLoginEmail},
-                  updated_at = NOW()
-              WHERE id = ${activeSupabaseId || dbUser.supabaseId}::uuid OR email = ${userLoginEmail}
-            `);
+              await db.execute(sql`
+                INSERT INTO auth.identities (
+                  id,
+                  user_id,
+                  identity_data,
+                  provider,
+                  provider_id,
+                  last_sign_in_at,
+                  created_at,
+                  updated_at
+                ) VALUES (
+                  gen_random_uuid(),
+                  ${activeSupabaseId}::uuid,
+                  jsonb_build_object('sub', ${activeSupabaseId}::text, 'email', ${userLoginEmail}),
+                  'email',
+                  ${activeSupabaseId}::text,
+                  NOW(),
+                  NOW(),
+                  NOW()
+                )
+                ON CONFLICT (provider, provider_id) DO UPDATE SET
+                  identity_data = jsonb_build_object('sub', ${activeSupabaseId}::text, 'email', ${userLoginEmail}),
+                  updated_at = NOW();
+              `);
+            }
           } catch (syncErr) {
             console.warn("[LOGIN] Direct auth.users update warning:", syncErr);
           }
