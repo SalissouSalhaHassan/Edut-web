@@ -1,9 +1,15 @@
 export const dynamic = "force-dynamic";
 
-import { getStudentFees, getFinanceStats, syncStudentFees, getAdvancedFinanceStats } from "@/domains/finance/actions/finance.actions";
+import { getStudentFees, getAdvancedFinanceStats } from "@/domains/finance/actions/finance.actions";
 import { getClasses } from "@/domains/academics/actions/academics.actions";
 import { getDocumentHeaderConfig } from "@/domains/settings/actions/settings.actions";
+import { getCurrentUser } from "@/domains/auth/services/session";
+import { readDb } from "@/infrastructure/database";
+import { students } from "@/infrastructure/database/schema/students";
+import { studentFees, feePayments, cogesPayments } from "@/infrastructure/database/schema/finance";
+import { eq, and, or } from "drizzle-orm";
 import FinanceClient from "./finance-client";
+import StudentFinanceView from "@/domains/finance/components/StudentFinanceView";
 
 export default async function FinancePage({ 
   searchParams 
@@ -11,14 +17,91 @@ export default async function FinancePage({
   searchParams: Promise<{ search?: string, class?: string, status?: string }> 
 }) {
   const params = await searchParams;
+  const user = await getCurrentUser();
 
+  const roleName = (user?.role?.roleName || user?.role || "").toLowerCase();
+  const isStudent =
+    roleName.includes("élève") ||
+    roleName.includes("eleve") ||
+    roleName.includes("étudiant") ||
+    roleName.includes("etudiant") ||
+    roleName.includes("student") ||
+    Boolean(user?.studentId);
+
+  // 1. IF STUDENT: Render personalized student financial dashboard
+  if (isStudent && user?.schoolId) {
+    let linkedStudent = null;
+
+    if (user.studentId) {
+      linkedStudent = await readDb.query.students.findFirst({
+        where: eq(students.id, user.studentId),
+      });
+    }
+
+    if (!linkedStudent) {
+      const cleanUser = user.utilisateur?.trim() || "";
+      const cleanName = user.nomPrenom?.trim() || "";
+      linkedStudent = await readDb.query.students.findFirst({
+        where: and(
+          eq(students.schoolId, user.schoolId),
+          or(
+            eq(students.numAdmission, cleanUser),
+            eq(students.numAdmission, cleanUser.toUpperCase()),
+            eq(students.nomEtudiant, cleanName)
+          )
+        ),
+      });
+    }
+
+    if (linkedStudent) {
+      const [studentFee, coges, headerConfigRes] = await Promise.all([
+        readDb.query.studentFees.findFirst({
+          where: and(
+            eq(studentFees.schoolId, user.schoolId),
+            eq(studentFees.studentId, linkedStudent.id)
+          ),
+        }),
+        readDb.query.cogesPayments.findMany({
+          where: and(
+            eq(cogesPayments.schoolId, user.schoolId),
+            eq(cogesPayments.studentId, linkedStudent.id)
+          ),
+          orderBy: (c, { desc }) => [desc(c.datePaid)],
+        }).catch(() => []),
+        getDocumentHeaderConfig().catch(() => ({ data: null })),
+      ]);
+
+      let payments: any[] = [];
+      if (studentFee?.id) {
+        payments = await readDb.query.feePayments.findMany({
+          where: and(
+            eq(feePayments.schoolId, user.schoolId),
+            eq(feePayments.feeId, studentFee.id)
+          ),
+          orderBy: (p, { desc }) => [desc(p.datePaid)],
+        }).catch(() => []);
+      }
+
+      return (
+        <StudentFinanceView
+          student={linkedStudent}
+          fee={studentFee}
+          payments={payments}
+          cogesPayments={coges}
+          headerConfig={headerConfigRes?.data ?? null}
+          user={user}
+        />
+      );
+    }
+  }
+
+  // 2. IF ADMIN / STAFF: Render general school financial management
   let fees: any[] = [];
   let classes: any[] = [];
   let advancedStats: any = null;
   let headerConfig: any = null;
 
   try {
-    // Fetch only essential data in parallel without blocking sync
     const [feesRes, classesRes, advancedStatsRes, headerConfigRes] = await Promise.all([
       getStudentFees({
         search: params.search,
@@ -36,7 +119,7 @@ export default async function FinancePage({
     headerConfig = (headerConfigRes?.data ?? null) as any;
 
   } catch (error) {
-    console.warn("FinancePage Parallel Fetch Warning - falling back to client cache:", error);
+    console.warn("FinancePage Parallel Fetch Warning:", error);
   }
 
   const stats = {
