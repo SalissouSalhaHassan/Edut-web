@@ -42,16 +42,18 @@ export interface StudentFinanceViewProps {
     fraisCogesCard?: number | null;
     bourse?: number | null;
     photoPath?: string | null;
+    [key: string]: any;
   };
   fee?: {
     id: number;
-    totalExpected: number;
-    totalPaid: number;
-    totalReduction: number;
-    balance: number;
-    status: string;
+    totalExpected?: number | null;
+    totalPaid?: number | null;
+    totalReduction?: number | null;
+    balance?: number | null;
+    status?: string | null;
+    [key: string]: any;
   } | null;
-  payments: Array<{
+  payments?: Array<{
     id: number;
     amount: number;
     reduction?: number | null;
@@ -60,6 +62,7 @@ export interface StudentFinanceViewProps {
     paymentMode?: string | null;
     reference?: string | null;
     recordedBy?: string | null;
+    [key: string]: any;
   }>;
   cogesPayments?: Array<{
     id: number;
@@ -67,6 +70,7 @@ export interface StudentFinanceViewProps {
     amount: number;
     purpose?: string | null;
     datePaid?: string | Date | null;
+    [key: string]: any;
   }>;
   headerConfig?: any;
   user?: any;
