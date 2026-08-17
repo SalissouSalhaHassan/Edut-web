@@ -285,12 +285,20 @@ export async function recoverAndResetAccount(params: ResetPasswordParams) {
       });
     }
 
-    // 3. Déterminer le nom d'utilisateur et l'email de connexion
-    recoveredUsername = linkedUser ? linkedUser.utilisateur : cleanMatricule.toLowerCase();
-    let loginEmail = recoveredUsername;
-    if (!loginEmail.includes("@")) {
-      loginEmail = `${loginEmail}@test.com`;
+    // 3. Déterminer l'email de connexion unique
+    let loginEmail = "";
+    if (cleanMatricule.includes("@")) {
+      loginEmail = cleanMatricule.toLowerCase();
+    } else if (linkedUser?.utilisateur && linkedUser.utilisateur.includes("@")) {
+      loginEmail = linkedUser.utilisateur.toLowerCase();
+    } else if (employeeRecord?.email && employeeRecord.email.includes("@")) {
+      loginEmail = employeeRecord.email.toLowerCase();
+    } else {
+      const baseUser = linkedUser?.utilisateur || cleanMatricule.toLowerCase();
+      loginEmail = baseUser.includes("@") ? baseUser : `${baseUser}@test.com`;
     }
+
+    recoveredUsername = loginEmail;
 
     const effectivePassword = newPassword && newPassword.trim().length > 0
       ? newPassword.trim()
@@ -338,7 +346,7 @@ export async function recoverAndResetAccount(params: ResetPasswordParams) {
 
       const insertedUser = await db.insert(users).values({
         schoolId: school.id,
-        utilisateur: recoveredUsername,
+        utilisateur: loginEmail,
         supabaseId: supabaseAuthId,
         nomPrenom: personFullName,
         motDePasse: defaultHashed,
@@ -354,6 +362,7 @@ export async function recoverAndResetAccount(params: ResetPasswordParams) {
       linkedUser = insertedUser[0];
     } else if (hashedPassword) {
       await db.update(users).set({
+        utilisateur: loginEmail,
         motDePasse: hashedPassword,
         supabaseId: supabaseAuthId || linkedUser.supabaseId,
       }).where(eq(users.id, linkedUser.id));
@@ -362,7 +371,8 @@ export async function recoverAndResetAccount(params: ResetPasswordParams) {
     return {
       success: true,
       data: {
-        username: recoveredUsername,
+        email: loginEmail,
+        username: loginEmail,
         fullName: personFullName,
         schoolName: school.name,
         message: newPassword
