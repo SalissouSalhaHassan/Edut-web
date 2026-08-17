@@ -535,29 +535,24 @@ export default function StudentFinanceView({
       {/* 4. Receipt Preview Modal */}
       {selectedPaymentForReceipt && (
         <ReceiptPreviewDialog
-          isOpen={Boolean(selectedPaymentForReceipt)}
-          onClose={() => setSelectedPaymentForReceipt(null)}
-          payment={{
-            id: selectedPaymentForReceipt.id,
+          open={Boolean(selectedPaymentForReceipt)}
+          onOpenChange={(open) => {
+            if (!open) setSelectedPaymentForReceipt(null);
+          }}
+          feeData={{
+            student: student,
+            totalExpected: calculatedExpected,
+            totalPaid: totalPaid,
+            balance: balance,
+            payments: payments,
+            lastPayment: selectedPaymentForReceipt,
+            currentPayment: selectedPaymentForReceipt,
             receiptNumber: selectedPaymentForReceipt.reference || `REC-${selectedPaymentForReceipt.id}`,
             amount: selectedPaymentForReceipt.amount,
             paidAmount: selectedPaymentForReceipt.amount,
-            date: selectedPaymentForReceipt.datePaid
-              ? new Date(selectedPaymentForReceipt.datePaid).toISOString()
-              : new Date().toISOString(),
-            datePaid: selectedPaymentForReceipt.datePaid
-              ? new Date(selectedPaymentForReceipt.datePaid).toISOString()
-              : new Date().toISOString(),
-            studentName: student.nomEtudiant,
-            matricule: student.numAdmission,
-            classe: student.classe || "N/A",
+            datePaid: selectedPaymentForReceipt.datePaid,
             paymentMode: selectedPaymentForReceipt.paymentMode || "Espèces",
             monthConcerned: selectedPaymentForReceipt.monthConcerned || "Scolarité",
-            totalExpected: calculatedExpected,
-            totalPaid: totalPaid,
-            remainingBalance: balance,
-            balance: balance,
-            schoolName: user?.school?.name || "Établissement Scolaire",
           }}
           headerConfig={headerConfig}
         />
