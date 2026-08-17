@@ -496,6 +496,9 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => {
+                    if (forgotResult?.username) {
+                      setUsernameInput(forgotResult.username);
+                    }
                     setShowForgotModal(false);
                   }}
                   className="w-full h-12 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 text-white font-bold text-sm uppercase tracking-wider hover:opacity-90 transition-all shadow-lg shadow-emerald-500/20"

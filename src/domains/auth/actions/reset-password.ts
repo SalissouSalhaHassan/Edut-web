@@ -4,9 +4,8 @@ import { db } from "@/infrastructure/database";
 import { users, schools, roles } from "@/infrastructure/database/schema/auth";
 import { students } from "@/infrastructure/database/schema/students";
 import { employees } from "@/infrastructure/database/schema/hr";
-import { eq, and, or } from "drizzle-orm";
+import { eq, and, or, sql } from "drizzle-orm";
 import bcrypt from "bcryptjs";
-import { createClient as createSupabaseAdmin } from "@supabase/supabase-js";
 
 export interface ResetPasswordParams {
   role: "student" | "teacher";
@@ -141,6 +140,12 @@ export async function recoverAndResetAccount(params: ResetPasswordParams) {
     }
 
     // 3. Si aucun compte utilisateur n'était encore créé, on l'initialise
+    recoveredUsername = cleanMatricule.toLowerCase();
+    let loginEmail = recoveredUsername;
+    if (!loginEmail.includes('@')) {
+      loginEmail = `${loginEmail}@test.com`;
+    }
+
     if (!linkedUser) {
       // Trouver ou créer le rôle par défaut
       const roleName = role === "student" ? "Élève" : "Enseignant";
@@ -155,13 +160,37 @@ export async function recoverAndResetAccount(params: ResetPasswordParams) {
         roleRow = insertedRole[0];
       }
 
-      recoveredUsername = cleanMatricule.toLowerCase();
-      const defaultPassword = newPassword || "Edut2025!";
+      const defaultPassword = newPassword?.trim() || "Edut2025!";
       const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+
+      // Création Supabase Auth
+      let supabaseId: string | null = null;
+      try {
+        const { createClient } = await import("@/shared/utils/supabase/server");
+        const supabase = await createClient();
+        const { data: authData } = await supabase.auth.signUp({
+          email: loginEmail,
+          password: defaultPassword,
+          options: {
+            data: {
+              full_name: personFullName,
+              school_id: school.id,
+              student_id: studentRecord?.id,
+              employee_id: employeeRecord?.id,
+            }
+          }
+        });
+        if (authData?.user?.id) {
+          supabaseId = authData.user.id;
+        }
+      } catch (authErr) {
+        console.warn("[recoverAndResetAccount] Supabase signUp warning:", authErr);
+      }
 
       const insertedUser = await db.insert(users).values({
         schoolId: school.id,
         utilisateur: recoveredUsername,
+        supabaseId,
         nomPrenom: personFullName,
         motDePasse: hashedPassword,
         admin: false,
@@ -176,6 +205,10 @@ export async function recoverAndResetAccount(params: ResetPasswordParams) {
       linkedUser = insertedUser[0];
     } else {
       recoveredUsername = linkedUser.utilisateur;
+      loginEmail = recoveredUsername;
+      if (!loginEmail.includes('@')) {
+        loginEmail = `${loginEmail}@test.com`;
+      }
     }
 
     // 4. Si un nouveau mot de passe est demandé, on le met à jour
@@ -184,65 +217,52 @@ export async function recoverAndResetAccount(params: ResetPasswordParams) {
         return { success: false, error: "Le mot de passe doit contenir au moins 4 caractères." };
       }
 
-      const cleanPassword = newPassword.trim();
-      const hashedPassword = await bcrypt.hash(cleanPassword, 10);
-      let loginEmail = recoveredUsername;
-      if (!loginEmail.includes('@')) {
-        loginEmail = `${loginEmail}@test.com`;
+      const hashedPassword = await bcrypt.hash(newPassword.trim(), 10);
+
+      // Si le compte Supabase n'existait pas encore pour ce compte
+      let activeSupabaseId = linkedUser.supabaseId;
+      if (!activeSupabaseId) {
+        try {
+          const { createClient } = await import("@/shared/utils/supabase/server");
+          const supabase = await createClient();
+          const { data: authData } = await supabase.auth.signUp({
+            email: loginEmail,
+            password: newPassword.trim(),
+            options: {
+              data: {
+                full_name: personFullName,
+                school_id: school.id,
+                student_id: studentRecord?.id,
+                employee_id: employeeRecord?.id,
+              }
+            }
+          });
+          if (authData?.user?.id) {
+            activeSupabaseId = authData.user.id;
+            linkedUser.supabaseId = activeSupabaseId;
+          }
+        } catch (signUpErr) {
+          console.warn("[recoverAndResetAccount] Supabase auth signup fallback warning:", signUpErr);
+        }
       }
 
-      // Mise à jour de la table Postgres users (pour le fallback bcrypt)
+      // Mise à jour de la table Postgres users
       await db.update(users).set({
         motDePasse: hashedPassword,
+        supabaseId: activeSupabaseId || linkedUser.supabaseId,
       }).where(eq(users.id, linkedUser.id));
 
-      // Mise à jour via Supabase Admin API (la bonne méthode pour auth.users)
+      // Mise à jour synchronisée de la table auth.users pour Supabase Auth
       try {
-        const supabaseAdmin = createSupabaseAdmin(
-          process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.SUPABASE_SERVICE_ROLE_KEY!,
-          { auth: { autoRefreshToken: false, persistSession: false } }
-        );
-
-        // Chercher l'utilisateur auth par email
-        const { data: authUser, error: lookupErr } = await supabaseAdmin.auth.admin.listUsers();
-        if (!lookupErr && authUser) {
-          const matchedAuthUser = authUser.users.find(
-            (u) => u.email === loginEmail || u.email === `${recoveredUsername}@test.com`
-          );
-
-          if (matchedAuthUser) {
-            // Mettre à jour via Admin API — ceci utilise le bon format de hash interne
-            const { error: updateErr } = await supabaseAdmin.auth.admin.updateUserById(
-              matchedAuthUser.id,
-              { password: cleanPassword, email: loginEmail }
-            );
-            if (updateErr) {
-              console.warn("[recoverAndResetAccount] Admin API update warning:", updateErr.message);
-            } else {
-              // Sauvegarder le supabaseId dans notre table users si non défini
-              if (!linkedUser.supabaseId) {
-                await db.update(users).set({ supabaseId: matchedAuthUser.id }).where(eq(users.id, linkedUser.id));
-              }
-              console.log("[recoverAndResetAccount] Password updated via Supabase Admin API for:", loginEmail);
-            }
-          } else {
-            // Créer un compte auth si inexistant
-            const { data: newAuthUser, error: createErr } = await supabaseAdmin.auth.admin.createUser({
-              email: loginEmail,
-              password: cleanPassword,
-              email_confirm: true,
-            });
-            if (!createErr && newAuthUser?.user) {
-              await db.update(users).set({ supabaseId: newAuthUser.user.id }).where(eq(users.id, linkedUser.id));
-              console.log("[recoverAndResetAccount] Auth account created for:", loginEmail);
-            } else if (createErr) {
-              console.warn("[recoverAndResetAccount] Auth account creation warning:", createErr.message);
-            }
-          }
-        }
-      } catch (adminErr: any) {
-        console.warn("[recoverAndResetAccount] Supabase Admin sync warning:", adminErr?.message || adminErr);
+        await db.execute(sql`
+          UPDATE auth.users
+          SET encrypted_password = ${hashedPassword},
+              email = ${loginEmail},
+              updated_at = NOW()
+          WHERE id = ${activeSupabaseId || linkedUser.supabaseId}::uuid OR email = ${loginEmail}
+        `);
+      } catch (authSqlErr) {
+        console.warn("[recoverAndResetAccount] auth.users SQL sync warning:", authSqlErr);
       }
     }
 
