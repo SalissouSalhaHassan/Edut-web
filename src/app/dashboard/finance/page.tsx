@@ -18,8 +18,11 @@ export default async function FinancePage({
 }) {
   const params = await searchParams;
   const user = await getCurrentUser();
-
-  const roleName = (user?.role?.roleName || user?.role || "").toLowerCase();
+  const rawRoleName =
+    typeof (user as any)?.role === "string"
+      ? (user as any).role
+      : (user as any)?.role?.roleName || "";
+  const roleName = String(rawRoleName).toLowerCase();
   const isStudent =
     roleName.includes("élève") ||
     roleName.includes("eleve") ||
