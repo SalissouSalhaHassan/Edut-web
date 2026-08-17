@@ -247,7 +247,7 @@ export default function LoginPage() {
 
                 {/* Username */}
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Utilisateur ou Email</label>
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Utilisateur</label>
                   <div className="relative group">
                     <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-indigo-400 transition-colors" size={18} />
                     <input 
@@ -256,7 +256,7 @@ export default function LoginPage() {
                       required
                       value={usernameInput}
                       onChange={(e) => setUsernameInput(e.target.value)}
-                      placeholder="edut-2024-000344 ou email"
+                      placeholder="nom@ecole.com"
                       className="w-full h-[52px] pl-12 pr-4 bg-white/[0.04] border border-white/[0.08] rounded-xl outline-none text-white text-sm font-medium focus:border-indigo-500/50 focus:bg-white/[0.06] transition-all placeholder:text-slate-600"
                     />
                   </div>
@@ -496,12 +496,6 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    if (forgotResult?.username) {
-                      setUsernameInput(forgotResult.username);
-                    }
-                    if (forgotNewPassword) {
-                      setPasswordInput(forgotNewPassword);
-                    }
                     setShowForgotModal(false);
                   }}
                   className="w-full h-12 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 text-white font-bold text-sm uppercase tracking-wider hover:opacity-90 transition-all shadow-lg shadow-emerald-500/20"
