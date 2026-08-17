@@ -277,6 +277,7 @@ function normalizeStudentProfile(row: unknown): StudentProfile | null {
 
 async function resolveLinkedStudent(
   user: {
+    id?: number;
     studentId: number | null;
     schoolId: number | null;
     utilisateur: string;
@@ -303,30 +304,47 @@ async function resolveLinkedStudent(
       ),
       columns: baseColumns,
     });
-    return normalizeStudentProfile(row);
+    if (row) return normalizeStudentProfile(row);
   }
 
-  const login = user.utilisateur.includes("@")
-    ? user.utilisateur.split("@")[0]
-    : user.utilisateur;
+  const cleanUser = user.utilisateur.trim();
+  const login = cleanUser.includes("@")
+    ? cleanUser.split("@")[0]
+    : cleanUser;
 
   if (roleType === "eleve" && login) {
     const row = await readDb.query.students.findFirst({
       where: and(
         user.schoolId ? eq(students.schoolId, user.schoolId) : undefined,
         or(
+          eq(students.numAdmission, cleanUser),
+          eq(students.numAdmission, cleanUser.toUpperCase()),
+          eq(students.numAdmission, cleanUser.toLowerCase()),
           eq(students.numAdmission, login),
-          eq(students.mobile, login),
-          eq(students.whatsapp, login)
+          eq(students.numAdmission, login.toUpperCase()),
+          eq(students.numAdmission, login.toLowerCase()),
+          ilike(students.numAdmission, cleanUser),
+          ilike(students.numAdmission, login),
+          eq(students.nomEtudiant, cleanUser),
+          user.nomPrenom ? eq(students.nomEtudiant, user.nomPrenom) : undefined
         )
       ),
       columns: baseColumns,
     });
-    return normalizeStudentProfile(row);
+
+    if (row) {
+      // Auto-heal user's studentId link
+      if (!user.studentId && user.id) {
+        try {
+          await db.update(users).set({ studentId: row.id }).where(eq(users.id, user.id));
+        } catch (_) {}
+      }
+      return normalizeStudentProfile(row);
+    }
   }
 
   if (roleType === "parent") {
-    const values = [login, user.utilisateur, user.nomPrenom || ""]
+    const values = [login, cleanUser, user.nomPrenom || ""]
       .map((value) => value.trim())
       .filter(Boolean);
 
@@ -337,13 +355,21 @@ async function resolveLinkedStudent(
           or(
             eq(students.mobile, value),
             eq(students.whatsapp, value),
-            eq(students.nomPere, value)
+            eq(students.nomPere, value),
+            ilike(students.nomPere, `%${value}%`)
           )
         ),
         columns: baseColumns,
       });
       const normalizedMatch = normalizeStudentProfile(match);
-      if (normalizedMatch) return normalizedMatch;
+      if (normalizedMatch) {
+        if (!user.studentId && user.id) {
+          try {
+            await db.update(users).set({ studentId: normalizedMatch.id }).where(eq(users.id, user.id));
+          } catch (_) {}
+        }
+        return normalizedMatch;
+      }
     }
   }
 

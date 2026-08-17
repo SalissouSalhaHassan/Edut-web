@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { and, eq, desc, or } from "drizzle-orm";
+import { and, eq, desc, or, ilike } from "drizzle-orm";
 import { db, readDb } from "@/infrastructure/database";
 import { studentAttendance } from "@/infrastructure/database/schema/attendance";
 import { studentResults } from "@/infrastructure/database/schema/academics";
 import { students } from "@/infrastructure/database/schema/students";
+import { users } from "@/infrastructure/database/schema/auth";
 import { getMobileUser, mobileJsonError } from "../../_lib/auth";
 import { verifyParentChildRelationship } from "../../_lib/family-auth";
 
@@ -16,32 +17,48 @@ export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   let studentId = Number(searchParams.get("studentId"));
 
+  // 1. Check direct user.studentId
   if (!studentId && (user.studentId || (user as any).student_id)) {
     studentId = Number(user.studentId || (user as any).student_id);
   }
 
+  // 2. Resolve by username / matricule / email
   if (!studentId && user.utilisateur) {
+    const cleanUser = user.utilisateur.trim();
+    const login = cleanUser.includes("@") ? cleanUser.split("@")[0] : cleanUser;
+
     const student = await readDb.query.students.findFirst({
-      where: or(
-        eq(students.numAdmission, user.utilisateur),
-        eq(students.nomEtudiant, user.utilisateur)
+      where: and(
+        user.schoolId ? eq(students.schoolId, user.schoolId) : undefined,
+        or(
+          eq(students.numAdmission, cleanUser),
+          eq(students.numAdmission, cleanUser.toUpperCase()),
+          eq(students.numAdmission, cleanUser.toLowerCase()),
+          eq(students.numAdmission, login),
+          eq(students.numAdmission, login.toUpperCase()),
+          eq(students.numAdmission, login.toLowerCase()),
+          ilike(students.numAdmission, cleanUser),
+          ilike(students.numAdmission, login),
+          eq(students.nomEtudiant, cleanUser),
+          user.nomPrenom ? eq(students.nomEtudiant, user.nomPrenom) : undefined
+        )
       ),
-      columns: { id: true }
+      columns: { id: true },
     });
-    if (student) studentId = student.id;
+
+    if (student) {
+      studentId = student.id;
+      // Auto-heal link in users table
+      if (!user.studentId && user.id) {
+        try {
+          await db.update(users).set({ studentId: student.id }).where(eq(users.id, user.id));
+        } catch (_) {}
+      }
+    }
   }
 
   if (!studentId) {
-    // If student still not found, check if parent has any students in this school
-    const anyStudent = await readDb.query.students.findFirst({
-      where: user.schoolId ? eq(students.schoolId, user.schoolId) : undefined,
-      columns: { id: true }
-    });
-    if (anyStudent) studentId = anyStudent.id;
-  }
-
-  if (!studentId) {
-    return mobileJsonError("studentId manquant", 400);
+    return mobileJsonError("Profil élève introuvable pour ce compte.", 404);
   }
 
   const isLinked = await verifyParentChildRelationship(user, studentId);
@@ -54,35 +71,42 @@ export async function GET(request: NextRequest) {
       where: eq(studentAttendance.studentId, studentId),
       with: {
         subject: true,
+        teacher: true,
       },
-      orderBy: [desc(studentAttendance.date)]
+      orderBy: [desc(studentAttendance.date)],
     });
 
-    let data = rows.map((r) => ({
-      id: r.id,
-      student_id: r.studentId,
-      class_id: r.classId,
-      subject_id: r.subjectId,
-      date: r.date?.toISOString() || null,
-      status: r.status,
-      remark: r.remark,
-      school_subjects: r.subject ? { subject_name: r.subject.subjectName } : null,
-    }));
+    let data = rows.map((r) => {
+      const subjectName = r.subject?.subjectName || (r as any).subjectName || "Séance générale";
+      const teacherName = (r as any).teacher?.nom || "Enseignant";
+      return {
+        id: r.id,
+        student_id: r.studentId,
+        class_id: r.classId,
+        subject_id: r.subjectId,
+        date: r.date ? (typeof r.date === "string" ? r.date : r.date.toISOString()) : null,
+        status: r.status,
+        remark: r.remark || "—",
+        subject_name: subjectName,
+        teacher_name: teacherName,
+        school_subjects: { subject_name: subjectName },
+        employees: { nom: teacherName },
+      };
+    });
 
     // If studentAttendance is empty, inspect studentResults for bulletin-recorded absences
     if (data.length === 0) {
       const resultsWithAbsences = await readDb.query.studentResults.findMany({
-        where: and(
-          eq(studentResults.studentId, studentId),
-        ),
+        where: eq(studentResults.studentId, studentId),
         with: {
           subject: true,
-        }
+        },
       });
 
       for (const res of resultsWithAbsences) {
         const count = res.absences || 0;
         if (count > 0) {
+          const subName = res.subject?.subjectName || "Matière";
           for (let i = 0; i < Math.min(count, 5); i++) {
             data.push({
               id: 900000 + res.id * 10 + i,
@@ -92,43 +116,55 @@ export async function GET(request: NextRequest) {
               date: new Date().toISOString(),
               status: "Absent",
               remark: `Absence relevée (${res.term || "Trimestre"})`,
-              school_subjects: res.subject ? { subject_name: res.subject.subjectName } : null,
+              subject_name: subName,
+              teacher_name: "Enseignant",
+              school_subjects: { subject_name: subName },
+              employees: { nom: "Enseignant" },
             });
           }
         }
       }
     }
 
-    const justified = data.filter((d) => 
-      (d.remark && d.remark.toLowerCase().includes("just")) || 
-      (d.status && d.status.toLowerCase().includes("excus"))
-    ).length;
+    let presents = 0;
+    let absents = 0;
+    let late = 0;
+    let justified = 0;
 
-    const late = data.filter((d) => 
-      d.status && d.status.toLowerCase().includes("retard")
-    ).length;
+    data.forEach((d) => {
+      const s = (d.status || "").toLowerCase();
+      const r = (d.remark || "").toLowerCase();
+      if (s.includes("présent") || s.includes("present")) {
+        presents++;
+      } else if (s.includes("retard") || s.includes("late")) {
+        late++;
+      } else if (s.includes("excus") || r.includes("just")) {
+        justified++;
+      } else if (s.includes("abs")) {
+        absents++;
+      }
+    });
 
-    const unjustified = data.filter((d) => 
-      d.status && d.status.toLowerCase().includes("abs") && 
-      !(d.remark && d.remark.toLowerCase().includes("just")) &&
-      !(d.status && d.status.toLowerCase().includes("excus"))
-    ).length;
-
-    const totalIncidents = data.length;
-    const attendanceRate = totalIncidents === 0 ? 100 : Math.max(60, Math.round(100 - (unjustified * 4 + late * 1.5)));
+    const totalSessions = data.length;
+    const rate = totalSessions > 0
+      ? Number((((presents + justified) / totalSessions) * 100).toFixed(1))
+      : 100.0;
 
     return NextResponse.json({
       success: true,
       data,
       stats: {
-        total_incidents: totalIncidents,
+        total_incidents: totalSessions,
+        presents,
+        absents,
+        unjustified: absents,
         justified,
-        unjustified,
         late,
-        attendance_rate: attendanceRate,
-      }
+        attendance_rate: rate,
+      },
     });
   } catch (err: any) {
+    console.error("API mobile family attendance error:", err);
     return mobileJsonError(`Erreur: ${err.message || err}`, 500);
   }
 }
@@ -153,12 +189,6 @@ export async function POST(request: NextRequest) {
       return mobileJsonError("Accès refusé.", 403);
     }
 
-    // Retrieve student classId
-    const student = await readDb.query.students.findFirst({
-      where: eq(students.id, studentId),
-      columns: { id: true, schoolId: true, classe: true }
-    });
-
     await db.insert(studentAttendance).values({
       studentId: studentId,
       date: targetDate,
@@ -169,7 +199,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: "Demande de justification enregistrée avec succès."
+      message: "Demande de justification enregistrée avec succès.",
     });
   } catch (err: any) {
     return mobileJsonError(`Erreur: ${err.message || err}`, 500);
