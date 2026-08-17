@@ -37,6 +37,10 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Server,
+  UserCheck,
+  BookOpen,
+  Award,
+  CheckCircle,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -257,6 +261,163 @@ export default function DashboardUI(props: DashboardUIProps) {
     }
   };
 
+  const roleName = (props.user?.role?.roleName || props.user?.role || "").toLowerCase();
+  const isStudent =
+    roleName.includes("élève") ||
+    roleName.includes("eleve") ||
+    roleName.includes("étudiant") ||
+    roleName.includes("etudiant") ||
+    roleName.includes("student") ||
+    Boolean(props.user?.studentId);
+  const isTeacher =
+    !isStudent &&
+    (roleName.includes("enseignant") ||
+      roleName.includes("professeur") ||
+      roleName.includes("teacher") ||
+      Boolean(props.user?.employeeId));
+  const isParent =
+    !isStudent && !isTeacher && (roleName.includes("parent") || roleName.includes("famille"));
+
+  const welcomeMessage = isStudent
+    ? `Bienvenue sur votre espace élève de ${props.branding?.name || "votre établissement"}.`
+    : isTeacher
+    ? `Bienvenue sur votre espace enseignant de ${props.branding?.name || "votre établissement"}.`
+    : isParent
+    ? `Bienvenue sur votre espace famille de ${props.branding?.name || "votre établissement"}.`
+    : `Bienvenue sur le centre de commande de ${props.branding?.name || "votre établissement"}.`;
+
+  const quickActions = isStudent
+    ? [
+        {
+          label: "PRÉSENCES &\nASSIDUITÉ",
+          icon: <UserCheck className="size-5" />,
+          tone: "from-indigo-600 to-violet-600",
+          href: "/dashboard/attendance",
+        },
+        {
+          label: "NOTES &\nRÉSULTATS",
+          icon: <GraduationCap className="size-5" />,
+          tone: "from-emerald-600 to-green-600",
+          href: "/dashboard/academics/grades",
+        },
+        {
+          label: "EMPLOI\nDU TEMPS",
+          icon: <CalendarDays className="size-5" />,
+          tone: "from-blue-600 to-indigo-600",
+          href: "/dashboard/academics/timetable",
+        },
+        {
+          label: "DEVOIRS &\nEXERCICES",
+          icon: <BookOpen className="size-5" />,
+          tone: "from-amber-500 to-orange-500",
+          href: "/dashboard/academics/homework",
+        },
+        {
+          label: "MES FRAIS &\nPAIEMENTS",
+          icon: <CreditCard className="size-5" />,
+          tone: "from-violet-600 to-fuchsia-600",
+          href: "/dashboard/finance",
+        },
+      ]
+    : isTeacher
+    ? [
+        {
+          label: "FAIRE\nL'APPEL",
+          icon: <UserCheck className="size-5" />,
+          tone: "from-indigo-600 to-violet-600",
+          href: "/dashboard/attendance",
+        },
+        {
+          label: "SAISIR\nNOTES",
+          icon: <GraduationCap className="size-5" />,
+          tone: "from-emerald-600 to-green-600",
+          href: "/dashboard/academics/grades",
+        },
+        {
+          label: "EMPLOI\nDU TEMPS",
+          icon: <CalendarDays className="size-5" />,
+          tone: "from-blue-600 to-indigo-600",
+          href: "/dashboard/academics/timetable",
+        },
+        {
+          label: "DONNER UN\nDEVOIR",
+          icon: <BookOpen className="size-5" />,
+          tone: "from-amber-500 to-orange-500",
+          href: "/dashboard/academics/homework",
+        },
+        {
+          label: "RESSOURCES\nPÉDAGOGIQUES",
+          icon: <FileText className="size-5" />,
+          tone: "from-violet-600 to-indigo-600",
+          href: "/dashboard/pedagogie",
+        },
+      ]
+    : isParent
+    ? [
+        {
+          label: "SUIVI\nPRÉSENCES",
+          icon: <UserCheck className="size-5" />,
+          tone: "from-indigo-600 to-violet-600",
+          href: "/dashboard/attendance",
+        },
+        {
+          label: "BULLETINS &\nNOTES",
+          icon: <GraduationCap className="size-5" />,
+          tone: "from-emerald-600 to-green-600",
+          href: "/dashboard/academics/grades",
+        },
+        {
+          label: "EMPLOI\nDU TEMPS",
+          icon: <CalendarDays className="size-5" />,
+          tone: "from-blue-600 to-indigo-600",
+          href: "/dashboard/academics/timetable",
+        },
+        {
+          label: "DEVOIRS\nENFANTS",
+          icon: <BookOpen className="size-5" />,
+          tone: "from-amber-500 to-orange-500",
+          href: "/dashboard/academics/homework",
+        },
+        {
+          label: "PAIEMENT\nSCOLARITÉ",
+          icon: <CreditCard className="size-5" />,
+          tone: "from-emerald-600 to-green-600",
+          href: "/dashboard/finance",
+        },
+      ]
+    : [
+        {
+          label: "INSCRIRE\nUN ÉLÈVE",
+          icon: <Users className="size-5" />,
+          tone: "from-indigo-600 to-violet-600",
+          href: "/dashboard/students",
+        },
+        {
+          label: "PAIEMENT\nFRAIS",
+          icon: <CreditCard className="size-5" />,
+          tone: "from-emerald-600 to-green-600",
+          href: "/dashboard/finance",
+        },
+        {
+          label: "ENVOYER\nSMS",
+          icon: <Send className="size-5" />,
+          tone: "from-amber-500 to-orange-500",
+          href: "/dashboard/messaging",
+        },
+        {
+          label: "EMPLOI\nDU TEMPS",
+          icon: <CalendarDays className="size-5" />,
+          tone: "from-blue-600 to-indigo-600",
+          href: "/dashboard/academics/timetable",
+        },
+        {
+          label: "GÉNÉRER\nRAPPORT",
+          icon: <FileText className="size-5" />,
+          tone: "from-violet-600 to-indigo-600",
+          href: "/dashboard/reports",
+        },
+      ];
+
   return (
     <div className="p-10 space-y-10 animate-in fade-in duration-700 min-h-screen transition-colors duration-300 dark:bg-[#0c0e14]">
       {/* Header + Topbar */}
@@ -295,7 +456,7 @@ export default function DashboardUI(props: DashboardUIProps) {
             </div>
             <p className="text-slate-500 dark:text-slate-400 font-medium flex items-center gap-2 mt-2">
               <Zap className="size-4 text-indigo-600 dark:text-indigo-400 animate-pulse" />
-              Bienvenue sur le centre de commande de {props.branding?.name || "votre établissement"}.
+              {welcomeMessage}
             </p>
           </div>
         </div>
@@ -414,13 +575,7 @@ export default function DashboardUI(props: DashboardUIProps) {
           <div className="rounded-[24px] bg-white/85 dark:bg-[#181a24]/90 backdrop-blur-sm border border-white/40 dark:border-slate-800/80 shadow-[0_20px_80px_rgba(15,23,42,0.06)] p-7">
             <h3 className="text-[12px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-300">Actions rapides</h3>
             <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-              {[
-                { label: "INSCRIRE\nUN ÉLÈVE", icon: <Users className="size-5" />, tone: "from-indigo-600 to-violet-600", href: "/dashboard/students" },
-                { label: "PAIEMENT\nFRAIS", icon: <CreditCard className="size-5" />, tone: "from-emerald-600 to-green-600", href: "/dashboard/finance" },
-                { label: "ENVOYER\nSMS", icon: <Send className="size-5" />, tone: "from-amber-500 to-orange-500", href: "/dashboard/messaging" },
-                { label: "EMPLOI\nDU TEMPS", icon: <CalendarDays className="size-5" />, tone: "from-blue-600 to-indigo-600", href: "/dashboard/academics/timetable" },
-                { label: "GÉNÉRER\nRAPPORT", icon: <FileText className="size-5" />, tone: "from-violet-600 to-indigo-600", href: "/dashboard/reports" },
-              ].map((a) => (
+              {quickActions.map((a) => (
                 <Link
                   key={a.label}
                   href={a.href}
