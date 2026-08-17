@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { and, eq, desc, or, ilike } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db, readDb } from "@/infrastructure/database";
 import { studentAttendance } from "@/infrastructure/database/schema/attendance";
 import { studentResults } from "@/infrastructure/database/schema/academics";
@@ -30,25 +30,13 @@ export async function GET(request: NextRequest) {
     const student = await readDb.query.students.findFirst({
       where: and(
         user.schoolId ? eq(students.schoolId, user.schoolId) : undefined,
-        or(
-          eq(students.numAdmission, cleanUser),
-          eq(students.numAdmission, cleanUser.toUpperCase()),
-          eq(students.numAdmission, cleanUser.toLowerCase()),
-          eq(students.numAdmission, login),
-          eq(students.numAdmission, login.toUpperCase()),
-          eq(students.numAdmission, login.toLowerCase()),
-          ilike(students.numAdmission, cleanUser),
-          ilike(students.numAdmission, login),
-          eq(students.nomEtudiant, cleanUser),
-          user.nomPrenom ? eq(students.nomEtudiant, user.nomPrenom) : undefined
-        )
+        sql`(${students.numAdmission} ILIKE ${cleanUser} OR ${students.numAdmission} ILIKE ${login} OR ${students.nomEtudiant} ILIKE ${cleanUser})`
       ),
       columns: { id: true },
     });
 
     if (student) {
       studentId = student.id;
-      // Auto-heal link in users table
       if (!user.studentId && user.id) {
         try {
           await db.update(users).set({ studentId: student.id }).where(eq(users.id, user.id));
@@ -67,25 +55,30 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const rows = await readDb.query.studentAttendance.findMany({
-      where: eq(studentAttendance.studentId, studentId),
-      with: {
-        subject: true,
-        teacher: true,
-      },
-      orderBy: [desc(studentAttendance.date)],
-    });
+    const rowsRes = await readDb.execute(sql`
+      SELECT a.id, a.student_id, a.class_id, a.subject_id, a.employee_id, a.date, a.status, a.remark, a.recorded_by,
+             s.subject_name, e.nom as teacher_name
+      FROM student_attendance a
+      LEFT JOIN school_subjects s ON a.subject_id = s.id
+      LEFT JOIN employees e ON a.employee_id = e.id
+      WHERE a.student_id = ${studentId}
+      ORDER BY a.date DESC
+    `);
 
-    let data = rows.map((r) => {
-      const subjectName = r.subject?.subjectName || (r as any).subjectName || "Séance générale";
-      const teacherName = (r as any).teacher?.nom || "Enseignant";
+    const rawRows = ((rowsRes as any).rows || rowsRes) as any[];
+
+    let data = rawRows.map((r) => {
+      const subjectName = r.subject_name || "Séance générale";
+      const teacherName = r.teacher_name || "Enseignant";
+      const dateStr = r.date ? (typeof r.date === "string" ? r.date : new Date(r.date).toISOString()) : null;
+
       return {
         id: r.id,
-        student_id: r.studentId,
-        class_id: r.classId,
-        subject_id: r.subjectId,
-        date: r.date ? (typeof r.date === "string" ? r.date : r.date.toISOString()) : null,
-        status: r.status,
+        student_id: r.student_id,
+        class_id: r.class_id,
+        subject_id: r.subject_id,
+        date: dateStr,
+        status: r.status || "Présent",
         remark: r.remark || "—",
         subject_name: subjectName,
         teacher_name: teacherName,
@@ -101,7 +94,7 @@ export async function GET(request: NextRequest) {
         with: {
           subject: true,
         },
-      });
+      }).catch(() => []);
 
       for (const res of resultsWithAbsences) {
         const count = res.absences || 0;
@@ -134,14 +127,14 @@ export async function GET(request: NextRequest) {
     data.forEach((d) => {
       const s = (d.status || "").toLowerCase();
       const r = (d.remark || "").toLowerCase();
-      if (s.includes("présent") || s.includes("present")) {
-        presents++;
-      } else if (s.includes("retard") || s.includes("late")) {
+      if (s.includes("retard") || s.includes("late")) {
         late++;
-      } else if (s.includes("excus") || r.includes("just")) {
+      } else if (s.includes("excus") || s.includes("justif") || r.includes("just")) {
         justified++;
       } else if (s.includes("abs")) {
         absents++;
+      } else if (s.includes("présent") || s.includes("present")) {
+        presents++;
       }
     });
 
@@ -193,7 +186,7 @@ export async function POST(request: NextRequest) {
       studentId: studentId,
       date: targetDate,
       status: "Excusé",
-      remark: `Justification transmise : ${reason}${notes ? ` (${notes})` : ""}`,
+      remark: `[Justifié: ${reason}] ${notes ? `${notes} ` : ""}(Transmis par l'élève/parent le ${new Date().toLocaleDateString("fr-FR")})`,
       recordedBy: user.utilisateur || (user as any).email || "Espace Parent/Élève",
     });
 

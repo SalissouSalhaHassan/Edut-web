@@ -94,27 +94,33 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ success: true, data: [] });
       }
 
-      const rows = await readDb.query.timetableEntries.findMany({
-        where: eq(timetableEntries.classId, cls.id),
-        with: {
-          subject: true,
-          teacher: true,
-        },
-        orderBy: [timetableEntries.dayName, timetableEntries.periodNumber]
-      });
+      try {
+        const rows = await readDb.execute(sql`
+          SELECT te.id, te.day_name, te.period_number, te.class_id, te.subject_id, te.employee_id, te.room_name,
+                 s.subject_name, e.nom as teacher_nom, e.poste as teacher_poste
+          FROM timetable_entries te
+          LEFT JOIN school_subjects s ON te.subject_id = s.id
+          LEFT JOIN employees e ON te.employee_id = e.id
+          WHERE te.class_id = ${cls.id}
+          ORDER BY te.day_name, te.period_number
+        `);
+        const rawList = ((rows as any).rows || rows) as any[];
+        const list = rawList.map((row) => ({
+          id: row.id,
+          day_name: row.day_name,
+          period_number: row.period_number,
+          class_id: row.class_id,
+          subject_id: row.subject_id,
+          employee_id: row.employee_id,
+          room_name: row.room_name,
+          school_subjects: row.subject_name ? { subject_name: row.subject_name } : null,
+          employees: row.teacher_nom ? { nom: row.teacher_nom, poste: row.teacher_poste } : null,
+        }));
 
-      const list = rows.map((row) => ({
-        id: row.id,
-        day_name: row.dayName,
-        period_number: row.periodNumber,
-        class_id: row.classId,
-        subject_id: row.subjectId,
-        employee_id: row.employeeId,
-        school_subjects: row.subject ? { subject_name: row.subject.subjectName } : null,
-        employees: row.teacher ? { nom: row.teacher.nom, poste: row.teacher.poste } : null,
-      }));
-
-      return NextResponse.json({ success: true, data: list });
+        return NextResponse.json({ success: true, data: list });
+      } catch (err) {
+        return NextResponse.json({ success: true, data: [] });
+      }
     }
 
     if (action === "getTransportSubscription") {

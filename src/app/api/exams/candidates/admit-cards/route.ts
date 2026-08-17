@@ -2,11 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/infrastructure/database";
 import { sql } from "drizzle-orm";
 import { jsPDF } from "jspdf";
-import QRCode from "qrcode";
 import { amiriFontBase64 } from "@/domains/printing/utils/amiri-font";
 import { hasArabicCharacters, reshapeArabicText } from "@/domains/printing/utils/arabic-reshaper";
 
 export const dynamic = "force-dynamic";
+
+async function generateQrDataUrl(data: string): Promise<string> {
+  try {
+    const res = await fetch(`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(data)}`);
+    const buffer = await res.arrayBuffer();
+    return `data:image/png;base64,${Buffer.from(buffer).toString("base64")}`;
+  } catch (_) {
+    return "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAA=";
+  }
+}
 
 function ensureAmiriRegistered(doc: jsPDF) {
   try {
@@ -163,7 +172,7 @@ export async function POST(request: NextRequest) {
 
       // QR Code generation
       const qrData = `CAMP:${campaignId}|CAND:${cand.id}|STU:${cand.student_id}`;
-      const qrDataUrl = await QRCode.toDataURL(qrData, { margin: 1, width: 120 });
+      const qrDataUrl = await generateQrDataUrl(qrData);
       doc.addImage(qrDataUrl, "PNG", 160, yStart + 20, 30, 30);
 
       // Exam table header

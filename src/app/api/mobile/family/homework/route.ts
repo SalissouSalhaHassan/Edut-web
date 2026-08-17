@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { and, eq, or, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { readDb } from "@/infrastructure/database";
-import { homework } from "@/infrastructure/database/schema/homework";
-import { schoolClasses } from "@/infrastructure/database/schema/academics";
 import { getMobileUser, mobileJsonError } from "../../_lib/auth";
 import { verifyParentChildRelationship } from "../../_lib/family-auth";
 
@@ -27,37 +25,45 @@ export async function GET(request: NextRequest) {
 
   try {
     const rawClassName = className.trim();
-    const cls = await readDb.query.schoolClasses.findFirst({
-      where: or(
-        eq(schoolClasses.className, rawClassName),
-        sql`LOWER(TRIM(${schoolClasses.className})) = LOWER(TRIM(${rawClassName}))`,
-        sql`REPLACE(LOWER(${schoolClasses.className}), ' ', '') = REPLACE(LOWER(${rawClassName}), ' ', '')`
-      )
-    });
+    const cleanClass = rawClassName.toLowerCase().replace(/\s+/g, "");
 
-    if (!cls) {
+    // Find matching class
+    const clsRes = await readDb.execute(sql`
+      SELECT id, class_name FROM school_classes
+      WHERE LOWER(REPLACE(class_name, ' ', '')) = ${cleanClass}
+         OR class_name ILIKE ${rawClassName}
+      LIMIT 1
+    `);
+    const clsRows = ((clsRes as any).rows || clsRes) as any[];
+
+    if (!clsRows || clsRows.length === 0) {
       return NextResponse.json({ success: true, data: [] });
     }
 
-    const rows = await readDb.query.homework.findMany({
-      where: eq(homework.classId, cls.id),
-      with: {
-        subject: true
-      },
-      orderBy: [sql`date_due ASC`]
-    });
+    const classId = clsRows[0].id;
 
-    const data = rows.map((h) => ({
+    const rowsRes = await readDb.execute(sql`
+      SELECT h.id, h.title, h.description, h.class_id, h.subject_id, h.date_assigned, h.date_due, h.attachment_path, h.created_by,
+             s.subject_name
+      FROM homework h
+      LEFT JOIN school_subjects s ON h.subject_id = s.id
+      WHERE h.class_id = ${classId}
+      ORDER BY h.date_due ASC
+    `);
+
+    const rawRows = ((rowsRes as any).rows || rowsRes) as any[];
+
+    const data = rawRows.map((h) => ({
       id: h.id,
       title: h.title,
       description: h.description,
-      class_id: h.classId,
-      subject_id: h.subjectId,
-      date_assigned: h.dateAssigned?.toISOString() || null,
-      date_due: h.dateDue?.toISOString() || null,
-      attachment_path: h.attachmentPath,
-      created_by: h.createdBy,
-      school_subjects: h.subject ? { subject_name: h.subject.subjectName } : null,
+      class_id: h.class_id,
+      subject_id: h.subject_id,
+      date_assigned: h.date_assigned ? new Date(h.date_assigned).toISOString() : null,
+      date_due: h.date_due ? new Date(h.date_due).toISOString() : null,
+      attachment_path: h.attachment_path,
+      created_by: h.created_by,
+      school_subjects: h.subject_name ? { subject_name: h.subject_name } : null,
     }));
 
     return NextResponse.json({ success: true, data });
