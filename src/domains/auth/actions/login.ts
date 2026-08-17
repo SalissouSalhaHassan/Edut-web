@@ -44,11 +44,12 @@ export async function login(formData: LoginFormData) {
     if (error) {
       console.warn("[LOGIN] Supabase sign-in failed, checking database fallback for user:", loginEmail);
       const cleanUsername = formData.username.trim().toLowerCase();
+      const rawUsername = formData.username.trim();
       
-      const dbUser = await db.query.users.findFirst({
+      let dbUser = await db.query.users.findFirst({
         where: or(
           eq(users.utilisateur, cleanUsername),
-          eq(users.utilisateur, formData.username.trim()),
+          eq(users.utilisateur, rawUsername),
           eq(users.utilisateur, loginEmail)
         ),
         with: {
@@ -56,19 +57,85 @@ export async function login(formData: LoginFormData) {
         }
       });
 
+      // If not found by username, check if it matches a student's num_admission
+      if (!dbUser) {
+        try {
+          const { students } = await import("@/infrastructure/database/schema/students");
+          const student = await db.query.students.findFirst({
+            where: or(
+              eq(students.numAdmission, rawUsername),
+              eq(students.numAdmission, rawUsername.toUpperCase()),
+              eq(students.numAdmission, cleanUsername)
+            )
+          });
+          if (student) {
+            dbUser = await db.query.users.findFirst({
+              where: eq(users.studentId, student.id),
+              with: { school: true }
+            });
+          }
+        } catch (_) {}
+      }
+
+      // If still not found, check if it matches an employee's emp_id or email
+      if (!dbUser) {
+        try {
+          const { employees } = await import("@/infrastructure/database/schema/hr");
+          const employee = await db.query.employees.findFirst({
+            where: or(
+              eq(employees.empId, rawUsername),
+              eq(employees.email, cleanUsername)
+            )
+          });
+          if (employee) {
+            dbUser = await db.query.users.findFirst({
+              where: eq(users.employeeId, employee.id),
+              with: { school: true }
+            });
+          }
+        } catch (_) {}
+      }
+
       if (dbUser && dbUser.motDePasse) {
         const isMatch = await bcrypt.compare(formData.password, dbUser.motDePasse);
         if (isMatch) {
           console.log(`[LOGIN] Password match in database for user ${dbUser.utilisateur}. Synchronizing auth.users...`);
           
+          let activeSupabaseId = dbUser.supabaseId;
+          const userLoginEmail = dbUser.utilisateur.includes('@') ? dbUser.utilisateur : `${dbUser.utilisateur}@test.com`;
+
+          // If supabaseId is missing, bootstrap via signUp
+          if (!activeSupabaseId) {
+            try {
+              const { data: signUpData } = await supabase.auth.signUp({
+                email: userLoginEmail,
+                password: formData.password,
+                options: {
+                  data: {
+                    full_name: dbUser.nomPrenom,
+                    school_id: dbUser.schoolId,
+                    student_id: dbUser.studentId,
+                    employee_id: dbUser.employeeId,
+                  }
+                }
+              });
+              if (signUpData?.user?.id) {
+                activeSupabaseId = signUpData.user.id;
+                await db.update(users).set({ supabaseId: activeSupabaseId }).where(eq(users.id, dbUser.id));
+              }
+            } catch (signUpErr) {
+              console.warn("[LOGIN] Supabase signUp bootstrap warning:", signUpErr);
+            }
+          }
+
           try {
             // Self-heal and sync auth.users with the new password hash
             await db.execute(sql`
               UPDATE auth.users
               SET encrypted_password = ${dbUser.motDePasse},
-                  email = ${loginEmail},
+                  email = ${userLoginEmail},
                   updated_at = NOW()
-              WHERE id = ${dbUser.supabaseId}::uuid OR email = ${loginEmail}
+              WHERE id = ${activeSupabaseId || dbUser.supabaseId}::uuid OR email = ${userLoginEmail}
             `);
           } catch (syncErr) {
             console.warn("[LOGIN] Direct auth.users update warning:", syncErr);
@@ -76,7 +143,7 @@ export async function login(formData: LoginFormData) {
 
           // Retry Supabase sign in with the synchronized credentials
           const retryRes = await supabase.auth.signInWithPassword({
-            email: loginEmail,
+            email: userLoginEmail,
             password: formData.password,
           });
 
@@ -103,7 +170,12 @@ export async function login(formData: LoginFormData) {
 
         // If user exists but belongs to a different school
         if (dbUser && !dbUser.superAdmin) {
-          if (!dbUser.school || dbUser.school.slug !== schoolSlug) {
+          const userSchoolSlug = dbUser.school?.slug?.trim().toLowerCase();
+          const targetSlug = schoolSlug.trim().toLowerCase();
+          const targetSchoolId = parseInt(targetSlug);
+          const isSameSchool = !dbUser.school || userSchoolSlug === targetSlug || (!isNaN(targetSchoolId) && dbUser.schoolId === targetSchoolId);
+          
+          if (!isSameSchool) {
             await supabase.auth.signOut();
             return { error: "Accès refusé. Vous n'êtes pas membre de cette école." };
           }
