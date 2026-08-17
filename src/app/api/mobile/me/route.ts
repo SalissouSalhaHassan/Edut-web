@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
-import { and, eq, or } from "drizzle-orm";
+import { and, eq, or, ilike, sql } from "drizzle-orm";
 
 import { db, readDb } from "@/infrastructure/database";
 import { rolePermissions, users } from "@/infrastructure/database/schema/auth";
