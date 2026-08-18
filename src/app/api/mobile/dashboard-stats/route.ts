@@ -226,7 +226,14 @@ export async function GET(request: NextRequest) {
     classesCount: scopedClassIds.length,
     examsCount,
     plannedHours,
-    averageGrade: avg(resultRows.map((row) => Number(row.totalScore || 0)).filter((value) => value > 0)),
+    averageGrade: avg(resultRows.map((row) => {
+      const val = Number(row.totalScore || 0);
+      if (val <= 0) return 0;
+      if (val <= 20) return val;
+      if (val <= 40) return val / 2;
+      if (val <= 100) return (val / 100) * 20;
+      return 20;
+    }).filter((value) => value > 0)),
     homeworkCount,
     homeworkOnTimeRate: homeworkAverage > 0 ? Number(((homeworkAverage / 20) * 100).toFixed(1)) : 0,
     absenceAlerts: absences,

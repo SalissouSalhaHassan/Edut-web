@@ -164,20 +164,22 @@ export async function GET(request: NextRequest) {
     }
 
     if (action === "getHostelAllocation") {
-      // Fetch hostel allocations if table exists, otherwise return null
+      // Fetch hostel allocations with correct column names (building_name, cost_per_term, etc.)
       try {
-        const alloc = await db.execute(sql`
+        const alloc = await readDb.execute(sql`
           SELECT ha.id, ha.room_id, ha.student_id, ha.join_date, ha.leave_date, ha.status, ha.remarks,
-                 hr.room_number, hr.room_type, hr.hostel_name
+                 hr.room_number, hr.room_type, hr.building_name, hr.capacity, hr.cost_per_term, hr.description
           FROM hostel_allocations ha
           LEFT JOIN hostel_rooms hr ON ha.room_id = hr.id
-          WHERE ha.student_id = ${studentId} AND ha.status = 'Occupé'
+          WHERE ha.student_id = ${studentId}
+            AND (ha.status = 'Occupé' OR ha.status = 'Occupe' OR ha.status = 'Actif' OR ha.status IS NULL)
           ORDER BY ha.id DESC
           LIMIT 1
         `);
 
-        if (alloc && (alloc as any).length > 0) {
-          const row: any = alloc[0];
+        const rows = ((alloc as any).rows || alloc) as any[];
+        if (rows && rows.length > 0) {
+          const row = rows[0];
           return NextResponse.json({
             success: true,
             data: {
@@ -186,17 +188,22 @@ export async function GET(request: NextRequest) {
               student_id: row.student_id,
               join_date: row.join_date,
               leave_date: row.leave_date,
-              status: row.status,
+              status: row.status || "Occupé",
               remarks: row.remarks,
               hostel_rooms: {
                 room_number: row.room_number,
-                room_type: row.room_type,
-                hostel_name: row.hostel_name,
+                building_name: row.building_name || "Bâtiment Principal",
+                room_type: row.room_type || "Mixte",
+                capacity: row.capacity || 1,
+                cost_per_term: row.cost_per_term || 0,
+                description: row.description,
               }
             }
           });
         }
-      } catch (err) {}
+      } catch (err) {
+        console.error("getHostelAllocation query error:", err);
+      }
       return NextResponse.json({ success: true, data: null });
     }
 
