@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     const currentDay = daysMap[now.getDay()];
     const currentHour = now.getHours();
     const currentMin = now.getMinutes();
-    const currentTimeStr = `${String(currentHour).padLeft(2, "0")}:${String(currentMin).padLeft(2, "0")}`;
+    const currentTimeStr = `${String(currentHour).padStart(2, "0")}:${String(currentMin).padStart(2, "0")}`;
 
     // 1. Fetch Today's Sessions for this teacher
     let todaySessions = await readDb
