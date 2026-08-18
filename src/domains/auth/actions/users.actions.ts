@@ -583,7 +583,7 @@ export async function deleteUser(id: number) {
     // Multi-tenancy and level check for deletion (non-superAdmins only)
     const targetUser = await db.query.users.findFirst({
       where: eq(users.id, id),
-      columns: { id: true, schoolId: true, educationalLevel: true, supabaseId: true }
+      columns: { id: true, schoolId: true, educationalLevel: true, supabaseId: true, utilisateur: true }
     });
     
     if (!targetUser) return { error: "Utilisateur non trouvé", success: false };
@@ -608,7 +608,27 @@ export async function deleteUser(id: number) {
       await db.execute(sql`DELETE FROM notifications WHERE user_id = ${id}`);
     } catch (_) {}
 
-    // Delete from Supabase Auth admin client if exists
+    // ── Direct SQL purge from Postgres auth.users ──
+    const userLogin = targetUser.utilisateur?.trim() || "";
+    const emailAlt = userLogin.includes("@") ? userLogin : `${userLogin}@test.com`;
+
+    try {
+      if (targetUser.supabaseId && targetUser.supabaseId.length === 36) {
+        await db.execute(sql`
+          DELETE FROM auth.users 
+          WHERE id = ${targetUser.supabaseId}::uuid OR email = ${userLogin} OR email = ${emailAlt}
+        `);
+      } else if (userLogin) {
+        await db.execute(sql`
+          DELETE FROM auth.users 
+          WHERE email = ${userLogin} OR email = ${emailAlt}
+        `);
+      }
+    } catch (authDelSqlErr) {
+      console.warn("[deleteUser] Direct auth.users SQL delete warning:", authDelSqlErr);
+    }
+
+    // ── Delete from Supabase Auth admin client if exists ──
     if (targetUser.supabaseId) {
       try {
         const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
