@@ -81,10 +81,44 @@ export const salaryRecords = pgTable("salary_records", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const teacherExtraHours = pgTable("teacher_extra_hours", {
+  id: serial("id").primaryKey(),
+  schoolId: integer("school_id").references(() => schools.id),
+  employeeId: integer("employee_id").references(() => employees.id, { onDelete: "cascade" }).notNull(),
+  date: varchar("date", { length: 20 }).notNull(),
+  typeHour: varchar("type_hour", { length: 50 }).notNull().default("Heure supplémentaire"), // Heure supplémentaire, Cours de soutien, Remplacement/Intérim, Surveillance examen
+  className: varchar("class_name", { length: 50 }),
+  subjectName: varchar("subject_name", { length: 100 }),
+  hoursCount: doublePrecision("hours_count").default(1.0).notNull(),
+  hourlyRate: doublePrecision("hourly_rate").default(2500.0).notNull(),
+  totalAmount: doublePrecision("total_amount").default(2500.0).notNull(),
+  status: varchar("status", { length: 30 }).default("En attente"), // En attente, Approuvé, Payé, Rejeté
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const teacherHrRequests = pgTable("teacher_hr_requests", {
+  id: serial("id").primaryKey(),
+  schoolId: integer("school_id").references(() => schools.id),
+  employeeId: integer("employee_id").references(() => employees.id, { onDelete: "cascade" }).notNull(),
+  requestType: varchar("request_type", { length: 50 }).notNull(), // Congé maladie, Congé familial, Absence autorisée, Avance sur salaire, Attestation de travail, Autre
+  startDate: varchar("start_date", { length: 20 }),
+  endDate: varchar("end_date", { length: 20 }),
+  daysCount: integer("days_count").default(1),
+  advanceAmount: doublePrecision("advance_amount"),
+  reason: text("reason").notNull(),
+  documentUrl: text("document_url"),
+  status: varchar("status", { length: 30 }).default("En attente"), // En attente, Approuvé, Rejeté
+  adminComment: text("admin_comment"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // ── Relations ─────────────────────────────────────────────────
 export const employeesRelations = relations(employees, ({ many }) => ({
   attendance: many(employeeAttendance),
   salaryRecords: many(salaryRecords),
+  extraHours: many(teacherExtraHours),
+  hrRequests: many(teacherHrRequests),
 }));
 
 export const employeeAttendanceRelations = relations(employeeAttendance, ({ one }) => ({
@@ -100,3 +134,18 @@ export const salaryRecordsRelations = relations(salaryRecords, ({ one }) => ({
     references: [employees.id],
   }),
 }));
+
+export const teacherExtraHoursRelations = relations(teacherExtraHours, ({ one }) => ({
+  employee: one(employees, {
+    fields: [teacherExtraHours.employeeId],
+    references: [employees.id],
+  }),
+}));
+
+export const teacherHrRequestsRelations = relations(teacherHrRequests, ({ one }) => ({
+  employee: one(employees, {
+    fields: [teacherHrRequests.employeeId],
+    references: [employees.id],
+  }),
+}));
+

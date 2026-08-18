@@ -55,3 +55,17 @@ export const notificationsRelations = relations(notifications, ({ one }) => ({
     references: [users.id],
   }),
 }));
+
+export const teacherCommSettings = pgTable("teacher_comm_settings", {
+  id: serial("id").primaryKey(),
+  schoolId: integer("school_id"),
+  employeeId: integer("employee_id").notNull(),
+  dndEnabled: boolean("dnd_enabled").default(true).notNull(),
+  dndStartHour: varchar("dnd_start_hour", { length: 10 }).default("17:00").notNull(),
+  dndEndHour: varchar("dnd_end_hour", { length: 10 }).default("07:30").notNull(),
+  dndWeekends: boolean("dnd_weekends").default(true).notNull(),
+  autoReplyMessage: text("auto_reply_message").default("Bonjour. Le professeur est actuellement hors de ses heures de disponibilité scolaire. Votre message sera traité lors de la prochaine journée de cours.").notNull(),
+  cannedResponses: text("canned_responses"), // JSON array string
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
