@@ -36,6 +36,17 @@ export async function POST(request: NextRequest) {
         generatedText = `*BULLETIN DE NOTES DISPONIBLE* 📊\n\nBonjour *${recipientName || "Parent"}*,\nLe bulletin scolaire trimestriel de *${studentName || "votre enfant"}* (${className || ""}) est désormais disponible et consultable en ligne sur l'application Edut.\n\n_Félicitations pour le suivi de la scolarité de vos enfants._`;
         break;
 
+      case "fee_reminder":
+        const lang = body.language || "FR";
+        if (lang === "HA") {
+          generatedText = `*SANARWA DAGA MAKARANTAR EDUT* 🏫\n\nBarka, ya mai girma (*${recipientName || "Waliyyi"}*),\nMuna tunatar da ku cewa akwai sauran kudin makaranta na *${amount || "0"} FCFA* na dalibi *${studentName || ""}* (${className || ""}).\nKwanan wata na karshe: *${date || "Karshen wannan wata"}*.\n\nKuna iya biya cikin sauki ta *Airtel Money (*155#)* ko *Al-Izza (*800#)* ta manhajar Edut Mobile.\nMungode da hadin kai!`;
+        } else if (lang === "AR") {
+          generatedText = `*إشعار تذكيري من مجمع إيدوت المدرسي* 🏫\n\nالسلام عليكم ولي أمر الطالب الكريم (*${recipientName || "ولي الأمر"}*),\nنود تذكيركم بموعد سداد القسط المدرسي المتبقي وقدره *${amount || "0"} FCFA* للطالب *${studentName || ""}* (${className || ""}).\nتاريخ الاستحقاق: *${date || "نهاية الشهر الحالي"}*.\n\nيمكنكم السداد المباشر عبر *Airtel Money* أو *Al-Izza* أو من خلال تطبيق الجوال.\nنشكركم على حسن تعاونكم وثقتكم بنا.`;
+        } else {
+          generatedText = `*RAPPEL ÉCHÉANCE SCOLARITÉ EDUT* 💳\n\nBonjour cher parent (*${recipientName || "Parent d'élève"}*),\nSauf erreur de notre part, le solde de scolarité pour *${studentName || "votre enfant"}* (${className || ""}) présente un montant restant de *${amount || "0"} FCFA*.\nDate limite de règlement : *${date || "Fin de mois"}*.\n\n💡 *Règlement direct et instantané* :\n- Via *Airtel Money Niger* (*155#)\n- Via *Moov Money Flooz* (*156#)\n- Via *Al-Izza Transfert* (*800#)\n- Ou directement depuis votre application mobile Edut.\n\n_Nous vous remercions pour votre confiance et accompagnement._`;
+        }
+        break;
+
       case "custom":
       default:
         generatedText = message || `*MESSAGE DE L'ÉCOLE EDUT* 📢\n\n${message || "Information importante de la direction."}`;
