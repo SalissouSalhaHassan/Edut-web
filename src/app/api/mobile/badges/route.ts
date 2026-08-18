@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
     const newAward = {
       badgeId,
       awardedAt: new Date().toISOString(),
-      awardedBy: user.name || "Enseignant",
+      awardedBy: (user as any).name || user.utilisateur || "Enseignant",
       reason: reason || "Attribution au mérite",
     };
 

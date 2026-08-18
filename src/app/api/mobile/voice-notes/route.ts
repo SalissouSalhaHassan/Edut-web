@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
       id: Date.now(),
       studentId: Number(studentId),
       studentName: studentName || "Élève",
-      teacherName: user.name || "Enseignant",
+      teacherName: (user as any).name || user.utilisateur || "Enseignant",
       subjectName,
       language: language || "Français",
       audioUrl: audioBase64 ? "data:audio/mp3;base64,..." : "https://actions.google.com/sounds/v1/speech/positive_feedback.ogg",

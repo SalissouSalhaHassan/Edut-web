@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
       symptoms: Array.isArray(symptoms) ? symptoms : [symptoms || "Consultation générale"],
       treatment: treatment || "Soins de premiers secours",
       temperature: temperature || "37.0°C",
-      nurseName: user.name || "Infirmerie Scolaire",
+      nurseName: (user as any).name || user.utilisateur || "Infirmerie Scolaire",
       parentNotified: true,
       status: (status as any) || "Retour en classe",
     };

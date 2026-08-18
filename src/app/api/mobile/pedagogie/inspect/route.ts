@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
         seanceId,
         statut: status,
         valideAt: now.toISOString(),
-        inspectorName: user.name || "Direction Pédagogique",
+        inspectorName: (user as any).name || user.utilisateur || "Direction Pédagogique",
       },
     });
   } catch (error: any) {
