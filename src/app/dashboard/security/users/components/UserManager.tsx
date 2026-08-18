@@ -35,15 +35,47 @@ export default function UserManager({ initialUsers, roles, currentUser, schools 
   );
 
   const handleDelete = async (id: number) => {
-    if (!confirm("Supprimer cet utilisateur ?")) return { success: false };
-    const res = await deleteUser(id);
-    if (res.success) {
-      setUsersList(prev => prev.filter(u => u.id !== id));
-      toast.success("Utilisateur supprimé");
-      return { success: true };
-    } else {
-      toast.error("Erreur lors de la suppression");
-      return { success: false };
+    try {
+      // 1. Try direct REST API first (immune to subdomains/serverAction CORS issues)
+      const res = await fetch(`/api/security/users`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok && data.success) {
+        setUsersList(prev => prev.filter(u => u.id !== id));
+        toast.success("Utilisateur supprimé avec succès");
+        return { success: true };
+      }
+
+      // 2. If API fails, try server action as fallback
+      const actionRes = await deleteUser(id);
+      if (actionRes.success) {
+        setUsersList(prev => prev.filter(u => u.id !== id));
+        toast.success("Utilisateur supprimé avec succès");
+        return { success: true };
+      } else {
+        const errMsg = actionRes.error || data.error || "Erreur lors de la suppression";
+        toast.error(errMsg);
+        return { success: false, error: errMsg };
+      }
+    } catch (err: any) {
+      console.error("[handleDelete] Error:", err);
+      // Fallback attempt
+      try {
+        const actionRes = await deleteUser(id);
+        if (actionRes.success) {
+          setUsersList(prev => prev.filter(u => u.id !== id));
+          toast.success("Utilisateur supprimé avec succès");
+          return { success: true };
+        }
+      } catch (_) {}
+
+      const errMsg = err?.message || "Erreur réseau lors de la suppression";
+      toast.error(errMsg);
+      return { success: false, error: errMsg };
     }
   };
 

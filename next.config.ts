@@ -5,6 +5,15 @@ const nextConfig: NextConfig = {
   experimental: {
     serverActions: {
       bodySizeLimit: "10mb",
+      allowedOrigins: [
+        "*.edut.pro",
+        "edut.pro",
+        "group-aiiu-niger.edut.pro",
+        "*.vercel.app",
+        "localhost:3000",
+        "localhost:3001",
+        "localhost:3002",
+      ],
     },
   },
   turbopack: {},

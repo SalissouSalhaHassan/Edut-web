@@ -458,13 +458,23 @@ export async function saveUser(formData: SaveUserFormData, id?: number) {
       // Direct sync in Postgres auth.users table for Supabase Auth consistency
       if (data.motDePasse) {
         try {
-          await db.execute(sql`
-            UPDATE auth.users 
-            SET encrypted_password = ${data.motDePasse},
-                email = ${loginEmail},
-                updated_at = NOW()
-            WHERE id = ${activeSupabaseId}::uuid OR email = ${loginEmail}
-          `);
+          if (activeSupabaseId && activeSupabaseId.length === 36) {
+            await db.execute(sql`
+              UPDATE auth.users 
+              SET encrypted_password = ${data.motDePasse},
+                  email = ${loginEmail},
+                  updated_at = NOW()
+              WHERE id = ${activeSupabaseId}::uuid OR email = ${loginEmail}
+            `);
+          } else {
+            await db.execute(sql`
+              UPDATE auth.users 
+              SET encrypted_password = ${data.motDePasse},
+                  email = ${loginEmail},
+                  updated_at = NOW()
+              WHERE email = ${loginEmail}
+            `);
+          }
         } catch (authSqlErr) {
           console.warn("[saveUser] Direct auth.users SQL sync error:", authSqlErr);
         }
@@ -548,6 +558,10 @@ export async function deleteUser(id: number) {
     const currentUser = await getCurrentUser();
     if (!currentUser) return { error: "Non autorisé. Veuillez vous connecter.", success: false };
 
+    if (currentUser.id === id) {
+      return { error: "Vous ne pouvez pas supprimer votre propre compte administrateur.", success: false };
+    }
+
     const isSuperAdmin = currentUser.superAdmin === true || currentUser.superAdmin === 1;
     if (!isSuperAdmin) {
       const { hasPermission, getUserRoleType: getRoleType } = await import("@/domains/auth/services/rbac");
@@ -567,14 +581,15 @@ export async function deleteUser(id: number) {
     const roleType = await getUserRoleType(currentUser);
 
     // Multi-tenancy and level check for deletion (non-superAdmins only)
+    const targetUser = await db.query.users.findFirst({
+      where: eq(users.id, id),
+      columns: { id: true, schoolId: true, educationalLevel: true, supabaseId: true }
+    });
+    
+    if (!targetUser) return { error: "Utilisateur non trouvé", success: false };
+
     if (!isSuperAdmin) {
-      const targetUser = await db.query.users.findFirst({
-        where: eq(users.id, id),
-        columns: { schoolId: true, educationalLevel: true }
-      });
-      
-      if (!targetUser) return { error: "Utilisateur non trouvé", success: false };
-      if (targetUser.schoolId !== currentUser.schoolId) {
+      if (targetUser.schoolId && currentUser.schoolId && targetUser.schoolId !== currentUser.schoolId) {
         return { error: "Non autorisé : cet utilisateur appartient à une autre école", success: false };
       }
       if (roleType === "level_director" && !checkEducationalLevelAccess(currentUser, targetUser.educationalLevel)) {
@@ -582,23 +597,38 @@ export async function deleteUser(id: number) {
       }
     }
 
-    // ── Delete related records (FK constraints without cascade) before deleting user ──
-    // 1. Delete login logs
+    // ── Delete related records before deleting user ──
     try {
-      await db.delete(loginLogs).where(eq(loginLogs.userId, id));
-    } catch (e) {
-      console.warn("[deleteUser] Could not delete login_logs (table may not exist yet):", e);
-    }
-    // 2. Delete audit logs
+      await db.execute(sql`DELETE FROM login_logs WHERE user_id = ${id}`);
+    } catch (_) {}
     try {
-      await db.delete(auditLogs).where(eq(auditLogs.userId, id));
-    } catch (e) {
-      console.warn("[deleteUser] Could not delete audit_logs (table may not exist yet):", e);
+      await db.execute(sql`DELETE FROM audit_logs WHERE user_id = ${id}`);
+    } catch (_) {}
+    try {
+      await db.execute(sql`DELETE FROM notifications WHERE user_id = ${id}`);
+    } catch (_) {}
+
+    // Delete from Supabase Auth admin client if exists
+    if (targetUser.supabaseId) {
+      try {
+        const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+        if (serviceRoleKey && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+          const { createClient: createSupabaseJsClient } = await import("@supabase/supabase-js");
+          const adminClient = createSupabaseJsClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL,
+            serviceRoleKey,
+            { auth: { autoRefreshToken: false, persistSession: false } }
+          );
+          await adminClient.auth.admin.deleteUser(targetUser.supabaseId);
+        }
+      } catch (supabaseDelErr) {
+        console.warn("[deleteUser] Supabase admin delete warning:", supabaseDelErr);
+      }
     }
-    // ─────────────────────────────────────────────────────────────────────────
 
     await db.delete(users).where(eq(users.id, id));
     revalidatePath("/dashboard/security/users");
+    revalidatePath("/dashboard/users");
     return { success: true };
   } catch (error: unknown) {
     const message = getErrorMessage(error);

@@ -240,16 +240,44 @@ export default function UserDialog({
       employeeId:       formData.employeeId === "" ? null : formData.employeeId,
     };
     try {
-      const res = await saveUser(submissionData, user?.id);
-      if (res.success) {
+      // 1. Try direct REST API first (handles subdomains and proxies seamlessly)
+      const res = await fetch(`/api/security/users`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...submissionData, id: user?.id }),
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok && data.success) {
         toast.success(user ? "Utilisateur modifié avec succès" : "Utilisateur créé avec succès");
         close();
-        onSuccess?.(res.data);
+        onSuccess?.(data.data);
+        return;
+      }
+
+      // 2. Try Server Action fallback if API returned business error
+      const actionRes = await saveUser(submissionData, user?.id);
+      if (actionRes.success) {
+        toast.success(user ? "Utilisateur modifié avec succès" : "Utilisateur créé avec succès");
+        close();
+        onSuccess?.(actionRes.data);
       } else {
-        toast.error(res.error || "Une erreur est survenue lors de l'enregistrement");
+        toast.error(actionRes.error || data.error || "Une erreur est survenue lors de l'enregistrement");
       }
     } catch (err: any) {
-      toast.error(err.message || "Une erreur inattendue est survenue");
+      console.error("[handleSubmit] Error:", err);
+      // Fallback attempt
+      try {
+        const actionRes = await saveUser(submissionData, user?.id);
+        if (actionRes.success) {
+          toast.success(user ? "Utilisateur modifié avec succès" : "Utilisateur créé avec succès");
+          close();
+          onSuccess?.(actionRes.data);
+          return;
+        }
+      } catch (_) {}
+
+      toast.error(err?.message || "Une erreur inattendue est survenue");
     } finally {
       setLoading(false);
     }
