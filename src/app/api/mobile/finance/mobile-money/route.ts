@@ -27,10 +27,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       providers: [
-        { id: "ORANGE_MONEY", name: "Orange Money", icon: "🟠", code: "OM", color: "#FF6600" },
-        { id: "MOOV_MONEY", name: "Moov Money (Flooz)", icon: "🔵", code: "MOOV", color: "#0066CC" },
-        { id: "WAVE", name: "Wave Mobile", icon: "🌊", code: "WAVE", color: "#1DC0F2" },
-        { id: "BANK_CARD", name: "Carte Banciare / Visa", icon: "💳", code: "CARD", color: "#4F46E5" },
+        { id: "AIRTEL_MONEY", name: "Airtel Money Niger", icon: "🔴", code: "AIRTEL", color: "#DC2626", ussdCode: "*155#" },
+        { id: "MOOV_MONEY", name: "Moov Money (Flooz)", icon: "🔵", code: "MOOV", color: "#0284C7", ussdCode: "*156#" },
+        { id: "AL_IZZA", name: "Al-Izza Transfert / Mobile", icon: "🟢", code: "AL-IZZA", color: "#059669", ussdCode: "*800#" },
+        { id: "ORANGE_MONEY", name: "Orange Money", icon: "🟠", code: "OM", color: "#EA580C", ussdCode: "*144#" },
+        { id: "BANK_CARD", name: "Carte Bancaire / Visa", icon: "💳", code: "CARD", color: "#4F46E5" },
       ],
       transactions: txns,
       pendingFees: pendingFees.map(f => ({
