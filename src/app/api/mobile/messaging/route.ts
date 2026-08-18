@@ -182,16 +182,67 @@ export async function GET(request: NextRequest) {
     role: roleNameOf(row),
   }));
 
+  const defaultTemplates = [
+    {
+      id: 1,
+      title: "Convocation Parent d'Élève",
+      msg_type: "SMS",
+      content: "Bonjour. La direction vous prie de bien vouloir vous présenter à l'établissement le [Date] à [Heure] concernant le suivi scolaire de votre enfant.",
+      category: "Discipline",
+      created_at: new Date().toISOString(),
+    },
+    {
+      id: 2,
+      title: "Avis d'Absence Non Justifiée",
+      msg_type: "SMS",
+      content: "Avis aux parents : Votre enfant a été constaté absent ce jour sans motif préalable. Prière de régulariser la situation auprès de la vie scolaire.",
+      category: "Absence",
+      created_at: new Date().toISOString(),
+    },
+    {
+      id: 3,
+      title: "Rappel Réunion des Parents d'Élèves",
+      msg_type: "WhatsApp",
+      content: "Chers parents d'élèves, nous vous rappelons la tenue de la rencontre trimestrielle ce samedi à 09h00. Votre présence est vivement souhaitée.",
+      category: "Général",
+      created_at: new Date().toISOString(),
+    },
+    {
+      id: 4,
+      title: "Félicitations pour Progrès Remarquables",
+      msg_type: "Interne",
+      content: "Félicitations ! L'équipe pédagogique tient à saluer le sérieux et les excellents progrès scolaires enregistrés ces dernières semaines.",
+      category: "Pédagogie",
+      created_at: new Date().toISOString(),
+    },
+  ];
+
+  const formattedTemplates = templates.length > 0
+    ? templates.map((t) => ({
+        id: t.id,
+        title: t.title,
+        msg_type: t.msgType,
+        content: t.content,
+        category: t.category,
+        created_at: t.createdAt?.toISOString() ?? null,
+      }))
+    : defaultTemplates;
+
+  const defaultClasses = [
+    { id: 1, class_name: "6ème A" },
+    { id: 2, class_name: "5ème B" },
+    { id: 3, class_name: "4ème A" },
+    { id: 4, class_name: "3ème B" },
+    { id: 5, class_name: "Terminale D" },
+  ];
+
+  const formattedClasses = classes.length > 0
+    ? classes.map((c) => ({ id: c.id, class_name: c.className }))
+    : defaultClasses;
+
   return NextResponse.json({
     success: true,
-    templates: templates.map((t) => ({
-      id: t.id,
-      title: t.title,
-      msg_type: t.msgType,
-      content: t.content,
-      category: t.category,
-      created_at: t.createdAt?.toISOString() ?? null,
-    })),
+    templates: formattedTemplates,
     logs: logs.map((l) => ({
       id: l.id,
       msg_type: l.msgType,
@@ -203,7 +254,7 @@ export async function GET(request: NextRequest) {
       sent_by: l.sentBy,
       sent_at: l.sentAt?.toISOString() ?? null,
     })),
-    classes: classes.map((c) => ({ id: c.id, class_name: c.className })),
+    classes: formattedClasses,
     recipients,
     stats: await getStats(schoolId),
   });

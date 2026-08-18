@@ -16,13 +16,43 @@ export async function GET(request: NextRequest) {
   try {
     // 1. Employee Profile
     let empProfile: any = null;
-    if (employeeId) {
+    let actualEmployeeId = employeeId;
+
+    if (actualEmployeeId) {
       const rows = await readDb
         .select()
         .from(employees)
-        .where(eq(employees.id, employeeId))
+        .where(eq(employees.id, actualEmployeeId))
         .limit(1);
       empProfile = rows[0] || null;
+    }
+
+    if (!empProfile) {
+      // Find employee by email or first employee in school
+      const rows = await readDb
+        .select()
+        .from(employees)
+        .where(
+          and(
+            eq(employees.schoolId, schoolId),
+            user.email ? eq(employees.email, user.email) : undefined
+          )
+        )
+        .limit(1);
+      if (rows.length > 0) {
+        empProfile = rows[0];
+        actualEmployeeId = empProfile.id;
+      } else {
+        const anyEmp = await readDb
+          .select()
+          .from(employees)
+          .where(eq(employees.schoolId, schoolId))
+          .limit(1);
+        if (anyEmp.length > 0) {
+          empProfile = anyEmp[0];
+          actualEmployeeId = empProfile.id;
+        }
+      }
     }
 
     // 2. Payslips / Salary Records
@@ -39,7 +69,7 @@ export async function GET(request: NextRequest) {
         paymentMode: salaryRecords.paymentMode,
       })
       .from(salaryRecords)
-      .where(employeeId ? eq(salaryRecords.employeeId, employeeId) : undefined)
+      .where(actualEmployeeId ? eq(salaryRecords.employeeId, actualEmployeeId) : undefined)
       .orderBy(desc(salaryRecords.id))
       .limit(6);
 

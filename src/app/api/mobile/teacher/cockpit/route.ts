@@ -63,12 +63,15 @@ export async function GET(request: NextRequest) {
 
     let todaySessions = rawSessions.map((s) => {
       const times = getPeriodTimes(s.periodNumber);
+      const rName = s.roomName && s.roomName.trim().length > 0
+        ? s.roomName
+        : (s.className ? (s.className.startsWith("Salle") ? s.className : `Salle ${s.className}`) : "Salle 04");
       return {
         id: s.id,
         dayOfWeek: s.dayName,
         startTime: times.startTime,
         endTime: times.endTime,
-        roomName: s.roomName || "Salle de classe",
+        roomName: rName,
         classId: s.classId,
         subjectId: s.subjectId,
         className: s.className || "Classe",
@@ -99,12 +102,15 @@ export async function GET(request: NextRequest) {
 
       todaySessions = fallbackRaw.map((s) => {
         const times = getPeriodTimes(s.periodNumber);
+        const rName = s.roomName && s.roomName.trim().length > 0
+          ? s.roomName
+          : (s.className ? (s.className.startsWith("Salle") ? s.className : `Salle ${s.className}`) : "Salle 04");
         return {
           id: s.id,
           dayOfWeek: s.dayName,
           startTime: times.startTime,
           endTime: times.endTime,
-          roomName: s.roomName || "Salle de classe",
+          roomName: rName,
           classId: s.classId,
           subjectId: s.subjectId,
           className: s.className || "Classe",
