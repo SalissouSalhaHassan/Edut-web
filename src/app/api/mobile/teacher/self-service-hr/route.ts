@@ -28,14 +28,14 @@ export async function GET(request: NextRequest) {
     }
 
     if (!empProfile) {
-      // Find employee by email or first employee in school
+      // Find employee by email/username or first employee in school
       const rows = await readDb
         .select()
         .from(employees)
         .where(
           and(
             eq(employees.schoolId, schoolId),
-            user.email ? eq(employees.email, user.email) : undefined
+            user.utilisateur ? eq(employees.email, user.utilisateur) : undefined
           )
         )
         .limit(1);
