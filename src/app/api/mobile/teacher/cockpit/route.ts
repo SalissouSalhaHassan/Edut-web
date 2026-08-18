@@ -8,6 +8,20 @@ import { getMobileUser, mobileJsonError } from "../../_lib/auth";
 
 export const dynamic = "force-dynamic";
 
+function getPeriodTimes(periodNum: number): { startTime: string; endTime: string } {
+  const periodMap: Record<number, [string, string]> = {
+    1: ["08:00", "09:00"],
+    2: ["09:00", "10:00"],
+    3: ["10:00", "11:00"],
+    4: ["11:00", "12:00"],
+    5: ["15:00", "16:00"],
+    6: ["16:00", "17:00"],
+    7: ["17:00", "18:00"],
+  };
+  const [st, et] = periodMap[periodNum] || ["08:00", "10:00"];
+  return { startTime: st, endTime: et };
+}
+
 export async function GET(request: NextRequest) {
   const { user, response } = await getMobileUser(request);
   if (response || !user) return response || mobileJsonError("Non autorisé", 401);
@@ -25,12 +39,11 @@ export async function GET(request: NextRequest) {
     const currentTimeStr = `${String(currentHour).padStart(2, "0")}:${String(currentMin).padStart(2, "0")}`;
 
     // 1. Fetch Today's Sessions for this teacher
-    let todaySessions = await readDb
+    const rawSessions = await readDb
       .select({
         id: timetableEntries.id,
-        dayOfWeek: timetableEntries.dayOfWeek,
-        startTime: timetableEntries.startTime,
-        endTime: timetableEntries.endTime,
+        dayName: timetableEntries.dayName,
+        periodNumber: timetableEntries.periodNumber,
         roomName: timetableEntries.roomName,
         classId: timetableEntries.classId,
         subjectId: timetableEntries.subjectId,
@@ -42,21 +55,34 @@ export async function GET(request: NextRequest) {
       .leftJoin(schoolSubjects, eq(schoolSubjects.id, timetableEntries.subjectId))
       .where(
         and(
-          eq(timetableEntries.schoolId, schoolId),
-          employeeId ? eq(timetableEntries.teacherId, employeeId) : undefined,
-          eq(timetableEntries.dayOfWeek, currentDay)
+          employeeId ? eq(timetableEntries.employeeId, employeeId) : undefined,
+          eq(timetableEntries.dayName, currentDay)
         )
       )
-      .orderBy(timetableEntries.startTime);
+      .orderBy(timetableEntries.periodNumber);
 
-    // Fallback if no specific sessions for current day (e.g. weekend or testing) -> load standard Monday schedule
+    let todaySessions = rawSessions.map((s) => {
+      const times = getPeriodTimes(s.periodNumber);
+      return {
+        id: s.id,
+        dayOfWeek: s.dayName,
+        startTime: times.startTime,
+        endTime: times.endTime,
+        roomName: s.roomName || "Salle de classe",
+        classId: s.classId,
+        subjectId: s.subjectId,
+        className: s.className || "Classe",
+        subjectName: s.subjectName || "Matière",
+      };
+    });
+
+    // Fallback if no specific sessions for current day (e.g. weekend or testing) -> load standard schedule
     if (todaySessions.length === 0) {
-      todaySessions = await readDb
+      const fallbackRaw = await readDb
         .select({
           id: timetableEntries.id,
-          dayOfWeek: timetableEntries.dayOfWeek,
-          startTime: timetableEntries.startTime,
-          endTime: timetableEntries.endTime,
+          dayName: timetableEntries.dayName,
+          periodNumber: timetableEntries.periodNumber,
           roomName: timetableEntries.roomName,
           classId: timetableEntries.classId,
           subjectId: timetableEntries.subjectId,
@@ -67,12 +93,24 @@ export async function GET(request: NextRequest) {
         .leftJoin(schoolClasses, eq(schoolClasses.id, timetableEntries.classId))
         .leftJoin(schoolSubjects, eq(schoolSubjects.id, timetableEntries.subjectId))
         .where(
-          and(
-            eq(timetableEntries.schoolId, schoolId),
-            employeeId ? eq(timetableEntries.teacherId, employeeId) : undefined
-          )
+          employeeId ? eq(timetableEntries.employeeId, employeeId) : undefined
         )
         .limit(5);
+
+      todaySessions = fallbackRaw.map((s) => {
+        const times = getPeriodTimes(s.periodNumber);
+        return {
+          id: s.id,
+          dayOfWeek: s.dayName,
+          startTime: times.startTime,
+          endTime: times.endTime,
+          roomName: s.roomName || "Salle de classe",
+          classId: s.classId,
+          subjectId: s.subjectId,
+          className: s.className || "Classe",
+          subjectName: s.subjectName || "Matière",
+        };
+      });
     }
 
     // Determine current active session or upcoming next session
