@@ -79,14 +79,17 @@ export async function GET(request: NextRequest) {
         rows = allRows
           .filter(r => r.student?.educationalLevel && compatibleNorms.includes(normalizeLevel(r.student.educationalLevel)))
           .map(r => ({ totalExpected: r.totalExpected, totalPaid: r.totalPaid, balance: r.balance }));
-      } else {
-        // Staff/Director has access to all records in school
         rows = await readDb.query.studentFees.findMany({
           where: and(
             eq(studentFees.schoolId, targetSchoolId),
             eq(studentFees.sessionId, sessionId)
           ),
-          columns: { totalExpected: true, totalPaid: true, balance: true }
+          columns: { totalExpected: true, totalPaid: true, balance: true },
+          with: {
+            payments: {
+              columns: { amount: true }
+            }
+          }
         });
       }
 
@@ -95,9 +98,15 @@ export async function GET(request: NextRequest) {
       let totalDebts = 0.0;
 
       for (const row of rows) {
-        totalExpected += row.totalExpected || 0.0;
-        totalCollected += row.totalPaid || 0.0;
-        totalDebts += row.balance || 0.0;
+        let paid = row.totalPaid || 0.0;
+        if (row.payments && row.payments.length > 0) {
+          paid = row.payments.reduce((acc: number, p: any) => acc + (Number(p.amount) || 0), 0);
+        }
+        const exp = row.totalExpected || 0.0;
+        const bal = Math.max(0, exp - paid);
+        totalExpected += exp;
+        totalCollected += paid;
+        totalDebts += bal;
       }
 
       if (rows.length === 0 && !user.studentId) {

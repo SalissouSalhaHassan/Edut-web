@@ -100,7 +100,8 @@ export async function GET(request: NextRequest) {
     const rows = await readDb.query.studentFees.findMany({
       where: and(...cond),
       with: {
-        student: true
+        student: true,
+        payments: true,
       }
     });
 
@@ -128,24 +129,36 @@ export async function GET(request: NextRequest) {
     }
     // ─────────────────────────────────────────────────────────────────────────
 
-    const list = filteredRows.map((row) => ({
-      id: row.id,
-      school_id: row.schoolId,
-      student_id: row.studentId,
-      session_id: row.sessionId,
-      total_expected: row.totalExpected,
-      total_paid: row.totalPaid,
-      total_reduction: row.totalReduction,
-      balance: row.balance,
-      status: row.status,
-      students: row.student ? {
-        num_admission: row.student.numAdmission,
-        nom_etudiant: row.student.nomEtudiant,
-        photo_path: row.student.photoPath,
-        classe: row.student.classe,
-        educational_level: row.student.educationalLevel,
-      } : null,
-    }));
+    const list = filteredRows.map((row) => {
+      let paid = row.totalPaid || 0;
+      let reduction = row.totalReduction || 0;
+      if (row.payments && row.payments.length > 0) {
+        paid = row.payments.reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
+        reduction = row.payments.reduce((acc, p) => acc + (Number(p.reduction) || 0), 0);
+      }
+      const expected = row.totalExpected || 0;
+      const balance = Math.max(0, expected - paid - reduction);
+      const status = balance <= 0 ? "Soldé" : paid > 0 ? "Partiel" : "Impayé";
+
+      return {
+        id: row.id,
+        school_id: row.schoolId,
+        student_id: row.studentId,
+        session_id: row.sessionId,
+        total_expected: expected,
+        total_paid: paid,
+        total_reduction: reduction,
+        balance,
+        status,
+        students: row.student ? {
+          num_admission: row.student.numAdmission,
+          nom_etudiant: row.student.nomEtudiant,
+          photo_path: row.student.photoPath,
+          classe: row.student.classe,
+          educational_level: row.student.educationalLevel,
+        } : null,
+      };
+    });
 
     return NextResponse.json({ success: true, data: list });
   } catch (err: any) {
