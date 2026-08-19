@@ -84,13 +84,21 @@ export async function GET(request: NextRequest, props: { params: Promise<{ id: s
 
       const sessionsList = await readDb.query.schoolSessions.findMany({
         where: sessCond,
-        orderBy: [sql`id DESC`]
+        orderBy: [
+          sql`CASE WHEN is_active = TRUE OR LOWER(TRIM(status)) = 'actif' THEN 0 ELSE 1 END`,
+          sql`id DESC`
+        ]
       });
 
       return NextResponse.json({
         success: true,
         classes: classes.map((c) => ({ id: c.id, class_name: c.className })),
-        sessions: sessionsList.map((s) => ({ id: s.id, session_name: s.sessionName, is_active: s.isActive, status: s.status })),
+        sessions: sessionsList.map((s) => ({
+          id: s.id,
+          session_name: s.sessionName,
+          is_active: Boolean(s.isActive || s.status?.toLowerCase() === "actif"),
+          status: s.status || (s.isActive ? "Actif" : "Inactif"),
+        })),
       });
     }
 

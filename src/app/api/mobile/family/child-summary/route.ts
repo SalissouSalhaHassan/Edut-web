@@ -39,20 +39,26 @@ export async function GET(request: NextRequest) {
       // Fetch active sessions for the school
       let sessionsList = await readDb.query.schoolSessions.findMany({
         where: eq(schoolSessions.schoolId, student.schoolId || 0),
-        orderBy: [sql`id DESC`]
+        orderBy: [
+          sql`CASE WHEN is_active = TRUE OR LOWER(TRIM(status)) = 'actif' THEN 0 ELSE 1 END`,
+          sql`id DESC`
+        ]
       });
 
       if (sessionsList.length === 0) {
         sessionsList = await readDb.query.schoolSessions.findMany({
-          orderBy: [sql`id DESC`]
+          orderBy: [
+            sql`CASE WHEN is_active = TRUE OR LOWER(TRIM(status)) = 'actif' THEN 0 ELSE 1 END`,
+            sql`id DESC`
+          ]
         });
       }
 
       const sessionsMapped = sessionsList.map((s) => ({
         id: s.id,
         session_name: s.sessionName,
-        is_active: s.isActive,
-        status: s.status,
+        is_active: Boolean(s.isActive || s.status?.toLowerCase() === "actif"),
+        status: s.status || (s.isActive ? "Actif" : "Inactif"),
         school_id: s.schoolId,
       }));
 

@@ -5,6 +5,7 @@ import { and, eq, or, ilike, sql } from "drizzle-orm";
 import { db, readDb } from "@/infrastructure/database";
 import { rolePermissions, users } from "@/infrastructure/database/schema/auth";
 import { schoolBranches } from "@/infrastructure/database/schema/settings";
+import { schoolSessions } from "@/infrastructure/database/schema/academics";
 import { students } from "@/infrastructure/database/schema/students";
 import { getUserRoleType, type UserRoleType } from "@/domains/auth/services/rbac";
 
@@ -472,10 +473,33 @@ export async function GET(request: NextRequest) {
 
   const linkedStudent = await resolveLinkedStudent(dbUser, roleType);
 
+  // ── Unified Active Academic Session Resolution ─────────────────────────────
+  let activeSession: any = null;
+  const targetSchoolId = dbUser.schoolId || 1;
+  const activeSessionRow = await readDb.query.schoolSessions.findFirst({
+    where: eq(schoolSessions.schoolId, targetSchoolId),
+    orderBy: [
+      sql`CASE WHEN is_active = TRUE OR LOWER(TRIM(status)) = 'actif' THEN 0 ELSE 1 END`,
+      sql`id DESC`
+    ]
+  });
+
+  if (activeSessionRow) {
+    activeSession = {
+      id: activeSessionRow.id,
+      sessionName: activeSessionRow.sessionName,
+      isActive: Boolean(activeSessionRow.isActive || activeSessionRow.status?.toLowerCase() === "actif"),
+      status: activeSessionRow.status || (activeSessionRow.isActive ? "Actif" : "Inactif"),
+      schoolId: activeSessionRow.schoolId,
+    };
+  }
+  // ─────────────────────────────────────────────────────────────────────────────
+
   return NextResponse.json({
     success: true,
     profile: {
       userId: String(dbUser.id),
+      activeSession,
       supabaseId: data.user.id,
       email: dbUser.utilisateur || email,
       name: dbUser.nomPrenom,
