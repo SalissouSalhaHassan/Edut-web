@@ -6,8 +6,9 @@ import { getDocumentHeaderConfig } from "@/domains/settings/actions/settings.act
 import { getCurrentUser } from "@/domains/auth/services/session";
 import { readDb } from "@/infrastructure/database";
 import { students } from "@/infrastructure/database/schema/students";
+import { schoolSessions } from "@/infrastructure/database/schema/academics";
 import { studentFees, feePayments, cogesPayments } from "@/infrastructure/database/schema/finance";
-import { eq, and, or } from "drizzle-orm";
+import { eq, and, or, sql } from "drizzle-orm";
 import FinanceClient from "./finance-client";
 import StudentFinanceView from "@/domains/finance/components/StudentFinanceView";
 
@@ -125,6 +126,19 @@ export default async function FinancePage({
     console.warn("FinancePage Parallel Fetch Warning:", error);
   }
 
+  // Resolve Active Session dynamically
+  const targetSchoolId = user?.schoolId || 1;
+  const activeSessionRow = await readDb.query.schoolSessions.findFirst({
+    where: eq(schoolSessions.schoolId, targetSchoolId),
+    orderBy: [
+      sql`CASE WHEN is_active = TRUE OR LOWER(TRIM(status)) = 'actif' THEN 0 ELSE 1 END`,
+      sql`id DESC`
+    ]
+  });
+
+  const activeSessionName = activeSessionRow?.sessionName || headerConfig?.schoolYear || "2025–2026";
+  const schoolName = headerConfig?.schoolName || (user as any)?.school?.name || "École Excellence";
+
   const stats = {
     totalExpected: advancedStats?.totalExpected || 0,
     totalCollected: advancedStats?.totalPaid || 0,
@@ -138,6 +152,8 @@ export default async function FinancePage({
       classes={classes}
       advancedStats={advancedStats}
       headerConfig={headerConfig}
+      activeSessionName={activeSessionName}
+      schoolName={schoolName}
     />
   );
 }

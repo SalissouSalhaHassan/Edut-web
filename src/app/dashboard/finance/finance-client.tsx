@@ -53,6 +53,8 @@ interface FinanceClientProps {
   headerConfig?: any | null;
   canEdit?: boolean;
   canDelete?: boolean;
+  activeSessionName?: string;
+  schoolName?: string;
 }
 
 type TabId = "dashboard" | "payments" | "reports" | "alerts";
@@ -98,7 +100,17 @@ const getStatusBadge = (status: string) => {
   }
 };
 
-export default function FinanceClient({ fees, stats, classes, advancedStats, headerConfig, canEdit = true, canDelete = true }: FinanceClientProps) {
+export default function FinanceClient({
+  fees,
+  stats,
+  classes,
+  advancedStats,
+  headerConfig,
+  canEdit = true,
+  canDelete = true,
+  activeSessionName,
+  schoolName,
+}: FinanceClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = React.useState<TabId>("dashboard");
@@ -423,8 +435,8 @@ export default function FinanceClient({ fees, stats, classes, advancedStats, hea
               <Wallet size={18} />
             </div>
             <div className="leading-tight">
-              <p className="text-[12px] font-black uppercase tracking-widest text-slate-900 dark:text-white">École Excellence</p>
-              <p className="text-[10px] font-bold text-slate-400 dark:text-slate-400">Année 2024 – 2025</p>
+              <p className="text-[12px] font-black uppercase tracking-widest text-slate-900 dark:text-white">{schoolName || headerConfig?.schoolName || "Établissement"}</p>
+              <p className="text-[10px] font-bold text-slate-400 dark:text-slate-400">Année {activeSessionName || "2025–2026"}</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-widest">
