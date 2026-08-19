@@ -36,17 +36,19 @@ export default async function InspectionPage() {
     );
   }
 
-  const [classesRes, subjectsRes, employeesRes, visitsRes] = await Promise.all([
+  const [classesRes, subjectsRes, employeesRes, visitsRes, auditRes] = await Promise.all([
     getClasses(true),
     getSubjects(),
     getEmployees(),
     getInspectionVisits(),
+    import("@/domains/pedagogie/actions/teacher-audit.actions").then((m) => m.getTeachersPerformanceAudit()),
   ]);
 
   const classes = (classesRes as any).data?.data || (classesRes as any).data || classesRes || [];
   const subjects = (subjectsRes as any).data?.data || (subjectsRes as any).data || subjectsRes || [];
   const employees = (employeesRes as any).data?.data || (employeesRes as any).data || employeesRes || [];
   const visits = (visitsRes as any).data || [];
+  const auditData = auditRes.success ? auditRes.data : null;
 
   return (
     <InspectionClient
@@ -55,6 +57,7 @@ export default async function InspectionPage() {
       classes={classes}
       subjects={subjects}
       employees={employees}
+      auditData={auditData}
     />
   );
 }

@@ -19,6 +19,7 @@ interface Props {
   classes: any[];
   subjects: any[];
   employees: any[];
+  auditData?: any;
 }
 
 const PAGE_SIZE = 15;
@@ -32,10 +33,10 @@ const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }>
 };
 
 export default function InspectionClient({
-  currentUser, initialVisits, classes, subjects, employees
+  currentUser, initialVisits, classes, subjects, employees, auditData
 }: Props) {
   const [visits, setVisits] = useState<any[]>(initialVisits);
-  const [activeTab, setActiveTab] = useState<"visites" | "observations" | "recommandations" | "rapports">("visites");
+  const [activeTab, setActiveTab] = useState<"audit" | "visites" | "observations" | "recommandations" | "rapports">("audit");
   const [isPending, startTransition] = useTransition();
 
   // ─── Filter States ─────────────────────────────────────────────────────────
@@ -292,8 +293,9 @@ export default function InspectionClient({
       {/* ─── TABS & CONTROLS ─── */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 space-y-3">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-          <div className="flex items-center gap-1 bg-slate-100 p-1.5 rounded-xl w-fit">
+          <div className="flex items-center gap-1 bg-slate-100 p-1.5 rounded-xl w-fit flex-wrap">
             {[
+              { id: "audit", label: "📊 Audit & Évaluation 360°" },
               { id: "visites", label: "Visites de classe" },
               { id: "observations", label: "Observations" },
               { id: "recommandations", label: "Recommandations" },
@@ -324,19 +326,127 @@ export default function InspectionClient({
                 className="pl-9 pr-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs font-semibold focus:outline-none w-48 focus:w-64 transition-all"
               />
             </div>
-            <select value={filterClass} onChange={e => { setFilterClass(e.target.value); setPage(1); }} className={fSel}>
-              <option value="">Classes (Toutes)</option>
-              {classes.map((c: any) => <option key={c.id} value={c.id}>{c.className}</option>)}
-            </select>
-            <select value={filterSubject} onChange={e => { setFilterSubject(e.target.value); setPage(1); }} className={fSel}>
-              <option value="">Matières (Toutes)</option>
-              {subjects.map((s: any) => <option key={s.id} value={s.id}>{s.subjectName}</option>)}
-            </select>
+            {activeTab !== "audit" && (
+              <>
+                <select value={filterClass} onChange={e => { setFilterClass(e.target.value); setPage(1); }} className={fSel}>
+                  <option value="">Classes (Toutes)</option>
+                  {classes.map((c: any) => <option key={c.id} value={c.id}>{c.className}</option>)}
+                </select>
+                <select value={filterSubject} onChange={e => { setFilterSubject(e.target.value); setPage(1); }} className={fSel}>
+                  <option value="">Matières (Toutes)</option>
+                  {subjects.map((s: any) => <option key={s.id} value={s.id}>{s.subjectName}</option>)}
+                </select>
+              </>
+            )}
           </div>
         </div>
       </div>
 
-      {/* ─── DATA TABLE ─── */}
+      {/* ─── AUDIT VIEW OR DATA TABLE ─── */}
+      {activeTab === "audit" ? (
+        <div className="space-y-4">
+          {/* Summary Cards */}
+          {auditData?.summary && (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <div className="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm">
+                <div className="text-[11px] font-black text-slate-400 uppercase tracking-wider">Avancement Moyen Programme</div>
+                <div className="text-2xl font-black text-indigo-600 mt-1">{auditData.summary.averageSyllabusProgress}%</div>
+                <div className="text-xs text-slate-500 mt-0.5">Calculé sur l'ensemble des cours</div>
+              </div>
+              <div className="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm">
+                <div className="text-[11px] font-black text-slate-400 uppercase tracking-wider">Diligence Saisie des Notes</div>
+                <div className="text-2xl font-black text-emerald-600 mt-1">{auditData.summary.averageGradingSpeed}/100</div>
+                <div className="text-xs text-slate-500 mt-0.5">Rapidité de saisie post-évaluation</div>
+              </div>
+              <div className="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm">
+                <div className="text-[11px] font-black text-slate-400 uppercase tracking-wider">Satisfaction Globale</div>
+                <div className="text-2xl font-black text-amber-500 mt-1">★ {auditData.summary.averageSatisfaction} / 5.0</div>
+                <div className="text-xs text-slate-500 mt-0.5">Retours parents & inspection</div>
+              </div>
+              <div className="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm">
+                <div className="text-[11px] font-black text-slate-400 uppercase tracking-wider">Enseignants Distingués</div>
+                <div className="text-2xl font-black text-violet-600 mt-1">{auditData.summary.topPerformersCount} Enseignants</div>
+                <div className="text-xs text-slate-500 mt-0.5">Score supérieur à 4.5 / 5.0</div>
+              </div>
+            </div>
+          )}
+
+          {/* Teachers Ranking & Audit Table */}
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+            <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
+                <Award size={18} className="text-indigo-600" />
+                Tableau de bord d'évaluation & Audit 360° du corps professoral
+              </h3>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-100">
+                    {["Enseignant & Spécialité", "Avancement Programme", "Diligence Notes & Devoirs", "Assiduité & Pointage", "Note Globale", "Mention", "Recommandation Pédagogique"].map(h => (
+                      <th key={h} className="px-4 py-3.5 text-[10px] font-black uppercase tracking-widest text-slate-400 whitespace-nowrap">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {(!auditData?.teachers || auditData.teachers.length === 0) ? (
+                    <tr>
+                      <td colSpan={7} className="text-center py-16 text-slate-400 font-bold">Aucune donnée d'audit disponible</td>
+                    </tr>
+                  ) : (
+                    auditData.teachers
+                      .filter((t: any) => !search || t.name.toLowerCase().includes(search.toLowerCase()) || (t.subject || "").toLowerCase().includes(search.toLowerCase()))
+                      .map((t: any) => (
+                        <tr key={t.id} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="px-4 py-3.5 whitespace-nowrap">
+                            <div className="font-bold text-slate-900">{t.name}</div>
+                            <div className="text-xs text-indigo-600 font-medium">{t.subject}</div>
+                          </td>
+                          <td className="px-4 py-3.5 whitespace-nowrap">
+                            <div className="flex items-center gap-2">
+                              <div className="w-24 bg-slate-100 rounded-full h-2 overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full ${t.syllabusProgress >= 80 ? "bg-emerald-500" : t.syllabusProgress >= 60 ? "bg-amber-500" : "bg-rose-500"}`}
+                                  style={{ width: `${t.syllabusProgress}%` }}
+                                />
+                              </div>
+                              <span className="font-black text-xs text-slate-700">{t.syllabusProgress}%</span>
+                            </div>
+                            <div className="text-[11px] text-slate-400 mt-0.5">{t.completedLessons} / {t.plannedLessons} séances</div>
+                          </td>
+                          <td className="px-4 py-3.5 whitespace-nowrap">
+                            <div className="font-bold text-slate-800 text-xs">{t.gradesRecordedCount} notes • {t.homeworkCount} devoirs</div>
+                            <div className="text-[11px] text-emerald-600 font-semibold">Score rapidité : {t.gradingSpeedScore}%</div>
+                          </td>
+                          <td className="px-4 py-3.5 whitespace-nowrap">
+                            <div className="font-bold text-slate-800 text-xs">{t.scannedSessions} séances pointées</div>
+                            <div className="text-[11px] text-indigo-600 font-semibold">{t.attendanceRate}% assiduité</div>
+                          </td>
+                          <td className="px-4 py-3.5 whitespace-nowrap">
+                            <div className="font-black text-amber-500 text-sm">★ {t.overallScore} <span className="text-slate-400 text-xs font-normal">/ 5.0</span></div>
+                          </td>
+                          <td className="px-4 py-3.5 whitespace-nowrap">
+                            <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black ${
+                              t.ratingLabel === "Excellent" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" :
+                              t.ratingLabel === "Très Bon" ? "bg-blue-50 text-blue-700 border border-blue-200" :
+                              t.ratingLabel === "Satisfaisant" ? "bg-amber-50 text-amber-700 border border-amber-200" :
+                              "bg-rose-50 text-rose-700 border border-rose-200"
+                            }`}>
+                              {t.ratingLabel}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3.5 text-xs text-slate-600 max-w-xs">
+                            {t.recommendation}
+                          </td>
+                        </tr>
+                      ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      ) : (
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
@@ -403,6 +513,7 @@ export default function InspectionClient({
           </div>
         )}
       </div>
+      )}
 
       {/* ─── MODAL: NEW / EDIT VISIT ─── */}
       {(modal === "new_visit" || modal === "edit_visit") && (
