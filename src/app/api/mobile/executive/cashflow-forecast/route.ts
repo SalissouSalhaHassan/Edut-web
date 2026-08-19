@@ -12,45 +12,156 @@ export async function GET(request: NextRequest) {
   const schoolId = user.schoolId || 1;
 
   try {
-    // 1. Overall fee totals
+    // 1. Fetch all classes for the school
+    const classesRows = await readDb.execute(sql`
+      SELECT id, class_name, 
+             COALESCE(scolarite_mensuelle, 0) as scolarite_mensuelle, 
+             COALESCE(droits_inscription, 0) as droits_inscription
+      FROM school_classes
+      WHERE school_id = ${schoolId} OR school_id IS NULL
+      ORDER BY class_name ASC
+    `);
+    const dbClasses = ((classesRows as any).rows || classesRows) as any[];
+
+    // 2. Fetch all active students for this school
+    const studentsRows = await readDb.execute(sql`
+      SELECT id, nom_etudiant, classe, class_id, 
+             COALESCE(frais_mensuels, 0) as frais_mensuels,
+             COALESCE(ancien_solde, 0) as ancien_solde,
+             COALESCE(frais_inscription, 0) as frais_inscription
+      FROM students
+      WHERE school_id = ${schoolId} OR school_id IS NULL
+    `);
+    const dbStudents = ((studentsRows as any).rows || studentsRows) as any[];
+
+    // 3. Fetch all student fees records for this school
+    const feesRows = await readDb.execute(sql`
+      SELECT id, student_id, 
+             COALESCE(total_expected, 0) as total_expected,
+             COALESCE(total_paid, 0) as total_paid,
+             COALESCE(balance, 0) as balance,
+             status
+      FROM student_fees
+      WHERE school_id = ${schoolId} OR school_id IS NULL
+    `);
+    const dbFees = ((feesRows as any).rows || feesRows) as any[];
+    const feesMap = new Map<number, any>();
+    for (const f of dbFees) {
+      if (f.student_id) feesMap.set(Number(f.student_id), f);
+    }
+
+    // 4. Map students to classes
+    const classMap = new Map<string, {
+      classId: number;
+      className: string;
+      scolariteMensuelle: number;
+      droitsInscription: number;
+      students: any[];
+    }>();
+
+    for (const c of dbClasses) {
+      const cName = String(c.class_name || "").trim();
+      if (!cName) continue;
+      classMap.set(cName.toLowerCase(), {
+        classId: Number(c.id),
+        className: cName,
+        scolariteMensuelle: Number(c.scolarite_mensuelle) || 0,
+        droitsInscription: Number(c.droits_inscription) || 0,
+        students: [],
+      });
+    }
+
+    for (const s of dbStudents) {
+      const sClassName = String(s.classe || "").trim();
+      if (!sClassName) continue;
+      const key = sClassName.toLowerCase();
+      if (!classMap.has(key)) {
+        classMap.set(key, {
+          classId: Number(s.class_id) || (classMap.size + 1),
+          className: sClassName,
+          scolariteMensuelle: Number(s.frais_mensuels) || 0,
+          droitsInscription: Number(s.frais_inscription) || 0,
+          students: [],
+        });
+      }
+      classMap.get(key)!.students.push(s);
+    }
+
+    // 5. Aggregate financial data per class
     let totalExpected = 0;
     let totalCollected = 0;
     let totalBalance = 0;
 
-    try {
-      const summaryRows = await readDb.execute(sql`
-        SELECT 
-          COALESCE(SUM(total_expected), 0) as expected,
-          COALESCE(SUM(total_paid), 0) as paid,
-          COALESCE(SUM(balance), 0) as balance
-        FROM student_fees
-        WHERE school_id = ${schoolId}
-      `);
-      const r = ((summaryRows as any).rows || summaryRows)[0];
-      if (r && Number(r.expected) > 0) {
-        totalExpected = Number(r.expected) || 0;
-        totalCollected = Number(r.paid) || 0;
-        totalBalance = Number(r.balance) || 0;
-      } else {
-        const studentFeeSummary = await readDb.execute(sql`
-          SELECT 
-            COALESCE(SUM(frais_mensuels * 9 + frais_inscription), 0) as expected,
-            COALESCE(SUM(ancien_solde), 0) as debts
-          FROM students
-          WHERE school_id = ${schoolId}
-        `);
-        const sRes = ((studentFeeSummary as any).rows || studentFeeSummary)[0];
-        if (sRes) {
-          totalExpected = Number(sRes.expected) || 0;
-          totalBalance = Number(sRes.debts) || Math.round(totalExpected * 0.35);
-          totalCollected = Math.max(0, totalExpected - totalBalance);
+    const classBreakdown: any[] = [];
+
+    for (const [, cObj] of classMap.entries()) {
+      let classExp = 0;
+      let classPaid = 0;
+      let classBal = 0;
+
+      for (const s of cObj.students) {
+        const f = feesMap.get(Number(s.id));
+        let sExp = 0;
+        let sPaid = 0;
+        let sBal = 0;
+
+        if (f && Number(f.total_expected) > 0) {
+          sExp = Number(f.total_expected) || 0;
+          sPaid = Number(f.total_paid) || 0;
+          sBal = Number(f.balance) || (sExp - sPaid);
+        } else {
+          const monthly = Number(s.frais_mensuels) > 0 
+            ? Number(s.frais_mensuels) 
+            : (cObj.scolariteMensuelle > 0 ? cObj.scolariteMensuelle : 15000);
+          const reg = Number(s.frais_inscription) > 0 
+            ? Number(s.frais_inscription) 
+            : (cObj.droitsInscription > 0 ? cObj.droitsInscription : 10000);
+          const debt = Number(s.ancien_solde) || 0;
+
+          sExp = (monthly * 9) + reg;
+          sBal = debt > 0 ? debt : Math.round(sExp * 0.35);
+          sPaid = Math.max(0, sExp - sBal);
         }
+
+        classExp += sExp;
+        classPaid += sPaid;
+        classBal += sBal;
       }
-    } catch (_) {}
+
+      const count = cObj.students.length;
+      const rate = classExp > 0 ? (classPaid / classExp) * 100 : 0;
+
+      let status = "N/A";
+      if (classExp > 0) {
+        if (rate >= 80) status = "Excellent";
+        else if (rate >= 50) status = "Bon";
+        else if (rate >= 25) status = "Moyen";
+        else if (rate > 0) status = "En cours";
+        else status = "Non recouvré";
+      }
+
+      classBreakdown.push({
+        classId: cObj.classId,
+        className: cObj.className,
+        expected: classExp,
+        paid: classPaid,
+        balance: classBal,
+        studentCount: count,
+        collectionRate: Number(rate.toFixed(1)),
+        status,
+      });
+
+      totalExpected += classExp;
+      totalCollected += classPaid;
+      totalBalance += classBal;
+    }
+
+    // Sort classes alphabetically
+    classBreakdown.sort((a, b) => a.className.localeCompare(b.className, "fr", { numeric: true }));
 
     const collectionRate = totalExpected > 0 ? (totalCollected / totalExpected) * 100 : 0;
 
-    // 2. Monthly cashflow timeline (Realized vs Forecasted)
+    // 6. Monthly cashflow timeline (Realized vs Forecasted)
     const months = [
       { month: "Sept", name: "Septembre", targetWeight: 0.15 },
       { month: "Oct", name: "Octobre", targetWeight: 0.15 },
@@ -64,7 +175,6 @@ export async function GET(request: NextRequest) {
     ];
 
     const currentMonthIndex = new Date().getMonth(); // 0 is Jan, 8 is Sept
-    // Mapping school month index (0=Sept, 1=Oct, 2=Nov, 3=Dec, 4=Jan, 5=Feb, 6=Mar, 7=Apr, 8=May)
     const schoolMonthIdx = currentMonthIndex >= 8 ? currentMonthIndex - 8 : currentMonthIndex + 4;
 
     const monthlyData = months.map((m, idx) => {
@@ -74,7 +184,7 @@ export async function GET(request: NextRequest) {
         ? Math.round(totalCollected * (m.targetWeight / 0.6))
         : 0;
       const forecastedAmount = !isPast
-        ? Math.round((totalBalance / (months.length - schoolMonthIdx)) * 0.95)
+        ? Math.round((totalBalance / Math.max(1, months.length - schoolMonthIdx)) * 0.95)
         : realizedAmount;
 
       return {
@@ -82,46 +192,10 @@ export async function GET(request: NextRequest) {
         fullName: m.name,
         isPast,
         expected: expectedAmount,
-        realized: Math.min(realizedAmount, expectedAmount * 1.1),
+        realized: Math.min(realizedAmount, Math.round(expectedAmount * 1.1)),
         forecast: forecastedAmount,
       };
     });
-
-    // 3. Class breakdown
-    let classBreakdown: any[] = [];
-    try {
-      const classRows = await readDb.execute(sql`
-        SELECT 
-          c.id as class_id,
-          c.class_name,
-          COALESCE(SUM(sf.total_expected), 0) as total_expected,
-          COALESCE(SUM(sf.total_paid), 0) as total_paid,
-          COALESCE(SUM(sf.balance), 0) as total_balance,
-          COUNT(s.id) as student_count
-        FROM school_classes c
-        LEFT JOIN students s ON s.class_id = c.id
-        LEFT JOIN student_fees sf ON sf.student_id = s.id
-        WHERE c.school_id = ${schoolId}
-        GROUP BY c.id, c.class_name
-        ORDER BY c.class_name ASC
-      `);
-      const rows = ((classRows as any).rows || classRows) as any[];
-      classBreakdown = rows.map((c) => {
-        const exp = Number(c.total_expected) || 0;
-        const paid = Number(c.total_paid) || 0;
-        const rate = exp > 0 ? (paid / exp) * 100 : 0;
-        return {
-          classId: c.class_id,
-          className: c.class_name,
-          expected: exp,
-          paid,
-          balance: Number(c.total_balance) || 0,
-          studentCount: Number(c.student_count) || 0,
-          collectionRate: Number(rate.toFixed(1)),
-          status: rate >= 80 ? "Excellent" : rate >= 50 ? "Moyen" : "Critique",
-        };
-      });
-    } catch (_) {}
 
     return NextResponse.json({
       success: true,
@@ -131,7 +205,7 @@ export async function GET(request: NextRequest) {
           totalCollected,
           totalBalance,
           collectionRate: Number(collectionRate.toFixed(1)),
-          recoveryHealth: collectionRate >= 75 ? "Solide" : collectionRate >= 45 ? "À surveiller" : "À risque",
+          recoveryHealth: collectionRate >= 75 ? "Solide" : collectionRate >= 50 ? "Normal" : collectionRate >= 25 ? "À surveiller" : "À risque",
         },
         monthlyTimeline: monthlyData,
         classes: classBreakdown,
