@@ -290,12 +290,12 @@ export async function POST(request: NextRequest) {
 
         if (empUsers.length > 0) {
           await db.insert(notifications).values({
-            schoolId,
             userId: empUsers[0].id,
             title: newStatus === "Approuvé" ? `Demande Approuvée : ${requestLabel}` : `Demande Rejetée : ${requestLabel}`,
-            message: newStatus === "Approuvé"
+            content: newStatus === "Approuvé"
               ? `Votre demande concernant "${requestLabel}" a été validée par la direction.`
               : `Votre demande concernant "${requestLabel}" a été rejetée. Motif: ${adminComment || "Non spécifié"}.`,
+            type: newStatus === "Approuvé" ? "success" : "warning",
             category: "RH",
             isRead: false,
           });
