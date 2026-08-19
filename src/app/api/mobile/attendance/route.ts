@@ -509,6 +509,88 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    if (action === "recordStudentGateScan") {
+      const { studentId, numAdmission, scanMethod = "QR_CODE" } = payload || {};
+      if (!studentId && !numAdmission) {
+        return mobileJsonError("studentId ou numAdmission requis", 400);
+      }
+
+      // 1. Find student
+      let student = null;
+      if (studentId) {
+        student = await readDb.query.students.findFirst({
+          where: eq(students.id, Number(studentId)),
+        });
+      } else if (numAdmission) {
+        student = await readDb.query.students.findFirst({
+          where: and(
+            eq(students.numAdmission, String(numAdmission).trim()),
+            schoolId ? eq(students.schoolId, schoolId) : undefined
+          ),
+        });
+      }
+
+      if (!student) {
+        return mobileJsonError("Élève non trouvé. Code QR invalide.", 404);
+      }
+
+      if (schoolId && student.schoolId && student.schoolId !== schoolId) {
+        return mobileJsonError("Cet élève n'appartient pas à votre établissement.", 403);
+      }
+
+      const now = new Date();
+      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+      // 2. Check if already recorded today
+      const existingAttendance = await readDb.query.studentAttendance.findFirst({
+        where: and(
+          eq(studentAttendance.studentId, student.id),
+          gte(studentAttendance.date, new Date(`${todayStr}T00:00:00`)),
+          lte(studentAttendance.date, new Date(`${todayStr}T23:59:59`))
+        )
+      });
+
+      if (existingAttendance) {
+        return NextResponse.json({
+          success: true,
+          alreadyRecorded: true,
+          student: {
+            id: student.id,
+            nomEtudiant: student.nomEtudiant,
+            numAdmission: student.numAdmission,
+            classe: student.classe,
+            photoPath: student.photoPath,
+          },
+          scannedAt: existingAttendance.date?.toISOString() || now.toISOString(),
+          message: "Présence déjà enregistrée pour aujourd'hui.",
+        });
+      }
+
+      // 3. Record student presence
+      await db.insert(studentAttendance).values({
+        studentId: student.id,
+        classId: student.classId || 1,
+        date: now,
+        status: "Présent",
+        recordedBy: "Portail (Scanner QR)",
+        remark: "Entrée enregistrée par scan de la carte scolaire numérique",
+      });
+
+      return NextResponse.json({
+        success: true,
+        alreadyRecorded: false,
+        student: {
+          id: student.id,
+          nomEtudiant: student.nomEtudiant,
+          numAdmission: student.numAdmission,
+          classe: student.classe,
+          photoPath: student.photoPath,
+        },
+        scannedAt: now.toISOString(),
+        message: "Accès Autorisé - Présence enregistrée avec succès ! 🟢",
+      });
+    }
+
     if (action === "recordTeacherSessionScan") {
       const { classId, employeeId } = payload;
       if (!classId || !employeeId) {
