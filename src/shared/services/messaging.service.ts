@@ -82,7 +82,70 @@ export class MessagingService {
     }
   }
 
-  private static async sendViaWhatsAppAPI(phone: string, message: string): Promise<boolean> {
+  static async sendPaymentReceiptWhatsApp(payload: {
+    to: string;
+    studentName: string;
+    amountPaid: number;
+    receiptNumber?: string;
+    remainingBalance: number;
+    schoolName?: string;
+    receiptUrl?: string;
+    whatsapp?: string;
+  }) {
+    const { to, studentName, amountPaid, receiptNumber, remainingBalance, schoolName, receiptUrl, whatsapp } = payload;
+    const phone = whatsapp || to;
+    if (!phone || phone === "N/A" || phone.trim() === "") return false;
+
+    const amountFmt = Math.round(amountPaid).toLocaleString("fr-FR");
+    const balFmt = Math.round(remainingBalance).toLocaleString("fr-FR");
+    const school = schoolName || "Edut Pro";
+    const recNo = receiptNumber ? ` (Reçu N° ${receiptNumber})` : "";
+    const linkText = receiptUrl ? `\n\n📄 Télécharger le reçu officiel : ${receiptUrl}` : "";
+
+    const messageFr = `✅ *Confirmation de Paiement - ${school}*\n\nCher Parent, nous confirmons la réception d'un paiement de *${amountFmt} CFA* pour l'élève *${studentName}*${recNo}.\n\nSolde restant : *${balFmt} CFA*.${linkText}\n\nMerci pour votre confiance.`;
+    const messageAr = `✅ *تأكيد استلام الدفعة - ${school}*\n\nعزيزي ولي الأمر، نؤكد استلام مبلغ *${amountFmt} فرنك* لصالح التلميذ *${studentName}*${recNo}.\n\nالرصيد المتبقي : *${balFmt} فرنك*.\n\nشكراً لثقتكم بنا.`;
+
+    const fullMessage = `${messageFr}\n\n${messageAr}`;
+    const success = await this.sendViaWhatsAppAPI(phone, fullMessage);
+    await this.logMessage("WHATSAPP", `${studentName} (${phone})`, fullMessage, success ? "Envoyé" : "Échec");
+    return success;
+  }
+
+  static async sendBulletinPublishedWhatsApp(payload: {
+    to: string;
+    studentName: string;
+    periodName: string;
+    generalAverage?: number;
+    rank?: string;
+    bulletinUrl?: string;
+    schoolName?: string;
+    whatsapp?: string;
+  }) {
+    const { to, studentName, periodName, generalAverage, rank, bulletinUrl, schoolName, whatsapp } = payload;
+    const phone = whatsapp || to;
+    if (!phone || phone === "N/A" || phone.trim() === "") return false;
+
+    const school = schoolName || "Edut Pro";
+    const avgText = generalAverage !== undefined ? `\nMoyenne générale : *${generalAverage.toFixed(2)}/20*` : "";
+    const rankText = rank ? ` (Rang : *${rank}*)` : "";
+    const linkText = bulletinUrl ? `\n\n📊 Consulter le bulletin en ligne : ${bulletinUrl}` : "";
+
+    const messageFr = `🎓 *Publication du Bulletin Scolaire - ${school}*\n\nCher Parent, le bulletin de notes de *${studentName}* pour la période *${periodName}* est désormais disponible.${avgText}${rankText}${linkText}\n\nL'administration reste à votre disposition.`;
+    const messageAr = `🎓 *صدور كشف النقاط - ${school}*\n\nعزيزي ولي الأمر، كشف نقاط التلميذ *${studentName}* للفترة *${periodName}* متوفر الآن.${avgText}${rankText}\n\nمع تحيات إدارة المؤسسة.`;
+
+    const fullMessage = `${messageFr}\n\n${messageAr}`;
+    const success = await this.sendViaWhatsAppAPI(phone, fullMessage);
+    await this.logMessage("WHATSAPP", `${studentName} (${phone})`, fullMessage, success ? "Envoyé" : "Échec");
+    return success;
+  }
+
+  static generateWhatsAppShareUrl(phone: string, text: string): string {
+    const cleanPhone = phone.replace(/[^0-9+]/g, "").replace(/^\+/, "");
+    const encodedText = encodeURIComponent(text);
+    return cleanPhone ? `https://wa.me/${cleanPhone}?text=${encodedText}` : `https://wa.me/?text=${encodedText}`;
+  }
+
+  public static async sendViaWhatsAppAPI(phone: string, message: string): Promise<boolean> {
     try {
       const token = process.env.WHATSAPP_API_TOKEN;
       const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;

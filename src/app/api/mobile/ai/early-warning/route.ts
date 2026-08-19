@@ -17,9 +17,12 @@ export async function GET(request: NextRequest) {
     return mobileJsonError("studentId manquant", 400);
   }
 
-  const isLinked = await verifyParentChildRelationship(user, studentId);
-  if (!isLinked) {
-    return mobileJsonError("Accès refusé.", 403);
+  const isParent = !user.admin && !user.teacherId && Boolean(user.parentId || user.parentPhone);
+  if (isParent) {
+    const isLinked = await verifyParentChildRelationship(user, studentId);
+    if (!isLinked) {
+      return mobileJsonError("Accès refusé.", 403);
+    }
   }
 
   try {
