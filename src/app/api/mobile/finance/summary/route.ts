@@ -118,8 +118,8 @@ export async function GET(request: NextRequest) {
           const exp = (s.fraisMensuels || 0) * 9 + (s.fraisInscription || 0);
           const debts = s.ancienSolde || 0;
           totalExpected += exp;
-          totalDebts += debts;
-          totalCollected += Math.max(0, exp - debts);
+          totalDebts += (exp + debts);
+          totalCollected += 0;
         }
       }
 

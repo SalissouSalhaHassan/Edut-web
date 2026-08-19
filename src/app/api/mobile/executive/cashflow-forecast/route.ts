@@ -34,15 +34,17 @@ export async function GET(request: NextRequest) {
     `);
     const dbStudents = ((studentsRows as any).rows || studentsRows) as any[];
 
-    // 3. Fetch all student fees records for this school
+    // 3. Fetch all student fees records for this school joined with live fee_payments
     const feesRows = await readDb.execute(sql`
-      SELECT id, student_id, 
-             COALESCE(total_expected, 0) as total_expected,
-             COALESCE(total_paid, 0) as total_paid,
-             COALESCE(balance, 0) as balance,
-             status
-      FROM student_fees
-      WHERE school_id = ${schoolId} OR school_id IS NULL
+      SELECT sf.id, sf.student_id, 
+             COALESCE(sf.total_expected, 0) as total_expected,
+             COALESCE(SUM(fp.amount), sf.total_paid, 0) as total_paid,
+             COALESCE(sf.balance, 0) as balance,
+             sf.status
+      FROM student_fees sf
+      LEFT JOIN fee_payments fp ON fp.fee_id = sf.id
+      WHERE sf.school_id = ${schoolId} OR sf.school_id IS NULL
+      GROUP BY sf.id, sf.student_id, sf.total_expected, sf.total_paid, sf.balance, sf.status
     `);
     const dbFees = ((feesRows as any).rows || feesRows) as any[];
     const feesMap = new Map<number, any>();
@@ -108,19 +110,19 @@ export async function GET(request: NextRequest) {
         if (f && Number(f.total_expected) > 0) {
           sExp = Number(f.total_expected) || 0;
           sPaid = Number(f.total_paid) || 0;
-          sBal = Number(f.balance) || (sExp - sPaid);
+          sBal = Math.max(0, sExp - sPaid);
         } else {
           const monthly = Number(s.frais_mensuels) > 0 
             ? Number(s.frais_mensuels) 
-            : (cObj.scolariteMensuelle > 0 ? cObj.scolariteMensuelle : 15000);
+            : (cObj.scolariteMensuelle > 0 ? cObj.scolariteMensuelle : 0);
           const reg = Number(s.frais_inscription) > 0 
             ? Number(s.frais_inscription) 
-            : (cObj.droitsInscription > 0 ? cObj.droitsInscription : 10000);
+            : (cObj.droitsInscription > 0 ? cObj.droitsInscription : 0);
           const debt = Number(s.ancien_solde) || 0;
 
           sExp = (monthly * 9) + reg;
-          sBal = debt > 0 ? debt : Math.round(sExp * 0.35);
-          sPaid = Math.max(0, sExp - sBal);
+          sPaid = 0;
+          sBal = sExp + debt;
         }
 
         classExp += sExp;
