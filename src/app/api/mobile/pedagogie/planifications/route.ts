@@ -41,10 +41,12 @@ export async function GET(request: NextRequest) {
         school_classes: {
           id: schoolClasses.id,
           class_name: schoolClasses.className,
+          className: schoolClasses.className,
         },
         school_subjects: {
           id: schoolSubjects.id,
           subject_name: schoolSubjects.subjectName,
+          subjectName: schoolSubjects.subjectName,
         },
       })
       .from(pedagogiePlanification)

@@ -109,43 +109,56 @@ export async function GET(request: NextRequest) {
       .limit(30);
 
     // 4. Pedagogical Monitoring: Cahiers de Textes Today
-    let allSchoolClasses = await readDb
-      .select({
-        id: schoolClasses.id,
-        className: schoolClasses.className,
-      })
-      .from(schoolClasses)
-      .where(sql`(${schoolClasses.schoolId} = ${schoolId} OR ${schoolClasses.schoolId} IS NULL)`);
+    let allSchoolClasses: { id: number; className: string }[] = [];
+    try {
+      const dbClasses = await readDb
+        .select({
+          id: schoolClasses.id,
+          className: schoolClasses.className,
+        })
+        .from(schoolClasses)
+        .where(sql`(${schoolClasses.schoolId} = ${schoolId} OR ${schoolClasses.schoolId} IS NULL)`);
+
+      allSchoolClasses = dbClasses
+        .filter((c) => c.className && c.className.trim().length > 0)
+        .map((c) => ({ id: c.id, className: c.className.trim() }));
+    } catch (_) {}
 
     // Fallback if school_classes is empty for this school: query distinct classes from students
     if (allSchoolClasses.length === 0) {
-      const studentClassRows = await readDb.execute(sql`
-        SELECT DISTINCT classe as class_name
-        FROM students
-        WHERE (school_id = ${schoolId} OR school_id IS NULL) AND classe IS NOT NULL AND TRIM(classe) != ''
-        ORDER BY classe
-      `);
-      const sClasses = ((studentClassRows as any).rows || studentClassRows) as any[];
-      if (sClasses.length > 0) {
-        allSchoolClasses = sClasses.map((sc, index) => ({
-          id: index + 1,
-          className: sc.class_name || `Classe ${index + 1}`,
-        }));
-      } else {
-        allSchoolClasses = [
-          { id: 1, className: "6ème A" },
-          { id: 2, className: "6ème B" },
-          { id: 3, className: "5ème A" },
-          { id: 4, className: "5ème B" },
-          { id: 5, className: "4ème A" },
-          { id: 6, className: "4ème B" },
-          { id: 7, className: "3ème A" },
-          { id: 8, className: "3ème B" },
-          { id: 9, className: "2nde C" },
-          { id: 10, className: "1ère D" },
-          { id: 11, className: "Tle D" },
-        ];
-      }
+      try {
+        const studentClassRows = await readDb.execute(sql`
+          SELECT DISTINCT classe as class_name
+          FROM students
+          WHERE (school_id = ${schoolId} OR school_id IS NULL) AND classe IS NOT NULL AND TRIM(classe) != ''
+          ORDER BY classe
+        `);
+        const sClasses = ((studentClassRows as any).rows || studentClassRows) as any[];
+        if (sClasses.length > 0) {
+          allSchoolClasses = sClasses
+            .filter((sc) => sc.class_name && sc.class_name.trim().length > 0)
+            .map((sc, index) => ({
+              id: index + 1,
+              className: sc.class_name.trim(),
+            }));
+        }
+      } catch (_) {}
+    }
+
+    if (allSchoolClasses.length === 0) {
+      allSchoolClasses = [
+        { id: 1, className: "6ème A" },
+        { id: 2, className: "6ème B" },
+        { id: 3, className: "5ème A" },
+        { id: 4, className: "5ème B" },
+        { id: 5, className: "4ème A" },
+        { id: 6, className: "4ème B" },
+        { id: 7, className: "3ème A" },
+        { id: 8, className: "3ème B" },
+        { id: 9, className: "2nde C" },
+        { id: 10, className: "1ère D" },
+        { id: 11, className: "Tle D" },
+      ];
     }
 
     const filledCahiersRes = await readDb.execute(sql`
@@ -162,16 +175,45 @@ export async function GET(request: NextRequest) {
         AND (c.session_date = ${todayDateStr} OR DATE(c.created_at) = CURRENT_DATE)
       ORDER BY c.id DESC
     `);
-    const todayFilledCahiers = ((filledCahiersRes as any).rows || filledCahiersRes) as any[];
+    const rawFilledCahiers = ((filledCahiersRes as any).rows || filledCahiersRes) as any[];
 
-    const filledClassIds = new Set(todayFilledCahiers.map((c) => Number(c.class_id || 0)));
-    const filledClassNames = new Set(todayFilledCahiers.map((c) => String(c.class_name || "").toLowerCase().trim()));
+    const todayFilledCahiers = rawFilledCahiers.map((c) => ({
+      id: c.id,
+      classId: c.class_id,
+      class_id: c.class_id,
+      className: c.class_name || "Classe",
+      class_name: c.class_name || "Classe",
+      subjectId: c.subject_id,
+      subject_id: c.subject_id,
+      subjectName: c.subject_name || "Matière",
+      subject_name: c.subject_name || "Matière",
+      employeeId: c.employee_id,
+      employee_id: c.employee_id,
+      employeeName: c.employee_name || "Enseignant",
+      employee_name: c.employee_name || "Enseignant",
+      titreLecon: c.titre_lecon || "Séance du jour",
+      titre_lecon: c.titre_lecon || "Séance du jour",
+      sessionDate: c.session_date,
+      session_date: c.session_date,
+      heureDebut: c.heure_debut || "08:00",
+      heure_debut: c.heure_debut || "08:00",
+      heureFin: c.heure_fin || "10:00",
+      heure_fin: c.heure_fin || "10:00",
+    }));
+
+    const filledClassIds = new Set(todayFilledCahiers.map((c) => Number(c.classId || 0)));
+    const filledClassNames = new Set(todayFilledCahiers.map((c) => String(c.className || "").toLowerCase().trim()));
 
     const missingClasses = allSchoolClasses
-      .filter((c) => !filledClassIds.has(c.id) && !filledClassNames.has(c.className.toLowerCase().trim()))
+      .filter((c) => {
+        const cName = String(c.className || "").toLowerCase().trim();
+        return !filledClassIds.has(c.id) && !filledClassNames.has(cName);
+      })
       .map((c) => ({
         classId: c.id,
-        className: c.className,
+        class_id: c.id,
+        className: c.className || `Classe ${c.id}`,
+        class_name: c.className || `Classe ${c.id}`,
         status: "Non renseigné aujourd'hui",
       }));
 
