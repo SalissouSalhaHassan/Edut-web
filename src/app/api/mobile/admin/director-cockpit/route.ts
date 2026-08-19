@@ -20,14 +20,17 @@ export async function GET(request: NextRequest) {
 
   // Check access: director, admin, super_admin, etc.
   const isAdminOrDirector =
-    roleType === "admin" ||
     roleType === "super_admin" ||
     roleType === "directeur" ||
     roleType === "general_director" ||
     roleType === "level_director" ||
+    roleType === "censeur" ||
+    roleType === "surveillant" ||
     roleType === "ministere" ||
     (user as any).admin === true ||
-    (user as any).superAdmin === true;
+    (user as any).superAdmin === true ||
+    String(user.role || "").toLowerCase().includes("admin") ||
+    String(user.role || "").toLowerCase().includes("direct");
 
   if (!isAdminOrDirector) {
     return mobileJsonError("Accès réservé à la direction et à l'administration de l'établissement.", 403);
