@@ -2616,7 +2616,8 @@ export async function setActiveSession(id: number) {
 
     // 1. Mark all other sessions for this school as inactive
     await db.update(schoolSessions).set({
-      isActive: false
+      isActive: false,
+      status: "Inactif"
     }).where(eq(schoolSessions.schoolId, schoolId));
 
     // 2. Activate target session
@@ -2630,6 +2631,9 @@ export async function setActiveSession(id: number) {
 
     revalidatePath("/dashboard/settings");
     revalidatePath("/dashboard/academics");
+    revalidatePath("/dashboard/finance");
+    revalidatePath("/dashboard/students");
+    revalidatePath("/dashboard/exams");
     revalidateTag(ACADEMICS_CACHE_TAG);
     return { success: true };
   });
@@ -2653,7 +2657,7 @@ export async function toggleSessionLock(id: number, isClosed: boolean) {
       // Unfreeze / Open session: deactivate all other sessions first
       await db.update(schoolSessions).set({
         isActive: false,
-        status: "Clôturé"
+        status: "Inactif"
       }).where(eq(schoolSessions.schoolId, schoolId));
 
       await db.update(schoolSessions).set({
@@ -2667,6 +2671,9 @@ export async function toggleSessionLock(id: number, isClosed: boolean) {
 
     revalidatePath("/dashboard/settings");
     revalidatePath("/dashboard/academics");
+    revalidatePath("/dashboard/finance");
+    revalidatePath("/dashboard/students");
+    revalidatePath("/dashboard/exams");
     revalidateTag(ACADEMICS_CACHE_TAG);
     return { success: true };
   });

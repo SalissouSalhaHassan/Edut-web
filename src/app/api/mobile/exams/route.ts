@@ -181,16 +181,22 @@ export async function GET(request: NextRequest) {
       const sessCond = schoolId ? [eq(schoolSessions.schoolId, schoolId)] : [];
       const sessionsRows = await readDb.query.schoolSessions.findMany({
         where: sessCond.length > 0 ? and(...sessCond) : undefined,
-        orderBy: [sql`id DESC`],
+        orderBy: [
+          sql`CASE WHEN is_active = TRUE OR LOWER(TRIM(status)) = 'actif' THEN 0 ELSE 1 END`,
+          sql`id DESC`
+        ],
       });
 
       let periodsList: any[] = [];
       if (sessionsRows.length > 0) {
         const activeSession =
-          sessionsRows.find((r) => r.isActive || r.status === "Actif") ?? sessionsRows[0]!;
+          sessionsRows.find((r) => r.isActive || r.status?.toLowerCase() === "actif") ?? sessionsRows[0]!;
         periodsList = await readDb.query.academicPeriods.findMany({
           where: eq(academicPeriods.sessionId, activeSession.id),
-          orderBy: [academicPeriods.id],
+          orderBy: [
+            sql`CASE WHEN is_active = TRUE THEN 0 ELSE 1 END`,
+            academicPeriods.id
+          ],
         });
       }
 

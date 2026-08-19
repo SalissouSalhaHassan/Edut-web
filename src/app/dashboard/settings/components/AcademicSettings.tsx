@@ -911,7 +911,7 @@ export function AcademicSettings({
                               prev.map((item) => ({
                                 ...item,
                                 isActive: item.id === s.id,
-                                status: item.id === s.id ? "Actif" : item.status,
+                                status: item.id === s.id ? "Actif" : "Inactif",
                               }))
                             );
                             toast.success(`Année scolaire "${s.sessionName}" activée comme année actuelle ! 🟢`);
