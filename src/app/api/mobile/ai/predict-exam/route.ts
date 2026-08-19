@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getMobileUser, mobileJsonError } from "../../_lib/auth";
 import { readDb } from "@/infrastructure/database";
-import { grades } from "@/infrastructure/database/schema/academics";
 import { students } from "@/infrastructure/database/schema/students";
-import { schoolSubjects } from "@/infrastructure/database/schema/academics";
-import { eq, and, desc } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
 
