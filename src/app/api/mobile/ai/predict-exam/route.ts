@@ -82,9 +82,9 @@ export async function POST(request: NextRequest) {
 
       if (studentRows.length > 0) {
         const s = studentRows[0];
-        studentName = `${s.nom} ${s.prenom || ""}`.trim();
+        studentName = s.nomEtudiant || "Élève Candidat";
         targetClassName = s.classe || targetClassName;
-        matricule = s.matricule || matricule;
+        matricule = s.numAdmission || matricule;
       }
     }
 
