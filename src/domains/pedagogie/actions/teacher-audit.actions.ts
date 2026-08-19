@@ -151,9 +151,9 @@ export async function getTeachersPerformanceAudit(): Promise<{
 
       return {
         id: t.id,
-        name: `${t.prenom || ""} ${t.nom || ""}`.trim() || t.nomComplet || `Enseignant #${t.id}`,
-        photoUrl: t.photoUrl || null,
-        subject: t.specialite || t.poste || "Enseignement Général",
+        name: t.nom || `Enseignant #${t.id}`,
+        photoUrl: t.photoPath || null,
+        subject: t.poste || t.fonction || "Enseignement Général",
         classesCount: 3 + (idx % 3),
         syllabusProgress,
         completedLessons: doneLessons,
