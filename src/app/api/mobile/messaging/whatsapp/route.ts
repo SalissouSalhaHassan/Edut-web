@@ -35,11 +35,11 @@ export async function POST(request: NextRequest) {
     if (studentId && (!targetPhone || !targetName)) {
       const std = await readDb.query.students.findFirst({
         where: eq(students.id, Number(studentId)),
-        columns: { nomEtudiant: true, whatsapp: true, telephoneParent: true, telephone: true },
+        columns: { nomEtudiant: true, whatsapp: true, mobile: true, phoneFixe: true },
       });
       if (std) {
         targetName = targetName || std.nomEtudiant;
-        targetPhone = targetPhone || std.whatsapp || std.telephoneParent || std.telephone || "";
+        targetPhone = targetPhone || std.whatsapp || std.mobile || std.phoneFixe || "";
       }
     }
 
