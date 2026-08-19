@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     return mobileJsonError("studentId manquant", 400);
   }
 
-  const isParent = !user.admin && !user.teacherId && Boolean(user.parentId || user.parentPhone);
+  const isParent = !user.admin && !user.employeeId;
   if (isParent) {
     const isLinked = await verifyParentChildRelationship(user, studentId);
     if (!isLinked) {

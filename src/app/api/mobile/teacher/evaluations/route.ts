@@ -15,8 +15,8 @@ export async function GET(request: NextRequest) {
     }
 
     // If teacher role, return their individual metric
-    if (user.teacherId) {
-      const myMetric = auditRes.data.teachers.find((t) => t.id === user.teacherId);
+    if (user.employeeId) {
+      const myMetric = auditRes.data.teachers.find((t) => t.id === user.employeeId);
       return NextResponse.json({
         success: true,
         data: {
