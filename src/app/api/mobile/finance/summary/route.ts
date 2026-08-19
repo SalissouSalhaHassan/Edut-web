@@ -145,14 +145,17 @@ export async function GET(request: NextRequest) {
 
       const rows = await readDb.query.schoolSessions.findMany({
         where: eq(schoolSessions.schoolId, targetSchoolId),
-        orderBy: [sql`id DESC`]
+        orderBy: [
+          sql`CASE WHEN is_active = TRUE OR LOWER(TRIM(status)) = 'actif' THEN 0 ELSE 1 END`,
+          sql`id DESC`
+        ]
       });
 
       const list = rows.map((s) => ({
         id: s.id,
         session_name: s.sessionName,
-        is_active: s.isActive,
-        status: s.status,
+        is_active: Boolean(s.isActive || s.status?.toLowerCase() === "actif"),
+        status: s.status || (s.isActive ? "Actif" : "Inactif"),
         school_id: s.schoolId,
       }));
 
