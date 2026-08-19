@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getMobileUser, mobileJsonError } from "../../_lib/auth";
 import { db } from "@/infrastructure/database";
 import { onlineTransactions, studentFees, feePayments, cogesPayments, syscohadaAccounts, syscohadaEntries } from "@/infrastructure/database/schema/finance";
+import { students } from "@/infrastructure/database/schema/students";
 import { eq, and, desc } from "drizzle-orm";
 
 /**
