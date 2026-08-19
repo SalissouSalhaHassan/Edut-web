@@ -100,7 +100,7 @@ export async function GET(request: NextRequest) {
         totalDebts += row.balance || 0.0;
       }
 
-      if (rows.length === 0 && (roleType === "super_admin" || roleType === "admin" || roleType === "directeur" || roleType === "fondateur" || roleType === "super_director")) {
+      if (rows.length === 0 && roleType !== "eleve" && roleType !== "parent" && roleType !== "teacher" && roleType !== "enseignant") {
         const studentRows = await readDb.query.students.findMany({
           where: eq(students.schoolId, targetSchoolId),
           columns: { fraisMensuels: true, ancienSolde: true, fraisInscription: true },
