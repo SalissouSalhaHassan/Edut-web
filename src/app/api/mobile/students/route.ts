@@ -41,7 +41,9 @@ export async function GET(request: NextRequest) {
           .filter(Boolean)
       );
 
-      rows = rows.filter((s) => s.classe && allowedClasses.has(s.classe));
+      if (allowedClasses.size > 0) {
+        rows = rows.filter((s) => s.classe && allowedClasses.has(s.classe));
+      }
     }
 
     // ── Level scoping for level_director / level_comptable / level_caissier ──

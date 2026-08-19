@@ -145,16 +145,29 @@ export async function GET(request: NextRequest) {
         timeUntilNextMinutes = 15;
       }
     } else {
-      // Default placeholder session for presentation
+      // Fallback: pick real school class from school_classes or students
+      const firstClass = await readDb.query.schoolClasses.findFirst({
+        where: sql`(${schoolClasses.schoolId} = ${schoolId} OR ${schoolClasses.schoolId} IS NULL)`,
+        orderBy: [schoolClasses.className],
+      });
+
+      let defaultClassName = firstClass?.className;
+      if (!defaultClassName) {
+        const firstStudent = await readDb.query.students.findFirst({
+          where: eq(students.schoolId, schoolId),
+        });
+        defaultClassName = firstStudent?.classe || "6ème A";
+      }
+
       nextSession = {
         id: 101,
         dayOfWeek: currentDay,
         startTime: "08:00",
         endTime: "10:00",
-        roomName: "Salle 04",
-        classId: 1,
+        roomName: `Salle ${defaultClassName}`,
+        classId: firstClass?.id || 1,
         subjectId: 1,
-        className: "3ème B",
+        className: defaultClassName,
         subjectName: "Mathématiques",
       };
       timeUntilNextMinutes = 10;

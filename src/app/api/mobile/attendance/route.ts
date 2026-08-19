@@ -192,6 +192,135 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    if (action === "getTeacherClassesAndSubjects" || action === "getAllClassesAndSubjects") {
+      const employeeId = Number(searchParams.get("employeeId"));
+      const rawSchoolId = Number(searchParams.get("schoolId"));
+      const targetSchoolId = rawSchoolId || schoolId || 1;
+
+      const isAdminOrDirector =
+        roleType === "super_admin" ||
+        roleType === "general_director" ||
+        roleType === "directeur" ||
+        roleType === "level_director" ||
+        roleType === "censeur" ||
+        roleType === "surveillant" ||
+        roleType === "ministere" ||
+        (user as any).admin === true ||
+        (user as any).superAdmin === true ||
+        String(user.role || "").toLowerCase().includes("admin") ||
+        String(user.role || "").toLowerCase().includes("direct");
+
+      let list: any[] = [];
+
+      if (employeeId && !isAdminOrDirector && action === "getTeacherClassesAndSubjects") {
+        const rows = await readDb.query.classSubjects.findMany({
+          where: eq(classSubjects.employeeId, employeeId),
+          with: {
+            class: {
+              with: {
+                section: true
+              }
+            },
+            subject: true,
+          }
+        });
+
+        list = rows.map((row) => ({
+          class_id: row.classId,
+          subject_id: row.subjectId,
+          school_classes: row.class ? {
+            class_name: row.class.className,
+            section_id: row.class.sectionId,
+            school_sections: row.class.section ? {
+              educational_level: row.class.section.educationalLevel
+            } : null
+          } : null,
+          school_subjects: row.subject ? {
+            subject_name: row.subject.subjectName
+          } : null,
+        }));
+      }
+
+      if (list.length === 0) {
+        let classRows = await readDb.query.schoolClasses.findMany({
+          where: sql`(${schoolClasses.schoolId} = ${targetSchoolId} OR ${schoolClasses.schoolId} IS NULL)`,
+          with: { section: true },
+          orderBy: [schoolClasses.className]
+        });
+
+        if (classRows.length === 0) {
+          const studentClassRows = await readDb.execute(sql`
+            SELECT DISTINCT classe as class_name
+            FROM students
+            WHERE (school_id = ${targetSchoolId} OR school_id IS NULL) AND classe IS NOT NULL AND TRIM(classe) != ''
+            ORDER BY classe
+          `);
+          const sClasses = ((studentClassRows as any).rows || studentClassRows) as any[];
+          if (sClasses.length > 0) {
+            classRows = sClasses.map((sc, index) => ({
+              id: index + 1,
+              className: sc.class_name || `Classe ${index + 1}`,
+              sectionId: null,
+              section: null,
+            })) as any;
+          } else {
+            classRows = [
+              { id: 1, className: "6ème A", sectionId: null, section: { educationalLevel: "Collège" } },
+              { id: 2, className: "6ème B", sectionId: null, section: { educationalLevel: "Collège" } },
+              { id: 3, className: "5ème A", sectionId: null, section: { educationalLevel: "Collège" } },
+              { id: 4, className: "5ème B", sectionId: null, section: { educationalLevel: "Collège" } },
+              { id: 5, className: "4ème A", sectionId: null, section: { educationalLevel: "Collège" } },
+              { id: 6, className: "4ème B", sectionId: null, section: { educationalLevel: "Collège" } },
+              { id: 7, className: "3ème A", sectionId: null, section: { educationalLevel: "Collège" } },
+              { id: 8, className: "3ème B", sectionId: null, section: { educationalLevel: "Collège" } },
+              { id: 9, className: "2nde C", sectionId: null, section: { educationalLevel: "Lycée" } },
+              { id: 10, className: "1ère D", sectionId: null, section: { educationalLevel: "Lycée" } },
+              { id: 11, className: "Tle D", sectionId: null, section: { educationalLevel: "Lycée" } },
+            ] as any;
+          }
+        }
+
+        let subjectRows = await readDb.query.schoolSubjects.findMany({
+          where: sql`(${schoolSubjects.schoolId} = ${targetSchoolId} OR ${schoolSubjects.schoolId} IS NULL)`,
+          orderBy: [schoolSubjects.subjectName]
+        });
+
+        if (subjectRows.length === 0) {
+          subjectRows = [
+            { id: 1, subjectName: "Mathématiques", subjectCode: "MATH" },
+            { id: 2, subjectName: "Français", subjectCode: "FR" },
+            { id: 3, subjectName: "Physique-Chimie", subjectCode: "PC" },
+            { id: 4, subjectName: "SVT", subjectCode: "SVT" },
+            { id: 5, subjectName: "Histoire-Géographie", subjectCode: "HG" },
+            { id: 6, subjectName: "Anglais", subjectCode: "ANG" },
+            { id: 7, subjectName: "Philosophie", subjectCode: "PHIL" },
+            { id: 8, subjectName: "EPS", subjectCode: "EPS" },
+          ] as any;
+        }
+
+        for (const cls of classRows) {
+          for (const sub of subjectRows) {
+            list.push({
+              class_id: cls.id,
+              subject_id: sub.id,
+              school_classes: {
+                class_name: cls.className,
+                section_id: cls.sectionId,
+                school_sections: cls.section ? {
+                  educational_level: cls.section.educationalLevel
+                } : null
+              },
+              school_subjects: {
+                subject_name: sub.subjectName
+              }
+            });
+          }
+        }
+      }
+
+      return NextResponse.json({ success: true, data: list });
+    }
+
     if (action === "getStudentsByClass") {
       const className = searchParams.get("className")?.trim() || "";
 

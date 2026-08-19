@@ -13,9 +13,16 @@ export async function GET(request: NextRequest) {
 
   const schoolId = user.schoolId || 1;
   const { searchParams } = new URL(request.url);
-  const className = searchParams.get("className") || "3ème B";
+  let className = searchParams.get("className");
 
   try {
+    if (!className) {
+      const firstStudent = await readDb.query.students.findFirst({
+        where: and(eq(students.schoolId, schoolId), sql`${students.classe} IS NOT NULL`),
+      });
+      className = firstStudent?.classe || "6ème A";
+    }
+
     const studentList = await readDb
       .select({
         id: students.id,
