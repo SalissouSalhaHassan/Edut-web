@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { studentId, className: reqClassName, subjectGrades } = body;
 
-    let targetClassName = reqClassName || "3ème B";
+    let targetClassName = reqClassName;
     let studentName = "Élève Candidat";
     let matricule = "CAND-2026-001";
 
@@ -83,8 +83,19 @@ export async function POST(request: NextRequest) {
       if (studentRows.length > 0) {
         const s = studentRows[0];
         studentName = s.nomEtudiant || "Élève Candidat";
-        targetClassName = s.classe || targetClassName;
+        targetClassName = s.classe || targetClassName || "3ème A";
         matricule = s.numAdmission || matricule;
+      }
+    } else {
+      const firstStudent = await readDb.query.students.findFirst({
+        where: user.schoolId ? eq(students.schoolId, user.schoolId) : undefined,
+      });
+      if (firstStudent) {
+        studentName = firstStudent.nomEtudiant || studentName;
+        targetClassName = targetClassName || firstStudent.classe || "3ème A";
+        matricule = firstStudent.numAdmission || matricule;
+      } else {
+        targetClassName = targetClassName || "3ème A";
       }
     }
 

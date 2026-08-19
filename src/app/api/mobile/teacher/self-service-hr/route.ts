@@ -73,33 +73,7 @@ export async function GET(request: NextRequest) {
       .orderBy(desc(salaryRecords.id))
       .limit(6);
 
-    // Fallback sample payslips if empty
-    const formattedPayslips = payslips.length > 0
-      ? payslips
-      : [
-          {
-            id: 1,
-            monthYear: "Mai 2026",
-            basicSalary: 280000,
-            totalAllowance: 45000,
-            totalDeduction: 12500,
-            netSalary: 312500,
-            status: "Payé",
-            paymentDate: new Date().toISOString(),
-            paymentMode: "Virement Bancaire",
-          },
-          {
-            id: 2,
-            monthYear: "Avril 2026",
-            basicSalary: 280000,
-            totalAllowance: 40000,
-            totalDeduction: 12500,
-            netSalary: 307500,
-            status: "Payé",
-            paymentDate: new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString(),
-            paymentMode: "Virement Bancaire",
-          },
-        ];
+    const formattedPayslips = payslips;
 
     // 3. Extra Hours / Substitutions
     const extraHours = await readDb
@@ -108,42 +82,13 @@ export async function GET(request: NextRequest) {
       .where(
         and(
           eq(teacherExtraHours.schoolId, schoolId),
-          employeeId ? eq(teacherExtraHours.employeeId, employeeId) : undefined
+          actualEmployeeId ? eq(teacherExtraHours.employeeId, actualEmployeeId) : undefined
         )
       )
       .orderBy(desc(teacherExtraHours.id))
       .limit(10);
 
-    const formattedExtraHours = extraHours.length > 0
-      ? extraHours
-      : [
-          {
-            id: 101,
-            date: "14/05/2026",
-            typeHour: "Cours de soutien",
-            className: "Terminale D",
-            subjectName: "Mathématiques",
-            hoursCount: 2.0,
-            hourlyRate: 3500,
-            totalAmount: 7000,
-            status: "Approuvé",
-            notes: "Séance intensive de révision BAC",
-          },
-          {
-            id: 102,
-            date: "08/05/2026",
-            typeHour: "Remplacement collègue",
-            className: "3ème B",
-            subjectName: "Mathématiques",
-            hoursCount: 2.0,
-            hourlyRate: 3000,
-            totalAmount: 6000,
-            status: "Payé",
-            notes: "Remplacement absence autorisée",
-          },
-        ];
-
-    // Calculate total extra hours money
+    const formattedExtraHours = extraHours;
     const totalExtraHoursSum = formattedExtraHours.reduce((acc, cur) => acc + (Number(cur.totalAmount) || 0), 0);
 
     // 4. Leave & Advance Requests
@@ -153,27 +98,13 @@ export async function GET(request: NextRequest) {
       .where(
         and(
           eq(teacherHrRequests.schoolId, schoolId),
-          employeeId ? eq(teacherHrRequests.employeeId, employeeId) : undefined
+          actualEmployeeId ? eq(teacherHrRequests.employeeId, actualEmployeeId) : undefined
         )
       )
       .orderBy(desc(teacherHrRequests.id))
       .limit(10);
 
-    const formattedRequests = hrRequests.length > 0
-      ? hrRequests
-      : [
-          {
-            id: 201,
-            requestType: "Congé familial",
-            startDate: "22/05/2026",
-            endDate: "24/05/2026",
-            daysCount: 3,
-            reason: "Événement familial justifié",
-            status: "Approuvé",
-            adminComment: "Accordé par la Direction.",
-            createdAt: new Date().toISOString(),
-          },
-        ];
+    const formattedRequests = hrRequests;
 
     return NextResponse.json({
       success: true,

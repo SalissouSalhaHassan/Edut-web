@@ -234,10 +234,10 @@ export async function GET(request: NextRequest) {
 
     const attendanceMap = new Map(todayAttendanceLogs.map((a) => [a.employeeId, a]));
 
-    const teachersStatusList = teacherList.map((t, idx) => {
+    const teachersStatusList = teacherList.map((t) => {
       const att = attendanceMap.get(t.id);
-      let status = att?.status || (idx % 8 === 0 ? "Absent" : (idx % 6 === 0 ? "En retard" : "Présent"));
-      let checkIn = att?.heureEntree || (status === "Présent" ? "07:45" : (status === "En retard" ? "08:20" : "-"));
+      const status = att?.status || "Présent";
+      const checkIn = att?.heureEntree || (att ? "08:00" : "-");
 
       return {
         id: t.id,

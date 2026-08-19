@@ -100,6 +100,20 @@ export async function GET(request: NextRequest) {
         totalDebts += row.balance || 0.0;
       }
 
+      if (rows.length === 0 && (roleType === "super_admin" || roleType === "admin" || roleType === "directeur" || roleType === "fondateur" || roleType === "super_director")) {
+        const studentRows = await readDb.query.students.findMany({
+          where: eq(students.schoolId, targetSchoolId),
+          columns: { fraisMensuels: true, ancienSolde: true, fraisInscription: true },
+        });
+        for (const s of studentRows) {
+          const exp = (s.fraisMensuels || 0) * 9 + (s.fraisInscription || 0);
+          const debts = s.ancienSolde || 0;
+          totalExpected += exp;
+          totalDebts += debts;
+          totalCollected += Math.max(0, exp - debts);
+        }
+      }
+
       return NextResponse.json({
         success: true,
         stats: {

@@ -228,17 +228,33 @@ export async function GET(request: NextRequest) {
       }))
     : defaultTemplates;
 
-  const defaultClasses = [
-    { id: 1, class_name: "6ème A" },
-    { id: 2, class_name: "5ème B" },
-    { id: 3, class_name: "4ème A" },
-    { id: 4, class_name: "3ème B" },
-    { id: 5, class_name: "Terminale D" },
-  ];
+  let formattedClasses = classes.map((c) => ({ id: c.id, class_name: c.className }));
+  if (formattedClasses.length === 0) {
+    try {
+      const sClasses = await readDb.execute(sql`
+        SELECT DISTINCT classe as class_name
+        FROM students
+        WHERE (school_id = ${schoolId} OR school_id IS NULL) AND classe IS NOT NULL AND TRIM(classe) != ''
+        ORDER BY classe
+      `);
+      const sRows = ((sClasses as any).rows || sClasses) as any[];
+      if (sRows.length > 0) {
+        formattedClasses = sRows.map((r, idx) => ({ id: idx + 1, class_name: r.class_name }));
+      }
+    } catch (_) {}
+  }
 
-  const formattedClasses = classes.length > 0
-    ? classes.map((c) => ({ id: c.id, class_name: c.className }))
-    : defaultClasses;
+  if (formattedClasses.length === 0) {
+    formattedClasses = [
+      { id: 1, class_name: "6ème A" },
+      { id: 2, class_name: "5ème A" },
+      { id: 3, class_name: "4ème A" },
+      { id: 4, class_name: "3ème A" },
+      { id: 5, class_name: "2nde C" },
+      { id: 6, class_name: "1ère D" },
+      { id: 7, class_name: "Terminale D" },
+    ];
+  }
 
   return NextResponse.json({
     success: true,
