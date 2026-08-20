@@ -65,6 +65,8 @@ export async function getMobileUser(request: NextRequest) {
         },
       },
       school: true,
+      employee: true,
+      student: true,
     },
   });
 
