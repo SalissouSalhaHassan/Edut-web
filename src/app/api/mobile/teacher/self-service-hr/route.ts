@@ -29,7 +29,8 @@ export async function GET(request: NextRequest) {
 
     if (!empProfile) {
       // Find employee by email or mobile or name in school
-      const searchTerms = [user.utilisateur, user.email, user.nom].filter(Boolean) as string[];
+      const userAny = user as any;
+      const searchTerms = [user.utilisateur, user.nomPrenom, userAny.email, userAny.nom, userAny.mobile].filter(Boolean) as string[];
       for (const term of searchTerms) {
         const rows = await readDb
           .select()
