@@ -6,12 +6,65 @@ import { verifyParentChildRelationship } from "../../_lib/family-auth";
 
 export const dynamic = "force-dynamic";
 
+function computeNormalizedScoreOn20(row: any): number {
+  const weighted = row.weighted_score !== null && row.weighted_score !== undefined ? Number(row.weighted_score) : null;
+  const coef = Math.max(1, Number(row.coefficient || 1));
+  const total = row.total_score !== null && row.total_score !== undefined ? Number(row.total_score) : null;
+  const classWork = row.class_work_score !== null && row.class_work_score !== undefined ? Number(row.class_work_score) : null;
+  const exam = row.exam_score !== null && row.exam_score !== undefined ? Number(row.exam_score) : null;
+  const moyDev = row.moyenne_devoirs !== null && row.moyenne_devoirs !== undefined ? Number(row.moyenne_devoirs) : null;
+
+  // 1. If weighted_score and coefficient exist and are consistent
+  if (weighted !== null && weighted > 0 && coef > 0) {
+    const fromWeighted = weighted / coef;
+    if (fromWeighted <= 20.0) {
+      return Number(fromWeighted.toFixed(2));
+    }
+  }
+
+  // 2. If both classWork/moyDev and exam exist
+  const cw = (moyDev !== null && moyDev > 0) ? moyDev : ((classWork !== null && classWork > 0) ? classWork : null);
+  if (cw !== null && exam !== null && exam > 0) {
+    if (cw <= 20.0 && exam <= 20.0) {
+      return Number(((cw + exam) / 2.0).toFixed(2));
+    }
+  }
+
+  // 3. From total_score
+  if (total !== null && total > 0) {
+    if (total <= 20.0) {
+      if (classWork !== null && exam !== null && Math.abs((classWork + exam) - total) < 0.1 && (classWork + exam) > 0) {
+        return Number(((classWork + exam) / 2.0).toFixed(2));
+      }
+      return Number(total.toFixed(2));
+    } else if (total <= 40.0) {
+      return Number((total / 2.0).toFixed(2));
+    } else if (total <= 100.0) {
+      return Number(((total / 100.0) * 20.0).toFixed(2));
+    } else if (coef > 1 && (total / coef) <= 20.0) {
+      return Number((total / coef).toFixed(2));
+    }
+  }
+
+  // 4. Fallback to exam or classWork
+  if (exam !== null && exam > 0) {
+    return Number((exam <= 20.0 ? exam : (exam / 100.0) * 20.0).toFixed(2));
+  }
+  if (cw !== null && cw > 0) {
+    return Number((cw <= 20.0 ? cw : (cw / 100.0) * 20.0).toFixed(2));
+  }
+
+  return 0;
+}
+
 export async function GET(request: NextRequest) {
   const { user, response } = await getMobileUser(request);
   if (response || !user) return response || mobileJsonError("Non autorisé", 401);
 
   const searchParams = request.nextUrl.searchParams;
   const studentId = Number(searchParams.get("studentId"));
+  const sessionId = searchParams.get("sessionId") ? Number(searchParams.get("sessionId")) : null;
+  const term = searchParams.get("term");
 
   if (!studentId) {
     return mobileJsonError("studentId manquant", 400);
@@ -26,15 +79,42 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // 1. Fetch student grades
-    const gradesRes = await readDb.execute(sql`
-      SELECT r.subject_id, r.total_score, r.class_work_score, r.exam_score, r.moyenne_devoirs, r.coefficient,
-             s.subject_name, s.subject_code
-      FROM student_results r
-      LEFT JOIN school_subjects s ON r.subject_id = s.id
-      WHERE r.student_id = ${studentId}
-      ORDER BY r.term DESC, r.subject_id
-    `);
+    // 1. Fetch student grades with optional session and term filters
+    let gradesRes;
+    if (sessionId && term) {
+      gradesRes = await readDb.execute(sql`
+        SELECT r.subject_id, r.total_score, r.class_work_score, r.exam_score, r.moyenne_devoirs,
+               r.coefficient, r.weighted_score, r.term, r.session_id,
+               s.subject_name, s.subject_code
+        FROM student_results r
+        LEFT JOIN school_subjects s ON r.subject_id = s.id
+        WHERE r.student_id = ${studentId}
+          AND r.session_id = ${sessionId}
+          AND r.term = ${term}
+        ORDER BY r.subject_id
+      `);
+    } else if (sessionId) {
+      gradesRes = await readDb.execute(sql`
+        SELECT r.subject_id, r.total_score, r.class_work_score, r.exam_score, r.moyenne_devoirs,
+               r.coefficient, r.weighted_score, r.term, r.session_id,
+               s.subject_name, s.subject_code
+        FROM student_results r
+        LEFT JOIN school_subjects s ON r.subject_id = s.id
+        WHERE r.student_id = ${studentId}
+          AND r.session_id = ${sessionId}
+        ORDER BY r.term DESC, r.subject_id
+      `);
+    } else {
+      gradesRes = await readDb.execute(sql`
+        SELECT r.subject_id, r.total_score, r.class_work_score, r.exam_score, r.moyenne_devoirs,
+               r.coefficient, r.weighted_score, r.term, r.session_id,
+               s.subject_name, s.subject_code
+        FROM student_results r
+        LEFT JOIN school_subjects s ON r.subject_id = s.id
+        WHERE r.student_id = ${studentId}
+        ORDER BY r.term DESC, r.subject_id
+      `);
+    }
     const grades = ((gradesRes as any).rows || gradesRes) as any[];
 
     // 2. Fetch student attendance
@@ -68,17 +148,8 @@ export async function GET(request: NextRequest) {
       const rawName = (g.subject_name || "Matière").trim();
       const normKey = rawName.toLowerCase();
       
-      let score = Number(g.total_score ?? g.exam_score ?? g.moyenne_devoirs ?? g.class_work_score ?? 0);
+      const score = computeNormalizedScoreOn20(g);
       const coef = Math.max(1, Number(g.coefficient || 1));
-
-      // Normalization to 20
-      if (score > 20 && coef > 1 && (score / coef) <= 20) {
-        score = score / coef;
-      } else if (score > 20 && score <= 40) {
-        score = score / 2;
-      } else if (score > 20) {
-        score = (score / 100) * 20;
-      }
 
       if (score <= 0) continue; // Ignore empty / unrecorded grades
 
@@ -136,12 +207,14 @@ export async function GET(request: NextRequest) {
     let riskLevel: "Faible" | "Modéré" | "Élevé" = "Faible";
     let riskSummary = `Excellent suivi général. Moyenne actuelle de ${overallAverage}/20 avec de très bons acquis.`;
 
-    if (overallAverage < 9.5 || atRiskSubjects.length >= 4 || totalAbsences > 7) {
+    if (overallAverage < 9.5 || atRiskSubjects.filter(s => s.score < 8.0).length >= 3 || totalAbsences > 7) {
       riskLevel = "Élevé";
       riskSummary = `Attention : ${atRiskSubjects.length} matière(s) nécessitent un soutien d'urgence avant les examens finaux.`;
-    } else if (atRiskSubjects.length > 0 || totalAbsences > 2 || totalLates > 3) {
+    } else if (atRiskSubjects.length > 0 || totalAbsences > 2 || totalLates > 3 || overallAverage < 11.5) {
       riskLevel = "Modéré";
-      riskSummary = `Bonne dynamique globale (${overallAverage}/20). Renforcement conseillé en : ${atRiskSubjects.map((s) => s.subjectName).join(", ")}.`;
+      riskSummary = atRiskSubjects.length > 0
+        ? `Bonne dynamique globale (${overallAverage}/20). Renforcement conseillé en : ${atRiskSubjects.map((s) => s.subjectName).join(", ")}.`
+        : `Suivi académique satisfaisant (${overallAverage}/20). Maintenir l'effort régulier.`;
     }
 
     return NextResponse.json({
