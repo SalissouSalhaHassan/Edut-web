@@ -286,10 +286,10 @@ export async function POST(request: NextRequest) {
 
       // Create Admin Notification
       await db.insert(notifications).values({
-        schoolId,
         title: "Nouvelle séance d'heures supplémentaires",
-        message: `L'enseignant a déclaré ${hCount}h de ${typeHour} en ${className} (${subjectName}).`,
-        type: "hr_approval",
+        content: `L'enseignant a déclaré ${hCount}h de ${typeHour} en ${className} (${subjectName}).`,
+        type: "info",
+        category: "RH",
         isRead: false,
       }).catch(() => {});
 
@@ -320,10 +320,10 @@ export async function POST(request: NextRequest) {
 
     // Create Admin Notification
     await db.insert(notifications).values({
-      schoolId,
       title: `Nouvelle demande RH : ${requestType}`,
-      message: `Demande de ${requestType} soumise. Motif : ${reason}`,
-      type: "hr_approval",
+      content: `Demande de ${requestType} soumise. Motif : ${reason}`,
+      type: "info",
+      category: "RH",
       isRead: false,
     }).catch(() => {});
 
