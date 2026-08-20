@@ -94,6 +94,7 @@ export async function POST(request: NextRequest) {
   const roleType = await getUserRoleType(user);
 
   // Allow all administrative and financial roles
+  const userAny = user as any;
   const hasAccess = [
     "admin",
     "super_admin",
@@ -107,8 +108,8 @@ export async function POST(request: NextRequest) {
     "caissier",
     "staff",
   ].includes(roleType) ||
-    user.permissions?.includes("finance.collect") ||
-    user.permissions?.includes("finance.view");
+    userAny.permissions?.includes("finance.collect") ||
+    userAny.permissions?.includes("finance.view");
 
   if (!hasAccess) {
     return mobileJsonError("Accès refusé. Seuls les administrateurs et comptables peuvent enregistrer des paiements.", 403);
