@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, sql, desc } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
 import { db, readDb } from "@/infrastructure/database";
 import { studentFees, feePayments } from "@/infrastructure/database/schema/finance";
 import { getMobileUser, mobileJsonError } from "../../_lib/auth";
@@ -27,43 +28,60 @@ export async function GET(request: NextRequest) {
   const roleType = await getUserRoleType(user);
 
   try {
-    const fee = await readDb.query.studentFees.findFirst({
-      where: eq(studentFees.id, feeId),
-      columns: { schoolId: true, studentId: true }
-    });
+    const fee = await readDb
+      .select({
+        schoolId: studentFees.schoolId,
+        studentId: studentFees.studentId,
+      })
+      .from(studentFees)
+      .where(eq(studentFees.id, feeId))
+      .limit(1);
 
-    if (!fee) {
+    if (fee.length === 0) {
       return mobileJsonError("Frais de scolarité introuvables", 404);
     }
 
-    if (schoolId && fee.schoolId !== schoolId) {
+    if (schoolId && fee[0].schoolId !== schoolId) {
       return mobileJsonError("Accès refusé", 403);
     }
 
-    if ((roleType === "parent" || roleType === "eleve") && user.studentId !== fee.studentId) {
+    if ((roleType === "parent" || roleType === "eleve") && user.studentId !== fee[0].studentId) {
       return mobileJsonError("Accès refusé. Ce dossier ne vous appartient pas.", 403);
     }
 
-    const payments = await readDb.query.feePayments.findMany({
-      where: eq(feePayments.feeId, feeId),
-      orderBy: [sql`date_paid DESC`]
-    });
+    const payments = await readDb
+      .select({
+        id: feePayments.id,
+        school_id: feePayments.schoolId,
+        fee_id: feePayments.feeId,
+        amount: feePayments.amount,
+        reduction: feePayments.reduction,
+        date_paid: feePayments.datePaid,
+        month_concerned: feePayments.monthConcerned,
+        payment_mode: feePayments.paymentMode,
+        reference: feePayments.reference,
+        recorded_by: feePayments.recordedBy,
+      })
+      .from(feePayments)
+      .where(eq(feePayments.feeId, feeId))
+      .orderBy(desc(feePayments.datePaid));
 
     const list = payments.map((p) => ({
       id: p.id,
-      school_id: p.schoolId,
-      fee_id: p.feeId,
+      school_id: p.school_id,
+      fee_id: p.fee_id,
       amount: p.amount,
       reduction: p.reduction,
-      date_paid: p.datePaid?.toISOString() || null,
-      month_concerned: p.monthConcerned,
-      payment_mode: p.paymentMode,
+      date_paid: p.date_paid?.toISOString() || null,
+      month_concerned: p.month_concerned,
+      payment_mode: p.payment_mode,
       reference: p.reference,
-      recorded_by: p.recordedBy,
+      recorded_by: p.recorded_by,
     }));
 
     return NextResponse.json({ success: true, data: list });
   } catch (err: any) {
+    console.error("[Payments GET Error]:", err);
     return mobileJsonError(`Erreur: ${err.message || err}`, 500);
   }
 }
@@ -75,8 +93,23 @@ export async function POST(request: NextRequest) {
   const schoolId = user.schoolId;
   const roleType = await getUserRoleType(user);
 
-  // Only directors, staff, or admins can record payments
-  const hasAccess = ["admin", "super_admin", "director", "directeur", "staff"].includes(roleType);
+  // Allow all administrative and financial roles
+  const hasAccess = [
+    "admin",
+    "super_admin",
+    "director",
+    "directeur",
+    "general_director",
+    "level_director",
+    "level_comptable",
+    "level_caissier",
+    "comptable",
+    "caissier",
+    "staff",
+  ].includes(roleType) ||
+    user.permissions?.includes("finance.collect") ||
+    user.permissions?.includes("finance.view");
+
   if (!hasAccess) {
     return mobileJsonError("Accès refusé. Seuls les administrateurs et comptables peuvent enregistrer des paiements.", 403);
   }
@@ -100,7 +133,7 @@ export async function POST(request: NextRequest) {
       recordedBy,
       currentPaid,
       currentReduction,
-      totalExpected
+      totalExpected,
     } = payload;
 
     if (!feeId || !targetSchoolId) {
@@ -118,9 +151,9 @@ export async function POST(request: NextRequest) {
     const newReduction = Number(currentReduction || 0) + doubleReduction;
     const newBalance = Number(totalExpected || 0) - newPaid - newReduction;
 
-    let newStatus = "Impaye";
+    let newStatus = "Impayé";
     if (newBalance <= 0) {
-      newStatus = "Solde";
+      newStatus = "Soldé";
     } else if (newPaid > 0) {
       newStatus = "Partiel";
     }
@@ -128,7 +161,7 @@ export async function POST(request: NextRequest) {
     // Insert payment
     const paymentValues = {
       schoolId: targetSchoolId,
-      feeId,
+      feeId: Number(feeId),
       amount: doubleAmount,
       reduction: doubleReduction,
       paymentMode: paymentMode || "Espèces",
@@ -149,24 +182,36 @@ export async function POST(request: NextRequest) {
         balance: newBalance,
         status: newStatus,
       })
-      .where(eq(studentFees.id, feeId));
+      .where(eq(studentFees.id, Number(feeId)));
+
+    try {
+      revalidatePath("/dashboard/finance");
+      revalidatePath("/dashboard/finance/invoices");
+    } catch (_) {}
 
     return NextResponse.json({
       success: true,
-      payment: insertedPayment ? {
-        id: insertedPayment.id,
-        school_id: insertedPayment.schoolId,
-        fee_id: insertedPayment.feeId,
-        amount: insertedPayment.amount,
-        reduction: insertedPayment.reduction,
-        date_paid: insertedPayment.datePaid?.toISOString() || null,
-        month_concerned: insertedPayment.monthConcerned,
-        payment_mode: insertedPayment.paymentMode,
-        reference: insertedPayment.reference,
-        recorded_by: insertedPayment.recordedBy,
-      } : null,
+      payment: insertedPayment
+        ? {
+            id: insertedPayment.id,
+            school_id: insertedPayment.schoolId,
+            fee_id: insertedPayment.feeId,
+            amount: insertedPayment.amount,
+            reduction: insertedPayment.reduction,
+            date_paid: insertedPayment.datePaid?.toISOString() || null,
+            month_concerned: insertedPayment.monthConcerned,
+            payment_mode: insertedPayment.paymentMode,
+            reference: insertedPayment.reference,
+            recorded_by: insertedPayment.recordedBy,
+          }
+        : null,
+      newPaid,
+      newReduction,
+      newBalance,
+      newStatus,
     });
   } catch (err: any) {
+    console.error("[Payments POST Error]:", err);
     return mobileJsonError(`Erreur: ${err.message || err}`, 500);
   }
 }

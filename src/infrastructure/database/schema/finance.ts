@@ -76,6 +76,8 @@ export const studentFees = pgTable("student_fees", {
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
   schoolIdIdx: index("student_fees_school_id_idx").on(table.schoolId),
+  schoolSessionIdx: index("student_fees_school_session_idx").on(table.schoolId, table.sessionId),
+  studentIdIdx: index("student_fees_student_id_idx").on(table.studentId),
 }));
 
 export const feePayments = pgTable("fee_payments", {
@@ -91,6 +93,8 @@ export const feePayments = pgTable("fee_payments", {
   recordedBy: varchar("recorded_by", { length: 100 }),
 }, (table) => ({
   schoolIdIdx: index("fee_payments_school_id_idx").on(table.schoolId),
+  feeIdIdx: index("fee_payments_fee_id_idx").on(table.feeId),
+  schoolDatePaidIdx: index("fee_payments_school_date_idx").on(table.schoolId, table.datePaid),
 }));
 
 export const expensesRelations = relations(expenses, ({ one }) => ({

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { and, eq, sql } from "drizzle-orm";
-import { db, readDb } from "@/infrastructure/database";
+import { and, eq, sql, inArray } from "drizzle-orm";
+import { readDb } from "@/infrastructure/database";
 import { studentFees } from "@/infrastructure/database/schema/finance";
 import { students } from "@/infrastructure/database/schema/students";
 import { schoolSessions } from "@/infrastructure/database/schema/academics";
@@ -36,100 +36,81 @@ export async function GET(request: NextRequest) {
         return mobileJsonError("Accès refusé", 403);
       }
 
-      // Restrict access by role
-      let rows: any[] = [];
-      if (roleType === "parent" && user.studentId) {
-        rows = await readDb.query.studentFees.findMany({
-          where: and(
-            eq(studentFees.schoolId, targetSchoolId),
-            eq(studentFees.sessionId, sessionId),
-            eq(studentFees.studentId, user.studentId)
-          ),
-          columns: { totalExpected: true, totalPaid: true, balance: true }
-        });
-      } else if (roleType === "eleve" && user.studentId) {
-        rows = await readDb.query.studentFees.findMany({
-          where: and(
-            eq(studentFees.schoolId, targetSchoolId),
-            eq(studentFees.sessionId, sessionId),
-            eq(studentFees.studentId, user.studentId)
-          ),
-          columns: { totalExpected: true, totalPaid: true, balance: true }
-        });
-      } else if (roleType === "teacher" || roleType === "enseignant") {
-        // Teachers usually don't have finance access unless assigned, return empty stats or restricted stats
+      if (roleType === "teacher" || roleType === "enseignant") {
         return NextResponse.json({
           success: true,
           stats: {
             totalExpected: 0.0,
             totalCollected: 0.0,
             totalDebts: 0.0,
-          }
-        });
-      } else if ((roleType === "level_director" || roleType === "level_comptable" || roleType === "level_caissier") && user.educationalLevel) {
-        // Level-scoped: fetch all fees then filter by compatible levels
-        const allRows = await readDb.query.studentFees.findMany({
-          where: and(
-            eq(studentFees.schoolId, targetSchoolId),
-            eq(studentFees.sessionId, sessionId)
-          ),
-          with: { student: { columns: { educationalLevel: true } } }
-        });
-        const compatibleNorms = getCompatibleLevels(user.educationalLevel!).map(l => normalizeLevel(l));
-        rows = allRows
-          .filter(r => r.student?.educationalLevel && compatibleNorms.includes(normalizeLevel(r.student.educationalLevel)))
-          .map(r => ({ totalExpected: r.totalExpected, totalPaid: r.totalPaid, balance: r.balance }));
-        rows = await readDb.query.studentFees.findMany({
-          where: and(
-            eq(studentFees.schoolId, targetSchoolId),
-            eq(studentFees.sessionId, sessionId)
-          ),
-          columns: { totalExpected: true, totalPaid: true, balance: true },
-          with: {
-            payments: {
-              columns: { amount: true }
-            }
-          }
+          },
         });
       }
 
-      let totalExpected = 0.0;
-      let totalCollected = 0.0;
-      let totalDebts = 0.0;
+      const conditions: any[] = [
+        eq(studentFees.schoolId, targetSchoolId),
+        eq(studentFees.sessionId, sessionId),
+      ];
 
-      for (const row of rows) {
-        let paid = row.totalPaid || 0.0;
-        if (row.payments && row.payments.length > 0) {
-          paid = row.payments.reduce((acc: number, p: any) => acc + (Number(p.amount) || 0), 0);
-        }
-        const exp = row.totalExpected || 0.0;
-        const bal = Math.max(0, exp - paid);
-        totalExpected += exp;
-        totalCollected += paid;
-        totalDebts += bal;
+      if ((roleType === "parent" || roleType === "eleve") && user.studentId) {
+        conditions.push(eq(studentFees.studentId, user.studentId));
       }
 
-      if (rows.length === 0 && !user.studentId) {
-        const studentRows = await readDb.query.students.findMany({
-          where: eq(students.schoolId, targetSchoolId),
-          columns: { fraisMensuels: true, ancienSolde: true, fraisInscription: true },
-        });
-        for (const s of studentRows) {
-          const exp = (s.fraisMensuels || 0) * 9 + (s.fraisInscription || 0);
-          const debts = s.ancienSolde || 0;
-          totalExpected += exp;
-          totalDebts += (exp + debts);
-          totalCollected += 0;
+      const isLevelScoped =
+        (roleType === "level_director" || roleType === "level_comptable" || roleType === "level_caissier") &&
+        user.educationalLevel;
+
+      let statsResult: { totalExpected: number; totalCollected: number; totalDebts: number };
+
+      if (isLevelScoped) {
+        const compatibleNorms = getCompatibleLevels(user.educationalLevel!).map((l) => normalizeLevel(l));
+        const rows = await readDb
+          .select({
+            totalExpected: studentFees.totalExpected,
+            totalPaid: studentFees.totalPaid,
+            balance: studentFees.balance,
+            educationalLevel: students.educationalLevel,
+          })
+          .from(studentFees)
+          .leftJoin(students, eq(students.id, studentFees.studentId))
+          .where(and(...conditions));
+
+        const filtered = rows.filter(
+          (r) => r.educationalLevel && compatibleNorms.includes(normalizeLevel(r.educationalLevel))
+        );
+
+        let totalExpected = 0.0;
+        let totalCollected = 0.0;
+        let totalDebts = 0.0;
+
+        for (const row of filtered) {
+          totalExpected += Number(row.totalExpected) || 0;
+          totalCollected += Number(row.totalPaid) || 0;
+          totalDebts += Number(row.balance) || 0;
         }
+
+        statsResult = { totalExpected, totalCollected, totalDebts };
+      } else {
+        // High performance SQL Aggregation in PostgreSQL
+        const [agg] = await readDb
+          .select({
+            totalExpected: sql<number>`COALESCE(SUM(${studentFees.totalExpected}), 0)`,
+            totalCollected: sql<number>`COALESCE(SUM(${studentFees.totalPaid}), 0)`,
+            totalDebts: sql<number>`COALESCE(SUM(${studentFees.balance}), 0)`,
+          })
+          .from(studentFees)
+          .where(and(...conditions));
+
+        statsResult = {
+          totalExpected: Number(agg?.totalExpected) || 0,
+          totalCollected: Number(agg?.totalCollected) || 0,
+          totalDebts: Number(agg?.totalDebts) || 0,
+        };
       }
 
       return NextResponse.json({
         success: true,
-        stats: {
-          totalExpected,
-          totalCollected,
-          totalDebts,
-        }
+        stats: statsResult,
       });
     }
 
@@ -143,20 +124,27 @@ export async function GET(request: NextRequest) {
         return mobileJsonError("Accès refusé", 403);
       }
 
-      const rows = await readDb.query.schoolSessions.findMany({
-        where: eq(schoolSessions.schoolId, targetSchoolId),
-        orderBy: [
+      const rows = await readDb
+        .select({
+          id: schoolSessions.id,
+          session_name: schoolSessions.sessionName,
+          is_active: schoolSessions.isActive,
+          status: schoolSessions.status,
+          school_id: schoolSessions.schoolId,
+        })
+        .from(schoolSessions)
+        .where(eq(schoolSessions.schoolId, targetSchoolId))
+        .orderBy(
           sql`CASE WHEN is_active = TRUE OR LOWER(TRIM(status)) = 'actif' THEN 0 ELSE 1 END`,
           sql`id DESC`
-        ]
-      });
+        );
 
       const list = rows.map((s) => ({
         id: s.id,
-        session_name: s.sessionName,
-        is_active: Boolean(s.isActive || s.status?.toLowerCase() === "actif"),
-        status: s.status || (s.isActive ? "Actif" : "Inactif"),
-        school_id: s.schoolId,
+        session_name: s.session_name,
+        is_active: Boolean(s.is_active || s.status?.toLowerCase() === "actif"),
+        status: s.status || (s.is_active ? "Actif" : "Inactif"),
+        school_id: s.school_id,
       }));
 
       return NextResponse.json({ success: true, data: list });
@@ -164,6 +152,7 @@ export async function GET(request: NextRequest) {
 
     return mobileJsonError("Action inconnue", 400);
   } catch (err: any) {
+    console.error("[Summary GET Error]:", err);
     return mobileJsonError(`Erreur: ${err.message || err}`, 500);
   }
 }
