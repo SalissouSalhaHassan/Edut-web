@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { and, desc, eq, ilike, or } from "drizzle-orm";
+import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { db, readDb } from "@/infrastructure/database";
 import { employees, salaryRecords, teacherExtraHours, teacherHrRequests } from "@/infrastructure/database/schema/hr";
+import { schoolClasses, schoolSubjects } from "@/infrastructure/database/schema/academics";
+import { notifications } from "@/infrastructure/database/schema/messaging";
 import { getMobileUser, mobileJsonError } from "../../_lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -121,7 +123,7 @@ export async function GET(request: NextRequest) {
           )
         )
         .orderBy(desc(teacherExtraHours.id))
-        .limit(15);
+        .limit(25);
     }
 
     const totalApprovedExtraSum = extraHours
@@ -147,8 +149,44 @@ export async function GET(request: NextRequest) {
           )
         )
         .orderBy(desc(teacherHrRequests.id))
-        .limit(15);
+        .limit(25);
     }
+
+    // 5. School Classes & Subjects for Interactive Dropdowns
+    const classRows = await readDb
+      .select({ id: schoolClasses.id, name: schoolClasses.className })
+      .from(schoolClasses)
+      .where(eq(schoolClasses.schoolId, schoolId))
+      .limit(50)
+      .catch(() => []);
+
+    const subjectRows = await readDb
+      .select({ id: schoolSubjects.id, name: schoolSubjects.subjectName })
+      .from(schoolSubjects)
+      .where(eq(schoolSubjects.schoolId, schoolId))
+      .limit(50)
+      .catch(() => []);
+
+    const defaultClasses = [
+      "6ème A", "6ème B", "5ème A", "5ème B",
+      "4ème A", "4ème B", "3ème A", "3ème B",
+      "2nde C", "2nde A", "1ère D", "1ère A",
+      "Terminale D", "Terminale A", "Terminale C"
+    ];
+
+    const defaultSubjects = [
+      "Mathématiques", "Physique-Chimie", "Français", "SVT",
+      "Anglais", "Histoire-Géographie", "Philosophie",
+      "Éducation Physique & Sportive (EPS)", "Informatique", "Arabe"
+    ];
+
+    const availableClasses = classRows.length > 0
+      ? Array.from(new Set(classRows.map((c: any) => c.name).filter(Boolean)))
+      : defaultClasses;
+
+    const availableSubjects = subjectRows.length > 0
+      ? Array.from(new Set(subjectRows.map((s: any) => s.name).filter(Boolean)))
+      : defaultSubjects;
 
     return NextResponse.json({
       success: true,
@@ -179,6 +217,8 @@ export async function GET(request: NextRequest) {
           list: extraHours,
         },
         requests: hrRequests,
+        classes: availableClasses,
+        subjects: availableSubjects,
       },
     });
   } catch (error: any) {
@@ -206,17 +246,34 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { action, requestType, startDate, endDate, daysCount, advanceAmount, reason, documentUrl, typeHour, className, subjectName, hoursCount, hourlyRate, notes } = body;
+    const {
+      action,
+      requestType,
+      date,
+      startDate,
+      endDate,
+      daysCount,
+      advanceAmount,
+      reason,
+      documentUrl,
+      typeHour,
+      className,
+      subjectName,
+      hoursCount,
+      hourlyRate,
+      notes,
+    } = body;
 
     if (action === "extra_hours") {
       const hCount = Number(hoursCount) || 1;
       const hRate = Number(hourlyRate) || 3000;
       const total = hCount * hRate;
+      const sessionDate = date || new Date().toLocaleDateString("fr-FR");
 
       const [newRecord] = await db.insert(teacherExtraHours).values({
         schoolId,
         employeeId,
-        date: new Date().toLocaleDateString("fr-FR"),
+        date: sessionDate,
         typeHour: typeHour || "Heure supplémentaire",
         className: className || "Classe",
         subjectName: subjectName || "Discipline",
@@ -227,10 +284,19 @@ export async function POST(request: NextRequest) {
         notes: notes || "Déclaré depuis Edut Pro Mobile",
       }).returning();
 
+      // Create Admin Notification
+      await db.insert(notifications).values({
+        schoolId,
+        title: "Nouvelle séance d'heures supplémentaires",
+        message: `L'enseignant a déclaré ${hCount}h de ${typeHour} en ${className} (${subjectName}).`,
+        type: "hr_approval",
+        isRead: false,
+      }).catch(() => {});
+
       return NextResponse.json({
         success: true,
         data: newRecord,
-        message: "Séance d'heures supplémentaires déclarée avec succès ! En attente de validation comptable.",
+        message: "Séance d'heures supplémentaires déclarée avec succès ! En attente de validation par la direction.",
       });
     }
 
@@ -251,6 +317,15 @@ export async function POST(request: NextRequest) {
       documentUrl,
       status: "En attente",
     }).returning();
+
+    // Create Admin Notification
+    await db.insert(notifications).values({
+      schoolId,
+      title: `Nouvelle demande RH : ${requestType}`,
+      message: `Demande de ${requestType} soumise. Motif : ${reason}`,
+      type: "hr_approval",
+      isRead: false,
+    }).catch(() => {});
 
     return NextResponse.json({
       success: true,
