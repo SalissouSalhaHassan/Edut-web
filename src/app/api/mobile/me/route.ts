@@ -172,7 +172,10 @@ function mapRolePermission(row: PermissionRow) {
   const moduleName = String(row.moduleName || "").toLowerCase().trim();
   const permissions = new Set<string>();
 
-  if (matchesModule(moduleName, ["students", "student", "eleves"])) {
+  if (matchesModule(moduleName, [
+    "students", "student", "eleves", "eleve", "élève", "élèves",
+    "etudiant", "etudiants", "inscription", "inscriptions", "admission"
+  ])) {
     if (row.canView) permissions.add("students.view");
     if (row.canEdit) {
       permissions.add("students.create");
@@ -182,37 +185,60 @@ function mapRolePermission(row: PermissionRow) {
     if (row.canDelete) permissions.add("students.delete");
   }
 
-  if (matchesModule(moduleName, ["finance", "finances"])) {
+  if (matchesModule(moduleName, [
+    "finance", "finances", "comptabilite", "comptabilité", "caisse",
+    "paiements", "frais", "scolarite", "scolarité", "recus", "reçus"
+  ])) {
     if (row.canView) permissions.add("finance.view");
     if (row.canEdit || row.canDelete) permissions.add("finance.collect");
   }
 
-  if (matchesModule(moduleName, ["hr", "human resources", "ressources humaines"])) {
+  if (matchesModule(moduleName, [
+    "hr", "rh", "human resources", "ressources humaines", "personnel",
+    "employes", "employés", "enseignants", "professeurs", "salaires"
+  ])) {
     if (row.canView) permissions.add("hr.view");
     if (row.canEdit || row.canDelete) permissions.add("hr.manage");
   }
 
-  if (matchesModule(moduleName, ["hostel", "internat", "dortoirs", "dormitory"])) {
+  if (matchesModule(moduleName, [
+    "hostel", "internat", "dortoir", "dortoirs", "chambres",
+    "hebergement", "hébergement", "dormitory"
+  ])) {
     if (row.canView) permissions.add("hostel.view");
     if (row.canEdit || row.canDelete) permissions.add("hostel.manage");
   }
 
-  if (matchesModule(moduleName, ["owner", "platform", "schools", "security"])) {
+  if (matchesModule(moduleName, [
+    "owner", "platform", "schools", "security", "etablissements",
+    "établissements", "configuration"
+  ])) {
     if (row.canView) permissions.add("owner.platform.view");
     if (row.canEdit || row.canDelete) permissions.add("owner.schools.manage");
   }
 
-  if (matchesModule(moduleName, ["exam", "exams", "resultats"])) {
+  if (matchesModule(moduleName, [
+    "exam", "exams", "examen", "examens", "evaluation", "evaluations",
+    "évaluation", "évaluations", "resultat", "resultats", "résultat",
+    "résultats", "bulletin", "bulletins", "composition", "compositions",
+    "note", "notes"
+  ])) {
     if (row.canView) permissions.add("exams.view");
     if (row.canEdit || row.canDelete) permissions.add("exams.manage");
   }
 
-  if (matchesModule(moduleName, ["attendance", "appel", "presence"])) {
+  if (matchesModule(moduleName, [
+    "attendance", "appel", "presence", "presences", "présence",
+    "présences", "assiduite", "assiduité", "absences", "retards", "pointage"
+  ])) {
     if (row.canView) permissions.add("attendance.view");
     if (row.canEdit || row.canDelete) permissions.add("attendance.manage");
   }
 
-  if (matchesModule(moduleName, ["academics", "notes", "devoirs", "homework"])) {
+  if (matchesModule(moduleName, [
+    "academics", "academic", "pedagogie", "pédagogie", "cours", "classes",
+    "matieres", "matières", "notes", "devoirs", "homework", "cahier_textes", "planification"
+  ])) {
     if (row.canView) permissions.add("academics.view");
     if (row.canEdit || row.canDelete) permissions.add("academics.manage");
 
@@ -240,7 +266,11 @@ function mapRolePermission(row: PermissionRow) {
     if (gdEdit) permissions.add("academics.gestionDevoirs.edit");
   }
 
-  if (matchesModule(moduleName, ["messaging", "messages", "notifications"])) {
+  if (matchesModule(moduleName, [
+    "messaging", "messages", "message", "messagerie", "notification",
+    "notifications", "communication", "communications", "chat", "sms",
+    "discussion", "discussions", "mail", "email"
+  ])) {
     if (row.canView) permissions.add("messaging.view");
     if (row.canEdit || row.canDelete) permissions.add("messaging.manage");
   }
@@ -433,7 +463,8 @@ export async function GET(request: NextRequest) {
 
   const roleType = await getUserRoleType(dbUser);
   const mobileRole = mobileRoleFromWebRole(roleType);
-  let permissions = defaultPermissionsForRole(roleType);
+  const defaultPerms = defaultPermissionsForRole(roleType);
+  const permissions = new Set<string>(defaultPerms);
 
   const configuredPermissions = dbUser.role?.permissions?.length
     ? dbUser.role.permissions
@@ -444,13 +475,11 @@ export async function GET(request: NextRequest) {
       : [];
 
   if (configuredPermissions.length > 0) {
-    const dbPermissions = new Set<string>();
     for (const row of configuredPermissions) {
       for (const permission of mapRolePermission(row)) {
-        dbPermissions.add(permission);
+        permissions.add(permission);
       }
     }
-    permissions = dbPermissions;
   }
 
   const branch = dbUser.schoolId
