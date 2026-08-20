@@ -68,12 +68,21 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const baseSalary = Number(empProfile?.salaireBase) || 280000;
+    const teacherName =
+      empProfile?.nom ||
+      user.nomPrenom ||
+      (user as any).name ||
+      (user.utilisateur && !user.utilisateur.includes("@") ? user.utilisateur : user.utilisateur?.split("@")[0]) ||
+      "Enseignant";
+
+    const teacherPoste = empProfile?.poste || empProfile?.fonction || "Enseignant";
+    const teacherMatricule = empProfile?.empId || `ENS-${actualEmployeeId || user.id}`;
+    const baseSalary = Number(empProfile?.salaireBase) || 90000;
     const allowance = Math.round(baseSalary * 0.15); // standard primes ~ 15%
     const deduction = Math.round(baseSalary * 0.045); // standard cotisations ~ 4.5%
     const computedNet = baseSalary + allowance - deduction;
 
-    // 2. Payslips / Salary Records
+    // 2. Payslips / Salary Records from real database
     let payslips: any[] = [];
     if (actualEmployeeId) {
       payslips = await readDb
@@ -91,26 +100,10 @@ export async function GET(request: NextRequest) {
         .from(salaryRecords)
         .where(eq(salaryRecords.employeeId, actualEmployeeId))
         .orderBy(desc(salaryRecords.id))
-        .limit(6);
+        .limit(12);
     }
 
-    // Smart default payslips if none in DB yet
-    if (!payslips || payslips.length === 0) {
-      const months = ["Mai 2026", "Avril 2026", "Mars 2026"];
-      payslips = months.map((m, idx) => ({
-        id: 1000 + idx,
-        monthYear: m,
-        basicSalary: baseSalary,
-        totalAllowance: allowance,
-        totalDeduction: deduction,
-        netSalary: computedNet,
-        status: idx === 0 ? "Payé" : "Payé",
-        paymentDate: `2026-0${5 - idx}-28`,
-        paymentMode: "Virement Bancaire",
-      }));
-    }
-
-    // 3. Extra Hours / Substitutions
+    // 3. Extra Hours / Substitutions from real database
     let extraHours: any[] = [];
     if (actualEmployeeId) {
       extraHours = await readDb
@@ -123,7 +116,7 @@ export async function GET(request: NextRequest) {
           )
         )
         .orderBy(desc(teacherExtraHours.id))
-        .limit(25);
+        .limit(30);
     }
 
     const totalApprovedExtraSum = extraHours
@@ -136,7 +129,7 @@ export async function GET(request: NextRequest) {
 
     const totalExtraHoursSum = extraHours.reduce((acc, cur) => acc + (Number(cur.totalAmount) || 0), 0);
 
-    // 4. Leave & Advance Requests
+    // 4. Leave & Advance Requests from real database
     let hrRequests: any[] = [];
     if (actualEmployeeId) {
       hrRequests = await readDb
@@ -149,7 +142,7 @@ export async function GET(request: NextRequest) {
           )
         )
         .orderBy(desc(teacherHrRequests.id))
-        .limit(25);
+        .limit(30);
     }
 
     // 5. School Classes & Subjects for Interactive Dropdowns
@@ -193,9 +186,9 @@ export async function GET(request: NextRequest) {
       data: {
         employee: {
           id: actualEmployeeId || 1,
-          name: empProfile?.nom || (user as any).name || user.utilisateur || "Professeur",
-          poste: empProfile?.poste || empProfile?.fonction || "Professeur Titulaire",
-          matricule: empProfile?.empId || "ENS-2025-042",
+          name: teacherName,
+          poste: teacherPoste,
+          matricule: teacherMatricule,
           salaireBase: baseSalary,
           departement: empProfile?.departement || "Corps Enseignant",
           grade: empProfile?.codeGrade || empProfile?.echelon || "Échelon 1",
