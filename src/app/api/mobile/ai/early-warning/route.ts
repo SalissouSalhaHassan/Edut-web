@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { sql } from "drizzle-orm";
-import { readDb } from "@/infrastructure/database";
+import { sql, eq, and } from "drizzle-orm";
+import { db, readDb } from "@/infrastructure/database";
 import { getMobileUser, mobileJsonError } from "../../_lib/auth";
 import { verifyParentChildRelationship } from "../../_lib/family-auth";
+import { notifications } from "@/infrastructure/database/schema/messaging";
+import { students } from "@/infrastructure/database/schema/students";
 
 export const dynamic = "force-dynamic";
 
@@ -240,5 +242,48 @@ export async function GET(request: NextRequest) {
   } catch (error: any) {
     console.error("[Early Warning API Error]:", error);
     return mobileJsonError(error?.message || "Erreur d'analyse prédictive", 500);
+  }
+}
+
+export async function POST(request: NextRequest) {
+  const { user, response } = await getMobileUser(request);
+  if (response || !user) return response || mobileJsonError("Non autorisé", 401);
+
+  try {
+    const body = await request.json();
+    const { action, studentId, message, riskLevel } = body;
+
+    if (action === "notifyParent" && studentId) {
+      const studentRows = await readDb
+        .select({
+          id: students.id,
+          nomEtudiant: students.nomEtudiant,
+          classe: students.classe,
+        })
+        .from(students)
+        .where(eq(students.id, Number(studentId)))
+        .limit(1);
+
+      const stdName = studentRows[0]?.nomEtudiant || "L'élève";
+      const stdClass = studentRows[0]?.classe || "Classe";
+
+      await db.insert(notifications).values({
+        title: `Alerte Pédagogique : Suivi & Soutien (${stdName})`,
+        content: message || `Une alerte de niveau ${riskLevel || "Modéré"} a été émise pour ${stdName} (${stdClass}). Un renforcement dans les matières clés est conseillé avant les examens.`,
+        type: riskLevel === "Élevé" ? "warning" : "info",
+        category: "Pédagogie",
+        isRead: false,
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: "Alerte envoyée aux parents et aux responsables pédagogiques avec succès !",
+      });
+    }
+
+    return mobileJsonError("Action invalide.", 400);
+  } catch (error: any) {
+    console.error("[Early Warning POST Error]:", error);
+    return mobileJsonError(error?.message || "Erreur d'envoi d'alerte", 500);
   }
 }
