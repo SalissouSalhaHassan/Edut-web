@@ -29,7 +29,6 @@ export async function GET(request: NextRequest) {
     roleType === "censeur" ||
     roleType === "surveillant" ||
     roleType === "ministere" ||
-    roleType === "admin" ||
     userAny.admin === true ||
     userAny.superAdmin === true ||
     roleName.includes("admin") ||
