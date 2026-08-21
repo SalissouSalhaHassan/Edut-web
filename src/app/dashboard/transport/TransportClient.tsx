@@ -1,640 +1,1418 @@
 "use client";
 
-import React, { useState, useTransition, useEffect } from "react";
-import { 
-  Bus, MapPin, Users, TrendingUp, Phone, Calendar, 
-  Search, Filter, Loader2, X, Plus, Trash2, 
-  User, CheckCircle2, DollarSign, ShieldAlert
+import React, { useState } from "react";
+import {
+  Bus,
+  Users,
+  MapPin,
+  Clock,
+  Phone,
+  ShieldCheck,
+  Plus,
+  Search,
+  CheckCircle2,
+  AlertCircle,
+  QrCode,
+  Printer,
+  Trash2,
+  Edit3,
+  Calendar,
+  Navigation,
+  Sparkles,
+  ArrowRight,
+  TrendingUp,
+  UserCheck,
+  X,
+  MessageSquare,
+  Compass,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { addSubscription, removeSubscription, saveTransportRoute, searchStudentsAction } from "@/domains/transport/actions/transport.actions";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
-import { useRouter } from "next/navigation";
-
-interface Route {
-  id: number;
-  routeName: string;
-  vehicleNumber: string;
-  driverName: string;
-  driverPhone?: string;
-  monthlyFee: number;
-}
-
-interface Subscription {
-  id: number;
-  studentId: number;
-  routeId: number;
-  pickupPoint?: string;
-  startDate: string;
-  status: string;
-  student?: {
-    id: number;
-    nomEtudiant: string;
-    classe?: string;
-    numAdmission: string;
-  };
-  route?: Route;
-}
+import {
+  saveTransportRoute,
+  deleteTransportRoute,
+  addSubscription,
+  removeSubscription,
+  startLiveTripAction,
+  updateLiveTripStatusAction,
+  recordStudentBoardingAction,
+  searchStudentsAction,
+} from "@/domains/transport/actions/transport.actions";
 
 interface TransportClientProps {
-  initialRoutes: Route[];
-  initialSubscriptions: Subscription[];
+  initialStats: {
+    totalRoutes: number;
+    activeSubscriptions: number;
+    tripsToday: number;
+    boardingsToday: number;
+  };
+  initialRoutes: any[];
+  initialSubscriptions: any[];
+  initialTrips: any[];
+  initialLogs: any[];
 }
 
-export default function TransportClient({ initialRoutes, initialSubscriptions }: TransportClientProps) {
-  const router = useRouter();
-  const [tab, setTab] = useState("subs");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [isPending, startTransition] = useTransition();
+export default function TransportClient({
+  initialStats,
+  initialRoutes,
+  initialSubscriptions,
+  initialTrips,
+  initialLogs,
+}: TransportClientProps) {
+  const [activeTab, setActiveTab] = useState<"passengers" | "routes" | "live" | "logs">("passengers");
 
-  // Dialog states
-  const [isSubModalOpen, setIsSubModalOpen] = useState(false);
+  // State
+  const [stats, setStats] = useState(initialStats);
+  const [routes, setRoutes] = useState(initialRoutes);
+  const [subscriptions, setSubscriptions] = useState(initialSubscriptions);
+  const [trips, setTrips] = useState(initialTrips);
+  const [logs, setLogs] = useState(initialLogs);
+
+  // Filters & Search
+  const [searchPassenger, setSearchPassenger] = useState("");
+  const [selectedRouteFilter, setSelectedRouteFilter] = useState<string>("ALL");
+
+  // Modals
   const [isRouteModalOpen, setIsRouteModalOpen] = useState(false);
+  const [isSubModalOpen, setIsSubModalOpen] = useState(false);
+  const [isStartTripModalOpen, setIsStartTripModalOpen] = useState(false);
+  const [selectedPass, setSelectedPass] = useState<any>(null);
 
-  // Subscription Form State
-  const [studentSearch, setStudentSearch] = useState("");
-  const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [isSearchingStudents, setIsSearchingStudents] = useState(false);
-  const [selectedStudent, setSelectedStudent] = useState<any | null>(null);
-  
-  const [selectedRouteId, setSelectedRouteId] = useState<string>("");
-  const [pickupPoint, setPickupPoint] = useState("");
-  const [startDate, setStartDate] = useState(new Date().toISOString().split("T")[0]);
+  // Form State: Route
+  const [routeForm, setRouteForm] = useState<{
+    id?: number;
+    routeName: string;
+    vehicleNumber: string;
+    driverName: string;
+    driverPhone: string;
+    capacity: number;
+    monthlyFee: number;
+    stops: { id: string; stopName: string; timeMorning: string; timeEvening: string; order: number }[];
+    status: string;
+    notes: string;
+  }>({
+    routeName: "",
+    vehicleNumber: "",
+    driverName: "",
+    driverPhone: "",
+    capacity: 30,
+    monthlyFee: 15000,
+    stops: [
+      { id: "1", stopName: "Terminus / Départ", timeMorning: "06:30", timeEvening: "16:45", order: 1 },
+      { id: "2", stopName: "Carrefour Central", timeMorning: "06:45", timeEvening: "16:30", order: 2 },
+      { id: "3", stopName: "École (Arrivée)", timeMorning: "07:15", timeEvening: "16:00", order: 3 },
+    ],
+    status: "Actif",
+    notes: "",
+  });
 
-  // Route Form State
-  const [routeName, setRouteName] = useState("");
-  const [vehicleNumber, setVehicleNumber] = useState("");
-  const [driverName, setDriverName] = useState("");
-  const [driverPhone, setDriverPhone] = useState("");
-  const [monthlyFee, setMonthlyFee] = useState("");
+  // Form State: Subscription
+  const [studentSearchQuery, setStudentSearchQuery] = useState("");
+  const [studentSearchResults, setStudentSearchResults] = useState<any[]>([]);
+  const [selectedStudent, setSelectedStudent] = useState<any>(null);
+  const [subForm, setSubForm] = useState({
+    routeId: routes[0]?.id || 0,
+    pickupStop: "",
+    dropoffStop: "École",
+    tripType: "Aller-Retour",
+    parentPhone: "",
+    parentWhatsapp: "",
+  });
 
-  // Debounced student search
-  useEffect(() => {
-    if (!studentSearch.trim()) {
-      setSearchResults([]);
+  // Form State: Start Live Trip
+  const [tripForm, setTripForm] = useState({
+    routeId: routes[0]?.id || 0,
+    tripType: "Circuit Matin",
+  });
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // ─── Search Students Helper ───────────────────────────────────────────────
+  const handleSearchStudents = async (q: string) => {
+    setStudentSearchQuery(q);
+    if (!q || q.trim().length < 2) {
+      setStudentSearchResults([]);
       return;
     }
-    const timer = setTimeout(async () => {
-      setIsSearchingStudents(true);
-      try {
-        const res = await searchStudentsAction(studentSearch) as any;
-        const list = res?.data?.data || res?.data || [];
-        setSearchResults(Array.isArray(list) ? list : []);
-      } catch {
-        toast.error("Erreur lors de la recherche des élèves");
-      }
-      setIsSearchingStudents(false);
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [studentSearch]);
-
-  // Filter subscriptions and routes
-  const filteredSubs = initialSubscriptions.filter(s => 
-    s.student?.nomEtudiant.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    s.student?.classe?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    s.route?.routeName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    s.pickupPoint?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const filteredRoutes = initialRoutes.filter(r => 
-    r.routeName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    r.vehicleNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    r.driverName.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const totalRevenue = initialSubscriptions.reduce((acc, s) => acc + (s.route?.monthlyFee || 0), 0);
-
-  const stats = [
-    { label: "Lignes Actives", value: initialRoutes.length, icon: Bus, color: "text-indigo-600", bg: "bg-indigo-50" },
-    { label: "Élèves Abonnés", value: initialSubscriptions.length, icon: Users, color: "text-amber-600", bg: "bg-amber-50" },
-    { label: "Revenu Mensuel", value: totalRevenue.toLocaleString() + " CFA", icon: TrendingUp, color: "text-emerald-600", bg: "bg-emerald-50" },
-  ];
-
-  const handleCreateSubscription = () => {
-    if (!selectedStudent) {
-      toast.error("Veuillez sélectionner un élève");
-      return;
-    }
-    if (!selectedRouteId) {
-      toast.error("Veuillez sélectionner un trajet / bus");
-      return;
-    }
-
-    startTransition(async () => {
-      const res = await addSubscription({
-        studentId: selectedStudent.id,
-        routeId: parseInt(selectedRouteId),
-        pickupPoint: pickupPoint || undefined,
-        startDate: new Date(startDate)
-      });
-
-      if (res.success) {
-        toast.success("Élève inscrit au transport scolaire avec succès !");
-        setIsSubModalOpen(false);
-        // Reset states
-        setSelectedStudent(null);
-        setStudentSearch("");
-        setSelectedRouteId("");
-        setPickupPoint("");
-        router.refresh();
-      } else {
-        toast.error("Erreur lors de l'inscription.");
-      }
-    });
+    const res = await searchStudentsAction(q);
+    const data = (res as any)?.data?.data || (res as any)?.data || [];
+    setStudentSearchResults(data);
   };
 
-  const handleCreateRoute = () => {
-    if (!routeName.trim() || !vehicleNumber.trim() || !driverName.trim() || !monthlyFee) {
-      toast.error("Veuillez remplir tous les champs obligatoires");
+  // ─── Save Route ───────────────────────────────────────────────────────────
+  const handleSaveRoute = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!routeForm.routeName || !routeForm.vehicleNumber || !routeForm.driverName) {
+      toast.error("Veuillez renseigner les champs obligatoires de la ligne.");
       return;
     }
 
-    startTransition(async () => {
-      const res = await saveTransportRoute({
-        routeName,
-        vehicleNumber,
-        driverName,
-        driverPhone: driverPhone || undefined,
-        monthlyFee: parseFloat(monthlyFee)
-      });
-
-      if (res.success) {
-        toast.success("Nouvelle ligne de transport créée avec succès !");
+    try {
+      setIsSubmitting(true);
+      const res: any = await saveTransportRoute(routeForm, routeForm.id);
+      const payload = res?.data || res;
+      if (payload?.success) {
+        toast.success(payload.message || "Ligne enregistrée avec succès !");
         setIsRouteModalOpen(false);
-        // Reset states
-        setRouteName("");
-        setVehicleNumber("");
-        setDriverName("");
-        setDriverPhone("");
-        setMonthlyFee("");
-        router.refresh();
+        // Refresh local routes
+        window.location.reload();
       } else {
-        toast.error("Erreur lors de la création.");
+        toast.error(res?.error || payload?.error || "Erreur lors de l'enregistrement.");
       }
-    });
+    } catch (err) {
+      toast.error("Erreur serveur");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleDeleteSubscription = (id: number) => {
-    if (!confirm("Voulez-vous vraiment désabonner cet élève de cette ligne ?")) return;
-
-    startTransition(async () => {
-      const res = await removeSubscription(id);
-      if (res.success) {
-        toast.success("Désabonnement effectué.");
-        router.refresh();
-      } else {
-        toast.error("Erreur lors du désabonnement.");
+  const handleDeleteRoute = async (id: number) => {
+    if (!confirm("Voulez-vous vraiment supprimer cette ligne de transport ?")) return;
+    try {
+      const res: any = await deleteTransportRoute(id);
+      const payload = res?.data || res;
+      if (payload?.success) {
+        toast.success("Ligne supprimée.");
+        setRoutes(routes.filter((r) => r.id !== id));
       }
-    });
+    } catch (err) {
+      toast.error("Erreur lors de la suppression.");
+    }
   };
+
+  // ─── Save Subscription ───────────────────────────────────────────────────
+  const handleAddSubscription = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedStudent || !subForm.routeId) {
+      toast.error("Veuillez sélectionner un élève et une ligne de transport.");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      const res: any = await addSubscription({
+        studentId: selectedStudent.id,
+        routeId: Number(subForm.routeId),
+        pickupStop: subForm.pickupStop,
+        dropoffStop: subForm.dropoffStop,
+        tripType: subForm.tripType,
+        parentPhone: subForm.parentPhone || selectedStudent.mobile,
+        parentWhatsapp: subForm.parentWhatsapp || selectedStudent.whatsapp,
+        startDate: new Date(),
+      });
+
+      const payload = res?.data || res;
+      if (payload?.success) {
+        toast.success(payload.message || "Élève inscrit au transport scolaire !");
+        setIsSubModalOpen(false);
+        setSelectedStudent(null);
+        setStudentSearchQuery("");
+        window.location.reload();
+      } else {
+        toast.error(res?.error || payload?.error || "Erreur lors de l'inscription.");
+      }
+    } catch (err) {
+      toast.error("Erreur lors de l'inscription.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleRemoveSubscription = async (id: number) => {
+    if (!confirm("Voulez-vous retirer cet élève du circuit de transport ?")) return;
+    try {
+      const res: any = await removeSubscription(id);
+      const payload = res?.data || res;
+      if (payload?.success) {
+        toast.success("Abonnement supprimé.");
+        setSubscriptions(subscriptions.filter((s) => s.id !== id));
+      }
+    } catch (err) {
+      toast.error("Erreur lors du retrait.");
+    }
+  };
+
+  // ─── Live Trip Actions ────────────────────────────────────────────────────
+  const handleStartTrip = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setIsSubmitting(true);
+      const res: any = await startLiveTripAction({
+        routeId: Number(tripForm.routeId),
+        tripType: tripForm.tripType,
+      });
+
+      const payload = res?.data || res;
+      if (payload?.success) {
+        toast.success(payload.message || "Trajet démarré !");
+        setIsStartTripModalOpen(false);
+        window.location.reload();
+      } else {
+        toast.error(res?.error || payload?.error);
+      }
+    } catch (err) {
+      toast.error("Erreur lors du démarrage du trajet.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleUpdateTripStatus = async (tripId: number, status: "En cours" | "Terminé" | "Annulé", currentStop?: string) => {
+    try {
+      const res: any = await updateLiveTripStatusAction({ tripId, status, currentStop });
+      const payload = res?.data || res;
+      if (payload?.success) {
+        toast.success(payload.message || `Trajet ${status}.`);
+        window.location.reload();
+      }
+    } catch (err) {
+      toast.error("Erreur mise à jour trajet.");
+    }
+  };
+
+  // ─── Student Boarding Pointage ────────────────────────────────────────────
+  const handleRecordBoarding = async (
+    studentId: number,
+    tripId: number,
+    eventType: "Montée Matin" | "Descente Matin (École)" | "Montée Soir (École)" | "Descente Soir (Maison)",
+    stopName: string
+  ) => {
+    try {
+      toast.loading("Pointage en cours et envoi de l'alerte WhatsApp/SMS...");
+      const res: any = await recordStudentBoardingAction({
+        studentId,
+        tripId,
+        eventType,
+        stopName,
+        notifyParent: true,
+      });
+      toast.dismiss();
+      const payload = res?.data || res;
+      if (payload?.success) {
+        toast.success(
+          payload.parentNotified
+            ? `${eventType} validée ! Parent notifié instantanément.`
+            : `${eventType} validée avec succès.`
+        );
+        window.location.reload();
+      } else {
+        toast.error(res?.error || payload?.error || "Erreur de pointage.");
+      }
+    } catch (err) {
+      toast.dismiss();
+      toast.error("Erreur lors de l'enregistrement.");
+    }
+  };
+
+  // Filtered Subscriptions
+  const filteredSubscriptions = subscriptions.filter((s) => {
+    const matchQuery =
+      !searchPassenger ||
+      s.student?.nomEtudiant?.toLowerCase().includes(searchPassenger.toLowerCase()) ||
+      s.student?.numAdmission?.toLowerCase().includes(searchPassenger.toLowerCase()) ||
+      s.pickupStop?.toLowerCase().includes(searchPassenger.toLowerCase());
+    const matchRoute = selectedRouteFilter === "ALL" || String(s.routeId) === String(selectedRouteFilter);
+    return matchQuery && matchRoute;
+  });
 
   return (
-    <div className="p-4 md:p-8 space-y-8 animate-in fade-in duration-500">
-      
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div>
-          <h1 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tight">Transport Scolaire</h1>
-          <p className="text-slate-500 mt-2 font-medium">Gestion intelligente des bus, des chauffeurs et des abonnements</p>
+    <div className="p-6 max-w-7xl mx-auto space-y-6">
+      {/* ─── Header & Top Stats ────────────────────────────────────────── */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 p-8 rounded-3xl text-white shadow-xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="relative z-10 space-y-2">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 text-blue-300 text-xs font-semibold backdrop-blur-md border border-blue-400/20">
+            <Bus className="w-3.5 h-3.5" />
+            Module Flotte & Sécurité des Élèves
+          </div>
+          <h1 className="text-3xl font-black tracking-tight">🚌 Transport Scolaire & Pointage</h1>
+          <p className="text-slate-300 text-sm max-w-xl">
+            Gestion complète des lignes de bus, arrêts programmés, pointage de montée/descente et alertes WhatsApp automatiques aux parents.
+          </p>
+        </div>
+
+        <div className="relative z-10 flex flex-wrap gap-3">
+          <button
+            onClick={() => {
+              setRouteForm({
+                routeName: "",
+                vehicleNumber: "",
+                driverName: "",
+                driverPhone: "",
+                capacity: 30,
+                monthlyFee: 15000,
+                stops: [
+                  { id: "1", stopName: "Terminus / Départ", timeMorning: "06:30", timeEvening: "16:45", order: 1 },
+                  { id: "2", stopName: "Carrefour Central", timeMorning: "06:45", timeEvening: "16:30", order: 2 },
+                  { id: "3", stopName: "École (Arrivée)", timeMorning: "07:15", timeEvening: "16:00", order: 3 },
+                ],
+                status: "Actif",
+                notes: "",
+              });
+              setIsRouteModalOpen(true);
+            }}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-sm backdrop-blur-md border border-white/10 transition"
+          >
+            <Plus className="w-4 h-4" />
+            Nouvelle Ligne
+          </button>
+          <button
+            onClick={() => setIsSubModalOpen(true)}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm shadow-lg shadow-blue-500/30 transition transform active:scale-95"
+          >
+            <UserCheck className="w-4 h-4" />
+            Inscrire un Élève
+          </button>
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {stats.map((stat, i) => (
-          <div key={i} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-6">
-            <div className={cn("p-4 rounded-2xl", stat.bg, stat.color)}>
-              <stat.icon size={26} strokeWidth={2.5} />
-            </div>
-            <div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">{stat.label}</p>
-              <p className="text-2xl font-black text-slate-900">{stat.value}</p>
-            </div>
+      {/* ─── KPI Widgets ─────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+            <Bus className="w-6 h-6" />
           </div>
-        ))}
+          <div>
+            <div className="text-2xl font-black text-slate-900">{stats.totalRoutes}</div>
+            <div className="text-xs text-slate-500 font-medium">Lignes de Bus</div>
+          </div>
+        </div>
+
+        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+            <Users className="w-6 h-6" />
+          </div>
+          <div>
+            <div className="text-2xl font-black text-slate-900">{stats.activeSubscriptions}</div>
+            <div className="text-xs text-slate-500 font-medium">Élèves Abonnés</div>
+          </div>
+        </div>
+
+        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold">
+            <Navigation className="w-6 h-6" />
+          </div>
+          <div>
+            <div className="text-2xl font-black text-slate-900">{stats.tripsToday}</div>
+            <div className="text-xs text-slate-500 font-medium">Trajets Aujourd'hui</div>
+          </div>
+        </div>
+
+        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
+            <ShieldCheck className="w-6 h-6" />
+          </div>
+          <div>
+            <div className="text-2xl font-black text-slate-900">{stats.boardingsToday}</div>
+            <div className="text-xs text-slate-500 font-medium">Pointages Validés</div>
+          </div>
+        </div>
       </div>
 
-      {/* Tabs Layout */}
-      <Tabs value={tab} onValueChange={setTab} className="w-full space-y-6">
-        
-        {/* Navigation & Toolbar */}
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-white p-4 rounded-[2rem] border border-slate-100 shadow-sm">
-          <TabsList className="bg-slate-100/80 p-1.5 rounded-2xl h-14 w-full max-w-sm gap-2">
-            <TabsTrigger value="subs" className="rounded-xl h-full font-black text-xs uppercase tracking-widest data-[state=active]:bg-white data-[state=active]:text-indigo-600 data-[state=active]:shadow-sm flex-1">
-              👨‍🎓 Abonnés
-            </TabsTrigger>
-            <TabsTrigger value="routes" className="rounded-xl h-full font-black text-xs uppercase tracking-widest data-[state=active]:bg-white data-[state=active]:text-indigo-600 data-[state=active]:shadow-sm flex-1">
-              🚌 Lignes & Bus
-            </TabsTrigger>
-          </TabsList>
+      {/* ─── Navigation Tabs ────────────────────────────────────────────── */}
+      <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
+        <button
+          onClick={() => setActiveTab("passengers")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm transition ${
+            activeTab === "passengers"
+              ? "bg-blue-600 text-white shadow-md shadow-blue-500/20"
+              : "text-slate-600 hover:bg-slate-100"
+          }`}
+        >
+          <Users className="w-4 h-4" />
+          👥 Abonnés & Cartes ({subscriptions.length})
+        </button>
 
-          <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
-            <div className="relative w-full sm:w-80">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-              <Input 
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                placeholder={tab === "subs" ? "Rechercher un abonné..." : "Rechercher une ligne..."} 
-                className="pl-11 rounded-xl border-slate-100 bg-slate-50/50 shadow-none h-12 text-xs font-bold" 
+        <button
+          onClick={() => setActiveTab("routes")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm transition ${
+            activeTab === "routes"
+              ? "bg-blue-600 text-white shadow-md shadow-blue-500/20"
+              : "text-slate-600 hover:bg-slate-100"
+          }`}
+        >
+          <Compass className="w-4 h-4" />
+          🚌 Lignes & Arrêts ({routes.length})
+        </button>
+
+        <button
+          onClick={() => setActiveTab("live")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm transition ${
+            activeTab === "live"
+              ? "bg-blue-600 text-white shadow-md shadow-blue-500/20"
+              : "text-slate-600 hover:bg-slate-100"
+          }`}
+        >
+          <Navigation className="w-4 h-4" />
+          🚦 Suivi en Direct & Pointage ({trips.filter((t) => t.status === "En cours").length} actifs)
+        </button>
+
+        <button
+          onClick={() => setActiveTab("logs")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm transition ${
+            activeTab === "logs"
+              ? "bg-blue-600 text-white shadow-md shadow-blue-500/20"
+              : "text-slate-600 hover:bg-slate-100"
+          }`}
+        >
+          <Clock className="w-4 h-4" />
+          📜 Journal de Sécurité
+        </button>
+      </div>
+
+      {/* ─── TAB 1: PASSENGERS & BOARDING PASSES ──────────────────────────── */}
+      {activeTab === "passengers" && (
+        <div className="space-y-4">
+          {/* Controls Bar */}
+          <div className="flex flex-col md:flex-row gap-3 justify-between bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Rechercher par élève, matricule, arrêt..."
+                value={searchPassenger}
+                onChange={(e) => setSearchPassenger(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
-            {tab === "subs" ? (
-              <Button 
-                onClick={() => setIsSubModalOpen(true)}
-                className="w-full sm:w-auto h-12 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-[10px] uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-indigo-100"
-              >
-                <Plus size={16} /> Inscrire un Élève
-              </Button>
-            ) : (
-              <Button 
-                onClick={() => setIsRouteModalOpen(true)}
-                className="w-full sm:w-auto h-12 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-[10px] uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-indigo-100"
-              >
-                <Plus size={16} /> Nouvelle Ligne
-              </Button>
-            )}
+            <select
+              value={selectedRouteFilter}
+              onChange={(e) => setSelectedRouteFilter(e.target.value)}
+              className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="ALL">Toutes les Lignes</option>
+              {routes.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.routeName} ({r.vehicleNumber})
+                </option>
+              ))}
+            </select>
           </div>
-        </div>
 
-        {/* Tab 1: Subscriptions list */}
-        <TabsContent value="subs" className="outline-none">
-          <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
+          {/* Subscriptions Table */}
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse min-w-[700px]">
+              <table className="w-full text-left border-collapse text-sm">
                 <thead>
-                  <tr className="bg-slate-50/50 border-b border-slate-100">
-                    <th className="px-6 py-5 text-[9px] font-black text-slate-400 uppercase tracking-widest">Élève</th>
-                    <th className="px-6 py-5 text-[9px] font-black text-slate-400 uppercase tracking-widest">Ligne / Zone</th>
-                    <th className="px-6 py-5 text-[9px] font-black text-slate-400 uppercase tracking-widest">Ramassage</th>
-                    <th className="px-6 py-5 text-[9px] font-black text-slate-400 uppercase tracking-widest">Date Début</th>
-                    <th className="px-6 py-5 text-[9px] font-black text-slate-400 uppercase tracking-widest">Tarif / Mois</th>
-                    <th className="px-6 py-5 text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">Statut</th>
-                    <th className="px-6 py-5 text-[9px] font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>
+                  <tr className="bg-slate-50/80 border-b border-slate-100 text-slate-500 text-xs font-bold uppercase tracking-wider">
+                    <th className="py-3.5 px-4">Élève / Matricule</th>
+                    <th className="py-3.5 px-4">Classe</th>
+                    <th className="py-3.5 px-4">Ligne & Véhicule</th>
+                    <th className="py-3.5 px-4">Arrêt Prévu</th>
+                    <th className="py-3.5 px-4">Formule</th>
+                    <th className="py-3.5 px-4">Contact Parent</th>
+                    <th className="py-3.5 px-4 text-center">Carte & QR</th>
+                    <th className="py-3.5 px-4 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-50">
-                  {filteredSubs.map((s) => (
-                    <tr key={s.id} className="group hover:bg-slate-50/30 transition-colors">
-                      <td className="px-6 py-4.5">
-                        <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-xl bg-slate-50 flex items-center justify-center text-slate-500 font-bold border border-slate-100 text-xs">
-                            <User size={16} />
-                          </div>
-                          <div>
-                            <p className="font-extrabold text-slate-900 text-xs">{s.student?.nomEtudiant}</p>
-                            <p className="text-[10px] text-slate-400 font-bold mt-0.5">{s.student?.classe || "N/A"}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4.5">
-                        <span className="font-bold text-indigo-600 text-xs">{s.route?.routeName}</span>
-                      </td>
-                      <td className="px-6 py-4.5">
-                        <div className="flex items-center gap-1.5 text-slate-600 font-semibold text-xs">
-                          <MapPin size={13} className="text-slate-400" /> {s.pickupPoint || "Standard"}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4.5 text-xs font-semibold text-slate-600">
-                        {s.startDate ? new Date(s.startDate).toLocaleDateString("fr-FR") : "N/A"}
-                      </td>
-                      <td className="px-6 py-4.5 font-black text-xs text-slate-800">
-                        {s.route?.monthlyFee?.toLocaleString()} CFA
-                      </td>
-                      <td className="px-6 py-4.5 text-center">
-                        <span className={cn(
-                          "px-3.5 py-1.5 rounded-full text-[9px] font-black uppercase tracking-wider",
-                          s.status === 'Actif' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'
-                        )}>
-                          {s.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4.5 text-right">
-                        <button 
-                          onClick={() => handleDeleteSubscription(s.id)}
-                          className="p-2 rounded-xl text-rose-500 hover:bg-rose-50 opacity-0 group-hover:opacity-100 transition-all"
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                  {filteredSubs.length === 0 && (
+                <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                  {filteredSubscriptions.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-6 py-12 text-center text-xs font-bold text-slate-400 italic">
-                        Aucun abonné inscrit.
+                      <td colSpan={8} className="py-8 text-center text-slate-400">
+                        Aucun élève inscrit au transport ne correspond aux filtres.
                       </td>
                     </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </TabsContent>
-
-        {/* Tab 2: Routes & Buses List */}
-        <TabsContent value="routes" className="outline-none">
-          <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse min-w-[700px]">
-                <thead>
-                  <tr className="bg-slate-50/50 border-b border-slate-100">
-                    <th className="px-6 py-5 text-[9px] font-black text-slate-400 uppercase tracking-widest">Zone / Trajet</th>
-                    <th className="px-6 py-5 text-[9px] font-black text-slate-400 uppercase tracking-widest">Bus / Plaque</th>
-                    <th className="px-6 py-5 text-[9px] font-black text-slate-400 uppercase tracking-widest">Chauffeur</th>
-                    <th className="px-6 py-5 text-[9px] font-black text-slate-400 uppercase tracking-widest">Contact</th>
-                    <th className="px-6 py-5 text-[9px] font-black text-slate-400 uppercase tracking-widest text-right">Tarif Mensuel</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50">
-                  {filteredRoutes.map((r) => (
-                    <tr key={r.id} className="group hover:bg-slate-50/30 transition-colors">
-                      <td className="px-6 py-4.5 font-bold text-slate-900 text-xs">{r.routeName}</td>
-                      <td className="px-6 py-4.5 font-extrabold text-indigo-600 text-xs">{r.vehicleNumber}</td>
-                      <td className="px-6 py-4.5 font-semibold text-slate-700 text-xs">{r.driverName}</td>
-                      <td className="px-6 py-4.5">
-                        <div className="flex items-center gap-1.5 text-slate-600 font-semibold text-xs">
-                          <Phone size={13} className="text-slate-400" /> {r.driverPhone || "N/A"}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4.5 text-right font-black text-xs text-slate-800">
-                        {r.monthlyFee?.toLocaleString()} CFA
-                      </td>
-                    </tr>
-                  ))}
-                  {filteredRoutes.length === 0 && (
-                    <tr>
-                      <td colSpan={5} className="px-6 py-12 text-center text-xs font-bold text-slate-400 italic">
-                        Aucune ligne de transport disponible.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </TabsContent>
-      </Tabs>
-
-      {/* ─── MODAL 1: SUBSCRIBE STUDENT ─── */}
-      {isSubModalOpen && (
-        <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-[2rem] border border-slate-100 shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-200">
-            
-            {/* Modal Header */}
-            <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                  <Users size={18} />
-                </div>
-                <div>
-                  <h3 className="font-black text-slate-900 text-sm">Inscription au Transport Scolaire</h3>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Associer un élève à un trajet de bus</p>
-                </div>
-              </div>
-              <button 
-                onClick={() => setIsSubModalOpen(false)}
-                className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-colors"
-              >
-                <X size={15} />
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <div className="p-6 space-y-6">
-              
-              {/* 1. Student Search Input & Autocomplete */}
-              <div className="space-y-2 relative">
-                <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Rechercher l'élève</Label>
-                
-                {selectedStudent ? (
-                  <div className="p-3.5 rounded-xl border border-indigo-100 bg-indigo-50/20 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-indigo-500 text-white flex items-center justify-center text-[10px] font-bold">
-                        {selectedStudent.nomEtudiant.substring(0, 2).toUpperCase()}
-                      </div>
-                      <div>
-                        <p className="text-xs font-black text-slate-900">{selectedStudent.nomEtudiant}</p>
-                        <p className="text-[9px] text-slate-400 font-black uppercase mt-0.5">{selectedStudent.classe || "N/A"} • Ref: {selectedStudent.numAdmission}</p>
-                      </div>
-                    </div>
-                    <button 
-                      onClick={() => { setSelectedStudent(null); setStudentSearch(""); }}
-                      className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
-                    >
-                      <X size={14} />
-                    </button>
-                  </div>
-                ) : (
-                  <>
-                    <div className="relative">
-                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                      <Input 
-                        value={studentSearch}
-                        onChange={e => setStudentSearch(e.target.value)}
-                        placeholder="Saisir le nom de l'élève..." 
-                        className="pl-11 h-12 rounded-xl border-slate-200 focus:border-indigo-500 text-xs font-bold text-slate-800"
-                      />
-                      {isSearchingStudents && (
-                        <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 animate-spin text-slate-400" size={16} />
-                      )}
-                    </div>
-
-                    {/* Results Dropdown */}
-                    {searchResults.length > 0 && (
-                      <div className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-slate-100 rounded-xl shadow-xl z-50 overflow-hidden divide-y divide-slate-50 max-h-48 overflow-y-auto">
-                        {searchResults.map(s => (
-                          <div 
-                            key={s.id}
-                            onClick={() => { setSelectedStudent(s); setSearchResults([]); }}
-                            className="p-3 hover:bg-slate-50 cursor-pointer flex items-center justify-between text-xs font-bold text-slate-700"
+                  ) : (
+                    filteredSubscriptions.map((sub) => (
+                      <tr key={sub.id} className="hover:bg-slate-50/60 transition">
+                        <td className="py-3.5 px-4 font-bold text-slate-900">
+                          <div>{sub.student?.nomEtudiant}</div>
+                          <div className="text-xs font-mono text-slate-400">{sub.student?.numAdmission}</div>
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <span className="px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 font-semibold text-xs">
+                            {sub.student?.classe || "N/A"}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <div className="font-semibold text-blue-600">{sub.route?.routeName}</div>
+                          <div className="text-xs text-slate-400 font-mono">{sub.route?.vehicleNumber}</div>
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <div className="flex items-center gap-1.5 text-slate-800 font-semibold">
+                            <MapPin className="w-3.5 h-3.5 text-rose-500" />
+                            {sub.pickupStop || sub.pickupPoint || "Arrêt Principal"}
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                            {sub.tripType || "Aller-Retour"}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 text-xs font-mono">
+                          {sub.parentPhone || sub.student?.mobile || "Non renseigné"}
+                        </td>
+                        <td className="py-3.5 px-4 text-center">
+                          <button
+                            onClick={() => setSelectedPass(sub)}
+                            className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-bold text-xs transition"
                           >
-                            <div>
-                              <p className="font-extrabold text-slate-900">{s.nomEtudiant}</p>
-                              <p className="text-[9px] text-slate-400 font-bold uppercase mt-0.5">{s.classe || "N/A"} • Ref: {s.numAdmission}</p>
-                            </div>
-                            <span className="text-[8px] font-black uppercase tracking-wider text-indigo-500 bg-indigo-50 px-2 py-1 rounded">Choisir</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-
-              {/* 2. Route Selection Dropdown */}
-              <div className="space-y-2">
-                <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Ligne & Trajet de Bus</Label>
-                <Select onValueChange={(val) => setSelectedRouteId(val || "")} value={selectedRouteId}>
-                  <SelectTrigger className="h-12 rounded-xl border-slate-200 text-xs font-bold text-slate-700">
-                    <SelectValue placeholder="Sélectionner une ligne active..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {initialRoutes.map(r => (
-                      <SelectItem key={r.id} value={r.id.toString()} className="text-xs font-bold">
-                        {r.routeName} - {r.vehicleNumber} ({r.monthlyFee.toLocaleString()} CFA)
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* 3. Pickup Point & Start Date */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Point de Ramassage</Label>
-                  <Input 
-                    value={pickupPoint}
-                    onChange={e => setPickupPoint(e.target.value)}
-                    placeholder="Ex: Station Essence"
-                    className="h-12 rounded-xl border-slate-200 text-xs font-bold text-slate-700"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Date d'effet</Label>
-                  <Input 
-                    type="date"
-                    value={startDate}
-                    onChange={e => setStartDate(e.target.value)}
-                    className="h-12 rounded-xl border-slate-200 text-xs font-bold text-slate-700"
-                  />
-                </div>
-              </div>
+                            <QrCode className="w-3.5 h-3.5" />
+                            Pass QR
+                          </button>
+                        </td>
+                        <td className="py-3.5 px-4 text-right">
+                          <button
+                            onClick={() => handleRemoveSubscription(sub.id)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition"
+                            title="Retirer du transport"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
-
-            {/* Modal Footer */}
-            <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex items-center justify-end gap-3">
-              <Button 
-                variant="outline" 
-                onClick={() => setIsSubModalOpen(false)}
-                className="h-11 px-5 rounded-xl border-slate-200 font-black text-[10px] uppercase tracking-widest text-slate-500 hover:bg-slate-100"
-              >
-                Annuler
-              </Button>
-              <Button 
-                onClick={handleCreateSubscription}
-                disabled={isPending}
-                className="h-11 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-[10px] uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-indigo-100"
-              >
-                {isPending && <Loader2 className="animate-spin" size={14} />}
-                Inscrire l'Élève
-              </Button>
-            </div>
-
           </div>
         </div>
       )}
 
-      {/* ─── MODAL 2: ADD NEW ROUTE ─── */}
-      {isRouteModalOpen && (
-        <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-[2rem] border border-slate-100 shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-200">
-            
-            {/* Modal Header */}
-            <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                  <Bus size={18} />
+      {/* ─── TAB 2: ROUTES & STOPS ───────────────────────────────────────── */}
+      {activeTab === "routes" && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {routes.map((route) => {
+            const stops = (route.stops as any[]) || [];
+            const isFull = (route.subscribersCount || 0) >= (route.capacity || 30);
+            return (
+              <div
+                key={route.id}
+                className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-4 hover:shadow-md transition flex flex-col justify-between"
+              >
+                <div className="space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                        {route.status}
+                      </div>
+                      <h3 className="text-lg font-black text-slate-900 mt-1">{route.routeName}</h3>
+                    </div>
+                    <div className="text-right">
+                      <span className="font-mono text-base font-black text-slate-900">{route.monthlyFee} CFA</span>
+                      <span className="text-[10px] text-slate-400 block">/ mois</span>
+                    </div>
+                  </div>
+
+                  {/* Vehicle & Driver Details */}
+                  <div className="bg-slate-50 p-3 rounded-xl space-y-1.5 text-xs">
+                    <div className="flex items-center justify-between text-slate-700 font-semibold">
+                      <span className="flex items-center gap-1.5">
+                        <Bus className="w-3.5 h-3.5 text-blue-600" />
+                        Véhicule :
+                      </span>
+                      <span className="font-mono bg-white px-2 py-0.5 rounded border border-slate-200">
+                        {route.vehicleNumber}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-slate-700">
+                      <span>Chauffeur :</span>
+                      <span className="font-bold">{route.driverName}</span>
+                    </div>
+                    {route.driverPhone && (
+                      <div className="flex items-center justify-between text-slate-700">
+                        <span>Téléphone :</span>
+                        <a
+                          href={`tel:${route.driverPhone}`}
+                          className="font-mono text-blue-600 hover:underline flex items-center gap-1"
+                        >
+                          <Phone className="w-3 h-3" />
+                          {route.driverPhone}
+                        </a>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Capacity Bar */}
+                  <div>
+                    <div className="flex justify-between text-xs font-semibold mb-1">
+                      <span className="text-slate-500">Taux d'occupation :</span>
+                      <span className={isFull ? "text-rose-600 font-bold" : "text-slate-700"}>
+                        {route.subscribersCount || 0} / {route.capacity || 30} places
+                      </span>
+                    </div>
+                    <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${
+                          isFull ? "bg-rose-500" : "bg-blue-600"
+                        }`}
+                        style={{
+                          width: `${Math.min(
+                            100,
+                            Math.round(((route.subscribersCount || 0) / (route.capacity || 30)) * 100)
+                          )}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Stops Timeline */}
+                  <div className="space-y-1.5 pt-2">
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
+                      Itinéraire ({stops.length} arrêts)
+                    </span>
+                    <div className="space-y-1 max-h-36 overflow-y-auto pr-1">
+                      {stops.map((st: any, idx: number) => (
+                        <div
+                          key={idx}
+                          className="flex items-center justify-between text-xs py-1 px-2 rounded-lg bg-slate-50/70 border border-slate-100"
+                        >
+                          <span className="font-semibold text-slate-700 flex items-center gap-1.5">
+                            <span className="w-4 h-4 rounded-full bg-blue-100 text-blue-700 text-[10px] flex items-center justify-center font-bold">
+                              {idx + 1}
+                            </span>
+                            {st.stopName}
+                          </span>
+                          <span className="text-[11px] font-mono text-slate-500">
+                            🌅 {st.timeMorning} | 🌇 {st.timeEvening}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-black text-slate-900 text-sm">Nouvelle Ligne de Transport</h3>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Créer un trajet et affecter un chauffeur</p>
+
+                <div className="flex items-center gap-2 pt-4 border-t border-slate-100">
+                  <button
+                    onClick={() => {
+                      setRouteForm({
+                        id: route.id,
+                        routeName: route.routeName,
+                        vehicleNumber: route.vehicleNumber,
+                        driverName: route.driverName,
+                        driverPhone: route.driverPhone || "",
+                        capacity: route.capacity || 30,
+                        monthlyFee: route.monthlyFee || 15000,
+                        stops: route.stops || [],
+                        status: route.status || "Actif",
+                        notes: route.notes || "",
+                      });
+                      setIsRouteModalOpen(true);
+                    }}
+                    className="flex-1 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition text-center"
+                  >
+                    Modifier la Ligne
+                  </button>
+                  <button
+                    onClick={() => handleDeleteRoute(route.id)}
+                    className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
-              <button 
-                onClick={() => setIsRouteModalOpen(false)}
-                className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-colors"
-              >
-                <X size={15} />
+            );
+          })}
+        </div>
+      )}
+
+      {/* ─── TAB 3: LIVE TRIPS & POINTAGE ─────────────────────────────────── */}
+      {activeTab === "live" && (
+        <div className="space-y-6">
+          <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+            <div>
+              <h3 className="font-black text-slate-900 text-base">Trajets du Jour & Pointage en Temps Réel</h3>
+              <p className="text-slate-400 text-xs">
+                Sélectionnez un circuit actif pour pointer la montée et descente des passagers arrêt par arrêt.
+              </p>
+            </div>
+            <button
+              onClick={() => setIsStartTripModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md transition"
+            >
+              <Navigation className="w-4 h-4" />
+              Démarrer un Circuit
+            </button>
+          </div>
+
+          {trips.length === 0 ? (
+            <div className="bg-white p-12 text-center rounded-2xl border border-slate-100 shadow-sm space-y-3">
+              <Bus className="w-12 h-12 text-slate-300 mx-auto" />
+              <h4 className="font-bold text-slate-700">Aucun trajet en cours aujourd'hui</h4>
+              <p className="text-slate-400 text-xs">
+                Cliquez sur "Démarrer un Circuit" ci-dessus pour lancer la tournée du matin ou du soir.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {trips.map((trip) => {
+                const route = trip.route;
+                const stops = (route?.stops as any[]) || [];
+                const routeSubs = subscriptions.filter((s) => s.routeId === trip.routeId);
+
+                return (
+                  <div
+                    key={trip.id}
+                    className="bg-white rounded-3xl border border-slate-100 shadow-lg p-6 space-y-6"
+                  >
+                    {/* Trip Status Bar */}
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-bold">
+                          <Bus className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-lg font-black text-slate-900">{route?.routeName}</h4>
+                            <span
+                              className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                                trip.status === "En cours"
+                                  ? "bg-emerald-100 text-emerald-800 animate-pulse"
+                                  : "bg-slate-100 text-slate-700"
+                              }`}
+                            >
+                              {trip.status}
+                            </span>
+                          </div>
+                          <div className="text-xs text-slate-400">
+                            {trip.tripType} | Véhicule : {trip.vehicleNumber || route?.vehicleNumber} | Départ :{" "}
+                            {trip.startTime || "N/A"}
+                          </div>
+                        </div>
+                      </div>
+
+                      {trip.status === "En cours" && (
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={() => handleUpdateTripStatus(trip.id, "Terminé")}
+                            className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition"
+                          >
+                            Clôturer le Trajet (Terminé)
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Pointage Grid for this Line */}
+                    <div className="space-y-3">
+                      <h5 className="font-black text-sm text-slate-800 flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                        Pointage des Élèves Abonnés à ce Circuit ({routeSubs.length} élèves)
+                      </h5>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {routeSubs.map((sub) => {
+                          const student = sub.student;
+                          const studentLogs = logs.filter(
+                            (l) => l.studentId === student?.id && l.tripId === trip.id
+                          );
+                          const hasBoardedMorning = studentLogs.some((l) => l.eventType === "Montée Matin");
+                          const hasArrivedSchool = studentLogs.some(
+                            (l) => l.eventType === "Descente Matin (École)"
+                          );
+                          const hasBoardedEvening = studentLogs.some((l) => l.eventType === "Montée Soir (École)");
+                          const hasDroppedHome = studentLogs.some(
+                            (l) => l.eventType === "Descente Soir (Maison)"
+                          );
+
+                          return (
+                            <div
+                              key={sub.id}
+                              className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-3 hover:bg-white hover:shadow-md transition"
+                            >
+                              <div className="flex items-start justify-between">
+                                <div>
+                                  <div className="font-bold text-slate-900">{student?.nomEtudiant}</div>
+                                  <div className="text-xs text-slate-400">
+                                    {student?.classe} | Arrêt : {sub.pickupStop || "Principal"}
+                                  </div>
+                                </div>
+                                <span className="text-[10px] font-mono bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-bold">
+                                  {sub.tripType}
+                                </span>
+                              </div>
+
+                              {/* Pointage Action Buttons */}
+                              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200/60">
+                                {trip.tripType.includes("Matin") ? (
+                                  <>
+                                    <button
+                                      disabled={hasBoardedMorning}
+                                      onClick={() =>
+                                        handleRecordBoarding(
+                                          student.id,
+                                          trip.id,
+                                          "Montée Matin",
+                                          sub.pickupStop || "Arrêt Matin"
+                                        )
+                                      }
+                                      className={`py-1.5 px-2 rounded-lg text-xs font-bold transition ${
+                                        hasBoardedMorning
+                                          ? "bg-emerald-100 text-emerald-800 cursor-not-allowed"
+                                          : "bg-blue-600 text-white hover:bg-blue-500 shadow-sm"
+                                      }`}
+                                    >
+                                      {hasBoardedMorning ? "✓ Monté (Matin)" : "1. Montée Bus"}
+                                    </button>
+                                    <button
+                                      disabled={hasArrivedSchool}
+                                      onClick={() =>
+                                        handleRecordBoarding(student.id, trip.id, "Descente Matin (École)", "École")
+                                      }
+                                      className={`py-1.5 px-2 rounded-lg text-xs font-bold transition ${
+                                        hasArrivedSchool
+                                          ? "bg-emerald-100 text-emerald-800 cursor-not-allowed"
+                                          : "bg-indigo-600 text-white hover:bg-indigo-500 shadow-sm"
+                                      }`}
+                                    >
+                                      {hasArrivedSchool ? "✓ À l'école" : "2. Arrivée École"}
+                                    </button>
+                                  </>
+                                ) : (
+                                  <>
+                                    <button
+                                      disabled={hasBoardedEvening}
+                                      onClick={() =>
+                                        handleRecordBoarding(
+                                          student.id,
+                                          trip.id,
+                                          "Montée Soir (École)",
+                                          "École (Départ)"
+                                        )
+                                      }
+                                      className={`py-1.5 px-2 rounded-lg text-xs font-bold transition ${
+                                        hasBoardedEvening
+                                          ? "bg-emerald-100 text-emerald-800 cursor-not-allowed"
+                                          : "bg-amber-600 text-white hover:bg-amber-500 shadow-sm"
+                                      }`}
+                                    >
+                                      {hasBoardedEvening ? "✓ Embarqué" : "1. Départ École"}
+                                    </button>
+                                    <button
+                                      disabled={hasDroppedHome}
+                                      onClick={() =>
+                                        handleRecordBoarding(
+                                          student.id,
+                                          trip.id,
+                                          "Descente Soir (Maison)",
+                                          sub.pickupStop || "Maison"
+                                        )
+                                      }
+                                      className={`py-1.5 px-2 rounded-lg text-xs font-bold transition ${
+                                        hasDroppedHome
+                                          ? "bg-emerald-100 text-emerald-800 cursor-not-allowed"
+                                          : "bg-emerald-600 text-white hover:bg-emerald-500 shadow-sm"
+                                      }`}
+                                    >
+                                      {hasDroppedHome ? "✓ Déposé" : "2. Déposé Arrêt"}
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ─── TAB 4: AUDIT & BOARDING LOGS ─────────────────────────────────── */}
+      {activeTab === "logs" && (
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden p-6 space-y-4">
+          <h3 className="font-black text-slate-900 text-base">Historique des Pointages & Notifications Parents</h3>
+
+          <div className="divide-y divide-slate-100">
+            {logs.length === 0 ? (
+              <div className="py-8 text-center text-slate-400 text-sm">
+                Aucun événement de pointage récent enregistré.
+              </div>
+            ) : (
+              logs.map((log) => (
+                <div key={log.id} className="py-3 flex items-center justify-between hover:bg-slate-50 px-2 rounded-xl">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold ${
+                        log.eventType.includes("Montée")
+                          ? "bg-blue-100 text-blue-700"
+                          : "bg-emerald-100 text-emerald-700"
+                      }`}
+                    >
+                      <Bus className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="font-bold text-slate-900 text-sm">{log.student?.nomEtudiant}</div>
+                      <div className="text-xs text-slate-400">
+                        {log.eventType} à l'arrêt <span className="font-semibold text-slate-700">{log.stopName}</span>{" "}
+                        ({log.trip?.route?.routeName || "Ligne"})
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <div className="text-xs font-mono font-bold text-slate-700">
+                        {new Date(log.scanTime).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                      </div>
+                      <div className="text-[10px] text-slate-400">
+                        {new Date(log.scanTime).toLocaleDateString("fr-FR")}
+                      </div>
+                    </div>
+
+                    {log.parentNotified ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        <MessageSquare className="w-3 h-3" />
+                        WhatsApp / SMS Envoyé
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded text-[10px] bg-slate-100 text-slate-500 font-semibold">
+                        Non notifié
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL: NOUVELLE / MODIFIER LIGNE ────────────────────────────── */}
+      {isRouteModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 space-y-6 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="text-lg font-black text-slate-900">
+                {routeForm.id ? "Modifier la Ligne de Bus" : "Ajouter une Ligne de Bus"}
+              </h3>
+              <button onClick={() => setIsRouteModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Modal Body */}
-            <div className="p-6 space-y-4">
-              
-              <div className="space-y-2">
-                <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Zone / Nom du Trajet *</Label>
-                <Input 
-                  value={routeName}
-                  onChange={e => setRouteName(e.target.value)}
-                  placeholder="Ex: Kalley - Plateau"
-                  className="h-12 rounded-xl border-slate-200 text-xs font-bold text-slate-700"
+            <form onSubmit={handleSaveRoute} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-600 mb-1 block">Nom de la Ligne *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Ex: Ligne 1 - Plateau / Yantala"
+                    value={routeForm.routeName}
+                    onChange={(e) => setRouteForm({ ...routeForm, routeName: e.target.value })}
+                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-600 mb-1 block">Immatriculation Véhicule *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Ex: RN-4829-A"
+                    value={routeForm.vehicleNumber}
+                    onChange={(e) => setRouteForm({ ...routeForm, vehicleNumber: e.target.value })}
+                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-600 mb-1 block">Nom du Chauffeur *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Ex: Moussa Idrissa"
+                    value={routeForm.driverName}
+                    onChange={(e) => setRouteForm({ ...routeForm, driverName: e.target.value })}
+                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-600 mb-1 block">Téléphone Chauffeur</label>
+                  <input
+                    type="text"
+                    placeholder="Ex: +227 90 00 00 00"
+                    value={routeForm.driverPhone}
+                    onChange={(e) => setRouteForm({ ...routeForm, driverPhone: e.target.value })}
+                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-600 mb-1 block">Capacité du Bus (Places)</label>
+                  <input
+                    type="number"
+                    value={routeForm.capacity}
+                    onChange={(e) => setRouteForm({ ...routeForm, capacity: Number(e.target.value) })}
+                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-600 mb-1 block">Tarif Mensuel (CFA)</label>
+                  <input
+                    type="number"
+                    value={routeForm.monthlyFee}
+                    onChange={(e) => setRouteForm({ ...routeForm, monthlyFee: Number(e.target.value) })}
+                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              {/* Dynamic Stops Editor */}
+              <div className="space-y-2 pt-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-600">Arrêts et Horaires de passage</label>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setRouteForm({
+                        ...routeForm,
+                        stops: [
+                          ...routeForm.stops,
+                          {
+                            id: String(routeForm.stops.length + 1),
+                            stopName: `Nouvel Arrêt ${routeForm.stops.length + 1}`,
+                            timeMorning: "07:00",
+                            timeEvening: "16:15",
+                            order: routeForm.stops.length + 1,
+                          },
+                        ],
+                      })
+                    }
+                    className="text-xs font-bold text-blue-600 hover:underline"
+                  >
+                    + Ajouter un arrêt
+                  </button>
+                </div>
+
+                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                  {routeForm.stops.map((stop, idx) => (
+                    <div key={idx} className="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200">
+                      <input
+                        type="text"
+                        placeholder="Nom de l'arrêt"
+                        value={stop.stopName}
+                        onChange={(e) => {
+                          const nextStops = [...routeForm.stops];
+                          nextStops[idx].stopName = e.target.value;
+                          setRouteForm({ ...routeForm, stops: nextStops });
+                        }}
+                        className="flex-1 px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Matin (07:00)"
+                        value={stop.timeMorning}
+                        onChange={(e) => {
+                          const nextStops = [...routeForm.stops];
+                          nextStops[idx].timeMorning = e.target.value;
+                          setRouteForm({ ...routeForm, stops: nextStops });
+                        }}
+                        className="w-24 px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono text-center"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Soir (16:30)"
+                        value={stop.timeEvening}
+                        onChange={(e) => {
+                          const nextStops = [...routeForm.stops];
+                          nextStops[idx].timeEvening = e.target.value;
+                          setRouteForm({ ...routeForm, stops: nextStops });
+                        }}
+                        className="w-24 px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono text-center"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const nextStops = routeForm.stops.filter((_, i) => i !== idx);
+                          setRouteForm({ ...routeForm, stops: nextStops });
+                        }}
+                        className="p-1 text-slate-400 hover:text-rose-600"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsRouteModalOpen(false)}
+                  className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 font-semibold text-sm"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm shadow-md transition"
+                >
+                  {isSubmitting ? "Enregistrement..." : "Enregistrer la Ligne"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL: INSCRIRE UN ÉLÈVE ────────────────────────────────────── */}
+      {isSubModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-3xl w-full max-w-lg p-6 space-y-6 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="text-lg font-black text-slate-900">Inscrire un Élève au Transport</h3>
+              <button onClick={() => setIsSubModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddSubscription} className="space-y-4">
+              {/* Student Search */}
+              <div>
+                <label className="text-xs font-bold text-slate-600 mb-1 block">Rechercher l'Élève *</label>
+                <input
+                  type="text"
+                  placeholder="Nom ou Matricule de l'élève..."
+                  value={studentSearchQuery}
+                  onChange={(e) => handleSearchStudents(e.target.value)}
+                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500"
+                />
+
+                {studentSearchResults.length > 0 && !selectedStudent && (
+                  <div className="mt-2 bg-white border border-slate-200 rounded-xl shadow-lg divide-y divide-slate-100 max-h-40 overflow-y-auto">
+                    {studentSearchResults.map((st) => (
+                      <div
+                        key={st.id}
+                        onClick={() => {
+                          setSelectedStudent(st);
+                          setSubForm({
+                            ...subForm,
+                            parentPhone: st.mobile || "",
+                            parentWhatsapp: st.whatsapp || st.mobile || "",
+                          });
+                        }}
+                        className="p-2.5 hover:bg-blue-50 cursor-pointer text-xs flex items-center justify-between"
+                      >
+                        <span className="font-bold text-slate-900">{st.nomEtudiant}</span>
+                        <span className="text-slate-400 font-mono">{st.numAdmission} ({st.classe})</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {selectedStudent && (
+                  <div className="mt-2 p-3 bg-blue-50 rounded-xl border border-blue-200 flex items-center justify-between text-xs">
+                    <div>
+                      <div className="font-bold text-blue-900">{selectedStudent.nomEtudiant}</div>
+                      <div className="text-blue-700">{selectedStudent.classe} | {selectedStudent.numAdmission}</div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedStudent(null)}
+                      className="text-blue-500 hover:text-blue-700 font-bold"
+                    >
+                      Changer
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-600 mb-1 block">Ligne de Transport *</label>
+                <select
+                  value={subForm.routeId}
+                  onChange={(e) => {
+                    const rId = Number(e.target.value);
+                    const selRoute = routes.find((r) => r.id === rId);
+                    const firstStop = selRoute?.stops?.[0]?.stopName || "";
+                    setSubForm({ ...subForm, routeId: rId, pickupStop: firstStop });
+                  }}
+                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-blue-500"
+                >
+                  {routes.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.routeName} ({r.vehicleNumber}) - {r.monthlyFee} CFA
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-600 mb-1 block">Arrêt de Prise en Charge *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ex: Arrêt Pharmacie Centrale"
+                  value={subForm.pickupStop}
+                  onChange={(e) => setSubForm({ ...subForm, pickupStop: e.target.value })}
+                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Plaque / Numéro Bus *</Label>
-                  <Input 
-                    value={vehicleNumber}
-                    onChange={e => setVehicleNumber(e.target.value)}
-                    placeholder="Ex: RN 4390 A"
-                    className="h-12 rounded-xl border-slate-200 text-xs font-bold text-slate-700"
-                  />
+                <div>
+                  <label className="text-xs font-bold text-slate-600 mb-1 block">Formule de Trajet</label>
+                  <select
+                    value={subForm.tripType}
+                    onChange={(e) => setSubForm({ ...subForm, tripType: e.target.value })}
+                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="Aller-Retour">Aller-Retour</option>
+                    <option value="Aller simple matin">Aller simple matin</option>
+                    <option value="Retour simple soir">Retour simple soir</option>
+                  </select>
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Tarif Mensuel (CFA) *</Label>
-                  <Input 
-                    type="number"
-                    value={monthlyFee}
-                    onChange={e => setMonthlyFee(e.target.value)}
-                    placeholder="Ex: 15000"
-                    className="h-12 rounded-xl border-slate-200 text-xs font-bold text-slate-700"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Nom du Chauffeur *</Label>
-                  <Input 
-                    value={driverName}
-                    onChange={e => setDriverName(e.target.value)}
-                    placeholder="Ex: Ibrahim Ali"
-                    className="h-12 rounded-xl border-slate-200 text-xs font-bold text-slate-700"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Téléphone Chauffeur</Label>
-                  <Input 
-                    value={driverPhone}
-                    onChange={e => setDriverPhone(e.target.value)}
-                    placeholder="Ex: +227 90 12 34 56"
-                    className="h-12 rounded-xl border-slate-200 text-xs font-bold text-slate-700"
+                <div>
+                  <label className="text-xs font-bold text-slate-600 mb-1 block">Téléphone Parent (SMS/WhatsApp)</label>
+                  <input
+                    type="text"
+                    placeholder="Ex: +227 90 00 00 00"
+                    value={subForm.parentPhone}
+                    onChange={(e) => setSubForm({ ...subForm, parentPhone: e.target.value })}
+                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
               </div>
 
-            </div>
-
-            {/* Modal Footer */}
-            <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex items-center justify-end gap-3">
-              <Button 
-                variant="outline" 
-                onClick={() => setIsRouteModalOpen(false)}
-                className="h-11 px-5 rounded-xl border-slate-200 font-black text-[10px] uppercase tracking-widest text-slate-500 hover:bg-slate-100"
-              >
-                Annuler
-              </Button>
-              <Button 
-                onClick={handleCreateRoute}
-                disabled={isPending}
-                className="h-11 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-[10px] uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-indigo-100"
-              >
-                {isPending && <Loader2 className="animate-spin" size={14} />}
-                Créer la Ligne
-              </Button>
-            </div>
-
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsSubModalOpen(false)}
+                  className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 font-semibold text-sm"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm shadow-md transition"
+                >
+                  {isSubmitting ? "Inscription..." : "Valider l'Inscription"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
 
+      {/* ─── MODAL: DÉMARRER UN TRAJET ──────────────────────────────────── */}
+      {isStartTripModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-3xl w-full max-w-md p-6 space-y-6 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="text-lg font-black text-slate-900">Démarrer un Trajet de Bus</h3>
+              <button onClick={() => setIsStartTripModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleStartTrip} className="space-y-4">
+              <div>
+                <label className="text-xs font-bold text-slate-600 mb-1 block">Ligne de Bus *</label>
+                <select
+                  value={tripForm.routeId}
+                  onChange={(e) => setTripForm({ ...tripForm, routeId: Number(e.target.value) })}
+                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-blue-500"
+                >
+                  {routes.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.routeName} ({r.vehicleNumber}) - Chauffeur : {r.driverName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-600 mb-1 block">Type de Circuit *</label>
+                <select
+                  value={tripForm.tripType}
+                  onChange={(e) => setTripForm({ ...tripForm, tripType: e.target.value })}
+                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="Circuit Matin">🌅 Circuit Matin (Ramassage vers l'École)</option>
+                  <option value="Circuit Soir">🌇 Circuit Soir (Retour vers les Domiciles)</option>
+                  <option value="Sortie Pédagogique">🚌 Sortie Spéciale / Pédagogique</option>
+                </select>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsStartTripModalOpen(false)}
+                  className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 font-semibold text-sm"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shadow-md transition"
+                >
+                  {isSubmitting ? "Démarrage..." : "Lancer le Trajet"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL: CARTE DE TRANSPORT NUMÉRIQUE (PASS QR) ───────────────── */}
+      {selectedPass && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-3xl w-full max-w-sm p-6 space-y-6 shadow-2xl text-center">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+              <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">Carte de Transport Scolaire</span>
+              <button onClick={() => setSelectedPass(null)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Badge Card */}
+            <div className="bg-gradient-to-br from-blue-900 to-indigo-900 text-white p-6 rounded-2xl space-y-4 shadow-xl text-left relative overflow-hidden">
+              <div className="flex justify-between items-start">
+                <div>
+                  <div className="text-[10px] uppercase font-bold text-blue-300">Edut Pro • Flotte Sécurisée</div>
+                  <div className="text-base font-black">{selectedPass.student?.nomEtudiant}</div>
+                  <div className="text-xs font-mono text-slate-300">{selectedPass.student?.numAdmission}</div>
+                </div>
+                <span className="px-2 py-0.5 rounded-md bg-white/20 text-white font-bold text-[10px]">
+                  {selectedPass.student?.classe}
+                </span>
+              </div>
+
+              <div className="bg-white/10 p-3 rounded-xl backdrop-blur-md space-y-1 text-xs">
+                <div>
+                  <span className="text-slate-300">Ligne : </span>
+                  <span className="font-bold">{selectedPass.route?.routeName}</span>
+                </div>
+                <div>
+                  <span className="text-slate-300">Bus : </span>
+                  <span className="font-mono font-bold">{selectedPass.route?.vehicleNumber}</span>
+                </div>
+                <div>
+                  <span className="text-slate-300">Arrêt : </span>
+                  <span className="font-semibold text-amber-300">{selectedPass.pickupStop || "Principal"}</span>
+                </div>
+              </div>
+
+              <div className="pt-2 flex justify-center">
+                <div className="bg-white p-3 rounded-xl text-slate-900 flex flex-col items-center">
+                  <QrCode className="w-24 h-24 text-slate-900" />
+                  <span className="text-[9px] font-mono text-slate-500 mt-1">SCAN-BUS-{selectedPass.studentId}</span>
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => window.print()}
+              className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm flex items-center justify-center gap-2 transition"
+            >
+              <Printer className="w-4 h-4" />
+              Imprimer le Pass
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

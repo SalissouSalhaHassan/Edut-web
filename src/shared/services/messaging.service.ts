@@ -435,6 +435,75 @@ export class MessagingService {
     return true;
   }
 
+  // ─── 8. Transport & Boarding Alerts ─────────────────────────────────────────
+
+  static async sendTransportBoardingAlert(data: {
+    to?: string;
+    whatsapp?: string;
+    parentName?: string;
+    studentName: string;
+    eventType: string; // 'Montée Matin', 'Descente Matin (École)', 'Montée Soir (École)', 'Descente Soir (Maison)'
+    routeName: string;
+    vehicleNumber: string;
+    time: string;
+    stopName?: string;
+    schoolName?: string;
+    sendSMS?: boolean;
+    sendWhatsApp?: boolean;
+  }): Promise<boolean> {
+    const {
+      to,
+      whatsapp,
+      parentName = "Parent d'élève",
+      studentName,
+      eventType,
+      routeName,
+      vehicleNumber,
+      time,
+      stopName = "Arrêt désigné",
+      schoolName = "Edut Pro",
+      sendSMS = true,
+      sendWhatsApp = true,
+    } = data;
+
+    const phone = (whatsapp || to)?.replace(/[^0-9+]/g, "");
+    if (!phone && !to) return false;
+
+    let eventDescriptionFr = "";
+    let eventDescriptionAr = "";
+
+    if (eventType.includes("Montée Matin")) {
+      eventDescriptionFr = `est *monté(e) dans le bus scolaire* (${vehicleNumber}, ${routeName}) à l'arrêt *${stopName}* à *${time}*. Trajet vers l'école en cours.`;
+      eventDescriptionAr = `قد *صعد(ت) إلى حافلة النقل المدرسي* (${vehicleNumber} - ${routeName}) عند المحطة *${stopName}* في تمام الساعة *${time}*، والحافلة في طريقها للمدرسة.`;
+    } else if (eventType.includes("Descente Matin") || eventType.includes("École")) {
+      eventDescriptionFr = `est *bien arrivé(e) et descendu(e) à l'école* sécuritairement à *${time}*.`;
+      eventDescriptionAr = `قد *وصل(ت) بسلام ونزل(ت) داخل حرم المدرسة* في تمام الساعة *${time}*.`;
+    } else if (eventType.includes("Montée Soir")) {
+      eventDescriptionFr = `a *embarqué dans le bus de retour* (${vehicleNumber}, ${routeName}) à *${time}*. En route pour le domicile.`;
+      eventDescriptionAr = `قد *ركب(ت) حافلة العودة المدرسية* (${vehicleNumber} - ${routeName}) في تمام الساعة *${time}* متوجهاً نحو المنزل.`;
+    } else {
+      eventDescriptionFr = `a *été déposé(e) à l'arrêt* (${stopName}) en toute sécurité à *${time}*.`;
+      eventDescriptionAr = `تم *إنزاله(ا) بسلام عند محطة التوقف* (${stopName}) في تمام الساعة *${time}*.`;
+    }
+
+    const messageFr = `🚌 *[${schoolName} - Transport Scolaire]*\nBonjour M./Mme ${parentName},\nNous vous informons que votre enfant *${studentName}* ${eventDescriptionFr}`;
+    const messageAr = `🚌 *[النقل المدرسي - ${schoolName}]*\nعزيزي ولي الأمر ${parentName}،\nنحيطكم علماً بأن ابنكم/ابنتكم *${studentName}* ${eventDescriptionAr}`;
+
+    const fullMessage = `${messageFr}\n\n${messageAr}`;
+
+    if (sendSMS && to && to !== "N/A" && to.trim() !== "") {
+      const smsSuccess = await this.sendViaAndroidGateway(to, fullMessage);
+      await this.logMessage("SMS", `${studentName} (${to})`, fullMessage, smsSuccess ? "Envoyé" : "Échec");
+    }
+
+    if (sendWhatsApp && phone) {
+      const waSuccess = await this.sendViaWhatsAppAPI(phone, fullMessage);
+      await this.logMessage("WHATSAPP", `${studentName} (${phone})`, fullMessage, waSuccess ? "Envoyé" : "Échec");
+    }
+
+    return true;
+  }
+
   static generateWhatsAppShareUrl(phone: string, text: string): string {
     const cleanPhone = phone.replace(/[^0-9+]/g, "").replace(/^\+/, "");
     const encodedText = encodeURIComponent(text);
