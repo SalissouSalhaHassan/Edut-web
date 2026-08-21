@@ -27,17 +27,15 @@ export default function VisitorDialog({ mode = "add", initialData, trigger }: Vi
     setError("");
 
     const form = new FormData(e.currentTarget);
-    const data: VisitorFormData = {
+    const result = await saveVisitor({
+      id: initialData?.id,
       visitorName: form.get("visitorName") as string,
-      phone: form.get("phone") as string,
+      phone: (form.get("phone") as string) || undefined,
       purpose: form.get("purpose") as string,
-      meetingWith: form.get("meetingWith") as string,
-      timeIn: form.get("timeIn") as string || new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
-      timeOut: form.get("timeOut") as string || null,
-      note: form.get("note") as string,
-    };
-
-    const result = await saveVisitor(data, initialData?.id);
+      meetingWith: (form.get("meetingWith") as string) || undefined,
+      timeIn: (form.get("timeIn") as string) || new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
+      notes: (form.get("note") as string) || undefined,
+    });
     setLoading(false);
 
     if (result.success) {
