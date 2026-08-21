@@ -1058,7 +1058,7 @@ export async function runAISolver(sessionIdOrParams?: number | {
             return {
               subjectId: Number(cs.subjectId),
               subjectName: sName,
-              teacherId: cs.teacherId || null,
+              teacherId: cs.employeeId || null,
               hoursNeeded: Number((cs as any).hoursPerWeek) || (isHeavy ? 5 : isScience ? 3 : 2),
               priority: isHeavy ? 1 : isScience ? 2 : 3,
               isHeavy,
