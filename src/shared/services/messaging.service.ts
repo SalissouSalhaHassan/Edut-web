@@ -316,6 +316,43 @@ export class MessagingService {
     return true;
   }
 
+  static async sendHrRequestDecisionAlert(payload: {
+    to: string;
+    employeeName: string;
+    requestType: string;
+    decision: string; // 'Approuvé' | 'Rejeté'
+    adminComment?: string;
+    schoolName?: string;
+    whatsapp?: string;
+    sendSMS?: boolean;
+    sendWhatsApp?: boolean;
+  }) {
+    const { to, employeeName, requestType, decision, adminComment, schoolName = "Edut Pro", whatsapp, sendSMS = true, sendWhatsApp = true } = payload;
+    const phone = whatsapp || to;
+    if (!phone || phone === "N/A" || phone.trim() === "") return false;
+
+    const isApproved = decision.toLowerCase().includes("approuv") || decision.toLowerCase().includes("accord");
+    const emoji = isApproved ? "✅" : "⚠️";
+    const commentText = adminComment ? `\n• Remarque Direction : *${adminComment}*` : "";
+
+    const messageFr = `${emoji} *Décision RH - ${schoolName}*\n\nBonjour M./Mme *${employeeName}*,\nVotre demande de *${requestType}* a été *${decision.toUpperCase()}* par l'administration.${commentText}\n\nConsultez votre espace personnel RH pour les détails.`;
+    const messageAr = `${emoji} *إشعار الموارد البشرية - ${schoolName}*\n\nمرحباً بالأستاذ/الموظف *${employeeName}*،\nتم *${decision}* طلبكم المتعلق بـ *${requestType}* من قبل الإدارة.${commentText}\n\nيمكنكم مراجعة بوابتكم الذاتية للاطلاع على التفاصيل.`;
+
+    const fullMessage = `${messageFr}\n\n${messageAr}`;
+
+    if (sendSMS && to && to !== "N/A" && to.trim() !== "") {
+      const smsSuccess = await this.sendViaAndroidGateway(to, fullMessage);
+      await this.logMessage("SMS", `${employeeName} (${to})`, fullMessage, smsSuccess ? "Envoyé" : "Échec");
+    }
+
+    if (sendWhatsApp && phone) {
+      const waSuccess = await this.sendViaWhatsAppAPI(phone, fullMessage);
+      await this.logMessage("WHATSAPP", `${employeeName} (${phone})`, fullMessage, waSuccess ? "Envoyé" : "Échec");
+    }
+
+    return true;
+  }
+
   static generateWhatsAppShareUrl(phone: string, text: string): string {
     const cleanPhone = phone.replace(/[^0-9+]/g, "").replace(/^\+/, "");
     const encodedText = encodeURIComponent(text);

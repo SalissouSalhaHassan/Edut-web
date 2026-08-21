@@ -170,6 +170,7 @@ const sections: NavSection[] = [
     dotColor: "bg-amber-500",
     items: [
       { href: "/dashboard/hr", label: "Personnel", icon: <UserRound className="size-[18px]" />, color: "text-blue-500" },
+      { href: "/dashboard/hr/self-service", label: "Espace Personnel & RH", icon: <UserCheck className="size-[18px]" />, color: "text-emerald-500", badge: "Agent", badgeColor: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400" },
       { href: "/dashboard/hr/reports", label: "Rapports du personnel", icon: <FileBarChart2 className="size-[18px]" />, color: "text-indigo-500" },
       { href: "/dashboard/inventory", label: "Inventaire", icon: <Package className="size-[18px]" />, color: "text-amber-500" },
       { href: "/dashboard/library", label: "Bibliothèque", icon: <LibraryBig className="size-[18px]" />, color: "text-indigo-500" },
