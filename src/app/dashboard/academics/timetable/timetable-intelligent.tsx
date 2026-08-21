@@ -575,7 +575,12 @@ export default function IntelligentTimetable({ classes, teachers, subjects, curr
     setIsAiLoading(true);
     startTransition(async () => {
       try {
-        const res = await runAISolver(currentSession.id);
+        const res = await runAISolver({
+          sessionId: currentSession.id,
+          classId: viewMode === "class" && selectedId ? selectedId : undefined,
+          strategy: "balanced",
+          overwriteExisting: true,
+        });
         setIsAiLoading(false);
         if ((res as any).success || (res as any).data?.success) {
           alert("Optimisation terminée : " + ((res as any).message || (res as any).data?.message || ""));
