@@ -215,12 +215,12 @@ export async function recordNightAttendanceAction(records: {
             where: eq(hostelRooms.id, item.roomId),
           });
 
-          const parentPhone = student?.telephoneParent || student?.telephone;
+          const parentPhone = (student as any)?.mobile || (student as any)?.whatsapp || (student as any)?.telephoneParent;
           if (parentPhone && student) {
             await MessagingService.sendHostelNightAbsenceAlert({
               to: parentPhone,
-              whatsapp: parentPhone,
-              parentName: student.nomParent || "Parent d'élève",
+              whatsapp: (student as any)?.whatsapp || parentPhone,
+              parentName: (student as any)?.nomPere || (student as any)?.nomParent || "Parent d'élève",
               studentName: student.nomEtudiant || "L'élève",
               roomNumber: room?.roomNumber || "N/A",
               buildingName: room?.buildingName || "Internat",
@@ -334,13 +334,13 @@ export async function reviewHostelExitPermissionAction(data: {
 
     // Send WhatsApp/SMS alert if approved
     if (data.decision === "Approuvé" && perm.student) {
-      const parentPhone = perm.guardianPhone || perm.student.telephoneParent || perm.student.telephone;
+      const parentPhone = perm.guardianPhone || (perm.student as any)?.mobile || (perm.student as any)?.whatsapp;
       if (parentPhone) {
         try {
           await MessagingService.sendHostelExitAlert({
             to: parentPhone,
-            whatsapp: parentPhone,
-            parentName: perm.guardianName || perm.student.nomParent || "Parent d'élève",
+            whatsapp: (perm.student as any)?.whatsapp || parentPhone,
+            parentName: perm.guardianName || (perm.student as any)?.nomPere || "Parent d'élève",
             studentName: perm.student.nomEtudiant || "L'élève",
             permissionType: perm.permissionType,
             status: "Approuvé",
@@ -383,13 +383,13 @@ export async function markHostelExitDepartureAction(permissionId: number) {
       .where(eq(hostelExitPermissions.id, permissionId));
 
     // Alert parent
-    const parentPhone = perm.guardianPhone || perm.student?.telephoneParent || perm.student?.telephone;
+    const parentPhone = perm.guardianPhone || (perm.student as any)?.mobile || (perm.student as any)?.whatsapp;
     if (parentPhone && perm.student) {
       try {
         await MessagingService.sendHostelExitAlert({
           to: parentPhone,
-          whatsapp: parentPhone,
-          parentName: perm.guardianName || perm.student.nomParent || "Parent d'élève",
+          whatsapp: (perm.student as any)?.whatsapp || parentPhone,
+          parentName: perm.guardianName || (perm.student as any)?.nomPere || "Parent d'élève",
           studentName: perm.student.nomEtudiant,
           permissionType: perm.permissionType,
           status: "Sorti",
@@ -431,13 +431,13 @@ export async function markHostelExitReturnAction(permissionId: number) {
       .where(eq(hostelExitPermissions.id, permissionId));
 
     // Alert parent
-    const parentPhone = perm.guardianPhone || perm.student?.telephoneParent || perm.student?.telephone;
+    const parentPhone = perm.guardianPhone || (perm.student as any)?.mobile || (perm.student as any)?.whatsapp;
     if (parentPhone && perm.student) {
       try {
         await MessagingService.sendHostelExitAlert({
           to: parentPhone,
-          whatsapp: parentPhone,
-          parentName: perm.guardianName || perm.student.nomParent || "Parent d'élève",
+          whatsapp: (perm.student as any)?.whatsapp || parentPhone,
+          parentName: perm.guardianName || (perm.student as any)?.nomPere || "Parent d'élève",
           studentName: perm.student.nomEtudiant,
           permissionType: perm.permissionType,
           status: "Retourné",

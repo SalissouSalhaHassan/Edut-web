@@ -17,9 +17,10 @@ export async function GET(request: NextRequest) {
     const query = searchParams.get("query") || "";
 
     const res = await getAdmissionApplicationsList({ status, targetClass, query });
+    const applications = (res as any)?.data?.applications || (res as any)?.applications || [];
     return NextResponse.json({
       success: true,
-      data: res.applications || [],
+      data: applications,
     });
   } catch (error: any) {
     console.error("[Mobile Admissions Admin List Error]:", error);

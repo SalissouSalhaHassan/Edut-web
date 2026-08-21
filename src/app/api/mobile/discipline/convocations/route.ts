@@ -9,9 +9,9 @@ import { MessagingService } from "@/shared/services/messaging.service";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
-  const user = await getMobileUser(request);
-  if (!user) {
-    return mobileJsonError("Non authentifié.", 401);
+  const { user, response } = await getMobileUser(request);
+  if (response || !user) {
+    return response || mobileJsonError("Non authentifié.", 401);
   }
 
   try {
@@ -39,10 +39,12 @@ export async function POST(request: NextRequest) {
       return mobileJsonError("Élève introuvable.", 404);
     }
 
+    const schoolId = user.schoolId || student.schoolId || 1;
+
     const [inserted] = await db
       .insert(parentConvocations)
       .values({
-        schoolId: user.schoolId,
+        schoolId,
         studentId: Number(studentId),
         incidentId: incidentId ? Number(incidentId) : null,
         reason,
@@ -59,7 +61,7 @@ export async function POST(request: NextRequest) {
 
     if (notifyParent) {
       const studentName = student.nomEtudiant || "l'élève";
-      const parentPhone = student.telephoneParent || student.telephoneTuteur || student.telephone;
+      const parentPhone = (student as any)?.mobile || (student as any)?.whatsapp || (student as any)?.telephoneParent;
 
       if (parentPhone) {
         const dateFmt = new Date(convocationDate).toLocaleDateString("fr-FR", {
@@ -72,7 +74,7 @@ export async function POST(request: NextRequest) {
 
         await MessagingService.sendParentConvocationAlert({
           to: parentPhone,
-          whatsapp: student.whatsappParent || parentPhone,
+          whatsapp: (student as any)?.whatsapp || parentPhone,
           studentName,
           reason,
           convocationDate: dateFmt,

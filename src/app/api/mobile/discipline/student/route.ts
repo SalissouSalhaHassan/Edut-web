@@ -13,14 +13,14 @@ import { eq, desc, and } from "drizzle-orm";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
-  const user = await getMobileUser(request);
-  if (!user) {
-    return mobileJsonError("Non authentifié.", 401);
+  const { user, response } = await getMobileUser(request);
+  if (response || !user) {
+    return response || mobileJsonError("Non authentifié.", 401);
   }
 
   const { searchParams } = new URL(request.url);
   const studentIdParam = searchParams.get("studentId");
-  const studentId = studentIdParam ? Number(studentIdParam) : user.studentId;
+  const studentId = studentIdParam ? Number(studentIdParam) : (user as any).studentId;
 
   if (!studentId) {
     return mobileJsonError("studentId manquant.", 400);

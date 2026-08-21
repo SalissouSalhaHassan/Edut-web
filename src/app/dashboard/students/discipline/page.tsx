@@ -114,11 +114,12 @@ export default function DisciplinePage() {
         getStudentMedicalDirectoryAction(),
       ]);
 
-      if (statsRes) setStats(statsRes);
+      if (statsRes) setStats((statsRes as any)?.data || statsRes);
       if (incRes?.data) setIncidentsList((incRes.data as any)?.data || incRes.data || []);
       if (cnlRes?.data) setCouncilsList((cnlRes.data as any)?.data || cnlRes.data || []);
       if (convRes?.data) setConvocationsList((convRes.data as any)?.data || convRes.data || []);
-      if (stdRes?.students) setStudentsList(stdRes.students);
+      const studentsData = (stdRes as any)?.data?.students || (stdRes as any)?.students || [];
+      setStudentsList(studentsData);
     } catch (err: any) {
       toast.error("Erreur lors du chargement des données de discipline.");
     } finally {

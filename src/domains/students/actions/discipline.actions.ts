@@ -146,12 +146,12 @@ export async function createIncident(formData: IncidentFormData & {
     if (notifyParent) {
       try {
         const studentName = studentObj.nomEtudiant || "l'élève";
-        const parentPhone = studentObj.telephoneParent || studentObj.telephoneTuteur || studentObj.telephone;
+        const parentPhone = (studentObj as any)?.mobile || (studentObj as any)?.whatsapp || (studentObj as any)?.telephoneParent;
 
         if (parentPhone) {
           await MessagingService.sendDisciplineSanctionAlert({
             to: parentPhone,
-            whatsapp: studentObj.whatsappParent || parentPhone,
+            whatsapp: (studentObj as any)?.whatsapp || parentPhone,
             studentName,
             incidentType,
             sanctionType,
@@ -337,7 +337,7 @@ export async function createDisciplinaryCouncil(data: {
     if (data.notifyParent) {
       try {
         const studentName = student.nomEtudiant || "l'élève";
-        const parentPhone = student.telephoneParent || student.telephoneTuteur || student.telephone;
+        const parentPhone = (student as any)?.mobile || (student as any)?.whatsapp || (student as any)?.telephoneParent;
 
         if (parentPhone) {
           const sessionDateFormatted = new Date(data.sessionDate).toLocaleDateString("fr-FR", {
@@ -350,7 +350,7 @@ export async function createDisciplinaryCouncil(data: {
 
           await MessagingService.sendParentConvocationAlert({
             to: parentPhone,
-            whatsapp: student.whatsappParent || parentPhone,
+            whatsapp: (student as any)?.whatsapp || parentPhone,
             studentName,
             reason: `Conseil de Discipline : ${data.reproachedFacts}`,
             convocationDate: sessionDateFormatted,
@@ -451,7 +451,7 @@ export async function createParentConvocation(data: {
     if (data.notifyParent ?? true) {
       try {
         const studentName = student.nomEtudiant || "l'élève";
-        const parentPhone = student.telephoneParent || student.telephoneTuteur || student.telephone;
+        const parentPhone = (student as any)?.mobile || (student as any)?.whatsapp || (student as any)?.telephoneParent;
 
         if (parentPhone) {
           const dateFmt = new Date(data.convocationDate).toLocaleDateString("fr-FR", {
@@ -464,7 +464,7 @@ export async function createParentConvocation(data: {
 
           await MessagingService.sendParentConvocationAlert({
             to: parentPhone,
-            whatsapp: student.whatsappParent || parentPhone,
+            whatsapp: (student as any)?.whatsapp || parentPhone,
             studentName,
             reason: data.reason,
             convocationDate: dateFmt,

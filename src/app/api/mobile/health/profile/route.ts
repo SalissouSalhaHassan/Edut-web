@@ -7,9 +7,9 @@ import { eq } from "drizzle-orm";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
-  const user = await getMobileUser(request);
-  if (!user) {
-    return mobileJsonError("Non authentifié.", 401);
+  const { user, response } = await getMobileUser(request);
+  if (response || !user) {
+    return response || mobileJsonError("Non authentifié.", 401);
   }
 
   try {
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
         .where(eq(studentMedicalRecords.id, existing.id));
     } else {
       await db.insert(studentMedicalRecords).values({
-        schoolId: user.schoolId,
+        schoolId: user.schoolId || 1,
         studentId: sId,
         bloodGroup: bloodGroup || null,
         allergies: allergies || null,

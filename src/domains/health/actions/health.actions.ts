@@ -172,13 +172,13 @@ export async function createInfirmaryVisitAction(data: {
     if (data.notifyParent || data.severity === "Urgent" || data.severity === "Urgent / Critique") {
       try {
         const studentName = student.nomEtudiant || "l'élève";
-        const parentPhone = student.telephoneParent || student.telephoneTuteur || student.telephone;
+        const parentPhone = (student as any)?.mobile || (student as any)?.whatsapp || (student as any)?.telephoneParent;
 
         // 1. Send multi-channel SMS / WhatsApp via MessagingService
         if (parentPhone) {
           await MessagingService.sendInfirmaryAlert({
             to: parentPhone,
-            whatsapp: student.whatsappParent || parentPhone,
+            whatsapp: (student as any)?.whatsapp || parentPhone,
             studentName,
             symptoms: data.symptoms,
             temperature: data.temperature,
@@ -294,8 +294,8 @@ export async function getStudentMedicalRecordAction(studentId: number) {
           { name: "Méningite A (MenAfriVac)", isDone: false, date: "" },
           { name: "Tétanos", isDone: true, date: "" },
         ],
-        emergencyContactName: student.nomParent || student.tuteurNom || "",
-        emergencyContactPhone: student.telephoneParent || student.telephoneTuteur || "",
+        emergencyContactName: (student as any)?.nomPere || (student as any)?.nomParent || "",
+        emergencyContactPhone: (student as any)?.mobile || (student as any)?.whatsapp || "",
         emergencyContactRelation: "Parent",
         doctorName: null,
         doctorPhone: null,
@@ -429,7 +429,7 @@ export async function getStudentMedicalDirectoryAction(params?: {
         numAdmission: students.numAdmission,
         sexe: students.sexe,
         dateNaissance: students.dateNaissance,
-        telephoneParent: students.telephoneParent,
+        telephoneParent: students.mobile,
         bloodGroup: studentMedicalRecords.bloodGroup,
         allergies: studentMedicalRecords.allergies,
         chronicConditions: studentMedicalRecords.chronicConditions,

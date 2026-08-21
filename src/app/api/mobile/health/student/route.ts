@@ -11,14 +11,14 @@ import { eq, desc, and } from "drizzle-orm";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
-  const user = await getMobileUser(request);
-  if (!user) {
-    return mobileJsonError("Non authentifié.", 401);
+  const { user, response } = await getMobileUser(request);
+  if (response || !user) {
+    return response || mobileJsonError("Non authentifié.", 401);
   }
 
   const { searchParams } = new URL(request.url);
   const studentIdParam = searchParams.get("studentId");
-  const studentId = studentIdParam ? Number(studentIdParam) : user.studentId;
+  const studentId = studentIdParam ? Number(studentIdParam) : (user as any).studentId;
 
   if (!studentId) {
     return mobileJsonError("studentId manquant.", 400);
@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
           class: student.classe,
           admissionNo: student.numAdmission,
           photoPath: student.photoPath,
-          parentPhone: student.telephoneParent || student.telephoneTuteur,
+          parentPhone: (student as any)?.mobile || (student as any)?.whatsapp || null,
         },
         medicalRecord: record ? {
           id: record.id,
@@ -75,8 +75,8 @@ export async function GET(request: NextRequest) {
           chronicConditions: record.chronicConditions || "Aucune",
           regularMedications: record.regularMedications || "Aucun",
           vaccinations: record.vaccinations || defaultVaccines,
-          emergencyContactName: record.emergencyContactName || student.nomParent || "Parent",
-          emergencyContactPhone: record.emergencyContactPhone || student.telephoneParent || "",
+          emergencyContactName: record.emergencyContactName || (student as any)?.nomPere || "Parent",
+          emergencyContactPhone: record.emergencyContactPhone || (student as any)?.mobile || "",
           doctorName: record.doctorName,
           doctorPhone: record.doctorPhone,
           heightCm: record.heightCm,
@@ -89,8 +89,8 @@ export async function GET(request: NextRequest) {
           chronicConditions: "Aucune",
           regularMedications: "Aucun",
           vaccinations: defaultVaccines,
-          emergencyContactName: student.nomParent || "Parent",
-          emergencyContactPhone: student.telephoneParent || "",
+          emergencyContactName: (student as any)?.nomPere || "Parent",
+          emergencyContactPhone: (student as any)?.mobile || "",
           doctorName: null,
           doctorPhone: null,
           heightCm: null,

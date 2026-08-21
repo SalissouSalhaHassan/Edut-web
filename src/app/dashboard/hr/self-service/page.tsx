@@ -77,12 +77,13 @@ export default function HrSelfServicePage() {
   const loadData = async () => {
     try {
       setIsLoading(true);
-      const res = await getStaffSelfServiceData();
-      if (res?.profile) {
-        setProfile(res.profile);
-        setRequests(res.requests || []);
-        setPayslips(res.payslips || []);
-        setExtraHours(res.extraHours || []);
+      const res: any = await getStaffSelfServiceData();
+      const payload = res?.data || res;
+      if (payload?.profile) {
+        setProfile(payload.profile);
+        setRequests(payload.requests || []);
+        setPayslips(payload.payslips || []);
+        setExtraHours(payload.extraHours || []);
       }
     } catch (err) {
       toast.error("Erreur lors du chargement de votre espace personnel.");
@@ -104,7 +105,7 @@ export default function HrSelfServicePage() {
 
     try {
       setIsSubmittingRequest(true);
-      const res = await submitStaffHrRequestAction({
+      const res: any = await submitStaffHrRequestAction({
         employeeId: profile.id,
         requestType: newRequest.requestType,
         startDate: newRequest.startDate,
@@ -114,13 +115,14 @@ export default function HrSelfServicePage() {
         reason: newRequest.reason,
       });
 
-      if (res?.success) {
-        toast.success(res.message);
+      const data = res?.data || res;
+      if (data?.success) {
+        toast.success(data.message || "Demande transmise avec succès !");
         setIsRequestModalOpen(false);
         setNewRequest({ ...newRequest, reason: "" });
         loadData();
-      } else if (res?.error) {
-        toast.error(res.error);
+      } else if (res?.error || data?.error) {
+        toast.error(res?.error || data?.error);
       }
     } catch (err) {
       toast.error("Erreur lors de la transmission de la demande.");

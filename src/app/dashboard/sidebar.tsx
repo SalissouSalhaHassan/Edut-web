@@ -39,6 +39,8 @@ import {
   ShieldAlert,
   UsersRound,
   UserRound,
+  UserPlus,
+  UserCheck,
   Users,
   Wallet,
   TrendingDown,

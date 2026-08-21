@@ -258,11 +258,12 @@ export default function HostelClient({
 
     try {
       setIsSavingRollCall(true);
-      const res = await recordNightAttendanceAction(records);
-      if (res.success) {
-        toast.success(res.message || "Appel de nuit enregistré ! Les parents des absents ont été notifiés.");
-      } else if (res.error) {
-        toast.error(res.error);
+      const res: any = await recordNightAttendanceAction(records);
+      const payload = res?.data || res;
+      if (payload?.success || res?.success) {
+        toast.success(payload?.message || res?.message || "Appel de nuit enregistré ! Les parents des absents ont été notifiés.");
+      } else if (res?.error || payload?.error) {
+        toast.error(res?.error || payload?.error);
       }
     } catch (err) {
       toast.error("Erreur lors de l'enregistrement de l'appel.");

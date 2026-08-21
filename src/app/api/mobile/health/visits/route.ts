@@ -11,9 +11,9 @@ import { MessagingService } from "@/shared/services/messaging.service";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
-  const user = await getMobileUser(request);
-  if (!user) {
-    return mobileJsonError("Non authentifié.", 401);
+  const { user, response } = await getMobileUser(request);
+  if (response || !user) {
+    return response || mobileJsonError("Non authentifié.", 401);
   }
 
   try {
@@ -45,14 +45,17 @@ export async function POST(request: NextRequest) {
       return mobileJsonError("Élève introuvable.", 404);
     }
 
+    const schoolId = user.schoolId || student.schoolId || 1;
+
     const nurseName = (user as any).name || (user as any).nom || user.utilisateur || "Infirmerie";
     const nurseId = user.employeeId || null;
 
     const [inserted] = await db
       .insert(infirmaryVisits)
       .values({
-        schoolId: user.schoolId,
+        schoolId,
         studentId: Number(studentId),
+        visitDate: new Date(),
         nurseId,
         nurseName,
         symptoms,
@@ -73,12 +76,12 @@ export async function POST(request: NextRequest) {
 
     if (notifyParent || severity === "Urgent" || severity === "Urgent / Critique") {
       const studentName = student.nomEtudiant || "l'élève";
-      const parentPhone = student.telephoneParent || student.telephoneTuteur || student.telephone;
+      const parentPhone = (student as any)?.mobile || (student as any)?.whatsapp || (student as any)?.telephoneParent;
 
       if (parentPhone) {
         await MessagingService.sendInfirmaryAlert({
           to: parentPhone,
-          whatsapp: student.whatsappParent || parentPhone,
+          whatsapp: (student as any)?.whatsapp || parentPhone,
           studentName,
           symptoms,
           temperature: temperature ? Number(temperature) : undefined,
@@ -99,7 +102,7 @@ export async function POST(request: NextRequest) {
         .where(
           and(
             eq(users.studentId, Number(studentId)),
-            user.schoolId ? eq(users.schoolId, user.schoolId) : undefined
+            schoolId ? eq(users.schoolId, schoolId) : undefined
           )
         );
 

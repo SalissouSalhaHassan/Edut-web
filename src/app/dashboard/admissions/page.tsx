@@ -92,8 +92,9 @@ export default function AdmissionsPage() {
         }),
       ]);
 
-      if (statsRes) setStats(statsRes);
-      if (listRes?.applications) setApplications(listRes.applications);
+      if (statsRes) setStats((statsRes as any)?.data || statsRes);
+      const apps = (listRes as any)?.data?.applications || (listRes as any)?.applications || [];
+      setApplications(apps);
     } catch (err: any) {
       toast.error("Erreur de chargement des admissions.");
     } finally {
@@ -124,16 +125,17 @@ export default function AdmissionsPage() {
         assignedClass,
       });
 
-      if (res?.success) {
+      const payload = (res as any)?.data || res;
+      if (payload?.success) {
         if (decision === "Admis / Accepté") {
-          toast.success(`Candidat admis avec succès ! Matricule généré : ${res.matricule}`);
+          toast.success(`Candidat admis avec succès ! Matricule généré : ${payload.matricule || "Nouveau"}`);
         } else {
           toast.success(`Dossier mis à jour (${decision}).`);
         }
         setIsReviewModalOpen(false);
         loadData();
-      } else if (res?.error) {
-        toast.error(res.error);
+      } else if (res?.error || payload?.error) {
+        toast.error(res?.error || payload?.error);
       }
     } catch (err: any) {
       toast.error("Erreur lors du traitement de la décision.");

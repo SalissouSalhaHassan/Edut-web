@@ -102,10 +102,11 @@ export default function HealthInfirmaryPage() {
   const loadDashboard = async () => {
     try {
       setIsLoading(true);
-      const res = await getHealthDashboardData();
-      if (res?.success && res.stats) {
-        setStats(res.stats);
-        setRecentVisits(res.recentVisits || []);
+      const res: any = await getHealthDashboardData();
+      const payload = res?.data || res;
+      if (payload?.success && payload.stats) {
+        setStats(payload.stats);
+        setRecentVisits(payload.recentVisits || []);
       }
     } catch (err: any) {
       toast.error("Erreur de chargement des données de l'infirmerie");
@@ -117,12 +118,13 @@ export default function HealthInfirmaryPage() {
   const loadDirectory = async () => {
     try {
       setIsLoadingDirectory(true);
-      const res = await getStudentMedicalDirectoryAction({
+      const res: any = await getStudentMedicalDirectoryAction({
         search: searchQuery,
-        bloodGroup: selectedBloodGroup,
+        bloodGroup: selectedBloodGroup !== "ALL" ? selectedBloodGroup : undefined,
       });
-      if (res?.success) {
-        setStudentsList(res.students || []);
+      const payload = res?.data || res;
+      if (payload?.success) {
+        setStudentsList(payload.students || []);
       }
     } catch (err: any) {
       toast.error("Erreur de chargement des fiches médicales");
@@ -216,9 +218,10 @@ export default function HealthInfirmaryPage() {
         notes: newVisit.notes,
       });
 
-      if (res?.success) {
+      const payload = (res as any)?.data || res;
+      if (payload?.success) {
         toast.success(
-          res.parentNotified
+          payload.parentNotified
             ? "Passage enregistré ! Parent alerté par WhatsApp/SMS."
             : "Passage à l'infirmerie enregistré avec succès."
         );
@@ -235,8 +238,9 @@ export default function HealthInfirmaryPage() {
   const handleDeleteVisit = async (id: number) => {
     if (!confirm("Voulez-vous supprimer cet enregistrement de visite ?")) return;
     try {
-      const res = await deleteInfirmaryVisitAction(id);
-      if (res?.success) {
+      const res: any = await deleteInfirmaryVisitAction(id);
+      const payload = res?.data || res;
+      if (payload?.success) {
         toast.success("Enregistrement supprimé.");
         loadDashboard();
       }
@@ -248,13 +252,14 @@ export default function HealthInfirmaryPage() {
   const handleOpenEditRecordModal = async (studentId: number) => {
     try {
       toast.loading("Chargement de la fiche médicale...");
-      const res = await getStudentMedicalRecordAction(studentId);
+      const res: any = await getStudentMedicalRecordAction(studentId);
       toast.dismiss();
-      if (res?.success && res.student) {
-        setSelectedStudentForRecord(res.student);
-        const r = res.medicalRecord;
+      const payload = res?.data || res;
+      if (payload?.success && payload.student) {
+        setSelectedStudentForRecord(payload.student);
+        const r = payload.medicalRecord || {};
         setEditingRecord({
-          studentId: res.student.id,
+          studentId: payload.student.id,
           bloodGroup: r.bloodGroup || "O+",
           allergies: r.allergies || "",
           chronicConditions: r.chronicConditions || "",
@@ -270,8 +275,8 @@ export default function HealthInfirmaryPage() {
                 { name: "Méningite A (MenAfriVac)", isDone: false, date: "" },
                 { name: "Tétanos", isDone: true, date: "" },
               ],
-          emergencyContactName: r.emergencyContactName || res.student.nomParent || "",
-          emergencyContactPhone: r.emergencyContactPhone || res.student.telephoneParent || "",
+          emergencyContactName: r.emergencyContactName || (payload.student as any).nomPere || (payload.student as any).nomParent || "",
+          emergencyContactPhone: r.emergencyContactPhone || (payload.student as any).mobile || (payload.student as any).whatsapp || "",
           emergencyContactRelation: r.emergencyContactRelation || "Parent",
           doctorName: r.doctorName || "",
           doctorPhone: r.doctorPhone || "",
