@@ -960,7 +960,7 @@ export async function runAISolver(sessionIdOrParams?: number | {
     });
 
     const allTeachers = await db.query.employees.findMany({
-      where: and(eq(employees.schoolId, schoolId), eq(employees.isTeacher, true)),
+      where: eq(employees.schoolId, schoolId),
     });
 
     // 5. Fetch Teacher Constraints
