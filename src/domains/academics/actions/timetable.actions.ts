@@ -1049,19 +1049,21 @@ export async function runAISolver(sessionIdOrParams?: number | {
       }> = [];
 
       if (clsSubjects.length > 0) {
-        subjectPlan = clsSubjects.map((cs) => {
-          const sName = cs.subject?.subjectName || "Matière";
-          const isHeavy = /math|alg|géom|fran|phys|chim/i.test(sName);
-          const isScience = /svt|bio|info|anglais/i.test(sName);
-          return {
-            subjectId: cs.subjectId,
-            subjectName: sName,
-            teacherId: cs.teacherId || null,
-            hoursNeeded: (cs as any).hoursPerWeek || (isHeavy ? 5 : isScience ? 3 : 2),
-            priority: isHeavy ? 1 : isScience ? 2 : 3,
-            isHeavy,
-          };
-        });
+        subjectPlan = clsSubjects
+          .filter((cs) => cs.subjectId != null)
+          .map((cs) => {
+            const sName = cs.subject?.subjectName || "Matière";
+            const isHeavy = /math|alg|géom|fran|phys|chim/i.test(sName);
+            const isScience = /svt|bio|info|anglais/i.test(sName);
+            return {
+              subjectId: Number(cs.subjectId),
+              subjectName: sName,
+              teacherId: cs.teacherId || null,
+              hoursNeeded: Number((cs as any).hoursPerWeek) || (isHeavy ? 5 : isScience ? 3 : 2),
+              priority: isHeavy ? 1 : isScience ? 2 : 3,
+              isHeavy,
+            };
+          });
       } else {
         // Standard high quality fallback curriculum based on level
         const availableSubjList = allSubjects.length > 0 ? allSubjects : [
