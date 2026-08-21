@@ -44,6 +44,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 import { getSessions, getCanevasReferenceLists, getEducationalLevels } from "@/domains/academics/actions/academics.actions";
+import { getMinistrySchoolsData } from "@/domains/ministry/actions/ministry.actions";
 
 interface SchoolInspectionData {
   code: string;
@@ -207,10 +208,11 @@ export default function InspectionDashboardPage() {
 
     const loadData = async () => {
       try {
-        const [res, refsRes, levelsRes] = await Promise.all([
+        const [res, refsRes, levelsRes, schoolsRes] = await Promise.all([
           getSessions().catch(() => null),
           getCanevasReferenceLists().catch(() => null),
           getEducationalLevels(true).catch(() => null),
+          getMinistrySchoolsData().catch(() => null),
         ]);
         const sessions = (res as any)?.data?.data || (res as any)?.data || [];
         if (cancelled) return;
@@ -227,6 +229,29 @@ export default function InspectionDashboardPage() {
           ...refCycles.map((c: any) => c.value || c).filter(Boolean)
         ]));
         setDynamicCycles(combined);
+
+        if (schoolsRes?.success && Array.isArray(schoolsRes.data) && schoolsRes.data.length > 0) {
+          const mapped: SchoolInspectionData[] = schoolsRes.data.map((s: any) => ({
+            code: s.code,
+            name: s.name,
+            type: s.type,
+            cycle: s.cycle,
+            inspection: s.inspection || "Niamey IV",
+            commune: s.commune || s.inspection || "Niamey",
+            eleves: s.eleves || 0,
+            enseignants: s.enseignants || 0,
+            salles: s.salles || 0,
+            eau: !!s.eau,
+            electricite: !!s.electricite,
+            completion: s.completion || 0,
+            lastDeclaration: s.lastDeclaration || new Date().toISOString().slice(0, 10),
+            successRate: s.successRate || 0,
+            attendanceRate: s.attendanceRate || 0,
+            status: s.status === "Valide" ? "Validé" : "En attente",
+            needsCount: (s.manqueEnseignants > 0 ? 1 : 0) + (s.manqueSalles > 0 ? 1 : 0) + (!s.eau ? 1 : 0) + (!s.electricite ? 1 : 0),
+          }));
+          setSchools(mapped);
+        }
       } catch {
         if (!cancelled) {
           setSchoolSessions([]);
