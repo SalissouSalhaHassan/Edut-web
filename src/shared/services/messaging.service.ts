@@ -179,6 +179,77 @@ export class MessagingService {
     return true;
   }
 
+  static async sendDisciplineSanctionAlert(payload: {
+    to: string;
+    studentName: string;
+    incidentType: string;
+    sanctionType: string;
+    severity?: string;
+    durationDays?: number;
+    schoolName?: string;
+    whatsapp?: string;
+    sendSMS?: boolean;
+    sendWhatsApp?: boolean;
+  }) {
+    const { to, studentName, incidentType, sanctionType, severity = "Majeur", durationDays, schoolName = "Edut Pro", whatsapp, sendSMS = true, sendWhatsApp = true } = payload;
+    const phone = whatsapp || to;
+    if (!phone || phone === "N/A" || phone.trim() === "") return false;
+
+    const durationText = durationDays && durationDays > 0 ? ` (Durée : ${durationDays} jour${durationDays > 1 ? 's' : ''})` : "";
+    const isCritical = severity.toLowerCase().includes("critique") || sanctionType.toLowerCase().includes("exclusion");
+    const emoji = isCritical ? "🚨" : "⚠️";
+
+    const messageFr = `${emoji} *Avis Disciplinaire - ${schoolName}*\n\nCher Parent, nous vous informons que votre enfant *${studentName}* a fait l'objet d'une mesure disciplinaire ce jour.\n• Motif : *${incidentType}*\n• Sanction prononcée : *${sanctionType}*${durationText}\n\nL'administration vous prie de sensibiliser votre enfant au respect du règlement intérieur de l'établissement.`;
+    const messageAr = `${emoji} *إشعار انضباطي وسلوكي - ${schoolName}*\n\nعزيزي ولي الأمر، نحيطكم علماً بأنه قد تم اتخاذ إجراء تأديبي بحق التلميذ *${studentName}* اليوم.\n• المخالفة : *${incidentType}*\n• العقوبة المطبقة : *${sanctionType}*${durationText}\n\nيرجى حث التلميذ على الالتزام بالنظام الداخلي للمؤسسة.`;
+
+    const fullMessage = `${messageFr}\n\n${messageAr}`;
+
+    if (sendSMS && to && to !== "N/A" && to.trim() !== "") {
+      const smsSuccess = await this.sendViaAndroidGateway(to, fullMessage);
+      await this.logMessage("SMS", `${studentName} (${to})`, fullMessage, smsSuccess ? "Envoyé" : "Échec");
+    }
+
+    if (sendWhatsApp && phone) {
+      const waSuccess = await this.sendViaWhatsAppAPI(phone, fullMessage);
+      await this.logMessage("WHATSAPP", `${studentName} (${phone})`, fullMessage, waSuccess ? "Envoyé" : "Échec");
+    }
+
+    return true;
+  }
+
+  static async sendParentConvocationAlert(payload: {
+    to: string;
+    studentName: string;
+    reason: string;
+    convocationDate: string;
+    location?: string;
+    schoolName?: string;
+    whatsapp?: string;
+    sendSMS?: boolean;
+    sendWhatsApp?: boolean;
+  }) {
+    const { to, studentName, reason, convocationDate, location = "Bureau du Censeur / Surveillant Général", schoolName = "Edut Pro", whatsapp, sendSMS = true, sendWhatsApp = true } = payload;
+    const phone = whatsapp || to;
+    if (!phone || phone === "N/A" || phone.trim() === "") return false;
+
+    const messageFr = `📋 *Convocation des Parents - ${schoolName}*\n\nCher Parent, vous êtes instamment prié(e) de vous présenter à l'établissement concernant votre enfant *${studentName}*.\n• Date & Heure : *${convocationDate}*\n• Lieu : *${location}*\n• Motif : *${reason}*\n\nVotre présence est indispensable pour le suivi de l'élève. Merci de votre ponctualité.`;
+    const messageAr = `📋 *استدعاء رسمي لولي الأمر - ${schoolName}*\n\nعزيزي ولي الأمر، يرجى الحضور إلى إدارة المؤسسة بخصوص التلميذ *${studentName}*.\n• الموعد : *${convocationDate}*\n• المكان : *${location}*\n• السبب : *${reason}*\n\nحضوركم ضروري لمتابعة التلميذ.`;
+
+    const fullMessage = `${messageFr}\n\n${messageAr}`;
+
+    if (sendSMS && to && to !== "N/A" && to.trim() !== "") {
+      const smsSuccess = await this.sendViaAndroidGateway(to, fullMessage);
+      await this.logMessage("SMS", `${studentName} (${to})`, fullMessage, smsSuccess ? "Envoyé" : "Échec");
+    }
+
+    if (sendWhatsApp && phone) {
+      const waSuccess = await this.sendViaWhatsAppAPI(phone, fullMessage);
+      await this.logMessage("WHATSAPP", `${studentName} (${phone})`, fullMessage, waSuccess ? "Envoyé" : "Échec");
+    }
+
+    return true;
+  }
+
   static generateWhatsAppShareUrl(phone: string, text: string): string {
     const cleanPhone = phone.replace(/[^0-9+]/g, "").replace(/^\+/, "");
     const encodedText = encodeURIComponent(text);
