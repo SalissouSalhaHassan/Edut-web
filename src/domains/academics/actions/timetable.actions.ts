@@ -965,22 +965,25 @@ export async function runAISolver(sessionIdOrParams?: number | {
 
     // 5. Fetch Teacher Constraints
     const constraints = respectTeacherConstraints
-      ? await db.query.teacherConstraints.findMany({
-          where: schoolId ? eq(teacherConstraints.schoolId, schoolId) : undefined,
-        })
+      ? await db.query.teacherConstraints.findMany()
       : [];
 
     const teacherUnavailableMap: Record<string, Set<string>> = {}; // teacherId -> Set of "DayName_PeriodNumber"
+    const teacherMaxPeriodsMap: Record<string, number> = {}; // teacherId -> maxPeriodsPerDay
     for (const c of constraints) {
-      if (!c.employeeId || !c.dayName) continue;
+      if (!c.employeeId) continue;
       const key = `${c.employeeId}`;
       if (!teacherUnavailableMap[key]) teacherUnavailableMap[key] = new Set();
-      if (c.periodNumber) {
-        teacherUnavailableMap[key].add(`${c.dayName}_${c.periodNumber}`);
-      } else {
-        // Entire day unavailable
+      if (c.maxPeriodsPerDay) {
+        teacherMaxPeriodsMap[key] = c.maxPeriodsPerDay;
+      }
+      const offDays = (c.offDays || "")
+        .split(",")
+        .map((d) => d.trim())
+        .filter(Boolean);
+      for (const offDay of offDays) {
         for (let p = 1; p <= totalPeriods; p++) {
-          teacherUnavailableMap[key].add(`${c.dayName}_${p}`);
+          teacherUnavailableMap[key].add(`${offDay}_${p}`);
         }
       }
     }
