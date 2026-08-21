@@ -735,131 +735,6 @@ export async function deleteClassAssignment(id: number) {
   });
 }
 
-export async function runAISolver(sessionId: number) {
-  return protectedDbAction("Academics", "canEdit", async (user) => {
-    await assertTimetableAdminAccess(user);
-    const schoolId = await getActiveSchoolId();
-
-    await db.delete(timetableEntries).where(
-      and(
-        eq(timetableEntries.sessionId, sessionId),
-        inArray(
-          timetableEntries.classId,
-          db.select({ id: schoolClasses.id })
-            .from(schoolClasses)
-            .where(eq(schoolClasses.schoolId, schoolId))
-        )
-      )
-    );
-
-    const [assignments, teachers, settings] = await Promise.all([
-      db.query.classSubjects.findMany({
-        where: eq(classSubjects.schoolId, schoolId),
-        with: { subject: true, teacher: true }
-      }),
-      db.query.employees.findMany({
-        where: eq(employees.schoolId, schoolId),
-        with: { constraints: true }
-      }),
-      db.query.timetableSettings.findFirst({
-        where: isNull(timetableSettings.classId)
-      })
-    ]);
-
-    if (assignments.length === 0) {
-       throw new Error("Aucune affectation trouvée. Veuillez d'abord ajouter des matières aux classes.");
-    }
-
-    const periods = settings?.periods || 6;
-    const recess = settings?.recessAfter || 0;
-    const days = (settings?.days || "Lundi,Mardi,Mercredi,Jeudi,Vendredi").split(",");
-
-    const constraintMap = new Map(teachers.map(t => [t.id, t.constraints[0]]));
-
-    const isScience = (name: string) => {
-      const n = (name || "").toLowerCase();
-      return ["math", "physique", "chimie", "pc", "svt", "science"].some(s => n.includes(s));
-    };
-    
-    const isLanguage = (name: string) => {
-      const n = (name || "").toLowerCase();
-      return ["français", "french", "anglais", "english", "arabe", "arabic", "langue"].some(s => n.includes(s));
-    };
-
-    const newEntries: any[] = [];
-    const teacherBusy: Record<string, boolean> = {}; 
-    const classBusy: Record<string, boolean> = {}; 
-    const classDailySubjCount: Record<string, number> = {}; 
-    const teacherDailyLoad: Record<string, number> = {}; 
-
-    const sortedAssignments = [...assignments]
-      .filter(a => a.subject != null) 
-      .sort((a, b) => {
-        const scoreA = (a.subject ? (isScience(a.subject.subjectName || "") ? 100 : 0) + (isLanguage(a.subject.subjectName || "") ? 50 : 0) : 0) + (a.coefficient || 0);
-        const scoreB = (b.subject ? (isScience(b.subject.subjectName || "") ? 100 : 0) + (isLanguage(b.subject.subjectName || "") ? 50 : 0) : 0) + (b.coefficient || 0);
-        return scoreB - scoreA;
-      });
-
-    for (const a of sortedAssignments) {
-      if (!a.employeeId || !a.subject) continue;
-      
-      const teacherConst = constraintMap.get(a.employeeId);
-      const offDays = (teacherConst?.offDays || "").split(",");
-      
-      let hoursNeeded = a.coefficient || 1;
-      let scheduled = 0;
-
-      const preferredPeriods = isScience(a.subject.subjectName) 
-        ? [1, 2, 3, 4, 5, 6, 7, 8].filter(p => p <= periods) 
-        : [1, 2, 3, 4, 5, 6, 7, 8].filter(p => p <= periods);
-
-      for (const day of days) {
-        if (offDays.includes(day)) continue; 
-
-        for (const p of preferredPeriods) {
-          if (scheduled >= hoursNeeded) break;
-
-          const dailySubjKey = `${a.classId}_${day}_${a.subjectId}`;
-          if (isLanguage(a.subject.subjectName) && (classDailySubjCount[dailySubjKey] || 0) >= 1) continue;
-          if ((classDailySubjCount[dailySubjKey] || 0) >= 2) continue;
-          const tDayKey = `${a.employeeId}_${day}`;
-          if (teacherConst?.maxPeriodsPerDay && (teacherDailyLoad[tDayKey] || 0) >= teacherConst.maxPeriodsPerDay) continue;
-
-          const tKey = `${a.employeeId}_${day}_${p}`;
-          const cKey = `${a.classId}_${day}_${p}`;
-
-          if (!teacherBusy[tKey] && !classBusy[cKey]) {
-            newEntries.push({
-              sessionId,
-              classId: a.classId,
-              subjectId: a.subjectId,
-              employeeId: a.employeeId,
-              dayName: day,
-              periodNumber: p
-            });
-            teacherBusy[tKey] = true;
-            classBusy[cKey] = true;
-            classDailySubjCount[dailySubjKey] = (classDailySubjCount[dailySubjKey] || 0) + 1;
-            teacherDailyLoad[tDayKey] = (teacherDailyLoad[tDayKey] || 0) + 1;
-            scheduled++;
-          }
-        }
-        if (scheduled >= hoursNeeded) break;
-      }
-    }
-
-    if (newEntries.length > 0) {
-      await db.insert(timetableEntries).values(newEntries);
-    }
-
-    revalidatePath("/dashboard/academics/timetable");
-    return { 
-      success: true, 
-      message: `Génération terminée : ${newEntries.length} heures programmées intelligemment.` 
-    };
-  });
-}
-
 // ─── Student Personal Timetable Action (Secure Isolation) ─────────────────────
 
 export async function getStudentPersonalTimetableAction() {
@@ -1003,7 +878,7 @@ export async function getStudentPersonalTimetableAction() {
   });
 }
 
-export async function runAISolver(params: {
+export async function runAISolver(sessionIdOrParams?: number | {
   classId?: number;
   sessionId?: number;
   strategy?: "balanced" | "teacher_focus" | "compact";
@@ -1015,6 +890,10 @@ export async function runAISolver(params: {
     await assertTimetableAdminAccess(user);
     const schoolId = await getActiveSchoolId();
     if (!schoolId) throw new Error("Aucun contexte d'école trouvé.");
+
+    const params = typeof sessionIdOrParams === "number"
+      ? { sessionId: sessionIdOrParams }
+      : (sessionIdOrParams || {});
 
     const {
       classId,
