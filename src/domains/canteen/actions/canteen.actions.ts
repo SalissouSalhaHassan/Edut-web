@@ -1,39 +1,55 @@
 "use server";
 
-import { db } from "@/infrastructure/database";
-import { canteenItems, studentWallets, canteenTransactions, canteenInvoices } from "@/infrastructure/database/schema/canteen";
+import { db, readDb } from "@/infrastructure/database";
+import {
+  canteenItems,
+  studentWallets,
+  canteenTransactions,
+  canteenInvoices,
+  canteenWeeklyMenu,
+  canteenMealSubscriptions,
+  canteenMealConsumptions,
+} from "@/infrastructure/database/schema/canteen";
 import { students } from "@/infrastructure/database/schema/students";
+import { studentMedicalRecords } from "@/infrastructure/database/schema/health";
 import { schoolBranches, settings } from "@/infrastructure/database/schema/settings";
 import { schools } from "@/infrastructure/database/schema/auth";
 import { getActiveSchoolId } from "@/domains/auth/services/school";
-import { eq, desc, and, like, or, sql } from "drizzle-orm";
+import { eq, desc, and, ilike, or, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { protectedDbAction } from "@/lib/protected-action";
+import { MessagingService } from "@/shared/services/messaging.service";
 
 export async function getActiveSchoolProfile() {
   return protectedDbAction("Canteen", "canView", async () => {
     try {
       const schoolId = await getActiveSchoolId();
 
-      const branch = await db.query.schoolBranches.findFirst({
-        where: eq(schoolBranches.schoolId, schoolId),
-      }).catch(() => null);
+      const branch = await db.query.schoolBranches
+        .findFirst({
+          where: eq(schoolBranches.schoolId, schoolId),
+        })
+        .catch(() => null);
 
       if (branch && branch.branchName) {
         return { data: { schoolName: branch.branchName } };
       }
 
-      const school = await db.query.schools.findFirst({
-        where: eq(schools.id, schoolId),
-      }).catch(() => null);
+      const school = await db.query.schools
+        .findFirst({
+          where: eq(schools.id, schoolId),
+        })
+        .catch(() => null);
 
       if (school && school.name) {
         return { data: { schoolName: school.name } };
       }
 
-      const nameSetting = await db.query.settings.findFirst({
-        where: and(eq(settings.key, "school_name"), eq(settings.schoolId, schoolId))
-      }).catch(() => null);
+      const nameSetting = await db.query.settings
+        .findFirst({
+          where: and(eq(settings.key, "school_name"), eq(settings.schoolId, schoolId)),
+        })
+        .catch(() => null);
 
       if (nameSetting?.value) {
         return { data: { schoolName: nameSetting.value } };
@@ -45,113 +61,582 @@ export async function getActiveSchoolProfile() {
   });
 }
 
-// Helper to ensure tables exist in PostgreSQL database
-async function ensureCanteenTablesExist() {
-  try {
-    await db.execute(sql`
-      CREATE TABLE IF NOT EXISTS canteen_items (
-        id SERIAL PRIMARY KEY,
-        name VARCHAR(150) NOT NULL,
-        code VARCHAR(50),
-        price DOUBLE PRECISION NOT NULL,
-        category VARCHAR(50) DEFAULT 'Général',
-        stock INTEGER DEFAULT 100,
-        image_url TEXT,
-        school_id INTEGER,
-        created_at TIMESTAMP DEFAULT NOW()
-      );
-    `).catch(() => {});
+// ─── 1. Dashboard KPI Statistics ─────────────────────────────────────────────
 
-    await db.execute(sql`ALTER TABLE canteen_items ADD COLUMN IF NOT EXISTS code VARCHAR(50);`).catch(() => {});
-    await db.execute(sql`ALTER TABLE canteen_items ADD COLUMN IF NOT EXISTS image_url TEXT;`).catch(() => {});
-    await db.execute(sql`ALTER TABLE canteen_items ADD COLUMN IF NOT EXISTS school_id INTEGER;`).catch(() => {});
+export async function getCanteenDashboardStats() {
+  return protectedDbAction("Canteen", "canView", async () => {
+    const schoolId = await getActiveSchoolId();
+    const todayStr = new Date().toISOString().slice(0, 10);
 
-    await db.execute(sql`ALTER TABLE canteen_items ALTER COLUMN school_id DROP NOT NULL;`).catch(() => {});
-    await db.execute(sql`ALTER TABLE canteen_items ALTER COLUMN category DROP NOT NULL;`).catch(() => {});
-    await db.execute(sql`ALTER TABLE canteen_items ALTER COLUMN stock DROP NOT NULL;`).catch(() => {});
-    await db.execute(sql`ALTER TABLE canteen_items ALTER COLUMN code DROP NOT NULL;`).catch(() => {});
+    const [subsCount, mealsTodayCount, walletsRes, itemsCount] = await Promise.all([
+      db
+        .select({ count: sql<number>`count(*)` })
+        .from(canteenMealSubscriptions)
+        .where(
+          and(
+            schoolId ? eq(canteenMealSubscriptions.schoolId, schoolId) : undefined,
+            eq(canteenMealSubscriptions.status, "Actif")
+          )
+        ),
+      db
+        .select({ count: sql<number>`count(*)` })
+        .from(canteenMealConsumptions)
+        .where(
+          and(
+            schoolId ? eq(canteenMealConsumptions.schoolId, schoolId) : undefined,
+            eq(canteenMealConsumptions.consumptionDate, todayStr)
+          )
+        ),
+      db
+        .select({
+          totalBalance: sql<number>`coalesce(sum(balance), 0)`,
+          lowBalanceCount: sql<number>`count(case when balance < 2000 then 1 end)`,
+        })
+        .from(studentWallets)
+        .where(schoolId ? eq(studentWallets.schoolId, schoolId) : undefined),
+      db
+        .select({ count: sql<number>`count(*)` })
+        .from(canteenItems)
+        .where(schoolId ? eq(canteenItems.schoolId, schoolId) : undefined),
+    ]);
 
-    await db.execute(sql`
-      CREATE TABLE IF NOT EXISTS canteen_invoices (
-        id SERIAL PRIMARY KEY,
-        invoice_number VARCHAR(100) NOT NULL UNIQUE,
-        client_name VARCHAR(150) DEFAULT 'CLIENT COMPTANT',
-        student_id INTEGER REFERENCES students(id) ON DELETE SET NULL,
-        subtotal DOUBLE PRECISION NOT NULL,
-        tva DOUBLE PRECISION DEFAULT 0,
-        total_ttc DOUBLE PRECISION NOT NULL,
-        amount_received DOUBLE PRECISION DEFAULT 0,
-        change_given DOUBLE PRECISION DEFAULT 0,
-        payment_method VARCHAR(50) DEFAULT 'Cash',
-        status VARCHAR(50) DEFAULT 'Payée',
-        items_json TEXT,
-        cashier_name VARCHAR(100) DEFAULT 'admin',
-        school_id INTEGER,
-        created_at TIMESTAMP DEFAULT NOW()
-      );
-    `).catch(() => {});
-
-    await db.execute(sql`ALTER TABLE canteen_invoices ADD COLUMN IF NOT EXISTS cashier_name VARCHAR(100) DEFAULT 'admin';`).catch(() => {});
-    await db.execute(sql`ALTER TABLE canteen_invoices ADD COLUMN IF NOT EXISTS school_id INTEGER;`).catch(() => {});
-    await db.execute(sql`ALTER TABLE canteen_invoices ALTER COLUMN school_id DROP NOT NULL;`).catch(() => {});
-
-    // Auto-repair existing legacy database rows with missing codes or 0 stock
-    await db.execute(sql`UPDATE canteen_items SET stock = 100 WHERE stock IS NULL OR stock = 0;`).catch(() => {});
-    await db.execute(sql`UPDATE canteen_items SET code = CONCAT('ART-', LPAD(id::text, 3, '0')) WHERE code IS NULL OR code = '';`).catch(() => {});
-  } catch (err) {
-    console.error("Canteen table auto-creation info:", err);
-  }
+    return {
+      activeSubscriptions: Number(subsCount[0]?.count || 0),
+      mealsServedToday: Number(mealsTodayCount[0]?.count || 0),
+      totalWalletBalance: Number(walletsRes[0]?.totalBalance || 0),
+      lowBalanceCount: Number(walletsRes[0]?.lowBalanceCount || 0),
+      totalMenuItems: Number(itemsCount[0]?.count || 0),
+    };
+  });
 }
 
-// ─── Articles / Products CRUD ──────────────────────────────────────────────────
+// ─── 2. Weekly Menu Planning ─────────────────────────────────────────────────
+
+export async function getWeeklyMenuAction(weekStartDate?: string) {
+  return protectedDbAction("Canteen", "canView", async () => {
+    const schoolId = await getActiveSchoolId();
+    if (!schoolId) return { data: [] };
+
+    // Default to Monday of current week if not provided
+    let targetWeek = weekStartDate;
+    if (!targetWeek) {
+      const d = new Date();
+      const day = d.getDay();
+      const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+      const monday = new Date(d.setDate(diff));
+      targetWeek = monday.toISOString().slice(0, 10);
+    }
+
+    const items = await readDb.query.canteenWeeklyMenu.findMany({
+      where: and(
+        eq(canteenWeeklyMenu.schoolId, schoolId),
+        eq(canteenWeeklyMenu.weekStartDate, targetWeek)
+      ),
+      orderBy: [desc(canteenWeeklyMenu.createdAt)],
+    });
+
+    return { data: items, weekStartDate: targetWeek };
+  });
+}
+
+export async function saveWeeklyMenuItemAction(data: {
+  id?: number;
+  weekStartDate: string;
+  dayOfWeek: string;
+  mealType?: string;
+  starterDish?: string;
+  mainDish: string;
+  sideDish?: string;
+  dessert?: string;
+  allergens?: string;
+  calories?: number;
+  isVegetarian?: boolean;
+  notes?: string;
+}) {
+  return protectedDbAction("Canteen", "canEdit", async () => {
+    const schoolId = await getActiveSchoolId();
+    if (!schoolId) return { error: "Aucun contexte d'école trouvé." };
+
+    const payload = {
+      schoolId,
+      weekStartDate: data.weekStartDate,
+      dayOfWeek: data.dayOfWeek,
+      mealType: data.mealType || "Déjeuner",
+      starterDish: data.starterDish || null,
+      mainDish: data.mainDish,
+      sideDish: data.sideDish || null,
+      dessert: data.dessert || null,
+      allergens: data.allergens || null,
+      calories: Number(data.calories || 650),
+      isVegetarian: data.isVegetarian || false,
+      notes: data.notes || null,
+    };
+
+    if (data.id) {
+      await db
+        .update(canteenWeeklyMenu)
+        .set(payload)
+        .where(
+          and(eq(canteenWeeklyMenu.id, data.id), eq(canteenWeeklyMenu.schoolId, schoolId))
+        );
+    } else {
+      await db.insert(canteenWeeklyMenu).values(payload);
+    }
+
+    revalidatePath("/dashboard/canteen");
+    return { success: true, message: "Menu de cantine enregistré avec succès." };
+  });
+}
+
+export async function deleteWeeklyMenuItemAction(id: number) {
+  return protectedDbAction("Canteen", "canDelete", async () => {
+    const schoolId = await getActiveSchoolId();
+    if (!schoolId) return { error: "Accès refusé." };
+
+    await db
+      .delete(canteenWeeklyMenu)
+      .where(
+        and(eq(canteenWeeklyMenu.id, id), eq(canteenWeeklyMenu.schoolId, schoolId))
+      );
+
+    revalidatePath("/dashboard/canteen");
+    return { success: true, message: "Élément de menu supprimé." };
+  });
+}
+
+// ─── 3. Subscriptions & Special Diets ────────────────────────────────────────
+
+export async function getCanteenSubscriptions(params?: { query?: string; planType?: string }) {
+  return protectedDbAction("Canteen", "canView", async () => {
+    const schoolId = await getActiveSchoolId();
+    if (!schoolId) return { data: [] };
+
+    const conditions = [eq(canteenMealSubscriptions.schoolId, schoolId)];
+    if (params?.planType && params.planType !== "ALL") {
+      conditions.push(eq(canteenMealSubscriptions.planType, params.planType));
+    }
+
+    const subs = await readDb.query.canteenMealSubscriptions.findMany({
+      where: and(...conditions),
+      with: {
+        student: true,
+      },
+      orderBy: [desc(canteenMealSubscriptions.createdAt)],
+    });
+
+    let filtered = subs;
+    if (params?.query && params.query.trim()) {
+      const q = params.query.toLowerCase().trim();
+      filtered = subs.filter(
+        (s) =>
+          s.student?.nomEtudiant?.toLowerCase().includes(q) ||
+          s.student?.numAdmission?.toLowerCase().includes(q) ||
+          s.specialDiet?.toLowerCase().includes(q)
+      );
+    }
+
+    return { data: filtered };
+  });
+}
+
+export async function saveMealSubscriptionAction(data: {
+  id?: number;
+  studentId: number;
+  planType: string;
+  monthlyPrice?: number;
+  specialDiet?: string;
+  allergiesNotice?: string;
+  parentPhone?: string;
+  parentWhatsapp?: string;
+  startDate?: Date;
+  status?: string;
+}) {
+  return protectedDbAction("Canteen", "canEdit", async () => {
+    const schoolId = await getActiveSchoolId();
+    if (!schoolId) return { error: "Aucun contexte d'école trouvé." };
+
+    const student = await db.query.students.findFirst({
+      where: and(eq(students.id, data.studentId), eq(students.schoolId, schoolId)),
+    });
+
+    if (!student) return { error: "Élève introuvable." };
+
+    const parentPhone = data.parentPhone || (student as any)?.mobile || (student as any)?.phoneFixe || null;
+    const parentWhatsapp = data.parentWhatsapp || (student as any)?.whatsapp || parentPhone;
+
+    const payload = {
+      schoolId,
+      studentId: data.studentId,
+      planType: data.planType,
+      monthlyPrice: Number(data.monthlyPrice || 25000),
+      specialDiet: data.specialDiet || "Normal",
+      allergiesNotice: data.allergiesNotice || null,
+      parentPhone,
+      parentWhatsapp,
+      startDate: data.startDate || new Date(),
+      status: data.status || "Actif",
+    };
+
+    if (data.id) {
+      await db
+        .update(canteenMealSubscriptions)
+        .set(payload)
+        .where(
+          and(
+            eq(canteenMealSubscriptions.id, data.id),
+            eq(canteenMealSubscriptions.schoolId, schoolId)
+          )
+        );
+    } else {
+      await db.insert(canteenMealSubscriptions).values(payload);
+
+      // Ensure student wallet exists
+      const existingWallet = await db.query.studentWallets.findFirst({
+        where: eq(studentWallets.studentId, data.studentId),
+      });
+      if (!existingWallet) {
+        await db.insert(studentWallets).values({
+          schoolId,
+          studentId: data.studentId,
+          balance: 0,
+          dailySpendingLimit: 2000,
+        });
+      }
+    }
+
+    revalidatePath("/dashboard/canteen");
+    return { success: true, message: "Abonnement de cantine enregistré avec succès." };
+  });
+}
+
+export async function cancelMealSubscriptionAction(id: number) {
+  return protectedDbAction("Canteen", "canDelete", async () => {
+    const schoolId = await getActiveSchoolId();
+    if (!schoolId) return { error: "Accès refusé." };
+
+    await db
+      .update(canteenMealSubscriptions)
+      .set({ status: "Suspendu" })
+      .where(
+        and(
+          eq(canteenMealSubscriptions.id, id),
+          eq(canteenMealSubscriptions.schoolId, schoolId)
+        )
+      );
+
+    revalidatePath("/dashboard/canteen");
+    return { success: true, message: "Abonnement suspendu." };
+  });
+}
+
+// ─── 4. Student Digital Wallets & Top-Up ──────────────────────────────────────
+
+export async function getStudentWalletsAction(params?: { query?: string }) {
+  return protectedDbAction("Canteen", "canView", async () => {
+    const schoolId = await getActiveSchoolId();
+    if (!schoolId) return { data: [] };
+
+    const wallets = await readDb.query.studentWallets.findMany({
+      where: eq(studentWallets.schoolId, schoolId),
+      with: {
+        student: true,
+      },
+      orderBy: [desc(studentWallets.updatedAt)],
+    });
+
+    let filtered = wallets;
+    if (params?.query && params.query.trim()) {
+      const q = params.query.toLowerCase().trim();
+      filtered = wallets.filter(
+        (w) =>
+          w.student?.nomEtudiant?.toLowerCase().includes(q) ||
+          w.student?.numAdmission?.toLowerCase().includes(q)
+      );
+    }
+
+    return { data: filtered };
+  });
+}
+
+export async function topUpStudentWalletAction(data: {
+  studentId: number;
+  amount: number;
+  paymentMethod?: string;
+  itemsDesc?: string;
+}) {
+  return protectedDbAction("Canteen", "canEdit", async (user) => {
+    const schoolId = (await getActiveSchoolId()) || user.schoolId || 1;
+    const amount = Number(data.amount);
+
+    if (isNaN(amount) || amount <= 0) {
+      return { error: "Le montant de la recharge doit être supérieur à 0." };
+    }
+
+    const [student, wallet] = await Promise.all([
+      db.query.students.findFirst({
+        where: eq(students.id, data.studentId),
+      }),
+      db.query.studentWallets.findFirst({
+        where: eq(studentWallets.studentId, data.studentId),
+      }),
+    ]);
+
+    if (!student) return { error: "Élève introuvable." };
+
+    let newBalance = amount;
+    if (wallet) {
+      newBalance = Number(wallet.balance) + amount;
+      await db
+        .update(studentWallets)
+        .set({ balance: newBalance, updatedAt: new Date() })
+        .where(eq(studentWallets.id, wallet.id));
+    } else {
+      await db.insert(studentWallets).values({
+        schoolId,
+        studentId: data.studentId,
+        balance: amount,
+        dailySpendingLimit: 2000,
+      });
+    }
+
+    // Record transaction
+    await db.insert(canteenTransactions).values({
+      schoolId,
+      studentId: data.studentId,
+      amount,
+      type: "Recharge",
+      paymentMethod: data.paymentMethod || "Espèces",
+      itemsDesc: data.itemsDesc || `Recharge de compte cantine (+${amount} CFA)`,
+      recordedBy: user.nomPrenom || user.utilisateur || "Caissier Cantine",
+    });
+
+    // Parent WhatsApp/SMS Alert
+    const parentPhone = (student as any)?.mobile || (student as any)?.whatsapp || (student as any)?.telephoneParent;
+    if (parentPhone) {
+      try {
+        await MessagingService.sendCanteenWalletTopupAlert({
+          to: parentPhone,
+          whatsapp: (student as any)?.whatsapp || parentPhone,
+          parentName: (student as any)?.nomPere || "Parent d'élève",
+          studentName: student.nomEtudiant,
+          amount,
+          newBalance,
+          schoolName: "Edut Pro",
+        });
+      } catch (err) {
+        console.error("Failed to send canteen topup SMS:", err);
+      }
+    }
+
+    revalidatePath("/dashboard/canteen");
+    return {
+      success: true,
+      newBalance,
+      message: `Compte de ${student.nomEtudiant} rechargé de ${amount.toLocaleString()} CFA avec succès.`,
+    };
+  });
+}
+
+export async function updateWalletSpendingLimitAction(data: {
+  studentId: number;
+  dailySpendingLimit: number;
+  isLocked: boolean;
+}) {
+  return protectedDbAction("Canteen", "canEdit", async () => {
+    const schoolId = await getActiveSchoolId();
+    if (!schoolId) return { error: "Accès refusé." };
+
+    await db
+      .update(studentWallets)
+      .set({
+        dailySpendingLimit: Number(data.dailySpendingLimit || 2000),
+        isLocked: data.isLocked,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(eq(studentWallets.studentId, data.studentId), eq(studentWallets.schoolId, schoolId))
+      );
+
+    revalidatePath("/dashboard/canteen");
+    return { success: true, message: "Paramètres du compte mis à jour." };
+  });
+}
+
+// ─── 5. Cafeteria Roll Call & Allergy Verification ───────────────────────────
+
+export async function recordMealConsumptionAction(data: {
+  studentId: number;
+  mealType?: string;
+  menuDescription?: string;
+  dishName?: string;
+  dishAllergens?: string;
+  mealPrice?: number;
+}) {
+  return protectedDbAction("Canteen", "canEdit", async (user) => {
+    const schoolId = (await getActiveSchoolId()) || user.schoolId || 1;
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const mealType = data.mealType || "Déjeuner";
+
+    const [student, subscription, wallet, medicalProfile] = await Promise.all([
+      db.query.students.findFirst({
+        where: eq(students.id, data.studentId),
+      }),
+      db.query.canteenMealSubscriptions.findFirst({
+        where: and(
+          eq(canteenMealSubscriptions.studentId, data.studentId),
+          eq(canteenMealSubscriptions.status, "Actif")
+        ),
+      }),
+      db.query.studentWallets.findFirst({
+        where: eq(studentWallets.studentId, data.studentId),
+      }),
+      db.query.studentMedicalRecords.findFirst({
+        where: eq(studentMedicalRecords.studentId, data.studentId),
+      }),
+    ]);
+
+    if (!student) return { error: "Élève introuvable." };
+
+    // 1. Check Allergy Conflict
+    let allergyWarningTriggered = false;
+    let detectedAllergen = "";
+
+    const studentAllergies = (
+      (medicalProfile?.allergies || "") +
+      " " +
+      (subscription?.allergiesNotice || "") +
+      " " +
+      (subscription?.specialDiet || "")
+    ).toLowerCase();
+
+    const menuAllergens = (data.dishAllergens || "").toLowerCase();
+
+    if (menuAllergens) {
+      const allergenList = menuAllergens.split(/[,;\s]+/).filter(Boolean);
+      for (const alg of allergenList) {
+        if (studentAllergies.includes(alg)) {
+          allergyWarningTriggered = true;
+          detectedAllergen = alg;
+          break;
+        }
+      }
+    }
+
+    // 2. Handle Payment / Subscription logic
+    let costDeducted = 0;
+    if (!subscription) {
+      // Must deduct from wallet
+      const price = Number(data.mealPrice || 1000);
+      if (!wallet || Number(wallet.balance) < price) {
+        return {
+          error: `Solde insuffisant pour ${student.nomEtudiant}. Solde actuel: ${wallet?.balance || 0} CFA (Prix repas: ${price} CFA). Veuillez recharger le compte.`,
+        };
+      }
+
+      if (wallet.isLocked) {
+        return { error: `Le compte cantine de ${student.nomEtudiant} est temporairement verrouillé.` };
+      }
+
+      costDeducted = price;
+      const newBal = Number(wallet.balance) - price;
+      await db
+        .update(studentWallets)
+        .set({ balance: newBal, updatedAt: new Date() })
+        .where(eq(studentWallets.id, wallet.id));
+
+      await db.insert(canteenTransactions).values({
+        schoolId,
+        studentId: data.studentId,
+        amount: -price,
+        type: "Achat Repas",
+        paymentMethod: "Solde Compte",
+        itemsDesc: `Service repas: ${data.dishName || mealType}`,
+        recordedBy: user.nomPrenom || user.utilisateur || "Chef de Cantine",
+      });
+    }
+
+    // 3. Record consumption
+    const [inserted] = await db
+      .insert(canteenMealConsumptions)
+      .values({
+        schoolId,
+        studentId: data.studentId,
+        subscriptionId: subscription?.id || null,
+        mealType,
+        consumptionDate: todayStr,
+        servedAt: new Date(),
+        menuDescription: data.menuDescription || data.dishName || "Repas complet",
+        servedBy: user.nomPrenom || user.utilisateur || "Chef de Cantine",
+        allergyWarningTriggered,
+        costDeducted,
+        parentNotified: allergyWarningTriggered,
+      })
+      .returning();
+
+    // 4. Alert if Allergy Warning
+    if (allergyWarningTriggered) {
+      const parentPhone = (student as any)?.mobile || (student as any)?.whatsapp || (student as any)?.telephoneParent;
+      if (parentPhone) {
+        try {
+          await MessagingService.sendCanteenAllergyAlert({
+            to: parentPhone,
+            whatsapp: (student as any)?.whatsapp || parentPhone,
+            parentName: (student as any)?.nomPere || "Parent d'élève",
+            studentName: student.nomEtudiant,
+            dishName: data.dishName || "Repas du jour",
+            allergen: detectedAllergen || "Allergène",
+            schoolName: "Edut Pro",
+          });
+        } catch (err) {
+          console.error("Failed to send allergy alert:", err);
+        }
+      }
+    }
+
+    revalidatePath("/dashboard/canteen");
+    return {
+      success: true,
+      allergyWarningTriggered,
+      message: allergyWarningTriggered
+        ? `⚠️ Repas validé avec ATTENTION : Risque d'allergie (${detectedAllergen}) détecté pour ${student.nomEtudiant}!`
+        : `Repas ${mealType} validé avec succès pour ${student.nomEtudiant}.`,
+    };
+  });
+}
+
+export async function getMealConsumptionLogs(params?: { date?: string; limit?: number }) {
+  return protectedDbAction("Canteen", "canView", async () => {
+    const schoolId = await getActiveSchoolId();
+    if (!schoolId) return { data: [] };
+
+    const targetDate = params?.date || new Date().toISOString().slice(0, 10);
+
+    const logs = await readDb.query.canteenMealConsumptions.findMany({
+      where: and(
+        eq(canteenMealConsumptions.schoolId, schoolId),
+        eq(canteenMealConsumptions.consumptionDate, targetDate)
+      ),
+      with: {
+        student: true,
+      },
+      orderBy: [desc(canteenMealConsumptions.servedAt)],
+      limit: params?.limit || 50,
+    });
+
+    return { data: logs };
+  });
+}
+
+// ─── 6. Existing POS Compatibility Functions ─────────────────────────────────
+
 export async function getCanteenItems() {
   return protectedDbAction("Canteen", "canView", async () => {
-    await ensureCanteenTablesExist();
-
-    let data: any[] = [];
-    try {
-      data = await db.query.canteenItems.findMany({
-        orderBy: [desc(canteenItems.id)]
-      });
-    } catch (err1) {
-      console.error("Drizzle canteenItems query failed, trying raw SQL:", err1);
-      try {
-        const rawRes = await db.execute(sql`SELECT * FROM canteen_items ORDER BY id DESC`) as any;
-        data = Array.isArray(rawRes) ? rawRes : (rawRes as any)?.rows || [];
-      } catch (err2) {
-        console.error("Raw SQL canteen_items fetch failed:", err2);
-        data = [];
-      }
-    }
-
-    // Seed database automatically if empty so POS operates 100% on real DB rows
-    if (!data || data.length === 0) {
-      const seedItems = [
-        { name: "BOITE ARDOISE INF", code: "ART-01", price: 1000, category: "Fournitures", stock: 50 },
-        { name: "BOITE COL FORMIKA", code: "ART-02", price: 500, category: "Fournitures", stock: 30 },
-        { name: "BOITE COLORANT", code: "ART-03", price: 1000, category: "Fournitures", stock: 25 },
-        { name: "BOITE DE CANOPY", code: "ART-04", price: 500, category: "Snacks", stock: 40 },
-        { name: "BOITE DE TRAP EAU", code: "ART-05", price: 1200, category: "Snacks", stock: 15 },
-        { name: "BOITE DE VERNIS SAVANA", code: "ART-06", price: 1500, category: "Snacks", stock: 20 },
-        { name: "JUICE TOP BOND 1/2L", code: "BEV-01", price: 250, category: "Boissons", stock: 60 },
-        { name: "EAU MINERALE 1.5L", code: "BEV-02", price: 300, category: "Boissons", stock: 100 },
-        { name: "SANDWICH CHICKEN", code: "MEAL-01", price: 1500, category: "Repas", stock: 15 },
-      ];
-      for (const item of seedItems) {
-        await db.execute(sql`
-          INSERT INTO canteen_items (name, code, price, category, stock)
-          VALUES (${item.name}, ${item.code}, ${item.price}, ${item.category}, ${item.stock})
-        `).catch(() => {});
-      }
-      try {
-        const rawRes = await db.execute(sql`SELECT * FROM canteen_items ORDER BY id DESC`) as any;
-        data = Array.isArray(rawRes) ? rawRes : (rawRes as any)?.rows || [];
-      } catch (e) {
-        data = [];
-      }
-    }
-
-    return { data: data || [] };
+    const schoolId = await getActiveSchoolId();
+    const items = await readDb.query.canteenItems.findMany({
+      where: schoolId ? eq(canteenItems.schoolId, schoolId) : undefined,
+      orderBy: [desc(canteenItems.createdAt)],
+    });
+    return { data: items };
   });
 }
 
@@ -162,316 +647,125 @@ export async function createCanteenItem(data: {
   category?: string;
   stock?: number;
   imageUrl?: string;
+  calories?: number;
+  allergens?: string;
+  isVegetarian?: boolean;
 }) {
-  return protectedDbAction("Canteen", "canEdit", async (user: any) => {
-    await ensureCanteenTablesExist();
-
-    // Force guarantee essential columns exist in PostgreSQL
-    await db.execute(sql`ALTER TABLE canteen_items ADD COLUMN IF NOT EXISTS code VARCHAR(50);`).catch(() => {});
-    await db.execute(sql`ALTER TABLE canteen_items ADD COLUMN IF NOT EXISTS category VARCHAR(50) DEFAULT 'Général';`).catch(() => {});
-    await db.execute(sql`ALTER TABLE canteen_items ADD COLUMN IF NOT EXISTS stock INTEGER DEFAULT 100;`).catch(() => {});
-    await db.execute(sql`ALTER TABLE canteen_items ADD COLUMN IF NOT EXISTS image_url TEXT;`).catch(() => {});
-    await db.execute(sql`ALTER TABLE canteen_items ADD COLUMN IF NOT EXISTS school_id INTEGER;`).catch(() => {});
-
-    const cleanName = data.name.trim();
-    const cleanCode = (data.code && data.code.trim().length > 0) ? data.code.trim().toUpperCase() : `ART-${Math.floor(100 + Math.random() * 900)}`;
-    const cleanPrice = Number(data.price) || 0;
-    const cleanCategory = data.category || "Snacks";
-    const cleanStock = (data.stock !== undefined && data.stock !== null && !isNaN(Number(data.stock))) ? Number(data.stock) : 100;
-    const cleanImage = (data.imageUrl && data.imageUrl.trim().length > 0) ? data.imageUrl.trim() : null;
-    const schoolId = user?.schoolId || null;
-
-    // Reset sequence safely
-    await db.execute(sql`
-      SELECT setval(
-        pg_get_serial_sequence('canteen_items', 'id'), 
-        GREATEST((SELECT COALESCE(MAX(id), 0) FROM canteen_items) + 1, 1000), 
-        false
-      );
-    `).catch(() => {});
-
-    // Primary insert with ALL product fields including code and stock
-    try {
-      const res = await db.execute(sql`
-        INSERT INTO canteen_items (name, code, price, category, stock, image_url, school_id)
-        VALUES (${cleanName}, ${cleanCode}, ${cleanPrice}, ${cleanCategory}, ${cleanStock}, ${cleanImage}, ${schoolId})
-        RETURNING *;
-      `) as any;
-      const resRows = Array.isArray(res) ? res : (res as any)?.rows || [];
-      const newItem = resRows[0] || { name: cleanName, code: cleanCode, price: cleanPrice, category: cleanCategory, stock: cleanStock };
-
-      revalidatePath("/dashboard/canteen");
-      revalidatePath("/dashboard/pos");
-      return { success: true, data: newItem };
-    } catch (e1: any) {
-      console.error("Insert with school_id failed, inserting without school_id:", e1?.message || e1);
-
-      try {
-        const res = await db.execute(sql`
-          INSERT INTO canteen_items (name, code, price, category, stock, image_url)
-          VALUES (${cleanName}, ${cleanCode}, ${cleanPrice}, ${cleanCategory}, ${cleanStock}, ${cleanImage})
-          RETURNING *;
-        `) as any;
-        const resRows = Array.isArray(res) ? res : (res as any)?.rows || [];
-        const newItem = resRows[0] || { name: cleanName, code: cleanCode, price: cleanPrice, category: cleanCategory, stock: cleanStock };
-
-        revalidatePath("/dashboard/canteen");
-        revalidatePath("/dashboard/pos");
-        return { success: true, data: newItem };
-      } catch (e2: any) {
-        console.error("Insert with image_url failed, inserting core 5 fields (name, code, price, category, stock):", e2?.message || e2);
-
-        try {
-          const res = await db.execute(sql`
-            INSERT INTO canteen_items (name, code, price, category, stock)
-            VALUES (${cleanName}, ${cleanCode}, ${cleanPrice}, ${cleanCategory}, ${cleanStock})
-            RETURNING *;
-          `) as any;
-          const resRows = Array.isArray(res) ? res : (res as any)?.rows || [];
-          const newItem = resRows[0] || { name: cleanName, code: cleanCode, price: cleanPrice, category: cleanCategory, stock: cleanStock };
-
-          revalidatePath("/dashboard/canteen");
-          revalidatePath("/dashboard/pos");
-          return { success: true, data: newItem };
-        } catch (e3: any) {
-          console.error("Insert core 5 fields failed:", e3?.message || e3);
-          return { success: false, error: e3?.message || "Erreur d'insertion dans la base de données" };
-        }
-      }
-    }
+  return protectedDbAction("Canteen", "canEdit", async () => {
+    const schoolId = await getActiveSchoolId();
+    await db.insert(canteenItems).values({
+      schoolId,
+      name: data.name,
+      code: data.code || null,
+      price: Number(data.price),
+      category: data.category || "Plat",
+      stock: Number(data.stock ?? 100),
+      imageUrl: data.imageUrl || null,
+      calories: data.calories ? Number(data.calories) : null,
+      allergens: data.allergens || null,
+      isVegetarian: data.isVegetarian || false,
+    });
+    revalidatePath("/dashboard/canteen");
+    revalidatePath("/dashboard/pos");
+    return { success: true, message: "Article ajouté avec succès" };
   });
 }
 
-export async function updateCanteenItem(id: number, data: {
-  name: string;
-  code?: string;
-  price: number;
-  category?: string;
-  stock?: number;
-  imageUrl?: string;
-}) {
+export async function updateCanteenItem(id: number, data: any) {
   return protectedDbAction("Canteen", "canEdit", async () => {
-    await ensureCanteenTablesExist();
-    await db.execute(sql`ALTER TABLE canteen_items ADD COLUMN IF NOT EXISTS code VARCHAR(50);`).catch(() => {});
-    await db.execute(sql`ALTER TABLE canteen_items ADD COLUMN IF NOT EXISTS stock INTEGER DEFAULT 100;`).catch(() => {});
-    await db.execute(sql`ALTER TABLE canteen_items ADD COLUMN IF NOT EXISTS category VARCHAR(50);`).catch(() => {});
-
-    const cleanName = data.name.trim();
-    const cleanCode = (data.code && data.code.trim().length > 0) ? data.code.trim() : null;
-    const cleanPrice = Number(data.price) || 0;
-    const cleanCategory = data.category || "Snacks";
-    const cleanStock = Number(data.stock) ?? 100;
-
-    await db.execute(sql`
-      UPDATE canteen_items 
-      SET name = ${cleanName}, code = ${cleanCode}, price = ${cleanPrice}, category = ${cleanCategory}, stock = ${cleanStock}
-      WHERE id = ${id};
-    `).catch(() => {});
-
+    await db
+      .update(canteenItems)
+      .set(data)
+      .where(eq(canteenItems.id, id));
     revalidatePath("/dashboard/canteen");
     revalidatePath("/dashboard/pos");
-    return { success: true };
+    return { success: true, message: "Article mis à jour" };
   });
 }
 
 export async function deleteCanteenItem(id: number) {
-  return protectedDbAction("Canteen", "canEdit", async () => {
+  return protectedDbAction("Canteen", "canDelete", async () => {
     await db.delete(canteenItems).where(eq(canteenItems.id, id));
-
     revalidatePath("/dashboard/canteen");
     revalidatePath("/dashboard/pos");
-    return { success: true };
+    return { success: true, message: "Article supprimé" };
   });
 }
 
-// ─── Invoices / Factures CRUD ──────────────────────────────────────────────────
 export async function getCanteenInvoices() {
   return protectedDbAction("Canteen", "canView", async () => {
-    await ensureCanteenTablesExist();
-    const data = await db.query.canteenInvoices.findMany({
-      orderBy: [desc(canteenInvoices.id)],
+    const schoolId = await getActiveSchoolId();
+    const invoices = await readDb.query.canteenInvoices.findMany({
+      where: schoolId ? eq(canteenInvoices.schoolId, schoolId) : undefined,
+      orderBy: [desc(canteenInvoices.createdAt)],
       limit: 100,
-    }).catch(() => []);
-    return { data: data || [] };
+    });
+    return { data: invoices };
   });
 }
 
-export async function createCanteenInvoice(data: {
-  clientName?: string;
-  studentId?: number;
-  subtotal: number;
-  tva?: number;
-  totalTtc: number;
-  amountReceived?: number;
-  changeGiven?: number;
-  paymentMethod?: string;
-  itemsJson: string;
-  cashierName?: string;
-}) {
-  return protectedDbAction("Canteen", "canEdit", async () => {
-    await ensureCanteenTablesExist();
+export async function createCanteenInvoice(data: any) {
+  return protectedDbAction("Canteen", "canEdit", async (user) => {
+    const schoolId = (await getActiveSchoolId()) || user.schoolId || 1;
+    const invNumber = `FAC-${Date.now().toString().slice(-6)}`;
+    const [inserted] = await db
+      .insert(canteenInvoices)
+      .values({
+        schoolId,
+        invoiceNumber: invNumber,
+        clientName: data.clientName || "CLIENT COMPTANT",
+        studentId: data.studentId || null,
+        subtotal: Number(data.subtotal || 0),
+        tva: Number(data.tva || 0),
+        totalTtc: Number(data.totalTtc || data.subtotal || 0),
+        amountReceived: Number(data.amountReceived || 0),
+        changeGiven: Number(data.changeGiven || 0),
+        paymentMethod: data.paymentMethod || "Cash",
+        itemsJson: typeof data.itemsJson === "string" ? data.itemsJson : JSON.stringify(data.itemsJson || []),
+        cashierName: user.nomPrenom || user.utilisateur || "Caissier",
+      })
+      .returning();
 
-    const validStudentId = data.studentId && !isNaN(Number(data.studentId)) && Number(data.studentId) > 0 ? Number(data.studentId) : null;
-    const randomSuffix = Math.floor(10000 + Math.random() * 90000);
-    const invoiceNumber = `FAC-${Date.now().toString().slice(-6)}-${randomSuffix}`;
-
-    const [newInvoice] = await db.insert(canteenInvoices).values({
-      invoiceNumber,
-      clientName: data.clientName || "CLIENT COMPTANT",
-      studentId: validStudentId,
-      subtotal: Number(data.subtotal) || 0,
-      tva: Number(data.tva) || 0,
-      totalTtc: Number(data.totalTtc) || 0,
-      amountReceived: Number(data.amountReceived) || 0,
-      changeGiven: Number(data.changeGiven) || 0,
-      paymentMethod: data.paymentMethod || "Cash",
-      itemsJson: data.itemsJson,
-      cashierName: data.cashierName || "admin",
-      status: "Payée",
-    }).returning();
-
-    // Deduct stock for items in PostgreSQL database
-    try {
-      const itemsList = JSON.parse(data.itemsJson || "[]");
-      for (const item of itemsList) {
-        const qty = Number(item.quantity) || 1;
-        const itemId = Number(item.id) || 0;
-        const itemCode = item.code ? String(item.code).trim() : "";
-        const itemName = item.name ? String(item.name).trim() : "";
-
-        if (itemId > 0) {
-          await db.execute(sql`
-            UPDATE canteen_items 
-            SET stock = GREATEST(0, COALESCE(stock, 100) - ${qty})
-            WHERE id = ${itemId};
-          `).catch(() => {});
-        } else if (itemCode.length > 0) {
-          await db.execute(sql`
-            UPDATE canteen_items 
-            SET stock = GREATEST(0, COALESCE(stock, 100) - ${qty})
-            WHERE code = ${itemCode};
-          `).catch(() => {});
-        } else if (itemName.length > 0) {
-          await db.execute(sql`
-            UPDATE canteen_items 
-            SET stock = GREATEST(0, COALESCE(stock, 100) - ${qty})
-            WHERE name = ${itemName};
-          `).catch(() => {});
-        }
-      }
-    } catch (e) {
-      console.error("Stock update error:", e);
-    }
-
-    revalidatePath("/dashboard/canteen");
     revalidatePath("/dashboard/pos");
-    return { success: true, data: newInvoice };
+    return { success: true, invoice: inserted };
   });
 }
 
 export async function voidCanteenInvoice(id: number) {
-  return protectedDbAction("Canteen", "canEdit", async () => {
-    await db.update(canteenInvoices)
+  return protectedDbAction("Canteen", "canDelete", async () => {
+    await db
+      .update(canteenInvoices)
       .set({ status: "Annulée" })
       .where(eq(canteenInvoices.id, id));
-
-    revalidatePath("/dashboard/canteen");
     revalidatePath("/dashboard/pos");
-    return { success: true };
+    return { success: true, message: "Facture annulée" };
   });
 }
 
-export async function updateCanteenInvoice(id: number, data: {
-  clientName?: string;
-  paymentMethod?: string;
-  status?: string;
-  amountReceived?: number;
-  changeGiven?: number;
-}) {
+export async function updateCanteenInvoice(id: number, data: any) {
   return protectedDbAction("Canteen", "canEdit", async () => {
-    await ensureCanteenTablesExist();
-
-    const cleanClientName = data.clientName ? data.clientName.trim() : undefined;
-    const cleanPaymentMethod = data.paymentMethod ? data.paymentMethod.trim() : undefined;
-    const cleanStatus = data.status ? data.status.trim() : undefined;
-
-    const updateFields: any = {};
-    if (cleanClientName !== undefined) updateFields.clientName = cleanClientName;
-    if (cleanPaymentMethod !== undefined) updateFields.paymentMethod = cleanPaymentMethod;
-    if (cleanStatus !== undefined) updateFields.status = cleanStatus;
-
-    try {
-      await db.update(canteenInvoices)
-        .set(updateFields)
-        .where(eq(canteenInvoices.id, id));
-    } catch (e) {
-      await db.execute(sql`
-        UPDATE canteen_invoices 
-        SET client_name = COALESCE(${cleanClientName}, client_name),
-            payment_method = COALESCE(${cleanPaymentMethod}, payment_method),
-            status = COALESCE(${cleanStatus}, status)
-        WHERE id = ${id};
-      `).catch(() => {});
-    }
-
-    revalidatePath("/dashboard/canteen");
+    await db.update(canteenInvoices).set(data).where(eq(canteenInvoices.id, id));
     revalidatePath("/dashboard/pos");
-    return { success: true };
+    return { success: true, message: "Facture modifiée" };
   });
 }
 
-// ─── Students for Client Selector ─────────────────────────────────────────────
 export async function getCanteenStudents() {
   return protectedDbAction("Canteen", "canView", async () => {
-    const data = await db.query.students.findMany({
-      limit: 100,
+    const schoolId = await getActiveSchoolId();
+    const list = await readDb.query.students.findMany({
+      where: and(
+        schoolId ? eq(students.schoolId, schoolId) : undefined,
+        eq(students.statut, "Actif")
+      ),
       columns: {
         id: true,
         nomEtudiant: true,
         numAdmission: true,
         classe: true,
-      }
+      },
+      limit: 100,
     });
-    return { data };
-  });
-}
-
-// ─── Student Wallet Actions ───────────────────────────────────────────────────
-export async function getStudentWallet(studentId: number) {
-  return protectedDbAction("Canteen", "canView", async () => {
-    let wallet = await db.query.studentWallets.findFirst({
-      where: eq(studentWallets.studentId, studentId)
-    });
-    
-    if (!wallet) {
-      const [newWallet] = await db.insert(studentWallets).values({ studentId, balance: 0 }).returning();
-      wallet = newWallet;
-    }
-    
-    return { data: wallet };
-  });
-}
-
-export async function rechargeWallet(studentId: number, amount: number) {
-  return protectedDbAction("Canteen", "canEdit", async () => {
-    let wallet = await db.query.studentWallets.findFirst({
-      where: eq(studentWallets.studentId, studentId)
-    });
-    
-    if (!wallet) {
-      const [newWallet] = await db.insert(studentWallets).values({ studentId, balance: 0 }).returning();
-      wallet = newWallet;
-    }
-    
-    if (!wallet) return { error: "Portefeuille introuvable" };
-
-    const newBalance = (wallet.balance || 0) + amount;
-    await db.update(studentWallets)
-      .set({ balance: newBalance, updatedAt: new Date() })
-      .where(eq(studentWallets.id, wallet.id));
-
-    revalidatePath("/dashboard/canteen");
-    revalidatePath("/dashboard/pos");
-    return { success: true, balance: newBalance };
+    return { data: list };
   });
 }

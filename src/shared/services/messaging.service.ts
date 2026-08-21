@@ -504,6 +504,89 @@ export class MessagingService {
     return true;
   }
 
+  // ─── 9. School Canteen & Dietetics Alerts ───────────────────────────────────
+
+  static async sendCanteenWalletTopupAlert(data: {
+    to?: string;
+    whatsapp?: string;
+    parentName?: string;
+    studentName: string;
+    amount: number;
+    newBalance: number;
+    schoolName?: string;
+    sendSMS?: boolean;
+    sendWhatsApp?: boolean;
+  }): Promise<boolean> {
+    const {
+      to,
+      whatsapp,
+      parentName = "Parent d'élève",
+      studentName,
+      amount,
+      newBalance,
+      schoolName = "Edut Pro",
+      sendSMS = true,
+      sendWhatsApp = true,
+    } = data;
+
+    const phone = (whatsapp || to)?.replace(/[^0-9+]/g, "");
+    if (!phone && !to) return false;
+
+    const messageFr = `🍽️ *[${schoolName} - Cantine Scolaire]*\nBonjour M./Mme ${parentName},\nLe compte cantine de *${studentName}* a été rechargé de *${amount.toLocaleString()} CFA* avec succès.\nNouveau solde disponible : *${newBalance.toLocaleString()} CFA*.`;
+    const messageAr = `🍽️ *[المطعم المدرسي - ${schoolName}]*\nعزيزي ولي الأمر ${parentName}،\nتم شحن المحفظة الإلكترونية للمطعم للتلميذ *${studentName}* بمبلغ *${amount.toLocaleString()} فرنك إفريقي* بنجاح.\nالرصيد الجديد المتاح : *${newBalance.toLocaleString()} فرنك*.`;
+
+    const fullMessage = `${messageFr}\n\n${messageAr}`;
+
+    if (sendSMS && to && to !== "N/A" && to.trim() !== "") {
+      const smsSuccess = await this.sendViaAndroidGateway(to, fullMessage);
+      await this.logMessage("SMS", `${studentName} (${to})`, fullMessage, smsSuccess ? "Envoyé" : "Échec");
+    }
+
+    if (sendWhatsApp && phone) {
+      const waSuccess = await this.sendViaWhatsAppAPI(phone, fullMessage);
+      await this.logMessage("WHATSAPP", `${studentName} (${phone})`, fullMessage, waSuccess ? "Envoyé" : "Échec");
+    }
+
+    return true;
+  }
+
+  static async sendCanteenAllergyAlert(data: {
+    to?: string;
+    whatsapp?: string;
+    parentName?: string;
+    studentName: string;
+    dishName: string;
+    allergen: string;
+    schoolName?: string;
+  }): Promise<boolean> {
+    const {
+      to,
+      whatsapp,
+      parentName = "Parent d'élève",
+      studentName,
+      dishName,
+      allergen,
+      schoolName = "Edut Pro",
+    } = data;
+
+    const phone = (whatsapp || to)?.replace(/[^0-9+]/g, "");
+    if (!phone && !to) return false;
+
+    const messageFr = `⚠️ *[ALERTE CANTINE - ${schoolName}]*\nBonjour M./Mme ${parentName},\nUn avertissement d'allergie a été détecté lors du service pour *${studentName}* (Plat : *${dishName}*, Allergène : *${allergen}*). Le personnel de cantine a été notifié et a adapté le repas.`;
+    const messageAr = `⚠️ *[تنبيه الحساسية الغذائية بالمطعم - ${schoolName}]*\nعزيزي ولي الأمر ${parentName}،\nتم رصد تنبيه حساسية غذائية عند تقديم الوجبة للتلميذ *${studentName}* (الوجبة : *${dishName}*، مسبب الحساسية : *${allergen}*). قام فريق المطعم بضبط الوجبة وتأمينها فوراً.`;
+
+    const fullMessage = `${messageFr}\n\n${messageAr}`;
+
+    if (to && to !== "N/A" && to.trim() !== "") {
+      await this.sendViaAndroidGateway(to, fullMessage);
+    }
+    if (phone) {
+      await this.sendViaWhatsAppAPI(phone, fullMessage);
+    }
+    await this.logMessage("WHATSAPP", `${studentName} (${phone || to})`, fullMessage, "Envoyé");
+    return true;
+  }
+
   static generateWhatsAppShareUrl(phone: string, text: string): string {
     const cleanPhone = phone.replace(/[^0-9+]/g, "").replace(/^\+/, "");
     const encodedText = encodeURIComponent(text);
