@@ -1,246 +1,175 @@
 "use server";
 
 import { db } from "@/infrastructure/database";
-import { inventoryItems, inventoryAssignments, inventoryCategories } from "@/infrastructure/database/schema/inventory";
-import { eq, desc, and, sql } from "drizzle-orm";
+import {
+  inventoryItems,
+  inventoryCategories,
+  inventoryAssignments,
+  inventoryStockMovements,
+  inventorySuppliers,
+  inventoryPurchaseOrders,
+} from "@/infrastructure/database/schema/inventory";
+import { employees } from "@/infrastructure/database/schema/hr";
+import { eq, desc, and, sql, lt, lte, ilike, or } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { protectedDbAction } from "@/lib/protected-action";
 import { getActiveSchoolId } from "@/domains/auth/services/school";
 
-async function ensureInventoryTablesExist() {
-  try {
-    await db.execute(sql`
-      CREATE TABLE IF NOT EXISTS inventory_categories (
-        id SERIAL PRIMARY KEY,
-        name VARCHAR(100) NOT NULL UNIQUE,
-        created_at TIMESTAMP DEFAULT NOW()
-      );
-    `).catch(() => {});
+// ─── Utility: Ensure extended columns ──────────────────────────────────────
 
-    await db.execute(sql`
-      CREATE TABLE IF NOT EXISTS inventory_items (
-        id SERIAL PRIMARY KEY,
-        school_id INTEGER,
-        name VARCHAR(255) NOT NULL,
-        sku VARCHAR(100),
-        category_id INTEGER,
-        quantity INTEGER DEFAULT 0,
-        unit_price DOUBLE PRECISION DEFAULT 0,
-        condition VARCHAR(50) DEFAULT 'Neuf',
-        location VARCHAR(255),
-        created_at TIMESTAMP DEFAULT NOW()
-      );
-    `).catch(() => {});
-
-    await db.execute(sql`
-      CREATE TABLE IF NOT EXISTS inventory_assignments (
-        id SERIAL PRIMARY KEY,
-        school_id INTEGER,
-        item_id INTEGER REFERENCES inventory_items(id) ON DELETE CASCADE,
-        employee_id INTEGER,
-        assigned_qty INTEGER NOT NULL,
-        assigned_date TIMESTAMP DEFAULT NOW(),
-        return_date TIMESTAMP,
-        status VARCHAR(50) DEFAULT 'En possession'
-      );
-    `).catch(() => {});
-
-    await db.execute(sql`ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS school_id INTEGER;`).catch(() => {});
-    await db.execute(sql`ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS unit_price DOUBLE PRECISION DEFAULT 0;`).catch(() => {});
-    await db.execute(sql`ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS condition VARCHAR(50) DEFAULT 'Neuf';`).catch(() => {});
-    await db.execute(sql`ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS location VARCHAR(255);`).catch(() => {});
-  } catch (err) {
-    console.error("Inventory table auto-creation info:", err);
+async function ensureInventoryExtensions() {
+  const alters = [
+    `ALTER TABLE inventory_categories ADD COLUMN IF NOT EXISTS school_id INTEGER`,
+    `ALTER TABLE inventory_categories ADD COLUMN IF NOT EXISTS description TEXT`,
+    `ALTER TABLE inventory_categories ADD COLUMN IF NOT EXISTS icon VARCHAR(50) DEFAULT 'Package'`,
+    `ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS min_threshold INTEGER DEFAULT 5`,
+    `ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS brand_model VARCHAR(150)`,
+    `ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS serial_number VARCHAR(100)`,
+    `ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS is_asset BOOLEAN DEFAULT FALSE`,
+    `ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS assigned_room VARCHAR(100)`,
+    `ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS supplier_name VARCHAR(150)`,
+    `ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS notes TEXT`,
+    `CREATE TABLE IF NOT EXISTS inventory_stock_movements (
+      id SERIAL PRIMARY KEY,
+      school_id INTEGER,
+      item_id INTEGER REFERENCES inventory_items(id) ON DELETE CASCADE NOT NULL,
+      movement_type VARCHAR(50) NOT NULL,
+      quantity INTEGER NOT NULL,
+      unit_cost DOUBLE PRECISION DEFAULT 0,
+      reference_doc VARCHAR(100),
+      performed_by VARCHAR(150) DEFAULT 'Gestionnaire de Stock',
+      notes TEXT,
+      movement_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`,
+    `CREATE TABLE IF NOT EXISTS inventory_suppliers (
+      id SERIAL PRIMARY KEY,
+      school_id INTEGER,
+      name VARCHAR(150) NOT NULL,
+      contact_person VARCHAR(100),
+      phone VARCHAR(50),
+      email VARCHAR(100),
+      address TEXT,
+      category VARCHAR(100) DEFAULT 'Fournitures',
+      tax_id VARCHAR(50),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS inventory_purchase_orders (
+      id SERIAL PRIMARY KEY,
+      school_id INTEGER,
+      order_number VARCHAR(100) NOT NULL UNIQUE,
+      supplier_id INTEGER REFERENCES inventory_suppliers(id) ON DELETE SET NULL,
+      order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      expected_delivery_date TIMESTAMP,
+      total_amount DOUBLE PRECISION DEFAULT 0 NOT NULL,
+      status VARCHAR(50) DEFAULT 'Commandé',
+      items_json TEXT,
+      approved_by VARCHAR(150) DEFAULT 'Direction',
+      notes TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `ALTER TABLE inventory_assignments ADD COLUMN IF NOT EXISTS expected_return_date TIMESTAMP`,
+    `ALTER TABLE inventory_assignments ADD COLUMN IF NOT EXISTS actual_return_date TIMESTAMP`,
+    `ALTER TABLE inventory_assignments ADD COLUMN IF NOT EXISTS condition_at_assignment VARCHAR(50) DEFAULT 'Bon état'`,
+    `ALTER TABLE inventory_assignments ADD COLUMN IF NOT EXISTS condition_at_return VARCHAR(50)`,
+    `ALTER TABLE inventory_assignments ADD COLUMN IF NOT EXISTS notes TEXT`,
+    `ALTER TABLE inventory_assignments ADD COLUMN IF NOT EXISTS assigned_by VARCHAR(150) DEFAULT 'Intendant'`,
+  ];
+  for (const stmt of alters) {
+    await db.execute(sql.raw(stmt)).catch(() => {});
   }
 }
 
-export async function getInventoryItems() {
+// ─── KPIs ───────────────────────────────────────────────────────────────────
+
+export async function getInventoryKPIs() {
   return protectedDbAction("Inventory", "canView", async () => {
-    await ensureInventoryTablesExist();
+    await ensureInventoryExtensions();
+    const schoolId = await getActiveSchoolId();
 
-    let data: any[] = [];
-    try {
-      data = await db.query.inventoryItems.findMany({
-        with: { category: true },
-        orderBy: [desc(inventoryItems.id)]
-      });
-    } catch (e) {
-      const rawRes = await db.execute(sql`SELECT * FROM inventory_items ORDER BY id DESC`).catch(() => []);
-      data = Array.isArray(rawRes) ? rawRes : (rawRes as any)?.rows || [];
-    }
+    const [totalItemsRes, lowStockRes, assignedRes, totalValueRes] = await Promise.all([
+      db.execute(sql`SELECT COUNT(*) as count FROM inventory_items WHERE school_id = ${schoolId}`).catch(() => [{ count: 0 }]),
+      db.execute(sql`SELECT COUNT(*) as count FROM inventory_items WHERE school_id = ${schoolId} AND quantity <= min_threshold`).catch(() => [{ count: 0 }]),
+      db.execute(sql`SELECT COUNT(*) as count FROM inventory_assignments WHERE school_id = ${schoolId} AND status = 'En possession'`).catch(() => [{ count: 0 }]),
+      db.execute(sql`SELECT COALESCE(SUM(quantity * unit_price), 0) as value FROM inventory_items WHERE school_id = ${schoolId}`).catch(() => [{ value: 0 }]),
+    ]);
 
-    if (!data || data.length === 0) {
-      const defaultItems = [
-        { name: "Ordinateur Portable HP ProBook", sku: "EQUIP-001", quantity: 15, unitPrice: 350000, condition: "Neuf", location: "Salle Informatique 1" },
-        { name: "Vidéoprojecteur Epson Full HD", sku: "EQUIP-002", quantity: 5, unitPrice: 250000, condition: "Bon état", location: "Salle Polyvalente" },
-        { name: "Chaise Ergonomique de Bureau", sku: "MOB-001", quantity: 25, unitPrice: 45000, condition: "Neuf", location: "Bureaux Administratifs" },
-        { name: "Tableau Blanc Magnétique 200x120", sku: "MOB-002", quantity: 12, unitPrice: 65000, condition: "Neuf", location: "Salles de Classe" },
-        { name: "Imprimante Multifonction Canon", sku: "EQUIP-003", quantity: 3, unitPrice: 180000, condition: "Bon état", location: "Secrétariat Principal" },
-      ];
-      for (const item of defaultItems) {
-        await db.execute(sql`
-          INSERT INTO inventory_items (name, sku, quantity, unit_price, condition, location)
-          VALUES (${item.name}, ${item.sku}, ${item.quantity}, ${item.unitPrice}, ${item.condition}, ${item.location})
-        `).catch(() => {});
-      }
-      try {
-        const rawRes = await db.execute(sql`SELECT * FROM inventory_items ORDER BY id DESC`) as any;
-        data = Array.isArray(rawRes) ? rawRes : (rawRes as any)?.rows || [];
-      } catch (e) {
-        data = [];
-      }
-    }
-
-    return { data: data || [] };
+    return {
+      totalItems: Number((totalItemsRes as any[])[0]?.count ?? 0),
+      lowStockCount: Number((lowStockRes as any[])[0]?.count ?? 0),
+      activeAssignments: Number((assignedRes as any[])[0]?.count ?? 0),
+      totalStockValue: Number((totalValueRes as any[])[0]?.value ?? 0),
+    };
   });
 }
 
-export async function getInventoryCategories() {
+// ─── Items ──────────────────────────────────────────────────────────────────
+
+export async function getInventoryItems(search?: string, categoryId?: number) {
   return protectedDbAction("Inventory", "canView", async () => {
-    await ensureInventoryTablesExist();
-    const data = await db.query.inventoryCategories.findMany().catch(() => []);
-    return { data: data || [] };
+    await ensureInventoryExtensions();
+    const schoolId = await getActiveSchoolId();
+
+    const rows = await db.execute(sql`
+      SELECT i.*, c.name as category_name, c.icon as category_icon
+      FROM inventory_items i
+      LEFT JOIN inventory_categories c ON i.category_id = c.id
+      WHERE i.school_id = ${schoolId}
+        ${search ? sql`AND (LOWER(i.name) LIKE ${'%' + search.toLowerCase() + '%'} OR LOWER(i.sku) LIKE ${'%' + search.toLowerCase() + '%'})` : sql``}
+        ${categoryId ? sql`AND i.category_id = ${categoryId}` : sql``}
+      ORDER BY i.created_at DESC
+    `).catch(() => [] as any[]);
+
+    return { data: rows };
   });
 }
 
 export async function saveInventoryItem(data: {
+  id?: number;
   name: string;
-  sku?: string | null;
-  categoryId?: number | null;
-  quantity?: number | null;
-  unitPrice?: number | null;
-  condition?: string | null;
-  location?: string | null;
-}, id?: number) {
+  sku?: string;
+  categoryId?: number;
+  quantity: number;
+  minThreshold: number;
+  unitPrice: number;
+  condition: string;
+  location: string;
+  brandModel?: string;
+  serialNumber?: string;
+  isAsset?: boolean;
+  assignedRoom?: string;
+  supplierName?: string;
+  notes?: string;
+}) {
   return protectedDbAction("Inventory", "canEdit", async () => {
-    await ensureInventoryTablesExist();
-    const schoolId = await getActiveSchoolId().catch(() => null);
+    await ensureInventoryExtensions();
+    const schoolId = await getActiveSchoolId();
 
-    const cleanName = data.name.trim();
-    const cleanSku = data.sku ? data.sku.trim().toUpperCase() : `SKU-${Math.floor(100 + Math.random() * 900)}`;
-    const cleanQty = Number(data.quantity) || 0;
-    const cleanUnitPrice = Number(data.unitPrice) || 0;
-    const cleanCondition = data.condition || "Neuf";
-    const cleanLocation = data.location ? data.location.trim() : "Stock Principal";
-    const cleanCategoryId = data.categoryId ? Number(data.categoryId) : null;
-
-    if (id && id > 0) {
+    if (data.id) {
       await db.execute(sql`
-        UPDATE inventory_items
-        SET name = ${cleanName}, sku = ${cleanSku}, quantity = ${cleanQty}, 
-            unit_price = ${cleanUnitPrice}, condition = ${cleanCondition}, location = ${cleanLocation}, category_id = ${cleanCategoryId}
-        WHERE id = ${id};
-      `).catch(() => {});
+        UPDATE inventory_items SET
+          name = ${data.name},
+          sku = ${data.sku ?? null},
+          category_id = ${data.categoryId ?? null},
+          quantity = ${data.quantity},
+          min_threshold = ${data.minThreshold},
+          unit_price = ${data.unitPrice},
+          condition = ${data.condition},
+          location = ${data.location},
+          brand_model = ${data.brandModel ?? null},
+          serial_number = ${data.serialNumber ?? null},
+          is_asset = ${data.isAsset ?? false},
+          assigned_room = ${data.assignedRoom ?? null},
+          supplier_name = ${data.supplierName ?? null},
+          notes = ${data.notes ?? null}
+        WHERE id = ${data.id} AND school_id = ${schoolId}
+      `);
     } else {
       await db.execute(sql`
-        INSERT INTO inventory_items (school_id, name, sku, quantity, unit_price, condition, location, category_id)
-        VALUES (${schoolId}, ${cleanName}, ${cleanSku}, ${cleanQty}, ${cleanUnitPrice}, ${cleanCondition}, ${cleanLocation}, ${cleanCategoryId});
-      `).catch(() => {});
-    }
-
-    revalidatePath("/dashboard/inventory");
-    return { success: true };
-  });
-}
-
-export async function getInventoryAssignments() {
-  return protectedDbAction("Inventory", "canView", async () => {
-    await ensureInventoryTablesExist();
-    let data: any[] = [];
-    try {
-      data = await db.query.inventoryAssignments.findMany({
-        with: {
-          item: true,
-          employee: true
-        },
-        orderBy: [desc(inventoryAssignments.id)]
-      });
-    } catch (e) {
-      const rawRes = await db.execute(sql`
-        SELECT a.*, i.name as item_name, e.nom as employee_nom, e.prenom as employee_prenom
-        FROM inventory_assignments a
-        LEFT JOIN inventory_items i ON a.item_id = i.id
-        LEFT JOIN employees e ON a.employee_id = e.id
-        ORDER BY a.id DESC;
-      `).catch(() => []);
-      data = Array.isArray(rawRes) ? rawRes : (rawRes as any)?.rows || [];
-    }
-    return { data: data || [] };
-  });
-}
-
-export async function getInventoryEmployees() {
-  return protectedDbAction("Inventory", "canView", async () => {
-    try {
-      const data = await db.execute(sql`SELECT id, nom, prenom, role FROM employees ORDER BY id DESC`) as any;
-      const rows = Array.isArray(data) ? data : (data as any)?.rows || [];
-      return { data: rows };
-    } catch (e) {
-      return { data: [] };
-    }
-  });
-}
-
-export async function assignItem(data: { itemId: number; employeeId?: number; employeeName?: string; assignedQty: number }) {
-  return protectedDbAction("Inventory", "canEdit", async () => {
-    await ensureInventoryTablesExist();
-    const schoolId = await getActiveSchoolId().catch(() => null);
-
-    const qtyToAssign = Number(data.assignedQty) || 1;
-
-    // 1. Check stock
-    const itemRes = await db.execute(sql`SELECT * FROM inventory_items WHERE id = ${data.itemId}`).catch(() => null) as any;
-    const itemRows = Array.isArray(itemRes) ? itemRes : (itemRes as any)?.rows || [];
-    const item = itemRows[0];
-
-    if (!item || (item.quantity || 0) < qtyToAssign) {
-      return { success: false, error: "Stock insuffisant pour cette affectation." };
-    }
-
-    // 2. Create assignment
-    await db.execute(sql`
-      INSERT INTO inventory_assignments (school_id, item_id, employee_id, assigned_qty, status)
-      VALUES (${schoolId}, ${data.itemId}, ${data.employeeId || null}, ${qtyToAssign}, 'En possession');
-    `).catch(() => {});
-
-    // 3. Decrement stock
-    await db.execute(sql`
-      UPDATE inventory_items
-      SET quantity = GREATEST(0, COALESCE(quantity, 0) - ${qtyToAssign})
-      WHERE id = ${data.itemId};
-    `).catch(() => {});
-
-    revalidatePath("/dashboard/inventory");
-    return { success: true };
-  });
-}
-
-export async function returnItem(assignmentId: number) {
-  return protectedDbAction("Inventory", "canEdit", async () => {
-    await ensureInventoryTablesExist();
-
-    const assignRes = await db.execute(sql`SELECT * FROM inventory_assignments WHERE id = ${assignmentId}`).catch(() => null) as any;
-    const assignRows = Array.isArray(assignRes) ? assignRes : (assignRes as any)?.rows || [];
-    const assign = assignRows[0];
-
-    if (!assign || assign.status === "Retourné") {
-      return { success: false, error: "Cet article est déjà restitué." };
-    }
-
-    // 1. Mark as returned
-    await db.execute(sql`
-      UPDATE inventory_assignments
-      SET status = 'Retourné', return_date = NOW()
-      WHERE id = ${assignmentId};
-    `).catch(() => {});
-
-    // 2. Add back to stock
-    if (assign.item_id) {
-      await db.execute(sql`
-        UPDATE inventory_items
-        SET quantity = COALESCE(quantity, 0) + ${assign.assigned_qty || 1}
-        WHERE id = ${assign.item_id};
-      `).catch(() => {});
+        INSERT INTO inventory_items
+          (school_id, name, sku, category_id, quantity, min_threshold, unit_price, condition, location, brand_model, serial_number, is_asset, assigned_room, supplier_name, notes)
+        VALUES
+          (${schoolId}, ${data.name}, ${data.sku ?? null}, ${data.categoryId ?? null}, ${data.quantity}, ${data.minThreshold}, ${data.unitPrice}, ${data.condition}, ${data.location}, ${data.brandModel ?? null}, ${data.serialNumber ?? null}, ${data.isAsset ?? false}, ${data.assignedRoom ?? null}, ${data.supplierName ?? null}, ${data.notes ?? null})
+      `);
     }
 
     revalidatePath("/dashboard/inventory");
@@ -249,10 +178,370 @@ export async function returnItem(assignmentId: number) {
 }
 
 export async function deleteInventoryItem(id: number) {
-  return protectedDbAction("Inventory", "canDelete", async () => {
-    await ensureInventoryTablesExist();
-    await db.execute(sql`DELETE FROM inventory_items WHERE id = ${id};`).catch(() => {});
+  return protectedDbAction("Inventory", "canEdit", async () => {
+    const schoolId = await getActiveSchoolId();
+    await db.execute(sql`DELETE FROM inventory_items WHERE id = ${id} AND school_id = ${schoolId}`);
     revalidatePath("/dashboard/inventory");
     return { success: true };
+  });
+}
+
+// ─── Stock Movements ────────────────────────────────────────────────────────
+
+export async function getStockMovements(itemId?: number) {
+  return protectedDbAction("Inventory", "canView", async () => {
+    await ensureInventoryExtensions();
+    const schoolId = await getActiveSchoolId();
+
+    const rows = await db.execute(sql`
+      SELECT m.*, i.name as item_name, i.sku as item_sku
+      FROM inventory_stock_movements m
+      LEFT JOIN inventory_items i ON m.item_id = i.id
+      WHERE m.school_id = ${schoolId}
+        ${itemId ? sql`AND m.item_id = ${itemId}` : sql``}
+      ORDER BY m.movement_date DESC
+      LIMIT 200
+    `).catch(() => [] as any[]);
+
+    return { data: rows };
+  });
+}
+
+export async function recordStockMovement(data: {
+  itemId: number;
+  movementType: string; // 'Entrée (Achat)', 'Sortie (Consommation)', 'Retour en stock', 'Rebut / Déclassement', 'Ajustement inventaire'
+  quantity: number;
+  unitCost?: number;
+  referenceDoc?: string;
+  performedBy?: string;
+  notes?: string;
+}) {
+  return protectedDbAction("Inventory", "canEdit", async () => {
+    await ensureInventoryExtensions();
+    const schoolId = await getActiveSchoolId();
+
+    // Insert movement
+    await db.execute(sql`
+      INSERT INTO inventory_stock_movements
+        (school_id, item_id, movement_type, quantity, unit_cost, reference_doc, performed_by, notes)
+      VALUES
+        (${schoolId}, ${data.itemId}, ${data.movementType}, ${data.quantity}, ${data.unitCost ?? 0}, ${data.referenceDoc ?? null}, ${data.performedBy ?? 'Gestionnaire de Stock'}, ${data.notes ?? null})
+    `);
+
+    // Adjust item quantity
+    const isEntry = ['Entrée (Achat)', 'Retour en stock'].includes(data.movementType);
+    const isExit = ['Sortie (Consommation)', 'Rebut / Déclassement'].includes(data.movementType);
+    const isAdjust = data.movementType === 'Ajustement inventaire';
+
+    if (isEntry) {
+      await db.execute(sql`UPDATE inventory_items SET quantity = quantity + ${data.quantity} WHERE id = ${data.itemId} AND school_id = ${schoolId}`);
+    } else if (isExit) {
+      await db.execute(sql`UPDATE inventory_items SET quantity = GREATEST(0, quantity - ${data.quantity}) WHERE id = ${data.itemId} AND school_id = ${schoolId}`);
+    } else if (isAdjust) {
+      await db.execute(sql`UPDATE inventory_items SET quantity = ${data.quantity} WHERE id = ${data.itemId} AND school_id = ${schoolId}`);
+    }
+
+    revalidatePath("/dashboard/inventory");
+    return { success: true };
+  });
+}
+
+// ─── Assignments ─────────────────────────────────────────────────────────────
+
+export async function getInventoryAssignments() {
+  return protectedDbAction("Inventory", "canView", async () => {
+    await ensureInventoryExtensions();
+    const schoolId = await getActiveSchoolId();
+
+    const rows = await db.execute(sql`
+      SELECT a.*, i.name as item_name, i.sku as item_sku, i.condition as item_condition,
+             e.nom_complet as employee_name, e.poste as employee_post
+      FROM inventory_assignments a
+      LEFT JOIN inventory_items i ON a.item_id = i.id
+      LEFT JOIN employees e ON a.employee_id = e.id
+      WHERE a.school_id = ${schoolId}
+      ORDER BY a.assigned_date DESC
+    `).catch(() => [] as any[]);
+
+    return { data: rows };
+  });
+}
+
+export async function assignItem(data: {
+  itemId: number;
+  employeeId: number;
+  assignedQty: number;
+  conditionAtAssignment?: string;
+  expectedReturnDate?: string;
+  notes?: string;
+  assignedBy?: string;
+}) {
+  return protectedDbAction("Inventory", "canEdit", async () => {
+    await ensureInventoryExtensions();
+    const schoolId = await getActiveSchoolId();
+
+    // Check stock
+    const stockRes = await db.execute(sql`SELECT quantity FROM inventory_items WHERE id = ${data.itemId} AND school_id = ${schoolId}`).catch(() => []);
+    const stock = Number((stockRes as any[])[0]?.quantity ?? 0);
+    if (stock < data.assignedQty) {
+      return { success: false, error: `Stock insuffisant. Disponible: ${stock}` };
+    }
+
+    await db.execute(sql`
+      INSERT INTO inventory_assignments
+        (school_id, item_id, employee_id, assigned_qty, condition_at_assignment, expected_return_date, notes, assigned_by)
+      VALUES
+        (${schoolId}, ${data.itemId}, ${data.employeeId}, ${data.assignedQty},
+         ${data.conditionAtAssignment ?? 'Bon état'},
+         ${data.expectedReturnDate ? new Date(data.expectedReturnDate) : null},
+         ${data.notes ?? null}, ${data.assignedBy ?? 'Intendant'})
+    `);
+
+    // Deduct stock
+    await db.execute(sql`UPDATE inventory_items SET quantity = quantity - ${data.assignedQty} WHERE id = ${data.itemId} AND school_id = ${schoolId}`);
+
+    // Record movement
+    await db.execute(sql`
+      INSERT INTO inventory_stock_movements (school_id, item_id, movement_type, quantity, performed_by, notes)
+      VALUES (${schoolId}, ${data.itemId}, 'Sortie (Affectation)', ${data.assignedQty}, ${data.assignedBy ?? 'Intendant'}, 'Affectation employé')
+    `).catch(() => {});
+
+    revalidatePath("/dashboard/inventory");
+    return { success: true };
+  });
+}
+
+export async function returnItem(assignmentId: number, conditionAtReturn: string) {
+  return protectedDbAction("Inventory", "canEdit", async () => {
+    const schoolId = await getActiveSchoolId();
+
+    const assignRes = await db.execute(sql`
+      SELECT * FROM inventory_assignments WHERE id = ${assignmentId} AND school_id = ${schoolId}
+    `).catch(() => []);
+    const assignment = (assignRes as any[])[0];
+    if (!assignment) return { success: false, error: "Affectation introuvable" };
+
+    await db.execute(sql`
+      UPDATE inventory_assignments SET
+        status = 'Retourné complet',
+        actual_return_date = NOW(),
+        condition_at_return = ${conditionAtReturn}
+      WHERE id = ${assignmentId}
+    `);
+
+    // Restore stock
+    await db.execute(sql`UPDATE inventory_items SET quantity = quantity + ${assignment.assigned_qty} WHERE id = ${assignment.item_id} AND school_id = ${schoolId}`);
+
+    await db.execute(sql`
+      INSERT INTO inventory_stock_movements (school_id, item_id, movement_type, quantity, performed_by, notes)
+      VALUES (${schoolId}, ${assignment.item_id}, 'Retour en stock', ${assignment.assigned_qty}, 'Intendant', 'Retour par employé')
+    `).catch(() => {});
+
+    revalidatePath("/dashboard/inventory");
+    return { success: true };
+  });
+}
+
+// ─── Categories ──────────────────────────────────────────────────────────────
+
+export async function getInventoryCategories() {
+  return protectedDbAction("Inventory", "canView", async () => {
+    await ensureInventoryExtensions();
+    const schoolId = await getActiveSchoolId();
+
+    const rows = await db.execute(sql`
+      SELECT c.*, COUNT(i.id) as item_count
+      FROM inventory_categories c
+      LEFT JOIN inventory_items i ON c.id = i.category_id AND i.school_id = ${schoolId}
+      WHERE c.school_id = ${schoolId} OR c.school_id IS NULL
+      GROUP BY c.id
+      ORDER BY c.name ASC
+    `).catch(() => [] as any[]);
+
+    return { data: rows };
+  });
+}
+
+export async function saveCategory(data: { id?: number; name: string; description?: string; icon?: string }) {
+  return protectedDbAction("Inventory", "canEdit", async () => {
+    await ensureInventoryExtensions();
+    const schoolId = await getActiveSchoolId();
+
+    if (data.id) {
+      await db.execute(sql`UPDATE inventory_categories SET name = ${data.name}, description = ${data.description ?? null}, icon = ${data.icon ?? 'Package'} WHERE id = ${data.id}`);
+    } else {
+      await db.execute(sql`INSERT INTO inventory_categories (school_id, name, description, icon) VALUES (${schoolId}, ${data.name}, ${data.description ?? null}, ${data.icon ?? 'Package'})`);
+    }
+    revalidatePath("/dashboard/inventory");
+    return { success: true };
+  });
+}
+
+// ─── Suppliers ──────────────────────────────────────────────────────────────
+
+export async function getSuppliers() {
+  return protectedDbAction("Inventory", "canView", async () => {
+    await ensureInventoryExtensions();
+    const schoolId = await getActiveSchoolId();
+
+    const rows = await db.execute(sql`
+      SELECT s.*, COUNT(po.id) as order_count, COALESCE(SUM(po.total_amount), 0) as total_ordered
+      FROM inventory_suppliers s
+      LEFT JOIN inventory_purchase_orders po ON s.id = po.supplier_id
+      WHERE s.school_id = ${schoolId}
+      GROUP BY s.id
+      ORDER BY s.name ASC
+    `).catch(() => [] as any[]);
+
+    return { data: rows };
+  });
+}
+
+export async function saveSupplier(data: {
+  id?: number;
+  name: string;
+  contactPerson?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  category?: string;
+  taxId?: string;
+}) {
+  return protectedDbAction("Inventory", "canEdit", async () => {
+    await ensureInventoryExtensions();
+    const schoolId = await getActiveSchoolId();
+
+    if (data.id) {
+      await db.execute(sql`
+        UPDATE inventory_suppliers SET
+          name = ${data.name}, contact_person = ${data.contactPerson ?? null},
+          phone = ${data.phone ?? null}, email = ${data.email ?? null},
+          address = ${data.address ?? null}, category = ${data.category ?? 'Fournitures'},
+          tax_id = ${data.taxId ?? null}
+        WHERE id = ${data.id} AND school_id = ${schoolId}
+      `);
+    } else {
+      await db.execute(sql`
+        INSERT INTO inventory_suppliers (school_id, name, contact_person, phone, email, address, category, tax_id)
+        VALUES (${schoolId}, ${data.name}, ${data.contactPerson ?? null}, ${data.phone ?? null},
+                ${data.email ?? null}, ${data.address ?? null}, ${data.category ?? 'Fournitures'}, ${data.taxId ?? null})
+      `);
+    }
+    revalidatePath("/dashboard/inventory");
+    return { success: true };
+  });
+}
+
+export async function deleteSupplier(id: number) {
+  return protectedDbAction("Inventory", "canEdit", async () => {
+    const schoolId = await getActiveSchoolId();
+    await db.execute(sql`DELETE FROM inventory_suppliers WHERE id = ${id} AND school_id = ${schoolId}`);
+    revalidatePath("/dashboard/inventory");
+    return { success: true };
+  });
+}
+
+// ─── Purchase Orders ─────────────────────────────────────────────────────────
+
+export async function getPurchaseOrders() {
+  return protectedDbAction("Inventory", "canView", async () => {
+    await ensureInventoryExtensions();
+    const schoolId = await getActiveSchoolId();
+
+    const rows = await db.execute(sql`
+      SELECT po.*, s.name as supplier_name, s.phone as supplier_phone
+      FROM inventory_purchase_orders po
+      LEFT JOIN inventory_suppliers s ON po.supplier_id = s.id
+      WHERE po.school_id = ${schoolId}
+      ORDER BY po.order_date DESC
+    `).catch(() => [] as any[]);
+
+    return { data: rows };
+  });
+}
+
+export async function savePurchaseOrder(data: {
+  id?: number;
+  supplierId?: number;
+  expectedDeliveryDate?: string;
+  totalAmount: number;
+  status: string;
+  itemsJson: string;
+  approvedBy?: string;
+  notes?: string;
+}) {
+  return protectedDbAction("Inventory", "canEdit", async () => {
+    await ensureInventoryExtensions();
+    const schoolId = await getActiveSchoolId();
+
+    if (data.id) {
+      await db.execute(sql`
+        UPDATE inventory_purchase_orders SET
+          supplier_id = ${data.supplierId ?? null},
+          expected_delivery_date = ${data.expectedDeliveryDate ? new Date(data.expectedDeliveryDate) : null},
+          total_amount = ${data.totalAmount},
+          status = ${data.status},
+          items_json = ${data.itemsJson},
+          approved_by = ${data.approvedBy ?? 'Direction'},
+          notes = ${data.notes ?? null}
+        WHERE id = ${data.id} AND school_id = ${schoolId}
+      `);
+    } else {
+      // Generate order number
+      const year = new Date().getFullYear();
+      const countRes = await db.execute(sql`SELECT COUNT(*) as c FROM inventory_purchase_orders WHERE school_id = ${schoolId}`).catch(() => [{ c: 0 }]);
+      const num = String(Number((countRes as any[])[0]?.c ?? 0) + 1).padStart(3, "0");
+      const orderNumber = `BC-${year}-${num}`;
+
+      await db.execute(sql`
+        INSERT INTO inventory_purchase_orders
+          (school_id, order_number, supplier_id, expected_delivery_date, total_amount, status, items_json, approved_by, notes)
+        VALUES
+          (${schoolId}, ${orderNumber}, ${data.supplierId ?? null},
+           ${data.expectedDeliveryDate ? new Date(data.expectedDeliveryDate) : null},
+           ${data.totalAmount}, ${data.status}, ${data.itemsJson},
+           ${data.approvedBy ?? 'Direction'}, ${data.notes ?? null})
+      `);
+    }
+    revalidatePath("/dashboard/inventory");
+    return { success: true };
+  });
+}
+
+export async function updatePurchaseOrderStatus(id: number, status: string) {
+  return protectedDbAction("Inventory", "canEdit", async () => {
+    const schoolId = await getActiveSchoolId();
+    await db.execute(sql`UPDATE inventory_purchase_orders SET status = ${status} WHERE id = ${id} AND school_id = ${schoolId}`);
+    revalidatePath("/dashboard/inventory");
+    return { success: true };
+  });
+}
+
+// ─── Employees list for assignment ──────────────────────────────────────────
+
+export async function getInventoryEmployees() {
+  return protectedDbAction("Inventory", "canView", async () => {
+    const schoolId = await getActiveSchoolId();
+    const rows = await db.execute(sql`
+      SELECT id, nom_complet, poste, telephone FROM employees WHERE school_id = ${schoolId} ORDER BY nom_complet ASC
+    `).catch(() => [] as any[]);
+    return { data: rows };
+  });
+}
+
+// ─── Low stock items ─────────────────────────────────────────────────────────
+
+export async function getLowStockItems() {
+  return protectedDbAction("Inventory", "canView", async () => {
+    await ensureInventoryExtensions();
+    const schoolId = await getActiveSchoolId();
+    const rows = await db.execute(sql`
+      SELECT i.*, c.name as category_name
+      FROM inventory_items i
+      LEFT JOIN inventory_categories c ON i.category_id = c.id
+      WHERE i.school_id = ${schoolId} AND i.quantity <= i.min_threshold
+      ORDER BY i.quantity ASC
+    `).catch(() => [] as any[]);
+    return { data: rows };
   });
 }
