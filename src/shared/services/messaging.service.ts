@@ -353,6 +353,88 @@ export class MessagingService {
     return true;
   }
 
+  static async sendHostelNightAbsenceAlert(payload: {
+    to: string;
+    parentName: string;
+    studentName: string;
+    roomNumber: string;
+    buildingName: string;
+    date: string;
+    time?: string;
+    schoolName?: string;
+    whatsapp?: string;
+    sendSMS?: boolean;
+    sendWhatsApp?: boolean;
+  }) {
+    const { to, parentName, studentName, roomNumber, buildingName, date, time = "21:30", schoolName = "Edut Pro", whatsapp, sendSMS = true, sendWhatsApp = true } = payload;
+    const phone = whatsapp || to;
+    if (!phone || phone === "N/A" || phone.trim() === "") return false;
+
+    const messageFr = `⚠️ *ALERTE INTERNAT - Absence Nocturne Inexpliquée*\n\nCher(e) ${parentName},\nLors de l'appel du soir du *${date}* à *${time}*, l'élève *${studentName}* (Chambre ${roomNumber}, Pavillon ${buildingName}) a été constaté *ABSENT(E)* du dortoir sans autorisation préalable.\n\nMerci de contacter d'urgence la surveillance générale de l'internat de ${schoolName}.`;
+    const messageAr = `⚠️ *تنبيه أمني - السكن الداخلي (${schoolName})*\n\nعزيزي ولي الأمر ${parentName}،\nأثناء تفقد الحضور الليلي بتاريخ *${date}* الساعة *${time}*، تبين *غياب* التلميذ *${studentName}* (الغرفة ${roomNumber}، مبنى ${buildingName}) دون إذن مسبق.\n\nيرجى التواصل الفوري والعاجل مع إدارة السكن الداخلي.`;
+
+    const fullMessage = `${messageFr}\n\n${messageAr}`;
+
+    if (sendSMS && to && to !== "N/A" && to.trim() !== "") {
+      const smsSuccess = await this.sendViaAndroidGateway(to, fullMessage);
+      await this.logMessage("SMS", `${studentName} (${to})`, fullMessage, smsSuccess ? "Envoyé" : "Échec");
+    }
+
+    if (sendWhatsApp && phone) {
+      const waSuccess = await this.sendViaWhatsAppAPI(phone, fullMessage);
+      await this.logMessage("WHATSAPP", `${studentName} (${phone})`, fullMessage, waSuccess ? "Envoyé" : "Échec");
+    }
+
+    return true;
+  }
+
+  static async sendHostelExitAlert(payload: {
+    to: string;
+    parentName: string;
+    studentName: string;
+    permissionType: string;
+    status: "Sorti" | "Retourné" | "Approuvé";
+    departureDate?: string;
+    returnDateExpected?: string;
+    time?: string;
+    schoolName?: string;
+    whatsapp?: string;
+    sendSMS?: boolean;
+    sendWhatsApp?: boolean;
+  }) {
+    const { to, parentName, studentName, permissionType, status, departureDate, returnDateExpected, time = "17:00", schoolName = "Edut Pro", whatsapp, sendSMS = true, sendWhatsApp = true } = payload;
+    const phone = whatsapp || to;
+    if (!phone || phone === "N/A" || phone.trim() === "") return false;
+
+    let messageFr = "";
+    let messageAr = "";
+
+    if (status === "Sorti") {
+      messageFr = `🚪 *INTERNAT : Départ de l'Élève - ${schoolName}*\n\nCher(e) ${parentName},\nVotre enfant *${studentName}* vient de quitter l'internat ce jour à *${time}* dans le cadre d'une *${permissionType}*.\n• Retour attendu au dortoir : *${returnDateExpected || "Dimanche soir"}*.`;
+      messageAr = `🚪 *السكن الداخلي : تسجيل مغادرة الطالب - ${schoolName}*\n\nعزيزي ولي الأمر ${parentName}،\nغادر التلميذ *${studentName}* السكن الداخلي اليوم الساعة *${time}* بتصريح *${permissionType}*.\n• موعد العودة المتوقع : *${returnDateExpected || "مساء الأحد"}*.`;
+    } else if (status === "Retourné") {
+      messageFr = `✅ *INTERNAT : Retour Sécurisé - ${schoolName}*\n\nCher(e) ${parentName},\nNous vous confirmons que votre enfant *${studentName}* est bien rentré(e) et réintégré(e) au dortoir de l'internat ce jour à *${time}* en toute sécurité.`;
+      messageAr = `✅ *السكن الداخلي : عودة سالمة - ${schoolName}*\n\nعزيزي ولي الأمر ${parentName}،\nنحيطكم علماً بوصول وعودة التلميذ *${studentName}* إلى غرفته بالسكن الداخلي بسلام وأمان اليوم الساعة *${time}*.`;
+    } else {
+      messageFr = `📋 *INTERNAT : Autorisation de Sortie Accordée - ${schoolName}*\n\nCher(e) ${parentName},\nLa demande de *${permissionType}* pour l'élève *${studentName}* du *${departureDate}* au *${returnDateExpected}* a été *VALIDÉE* par la direction.`;
+      messageAr = `📋 *السكن الداخلي : الموافقة على تصريح الخروج - ${schoolName}*\n\nعزيزي ولي الأمر ${parentName}،\nتمت *الموافقة* على تصريح *${permissionType}* للتلميذ *${studentName}* للفترة من *${departureDate}* إلى *${returnDateExpected}*.`;
+    }
+
+    const fullMessage = `${messageFr}\n\n${messageAr}`;
+
+    if (sendSMS && to && to !== "N/A" && to.trim() !== "") {
+      const smsSuccess = await this.sendViaAndroidGateway(to, fullMessage);
+      await this.logMessage("SMS", `${studentName} (${to})`, fullMessage, smsSuccess ? "Envoyé" : "Échec");
+    }
+
+    if (sendWhatsApp && phone) {
+      const waSuccess = await this.sendViaWhatsAppAPI(phone, fullMessage);
+      await this.logMessage("WHATSAPP", `${studentName} (${phone})`, fullMessage, waSuccess ? "Envoyé" : "Échec");
+    }
+
+    return true;
+  }
+
   static generateWhatsAppShareUrl(phone: string, text: string): string {
     const cleanPhone = phone.replace(/[^0-9+]/g, "").replace(/^\+/, "");
     const encodedText = encodeURIComponent(text);
