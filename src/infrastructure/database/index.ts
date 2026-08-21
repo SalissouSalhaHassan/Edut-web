@@ -21,6 +21,7 @@ import * as settingsSchema from "./schema/settings";
 import * as auditSchema from "./schema/audit";
 import * as pedagogieSchema from "./schema/pedagogie";
 import * as healthSchema from "./schema/health";
+import * as admissionsSchema from "./schema/admissions";
 
 if (!process.env.DATABASE_URL) {
   console.warn("⚠️ DATABASE_URL is not defined in environment variables. Using default local connection.");
@@ -90,7 +91,7 @@ if (process.env.NODE_ENV !== "production") {
   globalForDb.readClient = readClient;
 }
 
-const schema = { ...authSchema, ...studentsSchema, ...hrSchema, ...academicsSchema, ...financeSchema, ...inventorySchema, ...transportSchema, ...attendanceSchema, ...librarySchema, ...homeworkSchema, ...disciplineSchema, ...frontOfficeSchema, ...canteenSchema, ...messagingSchema, ...hostelSchema, ...lmsSchema, ...settingsSchema, ...auditSchema, ...pedagogieSchema, ...healthSchema };
+const schema = { ...authSchema, ...studentsSchema, ...hrSchema, ...academicsSchema, ...financeSchema, ...inventorySchema, ...transportSchema, ...attendanceSchema, ...librarySchema, ...homeworkSchema, ...disciplineSchema, ...frontOfficeSchema, ...canteenSchema, ...messagingSchema, ...hostelSchema, ...lmsSchema, ...settingsSchema, ...auditSchema, ...pedagogieSchema, ...healthSchema, ...admissionsSchema };
 
 // Primary DB instance
 export const db = drizzle(client, { schema });

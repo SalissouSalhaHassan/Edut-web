@@ -250,6 +250,72 @@ export class MessagingService {
     return true;
   }
 
+  static async sendAdmissionReceivedAlert(payload: {
+    to: string;
+    parentName: string;
+    studentName: string;
+    applicationNumber: string;
+    targetClass: string;
+    schoolName?: string;
+    whatsapp?: string;
+    sendSMS?: boolean;
+    sendWhatsApp?: boolean;
+  }) {
+    const { to, parentName, studentName, applicationNumber, targetClass, schoolName = "Edut Pro", whatsapp, sendSMS = true, sendWhatsApp = true } = payload;
+    const phone = whatsapp || to;
+    if (!phone || phone === "N/A" || phone.trim() === "") return false;
+
+    const messageFr = `📝 *Dossier d'Admission Reçu - ${schoolName}*\n\nCher(e) ${parentName}, nous accusons bonne réception de la demande d'inscription pour l'élève *${studentName}* en classe de *${targetClass}*.\n• N° de dossier : *${applicationNumber}*\n• Statut : *En cours d'examen*\n\nLa commission pédagogique examine les pièces fournies. Vous serez notifié(e) par ce même canal de la suite accordée.`;
+    const messageAr = `📝 *تأكيد استلام طلب التسجيل - ${schoolName}*\n\nعزيزي ولي الأمر ${parentName}، تم استلام طلب تسجيل التلميذ *${studentName}* في فصل *${targetClass}* بنجاح.\n• رقم الملف : *${applicationNumber}*\n• الحالة : *قيد الدراسة والمراجعة*\n\nسيتم إشعاركم فور اتخاذ القرار النهائي من الإدارة.`;
+
+    const fullMessage = `${messageFr}\n\n${messageAr}`;
+
+    if (sendSMS && to && to !== "N/A" && to.trim() !== "") {
+      const smsSuccess = await this.sendViaAndroidGateway(to, fullMessage);
+      await this.logMessage("SMS", `${studentName} (${to})`, fullMessage, smsSuccess ? "Envoyé" : "Échec");
+    }
+
+    if (sendWhatsApp && phone) {
+      const waSuccess = await this.sendViaWhatsAppAPI(phone, fullMessage);
+      await this.logMessage("WHATSAPP", `${studentName} (${phone})`, fullMessage, waSuccess ? "Envoyé" : "Échec");
+    }
+
+    return true;
+  }
+
+  static async sendAdmissionApprovedAlert(payload: {
+    to: string;
+    parentName: string;
+    studentName: string;
+    matricule: string;
+    targetClass: string;
+    schoolName?: string;
+    whatsapp?: string;
+    sendSMS?: boolean;
+    sendWhatsApp?: boolean;
+  }) {
+    const { to, parentName, studentName, matricule, targetClass, schoolName = "Edut Pro", whatsapp, sendSMS = true, sendWhatsApp = true } = payload;
+    const phone = whatsapp || to;
+    if (!phone || phone === "N/A" || phone.trim() === "") return false;
+
+    const messageFr = `🎉 *FÉLICITATIONS ! Admission Accordée - ${schoolName}*\n\nCher(e) ${parentName}, nous avons le grand plaisir de vous informer que l'élève *${studentName}* a été officiellement *ADMIS(E)* en classe de *${targetClass}* !\n• Matricule Officiel attribué : *${matricule}*\n\nVous pouvez dès à présent finaliser l'inscription et le paiement des frais de scolarité via Mobile Money sur l'application Edut.\nBienvenue dans notre communauté éducative ! 🌟`;
+    const messageAr = `🎉 *تهانينا ! تم قبول طلب التسجيل - ${schoolName}*\n\nعزيزي ولي الأمر ${parentName}، يسرنا إعلامكم بقبول التلميذ *${studentName}* رسمياً في فصل *${targetClass}* !\n• رقم القيد الرسمي (Matricule) : *${matricule}*\n\nيمكنكم استكمال إجراءات التسجيل وتسديد الرسوم المدرسية عبر تطبيق Edut.\nأهلاً بكم في مؤسستنا ! 🌟`;
+
+    const fullMessage = `${messageFr}\n\n${messageAr}`;
+
+    if (sendSMS && to && to !== "N/A" && to.trim() !== "") {
+      const smsSuccess = await this.sendViaAndroidGateway(to, fullMessage);
+      await this.logMessage("SMS", `${studentName} (${to})`, fullMessage, smsSuccess ? "Envoyé" : "Échec");
+    }
+
+    if (sendWhatsApp && phone) {
+      const waSuccess = await this.sendViaWhatsAppAPI(phone, fullMessage);
+      await this.logMessage("WHATSAPP", `${studentName} (${phone})`, fullMessage, waSuccess ? "Envoyé" : "Échec");
+    }
+
+    return true;
+  }
+
   static generateWhatsAppShareUrl(phone: string, text: string): string {
     const cleanPhone = phone.replace(/[^0-9+]/g, "").replace(/^\+/, "");
     const encodedText = encodeURIComponent(text);
