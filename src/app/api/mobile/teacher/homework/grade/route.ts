@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
 
     const sId = Number(submissionId);
     const scoreVal = Number(score || 0);
-    const graderName = user.name || user.email || "Professeur";
+    const graderName = (user as any).name || (user as any).email || user.utilisateur || "Professeur";
 
     await db.execute(sql`
       UPDATE homework_submissions

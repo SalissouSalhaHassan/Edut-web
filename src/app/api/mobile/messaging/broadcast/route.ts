@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
       content,
       recipientCount: Number(recipientCount || 1),
       status: "Envoyé",
-      sentBy: user.email || user.username || "Direction",
+      sentBy: (user as any).email || user.utilisateur || "Direction",
     });
 
     return NextResponse.json({
