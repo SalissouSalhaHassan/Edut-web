@@ -139,6 +139,46 @@ export class MessagingService {
     return success;
   }
 
+  static async sendInfirmaryAlert(payload: {
+    to: string;
+    studentName: string;
+    symptoms: string;
+    temperature?: number | null;
+    severity?: string;
+    outcome?: string;
+    careProvided?: string;
+    schoolName?: string;
+    whatsapp?: string;
+    sendSMS?: boolean;
+    sendWhatsApp?: boolean;
+  }) {
+    const { to, studentName, symptoms, temperature, severity = "Modéré", outcome = "Retour en classe", careProvided, schoolName = "Edut Pro", whatsapp, sendSMS = true, sendWhatsApp = true } = payload;
+    const phone = whatsapp || to;
+    if (!phone || phone === "N/A" || phone.trim() === "") return false;
+
+    const tempText = temperature ? ` (Température : ${temperature}°C)` : "";
+    const careText = careProvided ? `\nSoins prodigués : ${careProvided}` : "";
+    const isUrgent = severity.toLowerCase().includes("urgent");
+    const headerEmoji = isUrgent ? "🚨" : "🏥";
+
+    const messageFr = `${headerEmoji} *Avis Infirmerie Scolaire - ${schoolName}*\n\nCher Parent, nous vous informons que votre enfant *${studentName}* a été admis à l'infirmerie ce jour.\n• Symptômes : *${symptoms}*${tempText}\n• Gravité : *${severity}*\n• Décision : *${outcome}*${careText}\n\n${isUrgent ? "⚠️ Merci de contacter l'école ou de venir récupérer l'élève si nécessaire." : "L'équipe médicale scolaire veille sur sa santé."}`;
+    const messageAr = `${headerEmoji} *تنبيه من العيادة المدرسية - ${schoolName}*\n\nعزيزي ولي الأمر، نحيطكم علماً بأن التلميذ *${studentName}* قد توجه إلى العيادة المدرسية اليوم.\n• الأعراض : *${symptoms}*${tempText}\n• الحالة : *${severity}*\n• الإجراء : *${outcome}*\n\nنتمنى له دوام الصحة والعافية.`;
+
+    const fullMessage = `${messageFr}\n\n${messageAr}`;
+
+    if (sendSMS && to && to !== "N/A" && to.trim() !== "") {
+      const smsSuccess = await this.sendViaAndroidGateway(to, fullMessage);
+      await this.logMessage("SMS", `${studentName} (${to})`, fullMessage, smsSuccess ? "Envoyé" : "Échec");
+    }
+
+    if (sendWhatsApp && phone) {
+      const waSuccess = await this.sendViaWhatsAppAPI(phone, fullMessage);
+      await this.logMessage("WHATSAPP", `${studentName} (${phone})`, fullMessage, waSuccess ? "Envoyé" : "Échec");
+    }
+
+    return true;
+  }
+
   static generateWhatsAppShareUrl(phone: string, text: string): string {
     const cleanPhone = phone.replace(/[^0-9+]/g, "").replace(/^\+/, "");
     const encodedText = encodeURIComponent(text);
