@@ -231,6 +231,31 @@ export async function verifyOfficialDocument(reference: string): Promise<Documen
       };
     }
 
+    const digitalDiploma = firstRow(await readDb.execute(sql`
+      SELECT
+        dc.*,
+        s.name AS school_name
+      FROM digital_certificates dc
+      LEFT JOIN schools s ON s.id = dc.school_id
+      WHERE dc.verification_code = ${cleanId} OR dc.certificate_number = ${cleanId}
+      LIMIT 1
+    `).catch(() => null));
+
+    if (digitalDiploma) {
+      return {
+        documentNumber: digitalDiploma.certificate_number,
+        type: digitalDiploma.certificate_type || "Attestation de Réussite",
+        recipientName: digitalDiploma.full_name || "Diplômé non renseigné",
+        classOrDetails: `Promotion ${digitalDiploma.graduation_year} - ${digitalDiploma.level_completed || "Niveau validé"}${digitalDiploma.series_or_track ? ` (Série ${digitalDiploma.series_or_track})` : ""}${digitalDiploma.mention ? ` - Mention ${digitalDiploma.mention}` : ""}`,
+        schoolName: digitalDiploma.school_name || digitalDiploma.school_name_override || "Établissement Edut",
+        schoolId: String(digitalDiploma.school_id || "N/A"),
+        dateGeneration: formatDate(digitalDiploma.issued_date || digitalDiploma.created_at),
+        utilisateur: digitalDiploma.director_name || digitalDiploma.issued_by || "Direction de l'établissement",
+        statut: digitalDiploma.is_valid ? "validé" : "annulé",
+        hash: hashDocument({ source: "digital_certificates", reference: cleanId, name: digitalDiploma.full_name, year: digitalDiploma.graduation_year }),
+      };
+    }
+
     return null;
   } catch (error) {
     console.error("verifyOfficialDocument error:", error);
