@@ -755,5 +755,50 @@ export const periodExtensionRequests = pgTable("period_extension_requests", {
   handledAt: timestamp("handled_at"),
 });
 
+/**
+ * bulletin_records — سجل الكشوف الرسمي
+ * يُخزّن كل كشف مُولَّد مع:
+ *  - رابط PDF في Supabase Storage
+ *  - verify_token فريد للتحقق عبر QR
+ *  - الحالة: validé / provisoire / annulé
+ */
+export const bulletinRecords = pgTable("bulletin_records", {
+  id: serial("id").primaryKey(),
+  schoolId: integer("school_id").references(() => schools.id, { onDelete: "cascade" }),
+  studentId: integer("student_id").references(() => students.id, { onDelete: "cascade" }),
+  classId: integer("class_id").references(() => schoolClasses.id),
+  sessionId: integer("session_id").references(() => schoolSessions.id),
+  periodId: integer("period_id").references(() => academicPeriods.id),
+  period: varchar("period", { length: 50 }),           // "Semestre 1", "Trimestre 2"...
+  average: doublePrecision("average"),
+  rank: varchar("rank", { length: 20 }),               // "1er", "3ème"
+  totalStudents: integer("total_students"),
+  decision: varchar("decision", { length: 200 }),      // "ADMIS(E) EN 3ème", ...
+  pdfUrl: text("pdf_url"),                             // Supabase Storage signed URL
+  pdfPath: text("pdf_path"),                          // chemin brut dans Storage
+  verifyToken: varchar("verify_token", { length: 64 }).unique(), // UUID pour QR
+  status: varchar("status", { length: 20 }).default("validé"), // validé | provisoire | annulé
+  whatsappSent: boolean("whatsapp_sent").default(false),
+  pushSent: boolean("push_sent").default(false),
+  generatedAt: timestamp("generated_at").defaultNow(),
+  generatedBy: varchar("generated_by", { length: 100 }),
+});
 
-
+export const bulletinRecordsRelations = relations(bulletinRecords, ({ one }) => ({
+  student: one(students, {
+    fields: [bulletinRecords.studentId],
+    references: [students.id],
+  }),
+  class: one(schoolClasses, {
+    fields: [bulletinRecords.classId],
+    references: [schoolClasses.id],
+  }),
+  session: one(schoolSessions, {
+    fields: [bulletinRecords.sessionId],
+    references: [schoolSessions.id],
+  }),
+  period: one(academicPeriods, {
+    fields: [bulletinRecords.periodId],
+    references: [academicPeriods.id],
+  }),
+}));

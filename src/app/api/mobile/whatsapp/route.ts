@@ -59,9 +59,9 @@ export async function POST(request: NextRequest) {
       case "bulletin":
       case "grade_alert":
         if (language === "AR") {
-          generatedText = `*نتائج وكشف الدرجات - مجمع إيدوت المدرسي* 📊\n\nالسلام عليكم ولي أمر الطالب (*${recipientName || "ولي الأمر"}*),\nيسرنا إعلامكم بأن كشف درجات الطالب *${studentName || ""}* (الفصل: ${className || ""}) أصبح متاحاً الآن.\n- المعدل الفصلي: *${averageScore ? averageScore + "/20" : "متوفر"}*\n${rank ? "- الترتيب: *" + rank + "*\n" : ""}\nيمكنكم الاطلاع والتحميل المباشر للتقرير الأكاديمي عبر تطبيق Edut Mobile.\n\n_نهنئكم ونتمنى لأبنائنا دوام التوفيق والنجاح._`;
+          generatedText = `*نتائج وكشف الدرجات - مجمع إيدوت المدرسي* 📊\n\nالسلام عليكم ولي أمر الطالب (*${recipientName || "ولي الأمر"}*),\nيسرنا إعلامكم بأن كشف درجات الطالب *${studentName || ""}* (الفصل: ${className || ""}) أصبح متاحاً الآن.\n- المعدل الفصلي: *${averageScore ? averageScore + "/20" : "متوفر"}*\n${rank ? "- الترتيب: *" + rank + "*\n" : ""}${body.pdfUrl ? "📄 تحميل الكشف الرسمي: " + body.pdfUrl + "\n" : ""}\nيمكنكم الاطلاع والتحميل المباشر للتقرير الأكاديمي عبر تطبيق Edut Mobile.\n\n_نهنئكم ونتمنى لأبنائنا دوام التوفيق والنجاح._`;
         } else {
-          generatedText = `*BULLETIN DE NOTES DISPONIBLE* 📊\n\nBonjour *${recipientName || "Parent"}*,\nLe bulletin scolaire trimestriel de *${studentName || "votre enfant"}* (${className || ""}) est désormais disponible sur l'application Edut.\n${averageScore ? "Moyenne Générale : *" + averageScore + "/20*\n" : ""}${rank ? "Rang : *" + rank + "*\n" : ""}\n_Connectez-vous sur votre application Edut pour consulter l'analyse détaillée et télécharger le bulletin officiel._`;
+          generatedText = `*BULLETIN DE NOTES DISPONIBLE* 📊\n\nBonjour *${recipientName || "Parent"}*,\nLe bulletin scolaire de *${studentName || "votre enfant"}* (${className || ""}) est désormais disponible.\n${averageScore ? "Moyenne Générale : *" + averageScore + "/20*\n" : ""}${rank ? "Rang : *" + rank + "*\n" : ""}${body.pdfUrl ? "📄 Télécharger le bulletin officiel :\n" + body.pdfUrl + "\n" : ""}\n_Connectez-vous sur votre application Edut pour consulter l'analyse détaillée._`;
         }
         break;
 

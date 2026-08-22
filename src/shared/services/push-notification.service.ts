@@ -22,12 +22,90 @@ export interface HomeworkPushPayload {
   dateDue: string;
 }
 
+export interface BulletinPushPayload {
+  studentId: number;
+  studentName: string;
+  className: string;
+  average: number;
+  rank: string;
+  pdfUrl?: string | null;
+  verifyToken?: string;
+}
+
 export class PushNotificationService {
+  /**
+   * Send Mobile Push & In-App Notification when a bulletin becomes available
+   */
+  static async sendBulletinAvailable(payload: BulletinPushPayload) {
+    const { studentId, studentName, className, average, rank, pdfUrl, verifyToken } = payload;
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://edut.app";
+    const verifyUrl = verifyToken ? `${appUrl}/verify/bulletin/${verifyToken}` : null;
+
+    const title = `📊 Bulletin disponible / كشف الدرجات متاح: ${studentName}`;
+    const contentFr = `Le bulletin scolaire de ${studentName} (${className}) est disponible.${average ? ` Moyenne: ${average.toFixed(2)}/20` : ""}${rank && rank !== "-" ? ` · Rang: ${rank}` : ""}`;
+    const contentAr = `أصبح كشف درجات الطالب ${studentName} (${className}) متاحاً.${average ? ` المعدل: ${average.toFixed(2)}/20` : ""}${rank && rank !== "-" ? ` · الترتيب: ${rank}` : ""}`;
+    const fullContent = `${contentFr}\n${contentAr}`;
+
+    try {
+      // Insert in-app notification
+      const studentUsers = await db.query.users.findMany({
+        where: eq(users.studentId, studentId),
+      });
+
+      const notifValues = {
+        title,
+        content: fullContent,
+        type: "success" as const,
+        category: "Bulletin",
+        isRead: false,
+      };
+
+      if (studentUsers.length > 0) {
+        for (const u of studentUsers) {
+          await db.insert(notifications).values({ ...notifValues, userId: u.id });
+        }
+      } else {
+        await db.insert(notifications).values({ ...notifValues, userId: null });
+      }
+
+      // Log
+      await db.insert(messageLogs).values({
+        msgType: "PUSH_MOBILE",
+        targetAudience: `Élève ID: ${studentId} (${studentName})`,
+        subject: title,
+        content: fullContent,
+        recipientCount: 1,
+        status: "Envoyé",
+        sentBy: "Système Bulletin",
+      });
+
+      // Push Gateway
+      await this.dispatchToPushGateway({
+        title,
+        body: contentFr,
+        data: {
+          category: "Bulletin",
+          studentId,
+          average,
+          rank,
+          pdfUrl: pdfUrl ?? null,
+          verifyUrl: verifyUrl ?? null,
+          action: "OPEN_BULLETIN",
+        },
+      });
+
+      console.log(`[PUSH BULLETIN SENT] ${studentName}`);
+    } catch (error) {
+      console.error("Error sending bulletin push notification:", error);
+    }
+  }
+
   /**
    * Send Mobile Push & In-App Notification for Student Absence or Delay
    */
   static async sendAbsenceAlert(payload: AbsencePushPayload) {
     const { studentId, studentName, status, date, subjectName } = payload;
+
     const subText = subjectName ? ` (${subjectName})` : "";
     const isAbsent = status === "Absent";
 

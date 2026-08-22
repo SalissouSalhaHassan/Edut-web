@@ -53,6 +53,12 @@ export const transportLiveTrips = pgTable("transport_live_trips", {
   startTime: varchar("start_time", { length: 20 }), // e.g. "06:45"
   endTime: varchar("end_time", { length: 20 }), // e.g. "07:35"
   currentStop: varchar("current_stop", { length: 150 }),
+  currentLat: doublePrecision("current_lat"),
+  currentLng: doublePrecision("current_lng"),
+  speedKmh: doublePrecision("speed_kmh").default(0),
+  heading: doublePrecision("heading").default(0),
+  lastGpsAt: timestamp("last_gps_at"),
+  estimatedArrivalMinutes: integer("estimated_arrival_minutes"),
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
@@ -60,6 +66,7 @@ export const transportLiveTrips = pgTable("transport_live_trips", {
   routeIdIdx: index("transport_live_trips_route_id_idx").on(table.routeId),
   tripDateIdx: index("transport_live_trips_date_idx").on(table.tripDate),
 }));
+
 
 export const transportBoardingLogs = pgTable("transport_boarding_logs", {
   id: serial("id").primaryKey(),
@@ -120,3 +127,26 @@ export const transportBoardingLogsRelations = relations(transportBoardingLogs, (
     references: [transportSubscriptions.id],
   }),
 }));
+
+export const transportGpsPings = pgTable("transport_gps_pings", {
+  id: serial("id").primaryKey(),
+  tripId: integer("trip_id").references(() => transportLiveTrips.id, { onDelete: "cascade" }).notNull(),
+  schoolId: integer("school_id").references(() => schools.id, { onDelete: "cascade" }),
+  latitude: doublePrecision("latitude").notNull(),
+  longitude: doublePrecision("longitude").notNull(),
+  speedKmh: doublePrecision("speed_kmh").default(0),
+  heading: doublePrecision("heading").default(0),
+  accuracy: doublePrecision("accuracy"),
+  recordedAt: timestamp("recorded_at").defaultNow().notNull(),
+}, (table) => ({
+  tripIdIdx: index("transport_gps_pings_trip_id_idx").on(table.tripId),
+  recordedAtIdx: index("transport_gps_pings_recorded_at_idx").on(table.recordedAt),
+}));
+
+export const transportGpsPingsRelations = relations(transportGpsPings, ({ one }) => ({
+  trip: one(transportLiveTrips, {
+    fields: [transportGpsPings.tripId],
+    references: [transportLiveTrips.id],
+  }),
+}));
+
