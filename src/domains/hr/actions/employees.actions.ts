@@ -2,7 +2,7 @@
 
 import { db } from "@/infrastructure/database";
 import { employees, employeeAttendance } from "@/infrastructure/database/schema/hr";
-import { eq, desc, and, sql, inArray, or, isNull } from "drizzle-orm";
+import { eq, desc, and, sql, inArray, or, isNull, ilike } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { employeeSchema, EmployeeFormData } from "../validators/employee.schema";
 import { protectedDbAction } from "@/lib/protected-action";
@@ -44,11 +44,12 @@ export async function getEmployees(params?: {
       whereClause = and(
         whereClause,
         or(
-          sql`${employees.nom} ILIKE ${q}`,
-          sql`${employees.prenom} ILIKE ${q}`,
-          sql`${employees.email} ILIKE ${q}`,
-          sql`${employees.telephone} ILIKE ${q}`,
-          sql`${employees.matricule} ILIKE ${q}`
+          ilike(employees.nom, q),
+          ilike(employees.empId, q),
+          ilike(employees.email, q),
+          ilike(employees.mobile, q),
+          ilike(employees.poste, q),
+          ilike(employees.fonction, q)
         )
       ) as any;
     }
@@ -72,16 +73,16 @@ export async function getEmployees(params?: {
       columns: {
         id: true,
         schoolId: true,
-        matricule: true,
+        empId: true,
         nom: true,
-        prenom: true,
-        email: true,
-        telephone: true,
-        role: true,
+        poste: true,
         departement: true,
+        fonction: true,
+        mobile: true,
+        email: true,
         statut: true,
         educationalLevel: true,
-        photoUrl: true,
+        photoPath: true,
         dateEmbauche: true,
         createdAt: true,
       },

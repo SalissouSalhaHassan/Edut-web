@@ -6,7 +6,7 @@ import { schoolClasses, schoolSubjects, exams, examResults, schoolSessions } fro
 import { pedagogieRemediation } from "@/infrastructure/database/schema/pedagogie";
 import { lmsAssignments } from "@/infrastructure/database/schema/lms";
 import { users } from "@/infrastructure/database/schema/auth";
-import { eq, desc, and, or, inArray, sql } from "drizzle-orm";
+import { eq, desc, and, or, inArray, sql, ilike } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { studentSchema, StudentFormData } from "../validators/student.schema";
 import { protectedDbAction } from "@/lib/protected-action";
@@ -87,10 +87,9 @@ export async function getStudents(params?: {
       whereClause = and(
         whereClause,
         or(
-          ilike(students.nom, q),
-          ilike(students.prenom, q),
           ilike(students.nomEtudiant, q),
-          ilike(students.numAdmission, q)
+          ilike(students.numAdmission, q),
+          ilike(students.nomPere, q)
         )
       ) as any;
     }
@@ -130,10 +129,10 @@ export async function getStudents(params?: {
         id: true,
         schoolId: true,
         numAdmission: true,
-        nom: true,
-        prenom: true,
         nomEtudiant: true,
+        nomArabe: true,
         classe: true,
+        section: true,
         statut: true,
         educationalLevel: true,
         photoPath: true,
@@ -141,9 +140,9 @@ export async function getStudents(params?: {
         dateNaissance: true,
         lieuNaissance: true,
         categorie: true,
-        telephoneParent: true,
-        emailParent: true,
-        nomParent: true,
+        nomPere: true,
+        mobile: true,
+        whatsapp: true,
         createdAt: true,
       },
       orderBy: [desc(students.createdAt)],

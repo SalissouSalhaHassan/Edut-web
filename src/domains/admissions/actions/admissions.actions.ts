@@ -6,7 +6,7 @@ import { students } from "@/infrastructure/database/schema/students";
 import { studentMedicalRecords } from "@/infrastructure/database/schema/health";
 import { schools } from "@/infrastructure/database/schema/auth";
 import { schoolClasses } from "@/infrastructure/database/schema/academics";
-import { eq, desc, and, sql, or } from "drizzle-orm";
+import { eq, desc, and, sql, or, ilike } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { protectedDbAction } from "@/lib/protected-action";
 import { getActiveSchoolId, getCurrentSchool } from "@/domains/auth/services/school";
@@ -224,11 +224,11 @@ export async function getAdmissionApplicationsList(params?: {
       whereClause = and(
         whereClause,
         or(
-          sql`${admissionApplications.applicationNumber} ILIKE ${q}`,
-          sql`${admissionApplications.studentFirstName} ILIKE ${q}`,
-          sql`${admissionApplications.studentLastName} ILIKE ${q}`,
-          sql`${admissionApplications.parentName} ILIKE ${q}`,
-          sql`${admissionApplications.parentPhone} ILIKE ${q}`
+          ilike(admissionApplications.applicationNumber, q),
+          ilike(admissionApplications.studentFirstName, q),
+          ilike(admissionApplications.studentLastName, q),
+          ilike(admissionApplications.parentName, q),
+          ilike(admissionApplications.parentPhone, q)
         )
       ) as any;
     }

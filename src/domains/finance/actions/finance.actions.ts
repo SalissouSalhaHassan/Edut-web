@@ -624,9 +624,9 @@ export async function getExpenses(params?: {
       whereClause = and(
         whereClause,
         or(
-          ilike(expenses.title, q),
+          ilike(expenses.reference, q),
           ilike(expenses.description, q),
-          ilike(expenses.beneficiary, q)
+          ilike(expenses.recordedBy, q)
         )
       ) as any;
     }
