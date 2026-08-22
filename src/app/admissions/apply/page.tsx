@@ -579,7 +579,7 @@ function ApplyFormContent() {
               </div>
 
               {/* Action Buttons */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 print:hidden">
                 <Link
                   href={`/admissions/status?app=${submittedData.applicationNumber}&phone=${submittedData.parentPhone}`}
                   className="py-3 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition"
@@ -593,8 +593,79 @@ function ApplyFormContent() {
                   className="py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs flex items-center justify-center gap-2 border border-slate-700 transition"
                 >
                   <Printer className="size-4" />
-                  Imprimer le Récépissé
+                  Imprimer le Récépissé Officiel
                 </button>
+              </div>
+
+              {/* ─── PRINT ONLY: OFFICIAL SUBMISSION VOUCHER ─── */}
+              <div className="hidden print:block text-black bg-white p-6 font-sans space-y-6">
+                <div className="border-b-2 border-black pb-4 flex justify-between items-start">
+                  <div>
+                    <h2 className="text-xl font-black uppercase tracking-tight">{submittedData.schoolName || schoolInfo.name || "ÉTABLISSEMENT SCOLAIRE"}</h2>
+                    <p className="text-xs font-bold text-slate-700 uppercase">Portail Admissions & Inscriptions Officielles</p>
+                    <p className="text-[10px] text-slate-500">Année Scolaire {new Date().getFullYear()} - {new Date().getFullYear() + 1}</p>
+                  </div>
+                  <div className="text-right flex flex-col items-end">
+                    <QRCodeSVG
+                      value={`https://edut.pro/admissions/status?app=${submittedData.applicationNumber}&phone=${submittedData.parentPhone}`}
+                      size={64}
+                      level="H"
+                    />
+                    <span className="text-[8px] font-mono font-bold mt-1">SCAN POUR SUIVI</span>
+                  </div>
+                </div>
+
+                <div className="text-center py-2 bg-slate-100 border border-slate-300 rounded-lg">
+                  <h3 className="text-sm font-black uppercase tracking-wider">
+                    ACCUSÉ D'ENREGISTREMENT DE CANDIDATURE
+                  </h3>
+                </div>
+
+                <table className="w-full text-xs border-collapse border border-slate-300">
+                  <tbody>
+                    <tr className="border-b border-slate-200">
+                      <td className="p-2.5 font-bold text-slate-600 w-1/3 bg-slate-50">N° de Dossier Officiel :</td>
+                      <td className="p-2.5 font-mono font-black text-emerald-800">{submittedData.applicationNumber}</td>
+                    </tr>
+                    <tr className="border-b border-slate-200">
+                      <td className="p-2.5 font-bold text-slate-600 bg-slate-50">Élève Candidat :</td>
+                      <td className="p-2.5 font-bold uppercase">{formData.studentLastName} {formData.studentFirstName}</td>
+                    </tr>
+                    <tr className="border-b border-slate-200">
+                      <td className="p-2.5 font-bold text-slate-600 bg-slate-50">Classe sollicitée :</td>
+                      <td className="p-2.5 font-bold">{formData.targetClass}</td>
+                    </tr>
+                    <tr className="border-b border-slate-200">
+                      <td className="p-2.5 font-bold text-slate-600 bg-slate-50">Parent / Tuteur :</td>
+                      <td className="p-2.5">{formData.parentName} ({formData.parentPhone})</td>
+                    </tr>
+                    <tr>
+                      <td className="p-2.5 font-bold text-slate-600 bg-slate-50">Date de dépôt :</td>
+                      <td className="p-2.5">
+                        {new Date().toLocaleDateString("fr-FR", { dateStyle: "long" })}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                <div className="pt-8 grid grid-cols-2 gap-8 text-center text-xs font-black">
+                  <div className="space-y-12">
+                    <p className="uppercase text-slate-600">Signature du Parent</p>
+                    <div className="border-t border-slate-400 pt-1 text-[9px] text-slate-500 font-normal">
+                      Mention manuscrite
+                    </div>
+                  </div>
+                  <div className="space-y-12">
+                    <p className="uppercase text-slate-600">Visa de Réception de l'Établissement</p>
+                    <div className="border-t border-slate-400 pt-1 text-[9px] text-slate-500 font-normal">
+                      Service des admissions
+                    </div>
+                  </div>
+                </div>
+
+                <div className="text-center pt-4 border-t border-slate-200 text-[9px] text-slate-400">
+                  Document généré par Edut Pro • Suivi de dossier en direct disponible sur edut.pro/admissions/status
+                </div>
               </div>
             </div>
           )
@@ -602,7 +673,7 @@ function ApplyFormContent() {
       </main>
 
       {/* ─── Footer ────────────────────────────────────────────────────────── */}
-      <footer className="max-w-4xl mx-auto w-full text-center py-6 border-t border-slate-800/60 text-xs text-slate-500">
+      <footer className="max-w-4xl mx-auto w-full text-center py-6 border-t border-slate-800/60 text-xs text-slate-500 print:hidden">
         <p>© {new Date().getFullYear()} {schoolInfo.name} • Propulsé par Edut Pro</p>
       </footer>
     </div>
