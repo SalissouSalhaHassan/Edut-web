@@ -995,7 +995,7 @@ export default function TransportClient({
                     placeholder="Ex: Ligne 1 - Plateau / Yantala"
                     value={routeForm.routeName}
                     onChange={(e) => setRouteForm({ ...routeForm, routeName: e.target.value })}
-                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 <div>
@@ -1006,7 +1006,7 @@ export default function TransportClient({
                     placeholder="Ex: RN-4829-A"
                     value={routeForm.vehicleNumber}
                     onChange={(e) => setRouteForm({ ...routeForm, vehicleNumber: e.target.value })}
-                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
               </div>
@@ -1020,7 +1020,7 @@ export default function TransportClient({
                     placeholder="Ex: Moussa Idrissa"
                     value={routeForm.driverName}
                     onChange={(e) => setRouteForm({ ...routeForm, driverName: e.target.value })}
-                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 <div>
@@ -1030,7 +1030,7 @@ export default function TransportClient({
                     placeholder="Ex: +227 90 00 00 00"
                     value={routeForm.driverPhone}
                     onChange={(e) => setRouteForm({ ...routeForm, driverPhone: e.target.value })}
-                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
               </div>
@@ -1042,7 +1042,7 @@ export default function TransportClient({
                     type="number"
                     value={routeForm.capacity}
                     onChange={(e) => setRouteForm({ ...routeForm, capacity: Number(e.target.value) })}
-                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 <div>
@@ -1051,7 +1051,7 @@ export default function TransportClient({
                     type="number"
                     value={routeForm.monthlyFee}
                     onChange={(e) => setRouteForm({ ...routeForm, monthlyFee: Number(e.target.value) })}
-                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
               </div>
@@ -1095,7 +1095,7 @@ export default function TransportClient({
                           nextStops[idx].stopName = e.target.value;
                           setRouteForm({ ...routeForm, stops: nextStops });
                         }}
-                        className="flex-1 px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold"
+                        className="flex-1 px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-900 placeholder:text-slate-400"
                       />
                       <input
                         type="text"
@@ -1106,7 +1106,7 @@ export default function TransportClient({
                           nextStops[idx].timeMorning = e.target.value;
                           setRouteForm({ ...routeForm, stops: nextStops });
                         }}
-                        className="w-24 px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono text-center"
+                        className="w-24 px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono text-center text-slate-900 placeholder:text-slate-400"
                       />
                       <input
                         type="text"
@@ -1117,7 +1117,7 @@ export default function TransportClient({
                           nextStops[idx].timeEvening = e.target.value;
                           setRouteForm({ ...routeForm, stops: nextStops });
                         }}
-                        className="w-24 px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono text-center"
+                        className="w-24 px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono text-center text-slate-900 placeholder:text-slate-400"
                       />
                       <button
                         type="button"
@@ -1175,7 +1175,7 @@ export default function TransportClient({
                   placeholder="Nom ou Matricule de l'élève..."
                   value={studentSearchQuery}
                   onChange={(e) => handleSearchStudents(e.target.value)}
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500"
                 />
 
                 {studentSearchResults.length > 0 && !selectedStudent && (
@@ -1227,7 +1227,7 @@ export default function TransportClient({
                     const firstStop = selRoute?.stops?.[0]?.stopName || "";
                     setSubForm({ ...subForm, routeId: rId, pickupStop: firstStop });
                   }}
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-blue-500"
                 >
                   {routes.map((r) => (
                     <option key={r.id} value={r.id}>
@@ -1245,7 +1245,7 @@ export default function TransportClient({
                   placeholder="Ex: Arrêt Pharmacie Centrale"
                   value={subForm.pickupStop}
                   onChange={(e) => setSubForm({ ...subForm, pickupStop: e.target.value })}
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
@@ -1255,7 +1255,7 @@ export default function TransportClient({
                   <select
                     value={subForm.tripType}
                     onChange={(e) => setSubForm({ ...subForm, tripType: e.target.value })}
-                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="Aller-Retour">Aller-Retour</option>
                     <option value="Aller simple matin">Aller simple matin</option>
@@ -1269,7 +1269,7 @@ export default function TransportClient({
                     placeholder="Ex: +227 90 00 00 00"
                     value={subForm.parentPhone}
                     onChange={(e) => setSubForm({ ...subForm, parentPhone: e.target.value })}
-                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
               </div>
@@ -1312,7 +1312,7 @@ export default function TransportClient({
                 <select
                   value={tripForm.routeId}
                   onChange={(e) => setTripForm({ ...tripForm, routeId: Number(e.target.value) })}
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-blue-500"
                 >
                   {routes.map((r) => (
                     <option key={r.id} value={r.id}>
@@ -1327,7 +1327,7 @@ export default function TransportClient({
                 <select
                   value={tripForm.tripType}
                   onChange={(e) => setTripForm({ ...tripForm, tripType: e.target.value })}
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="Circuit Matin">🌅 Circuit Matin (Ramassage vers l'École)</option>
                   <option value="Circuit Soir">🌇 Circuit Soir (Retour vers les Domiciles)</option>
