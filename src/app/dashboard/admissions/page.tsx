@@ -41,7 +41,9 @@ import {
   submitAdmissionApplicationAction,
   reviewAdmissionApplicationAction,
   deleteAdmissionApplicationAction,
+  getPublicSchoolInfoForAdmissionsAction,
 } from "@/domains/admissions/actions/admissions.actions";
+import { Settings } from "lucide-react";
 
 export default function AdmissionsPage() {
   const [isLoading, setIsLoading] = useState(true);
@@ -56,6 +58,7 @@ export default function AdmissionsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [classFilter, setClassFilter] = useState("ALL");
+  const [classesList, setClassesList] = useState<string[]>([]);
 
   // Selected Application for Review Modal
   const [selectedApp, setSelectedApp] = useState<any | null>(null);
@@ -101,18 +104,26 @@ export default function AdmissionsPage() {
   const loadData = async () => {
     try {
       setIsLoading(true);
-      const [statsRes, listRes] = await Promise.all([
+      const [statsRes, listRes, schoolInfoRes] = await Promise.all([
         getAdmissionsDashboardStats(),
         getAdmissionApplicationsList({
           status: statusFilter,
           targetClass: classFilter,
           query: searchQuery,
         }),
+        getPublicSchoolInfoForAdmissionsAction(),
       ]);
 
       if (statsRes) setStats((statsRes as any)?.data || statsRes);
       const apps = (listRes as any)?.data?.applications || (listRes as any)?.applications || [];
       setApplications(apps);
+
+      // ── Load real classes from school_classes table (set in /settings?tab=academic)
+      if (schoolInfoRes?.classes && schoolInfoRes.classes.length > 0) {
+        setClassesList(schoolInfoRes.classes);
+        // Always sync targetClass to the first real class from settings
+        setNewApp((prev) => ({ ...prev, targetClass: schoolInfoRes.classes[0] }));
+      }
     } catch (err: any) {
       toast.error("Erreur de chargement des admissions.");
     } finally {
@@ -183,7 +194,7 @@ export default function AdmissionsPage() {
           gender: "M",
           placeOfBirth: "Niamey",
           nationality: "Nigérienne",
-          targetClass: "6ème A",
+          targetClass: classesList[0] || "6ème A", // Use first real class from settings
           previousSchool: "",
           previousGradeAvg: "",
           parentName: "",
@@ -225,11 +236,13 @@ export default function AdmissionsPage() {
     toast.success("Lien d'inscription copié dans le presse-papier !");
   };
 
-  const CLASSES_LIST = [
-    "CI", "CP", "CE1", "CE2", "CM1", "CM2",
-    "6ème A", "6ème B", "5ème A", "5ème B", "4ème A", "4ème B", "3ème A", "3ème B",
-    "2nde C", "2nde A", "1ère D", "1ère A", "Terminale D", "Terminale A", "Terminale C"
-  ];
+  // classesList is dynamically loaded from school_classes (configured in /settings?tab=academic)
+  // Fallback to a default list only if school has no classes configured yet
+  const CLASSES_LIST = classesList.length > 0
+    ? classesList
+    : ["CI", "CP", "CE1", "CE2", "CM1", "CM2",
+       "6ème A", "6ème B", "5ème A", "5ème B", "4ème A", "4ème B", "3ème A", "3ème B",
+       "2nde C", "2nde A", "1ère D", "1ère A", "Terminale D", "Terminale A", "Terminale C"];
 
   return (
     <div className="space-y-8 p-6 max-w-7xl mx-auto font-sans">
@@ -389,6 +402,23 @@ export default function AdmissionsPage() {
           </select>
         </div>
       </div>
+
+      {/* ─── Notice: No Classes Configured ─────────────────────────────────── */}
+      {!isLoading && classesList.length === 0 && (
+        <div className="flex items-center gap-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-600/40 rounded-2xl px-5 py-3.5 text-xs">
+          <Settings className="size-4 text-amber-500 shrink-0" />
+          <p className="text-amber-800 dark:text-amber-300 font-medium flex-1">
+            Aucune classe configurée pour cette école. Les classes affichées sont des valeurs par défaut.
+          </p>
+          <Link
+            href="/dashboard/settings?tab=academic"
+            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-white font-bold transition"
+          >
+            <Settings className="size-3" />
+            Configurer les classes
+          </Link>
+        </div>
+      )}
 
       {/* ─── Applications Table ────────────────────────────────────────────── */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
