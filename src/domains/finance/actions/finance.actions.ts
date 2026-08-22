@@ -8,6 +8,8 @@ import { paymentSchema, expenseSchema, PaymentFormData, ExpenseFormData } from "
 import { protectedDbAction } from "@/lib/protected-action";
 import { schoolClasses, schoolSessions } from "@/infrastructure/database/schema/academics";
 import { students } from "@/infrastructure/database/schema/students";
+import { notifications } from "@/infrastructure/database/schema/messaging";
+import { users } from "@/infrastructure/database/schema/auth";
 import { getActiveSchoolId } from "@/domains/auth/services/school";
 import { getCurrentUser } from "@/domains/auth/services/session";
 import { getActiveEducationalLevel, getCompatibleLevels, getUserRoleType, checkEducationalLevelAccess, normalizeLevel } from "@/domains/auth/services/rbac";
@@ -218,6 +220,35 @@ export async function recordPayment(formData: PaymentFormData) {
         status: newStatus,
       })
       .where(eq(studentFees.id, feeId));
+
+    // 4. Create in-app notification for student & parents
+    try {
+      const studentInfo = fee.student;
+      if (studentInfo) {
+        const amountFmt = Math.round(amount).toLocaleString("fr-FR");
+        const notifTitle = `💳 Paiement Reçu / إيصال دفع: ${amountFmt} CFA`;
+        const notifContent = `Un versement de ${amountFmt} CFA a été enregistré pour l'élève ${studentInfo.nomEtudiant} (Reçu: ${reference || `#${payment?.id}`}). Solde restant: ${Math.round(newBalance).toLocaleString("fr-FR")} CFA.`;
+
+        const targetUsers = await db.query.users.findMany({
+          where: eq(users.studentId, studentInfo.id),
+        });
+
+        if (targetUsers.length > 0) {
+          for (const u of targetUsers) {
+            await db.insert(notifications).values({
+              title: notifTitle,
+              content: notifContent,
+              type: "success",
+              category: "Finance",
+              userId: u.id,
+              isRead: false,
+            });
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("Payment notification error:", e);
+    }
 
     revalidatePath("/dashboard/finance");
     return { success: true, id: payment?.id };
