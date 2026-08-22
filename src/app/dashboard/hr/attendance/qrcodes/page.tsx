@@ -2,10 +2,10 @@ export const dynamic = "force-dynamic";
 
 import { db } from "@/infrastructure/database";
 import { schoolClasses } from "@/infrastructure/database/schema/academics";
-import { schoolBranches } from "@/infrastructure/database/schema/settings";
 import { getActiveSchoolId } from "@/domains/auth/services/school";
 import { getCurrentUser } from "@/domains/auth/services/session";
 import { getUserRoleType, getCompatibleLevels } from "@/domains/auth/services/rbac";
+import { getDocumentHeaderConfig } from "@/domains/settings/actions/settings.actions";
 import { eq, and, inArray, sql } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import ClassroomQRCodes from "./qrcodes-client";
@@ -23,12 +23,16 @@ export default async function ClassroomQRCodesPage() {
 
   const schoolId = await getActiveSchoolId();
 
-  // Load branch/school details
-  const branch = await db.query.schoolBranches.findFirst({
-    where: eq(schoolBranches.schoolId, schoolId),
-  });
+  // Load header and branch/school details
+  const [branch, headerConfigRes] = await Promise.all([
+    db.query.schoolBranches.findFirst({
+      where: eq(schoolBranches.schoolId, schoolId),
+    }),
+    getDocumentHeaderConfig().catch(() => null),
+  ]);
 
-  const schoolName = branch?.branchName || "Mon École";
+  const headerConfig = (headerConfigRes as any)?.data?.data || (headerConfigRes as any)?.data || null;
+  const schoolName = headerConfig?.schoolName || branch?.branchName || "Mon École";
 
   // Build where clause for level directors
   let classWhere = eq(schoolClasses.schoolId, schoolId);
@@ -93,6 +97,7 @@ export default async function ClassroomQRCodesPage() {
     <ClassroomQRCodes
       classes={classesWithSchedule}
       schoolName={schoolName}
+      headerConfig={headerConfig}
     />
   );
 }

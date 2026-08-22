@@ -33,6 +33,8 @@ import {
   deleteStaffHrRequestAction,
   deleteStaffExtraHoursAction,
 } from "@/domains/hr/actions/self-service.actions";
+import { getDocumentHeaderConfig } from "@/domains/settings/actions/settings.actions";
+import HrDocumentPrintModal, { HrDocType } from "@/domains/hr/components/HrDocumentPrintModal";
 
 export default function HrSelfServicePage() {
   const [activeTab, setActiveTab] = useState<"requests" | "payslips" | "certificates" | "overtime">("requests");
@@ -42,6 +44,12 @@ export default function HrSelfServicePage() {
   const [requests, setRequests] = useState<any[]>([]);
   const [payslips, setPayslips] = useState<any[]>([]);
   const [extraHours, setExtraHours] = useState<any[]>([]);
+  const [headerConfig, setHeaderConfig] = useState<any>(null);
+
+  // Official Print Modal State
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [printDocType, setPrintDocType] = useState<HrDocType>("payslip");
+  const [selectedPayslipRecord, setSelectedPayslipRecord] = useState<any | null>(null);
 
   // Modal State: New HR Request
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
@@ -77,13 +85,19 @@ export default function HrSelfServicePage() {
   const loadData = async () => {
     try {
       setIsLoading(true);
-      const res: any = await getStaffSelfServiceData();
+      const [res, cfgRes]: any = await Promise.all([
+        getStaffSelfServiceData(),
+        getDocumentHeaderConfig().catch(() => null),
+      ]);
       const payload = res?.data || res;
       if (payload?.profile) {
         setProfile(payload.profile);
         setRequests(payload.requests || []);
         setPayslips(payload.payslips || []);
         setExtraHours(payload.extraHours || []);
+      }
+      if (cfgRes?.data) {
+        setHeaderConfig(cfgRes.data);
       }
     } catch (err) {
       toast.error("Erreur lors du chargement de votre espace personnel.");
@@ -482,10 +496,14 @@ export default function HrSelfServicePage() {
                     </div>
 
                     <button
-                      onClick={() => setSelectedPayslip(p)}
-                      className="w-full py-2 bg-white dark:bg-slate-900 hover:bg-slate-100 text-slate-800 dark:text-slate-200 rounded-xl border border-slate-200 dark:border-slate-700 font-bold text-xs flex items-center justify-center gap-1.5"
+                      onClick={() => {
+                        setSelectedPayslipRecord(p);
+                        setPrintDocType("payslip");
+                        setIsPrintModalOpen(true);
+                      }}
+                      className="w-full py-2 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-indigo-600 dark:text-indigo-400 rounded-xl border border-slate-200 dark:border-slate-700 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors"
                     >
-                      <Eye className="size-3.5" /> Visualiser le Bulletin
+                      <Printer className="size-3.5" /> Imprimer le Bulletin Officiel
                     </button>
                   </div>
                 ))}
@@ -510,8 +528,11 @@ export default function HrSelfServicePage() {
                 </p>
               </div>
               <button
-                onClick={() => setIsAttestationModalOpen(true)}
-                className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow flex items-center justify-center gap-2"
+                onClick={() => {
+                  setPrintDocType("certificate");
+                  setIsPrintModalOpen(true);
+                }}
+                className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow flex items-center justify-center gap-2 transition"
               >
                 <Printer className="size-4" /> Générer & Imprimer l'Attestation
               </button>
@@ -528,8 +549,11 @@ export default function HrSelfServicePage() {
                 </p>
               </div>
               <button
-                onClick={() => setIsAttestationModalOpen(true)}
-                className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow flex items-center justify-center gap-2"
+                onClick={() => {
+                  setPrintDocType("certificate");
+                  setIsPrintModalOpen(true);
+                }}
+                className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow flex items-center justify-center gap-2 transition"
               >
                 <Printer className="size-4" /> Générer & Imprimer le Certificat
               </button>
@@ -779,76 +803,15 @@ export default function HrSelfServicePage() {
         </div>
       )}
 
-      {/* MODAL: ATTESTATION DE TRAVAIL OFFICIELLE (PRINT PREVIEW) */}
-      {isAttestationModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-6 sm:p-10 space-y-6 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 print:hidden">
-              <h3 className="font-black text-lg text-slate-900 dark:text-white flex items-center gap-2">
-                <FileText className="size-5 text-indigo-600" /> Attestation de Travail Officielle
-              </h3>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => window.print()}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 shadow"
-                >
-                  <Printer className="size-4" /> Imprimer
-                </button>
-                <button onClick={() => setIsAttestationModalOpen(false)} className="p-2 text-slate-400">✕</button>
-              </div>
-            </div>
-
-            {/* Document Body */}
-            <div className="p-8 border-2 border-slate-200 dark:border-slate-700 rounded-2xl bg-white text-slate-900 space-y-6 font-serif">
-              <div className="text-center border-b pb-4 space-y-1">
-                <h2 className="text-lg font-black tracking-wider uppercase">RÉPUBLIQUE DU NIGER</h2>
-                <p className="text-xs italic">Ministère de l'Éducation Nationale • Région de Niamey</p>
-                <h1 className="text-xl font-extrabold text-indigo-900 mt-2">COMPLEXE SCOLAIRE PRIVÉ EDUT PRO</h1>
-              </div>
-
-              <div className="text-center py-4">
-                <h3 className="text-xl font-black uppercase tracking-widest underline decoration-2 underline-offset-4">
-                  ATTESTATION DE TRAVAIL
-                </h3>
-              </div>
-
-              <div className="text-sm leading-relaxed space-y-4">
-                <p>
-                  Je soussigné, <strong>Le Directeur Général</strong> de l'Établissement Edut Pro, certifie par la présente que :
-                </p>
-
-                <div className="p-4 bg-slate-50 border rounded-xl space-y-1 font-sans text-xs">
-                  <p><strong>Nom et Prénoms :</strong> {profile?.nom}</p>
-                  <p><strong>Matricule Interne :</strong> {profile?.empId}</p>
-                  <p><strong>Fonction / Poste :</strong> {profile?.poste}</p>
-                  <p><strong>Département :</strong> {profile?.departement}</p>
-                  <p><strong>Date d'engagement :</strong> {profile?.dateEmbauche || "01 Septembre 2023"}</p>
-                </div>
-
-                <p>
-                  Est employé(e) au sein de notre institution et exerce ses fonctions avec probité, dévouement et professionnalisme.
-                </p>
-
-                <p>
-                  En foi de quoi, la présente attestation lui est délivrée pour servir et valoir ce que de droit.
-                </p>
-              </div>
-
-              <div className="flex justify-between items-end pt-8 text-xs font-sans">
-                <div>
-                  <p className="text-[10px] text-slate-400">Réf : ATTEST-{new Date().getFullYear()}-{profile?.id}</p>
-                  <p className="text-[10px] text-slate-400">Vérifiable via QR Code Edut</p>
-                </div>
-
-                <div className="text-center space-y-12">
-                  <p>Fait à Niamey, le {new Date().toLocaleDateString("fr-FR")}</p>
-                  <p className="font-bold underline">La Direction Générale</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* ─── Official HR Document Printing Modal ─── */}
+      <HrDocumentPrintModal
+        isOpen={isPrintModalOpen}
+        onClose={() => setIsPrintModalOpen(false)}
+        headerConfig={headerConfig}
+        docType={printDocType}
+        salaryRecord={selectedPayslipRecord}
+        employee={profile}
+      />
     </div>
   );
 }

@@ -3,8 +3,9 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createSalaryRecord, markSalaryAsPaid, deleteSalaryRecord, getEmployeeAttendanceSummary, savePayrollRules } from "@/domains/hr/actions/payroll.actions";
-import { ArrowLeft, Users, TrendingUp, Clock, Plus, CheckCircle, FileText, Settings, RefreshCw, Trash2, ChevronDown } from "lucide-react";
+import { ArrowLeft, Users, TrendingUp, Clock, Plus, CheckCircle, FileText, Settings, RefreshCw, Trash2, ChevronDown, Printer, Download, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
+import HrDocumentPrintModal, { HrDocType } from "@/domains/hr/components/HrDocumentPrintModal";
 
 const MONTHS = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
 
@@ -23,12 +24,18 @@ function StatCard({ label, value, sub, icon, color }: any) {
   );
 }
 
-export default function PayrollClient({ dashboard, initialRecords, rules, employees, canEdit, canDelete }: any) {
+export default function PayrollClient({ dashboard, initialRecords, rules, employees, headerConfig, canEdit, canDelete }: any) {
   const router = useRouter();
   const [tab, setTab] = useState<"dashboard"|"generate"|"list">("dashboard");
   const [records, setRecords] = useState<any[]>(initialRecords);
   const [selectedRecord, setSelectedRecord] = useState<any>(null);
   const [isPending, startTransition] = useTransition();
+
+  // Print Modal State
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [printRecord, setPrintRecord] = useState<any>(null);
+  const [printEmp, setPrintEmp] = useState<any>(null);
+  const [printDocType, setPrintDocType] = useState<HrDocType>("payslip");
 
   // Generate tab state
   const now = new Date();
@@ -388,6 +395,22 @@ export default function PayrollClient({ dashboard, initialRecords, rules, employ
                     Payé le {new Date(selectedRecord.paymentDate).toLocaleDateString("fr-FR")}
                   </p>
                 )}
+
+                {/* Official Payslip Print Button */}
+                <button
+                  onClick={() => {
+                    const emp = selectedRecord.employee || employees.find((e: any) => e.id === selectedRecord.employeeId);
+                    setPrintRecord(selectedRecord);
+                    setPrintEmp(emp);
+                    setPrintDocType("payslip");
+                    setIsPrintModalOpen(true);
+                  }}
+                  className="w-full h-11 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900 text-indigo-700 dark:text-indigo-300 font-bold border border-indigo-200 dark:border-indigo-800 flex items-center justify-center gap-2 transition-all shadow-sm"
+                >
+                  <Printer size={16} />
+                  Imprimer Bulletin Officiel
+                </button>
+
                 {canEdit && selectedRecord.status === "Unpaid" && (
                   <button onClick={() => handleMarkPaid(selectedRecord.id)} disabled={isPending}
                     className="w-full h-11 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition-all disabled:opacity-50">
@@ -422,6 +445,16 @@ export default function PayrollClient({ dashboard, initialRecords, rules, employ
           </div>
         </div>
       )}
+
+      {/* ─── Official HR Document Printing Modal ─── */}
+      <HrDocumentPrintModal
+        isOpen={isPrintModalOpen}
+        onClose={() => setIsPrintModalOpen(false)}
+        headerConfig={headerConfig}
+        docType={printDocType}
+        salaryRecord={printRecord}
+        employee={printEmp}
+      />
     </div>
   );
 }
