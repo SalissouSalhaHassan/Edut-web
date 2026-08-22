@@ -29,7 +29,7 @@ export async function compressImage(
 
     if (typeof input === "string") {
       srcUrl = input;
-    } else if (input instanceof Blob || input instanceof File) {
+    } else if (typeof Blob !== "undefined" && input instanceof Blob) {
       srcUrl = URL.createObjectURL(input);
       isObjectUrl = true;
     } else {
