@@ -236,6 +236,180 @@ export default function AdmissionsPage() {
     toast.success("Lien d'inscription copié dans le presse-papier !");
   };
 
+  // ─── PDF: Lettre d'Admission officielle ─────────────────────────────────────
+  const downloadAdmissionPDF = async (app: any) => {
+    try {
+      const { jsPDF } = await import("jspdf");
+      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+
+      const pageW = doc.internal.pageSize.getWidth();
+      const margin = 20;
+      const contentW = pageW - margin * 2;
+
+      const schoolName: string = app.school?.name || "Edut Pro";
+      const studentName = `${(app.studentLastName || "").toUpperCase()} ${app.studentFirstName || ""}`;
+      const matricule: string = app.generatedMatricule || app.matricule || "—";
+      const targetClass: string = app.targetClass || "—";
+      const reviewDate = app.reviewedAt
+        ? new Date(app.reviewedAt).toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" })
+        : new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
+      const appNumber: string = app.applicationNumber || "";
+
+      // ── Header band ──────────────────────────────────────────────────────────
+      doc.setFillColor(4, 120, 87); // emerald-700
+      doc.rect(0, 0, pageW, 38, "F");
+
+      doc.setFillColor(6, 78, 59); // darker strip
+      doc.rect(0, 34, pageW, 6, "F");
+
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(18);
+      doc.setFont("helvetica", "bold");
+      doc.text(schoolName.toUpperCase(), pageW / 2, 16, { align: "center" });
+
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.text("PORTAIL ADMISSIONS — INSCRIPTION OFFICIELLE", pageW / 2, 25, { align: "center" });
+      doc.setFontSize(8);
+      doc.text(`Année Scolaire ${new Date().getFullYear()}–${new Date().getFullYear() + 1}`, pageW / 2, 32, { align: "center" });
+
+      // ── Title ────────────────────────────────────────────────────────────────
+      let y = 52;
+      doc.setTextColor(4, 120, 87);
+      doc.setFontSize(16);
+      doc.setFont("helvetica", "bold");
+      doc.text("LETTRE D'ADMISSION", pageW / 2, y, { align: "center" });
+      y += 5;
+      doc.setDrawColor(4, 120, 87);
+      doc.setLineWidth(0.8);
+      doc.line(margin + 30, y, pageW - margin - 30, y);
+      y += 10;
+
+      // ── Body intro ───────────────────────────────────────────────────────────
+      doc.setTextColor(30, 30, 30);
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      const introLines = doc.splitTextToSize(
+        `La Direction de ${schoolName} a l'honneur d'informer le parent ou tuteur de l'élève ${studentName} que sa candidature a été examinée par la Commission d'Admission et a fait l'objet d'une décision favorable.`,
+        contentW
+      );
+      doc.text(introLines, margin, y);
+      y += introLines.length * 5 + 8;
+
+      // ── Info Card (bordered box) ──────────────────────────────────────────────
+      doc.setDrawColor(209, 250, 229); // green-200
+      doc.setFillColor(240, 253, 244); // green-50
+      doc.setLineWidth(0.5);
+      doc.roundedRect(margin, y, contentW, 46, 3, 3, "FD");
+
+      const labelX = margin + 6;
+      const valueX = margin + 55;
+      doc.setFontSize(9);
+
+      const rows = [
+        ["Élève :", studentName],
+        ["N° Dossier :", appNumber],
+        ["Classe attribuée :", targetClass],
+        ["Matricule Officiel :", matricule],
+        ["Date de décision :", reviewDate],
+      ];
+
+      rows.forEach(([label, value], i) => {
+        const rowY = y + 8 + i * 8;
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(107, 114, 128);
+        doc.text(label, labelX, rowY);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(17, 24, 39);
+        if (label === "Matricule Officiel :") {
+          // Highlight matricule
+          doc.setFillColor(4, 120, 87);
+          doc.setDrawColor(4, 120, 87);
+          doc.roundedRect(valueX - 2, rowY - 4.5, 50, 6.5, 1.5, 1.5, "F");
+          doc.setTextColor(255, 255, 255);
+          doc.setFontSize(10);
+          doc.text(value, valueX + 1, rowY);
+          doc.setFontSize(9);
+        } else {
+          doc.text(value, valueX, rowY);
+        }
+      });
+
+      y += 54;
+
+      // ── Notes ────────────────────────────────────────────────────────────────
+      if (app.reviewNotes && app.reviewNotes.trim()) {
+        doc.setFillColor(254, 249, 195);
+        doc.setDrawColor(250, 204, 21);
+        doc.setLineWidth(0.4);
+        doc.roundedRect(margin, y, contentW, 18, 2, 2, "FD");
+        doc.setTextColor(146, 64, 14);
+        doc.setFontSize(8.5);
+        doc.setFont("helvetica", "italic");
+        const noteLines = doc.splitTextToSize(`Note : ${app.reviewNotes}`, contentW - 8);
+        doc.text(noteLines, margin + 4, y + 6);
+        y += 24;
+      }
+
+      // ── Next steps ───────────────────────────────────────────────────────────
+      y += 4;
+      doc.setTextColor(30, 30, 30);
+      doc.setFontSize(9.5);
+      doc.setFont("helvetica", "normal");
+      const steps = doc.splitTextToSize(
+        "Vous êtes prié(e) de vous présenter à l'administration de l'établissement avec ce document, une pièce d'identité du parent/tuteur, et le carnet de notes de l'élève, afin de finaliser les formalités d'inscription et régler les frais de scolarité.",
+        contentW
+      );
+      doc.text(steps, margin, y);
+      y += steps.length * 5 + 12;
+
+      // ── Signature block ───────────────────────────────────────────────────────
+      doc.setDrawColor(229, 231, 235);
+      doc.setLineWidth(0.3);
+      doc.line(margin, y, pageW - margin, y);
+      y += 10;
+
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(30, 30, 30);
+      doc.text("Le Directeur / La Directrice", pageW - margin - 55, y);
+      y += 6;
+      doc.setFont("helvetica", "italic");
+      doc.setTextColor(107, 114, 128);
+      doc.text(schoolName, pageW - margin - 55, y);
+      y += 18;
+
+      // Signature line
+      doc.setDrawColor(30, 30, 30);
+      doc.setLineWidth(0.4);
+      doc.line(pageW - margin - 55, y, pageW - margin - 5, y);
+      y += 4;
+      doc.setFontSize(7.5);
+      doc.setTextColor(107, 114, 128);
+      doc.text("Cachet & Signature", pageW - margin - 55, y);
+
+      // ── Footer ───────────────────────────────────────────────────────────────
+      const pageH = doc.internal.pageSize.getHeight();
+      doc.setFillColor(248, 250, 252);
+      doc.rect(0, pageH - 14, pageW, 14, "F");
+      doc.setFontSize(7);
+      doc.setTextColor(156, 163, 175);
+      doc.setFont("helvetica", "normal");
+      doc.text(
+        `Document généré automatiquement par Edut Pro · ${new Date().toLocaleString("fr-FR")}`,
+        pageW / 2,
+        pageH - 5,
+        { align: "center" }
+      );
+
+      doc.save(`Lettre_Admission_${studentName.replace(/\s+/g, "_")}_${matricule}.pdf`);
+      toast.success("📄 Lettre d'admission téléchargée !");
+    } catch (err) {
+      console.error("PDF generation error:", err);
+      toast.error("Erreur lors de la génération du PDF.");
+    }
+  };
+
   // classesList is dynamically loaded from school_classes (configured in /settings?tab=academic)
   // Fallback to a default list only if school has no classes configured yet
   const CLASSES_LIST = classesList.length > 0
@@ -243,6 +417,7 @@ export default function AdmissionsPage() {
     : ["CI", "CP", "CE1", "CE2", "CM1", "CM2",
        "6ème A", "6ème B", "5ème A", "5ème B", "4ème A", "4ème B", "3ème A", "3ème B",
        "2nde C", "2nde A", "1ère D", "1ère A", "Terminale D", "Terminale A", "Terminale C"];
+
 
   return (
     <div className="space-y-8 p-6 max-w-7xl mx-auto font-sans">
@@ -511,6 +686,16 @@ export default function AdmissionsPage() {
                           <Eye className="size-3.5" />
                           Examiner
                         </button>
+                        {app.status === "Admis / Accepté" && (
+                          <button
+                            onClick={() => downloadAdmissionPDF(app)}
+                            className="px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-500 hover:text-white text-emerald-700 dark:text-emerald-300 font-bold transition flex items-center gap-1 border border-emerald-200 dark:border-emerald-800"
+                            title="Télécharger la lettre d'admission PDF"
+                          >
+                            <Download className="size-3.5" />
+                            PDF
+                          </button>
+                        )}
                         <button
                           onClick={() => handleDelete(app.id)}
                           className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950 transition"
@@ -519,6 +704,7 @@ export default function AdmissionsPage() {
                           <Trash2 className="size-3.5" />
                         </button>
                       </div>
+
                     </td>
                   </tr>
                 ))
@@ -601,7 +787,7 @@ export default function AdmissionsPage() {
       {isReviewModalOpen && selectedApp && (
         <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white dark:bg-slate-900 w-full max-w-xl rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 space-y-6 max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3">
+            <div className="flex justify-between items-start border-b border-slate-100 dark:border-slate-800 pb-3">
               <div>
                 <span className="text-[10px] font-mono font-bold text-emerald-600 uppercase">
                   Dossier : {selectedApp.applicationNumber}
@@ -609,14 +795,35 @@ export default function AdmissionsPage() {
                 <h3 className="font-extrabold text-xl text-slate-900 dark:text-white">
                   {selectedApp.studentLastName?.toUpperCase()} {selectedApp.studentFirstName}
                 </h3>
+                {selectedApp.generatedMatricule && (
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-[10px] font-bold text-slate-400">Matricule :</span>
+                    <span className="text-xs font-black font-mono text-emerald-600 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-lg border border-emerald-200 dark:border-emerald-800">
+                      {selectedApp.generatedMatricule}
+                    </span>
+                  </div>
+                )}
               </div>
-              <button
-                onClick={() => setIsReviewModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 font-bold"
-              >
-                ✕
-              </button>
+              <div className="flex items-center gap-2">
+                {selectedApp.status === "Admis / Accepté" && (
+                  <button
+                    onClick={() => downloadAdmissionPDF(selectedApp)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition shadow"
+                    title="Télécharger la lettre d'admission PDF"
+                  >
+                    <Download className="size-3.5" />
+                    Lettre PDF
+                  </button>
+                )}
+                <button
+                  onClick={() => setIsReviewModalOpen(false)}
+                  className="text-slate-400 hover:text-slate-600 font-bold"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
+
 
             {/* Candidate Summary */}
             <div className="bg-slate-50 dark:bg-slate-800/60 p-4 rounded-2xl space-y-3 text-xs">

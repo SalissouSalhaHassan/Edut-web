@@ -458,7 +458,7 @@ export async function reviewAdmissionApplicationAction(data: {
         })
         .where(eq(admissionApplications.id, data.applicationId));
 
-      // 4. Send official Acceptance & Matricule alert via WhatsApp and SMS
+      // 4. Send official Acceptance & Matricule alert via WhatsApp, SMS and Email
       try {
         await MessagingService.sendAdmissionApprovedAlert({
           to: application.parentPhone,
@@ -472,6 +472,20 @@ export async function reviewAdmissionApplicationAction(data: {
           sendWhatsApp: true,
         });
 
+        // 📧 Email notification if parent email is available
+        if (application.parentEmail) {
+          await MessagingService.sendAdmissionApprovedEmail({
+            parentEmail: application.parentEmail,
+            parentName: application.parentName,
+            studentName: studentFullName,
+            matricule,
+            targetClass,
+            schoolName,
+            applicationNumber: application.applicationNumber,
+            reviewNotes: data.reviewNotes,
+          });
+        }
+
         await db
           .update(admissionApplications)
           .set({ parentNotified: true, parentNotificationSentAt: new Date() })
@@ -479,6 +493,7 @@ export async function reviewAdmissionApplicationAction(data: {
       } catch (err) {
         console.error("⚠️ Failed to send admission approval notification:", err);
       }
+
 
       revalidatePath("/dashboard/admissions");
       revalidatePath("/dashboard/students");
@@ -502,7 +517,24 @@ export async function reviewAdmissionApplicationAction(data: {
         })
         .where(eq(admissionApplications.id, data.applicationId));
 
+      // 📧 Email notification for rejected / waitlisted (if parent email available)
+      if (application.parentEmail && data.decision !== "En examen") {
+        try {
+          await MessagingService.sendAdmissionRejectedEmail({
+            parentEmail: application.parentEmail,
+            parentName: application.parentName,
+            studentName: `${application.studentLastName.toUpperCase()} ${application.studentFirstName}`,
+            schoolName,
+            decision: data.decision,
+            reviewNotes: data.reviewNotes,
+          });
+        } catch (err) {
+          console.error("⚠️ Failed to send rejection email:", err);
+        }
+      }
+
       revalidatePath("/dashboard/admissions");
+
       return {
         success: true,
         decision: data.decision,

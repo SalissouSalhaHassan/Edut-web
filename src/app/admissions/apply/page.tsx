@@ -146,7 +146,22 @@ function ApplyFormContent() {
       {/* ─── Top Navbar ────────────────────────────────────────────────────────── */}
       <header className="max-w-4xl mx-auto w-full flex items-center justify-between py-4 border-b border-slate-800/80">
         <div className="flex items-center gap-3">
-          <div className="size-11 bg-gradient-to-br from-emerald-400 to-teal-600 rounded-2xl flex items-center justify-center text-slate-950 font-black shadow-lg shadow-emerald-500/20">
+          {/* School logo or fallback icon */}
+          {schoolInfo.logoPath ? (
+            <img
+              src={schoolInfo.logoPath}
+              alt={`Logo ${schoolInfo.name}`}
+              className="size-11 rounded-2xl object-contain bg-white/10 p-0.5 shadow-lg shadow-emerald-500/10 border border-white/10"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).style.display = "none";
+                (e.currentTarget.nextElementSibling as HTMLElement | null)?.style.setProperty("display", "flex");
+              }}
+            />
+          ) : null}
+          <div
+            className="size-11 bg-gradient-to-br from-emerald-400 to-teal-600 rounded-2xl items-center justify-center text-slate-950 font-black shadow-lg shadow-emerald-500/20"
+            style={{ display: schoolInfo.logoPath ? "none" : "flex" }}
+          >
             <School className="size-6" />
           </div>
           <div>
@@ -159,6 +174,7 @@ function ApplyFormContent() {
             <p className="text-xs text-slate-400">Portail Officiel d'Admission & Pré-inscription en Ligne</p>
           </div>
         </div>
+
 
         <Link
           href="/admissions/status"

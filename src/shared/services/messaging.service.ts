@@ -656,6 +656,197 @@ export class MessagingService {
     }
   }
 
+  // ─── 10. Email Notifications (via Resend API) ────────────────────────────────
+
+  /**
+   * Generic email sender via Resend REST API.
+   * Set RESEND_API_KEY in .env to enable. Falls back to console log if not configured.
+   */
+  static async sendEmail(payload: {
+    to: string;
+    subject: string;
+    html: string;
+    from?: string;
+  }): Promise<boolean> {
+    try {
+      const apiKey = process.env.RESEND_API_KEY;
+      const fromAddress = payload.from || process.env.EMAIL_FROM || "Edut Pro <noreply@edut.pro>";
+
+      if (!apiKey) {
+        console.log(`[EMAIL - No API Key] To: ${payload.to} | Subject: ${payload.subject}`);
+        return false;
+      }
+
+      const response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: fromAddress,
+          to: [payload.to],
+          subject: payload.subject,
+          html: payload.html,
+        }),
+      });
+
+      const ok = response.ok;
+      console.log(`[EMAIL ${ok ? "SENT" : "FAILED"}] to ${payload.to}: ${payload.subject}`);
+      return ok;
+    } catch (err) {
+      console.error("Email send error:", err);
+      return false;
+    }
+  }
+
+  /**
+   * Sends admission acceptance email with matricule to parent.
+   */
+  static async sendAdmissionApprovedEmail(payload: {
+    parentEmail: string;
+    parentName: string;
+    studentName: string;
+    matricule: string;
+    targetClass: string;
+    schoolName: string;
+    applicationNumber?: string;
+    reviewNotes?: string;
+  }): Promise<boolean> {
+    const {
+      parentEmail,
+      parentName,
+      studentName,
+      matricule,
+      targetClass,
+      schoolName,
+      applicationNumber = "",
+      reviewNotes = "",
+    } = payload;
+
+    if (!parentEmail || parentEmail.trim() === "") return false;
+
+    const subject = `✅ Admission Confirmée — ${studentName} | ${schoolName}`;
+    const html = `
+<!DOCTYPE html>
+<html lang="fr">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,sans-serif;">
+  <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08);">
+    <!-- Header -->
+    <div style="background:linear-gradient(135deg,#064e3b,#047857);padding:32px 40px;text-align:center;">
+      <div style="display:inline-block;background:rgba(255,255,255,.15);border-radius:12px;padding:10px 20px;margin-bottom:12px;">
+        <span style="color:#6ee7b7;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;">Portail Admissions</span>
+      </div>
+      <h1 style="color:#fff;font-size:26px;margin:0 0 6px;font-weight:900;">Félicitations ! 🎉</h1>
+      <p style="color:#a7f3d0;margin:0;font-size:14px;">${schoolName}</p>
+    </div>
+    <!-- Body -->
+    <div style="padding:40px;">
+      <p style="color:#374151;font-size:15px;margin-bottom:24px;">
+        Cher(e) <strong>${parentName}</strong>,
+      </p>
+      <p style="color:#374151;font-size:15px;line-height:1.7;margin-bottom:28px;">
+        Nous avons le plaisir de vous informer que la candidature de <strong>${studentName}</strong> a été <span style="color:#059669;font-weight:700;">ACCEPTÉE</span> par la commission d'admission de <strong>${schoolName}</strong>.
+      </p>
+
+      <!-- Info Card -->
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:24px;margin-bottom:28px;">
+        <table style="width:100%;border-collapse:collapse;">
+          <tr>
+            <td style="padding:8px 0;color:#6b7280;font-size:13px;width:40%;">Élève</td>
+            <td style="padding:8px 0;color:#111827;font-size:14px;font-weight:700;">${studentName}</td>
+          </tr>
+          <tr>
+            <td style="padding:8px 0;color:#6b7280;font-size:13px;border-top:1px solid #d1fae5;">Classe attribuée</td>
+            <td style="padding:8px 0;color:#111827;font-size:14px;font-weight:700;border-top:1px solid #d1fae5;">${targetClass}</td>
+          </tr>
+          <tr>
+            <td style="padding:8px 0;color:#6b7280;font-size:13px;border-top:1px solid #d1fae5;">Matricule Officiel</td>
+            <td style="padding:8px 0;border-top:1px solid #d1fae5;">
+              <span style="background:#059669;color:#fff;font-size:15px;font-weight:900;font-family:monospace;padding:4px 12px;border-radius:6px;">${matricule}</span>
+            </td>
+          </tr>
+          ${applicationNumber ? `<tr><td style="padding:8px 0;color:#6b7280;font-size:13px;border-top:1px solid #d1fae5;">N° Dossier</td><td style="padding:8px 0;color:#6b7280;font-size:13px;font-family:monospace;border-top:1px solid #d1fae5;">${applicationNumber}</td></tr>` : ""}
+          ${reviewNotes ? `<tr><td style="padding:8px 0;color:#6b7280;font-size:13px;border-top:1px solid #d1fae5;">Note</td><td style="padding:8px 0;color:#374151;font-size:13px;border-top:1px solid #d1fae5;">${reviewNotes}</td></tr>` : ""}
+        </table>
+      </div>
+
+      <p style="color:#374151;font-size:14px;line-height:1.7;margin-bottom:8px;">
+        Veuillez vous présenter à l'administration de l'école muni(e) de ce matricule pour finaliser les formalités d'inscription et régler les frais de scolarité.
+      </p>
+
+      <p style="color:#6b7280;font-size:13px;margin-top:28px;">
+        Cordialement,<br>
+        <strong>La Commission des Admissions</strong><br>
+        <em>${schoolName}</em>
+      </p>
+    </div>
+    <!-- Footer -->
+    <div style="background:#f8fafc;border-top:1px solid #e5e7eb;padding:20px 40px;text-align:center;">
+      <p style="color:#9ca3af;font-size:11px;margin:0;">
+        Cet email a été envoyé automatiquement par Edut Pro · Ne pas répondre directement.
+      </p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+    return this.sendEmail({ to: parentEmail, subject, html });
+  }
+
+  /**
+   * Sends admission rejection email to parent.
+   */
+  static async sendAdmissionRejectedEmail(payload: {
+    parentEmail: string;
+    parentName: string;
+    studentName: string;
+    schoolName: string;
+    decision: string;
+    reviewNotes?: string;
+  }): Promise<boolean> {
+    const { parentEmail, parentName, studentName, schoolName, decision, reviewNotes = "" } = payload;
+    if (!parentEmail || parentEmail.trim() === "") return false;
+
+    const isWaitlist = decision === "Liste d'attente";
+    const subject = isWaitlist
+      ? `⏳ Liste d'Attente — ${studentName} | ${schoolName}`
+      : `📋 Mise à jour de votre dossier — ${studentName} | ${schoolName}`;
+
+    const html = `
+<!DOCTYPE html>
+<html lang="fr">
+<head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,sans-serif;">
+  <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08);">
+    <div style="background:linear-gradient(135deg,#1e293b,#334155);padding:32px 40px;text-align:center;">
+      <h1 style="color:#fff;font-size:24px;margin:0 0 6px;font-weight:900;">${isWaitlist ? "⏳ Liste d'Attente" : "📋 Mise à jour Dossier"}</h1>
+      <p style="color:#94a3b8;margin:0;font-size:14px;">${schoolName}</p>
+    </div>
+    <div style="padding:40px;">
+      <p style="color:#374151;font-size:15px;">Cher(e) <strong>${parentName}</strong>,</p>
+      <p style="color:#374151;font-size:15px;line-height:1.7;">
+        Suite à l'examen du dossier de <strong>${studentName}</strong>, la commission d'admission vous informe que la décision est :
+        <br><br>
+        <strong style="font-size:16px;color:${isWaitlist ? "#d97706" : "#dc2626"};">${decision}</strong>
+      </p>
+      ${reviewNotes ? `<div style="background:#fef9f0;border:1px solid #fde68a;border-radius:10px;padding:16px;margin-top:16px;"><p style="color:#92400e;font-size:13px;margin:0;">${reviewNotes}</p></div>` : ""}
+      <p style="color:#6b7280;font-size:13px;margin-top:28px;">
+        Pour toute question, veuillez contacter directement l'administration de l'école.
+        <br><br>Cordialement,<br><strong>Commission des Admissions — ${schoolName}</strong>
+      </p>
+    </div>
+    <div style="background:#f8fafc;border-top:1px solid #e5e7eb;padding:16px 40px;text-align:center;">
+      <p style="color:#9ca3af;font-size:11px;margin:0;">Edut Pro · Plateforme de Gestion Scolaire</p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+    return this.sendEmail({ to: parentEmail, subject, html });
+  }
+
   private static async logMessage(type: MessageChannel, target: string, content: string, status: string = "Envoyé") {
     try {
       await db.insert(messageLogs).values({
@@ -670,3 +861,4 @@ export class MessagingService {
     }
   }
 }
+
