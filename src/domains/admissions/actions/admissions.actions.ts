@@ -137,6 +137,7 @@ export async function getPublicApplicationStatusAction(params: {
         reviewedBy: application.reviewedBy,
         reviewedAt: application.reviewedAt,
         createdAt: application.createdAt,
+        photoUrl: application.photoUrl,
         schoolName: application.school?.name || "Edut Pro",
         schoolLogo: application.school?.logoPath || null,
       },

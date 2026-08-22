@@ -663,7 +663,7 @@ export default function AdmissionsPrintModal({
                   pour l'année scolaire <strong className="font-bold">{cfg.schoolYear}</strong>.
                 </div>
 
-                {/* Candidate Info Table */}
+                {/* Candidate Info Table & Photo */}
                 <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
                   <div className="bg-slate-900 text-white px-4 py-2 text-xs font-black uppercase tracking-wider flex items-center justify-between">
                     <span>Données de l'élève admis</span>
@@ -671,42 +671,63 @@ export default function AdmissionsPrintModal({
                       Matricule : {currentApp.generatedMatricule || currentApp.matricule || "Nouveau"}
                     </span>
                   </div>
-                  <table className="w-full text-left text-xs border-collapse">
-                    <tbody>
-                      <tr className="border-b border-slate-100">
-                        <td className="p-3 font-bold text-slate-500 w-1/3 bg-slate-50">Nom et Prénom :</td>
-                        <td className="p-3 font-black text-slate-900 uppercase">
-                          {currentApp.studentLastName} {currentApp.studentFirstName}
-                        </td>
-                      </tr>
-                      <tr className="border-b border-slate-100">
-                        <td className="p-3 font-bold text-slate-500 bg-slate-50">Classe d'Admission :</td>
-                        <td className="p-3 font-bold text-emerald-700">{currentApp.targetClass}</td>
-                      </tr>
-                      <tr className="border-b border-slate-100">
-                        <td className="p-3 font-bold text-slate-500 bg-slate-50">Date et Lieu de Naissance :</td>
-                        <td className="p-3 font-medium">
-                          {currentApp.dateOfBirth} ({currentApp.placeOfBirth || "Niamey"}) • Sexe :{" "}
-                          {currentApp.gender === "M" ? "Masculin" : "Féminin"}
-                        </td>
-                      </tr>
-                      <tr className="border-b border-slate-100">
-                        <td className="p-3 font-bold text-slate-500 bg-slate-50">Parent / Tuteur :</td>
-                        <td className="p-3 font-medium">
-                          {currentApp.parentName} ({currentApp.parentRelation || "Père"}) • Tél :{" "}
-                          <span className="font-mono font-bold">{currentApp.parentPhone}</span>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className="p-3 font-bold text-slate-500 bg-slate-50">Date de délibération :</td>
-                        <td className="p-3 font-medium">
-                          {currentApp.reviewedAt
-                            ? new Date(currentApp.reviewedAt).toLocaleDateString("fr-FR", { dateStyle: "long" })
-                            : new Date().toLocaleDateString("fr-FR", { dateStyle: "long" })}
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
+                  <div className="flex flex-col sm:flex-row items-stretch">
+                    <table className="flex-1 text-left text-xs border-collapse">
+                      <tbody>
+                        <tr className="border-b border-slate-100">
+                          <td className="p-3 font-bold text-slate-500 w-1/3 bg-slate-50">Nom et Prénom :</td>
+                          <td className="p-3 font-black text-slate-900 uppercase">
+                            {currentApp.studentLastName} {currentApp.studentFirstName}
+                          </td>
+                        </tr>
+                        <tr className="border-b border-slate-100">
+                          <td className="p-3 font-bold text-slate-500 bg-slate-50">Classe d'Admission :</td>
+                          <td className="p-3 font-bold text-emerald-700">{currentApp.targetClass}</td>
+                        </tr>
+                        <tr className="border-b border-slate-100">
+                          <td className="p-3 font-bold text-slate-500 bg-slate-50">Date et Lieu de Naissance :</td>
+                          <td className="p-3 font-medium">
+                            {currentApp.dateOfBirth} ({currentApp.placeOfBirth || "Niamey"}) • Sexe :{" "}
+                            {currentApp.gender === "M" ? "Masculin" : "Féminin"}
+                          </td>
+                        </tr>
+                        <tr className="border-b border-slate-100">
+                          <td className="p-3 font-bold text-slate-500 bg-slate-50">Parent / Tuteur :</td>
+                          <td className="p-3 font-medium">
+                            {currentApp.parentName} ({currentApp.parentRelation || "Père"}) • Tél :{" "}
+                            <span className="font-mono font-bold">{currentApp.parentPhone}</span>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td className="p-3 font-bold text-slate-500 bg-slate-50">Date de délibération :</td>
+                          <td className="p-3 font-medium">
+                            {currentApp.reviewedAt
+                              ? new Date(currentApp.reviewedAt).toLocaleDateString("fr-FR", { dateStyle: "long" })
+                              : new Date().toLocaleDateString("fr-FR", { dateStyle: "long" })}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+
+                    {/* Candidate Photo Box */}
+                    <div className="w-full sm:w-36 border-t sm:border-t-0 sm:border-l border-slate-200 bg-slate-50/80 p-3 flex flex-col items-center justify-center text-center shrink-0">
+                      {currentApp.photoUrl ? (
+                        <img
+                          src={currentApp.photoUrl}
+                          alt="Photo Candidat"
+                          className="w-24 h-28 object-cover rounded-xl border-2 border-slate-300 shadow-sm"
+                        />
+                      ) : (
+                        <div className="w-24 h-28 border-2 border-dashed border-slate-300 rounded-xl bg-white flex flex-col items-center justify-center text-[10px] font-bold text-slate-400 p-2 space-y-1">
+                          <span className="text-[9px] uppercase tracking-wider text-slate-400">Photo 4x4</span>
+                          <span className="text-[8px] text-slate-300 font-normal">Photo Récente</span>
+                        </div>
+                      )}
+                      <span className="text-[8px] font-black uppercase tracking-widest text-slate-400 mt-2">
+                        Photo Élève
+                      </span>
+                    </div>
+                  </div>
                 </div>
 
                 {currentApp.reviewNotes && (

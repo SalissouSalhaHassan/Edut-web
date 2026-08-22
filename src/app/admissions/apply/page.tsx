@@ -22,6 +22,8 @@ import {
   Building,
   GraduationCap,
   HeartPulse,
+  Camera,
+  Upload,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import {
@@ -229,6 +231,68 @@ function ApplyFormContent() {
                       Informations de l'Élève Candidat
                     </h2>
                     <p className="text-xs text-slate-400">Renseignez l'identité exacte de l'enfant.</p>
+                  </div>
+
+                  {/* ─── Candidate Photo Upload Box ─── */}
+                  <div className="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-4 flex flex-col sm:flex-row items-center gap-4">
+                    <div className="relative size-24 sm:size-28 rounded-2xl border-2 border-dashed border-slate-700 hover:border-emerald-500/60 bg-slate-900 flex flex-col items-center justify-center overflow-hidden shrink-0 transition group">
+                      {formData.photoUrl ? (
+                        <>
+                          <img
+                            src={formData.photoUrl}
+                            alt="Photo candidat"
+                            className="w-full h-full object-cover"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setFormData({ ...formData, photoUrl: "" })}
+                            className="absolute inset-0 bg-slate-950/70 text-rose-400 text-[10px] font-bold opacity-0 group-hover:opacity-100 flex items-center justify-center transition"
+                          >
+                            Supprimer
+                          </button>
+                        </>
+                      ) : (
+                        <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer p-2 text-center">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                if (file.size > 5 * 1024 * 1024) {
+                                  toast.error("La photo ne doit pas dépasser 5 Mo.");
+                                  return;
+                                }
+                                const reader = new FileReader();
+                                reader.onload = () => {
+                                  setFormData({ ...formData, photoUrl: reader.result as string });
+                                  toast.success("Photo ajoutée avec succès !");
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                          />
+                          <Camera className="size-6 text-slate-400 group-hover:text-emerald-400 mb-1 transition" />
+                          <span className="text-[9px] font-bold text-slate-400 leading-tight">
+                            Ajouter Photo
+                          </span>
+                          <span className="text-[8px] text-slate-500">4x4 Récente</span>
+                        </label>
+                      )}
+                    </div>
+
+                    <div className="space-y-1 text-center sm:text-left">
+                      <div className="flex items-center justify-center sm:justify-start gap-2">
+                        <span className="text-xs font-black text-white">Photo d'Identité du Candidat</span>
+                        <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-arabic">
+                          صورة التلميذ
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-400 leading-relaxed font-medium">
+                        Ajoutez une photo d'identité récente au format portrait (JPG, PNG). Elle figurera sur l'Attestation d'Admission et la Fiche Scolaire officielle.
+                      </p>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

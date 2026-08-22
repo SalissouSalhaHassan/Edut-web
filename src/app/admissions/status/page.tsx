@@ -161,14 +161,27 @@ function StatusTrackingContent() {
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300">
             {/* Status Banner */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-800">
-              <div>
-                <span className="text-[11px] font-mono font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                  Établissement : {result.schoolName}
-                </span>
-                <h3 className="text-xl font-black text-white">{result.studentName}</h3>
-                <p className="text-xs text-emerald-400 font-semibold mt-0.5">
-                  Classe sollicitée : <span className="font-bold text-white">{result.targetClass}</span>
-                </p>
+              <div className="flex items-center gap-4">
+                {result.photoUrl ? (
+                  <img
+                    src={result.photoUrl}
+                    alt="Photo Candidat"
+                    className="size-16 rounded-2xl object-cover border-2 border-emerald-500/30 shadow-md shadow-emerald-500/10 shrink-0"
+                  />
+                ) : (
+                  <div className="size-16 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400 font-bold text-xs shrink-0">
+                    Photo
+                  </div>
+                )}
+                <div>
+                  <span className="text-[11px] font-mono font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                    Établissement : {result.schoolName}
+                  </span>
+                  <h3 className="text-xl font-black text-white">{result.studentName}</h3>
+                  <p className="text-xs text-emerald-400 font-semibold mt-0.5">
+                    Classe sollicitée : <span className="font-bold text-white">{result.targetClass}</span>
+                  </p>
+                </div>
               </div>
 
               {/* Status Badge */}
