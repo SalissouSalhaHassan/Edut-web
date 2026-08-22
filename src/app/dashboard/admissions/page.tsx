@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 import {
   UserPlus,
@@ -26,7 +27,14 @@ import {
   ExternalLink,
   ShieldAlert,
   Sparkles,
+  QrCode,
+  Share2,
+  Copy,
+  Printer,
+  Globe,
+  Download,
 } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 import {
   getAdmissionsDashboardStats,
   getAdmissionApplicationsList,
@@ -55,6 +63,16 @@ export default function AdmissionsPage() {
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [reviewNotes, setReviewNotes] = useState("");
   const [assignedClass, setAssignedClass] = useState("");
+
+  // Share & QR Modal
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [publicUrl, setPublicUrl] = useState("https://edut.pro/admissions/apply");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setPublicUrl(`${window.location.origin}/admissions/apply`);
+    }
+  }, []);
 
   // New Direct Application Modal
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -202,6 +220,11 @@ export default function AdmissionsPage() {
     }
   };
 
+  const copyPublicLink = () => {
+    navigator.clipboard.writeText(publicUrl);
+    toast.success("Lien d'inscription copié dans le presse-papier !");
+  };
+
   const CLASSES_LIST = [
     "CI", "CP", "CE1", "CE2", "CM1", "CM2",
     "6ème A", "6ème B", "5ème A", "5ème B", "4ème A", "4ème B", "3ème A", "3ème B",
@@ -209,8 +232,8 @@ export default function AdmissionsPage() {
   ];
 
   return (
-    <div className="space-y-8 p-6 max-w-7xl mx-auto">
-      {/* Header */}
+    <div className="space-y-8 p-6 max-w-7xl mx-auto font-sans">
+      {/* ─── Header ────────────────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-gradient-to-r from-emerald-950 via-teal-900 to-slate-900 p-6 sm:p-8 rounded-3xl text-white shadow-xl relative overflow-hidden">
         <div className="space-y-2 relative z-10">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-xs font-semibold uppercase tracking-wider backdrop-blur-md">
@@ -220,20 +243,29 @@ export default function AdmissionsPage() {
             Admissions & Nouvelles Inscriptions 📝
           </h1>
           <p className="text-emerald-100 text-sm sm:text-base max-w-2xl font-medium">
-            Gestion centralisée des candidatures en ligne, examen des pièces justificatives, attribution automatique du Matricule et notification instantanée aux parents.
+            Gestion des candidatures en ligne, attribution automatique du Matricule et portail public accessible par QR Code et lien direct pour les parents.
           </p>
         </div>
-        <div className="flex items-center gap-3 relative z-10">
+
+        <div className="flex flex-wrap items-center gap-3 relative z-10">
+          <button
+            onClick={() => setIsShareModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-white/20 backdrop-blur-md transition shadow-lg"
+          >
+            <QrCode className="size-4 text-emerald-400" />
+            Lien Public & QR Code
+          </button>
+
           <button
             onClick={() => setIsAddModalOpen(true)}
-            className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-sm shadow-lg transition-all transform active:scale-95"
+            className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs shadow-lg transition transform active:scale-95"
           >
             <Plus className="size-4" /> Nouveau Dossier
           </button>
         </div>
       </div>
 
-      {/* KPI Stats Cards */}
+      {/* ─── KPI Stats Cards ────────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-4">
           <div className="p-3.5 bg-blue-50 dark:bg-blue-950 text-blue-600 rounded-2xl">
@@ -252,8 +284,8 @@ export default function AdmissionsPage() {
           </div>
           <div>
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">En Attente d'Examen</p>
-            <h3 className="text-2xl font-black text-amber-600 mt-0.5">{stats.pendingReview}</h3>
-            <p className="text-xs text-slate-400">À examiner par la commission</p>
+            <h3 className="text-2xl font-black text-slate-900 dark:text-white mt-0.5">{stats.pendingReview}</h3>
+            <p className="text-xs text-slate-400">À délibérer</p>
           </div>
         </div>
 
@@ -262,9 +294,9 @@ export default function AdmissionsPage() {
             <CheckCircle2 className="size-6" />
           </div>
           <div>
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Admis & Matriculés</p>
-            <h3 className="text-2xl font-black text-emerald-600 mt-0.5">{stats.admitted}</h3>
-            <p className="text-xs text-slate-400">Inscrits officiellement</p>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Admis / Acceptés</p>
+            <h3 className="text-2xl font-black text-slate-900 dark:text-white mt-0.5">{stats.admitted}</h3>
+            <p className="text-xs text-slate-400">Matricules générés</p>
           </div>
         </div>
 
@@ -273,279 +305,386 @@ export default function AdmissionsPage() {
             <XCircle className="size-6" />
           </div>
           <div>
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Refusés / Non retenus</p>
-            <h3 className="text-2xl font-black text-rose-600 mt-0.5">{stats.rejected}</h3>
-            <p className="text-xs text-slate-400">Dossiers rejetés</p>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Rejetés / Listes</p>
+            <h3 className="text-2xl font-black text-slate-900 dark:text-white mt-0.5">{stats.rejected}</h3>
+            <p className="text-xs text-slate-400">Dossiers non retenus</p>
           </div>
         </div>
       </div>
 
-      {/* Filters and Search Bar */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-        <div className="relative w-full sm:w-80">
-          <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+      {/* ─── Public Portal Promotion Banner ───────────────────────────────── */}
+      <div className="bg-gradient-to-r from-emerald-900/30 to-teal-900/20 border border-emerald-500/20 rounded-2xl p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-3 text-center sm:text-left">
+          <div className="size-10 rounded-xl bg-emerald-500 text-slate-950 flex items-center justify-center font-bold shrink-0">
+            <Globe className="size-5" />
+          </div>
+          <div>
+            <h4 className="text-sm font-black text-slate-900 dark:text-white">
+              Votre portail d'inscription public est ouvert !
+            </h4>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Les parents peuvent s'inscrire depuis chez eux via le lien sécurisé ou en scannant le QR code.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={copyPublicLink}
+            className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs font-bold flex items-center gap-1.5 hover:bg-slate-50 transition shadow-sm"
+          >
+            <Copy className="size-3.5" />
+            Copier le Lien
+          </button>
+          <a
+            href="/admissions/apply"
+            target="_blank"
+            rel="noreferrer"
+            className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 transition shadow-sm"
+          >
+            <ExternalLink className="size-3.5" />
+            Tester le Formulaire
+          </a>
+        </div>
+      </div>
+
+      {/* ─── Filter & Search Bar ────────────────────────────────────────────── */}
+      <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="relative w-full sm:w-96">
+          <Search className="size-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
-            placeholder="Rechercher par élève, parent, matricule..."
+            placeholder="Rechercher par n° de dossier, élève, parent..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 text-xs sm:text-sm bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 outline-none focus:border-emerald-500"
+            className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
           />
         </div>
 
-        <div className="flex items-center gap-3 w-full sm:w-auto">
+        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 outline-none font-semibold"
+            className="px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 outline-none"
           >
             <option value="ALL">Tous les statuts</option>
-            <option value="En attente">En attente</option>
-            <option value="En examen">En examen</option>
-            <option value="Admis / Accepté">Admis / Accepté</option>
-            <option value="Liste d'attente">Liste d'attente</option>
-            <option value="Refusé">Refusé</option>
+            <option value="En attente">🟡 En attente</option>
+            <option value="En examen">🔵 En examen</option>
+            <option value="Admis / Accepté">🟢 Admis / Accepté</option>
+            <option value="Liste d'attente">⏳ Liste d'attente</option>
+            <option value="Refusé">🔴 Refusé</option>
           </select>
 
           <select
             value={classFilter}
             onChange={(e) => setClassFilter(e.target.value)}
-            className="px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 outline-none font-semibold"
+            className="px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 outline-none"
           >
             <option value="ALL">Toutes les classes</option>
             {CLASSES_LIST.map((c) => (
-              <option key={c} value={c}>{c}</option>
+              <option key={c} value={c}>
+                {c}
+              </option>
             ))}
           </select>
         </div>
       </div>
 
-      {/* Applications Table */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-        {isLoading ? (
-          <div className="p-12 text-center text-slate-500 flex flex-col items-center gap-3">
-            <Loader2 className="size-8 animate-spin text-emerald-600" />
-            <p className="text-sm font-medium">Chargement des dossiers d'admission...</p>
-          </div>
-        ) : applications.length === 0 ? (
-          <div className="p-12 text-center text-slate-500 flex flex-col items-center gap-3">
-            <UserPlus className="size-12 text-slate-300" />
-            <p className="text-sm font-semibold">Aucun dossier de candidature trouvé.</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs sm:text-sm">
-              <thead className="bg-slate-50 dark:bg-slate-800/50 text-slate-500 font-semibold border-b border-slate-200 dark:border-slate-800">
+      {/* ─── Applications Table ────────────────────────────────────────────── */}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800 text-slate-500 font-bold uppercase tracking-wider">
+                <th className="py-3.5 px-4">N° Dossier</th>
+                <th className="py-3.5 px-4">Élève Candidat</th>
+                <th className="py-3.5 px-4">Classe</th>
+                <th className="py-3.5 px-4">Parent / Contact</th>
+                <th className="py-3.5 px-4">Statut</th>
+                <th className="py-3.5 px-4">Date de Dépôt</th>
+                <th className="py-3.5 px-4 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300 font-medium">
+              {isLoading ? (
                 <tr>
-                  <th className="p-4">Dossier</th>
-                  <th className="p-4">Candidat (Élève)</th>
-                  <th className="p-4">Classe Demandée</th>
-                  <th className="p-4">Parent & Contact</th>
-                  <th className="p-4">Statut</th>
-                  <th className="p-4">Matricule Attribué</th>
-                  <th className="p-4 text-right">Actions</th>
+                  <td colSpan={7} className="py-12 text-center text-slate-400">
+                    <Loader2 className="size-6 animate-spin mx-auto mb-2 text-emerald-500" />
+                    Chargement des dossiers...
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
-                {applications.map((app) => (
-                  <tr key={app.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-colors">
-                    <td className="p-4 whitespace-nowrap">
-                      <p className="font-bold text-slate-900 dark:text-white">{app.applicationNumber}</p>
-                      <p className="text-xs text-slate-400">
-                        {new Date(app.createdAt).toLocaleDateString("fr-FR")}
-                      </p>
+              ) : applications.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-12 text-center text-slate-400">
+                    Aucun dossier de candidature trouvé.
+                  </td>
+                </tr>
+              ) : (
+                applications.map((app) => (
+                  <tr key={app.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition">
+                    <td className="py-3.5 px-4 font-mono font-bold text-slate-900 dark:text-white">
+                      {app.applicationNumber}
                     </td>
-
-                    <td className="p-4">
-                      <p className="font-bold text-slate-900 dark:text-white">
-                        {app.studentLastName.toUpperCase()} {app.studentFirstName}
-                      </p>
-                      <p className="text-xs text-slate-500">
-                        Né(e) le {app.dateOfBirth} ({app.gender}) • {app.nationality}
-                      </p>
+                    <td className="py-3.5 px-4">
+                      <div className="font-bold text-slate-900 dark:text-white">
+                        {app.studentLastName?.toUpperCase()} {app.studentFirstName}
+                      </div>
+                      <div className="text-[11px] text-slate-400">
+                        {app.gender === "M" ? "Garçon" : "Fille"} • Né(e) le {app.dateOfBirth}
+                      </div>
                     </td>
-
-                    <td className="p-4 whitespace-nowrap">
-                      <span className="px-3 py-1 bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-bold rounded-xl text-xs">
+                    <td className="py-3.5 px-4">
+                      <span className="px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 font-bold border border-emerald-200 dark:border-emerald-800">
                         {app.targetClass}
                       </span>
                     </td>
-
-                    <td className="p-4">
-                      <p className="font-bold text-slate-800 dark:text-slate-200">{app.parentName}</p>
-                      <p className="text-xs text-slate-500 flex items-center gap-1">
-                        <Phone className="size-3 text-emerald-600" /> {app.parentPhone}
-                      </p>
+                    <td className="py-3.5 px-4">
+                      <div className="font-semibold text-slate-800 dark:text-slate-200">{app.parentName}</div>
+                      <div className="text-[11px] font-mono text-slate-400">{app.parentPhone}</div>
                     </td>
-
-                    <td className="p-4 whitespace-nowrap">
-                      <span
-                        className={`px-3 py-1 rounded-full text-xs font-bold ${
-                          app.status === "Admis / Accepté"
-                            ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60"
-                            : app.status === "En attente"
-                            ? "bg-amber-100 text-amber-800 dark:bg-amber-950/60"
-                            : app.status === "Refusé"
-                            ? "bg-rose-100 text-rose-800 dark:bg-rose-950/60"
-                            : "bg-slate-100 text-slate-800 dark:bg-slate-800"
-                        }`}
-                      >
-                        {app.status}
-                      </span>
-                    </td>
-
-                    <td className="p-4 whitespace-nowrap">
-                      {app.generatedMatricule ? (
-                        <span className="font-black text-xs text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950 px-2.5 py-1 rounded-lg border border-emerald-200 dark:border-emerald-800">
-                          {app.generatedMatricule}
+                    <td className="py-3.5 px-4">
+                      {app.status === "Admis / Accepté" && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                          <CheckCircle2 className="size-3" /> Admis
                         </span>
-                      ) : (
-                        <span className="text-xs text-slate-400 italic">Non attribué</span>
+                      )}
+                      {app.status === "En attente" && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                          <Clock className="size-3" /> En attente
+                        </span>
+                      )}
+                      {app.status === "En examen" && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300">
+                          <Clock className="size-3" /> En examen
+                        </span>
+                      )}
+                      {app.status === "Liste d'attente" && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300">
+                          Liste d'attente
+                        </span>
+                      )}
+                      {app.status === "Refusé" && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300">
+                          <XCircle className="size-3" /> Refusé
+                        </span>
                       )}
                     </td>
-
-                    <td className="p-4 text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-2">
+                    <td className="py-3.5 px-4 text-slate-400 font-mono">
+                      {app.createdAt ? new Date(app.createdAt).toLocaleDateString("fr-FR") : "N/A"}
+                    </td>
+                    <td className="py-3.5 px-4 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
                         <button
                           onClick={() => handleOpenReview(app)}
-                          className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950 dark:hover:bg-indigo-900 text-indigo-700 dark:text-indigo-300 rounded-xl font-bold text-xs flex items-center gap-1 transition"
+                          className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-emerald-500 hover:text-slate-950 text-slate-700 dark:text-slate-300 font-bold transition flex items-center gap-1"
                         >
-                          <Eye className="size-3.5" /> Examiner
+                          <Eye className="size-3.5" />
+                          Examiner
                         </button>
                         <button
                           onClick={() => handleDelete(app.id)}
-                          className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50"
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950 transition"
                           title="Supprimer"
                         >
-                          <Trash2 className="size-4" />
+                          <Trash2 className="size-3.5" />
                         </button>
                       </div>
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
-      {/* MODAL: EXAMEN DU DOSSIER DE CANDIDATURE */}
+      {/* ─── MODAL: SHARE & QR CODE ─────────────────────────────────────────── */}
+      {isShareModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 space-y-6 text-center animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3 text-left">
+              <div>
+                <h3 className="font-extrabold text-lg text-slate-900 dark:text-white">Portail Public d'Admission</h3>
+                <p className="text-xs text-slate-500">Diffusez ce lien ou affichez le QR Code dans l'école</p>
+              </div>
+              <button
+                onClick={() => setIsShareModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* QR Code Container */}
+            <div className="bg-slate-50 dark:bg-slate-950 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center space-y-3">
+              <div className="bg-white p-4 rounded-2xl shadow-md">
+                <QRCodeSVG value={publicUrl} size={180} level="H" />
+              </div>
+              <span className="text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                Scanner pour s'inscrire en ligne
+              </span>
+            </div>
+
+            {/* Link Box */}
+            <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 p-2 rounded-xl border border-slate-200 dark:border-slate-700">
+              <input
+                type="text"
+                readOnly
+                value={publicUrl}
+                className="bg-transparent text-xs font-mono text-slate-700 dark:text-slate-200 w-full outline-none px-2"
+              />
+              <button
+                onClick={copyPublicLink}
+                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold shrink-0 transition"
+              >
+                Copier
+              </button>
+            </div>
+
+            {/* Social Share Buttons */}
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <a
+                href={`https://wa.me/?text=${encodeURIComponent(
+                  `Inscriptions Ouvertes ! Vous pouvez inscrire votre enfant en ligne dès maintenant via ce lien : ${publicUrl}`
+                )}`}
+                target="_blank"
+                rel="noreferrer"
+                className="py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition"
+              >
+                <MessageSquare className="size-4" />
+                Partager WhatsApp
+              </a>
+
+              <button
+                onClick={() => window.print()}
+                className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition"
+              >
+                <Printer className="size-4" />
+                Imprimer l'Affiche
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL: EXAMINER & DÉLIBÉRER ─────────────────────────────────────── */}
       {isReviewModalOpen && selectedApp && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 space-y-6 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-emerald-50 text-emerald-600 rounded-2xl">
-                  <UserPlus className="size-6" />
+        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-xl rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 space-y-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div>
+                <span className="text-[10px] font-mono font-bold text-emerald-600 uppercase">
+                  Dossier : {selectedApp.applicationNumber}
+                </span>
+                <h3 className="font-extrabold text-xl text-slate-900 dark:text-white">
+                  {selectedApp.studentLastName?.toUpperCase()} {selectedApp.studentFirstName}
+                </h3>
+              </div>
+              <button
+                onClick={() => setIsReviewModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Candidate Summary */}
+            <div className="bg-slate-50 dark:bg-slate-800/60 p-4 rounded-2xl space-y-3 text-xs">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <span className="text-slate-400">Date de naissance :</span>
+                  <div className="font-bold text-slate-800 dark:text-slate-200">{selectedApp.dateOfBirth}</div>
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-lg text-slate-900 dark:text-white">
-                    Examen du Dossier : {selectedApp.applicationNumber}
-                  </h3>
-                  <p className="text-xs text-slate-500">Commission d'admission & inscription scolaire</p>
+                  <span className="text-slate-400">Classe demandée :</span>
+                  <div className="font-bold text-emerald-600 dark:text-emerald-400">{selectedApp.targetClass}</div>
+                </div>
+                <div>
+                  <span className="text-slate-400">Parent / Contact :</span>
+                  <div className="font-bold text-slate-800 dark:text-slate-200">
+                    {selectedApp.parentName} ({selectedApp.parentPhone})
+                  </div>
+                </div>
+                <div>
+                  <span className="text-slate-400">École précédente :</span>
+                  <div className="font-medium text-slate-800 dark:text-slate-200">
+                    {selectedApp.previousSchool || "Non renseigné"}
+                  </div>
                 </div>
               </div>
-              <button onClick={() => setIsReviewModalOpen(false)} className="p-2 text-slate-400">✕</button>
+
+              {selectedApp.medicalNotes && (
+                <div className="pt-2 border-t border-slate-200 dark:border-slate-700">
+                  <span className="text-slate-400 font-semibold">Notes médicales : </span>
+                  <span className="text-rose-600 font-medium">{selectedApp.medicalNotes}</span>
+                </div>
+              )}
             </div>
 
-            {/* Candidate Identity */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800 text-xs">
-              <div>
-                <p className="font-semibold text-slate-400 uppercase text-[10px]">Candidat</p>
-                <p className="text-sm font-black text-slate-900 dark:text-white mt-0.5">
-                  {selectedApp.studentLastName.toUpperCase()} {selectedApp.studentFirstName}
-                </p>
-                <p className="text-slate-600 dark:text-slate-300 mt-1">
-                  Né(e) le : {selectedApp.dateOfBirth} à {selectedApp.placeOfBirth || "Niamey"}
-                </p>
-                <p className="text-slate-600 dark:text-slate-300">Genre : {selectedApp.gender} • Nationalité : {selectedApp.nationality}</p>
-              </div>
-
-              <div>
-                <p className="font-semibold text-slate-400 uppercase text-[10px]">Parent / Responsable</p>
-                <p className="text-sm font-black text-slate-900 dark:text-white mt-0.5">
-                  {selectedApp.parentName} ({selectedApp.parentRelation})
-                </p>
-                <p className="text-slate-600 dark:text-slate-300 mt-1 flex items-center gap-1 font-bold">
-                  <Phone className="size-3 text-emerald-600" /> {selectedApp.parentPhone}
-                </p>
-                <p className="text-slate-600 dark:text-slate-300">Adresse : {selectedApp.address || "Non spécifiée"}, {selectedApp.city}</p>
-              </div>
-            </div>
-
-            {/* School background & Health */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-              <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 space-y-1">
-                <p className="font-bold text-slate-700 dark:text-slate-300">Parcours Scolaire Antérieur :</p>
-                <p className="text-slate-600">École de provenance : {selectedApp.previousSchool || "Non renseignée"}</p>
-                <p className="text-slate-600">Moyenne précédente : {selectedApp.previousGradeAvg || "N/A"}</p>
-              </div>
-
-              <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 space-y-1">
-                <p className="font-bold text-slate-700 dark:text-slate-300">Observations Médicales :</p>
-                <p className="text-slate-600">{selectedApp.medicalNotes || "Aucune allergie ou pathologie déclarée."}</p>
-              </div>
-            </div>
-
-            {/* Assigned Class Selector */}
-            <div>
-              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">
-                Classe d'affectation définitive :
+            {/* Class Assignment */}
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                Classe Officielle à Attribuer :
               </label>
               <select
                 value={assignedClass}
                 onChange={(e) => setAssignedClass(e.target.value)}
-                className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-bold text-indigo-600 outline-none"
+                className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white outline-none"
               >
                 {CLASSES_LIST.map((c) => (
-                  <option key={c} value={c}>{c}</option>
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
                 ))}
               </select>
             </div>
 
             {/* Review Notes */}
-            <div>
-              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">
-                Avis de la commission / Remarques :
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                Avis de la Commission / Remarques :
               </label>
               <textarea
                 rows={2}
                 value={reviewNotes}
                 onChange={(e) => setReviewNotes(e.target.value)}
-                placeholder="Notes de délibération..."
-                className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm outline-none"
+                placeholder="Ex: Dossier validé. Frais d'inscription à régler sous 15 jours..."
+                className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder:text-slate-400 outline-none"
               />
             </div>
 
-            {/* Decision Buttons */}
-            <div className="space-y-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+            {/* Action Buttons */}
+            <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
               <button
                 type="button"
                 disabled={isSubmittingReview}
                 onClick={() => handleDecision("Admis / Accepté")}
-                className="w-full py-3.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm rounded-2xl shadow-lg flex items-center justify-center gap-2 transition transform active:scale-98"
+                className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl shadow-lg flex items-center justify-center gap-2 transition disabled:opacity-50"
               >
-                {isSubmittingReview ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+                {isSubmittingReview ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Sparkles className="size-4" />
+                )}
                 Valider l'Admission & Générer le Matricule Officiel 🎉
               </button>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   disabled={isSubmittingReview}
                   onClick={() => handleDecision("Liste d'attente")}
-                  className="py-2.5 px-3 bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-xs rounded-xl border border-amber-200"
+                  className="py-2.5 bg-amber-50 dark:bg-amber-950/60 hover:bg-amber-100 text-amber-800 dark:text-amber-300 font-bold text-xs rounded-xl border border-amber-200 dark:border-amber-800 transition"
                 >
-                  ⏳ Mettre en liste d'attente
+                  ⏳ Mettre en Liste d'Attente
                 </button>
-
                 <button
                   type="button"
                   disabled={isSubmittingReview}
                   onClick={() => handleDecision("Refusé")}
-                  className="py-2.5 px-3 bg-rose-50 hover:bg-rose-100 text-rose-800 font-bold text-xs rounded-xl border border-rose-200"
+                  className="py-2.5 bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-100 text-rose-800 dark:text-rose-300 font-bold text-xs rounded-xl border border-rose-200 dark:border-rose-800 transition"
                 >
-                  ❌ Rejeter la candidature
+                  ❌ Rejeter le Dossier
                 </button>
               </div>
             </div>
@@ -553,134 +692,134 @@ export default function AdmissionsPage() {
         </div>
       )}
 
-      {/* MODAL: NOUVELLE CANDIDATURE DIRECTE */}
+      {/* ─── MODAL: NOUVELLE INSCRIPTION DIRECTE ────────────────────────────── */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white dark:bg-slate-900 w-full max-w-xl rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 space-y-6 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-xl rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 space-y-5 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3">
               <h3 className="font-extrabold text-lg text-slate-900 dark:text-white flex items-center gap-2">
-                <UserPlus className="size-5 text-emerald-600" /> Nouvelle Inscription
+                <UserPlus className="size-5 text-emerald-600" />
+                Nouvelle Inscription Directe
               </h3>
-              <button onClick={() => setIsAddModalOpen(false)} className="p-2 text-slate-400">✕</button>
+              <button onClick={() => setIsAddModalOpen(false)} className="text-slate-400 hover:text-slate-600 font-bold">
+                ✕
+              </button>
             </div>
 
             <form onSubmit={handleCreateDirectApp} className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1">Nom de famille *</label>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Nom de famille *</label>
                   <input
                     type="text"
                     required
+                    placeholder="Ex: MAHAMAN"
                     value={newApp.studentLastName}
                     onChange={(e) => setNewApp({ ...newApp, studentLastName: e.target.value })}
-                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-semibold"
-                    placeholder="Ex: MAHAMAN"
+                    className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-900 dark:text-white placeholder:text-slate-400 outline-none"
                   />
                 </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1">Prénom(s) *</label>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Prénom(s) *</label>
                   <input
                     type="text"
                     required
+                    placeholder="Ex: Ibrahim"
                     value={newApp.studentFirstName}
                     onChange={(e) => setNewApp({ ...newApp, studentFirstName: e.target.value })}
-                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-semibold"
-                    placeholder="Ex: Ibrahim"
+                    className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-900 dark:text-white placeholder:text-slate-400 outline-none"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1">Date de naissance *</label>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Date de naissance *</label>
                   <input
                     type="date"
                     required
                     value={newApp.dateOfBirth}
                     onChange={(e) => setNewApp({ ...newApp, dateOfBirth: e.target.value })}
-                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-bold"
+                    className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white outline-none"
                   />
                 </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1">Genre</label>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Genre</label>
                   <select
                     value={newApp.gender}
                     onChange={(e) => setNewApp({ ...newApp, gender: e.target.value })}
-                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-bold"
+                    className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white outline-none"
                   >
                     <option value="M">Masculin</option>
                     <option value="F">Féminin</option>
                   </select>
                 </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1">Classe visée *</label>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Classe demandée *</label>
                   <select
                     value={newApp.targetClass}
                     onChange={(e) => setNewApp({ ...newApp, targetClass: e.target.value })}
-                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-indigo-600"
+                    className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-emerald-600 outline-none"
                   >
                     {CLASSES_LIST.map((c) => (
-                      <option key={c} value={c}>{c}</option>
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
                     ))}
                   </select>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1">Nom du Parent *</label>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Nom du Parent *</label>
                   <input
                     type="text"
                     required
+                    placeholder="Ex: M. Oumarou"
                     value={newApp.parentName}
                     onChange={(e) => setNewApp({ ...newApp, parentName: e.target.value })}
-                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-semibold"
-                    placeholder="Ex: M. Oumarou"
+                    className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-900 dark:text-white placeholder:text-slate-400 outline-none"
                   />
                 </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1">Téléphone Parent *</label>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Téléphone Parent (SMS) *</label>
                   <input
                     type="text"
                     required
+                    placeholder="+227 90 00 00 00"
                     value={newApp.parentPhone}
                     onChange={(e) => setNewApp({ ...newApp, parentPhone: e.target.value })}
-                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-semibold"
-                    placeholder="+227 90 00 00 00"
+                    className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono font-bold text-slate-900 dark:text-white placeholder:text-slate-400 outline-none"
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">École de provenance</label>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">École de provenance</label>
                 <input
                   type="text"
+                  placeholder="Ex: Complexe Scolaire Les Étoiles"
                   value={newApp.previousSchool}
                   onChange={(e) => setNewApp({ ...newApp, previousSchool: e.target.value })}
-                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm"
-                  placeholder="Ex: Complexe Scolaire Privé Les Étoiles"
+                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder:text-slate-400 outline-none"
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">Remarques médicales ou allergies</label>
-                <input
-                  type="text"
-                  value={newApp.medicalNotes}
-                  onChange={(e) => setNewApp({ ...newApp, medicalNotes: e.target.value })}
-                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm"
-                  placeholder="Ex: Asthme léger, Allergie arachides..."
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
-                <button type="button" onClick={() => setIsAddModalOpen(false)} className="px-4 py-2 text-xs font-bold text-slate-500">Annuler</button>
-                <button type="submit" disabled={isSubmittingNew} className="px-6 py-2.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow">
-                  {isSubmittingNew && <Loader2 className="size-3.5 animate-spin mr-1" />}
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setIsAddModalOpen(false)}
+                  className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-700"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingNew}
+                  className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow transition disabled:opacity-50"
+                >
+                  {isSubmittingNew && <Loader2 className="size-3.5 animate-spin mr-1 inline" />}
                   Enregistrer la candidature
                 </button>
               </div>

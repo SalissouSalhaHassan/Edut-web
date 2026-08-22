@@ -4,13 +4,150 @@ import { db, readDb } from "@/infrastructure/database";
 import { admissionApplications } from "@/infrastructure/database/schema/admissions";
 import { students } from "@/infrastructure/database/schema/students";
 import { studentMedicalRecords } from "@/infrastructure/database/schema/health";
-import { eq, desc, and, sql, ilike } from "drizzle-orm";
+import { schools } from "@/infrastructure/database/schema/auth";
+import { schoolClasses } from "@/infrastructure/database/schema/academics";
+import { eq, desc, and, sql, or } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { protectedDbAction } from "@/lib/protected-action";
-import { getActiveSchoolId } from "@/domains/auth/services/school";
+import { getActiveSchoolId, getCurrentSchool } from "@/domains/auth/services/school";
 import { MessagingService } from "@/shared/services/messaging.service";
 
-// ─── 1. Dashboard KPI Stats ─────────────────────────────────────────────────
+// ─── 1. Public School Info & Classes for Admissions ─────────────────────────
+
+export async function getPublicSchoolInfoForAdmissionsAction(schoolSlugOrId?: string | number) {
+  try {
+    let school: any = null;
+
+    if (schoolSlugOrId) {
+      if (typeof schoolSlugOrId === "number" || !isNaN(Number(schoolSlugOrId))) {
+        school = await readDb.query.schools.findFirst({
+          where: eq(schools.id, Number(schoolSlugOrId)),
+        });
+      } else {
+        school = await readDb.query.schools.findFirst({
+          where: eq(schools.slug, String(schoolSlugOrId)),
+        });
+      }
+    }
+
+    if (!school) {
+      school = await getCurrentSchool();
+    }
+
+    if (!school) {
+      // Default to first school if no context is found
+      school = await readDb.query.schools.findFirst({
+        orderBy: [schools.id],
+      });
+    }
+
+    const schoolId = school?.id || 1;
+
+    // Fetch classes for this school
+    const classes = await readDb.query.schoolClasses.findMany({
+      where: eq(schoolClasses.schoolId, schoolId),
+      orderBy: [schoolClasses.className],
+    });
+
+    const classNames = classes.map((c) => c.className);
+    const defaultClasses = [
+      "Maternelle 1", "Maternelle 2", "CI", "CP", "CE1", "CE2", "CM1", "CM2",
+      "6ème A", "6ème B", "5ème A", "5ème B", "4ème A", "4ème B", "3ème A", "3ème B",
+      "2nde C", "2nde A", "1ère D", "1ère A", "1ère C", "Terminale D", "Terminale A", "Terminale C"
+    ];
+
+    return {
+      school: school ? {
+        id: school.id,
+        name: school.name,
+        slug: school.slug,
+        logoPath: school.logoPath,
+        customDomain: school.customDomain,
+      } : {
+        id: 1,
+        name: "Edut Pro",
+        slug: "main",
+        logoPath: null,
+      },
+      classes: classNames.length > 0 ? classNames : defaultClasses,
+    };
+  } catch (error: any) {
+    console.error("❌ Error fetching public school info:", error);
+    return {
+      school: { id: 1, name: "Edut Pro", slug: "main", logoPath: null },
+      classes: [
+        "CI", "CP", "CE1", "CE2", "CM1", "CM2",
+        "6ème", "5ème", "4ème", "3ème", "2nde", "1ère", "Terminale"
+      ],
+    };
+  }
+}
+
+// ─── 2. Public Application Tracker (Parent Self-Service) ────────────────────
+
+export async function getPublicApplicationStatusAction(params: {
+  applicationNumber: string;
+  phone: string;
+}) {
+  try {
+    const cleanAppNumber = params.applicationNumber?.trim().toUpperCase();
+    const cleanPhone = params.phone?.trim().replace(/\s+/g, "");
+
+    if (!cleanAppNumber || !cleanPhone) {
+      return { error: "Veuillez fournir le numéro de dossier et le numéro de téléphone." };
+    }
+
+    const application = await readDb.query.admissionApplications.findFirst({
+      where: eq(admissionApplications.applicationNumber, cleanAppNumber),
+      with: {
+        school: true,
+      },
+    });
+
+    if (!application) {
+      return { error: "Aucun dossier trouvé avec ce numéro de candidature." };
+    }
+
+    // Verify phone match (last 6 digits to accommodate country code variations)
+    const appPhone = (application.parentPhone || "").replace(/\s+/g, "");
+    const appWhatsapp = (application.parentWhatsapp || "").replace(/\s+/g, "");
+
+    const matchesPhone =
+      appPhone.includes(cleanPhone.slice(-6)) ||
+      appWhatsapp.includes(cleanPhone.slice(-6)) ||
+      cleanPhone.includes(appPhone.slice(-6));
+
+    if (!matchesPhone) {
+      return { error: "Le numéro de téléphone ne correspond pas au dossier renseigné." };
+    }
+
+    return {
+      success: true,
+      application: {
+        id: application.id,
+        applicationNumber: application.applicationNumber,
+        studentName: `${application.studentLastName.toUpperCase()} ${application.studentFirstName}`,
+        targetClass: application.targetClass,
+        dateOfBirth: application.dateOfBirth,
+        parentName: application.parentName,
+        parentPhone: application.parentPhone,
+        status: application.status,
+        reviewNotes: application.reviewNotes,
+        generatedMatricule: application.generatedMatricule,
+        reviewedBy: application.reviewedBy,
+        reviewedAt: application.reviewedAt,
+        createdAt: application.createdAt,
+        schoolName: application.school?.name || "Edut Pro",
+        schoolLogo: application.school?.logoPath || null,
+      },
+    };
+  } catch (error: any) {
+    console.error("❌ Error tracking application:", error);
+    return { error: "Erreur lors de la recherche du dossier." };
+  }
+}
+
+// ─── 3. Dashboard KPI Stats ─────────────────────────────────────────────────
 
 export async function getAdmissionsDashboardStats() {
   return protectedDbAction("Students", "canView", async () => {
@@ -59,7 +196,7 @@ export async function getAdmissionsDashboardStats() {
   });
 }
 
-// ─── 2. List Applications ───────────────────────────────────────────────────
+// ─── 4. List Applications ───────────────────────────────────────────────────
 
 export async function getAdmissionApplicationsList(params?: {
   status?: string;
@@ -101,10 +238,11 @@ export async function getAdmissionApplicationsList(params?: {
   });
 }
 
-// ─── 3. Submit Public / Remote Application ─────────────────────────────────
+// ─── 5. Submit Public / Remote Application ─────────────────────────────────
 
 export async function submitAdmissionApplicationAction(data: {
   schoolId?: number;
+  schoolSlug?: string;
   studentFirstName: string;
   studentLastName: string;
   dateOfBirth: string;
@@ -128,10 +266,27 @@ export async function submitAdmissionApplicationAction(data: {
   medicalNotes?: string;
 }) {
   try {
-    // Determine target schoolId (or default to active school / school 1)
-    const schoolId = data.schoolId || (await getActiveSchoolId()) || 1;
+    // Resolve target schoolId
+    let schoolId = data.schoolId;
 
-    // Generate unique application number ADM-YYYY-XXXX
+    if (!schoolId && data.schoolSlug) {
+      const school = await readDb.query.schools.findFirst({
+        where: eq(schools.slug, data.schoolSlug),
+      });
+      if (school) schoolId = school.id;
+    }
+
+    if (!schoolId) {
+      schoolId = (await getActiveSchoolId()) || 1;
+    }
+
+    // Get school details for response / SMS
+    const schoolRow = await readDb.query.schools.findFirst({
+      where: eq(schools.id, schoolId),
+    });
+    const schoolName = schoolRow?.name || "Edut Pro";
+
+    // Generate unique application number ADM-YYYY-SEQ-RANDOM
     const currentYear = new Date().getFullYear();
     const countRes = await db
       .select({ count: sql<number>`count(*)` })
@@ -183,7 +338,7 @@ export async function submitAdmissionApplicationAction(data: {
         studentName: studentFullName,
         applicationNumber,
         targetClass: data.targetClass,
-        schoolName: "Edut Pro",
+        schoolName: schoolName,
         sendSMS: true,
         sendWhatsApp: true,
       });
@@ -201,6 +356,7 @@ export async function submitAdmissionApplicationAction(data: {
       success: true,
       applicationNumber,
       applicationId: inserted.id,
+      schoolName,
       message: "Candidature enregistrée avec succès. Vous recevrez un accusé de réception par SMS / WhatsApp.",
     };
   } catch (error: any) {
@@ -209,7 +365,7 @@ export async function submitAdmissionApplicationAction(data: {
   }
 }
 
-// ─── 4. Review & Decision (Admin Workflow) ───────────────────────────────────
+// ─── 6. Review & Decision (Admin Workflow) ───────────────────────────────────
 
 export async function reviewAdmissionApplicationAction(data: {
   applicationId: number;
@@ -226,12 +382,16 @@ export async function reviewAdmissionApplicationAction(data: {
         eq(admissionApplications.id, data.applicationId),
         eq(admissionApplications.schoolId, schoolId)
       ),
+      with: {
+        school: true,
+      },
     });
 
     if (!application) {
       return { error: "Dossier de candidature introuvable." };
     }
 
+    const schoolName = application.school?.name || "Edut Pro";
     const reviewerName = (user as any).name || (user as any).nom || user.utilisateur || "Commission des Admissions";
     const targetClass = data.assignedClass || application.targetClass;
 
@@ -305,7 +465,7 @@ export async function reviewAdmissionApplicationAction(data: {
           studentName: studentFullName,
           matricule,
           targetClass,
-          schoolName: "Edut Pro",
+          schoolName: schoolName,
           sendSMS: true,
           sendWhatsApp: true,
         });
@@ -350,7 +510,7 @@ export async function reviewAdmissionApplicationAction(data: {
   });
 }
 
-// ─── 5. Delete Application ───────────────────────────────────────────────────
+// ─── 7. Delete Application ───────────────────────────────────────────────────
 
 export async function deleteAdmissionApplicationAction(id: number) {
   return protectedDbAction("Students", "canDelete", async () => {
