@@ -267,7 +267,7 @@ export async function submitAdmissionApplicationAction(data: {
 }) {
   try {
     // Resolve target schoolId
-    let schoolId = data.schoolId;
+    let schoolId: number | undefined = data.schoolId;
 
     if (!schoolId && data.schoolSlug) {
       const school = await readDb.query.schools.findFirst({
@@ -280,9 +280,11 @@ export async function submitAdmissionApplicationAction(data: {
       schoolId = (await getActiveSchoolId()) || 1;
     }
 
+    const finalSchoolId: number = Number(schoolId || 1);
+
     // Get school details for response / SMS
     const schoolRow = await readDb.query.schools.findFirst({
-      where: eq(schools.id, schoolId),
+      where: eq(schools.id, finalSchoolId),
     });
     const schoolName = schoolRow?.name || "Edut Pro";
 
@@ -291,7 +293,7 @@ export async function submitAdmissionApplicationAction(data: {
     const countRes = await db
       .select({ count: sql<number>`count(*)` })
       .from(admissionApplications)
-      .where(eq(admissionApplications.schoolId, schoolId));
+      .where(eq(admissionApplications.schoolId, finalSchoolId));
     
     const seq = Number(countRes[0]?.count || 0) + 1;
     const randomSuffix = Math.floor(1000 + Math.random() * 9000);
