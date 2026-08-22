@@ -13,7 +13,14 @@ import { protectedDbAction } from "@/lib/protected-action";
 import { getActiveSchoolId } from "@/domains/auth/services/school";
 import { getCompatibleLevels, getUserRoleType, getTeacherEmployee, getTeacherClassIds, checkEducationalLevelAccess } from "@/domains/auth/services/rbac";
 
-export async function getStudents() {
+export async function getStudents(params?: {
+  page?: number;
+  limit?: number;
+  search?: string;
+  classe?: string;
+  status?: string;
+  educationalLevel?: string;
+}) {
   return protectedDbAction("Students", "canView", async (user) => {
     const schoolId = await getActiveSchoolId();
     const roleType = await getUserRoleType(user);
@@ -74,11 +81,83 @@ export async function getStudents() {
       }
     }
 
+    // ── Additional SQL Filtering ──
+    if (params?.search && params.search.trim()) {
+      const q = `%${params.search.trim()}%`;
+      whereClause = and(
+        whereClause,
+        or(
+          ilike(students.nom, q),
+          ilike(students.prenom, q),
+          ilike(students.nomEtudiant, q),
+          ilike(students.numAdmission, q)
+        )
+      ) as any;
+    }
+
+    if (params?.classe && params.classe !== "Tous" && params.classe !== "ALL") {
+      whereClause = and(whereClause, eq(students.classe, params.classe)) as any;
+    }
+
+    if (params?.status && params.status !== "Tous" && params.status !== "ALL") {
+      whereClause = and(whereClause, eq(students.statut, params.status)) as any;
+    }
+
+    if (params?.educationalLevel && params.educationalLevel !== "Tous" && params.educationalLevel !== "ALL") {
+      const compatibleLevels = getCompatibleLevels(params.educationalLevel);
+      whereClause = and(whereClause, inArray(students.educationalLevel, compatibleLevels)) as any;
+    }
+
+    // ── Pagination calculations ──
+    const isPaginated = typeof params?.page === "number" || typeof params?.limit === "number";
+    const limit = params?.limit ? Math.min(Math.max(1, params.limit), 100) : (isPaginated ? 25 : undefined);
+    const page = Math.max(1, params?.page || 1);
+    const offset = limit ? (page - 1) * limit : undefined;
+
+    // Count total rows if paginated
+    let totalCount = 0;
+    if (isPaginated) {
+      const countRes = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(students)
+        .where(whereClause);
+      totalCount = Number(countRes[0]?.count || 0);
+    }
+
     const data = await db.query.students.findMany({
       where: whereClause,
+      columns: {
+        id: true,
+        schoolId: true,
+        numAdmission: true,
+        nom: true,
+        prenom: true,
+        nomEtudiant: true,
+        classe: true,
+        statut: true,
+        educationalLevel: true,
+        photoPath: true,
+        sexe: true,
+        dateNaissance: true,
+        lieuNaissance: true,
+        categorie: true,
+        telephoneParent: true,
+        emailParent: true,
+        nomParent: true,
+        createdAt: true,
+      },
       orderBy: [desc(students.createdAt)],
+      limit: limit,
+      offset: offset,
     });
-    return { data };
+
+    return { 
+      data,
+      total: isPaginated ? totalCount : data.length,
+      page: isPaginated ? page : 1,
+      limit: limit || data.length,
+      totalPages: isPaginated && limit ? Math.ceil(totalCount / limit) : 1
+    };
   });
 }
 

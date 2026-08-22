@@ -9,7 +9,13 @@ import { protectedDbAction } from "@/lib/protected-action";
 import { getActiveSchoolId } from "@/domains/auth/services/school";
 import { getUserRoleType, getCompatibleLevels, checkEducationalLevelAccess } from "@/domains/auth/services/rbac";
 
-export async function getEmployees() {
+export async function getEmployees(params?: {
+  page?: number;
+  limit?: number;
+  search?: string;
+  department?: string;
+  role?: string;
+}) {
   return protectedDbAction("HR", "canView", async (user) => {
     const schoolId = await getActiveSchoolId();
     const roleType = await getUserRoleType(user);
@@ -33,11 +39,64 @@ export async function getEmployees() {
       }
     }
 
+    if (params?.search && params.search.trim()) {
+      const q = `%${params.search.trim()}%`;
+      whereClause = and(
+        whereClause,
+        or(
+          sql`${employees.nom} ILIKE ${q}`,
+          sql`${employees.prenom} ILIKE ${q}`,
+          sql`${employees.email} ILIKE ${q}`,
+          sql`${employees.telephone} ILIKE ${q}`,
+          sql`${employees.matricule} ILIKE ${q}`
+        )
+      ) as any;
+    }
+
+    const isPaginated = typeof params?.page === "number" || typeof params?.limit === "number";
+    const limit = params?.limit ? Math.min(Math.max(1, params.limit), 100) : (isPaginated ? 25 : undefined);
+    const page = Math.max(1, params?.page || 1);
+    const offset = limit ? (page - 1) * limit : undefined;
+
+    let totalCount = 0;
+    if (isPaginated) {
+      const countRes = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(employees)
+        .where(whereClause);
+      totalCount = Number(countRes[0]?.count || 0);
+    }
+
     const data = await db.query.employees.findMany({
       where: whereClause,
+      columns: {
+        id: true,
+        schoolId: true,
+        matricule: true,
+        nom: true,
+        prenom: true,
+        email: true,
+        telephone: true,
+        role: true,
+        departement: true,
+        statut: true,
+        educationalLevel: true,
+        photoUrl: true,
+        dateEmbauche: true,
+        createdAt: true,
+      },
       orderBy: [desc(employees.createdAt)],
+      limit: limit,
+      offset: offset,
     });
-    return { data };
+
+    return { 
+      data,
+      total: isPaginated ? totalCount : data.length,
+      page: isPaginated ? page : 1,
+      limit: limit || data.length,
+      totalPages: isPaginated && limit ? Math.ceil(totalCount / limit) : 1
+    };
   });
 }
 

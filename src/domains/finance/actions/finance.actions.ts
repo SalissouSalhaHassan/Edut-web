@@ -12,7 +12,13 @@ import { getActiveSchoolId } from "@/domains/auth/services/school";
 import { getCurrentUser } from "@/domains/auth/services/session";
 import { getActiveEducationalLevel, getCompatibleLevels, getUserRoleType, checkEducationalLevelAccess, normalizeLevel } from "@/domains/auth/services/rbac";
 
-export async function getStudentFees(params?: { search?: string, class?: string, status?: string }) {
+export async function getStudentFees(params?: {
+  search?: string;
+  class?: string;
+  status?: string;
+  page?: number;
+  limit?: number;
+}) {
   return protectedDbAction("Finance", "canView", async (user) => {
     const roleType = await getUserRoleType(user);
     const activeLevel = await getActiveEducationalLevel(user);
@@ -28,7 +34,7 @@ export async function getStudentFees(params?: { search?: string, class?: string,
       orderBy: [desc(schoolSessions.id)]
     });
 
-    if (!activeSession) return { data: [] };
+    if (!activeSession) return { data: [], total: 0, page: 1, limit: 25, totalPages: 1 };
 
     const data = await db.query.studentFees.findMany({
       where: (fees, { and, eq }) => {
@@ -124,7 +130,20 @@ export async function getStudentFees(params?: { search?: string, class?: string,
       });
     }
 
-    return { data: filteredData };
+    const isPaginated = typeof params?.page === "number" || typeof params?.limit === "number";
+    const limit = params?.limit ? Math.min(Math.max(1, params.limit), 100) : (isPaginated ? 25 : undefined);
+    const page = Math.max(1, params?.page || 1);
+    const offset = limit ? (page - 1) * limit : 0;
+
+    const pagedData = limit ? filteredData.slice(offset, offset + limit) : filteredData;
+
+    return { 
+      data: pagedData,
+      total: filteredData.length,
+      page: isPaginated ? page : 1,
+      limit: limit || filteredData.length,
+      totalPages: limit ? Math.ceil(filteredData.length / limit) : 1
+    };
   });
 }
 
@@ -580,7 +599,12 @@ export async function getFinanceStats() {
   });
 }
 
-export async function getExpenses() {
+export async function getExpenses(params?: {
+  page?: number;
+  limit?: number;
+  categoryId?: number;
+  search?: string;
+}) {
   return protectedDbAction("Finance", "canView", async (user) => {
     const schoolId = await getActiveSchoolId();
     const roleType = await getUserRoleType(user);
@@ -591,14 +615,53 @@ export async function getExpenses() {
       whereClause = and(whereClause, inArray(expenses.educationalLevel, compatibleLevels)) as any;
     }
 
+    if (params?.categoryId) {
+      whereClause = and(whereClause, eq(expenses.categoryId, params.categoryId)) as any;
+    }
+
+    if (params?.search && params.search.trim()) {
+      const q = `%${params.search.trim()}%`;
+      whereClause = and(
+        whereClause,
+        or(
+          ilike(expenses.title, q),
+          ilike(expenses.description, q),
+          ilike(expenses.beneficiary, q)
+        )
+      ) as any;
+    }
+
+    const isPaginated = typeof params?.page === "number" || typeof params?.limit === "number";
+    const limit = params?.limit ? Math.min(Math.max(1, params.limit), 100) : (isPaginated ? 25 : undefined);
+    const page = Math.max(1, params?.page || 1);
+    const offset = limit ? (page - 1) * limit : undefined;
+
+    let totalCount = 0;
+    if (isPaginated) {
+      const countRes = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(expenses)
+        .where(whereClause);
+      totalCount = Number(countRes[0]?.count || 0);
+    }
+
     const data = await db.query.expenses.findMany({
       where: whereClause,
       with: {
         category: true
       },
-      orderBy: [desc(expenses.dateExpense)]
+      orderBy: [desc(expenses.dateExpense)],
+      limit: limit,
+      offset: offset,
     });
-    return { data };
+
+    return { 
+      data,
+      total: isPaginated ? totalCount : data.length,
+      page: isPaginated ? page : 1,
+      limit: limit || data.length,
+      totalPages: isPaginated && limit ? Math.ceil(totalCount / limit) : 1
+    };
   });
 }
 

@@ -203,39 +203,64 @@ export async function getAdmissionApplicationsList(params?: {
   status?: string;
   targetClass?: string;
   query?: string;
+  page?: number;
+  limit?: number;
 }) {
   return protectedDbAction("Students", "canView", async () => {
     const schoolId = await getActiveSchoolId();
-    if (!schoolId) return { applications: [] };
+    if (!schoolId) return { applications: [], total: 0, page: 1, limit: 25, totalPages: 1 };
 
-    const conditions = [eq(admissionApplications.schoolId, schoolId)];
+    let whereClause = eq(admissionApplications.schoolId, schoolId);
 
-    if (params?.status && params.status !== "ALL") {
-      conditions.push(eq(admissionApplications.status, params.status));
+    if (params?.status && params.status !== "ALL" && params.status !== "Tous") {
+      whereClause = and(whereClause, eq(admissionApplications.status, params.status)) as any;
     }
-    if (params?.targetClass && params.targetClass !== "ALL") {
-      conditions.push(eq(admissionApplications.targetClass, params.targetClass));
+    if (params?.targetClass && params.targetClass !== "ALL" && params.targetClass !== "Tous") {
+      whereClause = and(whereClause, eq(admissionApplications.targetClass, params.targetClass)) as any;
+    }
+
+    if (params?.query && params.query.trim()) {
+      const q = `%${params.query.trim()}%`;
+      whereClause = and(
+        whereClause,
+        or(
+          sql`${admissionApplications.applicationNumber} ILIKE ${q}`,
+          sql`${admissionApplications.studentFirstName} ILIKE ${q}`,
+          sql`${admissionApplications.studentLastName} ILIKE ${q}`,
+          sql`${admissionApplications.parentName} ILIKE ${q}`,
+          sql`${admissionApplications.parentPhone} ILIKE ${q}`
+        )
+      ) as any;
+    }
+
+    const isPaginated = typeof params?.page === "number" || typeof params?.limit === "number";
+    const limit = params?.limit ? Math.min(Math.max(1, params.limit), 100) : (isPaginated ? 25 : undefined);
+    const page = Math.max(1, params?.page || 1);
+    const offset = limit ? (page - 1) * limit : undefined;
+
+    let totalCount = 0;
+    if (isPaginated) {
+      const countRes = await readDb
+        .select({ count: sql<number>`count(*)` })
+        .from(admissionApplications)
+        .where(whereClause);
+      totalCount = Number(countRes[0]?.count || 0);
     }
 
     const applications = await readDb.query.admissionApplications.findMany({
-      where: and(...conditions),
+      where: whereClause,
       orderBy: [desc(admissionApplications.createdAt)],
+      limit: limit,
+      offset: offset,
     });
 
-    let filtered = applications;
-    if (params?.query && params.query.trim()) {
-      const q = params.query.toLowerCase().trim();
-      filtered = applications.filter(
-        (a) =>
-          a.applicationNumber.toLowerCase().includes(q) ||
-          a.studentFirstName.toLowerCase().includes(q) ||
-          a.studentLastName.toLowerCase().includes(q) ||
-          a.parentName.toLowerCase().includes(q) ||
-          a.parentPhone.includes(q)
-      );
-    }
-
-    return { applications: filtered };
+    return { 
+      applications,
+      total: isPaginated ? totalCount : applications.length,
+      page: isPaginated ? page : 1,
+      limit: limit || applications.length,
+      totalPages: isPaginated && limit ? Math.ceil(totalCount / limit) : 1
+    };
   });
 }
 

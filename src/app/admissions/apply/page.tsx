@@ -257,19 +257,27 @@ function ApplyFormContent() {
                             type="file"
                             accept="image/*"
                             className="hidden"
-                            onChange={(e) => {
+                            onChange={async (e) => {
                               const file = e.target.files?.[0];
                               if (file) {
-                                if (file.size > 5 * 1024 * 1024) {
-                                  toast.error("La photo ne doit pas dépasser 5 Mo.");
-                                  return;
+                                try {
+                                  const { compressImage } = await import("@/shared/utils/image-compression");
+                                  const compressed = await compressImage(file, {
+                                    maxWidth: 400,
+                                    maxHeight: 400,
+                                    quality: 0.82,
+                                    format: "image/webp",
+                                  });
+                                  setFormData({ ...formData, photoUrl: compressed.dataUrl });
+                                  toast.success("Photo optimisée et ajoutée avec succès !");
+                                } catch (err) {
+                                  const reader = new FileReader();
+                                  reader.onload = () => {
+                                    setFormData({ ...formData, photoUrl: reader.result as string });
+                                    toast.success("Photo ajoutée avec succès !");
+                                  };
+                                  reader.readAsDataURL(file);
                                 }
-                                const reader = new FileReader();
-                                reader.onload = () => {
-                                  setFormData({ ...formData, photoUrl: reader.result as string });
-                                  toast.success("Photo ajoutée avec succès !");
-                                };
-                                reader.readAsDataURL(file);
                               }
                             }}
                           />

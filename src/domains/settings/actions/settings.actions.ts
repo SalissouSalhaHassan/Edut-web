@@ -8,6 +8,7 @@ import { protectedDbAction } from "@/lib/protected-action";
 import { revalidatePath, unstable_cache, revalidateTag as nextRevalidateTag } from "next/cache";
 const revalidateTag = nextRevalidateTag as any;
 import { getActiveSchoolId } from "@/domains/auth/services/school";
+import { cache as redisCache } from "@/lib/redis";
 import {
   DOCUMENT_HEADER_SETTING_KEY,
   mergeDocumentHeaderConfig,
@@ -207,6 +208,18 @@ export async function updateSetting(key: string, value: string) {
 }
 
 export async function fetchDocumentHeaderConfigForSchool(schoolId: number): Promise<DocumentHeaderConfig> {
+  const cacheKey = `edut:header_config:${schoolId}`;
+
+  // 1. Try Redis Cache first to save Database Egress
+  try {
+    const cached = await redisCache.get<DocumentHeaderConfig>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+  } catch (e) {
+    console.warn("[Redis Cache] Error checking header config cache:", e);
+  }
+
   // Fetch first branch of the school for fallback values
   let branchFallback: any = null;
   try {
@@ -280,6 +293,13 @@ export async function fetchDocumentHeaderConfigForSchool(schoolId: number): Prom
     }
   }
 
+  // 2. Store in Redis for 1 hour
+  try {
+    await redisCache.set(cacheKey, configData, 3600);
+  } catch (e) {
+    console.warn("[Redis Cache] Error writing header config cache:", e);
+  }
+
   return configData;
 }
 
@@ -313,6 +333,11 @@ export async function saveDocumentHeaderConfig(config: DocumentHeaderConfig) {
         schoolId,
       });
     }
+
+    // Invalidate Redis Cache & Next.js cache
+    try {
+      await redisCache.del(`edut:header_config:${schoolId}`);
+    } catch (_) {}
 
     revalidateTag(SETTINGS_TAG);
     revalidatePath("/dashboard/settings");
