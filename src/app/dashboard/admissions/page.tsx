@@ -33,6 +33,7 @@ import {
   Printer,
   Globe,
   Download,
+  School,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import {
