@@ -72,6 +72,63 @@ export default function AdmissionsPrintModal({
     window.print();
   };
 
+  // ─── HELPER: Convert Image Source to DataURL for jsPDF ───────────────
+  const getImageDataUrl = async (src?: string | null): Promise<string | null> => {
+    if (!src) return null;
+    if (src.startsWith("data:image/")) return src;
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = "Anonymous";
+      img.onload = () => {
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width = img.naturalWidth || img.width || 200;
+          canvas.height = img.naturalHeight || img.height || 200;
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.drawImage(img, 0, 0);
+            resolve(canvas.toDataURL("image/png"));
+            return;
+          }
+        } catch (e) {
+          console.warn("Failed to export image to canvas:", e);
+        }
+        resolve(null);
+      };
+      img.onerror = () => resolve(null);
+      img.src = src;
+    });
+  };
+
+  // ─── HELPER: Generate QR Code Data URL ─────────────────────────────────
+  const generateQrCodeDataUrl = async (text: string): Promise<string | null> => {
+    return new Promise((resolve) => {
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(text)}`;
+      const img = new Image();
+      img.crossOrigin = "Anonymous";
+      img.onload = () => {
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width = 200;
+          canvas.height = 200;
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(0, 0, 200, 200);
+            ctx.drawImage(img, 0, 0);
+            resolve(canvas.toDataURL("image/png"));
+            return;
+          }
+        } catch (e) {
+          console.warn("Failed to generate QR data URL:", e);
+        }
+        resolve(null);
+      };
+      img.onerror = () => resolve(null);
+      img.src = qrUrl;
+    });
+  };
+
   const handleDownloadPdf = async () => {
     try {
       setIsGeneratingPdf(true);
@@ -87,38 +144,44 @@ export default function AdmissionsPrintModal({
       const margin = 15;
       const contentW = pageW - margin * 2;
 
-      // Extract colors from config
-      const primaryHex = cfg.primaryColor || "#047857";
-      const secondaryHex = cfg.secondaryColor || "#10b981";
-
+      // Extract colors & strings from config
       const schoolName = cfg.schoolName || "ÉTABLISSEMENT SCOLAIRE";
-      const schoolNameAr = cfg.schoolNameAr || "";
       const country = cfg.country || "RÉPUBLIQUE DU NIGER";
       const ministry = cfg.ministry || "Ministère de l'Éducation Nationale";
       const motto = cfg.motto || "Discipline - Travail - Réussite";
       const schoolYear = cfg.schoolYear || "2024 - 2025";
-      const currentYear = new Date().getFullYear();
+
+      // Preload images (School Logo, Student Photo, Verification QR Code)
+      const qrString = currentApp
+        ? `EDUT-ADM-${currentApp.applicationNumber}-${currentApp.generatedMatricule || "VAL"}`
+        : `EDUT-PV-ADMISSIONS-${new Date().getFullYear()}`;
+
+      const [schoolLogoDataUrl, studentPhotoDataUrl, qrCodeDataUrl] = await Promise.all([
+        getImageDataUrl(cfg.centerLogo || cfg.leftLogo),
+        getImageDataUrl(currentApp?.photoUrl),
+        generateQrCodeDataUrl(qrString),
+      ]);
 
       // ─── Header Rendering for PDF ─────────────────────────────
-      let curY = 14;
+      let curY = 12;
 
       // Top bar strip
       doc.setDrawColor(200, 200, 200);
       doc.setLineWidth(0.3);
 
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(9);
+      doc.setFontSize(8.5);
       doc.setTextColor(50, 50, 50);
       doc.text(country.toUpperCase(), margin, curY);
 
       if (cfg.schoolCode) {
         doc.setFontSize(8);
         doc.setTextColor(100, 100, 100);
-        doc.text(`Code : ${cfg.schoolCode}`, pageW - margin, curY, { align: "right" });
+        doc.text(`Code Étab. : ${cfg.schoolCode}`, pageW - margin, curY, { align: "right" });
       }
 
-      curY += 4.5;
-      doc.setFontSize(8);
+      curY += 4;
+      doc.setFontSize(7.5);
       doc.setFont("helvetica", "normal");
       doc.setTextColor(90, 90, 90);
       doc.text(ministry, margin, curY);
@@ -128,7 +191,7 @@ export default function AdmissionsPrintModal({
         doc.text(motto, pageW - margin, curY, { align: "right" });
       }
 
-      curY += 4.5;
+      curY += 4;
       if (cfg.regionalDirection) {
         doc.setFont("helvetica", "normal");
         doc.text(cfg.regionalDirection, margin, curY);
@@ -136,30 +199,43 @@ export default function AdmissionsPrintModal({
       doc.setFont("helvetica", "bold");
       doc.text(`Année Scolaire : ${schoolYear}`, pageW - margin, curY, { align: "right" });
 
-      curY += 6;
+      curY += 5.5;
       doc.setDrawColor(15, 23, 42);
       doc.setLineWidth(0.8);
       doc.line(margin, curY, pageW - margin, curY);
-      curY += 2;
+      curY += 1.5;
       doc.setLineWidth(0.3);
       doc.line(margin, curY, pageW - margin, curY);
 
-      curY += 7;
+      curY += 5;
+
+      // Optional School Logo in Header
+      if (schoolLogoDataUrl) {
+        try {
+          doc.addImage(schoolLogoDataUrl, "PNG", pageW / 2 - 9, curY, 18, 18);
+          curY += 21;
+        } catch (e) {
+          curY += 2;
+        }
+      } else {
+        curY += 2;
+      }
+
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(14);
+      doc.setFontSize(13);
       doc.setTextColor(15, 23, 42);
       doc.text(schoolName.toUpperCase(), pageW / 2, curY, { align: "center" });
 
       if (cfg.address || cfg.phone || cfg.email) {
-        curY += 4.5;
-        doc.setFontSize(7.5);
+        curY += 4;
+        doc.setFontSize(7);
         doc.setFont("helvetica", "normal");
         doc.setTextColor(100, 100, 100);
         const contactInfo = [cfg.address, cfg.bp ? `BP: ${cfg.bp}` : "", cfg.phone ? `Tél: ${cfg.phone}` : "", cfg.email ? `Email: ${cfg.email}` : ""].filter(Boolean).join("  •  ");
         doc.text(contactInfo, pageW / 2, curY, { align: "center" });
       }
 
-      curY += 8;
+      curY += 7;
 
       // ─── DOC TYPE SPECIFIC BODY ───────────────────────────────
       if (docType === "letter" && currentApp) {
@@ -173,117 +249,197 @@ export default function AdmissionsPrintModal({
         // Title box
         doc.setFillColor(240, 253, 244);
         doc.setDrawColor(16, 185, 129);
-        doc.roundedRect(pageW / 2 - 50, curY, 100, 11, 2, 2, "FD");
+        doc.roundedRect(pageW / 2 - 55, curY, 110, 11, 2, 2, "FD");
         doc.setTextColor(4, 120, 87);
-        doc.setFontSize(13);
+        doc.setFontSize(12);
         doc.setFont("helvetica", "bold");
-        doc.text("LETTRE OFFICIELLE D'ADMISSION", pageW / 2, curY + 7.5, { align: "center" });
+        doc.text("ATTESTATION OFFICIELLE D'ADMISSION", pageW / 2, curY + 7.5, { align: "center" });
 
-        curY += 18;
+        curY += 16;
 
-        // Intro
+        // Intro Statement
         doc.setTextColor(30, 30, 30);
-        doc.setFontSize(9.5);
+        doc.setFontSize(9);
         doc.setFont("helvetica", "normal");
-        const intro = `La Direction de l'établissement ${schoolName} a le plaisir de vous notifier que le dossier de candidature déposé sous le numéro ${currentApp.applicationNumber} a été validé avec succès par la Commission d'Admission pour la rentrée scolaire en cours.`;
+        const intro = `La Direction et la Commission des Admissions de l'établissement ${schoolName} ont le plaisir d'informer le parent ou tuteur légal que le dossier de candidature n° ${currentApp.applicationNumber} a été validé avec succès pour l'année scolaire ${schoolYear}.`;
         const introLines = doc.splitTextToSize(intro, contentW);
         doc.text(introLines, margin, curY);
-        curY += introLines.length * 4.8 + 6;
+        curY += introLines.length * 4.5 + 5;
 
-        // Candidate Box
+        // ── Candidate Box with Student Photo ──
+        const boxH = 46;
         doc.setFillColor(248, 250, 252);
         doc.setDrawColor(226, 232, 240);
-        doc.roundedRect(margin, curY, contentW, 44, 2, 2, "FD");
+        doc.roundedRect(margin, curY, contentW, boxH, 2, 2, "FD");
 
+        // Header strip of candidate box
+        doc.setFillColor(15, 23, 42);
+        doc.rect(margin, curY, contentW, 6, "F");
+        doc.setFontSize(7.5);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(255, 255, 255);
+        doc.text("DONNÉES DE L'ÉLÈVE ADMIS", margin + 4, curY + 4.2);
+        doc.setTextColor(52, 211, 153);
+        doc.text(`MATRICULE : ${matricule}`, pageW - margin - 4, curY + 4.2, { align: "right" });
+
+        const photoW = 26;
+        const photoH = 32;
+        const photoX = pageW - margin - photoW - 4;
+        const photoY = curY + 9;
+
+        // Photo Frame on Right
+        doc.setFillColor(255, 255, 255);
+        doc.setDrawColor(203, 213, 225);
+        doc.setLineWidth(0.4);
+        doc.roundedRect(photoX, photoY, photoW, photoH, 1.5, 1.5, "FD");
+
+        if (studentPhotoDataUrl) {
+          try {
+            doc.addImage(studentPhotoDataUrl, "PNG", photoX + 1, photoY + 1, photoW - 2, photoH - 2);
+          } catch (e) {
+            doc.setFontSize(6.5);
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(148, 163, 184);
+            doc.text("PHOTO 4x4", photoX + photoW / 2, photoY + photoH / 2, { align: "center" });
+          }
+        } else {
+          doc.setFontSize(6.5);
+          doc.setFont("helvetica", "bold");
+          doc.setTextColor(148, 163, 184);
+          doc.text("PHOTO 4x4", photoX + photoW / 2, photoY + photoH / 2 - 1, { align: "center" });
+          doc.setFontSize(5.5);
+          doc.setFont("helvetica", "normal");
+          doc.text("RÉCENTE", photoX + photoW / 2, photoY + photoH / 2 + 3, { align: "center" });
+        }
+
+        // Data Rows on Left
         const dataRows = [
-          ["Élève Bénéficiaire :", studentName],
-          ["Date & Lieu de Naissance :", `${currentApp.dateOfBirth || "N/A"} (${currentApp.placeOfBirth || "N/A"}) - Sexe: ${currentApp.gender === "M" ? "Masculin" : "Féminin"}`],
+          ["Nom & Prénom :", studentName],
+          ["Date & Lieu de Naissance :", `${currentApp.dateOfBirth || "N/A"} (${currentApp.placeOfBirth || "Niamey"}) - Sexe: ${currentApp.gender === "M" ? "Masculin" : "Féminin"}`],
           ["Classe d'Admission :", targetClass],
-          ["Matricule Scolaire Attribué :", matricule],
           ["Parent / Responsable Légal :", `${currentApp.parentName || "N/A"} (${currentApp.parentPhone || "N/A"})`],
+          ["Date de Délibération :", decisionDate],
         ];
 
         dataRows.forEach(([lbl, val], idx) => {
-          const rowY = curY + 7 + idx * 7.5;
+          const rowY = curY + 11 + idx * 6.8;
           doc.setFont("helvetica", "bold");
-          doc.setFontSize(8.5);
+          doc.setFontSize(8);
           doc.setTextColor(100, 116, 139);
-          doc.text(lbl, margin + 5, rowY);
+          doc.text(lbl, margin + 4, rowY);
           doc.setTextColor(15, 23, 42);
-          if (lbl === "Matricule Scolaire Attribué :") {
+          if (lbl === "Classe d'Admission :") {
             doc.setTextColor(4, 120, 87);
-            doc.setFontSize(9.5);
+            doc.setFontSize(8.5);
           }
-          doc.text(val, margin + 60, rowY);
+          doc.text(val, margin + 50, rowY);
         });
 
-        curY += 52;
+        curY += boxH + 6;
 
         if (currentApp.reviewNotes) {
           doc.setFillColor(254, 252, 232);
           doc.setDrawColor(250, 204, 21);
-          doc.roundedRect(margin, curY, contentW, 14, 2, 2, "FD");
-          doc.setFontSize(8);
+          doc.roundedRect(margin, curY, contentW, 11, 1.5, 1.5, "FD");
+          doc.setFontSize(7.5);
           doc.setFont("helvetica", "italic");
           doc.setTextColor(161, 98, 7);
-          doc.text(`Observations de la commission : ${currentApp.reviewNotes}`, margin + 4, curY + 8);
-          curY += 19;
+          doc.text(`Observations de la commission : ${currentApp.reviewNotes}`, margin + 4, curY + 6.5);
+          curY += 15;
         }
 
         // Instructions
-        doc.setFontSize(8.5);
+        doc.setFontSize(8);
         doc.setFont("helvetica", "normal");
         doc.setTextColor(51, 65, 85);
-        const instruct = "Formalités obligatoires : Le parent ou tuteur légal est prié de se présenter au secrétariat de l'établissement muni de ce document officiel, d'une copie de l'acte de naissance, du dernier relevé de notes / carnet scolaire ainsi que du reçu de règlement des frais d'inscription.";
+        const instruct = "Formalités d'inscription : Le parent ou tuteur légal est prié de se présenter au secrétariat de l'établissement muni de cette attestation officielle, d'une copie d'acte de naissance, du carnet de notes ainsi que du reçu de règlement des frais de scolarité.";
         const instructLines = doc.splitTextToSize(instruct, contentW);
         doc.text(instructLines, margin, curY);
-        curY += instructLines.length * 4.5 + 10;
+        curY += instructLines.length * 4.2 + 8;
 
-        // Signatures
+        // ── Signatures & Verification QR Code Area ──
         doc.setDrawColor(203, 213, 225);
         doc.line(margin, curY, pageW - margin, curY);
-        curY += 8;
+        curY += 7;
 
-        doc.setFontSize(8.5);
+        // Signatures Text
+        doc.setFontSize(8);
         doc.setFont("helvetica", "bold");
         doc.setTextColor(30, 41, 59);
-        doc.text("Le Parent / Tuteur Légal", margin + 15, curY);
-        doc.text("Pour la Direction / Commission", pageW - margin - 55, curY);
+        doc.text("Le Parent / Tuteur Légal", margin + 10, curY);
+        doc.text("Cachet & Signature de la Direction", pageW - margin - 60, curY, { align: "center" });
 
-        curY += 18;
+        // Embed QR Code in Verification Area
+        if (qrCodeDataUrl) {
+          const qrSize = 22;
+          const qrX = pageW / 2 - qrSize / 2;
+          const qrY = curY - 2;
+          doc.addImage(qrCodeDataUrl, "PNG", qrX, qrY, qrSize, qrSize);
+
+          doc.setFontSize(5.5);
+          doc.setFont("helvetica", "bold");
+          doc.setTextColor(71, 85, 105);
+          doc.text("VÉRIFICATION QR", pageW / 2, qrY + qrSize + 3, { align: "center" });
+        }
+
+        curY += 24;
         doc.setDrawColor(148, 163, 184);
-        doc.line(margin + 5, curY, margin + 65, curY);
-        doc.line(pageW - margin - 65, curY, pageW - margin - 5, curY);
+        doc.line(margin + 5, curY, margin + 55, curY);
+        doc.line(pageW - margin - 55, curY, pageW - margin - 5, curY);
 
-        curY += 4;
-        doc.setFontSize(7);
+        doc.setFontSize(6.5);
         doc.setFont("helvetica", "italic");
         doc.setTextColor(148, 163, 184);
-        doc.text("Signature du responsable", margin + 15, curY);
-        doc.text("Cachet & Signature officielle", pageW - margin - 55, curY);
+        doc.text("Signature du responsable", margin + 10, curY + 4);
+        doc.text("Cachet officiel de l'école", pageW - margin - 60, curY + 4, { align: "center" });
       } else if (docType === "fiche" && currentApp) {
         // Individual Registration Form
         const studentName = `${(currentApp.studentLastName || "").toUpperCase()} ${currentApp.studentFirstName || ""}`;
-        
+
         doc.setFillColor(238, 242, 255);
         doc.setDrawColor(99, 102, 241);
-        doc.roundedRect(pageW / 2 - 60, curY, 120, 11, 2, 2, "FD");
+        doc.roundedRect(pageW / 2 - 60, curY, 120, 10, 2, 2, "FD");
         doc.setTextColor(67, 56, 202);
-        doc.setFontSize(12);
+        doc.setFontSize(11);
         doc.setFont("helvetica", "bold");
-        doc.text("FICHE OFFICIELLE DE CANDIDATURE & INSCRIPTION", pageW / 2, curY + 7.5, { align: "center" });
+        doc.text("FICHE OFFICIELLE DE CANDIDATURE & INSCRIPTION", pageW / 2, curY + 6.8, { align: "center" });
 
-        curY += 17;
+        curY += 15;
 
         // Candidate Section Title
-        doc.setFontSize(10);
+        doc.setFontSize(9.5);
         doc.setTextColor(15, 23, 42);
         doc.text("1. IDENTITÉ DU CANDIDAT", margin, curY);
-        curY += 3;
+        curY += 2.5;
         doc.setDrawColor(99, 102, 241);
         doc.setLineWidth(0.4);
-        doc.line(margin, curY, margin + 60, curY);
-        curY += 5;
+        doc.line(margin, curY, margin + 55, curY);
+        curY += 4.5;
+
+        // Photo Frame on Right for Fiche
+        const photoW = 26;
+        const photoH = 32;
+        const photoX = pageW - margin - photoW - 2;
+        const photoY = curY;
+
+        doc.setFillColor(255, 255, 255);
+        doc.setDrawColor(203, 213, 225);
+        doc.setLineWidth(0.4);
+        doc.roundedRect(photoX, photoY, photoW, photoH, 1.5, 1.5, "FD");
+
+        if (studentPhotoDataUrl) {
+          try {
+            doc.addImage(studentPhotoDataUrl, "PNG", photoX + 1, photoY + 1, photoW - 2, photoH - 2);
+          } catch (e) {
+            doc.setFontSize(6);
+            doc.text("PHOTO", photoX + photoW / 2, photoY + photoH / 2, { align: "center" });
+          }
+        } else {
+          doc.setFontSize(6.5);
+          doc.setFont("helvetica", "bold");
+          doc.setTextColor(148, 163, 184);
+          doc.text("PHOTO 4x4", photoX + photoW / 2, photoY + photoH / 2, { align: "center" });
+        }
 
         const infoItems = [
           ["N° Dossier :", currentApp.applicationNumber || "N/A", "Classe souhaitée :", currentApp.targetClass || "N/A"],
@@ -293,30 +449,30 @@ export default function AdmissionsPrintModal({
           ["École de provenance :", currentApp.previousSchool || "N/A", "Moyenne précédente :", currentApp.previousGradeAvg ? `${currentApp.previousGradeAvg}/20` : "N/A"],
         ];
 
-        doc.setFontSize(8.5);
+        doc.setFontSize(8);
         infoItems.forEach((row) => {
           doc.setFont("helvetica", "bold");
           doc.setTextColor(100, 116, 139);
           doc.text(row[0], margin, curY);
           doc.setTextColor(15, 23, 42);
-          doc.text(row[1], margin + 35, curY);
+          doc.text(row[1], margin + 33, curY);
 
           doc.setTextColor(100, 116, 139);
-          doc.text(row[2], margin + 100, curY);
+          doc.text(row[2], margin + 85, curY);
           doc.setTextColor(15, 23, 42);
-          doc.text(row[3], margin + 140, curY);
+          doc.text(row[3], margin + 115, curY);
           curY += 6;
         });
 
-        curY += 4;
+        curY += 5;
         doc.setFont("helvetica", "bold");
-        doc.setFontSize(10);
+        doc.setFontSize(9.5);
         doc.setTextColor(15, 23, 42);
         doc.text("2. FAMILLE & CONTACTS D'URGENCE", margin, curY);
-        curY += 3;
+        curY += 2.5;
         doc.setDrawColor(99, 102, 241);
-        doc.line(margin, curY, margin + 70, curY);
-        curY += 5;
+        doc.line(margin, curY, margin + 65, curY);
+        curY += 4.5;
 
         const familyItems = [
           ["Parent / Tuteur :", currentApp.parentName || "N/A", "Lien de parenté :", currentApp.parentRelation || "Père"],
@@ -325,68 +481,77 @@ export default function AdmissionsPrintModal({
           ["Adresse / Quartier :", currentApp.address || "N/A", "Ville :", currentApp.city || "Niamey"],
         ];
 
-        doc.setFontSize(8.5);
+        doc.setFontSize(8);
         familyItems.forEach((row) => {
           doc.setFont("helvetica", "bold");
           doc.setTextColor(100, 116, 139);
           doc.text(row[0], margin, curY);
           doc.setTextColor(15, 23, 42);
-          doc.text(row[1], margin + 35, curY);
+          doc.text(row[1], margin + 33, curY);
 
           doc.setTextColor(100, 116, 139);
-          doc.text(row[2], margin + 100, curY);
+          doc.text(row[2], margin + 95, curY);
           doc.setTextColor(15, 23, 42);
-          doc.text(row[3], margin + 140, curY);
-          curY += 6;
+          doc.text(row[3], margin + 130, curY);
+          curY += 5.8;
         });
 
-        curY += 4;
+        curY += 5;
         doc.setFont("helvetica", "bold");
-        doc.setFontSize(10);
+        doc.setFontSize(9.5);
         doc.setTextColor(15, 23, 42);
         doc.text("3. DÉCISION DE LA COMMISSION", margin, curY);
-        curY += 3;
+        curY += 2.5;
         doc.setDrawColor(99, 102, 241);
-        doc.line(margin, curY, margin + 65, curY);
-        curY += 6;
+        doc.line(margin, curY, margin + 60, curY);
+        curY += 5;
 
-        doc.setFontSize(8.5);
+        doc.setFontSize(8);
         doc.setFont("helvetica", "bold");
         doc.setTextColor(100, 116, 139);
         doc.text("Statut du dossier :", margin, curY);
         doc.setTextColor(currentApp.status === "Admis / Accepté" ? 4 : 220, currentApp.status === "Admis / Accepté" ? 120 : 38, currentApp.status === "Admis / Accepté" ? 87 : 38);
-        doc.text(currentApp.status || "En attente", margin + 35, curY);
+        doc.text(currentApp.status || "En attente", margin + 33, curY);
 
         doc.setTextColor(100, 116, 139);
-        doc.text("Date de décision :", margin + 100, curY);
+        doc.text("Date de décision :", margin + 95, curY);
         doc.setTextColor(15, 23, 42);
-        doc.text(currentApp.reviewedAt ? new Date(currentApp.reviewedAt).toLocaleDateString("fr-FR") : "En attente", margin + 140, curY);
-        curY += 6;
+        doc.text(currentApp.reviewedAt ? new Date(currentApp.reviewedAt).toLocaleDateString("fr-FR") : "En attente", margin + 130, curY);
+        curY += 5.5;
 
         if (currentApp.reviewNotes) {
           doc.setTextColor(100, 116, 139);
           doc.text("Avis / Observations :", margin, curY);
           doc.setTextColor(15, 23, 42);
           doc.setFont("helvetica", "normal");
-          doc.text(currentApp.reviewNotes, margin + 35, curY);
-          curY += 7;
+          doc.text(currentApp.reviewNotes, margin + 33, curY);
+          curY += 6;
         }
 
-        curY += 10;
+        curY += 7;
         doc.setDrawColor(203, 213, 225);
         doc.line(margin, curY, pageW - margin, curY);
-        curY += 8;
+        curY += 6;
 
-        doc.setFontSize(8.5);
+        doc.setFontSize(8);
         doc.setFont("helvetica", "bold");
         doc.setTextColor(30, 41, 59);
         doc.text("Signature du Déposant", margin + 15, curY);
         doc.text("Validation Commission / Direction", pageW - margin - 60, curY);
 
+        // Verification QR Code on Fiche
+        if (qrCodeDataUrl) {
+          const qrSize = 18;
+          doc.addImage(qrCodeDataUrl, "PNG", pageW / 2 - qrSize / 2, curY - 2, qrSize, qrSize);
+          doc.setFontSize(5);
+          doc.setTextColor(100, 116, 139);
+          doc.text("DOC CERTIFIÉ", pageW / 2, curY + qrSize + 2, { align: "center" });
+        }
+
         curY += 18;
         doc.setDrawColor(148, 163, 184);
-        doc.line(margin + 5, curY, margin + 65, curY);
-        doc.line(pageW - margin - 65, curY, pageW - margin - 5, curY);
+        doc.line(margin + 5, curY, margin + 55, curY);
+        doc.line(pageW - margin - 55, curY, pageW - margin - 5, curY);
       } else {
         // PV / List of applications
         doc.setFillColor(241, 245, 249);
@@ -783,10 +948,18 @@ export default function AdmissionsPrintModal({
                     <p className="font-mono text-slate-500">N° Dossier : {currentApp.applicationNumber}</p>
                   </div>
 
-                  <div className="w-24 h-28 border-2 border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center text-[10px] text-slate-400 text-center p-1 bg-white">
-                    <span>Photo d'identité</span>
-                    <span className="text-[8px] text-slate-300 mt-1">4 x 4 cm</span>
-                  </div>
+                  {currentApp.photoUrl ? (
+                    <img
+                      src={currentApp.photoUrl}
+                      alt="Photo d'identité"
+                      className="w-24 h-28 object-cover rounded-xl border-2 border-slate-300 shadow-sm"
+                    />
+                  ) : (
+                    <div className="w-24 h-28 border-2 border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center text-[10px] text-slate-400 text-center p-1 bg-white">
+                      <span>Photo d'identité</span>
+                      <span className="text-[8px] text-slate-300 mt-1">4 x 4 cm</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Section 1: Civil State */}
