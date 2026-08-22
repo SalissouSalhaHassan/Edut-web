@@ -72,7 +72,16 @@ export const StudentCard: React.FC<StudentCardProps> = ({
 
   const isProvisoire = !student.id || String(student.id).includes("local-") || Number(student.id) < 0 || (typeof navigator !== "undefined" && !navigator.onLine);
 
-  const qr = JSON.stringify({ id: student.id, num: student.numAdmission, nom: student.nomEtudiant });
+  const qr = JSON.stringify({
+    type: "student_pass",
+    student_id: student.id,
+    id: student.id,
+    num_admission: student.numAdmission,
+    num: student.numAdmission,
+    nom_etudiant: student.nomEtudiant,
+    nom: student.nomEtudiant,
+    classe: student.classe || "",
+  });
   const issued = new Date().toLocaleDateString("fr-FR");
   const expiry = `31/10/${parseInt(academicYear.split("-")[1] || "2025")}`;
 
