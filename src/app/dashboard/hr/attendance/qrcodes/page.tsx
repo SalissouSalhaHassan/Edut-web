@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { db } from "@/infrastructure/database";
 import { schoolClasses } from "@/infrastructure/database/schema/academics";
+import { schoolBranches } from "@/infrastructure/database/schema/settings";
 import { getActiveSchoolId } from "@/domains/auth/services/school";
 import { getCurrentUser } from "@/domains/auth/services/session";
 import { getUserRoleType, getCompatibleLevels } from "@/domains/auth/services/rbac";
