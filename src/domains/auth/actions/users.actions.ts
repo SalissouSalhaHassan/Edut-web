@@ -181,8 +181,8 @@ export async function getUsers() {
       whereClause = undefined;
     }
 
-    // Non-superAdmin users (e.g. General Directors, Level Directors) MUST NEVER see platform Super Admin or Government Regulatory accounts (Ministère, DREN, DDEN, Inspection)
-    if (!user.superAdmin) {
+    // Non-admin regular users MUST NOT see platform Super Admin or Government Regulatory accounts
+    if (!user.superAdmin && !user.admin) {
       const excludeGlobalAuthoritySql = sql`(
         coalesce(${users.superAdmin}, false) = false
         AND lower(coalesce(${users.utilisateur}, '')) NOT LIKE '%superadmin%'

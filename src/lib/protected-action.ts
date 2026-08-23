@@ -23,15 +23,13 @@ export async function protectedDbAction<T>(
       return { error: "Non autorisé. Veuillez vous connecter.", success: false };
     }
 
-    // Tenant Isolation: Non-super-admins must be locked to a school ID
-    if (!user.superAdmin && !user.schoolId) {
-      return { error: "Accès refusé. Aucune école associée à cet utilisateur.", success: false };
-    }
+    const isAdmin = Boolean(user.admin === true || user.superAdmin === true || user.superAdmin === 1);
 
-    const permitted = await hasPermission(user.id, moduleName, actionType);
-
-    if (!permitted) {
-      return { error: `Accès refusé. Vous n'avez pas la permission pour l'action ${actionType} dans le module ${moduleName}.`, success: false };
+    if (!isAdmin) {
+      const permitted = await hasPermission(user.id, moduleName, actionType);
+      if (!permitted) {
+        return { error: `Accès refusé. Vous n'avez pas la permission pour l'action ${actionType} dans le module ${moduleName}.`, success: false };
+      }
     }
 
     const result = await safeDbAction(() => action(user));
