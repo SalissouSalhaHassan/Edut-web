@@ -149,3 +149,6 @@ export async function logout() {
     console.error("[logout] Error:", e);
   }
 }
+
+export const getSession = getCurrentUser;
+

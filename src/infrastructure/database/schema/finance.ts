@@ -99,6 +99,8 @@ export const feePayments = pgTable("fee_payments", {
   schoolDatePaidIdx: index("fee_payments_school_date_idx").on(table.schoolId, table.datePaid),
 }));
 
+export const feeTransactions = feePayments;
+
 export const expensesRelations = relations(expenses, ({ one }) => ({
   category: one(expenseCategories, {
     fields: [expenses.categoryId],

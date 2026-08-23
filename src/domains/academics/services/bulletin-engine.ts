@@ -1,4 +1,4 @@
-﻿"use server";
+"use server";
 
 import { db } from "@/infrastructure/database";
 import { bulletinRecords } from "@/infrastructure/database/schema/academics";
@@ -71,7 +71,7 @@ async function uploadBulletinPDF(
     const supabase = getStorageClient();
     const sanitizedPeriod = period.replace(/\s+/g, "_").replace(/[^a-zA-Z0-9_-]/g, "");
     const timestamp = Date.now();
-    const pdfPath = ulletins/+{schoolId}/+{sessionId ?? "session"}/+{classId}/+{studentId}_+{sanitizedPeriod}_+{timestamp}.pdf;
+    const pdfPath = `bulletins/${schoolId}/${sessionId ?? "session"}/${classId}/${studentId}_${sanitizedPeriod}_${timestamp}.pdf`;
 
     const { error } = await supabase.storage
       .from("bulletins")
