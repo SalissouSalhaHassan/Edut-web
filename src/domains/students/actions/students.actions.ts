@@ -6,7 +6,7 @@ import { schoolClasses, schoolSubjects, exams, examResults, schoolSessions } fro
 import { pedagogieRemediation } from "@/infrastructure/database/schema/pedagogie";
 import { lmsAssignments } from "@/infrastructure/database/schema/lms";
 import { users } from "@/infrastructure/database/schema/auth";
-import { eq, desc, and, or, inArray, sql, ilike } from "drizzle-orm";
+import { eq, desc, and, or, inArray, sql, ilike, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { studentSchema, StudentFormData } from "../validators/student.schema";
 import { protectedDbAction } from "@/lib/protected-action";
