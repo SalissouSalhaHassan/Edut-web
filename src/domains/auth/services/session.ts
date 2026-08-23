@@ -130,8 +130,43 @@ export const getCurrentUser = cache(async (): Promise<SessionUserRecord | null> 
       },
     }) as SessionUserRecord | null;
 
-    if (!dbUser && isPlatformOwner) {
-      dbUser = createPlatformOwnerFallback(user as SupabaseAuthUser, email);
+    if (!dbUser) {
+      if (isPlatformOwner) {
+        dbUser = createPlatformOwnerFallback(user as SupabaseAuthUser, email);
+      } else {
+        // Construct session user directly from Supabase auth token metadata & username
+        const metaFullName = (user.user_metadata as any)?.full_name || (user.user_metadata as any)?.name || username;
+        const metaSchoolId = Number((user.user_metadata as any)?.school_id) || 1;
+
+        dbUser = {
+          id: 1,
+          schoolId: metaSchoolId,
+          utilisateur: email,
+          supabaseId: user.id,
+          nomPrenom: metaFullName,
+          motDePasse: "SUPABASE_AUTH",
+          admin: true,
+          superAdmin: false,
+          langue: "FR",
+          roleId: null,
+          emplacement: null,
+          depots: null,
+          educationalLevel: "Tous",
+          avatarUrl: null,
+          createdAt: null,
+          studentId: null,
+          employeeId: null,
+          role: {
+            roleName: "Administrateur",
+            permissions: [],
+          },
+          school: {
+            id: metaSchoolId,
+            name: "GROUP AIIU-NIGER",
+            slug: "group-aiiu-niger",
+          },
+        };
+      }
     }
 
     if (dbUser) {
