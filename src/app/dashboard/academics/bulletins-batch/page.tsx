@@ -16,12 +16,6 @@ interface Props {
   searchParams: Promise<{ classId?: string; periodId?: string }>;
 }
 
-async function getBulletinDataForStudent(studentId: number, classId: number, periodId: number, schoolId: number) {
-  "use server";
-  const { getStudentBulletinData } = await import("@/domains/academics/actions/bulletin-batch.actions");
-  return getStudentBulletinData(studentId, classId, periodId, schoolId);
-}
-
 export default async function BulletinsBatchPage({ searchParams }: Props) {
   const params = await searchParams;
   const user = await getCurrentUser();
@@ -66,8 +60,8 @@ export default async function BulletinsBatchPage({ searchParams }: Props) {
 
   if (classId && periodId) {
     batchData = await fetchBulletinDataForClass(classId, periodId, schoolId);
-    selectedClass = classes.find((c: any) => c.id === classId);
-    selectedPeriod = periods.find((p: any) => p.id === periodId);
+    selectedClass = classes.find((c: any) => c.id === classId) || await db.query.schoolClasses.findFirst({ where: eq(schoolClasses.id, classId) });
+    selectedPeriod = periods.find((p: any) => p.id === periodId) || await db.query.academicPeriods.findFirst({ where: eq(academicPeriods.id, periodId) });
   }
 
   // Fetch branchInfo & headerConfig
@@ -141,7 +135,7 @@ export default async function BulletinsBatchPage({ searchParams }: Props) {
       )}
 
       {/* Main Print Batch View */}
-      {classId && periodId && batchData && (
+      {classId && periodId && (
         <BulletinBatchClient
           classId={classId}
           periodId={periodId}
@@ -149,10 +143,9 @@ export default async function BulletinsBatchPage({ searchParams }: Props) {
           className={selectedClass?.className || "Classe"}
           period={selectedPeriod?.name || "Période"}
           session={selectedPeriod?.sessionName || "Année Scolaire"}
-          students={batchData.students || []}
+          students={batchData?.students || []}
           branchInfo={branchInfo}
           headerConfig={headerConfig}
-          getBulletinDataForStudent={(studentId: number) => getBulletinDataForStudent(studentId, classId, periodId, schoolId)}
         />
       )}
     </div>

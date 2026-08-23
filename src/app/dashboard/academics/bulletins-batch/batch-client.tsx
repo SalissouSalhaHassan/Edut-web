@@ -14,7 +14,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { startBulletinBatch } from "@/domains/academics/actions/bulletin-batch.actions";
+import { startBulletinBatch, getStudentBulletinData } from "@/domains/academics/actions/bulletin-batch.actions";
 import type { BatchStudentResult } from "@/domains/academics/services/bulletin-engine";
 import { generateBulletinBlob } from "@/domains/academics/utils/bulletin-generator";
 
@@ -40,7 +40,6 @@ interface BulletinBatchClientProps {
   branchInfo: any;
   headerConfig: any;
   students: Student[];
-  getBulletinDataForStudent: (studentId: number) => Promise<any>;
 }
 
 // ─── Progress Item ────────────────────────────────────────────────────────────
@@ -111,23 +110,21 @@ export default function BulletinBatchClient({
   branchInfo,
   headerConfig,
   students,
-  getBulletinDataForStudent,
 }: BulletinBatchClientProps) {
   const [selectedAll, setSelectedAll] = React.useState(true);
   const [selectedIds, setSelectedIds] = React.useState<Set<number>>(
     new Set(students.map((s) => s.id))
   );
   const [mergeIntoPdf, setMergeIntoPdf] = React.useState(true);
-  const [notifyWhatsapp, setNotifyWhatsapp] = React.useState(true);
-  const [notifyPush, setNotifyPush] = React.useState(true);
-  const [uploadToStorage, setUploadToStorage] = React.useState(true);
+  const [sendWhatsapp, setSendWhatsapp] = React.useState(false);
+  const [sendPush, setSendPush] = React.useState(false);
 
   const [running, setRunning] = React.useState(false);
   const [done, setDone] = React.useState(false);
-  const [progress, setProgress] = React.useState(0);
   const [currentStudent, setCurrentStudent] = React.useState<string>("");
+  const [progress, setProgress] = React.useState(0);
   const [results, setResults] = React.useState<BatchStudentResult[]>([]);
-  const [summary, setSummary] = React.useState<{ generated: number; failed: number } | null>(null);
+  const [mergedPdfUrl, setMergedPdfUrl] = React.useState<string | null>(null);
   const [pdfBlobs, setPdfBlobs] = React.useState<{ name: string; blob: Blob }[]>([]);
 
   const targetStudents = students.filter((s) => selectedIds.has(s.id));
@@ -169,8 +166,8 @@ export default function BulletinBatchClient({
       setProgress(Math.round(((i) / targetStudents.length) * 100));
 
       try {
-        // Fetch bulletin data for this student
-        const bulletinData = await getBulletinDataForStudent(s.id);
+        // Fetch bulletin data for this student directly from server action
+        const bulletinData = await getStudentBulletinData(s.id, classId, periodId || 0, schoolId);
 
         // Generate PDF Blob client-side
         const verifyToken = Math.random().toString(36).slice(2) + Date.now().toString(36);
@@ -199,280 +196,238 @@ export default function BulletinBatchClient({
         });
         failed++;
       }
-
-      setResults([...batchResults]);
-    }
-
-    // After all generated client-side, also call server for storage + notifications
-    if (uploadToStorage || notifyWhatsapp || notifyPush) {
-      // Server-side batch for storage + distribution (uses server actions)
-      // We pass only successful IDs to avoid re-generating
-      try {
-        const serverBatch = await startBulletinBatch(
-          targetStudents
-            .filter((s) => batchResults.find((r) => r.studentId === s.id)?.success)
-            .map((s) => ({ studentId: s.id, student: s })),
-          {
-            classId,
-            periodId,
-            sessionId,
-            schoolId,
-            period,
-            mergeIntoPdf,
-            uploadToStorage,
-            notifyWhatsapp,
-            notifyPush,
-            generatedBy: "Batch UI",
-          }
-        );
-
-        // Merge server results (pdfUrl, whatsapp, push)
-        setResults((prev) =>
-          prev.map((r) => {
-            const serverResult = serverBatch.results.find((sr) => sr.studentId === r.studentId);
-            if (!serverResult) return r;
-            return {
-              ...r,
-              pdfUrl: serverResult.pdfUrl,
-              whatsappSent: serverResult.whatsappSent,
-              pushSent: serverResult.pushSent,
-            };
-          })
-        );
-      } catch (serverErr) {
-        console.warn("[BulletinBatch] Server distribution error:", serverErr);
-      }
     }
 
     setPdfBlobs(blobs);
-    setSummary({ generated, failed });
+    setResults(batchResults);
     setProgress(100);
     setRunning(false);
     setDone(true);
   }
 
-  function handleDownloadAll() {
-    for (const { name, blob } of pdfBlobs) {
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${name}_${Date.now()}.pdf`;
-      a.click();
-      URL.revokeObjectURL(url);
-    }
-  }
-
-  function handlePrintAll() {
-    for (const { blob } of pdfBlobs) {
+  function printAllSeparately() {
+    pdfBlobs.forEach(({ blob }) => {
       const url = URL.createObjectURL(blob);
       const win = window.open(url, "_blank");
       win?.print();
-    }
+    });
+  }
+
+  function downloadAllZip() {
+    pdfBlobs.forEach(({ name, blob }) => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${name}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="mx-auto max-w-5xl p-6 space-y-6">
+      {/* Top Header Card */}
+      <div className="rounded-xl border bg-white dark:bg-slate-900 p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            🖨️ Impression Groupée des Bulletins
-          </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Classe: <span className="font-semibold text-slate-700">{className}</span> ·{" "}
-            Période: <span className="font-semibold text-slate-700">{period}</span> ·{" "}
-            Année: <span className="font-semibold text-slate-700">{session}</span>
+          <span className="inline-block rounded-full bg-indigo-50 dark:bg-indigo-950/50 px-3 py-1 text-xs font-semibold text-indigo-600 dark:text-indigo-400 mb-2">
+            Classe : {className} — {period}
+          </span>
+          <h1 className="text-xl font-bold">Génération & Impression des Bulletins</h1>
+          <p className="text-sm text-slate-500 mt-0.5">
+            {students.length} élèves inscrits · Session : {session}
           </p>
         </div>
-        <div className="flex items-center gap-1.5 rounded-full bg-indigo-50 px-3 py-1.5 text-sm font-medium text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">
-          <Users className="size-4" />
-          {students.length} élèves
+
+        <div className="flex items-center gap-2">
+          <a
+            href="/dashboard/academics/bulletins-batch"
+            className="rounded-lg border px-3 py-2 text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+          >
+            ← Changer de classe
+          </a>
         </div>
       </div>
 
-      {/* Student Selection */}
-      {!running && !done && (
-        <div className="rounded-xl border bg-white dark:bg-slate-900 p-5 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="font-semibold text-slate-800 dark:text-slate-200">Sélection des élèves</h2>
-            <button
-              onClick={toggleAll}
-              className="text-sm text-indigo-600 hover:underline"
-            >
-              {selectedAll ? "Tout désélectionner" : "Tout sélectionner"}
-            </button>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Left Column: Student Selector & Options */}
+        <div className="md:col-span-1 space-y-4">
+          {/* Options Panel */}
+          <div className="rounded-xl border bg-white dark:bg-slate-900 p-4 space-y-3 shadow-sm">
+            <h2 className="text-sm font-semibold">Options de distribution</h2>
+
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                checked={mergeIntoPdf}
+                onChange={(e) => setMergeIntoPdf(e.target.checked)}
+                className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              <span>Fusionner en un seul PDF (Livret)</span>
+            </label>
+
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                checked={sendWhatsapp}
+                onChange={(e) => setSendWhatsapp(e.target.checked)}
+                className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+              />
+              <span className="flex items-center gap-1">
+                <MessageSquare className="size-3.5 text-emerald-600" />
+                Notification WhatsApp aux parents
+              </span>
+            </label>
+
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                checked={sendPush}
+                onChange={(e) => setSendPush(e.target.checked)}
+                className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+              />
+              <span className="flex items-center gap-1">
+                <Bell className="size-3.5 text-blue-600" />
+                Notification Push Mobile Élève
+              </span>
+            </label>
           </div>
-          <div className="grid grid-cols-2 gap-2 max-h-52 overflow-y-auto pr-1">
-            {students.map((s) => (
-              <label
-                key={s.id}
-                className={cn(
-                  "flex items-center gap-2 rounded-lg border px-3 py-2 text-sm cursor-pointer transition-colors",
-                  selectedIds.has(s.id)
-                    ? "border-indigo-300 bg-indigo-50 dark:border-indigo-700 dark:bg-indigo-950/40"
-                    : "border-slate-200 bg-slate-50 dark:border-slate-700"
-                )}
+
+          {/* Student List Panel */}
+          <div className="rounded-xl border bg-white dark:bg-slate-900 p-4 space-y-3 shadow-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-semibold">
+                Élèves ({targetStudents.length}/{students.length})
+              </span>
+              <button
+                type="button"
+                onClick={toggleAll}
+                className="text-xs text-indigo-600 hover:underline"
               >
-                <input
-                  type="checkbox"
-                  checked={selectedIds.has(s.id)}
-                  onChange={() => toggleStudent(s.id)}
-                  className="accent-indigo-600"
-                />
-                <span className="truncate">{s.nomEtudiant}</span>
-              </label>
-            ))}
-          </div>
-          <p className="text-xs text-slate-500">
-            {selectedIds.size} / {students.length} élève(s) sélectionné(s)
-          </p>
-        </div>
-      )}
+                {selectedAll ? "Tout décocher" : "Tout cocher"}
+              </button>
+            </div>
 
-      {/* Options */}
-      {!running && !done && (
-        <div className="rounded-xl border bg-white dark:bg-slate-900 p-5 space-y-3">
-          <h2 className="font-semibold text-slate-800 dark:text-slate-200">Options de distribution</h2>
-          <div className="space-y-2">
-            {[
-              { key: "mergeIntoPdf", label: "Fusionner en un seul PDF pour impression", value: mergeIntoPdf, set: setMergeIntoPdf, icon: "🖨️" },
-              { key: "uploadToStorage", label: "Sauvegarder dans le registre officiel (Cloud)", value: uploadToStorage, set: setUploadToStorage, icon: "☁️" },
-              { key: "notifyWhatsapp", label: "Envoyer via WhatsApp aux parents", value: notifyWhatsapp, set: setNotifyWhatsapp, icon: "💬" },
-              { key: "notifyPush", label: "Notification Push dans l'application", value: notifyPush, set: setNotifyPush, icon: "🔔" },
-            ].map(({ key, label, value, set, icon }) => (
-              <label key={key} className="flex items-center gap-3 cursor-pointer group">
-                <div
-                  onClick={() => set(!value)}
-                  className={cn(
-                    "relative w-10 h-5 rounded-full transition-colors",
-                    value ? "bg-indigo-600" : "bg-slate-300 dark:bg-slate-600"
-                  )}
+            <div className="max-h-72 overflow-y-auto space-y-1 divide-y divide-slate-100 dark:divide-slate-800">
+              {students.map((s) => (
+                <label
+                  key={s.id}
+                  className="flex items-center justify-between py-1.5 px-1 rounded hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer text-sm"
                 >
-                  <div
-                    className={cn(
-                      "absolute top-0.5 size-4 rounded-full bg-white shadow transition-transform",
-                      value ? "translate-x-5" : "translate-x-0.5"
-                    )}
-                  />
-                </div>
-                <span className="text-sm text-slate-700 dark:text-slate-300">
-                  {icon} {label}
+                  <div className="flex items-center gap-2 truncate">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(s.id)}
+                      onChange={() => toggleStudent(s.id)}
+                      className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <span className="truncate">{s.nomEtudiant}</span>
+                  </div>
+                  {s.numAdmission && (
+                    <span className="text-[11px] font-mono text-slate-400 ml-1 shrink-0">
+                      {s.numAdmission}
+                    </span>
+                  )}
+                </label>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              disabled={running || targetStudents.length === 0}
+              onClick={handleStart}
+              className="w-full rounded-lg bg-indigo-600 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50 transition flex items-center justify-center gap-2 shadow-sm shadow-indigo-200 dark:shadow-none"
+            >
+              {running ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  Génération en cours ({progress}%)...
+                </>
+              ) : (
+                <>
+                  <Printer className="size-4" />
+                  Générer {targetStudents.length} bulletin(s)
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Right Column: Execution Progress & Results */}
+        <div className="md:col-span-2 space-y-4">
+          {/* Progress Card */}
+          {running && (
+            <div className="rounded-xl border border-indigo-200 bg-indigo-50 dark:border-indigo-900 dark:bg-indigo-950/30 p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-semibold text-indigo-900 dark:text-indigo-200">
+                  Traitement de : <span className="underline">{currentStudent}</span>
                 </span>
-              </label>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Action Button */}
-      {!running && !done && (
-        <button
-          onClick={handleStart}
-          disabled={selectedIds.size === 0}
-          className={cn(
-            "w-full flex items-center justify-center gap-2 rounded-xl py-3.5 font-semibold text-white transition-all",
-            selectedIds.size > 0
-              ? "bg-indigo-600 hover:bg-indigo-700 shadow-lg hover:shadow-indigo-200"
-              : "bg-slate-300 cursor-not-allowed"
-          )}
-        >
-          <Printer className="size-5" />
-          Lancer la génération ({selectedIds.size} bulletins)
-        </button>
-      )}
-
-      {/* Progress */}
-      {running && (
-        <div className="rounded-xl border bg-white dark:bg-slate-900 p-6 space-y-4">
-          <div className="flex items-center gap-3">
-            <Loader2 className="size-5 animate-spin text-indigo-600" />
-            <div>
-              <p className="font-semibold">Génération en cours...</p>
-              <p className="text-sm text-slate-500">Élève actuel: {currentStudent}</p>
+                <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">
+                  {progress}%
+                </span>
+              </div>
+              <div className="h-2 w-full rounded-full bg-indigo-200 dark:bg-indigo-900 overflow-hidden">
+                <div
+                  className="h-full bg-indigo-600 transition-all duration-300"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
             </div>
-          </div>
-          <div className="w-full h-3 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-            <div
-              className="h-full rounded-full bg-indigo-600 transition-all duration-300"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-          <p className="text-sm text-slate-500 text-right">{progress}%</p>
+          )}
+
+          {/* Results Summary Card */}
+          {done && (
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/30 p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-300 font-bold">
+                  <CheckCircle2 className="size-5" />
+                  Génération terminée avec succès !
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={downloadAllZip}
+                    className="flex items-center gap-1.5 rounded-lg bg-white dark:bg-slate-900 border px-3 py-1.5 text-xs font-semibold hover:bg-slate-50 transition"
+                  >
+                    <FileDown className="size-3.5" /> Télécharger tous les PDF
+                  </button>
+                  <button
+                    onClick={printAllSeparately}
+                    className="flex items-center gap-1.5 rounded-lg bg-emerald-600 text-white px-3 py-1.5 text-xs font-semibold hover:bg-emerald-700 transition"
+                  >
+                    <Printer className="size-3.5" /> Imprimer tout
+                  </button>
+                </div>
+              </div>
+
+              <div className="text-xs text-emerald-700 dark:text-emerald-400">
+                {results.filter((r) => r.success).length} généré(s) avec succès ·{" "}
+                {results.filter((r) => !r.success).length} échec(s)
+              </div>
+            </div>
+          )}
+
+          {/* Live Progress / Result List */}
           {results.length > 0 && (
-            <div className="space-y-1.5 max-h-48 overflow-y-auto">
-              {results.map((r) => (
-                <ProgressItem key={r.studentId} result={r} />
+            <div className="rounded-xl border bg-white dark:bg-slate-900 p-4 space-y-2 max-h-96 overflow-y-auto">
+              <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                Détails par élève
+              </h3>
+              {results.map((res) => (
+                <ProgressItem key={res.studentId} result={res} />
               ))}
             </div>
           )}
-        </div>
-      )}
 
-      {/* Results Summary */}
-      {done && summary && (
-        <div className="space-y-4">
-          {/* Summary Cards */}
-          <div className="grid grid-cols-3 gap-4">
-            <div className="rounded-xl border bg-emerald-50 dark:bg-emerald-950/30 p-4 text-center">
-              <p className="text-3xl font-bold text-emerald-600">{summary.generated}</p>
-              <p className="text-sm text-emerald-700 mt-1">Générés</p>
-            </div>
-            <div className="rounded-xl border bg-rose-50 dark:bg-rose-950/30 p-4 text-center">
-              <p className="text-3xl font-bold text-rose-600">{summary.failed}</p>
-              <p className="text-sm text-rose-700 mt-1">Échecs</p>
-            </div>
-            <div className="rounded-xl border bg-blue-50 dark:bg-blue-950/30 p-4 text-center">
-              <p className="text-3xl font-bold text-blue-600">
-                {results.filter((r) => r.whatsappSent).length}
+          {!running && !done && (
+            <div className="rounded-xl border border-dashed p-12 text-center text-slate-400 space-y-2">
+              <Printer className="size-8 mx-auto text-slate-300" />
+              <p className="text-sm font-medium">Prêt pour la génération</p>
+              <p className="text-xs">
+                Sélectionnez les élèves et cliquez sur "Générer" pour lancer le traitement par lot
               </p>
-              <p className="text-sm text-blue-700 mt-1">WhatsApp envoyés</p>
             </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex gap-3">
-            <button
-              onClick={handleDownloadAll}
-              disabled={pdfBlobs.length === 0}
-              className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-indigo-300 py-3 text-indigo-700 font-medium hover:bg-indigo-50 transition-colors"
-            >
-              <FileDown className="size-4" />
-              Télécharger ({pdfBlobs.length} PDF)
-            </button>
-            <button
-              onClick={handlePrintAll}
-              disabled={pdfBlobs.length === 0}
-              className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-indigo-600 py-3 text-white font-medium hover:bg-indigo-700 transition-colors"
-            >
-              <Printer className="size-4" />
-              Imprimer tout
-            </button>
-          </div>
-
-          {/* Detailed Results */}
-          <div className="rounded-xl border bg-white dark:bg-slate-900 p-5 space-y-2">
-            <h3 className="font-semibold text-slate-800 dark:text-slate-200">Détail par élève</h3>
-            <div className="space-y-1.5 max-h-72 overflow-y-auto">
-              {results.map((r) => (
-                <ProgressItem key={r.studentId} result={r} />
-              ))}
-            </div>
-          </div>
-
-          {/* Start New Batch */}
-          <button
-            onClick={() => {
-              setDone(false);
-              setResults([]);
-              setSummary(null);
-              setPdfBlobs([]);
-            }}
-            className="w-full py-3 text-center text-slate-600 hover:text-slate-900 text-sm underline"
-          >
-            Nouvelle génération
-          </button>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }

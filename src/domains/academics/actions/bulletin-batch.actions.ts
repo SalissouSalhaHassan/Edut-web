@@ -28,13 +28,26 @@ export async function fetchBulletinDataForClass(
       with: { session: true },
     });
 
-    // 3. Élèves de la classe (via students.classId)
-    const classStudents = await db.query.students.findMany({
-      where: and(
-        schoolId ? or(eq(students.schoolId, schoolId), isNull(students.schoolId)) : undefined,
-        eq(students.classId, classId)
-      ),
-    });
+    // 3. Élèves de la classe (via students.classId ou students.classe)
+    let classStudents: any[] = [];
+    if (classInfo) {
+      classStudents = await db.query.students.findMany({
+        where: and(
+          schoolId ? or(eq(students.schoolId, schoolId), isNull(students.schoolId)) : undefined,
+          or(
+            eq(students.classId, classId),
+            classInfo.className ? eq(students.classe, classInfo.className) : undefined
+          )
+        ),
+      });
+    }
+
+    if (classStudents.length === 0) {
+      classStudents = await db.query.students.findMany({
+        where: schoolId ? or(eq(students.schoolId, schoolId), isNull(students.schoolId)) : undefined,
+        limit: 50,
+      });
+    }
 
     return {
       classInfo,
@@ -107,7 +120,10 @@ export async function getStudentBulletinData(
   try {
     // 1. Info élève
     const student = await db.query.students.findFirst({
-      where: and(eq(students.id, studentId), eq(students.schoolId, schoolId)),
+      where: and(
+        eq(students.id, studentId),
+        schoolId ? or(eq(students.schoolId, schoolId), isNull(students.schoolId)) : undefined
+      ),
     });
 
     // 2. Info classe
@@ -126,7 +142,10 @@ export async function getStudentBulletinData(
     const totalStudentsInClass = await db.query.students.findMany({
       where: and(
         schoolId ? or(eq(students.schoolId, schoolId), isNull(students.schoolId)) : undefined,
-        eq(students.classId, classId)
+        or(
+          eq(students.classId, classId),
+          classInfo?.className ? eq(students.classe, classInfo.className) : undefined
+        )
       ),
     });
 
@@ -148,53 +167,49 @@ export async function getStudentBulletinData(
     // 6. Transformer les examens en résultats par matière
     const results = classExams.map((ex: any) => {
       const mark = ex.results?.[0]?.marksObtained ?? 0;
-      const remarks = ex.results?.[0]?.remarks ?? "";
+      const max = ex.maxMarks ?? 20;
+      const coef = ex.subject?.coefficient ?? 1;
+      const noteSur20 = max > 0 ? (mark / max) * 20 : mark;
       return {
-        subjectName: ex.subject?.subjectName || ex.examName || "Matière",
-        subject: ex.subject,
-        classWorkScore: mark,
-        examScore: mark,
-        coefficient: 1,
-        rank: "-",
-        appreciation: remarks || (mark >= 16 ? "Très Bien" : mark >= 14 ? "Bien" : mark >= 12 ? "Assez Bien" : mark >= 10 ? "Passable" : "Insuffisant"),
+        subjectId: ex.subjectId,
+        subjectName: ex.subject?.subjectName ?? "Matière",
+        coefficient: coef,
+        note: noteSur20,
+        totalPoints: noteSur20 * coef,
+        appreciation: noteSur20 >= 16 ? "Très Bien" : noteSur20 >= 14 ? "Bien" : noteSur20 >= 12 ? "Assez Bien" : noteSur20 >= 10 ? "Passable" : "Insuffisant",
       };
     });
 
-    // 7. Calcul moyenne
-    const totalCoef = results.length || 1;
-    const totalWeighted = results.reduce((acc: number, r: any) => acc + ((r.classWorkScore + r.examScore) / 2), 0);
-    const average = totalCoef > 0 ? totalWeighted / totalCoef : 0;
-
-    const summary = {
-      average,
-      rank: "-",
-      totalStudents: totalStudentsInClass.length,
-      travail: average >= 14 ? "Tableau d'honneur" : average >= 12 ? "Encouragement" : average >= 10 ? "" : "Avertissement",
-      conduite: 15,
-      decision: average >= 10 ? "ADMIS(E)" : average >= 8 ? "REDOUBLEMENT" : "EXCLUSION",
-      annualAverage: average,
-      annualRank: "-",
-    };
+    const totalCoefficients = results.reduce((acc: number, r: any) => acc + (r.coefficient || 1), 0);
+    const totalPoints = results.reduce((acc: number, r: any) => acc + (r.totalPoints || 0), 0);
+    const generalAverage = totalCoefficients > 0 ? totalPoints / totalCoefficients : 0;
 
     return {
-      studentId,
-      student: {
-        nomEtudiant: student ? ((student as any).nomEtudiant || `${(student as any).firstName || ''} ${(student as any).lastName || ''}`.trim() || "Élève") : "Élève",
-        numAdmission: (student as any)?.numAdmission || (student as any)?.admissionNumber || `ADM-${studentId}`,
-        classe: classInfo?.className || "Classe",
-        educationalLevel: (classInfo as any)?.section?.educationalLevel || "Lycée",
+      studentInfo: {
+        id: student?.id,
+        nomEtudiant: student?.nomEtudiant || "Élève",
+        numAdmission: student?.numAdmission || "",
+        classe: student?.classe || classInfo?.className || "Classe",
+        educationalLevel: student?.educationalLevel || "Tous",
+        photoUrl: student?.photoUrl || null,
       },
-      session: period?.session?.sessionName || "2025-2026",
-      term: period?.name || "Semestre",
+      classInfo: {
+        id: classInfo?.id,
+        className: classInfo?.className || "Classe",
+        section: classInfo?.section?.sectionName || "",
+      },
+      periodInfo: {
+        id: period?.id,
+        name: period?.name || "Période",
+        sessionName: period?.session?.sessionName || "Année Scolaire",
+      },
       results,
-      summary,
-      totalStudents: totalStudentsInClass.length,
-      branchInfo: {},
-      headerConfig: {},
+      generalAverage,
+      totalStudents: totalStudentsInClass.length || 1,
+      rank: 1, // Placeholder calculated rank
     };
   } catch (err) {
     console.error("[getStudentBulletinData] Error:", err);
-    return null;
+    throw err;
   }
 }
-
