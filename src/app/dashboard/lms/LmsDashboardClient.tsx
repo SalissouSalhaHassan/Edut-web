@@ -5,7 +5,7 @@ import {
   Plus, Search, Calendar, Clock, ExternalLink, BookOpen, Video, Globe, Play, 
   FileText, Trash2, Edit, CheckCircle2, XCircle, AlertCircle, Download, Upload, 
   Printer, User, GraduationCap, Award, ArrowLeft, ArrowRight, Wifi, WifiOff, 
-  Check, FileUp, Users, BarChart2, Eye, Copy, Info, CheckCircle
+  Check, FileUp, Users, BarChart2, Eye, Copy, Info, CheckCircle, Moon, Sun
 } from "lucide-react";
 import { 
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, 
@@ -60,6 +60,28 @@ export default function LmsDashboardClient({
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState("dashboard");
   const [userRole, setUserRole] = useState("super_admin");
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const isDark = document.documentElement.classList.contains("dark") || localStorage.getItem("lms_theme") === "dark";
+      setIsDarkMode(isDark);
+    }
+  }, []);
+
+  const toggleDarkMode = () => {
+    const next = !isDarkMode;
+    setIsDarkMode(next);
+    if (typeof window !== "undefined") {
+      if (next) {
+        document.documentElement.classList.add("dark");
+        localStorage.setItem("lms_theme", "dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+        localStorage.setItem("lms_theme", "light");
+      }
+    }
+  };
 
   // Fallback default session calculation
   const defaultSession = activeSessionName || (new Date().getFullYear() + "-" + (new Date().getFullYear() + 1));
@@ -645,89 +667,109 @@ export default function LmsDashboardClient({
   };
 
   return (
-    <div className="p-6 md:p-10 space-y-8 animate-in fade-in duration-500">
-      
-      {/* Offline Sync bar */}
-      {!isOnline && (
-        <div className="bg-amber-500 text-white p-3 rounded-2xl flex items-center justify-between shadow-md">
-          <div className="flex items-center gap-2">
-            <WifiOff size={20} />
-            <span className="font-bold text-sm">Mode Hors ligne actif. Vos actions sont sauvegardées localement.</span>
+    <div className={`p-6 md:p-10 space-y-8 animate-in fade-in duration-500 min-h-screen ${isDarkMode ? "dark bg-[#0a0c14] text-slate-100" : "bg-slate-50/50 text-slate-900"}`}>
+      <div className="max-w-[1700px] mx-auto space-y-8">
+        
+        {/* Offline Sync bar */}
+        {!isOnline && (
+          <div className="bg-amber-500 text-white p-3 rounded-2xl flex items-center justify-between shadow-md">
+            <div className="flex items-center gap-2">
+              <WifiOff size={20} />
+              <span className="font-bold text-sm">Mode Hors ligne actif. Vos actions sont sauvegardées localement.</span>
+            </div>
+            {pendingSyncCount > 0 && (
+              <span className="bg-amber-700 px-3 py-1 rounded-xl text-xs font-black">
+                {pendingSyncCount} en attente
+              </span>
+            )}
           </div>
-          {pendingSyncCount > 0 && (
-            <span className="bg-amber-700 px-3 py-1 rounded-xl text-xs font-black">
-              {pendingSyncCount} en attente
-            </span>
-          )}
-        </div>
-      )}
+        )}
 
-      {isOnline && pendingSyncCount > 0 && (
-        <div className="bg-emerald-500 text-white p-3 rounded-2xl flex items-center justify-between shadow-md animate-bounce">
-          <div className="flex items-center gap-2">
-            <Wifi size={20} />
-            <span className="font-bold text-sm">Connexion rétablie. Des données hors ligne attendent d'être synchronisées.</span>
+        {isOnline && pendingSyncCount > 0 && (
+          <div className="bg-emerald-500 text-white p-3 rounded-2xl flex items-center justify-between shadow-md animate-bounce">
+            <div className="flex items-center gap-2">
+              <Wifi size={20} />
+              <span className="font-bold text-sm">Connexion rétablie. Des données hors ligne attendent d'être synchronisées.</span>
+            </div>
+            <button onClick={triggerSync} className="bg-emerald-700 hover:bg-emerald-800 px-4 py-2 rounded-xl text-xs font-black transition-all">
+              Synchroniser maintenant
+            </button>
           </div>
-          <button onClick={triggerSync} className="bg-emerald-700 hover:bg-emerald-800 px-4 py-2 rounded-xl text-xs font-black transition-all">
-            Synchroniser maintenant
-          </button>
-        </div>
-      )}
+        )}
 
-      {/* Header & Controls */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm print:hidden">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-4xl font-black text-slate-900 tracking-tight">E-Learning & LMS</h1>
-            <span className="bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider">
-              Scolaire
-            </span>
-          </div>
-          <p className="text-slate-500 mt-1 font-medium">Plateforme éducative intégrale : étudiants, cours, modules, examens et classes en direct</p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-4">
-          {/* Year selector */}
-          <div className="flex items-center gap-2 bg-slate-50 border border-slate-200/60 px-4 py-2 rounded-2xl text-xs font-bold text-slate-700">
-            <span className="text-slate-400">Année scolaire :</span>
-            <select 
-              value={schoolYear} 
-              onChange={(e) => setSchoolYear(e.target.value)} 
-              className="bg-transparent border-none outline-none font-bold text-indigo-600 cursor-pointer"
-            >
-              {academicSessions.map((s: any) => (
-                <option key={s.id} value={s.sessionName}>{s.sessionName}</option>
-              ))}
-              {academicSessions.length === 0 && (
-                <>
-                  <option value="2024-2025">2024-2025</option>
-                  <option value="2025-2026">2025-2026</option>
-                  <option value="2026-2027">2026-2027</option>
-                </>
-              )}
-            </select>
+        {/* Header & Controls */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/80 shadow-sm print:hidden">
+          <div>
+            <div className="flex items-center gap-3">
+              <h1 className="text-4xl font-black text-slate-900 dark:text-white tracking-tight">E-Learning & LMS</h1>
+              <span className="bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider">
+                Scolaire
+              </span>
+            </div>
+            <p className="text-slate-500 dark:text-slate-400 mt-1 font-medium">Plateforme éducative intégrale : étudiants, cours, modules, examens et classes en direct</p>
           </div>
 
-          {/* Role switcher (for testing/management) */}
-          {(currentUser?.superAdmin || currentUser?.admin) && (
-            <div className="flex items-center gap-2 bg-indigo-50 border border-indigo-100 px-4 py-2 rounded-2xl text-xs font-bold text-indigo-900">
-              <span className="text-indigo-500">Vue :</span>
+          <div className="flex flex-wrap items-center gap-4">
+            {/* Year selector */}
+            <div className="flex items-center gap-2 bg-slate-50 dark:bg-[#1a1d2d] border border-slate-200/60 dark:border-slate-800 px-4 py-2 rounded-2xl text-xs font-bold text-slate-700 dark:text-slate-300">
+              <span className="text-slate-400">Année scolaire :</span>
               <select 
-                value={userRole} 
-                onChange={(e) => {
-                  setUserRole(e.target.value);
-                  setActiveTab(e.target.value === "student" ? "reader" : "dashboard");
-                }}
-                className="bg-transparent border-none outline-none font-black cursor-pointer text-indigo-600"
+                value={schoolYear} 
+                onChange={(e) => setSchoolYear(e.target.value)} 
+                className="bg-transparent border-none outline-none font-bold text-indigo-600 cursor-pointer"
               >
-                <option value="super_admin">Super Admin</option>
-                <option value="general_director">Directeur</option>
-                <option value="teacher">Professeur</option>
-                <option value="student">Élève</option>
+                {academicSessions.map((s: any) => (
+                  <option key={s.id} value={s.sessionName}>{s.sessionName}</option>
+                ))}
+                {academicSessions.length === 0 && (
+                  <>
+                    <option value="2024-2025">2024-2025</option>
+                    <option value="2025-2026">2025-2026</option>
+                    <option value="2026-2027">2026-2027</option>
+                  </>
+                )}
               </select>
             </div>
-          )}
 
+            {/* Role switcher (for testing/management) */}
+            {(currentUser?.superAdmin || currentUser?.admin) && (
+              <div className="flex items-center gap-2 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/60 px-4 py-2 rounded-2xl text-xs font-bold text-indigo-900 dark:text-indigo-300">
+                <span className="text-indigo-500">Vue :</span>
+                <select 
+                  value={userRole} 
+                  onChange={(e) => {
+                    setUserRole(e.target.value);
+                    setActiveTab(e.target.value === "student" ? "reader" : "dashboard");
+                  }}
+                  className="bg-transparent border-none outline-none font-black cursor-pointer text-indigo-600"
+                >
+                  <option value="super_admin">Super Admin</option>
+                  <option value="general_director">Directeur</option>
+                  <option value="teacher">Professeur</option>
+                  <option value="student">Élève</option>
+                </select>
+              </div>
+            )}
+
+                    {/* Dark Mode Switcher */}
+          <button 
+            type="button"
+            onClick={toggleDarkMode}
+            className="flex items-center gap-2 bg-slate-50 dark:bg-[#1a1d2d] border border-slate-200/60 dark:border-slate-800 px-4 py-2.5 rounded-2xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#232738] transition-all cursor-pointer shadow-xs"
+            title={isDarkMode ? "Passer en mode clair" : "Passer en mode sombre"}
+          >
+            {isDarkMode ? (
+              <>
+                <Sun size={15} className="text-amber-400" />
+                <span className="font-bold text-amber-300">Mode Clair</span>
+              </>
+            ) : (
+              <>
+                <Moon size={15} className="text-indigo-600 dark:text-indigo-400" />
+                <span className="font-bold text-slate-700 dark:text-slate-300">Mode Sombre</span>
+              </>
+            )}
+          </button>
           {/* Action buttons shortcuts */}
           {userRole !== "student" && (
             <div className="flex gap-2">
@@ -749,24 +791,24 @@ export default function LmsDashboardClient({
       </div>
 
       {/* Main Tab bar */}
-      <div className="flex flex-wrap gap-2 p-2 bg-slate-100 rounded-3xl w-full max-w-fit print:hidden shadow-inner">
+      <div className="flex flex-wrap gap-2 p-2 bg-slate-100 dark:bg-[#181b2a] border border-transparent dark:border-slate-800/80 rounded-3xl w-full max-w-fit print:hidden shadow-inner">
         {userRole !== "student" && (
           <>
             <button 
               onClick={() => setActiveTab("dashboard")} 
-              className={`px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all ${activeTab === "dashboard" ? "bg-white text-primary shadow-sm" : "text-slate-500 hover:text-slate-800"}`}
+              className={`px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all ${activeTab === "dashboard" ? "bg-white dark:bg-[#232738] text-primary dark:text-indigo-400 shadow-sm" : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-200/40 dark:hover:bg-[#1f2232]"}`}
             >
               📊 Tableau de bord
             </button>
             <button 
               onClick={() => setActiveTab("catalog")} 
-              className={`px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all ${activeTab === "catalog" ? "bg-white text-primary shadow-sm" : "text-slate-500 hover:text-slate-800"}`}
+              className={`px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all ${activeTab === "catalog" ? "bg-white dark:bg-[#232738] text-primary dark:text-indigo-400 shadow-sm" : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-200/40 dark:hover:bg-[#1f2232]"}`}
             >
               📚 Catalogue Cours
             </button>
             <button 
               onClick={() => setActiveTab("modules")} 
-              className={`px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all ${activeTab === "modules" ? "bg-white text-primary shadow-sm" : "text-slate-500 hover:text-slate-800"}`}
+              className={`px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all ${activeTab === "modules" ? "bg-white dark:bg-[#232738] text-primary dark:text-indigo-400 shadow-sm" : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-200/40 dark:hover:bg-[#1f2232]"}`}
             >
               🗂️ Modules & Leçons
             </button>
@@ -782,31 +824,31 @@ export default function LmsDashboardClient({
               if (courseL.length > 0) setSelectedLessonId(courseL[0].id);
             }
           }} 
-          className={`px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all ${activeTab === "reader" ? "bg-white text-primary shadow-sm" : "text-slate-500 hover:text-slate-800"}`}
+          className={`px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all ${activeTab === "reader" ? "bg-white dark:bg-[#232738] text-primary dark:text-indigo-400 shadow-sm" : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-200/40 dark:hover:bg-[#1f2232]"}`}
         >
           📖 Lecteur Cours
         </button>
         <button 
           onClick={() => setActiveTab("virtual-classes")} 
-          className={`px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all ${activeTab === "virtual-classes" ? "bg-white text-primary shadow-sm" : "text-slate-500 hover:text-slate-800"}`}
+          className={`px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all ${activeTab === "virtual-classes" ? "bg-white dark:bg-[#232738] text-primary dark:text-indigo-400 shadow-sm" : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-200/40 dark:hover:bg-[#1f2232]"}`}
         >
           🌐 Lives
         </button>
         <button 
           onClick={() => setActiveTab("assignments")} 
-          className={`px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all ${activeTab === "assignments" ? "bg-white text-primary shadow-sm" : "text-slate-500 hover:text-slate-800"}`}
+          className={`px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all ${activeTab === "assignments" ? "bg-white dark:bg-[#232738] text-primary dark:text-indigo-400 shadow-sm" : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-200/40 dark:hover:bg-[#1f2232]"}`}
         >
           📝 Devoirs
         </button>
         <button 
           onClick={() => setActiveTab("quizzes")} 
-          className={`px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all ${activeTab === "quizzes" ? "bg-white text-primary shadow-sm" : "text-slate-500 hover:text-slate-800"}`}
+          className={`px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all ${activeTab === "quizzes" ? "bg-white dark:bg-[#232738] text-primary dark:text-indigo-400 shadow-sm" : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-200/40 dark:hover:bg-[#1f2232]"}`}
         >
           ❓ Quiz
         </button>
         <button 
           onClick={() => setActiveTab("forum")} 
-          className={`px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all ${activeTab === "forum" ? "bg-white text-primary shadow-sm" : "text-slate-500 hover:text-slate-800"}`}
+          className={`px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all ${activeTab === "forum" ? "bg-white dark:bg-[#232738] text-primary dark:text-indigo-400 shadow-sm" : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-200/40 dark:hover:bg-[#1f2232]"}`}
         >
           💬 Forum
         </button>
@@ -814,19 +856,19 @@ export default function LmsDashboardClient({
           <>
             <button 
               onClick={() => setActiveTab("tracking")} 
-              className={`px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all ${activeTab === "tracking" ? "bg-white text-primary shadow-sm" : "text-slate-500 hover:text-slate-800"}`}
+              className={`px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all ${activeTab === "tracking" ? "bg-white dark:bg-[#232738] text-primary dark:text-indigo-400 shadow-sm" : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-200/40 dark:hover:bg-[#1f2232]"}`}
             >
               👥 Suivi élèves
             </button>
             <button 
               onClick={() => setActiveTab("participation")} 
-              className={`px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all ${activeTab === "participation" ? "bg-white text-primary shadow-sm" : "text-slate-500 hover:text-slate-800"}`}
+              className={`px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all ${activeTab === "participation" ? "bg-white dark:bg-[#232738] text-primary dark:text-indigo-400 shadow-sm" : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-200/40 dark:hover:bg-[#1f2232]"}`}
             >
               📊 Participation
             </button>
             <button 
               onClick={() => setActiveTab("reports")} 
-              className={`px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all ${activeTab === "reports" ? "bg-white text-primary shadow-sm" : "text-slate-500 hover:text-slate-800"}`}
+              className={`px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all ${activeTab === "reports" ? "bg-white dark:bg-[#232738] text-primary dark:text-indigo-400 shadow-sm" : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-200/40 dark:hover:bg-[#1f2232]"}`}
             >
               📁 Rapports
             </button>
@@ -834,7 +876,7 @@ export default function LmsDashboardClient({
         )}
         <button 
           onClick={() => setActiveTab("certificates")} 
-          className={`px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all ${activeTab === "certificates" ? "bg-white text-primary shadow-sm" : "text-slate-500 hover:text-slate-800"}`}
+          className={`px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all ${activeTab === "certificates" ? "bg-white dark:bg-[#232738] text-primary dark:text-indigo-400 shadow-sm" : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-200/40 dark:hover:bg-[#1f2232]"}`}
         >
           🏆 Certificats
         </button>
@@ -857,13 +899,13 @@ export default function LmsDashboardClient({
               { label: "Taux progression", value: `${progressRate}%`, icon: CheckCircle2, color: "text-teal-600 bg-teal-50" },
               { label: "Dernières connexions", value: lastConnections, icon: Clock, color: "text-neutral-600 bg-neutral-50" },
             ].map((kpi, idx) => (
-              <div key={idx} className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4">
+              <div key={idx} className="bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl p-6 rounded-3xl border border-slate-100 dark:border-slate-800/80 shadow-sm flex items-center gap-4">
                 <div className={`p-4 rounded-2xl ${kpi.color}`}>
                   <kpi.icon size={22} strokeWidth={2.5} />
                 </div>
                 <div>
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">{kpi.label}</p>
-                  <p className="text-2xl font-black text-slate-900">{kpi.value}</p>
+                  <p className="text-2xl font-black text-slate-900 dark:text-white dark:text-white">{kpi.value}</p>
                 </div>
               </div>
             ))}
@@ -872,8 +914,8 @@ export default function LmsDashboardClient({
           {/* Interactive Recharts Section */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Chart 1: Progression par classe */}
-            <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-4">
-              <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">Progression par classe (%)</h3>
+            <div className="bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/80 shadow-sm space-y-4">
+              <h3 className="text-sm font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider">Progression par classe (%)</h3>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={progressionByClassData}>
@@ -888,8 +930,8 @@ export default function LmsDashboardClient({
             </div>
 
             {/* Chart 2: Activité par matière */}
-            <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-4">
-              <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">Activité par matière</h3>
+            <div className="bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/80 shadow-sm space-y-4">
+              <h3 className="text-sm font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider">Activité par matière</h3>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={activityBySubjectData}>
@@ -905,8 +947,8 @@ export default function LmsDashboardClient({
             </div>
 
             {/* Chart 3: Présence classes virtuelles */}
-            <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-4">
-              <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">Présence classes virtuelles</h3>
+            <div className="bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/80 shadow-sm space-y-4">
+              <h3 className="text-sm font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider">Présence classes virtuelles</h3>
               <div className="h-64 flex flex-col justify-center items-center">
                 <ResponsiveContainer width="100%" height="90%">
                   <PieChart>
@@ -930,8 +972,8 @@ export default function LmsDashboardClient({
             </div>
 
             {/* Chart 4: Devoirs rendus */}
-            <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-4">
-              <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">Devoirs rendus / non rendus</h3>
+            <div className="bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/80 shadow-sm space-y-4">
+              <h3 className="text-sm font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider">Devoirs rendus / non rendus</h3>
               <div className="h-64 flex flex-col justify-center items-center">
                 <ResponsiveContainer width="100%" height="90%">
                   <PieChart>
@@ -955,8 +997,8 @@ export default function LmsDashboardClient({
             </div>
 
             {/* Chart 5: Résultats quiz */}
-            <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-4">
-              <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">Moyenne Résultats Quiz (sur 20)</h3>
+            <div className="bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/80 shadow-sm space-y-4">
+              <h3 className="text-sm font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider">Moyenne Résultats Quiz (sur 20)</h3>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={quizResultsData}>
@@ -971,8 +1013,8 @@ export default function LmsDashboardClient({
             </div>
 
             {/* Chart 6: Cours les plus suivis */}
-            <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-4">
-              <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">Cours les plus suivis</h3>
+            <div className="bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/80 shadow-sm space-y-4">
+              <h3 className="text-sm font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider">Cours les plus suivis</h3>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={popularCoursesData} layout="vertical">
@@ -993,15 +1035,15 @@ export default function LmsDashboardClient({
       {activeTab === "catalog" && userRole !== "student" && (
         <div className="space-y-6 animate-in fade-in duration-300">
           {/* Filters and search */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
-            <div className="flex flex-1 items-center gap-3 bg-slate-50 border border-slate-200/60 px-4 py-2.5 rounded-2xl">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl p-6 rounded-3xl border border-slate-100 dark:border-slate-800/80 shadow-sm">
+            <div className="flex flex-1 items-center gap-3 bg-slate-50 dark:bg-[#1a1d2d] border border-slate-200/60 dark:border-slate-800 px-4 py-2.5 rounded-2xl">
               <Search size={16} className="text-slate-400" />
               <input 
                 type="text" 
                 placeholder="Rechercher par titre ou code..." 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="bg-transparent border-none outline-none text-sm w-full text-slate-700 placeholder-slate-400 font-medium"
+                className="bg-transparent border-none outline-none text-sm w-full text-slate-700 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 font-medium"
               />
             </div>
 
@@ -1009,7 +1051,7 @@ export default function LmsDashboardClient({
               <select 
                 value={classFilter} 
                 onChange={(e) => setClassFilter(e.target.value)}
-                className="bg-slate-50 border border-slate-200/60 px-4 py-2.5 rounded-2xl text-xs font-bold text-slate-700 cursor-pointer outline-none"
+                className="bg-slate-50 dark:bg-[#1a1d2d] border border-slate-200/60 dark:border-slate-800 px-4 py-2.5 rounded-2xl text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer outline-none"
               >
                 <option value="all">Toutes les classes</option>
                 {classes.map(c => (
@@ -1020,7 +1062,7 @@ export default function LmsDashboardClient({
               <select 
                 value={subjectFilter} 
                 onChange={(e) => setSubjectFilter(e.target.value)}
-                className="bg-slate-50 border border-slate-200/60 px-4 py-2.5 rounded-2xl text-xs font-bold text-slate-700 cursor-pointer outline-none"
+                className="bg-slate-50 dark:bg-[#1a1d2d] border border-slate-200/60 dark:border-slate-800 px-4 py-2.5 rounded-2xl text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer outline-none"
               >
                 <option value="all">Toutes les matières</option>
                 {subjects.map(s => (
@@ -1045,10 +1087,10 @@ export default function LmsDashboardClient({
           </div>
 
           {/* Courses Table */}
-          <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden overflow-x-auto">
+          <div className="bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl rounded-[2.5rem] border border-slate-100 dark:border-slate-800/80 shadow-sm overflow-hidden overflow-x-auto">
             <table className="w-full text-left border-collapse min-w-[1000px]">
               <thead>
-                <tr className="bg-slate-50 border-b border-slate-100">
+                <tr className="bg-slate-50/80 dark:bg-[#181b2a] border-b border-slate-100 dark:border-slate-800">
                   <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">N°</th>
                   <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Code cours</th>
                   <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Titre</th>
@@ -1063,12 +1105,12 @@ export default function LmsDashboardClient({
                   <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-50 text-sm font-semibold text-slate-700">
+              <tbody className="divide-y divide-slate-50 dark:divide-slate-800/60 text-sm font-semibold text-slate-700 dark:text-slate-200">
                 {filteredCourses.map((c, i) => (
-                  <tr key={c.id} className="hover:bg-slate-50/50 transition-colors">
+                  <tr key={c.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
                     <td className="px-6 py-4 text-slate-400">{i + 1}</td>
                     <td className="px-6 py-4 font-mono text-xs">{c.courseCode || "-"}</td>
-                    <td className="px-6 py-4 font-bold text-slate-900">{c.title}</td>
+                    <td className="px-6 py-4 font-bold text-slate-900 dark:text-white">{c.title}</td>
                     <td className="px-6 py-4 text-indigo-600">{getClassName(c.classId)}</td>
                     <td className="px-6 py-4">{getSubjectName(c.subjectId)}</td>
                     <td className="px-6 py-4 text-slate-500">{getTeacherName(c.teacherId)}</td>
@@ -1120,7 +1162,7 @@ export default function LmsDashboardClient({
       {/* -------------------- TAB 3: MODULES & LESSONS -------------------- */}
       {activeTab === "modules" && userRole !== "student" && (
         <div className="space-y-6 animate-in fade-in duration-300">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl p-6 rounded-3xl border border-slate-100 dark:border-slate-800/80 shadow-sm">
             <div className="flex items-center gap-3">
               <span className="text-xs font-bold text-slate-500">Choisir un cours :</span>
               <select 
@@ -1130,7 +1172,7 @@ export default function LmsDashboardClient({
                   setSelectedCourseId(val ? parseInt(val) : null);
                   setSelectedModuleId(null);
                 }}
-                className="bg-slate-50 border border-slate-200/60 px-4 py-2.5 rounded-2xl text-xs font-bold text-slate-700 cursor-pointer outline-none"
+                className="bg-slate-50 dark:bg-[#1a1d2d] border border-slate-200/60 dark:border-slate-800 px-4 py-2.5 rounded-2xl text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer outline-none"
               >
                 <option value="">-- Choisir un cours --</option>
                 {courses.map(c => (
@@ -1162,19 +1204,19 @@ export default function LmsDashboardClient({
           {selectedCourseId ? (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {/* Modules List column */}
-              <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-4">
-                <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider mb-2">Modules du cours</h3>
+              <div className="bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl p-6 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/80 shadow-sm space-y-4">
+                <h3 className="text-sm font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider mb-2">Modules du cours</h3>
                 <div className="space-y-3">
                   {(courses.find(c => c.id === selectedCourseId)?.modules || []).map((m: any) => (
                     <div 
                       key={m.id} 
                       onClick={() => setSelectedModuleId(m.id)}
                       className={`p-4 rounded-2xl border cursor-pointer transition-all flex items-center justify-between ${
-                        selectedModuleId === m.id ? "border-indigo-600 bg-indigo-50/50" : "border-slate-100 hover:border-slate-300 bg-slate-50/30"
+                        selectedModuleId === m.id ? "border-indigo-600 bg-indigo-50/50" : "border-slate-100 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-slate-50/30 dark:bg-[#1a1d2d]/50"
                       }`}
                     >
                       <div>
-                        <p className="font-bold text-slate-800">{m.title}</p>
+                        <p className="font-bold text-slate-800 dark:text-slate-200">{m.title}</p>
                         <p className="text-xs text-slate-400">Ordre : {m.displayOrder}</p>
                       </div>
                       <div className="flex gap-1.5">
@@ -1206,20 +1248,20 @@ export default function LmsDashboardClient({
               </div>
 
               {/* Lessons List column */}
-              <div className="lg:col-span-2 bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-4">
-                <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">
+              <div className="lg:col-span-2 bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl p-6 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/80 shadow-sm space-y-4">
+                <h3 className="text-sm font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider">
                   Leçons {selectedModuleId ? `du module sélectionné` : `(Sélectionnez un module)`}
                 </h3>
                 {selectedModuleId ? (
                   <div className="space-y-3">
                     {lessons.filter(l => l.moduleId === selectedModuleId).map((l: any) => (
-                      <div key={l.id} className="p-4 rounded-2xl border border-slate-100 bg-slate-50/20 flex items-center justify-between hover:border-slate-200 transition-all">
+                      <div key={l.id} className="p-4 rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/20 dark:bg-[#1a1d2d]/30 flex items-center justify-between hover:border-slate-200 transition-all">
                         <div className="flex items-center gap-4">
                           <span className="bg-slate-100 text-slate-600 w-8 h-8 rounded-full flex items-center justify-center font-black text-xs">
                             {l.displayOrder}
                           </span>
                           <div>
-                            <p className="font-bold text-slate-800">{l.title}</p>
+                            <p className="font-bold text-slate-800 dark:text-slate-200">{l.title}</p>
                             <div className="flex gap-2 mt-1">
                               <span className="text-[10px] bg-slate-100 text-slate-500 font-bold px-2 py-0.5 rounded-md uppercase">
                                 {l.contentType}
@@ -1261,7 +1303,7 @@ export default function LmsDashboardClient({
               </div>
             </div>
           ) : (
-            <div className="bg-white p-20 rounded-[2.5rem] border border-slate-100 shadow-sm text-center text-slate-400 font-bold">
+            <div className="bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl p-20 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/80 shadow-sm text-center text-slate-400 font-bold">
               Veuillez sélectionner un cours ci-dessus pour gérer ses modules et ses leçons.
             </div>
           )}
@@ -1271,7 +1313,7 @@ export default function LmsDashboardClient({
       {/* -------------------- TAB 4: COURSE READER (Vue Élève) -------------------- */}
       {activeTab === "reader" && (
         <div className="space-y-6 animate-in fade-in duration-300">
-          <div className="flex items-center justify-between bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+          <div className="flex items-center justify-between bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl p-6 rounded-3xl border border-slate-100 dark:border-slate-800/80 shadow-sm">
             <div className="flex items-center gap-3">
               <span className="text-xs font-black text-slate-500 uppercase tracking-wider">Sélectionner le cours :</span>
               <select 
@@ -1282,7 +1324,7 @@ export default function LmsDashboardClient({
                   const firstL = lessons.find(l => l.courseId === parseInt(val));
                   setSelectedLessonId(firstL ? firstL.id : null);
                 }}
-                className="bg-slate-50 border border-slate-200/60 px-4 py-2 rounded-2xl text-xs font-bold text-slate-700 cursor-pointer outline-none font-black text-indigo-600"
+                className="bg-slate-50 dark:bg-[#1a1d2d] border border-slate-200/60 dark:border-slate-800 px-4 py-2 rounded-2xl text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer outline-none font-black text-indigo-600"
               >
                 {courses.map(c => (
                   <option key={c.id} value={c.id}>{c.title}</option>
@@ -1298,8 +1340,8 @@ export default function LmsDashboardClient({
           {selectedCourseId ? (
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
               {/* Course Syllabus outline */}
-              <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-4 h-[600px] overflow-y-auto">
-                <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest border-b pb-2">Plan du cours</h3>
+              <div className="bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl p-6 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/80 shadow-sm space-y-4 h-[600px] overflow-y-auto">
+                <h3 className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest border-b pb-2">Plan du cours</h3>
                 <div className="space-y-6">
                   {(courses.find(c => c.id === selectedCourseId)?.modules || []).map((mod: any) => (
                     <div key={mod.id} className="space-y-2">
@@ -1314,7 +1356,7 @@ export default function LmsDashboardClient({
                               className={`p-3 rounded-xl text-xs font-bold flex items-center justify-between cursor-pointer transition-all ${
                                 selectedLessonId === les.id 
                                   ? "bg-primary text-white" 
-                                  : "bg-slate-50 text-slate-700 hover:bg-slate-100"
+                                  : "bg-slate-50 dark:bg-[#1a1d2d] text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#232738]"
                               }`}
                             >
                               <span className="truncate pr-2">{les.title}</span>
@@ -1335,7 +1377,7 @@ export default function LmsDashboardClient({
               </div>
 
               {/* Course viewer panel */}
-              <div className="lg:col-span-3 bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-6 flex flex-col min-h-[600px]">
+              <div className="lg:col-span-3 bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/80 shadow-sm space-y-6 flex flex-col min-h-[600px]">
                 {selectedLesson ? (
                   <>
                     <div className="flex justify-between items-start border-b border-slate-100 pb-4">
@@ -1343,7 +1385,7 @@ export default function LmsDashboardClient({
                         <span className="bg-indigo-50 text-indigo-600 px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest">
                           {selectedLesson.contentType}
                         </span>
-                        <h2 className="text-2xl font-black text-slate-900 tracking-tight mt-2">{selectedLesson.title}</h2>
+                        <h2 className="text-2xl font-black text-slate-900 dark:text-white dark:text-white tracking-tight mt-2">{selectedLesson.title}</h2>
                       </div>
                       <button 
                         onClick={() => handleToggleLessonCompleted(selectedLesson.id)}
@@ -1375,11 +1417,11 @@ export default function LmsDashboardClient({
                       )}
 
                       {selectedLesson.filePath && (
-                        <div className="border border-slate-100 p-6 rounded-3xl bg-slate-50 flex items-center justify-between">
+                        <div className="border border-slate-100 dark:border-slate-800 p-6 rounded-3xl bg-slate-50 dark:bg-[#1a1d2d] flex items-center justify-between">
                           <div className="flex items-center gap-3">
                             <FileText size={24} className="text-indigo-500" />
                             <div>
-                              <p className="font-bold text-slate-800">Support de cours PDF joint</p>
+                              <p className="font-bold text-slate-800 dark:text-slate-200">Support de cours PDF joint</p>
                               <p className="text-xs text-slate-400">Télécharger pour lecture hors-ligne</p>
                             </div>
                           </div>
@@ -1395,8 +1437,8 @@ export default function LmsDashboardClient({
 
                       {/* Text content summary */}
                       {selectedLesson.content && (
-                        <div className="text-slate-600 font-medium leading-relaxed bg-slate-50/40 p-6 rounded-3xl border border-slate-100">
-                          <h4 className="font-black text-slate-900 uppercase tracking-widest text-xs mb-3">Résumé de la leçon</h4>
+                        <div className="text-slate-600 font-medium leading-relaxed bg-slate-50/40 dark:bg-[#1a1d2d]/60 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 text-slate-700 dark:text-slate-200">
+                          <h4 className="font-black text-slate-900 dark:text-white uppercase tracking-widest text-xs mb-3">Résumé de la leçon</h4>
                           <p className="whitespace-pre-line">{selectedLesson.content}</p>
                         </div>
                       )}
@@ -1404,7 +1446,7 @@ export default function LmsDashboardClient({
 
                     {/* Student personal notes */}
                     <div className="border-t border-slate-100 pt-6 space-y-3">
-                      <h4 className="font-black text-slate-800 uppercase tracking-widest text-xs">Mes notes personnelles (sauvegardées automatiquement)</h4>
+                      <h4 className="font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest text-xs">Mes notes personnelles (sauvegardées automatiquement)</h4>
                       <textarea 
                         defaultValue={progress.find(p => p.lessonId === selectedLesson.id && p.studentId === currentStudentId)?.personalNotes || ""}
                         onBlur={(e) => handleSavePersonalNotes(selectedLesson.id, e.target.value)}
@@ -1422,7 +1464,7 @@ export default function LmsDashboardClient({
               </div>
             </div>
           ) : (
-            <div className="bg-white p-20 rounded-[2.5rem] border border-slate-100 shadow-sm text-center text-slate-400 font-bold">
+            <div className="bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl p-20 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/80 shadow-sm text-center text-slate-400 font-bold">
               Aucun cours disponible pour la lecture.
             </div>
           )}
@@ -1432,10 +1474,10 @@ export default function LmsDashboardClient({
       {/* -------------------- TAB 5: VIRTUAL CLASSES -------------------- */}
       {activeTab === "virtual-classes" && (
         <div className="space-y-6 animate-in fade-in duration-300">
-          <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden overflow-x-auto">
+          <div className="bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl rounded-[2.5rem] border border-slate-100 dark:border-slate-800/80 shadow-sm overflow-hidden overflow-x-auto">
             <table className="w-full text-left border-collapse min-w-[1000px]">
               <thead>
-                <tr className="bg-slate-50 border-b border-slate-100">
+                <tr className="bg-slate-50/80 dark:bg-[#181b2a] border-b border-slate-100 dark:border-slate-800">
                   <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Titre</th>
                   <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Classe</th>
                   <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Matière</th>
@@ -1448,10 +1490,10 @@ export default function LmsDashboardClient({
                   <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-50 text-sm font-semibold text-slate-700">
+              <tbody className="divide-y divide-slate-50 dark:divide-slate-800/60 text-sm font-semibold text-slate-700 dark:text-slate-200">
                 {virtualClasses.map((v) => (
-                  <tr key={v.id} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="px-6 py-4 font-bold text-slate-900">{v.title}</td>
+                  <tr key={v.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
+                    <td className="px-6 py-4 font-bold text-slate-900 dark:text-white">{v.title}</td>
                     <td className="px-6 py-4 text-indigo-600">{getClassName(v.classId)}</td>
                     <td className="px-6 py-4">{getSubjectName(v.subjectId)}</td>
                     <td className="px-6 py-4 text-slate-500">{getTeacherName(v.teacherId)}</td>
@@ -1530,8 +1572,8 @@ export default function LmsDashboardClient({
       {/* -------------------- TAB 6: DEVOIRS LMS -------------------- */}
       {activeTab === "assignments" && (
         <div className="space-y-6 animate-in fade-in duration-300">
-          <div className="flex items-center justify-between bg-white p-6 rounded-3xl border border-slate-100 shadow-sm print:hidden">
-            <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">Devoirs et Travaux scolaires</h3>
+          <div className="flex items-center justify-between bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl p-6 rounded-3xl border border-slate-100 dark:border-slate-800/80 shadow-sm print:hidden">
+            <h3 className="text-sm font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider">Devoirs et Travaux scolaires</h3>
             {userRole !== "student" && (
               <button 
                 onClick={() => { setEditingAssignment(null); setAssignmentFormOpen(true); }}
@@ -1620,7 +1662,7 @@ export default function LmsDashboardClient({
             </div>
 
             {/* Devoir details panel */}
-            <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-6">
+            <div className="bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/80 shadow-sm space-y-6">
               {selectedAssignmentId ? (
                 (() => {
                   const assignment = assignments.find(a => a.id === selectedAssignmentId);
@@ -1654,7 +1696,7 @@ export default function LmsDashboardClient({
                       {/* View for Student upload */}
                       {userRole === "student" && (
                         <div className="space-y-4 pt-4 border-t">
-                          <h4 className="font-black text-slate-800 uppercase tracking-widest text-xs">Mon rendu (Élève)</h4>
+                          <h4 className="font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest text-xs">Mon rendu (Élève)</h4>
                           {mySubmission ? (
                             <div className="space-y-3 p-4 bg-emerald-50/50 rounded-2xl border border-emerald-100">
                               <p className="text-xs font-bold text-emerald-800">Travail transmis avec succès !</p>
@@ -1693,7 +1735,7 @@ export default function LmsDashboardClient({
                       {/* View for Teacher grading list */}
                       {userRole !== "student" && (
                         <div className="space-y-4 pt-4 border-t">
-                          <h4 className="font-black text-slate-800 uppercase tracking-widest text-xs">Copies reçues (Notation)</h4>
+                          <h4 className="font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest text-xs">Copies reçues (Notation)</h4>
                           <div className="space-y-2">
                             {submissions.filter(s => s.assignmentId === assignment.id).map((s) => (
                               <div key={s.id} className="p-3 bg-slate-50 rounded-2xl border flex items-center justify-between">
@@ -1745,8 +1787,8 @@ export default function LmsDashboardClient({
       {/* -------------------- TAB 7: QUIZZES -------------------- */}
       {activeTab === "quizzes" && (
         <div className="space-y-6 animate-in fade-in duration-300">
-          <div className="flex items-center justify-between bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
-            <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">Quiz & Évaluations rapides</h3>
+          <div className="flex items-center justify-between bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl p-6 rounded-3xl border border-slate-100 dark:border-slate-800/80 shadow-sm">
+            <h3 className="text-sm font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider">Quiz & Évaluations rapides</h3>
             {userRole !== "student" && (
               <button 
                 onClick={() => { setEditingQuiz(null); setQuizFormOpen(true); }}
@@ -1808,7 +1850,7 @@ export default function LmsDashboardClient({
               ))}
             </div>
 
-            <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-6">
+            <div className="bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/80 shadow-sm space-y-6">
               {selectedQuizId ? (
                 (() => {
                   const quiz = quizzes.find(q => q.id === selectedQuizId);
@@ -1877,7 +1919,7 @@ export default function LmsDashboardClient({
 
                       {userRole !== "student" && (
                         <div className="space-y-4">
-                          <h4 className="font-black text-slate-800 uppercase tracking-widest text-xs">Contenu & Questions</h4>
+                          <h4 className="font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest text-xs">Contenu & Questions</h4>
                           <div className="p-4 rounded-2xl border bg-slate-50/50 text-xs text-slate-500 font-bold space-y-2 text-center">
                             Ce quiz contient {(quiz.questions || []).length} questions.
                             <br />
@@ -1901,10 +1943,10 @@ export default function LmsDashboardClient({
       {/* -------------------- TAB 8: SUIVI ELEVES -------------------- */}
       {activeTab === "tracking" && userRole !== "student" && (
         <div className="space-y-6 animate-in fade-in duration-300">
-          <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden overflow-x-auto">
+          <div className="bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl rounded-[2.5rem] border border-slate-100 dark:border-slate-800/80 shadow-sm overflow-hidden overflow-x-auto">
             <table className="w-full text-left border-collapse min-w-[1000px]">
               <thead>
-                <tr className="bg-slate-50 border-b border-slate-100">
+                <tr className="bg-slate-50/80 dark:bg-[#181b2a] border-b border-slate-100 dark:border-slate-800">
                   <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Élève</th>
                   <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Classe</th>
                   <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Cours suivis</th>
@@ -1915,21 +1957,21 @@ export default function LmsDashboardClient({
                   <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Statut</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-50 text-sm font-semibold text-slate-700">
+              <tbody className="divide-y divide-slate-50 dark:divide-slate-800/60 text-sm font-semibold text-slate-700 dark:text-slate-200">
                 {students.map((student) => {
                   const sProgress = progress.filter(p => p.studentId === student.id);
                   const complCount = sProgress.filter(p => p.isCompleted).length;
                   const sSubmissions = submissions.filter(s => s.studentId === student.id).length;
                   
                   return (
-                    <tr key={student.id} className="hover:bg-slate-50/50 transition-colors">
+                    <tr key={student.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-xs">
                             {student.nomEtudiant.charAt(0)}
                           </div>
                           <div>
-                            <p className="font-bold text-slate-900">{student.nomEtudiant}</p>
+                            <p className="font-bold text-slate-900 dark:text-white">{student.nomEtudiant}</p>
                             <p className="text-[10px] text-slate-400 font-bold uppercase">{student.numAdmission}</p>
                           </div>
                         </div>
@@ -1973,9 +2015,9 @@ export default function LmsDashboardClient({
               { title: "Rapport quiz", desc: "Analyses des résultats, moyenne par test." },
               { title: "Rapport présence LMS", desc: "Historique des connexions par jour/heure." },
             ].map((rep, idx) => (
-              <div key={idx} className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-between hover:border-indigo-200 transition-all">
+              <div key={idx} className="bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl p-6 rounded-3xl border border-slate-100 dark:border-slate-800/80 shadow-sm flex flex-col justify-between hover:border-indigo-200 transition-all">
                 <div className="space-y-2">
-                  <h4 className="font-black text-slate-800 text-base">{rep.title}</h4>
+                  <h4 className="font-black text-slate-800 dark:text-slate-200 text-base">{rep.title}</h4>
                   <p className="text-xs text-slate-400 font-medium leading-relaxed">{rep.desc}</p>
                 </div>
                 <div className="flex gap-2 mt-6">
@@ -2001,8 +2043,8 @@ export default function LmsDashboardClient({
       {/* -------------------- TAB: FORUM CLASSE -------------------- */}
       {activeTab === "forum" && (
         <div className="space-y-6 animate-in fade-in duration-300">
-          <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
-            <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider mb-4">💬 Forum de classe — Discussions en direct</h3>
+          <div className="bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl p-6 rounded-3xl border border-slate-100 dark:border-slate-800/80 shadow-sm">
+            <h3 className="text-sm font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider mb-4">💬 Forum de classe — Discussions en direct</h3>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Course/Lesson selector */}
               <div className="space-y-3">
@@ -2112,12 +2154,12 @@ export default function LmsDashboardClient({
       {/* -------------------- TAB: RAPPORT PARTICIPATION -------------------- */}
       {activeTab === "participation" && userRole !== "student" && (
         <div className="space-y-6 animate-in fade-in duration-300">
-          <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
-            <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider mb-4">📊 Rapport de Participation — Classes Virtuelles</h3>
+          <div className="bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl p-6 rounded-3xl border border-slate-100 dark:border-slate-800/80 shadow-sm">
+            <h3 className="text-sm font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider mb-4">📊 Rapport de Participation — Classes Virtuelles</h3>
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse min-w-[900px]">
                 <thead>
-                  <tr className="bg-slate-50 border-b border-slate-100">
+                  <tr className="bg-slate-50/80 dark:bg-[#181b2a] border-b border-slate-100 dark:border-slate-800">
                     <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Classe Virtuelle</th>
                     <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Classe</th>
                     <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Matière</th>
@@ -2128,14 +2170,14 @@ export default function LmsDashboardClient({
                     <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Statut</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-50 text-sm font-semibold text-slate-700">
+                <tbody className="divide-y divide-slate-50 dark:divide-slate-800/60 text-sm font-semibold text-slate-700 dark:text-slate-200">
                   {virtualClasses.map((vc: any) => {
                     const present = (vc.attendance || []).filter((a: any) => a.status === "Present").length;
                     const total = (vc.attendance || []).length;
                     const rate = total > 0 ? Math.round((present / total) * 100) : 0;
                     return (
-                      <tr key={vc.id} className="hover:bg-slate-50/50 transition-colors">
-                        <td className="px-6 py-4 font-bold text-slate-900">{vc.title}</td>
+                      <tr key={vc.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
+                        <td className="px-6 py-4 font-bold text-slate-900 dark:text-white">{vc.title}</td>
                         <td className="px-6 py-4 text-indigo-600">{getClassName(vc.classId)}</td>
                         <td className="px-6 py-4">{getSubjectName(vc.subjectId)}</td>
                         <td className="px-6 py-4 text-slate-500">{getTeacherName(vc.teacherId)}</td>
@@ -2199,7 +2241,7 @@ export default function LmsDashboardClient({
                 color: "text-amber-600 bg-amber-50"
               },
             ].map((kpi, i) => (
-              <div key={i} className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4">
+              <div key={i} className="bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl p-6 rounded-3xl border border-slate-100 dark:border-slate-800/80 shadow-sm flex items-center gap-4">
                 <div className={`p-4 rounded-2xl text-2xl font-black ${kpi.color}`}>{kpi.value}</div>
                 <div>
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{kpi.label}</p>
@@ -2214,8 +2256,8 @@ export default function LmsDashboardClient({
       {/* -------------------- TAB: CERTIFICATS -------------------- */}
       {activeTab === "certificates" && (
         <div className="space-y-6 animate-in fade-in duration-300">
-          <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between">
-            <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">🏆 Certificats de complétion</h3>
+          <div className="bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl p-6 rounded-3xl border border-slate-100 dark:border-slate-800/80 shadow-sm flex items-center justify-between">
+            <h3 className="text-sm font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider">🏆 Certificats de complétion</h3>
             <div className="text-xs font-semibold text-slate-400">
               Générés automatiquement dès 100% de progression sur un cours
             </div>
@@ -2310,7 +2352,7 @@ export default function LmsDashboardClient({
       {courseFormOpen && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <form onSubmit={handleSaveCourse} className="bg-white p-8 rounded-[2.5rem] border shadow-2xl max-w-lg w-full space-y-6 animate-in zoom-in duration-300">
-            <h3 className="text-xl font-black text-slate-900">{editingCourse ? "Modifier le cours" : "Nouveau cours"}</h3>
+            <h3 className="text-xl font-black text-slate-900 dark:text-white">{editingCourse ? "Modifier le cours" : "Nouveau cours"}</h3>
             
             <div className="grid grid-cols-1 gap-4">
               <div className="space-y-1.5">
@@ -2402,7 +2444,7 @@ export default function LmsDashboardClient({
       {moduleFormOpen && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <form onSubmit={handleSaveModule} className="bg-white p-8 rounded-[2.5rem] border shadow-2xl max-w-md w-full space-y-6 animate-in zoom-in duration-300">
-            <h3 className="text-xl font-black text-slate-900">{editingModule ? "Modifier le module" : "Nouveau module"}</h3>
+            <h3 className="text-xl font-black text-slate-900 dark:text-white">{editingModule ? "Modifier le module" : "Nouveau module"}</h3>
             
             <div className="grid grid-cols-1 gap-4">
               <div className="space-y-1.5">
@@ -2459,7 +2501,7 @@ export default function LmsDashboardClient({
       {lessonFormOpen && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <form onSubmit={handleSaveLesson} className="bg-white p-8 rounded-[2.5rem] border shadow-2xl max-w-lg w-full space-y-6 overflow-y-auto max-h-[90vh] animate-in zoom-in duration-300">
-            <h3 className="text-xl font-black text-slate-900">{editingLesson ? "Modifier la leçon" : "Nouvelle leçon"}</h3>
+            <h3 className="text-xl font-black text-slate-900 dark:text-white">{editingLesson ? "Modifier la leçon" : "Nouvelle leçon"}</h3>
             
             <div className="grid grid-cols-1 gap-4">
               <div className="space-y-1.5">
@@ -2561,7 +2603,7 @@ export default function LmsDashboardClient({
       {virtualClassFormOpen && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <form onSubmit={handleSaveVirtualClass} className="bg-white p-8 rounded-[2.5rem] border shadow-2xl max-w-lg w-full space-y-6 animate-in zoom-in duration-300">
-            <h3 className="text-xl font-black text-slate-900">{editingVirtualClass ? "Modifier la séance" : "Nouvelle séance en direct"}</h3>
+            <h3 className="text-xl font-black text-slate-900 dark:text-white">{editingVirtualClass ? "Modifier la séance" : "Nouvelle séance en direct"}</h3>
             
             <div className="grid grid-cols-1 gap-4">
               <div className="space-y-1.5">
@@ -2693,7 +2735,7 @@ export default function LmsDashboardClient({
       {assignmentFormOpen && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <form onSubmit={handleSaveAssignment} className="bg-white p-8 rounded-[2.5rem] border shadow-2xl max-w-lg w-full space-y-6 animate-in zoom-in duration-300">
-            <h3 className="text-xl font-black text-slate-900">{editingAssignment ? "Modifier le devoir" : "Nouveau Devoir"}</h3>
+            <h3 className="text-xl font-black text-slate-900 dark:text-white">{editingAssignment ? "Modifier le devoir" : "Nouveau Devoir"}</h3>
             
             <div className="grid grid-cols-1 gap-4">
               <div className="space-y-1.5">
@@ -2801,7 +2843,7 @@ export default function LmsDashboardClient({
       {gradingSubmission && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <form onSubmit={handleGradeSubmissionSubmit} className="bg-white p-8 rounded-[2.5rem] border shadow-2xl max-w-md w-full space-y-6 animate-in zoom-in duration-300">
-            <h3 className="text-xl font-black text-slate-900">Noter la copie</h3>
+            <h3 className="text-xl font-black text-slate-900 dark:text-white">Noter la copie</h3>
             
             <div className="grid grid-cols-1 gap-4">
               <p className="text-xs text-slate-500 font-bold">Élève : {getStudentName(gradingSubmission.studentId)}</p>
@@ -2853,7 +2895,7 @@ export default function LmsDashboardClient({
       {quizFormOpen && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <form onSubmit={handleSaveQuiz} className="bg-white p-8 rounded-[2.5rem] border shadow-2xl max-w-md w-full space-y-6 animate-in zoom-in duration-300">
-            <h3 className="text-xl font-black text-slate-900">{editingQuiz ? "Modifier le Quiz" : "Nouveau Quiz"}</h3>
+            <h3 className="text-xl font-black text-slate-900 dark:text-white">{editingQuiz ? "Modifier le Quiz" : "Nouveau Quiz"}</h3>
             
             <div className="grid grid-cols-1 gap-4">
               <div className="space-y-1.5">
