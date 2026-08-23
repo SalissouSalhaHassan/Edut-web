@@ -88,7 +88,8 @@ export async function POST(request: NextRequest) {
       sessionName: `${currentYear}-${currentYear + 1}`,
       startDate: new Date(`${currentYear}-09-01`),
       endDate: new Date(`${currentYear + 1}-06-30`),
-      isCurrent: true,
+      status: "Actif",
+      isActive: true,
     });
 
     return NextResponse.json({
