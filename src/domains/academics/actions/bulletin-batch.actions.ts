@@ -191,7 +191,7 @@ export async function getStudentBulletinData(
         numAdmission: student?.numAdmission || "",
         classe: student?.classe || classInfo?.className || "Classe",
         educationalLevel: student?.educationalLevel || "Tous",
-        photoUrl: student?.photoUrl || null,
+        photoUrl: student?.photoPath || null,
       },
       classInfo: {
         id: classInfo?.id,
