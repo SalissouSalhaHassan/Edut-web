@@ -33,3 +33,18 @@ export const postalDispatch = pgTable("postal_dispatch", {
   address: text("address"),
   date: timestamp("date").defaultNow(),
 });
+
+export const surveyResponses = pgTable("survey_responses", {
+  id: serial("id").primaryKey(),
+  schoolId: integer("school_id").default(1),
+  respondentName: varchar("respondent_name", { length: 255 }).default("Parent d'élève"),
+  respondentRole: varchar("respondent_role", { length: 50 }).default("Parent"), // Parent, Student, Teacher
+  overallRating: integer("overall_rating").notNull().default(5), // 1 - 5
+  teachingQualityRating: integer("teaching_quality_rating").default(5),
+  transportRating: integer("transport_rating").default(5),
+  canteenRating: integer("canteen_rating").default(5),
+  cleanlinessRating: integer("cleanliness_rating").default(5),
+  comment: text("comment"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
