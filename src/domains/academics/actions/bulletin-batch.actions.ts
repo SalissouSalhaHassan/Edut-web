@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/infrastructure/database";
-import { bulletinRecords, schoolClasses, academicPeriods, schoolSessions } from "@/infrastructure/database/schema/academics";
+import { bulletinRecords, schoolClasses, academicPeriods, schoolSessions, exams, examResults } from "@/infrastructure/database/schema/academics";
 import { students } from "@/infrastructure/database/schema/students";
 import { eq, and, inArray } from "drizzle-orm";
 import { BulletinEngine, BatchOptions, BatchResult } from "@/domains/academics/services/bulletin-engine";
