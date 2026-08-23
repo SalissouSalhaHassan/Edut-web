@@ -105,7 +105,7 @@ async function sendBulletinWhatsApp(opts: {
 }): Promise<boolean> {
   try {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
-    const res = await fetch({appUrl}/api/mobile/whatsapp, {
+    const res = await fetch(`${appUrl}/api/mobile/whatsapp`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -139,7 +139,7 @@ export class BulletinEngine {
 
     for (const bulletinData of bulletinsData) {
       const { studentId, student } = bulletinData;
-      const studentName = student?.nomEtudiant || student?.name || Eleve #+{studentId};
+      const studentName = student?.nomEtudiant || student?.name || `Élève #${studentId}`;
 
       try {
         const verifyToken = randomUUID().replace(/-/g, "");
@@ -225,7 +225,7 @@ export class BulletinEngine {
         results.push({ studentId, studentName, success: true, verifyToken, pdfUrl: pdfUrl ?? undefined, whatsappSent, pushSent });
         generated++;
       } catch (err: any) {
-        console.error([BulletinEngine] Failed for student +{studentId}:, err);
+        console.error(`[BulletinEngine] Failed for student ${studentId}:`, err);
         results.push({ studentId, studentName, success: false, error: err?.message ?? "Erreur inconnue" });
         failed++;
       }
