@@ -118,10 +118,34 @@ Answer in Zarma only:`;
       audioPhonetic = responseText;
     }
 
+    // ─── ARABIC (اللغة العربية 🇸🇦) ──────────────────────────────────
+    else if (language === "AR" || language === "ARABIC") {
+      if (cleanQuery.includes("رسوم") || cleanQuery.includes("مصاريف") || cleanQuery.includes("سداد") || cleanQuery.includes("كم")) {
+        responseText = `المبلغ المتبقي من الرسوم الدراسية للطالب ${sName} هو ${feeBalance.toLocaleString("fr-FR")} فرنك إفريقي. يمكن السداد عبر التطبيق أو خدمات الدفع الإلكتروني.`;
+      } else if (cleanQuery.includes("حافلة") || cleanQuery.includes("باص") || cleanQuery.includes("نقل") || cleanQuery.includes("أين")) {
+        responseText = `الحافلة المدرسية في طريقها وتقترب من المحطة. الوقت المتوقع للوصول حوالي 5 دقائق.`;
+      } else if (cleanQuery.includes("حصة") || cleanQuery.includes("درس") || cleanQuery.includes("جدول") || cleanQuery.includes("اليوم")) {
+        responseText = `الحصة القادمة المبرمجة للطالب ${sName} هي: ${nextLesson}.`;
+      } else if (cleanQuery.includes("درجة") || cleanQuery.includes("علامة") || cleanQuery.includes("نتيجة") || cleanQuery.includes("كشف")) {
+        responseText = `آخر تقييم مسجل هو: ${recentGrade}. يمكنك الاطلاع على كشف الدرجات الكامل من قسم الشؤون الأكاديمية.`;
+      } else if (cleanQuery.includes("واجب") || cleanQuery.includes("تمارين")) {
+        responseText = `يوجد واجب مدرسي قيد الإنجاز: ${pendingHomework}.`;
+      } else {
+        const prompt = `أنت المساعد الصوتي والتربوي الذكي لمنصة Edut المدرسية.
+أجب عن سؤال ولي الأمر أو الطالب التالي بإيجاز ولطف واحترافية (جملتان كحد أقصى).
+الطالب: ${sName} (${sClass}). الرسوم المتبقية: ${feeBalance} فرنك. الحافلة: ${busStatus}.
+السؤال: "${query}"
+الإجابة باللغة العربية الفصحى المبسطة:`;
+        const aiRes = await callGemini(prompt, 200, 0.4);
+        responseText = aiRes || `أهلاً بك! كافة المعلومات الدراسية للطالب ${sName} محدثة ومتاحة عبر تطبيق Edut.`;
+      }
+      audioPhonetic = responseText;
+    }
+
     // ─── FRENCH (Français 🇫🇷) ────────────────────────────────────
     else {
       if (cleanQuery.includes("solde") || cleanQuery.includes("frais") || cleanQuery.includes("scolarité") || cleanQuery.includes("payer")) {
-        responseText = `Le solde restant de scolarité pour ${sName} est de ${feeBalance} FCFA. Vous pouvez régler directement via Airtel Money (*155#) ou depuis l'application.`;
+        responseText = `Le solde restant de scolarité pour ${sName} est de ${feeBalance.toLocaleString("fr-FR")} FCFA. Vous pouvez régler directement via Airtel Money (*155#) ou depuis l'application.`;
       } else if (cleanQuery.includes("bus") || cleanQuery.includes("transport") || cleanQuery.includes("où")) {
         responseText = `Le bus scolaire est actuellement en route vers l'arrêt Station Total Plateau. Arrivée estimée dans environ 5 minutes.`;
       } else if (cleanQuery.includes("cours") || cleanQuery.includes("emploi") || cleanQuery.includes("horaire")) {
