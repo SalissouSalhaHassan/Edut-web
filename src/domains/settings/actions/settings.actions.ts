@@ -445,3 +445,14 @@ export async function deleteOfficialTemplate(id: number) {
   });
 }
 
+export async function getBranchInfo(schoolId?: number) {
+  const sid = schoolId || await getActiveSchoolId().catch(() => 1);
+  return await fetchCachedBranches(sid);
+}
+
+export async function getHeaderConfig(schoolId?: number) {
+  const sid = schoolId || await getActiveSchoolId().catch(() => 1);
+  return await fetchCachedSettings(sid);
+}
+
+
