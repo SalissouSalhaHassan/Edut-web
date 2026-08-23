@@ -14,18 +14,31 @@ export async function GET(request: NextRequest) {
       columns: {
         id: true,
         name: true,
-        code: true,
-        city: true,
-        country: true,
-        logoUrl: true,
-        subdomain: true,
+        slug: true,
+        customDomain: true,
+        logoPath: true,
+        plan: true,
+        status: true,
       },
       limit: 20,
     });
 
+    const formattedList = schoolList.map((s) => ({
+      id: s.id,
+      name: s.name,
+      code: s.slug,
+      slug: s.slug,
+      subdomain: s.slug,
+      city: "Niamey",
+      country: "Niger",
+      logoUrl: s.logoPath,
+      plan: s.plan,
+      status: s.status,
+    }));
+
     return NextResponse.json({
       success: true,
-      data: schoolList,
+      data: formattedList,
     });
   } catch (error: any) {
     console.error("[Schools Lookup API Error]:", error);
