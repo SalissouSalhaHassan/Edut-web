@@ -183,8 +183,8 @@ export class BulletinEngine {
         let whatsappSent = false;
         if (opts.notifyWhatsapp) {
           const parentUsers = await db.query.users.findMany({ where: eq(users.studentId, studentId) });
-          const parentPhone = parentUsers.find((u: any) => u.phone)?.phone;
-          const parentName = parentUsers[0]?.name ?? "Parent";
+          const parentPhone = (student as any)?.whatsapp || (student as any)?.mobile || (parentUsers as any[])?.find((u: any) => u.phone || u.whatsapp)?.phone;
+          const parentName = (student as any)?.nomPere || (parentUsers as any[])?.[0]?.nomPrenom || "Parent";
 
           if (parentPhone) {
             whatsappSent = await sendBulletinWhatsApp({
