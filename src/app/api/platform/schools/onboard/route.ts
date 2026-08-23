@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/infrastructure/database";
 import { schools, users } from "@/infrastructure/database/schema/auth";
-import { schoolSessions, schoolClasses } from "@/infrastructure/database/schema/academics";
+import { schoolSessions } from "@/infrastructure/database/schema/academics";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { randomUUID } from "crypto";
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     }
 
     const existingUser = await db.query.users.findFirst({
-      where: eq(users.email, adminEmail),
+      where: eq(users.utilisateur, adminEmail),
     });
 
     if (existingUser) {
@@ -60,14 +60,9 @@ export async function POST(request: NextRequest) {
       .insert(schools)
       .values({
         name: schoolName,
-        code: generatedCode,
-        subdomain: subdomain || schoolName.toLowerCase().replace(/[^a-z0-9]/g, "-"),
-        country,
-        city,
-        phone,
-        subscriptionPlan: planType,
-        subscriptionStatus: "Active",
-        trialEndsAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30-day trial
+        slug: subdomain || schoolName.toLowerCase().replace(/[^a-z0-9]/g, "-"),
+        plan: planType.toLowerCase(),
+        status: "active",
       })
       .returning({ id: schools.id, name: schools.name });
 
@@ -78,14 +73,13 @@ export async function POST(request: NextRequest) {
     const [adminUser] = await db
       .insert(users)
       .values({
-        name: adminName,
-        email: adminEmail,
-        password: hashedPassword,
-        role: "school_admin",
+        nomPrenom: adminName,
+        utilisateur: adminEmail,
+        motDePasse: hashedPassword,
+        admin: true,
         schoolId,
-        isActive: true,
       })
-      .returning({ id: users.id, email: users.email });
+      .returning({ id: users.id, utilisateur: users.utilisateur });
 
     // 4. Create Initial Academic Session
     const currentYear = new Date().getFullYear();
@@ -105,7 +99,7 @@ export async function POST(request: NextRequest) {
         schoolName: newSchool.name,
         schoolCode: generatedCode,
         adminUserId: adminUser.id,
-        adminEmail: adminUser.email,
+        adminEmail: adminUser.utilisateur,
         planType,
       },
     });
