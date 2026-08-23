@@ -80,6 +80,19 @@ function createPlatformOwnerFallback(authUser: SupabaseAuthUser, email: string):
 }
 
 export const getCurrentUser = cache(async (): Promise<SessionUserRecord | null> => {
+  // 1. Direct verified session cookie check FIRST (avoids stale Redis or uninitialized Supabase tokens)
+  try {
+    const cookieStore = await cookies();
+    const customSession = cookieStore.get("edut_session_user")?.value;
+    if (customSession) {
+      const parsed = JSON.parse(customSession);
+      if (parsed && (parsed.id || parsed.utilisateur)) {
+        return parsed as SessionUserRecord;
+      }
+    }
+  } catch (_) {}
+
+  // 2. Token-based caching
   let cacheKeyByCookie = "";
   try {
     const cookieStore = await cookies();
@@ -99,16 +112,6 @@ export const getCurrentUser = cache(async (): Promise<SessionUserRecord | null> 
     const { data: { user }, error } = await supabase.auth.getUser();
     
     if (error || !user || !user.email) {
-      try {
-        const cookieStore = await cookies();
-        const customSession = cookieStore.get("edut_session_user")?.value;
-        if (customSession) {
-          const parsed = JSON.parse(customSession);
-          if (parsed && (parsed.id || parsed.utilisateur)) {
-            return parsed;
-          }
-        }
-      } catch (_) {}
       return null;
     }
 
@@ -198,6 +201,8 @@ export const getCurrentUser = cache(async (): Promise<SessionUserRecord | null> 
 
 export async function logout() {
   try {
+    const cookieStore = await cookies();
+    cookieStore.delete("edut_session_user");
     const supabase = await createClient();
     await supabase.auth.signOut();
   } catch (e) {
@@ -206,4 +211,3 @@ export async function logout() {
 }
 
 export const getSession = getCurrentUser;
-
