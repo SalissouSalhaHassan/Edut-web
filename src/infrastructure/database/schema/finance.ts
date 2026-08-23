@@ -100,6 +100,7 @@ export const feePayments = pgTable("fee_payments", {
 }));
 
 export const feeTransactions = feePayments;
+export const feeStructures = studentFees;
 
 export const expensesRelations = relations(expenses, ({ one }) => ({
   category: one(expenseCategories, {

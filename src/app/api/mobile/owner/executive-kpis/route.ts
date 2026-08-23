@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getMobileUser, mobileJsonError } from "../../_lib/auth";
+import { getMobileUser, mobileJsonError } from "@/app/api/mobile/_lib/auth";
 import { db } from "@/infrastructure/database";
 import { students } from "@/infrastructure/database/schema/students";
 import { employees } from "@/infrastructure/database/schema/hr";
 import { schoolClasses, exams } from "@/infrastructure/database/schema/academics";
 import { studentAttendance } from "@/infrastructure/database/schema/attendance";
-import { feeTransactions, feeStructures, studentFees } from "@/infrastructure/database/schema/finance";
+import { feeTransactions, studentFees } from "@/infrastructure/database/schema/finance";
 import { eq, sql, desc, and } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
