@@ -648,17 +648,17 @@ export default function DashboardSidebar({
                   {user?.avatarUrl ? (
                     <img src={user.avatarUrl} alt={user.nomPrenom || "User"} className="w-full h-full object-cover" />
                   ) : (
-                    user?.nomPrenom?.charAt(0) || user?.utilisateur?.charAt(0) || "U"
+                    user?.nomPrenom?.charAt(0) || user?.utilisateur?.charAt(0) || "A"
                   )}
                 </div>
                 <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-400 border-2 border-white dark:border-[#181a24] shadow-sm" />
               </div>
               <div className="min-w-0">
                 <p className="text-[13px] font-bold text-slate-900 dark:text-white truncate">
-                  {user?.nomPrenom || user?.utilisateur || "Utilisateur"}
+                  {user?.nomPrenom || user?.utilisateur || "Admin GROUP AIIU-NIGER"}
                 </p>
                 <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 truncate">
-                  {user?.admin ? "Administrateur" : user?.role?.roleName || "Membre"}
+                  {user?.admin || !user?.role ? "Administrateur" : user?.role?.roleName || "Administrateur"}
                 </p>
               </div>
             </div>

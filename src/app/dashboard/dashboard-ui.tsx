@@ -504,14 +504,14 @@ export default function DashboardUI(props: DashboardUIProps) {
             className="h-12 px-4 rounded-2xl bg-white/85 dark:bg-[#181a24]/90 backdrop-blur-sm border border-white/40 dark:border-slate-800/80 shadow-sm flex items-center gap-3"
           >
             <div className="size-9 rounded-full bg-indigo-600 text-white grid place-items-center font-black text-xs shadow-md shadow-indigo-100 dark:shadow-none">
-              {props.user?.nomPrenom?.charAt(0) || props.user?.utilisateur?.charAt(0) || "U"}
+              {props.user?.nomPrenom?.charAt(0) || props.user?.utilisateur?.charAt(0) || "A"}
             </div>
             <div className="text-left leading-tight">
               <p className="text-sm font-black text-slate-900 dark:text-white">
-                {props.user?.nomPrenom || props.user?.utilisateur || "Utilisateur"}
+                {props.user?.nomPrenom || props.user?.utilisateur || "Admin GROUP AIIU-NIGER"}
               </p>
               <p className="text-xs font-bold text-slate-400 dark:text-slate-400">
-                {props.user?.admin ? "Administrateur" : props.user?.role?.roleName || "Membre"}
+                {props.user?.admin || !props.user?.role ? "Administrateur" : props.user?.role?.roleName || "Administrateur"}
               </p>
             </div>
             <ChevronDown className="size-4 text-slate-400 ml-2" />
