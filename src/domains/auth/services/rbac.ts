@@ -8,6 +8,7 @@ import { eq, sql, or, and } from "drizzle-orm";
 import { cache } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { getCurrentUser } from "./session";
 
 export type PermissionAction = "canView" | "canEdit" | "canDelete";
 
