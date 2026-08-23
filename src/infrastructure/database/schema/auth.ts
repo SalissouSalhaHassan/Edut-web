@@ -27,6 +27,9 @@ export const schools = pgTable("schools", {
   plan: varchar("plan", { length: 50 }).default("basic"), // basic, pro, enterprise
   status: varchar("status", { length: 20 }).default("active"), // active, suspended, trialing
   subscriptionExpiry: timestamp("subscription_expiry"),
+  licenseKey: varchar("license_key", { length: 255 }),
+  billingCycle: varchar("billing_cycle", { length: 20 }).default("monthly"), // monthly, annual
+  autoRenew: boolean("auto_renew").default(true),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

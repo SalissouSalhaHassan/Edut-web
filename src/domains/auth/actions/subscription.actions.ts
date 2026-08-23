@@ -90,17 +90,109 @@ export async function updateMySchoolSubscription(plan: string, schoolId?: number
       expiry.setDate(expiry.getDate() + 30); // 30 days for Basic/Pro
     }
 
+    // Generate automatic license key if not present
+    const licensePrefix = plan === "enterprise" ? "EDUT-ENT" : plan === "pro" ? "EDUT-PRO" : "EDUT-BAS";
+    const randomHex = Math.random().toString(36).substring(2, 6).toUpperCase() + "-" + Math.random().toString(36).substring(2, 6).toUpperCase();
+    const generatedKey = `${licensePrefix}-${randomHex}-${expiry.getFullYear()}`;
+
     await db.update(schools)
       .set({
         plan,
         subscriptionExpiry: expiry,
-        status: "active"
+        status: "active",
+        licenseKey: generatedKey,
       })
       .where(eq(schools.id, targetSchoolId));
 
     revalidatePath("/dashboard/subscription");
     revalidatePath("/dashboard", "layout");
     
-    return { success: true };
+    return { success: true, licenseKey: generatedKey };
   });
 }
+
+/**
+ * Activate an offline or digital enterprise license key
+ */
+export async function activateLicenseKey(licenseKey: string, schoolId?: number) {
+  return protectedDbAction("Settings", "canEdit", async () => {
+    const targetSchoolId = schoolId ?? await getActiveSchoolId();
+    if (!targetSchoolId) throw new Error("Aucun contexte d'école trouvé.");
+
+    const cleanKey = licenseKey.trim().toUpperCase();
+    if (!cleanKey.startsWith("EDUT-")) {
+      throw new Error("Format de clé de licence invalide. Doit commencer par 'EDUT-'.");
+    }
+
+    let plan = "basic";
+    let validityDays = 30;
+
+    if (cleanKey.includes("ENT") || cleanKey.includes("ENTERPRISE")) {
+      plan = "enterprise";
+      validityDays = 365;
+    } else if (cleanKey.includes("PRO")) {
+      plan = "pro";
+      validityDays = 90;
+    } else {
+      plan = "basic";
+      validityDays = 30;
+    }
+
+    const newExpiry = new Date();
+    newExpiry.setDate(newExpiry.getDate() + validityDays);
+
+    await db.update(schools)
+      .set({
+        plan,
+        status: "active",
+        subscriptionExpiry: newExpiry,
+        licenseKey: cleanKey,
+      })
+      .where(eq(schools.id, targetSchoolId));
+
+    revalidatePath("/dashboard/subscription");
+    revalidatePath("/dashboard", "layout");
+
+    return { 
+      success: true, 
+      plan, 
+      expiry: newExpiry,
+      message: `Licence ${plan.toUpperCase()} activée avec succès pour ${validityDays} jours.` 
+    };
+  });
+}
+
+/**
+ * Toggle auto-renewal for school subscription
+ */
+export async function toggleAutoRenew(autoRenew: boolean, schoolId?: number) {
+  return protectedDbAction("Settings", "canEdit", async () => {
+    const targetSchoolId = schoolId ?? await getActiveSchoolId();
+    if (!targetSchoolId) throw new Error("Aucun contexte d'école trouvé.");
+
+    await db.update(schools)
+      .set({ autoRenew })
+      .where(eq(schools.id, targetSchoolId));
+
+    revalidatePath("/dashboard/subscription");
+    return { success: true, autoRenew };
+  });
+}
+
+/**
+ * Update billing cycle (monthly vs annual)
+ */
+export async function updateBillingCycle(billingCycle: "monthly" | "annual", schoolId?: number) {
+  return protectedDbAction("Settings", "canEdit", async () => {
+    const targetSchoolId = schoolId ?? await getActiveSchoolId();
+    if (!targetSchoolId) throw new Error("Aucun contexte d'école trouvé.");
+
+    await db.update(schools)
+      .set({ billingCycle })
+      .where(eq(schools.id, targetSchoolId));
+
+    revalidatePath("/dashboard/subscription");
+    return { success: true, billingCycle };
+  });
+}
+

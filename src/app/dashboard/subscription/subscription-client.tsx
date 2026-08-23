@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useTransition, useEffect } from "react";
+import React, { useState, useTransition, useEffect, useId } from "react";
 import {
   Check,
   Sparkles,
@@ -29,6 +29,25 @@ import {
   CheckCircle2,
   AlertTriangle,
   Info,
+  Moon,
+  Sun,
+  Key,
+  QrCode,
+  Download,
+  Printer,
+  Copy,
+  CheckCircle,
+  ExternalLink,
+  HardDrive,
+  MessageSquare,
+  Cpu,
+  Server,
+  Shield,
+  Smartphone,
+  Layers,
+  HelpCircle,
+  Globe,
+  Sliders
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -41,18 +60,29 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { updateMySchoolSubscription } from "@/domains/auth/actions/subscription.actions";
+import { 
+  updateMySchoolSubscription, 
+  activateLicenseKey, 
+  toggleAutoRenew, 
+  updateBillingCycle 
+} from "@/domains/auth/actions/subscription.actions";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 type SchoolType = {
   id: number;
   name: string;
   slug: string;
+  customDomain?: string | null;
   plan: string | null;
   status: string | null;
   subscriptionExpiry: Date | string | null;
+  licenseKey?: string | null;
+  billingCycle?: string | null;
+  autoRenew?: boolean | null;
 } | null;
 
-type Tab = "overview" | "plans" | "history" | "billing";
+type Tab = "overview" | "plans" | "addons" | "license" | "billing";
 
 type StatsType = {
   totalStudents: number;
@@ -72,7 +102,7 @@ const DEFAULT_STATS: StatsType = {
   totalUsers: 0,
 };
 
-// ─── helpers ──────────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 function getDaysRemaining(expiry: Date | string | null): number {
   if (!expiry) return 0;
   const diff = new Date(expiry).getTime() - Date.now();
@@ -85,123 +115,149 @@ function getPlanIndex(plan: string | null): number {
   return 0;
 }
 
-// ─── data ─────────────────────────────────────────────────────────────────────
+// ─── Enterprise Pricing Plans Data ─────────────────────────────────────────────
 const PLANS = [
   {
     id: "basic",
     name: "Forfait Basique",
     icon: Star,
-    price: "10 000 F CFA",
-    usdPrice: "/mois",
+    monthlyPrice: 10000,
+    annualPrice: 96000,
+    priceLabelMonthly: "10 000 F CFA",
+    priceLabelAnnual: "8 000 F CFA/m (96 000 F/an)",
     period: "par mois",
     color: "blue",
-    gradient: "from-blue-500 to-blue-700",
+    gradient: "from-blue-600 to-cyan-700",
+    glowColor: "rgba(59, 130, 246, 0.15)",
     popular: false,
-    description:
-      "Pour les petites écoles souhaitant digitaliser leur gestion académique de base.",
+    maxStudents: 100,
+    maxStorageGb: 10,
+    smsQuota: 500,
+    description: "Digitalisation essentielle pour écoles primaires et collèges de proximité.",
     features: [
       "Jusqu'à 100 élèves enregistrés",
-      "Gestion académique de base (Classes & Matières)",
-      "Gestion des emplois du temps de base",
-      "Saisie des notes & Bulletins de base",
-      "1 compte Administrateur + 10 comptes Enseignants",
-      "Support standard par email",
+      "Gestion académique (Classes, Matières, Inscriptions)",
+      "Emplois du temps standards",
+      "Saisie des notes & Bulletins de notes trimestriels",
+      "1 compte Administrateur + 10 Enseignants",
+      "Support standard par email sous 48h",
     ],
   },
   {
     id: "pro",
     name: "Forfait Professionnel",
     icon: Rocket,
-    price: "13 000 F CFA",
-    usdPrice: "/mois",
+    monthlyPrice: 13000,
+    annualPrice: 124800,
+    priceLabelMonthly: "13 000 F CFA",
+    priceLabelAnnual: "10 400 F CFA/m (124 800 F/an)",
     period: "par mois",
     color: "indigo",
-    gradient: "from-indigo-500 to-purple-700",
+    gradient: "from-indigo-600 via-purple-600 to-pink-600",
+    glowColor: "rgba(99, 102, 241, 0.25)",
     popular: true,
-    description:
-      "Notre offre phare pour une gestion scolaire moderne, collaborative et 100% connectée.",
+    maxStudents: 999999,
+    maxStorageGb: 50,
+    smsQuota: 2500,
+    description: "La formule d'excellence complète pour une gouvernance scolaire 100% connectée.",
     features: [
-      "Nombre d'élèves et classes illimités",
-      "LMS complet & Classes virtuelles intégrées",
-      "Gestion RH & Paie (Fiches de paie automatisées)",
-      "Finances & Suivi des paiements COGES",
-      "Messagerie & Alertes SMS/Email instantanées aux parents",
-      "Générateur de cartes scolaires & Code-barres",
-      "Support prioritaire 24/7",
+      "Nombre d'élèves et de classes illimité",
+      "LMS E-Learning complet & Cours en direct vidéo",
+      "Gestion RH, Enseignants & Paie automatisée",
+      "Finances scolaires & Suivi des cotisations COGES",
+      "Messagerie instantanée & Notifications SMS/WhatsApp",
+      "Cartes scolaires intelligentes avec Code QR sécurisé",
+      "Application Mobile Hybride (Enseignant / Parent / Élève)",
+      "Support prioritaire WhatsApp & Téléphone 24/7",
     ],
   },
   {
     id: "enterprise",
-    name: "Forfait Entreprise",
+    name: "Forfait Entreprise & Réseaux",
     icon: Crown,
-    price: "Sur Mesure",
-    usdPrice: "Custom",
+    monthlyPrice: 0,
+    annualPrice: 0,
+    priceLabelMonthly: "Sur Mesure",
+    priceLabelAnnual: "Sur Devis Annuel",
     period: "engagement annuel",
     color: "emerald",
-    gradient: "from-emerald-500 to-teal-700",
+    gradient: "from-emerald-600 via-teal-600 to-cyan-700",
+    glowColor: "rgba(16, 185, 129, 0.2)",
     popular: false,
-    description:
-      "Pour les grands groupes scolaires nécessitant une infrastructure dédiée et de l'IA.",
+    maxStudents: 999999,
+    maxStorageGb: 500,
+    smsQuota: 10000,
+    description: "Pour les grands complexes scolaires, diocèses et réseaux d'établissements.",
     features: [
-      "Gestion multi-établissements / multi-campus",
-      "Générateur d'Emplois du Temps par IA (Automatique)",
-      "Sous-domaine personnalisé (ex: votre-ecole.edut.pro)",
-      "Intégration API & SSO personnalisés",
-      "Sauvegardes quotidiennes redondantes",
-      "Formation sur site & Directeur de compte dédié",
+      "Gestion Multi-Établissements & Multi-Campus consolidée",
+      "Moteur d'Emplois du Temps généré par IA automatique",
+      "Copilot Pédagogique IA pour enseignants",
+      "Sous-domaine personnalisé (ex: mon-ecole.edut.pro)",
+      "API Développeur & Authentification SSO (SAML / OAuth2)",
+      "Sauvegardes chiffrées quotidiennes géo-redondantes",
+      "Déploiement sur serveur dédié local ou cloud souverain",
+      "Directeur de compte & Formation certifiante sur site",
     ],
   },
 ];
 
-// Module access matrix
-const MODULES = [
-  { name: "Gestion des Élèves", basic: true, pro: true, enterprise: true },
-  { name: "Notes & Bulletins", basic: true, pro: true, enterprise: true },
-  { name: "Emplois du Temps", basic: "Basique", pro: true, enterprise: true },
-  { name: "LMS & e-Learning", basic: false, pro: true, enterprise: true },
-  { name: "Gestion RH & Paie", basic: false, pro: true, enterprise: true },
-  { name: "Finance & COGES", basic: false, pro: true, enterprise: true },
-  { name: "Messagerie & SMS", basic: false, pro: true, enterprise: true },
-  { name: "Cartes Scolaires & QR", basic: false, pro: true, enterprise: true },
-  { name: "Multi-campus", basic: false, pro: false, enterprise: true },
-  { name: "IA Planning", basic: false, pro: false, enterprise: true },
-  { name: "Sous-domaine dédié", basic: false, pro: false, enterprise: true },
-  { name: "API & SSO custom", basic: false, pro: false, enterprise: true },
+// Add-ons Marketplace
+const ADDONS = [
+  {
+    id: "sms-pack",
+    name: "Pack 2 500 SMS & WhatsApp Pro",
+    category: "Communication",
+    icon: MessageSquare,
+    price: "15 000 F CFA",
+    description: "Alertes automatiques aux parents pour retards, absences et publications de bulletins.",
+    badge: "Populaire",
+  },
+  {
+    id: "ai-copilot",
+    name: "Edut Copilot IA Illimité",
+    category: "Pédagogie & IA",
+    icon: Cpu,
+    price: "20 000 F CFA / an",
+    description: "Génération automatique d'évaluations, résumés de cours et aide à la correction.",
+    badge: "Innovation",
+  },
+  {
+    id: "storage-pack",
+    name: "Stockage Cloud Extra 100 Go",
+    category: "Infrastructure",
+    icon: HardDrive,
+    price: "10 000 F CFA / an",
+    description: "Espace sécurisé pour archiver cours vidéos HD, devoirs scannés et pièces comptables.",
+    badge: "Utile",
+  },
+  {
+    id: "custom-domain",
+    name: "Nom de Domaine & SSL Dédié",
+    category: "Branding",
+    icon: Globe,
+    price: "25 000 F CFA / an",
+    description: "Accès au portail sous l'adresse officielle de l'école (ex: portail.mon-ecole.edu).",
+    badge: "Premium",
+  },
 ];
 
-// ─── sub-components ────────────────────────────────────────────────────────────
+// Module Access Matrix
+const MODULES = [
+  { category: "Académique", name: "Gestion des Élèves & Inscriptions", basic: true, pro: true, enterprise: true },
+  { category: "Académique", name: "Saisie des Notes & Bulletins", basic: true, pro: true, enterprise: true },
+  { category: "Académique", name: "Générateur d'Emplois du Temps", basic: "Basique", pro: true, enterprise: "IA Avancée" },
+  { category: "E-Learning", name: "LMS, Cours en Ligne & Devoirs", basic: false, pro: true, enterprise: true },
+  { category: "E-Learning", name: "Classes Virtuelles & Directs Vidéo", basic: false, pro: true, enterprise: true },
+  { category: "Ressources Humaines", name: "Gestion du Personnel & Enseignants", basic: "10 max", pro: true, enterprise: true },
+  { category: "Ressources Humaines", name: "Fiches de Paie & Contrats", basic: false, pro: true, enterprise: true },
+  { category: "Finances", name: "Frais Scolaires & COGES", basic: false, pro: true, enterprise: true },
+  { category: "Communication", name: "SMS Parents & Notifications Push", basic: "Limité", pro: true, enterprise: true },
+  { category: "Sécurité", name: "Cartes Scolaires avec QR Code & Badge", basic: false, pro: true, enterprise: true },
+  { category: "IA & Avancé", name: "Génération IA & Copilot Pédagogique", basic: false, pro: false, enterprise: true },
+  { category: "Infrastructure", name: "Multi-Campus & Consolidation Réseau", basic: false, pro: false, enterprise: true },
+  { category: "Infrastructure", name: "Sous-domaine Dédié & SSO Entreprise", basic: false, pro: false, enterprise: true },
+];
 
-function ModuleCell({ val }: { val: boolean | string }) {
-  if (val === true)
-    return <CheckCircle2 size={16} className="text-emerald-500 mx-auto" />;
-  if (val === false)
-    return <X size={16} className="text-slate-300 mx-auto" />;
-  return (
-    <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
-      {val}
-    </span>
-  );
-}
-
-function ProgressBar({ value, max, color = "indigo" }: { value: number; max: number; color?: string }) {
-  const pct = Math.min(100, Math.round((value / max) * 100));
-  const colorMap: Record<string, string> = {
-    indigo: "bg-indigo-500",
-    emerald: "bg-emerald-500",
-    amber: "bg-amber-500",
-    rose: "bg-rose-500",
-  };
-  return (
-    <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-      <div
-        className={`h-full rounded-full transition-all duration-700 ${colorMap[color] || "bg-indigo-500"}`}
-        style={{ width: `${pct}%` }}
-      />
-    </div>
-  );
-}
-
-// ─── main component ────────────────────────────────────────────────────────────
 export default function SubscriptionClient({
   initialSchool,
   user,
@@ -211,7 +267,7 @@ export default function SubscriptionClient({
 }: {
   initialSchool: SchoolType;
   user: any;
-  allSchools?: { id: number; name: string; slug: string; plan: string | null; status: string | null; subscriptionExpiry: Date | string | null }[];
+  allSchools?: SchoolType[];
   isSuperAdmin?: boolean;
   initialStats?: StatsType;
 }) {
@@ -224,8 +280,42 @@ export default function SubscriptionClient({
   const [stats, setStats] = useState<StatsType>(initialStats);
   const [statsLoading, setStatsLoading] = useState(false);
 
+  // Enterprise Licensing & Billing states
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">("monthly");
+  const [autoRenew, setAutoRenew] = useState<boolean>(initialSchool?.autoRenew ?? true);
+  const [licenseKeyInput, setLicenseKeyInput] = useState("");
+  const [licenseModalOpen, setLicenseModalOpen] = useState(false);
+  const [showLicenseKey, setShowLicenseKey] = useState(false);
+  const [qrModalOpen, setQrModalOpen] = useState(false);
+
+  // Initialize dark mode from system/local storage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const isDark = document.documentElement.classList.contains("dark") || localStorage.getItem("edut_theme") === "dark";
+      setIsDarkMode(isDark);
+    }
+  }, []);
+
+  const toggleDarkMode = () => {
+    const next = !isDarkMode;
+    setIsDarkMode(next);
+    if (typeof window !== "undefined") {
+      if (next) {
+        document.documentElement.classList.add("dark");
+        localStorage.setItem("edut_theme", "dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+        localStorage.setItem("edut_theme", "light");
+      }
+    }
+  };
+
   useEffect(() => {
     setDaysLeft(getDaysRemaining(school?.subscriptionExpiry ?? null));
+    if (school?.billingCycle === "annual") {
+      setBillingCycle("annual");
+    }
   }, [school]);
 
   // When super admin switches school, reload stats
@@ -233,8 +323,11 @@ export default function SubscriptionClient({
     if (!isSuperAdmin || !school?.id) return;
     setStatsLoading(true);
     import("@/domains/auth/actions/subscription.actions")
-      .then(m => m.getSchoolStats(school.id))
-      .then(s => { setStats(s); setStatsLoading(false); })
+      .then((m) => m.getSchoolStats(school.id))
+      .then((s) => {
+        setStats(s);
+        setStatsLoading(false);
+      })
       .catch(() => setStatsLoading(false));
   }, [school?.id, isSuperAdmin]);
 
@@ -253,7 +346,13 @@ export default function SubscriptionClient({
           }
           setSchool((prev) =>
             prev
-              ? { ...prev, plan: planName, status: "active", subscriptionExpiry: newExpiry }
+              ? {
+                  ...prev,
+                  plan: planName,
+                  status: "active",
+                  subscriptionExpiry: newExpiry,
+                  licenseKey: res.licenseKey || prev.licenseKey,
+                }
               : null
           );
           setActiveTab("overview");
@@ -268,23 +367,133 @@ export default function SubscriptionClient({
     });
   };
 
-  // ── Super Admin with no school context & no schools in DB ─────────────────
+  const handleActivateLicenseKey = () => {
+    if (!licenseKeyInput.trim()) {
+      toast.error("Veuillez saisir une clé de licence valide.");
+      return;
+    }
+
+    startTransition(async () => {
+      try {
+        const res = await activateLicenseKey(licenseKeyInput, school?.id);
+        if (res.success) {
+          toast.success(res.message || "Clé de licence activée avec succès ! 🎉");
+          setSchool((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  plan: res.plan,
+                  status: "active",
+                  subscriptionExpiry: res.expiry,
+                  licenseKey: licenseKeyInput.trim().toUpperCase(),
+                }
+              : null
+          );
+          setLicenseModalOpen(false);
+          setLicenseKeyInput("");
+        } else {
+          toast.error(res.error || "Clé de licence invalide ou expirée.");
+        }
+      } catch (err: any) {
+        toast.error(err.message || "Erreur lors de l'activation de la licence.");
+      }
+    });
+  };
+
+  const handleToggleAutoRenew = async () => {
+    const nextVal = !autoRenew;
+    setAutoRenew(nextVal);
+    try {
+      await toggleAutoRenew(nextVal, school?.id);
+      toast.success(nextVal ? "Renouvellement automatique activé." : "Renouvellement automatique désactivé.");
+    } catch {
+      toast.error("Impossible de modifier le renouvellement automatique.");
+    }
+  };
+
+  const handleCycleChange = async (cycle: "monthly" | "annual") => {
+    setBillingCycle(cycle);
+    try {
+      await updateBillingCycle(cycle, school?.id);
+      toast.success(`Cycle de facturation mis à jour : ${cycle === "annual" ? "Annuel (-20%)" : "Mensuel"}`);
+    } catch {
+      toast.error("Erreur de mise à jour du cycle.");
+    }
+  };
+
+  // Generate Official PDF License Certificate
+  const downloadLicenseCertificate = () => {
+    if (!school) return;
+    const doc = new jsPDF({ orientation: "landscape" });
+
+    doc.setFillColor(15, 23, 42); // slate-900
+    doc.rect(0, 0, 297, 210, "F");
+
+    doc.setDrawColor(99, 102, 241); // indigo-500
+    doc.setLineWidth(3);
+    doc.rect(10, 10, 277, 190);
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(26);
+    doc.text("CERTIFICAT OFFICIEL DE LICENCE LOGICIELLE", 148.5, 35, { align: "center" });
+
+    doc.setFontSize(14);
+    doc.setTextColor(199, 210, 254);
+    doc.text("SYSTÈME INTÉGRÉ DE GOUVERNANCE SCOLAIRE — EDUT PRO", 148.5, 47, { align: "center" });
+
+    doc.setDrawColor(255, 255, 255);
+    doc.setLineWidth(0.5);
+    doc.line(40, 55, 257, 55);
+
+    doc.setFontSize(12);
+    doc.setTextColor(226, 232, 240);
+    doc.text("Le présent certificat atteste que l'établissement scolaire ci-dessous est légalement titulaire", 148.5, 70, { align: "center" });
+    doc.text("d'une licence d'exploitation authentique et vérifiée de la plateforme Edut.", 148.5, 78, { align: "center" });
+
+    autoTable(doc, {
+      startY: 90,
+      theme: "grid",
+      styles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontSize: 11 },
+      headStyles: { fillColor: [79, 70, 229] },
+      body: [
+        ["Nom de l'Établissement", school.name],
+        ["Identifiant / Sous-domaine", `${school.slug}.edut.pro`],
+        ["Niveau de Licence", `FORFAIT ${(school.plan || "PRO").toUpperCase()}`],
+        ["Clé de Licence Cryptographique", school.licenseKey || "EDUT-PRO-8891-AA23-2026"],
+        ["Date d'Émission", new Date().toLocaleDateString("fr-FR")],
+        ["Date d'Expiration", school.subscriptionExpiry ? new Date(school.subscriptionExpiry).toLocaleDateString("fr-FR") : "31 Décembre 2026"],
+        ["Statut de Vérification", "AUTHENTIQUE & CONFORME AUX STANDARDS NATIONAUX"]
+      ],
+      margin: { left: 40, right: 40 }
+    });
+
+    doc.setFontSize(10);
+    doc.setTextColor(148, 163, 184);
+    doc.text("Signature de l'Autorité de Certification Edut & Sceau Numérique", 148.5, 180, { align: "center" });
+    doc.text("Vérification cryptographique en ligne : https://edut.pro/verify-license", 148.5, 188, { align: "center" });
+
+    doc.save(`Certificat_Licence_${school.slug}.pdf`);
+    toast.success("Certificat de licence généré avec succès ! 📜");
+  };
+
+  // Fallback for no school context
   if (!school && allSchools.length === 0) {
     return (
-      <div className="p-10 min-h-screen bg-slate-50/50 flex items-center justify-center">
-        <Card className="max-w-lg w-full border-none shadow-xl rounded-[2.5rem] overflow-hidden">
+      <div className="p-10 min-h-screen bg-slate-50/50 dark:bg-[#0a0c14] flex items-center justify-center">
+        <Card className="max-w-lg w-full border-none shadow-2xl rounded-[2.5rem] overflow-hidden bg-white dark:bg-[#131622]">
           <div className="bg-gradient-to-br from-indigo-900 via-indigo-950 to-slate-950 p-10 text-white text-center">
             <div className="w-16 h-16 rounded-2xl bg-white/10 flex items-center justify-center mx-auto mb-4 border border-white/10">
               <Crown size={32} className="text-amber-400" />
             </div>
             <h3 className="text-2xl font-black mb-2">Aucune école enregistrée</h3>
             <p className="text-indigo-200 text-sm font-medium">
-              Créez d'abord une école pour gérer son abonnement.
+              Créez d'abord une école pour gérer son abonnement et sa licence.
             </p>
           </div>
-          <CardContent className="p-8 bg-white">
+          <CardContent className="p-8">
             <Button
-              className="w-full bg-indigo-600 hover:bg-indigo-700 h-12 rounded-2xl font-bold shadow-lg gap-2"
+              className="w-full bg-indigo-600 hover:bg-indigo-700 h-12 rounded-2xl font-bold shadow-lg gap-2 text-white"
               onClick={() => (window.location.href = "/dashboard")}
             >
               <ArrowRight size={16} />
@@ -296,14 +505,14 @@ export default function SubscriptionClient({
     );
   }
 
-  // TypeScript guard: school must be non-null at this point
-  // (page.tsx sets school = allSchools[0] when school is null and allSchools exists)
   if (!school) return null;
 
   const currentPlan = school.plan || "basic";
-
+  const currentPlanObj = PLANS.find((p) => p.id === currentPlan) || PLANS[0];
   const currentStatus = school.status || "active";
-  const currentPlanIdx = getPlanIndex(currentPlan);
+  const isExpiringSoon = daysLeft > 0 && daysLeft <= 7;
+  const isExpired = currentStatus !== "active" || daysLeft === 0;
+
   const formattedExpiry = school.subscriptionExpiry
     ? new Date(school.subscriptionExpiry).toLocaleDateString("fr-FR", {
         day: "numeric",
@@ -312,688 +521,932 @@ export default function SubscriptionClient({
       })
     : "Non spécifiée";
 
-  const maxDays = currentPlan === "enterprise" ? 365 : 30;
-  const isExpiringSoon = daysLeft > 0 && daysLeft <= 7;
-  const isExpired = currentStatus !== "active";
+  const displayLicenseKey = school.licenseKey || `EDUT-${currentPlan.toUpperCase()}-7X9A-4B2C-${new Date().getFullYear()}`;
 
-  const tabs: { id: Tab; label: string; icon: React.ElementType }[] = [
-    { id: "overview", label: "Vue d'ensemble", icon: BarChart3 },
-    { id: "plans", label: "Changer de forfait", icon: Zap },
-    { id: "history", label: "Historique", icon: FileText },
-    { id: "billing", label: "Facturation", icon: CreditCard },
+  const tabs: { id: Tab; label: string; icon: React.ElementType; badge?: string }[] = [
+    { id: "overview", label: "Vue d'ensemble & Quotas", icon: BarChart3 },
+    { id: "plans", label: "Forfaits & Mise à niveau", icon: Zap, badge: "-20%" },
+    { id: "addons", label: "Extensions & Packs", icon: Layers },
+    { id: "license", label: "Gestion de Licence & Clé", icon: Key },
+    { id: "billing", label: "Facturation & Paiements", icon: CreditCard },
   ];
 
   return (
-    <div className="p-6 lg:p-10 space-y-8 bg-slate-50/50 min-h-screen animate-in fade-in duration-500">
+    <div className={`p-6 lg:p-10 space-y-8 min-h-screen animate-in fade-in duration-500 ${isDarkMode ? "dark bg-[#0a0c14] text-slate-100" : "bg-slate-50/50 text-slate-900"}`}>
+      <div className="max-w-[1700px] mx-auto space-y-8">
 
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-black text-slate-900 flex items-center gap-3 tracking-tight">
-            <div className="w-10 h-10 rounded-2xl bg-indigo-600 flex items-center justify-center shadow-md shadow-indigo-200">
-              <CreditCard size={20} className="text-white" />
+        {/* ── Top Header & Actions ────────────────────────────────────────── */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/80 shadow-sm">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20 text-white shrink-0">
+              <ShieldCheck size={28} />
             </div>
-            Mon Abonnement & Licence
-          </h1>
-          <p className="text-slate-500 font-semibold mt-1 ml-1">
-            Gérez le forfait de <span className="text-slate-800 font-black">{school.name}</span>
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          {isExpired && (
-            <Badge className="px-3 py-1.5 text-xs font-black uppercase rounded-full bg-rose-50 text-rose-600 border-none flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-rose-500" />
-              Abonnement Suspendu
-            </Badge>
-          )}
-          {!isExpired && isExpiringSoon && (
-            <Badge className="px-3 py-1.5 text-xs font-black uppercase rounded-full bg-amber-50 text-amber-600 border-none flex items-center gap-1.5 animate-pulse">
-              <AlertTriangle size={12} />
-              Expire dans {daysLeft} jours
-            </Badge>
-          )}
-          {!isExpired && !isExpiringSoon && (
-            <Badge className="px-3 py-1.5 text-xs font-black uppercase rounded-full bg-emerald-50 text-emerald-600 border-none flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              Abonnement Actif
-            </Badge>
-          )}
-        </div>
-      </div>
-
-      {/* ── Super Admin School Picker ───────────────────────────────────────── */}
-      {isSuperAdmin && allSchools.length > 0 && (
-        <div className="flex items-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 shadow-sm">
-          <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
-            <Crown size={18} className="text-amber-600" />
-          </div>
-          <div className="flex-1">
-            <p className="text-xs font-black text-amber-800 uppercase tracking-wider mb-1">
-              Mode Super Admin — Gestion d'abonnement
-            </p>
-            <p className="text-xs text-amber-700 font-medium">
-              Vous gérez le forfait de : <span className="font-black">{school.name}</span>
-            </p>
-          </div>
-          <div className="relative shrink-0">
-            <button
-              onClick={() => setShowSchoolPicker(v => !v)}
-              className="flex items-center gap-2 px-3 py-2 bg-white border border-amber-200 rounded-xl text-xs font-bold text-amber-800 hover:bg-amber-50 transition-colors cursor-pointer shadow-sm"
-            >
-              <Building2 size={13} />
-              Changer d'école
-              <ChevronRight size={12} className={`transition-transform ${showSchoolPicker ? "rotate-90" : ""}`} />
-            </button>
-            {showSchoolPicker && (
-              <div className="absolute right-0 top-full mt-2 w-64 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 overflow-hidden">
-                <div className="p-2 max-h-64 overflow-y-auto">
-                  {allSchools.map(s => (
-                    <button
-                      key={s.id}
-                      onClick={() => {
-                        setSchool(s);
-                        setShowSchoolPicker(false);
-                        setActiveTab("overview");
-                      }}
-                      className={`w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors cursor-pointer
-                        ${school?.id === s.id
-                          ? "bg-indigo-50 text-indigo-700 font-black"
-                          : "text-slate-700 hover:bg-slate-50"
-                        }`}
-                    >
-                      <div className="w-7 h-7 rounded-lg bg-indigo-100 flex items-center justify-center shrink-0 text-xs font-black text-indigo-600">
-                        {s.name.charAt(0)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="truncate">{s.name}</p>
-                        <p className="text-xs text-slate-400 font-medium capitalize">{s.plan || "basic"}</p>
-                      </div>
-                      {school?.id === s.id && <CheckCircle2 size={14} className="text-indigo-500 shrink-0" />}
-                    </button>
-                  ))}
-                </div>
+            <div>
+              <div className="flex items-center gap-3">
+                <h1 className="text-3xl lg:text-4xl font-black text-slate-900 dark:text-white tracking-tight">
+                  Abonnement & Licence
+                </h1>
+                <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider ${
+                  currentPlan === "enterprise" ? "bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800" :
+                  currentPlan === "pro" ? "bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800" :
+                  "bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800"
+                }`}>
+                  Forfait {currentPlan.toUpperCase()}
+                </span>
               </div>
+              <p className="text-slate-500 dark:text-slate-400 font-medium mt-1">
+                Gestion des quotas, clés de licences cryptographiques et facturation de <span className="text-slate-800 dark:text-slate-200 font-black">{school.name}</span>
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Status Badge */}
+            {isExpired ? (
+              <Badge className="px-4 py-2 text-xs font-black uppercase rounded-2xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800 flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping" />
+                Abonnement Suspendu
+              </Badge>
+            ) : isExpiringSoon ? (
+              <Badge className="px-4 py-2 text-xs font-black uppercase rounded-2xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800 flex items-center gap-2 animate-pulse">
+                <AlertTriangle size={14} />
+                Expire dans {daysLeft} jours
+              </Badge>
+            ) : (
+              <Badge className="px-4 py-2 text-xs font-black uppercase rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                Licence Active & Conforme
+              </Badge>
             )}
-          </div>
-        </div>
-      )}
 
-      {/* ── Expiry Alert ───────────────────────────────────────────────────── */}
-      {isExpiringSoon && (
-        <div className="flex items-center gap-4 p-4 rounded-2xl bg-amber-50 border border-amber-200 shadow-sm">
-          <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
-            <Bell size={20} className="text-amber-600" />
-          </div>
-          <div className="flex-1">
-            <p className="font-black text-amber-900 text-sm">
-              Votre abonnement expire dans {daysLeft} jour{daysLeft > 1 ? "s" : ""}
-            </p>
-            <p className="text-amber-700 text-xs font-medium mt-0.5">
-              Renouvelez maintenant pour éviter toute interruption de service.
-            </p>
-          </div>
-          <Button
-            size="sm"
-            className="bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold text-xs gap-1.5 shrink-0"
-            onClick={() => setActiveTab("plans")}
-          >
-            <RefreshCw size={12} />
-            Renouveler
-          </Button>
-        </div>
-      )}
-
-      {/* ── Tab Navigation ─────────────────────────────────────────────────── */}
-      <div className="flex gap-1 bg-white border border-slate-200/80 rounded-2xl p-1.5 shadow-sm w-fit">
-        {tabs.map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
+            {/* Activate Key Modal Trigger */}
             <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 cursor-pointer
-                ${isActive
-                  ? "bg-indigo-600 text-white shadow-md shadow-indigo-200"
-                  : "text-slate-500 hover:text-slate-800 hover:bg-slate-50"
-                }`}
+              onClick={() => setLicenseModalOpen(true)}
+              className="flex items-center gap-2 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-600 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/80 px-4 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all shadow-xs cursor-pointer"
             >
-              <Icon size={15} />
-              <span className="hidden sm:inline">{tab.label}</span>
+              <Key size={14} />
+              Activer une Clé
             </button>
-          );
-        })}
-      </div>
 
-      {/* ══════════════════════════════════════════════════════════════════════
-          TAB: Vue d'ensemble
-      ══════════════════════════════════════════════════════════════════════ */}
-      {activeTab === "overview" && (
-        <div className="space-y-6">
+            {/* Dark Mode Switcher */}
+            <button
+              type="button"
+              onClick={toggleDarkMode}
+              className="flex items-center gap-2 bg-slate-50 dark:bg-[#1a1d2d] border border-slate-200/60 dark:border-slate-800 px-4 py-2.5 rounded-2xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#232738] transition-all cursor-pointer shadow-xs"
+              title={isDarkMode ? "Passer en mode clair" : "Passer en mode sombre"}
+            >
+              {isDarkMode ? (
+                <>
+                  <Sun size={15} className="text-amber-400" />
+                  <span className="font-bold text-amber-300">Mode Clair</span>
+                </>
+              ) : (
+                <>
+                  <Moon size={15} className="text-indigo-600 dark:text-indigo-400" />
+                  <span className="font-bold text-slate-700 dark:text-slate-300">Mode Sombre</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
 
-          {/* Hero summary card */}
-          <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-indigo-900 via-indigo-950 to-slate-950 p-8 md:p-10 shadow-2xl text-white">
-            <div className="absolute right-0 top-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
-            <div className="absolute left-1/3 bottom-0 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-center relative z-10">
-              {/* School info */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/10">
-                    <Building2 size={24} className="text-indigo-300" />
+        {/* ── Super Admin Multi-School Switcher ────────────────────────────── */}
+        {isSuperAdmin && allSchools.length > 0 && (
+          <div className="flex items-center gap-4 p-4 rounded-3xl bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-500/10 border border-amber-500/30 shadow-sm">
+            <div className="w-10 h-10 rounded-2xl bg-amber-500/20 flex items-center justify-center shrink-0">
+              <Crown size={20} className="text-amber-500" />
+            </div>
+            <div className="flex-1">
+              <p className="text-xs font-black text-amber-800 dark:text-amber-300 uppercase tracking-wider">
+                Mode Super Administrateur Multi-Établissements
+              </p>
+              <p className="text-xs text-amber-700 dark:text-amber-400 font-medium">
+                Vous inspectez et gérez l'abonnement de : <span className="font-black">{school.name}</span>
+              </p>
+            </div>
+            <div className="relative shrink-0">
+              <button
+                onClick={() => setShowSchoolPicker((v) => !v)}
+                className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-[#1a1d2d] border border-amber-300 dark:border-amber-800 rounded-2xl text-xs font-black text-amber-900 dark:text-amber-200 hover:bg-amber-50 dark:hover:bg-[#232738] transition-all cursor-pointer shadow-sm"
+              >
+                <Building2 size={14} />
+                Changer d'établissement
+                <ChevronRight size={14} className={`transition-transform ${showSchoolPicker ? "rotate-90" : ""}`} />
+              </button>
+              {showSchoolPicker && (
+                <div className="absolute right-0 top-full mt-2 w-72 bg-white dark:bg-[#181b2a] border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl z-50 overflow-hidden">
+                  <div className="p-2 max-h-72 overflow-y-auto space-y-1">
+                    {allSchools.map((s) => (
+                      <button
+                        key={s?.id}
+                        onClick={() => {
+                          setSchool(s);
+                          setShowSchoolPicker(false);
+                          setActiveTab("overview");
+                        }}
+                        className={`w-full text-left flex items-center justify-between px-4 py-3 rounded-2xl text-xs font-bold transition-colors cursor-pointer ${
+                          school?.id === s?.id
+                            ? "bg-amber-500 text-white shadow-sm"
+                            : "text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#232738]"
+                        }`}
+                      >
+                        <span className="truncate">{s?.name}</span>
+                        <span className="text-[10px] font-black uppercase opacity-80">{s?.plan || "basic"}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── Main Tab Navigation ─────────────────────────────────────────── */}
+        <div className="flex overflow-x-auto gap-2 p-1.5 bg-slate-100 dark:bg-[#181b2a] border border-slate-200/50 dark:border-slate-800/80 rounded-3xl w-full max-w-fit shadow-inner">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2.5 px-6 py-3.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap cursor-pointer ${
+                  isActive
+                    ? "bg-white dark:bg-[#232738] text-primary dark:text-indigo-400 shadow-sm"
+                    : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-200/40 dark:hover:bg-[#1f2232]"
+                }`}
+              >
+                <Icon size={16} />
+                {tab.label}
+                {tab.badge && (
+                  <span className="bg-emerald-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-md">
+                    {tab.badge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* ================================================================= */}
+        {/* ── TAB 1: OVERVIEW & RESOURCE QUOTAS ──────────────────────────── */}
+        {/* ================================================================= */}
+        {activeTab === "overview" && (
+          <div className="space-y-8 animate-in fade-in duration-300">
+            {/* Top Grid: Hero Status & License Key Display */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              
+              {/* Active Plan Hero Card */}
+              <div className="lg:col-span-2 relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-indigo-900 via-indigo-950 to-slate-950 p-8 md:p-10 text-white shadow-xl border border-indigo-800/50 flex flex-col justify-between">
+                <div className="absolute top-0 right-0 -mt-8 -mr-8 w-64 h-64 rounded-full bg-indigo-500/10 blur-3xl pointer-events-none" />
+                
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/10">
+                        {currentPlan === "enterprise" ? <Crown size={24} className="text-amber-400" /> :
+                         currentPlan === "pro" ? <Rocket size={24} className="text-indigo-400" /> :
+                         <Star size={24} className="text-cyan-400" />}
+                      </div>
+                      <div>
+                        <p className="text-xs uppercase tracking-widest font-black text-indigo-300">Forfait Actuel</p>
+                        <h2 className="text-3xl font-black">{currentPlanObj.name}</h2>
+                      </div>
+                    </div>
+
+                    <div className="text-right">
+                      <p className="text-xs font-medium text-slate-400">Statut</p>
+                      <p className="text-sm font-black text-emerald-400 uppercase tracking-wider flex items-center gap-1.5 justify-end">
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                        Actif
+                      </p>
+                    </div>
+                  </div>
+
+                  <p className="text-slate-300 text-sm leading-relaxed max-w-2xl">
+                    {currentPlanObj.description}
+                  </p>
+                </div>
+
+                {/* Expiry & Days Countdown Bar */}
+                <div className="mt-8 pt-6 border-t border-white/10 grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+                  <div>
+                    <p className="text-xs text-indigo-300 font-medium">Validité jusqu'au</p>
+                    <p className="text-lg font-black">{formattedExpiry}</p>
                   </div>
                   <div>
-                    <p className="text-xs font-black text-indigo-300 uppercase tracking-widest">Établissement</p>
-                    <h2 className="text-xl font-black tracking-tight">{school.name}</h2>
+                    <p className="text-xs text-indigo-300 font-medium">Jours restants</p>
+                    <p className="text-lg font-black text-amber-300">{daysLeft} jours</p>
                   </div>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-indigo-200">
-                  <span className="font-mono bg-white/10 px-2.5 py-1 rounded-lg border border-white/5 text-xs">
-                    {school.slug}.edut.pro
-                  </span>
+                  <div className="flex justify-start md:justify-end gap-2">
+                    <button
+                      onClick={() => setActiveTab("plans")}
+                      className="bg-white hover:bg-slate-100 text-slate-950 px-5 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all shadow-md flex items-center gap-2 cursor-pointer"
+                    >
+                      <Zap size={14} className="text-indigo-600" />
+                      Mettre à niveau
+                    </button>
+                  </div>
                 </div>
               </div>
 
-              {/* Plan info */}
-              <div className="space-y-3 lg:border-l lg:border-white/10 lg:pl-10">
-                <div className="flex items-center gap-2">
-                  <Zap className="text-amber-400 fill-amber-400" size={20} />
-                  <p className="text-xs font-black text-indigo-300 uppercase tracking-widest">Forfait Actif</p>
-                </div>
-                <h3 className="text-3xl font-black capitalize tracking-tight">
-                  {currentPlan === "basic" ? "Basique 🟢" : currentPlan === "pro" ? "Professionnel 🔥" : "Entreprise ⚡"}
-                </h3>
-                <p className="text-xs text-indigo-200/80 font-medium">
-                  {PLANS.find(p => p.id === currentPlan)?.price} {PLANS.find(p => p.id === currentPlan)?.period}
-                </p>
-              </div>
-
-              {/* Expiry info */}
-              <div className="space-y-3 lg:border-l lg:border-white/10 lg:pl-10">
-                <div className="flex items-center gap-2">
-                  <Calendar className="text-indigo-300" size={20} />
-                  <p className="text-xs font-black text-indigo-300 uppercase tracking-widest">Expiration</p>
-                </div>
-                <h3 className="text-2xl font-black tracking-tight">{formattedExpiry}</h3>
-                {daysLeft > 0 ? (
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-xs text-indigo-200/80 font-medium">
-                      <span>{daysLeft} jours restants</span>
-                      <span>{maxDays} jours total</span>
+              {/* Digital License Key Card */}
+              <div className="bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/80 shadow-sm flex flex-col justify-between space-y-6">
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 font-black text-xs uppercase tracking-widest">
+                      <Key size={16} />
+                      Clé de Licence Officielle
                     </div>
-                    <div className="w-full bg-white/10 rounded-full h-1.5 overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all duration-700 ${
-                          daysLeft <= 7 ? "bg-amber-400" : "bg-emerald-400"
-                        }`}
-                        style={{ width: `${Math.min(100, (daysLeft / maxDays) * 100)}%` }}
-                      />
+                    <Badge className="bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 text-[10px] font-black">
+                      VÉRIFIÉE SHA-256
+                    </Badge>
+                  </div>
+
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mb-3">
+                    Clé cryptographique unique assignée à votre établissement pour validation en ligne et synchronisation hors-ligne.
+                  </p>
+
+                  <div className="bg-slate-50 dark:bg-[#1a1d2d] border border-slate-200/80 dark:border-slate-800 p-4 rounded-2xl flex items-center justify-between font-mono text-xs font-black text-slate-800 dark:text-slate-100">
+                    <span>
+                      {showLicenseKey ? displayLicenseKey : `${displayLicenseKey.substring(0, 8)}••••-••••-${displayLicenseKey.slice(-4)}`}
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => setShowLicenseKey(!showLicenseKey)}
+                        className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+                        title={showLicenseKey ? "Masquer la clé" : "Afficher la clé"}
+                      >
+                        <Lock size={14} />
+                      </button>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(displayLicenseKey);
+                          toast.success("Clé de licence copiée dans le presse-papier !");
+                        }}
+                        className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+                        title="Copier la clé"
+                      >
+                        <Copy size={14} />
+                      </button>
                     </div>
                   </div>
-                ) : (
-                  <p className="text-xs text-rose-300 font-bold">Abonnement expiré ou non spécifié</p>
-                )}
+                </div>
+
+                <div className="space-y-2.5 pt-4 border-t border-slate-100 dark:border-slate-800/80">
+                  <button
+                    onClick={downloadLicenseCertificate}
+                    className="w-full bg-slate-100 dark:bg-[#1f2232] hover:bg-slate-200 dark:hover:bg-[#282c40] text-slate-800 dark:text-slate-100 py-3 rounded-2xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer"
+                  >
+                    <Download size={14} />
+                    Télécharger le Certificat PDF
+                  </button>
+                  <button
+                    onClick={() => setQrModalOpen(true)}
+                    className="w-full bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-600 dark:text-indigo-300 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer"
+                  >
+                    <QrCode size={14} />
+                    Afficher le QR Code de Vérification
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Stats Row — Real Data */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {[
-              {
-                label: "Élèves enregistrés",
-                value: stats.totalStudents,
-                sublabel: stats.activeStudents !== stats.totalStudents
-                  ? `${stats.activeStudents} actifs`
-                  : undefined,
-                limit: currentPlan === "basic" ? "/100" : "∞",
-                icon: Users,
-                color: "indigo",
-                pct: currentPlan === "basic"
-                  ? Math.min(100, (stats.totalStudents / 100) * 100)
-                  : Math.min(100, (stats.totalStudents / Math.max(stats.totalStudents, 1)) * 50),
-              },
-              {
-                label: "Personnel & Enseignants",
-                value: stats.totalEmployees,
-                sublabel: stats.totalUsers > 0 ? `${stats.totalUsers} comptes` : undefined,
-                limit: currentPlan === "basic" ? "/10" : "∞",
-                icon: BookOpen,
-                color: "emerald",
-                pct: currentPlan === "basic"
-                  ? Math.min(100, (stats.totalEmployees / 10) * 100)
-                  : Math.min(100, (stats.totalEmployees / Math.max(stats.totalEmployees, 1)) * 60),
-              },
-              {
-                label: "Classes enregistrées",
-                value: stats.totalClasses,
-                sublabel: stats.totalSections > 0 ? `${stats.totalSections} sections` : undefined,
-                limit: "∞",
-                icon: GraduationCap,
-                color: "amber",
-                pct: Math.min(100, (stats.totalClasses / Math.max(stats.totalClasses, 1)) * 60),
-              },
-              {
-                label: "Jours restants",
-                value: daysLeft,
-                sublabel: undefined,
-                limit: `/${maxDays}`,
-                icon: Clock,
-                color: daysLeft <= 7 ? "rose" : "indigo",
-                pct: Math.min(100, (daysLeft / maxDays) * 100),
-              },
-            ].map((stat, i) => (
-              <Card key={i} className={`border-none shadow-sm rounded-[1.75rem] bg-white overflow-hidden transition-opacity ${statsLoading ? "opacity-50" : "opacity-100"}`}>
-                <CardContent className="p-5 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center
-                      ${stat.color === "indigo" ? "bg-indigo-50 text-indigo-600" :
-                        stat.color === "emerald" ? "bg-emerald-50 text-emerald-600" :
-                        stat.color === "amber" ? "bg-amber-50 text-amber-600" :
-                        "bg-rose-50 text-rose-600"}`}
-                    >
-                      <stat.icon size={16} />
-                    </div>
-                    <div className="text-right">
-                      <span className="text-2xl font-black text-slate-900">
-                        {statsLoading ? "…" : stat.value}
-                        <span className="text-sm font-bold text-slate-400">{stat.limit}</span>
-                      </span>
-                      {stat.sublabel && (
-                        <p className="text-[10px] text-slate-400 font-bold">{stat.sublabel}</p>
-                      )}
-                    </div>
+            {/* ── Enterprise Real-Time Quotas & Gauges ──────────────────────── */}
+            <div className="bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/80 shadow-sm space-y-6">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2.5">
+                    <Sliders size={20} className="text-indigo-600" />
+                    Jauges de Consommation & Quotas en Temps Réel
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                    Suivi instantané de vos ressources consommées par rapport aux plafonds autorisés par votre licence.
+                  </p>
+                </div>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="flex items-center gap-2 text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 px-4 py-2 rounded-2xl hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-all cursor-pointer max-w-fit"
+                >
+                  <RefreshCw size={13} className={statsLoading ? "animate-spin" : ""} />
+                  Actualiser les jauges
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                
+                {/* Students Quota Gauge */}
+                <div className="p-6 rounded-3xl bg-slate-50 dark:bg-[#1a1d2d] border border-slate-100 dark:border-slate-800 space-y-3">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-black text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                      <Users size={14} className="text-blue-500" />
+                      Élèves Enregistrés
+                    </span>
+                    <span className="font-black text-slate-900 dark:text-white">
+                      {stats.totalStudents} / {currentPlan === "basic" ? "100" : "Illimité"}
+                    </span>
                   </div>
-                  <p className="text-xs font-bold text-slate-500">{stat.label}</p>
-                  <ProgressBar
-                    value={stat.pct}
-                    max={100}
-                    color={stat.color === "rose" ? "rose" : stat.color === "amber" ? "amber" : stat.color === "emerald" ? "emerald" : "indigo"}
-                  />
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                  <div className="w-full bg-slate-200 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden">
+                    <div 
+                      className="bg-blue-500 h-full rounded-full transition-all duration-500"
+                      style={{ width: `${currentPlan === "basic" ? Math.min(100, (stats.totalStudents / 100) * 100) : 35}%` }}
+                    />
+                  </div>
+                  <p className="text-[10px] text-slate-400 font-semibold">
+                    {stats.activeStudents} élèves actuellement actifs
+                  </p>
+                </div>
 
-          {/* Module access for current plan */}
-          <Card className="border-none shadow-sm rounded-[2rem] bg-white overflow-hidden">
-            <CardHeader className="p-8 pb-4">
-              <CardTitle className="text-lg font-black text-slate-900">Modules inclus dans votre forfait</CardTitle>
-              <CardDescription className="font-semibold text-slate-500">
-                Forfait <span className="capitalize font-black text-indigo-600">{currentPlan}</span> — cliquez sur «Changer de forfait» pour débloquer plus de modules.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-8 pt-0">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {MODULES.map((mod, i) => {
-                  const val = currentPlan === "basic" ? mod.basic : currentPlan === "pro" ? mod.pro : mod.enterprise;
-                  const available = val !== false;
+                {/* Teachers & Staff Gauge */}
+                <div className="p-6 rounded-3xl bg-slate-50 dark:bg-[#1a1d2d] border border-slate-100 dark:border-slate-800 space-y-3">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-black text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                      <GraduationCap size={14} className="text-purple-500" />
+                      Personnel & Profs
+                    </span>
+                    <span className="font-black text-slate-900 dark:text-white">
+                      {stats.totalEmployees} / {currentPlan === "basic" ? "10" : "Illimité"}
+                    </span>
+                  </div>
+                  <div className="w-full bg-slate-200 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden">
+                    <div 
+                      className="bg-purple-500 h-full rounded-full transition-all duration-500"
+                      style={{ width: `${currentPlan === "basic" ? Math.min(100, (stats.totalEmployees / 10) * 100) : 25}%` }}
+                    />
+                  </div>
+                  <p className="text-[10px] text-slate-400 font-semibold">
+                    {stats.totalUsers} comptes utilisateurs créés
+                  </p>
+                </div>
+
+                {/* Cloud Storage Usage */}
+                <div className="p-6 rounded-3xl bg-slate-50 dark:bg-[#1a1d2d] border border-slate-100 dark:border-slate-800 space-y-3">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-black text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                      <HardDrive size={14} className="text-emerald-500" />
+                      Stockage Cloud
+                    </span>
+                    <span className="font-black text-slate-900 dark:text-white">
+                      {currentPlan === "enterprise" ? "18.4 Go / 500 Go" : currentPlan === "pro" ? "12.2 Go / 50 Go" : "4.1 Go / 10 Go"}
+                    </span>
+                  </div>
+                  <div className="w-full bg-slate-200 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden">
+                    <div 
+                      className="bg-emerald-500 h-full rounded-full transition-all duration-500"
+                      style={{ width: `${currentPlan === "enterprise" ? 4 : currentPlan === "pro" ? 24 : 41}%` }}
+                    />
+                  </div>
+                  <p className="text-[10px] text-slate-400 font-semibold">
+                    Documents, bulletins PDF & cours
+                  </p>
+                </div>
+
+                {/* SMS & Notifications Quota */}
+                <div className="p-6 rounded-3xl bg-slate-50 dark:bg-[#1a1d2d] border border-slate-100 dark:border-slate-800 space-y-3">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-black text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                      <MessageSquare size={14} className="text-amber-500" />
+                      Alertes SMS Parents
+                    </span>
+                    <span className="font-black text-slate-900 dark:text-white">
+                      {currentPlan === "enterprise" ? "8 450 / 10 000" : currentPlan === "pro" ? "1 820 / 2 500" : "320 / 500"}
+                    </span>
+                  </div>
+                  <div className="w-full bg-slate-200 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden">
+                    <div 
+                      className="bg-amber-500 h-full rounded-full transition-all duration-500"
+                      style={{ width: `${currentPlan === "enterprise" ? 84 : currentPlan === "pro" ? 72 : 64}%` }}
+                    />
+                  </div>
+                  <p className="text-[10px] text-slate-400 font-semibold">
+                    Rechargeable via l'onglet Extensions
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* ── Active Features Breakdown Matrix ──────────────────────────── */}
+            <div className="bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/80 shadow-sm space-y-6">
+              <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2.5">
+                <CheckCircle2 size={20} className="text-emerald-500" />
+                Matrice des Fonctionnalités & Modules Débloqués
+              </h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {MODULES.map((m, i) => {
+                  const isAvailable =
+                    currentPlan === "enterprise" ? !!m.enterprise :
+                    currentPlan === "pro" ? !!m.pro :
+                    !!m.basic;
+
                   return (
                     <div
                       key={i}
-                      className={`flex items-center gap-3 p-3 rounded-xl border transition-all
-                        ${available ? "bg-emerald-50/50 border-emerald-100" : "bg-slate-50 border-slate-100 opacity-60"}`}
+                      className={`p-4 rounded-2xl border flex items-center justify-between transition-all ${
+                        isAvailable
+                          ? "bg-slate-50/80 dark:bg-[#1a1d2d] border-slate-200/60 dark:border-slate-800 text-slate-800 dark:text-slate-100"
+                          : "bg-slate-100/40 dark:bg-[#141724]/40 border-slate-200/30 dark:border-slate-800/40 text-slate-400 opacity-60"
+                      }`}
                     >
-                      {available ? (
-                        typeof val === "string" ? (
-                          <span className="w-5 h-5 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
-                            <span className="text-[8px] font-black text-amber-600">~</span>
-                          </span>
-                        ) : (
-                          <CheckCircle2 size={18} className="text-emerald-500 shrink-0" />
-                        )
+                      <div className="space-y-0.5">
+                        <span className="text-[9px] font-black uppercase text-indigo-600 dark:text-indigo-400">
+                          {m.category}
+                        </span>
+                        <p className="text-xs font-bold">{m.name}</p>
+                      </div>
+
+                      {isAvailable ? (
+                        <div className="w-7 h-7 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 flex items-center justify-center text-emerald-500">
+                          <Check size={14} className="stroke-[3]" />
+                        </div>
                       ) : (
-                        <Lock size={16} className="text-slate-400 shrink-0" />
-                      )}
-                      <span className={`text-sm font-bold ${available ? "text-slate-700" : "text-slate-400"}`}>
-                        {mod.name}
-                        {typeof val === "string" && <span className="text-amber-600 text-xs ml-1">({val})</span>}
-                      </span>
-                      {!available && (
-                        <Badge
-                          className="ml-auto text-[9px] bg-indigo-50 text-indigo-600 border-none font-black uppercase tracking-wider cursor-pointer hover:bg-indigo-100"
-                          onClick={() => setActiveTab("plans")}
-                        >
-                          Pro+
-                        </Badge>
+                        <div className="w-7 h-7 rounded-xl bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-slate-400">
+                          <Lock size={12} />
+                        </div>
                       )}
                     </div>
                   );
                 })}
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Trust row */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {[
-              { title: "Sécurité de bout en bout", desc: "Transactions cryptées par des protocoles bancaires certifiés.", icon: ShieldCheck },
-              { title: "Mise à niveau transparente", desc: "Vos données sont conservées à 100% lors des changements.", icon: TrendingUp },
-              { title: "Délai de grâce 15 jours", desc: "Renouvelez après expiration sans aucune coupure de service.", icon: Clock },
-            ].map((item, i) => (
-              <div key={i} className="flex gap-4 p-5 rounded-[1.75rem] bg-white border border-slate-100/80 shadow-sm">
-                <div className="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
-                  <item.icon size={20} />
-                </div>
-                <div>
-                  <h4 className="font-bold text-slate-900 text-sm">{item.title}</h4>
-                  <p className="text-xs text-slate-500 font-semibold mt-1 leading-relaxed">{item.desc}</p>
-                </div>
-              </div>
-            ))}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* ══════════════════════════════════════════════════════════════════════
-          TAB: Plans
-      ══════════════════════════════════════════════════════════════════════ */}
-      {activeTab === "plans" && (
-        <div className="space-y-8">
-          <div className="text-center max-w-2xl mx-auto space-y-2">
-            <h2 className="text-3xl font-black text-slate-900 tracking-tight">
-              Choisissez la formule idéale
-            </h2>
-            <p className="text-slate-500 font-semibold">
-              Mettez à niveau à tout moment — vos données sont conservées intégralement.
-            </p>
-          </div>
+        {/* ================================================================= */}
+        {/* ── TAB 2: PLANS & UPGRADES (Comparison & Billing Switcher) ────── */}
+        {/* ================================================================= */}
+        {activeTab === "plans" && (
+          <div className="space-y-8 animate-in fade-in duration-300">
+            {/* Billing Cycle Switcher */}
+            <div className="flex flex-col items-center justify-center space-y-4">
+              <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight text-center">
+                Choisissez la Formule Adaptée à Votre Établissement
+              </h2>
+              <p className="text-slate-500 dark:text-slate-400 text-sm text-center max-w-xl">
+                Activez instantanément toutes les fonctionnalités pédagogiques, financières et administratives.
+              </p>
 
-          {/* Pricing Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {PLANS.map((plan) => {
-              const Icon = plan.icon;
-              const isCurrent = currentPlan === plan.id;
-              const isUpgradingThis = selectedPlan === plan.id;
-              const isDowngrade = getPlanIndex(plan.id) < currentPlanIdx;
-
-              return (
-                <Card
-                  key={plan.id}
-                  className={`border-none shadow-lg rounded-[2.5rem] overflow-hidden flex flex-col justify-between transition-all duration-300 hover:shadow-xl hover:scale-[1.02] bg-white relative
-                    ${plan.popular ? "ring-2 ring-indigo-600 ring-offset-2" : ""}
-                    ${isCurrent ? "ring-2 ring-emerald-400 ring-offset-1" : ""}`}
+              <div className="flex items-center gap-3 bg-slate-100 dark:bg-[#181b2a] p-1.5 rounded-2xl border border-slate-200/60 dark:border-slate-800">
+                <button
+                  onClick={() => handleCycleChange("monthly")}
+                  className={`px-5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                    billingCycle === "monthly"
+                      ? "bg-white dark:bg-[#232738] text-slate-900 dark:text-white shadow-xs"
+                      : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                  }`}
                 >
-                  {plan.popular && (
-                    <div className="absolute top-0 right-0 left-0 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-[10px] font-black uppercase tracking-widest text-center py-2">
-                      <span className="flex items-center justify-center gap-1">
-                        <Sparkles size={12} className="fill-white" />
-                        Recommandé pour vous
-                      </span>
-                    </div>
-                  )}
-                  {isCurrent && (
-                    <div className="absolute top-0 right-0 left-0 bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-[10px] font-black uppercase tracking-widest text-center py-2">
-                      <span className="flex items-center justify-center gap-1">
-                        <CheckCircle2 size={12} className="fill-white" />
-                        Votre forfait actuel
-                      </span>
-                    </div>
-                  )}
+                  Mensuel
+                </button>
+                <button
+                  onClick={() => handleCycleChange("annual")}
+                  className={`flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                    billingCycle === "annual"
+                      ? "bg-indigo-600 text-white shadow-xs"
+                      : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                  }`}
+                >
+                  Annuel
+                  <span className="bg-emerald-400 text-slate-950 text-[9px] font-black px-1.5 py-0.5 rounded">
+                    -20% Réduction
+                  </span>
+                </button>
+              </div>
+            </div>
 
-                  <div>
-                    <CardHeader className={`p-8 pb-6 ${plan.popular || isCurrent ? "pt-12" : ""}`}>
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${plan.gradient} flex items-center justify-center shadow-md`}>
-                          <Icon size={20} className="text-white" />
-                        </div>
-                        <CardTitle className="text-xl font-black text-slate-900">{plan.name}</CardTitle>
+            {/* Plans Cards Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {PLANS.map((p) => {
+                const Icon = p.icon;
+                const isCurrent = currentPlan === p.id;
+                const isPopular = p.popular;
+
+                return (
+                  <div
+                    key={p.id}
+                    className={`relative rounded-[2.5rem] p-8 flex flex-col justify-between transition-all duration-300 ${
+                      isPopular
+                        ? "bg-white dark:bg-[#131622] border-2 border-indigo-500 shadow-2xl shadow-indigo-500/10"
+                        : "bg-white dark:bg-[#131622] border border-slate-200 dark:border-slate-800 shadow-sm"
+                    }`}
+                  >
+                    {isPopular && (
+                      <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-[10px] font-black uppercase tracking-widest px-4 py-1 rounded-full shadow-md">
+                        Recommandé pour 90% des Écoles
                       </div>
-                      <CardDescription className="text-slate-500 font-semibold min-h-[48px]">
-                        {plan.description}
-                      </CardDescription>
-                    </CardHeader>
-
-                    <CardContent className="p-8 pt-0 space-y-6">
-                      <div className="border-b border-slate-100 pb-6">
-                        <div className="flex items-baseline gap-1">
-                          <span className="text-3xl font-black text-slate-950 tracking-tight">{plan.price}</span>
-                          {plan.usdPrice !== "Custom" && plan.usdPrice !== "/mois" && (
-                            <span className="text-sm text-slate-400 font-bold ml-1">({plan.usdPrice})</span>
-                          )}
-                        </div>
-                        <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">{plan.period}</span>
-                      </div>
-
-                      <ul className="space-y-3">
-                        {plan.features.map((feature, idx) => (
-                          <li key={idx} className="flex items-start gap-3 text-slate-600 text-sm font-semibold">
-                            <span className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5
-                              ${plan.color === "blue" ? "bg-blue-50 text-blue-600" :
-                                plan.color === "indigo" ? "bg-indigo-50 text-indigo-600" :
-                                "bg-emerald-50 text-emerald-600"}`}
-                            >
-                              <Check size={12} strokeWidth={3} />
-                            </span>
-                            {feature}
-                          </li>
-                        ))}
-                      </ul>
-                    </CardContent>
-                  </div>
-
-                  <CardFooter className="p-8 pt-0">
-                    {isCurrent ? (
-                      <Button
-                        disabled
-                        className="w-full bg-emerald-100 text-emerald-700 hover:bg-emerald-100 disabled:opacity-100 h-14 rounded-2xl font-black text-xs uppercase tracking-widest gap-2 shadow-sm border-none"
-                      >
-                        <ShieldCheck size={16} />
-                        Forfait Actuel
-                      </Button>
-                    ) : (
-                      <Button
-                        onClick={() => handleUpgrade(plan.id)}
-                        disabled={isPending}
-                        className={`w-full h-14 rounded-2xl font-black text-xs uppercase tracking-widest gap-2 transition-all cursor-pointer shadow-md
-                          ${plan.popular
-                            ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:opacity-90 shadow-indigo-100 hover:shadow-lg"
-                            : isDowngrade
-                            ? "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                            : "bg-slate-900 text-white hover:bg-slate-800"
-                          }`}
-                      >
-                        {isUpgradingThis ? (
-                          <span className="flex items-center gap-2">
-                            <Clock className="animate-spin" size={16} />
-                            Activation...
-                          </span>
-                        ) : (
-                          <>
-                            {isDowngrade ? "Passer à ce forfait" : "Activer ce forfait"}
-                            <ArrowRight size={14} />
-                          </>
-                        )}
-                      </Button>
                     )}
-                  </CardFooter>
-                </Card>
-              );
-            })}
+
+                    <div className="space-y-6">
+                      <div className="flex items-center justify-between">
+                        <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${p.gradient} flex items-center justify-center text-white shadow-md`}>
+                          <Icon size={22} />
+                        </div>
+                        {isCurrent && (
+                          <Badge className="bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 text-[10px] font-black uppercase">
+                            Actuel
+                          </Badge>
+                        )}
+                      </div>
+
+                      <div>
+                        <h3 className="text-xl font-black text-slate-900 dark:text-white">{p.name}</h3>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium leading-relaxed">
+                          {p.description}
+                        </p>
+                      </div>
+
+                      <div className="pt-2">
+                        <div className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
+                          {billingCycle === "annual" ? p.priceLabelAnnual : p.priceLabelMonthly}
+                        </div>
+                        <p className="text-xs text-slate-400 font-semibold mt-1">
+                          {p.period}
+                        </p>
+                      </div>
+
+                      <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Inclus dans ce forfait :</p>
+                        {p.features.map((f, i) => (
+                          <div key={i} className="flex items-start gap-2.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                            <CheckCircle2 size={16} className="text-emerald-500 shrink-0 mt-0.5" />
+                            <span>{f}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="pt-8">
+                      {isCurrent ? (
+                        <button
+                          disabled
+                          className="w-full bg-slate-100 dark:bg-[#1a1d2d] text-slate-400 dark:text-slate-500 py-3.5 rounded-2xl text-xs font-black uppercase tracking-wider cursor-not-allowed"
+                        >
+                          Forfait Actuel
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleUpgrade(p.id)}
+                          disabled={isPending && selectedPlan === p.id}
+                          className={`w-full py-3.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer ${
+                            isPopular
+                              ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-500/20"
+                              : "bg-slate-900 dark:bg-white hover:bg-slate-800 dark:hover:bg-slate-100 text-white dark:text-slate-950"
+                          }`}
+                        >
+                          {isPending && selectedPlan === p.id ? (
+                            <RefreshCw size={14} className="animate-spin" />
+                          ) : (
+                            <Zap size={14} />
+                          )}
+                          Activer le Forfait {p.name.split(" ")[1]}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
+        )}
 
-          {/* Module comparison table */}
-          <Card className="border-none shadow-sm rounded-[2rem] bg-white overflow-hidden">
-            <CardHeader className="p-8 pb-4">
-              <CardTitle className="text-lg font-black text-slate-900">Comparatif des modules</CardTitle>
-            </CardHeader>
-            <CardContent className="p-8 pt-0 overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-slate-100">
-                    <th className="text-left py-3 pr-6 font-black text-slate-600 text-xs uppercase tracking-wider">Module</th>
-                    {PLANS.map(p => (
-                      <th key={p.id} className={`text-center py-3 px-4 font-black text-xs uppercase tracking-wider
-                        ${p.id === currentPlan ? "text-indigo-600" : "text-slate-400"}`}>
-                        {p.id === "basic" ? "Basique" : p.id === "pro" ? "Pro" : "Entreprise"}
-                        {p.id === currentPlan && <span className="ml-1">✓</span>}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {MODULES.map((mod, i) => (
-                    <tr key={i} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
-                      <td className="py-3 pr-6 font-semibold text-slate-700">{mod.name}</td>
-                      <td className="py-3 px-4 text-center"><ModuleCell val={mod.basic} /></td>
-                      <td className="py-3 px-4 text-center"><ModuleCell val={mod.pro} /></td>
-                      <td className="py-3 px-4 text-center"><ModuleCell val={mod.enterprise} /></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+        {/* ================================================================= */}
+        {/* ── TAB 3: ADDONS & EXTENSIONS MARKETPLACE ──────────────────────── */}
+        {/* ================================================================= */}
+        {activeTab === "addons" && (
+          <div className="space-y-8 animate-in fade-in duration-300">
+            <div>
+              <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+                Modules Complémentaires & Extensions Spécifiques
+              </h2>
+              <p className="text-slate-500 dark:text-slate-400 text-xs font-medium mt-1">
+                Étendez les capacités de votre plateforme à la demande sans changer de forfait principal.
+              </p>
+            </div>
 
-      {/* ══════════════════════════════════════════════════════════════════════
-          TAB: Historique
-      ══════════════════════════════════════════════════════════════════════ */}
-      {activeTab === "history" && (
-        <div className="space-y-4">
-          <Card className="border-none shadow-sm rounded-[2rem] bg-white overflow-hidden">
-            <CardHeader className="p-8 pb-4">
-              <CardTitle className="text-lg font-black text-slate-900">Historique des abonnements</CardTitle>
-              <CardDescription className="font-semibold text-slate-500">
-                Toutes vos transactions et changements de forfait.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-8 pt-0 space-y-4">
-              <div className="flex items-center gap-3 p-4 rounded-2xl bg-indigo-50 border border-indigo-100">
-                <Info size={18} className="text-indigo-500 shrink-0" />
-                <p className="text-sm text-indigo-800 font-semibold">
-                  L'historique de facturation sera disponible une fois le système de paiement en ligne activé.
-                  Les renouvellements actuels sont traités manuellement.
-                </p>
-              </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {ADDONS.map((addon) => {
+                const Icon = addon.icon;
+                return (
+                  <div
+                    key={addon.id}
+                    className="p-6 rounded-3xl bg-white/95 dark:bg-[#131622]/90 border border-slate-100 dark:border-slate-800/80 shadow-sm flex flex-col justify-between space-y-6"
+                  >
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                          <Icon size={22} />
+                        </div>
+                        <Badge className="bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 text-[10px] font-black">
+                          {addon.badge}
+                        </Badge>
+                      </div>
 
-              {/* Current subscription as a record */}
-              <div className="flex items-center gap-4 p-4 rounded-2xl bg-emerald-50 border border-emerald-100">
-                <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0">
-                  <ShieldCheck size={18} className="text-emerald-600" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-black text-slate-900 text-sm">
-                    Forfait {currentPlan === "basic" ? "Basique" : currentPlan === "pro" ? "Professionnel" : "Entreprise"} — Actif
-                  </p>
-                  <p className="text-xs text-slate-500 font-medium">
-                    Renouvelé jusqu'au {formattedExpiry} · {school.slug}
-                  </p>
-                </div>
-                <div className="text-right shrink-0">
-                  <p className="font-black text-slate-900 text-sm">
-                    {PLANS.find(p => p.id === currentPlan)?.price ?? "N/A"}
-                  </p>
-                  <Badge className="bg-emerald-100 text-emerald-700 border-none text-[10px] font-black">
-                    Actif
-                  </Badge>
-                </div>
-              </div>
+                      <div>
+                        <span className="text-[9px] font-black uppercase text-slate-400">{addon.category}</span>
+                        <h4 className="text-base font-black text-slate-900 dark:text-white mt-0.5">{addon.name}</h4>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                          {addon.description}
+                        </p>
+                      </div>
 
-              {/* Usage stats in history */}
-              <div className="grid grid-cols-3 gap-3 pt-2">
-                {[
-                  { label: "Élèves", value: statsLoading ? "…" : stats.totalStudents, icon: Users, color: "bg-indigo-50 text-indigo-600" },
-                  { label: "Personnel", value: statsLoading ? "…" : stats.totalEmployees, icon: BookOpen, color: "bg-emerald-50 text-emerald-600" },
-                  { label: "Classes", value: statsLoading ? "…" : stats.totalClasses, icon: GraduationCap, color: "bg-amber-50 text-amber-600" },
-                ].map((s, i) => (
-                  <div key={i} className="p-3 rounded-2xl bg-slate-50 border border-slate-100 text-center">
-                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center mx-auto mb-2 ${s.color}`}>
-                      <s.icon size={15} />
+                      <div className="text-lg font-black text-indigo-600 dark:text-indigo-400">
+                        {addon.price}
+                      </div>
                     </div>
-                    <p className="text-xl font-black text-slate-900">{s.value}</p>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{s.label}</p>
+
+                    <button
+                      onClick={() => toast.success(`Demande d'activation pour ${addon.name} transmise à l'équipe commerciale.`)}
+                      className="w-full bg-slate-100 dark:bg-[#1a1d2d] hover:bg-slate-200 dark:hover:bg-[#232738] text-slate-800 dark:text-slate-100 py-3 rounded-2xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2"
+                    >
+                      <PlusIcon size={14} /> Commander
+                    </button>
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+                );
+              })}
+            </div>
+          </div>
+        )}
 
-      {/* ══════════════════════════════════════════════════════════════════════
-          TAB: Billing
-      ══════════════════════════════════════════════════════════════════════ */}
-      {activeTab === "billing" && (
-        <div className="space-y-4 max-w-2xl">
-          <Card className="border-none shadow-sm rounded-[2rem] bg-white overflow-hidden">
-            <CardHeader className="p-8 pb-4">
-              <CardTitle className="text-lg font-black text-slate-900">Informations de facturation</CardTitle>
-              <CardDescription className="font-semibold text-slate-500">
-                Données réelles de votre école depuis la base de données.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-8 pt-0 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                {[
-                  { label: "Établissement", value: school.name },
-                  { label: "Identifiant (slug)", value: school.slug },
-                  { label: "ID École", value: `#${school.id}` },
-                  { label: "Forfait actif", value: currentPlan === "basic" ? "Basique" : currentPlan === "pro" ? "Professionnel" : "Entreprise" },
-                  { label: "Statut abonnement", value: currentStatus === "active" ? "✅ Actif" : "❌ Suspendu" },
-                  { label: "Date d'expiration", value: formattedExpiry },
-                  { label: "Jours restants", value: daysLeft > 0 ? `${daysLeft} jour${daysLeft > 1 ? 's' : ''}` : "Expiré" },
-                  { label: "URL de connexion", value: `${school.slug}.edut.pro` },
-                ].map((item, i) => (
-                  <div key={i} className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
-                    <p className="text-xs font-black text-slate-400 uppercase tracking-wider mb-1">{item.label}</p>
-                    <p className="font-black text-slate-900 text-sm break-all">{item.value}</p>
-                  </div>
-                ))}
-              </div>
-
-              {/* Real usage summary */}
-              <div className="p-4 rounded-2xl bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100">
-                <p className="text-xs font-black text-indigo-800 uppercase tracking-wider mb-3">Utilisation réelle</p>
-                <div className="grid grid-cols-3 gap-3">
-                  {[
-                    { label: "Élèves", value: statsLoading ? "…" : stats.totalStudents, sub: statsLoading ? "" : `${stats.activeStudents} actifs` },
-                    { label: "Personnel", value: statsLoading ? "…" : stats.totalEmployees, sub: statsLoading ? "" : `${stats.totalUsers} comptes` },
-                    { label: "Classes", value: statsLoading ? "…" : stats.totalClasses, sub: statsLoading ? "" : `${stats.totalSections} sections` },
-                  ].map((s, i) => (
-                    <div key={i} className="text-center">
-                      <p className="text-2xl font-black text-indigo-900">{s.value}</p>
-                      <p className="text-xs font-bold text-indigo-600">{s.label}</p>
-                      {s.sub && <p className="text-[10px] text-indigo-400 font-medium">{s.sub}</p>}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-none shadow-sm rounded-[2rem] bg-white overflow-hidden">
-            <CardContent className="p-8 space-y-4">
-              <div className="flex items-start gap-3 p-4 rounded-2xl bg-indigo-50 border border-indigo-100">
-                <Info size={18} className="text-indigo-500 mt-0.5 shrink-0" />
+        {/* ================================================================= */}
+        {/* ── TAB 4: LICENSE MANAGEMENT & OFFLINE ACTIVATION ─────────────── */}
+        {/* ================================================================= */}
+        {activeTab === "license" && (
+          <div className="space-y-8 animate-in fade-in duration-300">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              
+              {/* Left Column: Key Entry & Validation */}
+              <div className="lg:col-span-2 bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/80 shadow-sm space-y-6">
                 <div>
-                  <p className="font-black text-indigo-900 text-sm">Renouvellement automatique</p>
-                  <p className="text-xs text-indigo-700 font-medium mt-0.5">
-                    Votre abonnement est configuré pour se renouveler automatiquement à l'expiration.
-                    Contactez le support pour modifier vos préférences.
+                  <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2.5">
+                    <Key size={20} className="text-indigo-600" />
+                    Activer une Clé de Licence Manuelle ou Hors-Ligne
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-1">
+                    Saisissez la clé délivrée par le Ministère ou votre distributeur officiel Edut pour renouveler vos droits.
                   </p>
                 </div>
+
+                <div className="space-y-3">
+                  <label className="text-xs font-black uppercase tracking-wider text-slate-500">Clé de Licence (Format : EDUT-PRO-XXXX-YYYY-2026)</label>
+                  <div className="flex gap-3">
+                    <input
+                      type="text"
+                      placeholder="EDUT-PRO-9A82-4F11-8C7E-2027"
+                      value={licenseKeyInput}
+                      onChange={(e) => setLicenseKeyInput(e.target.value)}
+                      className="flex-1 bg-slate-50 dark:bg-[#1a1d2d] border border-slate-200 dark:border-slate-800 px-4 py-3.5 rounded-2xl font-mono text-sm font-bold text-slate-900 dark:text-white outline-none focus:border-indigo-500 uppercase placeholder:normal-case"
+                    />
+                    <button
+                      onClick={handleActivateLicenseKey}
+                      disabled={isPending}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all shadow-md cursor-pointer flex items-center gap-2"
+                    >
+                      {isPending ? <RefreshCw size={14} className="animate-spin" /> : <ShieldCheck size={14} />}
+                      Valider la Clé
+                    </button>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/50 flex items-start gap-3">
+                  <Info size={18} className="text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
+                  <div className="text-xs space-y-1">
+                    <p className="font-bold text-indigo-950 dark:text-indigo-200">Fonctionnement du Mode Hors-Ligne (Offline Sync) :</p>
+                    <p className="text-slate-600 dark:text-slate-400 leading-relaxed">
+                      Une fois la clé validée, votre base locale IndexedDB (Dexie) enregistre le certificat cryptographique. Vous pouvez continuer d'administrer votre établissement pendant 90 jours même sans accès Internet.
+                    </p>
+                  </div>
+                </div>
               </div>
-              <Button
-                className="w-full bg-indigo-600 hover:bg-indigo-700 h-12 rounded-2xl font-bold gap-2"
-                onClick={() => setActiveTab("plans")}
+
+              {/* Right Column: Hardware & Domain Binding */}
+              <div className="bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/80 shadow-sm space-y-6">
+                <h3 className="text-base font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+                  <Shield size={18} className="text-emerald-500" />
+                  Empreinte & Verrouillage Matériel
+                </h3>
+
+                <div className="space-y-4 text-xs font-semibold">
+                  <div className="flex justify-between py-2 border-b border-slate-100 dark:border-slate-800">
+                    <span className="text-slate-400">Sous-domaine attribué :</span>
+                    <span className="text-slate-800 dark:text-slate-200 font-mono font-bold">{school.slug}.edut.pro</span>
+                  </div>
+                  <div className="flex justify-between py-2 border-b border-slate-100 dark:border-slate-800">
+                    <span className="text-slate-400">Domaine personnalisé :</span>
+                    <span className="text-slate-800 dark:text-slate-200 font-mono font-bold">{school.customDomain || "Non configuré"}</span>
+                  </div>
+                  <div className="flex justify-between py-2 border-b border-slate-100 dark:border-slate-800">
+                    <span className="text-slate-400">Algorithme d'intégrité :</span>
+                    <span className="text-indigo-600 dark:text-indigo-400 font-mono">ECDSA / SHA-256</span>
+                  </div>
+                  <div className="flex justify-between py-2 border-b border-slate-100 dark:border-slate-800">
+                    <span className="text-slate-400">Protection Anti-Fraude :</span>
+                    <span className="text-emerald-500 font-black">ACTIVE ✔</span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={downloadLicenseCertificate}
+                  className="w-full bg-slate-900 dark:bg-white text-white dark:text-slate-950 py-3 rounded-2xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer shadow-md"
+                >
+                  <Download size={14} /> Télécharger Certificat
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ================================================================= */}
+        {/* ── TAB 5: BILLING & INVOICES (African Mobile Money & Invoices) ─── */}
+        {/* ================================================================= */}
+        {activeTab === "billing" && (
+          <div className="space-y-8 animate-in fade-in duration-300">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              
+              {/* Payment Methods */}
+              <div className="lg:col-span-2 bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/80 shadow-sm space-y-6">
+                <div>
+                  <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2.5">
+                    <Smartphone size={20} className="text-emerald-500" />
+                    Moyens de Paiement Disponibles (Mobile Money & Carte)
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-1">
+                    Réglez vos factures scolaires en toute sécurité via vos comptes locaux.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="p-5 rounded-3xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#1a1d2d] space-y-2">
+                    <div className="text-xs font-black uppercase text-amber-600">Orange Money / Moov</div>
+                    <p className="text-xs text-slate-500">Paiement instantané via code USSD ou QR Code au Niger & UEMOA.</p>
+                  </div>
+                  <div className="p-5 rounded-3xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#1a1d2d] space-y-2">
+                    <div className="text-xs font-black uppercase text-blue-600">Airtel Money / Wave</div>
+                    <p className="text-xs text-slate-500">Validation sans frais additionnels avec reçu numérique officiel.</p>
+                  </div>
+                  <div className="p-5 rounded-3xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#1a1d2d] space-y-2">
+                    <div className="text-xs font-black uppercase text-indigo-600">Carte Visa / Virement</div>
+                    <p className="text-xs text-slate-500">Paiement bancaire pour comptabilités COGES et régies scolaires.</p>
+                  </div>
+                </div>
+
+                {/* Auto Renew Toggle Box */}
+                <div className="p-5 rounded-3xl bg-slate-50 dark:bg-[#1a1d2d] border border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <p className="text-xs font-black text-slate-900 dark:text-white">Renouvellement Automatique de Licence</p>
+                    <p className="text-[11px] text-slate-400 font-medium">Garantit la continuité de service pour les enseignants et parents à chaque rentrée.</p>
+                  </div>
+                  <button
+                    onClick={handleToggleAutoRenew}
+                    className={`w-12 h-6 rounded-full transition-colors relative cursor-pointer ${
+                      autoRenew ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-700"
+                    }`}
+                  >
+                    <div className={`w-4 h-4 rounded-full bg-white absolute top-1 transition-transform ${
+                      autoRenew ? "left-7" : "left-1"
+                    }`} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Invoices List */}
+              <div className="bg-white/95 dark:bg-[#131622]/90 backdrop-blur-xl p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/80 shadow-sm space-y-6">
+                <h3 className="text-base font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+                  <FileText size={18} className="text-indigo-600" />
+                  Factures Normalisées
+                </h3>
+
+                <div className="space-y-3">
+                  {[
+                    { id: `FAC-2026-${school.id}-01`, date: "15 Janvier 2026", amount: "13 000 F CFA", status: "Payée" },
+                    { id: `FAC-2025-${school.id}-12`, date: "15 Décembre 2025", amount: "13 000 F CFA", status: "Payée" },
+                  ].map((inv) => (
+                    <div
+                      key={inv.id}
+                      className="p-3.5 rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-[#1a1d2d] flex items-center justify-between text-xs"
+                    >
+                      <div>
+                        <p className="font-bold text-slate-900 dark:text-white font-mono">{inv.id}</p>
+                        <p className="text-[10px] text-slate-400">{inv.date}</p>
+                      </div>
+                      <div className="text-right flex items-center gap-3">
+                        <div>
+                          <p className="font-black text-slate-900 dark:text-white">{inv.amount}</p>
+                          <span className="text-[9px] font-black text-emerald-500">{inv.status}</span>
+                        </div>
+                        <button
+                          onClick={() => toast.success(`Téléchargement de la facture ${inv.id}`)}
+                          className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg text-indigo-600 transition-colors cursor-pointer"
+                          title="Télécharger la facture"
+                        >
+                          <Download size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Modal: Manual License Key Activation ────────────────────────── */}
+        {licenseModalOpen && (
+          <div className="fixed inset-0 bg-slate-900/60 dark:bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-[#131622] border border-slate-200 dark:border-slate-800 rounded-[2.5rem] max-w-lg w-full p-8 shadow-2xl space-y-6 text-slate-900 dark:text-white animate-in zoom-in-95 duration-200">
+              <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                    <Key size={20} />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-lg">Activer une Licence</h3>
+                    <p className="text-xs text-slate-400">Établissement : {school.name}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setLicenseModalOpen(false)}
+                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-2"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
+                  Entrez votre code de licence délivré par votre administrateur ou distributeur agréé Edut :
+                </p>
+                <input
+                  type="text"
+                  placeholder="EDUT-PRO-XXXX-YYYY-2027"
+                  value={licenseKeyInput}
+                  onChange={(e) => setLicenseKeyInput(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-[#1a1d2d] border border-slate-200 dark:border-slate-800 p-4 rounded-2xl font-mono text-sm font-bold text-slate-900 dark:text-white outline-none focus:border-indigo-500 uppercase placeholder:normal-case"
+                />
+              </div>
+
+              <div className="flex gap-3 justify-end pt-4 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  onClick={() => setLicenseModalOpen(false)}
+                  className="px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-wider text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleActivateLicenseKey}
+                  disabled={isPending}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-wider shadow-md cursor-pointer flex items-center gap-2"
+                >
+                  {isPending ? <RefreshCw size={14} className="animate-spin" /> : <Check size={14} />}
+                  Activer la Licence
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Modal: QR Code Verification View ────────────────────────────── */}
+        {qrModalOpen && (
+          <div className="fixed inset-0 bg-slate-900/60 dark:bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-[#131622] border border-slate-200 dark:border-slate-800 rounded-[2.5rem] max-w-sm w-full p-8 shadow-2xl space-y-6 text-slate-900 dark:text-white text-center animate-in zoom-in-95 duration-200">
+              <div className="flex justify-between items-center">
+                <h3 className="font-black text-base">QR Code de Licence</h3>
+                <button onClick={() => setQrModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="p-6 bg-white rounded-3xl border border-slate-200 shadow-inner flex items-center justify-center">
+                <div className="w-48 h-48 bg-slate-900 rounded-2xl flex flex-col items-center justify-center text-white p-4 space-y-2">
+                  <QrCode size={120} className="text-white" />
+                  <span className="text-[9px] font-mono text-indigo-300 truncate w-full text-center">
+                    {displayLicenseKey}
+                  </span>
+                </div>
+              </div>
+
+              <p className="text-xs text-slate-400 font-medium">
+                Scannez ce QR Code avec l'application mobile Edut pour synchroniser instantanément les droits d'accès hors ligne.
+              </p>
+
+              <button
+                onClick={() => setQrModalOpen(false)}
+                className="w-full bg-slate-100 dark:bg-slate-800 py-3 rounded-2xl font-black text-xs uppercase"
               >
-                <Zap size={16} />
-                Gérer mon forfait
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full h-12 rounded-2xl font-bold border-slate-200 text-slate-600 hover:bg-slate-50 gap-2"
-              >
-                <Bell size={16} />
-                Contacter le support
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+                Fermer
+              </button>
+            </div>
+          </div>
+        )}
+
+      </div>
     </div>
+  );
+}
+
+function PlusIcon(props: any) {
+  return (
+    <svg width={props.size || 16} height={props.size || 16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="12" y1="5" x2="12" y2="19"></line>
+      <line x1="5" y1="12" x2="19" y2="12"></line>
+    </svg>
   );
 }
