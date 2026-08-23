@@ -47,6 +47,14 @@ export default async function AiCameraGraderPage() {
     orderBy: (t, { asc }) => [asc(t.nomEtudiant)],
   });
 
+  const formattedStudents = studentList.map((s: any) => ({
+    id: s.id,
+    firstName: s.nomEtudiant || "Élève",
+    lastName: s.prenomEtudiant || "",
+    admissionNumber: s.numAdmission || "",
+    classId: s.classId || undefined,
+  }));
+
   const subjectList = await db.query.schoolSubjects.findMany({
     where: or(
       eq(schoolSubjects.schoolId, schoolId),
@@ -61,7 +69,7 @@ export default async function AiCameraGraderPage() {
         schoolId={schoolId}
         initialExams={examList}
         classes={classList}
-        students={studentList}
+        students={formattedStudents}
         subjects={subjectList}
       />
     </div>
