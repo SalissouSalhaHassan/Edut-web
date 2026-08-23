@@ -1,7 +1,7 @@
 import { headers, cookies } from "next/headers";
 import { db, readDb } from "@/infrastructure/database";
 import { schools, users } from "@/infrastructure/database/schema/auth";
-import { eq } from "drizzle-orm";
+import { eq, or, ilike } from "drizzle-orm";
 import { cache } from "react";
 import { getCurrentUser } from "./session";
 import { cache as redisCache } from "@/lib/redis";
