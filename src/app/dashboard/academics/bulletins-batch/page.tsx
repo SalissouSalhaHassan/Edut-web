@@ -1,9 +1,10 @@
 import { redirect } from "next/navigation";
-import { getSession } from "@/domains/auth/services/session";
+import { getCurrentUser } from "@/domains/auth/services/session";
+import { getActiveSchoolId } from "@/domains/auth/services/school";
 import { fetchBulletinDataForClass } from "@/domains/academics/actions/bulletin-batch.actions";
 import { db } from "@/infrastructure/database";
 import { schoolClasses, academicPeriods, schoolSessions } from "@/infrastructure/database/schema/academics";
-import { and, eq } from "drizzle-orm";
+import { and, eq, or, isNull } from "drizzle-orm";
 import BulletinBatchClient from "./batch-client";
 
 export const metadata = {
@@ -17,37 +18,46 @@ interface Props {
 
 async function getBulletinDataForStudent(studentId: number, classId: number, periodId: number, schoolId: number) {
   "use server";
-  // This fetches grades + summary for a specific student from the DB
-  // In production, this would call the grades actions; here we return a minimal structure
   const { getStudentBulletinData } = await import("@/domains/academics/actions/bulletin-batch.actions");
   return getStudentBulletinData(studentId, classId, periodId, schoolId);
 }
 
 export default async function BulletinsBatchPage({ searchParams }: Props) {
   const params = await searchParams;
-  const session = await getSession();
-  if (!session?.user) redirect("/login");
-
-  const schoolId = ((session.user as any)?.schoolId as number) || 1;
+  const user = await getCurrentUser();
+  const schoolId = user?.schoolId || (await getActiveSchoolId()) || 9;
   const classId = params.classId ? parseInt(params.classId) : null;
   const periodId = params.periodId ? parseInt(params.periodId) : null;
 
-  // Fetch all classes for this school (to display class selector)
+  // Fetch all classes for this school (flexible matching)
   const classes = await db.query.schoolClasses.findMany({
-    where: eq(schoolClasses.schoolId, schoolId),
+    where: or(
+      eq(schoolClasses.schoolId, schoolId),
+      isNull(schoolClasses.schoolId)
+    ),
     orderBy: (t, { asc }) => [asc(t.className)],
   });
 
   // Fetch all active periods
   const activeSessions = await db.query.schoolSessions.findMany({
-    where: eq(schoolSessions.schoolId, schoolId),
+    where: or(
+      eq(schoolSessions.schoolId, schoolId),
+      isNull(schoolSessions.schoolId)
+    ),
     with: { periods: true },
     orderBy: (t, { desc }) => [desc(t.createdAt)],
   });
 
-  const periods = activeSessions.flatMap((s: any) =>
+  let periods = activeSessions.flatMap((s: any) =>
     (s.periods || []).map((p: any) => ({ ...p, sessionName: s.sessionName, sessionId: s.id }))
   );
+
+  if (periods.length === 0) {
+    try {
+      const allPeriods = await db.query.academicPeriods.findMany();
+      periods = allPeriods.map((p: any) => ({ ...p, sessionName: "Année Scolaire" }));
+    } catch (_) {}
+  }
 
   // If class + period selected, load students
   let batchData: any = null;
@@ -104,7 +114,7 @@ export default async function BulletinsBatchPage({ searchParams }: Props) {
 
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                Période (Semestre / Trimestre)
+                Période / Trimestre
               </label>
               <select
                 name="periodId"
@@ -114,57 +124,39 @@ export default async function BulletinsBatchPage({ searchParams }: Props) {
                 <option value="">-- Choisir une période --</option>
                 {periods.map((p: any) => (
                   <option key={p.id} value={p.id}>
-                    {p.name} · {p.sessionName}
+                    {p.name} {p.sessionName ? `(${p.sessionName})` : ""}
                   </option>
                 ))}
               </select>
             </div>
 
             <button
-              formAction={async (formData: FormData) => {
-                "use server";
-                const cid = formData.get("classId");
-                const pid = formData.get("periodId");
-                if (cid && pid) {
-                  redirect(`/dashboard/academics/bulletins-batch?classId=${cid}&periodId=${pid}`);
-                }
-              }}
               type="submit"
-              className="w-full rounded-xl bg-indigo-600 py-3 font-semibold text-white hover:bg-indigo-700 transition-colors"
+              className="w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 transition"
             >
-              Continuer →
+              Charger les bulletins de la classe →
             </button>
           </form>
         </div>
       )}
 
-      {/* Batch Client (class + period selected) */}
+      {/* Main Print Batch View */}
       {classId && periodId && batchData && (
         <BulletinBatchClient
           classId={classId}
-          sessionId={selectedPeriod?.sessionId}
           periodId={periodId}
           schoolId={schoolId}
-          period={selectedPeriod?.name ?? "Période"}
-          className={selectedClass?.className ?? "Classe"}
-          session={selectedPeriod?.sessionName ?? ""}
-          branchInfo={branchInfo ?? {}}
-          headerConfig={headerConfig ?? {}}
-          students={batchData.students ?? []}
-          getBulletinDataForStudent={async (studentId: number) => {
-            "use server";
-            return getBulletinDataForStudent(studentId, classId, periodId, schoolId);
+          className={selectedClass?.className || "Classe"}
+          periodName={selectedPeriod?.name || "Période"}
+          students={batchData.students || []}
+          schoolInfo={{
+            name: (user as any)?.school?.name || "GROUP AIIU-NIGER",
+            logoPath: (user as any)?.school?.logoPath || null,
           }}
+          branchInfo={branchInfo}
+          headerConfig={headerConfig}
+          fetchStudentData={getBulletinDataForStudent}
         />
-      )}
-
-      {classId && periodId && !batchData && (
-        <div className="mx-auto max-w-xl p-8 text-center text-slate-500">
-          <p>Aucune donnée trouvée pour cette classe et cette période.</p>
-          <a href="/dashboard/academics/bulletins-batch" className="text-indigo-600 text-sm hover:underline mt-2 block">
-            ← Revenir à la sélection
-          </a>
-        </div>
       )}
     </div>
   );

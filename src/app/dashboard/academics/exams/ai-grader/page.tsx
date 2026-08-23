@@ -1,9 +1,10 @@
 import { redirect } from "next/navigation";
-import { getSession } from "@/domains/auth/services/session";
+import { getCurrentUser } from "@/domains/auth/services/session";
+import { getActiveSchoolId } from "@/domains/auth/services/school";
 import { db } from "@/infrastructure/database";
 import { exams, schoolClasses, schoolSubjects } from "@/infrastructure/database/schema/academics";
 import { students } from "@/infrastructure/database/schema/students";
-import { eq } from "drizzle-orm";
+import { eq, or, isNull } from "drizzle-orm";
 import AiCameraGraderClient from "./ai-grader-client";
 
 export const metadata = {
@@ -12,14 +13,15 @@ export const metadata = {
 };
 
 export default async function AiCameraGraderPage() {
-  const session = await getSession();
-  if (!session?.user) redirect("/login");
-
-  const schoolId = ((session.user as any)?.schoolId as number) || 1;
+  const user = await getCurrentUser();
+  const schoolId = user?.schoolId || (await getActiveSchoolId()) || 9;
 
   // Fetch available exams
   const examList = await db.query.exams.findMany({
-    where: eq(exams.schoolId, schoolId),
+    where: or(
+      eq(exams.schoolId, schoolId),
+      isNull(exams.schoolId)
+    ),
     with: {
       class: true,
       subject: true,
@@ -30,22 +32,37 @@ export default async function AiCameraGraderPage() {
 
   // Fetch classes & students
   const classList = await db.query.schoolClasses.findMany({
-    where: eq(schoolClasses.schoolId, schoolId),
+    where: or(
+      eq(schoolClasses.schoolId, schoolId),
+      isNull(schoolClasses.schoolId)
+    ),
     orderBy: (t, { asc }) => [asc(t.className)],
   });
 
   const studentList = await db.query.students.findMany({
-    where: eq(students.schoolId, schoolId),
+    where: or(
+      eq(students.schoolId, schoolId),
+      isNull(students.schoolId)
+    ),
     orderBy: (t, { asc }) => [asc(t.nomEtudiant)],
   });
 
+  const subjectList = await db.query.schoolSubjects.findMany({
+    where: or(
+      eq(schoolSubjects.schoolId, schoolId),
+      isNull(schoolSubjects.schoolId)
+    ),
+    orderBy: (t, { asc }) => [asc(t.subjectName)],
+  });
+
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-6 md:p-8">
+    <div className="min-h-screen bg-slate-900 text-white">
       <AiCameraGraderClient
         schoolId={schoolId}
-        exams={examList as any}
-        classes={classList as any}
-        students={studentList as any}
+        initialExams={examList}
+        classes={classList}
+        students={studentList}
+        subjects={subjectList}
       />
     </div>
   );

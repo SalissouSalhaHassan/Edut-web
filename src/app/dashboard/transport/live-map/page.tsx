@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation";
-import { getSession } from "@/domains/auth/services/session";
+import { getCurrentUser } from "@/domains/auth/services/session";
+import { getActiveSchoolId } from "@/domains/auth/services/school";
 import { db } from "@/infrastructure/database";
 import { transportRoutes, transportLiveTrips } from "@/infrastructure/database/schema/transport";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, or, isNull } from "drizzle-orm";
 import LiveMapClient from "./live-map-client";
 
 export const metadata = {
@@ -11,13 +12,14 @@ export const metadata = {
 };
 
 export default async function TransportLiveMapPage() {
-  const session = await getSession();
-  if (!session?.user) redirect("/login");
-
-  const schoolId = ((session.user as any)?.schoolId as number) || 1;
+  const user = await getCurrentUser();
+  const schoolId = user?.schoolId || (await getActiveSchoolId()) || 9;
 
   const routes = await db.query.transportRoutes.findMany({
-    where: eq(transportRoutes.schoolId, schoolId),
+    where: or(
+      eq(transportRoutes.schoolId, schoolId),
+      isNull(transportRoutes.schoolId)
+    ),
     with: {
       liveTrips: {
         orderBy: (t, { desc }) => [desc(t.createdAt)],
@@ -27,7 +29,10 @@ export default async function TransportLiveMapPage() {
   });
 
   const activeTrips = await db.query.transportLiveTrips.findMany({
-    where: eq(transportLiveTrips.schoolId, schoolId),
+    where: or(
+      eq(transportLiveTrips.schoolId, schoolId),
+      isNull(transportLiveTrips.schoolId)
+    ),
     with: {
       route: true,
     },
@@ -38,8 +43,8 @@ export default async function TransportLiveMapPage() {
     <div className="min-h-screen bg-slate-900 text-white">
       <LiveMapClient
         schoolId={schoolId}
-        initialRoutes={routes as any}
-        initialTrips={activeTrips as any}
+        routes={routes}
+        initialTrips={activeTrips}
       />
     </div>
   );
