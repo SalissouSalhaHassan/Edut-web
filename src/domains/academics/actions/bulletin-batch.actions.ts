@@ -3,7 +3,7 @@
 import { db } from "@/infrastructure/database";
 import { bulletinRecords, schoolClasses, academicPeriods, schoolSessions, exams, examResults } from "@/infrastructure/database/schema/academics";
 import { students } from "@/infrastructure/database/schema/students";
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and, inArray, or, isNull } from "drizzle-orm";
 import { BulletinEngine, BatchOptions, BatchResult } from "@/domains/academics/services/bulletin-engine";
 
 // ─── fetchBulletinDataForClass ─────────────────────────────────────────────────
@@ -16,7 +16,10 @@ export async function fetchBulletinDataForClass(
   try {
     // 1. Info classe + branchInfo + headerConfig
     const classInfo = await db.query.schoolClasses.findFirst({
-      where: and(eq(schoolClasses.id, classId), eq(schoolClasses.schoolId, schoolId)),
+      where: and(
+        eq(schoolClasses.id, classId),
+        schoolId ? or(eq(schoolClasses.schoolId, schoolId), isNull(schoolClasses.schoolId)) : undefined
+      ),
     });
 
     // 2. Période (semestre/trimestre)
@@ -27,7 +30,10 @@ export async function fetchBulletinDataForClass(
 
     // 3. Élèves de la classe (via students.classId)
     const classStudents = await db.query.students.findMany({
-      where: and(eq(students.schoolId, schoolId), eq(students.classId, classId)),
+      where: and(
+        schoolId ? or(eq(students.schoolId, schoolId), isNull(students.schoolId)) : undefined,
+        eq(students.classId, classId)
+      ),
     });
 
     return {
