@@ -213,8 +213,8 @@ Réponds UNIQUEMENT sous forme d'un objet JSON strict avec la structure suivante
       });
       const detectedLower = aiGradingResult.detectedStudentName.toLowerCase();
       matchedStudent = classStudents.find((s) => {
-        const fullName = `${s.firstName} ${s.lastName}`.toLowerCase();
-        return detectedLower.includes(s.firstName.toLowerCase()) || detectedLower.includes(s.lastName.toLowerCase()) || fullName.includes(detectedLower);
+        const studentName = (s.nomEtudiant || "").toLowerCase();
+        return detectedLower.includes(studentName) || studentName.includes(detectedLower);
       });
     }
 

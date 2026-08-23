@@ -69,7 +69,7 @@ export async function saveCameraGradedResult(payload: SaveGradedResultPayload) {
         });
 
         if (student && exam) {
-          const studentName = `${student.firstName} ${student.lastName}`;
+          const studentName = (student as any).nomEtudiant || `${(student as any).firstName || ''} ${(student as any).lastName || ''}`.trim() || "Élève";
           const subjectName = exam.subject?.subjectName || exam.examName;
 
           // Dispatch in-app notification via PushNotificationService

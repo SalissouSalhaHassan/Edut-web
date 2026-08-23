@@ -170,10 +170,10 @@ export async function getStudentBulletinData(
     return {
       studentId,
       student: {
-        nomEtudiant: student ? `${student.firstName} ${student.lastName}` : "Élève",
-        numAdmission: student?.admissionNumber || `ADM-${studentId}`,
+        nomEtudiant: student ? ((student as any).nomEtudiant || `${(student as any).firstName || ''} ${(student as any).lastName || ''}`.trim() || "Élève") : "Élève",
+        numAdmission: (student as any)?.numAdmission || (student as any)?.admissionNumber || `ADM-${studentId}`,
         classe: classInfo?.className || "Classe",
-        educationalLevel: classInfo?.section?.educationalLevel || "Lycée",
+        educationalLevel: (classInfo as any)?.section?.educationalLevel || "Lycée",
       },
       session: period?.session?.sessionName || "2025-2026",
       term: period?.name || "Semestre",
