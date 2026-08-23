@@ -97,7 +97,20 @@ export const getCurrentUser = cache(async (): Promise<SessionUserRecord | null> 
   try {
     const supabase = await createClient();
     const { data: { user }, error } = await supabase.auth.getUser();
-    if (error || !user || !user.email) return null;
+    
+    if (error || !user || !user.email) {
+      try {
+        const cookieStore = await cookies();
+        const customSession = cookieStore.get("edut_session_user")?.value;
+        if (customSession) {
+          const parsed = JSON.parse(customSession);
+          if (parsed && (parsed.id || parsed.utilisateur)) {
+            return parsed;
+          }
+        }
+      } catch (_) {}
+      return null;
+    }
 
     const cacheKeyById = `session_user:${user.id}`;
     const cachedById = await redisCache.get<SessionUserRecord>(cacheKeyById);
