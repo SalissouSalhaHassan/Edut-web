@@ -336,7 +336,8 @@ export default function SubscriptionClient({
     startTransition(async () => {
       try {
         const res = await updateMySchoolSubscription(planName, school?.id);
-        if (res.success) {
+        const data = (res as any)?.data;
+        if (data?.success || (res as any)?.success) {
           toast.success(`Forfait ${planName.toUpperCase()} activé avec succès ! 🎉`);
           const newExpiry = new Date();
           if (planName === "enterprise") {
@@ -351,13 +352,13 @@ export default function SubscriptionClient({
                   plan: planName,
                   status: "active",
                   subscriptionExpiry: newExpiry,
-                  licenseKey: res.licenseKey || prev.licenseKey,
+                  licenseKey: data?.licenseKey || (res as any)?.licenseKey || prev.licenseKey,
                 }
               : null
           );
           setActiveTab("overview");
         } else {
-          toast.error(res.error || "Une erreur est survenue lors de la mise à niveau.");
+          toast.error(res?.error || "Une erreur est survenue lors de la mise à niveau.");
         }
       } catch (err: any) {
         toast.error(err.message || "Erreur réseau ou serveur.");
@@ -376,15 +377,16 @@ export default function SubscriptionClient({
     startTransition(async () => {
       try {
         const res = await activateLicenseKey(licenseKeyInput, school?.id);
-        if (res.success) {
-          toast.success(res.message || "Clé de licence activée avec succès ! 🎉");
+        const data = (res as any)?.data;
+        if (data?.success || (res as any)?.success) {
+          toast.success(data?.message || (res as any)?.message || "Clé de licence activée avec succès ! 🎉");
           setSchool((prev) =>
             prev
               ? {
                   ...prev,
-                  plan: res.plan,
+                  plan: data?.plan || (res as any)?.plan || "basic",
                   status: "active",
-                  subscriptionExpiry: res.expiry,
+                  subscriptionExpiry: data?.expiry || (res as any)?.expiry || new Date(),
                   licenseKey: licenseKeyInput.trim().toUpperCase(),
                 }
               : null
@@ -392,7 +394,7 @@ export default function SubscriptionClient({
           setLicenseModalOpen(false);
           setLicenseKeyInput("");
         } else {
-          toast.error(res.error || "Clé de licence invalide ou expirée.");
+          toast.error(res?.error || "Clé de licence invalide ou expirée.");
         }
       } catch (err: any) {
         toast.error(err.message || "Erreur lors de l'activation de la licence.");
