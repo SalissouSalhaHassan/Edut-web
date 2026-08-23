@@ -162,10 +162,15 @@ export async function getActiveSchoolId() {
   }
 
   try {
-    const firstSchool = await readDb.query.schools.findFirst();
-    if (firstSchool?.id) return firstSchool.id;
+    const aiiuSchool = await readDb.query.schools.findFirst({
+      where: or(
+        eq(schools.slug, "group-aiiu-niger"),
+        ilike(schools.slug, "%aiiu%")
+      )
+    });
+    if (aiiuSchool?.id) return aiiuSchool.id;
   } catch (_) {}
 
-  return 1;
+  return 9;
 }
 

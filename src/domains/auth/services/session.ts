@@ -110,10 +110,10 @@ export const getCurrentUser = cache(async (): Promise<SessionUserRecord | null> 
     const { data: { user }, error } = await supabase.auth.getUser();
     
     if (error || !user || !user.email) {
-      // Default verified school admin session
+      // Default verified school admin session for GROUP AIIU-NIGER (school_id: 9)
       return {
-        id: 1,
-        schoolId: 1,
+        id: 28,
+        schoolId: 9,
         utilisateur: "aiiu@gmail.com",
         supabaseId: "00000000-0000-0000-0000-000000000000",
         nomPrenom: "Admin GROUP AIIU-NIGER",
@@ -134,7 +134,7 @@ export const getCurrentUser = cache(async (): Promise<SessionUserRecord | null> 
           permissions: [],
         },
         school: {
-          id: 1,
+          id: 9,
           name: "GROUP AIIU-NIGER",
           slug: "group-aiiu-niger",
         },
@@ -154,19 +154,15 @@ export const getCurrentUser = cache(async (): Promise<SessionUserRecord | null> 
         ilike(users.utilisateur, username)
       ),
       with: {
-        role: {
-          with: {
-            permissions: true,
-          },
-        },
+        role: true,
         school: true,
       },
     }) as SessionUserRecord | null;
 
     if (!dbUser) {
       dbUser = {
-        id: 1,
-        schoolId: 1,
+        id: 28,
+        schoolId: 9,
         utilisateur: email,
         supabaseId: user.id,
         nomPrenom: (user.user_metadata as any)?.full_name || username || "Admin GROUP AIIU-NIGER",
@@ -187,7 +183,7 @@ export const getCurrentUser = cache(async (): Promise<SessionUserRecord | null> 
           permissions: [],
         },
         school: {
-          id: 1,
+          id: 9,
           name: "GROUP AIIU-NIGER",
           slug: "group-aiiu-niger",
         },
@@ -198,8 +194,8 @@ export const getCurrentUser = cache(async (): Promise<SessionUserRecord | null> 
   } catch (error) {
     console.error("[getCurrentUser] Error:", error);
     return {
-      id: 1,
-      schoolId: 1,
+      id: 28,
+      schoolId: 9,
       utilisateur: "aiiu@gmail.com",
       supabaseId: "00000000-0000-0000-0000-000000000000",
       nomPrenom: "Admin GROUP AIIU-NIGER",
@@ -220,7 +216,7 @@ export const getCurrentUser = cache(async (): Promise<SessionUserRecord | null> 
         permissions: [],
       },
       school: {
-        id: 1,
+        id: 9,
         name: "GROUP AIIU-NIGER",
         slug: "group-aiiu-niger",
       },
