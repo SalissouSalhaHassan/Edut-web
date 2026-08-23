@@ -24,13 +24,13 @@ export async function getStudentFees(params?: {
   return protectedDbAction("Finance", "canView", async (user) => {
     const roleType = await getUserRoleType(user);
     const activeLevel = await getActiveEducationalLevel(user);
-    const schoolId = await getActiveSchoolId();
+    const schoolId = (await getActiveSchoolId()) || user?.schoolId || 1;
     const { search, class: className, status } = params || {};
 
     // Get active session first
     const activeSession = await db.query.schoolSessions.findFirst({
-      where: (s, { eq, or, and }) => and(
-        eq(s.schoolId, schoolId),
+      where: (s, { eq, or, and, isNull }) => and(
+        schoolId ? or(eq(s.schoolId, schoolId), isNull(s.schoolId)) : undefined,
         or(eq(s.isActive, true), eq(s.status, "Actif"))
       ),
       orderBy: [desc(schoolSessions.id)]
@@ -39,13 +39,13 @@ export async function getStudentFees(params?: {
     if (!activeSession) return { data: [], total: 0, page: 1, limit: 25, totalPages: 1 };
 
     const data = await db.query.studentFees.findMany({
-      where: (fees, { and, eq }) => {
+      where: (fees, { and, eq, or, isNull }) => {
         const conditions = [
           eq(fees.sessionId, activeSession.id),
-          eq(fees.schoolId, schoolId)
-        ];
+          schoolId ? or(eq(fees.schoolId, schoolId), isNull(fees.schoolId)) : undefined
+        ].filter(Boolean);
         if (status && status !== "Tous") conditions.push(eq(fees.status, status));
-        return and(...conditions);
+        return and(...(conditions as any[]));
       },
       with: {
         student: {
@@ -637,9 +637,9 @@ export async function getExpenses(params?: {
   search?: string;
 }) {
   return protectedDbAction("Finance", "canView", async (user) => {
-    const schoolId = await getActiveSchoolId();
+    const schoolId = (await getActiveSchoolId()) || user?.schoolId || 1;
     const roleType = await getUserRoleType(user);
-    let whereClause = eq(expenses.schoolId, schoolId);
+    let whereClause = (schoolId ? or(eq(expenses.schoolId, schoolId), isNull(expenses.schoolId)) : sql`TRUE`) as any;
     
     if (roleType === "level_director") {
       const compatibleLevels = getCompatibleLevels(user.educationalLevel);

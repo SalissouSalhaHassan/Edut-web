@@ -118,7 +118,10 @@ export async function getStudentBulletinData(
 
     // 4. Nombre total d'élèves dans la classe
     const totalStudentsInClass = await db.query.students.findMany({
-      where: and(eq(students.schoolId, schoolId), eq(students.classId, classId)),
+      where: and(
+        schoolId ? or(eq(students.schoolId, schoolId), isNull(students.schoolId)) : undefined,
+        eq(students.classId, classId)
+      ),
     });
 
     // 5. Examens de la période pour cette classe
@@ -126,7 +129,7 @@ export async function getStudentBulletinData(
       where: and(
         eq(exams.classId, classId),
         eq(exams.periodId, periodId),
-        eq(exams.schoolId, schoolId)
+        schoolId ? or(eq(exams.schoolId, schoolId), isNull(exams.schoolId)) : undefined
       ),
       with: {
         subject: true,

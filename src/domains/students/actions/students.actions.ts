@@ -22,11 +22,11 @@ export async function getStudents(params?: {
   educationalLevel?: string;
 }) {
   return protectedDbAction("Students", "canView", async (user) => {
-    const schoolId = await getActiveSchoolId();
+    const schoolId = (await getActiveSchoolId()) || user?.schoolId || 1;
     const roleType = await getUserRoleType(user);
     const roleNameLower = (user.role?.roleName || "").toLowerCase().trim();
     
-    let whereClause = eq(students.schoolId, schoolId);
+    let whereClause = (schoolId ? or(eq(students.schoolId, schoolId), isNull(students.schoolId)) : sql`TRUE`) as any;
     
     if (roleType === "level_director") {
       // Always fetch fresh educationalLevel from DB — never trust the cached session value
@@ -353,7 +353,7 @@ export async function updateStudent(id: number, formData: StudentFormData, origi
 
 export async function getStudentsByClass(className: string) {
   return protectedDbAction("Students", "canView", async (user) => {
-    const schoolId = await getActiveSchoolId();
+    const schoolId = (await getActiveSchoolId()) || user?.schoolId || 1;
     const roleType = await getUserRoleType(user);
     const roleNameLower = (user.role?.roleName || "").toLowerCase().trim();
     const cleanClassName = className.trim();
@@ -364,7 +364,7 @@ export async function getStudentsByClass(className: string) {
         sql`LOWER(TRIM(${students.classe})) = LOWER(TRIM(${cleanClassName}))`,
         sql`REPLACE(LOWER(${students.classe}), ' ', '') = REPLACE(LOWER(${cleanClassName}), ' ', '')`
       ),
-      schoolId ? eq(students.schoolId, schoolId) : undefined
+      schoolId ? or(eq(students.schoolId, schoolId), isNull(students.schoolId)) : undefined
     ) as any;
     
     if (roleType === "level_director") {

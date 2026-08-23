@@ -176,7 +176,7 @@ const fetchFilterOptions = (
       const [sections, sessions, periods, subjects, levels] = await Promise.all([
         db.query.schoolSections.findMany({
           where: and(
-            eq(schoolSections.schoolId, schoolId),
+            schoolId ? or(eq(schoolSections.schoolId, schoolId), isNull(schoolSections.schoolId)) : undefined,
             compatibleLevels ? inArray(schoolSections.educationalLevel, compatibleLevels) : undefined
           ),
           orderBy: schoolSections.sectionName
@@ -184,20 +184,20 @@ const fetchFilterOptions = (
         db.query.schoolSessions.findMany({
           where: schoolId 
             ? or(eq(schoolSessions.schoolId, schoolId), isNull(schoolSessions.schoolId))
-            : isNull(schoolSessions.schoolId)
+            : undefined
         }),
         db.query.academicPeriods.findMany({
           where: schoolId 
             ? or(eq(academicPeriods.schoolId, schoolId), isNull(academicPeriods.schoolId))
-            : isNull(academicPeriods.schoolId)
+            : undefined
         }),
         db.query.schoolSubjects.findMany({
-          where: eq(schoolSubjects.schoolId, schoolId),
+          where: schoolId ? or(eq(schoolSubjects.schoolId, schoolId), isNull(schoolSubjects.schoolId)) : undefined,
           orderBy: schoolSubjects.subjectName 
         }),
         db.query.educationalLevels.findMany({
           where: and(
-            eq(educationalLevels.schoolId, schoolId),
+            schoolId ? or(eq(educationalLevels.schoolId, schoolId), isNull(educationalLevels.schoolId)) : undefined,
             compatibleLevels ? inArray(educationalLevels.levelName, compatibleLevels) : undefined
           ),
           orderBy: educationalLevels.levelName
@@ -211,19 +211,23 @@ const fetchFilterOptions = (
         sectionIds.length > 0 
           ? db.query.schoolClasses.findMany({
               where: and(
-                eq(schoolClasses.schoolId, schoolId),
+                schoolId ? or(eq(schoolClasses.schoolId, schoolId), isNull(schoolClasses.schoolId)) : undefined,
                 inArray(schoolClasses.sectionId, sectionIds),
                 classIdRestriction
               ),
               with: { section: true },
               orderBy: schoolClasses.className
             })
-          : Promise.resolve([]),
+          : db.query.schoolClasses.findMany({
+              where: schoolId ? or(eq(schoolClasses.schoolId, schoolId), isNull(schoolClasses.schoolId)) : undefined,
+              with: { section: true },
+              orderBy: schoolClasses.className
+            }),
         sectionIds.length > 0
           ? db.query.classSubjects.findMany({
               where: employeeId
-                ? and(eq(classSubjects.schoolId, schoolId), eq(classSubjects.employeeId, employeeId))
-                : eq(classSubjects.schoolId, schoolId)
+                ? and(schoolId ? or(eq(classSubjects.schoolId, schoolId), isNull(classSubjects.schoolId)) : undefined, eq(classSubjects.employeeId, employeeId))
+                : (schoolId ? or(eq(classSubjects.schoolId, schoolId), isNull(classSubjects.schoolId)) : undefined)
             })
           : Promise.resolve([]),
         sectionIds.length > 0
@@ -278,9 +282,8 @@ export async function getFilterOptions() {
 
 // Basic Fetchers - filtered by educational level for non-admins
 export async function getClasses(ignoreActiveFilter = false) {
-  const schoolId = await getActiveSchoolId();
-  
   return protectedDbAction("Academics", "canView", async (user) => {
+    const schoolId = (await getActiveSchoolId()) || user?.schoolId || 1;
     const roleType = await getUserRoleType(user);
     if (roleType === "teacher") {
       const employee = await getTeacherEmployee(user);
@@ -291,7 +294,7 @@ export async function getClasses(ignoreActiveFilter = false) {
 
       return await db.query.schoolClasses.findMany({
         where: and(
-          eq(schoolClasses.schoolId, schoolId),
+          schoolId ? or(eq(schoolClasses.schoolId, schoolId), isNull(schoolClasses.schoolId)) : undefined,
           inArray(schoolClasses.id, classIds)
         ),
         orderBy: schoolClasses.className,
@@ -303,7 +306,7 @@ export async function getClasses(ignoreActiveFilter = false) {
 
     if (!activeLevel) {
       return await db.query.schoolClasses.findMany({
-        where: eq(schoolClasses.schoolId, schoolId),
+        where: schoolId ? or(eq(schoolClasses.schoolId, schoolId), isNull(schoolClasses.schoolId)) : undefined,
         orderBy: schoolClasses.className,
         with: { section: true }
       });
@@ -313,7 +316,7 @@ export async function getClasses(ignoreActiveFilter = false) {
     const compatibleLevels = getCompatibleLevels(activeLevel);
     const userSections = await db.query.schoolSections.findMany({
       where: and(
-        eq(schoolSections.schoolId, schoolId),
+        schoolId ? or(eq(schoolSections.schoolId, schoolId), isNull(schoolSections.schoolId)) : undefined,
         inArray(schoolSections.educationalLevel, compatibleLevels)
       ),
       columns: { id: true }
@@ -324,7 +327,7 @@ export async function getClasses(ignoreActiveFilter = false) {
 
     return await db.query.schoolClasses.findMany({
       where: and(
-        eq(schoolClasses.schoolId, schoolId),
+        schoolId ? or(eq(schoolClasses.schoolId, schoolId), isNull(schoolClasses.schoolId)) : undefined,
         inArray(schoolClasses.sectionId, sectionIds)
       ),
       orderBy: schoolClasses.className,
@@ -334,14 +337,13 @@ export async function getClasses(ignoreActiveFilter = false) {
 }
 
 export async function getSections(ignoreActiveFilter = false) {
-  const user = await getCurrentUser();
-  const schoolId = await getActiveSchoolId();
-  const activeLevel = ignoreActiveFilter ? null : await getActiveEducationalLevel(user);
-  
-  return protectedDbAction("Academics", "canView", async () => {
+  return protectedDbAction("Academics", "canView", async (user) => {
+    const schoolId = (await getActiveSchoolId()) || user?.schoolId || 1;
+    const activeLevel = ignoreActiveFilter ? null : await getActiveEducationalLevel(user);
+    
     if (!activeLevel) {
       return await db.query.schoolSections.findMany({
-        where: eq(schoolSections.schoolId, schoolId),
+        where: schoolId ? or(eq(schoolSections.schoolId, schoolId), isNull(schoolSections.schoolId)) : undefined,
         orderBy: schoolSections.sectionName
       });
     }
@@ -349,7 +351,7 @@ export async function getSections(ignoreActiveFilter = false) {
     const compatibleLevels = getCompatibleLevels(activeLevel);
     return await db.query.schoolSections.findMany({
       where: and(
-        eq(schoolSections.schoolId, schoolId),
+        schoolId ? or(eq(schoolSections.schoolId, schoolId), isNull(schoolSections.schoolId)) : undefined,
         inArray(schoolSections.educationalLevel, compatibleLevels)
       ),
       orderBy: schoolSections.sectionName
@@ -814,7 +816,7 @@ export async function resolveStudentsForClass(params: {
     .from(students)
     .where(and(
       or(...classConditions),
-      eq(students.schoolId, schoolId),
+      schoolId ? or(eq(students.schoolId, schoolId), isNull(students.schoolId)) : undefined,
     ))
     .orderBy(students.nomEtudiant);
 
@@ -824,7 +826,7 @@ export async function resolveStudentsForClass(params: {
   const tier3Results = await readDb.select()
     .from(students)
     .where(and(
-      eq(students.schoolId, schoolId),
+      schoolId ? or(eq(students.schoolId, schoolId), isNull(students.schoolId)) : undefined,
       ilike(students.classe, `%${classNameClean}%`)
     ))
     .orderBy(students.nomEtudiant);

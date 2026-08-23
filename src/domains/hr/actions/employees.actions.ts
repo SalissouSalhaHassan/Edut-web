@@ -17,14 +17,14 @@ export async function getEmployees(params?: {
   role?: string;
 }) {
   return protectedDbAction("HR", "canView", async (user) => {
-    const schoolId = await getActiveSchoolId();
+    const schoolId = (await getActiveSchoolId()) || user?.schoolId || 1;
     const roleType = await getUserRoleType(user);
 
     if (roleType === "teacher") {
       return { data: [] };
     }
 
-    let whereClause = eq(employees.schoolId, schoolId);
+    let whereClause = (schoolId ? or(eq(employees.schoolId, schoolId), isNull(employees.schoolId)) : sql`TRUE`) as any;
 
     if ((roleType === "level_director" || roleType === "level_comptable") && user.educationalLevel) {
       if (!["tous", "all", "tous les niveaux"].includes(user.educationalLevel.toLowerCase())) {
