@@ -1,5 +1,3 @@
-"use server";
-
 import { db } from "@/infrastructure/database";
 import { bulletinRecords } from "@/infrastructure/database/schema/academics";
 import { users } from "@/infrastructure/database/schema/auth";
