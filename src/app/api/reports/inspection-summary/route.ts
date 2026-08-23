@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
     const reportData = {
       reportId,
       schoolName: school?.name || "Complexe Scolaire d'Excellence Edut",
-      city: school?.city || "Niamey",
+      city: (school as any)?.city || "Niamey",
       inspectorName,
       generatedAt,
       complianceStatus: attendanceRate >= 90 ? "Conforme & Exemplaire ✅" : "Conformité Moyenne ⚠️",
