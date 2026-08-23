@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getMobileUser, mobileJsonError } from "../../_lib/auth";
+import { getMobileUser, mobileJsonError } from "@/app/api/mobile/_lib/auth";
 import { db } from "@/infrastructure/database";
 import { behaviorRewards } from "@/infrastructure/database/schema/discipline";
 import { students } from "@/infrastructure/database/schema/students";
@@ -23,9 +23,9 @@ export async function GET(request: NextRequest) {
       where: eq(students.id, targetStudentId),
       columns: {
         id: true,
-        firstName: true,
-        lastName: true,
-        admissionNumber: true,
+        nomEtudiant: true,
+        numAdmission: true,
+        classe: true,
       },
     });
 
