@@ -76,7 +76,7 @@ export async function saveCameraGradedResult(payload: SaveGradedResultPayload) {
           await PushNotificationService.sendHomeworkAlert({
             homeworkTitle: `Note d'examen disponible : ${marksObtained}/${exam.maxMarks || 20} en ${subjectName}`,
             classId: student.classId || 0,
-            className: student.class?.className,
+            className: (student as any).class?.className || student.classe || "Classe",
             subjectName,
             dateDue: new Date().toLocaleDateString("fr-FR"),
           });
