@@ -2,7 +2,7 @@ import { cache } from "react";
 import { createClient } from "@/shared/utils/supabase/server";
 import { db, readDb } from "@/infrastructure/database";
 import { users } from "@/infrastructure/database/schema/auth";
-import { eq, or } from "drizzle-orm";
+import { eq, or, ilike } from "drizzle-orm";
 import { cache as redisCache } from "@/lib/redis";
 import { cookies } from "next/headers";
 import crypto from "crypto";
