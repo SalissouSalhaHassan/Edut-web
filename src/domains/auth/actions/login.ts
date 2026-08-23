@@ -35,10 +35,16 @@ export async function login(formData: LoginFormData) {
   try {
     const supabase = await createClient();
 
-    let { data, error } = await supabase.auth.signInWithPassword({
-      email: loginEmail,
-      password: formData.password,
-    });
+    // Sign in with Supabase with a 6-second timeout protection
+    let { data, error } = await Promise.race([
+      supabase.auth.signInWithPassword({
+        email: loginEmail,
+        password: formData.password,
+      }),
+      new Promise<{ data: any; error: any }>((_, reject) =>
+        setTimeout(() => reject(new Error("Supabase auth timeout")), 6000)
+      )
+    ]).catch((err) => ({ data: null, error: err }));
     
     // If Supabase Auth fails, check directly against local database users table
     if (error) {

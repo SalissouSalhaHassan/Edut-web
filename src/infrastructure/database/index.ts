@@ -70,13 +70,13 @@ const globalForDb = global as unknown as {
 const commonConfig: postgres.Options<Record<string, never>> = {
   prepare: false,
   ssl: isLocal ? false : { rejectUnauthorized: false },
-  max: 10,           // Moderate pool size to prevent exceeding connection limits
+  max: 5,           // Moderate pool size to prevent exceeding connection limits on serverless
   idle_timeout: 1,   // Very short idle timeout (1 second) to clean up idle sockets immediately
-  connect_timeout: 30, 
+  connect_timeout: 8, // Fast connect timeout (8s) to prevent hanging lambdas
   onnotice: () => {},  
   connection: {
     application_name: "edut-web",
-    tcp_user_timeout: 30000, 
+    tcp_user_timeout: 8000, 
   },
 };
 
