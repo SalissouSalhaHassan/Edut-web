@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getMobileUser, mobileJsonError } from "../../_lib/auth";
+import { getMobileUser, mobileJsonError } from "@/app/api/mobile/_lib/auth";
 import { db } from "@/infrastructure/database";
 import { studentMedicalRecords, infirmaryVisits } from "@/infrastructure/database/schema/health";
 import { students } from "@/infrastructure/database/schema/students";
@@ -48,8 +48,8 @@ export async function GET(request: NextRequest) {
           { name: "Fièvre Jaune", isDone: true, date: "2016-01-20" },
           { name: "Méningite A+C", isDone: true, date: "2024-11-05" },
         ] as any,
-        emergencyContactName: student?.parentName || "M. Moussa (Père)",
-        emergencyContactPhone: student?.parentPhone || "+227 90 00 11 22",
+        emergencyContactName: (student as any)?.nomPere || "M. Moussa (Père)",
+        emergencyContactPhone: (student as any)?.mobile || (student as any)?.whatsapp || "+227 90 00 11 22",
         emergencyContactRelation: "Père",
         doctorName: "Dr. Saley Abdou (Pédiatre)",
         doctorPhone: "+227 96 12 34 56",
@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
       data: {
         student: {
           id: student?.id || targetStudentId,
-          name: `${student?.firstName || "Élève"} ${student?.lastName || ""}`.trim(),
+          name: (student as any)?.nomEtudiant || "Élève",
         },
         medicalRecord,
         visits,

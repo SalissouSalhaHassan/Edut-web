@@ -63,7 +63,7 @@ export default async function CertificateVerifyPage({ params }: Props) {
   }
 
   const studentName = cert.student
-    ? `${cert.student.firstName} ${cert.student.lastName}`
+    ? ((cert.student as any).nomEtudiant || `${(cert.student as any).firstName || ''} ${(cert.student as any).lastName || ''}`.trim() || "Étudiant")
     : "Étudiant";
   const courseTitle = cert.course?.title || "Formation Académique";
   const subjectName = cert.course?.subject?.subjectName || "Matière Principale";

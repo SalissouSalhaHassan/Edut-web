@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
                       body: JSON.stringify({
                         type: "bus_arrival",
                         recipientPhone: sub.parentPhone,
-                        studentName: `${sub.student.firstName} ${sub.student.lastName}`,
+                        studentName: (sub.student as any)?.nomEtudiant || "l'élève",
                         busStop: stop.stopName,
                         etaMinutes: "3",
                         busNumber: trip.vehicleNumber || trip.route.vehicleNumber,

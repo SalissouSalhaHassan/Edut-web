@@ -62,8 +62,8 @@ export async function POST(request: NextRequest) {
       const avg = marks.length > 0 ? marks.reduce((a: number, b: number) => a + b, 0) / marks.length : 10;
       return {
         id: s.id,
-        name: `${s.firstName} ${s.lastName}`,
-        matricule: s.admissionNumber,
+        name: (s as any).nomEtudiant || "Élève",
+        matricule: (s as any).numAdmission || `ADM-${s.id}`,
         average: Math.round(avg * 10) / 10,
         examCount: marks.length,
       };

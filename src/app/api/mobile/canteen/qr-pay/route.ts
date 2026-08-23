@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getMobileUser, mobileJsonError } from "../../_lib/auth";
+import { getMobileUser, mobileJsonError } from "@/app/api/mobile/_lib/auth";
 import { db } from "@/infrastructure/database";
 import { studentWallets, canteenMealConsumptions } from "@/infrastructure/database/schema/canteen";
 import { students } from "@/infrastructure/database/schema/students";
@@ -77,8 +77,8 @@ export async function POST(request: NextRequest) {
       success: true,
       message: "Paiement sans contact validé avec succès !",
       data: {
-        studentName: `${student.firstName} ${student.lastName}`,
-        matricule: student.admissionNumber,
+        studentName: (student as any).nomEtudiant || "Élève",
+        matricule: (student as any).numAdmission || `MAT-${student.id}`,
         amountDeducted: amount,
         newBalance: currentBalance - amount,
         transactionId: `PAY-${consumption?.id || Date.now()}`,
