@@ -6,9 +6,9 @@ import { getDocumentHeaderConfig } from "@/domains/settings/actions/settings.act
 import { getCurrentUser } from "@/domains/auth/services/session";
 import { readDb } from "@/infrastructure/database";
 import { students } from "@/infrastructure/database/schema/students";
-import { schoolSessions } from "@/infrastructure/database/schema/academics";
+import { schoolSessions, schoolClasses } from "@/infrastructure/database/schema/academics";
 import { studentFees, feePayments, cogesPayments } from "@/infrastructure/database/schema/finance";
-import { eq, and, or, sql } from "drizzle-orm";
+import { eq, and, or, sql, isNull } from "drizzle-orm";
 import FinanceClient from "./finance-client";
 import StudentFinanceView from "@/domains/finance/components/StudentFinanceView";
 
@@ -104,6 +104,7 @@ export default async function FinancePage({
   let classes: any[] = [];
   let advancedStats: any = null;
   let headerConfig: any = null;
+  const targetSchoolId = user?.schoolId || 9;
 
   try {
     const [feesRes, classesRes, advancedStatsRes, headerConfigRes] = await Promise.all([
@@ -126,8 +127,158 @@ export default async function FinancePage({
     console.warn("FinancePage Parallel Fetch Warning:", error);
   }
 
+  // Direct database fallback for maximum reliability
+  if (fees.length === 0) {
+    try {
+      const directFees = await readDb.query.studentFees.findMany({
+        where: or(
+          eq(studentFees.schoolId, targetSchoolId),
+          isNull(studentFees.schoolId)
+        ),
+        with: {
+          student: {
+            columns: {
+              id: true,
+              nomEtudiant: true,
+              numAdmission: true,
+              classe: true,
+              educationalLevel: true,
+              photoPath: true,
+              sexe: true,
+              statut: true,
+            }
+          },
+          payments: {
+            columns: {
+              id: true,
+              feeId: true,
+              amount: true,
+              reduction: true,
+              paymentMode: true,
+              reference: true,
+              datePaid: true,
+              recordedBy: true,
+              monthConcerned: true,
+            },
+            orderBy: (p, { desc }) => [desc(p.datePaid)]
+          }
+        }
+      });
+      if (directFees.length > 0) {
+        fees = directFees as any[];
+      }
+    } catch (e) {
+      console.warn("Direct fees fallback error:", e);
+    }
+  }
+
+  if (classes.length === 0) {
+    try {
+      const directClasses = await readDb.query.schoolClasses.findMany({
+        where: or(
+          eq(schoolClasses.schoolId, targetSchoolId),
+          isNull(schoolClasses.schoolId)
+        ),
+        orderBy: (t, { asc }) => [asc(t.className)]
+      });
+      classes = directClasses as any[];
+    } catch (_) {}
+  }
+
+  // Calculate advanced stats if missing
+  if (!advancedStats || (advancedStats.totalExpected === 0 && fees.length > 0)) {
+    const totalExpected = fees.reduce((s, f) => s + (f.totalExpected || 0), 0);
+    const totalPaid = fees.reduce((s, f) => s + (f.totalPaid || 0), 0);
+    const totalDebts = fees.reduce((s, f) => s + Math.max(0, f.balance || 0), 0);
+    const totalReductions = fees.reduce((s, f) => s + (f.totalReduction || 0), 0);
+    const countPaid = fees.filter(f => f.status === "Soldé" || f.status === "Payé").length;
+    const countPartial = fees.filter(f => f.status === "Partiel").length;
+    const countUnpaid = fees.filter(f => f.status === "Impayé" || f.status === "En retard").length;
+    const totalStudents = fees.length;
+    const recoveryRate = totalExpected > 0 ? Math.round((totalPaid / totalExpected) * 100) : 0;
+    const allPayments = fees.flatMap(f => f.payments || []);
+    const totalPaymentsCount = allPayments.length;
+
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const weekStart = new Date(now);
+    weekStart.setDate(now.getDate() - now.getDay());
+    weekStart.setHours(0, 0, 0, 0);
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const yearStart = new Date(now.getFullYear(), 0, 1);
+
+    const revenueToday = allPayments
+      .filter(p => p.datePaid && new Date(p.datePaid) >= todayStart)
+      .reduce((s, p) => s + (p.amount || 0), 0);
+
+    const revenueWeek = allPayments
+      .filter(p => p.datePaid && new Date(p.datePaid) >= weekStart)
+      .reduce((s, p) => s + (p.amount || 0), 0);
+
+    const revenueMonth = allPayments
+      .filter(p => p.datePaid && new Date(p.datePaid) >= monthStart)
+      .reduce((s, p) => s + (p.amount || 0), 0);
+
+    const revenueYear = allPayments
+      .filter(p => p.datePaid && new Date(p.datePaid) >= yearStart)
+      .reduce((s, p) => s + (p.amount || 0), 0);
+
+    const schoolMonths = [8, 9, 10, 11, 0, 1, 2, 3, 4, 5];
+    const monthNames = ["Sept", "Oct", "Nov", "Déc", "Jan", "Fév", "Mar", "Avr", "Mai", "Juin"];
+    const isAfterAug = now.getMonth() >= 8;
+    const schoolYearStartYear = isAfterAug ? now.getFullYear() : now.getFullYear() - 1;
+    const monthlyData = schoolMonths.map((m, i) => {
+      const targetYear = m >= 8 ? schoolYearStartYear : schoolYearStartYear + 1;
+      const monthPayments = allPayments.filter(p => {
+        if (!p.datePaid) return false;
+        const d = new Date(p.datePaid);
+        return d.getMonth() === m && d.getFullYear() === targetYear;
+      });
+      return {
+        month: monthNames[i],
+        amount: monthPayments.reduce((s, p) => s + (p.amount || 0), 0),
+        count: monthPayments.length
+      };
+    });
+
+    const classMap = new Map<string, { expected: number; paid: number; unpaid: number; count: number }>();
+    for (const f of fees) {
+      const cname = f.student?.classe || "Non assigné";
+      if (!classMap.has(cname)) classMap.set(cname, { expected: 0, paid: 0, unpaid: 0, count: 0 });
+      const entry = classMap.get(cname)!;
+      entry.expected += f.totalExpected || 0;
+      entry.paid += f.totalPaid || 0;
+      entry.unpaid += Math.max(0, f.balance || 0);
+      entry.count += 1;
+    }
+    const classSummary = Array.from(classMap.entries()).map(([className, d]) => ({
+      className,
+      ...d,
+      rate: d.expected > 0 ? Math.round((d.paid / d.expected) * 100) : 0,
+    })).sort((a, b) => b.expected - a.expected);
+
+    advancedStats = {
+      totalExpected,
+      totalPaid,
+      totalDebts,
+      totalReductions,
+      currentBalance: totalPaid,
+      recoveryRate,
+      totalPaymentsCount,
+      countPaid,
+      countPartial,
+      countUnpaid,
+      totalStudents,
+      revenueToday,
+      revenueWeek,
+      revenueMonth,
+      revenueYear,
+      monthlyData,
+      classSummary,
+    };
+  }
+
   // Resolve Active Session dynamically
-  const targetSchoolId = user?.schoolId || 1;
   const activeSessionRow = await readDb.query.schoolSessions.findFirst({
     where: eq(schoolSessions.schoolId, targetSchoolId),
     orderBy: [
@@ -137,7 +288,7 @@ export default async function FinancePage({
   });
 
   const activeSessionName = activeSessionRow?.sessionName || headerConfig?.schoolYear || "2025–2026";
-  const schoolName = headerConfig?.schoolName || (user as any)?.school?.name || "École Excellence";
+  const schoolName = headerConfig?.schoolName || (user as any)?.school?.name || "GROUP AIIU-NIGER";
 
   const stats = {
     totalExpected: advancedStats?.totalExpected || 0,

@@ -24,7 +24,7 @@ export async function getStudentFees(params?: {
   return protectedDbAction("Finance", "canView", async (user) => {
     const roleType = await getUserRoleType(user);
     const activeLevel = await getActiveEducationalLevel(user);
-    const schoolId = (await getActiveSchoolId()) || user?.schoolId || 1;
+    const schoolId = (await getActiveSchoolId()) || user?.schoolId || 9;
     const { search, class: className, status } = params || {};
 
     // Get active session first
@@ -36,12 +36,15 @@ export async function getStudentFees(params?: {
       orderBy: [desc(schoolSessions.id)]
     });
 
-    if (!activeSession) return { data: [], total: 0, page: 1, limit: 25, totalPages: 1 };
+    const session = activeSession || await db.query.schoolSessions.findFirst({
+      where: (s, { eq, or, and, isNull }) => schoolId ? or(eq(s.schoolId, schoolId), isNull(s.schoolId)) : undefined,
+      orderBy: [desc(schoolSessions.id)]
+    });
 
-    const data = await db.query.studentFees.findMany({
+    let data = await db.query.studentFees.findMany({
       where: (fees, { and, eq, or, isNull }) => {
         const conditions = [
-          eq(fees.sessionId, activeSession.id),
+          session?.id ? eq(fees.sessionId, session.id) : undefined,
           schoolId ? or(eq(fees.schoolId, schoolId), isNull(fees.schoolId)) : undefined
         ].filter(Boolean);
         if (status && status !== "Tous") conditions.push(eq(fees.status, status));
@@ -76,6 +79,42 @@ export async function getStudentFees(params?: {
         },
       }
     });
+
+    if (data.length === 0) {
+      data = await db.query.studentFees.findMany({
+        where: (fees, { and, eq, or, isNull }) => {
+          return schoolId ? or(eq(fees.schoolId, schoolId), isNull(fees.schoolId)) : undefined;
+        },
+        with: {
+          student: {
+            columns: {
+              id: true,
+              nomEtudiant: true,
+              numAdmission: true,
+              classe: true,
+              educationalLevel: true,
+              photoPath: true,
+              sexe: true,
+              statut: true,
+            }
+          },
+          payments: {
+            columns: {
+              id: true,
+              feeId: true,
+              amount: true,
+              reduction: true,
+              paymentMode: true,
+              reference: true,
+              datePaid: true,
+              recordedBy: true,
+              monthConcerned: true,
+            },
+            orderBy: [desc(feePayments.datePaid)]
+          },
+        }
+      });
+    }
 
     // ── DEDUP GUARD: if duplicates exist in DB, keep the row with highest totalPaid ──
     const seenStudents = new Map<number, typeof data[0]>();
@@ -768,26 +807,30 @@ export async function deleteExpense(expenseId: number) {
 export async function getAdvancedFinanceStats() {
   return protectedDbAction("Finance", "canView", async (user) => {
     const roleType = await getUserRoleType(user);
-    const schoolId = await getActiveSchoolId();
+    const schoolId = (await getActiveSchoolId()) || user?.schoolId || 9;
     const activeLevel = await getActiveEducationalLevel(user);
 
     const activeSession = await db.query.schoolSessions.findFirst({
-      where: (s, { eq, or, and }) => and(
-        eq(s.schoolId, schoolId),
+      where: (s, { eq, or, and, isNull }) => and(
+        schoolId ? or(eq(s.schoolId, schoolId), isNull(s.schoolId)) : undefined,
         or(eq(s.isActive, true), eq(s.status, "Actif"))
       ),
       orderBy: [desc(schoolSessions.id)]
     });
 
-    if (!activeSession) {
-      return { data: null };
-    }
+    const session = activeSession || await db.query.schoolSessions.findFirst({
+      where: (s, { eq, or, and, isNull }) => schoolId ? or(eq(s.schoolId, schoolId), isNull(s.schoolId)) : undefined,
+      orderBy: [desc(schoolSessions.id)]
+    });
 
     // Base where clause for student fees
-    let feesWhere = and(eq(studentFees.sessionId, activeSession.id), eq(studentFees.schoolId, schoolId));
+    let feesWhere = and(
+      session?.id ? eq(studentFees.sessionId, session.id) : undefined,
+      schoolId ? or(eq(studentFees.schoolId, schoolId), isNull(studentFees.schoolId)) : undefined
+    );
 
     // Get all fees with payments for this session (optimized column selection)
-    const allFees = await db.query.studentFees.findMany({
+    let allFees = await db.query.studentFees.findMany({
       where: feesWhere,
       with: {
         student: {
@@ -807,6 +850,29 @@ export async function getAdvancedFinanceStats() {
         }
       }
     });
+
+    if (allFees.length === 0) {
+      allFees = await db.query.studentFees.findMany({
+        where: schoolId ? or(eq(studentFees.schoolId, schoolId), isNull(studentFees.schoolId)) : undefined,
+        with: {
+          student: {
+            columns: {
+              educationalLevel: true,
+              classe: true,
+              nomEtudiant: true,
+              photoPath: true,
+            }
+          },
+          payments: {
+            columns: {
+              amount: true,
+              datePaid: true,
+            },
+            orderBy: [desc(feePayments.datePaid)]
+          }
+        }
+      });
+    }
 
     // Filter by level for level_director, level_comptable, level_caissier
     let fees = allFees;
