@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getMobileUser, mobileJsonError } from "../../_lib/auth";
+import { getMobileUser, mobileJsonError } from "@/app/api/mobile/_lib/auth";
 import { db } from "@/infrastructure/database";
 import { infirmaryVisits } from "@/infrastructure/database/schema/health";
 import { students } from "@/infrastructure/database/schema/students";
@@ -17,11 +17,11 @@ export async function POST(request: NextRequest) {
       studentId,
       symptoms,
       temperature = 37.0,
-      bloodPressure = "12/8",
-      diagnosis = "",
-      careProvided = "",
-      prescriptions = "",
-      severity = "Bénin",
+      bloodPressure,
+      diagnosis,
+      careProvided,
+      prescriptions,
+      severity = "Normal",
       outcome = "Retour en classe",
       notifyParent = true,
     } = body;
@@ -41,13 +41,16 @@ export async function POST(request: NextRequest) {
       return mobileJsonError("Élève introuvable.", 404);
     }
 
+    const studentName = (student as any).nomEtudiant || "l'élève";
+    const parentPhone = (student as any).whatsapp || (student as any).parentWhatsapp || (student as any).mobile;
+
     // 2. Insert Infirmary Visit
     const [visit] = await db
       .insert(infirmaryVisits)
       .values({
         schoolId,
         studentId: Number(studentId),
-        nurseName: user.name || "Infirmière Scolaire",
+        nurseName: (user as any).nomPrenom || (user as any).name || user.utilisateur || "Infirmière Scolaire",
         symptoms,
         temperature: Number(temperature),
         bloodPressure,
@@ -62,15 +65,15 @@ export async function POST(request: NextRequest) {
       .returning({ id: infirmaryVisits.id });
 
     // 3. Dispatch Emergency WhatsApp notification if urgent or requested
-    if (notifyParent && student.parentWhatsapp) {
-      const waMsg = `🩺 *Avis Infirmerie Scolaire Edut*\nBonjour M./Mme, votre enfant *${student.firstName} ${student.lastName}* a été admis à l'infirmerie ce jour pour : "${symptoms}".\n• Température : ${temperature}°C\n• Soins administrés : ${careProvided || "Soins de première urgence"}\n• Décision : *${outcome}*.\nL'équipe médicale reste joignable pour tout complément d'information.`;
+    if (notifyParent && parentPhone) {
+      const waMsg = `🩺 *Avis Infirmerie Scolaire Edut*\nBonjour M./Mme, votre enfant *${studentName}* a été admis à l'infirmerie ce jour pour : "${symptoms}".\n• Température : ${temperature}°C\n• Soins administrés : ${careProvided || "Soins de première urgence"}\n• Décision : *${outcome}*.\nL'équipe médicale reste joignable pour tout complément d'information.`;
 
       try {
         await fetch(`${request.nextUrl.origin}/api/mobile/whatsapp`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            phone: student.parentWhatsapp,
+            phone: parentPhone,
             message: waMsg,
             schoolId,
           }),

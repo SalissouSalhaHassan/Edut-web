@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getMobileUser, mobileJsonError } from "../../_lib/auth";
+import { getMobileUser, mobileJsonError } from "@/app/api/mobile/_lib/auth";
 import { db } from "@/infrastructure/database";
 import { surveyResponses } from "@/infrastructure/database/schema/front_office";
 
@@ -26,8 +26,8 @@ export async function POST(request: NextRequest) {
       .insert(surveyResponses)
       .values({
         schoolId,
-        respondentName: user.name || "Parent d'élève",
-        respondentRole: user.role || "Parent",
+        respondentName: (user as any).nomPrenom || (user as any).name || user.utilisateur || "Parent d'élève",
+        respondentRole: (user as any).role?.roleName || (user as any).role || "Parent",
         overallRating: Math.min(5, Math.max(1, Number(overallRating))),
         teachingQualityRating: Math.min(5, Math.max(1, Number(teachingQualityRating))),
         transportRating: Math.min(5, Math.max(1, Number(transportRating))),
