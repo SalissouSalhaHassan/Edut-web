@@ -28,6 +28,16 @@ export default async function TransportLiveMapPage() {
     },
   });
 
+  const formattedRoutes = routes.map((r: any) => ({
+    id: r.id,
+    routeName: r.routeName || "Itinéraire",
+    vehicleNumber: r.vehicleNumber || "",
+    driverName: r.driverName || "",
+    driverPhone: r.driverPhone || undefined,
+    capacity: r.capacity || undefined,
+    status: r.status || "Actif",
+  }));
+
   const activeTrips = await db.query.transportLiveTrips.findMany({
     where: or(
       eq(transportLiveTrips.schoolId, schoolId),
@@ -39,12 +49,35 @@ export default async function TransportLiveMapPage() {
     orderBy: (t, { desc }) => [desc(t.lastGpsAt)],
   });
 
+  const formattedTrips = activeTrips.map((t: any) => ({
+    id: t.id,
+    routeId: t.routeId,
+    tripDate: t.tripDate ? String(t.tripDate) : new Date().toISOString(),
+    tripType: t.tripType || "MORNING",
+    driverName: t.driverName || undefined,
+    vehicleNumber: t.vehicleNumber || undefined,
+    status: t.status || "EN_ROUTE",
+    currentStop: t.currentStop || undefined,
+    currentLat: t.currentLat ? Number(t.currentLat) : undefined,
+    currentLng: t.currentLng ? Number(t.currentLng) : undefined,
+    speedKmh: t.speedKmh ? Number(t.speedKmh) : undefined,
+    heading: t.heading ? Number(t.heading) : undefined,
+    lastGpsAt: t.lastGpsAt ? String(t.lastGpsAt) : undefined,
+    estimatedArrivalMinutes: t.estimatedArrivalMinutes ? Number(t.estimatedArrivalMinutes) : undefined,
+    route: t.route ? {
+      id: t.route.id,
+      routeName: t.route.routeName || "Itinéraire",
+      vehicleNumber: t.route.vehicleNumber || "",
+      driverName: t.route.driverName || "",
+    } : undefined,
+  }));
+
   return (
     <div className="min-h-screen bg-slate-900 text-white">
       <LiveMapClient
         schoolId={schoolId}
-        routes={routes}
-        initialTrips={activeTrips}
+        routes={formattedRoutes}
+        initialTrips={formattedTrips}
       />
     </div>
   );
