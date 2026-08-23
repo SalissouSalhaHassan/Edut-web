@@ -90,10 +90,12 @@ export const feePayments = pgTable("fee_payments", {
   monthConcerned: varchar("month_concerned", { length: 50 }),
   paymentMode: varchar("payment_mode", { length: 50 }).default("Espèces"),
   reference: varchar("reference", { length: 100 }),
+  receiptToken: varchar("receipt_token", { length: 100 }).unique(),
   recordedBy: varchar("recorded_by", { length: 100 }),
 }, (table) => ({
   schoolIdIdx: index("fee_payments_school_id_idx").on(table.schoolId),
   feeIdIdx: index("fee_payments_fee_id_idx").on(table.feeId),
+  receiptTokenIdx: index("fee_payments_receipt_token_idx").on(table.receiptToken),
   schoolDatePaidIdx: index("fee_payments_school_date_idx").on(table.schoolId, table.datePaid),
 }));
 
