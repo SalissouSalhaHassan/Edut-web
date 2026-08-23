@@ -28,7 +28,7 @@ export default async function BulletinsBatchPage({ searchParams }: Props) {
   const session = await getSession();
   if (!session?.user) redirect("/login");
 
-  const schoolId = session.user.schoolId as number;
+  const schoolId = ((session.user as any)?.schoolId as number) || 1;
   const classId = params.classId ? parseInt(params.classId) : null;
   const periodId = params.periodId ? parseInt(params.periodId) : null;
 

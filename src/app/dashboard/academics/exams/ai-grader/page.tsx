@@ -15,7 +15,7 @@ export default async function AiCameraGraderPage() {
   const session = await getSession();
   if (!session?.user) redirect("/login");
 
-  const schoolId = session.user.schoolId as number;
+  const schoolId = ((session.user as any)?.schoolId as number) || 1;
 
   // Fetch available exams
   const examList = await db.query.exams.findMany({
@@ -36,7 +36,7 @@ export default async function AiCameraGraderPage() {
 
   const studentList = await db.query.students.findMany({
     where: eq(students.schoolId, schoolId),
-    orderBy: (t, { asc }) => [asc(t.lastName)],
+    orderBy: (t, { asc }) => [asc(t.nomEtudiant)],
   });
 
   return (

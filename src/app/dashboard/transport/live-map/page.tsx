@@ -14,7 +14,7 @@ export default async function TransportLiveMapPage() {
   const session = await getSession();
   if (!session?.user) redirect("/login");
 
-  const schoolId = session.user.schoolId as number;
+  const schoolId = ((session.user as any)?.schoolId as number) || 1;
 
   const routes = await db.query.transportRoutes.findMany({
     where: eq(transportRoutes.schoolId, schoolId),
