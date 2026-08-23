@@ -7,6 +7,9 @@ import { getUnreadNotificationsCount } from "@/domains/messaging/actions/notific
 import { NavigationProgressProvider } from "@/components/providers/navigation-progress";
 import SyncStatus from "@/components/common/SyncStatus";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function DashboardLayout({
   children,
 }: {
