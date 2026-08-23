@@ -66,22 +66,19 @@ async function getActiveSessionLabel() {
 
 async function getStats(user: any) {
   try {
-    const schoolId = await getActiveSchoolId();
-    if (!schoolId) {
-      return { students: 0, employees: 0, revenue: 0, expense: 0, studentGrowth: 0, revenueGrowth: 0 };
-    }
+    const schoolId = (await getActiveSchoolId()) || user?.schoolId || 1;
 
     const activeLevel = await getActiveEducationalLevel(user);
     const isGlobalLevel = !activeLevel || hasAllEducationalLevels(activeLevel);
     
     // Flexible student filter: schoolId + (Actif / Inscrit / null)
     let studentWhere = and(
-      eq(students.schoolId, schoolId),
+      schoolId ? or(eq(students.schoolId, schoolId), isNull(students.schoolId)) : undefined,
       or(ilike(students.statut, "%actif%"), ilike(students.statut, "%inscrit%"), isNull(students.statut))
     ) as any;
 
-    let employeeWhere = eq(employees.schoolId, schoolId) as any;
-    let expenseWhere = eq(expenses.schoolId, schoolId) as any;
+    let employeeWhere = (schoolId ? or(eq(employees.schoolId, schoolId), isNull(employees.schoolId)) : undefined) as any;
+    let expenseWhere = (schoolId ? or(eq(expenses.schoolId, schoolId), isNull(expenses.schoolId)) : undefined) as any;
 
     let queryRevenue;
 
@@ -96,13 +93,13 @@ async function getStats(user: any) {
         .innerJoin(studentFees, eq(feePayments.feeId, studentFees.id))
         .innerJoin(students, eq(studentFees.studentId, students.id))
         .where(and(
-          eq(feePayments.schoolId, schoolId),
+          or(eq(feePayments.schoolId, schoolId), isNull(feePayments.schoolId)),
           inArray(students.educationalLevel, compatibleLevels)
         ));
     } else {
       queryRevenue = readDb.select({ sum: sql<number>`coalesce(sum(amount), 0)` })
         .from(feePayments)
-        .where(eq(feePayments.schoolId, schoolId));
+        .where(or(eq(feePayments.schoolId, schoolId), isNull(feePayments.schoolId)));
     }
 
     const queryExpense = readDb.select({ sum: sql<number>`coalesce(sum(amount), 0)` })

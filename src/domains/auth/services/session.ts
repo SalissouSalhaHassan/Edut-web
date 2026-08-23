@@ -108,11 +108,18 @@ export const getCurrentUser = cache(async (): Promise<SessionUserRecord | null> 
       return cachedById;
     }
 
-    const email = user.email.toLowerCase();
+    const email = user.email.toLowerCase().trim();
+    const username = email.includes("@") ? email.split("@")[0] : email;
     const isPlatformOwner = isConfiguredPlatformOwner(email);
 
     let dbUser = await readDb.query.users.findFirst({
-      where: or(eq(users.supabaseId, user.id), eq(users.utilisateur, email)),
+      where: or(
+        eq(users.supabaseId, user.id),
+        eq(users.utilisateur, email),
+        eq(users.utilisateur, username),
+        ilike(users.utilisateur, email),
+        ilike(users.utilisateur, username)
+      ),
       with: {
         role: {
           with: {
