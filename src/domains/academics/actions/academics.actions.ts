@@ -257,7 +257,7 @@ const fetchFilterOptions = (
 // Filter Options - now filtered by educational level and schoolId
 export async function getFilterOptions() {
   const user = await getCurrentUser();
-  const schoolId = await getActiveSchoolId();
+  const schoolId = (await getActiveSchoolId()) || user?.schoolId || 1;
   const roleType = await getUserRoleType(user);
   let activeLevel: string | null = null;
   let restrictedClassIds: number[] | null = null;

@@ -320,10 +320,24 @@ export default function AcademicFilters({ onLoad, loading }: AcademicFiltersProp
   const mapToOptions = (items: any[], nameKey: string, altKey?: string) => {
     if (!items || !Array.isArray(items)) return [];
     return items.map((item: any) => {
-      const name = item[nameKey] || (altKey ? item[altKey] : "") || item.name || item.title || item.label || `ID: ${item.id}`;
+      const name =
+        item[nameKey] ||
+        (altKey ? item[altKey] : "") ||
+        item.sessionName ||
+        item.session_name ||
+        item.sectionName ||
+        item.section_name ||
+        item.subjectName ||
+        item.subject_name ||
+        item.className ||
+        item.class_name ||
+        item.name ||
+        item.title ||
+        item.label ||
+        `Élément ${item.id ?? ""}`;
       return {
-        id: item.id.toString(),
-        name: name.toString()
+        id: (item.id !== undefined && item.id !== null ? item.id : item.value ?? "").toString(),
+        name: name.toString().trim()
       };
     });
   };
@@ -487,20 +501,25 @@ export default function AcademicFilters({ onLoad, loading }: AcademicFiltersProp
 }
 
 function FilterGroup({ label, value, onChange, options }: any) {
+  const selectedItem = options?.find((opt: any) => String(opt.id) === String(value));
+  const displayText = selectedItem?.name || (value && options?.length > 0 ? selectedItem?.name : value ? (options?.length === 0 ? "Chargement..." : "") : "Choisir...");
+
   return (
     <div className="space-y-2">
       <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 ml-1">{label}</label>
       <Select value={value} onValueChange={onChange}>
         <SelectTrigger className="bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl h-11 font-medium focus:ring-indigo-500/20">
-          <SelectValue placeholder={`Choisir...`} />
+          <SelectValue placeholder={`Choisir...`}>
+            {displayText || "Choisir..."}
+          </SelectValue>
         </SelectTrigger>
         <SelectContent className="bg-white dark:bg-[#131622] border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl">
-          {options.map((opt: { id: string, name: string }) => (
+          {options?.map((opt: { id: string, name: string }) => (
             <SelectItem key={opt.id} value={opt.id} className="focus:bg-slate-50 dark:focus:bg-slate-800 focus:text-slate-900 dark:focus:text-white text-slate-900 dark:text-slate-100">
               {opt.name}
             </SelectItem>
           ))}
-          {options.length === 0 && <div className="p-4 text-xs text-slate-500 dark:text-slate-400 text-center">Aucune option</div>}
+          {(!options || options.length === 0) && <div className="p-4 text-xs text-slate-500 dark:text-slate-400 text-center">Aucune option</div>}
         </SelectContent>
       </Select>
     </div>

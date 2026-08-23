@@ -238,7 +238,76 @@ export const hasPermission = cache(async (
     return true;
   }
 
-  // 7. Élève & Parent: always have canView permission for personal student modules
+  // 7. Enseignants / Teachers: full view and edit for academic modules
+  if (roleType === "teacher" || roleType === "enseignant") {
+    const teacherModules = [
+      "academics",
+      "grades",
+      "exams",
+      "attendance",
+      "assiduite",
+      "students",
+      "classes",
+      "devoirs",
+      "pedagogie",
+      "timetable",
+      "schedule",
+      "bulletin",
+      "bulletins",
+      "discipline",
+      "messaging",
+      "announcements",
+    ];
+    if (teacherModules.includes(modLower)) {
+      if (action === "canView" || action === "canEdit") return true;
+    }
+  }
+
+  // 8. Censeur / Surveillant: full view and edit for pedagogical and disciplinary modules
+  if (roleType === "censeur" || roleType === "surveillant") {
+    const academicAdminModules = [
+      "academics",
+      "grades",
+      "exams",
+      "attendance",
+      "assiduite",
+      "students",
+      "classes",
+      "discipline",
+      "pedagogie",
+      "bulletin",
+      "bulletins",
+      "settings",
+      "messaging",
+      "announcements",
+    ];
+    if (academicAdminModules.includes(modLower)) {
+      if (action === "canView" || action === "canEdit") return true;
+    }
+  }
+
+  // 9. Comptable / Caissier: full view and edit for financial modules
+  if (
+    roleType === "comptable" ||
+    roleType === "caissier" ||
+    roleType === "level_comptable" ||
+    roleType === "level_caissier"
+  ) {
+    const financeModules = [
+      "finance",
+      "canteen",
+      "transport",
+      "students",
+      "reports",
+      "academics",
+    ];
+    if (financeModules.includes(modLower)) {
+      if (action === "canView") return true;
+      if (action === "canEdit" && modLower !== "academics") return true;
+    }
+  }
+
+  // 10. Élève & Parent: always have canView permission for personal student modules
   if (roleType === "eleve" || roleType === "parent") {
     if (action === "canView") {
       const allowedStudentModules = [
@@ -259,6 +328,11 @@ export const hasPermission = cache(async (
       ];
       if (allowedStudentModules.includes(modLower)) return true;
     }
+  }
+
+  // 11. General baseline canView for basic metadata in school
+  if (action === "canView" && ["academics", "settings", "classes", "students"].includes(modLower)) {
+    return true;
   }
 
   // Fallback to database-configured role permissions
@@ -722,9 +796,23 @@ export const getTeacherClassIds = cache(async (employeeId: number): Promise<numb
 
 // Verify teacher access to a specific class
 export async function verifyTeacherClassAccess(user: any, classId: number): Promise<boolean> {
-  if (user?.admin || user?.role?.isSystemAdmin) return true;
+  if (user?.admin || user?.superAdmin || user?.role?.isSystemAdmin) return true;
   const roleType = await getUserRoleType(user);
   if (roleType === "eleve" || roleType === "parent") return false;
+  if (
+    roleType === "directeur" ||
+    roleType === "general_director" ||
+    roleType === "level_director" ||
+    roleType === "censeur" ||
+    roleType === "surveillant" ||
+    roleType === "super_admin" ||
+    roleType === "ministere" ||
+    roleType === "dren" ||
+    roleType === "dden" ||
+    roleType === "inspection"
+  ) {
+    return true;
+  }
   if (roleType === "teacher" || roleType === "enseignant") {
     const emp = await getTeacherEmployee(user);
     if (!emp) return false;
@@ -737,9 +825,23 @@ export async function verifyTeacherClassAccess(user: any, classId: number): Prom
 
 // Verify teacher access to a specific class and subject
 export async function verifyTeacherClassSubjectAccess(user: any, classId: number, subjectId: number): Promise<boolean> {
-  if (user?.admin || user?.role?.isSystemAdmin) return true;
+  if (user?.admin || user?.superAdmin || user?.role?.isSystemAdmin) return true;
   const roleType = await getUserRoleType(user);
   if (roleType === "eleve" || roleType === "parent") return false;
+  if (
+    roleType === "directeur" ||
+    roleType === "general_director" ||
+    roleType === "level_director" ||
+    roleType === "censeur" ||
+    roleType === "surveillant" ||
+    roleType === "super_admin" ||
+    roleType === "ministere" ||
+    roleType === "dren" ||
+    roleType === "dden" ||
+    roleType === "inspection"
+  ) {
+    return true;
+  }
   if (roleType === "teacher" || roleType === "enseignant") {
     const emp = await getTeacherEmployee(user);
     if (!emp) return false;
