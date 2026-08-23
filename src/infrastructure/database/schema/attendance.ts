@@ -7,6 +7,7 @@ import { schools } from "./auth";
 
 export const studentAttendance = pgTable("student_attendance", {
   id: serial("id").primaryKey(),
+  schoolId: integer("school_id").references(() => schools.id),
   studentId: integer("student_id").references(() => students.id, { onDelete: "cascade" }),
   classId: integer("class_id").references(() => schoolClasses.id, { onDelete: "cascade" }),
   subjectId: integer("subject_id").references(() => schoolSubjects.id, { onDelete: "set null" }),
@@ -17,6 +18,7 @@ export const studentAttendance = pgTable("student_attendance", {
   recordedBy: varchar("recorded_by", { length: 255 }).default("Admin"),
 }, (table) => {
   return {
+    schoolIdx: index("attendance_school_idx").on(table.schoolId),
     studentIdx: index("attendance_student_idx").on(table.studentId),
     classIdx: index("attendance_class_idx").on(table.classId),
     dateIdx: index("attendance_date_idx").on(table.date),
@@ -25,6 +27,10 @@ export const studentAttendance = pgTable("student_attendance", {
 });
 
 export const studentAttendanceRelations = relations(studentAttendance, ({ one }) => ({
+  school: one(schools, {
+    fields: [studentAttendance.schoolId],
+    references: [schools.id],
+  }),
   student: one(students, {
     fields: [studentAttendance.studentId],
     references: [students.id],
