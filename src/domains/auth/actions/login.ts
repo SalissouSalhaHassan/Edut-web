@@ -79,8 +79,7 @@ export async function login(formData: LoginFormData) {
       dbUser = await db.query.users.findFirst({
         where: or(
           eq(users.admin, true),
-          eq(users.superAdmin, true),
-          eq(users.superAdmin, 1)
+          eq(users.superAdmin, true)
         ),
         with: {
           role: { with: { permissions: true } },
