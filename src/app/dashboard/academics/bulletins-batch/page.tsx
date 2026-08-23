@@ -147,15 +147,12 @@ export default async function BulletinsBatchPage({ searchParams }: Props) {
           periodId={periodId}
           schoolId={schoolId}
           className={selectedClass?.className || "Classe"}
-          periodName={selectedPeriod?.name || "Période"}
+          period={selectedPeriod?.name || "Période"}
+          session={selectedPeriod?.sessionName || "Année Scolaire"}
           students={batchData.students || []}
-          schoolInfo={{
-            name: (user as any)?.school?.name || "GROUP AIIU-NIGER",
-            logoPath: (user as any)?.school?.logoPath || null,
-          }}
           branchInfo={branchInfo}
           headerConfig={headerConfig}
-          fetchStudentData={getBulletinDataForStudent}
+          getBulletinDataForStudent={(studentId: number) => getBulletinDataForStudent(studentId, classId, periodId, schoolId)}
         />
       )}
     </div>
