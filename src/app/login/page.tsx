@@ -91,41 +91,51 @@ export default function LoginPage() {
     setIsLoading(true);
     setError(null);
     
+    const username = (usernameInput || (new FormData(e.currentTarget).get("username") as string) || "").trim();
+    const password = (passwordInput || (new FormData(e.currentTarget).get("password") as string) || "").trim();
+
     try {
-      const username = usernameInput || (new FormData(e.currentTarget).get("username") as string);
-      const password = passwordInput || (new FormData(e.currentTarget).get("password") as string);
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ username, password }),
+      });
 
-      const result = await login({ username, password });
+      const data = await res.json().catch(() => ({}));
 
-      if (result?.error) {
-        setError(result.error);
+      if (!res.ok || !data.success) {
+        setError(data.error || "Identifiant ou mot de passe incorrect.");
         setIsLoading(false);
         return;
       }
-      // Success is handled by redirect() in the server action
+
+      // Successful login -> Navigate smoothly to dashboard
+      window.location.href = data.redirectUrl || "/dashboard";
     } catch (err: any) {
-      // Don't show error if it's a redirect (Next.js throws an error for redirects)
-      const isRedirect = 
-        err?.message === "NEXT_REDIRECT" || 
-        err?.digest?.startsWith("NEXT_REDIRECT") ||
-        String(err).includes("NEXT_REDIRECT") ||
-        (err instanceof Error && err.message.includes("NEXT_REDIRECT"));
+      console.warn("REST login attempt notice, attempting fallback action:", err);
+      try {
+        const result = await login({ username, password });
+        if (result?.error) {
+          setError(result.error);
+          setIsLoading(false);
+          return;
+        }
+      } catch (fallbackErr: any) {
+        const isRedirect =
+          fallbackErr?.message === "NEXT_REDIRECT" ||
+          fallbackErr?.digest?.startsWith("NEXT_REDIRECT") ||
+          String(fallbackErr).includes("NEXT_REDIRECT");
 
-      if (isRedirect) {
-        return;
+        if (isRedirect) {
+          window.location.href = "/dashboard";
+          return;
+        }
+
+        setError("Erreur de connexion. Veuillez vérifier vos identifiants ou votre connexion.");
+        setIsLoading(false);
       }
-
-      console.error("Login Client Error Details:", err);
-
-      const msg = String(err?.message || "").toLowerCase();
-      if (msg.includes("failed to fetch") || msg.includes("networkerror") || msg.includes("load failed")) {
-        setError("La plateforme a été actualisée suite au déploiement. Veuillez re-cliquer sur 'SE CONNECTER' ou rafraîchir la page (F5).");
-      } else if (msg.includes("unexpected response") || msg.includes("timeout") || msg.includes("504")) {
-        setError("Le serveur a mis du temps à répondre. Veuillez réessayer.");
-      } else {
-        setError(err.message || "Erreur de connexion. Veuillez vérifier vos identifiants.");
-      }
-      setIsLoading(false);
     }
   }
 
