@@ -171,13 +171,28 @@ export async function POST(request: NextRequest) {
       },
     };
 
-    const cookieStore = await cookies();
-    cookieStore.set("edut_session_user", JSON.stringify(sessionPayload), {
+    const response = NextResponse.json({
+      success: true,
+      redirectUrl: "/dashboard",
+    });
+
+    response.cookies.set("edut_session_user", JSON.stringify(sessionPayload), {
       path: "/",
       maxAge: 60 * 60 * 24 * 7,
       httpOnly: true,
       sameSite: "lax",
     });
+
+    // Also set via cookieStore for SSR compatibility
+    try {
+      const cookieStore = await cookies();
+      cookieStore.set("edut_session_user", JSON.stringify(sessionPayload), {
+        path: "/",
+        maxAge: 60 * 60 * 24 * 7,
+        httpOnly: true,
+        sameSite: "lax",
+      });
+    } catch (_) {}
 
     // Background sync to Supabase (safe & non-blocking)
     try {
@@ -191,10 +206,7 @@ export async function POST(request: NextRequest) {
       });
     } catch (_) {}
 
-    return NextResponse.json({
-      success: true,
-      redirectUrl: "/dashboard",
-    });
+    return response;
   } catch (error: any) {
     console.error("[API LOGIN] Global error:", error);
     return NextResponse.json(
