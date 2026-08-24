@@ -242,6 +242,21 @@ export default async function FinancePage({
     rate: d.expected > 0 ? Math.round((d.paid / d.expected) * 100) : 0,
   })).sort((a, b) => b.expected - a.expected);
 
+  const unpaidAlerts = fees
+    .filter(f => (f.balance || 0) > 0)
+    .map(f => ({
+      id: f.id,
+      studentName: f.student?.nomEtudiant || "Inconnu",
+      classe: f.student?.classe || "-",
+      photoPath: f.student?.photoPath || null,
+      balance: f.balance || 0,
+      totalExpected: f.totalExpected || 0,
+      totalPaid: f.totalPaid || 0,
+      status: f.status || "Impayé",
+      lastPayment: f.payments?.[0]?.datePaid || null,
+    }))
+    .sort((a, b) => b.balance - a.balance);
+
   const advancedStats = {
     totalExpected,
     totalPaid,
@@ -260,6 +275,7 @@ export default async function FinancePage({
     revenueYear,
     monthlyData,
     classSummary,
+    unpaidAlerts,
   };
 
   const activeSessionName = sessionRow?.sessionName || (headerConfig as any)?.schoolYear || "2025–2026";
