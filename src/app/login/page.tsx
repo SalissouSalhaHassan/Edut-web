@@ -117,9 +117,11 @@ export default function LoginPage() {
 
       console.error("Login Client Error Details:", err);
 
-      // Friendly message for Next.js internal Server Action errors or network delays
-      if (err.message?.toLowerCase().includes("unexpected response") || err.message?.toLowerCase().includes("timeout") || err.message?.toLowerCase().includes("504")) {
-        setError("Le serveur a mis du temps à répondre. Vos identifiants sont en cours de validation, veuillez réessayer.");
+      const msg = String(err?.message || "").toLowerCase();
+      if (msg.includes("failed to fetch") || msg.includes("networkerror") || msg.includes("load failed")) {
+        setError("La plateforme a été actualisée suite au déploiement. Veuillez re-cliquer sur 'SE CONNECTER' ou rafraîchir la page (F5).");
+      } else if (msg.includes("unexpected response") || msg.includes("timeout") || msg.includes("504")) {
+        setError("Le serveur a mis du temps à répondre. Veuillez réessayer.");
       } else {
         setError(err.message || "Erreur de connexion. Veuillez vérifier vos identifiants.");
       }
