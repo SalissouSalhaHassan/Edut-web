@@ -390,7 +390,9 @@ export default function AlumniClient({ initialAlumni, initialCerts, initialKpis,
         toast.success(editAlumnus ? "Diplômé modifié !" : "Diplômé enregistré !");
         setShowAlumniModal(false);
         await refreshAll();
-      } else { toast.error("Erreur d'enregistrement"); }
+      } else { 
+        toast.error((res as any)?.error || "Erreur d'enregistrement"); 
+      }
     } finally { setLoading(false); }
   }
 

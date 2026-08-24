@@ -27,12 +27,12 @@ export async function getAlumni(filters?: {
   search?: string;
 }) {
   return protectedDbAction("Alumni", "canView", async () => {
-    const schoolId = await getActiveSchoolId();
+    const schoolId = (await getActiveSchoolId()) || 9;
     const rows = await db.execute(sql`
       SELECT a.*,
         (SELECT COUNT(*) FROM digital_certificates dc WHERE dc.alumni_id = a.id AND dc.is_valid = TRUE) as cert_count
       FROM alumni a
-      WHERE a.school_id = ${schoolId}
+      WHERE (a.school_id = ${schoolId} OR a.school_id IS NULL)
         ${filters?.year ? sql`AND a.graduation_year = ${filters.year}` : sql``}
         ${filters?.level ? sql`AND a.level_completed ILIKE ${`%${filters.level}%`}` : sql``}
         ${filters?.search ? sql`AND (a.full_name ILIKE ${`%${filters.search}%`} OR a.email ILIKE ${`%${filters.search}%`} OR a.phone ILIKE ${`%${filters.search}%`})` : sql``}
@@ -67,19 +67,23 @@ export async function saveAlumnus(data: {
   notes?: string;
 }) {
   return protectedDbAction("Alumni", "canEdit", async () => {
-    const schoolId = await getActiveSchoolId();
+    const schoolId = (await getActiveSchoolId()) || 9;
+    const gradYear = Number(data.graduationYear) || new Date().getFullYear();
+    const dob = data.dateOfBirth && !isNaN(new Date(data.dateOfBirth).getTime()) 
+      ? new Date(data.dateOfBirth).toISOString().split("T")[0] 
+      : null;
 
     if (data.id) {
       await db.execute(sql`
         UPDATE alumni SET
           full_name = ${data.fullName},
           gender = ${data.gender ?? "M"},
-          date_of_birth = ${data.dateOfBirth ? new Date(data.dateOfBirth) : null},
+          date_of_birth = ${dob ? sql`${dob}::date` : null},
           nationality = ${data.nationality ?? "Nigérienne"},
           phone = ${data.phone ?? null},
           email = ${data.email ?? null},
           address = ${data.address ?? null},
-          graduation_year = ${data.graduationYear},
+          graduation_year = ${gradYear},
           level_completed = ${data.levelCompleted},
           series_or_track = ${data.seriesOrTrack ?? null},
           final_grade = ${data.finalGrade ?? null},
@@ -92,7 +96,7 @@ export async function saveAlumnus(data: {
           higher_education_field = ${data.higherEducationField ?? null},
           notes = ${data.notes ?? null},
           updated_at = NOW()
-        WHERE id = ${data.id} AND school_id = ${schoolId}
+        WHERE id = ${data.id} AND (school_id = ${schoolId} OR school_id IS NULL)
       `);
       revalidatePath(REVALIDATE);
       return { success: true, id: data.id };
@@ -105,9 +109,9 @@ export async function saveAlumnus(data: {
            higher_education_institution, higher_education_field, notes)
         VALUES
           (${schoolId}, ${data.studentId ?? null}, ${data.fullName}, ${data.gender ?? "M"},
-           ${data.dateOfBirth ? new Date(data.dateOfBirth) : null}, ${data.nationality ?? "Nigérienne"},
+           ${dob ? sql`${dob}::date` : null}, ${data.nationality ?? "Nigérienne"},
            ${data.phone ?? null}, ${data.email ?? null}, ${data.address ?? null},
-           ${data.graduationYear}, ${data.levelCompleted}, ${data.seriesOrTrack ?? null},
+           ${gradYear}, ${data.levelCompleted}, ${data.seriesOrTrack ?? null},
            ${data.finalGrade ?? null}, ${data.mention ?? null}, ${data.examCenter ?? null},
            ${data.examRegistrationNumber ?? null}, ${data.currentSituation ?? "Inconnu"},
            ${data.currentEmployer ?? null}, ${data.higherEducationInstitution ?? null},
@@ -123,8 +127,8 @@ export async function saveAlumnus(data: {
 
 export async function deleteAlumnus(id: number) {
   return protectedDbAction("Alumni", "canEdit", async () => {
-    const schoolId = await getActiveSchoolId();
-    await db.execute(sql`DELETE FROM alumni WHERE id = ${id} AND school_id = ${schoolId}`);
+    const schoolId = (await getActiveSchoolId()) || 9;
+    await db.execute(sql`DELETE FROM alumni WHERE id = ${id} AND (school_id = ${schoolId} OR school_id IS NULL)`);
     revalidatePath(REVALIDATE);
     return { success: true };
   });
