@@ -206,7 +206,7 @@ export default function HostelClient({
         setIsRoomModalOpen(false);
         setRoomNumber("");
       } else {
-        toast.error("Erreur lors de l'ajout.");
+        toast.error(res?.error || "Erreur lors de l'ajout.");
       }
     });
   };

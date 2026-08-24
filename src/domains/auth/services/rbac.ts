@@ -293,6 +293,8 @@ export const hasPermission = cache(async (
       "settings",
       "messaging",
       "announcements",
+      "hostel",
+      "internat",
     ];
     if (academicAdminModules.includes(modLower)) {
       if (action === "canView" || action === "canEdit") return true;
