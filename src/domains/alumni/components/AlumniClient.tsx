@@ -739,121 +739,204 @@ export default function AlumniClient({ initialAlumni, initialCerts, initialKpis,
 
       {/* Alumni Add/Edit Modal */}
       {showAlumniModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-6 border-b sticky top-0 bg-white z-10">
-              <h3 className="text-lg font-bold text-gray-800">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-[#131622] text-slate-900 dark:text-slate-100 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-y-auto border border-slate-200 dark:border-slate-800">
+            <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-slate-800 sticky top-0 bg-white dark:bg-[#131622] z-10">
+              <h3 className="text-lg font-black text-slate-900 dark:text-white">
                 {editAlumnus ? "Modifier le Diplômé" : "Enregistrer un Diplômé"}
               </h3>
-              <button onClick={() => setShowAlumniModal(false)}><X className="w-5 h-5 text-gray-400" /></button>
+              <button onClick={() => setShowAlumniModal(false)} className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+                <X className="w-5 h-5" />
+              </button>
             </div>
 
-            <div className="p-6 space-y-5">
+            <div className="p-6 space-y-6">
               {/* Identité */}
               <div>
-                <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">👤 Identité</h4>
+                <h4 className="text-[11px] font-black text-violet-600 dark:text-violet-400 uppercase tracking-widest mb-3">👤 Identité</h4>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="col-span-2">
-                    <label className="text-xs font-medium text-gray-600 mb-1 block">Nom & Prénom *</label>
-                    <Input value={aForm.fullName} onChange={e => setAForm(f => ({ ...f, fullName: e.target.value }))} placeholder="Nom complet" />
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-200 mb-1 block">Nom & Prénom *</label>
+                    <Input 
+                      value={aForm.fullName} 
+                      onChange={e => setAForm(f => ({ ...f, fullName: e.target.value }))} 
+                      placeholder="Nom complet" 
+                      className="bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 font-semibold"
+                    />
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-gray-600 mb-1 block">Genre</label>
-                    <select className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" value={aForm.gender} onChange={e => setAForm(f => ({ ...f, gender: e.target.value }))}>
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-200 mb-1 block">Genre</label>
+                    <select 
+                      className="w-full h-10 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-xl px-3 text-sm font-semibold outline-none focus:ring-2 focus:ring-violet-500/30" 
+                      value={aForm.gender} 
+                      onChange={e => setAForm(f => ({ ...f, gender: e.target.value }))}
+                    >
                       <option value="M">Masculin</option>
                       <option value="F">Féminin</option>
                     </select>
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-gray-600 mb-1 block">Date de naissance</label>
-                    <Input type="date" value={aForm.dateOfBirth} onChange={e => setAForm(f => ({ ...f, dateOfBirth: e.target.value }))} />
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-200 mb-1 block">Date de naissance</label>
+                    <Input 
+                      type="date" 
+                      value={aForm.dateOfBirth} 
+                      onChange={e => setAForm(f => ({ ...f, dateOfBirth: e.target.value }))} 
+                      className="bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 font-semibold"
+                    />
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-gray-600 mb-1 block">Téléphone</label>
-                    <Input value={aForm.phone} onChange={e => setAForm(f => ({ ...f, phone: e.target.value }))} placeholder="+227 ..." />
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-200 mb-1 block">Téléphone</label>
+                    <Input 
+                      value={aForm.phone} 
+                      onChange={e => setAForm(f => ({ ...f, phone: e.target.value }))} 
+                      placeholder="+227 ..." 
+                      className="bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 font-semibold"
+                    />
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-gray-600 mb-1 block">Email</label>
-                    <Input type="email" value={aForm.email} onChange={e => setAForm(f => ({ ...f, email: e.target.value }))} placeholder="email@..." />
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-200 mb-1 block">Email</label>
+                    <Input 
+                      type="email" 
+                      value={aForm.email} 
+                      onChange={e => setAForm(f => ({ ...f, email: e.target.value }))} 
+                      placeholder="email@..." 
+                      className="bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 font-semibold"
+                    />
                   </div>
                 </div>
               </div>
 
               {/* Scolarité */}
               <div>
-                <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">🎓 Scolarité</h4>
+                <h4 className="text-[11px] font-black text-violet-600 dark:text-violet-400 uppercase tracking-widest mb-3">🎓 Scolarité</h4>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-xs font-medium text-gray-600 mb-1 block">Année de promotion *</label>
-                    <Input type="number" value={aForm.graduationYear} onChange={e => setAForm(f => ({ ...f, graduationYear: Number(e.target.value) }))} />
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-200 mb-1 block">Année de promotion *</label>
+                    <Input 
+                      type="number" 
+                      value={aForm.graduationYear} 
+                      onChange={e => setAForm(f => ({ ...f, graduationYear: Number(e.target.value) }))} 
+                      className="bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 font-semibold"
+                    />
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-gray-600 mb-1 block">Niveau obtenu *</label>
-                    <select className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" value={aForm.levelCompleted} onChange={e => setAForm(f => ({ ...f, levelCompleted: e.target.value }))}>
-                      {LEVELS.map(l => <option key={l}>{l}</option>)}
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-200 mb-1 block">Niveau obtenu *</label>
+                    <select 
+                      className="w-full h-10 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-xl px-3 text-sm font-semibold outline-none focus:ring-2 focus:ring-violet-500/30" 
+                      value={aForm.levelCompleted} 
+                      onChange={e => setAForm(f => ({ ...f, levelCompleted: e.target.value }))}
+                    >
+                      {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-gray-600 mb-1 block">Série / Filière</label>
-                    <select className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" value={aForm.seriesOrTrack} onChange={e => setAForm(f => ({ ...f, seriesOrTrack: e.target.value }))}>
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-200 mb-1 block">Série / Filière</label>
+                    <select 
+                      className="w-full h-10 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-xl px-3 text-sm font-semibold outline-none focus:ring-2 focus:ring-violet-500/30" 
+                      value={aForm.seriesOrTrack} 
+                      onChange={e => setAForm(f => ({ ...f, seriesOrTrack: e.target.value }))}
+                    >
                       <option value="">Aucune</option>
                       {SERIES.map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-gray-600 mb-1 block">Note finale</label>
-                    <Input value={aForm.finalGrade} onChange={e => setAForm(f => ({ ...f, finalGrade: e.target.value }))} placeholder="ex: 14.25/20" />
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-200 mb-1 block">Note finale</label>
+                    <Input 
+                      value={aForm.finalGrade} 
+                      onChange={e => setAForm(f => ({ ...f, finalGrade: e.target.value }))} 
+                      placeholder="ex: 14.25/20" 
+                      className="bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 font-semibold"
+                    />
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-gray-600 mb-1 block">Mention</label>
-                    <select className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" value={aForm.mention} onChange={e => setAForm(f => ({ ...f, mention: e.target.value }))}>
-                      {MENTIONS.map(m => <option key={m}>{m}</option>)}
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-200 mb-1 block">Mention</label>
+                    <select 
+                      className="w-full h-10 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-xl px-3 text-sm font-semibold outline-none focus:ring-2 focus:ring-violet-500/30" 
+                      value={aForm.mention} 
+                      onChange={e => setAForm(f => ({ ...f, mention: e.target.value }))}
+                    >
+                      {MENTIONS.map(m => <option key={m} value={m}>{m}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-gray-600 mb-1 block">N° d'inscription examen</label>
-                    <Input value={aForm.examRegistrationNumber} onChange={e => setAForm(f => ({ ...f, examRegistrationNumber: e.target.value }))} placeholder="ex: NIG-2024-..." />
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-200 mb-1 block">N° d'inscription examen</label>
+                    <Input 
+                      value={aForm.examRegistrationNumber} 
+                      onChange={e => setAForm(f => ({ ...f, examRegistrationNumber: e.target.value }))} 
+                      placeholder="ex: NIG-2024-..." 
+                      className="bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 font-semibold"
+                    />
                   </div>
                   <div className="col-span-2">
-                    <label className="text-xs font-medium text-gray-600 mb-1 block">Centre d'examen</label>
-                    <Input value={aForm.examCenter} onChange={e => setAForm(f => ({ ...f, examCenter: e.target.value }))} placeholder="ex: Lycée Issa Béri, Niamey" />
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-200 mb-1 block">Centre d'examen</label>
+                    <Input 
+                      value={aForm.examCenter} 
+                      onChange={e => setAForm(f => ({ ...f, examCenter: e.target.value }))} 
+                      placeholder="ex: Lycée Issa Béri, Niamey" 
+                      className="bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 font-semibold"
+                    />
                   </div>
                 </div>
               </div>
 
               {/* Situation actuelle */}
               <div>
-                <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">📍 Situation actuelle</h4>
+                <h4 className="text-[11px] font-black text-violet-600 dark:text-violet-400 uppercase tracking-widest mb-3">📍 Situation actuelle</h4>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-xs font-medium text-gray-600 mb-1 block">Situation</label>
-                    <select className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" value={aForm.currentSituation} onChange={e => setAForm(f => ({ ...f, currentSituation: e.target.value }))}>
-                      {SITUATIONS.map(s => <option key={s}>{s}</option>)}
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-200 mb-1 block">Situation</label>
+                    <select 
+                      className="w-full h-10 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-xl px-3 text-sm font-semibold outline-none focus:ring-2 focus:ring-violet-500/30" 
+                      value={aForm.currentSituation} 
+                      onChange={e => setAForm(f => ({ ...f, currentSituation: e.target.value }))}
+                    >
+                      {SITUATIONS.map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-gray-600 mb-1 block">Employeur actuel</label>
-                    <Input value={aForm.currentEmployer} onChange={e => setAForm(f => ({ ...f, currentEmployer: e.target.value }))} placeholder="Si en emploi..." />
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-200 mb-1 block">Employeur actuel</label>
+                    <Input 
+                      value={aForm.currentEmployer} 
+                      onChange={e => setAForm(f => ({ ...f, currentEmployer: e.target.value }))} 
+                      placeholder="Si en emploi..." 
+                      className="bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 font-semibold"
+                    />
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-gray-600 mb-1 block">Établissement d'enseignement supérieur</label>
-                    <Input value={aForm.higherEducationInstitution} onChange={e => setAForm(f => ({ ...f, higherEducationInstitution: e.target.value }))} placeholder="Si étudiant..." />
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-200 mb-1 block">Établissement d'enseignement supérieur</label>
+                    <Input 
+                      value={aForm.higherEducationInstitution} 
+                      onChange={e => setAForm(f => ({ ...f, higherEducationInstitution: e.target.value }))} 
+                      placeholder="Si étudiant..." 
+                      className="bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 font-semibold"
+                    />
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-gray-600 mb-1 block">Filière universitaire</label>
-                    <Input value={aForm.higherEducationField} onChange={e => setAForm(f => ({ ...f, higherEducationField: e.target.value }))} placeholder="ex: Médecine, Droit..." />
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-200 mb-1 block">Filière universitaire</label>
+                    <Input 
+                      value={aForm.higherEducationField} 
+                      onChange={e => setAForm(f => ({ ...f, higherEducationField: e.target.value }))} 
+                      placeholder="ex: Médecine, Droit..." 
+                      className="bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 font-semibold"
+                    />
                   </div>
                   <div className="col-span-2">
-                    <label className="text-xs font-medium text-gray-600 mb-1 block">Notes</label>
-                    <textarea rows={2} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" value={aForm.notes} onChange={e => setAForm(f => ({ ...f, notes: e.target.value }))} />
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-200 mb-1 block">Notes</label>
+                    <textarea 
+                      rows={2} 
+                      className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm font-semibold text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-violet-500/30" 
+                      value={aForm.notes} 
+                      onChange={e => setAForm(f => ({ ...f, notes: e.target.value }))} 
+                    />
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="p-6 border-t flex justify-end gap-3 sticky bottom-0 bg-white">
-              <Button variant="outline" onClick={() => setShowAlumniModal(false)}>Annuler</Button>
-              <Button className="bg-violet-600 hover:bg-violet-700 text-white" onClick={handleSaveAlumnus} disabled={loading}>
+            <div className="p-6 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3 sticky bottom-0 bg-white dark:bg-[#131622]">
+              <Button variant="outline" onClick={() => setShowAlumniModal(false)} className="rounded-xl font-bold">Annuler</Button>
+              <Button className="bg-violet-600 hover:bg-violet-700 text-white font-bold rounded-xl shadow-md shadow-violet-200 dark:shadow-none" onClick={handleSaveAlumnus} disabled={loading}>
                 {loading ? <RefreshCw className="w-4 h-4 animate-spin mr-1" /> : <Check className="w-4 h-4 mr-1" />}
                 {editAlumnus ? "Modifier" : "Enregistrer"}
               </Button>
@@ -864,51 +947,76 @@ export default function AlumniClient({ initialAlumni, initialCerts, initialKpis,
 
       {/* Certificate Issuance Modal */}
       {showCertModal && certTarget && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[92vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-6 border-b">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-[#131622] text-slate-900 dark:text-slate-100 rounded-2xl shadow-2xl w-full max-w-lg max-h-[92vh] overflow-y-auto border border-slate-200 dark:border-slate-800">
+            <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-slate-800 sticky top-0 bg-white dark:bg-[#131622] z-10">
               <div>
-                <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                  <Award className="w-5 h-5 text-emerald-600" /> Émettre une Attestation
+                <h3 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
+                  <Award className="w-5 h-5 text-emerald-600 dark:text-emerald-400" /> Émettre une Attestation
                 </h3>
-                <p className="text-sm text-gray-500 mt-0.5">Pour: <span className="font-semibold text-gray-700">{certTarget.full_name}</span> — Promotion {certTarget.graduation_year}</p>
+                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-0.5">Pour: <span className="font-bold text-slate-800 dark:text-slate-200">{certTarget.full_name}</span> — Promotion {certTarget.graduation_year}</p>
               </div>
-              <button onClick={() => { setShowCertModal(false); setNewCertResult(null); }}><X className="w-5 h-5 text-gray-400" /></button>
+              <button onClick={() => { setShowCertModal(false); setNewCertResult(null); }} className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+                <X className="w-5 h-5" />
+              </button>
             </div>
 
             {!newCertResult ? (
               <div className="p-6 space-y-4">
                 <div>
-                  <label className="text-xs font-medium text-gray-600 mb-1 block">Type de document *</label>
-                  <select className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" value={certForm.certificateType} onChange={e => setCertForm(f => ({ ...f, certificateType: e.target.value }))}>
-                    {CERT_TYPES.map(t => <option key={t}>{t}</option>)}
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-200 mb-1 block">Type de document *</label>
+                  <select 
+                    className="w-full h-10 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-xl px-3 text-sm font-semibold outline-none focus:ring-2 focus:ring-violet-500/30" 
+                    value={certForm.certificateType} 
+                    onChange={e => setCertForm(f => ({ ...f, certificateType: e.target.value }))}
+                  >
+                    {CERT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-gray-600 mb-1 block">Nom de l'établissement</label>
-                  <Input value={certForm.schoolName} onChange={e => setCertForm(f => ({ ...f, schoolName: e.target.value }))} placeholder="Laisser vide pour utiliser le nom enregistré" />
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-200 mb-1 block">Nom de l'établissement</label>
+                  <Input 
+                    value={certForm.schoolName} 
+                    onChange={e => setCertForm(f => ({ ...f, schoolName: e.target.value }))} 
+                    placeholder="Laisser vide pour utiliser le nom enregistré" 
+                    className="bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 font-semibold"
+                  />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-gray-600 mb-1 block">Nom du Directeur</label>
-                  <Input value={certForm.directorName} onChange={e => setCertForm(f => ({ ...f, directorName: e.target.value }))} placeholder="M. / Mme Directeur" />
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-200 mb-1 block">Nom du Directeur</label>
+                  <Input 
+                    value={certForm.directorName} 
+                    onChange={e => setCertForm(f => ({ ...f, directorName: e.target.value }))} 
+                    placeholder="M. / Mme Directeur" 
+                    className="bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 font-semibold"
+                  />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-gray-600 mb-1 block">Émis par</label>
-                  <Input value={certForm.issuedBy} onChange={e => setCertForm(f => ({ ...f, issuedBy: e.target.value }))} />
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-200 mb-1 block">Émis par</label>
+                  <Input 
+                    value={certForm.issuedBy} 
+                    onChange={e => setCertForm(f => ({ ...f, issuedBy: e.target.value }))} 
+                    className="bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 font-semibold"
+                  />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-gray-600 mb-1 block">Notes</label>
-                  <Input value={certForm.notes} onChange={e => setCertForm(f => ({ ...f, notes: e.target.value }))} placeholder="..." />
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-200 mb-1 block">Notes</label>
+                  <Input 
+                    value={certForm.notes} 
+                    onChange={e => setCertForm(f => ({ ...f, notes: e.target.value }))} 
+                    placeholder="..." 
+                    className="bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 font-semibold"
+                  />
                 </div>
 
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-700 flex items-start gap-2">
-                  <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50 rounded-xl p-3 text-xs text-amber-700 dark:text-amber-300 flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
                   <p>Un code de vérification unique et un QR Code anti-fraude seront générés automatiquement.</p>
                 </div>
 
                 <div className="flex justify-end gap-3 pt-2">
-                  <Button variant="outline" onClick={() => setShowCertModal(false)}>Annuler</Button>
-                  <Button className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={handleIssueCert} disabled={loading}>
+                  <Button variant="outline" onClick={() => setShowCertModal(false)} className="rounded-xl font-bold">Annuler</Button>
+                  <Button className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-md shadow-emerald-200 dark:shadow-none" onClick={handleIssueCert} disabled={loading}>
                     {loading ? <RefreshCw className="w-4 h-4 animate-spin mr-1" /> : <Award className="w-4 h-4 mr-1" />} Émettre
                   </Button>
                 </div>
@@ -916,38 +1024,38 @@ export default function AlumniClient({ initialAlumni, initialCerts, initialKpis,
             ) : (
               /* Success state: show cert info + QR */
               <div className="p-6 text-center space-y-5">
-                <div className="w-16 h-16 bg-emerald-100 rounded-2xl flex items-center justify-center mx-auto">
-                  <CheckCircle className="w-8 h-8 text-emerald-600" />
+                <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-950/50 rounded-2xl flex items-center justify-center mx-auto text-emerald-600 dark:text-emerald-400">
+                  <CheckCircle className="w-8 h-8" />
                 </div>
                 <div>
-                  <h4 className="text-lg font-bold text-emerald-700 mb-1">Attestation émise avec succès !</h4>
-                  <p className="text-sm text-gray-500">Le document numérique a été créé et signé</p>
+                  <h4 className="text-lg font-black text-emerald-700 dark:text-emerald-300 mb-1">Attestation émise avec succès !</h4>
+                  <p className="text-xs font-bold text-slate-500 dark:text-slate-400">Le document numérique a été créé et signé</p>
                 </div>
 
-                <div className="bg-gray-50 rounded-xl p-4 text-left space-y-3">
+                <div className="bg-slate-50 dark:bg-slate-900/80 rounded-2xl p-4 text-left space-y-3 border border-slate-100 dark:border-slate-800">
                   <div>
-                    <p className="text-xs text-gray-400 font-medium">Numéro du certificat</p>
-                    <p className="font-mono font-bold text-gray-800">{newCertResult.certNumber}</p>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Numéro du certificat</p>
+                    <p className="font-mono font-black text-slate-900 dark:text-slate-100 text-sm mt-0.5">{newCertResult.certNumber}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-400 font-medium mb-2">QR Code de vérification</p>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">QR Code de vérification</p>
                     <div className="flex justify-center">
                       <img
                         src={getQrUrl(newCertResult.verificationCode, 180)}
                         alt="QR Code"
-                        className="rounded-xl border-4 border-white shadow-lg"
+                        className="rounded-xl border-4 border-white dark:border-slate-800 shadow-lg"
                       />
                     </div>
-                    <p className="text-xs font-mono text-gray-500 mt-2 break-all text-center">{newCertResult.verificationCode}</p>
+                    <p className="text-[11px] font-mono text-slate-500 dark:text-slate-400 mt-2 break-all text-center">{newCertResult.verificationCode}</p>
                   </div>
                 </div>
 
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-700 text-left">
+                <div className="bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/50 rounded-xl p-3 text-xs text-blue-700 dark:text-blue-300 text-left">
                   <p className="font-bold mb-1">Comment utiliser le QR Code ?</p>
                   <p>Imprimez ce QR Code sur l'attestation physique. Toute personne peut scanner ou saisir le code sur la page de vérification pour confirmer l'authenticité du document.</p>
                 </div>
 
-                <Button className="w-full bg-violet-600 hover:bg-violet-700 text-white" onClick={() => { setShowCertModal(false); setNewCertResult(null); setActiveTab("certificates"); }}>
+                <Button className="w-full bg-violet-600 hover:bg-violet-700 text-white font-bold rounded-xl h-11" onClick={() => { setShowCertModal(false); setNewCertResult(null); setActiveTab("certificates"); }}>
                   <Eye className="w-4 h-4 mr-2" /> Voir tous les certificats
                 </Button>
               </div>
