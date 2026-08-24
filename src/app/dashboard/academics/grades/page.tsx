@@ -82,10 +82,37 @@ export default function AcademicResultsPage() {
     currentUser?.role?.roleName?.toLowerCase().includes("student")
   );
 
-  const isSuperAdmin = currentUser?.superAdmin === true || currentUser?.superAdmin === 1;
-  const isDirecteur = currentUser?.admin === true || currentUser?.role?.roleName?.toLowerCase().includes("directeur");
-  const isCenseur = currentUser?.role?.roleName?.toLowerCase().includes("censeur") || currentUser?.role?.roleName?.toLowerCase().includes("responsable") || currentUser?.role?.roleName?.toLowerCase().includes("études");
-  const isEnseignant = currentUser?.role?.roleName?.toLowerCase().includes("enseignant") || currentUser?.role?.roleName?.toLowerCase().includes("professeur") || currentUser?.role?.roleName?.toLowerCase().includes("teacher");
+  const roleName = String(currentUser?.role?.roleName || currentUser?.role || "").toLowerCase();
+  const isSuperAdmin = Boolean(
+    currentUser?.superAdmin === true ||
+    currentUser?.superAdmin === 1 ||
+    roleName.includes("super")
+  );
+  const isDirecteur = Boolean(
+    isSuperAdmin ||
+    currentUser?.admin === true ||
+    currentUser?.admin === 1 ||
+    roleName.includes("admin") ||
+    roleName.includes("direct") ||
+    roleName.includes("fondateur") ||
+    roleName.includes("principal") ||
+    roleName.includes("proviseur") ||
+    roleName.includes("promoteur")
+  );
+  const isCenseur = Boolean(
+    isDirecteur ||
+    roleName.includes("censeur") ||
+    roleName.includes("responsable") ||
+    roleName.includes("études") ||
+    roleName.includes("etudes") ||
+    roleName.includes("surveillant")
+  );
+  const isEnseignant = Boolean(
+    roleName.includes("enseignant") ||
+    roleName.includes("professeur") ||
+    roleName.includes("teacher") ||
+    roleName.includes("formateur")
+  );
 
   useEffect(() => {
     async function loadScale() {
