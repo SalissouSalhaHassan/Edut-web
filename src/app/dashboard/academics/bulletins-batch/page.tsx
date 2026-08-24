@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/domains/auth/services/session";
 import { getActiveSchoolId } from "@/domains/auth/services/school";
+import { getBatchBulletinData } from "@/domains/academics/actions/academics.actions";
 import { fetchBulletinDataForClass } from "@/domains/academics/actions/bulletin-batch.actions";
 import { db } from "@/infrastructure/database";
 import { schoolClasses, academicPeriods, schoolSessions } from "@/infrastructure/database/schema/academics";
@@ -54,15 +55,28 @@ export default async function BulletinsBatchPage({ searchParams }: Props) {
     } catch (_) {}
   }
 
-  // If class + period selected, load students
+  // If class + period selected, load students & enriched bulletin data
   let batchData: any = null;
+  let enrichedBulletins: any[] = [];
   let selectedClass: any = null;
   let selectedPeriod: any = null;
 
   if (classId && periodId) {
-    batchData = await fetchBulletinDataForClass(classId, periodId, schoolId);
     selectedClass = classes.find((c: any) => c.id === classId) || await db.query.schoolClasses.findFirst({ where: eq(schoolClasses.id, classId) });
     selectedPeriod = periods.find((p: any) => p.id === periodId) || await db.query.academicPeriods.findFirst({ where: eq(academicPeriods.id, periodId) });
+    
+    const sessionId = selectedPeriod?.sessionId || selectedPeriod?.session?.id || activeSessions[0]?.id || 1;
+    const periodName = selectedPeriod?.name || "1er Semestre";
+
+    const [classData, batchRes] = await Promise.all([
+      fetchBulletinDataForClass(classId, periodId, schoolId),
+      getBatchBulletinData(classId, sessionId, periodName),
+    ]);
+
+    batchData = classData;
+    if (batchRes && batchRes.data && Array.isArray(batchRes.data)) {
+      enrichedBulletins = batchRes.data;
+    }
   }
 
   // Fetch branchInfo & headerConfig
@@ -154,6 +168,7 @@ export default async function BulletinsBatchPage({ searchParams }: Props) {
           period={selectedPeriod?.name || "Période"}
           session={selectedPeriod?.sessionName || "Année Scolaire"}
           students={batchData?.students || []}
+          enrichedBulletins={enrichedBulletins}
           branchInfo={branchInfo}
           headerConfig={headerConfig}
         />

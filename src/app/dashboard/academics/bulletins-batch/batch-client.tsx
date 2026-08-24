@@ -59,6 +59,7 @@ interface BulletinBatchClientProps {
   branchInfo: any;
   headerConfig: any;
   students: Student[];
+  enrichedBulletins?: any[];
 }
 
 export default function BulletinBatchClient({
@@ -72,7 +73,22 @@ export default function BulletinBatchClient({
   branchInfo,
   headerConfig,
   students = [],
+  enrichedBulletins = [],
 }: BulletinBatchClientProps) {
+  // Merge student averages & ranks from enrichedBulletins if available
+  const enrichedStudentsList = React.useMemo(() => {
+    return students.map((s) => {
+      const bData = enrichedBulletins.find((b) => b.student?.id === s.id);
+      const avg = bData?.summary?.average ?? bData?.generalAverage ?? s.generalAverage;
+      const rank = bData?.summary?.rank ?? s.rang;
+      return {
+        ...s,
+        generalAverage: avg != null ? Number(avg) : undefined,
+        rang: rank != null ? Number(rank) || undefined : undefined,
+      };
+    });
+  }, [students, enrichedBulletins]);
+
   // Selection State
   const [selectedIds, setSelectedIds] = React.useState<Set<number>>(
     new Set(students.map((s) => s.id))
@@ -99,7 +115,7 @@ export default function BulletinBatchClient({
 
   // Filter students based on search and tabs
   const filteredStudents = React.useMemo(() => {
-    return students.filter((s) => {
+    return enrichedStudentsList.filter((s) => {
       const matchSearch =
         s.nomEtudiant.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (s.numAdmission && s.numAdmission.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -110,9 +126,9 @@ export default function BulletinBatchClient({
       if (filterMode === "failed") return (s.generalAverage ?? 10) < 10;
       return true;
     });
-  }, [students, searchQuery, filterMode]);
+  }, [enrichedStudentsList, searchQuery, filterMode]);
 
-  const targetStudents = students.filter((s) => selectedIds.has(s.id));
+  const targetStudents = enrichedStudentsList.filter((s) => selectedIds.has(s.id));
   const isAllSelected = targetStudents.length === students.length && students.length > 0;
 
   function toggleAll() {
@@ -136,11 +152,11 @@ export default function BulletinBatchClient({
     if (mode === "all") {
       setSelectedIds(new Set(students.map((s) => s.id)));
     } else if (mode === "passed") {
-      setSelectedIds(new Set(students.filter((s) => (s.generalAverage ?? 10) >= 10).map((s) => s.id)));
+      setSelectedIds(new Set(enrichedStudentsList.filter((s) => (s.generalAverage ?? 10) >= 10).map((s) => s.id)));
     } else if (mode === "honor") {
-      setSelectedIds(new Set(students.filter((s) => (s.generalAverage ?? 12) >= 12).map((s) => s.id)));
+      setSelectedIds(new Set(enrichedStudentsList.filter((s) => (s.generalAverage ?? 12) >= 12).map((s) => s.id)));
     } else if (mode === "failed") {
-      setSelectedIds(new Set(students.filter((s) => (s.generalAverage ?? 10) < 10).map((s) => s.id)));
+      setSelectedIds(new Set(enrichedStudentsList.filter((s) => (s.generalAverage ?? 10) < 10).map((s) => s.id)));
     }
   }
 
@@ -148,12 +164,15 @@ export default function BulletinBatchClient({
   async function handlePreviewStudent(student: Student) {
     toast.loading(`Génération de l'aperçu de ${student.nomEtudiant}...`, { id: "preview-toast" });
     try {
-      const bulletinData = await getStudentBulletinData(student.id, classId, periodId || 0, schoolId);
+      const itemData =
+        enrichedBulletins.find((b) => b.student?.id === student.id) ||
+        (await getStudentBulletinData(student.id, classId, periodId || 0, schoolId));
+
       const verifyToken = Math.random().toString(36).slice(2) + Date.now().toString(36);
       const pdfBlob = await generateBulletinBlob({
-        ...bulletinData,
+        ...itemData,
         verifyToken,
-        branchInfo,
+        branchInfo: itemData.branchInfo || branchInfo,
         headerConfig,
       });
 
@@ -190,15 +209,49 @@ export default function BulletinBatchClient({
       setProgress(Math.round(((i + 1) / targetStudents.length) * 100));
 
       try {
-        const bulletinData = await getStudentBulletinData(s.id, classId, periodId || 0, schoolId);
+        const itemData =
+          enrichedBulletins.find((b) => b.student?.id === s.id) ||
+          (await getStudentBulletinData(s.id, classId, periodId || 0, schoolId));
+
         const verifyToken = Math.random().toString(36).slice(2) + Date.now().toString(36);
 
         const pdfBlob = await generateBulletinBlob({
-          ...bulletinData,
+          ...itemData,
           verifyToken,
-          branchInfo,
+          branchInfo: itemData.branchInfo || branchInfo,
           headerConfig,
         });
+
+        const blobUrl = URL.createObjectURL(pdfBlob);
+        const cleanName = `Bulletin_${s.nomEtudiant.replace(/\s+/g, "_")}_${period.replace(/\s+/g, "_")}`;
+
+        blobs.push({
+          id: s.id,
+          name: cleanName,
+          blob: pdfBlob,
+          url: blobUrl,
+        });
+
+        batchResults.push({
+          studentId: s.id,
+          studentName: s.nomEtudiant,
+          success: true,
+          verifyToken,
+          pdfUrl: blobUrl,
+          whatsappSent: sendWhatsapp,
+          pushSent: sendPush,
+        });
+        generated++;
+      } catch (err: any) {
+        batchResults.push({
+          studentId: s.id,
+          studentName: s.nomEtudiant,
+          success: false,
+          error: err?.message ?? "Erreur de génération",
+        });
+        failed++;
+      }
+    }
 
         const blobUrl = URL.createObjectURL(pdfBlob);
         const cleanName = `Bulletin_${s.nomEtudiant.replace(/\s+/g, "_")}_${period.replace(/\s+/g, "_")}`;
@@ -695,7 +748,28 @@ export default function BulletinBatchClient({
 
                         {/* Student Details */}
                         <div className="min-w-0">
-                          <p className="text-sm font-bold text-white truncate">{s.nomEtudiant}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-bold text-white truncate">{s.nomEtudiant}</p>
+                            {s.generalAverage != null && (
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                                  s.generalAverage >= 12
+                                    ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                                    : s.generalAverage >= 10
+                                    ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                                    : "bg-rose-500/20 text-rose-300 border border-rose-500/30"
+                                }`}
+                              >
+                                {Number(s.generalAverage).toFixed(2)}/20
+                              </span>
+                            )}
+                            {s.rang != null && (
+                              <span className="text-[10px] font-bold text-slate-400">
+                                ({s.rang}
+                                {s.rang === 1 ? "er" : "ème"})
+                              </span>
+                            )}
+                          </div>
                           <div className="flex items-center gap-2 text-[11px] text-slate-400 mt-0.5">
                             {s.numAdmission && (
                               <span className="font-mono bg-white/5 px-1.5 py-0.5 rounded text-[10px] text-slate-300">
