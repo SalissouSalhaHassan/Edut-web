@@ -279,8 +279,8 @@ function RecoveryGauge({ rate, isMounted }: { rate: number; isMounted: boolean }
 }
 
 export default function FinanceDashboard({ stats, isMounted }: FinanceDashboardProps) {
-  const fmt = (v: number) => isMounted ? `${Math.round(v).toLocaleString("fr-FR")} CFA` : "— CFA";
-  const fmtN = (v: number) => isMounted ? v.toLocaleString("fr-FR") : "—";
+  const fmt = (v: number) => typeof v === "number" && !isNaN(v) ? `${Math.round(v).toLocaleString("fr-FR")} CFA` : "0 CFA";
+  const fmtN = (v: number) => typeof v === "number" && !isNaN(v) ? v.toLocaleString("fr-FR") : "0";
   const topClasses = (stats?.classSummary || []).slice(0, 5);
   const maxClassRate = Math.max(...topClasses.map((c) => c.rate || 0), 1);
 

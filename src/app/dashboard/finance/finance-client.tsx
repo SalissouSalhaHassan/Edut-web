@@ -128,6 +128,14 @@ export default function FinanceClient({
   const [isLocal, setIsLocal] = React.useState(false);
   const [isRepairing, setIsRepairing] = React.useState(false);
 
+  React.useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  React.useEffect(() => {
+    setLocalFees(fees);
+  }, [fees]);
+
   const cleanString = (val?: string | null) => {
     if (!val) return "";
     return String(val)
@@ -380,12 +388,12 @@ export default function FinanceClient({
   };
 
   const formatAmount = (val: number) => {
-    if (!isMounted) return "0 CFA";
+    if (typeof val !== "number" || isNaN(val)) return "0 CFA";
     return `${Math.round(val).toLocaleString("fr-FR")} CFA`;
   };
 
   const formatDate = (dateStr?: string | Date | null) => {
-    if (!isMounted || !dateStr) return "-";
+    if (!dateStr) return "-";
     try {
       return new Date(dateStr).toLocaleDateString("fr-FR", {
         day: "2-digit",
