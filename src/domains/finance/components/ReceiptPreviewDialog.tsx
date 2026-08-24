@@ -217,17 +217,18 @@ export default function ReceiptPreviewDialog({
     if (!paymentToCancel) return;
     setIsCancelling(true);
     try {
-      const res = await cancelFeePayment(paymentToCancel.id, cancelReason);
-      if (res.success) {
-        toast.success(res.message || "Versement annulé avec succès !");
+      const res: any = await cancelFeePayment(paymentToCancel.id, cancelReason);
+      if (res?.success) {
+        const payload = res.data || res;
+        toast.success(payload.message || "Versement annulé avec succès !");
         const remaining = currentPayments.filter((p) => p.id !== paymentToCancel.id);
         setCurrentPayments(remaining);
-        if (res.newPaid !== undefined) setCurrentTotalPaid(res.newPaid);
-        if (res.newBalance !== undefined) setCurrentBalance(res.newBalance);
+        if (payload.newPaid !== undefined) setCurrentTotalPaid(payload.newPaid);
+        if (payload.newBalance !== undefined) setCurrentBalance(payload.newBalance);
         onPaymentCancelled?.(paymentToCancel.id);
         setPaymentToCancel(null);
       } else {
-        toast.error(res.error || "Impossible d'annuler le versement.");
+        toast.error(res?.error || "Impossible d'annuler le versement.");
       }
     } catch (err: any) {
       toast.error(err?.message || "Erreur lors de l'annulation du versement.");
