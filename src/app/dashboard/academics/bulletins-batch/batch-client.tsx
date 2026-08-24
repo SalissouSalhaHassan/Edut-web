@@ -253,37 +253,6 @@ export default function BulletinBatchClient({
       }
     }
 
-        const blobUrl = URL.createObjectURL(pdfBlob);
-        const cleanName = `Bulletin_${s.nomEtudiant.replace(/\s+/g, "_")}_${period.replace(/\s+/g, "_")}`;
-
-        blobs.push({
-          id: s.id,
-          name: cleanName,
-          blob: pdfBlob,
-          url: blobUrl,
-        });
-
-        batchResults.push({
-          studentId: s.id,
-          studentName: s.nomEtudiant,
-          success: true,
-          verifyToken,
-          pdfUrl: blobUrl,
-          whatsappSent: sendWhatsapp,
-          pushSent: sendPush,
-        });
-        generated++;
-      } catch (err: any) {
-        batchResults.push({
-          studentId: s.id,
-          studentName: s.nomEtudiant,
-          success: false,
-          error: err?.message ?? "Erreur de génération",
-        });
-        failed++;
-      }
-    }
-
     setPdfBlobs(blobs);
     setResults(batchResults);
     setProgress(100);
