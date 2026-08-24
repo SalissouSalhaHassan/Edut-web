@@ -350,9 +350,17 @@ export async function cancelFeePayment(paymentId: number, reason?: string) {
       return { error: "Versement introuvable.", success: false };
     }
 
+    if (!payment.feeId) {
+      await db.delete(feePayments).where(eq(feePayments.id, paymentId));
+      revalidatePath("/dashboard/finance");
+      return { success: true, paymentId, message: "Versement supprimé avec succès." };
+    }
+
+    const feeId = payment.feeId;
+
     // 2. Fetch associated student fee record
     const fee = await db.query.studentFees.findFirst({
-      where: eq(studentFees.id, payment.feeId),
+      where: eq(studentFees.id, feeId),
       with: { student: true }
     });
 
@@ -379,7 +387,7 @@ export async function cancelFeePayment(paymentId: number, reason?: string) {
         balance: newBalance,
         status: newStatus,
       })
-      .where(eq(studentFees.id, payment.feeId));
+      .where(eq(studentFees.id, feeId));
 
     // 5. Delete the payment record
     await db.delete(feePayments).where(eq(feePayments.id, paymentId));
