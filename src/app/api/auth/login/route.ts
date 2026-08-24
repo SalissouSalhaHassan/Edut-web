@@ -218,7 +218,9 @@ export async function POST(request: NextRequest) {
     // Also set via cookieStore for SSR compatibility
     try {
       const cookieStore = await cookies();
-      cookieStore.set("edut_session_user", JSON.stringify(sessionPayload), {
+      cookieStore.set({
+        name: "edut_session_user",
+        value: JSON.stringify(sessionPayload),
         path: "/",
         maxAge: 60 * 60 * 24 * 7,
         httpOnly: true,

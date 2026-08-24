@@ -141,7 +141,9 @@ export async function login(formData: LoginFormData) {
         },
       };
 
-      cookieStore.set("edut_session_user", JSON.stringify(sessionPayload), {
+      cookieStore.set({
+        name: "edut_session_user",
+        value: JSON.stringify(sessionPayload),
         path: "/",
         maxAge: 60 * 60 * 24 * 7,
         httpOnly: true,
@@ -221,7 +223,9 @@ export async function login(formData: LoginFormData) {
         },
       };
 
-      cookieStore.set("edut_session_user", JSON.stringify(adminSession), {
+      cookieStore.set({
+        name: "edut_session_user",
+        value: JSON.stringify(adminSession),
         path: "/",
         maxAge: 60 * 60 * 24 * 7,
         httpOnly: true,
