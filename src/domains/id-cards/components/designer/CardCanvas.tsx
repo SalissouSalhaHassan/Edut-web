@@ -220,7 +220,7 @@ export default function CardCanvas({
   };
 
   return (
-    <div className="relative flex-1 overflow-auto bg-slate-200/80 p-8 flex items-center justify-center select-none" onClick={() => onSelect(null)}>
+    <div className="relative flex-1 overflow-auto bg-slate-200/80 dark:bg-[#08090f] p-8 flex items-center justify-center select-none" onClick={() => onSelect(null)}>
       {/* WYSIWYG CR80 Card Canvas Sheet */}
       <div
         ref={canvasRef}
@@ -229,7 +229,7 @@ export default function CardCanvas({
           height: cardHeight * scale,
           borderRadius: 16 * scale,
         }}
-        className={`relative bg-white shadow-2xl transition-all border border-slate-300 overflow-hidden ${
+        className={`relative bg-white shadow-2xl transition-all border border-slate-300 dark:border-slate-700 overflow-hidden ${
           showGrid ? "bg-grid-pattern" : ""
         }`}
       >

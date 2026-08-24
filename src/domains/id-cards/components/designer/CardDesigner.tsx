@@ -445,14 +445,14 @@ export default function CardDesigner({
               exit={{ scale: 0.95, y: 20 }}
               className="bg-white rounded-[2.5rem] border border-slate-200 shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[85vh]"
             >
-              <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-indigo-900 text-white">
+              <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-indigo-900 dark:bg-indigo-950 text-white">
                 <div className="flex items-center gap-3">
                   <div className="p-2.5 bg-white/10 rounded-2xl">
                     <Printer size={22} />
                   </div>
                   <div>
                     <h3 className="text-xl font-black">Impression par lots des cartes d'identité élèves</h3>
-                    <p className="text-xs text-indigo-200">Sélectionnez les élèves pour générer et imprimer leurs cartes automatiquement avec ce modèle</p>
+                    <p className="text-xs text-indigo-200 dark:text-indigo-300">Sélectionnez les élèves pour générer et imprimer leurs cartes automatiquement avec ce modèle</p>
                   </div>
                 </div>
                 <button onClick={() => setShowBatchModal(false)} className="p-2 text-white/80 hover:text-white rounded-xl hover:bg-white/10">
@@ -460,7 +460,7 @@ export default function CardDesigner({
                 </button>
               </div>
 
-              <div className="p-6 flex-1 overflow-y-auto space-y-4">
+              <div className="p-6 flex-1 overflow-y-auto space-y-4 bg-white dark:bg-[#131622]">
                 <div className="relative">
                   <Search className="absolute left-3.5 top-3 text-slate-400" size={18} />
                   <Input
@@ -468,7 +468,7 @@ export default function CardDesigner({
                     placeholder="Rechercher par nom, matricule ou classe..."
                     value={searchStudent}
                     onChange={(e) => setSearchStudent(e.target.value)}
-                    className="pl-10 h-11 rounded-2xl border-slate-200 font-bold text-sm"
+                    className="pl-10 h-11 rounded-2xl border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-bold text-sm"
                   />
                 </div>
 
@@ -480,16 +480,16 @@ export default function CardDesigner({
                         key={st.id}
                         onClick={() => toggleStudentSelection(st.id)}
                         className={`p-3 rounded-2xl border flex items-center justify-between cursor-pointer transition ${
-                          isSelected ? "bg-indigo-50 border-indigo-300 shadow-sm" : "bg-slate-50 border-slate-100 hover:bg-slate-100"
+                          isSelected ? "bg-indigo-50 dark:bg-indigo-950/70 border-indigo-300 dark:border-indigo-800 shadow-sm" : "bg-slate-50 dark:bg-slate-900 border-slate-100 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800"
                         }`}
                       >
                         <div className="flex items-center gap-3">
-                          <div className={`w-6 h-6 rounded-lg border flex items-center justify-center transition ${isSelected ? "bg-indigo-600 border-indigo-600 text-white" : "border-slate-300 bg-white"}`}>
+                          <div className={`w-6 h-6 rounded-lg border flex items-center justify-center transition ${isSelected ? "bg-indigo-600 border-indigo-600 text-white" : "border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800"}`}>
                             {isSelected && <Check size={14} />}
                           </div>
                           <div>
-                            <p className="text-sm font-bold text-slate-900">{st.nomEtudiant} {st.prenomEtudiant}</p>
-                            <span className="text-xs text-slate-500 font-mono">Matricule: {st.numAdmission || "N/A"} | Classe: {st.classe || "Non assignée"}</span>
+                            <p className="text-sm font-bold text-slate-900 dark:text-slate-100">{st.nomEtudiant} {st.prenomEtudiant}</p>
+                            <span className="text-xs text-slate-500 dark:text-slate-400 font-mono">Matricule: {st.numAdmission || "N/A"} | Classe: {st.classe || "Non assignée"}</span>
                           </div>
                         </div>
                       </div>
@@ -498,10 +498,10 @@ export default function CardDesigner({
                 </div>
               </div>
 
-              <div className="p-6 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-600">{selectedStudentIds.length} élève(s) sélectionné(s)</span>
+              <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/80 flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-600 dark:text-slate-400">{selectedStudentIds.length} élève(s) sélectionné(s)</span>
                 <div className="flex items-center gap-3">
-                  <Button variant="outline" onClick={() => setShowBatchModal(false)} className="rounded-xl font-bold">
+                  <Button variant="outline" onClick={() => setShowBatchModal(false)} className="rounded-xl font-bold border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">
                     Annuler
                   </Button>
                   <Button

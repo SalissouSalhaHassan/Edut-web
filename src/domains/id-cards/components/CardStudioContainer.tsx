@@ -338,15 +338,11 @@ export default function CardStudioContainer() {
       console.error("Print Error:", err);
       toast.error("Erreur lors de la génération PDF", { id: toastId });
     } finally {
-      setPrinting(false);
-    }
-  };
-
   const countWithPhoto = useMemo(() => students.filter((s) => isValidPhoto(s.photoPath)).length, [students]);
   const countNoPhoto = useMemo(() => students.filter((s) => !isValidPhoto(s.photoPath)).length, [students]);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-5.5rem)] rounded-[2.5rem] border border-slate-200/80 bg-slate-50 overflow-hidden shadow-2xl select-none">
+    <div className="h-screen bg-slate-100 dark:bg-[#0b0d14] text-slate-900 dark:text-slate-100 flex flex-col overflow-hidden select-none font-sans">
       {/* Hidden File Input for Photo Upload */}
       <input
         ref={fileInputRef}
@@ -357,32 +353,32 @@ export default function CardStudioContainer() {
       />
 
       {/* Top Header Bar with Main Tabs */}
-      <header className="h-16 bg-white border-b border-slate-200/80 px-8 flex items-center justify-between z-30 shadow-sm">
+      <header className="h-16 bg-white dark:bg-[#131622] border-b border-slate-200/80 dark:border-slate-800 px-8 flex items-center justify-between z-30 shadow-sm">
         <div className="flex items-center gap-4">
-          <div className="p-2.5 bg-indigo-600 text-white rounded-2xl shadow-md shadow-indigo-100 flex items-center justify-center">
+          <div className="p-2.5 bg-indigo-600 text-white rounded-2xl shadow-md shadow-indigo-100 dark:shadow-none flex items-center justify-center">
             <CreditCard size={20} />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-base font-black text-slate-900 leading-none">Studio Cartes ID</h1>
-              <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-full uppercase tracking-wider">
+              <h1 className="text-base font-black text-slate-900 dark:text-white leading-none">Studio Cartes ID</h1>
+              <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-100 dark:border-indigo-800 px-2 py-0.5 rounded-full uppercase tracking-wider">
                 Pro
               </span>
             </div>
-            <p className="text-[11px] font-semibold text-slate-400 mt-0.5">
+            <p className="text-[11px] font-semibold text-slate-400 dark:text-slate-400 mt-0.5">
               Conception, gestion des données et impression HD 300 DPI
             </p>
           </div>
         </div>
 
         {/* Main Navigation Tabs: Design | Données | Impression */}
-        <div className="flex items-center bg-slate-100 p-1.5 rounded-2xl border border-slate-200/80">
+        <div className="flex items-center bg-slate-100 dark:bg-slate-800/80 p-1.5 rounded-2xl border border-slate-200/80 dark:border-slate-700">
           <button
             onClick={() => setActiveTab("design")}
             className={`px-5 py-2 rounded-xl text-xs font-black transition flex items-center gap-2 ${
               activeTab === "design"
-                ? "bg-indigo-600 text-white shadow-md shadow-indigo-100"
-                : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
+                ? "bg-indigo-600 text-white shadow-md shadow-indigo-100 dark:shadow-none"
+                : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-700/60"
             }`}
           >
             <Sparkles size={14} /> Design
@@ -391,8 +387,8 @@ export default function CardStudioContainer() {
             onClick={() => setActiveTab("données")}
             className={`px-5 py-2 rounded-xl text-xs font-black transition flex items-center gap-2 ${
               activeTab === "données"
-                ? "bg-indigo-600 text-white shadow-md shadow-indigo-100"
-                : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
+                ? "bg-indigo-600 text-white shadow-md shadow-indigo-100 dark:shadow-none"
+                : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-700/60"
             }`}
           >
             <FileText size={14} /> Données ({students.length})
@@ -401,8 +397,8 @@ export default function CardStudioContainer() {
             onClick={() => setActiveTab("impression")}
             className={`px-5 py-2 rounded-xl text-xs font-black transition flex items-center gap-2 ${
               activeTab === "impression"
-                ? "bg-indigo-600 text-white shadow-md shadow-indigo-100"
-                : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
+                ? "bg-indigo-600 text-white shadow-md shadow-indigo-100 dark:shadow-none"
+                : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-700/60"
             }`}
           >
             <Printer size={14} /> Impression ({selectedStudentIds.length || 1})
@@ -414,7 +410,7 @@ export default function CardStudioContainer() {
           <Button
             onClick={handleBatchPrint}
             disabled={printing}
-            className="h-10 px-5 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs shadow-lg shadow-indigo-100 flex items-center gap-2"
+            className="h-10 px-5 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs shadow-lg shadow-indigo-100 dark:shadow-none flex items-center gap-2"
           >
             {printing ? <RefreshCw size={15} className="animate-spin" /> : <Printer size={15} />}
             {printing ? "Génération PDF..." : `Imprimer les cartes (${selectedStudentIds.length || 1})`}
@@ -425,19 +421,19 @@ export default function CardStudioContainer() {
       {/* Main Container Layout: Left Student Selection Panel + Tab View */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left Sidebar: SÉLECTION DES ÉLÈVES */}
-        <aside className="w-80 bg-white border-r border-slate-200/80 flex flex-col h-full z-20 shadow-sm">
+        <aside className="w-80 bg-white dark:bg-[#131622] border-r border-slate-200/80 dark:border-slate-800 flex flex-col h-full z-20 shadow-sm">
           {/* Sidebar Header & Counter */}
-          <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-            <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 flex items-center gap-2">
+          <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50">
+            <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-2">
               Sélection des élèves
             </h3>
-            <span className="text-[10px] font-black px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-full border border-indigo-100">
+            <span className="text-[10px] font-black px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 rounded-full border border-indigo-100 dark:border-indigo-800">
               {selectedStudentIds.length} sél.
             </span>
           </div>
 
           {/* Search Bar */}
-          <div className="p-3 border-b border-slate-100 bg-white">
+          <div className="p-3 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-[#131622]">
             <div className="relative">
               <Search className="absolute left-3 top-2.5 text-slate-400" size={14} />
               <Input
@@ -445,7 +441,7 @@ export default function CardStudioContainer() {
                 placeholder="Nom, matricule, classe..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8 h-9 rounded-xl border-slate-200 text-xs font-bold bg-slate-50/60 focus:bg-white"
+                className="pl-8 h-9 rounded-xl border-slate-200 dark:border-slate-700 text-xs font-bold bg-slate-50/60 dark:bg-slate-900 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:bg-white dark:focus:bg-slate-900"
               />
             </div>
 
@@ -454,7 +450,7 @@ export default function CardStudioContainer() {
               <button
                 onClick={() => setFilterType("all")}
                 className={`flex-1 py-1 px-2 rounded-lg text-[10px] font-black transition ${
-                  filterType === "all" ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  filterType === "all" ? "bg-indigo-600 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
                 }`}
               >
                 Tous ({students.length})
@@ -462,7 +458,7 @@ export default function CardStudioContainer() {
               <button
                 onClick={() => setFilterType("selected")}
                 className={`flex-1 py-1 px-2 rounded-lg text-[10px] font-black transition ${
-                  filterType === "selected" ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  filterType === "selected" ? "bg-indigo-600 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
                 }`}
               >
                 Sél. ({selectedStudentIds.length})
@@ -470,7 +466,7 @@ export default function CardStudioContainer() {
               <button
                 onClick={() => setFilterType("no-photo")}
                 className={`flex-1 py-1 px-2 rounded-lg text-[10px] font-black transition ${
-                  filterType === "no-photo" ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  filterType === "no-photo" ? "bg-indigo-600 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
                 }`}
               >
                 Sans photo
@@ -479,15 +475,15 @@ export default function CardStudioContainer() {
           </div>
 
           {/* Select All Checkbox Bar */}
-          <div className="px-4 py-2 bg-slate-50/80 border-b border-slate-100 flex items-center justify-between text-xs">
+          <div className="px-4 py-2 bg-slate-50/80 dark:bg-slate-900/60 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
                 checked={filteredStudents.length > 0 && selectedStudentIds.length === filteredStudents.length}
                 onChange={toggleSelectAll}
-                className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
               />
-              <span className="text-[11px] font-bold text-slate-600">Tout sélectionner</span>
+              <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">Tout sélectionner</span>
             </label>
             <span className="text-[10px] font-mono font-bold text-slate-400">
               {filteredStudents.length} élèves
@@ -521,8 +517,8 @@ export default function CardStudioContainer() {
                     onClick={() => setPreviewStudentId(st.id)}
                     className={`p-2.5 rounded-2xl border transition flex items-center justify-between cursor-pointer group ${
                       isPreviewing
-                        ? "bg-indigo-50/90 border-indigo-300 shadow-sm"
-                        : "bg-white border-slate-100 hover:border-slate-200 hover:bg-slate-50/80"
+                        ? "bg-indigo-50/90 dark:bg-indigo-950/70 border-indigo-300 dark:border-indigo-800 shadow-sm"
+                        : "bg-white dark:bg-slate-900/60 border-slate-100 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700 hover:bg-slate-50/80 dark:hover:bg-slate-800/60"
                     }`}
                   >
                     <div className="flex items-center gap-3 min-w-0">
@@ -534,11 +530,11 @@ export default function CardStudioContainer() {
                           e.stopPropagation();
                           toggleStudentSelection(st.id);
                         }}
-                        className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer flex-shrink-0"
+                        className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500 cursor-pointer flex-shrink-0"
                       />
 
                       {/* Student Avatar */}
-                      <div className="relative w-9 h-9 rounded-full bg-slate-200 overflow-hidden flex-shrink-0 border border-slate-200 flex items-center justify-center">
+                      <div className="relative w-9 h-9 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden flex-shrink-0 border border-slate-200 dark:border-slate-700 flex items-center justify-center">
                         {hasPhoto && photoUrl ? (
                           <img
                             src={photoUrl}
@@ -547,7 +543,7 @@ export default function CardStudioContainer() {
                             className="w-full h-full object-cover"
                           />
                         ) : (
-                          <div className="w-full h-full bg-slate-100 flex items-center justify-center text-slate-500 font-black text-xs uppercase">
+                          <div className="w-full h-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 font-black text-xs uppercase">
                             {st.nomEtudiant?.[0] || "E"}
                           </div>
                         )}
@@ -555,19 +551,19 @@ export default function CardStudioContainer() {
 
                       {/* Student Info */}
                       <div className="min-w-0 flex-1">
-                        <p className={`text-xs font-black truncate leading-snug ${isPreviewing ? "text-indigo-950" : "text-slate-900"}`}>
+                        <p className={`text-xs font-black truncate leading-snug ${isPreviewing ? "text-indigo-950 dark:text-indigo-200" : "text-slate-900 dark:text-slate-100"}`}>
                           {st.nomEtudiant} {st.prenomEtudiant}
                         </p>
-                        <p className="text-[10px] text-slate-500 font-semibold truncate">
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold truncate">
                           {st.classe || "Classe N/A"} • <span className="font-mono">{st.numAdmission || "N/A"}</span>
                         </p>
                         <div className="flex items-center gap-1.5 mt-0.5">
                           {hasPhoto ? (
-                            <span className="inline-flex items-center gap-1 text-[9px] font-black text-emerald-600">
+                            <span className="inline-flex items-center gap-1 text-[9px] font-black text-emerald-600 dark:text-emerald-400">
                               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Prêt
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 text-[9px] font-black text-amber-600">
+                            <span className="inline-flex items-center gap-1 text-[9px] font-black text-amber-600 dark:text-amber-400">
                               <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Photo manquante
                             </span>
                           )}
@@ -582,7 +578,7 @@ export default function CardStudioContainer() {
         </aside>
 
         {/* Right Main Content Panel (Design | Données | Impression) */}
-        <main className="flex-1 flex flex-col overflow-hidden bg-slate-100">
+        <main className="flex-1 flex flex-col overflow-hidden bg-slate-100 dark:bg-[#0b0d14]">
           {activeTab === "design" ? (
             <CardDesigner
               externalStudents={students}
@@ -593,26 +589,26 @@ export default function CardStudioContainer() {
           ) : activeTab === "données" ? (
             /* Tab 2: Students Data Table & Photo Management */
             <div className="flex-1 overflow-y-auto p-8 space-y-6">
-              <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm flex items-center justify-between">
+              <div className="bg-white dark:bg-[#131622] rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-black text-slate-900">Données des élèves pour les cartes d'identité</h3>
-                  <p className="text-xs text-slate-500 mt-1">
+                  <h3 className="text-lg font-black text-slate-900 dark:text-white">Données des élèves pour les cartes d'identité</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                     Gérez les photos, matricules et vérifiez l'état de préparation des cartes scolaires.
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="px-3 py-1.5 bg-emerald-50 text-emerald-700 font-bold text-xs rounded-xl border border-emerald-100">
+                  <span className="px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-bold text-xs rounded-xl border border-emerald-100 dark:border-emerald-800">
                     {countWithPhoto} avec photo
                   </span>
-                  <span className="px-3 py-1.5 bg-amber-50 text-amber-700 font-bold text-xs rounded-xl border border-amber-100">
+                  <span className="px-3 py-1.5 bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 font-bold text-xs rounded-xl border border-amber-100 dark:border-amber-800">
                     {countNoPhoto} photos manquantes
                   </span>
                 </div>
               </div>
 
-              <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="bg-white dark:bg-[#131622] rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 text-slate-500 uppercase font-black tracking-wider text-[10px] border-b border-slate-100">
+                  <thead className="bg-slate-50 dark:bg-slate-900/60 text-slate-500 dark:text-slate-400 uppercase font-black tracking-wider text-[10px] border-b border-slate-100 dark:border-slate-800">
                     <tr>
                       <th className="py-3.5 px-4">Élève</th>
                       <th className="py-3.5 px-4">Matricule</th>
@@ -622,13 +618,13 @@ export default function CardStudioContainer() {
                       <th className="py-3.5 px-4 text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-semibold text-slate-700 dark:text-slate-200">
                     {filteredStudents.map((st) => {
                       const hasPhoto = isValidPhoto(st.photoPath);
                       return (
-                        <tr key={st.id} className="hover:bg-slate-50/80 transition">
+                        <tr key={st.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition">
                           <td className="py-3 px-4 flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-slate-200 overflow-hidden flex-shrink-0 flex items-center justify-center border border-slate-200">
+                            <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden flex-shrink-0 flex items-center justify-center border border-slate-200 dark:border-slate-700">
                               {hasPhoto && st.photoPath ? (
                                 <img
                                   src={st.photoPath.startsWith("http") ? st.photoPath : `/api/files?path=${encodeURIComponent(st.photoPath)}`}
@@ -637,23 +633,23 @@ export default function CardStudioContainer() {
                                   className="w-full h-full object-cover"
                                 />
                               ) : (
-                                <div className="w-full h-full bg-slate-100 flex items-center justify-center text-slate-500 font-black text-xs uppercase">
+                                <div className="w-full h-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 font-black text-xs uppercase">
                                   {st.nomEtudiant?.[0] || "E"}
                                 </div>
                               )}
                             </div>
-                            <span className="font-bold text-slate-900">{st.nomEtudiant} {st.prenomEtudiant}</span>
+                            <span className="font-bold text-slate-900 dark:text-white">{st.nomEtudiant} {st.prenomEtudiant}</span>
                           </td>
                           <td className="py-3 px-4 font-mono font-bold">{st.numAdmission || "N/A"}</td>
                           <td className="py-3 px-4">{st.classe || "Non assignée"}</td>
                           <td className="py-3 px-4">{st.sexe || "N/A"}</td>
                           <td className="py-3 px-4">
                             {hasPhoto ? (
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-full font-bold text-[10px]">
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 rounded-full font-bold text-[10px] border border-emerald-100 dark:border-emerald-800">
                                 <CheckCircle2 size={12} /> Prêt
                               </span>
                             ) : (
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 text-amber-700 rounded-full font-bold text-[10px]">
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 rounded-full font-bold text-[10px] border border-amber-100 dark:border-amber-800">
                                 <AlertCircle size={12} /> Photo manquante
                               </span>
                             )}
@@ -664,7 +660,7 @@ export default function CardStudioContainer() {
                                 size="sm"
                                 variant="outline"
                                 onClick={() => triggerUploadFor(st.id)}
-                                className="rounded-xl font-bold text-[11px] text-indigo-600 hover:bg-indigo-50 border-indigo-200"
+                                className="rounded-xl font-bold text-[11px] text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 border-indigo-200 dark:border-indigo-800"
                               >
                                 <Upload size={12} className="mr-1" /> Photo
                               </Button>
@@ -675,7 +671,7 @@ export default function CardStudioContainer() {
                                   setPreviewStudentId(st.id);
                                   setActiveTab("design");
                                 }}
-                                className="rounded-xl font-bold text-[11px]"
+                                className="rounded-xl font-bold text-[11px] border-slate-200 dark:border-slate-700"
                               >
                                 <Eye size={13} className="mr-1" /> Aperçu Carte
                               </Button>
@@ -691,10 +687,10 @@ export default function CardStudioContainer() {
           ) : (
             /* Tab 3: HD 300 DPI Batch Print Preview Hub */
             <div className="flex-1 overflow-y-auto p-8 space-y-6" ref={printRef}>
-              <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm flex items-center justify-between">
+              <div className="bg-white dark:bg-[#131622] rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-black text-slate-900">Aperçu avant impression HD (300 DPI)</h3>
-                  <p className="text-xs text-slate-500 mt-1">
+                  <h3 className="text-lg font-black text-slate-900 dark:text-white">Aperçu avant impression HD (300 DPI)</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                     Grille d'impression CR80 Standard (85.6 × 54 mm) format A4 Paysage.
                   </p>
                 </div>
@@ -702,7 +698,7 @@ export default function CardStudioContainer() {
                   <Button
                     onClick={handleBatchPrint}
                     disabled={printing}
-                    className="h-10 px-6 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs shadow-lg shadow-indigo-100 flex items-center gap-2"
+                    className="h-10 px-6 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs shadow-lg shadow-indigo-100 dark:shadow-none flex items-center gap-2"
                   >
                     <Printer size={16} /> Imprimer {selectedStudents.length || 1} carte(s)
                   </Button>
@@ -710,10 +706,10 @@ export default function CardStudioContainer() {
               </div>
 
               {/* High Resolution Print Grid Container */}
-              <div className="bg-white rounded-3xl border border-slate-200 shadow-xl p-8 flex flex-col items-center">
+              <div className="bg-white dark:bg-[#131622] rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xl p-8 flex flex-col items-center">
                 <div className="grid grid-cols-3 gap-6 max-w-5xl">
                   {(selectedStudents.length > 0 ? selectedStudents : (activeStudent ? [activeStudent] : [])).map((st) => (
-                    <div key={st.id} className="batch-print-card shadow-md rounded-2xl overflow-hidden border border-slate-200 hover:scale-105 transition-transform">
+                    <div key={st.id} className="batch-print-card shadow-md rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 hover:scale-105 transition-transform">
                       <StudentCard
                         student={st}
                         schoolName={activeBranch?.nomBranch || "ÉCOLE GESTION PRO"}
