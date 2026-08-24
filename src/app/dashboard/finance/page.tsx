@@ -204,10 +204,10 @@ export default async function FinancePage({
   });
 
   // Header config
-  let headerConfig = null;
+  let headerConfig: any = null;
   try {
     const headerConfigRes = await getDocumentHeaderConfig();
-    headerConfig = headerConfigRes?.data || null;
+    headerConfig = (headerConfigRes as any)?.data || null;
   } catch (_) {}
 
   // Compute Advanced Stats directly
