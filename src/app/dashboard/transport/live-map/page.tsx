@@ -6,8 +6,10 @@ import { transportRoutes, transportLiveTrips } from "@/infrastructure/database/s
 import { eq, desc, or, isNull } from "drizzle-orm";
 import LiveMapClient from "./live-map-client";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = {
-  title: "Radar GPS Transport Scolaire en Direct — Edut",
+  title: "Radar GPS Transport Scolaire en Direct — Edut Pro",
   description: "Suivi en temps réel des bus scolaires, itinéraires, vitesses et arrêts",
 };
 
@@ -15,62 +17,75 @@ export default async function TransportLiveMapPage() {
   const user = await getCurrentUser();
   const schoolId = user?.schoolId || (await getActiveSchoolId()) || 9;
 
-  const routes = await db.query.transportRoutes.findMany({
-    where: or(
-      eq(transportRoutes.schoolId, schoolId),
-      isNull(transportRoutes.schoolId)
-    ),
-    with: {
-      liveTrips: {
-        orderBy: (t, { desc }) => [desc(t.createdAt)],
-        limit: 1,
+  let formattedRoutes: any[] = [];
+  let formattedTrips: any[] = [];
+
+  try {
+    const routes = await db.query.transportRoutes.findMany({
+      where: or(
+        eq(transportRoutes.schoolId, schoolId),
+        isNull(transportRoutes.schoolId)
+      ),
+      with: {
+        liveTrips: {
+          orderBy: (t, { desc }) => [desc(t.createdAt)],
+          limit: 1,
+        },
       },
-    },
-  });
+    });
 
-  const formattedRoutes = routes.map((r: any) => ({
-    id: r.id,
-    routeName: r.routeName || "Itinéraire",
-    vehicleNumber: r.vehicleNumber || "",
-    driverName: r.driverName || "",
-    driverPhone: r.driverPhone || undefined,
-    capacity: r.capacity || undefined,
-    status: r.status || "Actif",
-  }));
+    formattedRoutes = (routes || []).map((r: any) => ({
+      id: r.id,
+      routeName: r.routeName || "Itinéraire",
+      vehicleNumber: r.vehicleNumber || "",
+      driverName: r.driverName || "",
+      driverPhone: r.driverPhone || undefined,
+      capacity: r.capacity || undefined,
+      status: r.status || "Actif",
+      stops: r.stops || [],
+    }));
+  } catch (err) {
+    console.error("[Transport Live Map] Error fetching routes:", err);
+  }
 
-  const activeTrips = await db.query.transportLiveTrips.findMany({
-    where: or(
-      eq(transportLiveTrips.schoolId, schoolId),
-      isNull(transportLiveTrips.schoolId)
-    ),
-    with: {
-      route: true,
-    },
-    orderBy: (t, { desc }) => [desc(t.lastGpsAt)],
-  });
+  try {
+    const activeTrips = await db.query.transportLiveTrips.findMany({
+      where: or(
+        eq(transportLiveTrips.schoolId, schoolId),
+        isNull(transportLiveTrips.schoolId)
+      ),
+      with: {
+        route: true,
+      },
+      orderBy: (t, { desc }) => [desc(t.createdAt)],
+    });
 
-  const formattedTrips = activeTrips.map((t: any) => ({
-    id: t.id,
-    routeId: t.routeId,
-    tripDate: t.tripDate ? String(t.tripDate) : new Date().toISOString(),
-    tripType: t.tripType || "MORNING",
-    driverName: t.driverName || undefined,
-    vehicleNumber: t.vehicleNumber || undefined,
-    status: t.status || "EN_ROUTE",
-    currentStop: t.currentStop || undefined,
-    currentLat: t.currentLat ? Number(t.currentLat) : undefined,
-    currentLng: t.currentLng ? Number(t.currentLng) : undefined,
-    speedKmh: t.speedKmh ? Number(t.speedKmh) : undefined,
-    heading: t.heading ? Number(t.heading) : undefined,
-    lastGpsAt: t.lastGpsAt ? String(t.lastGpsAt) : undefined,
-    estimatedArrivalMinutes: t.estimatedArrivalMinutes ? Number(t.estimatedArrivalMinutes) : undefined,
-    route: t.route ? {
-      id: t.route.id,
-      routeName: t.route.routeName || "Itinéraire",
-      vehicleNumber: t.route.vehicleNumber || "",
-      driverName: t.route.driverName || "",
-    } : undefined,
-  }));
+    formattedTrips = (activeTrips || []).map((t: any) => ({
+      id: t.id,
+      routeId: t.routeId,
+      tripDate: t.tripDate ? String(t.tripDate) : new Date().toISOString(),
+      tripType: t.tripType || "MORNING",
+      driverName: t.driverName || undefined,
+      vehicleNumber: t.vehicleNumber || undefined,
+      status: t.status || "EN_ROUTE",
+      currentStop: t.currentStop || undefined,
+      currentLat: t.currentLat ? Number(t.currentLat) : undefined,
+      currentLng: t.currentLng ? Number(t.currentLng) : undefined,
+      speedKmh: t.speedKmh ? Number(t.speedKmh) : undefined,
+      heading: t.heading ? Number(t.heading) : undefined,
+      lastGpsAt: t.lastGpsAt ? String(t.lastGpsAt) : undefined,
+      estimatedArrivalMinutes: t.estimatedArrivalMinutes ? Number(t.estimatedArrivalMinutes) : undefined,
+      route: t.route ? {
+        id: t.route.id,
+        routeName: t.route.routeName || "Itinéraire",
+        vehicleNumber: t.route.vehicleNumber || "",
+        driverName: t.route.driverName || "",
+        stops: t.route.stops || [],
+      } : undefined,
+    }));
+  } catch (err) {
+    console.error("[Transport Live Map] Error fetching trips:", err);
+  }
 
   return (
     <div className="min-h-screen bg-slate-900 text-white">
