@@ -8,7 +8,8 @@ import {
   schoolClasses,
   schoolSubjects,
   studentResults,
-  gradingAppreciations
+  gradingAppreciations,
+  resultsWorkflows
 } from "@/infrastructure/database/schema/academics";
 import { students } from "@/infrastructure/database/schema/students";
 import { employees } from "@/infrastructure/database/schema/hr";
@@ -634,6 +635,42 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    if (action === "getWorkflowStatus") {
+      const classId = Number(searchParams.get("classId"));
+      const subjectId = Number(searchParams.get("subjectId"));
+      const sessionId = Number(searchParams.get("sessionId"));
+      const period = String(searchParams.get("period") || searchParams.get("term") || "");
+
+      if (!classId || !sessionId || !period) {
+        return mobileJsonError("Paramètres classId, sessionId et period requis", 400);
+      }
+
+      const conds = [
+        eq(resultsWorkflows.sessionId, sessionId),
+        eq(resultsWorkflows.period, period),
+        eq(resultsWorkflows.classId, classId),
+      ];
+
+      if (subjectId) {
+        conds.push(eq(resultsWorkflows.subjectId, subjectId));
+      }
+
+      const row = await readDb.query.resultsWorkflows.findFirst({
+        where: and(...conds),
+      });
+
+      return NextResponse.json({
+        success: true,
+        workflowStatus: row?.status || "BROUILLON",
+        observation: row?.observation || null,
+        submittedAt: row?.submittedAt || null,
+        controlledAt: row?.controlledAt || null,
+        lockedAt: row?.lockedAt || null,
+        publishedAt: row?.publishedAt || null,
+        role: roleType,
+      });
+    }
+
     return mobileJsonError("Action inconnue", 400);
   } catch (err: any) {
     return mobileJsonError(`Erreur: ${err.message || err}`, 500);
@@ -818,6 +855,74 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: true,
         message: "Votre demande de dérogation a été transmise à la direction avec succès."
+      });
+    }
+
+    if (action === "updateWorkflowStatus") {
+      const { sessionId, period, classId, subjectId, targetAction, observation } = payload;
+      if (!sessionId || !period || !classId || !targetAction) {
+        return mobileJsonError("Paramètres workflow manquants", 400);
+      }
+
+      const targetSchoolId = schoolId || 1;
+      const conds = [
+        eq(resultsWorkflows.sessionId, Number(sessionId)),
+        eq(resultsWorkflows.period, String(period)),
+        eq(resultsWorkflows.classId, Number(classId)),
+      ];
+      if (subjectId) {
+        conds.push(eq(resultsWorkflows.subjectId, Number(subjectId)));
+      }
+
+      const existing = await readDb.query.resultsWorkflows.findFirst({
+        where: and(...conds),
+      });
+
+      let nextStatus = "BROUILLON";
+      const updateFields: any = {
+        updatedAt: new Date(),
+      };
+
+      if (targetAction === "submit") {
+        nextStatus = "SAISIE_TERMINEE";
+        updateFields.submittedAt = new Date();
+      } else if (targetAction === "request_correction") {
+        nextStatus = "CORRECTION_DEMANDEE";
+        updateFields.observation = observation || "Correction demandée par la direction.";
+      } else if (targetAction === "validate_control") {
+        nextStatus = "CONTROLE_PEDAGOGIQUE";
+        updateFields.controlledAt = new Date();
+      } else if (targetAction === "lock") {
+        nextStatus = "VERROUILLE";
+        updateFields.lockedAt = new Date();
+      } else if (targetAction === "unlock") {
+        nextStatus = "BROUILLON";
+        updateFields.observation = observation || "Déverrouillage exceptionnel";
+        updateFields.lockedAt = null;
+        updateFields.publishedAt = null;
+      }
+
+      const dbValues = {
+        schoolId: targetSchoolId,
+        sessionId: Number(sessionId),
+        period: String(period),
+        classId: Number(classId),
+        subjectId: subjectId ? Number(subjectId) : null,
+        status: nextStatus,
+        observation: observation || (existing ? existing.observation : null),
+        ...updateFields,
+      };
+
+      if (existing) {
+        await db.update(resultsWorkflows).set(dbValues).where(eq(resultsWorkflows.id, existing.id));
+      } else {
+        await db.insert(resultsWorkflows).values(dbValues);
+      }
+
+      return NextResponse.json({
+        success: true,
+        workflowStatus: nextStatus,
+        message: "Statut du circuit d'approbation mis à jour avec succès.",
       });
     }
 

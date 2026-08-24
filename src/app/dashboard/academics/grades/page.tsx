@@ -38,6 +38,7 @@ import {
   unlockResultsException
 } from "@/domains/academics/actions/results-workflow.actions";
 import { getCurrentUserAction } from "@/domains/auth/actions/session.actions";
+import { GradeApprovalWorkflowBar, WorkflowStatus } from "@/domains/academics/components/GradeApprovalWorkflowBar";
 import StudentGradesView from "./components/StudentGradesView";
 
 export default function AcademicResultsPage() {
@@ -524,182 +525,158 @@ export default function AcademicResultsPage() {
 
       <AcademicFilters onLoad={handleLoad} loading={loading} />
 
-      {/* Workflow Status Action Bar */}
+      {/* World-Class Grade Approval Workflow Stepper & Actions */}
       {activeFilters && (
-        <div className="bg-white dark:bg-[#131622]/90 border border-slate-200 dark:border-slate-800 p-5 rounded-[2rem] flex flex-col md:flex-row justify-between items-center gap-4 shadow-sm animate-in fade-in slide-in-from-top-4 duration-500 print:hidden">
-          <div className="flex items-center gap-3">
-            <span className="text-xs font-black uppercase tracking-wider text-slate-400">Circuit Approbation:</span>
-            <span className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-widest border ${
-              workflowStatus === "BROUILLON" ? "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700" :
-              workflowStatus === "SAISIE_TERMINEE" ? "bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border-blue-100 dark:border-blue-900/50" :
-              workflowStatus === "CONTROLE_PEDAGOGIQUE" ? "bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border-amber-100 dark:border-amber-900/50" :
-              workflowStatus === "CORRECTION_DEMANDEE" ? "bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border-rose-100 dark:border-rose-900/50 animate-pulse" :
-              workflowStatus === "VALIDATION_CONSEIL" ? "bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border-indigo-100 dark:border-indigo-900/50" :
-              workflowStatus === "VERROUILLE" ? "bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 border-red-100 dark:border-red-900/50 font-bold" :
-              workflowStatus === "PUBLIE" ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900/50 font-bold" :
-              "bg-violet-50 dark:bg-violet-950/40 text-violet-600 dark:text-violet-400 border-violet-100 dark:border-violet-900/50"
-            }`}>
-              {workflowStatus.replace("_", " ")}
-            </span>
-            {workflowRow?.observation && (
-              <span className="text-xs text-slate-500 italic max-w-xs truncate" title={workflowRow.observation}>
-                ({workflowRow.observation})
-              </span>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2">
-            {/* 1. Enseignant action */}
-            {isEnseignant && (workflowStatus === "BROUILLON" || workflowStatus === "CORRECTION_DEMANDEE") && (
-              <Button
-                onClick={async () => {
-                  if (confirm("Soumettre les notes pour contrôle ?")) {
-                    setLoading(true);
-                    const res = await submitGrades({
-                      sessionId: activeFilters.sessionId,
-                      period: activeFilters.period,
-                      classId: activeFilters.classId,
-                      subjectId: activeFilters.subjectId !== "All" && activeFilters.subjectId ? Number(activeFilters.subjectId) : undefined,
-                    });
-                    setLoading(false);
-                    if (res?.success) {
-                      toast.success("Notes soumises avec succès !");
-                      setWorkflowStatus("SAISIE_TERMINEE");
-                    }
-                  }
-                }}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-10 px-5 rounded-xl text-xs uppercase tracking-wider"
-              >
-                Soumettre les notes
-              </Button>
-            )}
-
-            {/* 2. Censeur action */}
-            {isCenseur && workflowStatus === "SAISIE_TERMINEE" && (
-              <>
-                <Button
-                  onClick={async () => {
-                    const obs = prompt("Motif de la demande de correction :");
-                    if (obs) {
-                      setLoading(true);
-                      const res = await requestGradeCorrection({
-                        sessionId: activeFilters.sessionId,
-                        period: activeFilters.period,
-                        classId: activeFilters.classId,
-                        subjectId: activeFilters.subjectId !== "All" && activeFilters.subjectId ? Number(activeFilters.subjectId) : undefined,
-                        observation: obs
-                      });
-                      setLoading(false);
-                      if (res?.success) {
-                        toast.success("Demande de correction transmise.");
-                        setWorkflowStatus("CORRECTION_DEMANDEE");
-                        setWorkflowRow({ observation: obs });
-                      }
-                    }
-                  }}
-                  className="bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 font-bold h-10 px-5 rounded-xl text-xs uppercase tracking-wider"
-                >
-                  Demander correction
-                </Button>
-                <Button
-                  onClick={async () => {
-                    if (confirm("Valider le contrôle pédagogique ?")) {
-                      setLoading(true);
-                      const res = await validateGradeControl({
-                        sessionId: activeFilters.sessionId,
-                        period: activeFilters.period,
-                        classId: activeFilters.classId,
-                        subjectId: activeFilters.subjectId !== "All" && activeFilters.subjectId ? Number(activeFilters.subjectId) : undefined,
-                      });
-                      setLoading(false);
-                      if (res?.success) {
-                        toast.success("Contrôle pédagogique validé.");
-                        setWorkflowStatus("CONTROLE_PEDAGOGIQUE");
-                      }
-                    }
-                  }}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-10 px-5 rounded-xl text-xs uppercase tracking-wider"
-                >
-                  Valider le contrôle
-                </Button>
-              </>
-            )}
-
-            {/* 3. Directeur action */}
-            {isDirecteur && (workflowStatus === "CONTROLE_PEDAGOGIQUE" || workflowStatus === "VALIDATION_CONSEIL" || workflowStatus === "SAISIE_TERMINEE") && (
-              <>
-                <Button
-                  onClick={async () => {
-                    if (confirm("Verrouiller les notes ? (Plus aucune modification possible)")) {
-                      setLoading(true);
-                      const res = await lockResults({
-                        sessionId: activeFilters.sessionId,
-                        period: activeFilters.period,
-                        classId: activeFilters.classId,
-                        subjectId: activeFilters.subjectId !== "All" && activeFilters.subjectId ? Number(activeFilters.subjectId) : undefined,
-                      });
-                      setLoading(false);
-                      if (res?.success) {
-                        toast.success("Notes verrouillées.");
-                        setWorkflowStatus("VERROUILLE");
-                      }
-                    }
-                  }}
-                  className="bg-red-600 hover:bg-red-700 text-white font-bold h-10 px-5 rounded-xl text-xs uppercase tracking-wider"
-                >
-                  Verrouiller
-                </Button>
-                <Button
-                  onClick={async () => {
-                    if (confirm("Publier les résultats ? (Visibles par les parents et élèves)")) {
-                      setLoading(true);
-                      const res = await publishResults({
-                        sessionId: activeFilters.sessionId,
-                        period: activeFilters.period,
-                        classId: activeFilters.classId,
-                        subjectId: activeFilters.subjectId !== "All" && activeFilters.subjectId ? Number(activeFilters.subjectId) : undefined,
-                      });
-                      setLoading(false);
-                      if (res?.success) {
-                        toast.success("Résultats publiés.");
-                        setWorkflowStatus("PUBLIE");
-                      }
-                    }
-                  }}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-10 px-5 rounded-xl text-xs uppercase tracking-wider"
-                >
-                  Publier
-                </Button>
-              </>
-            )}
-
-            {/* 4. Super Admin action */}
-            {isSuperAdmin && (workflowStatus === "VERROUILLE" || workflowStatus === "PUBLIE" || workflowStatus === "ARCHIVE") && (
-              <Button
-                onClick={async () => {
-                  if (confirm("Déverrouiller exceptionnellement pour ré-autorisation de saisie ?")) {
-                    setLoading(true);
-                    const res = await unlockResultsException({
-                      sessionId: activeFilters.sessionId,
-                      period: activeFilters.period,
-                      classId: activeFilters.classId,
-                      subjectId: activeFilters.subjectId !== "All" && activeFilters.subjectId ? Number(activeFilters.subjectId) : undefined,
-                    });
-                    setLoading(false);
-                    if (res?.success) {
-                      toast.success("Déverrouillage exceptionnel validé.");
-                      setWorkflowStatus("BROUILLON");
-                      setWorkflowRow(null);
-                    }
-                  }
-                }}
-                className="bg-amber-600 hover:bg-amber-700 text-white font-bold h-10 px-5 rounded-xl text-xs uppercase tracking-wider animate-bounce"
-              >
-                Déverrouillage exceptionnel
-              </Button>
-            )}
-          </div>
-        </div>
+        <GradeApprovalWorkflowBar
+          status={(workflowStatus as WorkflowStatus) || "BROUILLON"}
+          workflowRow={workflowRow}
+          totalStudents={students.length}
+          gradedStudents={
+            students.filter(
+              (s) =>
+                s.moyenneClasse != null ||
+                s.noteCompo != null ||
+                s.noteEval != null ||
+                s.total40 != null ||
+                s.moy20 != null
+            ).length
+          }
+          isEnseignant={isEnseignant}
+          isCenseur={isCenseur}
+          isDirecteur={isDirecteur}
+          isSuperAdmin={isSuperAdmin}
+          onSubmitGrades={async () => {
+            setLoading(true);
+            try {
+              const res = await submitGrades({
+                sessionId: activeFilters.sessionId,
+                period: activeFilters.period,
+                classId: activeFilters.classId,
+                subjectId:
+                  activeFilters.subjectId !== "All" && activeFilters.subjectId
+                    ? Number(activeFilters.subjectId)
+                    : undefined,
+              });
+              if (res?.success) {
+                setWorkflowStatus("SAISIE_TERMINEE");
+                return true;
+              }
+              return false;
+            } finally {
+              setLoading(false);
+            }
+          }}
+          onRequestCorrection={async (observation) => {
+            setLoading(true);
+            try {
+              const res = await requestGradeCorrection({
+                sessionId: activeFilters.sessionId,
+                period: activeFilters.period,
+                classId: activeFilters.classId,
+                subjectId:
+                  activeFilters.subjectId !== "All" && activeFilters.subjectId
+                    ? Number(activeFilters.subjectId)
+                    : undefined,
+                observation,
+              });
+              if (res?.success) {
+                setWorkflowStatus("CORRECTION_DEMANDEE");
+                setWorkflowRow({ observation });
+                return true;
+              }
+              return false;
+            } finally {
+              setLoading(false);
+            }
+          }}
+          onValidateControl={async () => {
+            setLoading(true);
+            try {
+              const res = await validateGradeControl({
+                sessionId: activeFilters.sessionId,
+                period: activeFilters.period,
+                classId: activeFilters.classId,
+                subjectId:
+                  activeFilters.subjectId !== "All" && activeFilters.subjectId
+                    ? Number(activeFilters.subjectId)
+                    : undefined,
+              });
+              if (res?.success) {
+                setWorkflowStatus("CONTROLE_PEDAGOGIQUE");
+                return true;
+              }
+              return false;
+            } finally {
+              setLoading(false);
+            }
+          }}
+          onLockResults={async () => {
+            setLoading(true);
+            try {
+              const res = await lockResults({
+                sessionId: activeFilters.sessionId,
+                period: activeFilters.period,
+                classId: activeFilters.classId,
+                subjectId:
+                  activeFilters.subjectId !== "All" && activeFilters.subjectId
+                    ? Number(activeFilters.subjectId)
+                    : undefined,
+              });
+              if (res?.success) {
+                setWorkflowStatus("VERROUILLE");
+                return true;
+              }
+              return false;
+            } finally {
+              setLoading(false);
+            }
+          }}
+          onPublishResults={async () => {
+            setLoading(true);
+            try {
+              const res = await publishResults({
+                sessionId: activeFilters.sessionId,
+                period: activeFilters.period,
+                classId: activeFilters.classId,
+                subjectId:
+                  activeFilters.subjectId !== "All" && activeFilters.subjectId
+                    ? Number(activeFilters.subjectId)
+                    : undefined,
+              });
+              if (res?.success) {
+                setWorkflowStatus("PUBLIE");
+                return true;
+              }
+              return false;
+            } finally {
+              setLoading(false);
+            }
+          }}
+          onUnlockException={async (observation) => {
+            setLoading(true);
+            try {
+              const res = await unlockResultsException({
+                sessionId: activeFilters.sessionId,
+                period: activeFilters.period,
+                classId: activeFilters.classId,
+                subjectId:
+                  activeFilters.subjectId !== "All" && activeFilters.subjectId
+                    ? Number(activeFilters.subjectId)
+                    : undefined,
+                observation,
+              });
+              if (res?.success) {
+                setWorkflowStatus("BROUILLON");
+                setWorkflowRow(null);
+                return true;
+              }
+              return false;
+            } finally {
+              setLoading(false);
+            }
+          }}
+          loading={loading}
+        />
       )}
 
       <AnimatePresence mode="wait">
@@ -719,7 +696,14 @@ export default function AcademicResultsPage() {
                 onPrintBulletin={handlePrintBulletin}
                 level={level}
                 coefficient={activeCoef}
-                readOnly={workflowStatus === "VERROUILLE" || workflowStatus === "PUBLIE" || workflowStatus === "ARCHIVE"}
+                readOnly={
+                  workflowStatus === "VERROUILLE" ||
+                  workflowStatus === "PUBLIE" ||
+                  workflowStatus === "ARCHIVE" ||
+                  (isEnseignant &&
+                    workflowStatus !== "BROUILLON" &&
+                    workflowStatus !== "CORRECTION_DEMANDEE")
+                }
                 loading={loading}
               />
             ) : view === "matrix" ? (
