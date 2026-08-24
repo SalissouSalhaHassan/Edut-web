@@ -111,31 +111,12 @@ export default function LoginPage() {
         return;
       }
 
-      // Successful login -> Navigate smoothly to dashboard
-      window.location.href = data.redirectUrl || "/dashboard";
+      // Successful login -> Redirect smoothly
+      window.location.replace(data.redirectUrl || "/dashboard");
     } catch (err: any) {
-      console.warn("REST login attempt notice, attempting fallback action:", err);
-      try {
-        const result = await login({ username, password });
-        if (result?.error) {
-          setError(result.error);
-          setIsLoading(false);
-          return;
-        }
-      } catch (fallbackErr: any) {
-        const isRedirect =
-          fallbackErr?.message === "NEXT_REDIRECT" ||
-          fallbackErr?.digest?.startsWith("NEXT_REDIRECT") ||
-          String(fallbackErr).includes("NEXT_REDIRECT");
-
-        if (isRedirect) {
-          window.location.href = "/dashboard";
-          return;
-        }
-
-        setError("Erreur de connexion. Veuillez vérifier vos identifiants ou votre connexion.");
-        setIsLoading(false);
-      }
+      console.error("Login fetch error:", err);
+      setError("Connexion au serveur en cours. Veuillez re-cliquer sur 'SE CONNECTER'.");
+      setIsLoading(false);
     }
   }
 

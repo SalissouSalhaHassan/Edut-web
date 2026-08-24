@@ -49,39 +49,64 @@ export async function POST(request: NextRequest) {
 
     // 1. Look up user in database
     try {
-      let dbUser = await db.query.users.findFirst({
-        where: or(
-          eq(users.utilisateur, cleanUsername),
-          eq(users.utilisateur, rawUsername),
-          eq(users.utilisateur, loginEmail),
-          ilike(users.utilisateur, cleanUsername),
-          ilike(users.utilisateur, rawUsername)
-        ),
-        with: {
-          role: true,
-          school: true,
-        },
-      });
+      let dbUser: any = null;
+      try {
+        dbUser = await db.query.users.findFirst({
+          where: or(
+            eq(users.utilisateur, cleanUsername),
+            eq(users.utilisateur, rawUsername),
+            eq(users.utilisateur, loginEmail),
+            ilike(users.utilisateur, cleanUsername),
+            ilike(users.utilisateur, rawUsername)
+          ),
+          with: {
+            role: true,
+            school: true,
+          },
+        });
+      } catch (relErr) {
+        console.warn("[API LOGIN] Relational query error, falling back to direct select:", relErr);
+      }
+
+      if (!dbUser) {
+        const rows = await db
+          .select()
+          .from(users)
+          .where(
+            or(
+              eq(users.utilisateur, cleanUsername),
+              eq(users.utilisateur, rawUsername),
+              eq(users.utilisateur, loginEmail),
+              ilike(users.utilisateur, cleanUsername)
+            )
+          )
+          .limit(1);
+        if (rows && rows[0]) {
+          dbUser = rows[0];
+        }
+      }
 
       if (!dbUser && cleanUsername.includes("@")) {
         const unamePart = cleanUsername.split("@")[0];
-        dbUser = await db.query.users.findFirst({
-          where: or(eq(users.utilisateur, unamePart), ilike(users.utilisateur, unamePart)),
-          with: {
-            role: true,
-            school: true,
-          },
-        });
+        const rows = await db
+          .select()
+          .from(users)
+          .where(or(eq(users.utilisateur, unamePart), ilike(users.utilisateur, unamePart)))
+          .limit(1);
+        if (rows && rows[0]) {
+          dbUser = rows[0];
+        }
       }
 
       if (!dbUser && (cleanUsername.includes("aiiu") || cleanUsername.includes("admin"))) {
-        dbUser = await db.query.users.findFirst({
-          where: or(eq(users.admin, true), eq(users.superAdmin, true)),
-          with: {
-            role: true,
-            school: true,
-          },
-        });
+        const rows = await db
+          .select()
+          .from(users)
+          .where(or(eq(users.admin, true), eq(users.superAdmin, true)))
+          .limit(1);
+        if (rows && rows[0]) {
+          dbUser = rows[0];
+        }
       }
 
       if (dbUser) {
@@ -95,7 +120,7 @@ export async function POST(request: NextRequest) {
         }
       }
     } catch (dbErr) {
-      console.error("[API LOGIN] Database lookup warning:", dbErr);
+      console.error("[API LOGIN] Database lookup error:", dbErr);
     }
 
     // 2. Direct Supabase Auth attempt if DB user not found
