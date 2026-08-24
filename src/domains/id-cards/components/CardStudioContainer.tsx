@@ -338,6 +338,10 @@ export default function CardStudioContainer() {
       console.error("Print Error:", err);
       toast.error("Erreur lors de la génération PDF", { id: toastId });
     } finally {
+      setPrinting(false);
+    }
+  };
+
   const countWithPhoto = useMemo(() => students.filter((s) => isValidPhoto(s.photoPath)).length, [students]);
   const countNoPhoto = useMemo(() => students.filter((s) => !isValidPhoto(s.photoPath)).length, [students]);
 
