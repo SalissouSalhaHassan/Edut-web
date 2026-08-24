@@ -530,29 +530,29 @@ export default function RapportsClient({
   };
 
   return (
-    <div className="min-h-screen bg-slate-50/60 p-5 lg:p-7 space-y-6">
+    <div className="min-h-screen bg-slate-50/60 dark:bg-[#0b0d14] p-5 lg:p-7 space-y-6 text-slate-900 dark:text-slate-100">
 
       {/* ─── HEADER ─── */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 print:hidden">
         <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-700 flex items-center justify-center shadow-lg shadow-indigo-200 shrink-0">
+          <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-700 flex items-center justify-center shadow-lg shadow-indigo-200 dark:shadow-none shrink-0">
             <FileText size={20} className="text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-black text-slate-900 leading-none">Centre de rapports pédagogiques</h1>
-            <p className="text-slate-500 text-sm font-medium mt-0.5">Analyses scolaires, progressions des programmes et bilans d'enseignants</p>
+            <h1 className="text-2xl font-black text-slate-900 dark:text-white leading-none">Centre de rapports pédagogiques</h1>
+            <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mt-0.5">Analyses scolaires, progressions des programmes et bilans d'enseignants</p>
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {/* Paper Size selector */}
-          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 shadow-inner mr-2">
+          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200 dark:border-slate-700 shadow-inner mr-2">
             <button
               type="button"
               onClick={() => setSelectedPaperSize("A4")}
               className={`h-8 px-3 rounded-lg text-xs font-bold transition-all ${
                 selectedPaperSize === "A4"
-                  ? "bg-white text-slate-800 shadow-sm"
-                  : "text-slate-400 hover:text-slate-600"
+                  ? "bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm"
+                  : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
               }`}
             >
               A4
@@ -562,21 +562,21 @@ export default function RapportsClient({
               onClick={() => setSelectedPaperSize("A5")}
               className={`h-8 px-3 rounded-lg text-xs font-bold transition-all ${
                 selectedPaperSize === "A5"
-                  ? "bg-white text-slate-800 shadow-sm"
-                  : "text-slate-400 hover:text-slate-600"
+                  ? "bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm"
+                  : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
               }`}
             >
               A5
             </button>
           </div>
 
-          <button onClick={handleSendEmail} disabled={!isGenerated} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-bold hover:bg-slate-50 disabled:opacity-50 transition-all shadow-sm">
+          <button onClick={handleSendEmail} disabled={!isGenerated} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#131622] text-slate-700 dark:text-slate-200 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50 transition-all shadow-sm">
             <Mail size={14} /> Envoyer email
           </button>
-          <button onClick={handleExportCSV} disabled={!isGenerated} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-bold hover:bg-slate-50 disabled:opacity-50 transition-all shadow-sm">
+          <button onClick={handleExportCSV} disabled={!isGenerated} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#131622] text-slate-700 dark:text-slate-200 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50 transition-all shadow-sm">
             <Download size={14} /> Export CSV / Excel
           </button>
-          <button onClick={handlePrint} disabled={!isGenerated} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-bold hover:bg-slate-50 disabled:opacity-50 transition-all shadow-sm">
+          <button onClick={handlePrint} disabled={!isGenerated} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#131622] text-slate-700 dark:text-slate-200 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50 transition-all shadow-sm">
             <Printer size={14} /> Imprimer
           </button>
         </div>
@@ -585,8 +585,8 @@ export default function RapportsClient({
       {/* ─── REPORT SELECTION & FILTERS PANEL ─── */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 print:hidden">
         {/* Left Side: Report types */}
-        <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-2">
-          <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Liste des rapports</h3>
+        <div className="bg-white dark:bg-[#131622] p-5 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm space-y-2">
+          <h3 className="text-xs font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest mb-3">Liste des rapports</h3>
           <div className="space-y-1 max-h-[350px] overflow-y-auto pr-1">
             {REPORT_TYPES.map(r => (
               <button
@@ -594,25 +594,25 @@ export default function RapportsClient({
                 onClick={() => { setSelectedReport(r.id); setIsGenerated(false); }}
                 className={`w-full text-left p-3 rounded-2xl transition-all flex flex-col gap-0.5 border ${
                   selectedReport === r.id
-                    ? "bg-indigo-50 border-indigo-100 text-indigo-900"
-                    : "border-transparent text-slate-600 hover:bg-slate-50"
+                    ? "bg-indigo-50 dark:bg-indigo-950/60 border-indigo-200 dark:border-indigo-800 text-indigo-900 dark:text-indigo-200 shadow-sm"
+                    : "border-transparent text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60"
                 }`}
               >
                 <span className="text-xs font-bold">{r.label}</span>
-                <span className="text-[10px] text-slate-400 font-medium line-clamp-1">{r.desc}</span>
+                <span className="text-[10px] text-slate-400 dark:text-slate-400 font-medium line-clamp-1">{r.desc}</span>
               </button>
             ))}
           </div>
         </div>
 
         {/* Right Side: Filters & Generate button */}
-        <div className="lg:col-span-3 bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-between gap-6">
+        <div className="lg:col-span-3 bg-white dark:bg-[#131622] p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col justify-between gap-6">
           <div>
-            <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Filtres du rapport</h3>
+            <h3 className="text-xs font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest mb-4">Filtres du rapport</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {/* Année scolaire */}
               <div className="space-y-1">
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Année scolaire</label>
+                <label className="block text-[10px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest">Année scolaire</label>
                 <select value={anneeScolaire} onChange={e => { setAnneeScolaire(e.target.value); setIsGenerated(false); }} className={fSel}>
                   {sessions.map((s: any) => (
                     <option key={s.id} value={s.sessionName}>{s.sessionName}</option>
@@ -629,7 +629,7 @@ export default function RapportsClient({
 
               {/* Niveau */}
               <div className="space-y-1">
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Niveau</label>
+                <label className="block text-[10px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest">Niveau</label>
                 <select value={filterNiveau} onChange={e => { setFilterNiveau(e.target.value); setIsGenerated(false); }} className={fSel}>
                   <option value="">Tous les niveaux</option>
                   {uniqueNiveaux.map((nv: any) => <option key={nv} value={nv}>{nv}</option>)}
@@ -638,7 +638,7 @@ export default function RapportsClient({
 
               {/* Classe */}
               <div className="space-y-1">
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Classe</label>
+                <label className="block text-[10px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest">Classe</label>
                 <select value={filterClass} onChange={e => { setFilterClass(e.target.value); setIsGenerated(false); }} className={fSel}>
                   <option value="">Toutes les classes</option>
                   {classes.map((c: any) => <option key={c.id} value={c.id}>{c.className}</option>)}
@@ -647,7 +647,7 @@ export default function RapportsClient({
 
               {/* Matière */}
               <div className="space-y-1">
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Matière</label>
+                <label className="block text-[10px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest">Matière</label>
                 <select value={filterSubject} onChange={e => { setFilterSubject(e.target.value); setIsGenerated(false); }} className={fSel}>
                   <option value="">Toutes les matières</option>
                   {subjects.map((s: any) => <option key={s.id} value={s.id}>{s.subjectName}</option>)}
@@ -656,7 +656,7 @@ export default function RapportsClient({
 
               {/* Enseignant */}
               <div className="space-y-1">
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Enseignant</label>
+                <label className="block text-[10px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest">Enseignant</label>
                 <select value={filterEmp} onChange={e => { setFilterEmp(e.target.value); setIsGenerated(false); }} className={fSel}>
                   <option value="">Tous</option>
                   {employees.map((e: any) => <option key={e.id} value={e.id}>{e.nom}</option>)}
@@ -665,7 +665,7 @@ export default function RapportsClient({
 
               {/* Statut */}
               <div className="space-y-1">
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Statut</label>
+                <label className="block text-[10px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest">Statut</label>
                 <select value={filterStatus} onChange={e => { setFilterStatus(e.target.value); setIsGenerated(false); }} className={fSel}>
                   <option value="">Tous</option>
                   <option value="Validé">Validé / Réalisé</option>
@@ -675,7 +675,7 @@ export default function RapportsClient({
 
               {/* Période */}
               <div className="space-y-1">
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Période</label>
+                <label className="block text-[10px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest">Période</label>
                 <select value={filterPeriode} onChange={e => { setFilterPeriode(e.target.value); setIsGenerated(false); }} className={fSel}>
                   <option value="">Toute l'année</option>
                   {periods.map((p: any) => (
@@ -696,7 +696,7 @@ export default function RapportsClient({
           <button
             onClick={handleGenerate}
             disabled={isPending}
-            className="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-violet-600 text-white text-xs font-black uppercase tracking-wider rounded-2xl shadow-lg shadow-indigo-150 hover:opacity-90 transition-all flex items-center justify-center gap-1.5"
+            className="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-violet-600 text-white text-xs font-black uppercase tracking-wider rounded-2xl shadow-lg shadow-indigo-200 dark:shadow-none hover:opacity-90 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
           >
             {isPending ? <Loader2 size={15} className="animate-spin" /> : <Play size={14} fill="white" />}
             Générer le rapport
@@ -706,7 +706,7 @@ export default function RapportsClient({
 
       {/* ─── PREVIEW: OFFICIAL DOCUMENT SHEET ─── */}
       {isGenerated ? (
-        <div id="pedagogie-report-print" data-paper-size={selectedPaperSize} className="bg-white rounded-3xl border border-slate-100 shadow-sm p-8 max-w-4xl mx-auto space-y-8 relative overflow-hidden print:border-none print:shadow-none print:p-0 transition-all duration-300">
+        <div id="pedagogie-report-print" data-paper-size={selectedPaperSize} className="bg-white rounded-3xl border border-slate-200 dark:border-slate-700 shadow-2xl p-8 max-w-4xl mx-auto space-y-8 relative overflow-hidden print:border-none print:shadow-none print:p-0 transition-all duration-300 text-slate-900">
 
           {/* Ministry & School Banners */}
           <div className="border-b-[2.5px] border-blue-900 pb-5">
@@ -803,10 +803,10 @@ export default function RapportsClient({
 
         </div>
       ) : (
-        <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-16 text-center max-w-4xl mx-auto">
-          <FileText size={45} className="text-slate-200 mx-auto mb-4" />
-          <h2 className="text-base font-black text-slate-700">Aucun rapport généré</h2>
-          <p className="text-slate-400 text-xs mt-1.5 max-w-md mx-auto">
+        <div className="bg-white dark:bg-[#131622] rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm p-16 text-center max-w-4xl mx-auto">
+          <FileText size={45} className="text-slate-300 dark:text-slate-600 mx-auto mb-4" />
+          <h2 className="text-base font-black text-slate-700 dark:text-slate-200">Aucun rapport généré</h2>
+          <p className="text-slate-400 dark:text-slate-400 text-xs mt-1.5 max-w-md mx-auto">
             Veuillez sélectionner un rapport dans le menu latéral et configurer les filtres, puis cliquez sur « Générer le rapport ».
           </p>
         </div>
@@ -817,5 +817,6 @@ export default function RapportsClient({
 }
 
 // ─── Tailwind select styles ───
-const fSel = "w-full rounded-xl border border-slate-200 bg-slate-50 text-xs font-bold px-3 py-2.5 focus:outline-none cursor-pointer";
-const fInp = "w-full rounded-xl border border-slate-200 bg-slate-50 text-xs font-bold px-3 py-2.5 focus:outline-none";
+const fSel = "w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-xs font-bold px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 cursor-pointer";
+const fInp = "w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-xs font-bold px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500/30";
+

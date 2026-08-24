@@ -922,4 +922,4 @@ export default function ProgressionClient({
 }
 
 // ─── Tailwind Styles ───
-const fSel = "rounded-xl border border-slate-200 bg-white text-xs font-bold px-3 py-2 focus:outline-none cursor-pointer";
+const fSel = "rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-xs font-bold px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 cursor-pointer";
