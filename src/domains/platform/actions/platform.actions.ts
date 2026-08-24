@@ -41,9 +41,7 @@ export async function impersonateSchool(schoolId: number | null) {
   return superAdminAction(async () => {
     const cookieStore = await cookies();
     if (schoolId) {
-      cookieStore.set({
-        name: "impersonated_school_id",
-        value: schoolId.toString(),
+      (cookieStore as any).set("impersonated_school_id", schoolId.toString(), {
         maxAge: 3600, // 1 hour
         httpOnly: true,
       });
