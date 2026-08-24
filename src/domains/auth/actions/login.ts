@@ -105,7 +105,13 @@ export async function login(formData: LoginFormData) {
   // Step 2: If found & verified via database
   if (authenticatedUser) {
     try {
-      const cookieStore = await cookies();
+      const safeAvatarUrl =
+        typeof authenticatedUser.avatarUrl === "string" &&
+        authenticatedUser.avatarUrl.length < 300 &&
+        !authenticatedUser.avatarUrl.startsWith("data:")
+          ? authenticatedUser.avatarUrl
+          : null;
+
       const sessionPayload = {
         id: authenticatedUser.id || 28,
         schoolId: authenticatedUser.schoolId || 9,
@@ -120,18 +126,18 @@ export async function login(formData: LoginFormData) {
         emplacement: authenticatedUser.emplacement || null,
         depots: authenticatedUser.depots || null,
         educationalLevel: authenticatedUser.educationalLevel || "Tous",
-        avatarUrl: authenticatedUser.avatarUrl || null,
-        createdAt: authenticatedUser.createdAt || null,
+        avatarUrl: safeAvatarUrl,
+        createdAt: authenticatedUser.createdAt ? String(authenticatedUser.createdAt) : null,
         studentId: authenticatedUser.studentId || null,
         employeeId: authenticatedUser.employeeId || null,
-        role: authenticatedUser.role || {
-          roleName: "Administrateur",
+        role: {
+          roleName: authenticatedUser.role?.roleName || "Administrateur",
           permissions: [],
         },
-        school: authenticatedUser.school || {
-          id: 9,
-          name: "GROUP AIIU-NIGER",
-          slug: "group-aiiu-niger",
+        school: {
+          id: authenticatedUser.school?.id || authenticatedUser.schoolId || 9,
+          name: authenticatedUser.school?.name || "GROUP AIIU-NIGER",
+          slug: authenticatedUser.school?.slug || "group-aiiu-niger",
         },
       };
 
