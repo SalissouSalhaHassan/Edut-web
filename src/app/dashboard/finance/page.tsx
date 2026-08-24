@@ -7,7 +7,7 @@ import { db, readDb } from "@/infrastructure/database";
 import { students } from "@/infrastructure/database/schema/students";
 import { schoolSessions, schoolClasses } from "@/infrastructure/database/schema/academics";
 import { studentFees, feePayments, cogesPayments } from "@/infrastructure/database/schema/finance";
-import { eq, and, or, isNull, desc } from "drizzle-orm";
+import { eq, and, or, isNull, desc, inArray } from "drizzle-orm";
 import FinanceClient from "./finance-client";
 import StudentFinanceView from "@/domains/finance/components/StudentFinanceView";
 
@@ -71,7 +71,7 @@ export default async function FinancePage({
             eq(cogesPayments.schoolId, user.schoolId),
             eq(cogesPayments.studentId, linkedStudent.id)
           ),
-          orderBy: (c, { desc }) => [desc(c.datePaid)],
+          orderBy: [desc(cogesPayments.datePaid)],
         }).catch(() => []),
         getDocumentHeaderConfig().catch(() => ({ data: null })),
       ]);
@@ -83,7 +83,7 @@ export default async function FinancePage({
             eq(feePayments.schoolId, user.schoolId),
             eq(feePayments.feeId, studentFee.id)
           ),
-          orderBy: (p, { desc }) => [desc(p.datePaid)],
+          orderBy: [desc(feePayments.datePaid)],
         }).catch(() => []);
       }
 
@@ -93,7 +93,7 @@ export default async function FinancePage({
           fee={studentFee}
           payments={payments}
           cogesPayments={coges}
-          headerConfig={headerConfigRes?.data ?? null}
+          headerConfig={(headerConfigRes as any)?.data ?? null}
           user={user}
         />
       );
@@ -115,100 +115,61 @@ export default async function FinancePage({
     orderBy: [desc(schoolSessions.id)],
   });
 
-  // Query all studentFees for this school (prefer active session if available, else all fees)
-  let rawFees = await db.query.studentFees.findMany({
-    where: and(
-      sessionRow?.id ? eq(studentFees.sessionId, sessionRow.id) : undefined,
-      or(eq(studentFees.schoolId, schoolId), isNull(studentFees.schoolId))
-    ),
-    with: {
-      student: {
-        columns: {
-          id: true,
-          nomEtudiant: true,
-          numAdmission: true,
-          classe: true,
-          educationalLevel: true,
-          photoPath: true,
-          sexe: true,
-          statut: true,
-        },
-      },
-      payments: {
-        columns: {
-          id: true,
-          feeId: true,
-          amount: true,
-          reduction: true,
-          paymentMode: true,
-          reference: true,
-          datePaid: true,
-          recordedBy: true,
-          monthConcerned: true,
-        },
-        orderBy: (p, { desc }) => [desc(p.datePaid)],
-      },
-    },
-  });
+  // Query student fees
+  let feeRows = await db.select().from(studentFees)
+    .where(
+      and(
+        sessionRow?.id ? eq(studentFees.sessionId, sessionRow.id) : undefined,
+        or(eq(studentFees.schoolId, schoolId), isNull(studentFees.schoolId))
+      )
+    );
 
-  // Fallback: if no fees for the specific session, fetch all fees for school
-  if (rawFees.length === 0) {
-    rawFees = await db.query.studentFees.findMany({
-      where: or(eq(studentFees.schoolId, schoolId), isNull(studentFees.schoolId)),
-      with: {
-        student: {
-          columns: {
-            id: true,
-            nomEtudiant: true,
-            numAdmission: true,
-            classe: true,
-            educationalLevel: true,
-            photoPath: true,
-            sexe: true,
-            statut: true,
-          },
-        },
-        payments: {
-          columns: {
-            id: true,
-            feeId: true,
-            amount: true,
-            reduction: true,
-            paymentMode: true,
-            reference: true,
-            datePaid: true,
-            recordedBy: true,
-            monthConcerned: true,
-          },
-          orderBy: (p, { desc }) => [desc(p.datePaid)],
-        },
-      },
-    });
+  if (feeRows.length === 0) {
+    feeRows = await db.select().from(studentFees)
+      .where(or(eq(studentFees.schoolId, schoolId), isNull(studentFees.schoolId)));
   }
 
-  // Deduplicate: keep fee row with highest totalPaid if duplicate student fees exist
-  const seenStudents = new Map<number, typeof rawFees[0]>();
-  for (const row of rawFees) {
-    if (!row.studentId) continue;
-    const existing = seenStudents.get(row.studentId);
-    if (!existing || (row.totalPaid || 0) > (existing.totalPaid || 0)) {
-      seenStudents.set(row.studentId, row);
+  // Fetch associated students and payments
+  const studentIds = feeRows.map(f => f.studentId).filter(Boolean) as number[];
+  const feeIds = feeRows.map(f => f.id);
+
+  const [studentRows, paymentRows, classRows, headerConfigRes] = await Promise.all([
+    studentIds.length > 0
+      ? db.select().from(students).where(inArray(students.id, studentIds)).catch(() => [])
+      : Promise.resolve([]),
+    feeIds.length > 0
+      ? db.select().from(feePayments).where(inArray(feePayments.feeId, feeIds)).catch(() => [])
+      : Promise.resolve([]),
+    db.select().from(schoolClasses)
+      .where(or(eq(schoolClasses.schoolId, schoolId), isNull(schoolClasses.schoolId)))
+      .catch(() => []),
+    getDocumentHeaderConfig().catch(() => ({ data: null })),
+  ]);
+
+  const studentMap = new Map(studentRows.map(s => [s.id, s]));
+  const paymentsMap = new Map<number, any[]>();
+  for (const p of paymentRows) {
+    if (!p.feeId) continue;
+    if (!paymentsMap.has(p.feeId)) paymentsMap.set(p.feeId, []);
+    paymentsMap.get(p.feeId)!.push(p);
+  }
+
+  // Deduplicate and assemble fee objects
+  const seenStudents = new Map<number, any>();
+  for (const f of feeRows) {
+    if (!f.studentId) continue;
+    const existing = seenStudents.get(f.studentId);
+    if (!existing || (f.totalPaid || 0) > (existing.totalPaid || 0)) {
+      seenStudents.set(f.studentId, {
+        ...f,
+        student: studentMap.get(f.studentId) || null,
+        payments: paymentsMap.get(f.id) || [],
+      });
     }
   }
   const fees = Array.from(seenStudents.values());
-
-  // Fetch classes
-  const classes = await db.query.schoolClasses.findMany({
-    where: or(eq(schoolClasses.schoolId, schoolId), isNull(schoolClasses.schoolId)),
-    orderBy: (t, { asc }) => [asc(t.className)],
-  });
-
-  // Header config
-  let headerConfig: any = null;
-  try {
-    const headerConfigRes = await getDocumentHeaderConfig();
-    headerConfig = (headerConfigRes as any)?.data || null;
-  } catch (_) {}
+  const classes = classRows as any[];
+  const headerConfig = (headerConfigRes as any)?.data || null;
 
   // Compute Advanced Stats directly
   const totalExpected = fees.reduce((s, f) => s + (f.totalExpected || 0), 0);
@@ -301,8 +262,8 @@ export default async function FinancePage({
     classSummary,
   };
 
-  const activeSessionName = sessionRow?.sessionName || headerConfig?.schoolYear || "2025–2026";
-  const schoolName = (user as any)?.school?.name || headerConfig?.schoolName || "GROUP AIIU-NIGER";
+  const activeSessionName = sessionRow?.sessionName || (headerConfig as any)?.schoolYear || "2025–2026";
+  const schoolName = (user as any)?.school?.name || (headerConfig as any)?.schoolName || "GROUP AIIU-NIGER";
 
   const stats = {
     totalExpected,
