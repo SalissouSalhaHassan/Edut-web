@@ -27,10 +27,15 @@ import {
   Banknote,
   BookOpen,
   User,
+  Trash2,
+  Loader2,
+  AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+import { toast } from "sonner";
+import { cancelFeePayment } from "../actions/finance.actions";
 import { getBranchByLevel } from "../../settings/actions/settings.actions";
 import OfficialDocumentHeader from "@/domains/printing/components/OfficialDocumentHeader";
 import type { DocumentHeaderConfig } from "@/domains/printing/document-header";
@@ -126,6 +131,8 @@ interface ReceiptPreviewDialogProps {
   onOpenChange: (open: boolean) => void;
   feeData: any;
   headerConfig?: any | null;
+  canDelete?: boolean;
+  onPaymentCancelled?: (paymentId: number) => void;
 }
 
 const fmt = (val: number) => `${val.toLocaleString("fr-FR")} F CFA`;
@@ -178,6 +185,8 @@ export default function ReceiptPreviewDialog({
   onOpenChange,
   feeData,
   headerConfig,
+  canDelete = true,
+  onPaymentCancelled,
 }: ReceiptPreviewDialogProps) {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [phoneError, setPhoneError] = useState("");
@@ -187,6 +196,45 @@ export default function ReceiptPreviewDialog({
   const [activeTab, setActiveTab] = useState<"receipt" | "history">("receipt");
   const [activeHeaderConfig, setActiveHeaderConfig] = useState<any>(headerConfig);
   const [selectedPaperSize, setSelectedPaperSize] = useState<"A4" | "A5">("A5");
+
+  // Payment cancellation & real-time sync state
+  const [currentPayments, setCurrentPayments] = useState<any[]>(feeData?.payments || []);
+  const [currentTotalPaid, setCurrentTotalPaid] = useState<number>(feeData?.totalPaid || 0);
+  const [currentBalance, setCurrentBalance] = useState<number>(feeData?.balance || 0);
+  const [paymentToCancel, setPaymentToCancel] = useState<any | null>(null);
+  const [cancelReason, setCancelReason] = useState<string>("");
+  const [isCancelling, setIsCancelling] = useState(false);
+
+  useEffect(() => {
+    if (feeData) {
+      setCurrentPayments(feeData.payments || []);
+      setCurrentTotalPaid(feeData.totalPaid || 0);
+      setCurrentBalance(feeData.balance || 0);
+    }
+  }, [feeData]);
+
+  const confirmCancelPayment = async () => {
+    if (!paymentToCancel) return;
+    setIsCancelling(true);
+    try {
+      const res = await cancelFeePayment(paymentToCancel.id, cancelReason);
+      if (res.success) {
+        toast.success(res.message || "Versement annulé avec succès !");
+        const remaining = currentPayments.filter((p) => p.id !== paymentToCancel.id);
+        setCurrentPayments(remaining);
+        if (res.newPaid !== undefined) setCurrentTotalPaid(res.newPaid);
+        if (res.newBalance !== undefined) setCurrentBalance(res.newBalance);
+        onPaymentCancelled?.(paymentToCancel.id);
+        setPaymentToCancel(null);
+      } else {
+        toast.error(res.error || "Impossible d'annuler le versement.");
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "Erreur lors de l'annulation du versement.");
+    } finally {
+      setIsCancelling(false);
+    }
+  };
 
   useEffect(() => {
     if (headerConfig) {
@@ -382,11 +430,11 @@ export default function ReceiptPreviewDialog({
   if (!feeData) return null;
 
   const totalExpected = feeData.totalExpected || 0;
-  const totalPaid = feeData.totalPaid || 0;
+  const totalPaid = currentTotalPaid;
   const totalReduction = feeData.totalReduction || 0;
-  const balance = feeData.balance || 0;
-  const lastPayment = feeData.payments?.[0];
-  const allPayments = feeData.payments || [];
+  const balance = currentBalance;
+  const lastPayment = currentPayments[0] || feeData.payments?.[0];
+  const allPayments = currentPayments;
   const isDataComplete = !!feeData.student && totalExpected > 0;
   const isSolde = balance <= 0;
   const isProvisoire = !!lastPayment?.isProvisoire;
@@ -1480,14 +1528,30 @@ export default function ReceiptPreviewDialog({
                           </div>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-[11px] font-black text-slate-700">
-                          {payment.datePaid
-                            ? new Date(payment.datePaid).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" })
-                            : "—"}
-                        </p>
-                        {payment.recordedBy && (
-                          <p className="text-[9px] text-slate-400 font-medium mt-0.5">par {payment.recordedBy}</p>
+                      <div className="flex items-center gap-3">
+                        <div className="text-right">
+                          <p className="text-[11px] font-black text-slate-700">
+                            {payment.datePaid
+                              ? new Date(payment.datePaid).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" })
+                              : "—"}
+                          </p>
+                          {payment.recordedBy && (
+                            <p className="text-[9px] text-slate-400 font-medium mt-0.5">par {payment.recordedBy}</p>
+                          )}
+                        </div>
+
+                        {canDelete && payment.id && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPaymentToCancel(payment);
+                              setCancelReason("");
+                            }}
+                            title="Annuler ce versement (Réservé à l'Admin)"
+                            className="p-2.5 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-all cursor-pointer shadow-none"
+                          >
+                            <Trash2 size={15} />
+                          </button>
                         )}
                       </div>
                     </div>
@@ -1584,6 +1648,92 @@ export default function ReceiptPreviewDialog({
             )}
           </div>
         </div>
+
+        {/* ── Admin Payment Cancellation Confirmation Modal ── */}
+        {paymentToCancel && (
+          <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white rounded-3xl border border-slate-100 shadow-2xl p-6 max-w-md w-full space-y-5 animate-in zoom-in-95 duration-200">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600 shrink-0">
+                  <AlertTriangle size={24} />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900">Annulation de Versement</h3>
+                  <p className="text-xs text-slate-500 mt-0.5 font-medium">
+                    Action réservée à la Direction / Administration
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-2 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-slate-500 font-bold">Élève :</span>
+                  <span className="text-slate-900 font-extrabold">{feeData.student?.nomEtudiant || "—"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500 font-bold">Montant à annuler :</span>
+                  <span className="text-rose-600 font-black text-sm">{fmt(paymentToCancel.amount || 0)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500 font-bold">Date du versement :</span>
+                  <span className="text-slate-700 font-medium">
+                    {paymentToCancel.datePaid
+                      ? new Date(paymentToCancel.datePaid).toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" })
+                      : "—"}
+                  </span>
+                </div>
+                {paymentToCancel.reference && (
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 font-bold">Référence du reçu :</span>
+                    <span className="text-indigo-600 font-bold">#{paymentToCancel.reference}</span>
+                  </div>
+                )}
+              </div>
+
+              <p className="text-[11px] text-amber-700 bg-amber-50 p-3 rounded-xl border border-amber-100 font-medium leading-relaxed">
+                ⚠️ Cette action supprimera définitivement le versement et réajustera automatiquement le solde restant et le total versé de l'élève.
+              </p>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700">Motif de l'annulation (facultatif)</label>
+                <Input
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  placeholder="Ex: Erreur de saisie, chèque rejeté, doublon..."
+                  className="rounded-xl bg-slate-50 border-slate-200 text-xs h-10"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <Button
+                  variant="ghost"
+                  type="button"
+                  disabled={isCancelling}
+                  onClick={() => setPaymentToCancel(null)}
+                  className="rounded-xl text-xs font-bold text-slate-500 hover:text-slate-700"
+                >
+                  Abandonner
+                </Button>
+                <Button
+                  type="button"
+                  disabled={isCancelling}
+                  onClick={confirmCancelPayment}
+                  className="rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-black shadow-lg shadow-rose-600/20 flex items-center gap-2"
+                >
+                  {isCancelling ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin" /> Annulation en cours...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 size={14} /> Confirmer l'Annulation
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

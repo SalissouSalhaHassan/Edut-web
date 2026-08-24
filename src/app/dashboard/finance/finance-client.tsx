@@ -909,6 +909,10 @@ export default function FinanceClient({
         onOpenChange={(open) => !open && setPreviewFee(null)} 
         feeData={previewFee} 
         headerConfig={headerConfig}
+        canDelete={canDelete ?? true}
+        onPaymentCancelled={() => {
+          router.refresh();
+        }}
       />
       </div>{/* end space-y-6 content wrapper */}
       </main>

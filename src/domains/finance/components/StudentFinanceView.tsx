@@ -565,6 +565,7 @@ export default function StudentFinanceView({
             monthConcerned: selectedPaymentForReceipt.monthConcerned || "Scolarité",
           }}
           headerConfig={headerConfig}
+          canDelete={false}
         />
       )}
     </div>

@@ -10,6 +10,7 @@ import { schoolClasses, schoolSessions } from "@/infrastructure/database/schema/
 import { students } from "@/infrastructure/database/schema/students";
 import { notifications } from "@/infrastructure/database/schema/messaging";
 import { users } from "@/infrastructure/database/schema/auth";
+import { auditLogs } from "@/infrastructure/database/schema/audit";
 import { getActiveSchoolId } from "@/domains/auth/services/school";
 import { getCurrentUser } from "@/domains/auth/services/session";
 import { getActiveEducationalLevel, getCompatibleLevels, getUserRoleType, checkEducationalLevelAccess, normalizeLevel } from "@/domains/auth/services/rbac";
@@ -313,6 +314,112 @@ export async function deleteStudentFee(id: number) {
     await db.delete(studentFees).where(and(eq(studentFees.id, id), eq(studentFees.schoolId, schoolId)));
     revalidatePath("/dashboard/finance");
     return { success: true };
+  });
+}
+
+export async function cancelFeePayment(paymentId: number, reason?: string) {
+  return protectedDbAction("Finance", "canDelete", async (user) => {
+    const roleType = await getUserRoleType(user);
+    const isAdminUser = 
+      roleType === "super_admin" || 
+      roleType === "directeur" || 
+      roleType === "general_director" || 
+      roleType === "level_director" ||
+      user.admin === true || 
+      user.superAdmin === true || 
+      user.superAdmin === 1;
+
+    if (!isAdminUser) {
+      return { 
+        error: "Accès refusé. Seuls les Administrateurs et Directeurs ont l'autorisation d'annuler un versement.", 
+        success: false 
+      };
+    }
+
+    const schoolId = (await getActiveSchoolId()) || user.schoolId;
+
+    // 1. Fetch the payment record
+    const payment = await db.query.feePayments.findFirst({
+      where: and(
+        eq(feePayments.id, paymentId),
+        schoolId ? eq(feePayments.schoolId, schoolId) : undefined
+      ),
+    });
+
+    if (!payment) {
+      return { error: "Versement introuvable.", success: false };
+    }
+
+    // 2. Fetch associated student fee record
+    const fee = await db.query.studentFees.findFirst({
+      where: eq(studentFees.id, payment.feeId),
+      with: { student: true }
+    });
+
+    if (!fee) {
+      return { error: "Dossier financier associé introuvable.", success: false };
+    }
+
+    // 3. Recalculate totals
+    const currentPaid = fee.totalPaid || 0;
+    const currentReduc = fee.totalReduction || 0;
+    const amountToDeduct = payment.amount || 0;
+    const reductionToDeduct = payment.reduction || 0;
+
+    const newPaid = Math.max(0, currentPaid - amountToDeduct);
+    const newReduction = Math.max(0, currentReduc - reductionToDeduct);
+    const newBalance = (fee.totalExpected || 0) - newPaid - newReduction;
+    const newStatus = newBalance <= 0 ? "Soldé" : newPaid > 0 ? "Partiel" : "Impayé";
+
+    // 4. Update student fee record
+    await db.update(studentFees)
+      .set({
+        totalPaid: newPaid,
+        totalReduction: newReduction,
+        balance: newBalance,
+        status: newStatus,
+      })
+      .where(eq(studentFees.id, payment.feeId));
+
+    // 5. Delete the payment record
+    await db.delete(feePayments).where(eq(feePayments.id, paymentId));
+
+    // 6. Audit logging
+    try {
+      await db.insert(auditLogs).values({
+        schoolId: fee.schoolId || schoolId,
+        userId: user.id,
+        action: "CANCEL_PAYMENT",
+        tableName: "fee_payments",
+        recordId: String(paymentId),
+        oldData: JSON.stringify({
+          paymentId: payment.id,
+          amount: payment.amount,
+          reference: payment.reference,
+          feeId: payment.feeId,
+          studentName: fee.student?.nomEtudiant,
+          reason: reason || "Annulation par l'administrateur",
+          cancelledBy: user.nomPrenom || user.utilisateur || "Admin",
+        }),
+        newData: JSON.stringify({
+          newPaid,
+          newBalance,
+          newStatus,
+        }),
+      });
+    } catch (auditErr) {
+      console.warn("[Cancel Payment] Audit log warning:", auditErr);
+    }
+
+    revalidatePath("/dashboard/finance");
+    return { 
+      success: true, 
+      paymentId, 
+      newPaid, 
+      newBalance, 
+      newStatus,
+      message: `Versement de ${Math.round(amountToDeduct).toLocaleString("fr-FR")} CFA annulé avec succès.` 
+    };
   });
 }
 
