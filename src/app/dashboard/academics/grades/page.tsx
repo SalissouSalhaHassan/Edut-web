@@ -586,8 +586,14 @@ export default function AcademicResultsPage() {
               });
               if (res?.success) {
                 setWorkflowStatus("SAISIE_TERMINEE");
+                toast.success("Notes soumises pour contrôle avec succès.");
                 return true;
+              } else if (res?.error) {
+                toast.error(res.error);
               }
+              return false;
+            } catch (err: any) {
+              toast.error(err?.message || "Erreur de soumission");
               return false;
             } finally {
               setLoading(false);
@@ -609,8 +615,14 @@ export default function AcademicResultsPage() {
               if (res?.success) {
                 setWorkflowStatus("CORRECTION_DEMANDEE");
                 setWorkflowRow({ observation });
+                toast.success("Demande de correction transmise.");
                 return true;
+              } else if (res?.error) {
+                toast.error(res.error);
               }
+              return false;
+            } catch (err: any) {
+              toast.error(err?.message || "Erreur lors de la demande");
               return false;
             } finally {
               setLoading(false);
@@ -630,8 +642,14 @@ export default function AcademicResultsPage() {
               });
               if (res?.success) {
                 setWorkflowStatus("CONTROLE_PEDAGOGIQUE");
+                toast.success("Contrôle pédagogique validé.");
                 return true;
+              } else if (res?.error) {
+                toast.error(res.error);
               }
+              return false;
+            } catch (err: any) {
+              toast.error(err?.message || "Erreur de validation");
               return false;
             } finally {
               setLoading(false);
@@ -651,8 +669,14 @@ export default function AcademicResultsPage() {
               });
               if (res?.success) {
                 setWorkflowStatus("VERROUILLE");
+                toast.success("Grille de notes verrouillée.");
                 return true;
+              } else if (res?.error) {
+                toast.error(res.error);
               }
+              return false;
+            } catch (err: any) {
+              toast.error(err?.message || "Erreur de verrouillage");
               return false;
             } finally {
               setLoading(false);
@@ -672,8 +696,14 @@ export default function AcademicResultsPage() {
               });
               if (res?.success) {
                 setWorkflowStatus("PUBLIE");
+                toast.success("Résultats et bulletins publiés avec succès !");
                 return true;
+              } else if (res?.error) {
+                toast.error(res.error);
               }
+              return false;
+            } catch (err: any) {
+              toast.error(err?.message || "Erreur de publication");
               return false;
             } finally {
               setLoading(false);
@@ -694,9 +724,15 @@ export default function AcademicResultsPage() {
               });
               if (res?.success) {
                 setWorkflowStatus("BROUILLON");
-                setWorkflowRow(null);
+                setWorkflowRow({ observation });
+                toast.success("Déverrouillage exceptionnel effectué.");
                 return true;
+              } else if (res?.error) {
+                toast.error(res.error);
               }
+              return false;
+            } catch (err: any) {
+              toast.error(err?.message || "Erreur de déverrouillage");
               return false;
             } finally {
               setLoading(false);

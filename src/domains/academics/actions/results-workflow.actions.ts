@@ -14,7 +14,7 @@ import { employees } from "@/infrastructure/database/schema/hr";
 import { students } from "@/infrastructure/database/schema/students";
 import { studentAttendance } from "@/infrastructure/database/schema/attendance";
 import { auditLogs } from "@/infrastructure/database/schema/audit";
-import { eq, and } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { getActiveSchoolId } from "@/domains/auth/services/school";
 import {
@@ -75,30 +75,43 @@ async function assertWorkflowPermission(user: any, action: WorkflowAction, param
   const roleType = await getUserRoleType(user);
 
   if (action === "submit") {
-    if (roleType !== "teacher" && roleType !== "enseignant") {
+    if (roleType !== "teacher" && roleType !== "enseignant" && !user?.admin && !user?.superAdmin) {
       throw new Error("Seul l'enseignant peut soumettre les notes.");
     }
     const emp = await getTeacherEmployee(user);
-    if (!emp) throw new Error("Profil enseignant introuvable.");
-    if (params.teacherId && params.teacherId !== emp.id) {
+    if (!emp && !user?.admin && !user?.superAdmin) throw new Error("Profil enseignant introuvable.");
+    if (params.teacherId && emp && params.teacherId !== emp.id && !user?.admin && !user?.superAdmin) {
       throw new Error("Accès refusé: enseignant différent.");
     }
 
-    const hasAccess = params.subjectId
-      ? await verifyTeacherClassSubjectAccess(user, params.classId, params.subjectId)
-      : await verifyTeacherClassAccess(user, params.classId);
-    if (!hasAccess) throw new Error("Accès refusé pour cette classe ou matière.");
-    return { roleType, employeeId: emp.id };
+    if (!user?.admin && !user?.superAdmin) {
+      const hasAccess = params.subjectId
+        ? await verifyTeacherClassSubjectAccess(user, params.classId, params.subjectId)
+        : await verifyTeacherClassAccess(user, params.classId);
+      if (!hasAccess) throw new Error("Accès refusé pour cette classe ou matière.");
+    }
+    return { roleType, employeeId: emp?.id || null };
   }
 
-  if (roleType === "teacher" || roleType === "enseignant") {
-    throw new Error("Accès refusé: l'enseignant peut seulement soumettre les notes.");
-  }
+  const isPrivileged =
+    user?.admin === true ||
+    user?.superAdmin === true ||
+    directorRoles.has(roleType) ||
+    ministryPublishRoles.has(roleType) ||
+    roleType === "directeur" ||
+    roleType === "general_director" ||
+    roleType === "level_director";
 
-  if (action === "request_correction" && managementRoles.has(roleType)) return { roleType, employeeId: null };
-  if (action === "control" && controlRoles.has(roleType)) return { roleType, employeeId: null };
-  if ((action === "validate" || action === "lock") && directorRoles.has(roleType)) return { roleType, employeeId: null };
-  if ((action === "publish" || action === "archive" || action === "unlock") && ministryPublishRoles.has(roleType)) {
+  if (action === "request_correction" && (managementRoles.has(roleType) || isPrivileged)) {
+    return { roleType, employeeId: null };
+  }
+  if (action === "control" && (controlRoles.has(roleType) || isPrivileged)) {
+    return { roleType, employeeId: null };
+  }
+  if ((action === "validate" || action === "lock") && (directorRoles.has(roleType) || isPrivileged)) {
+    return { roleType, employeeId: null };
+  }
+  if ((action === "publish" || action === "archive" || action === "unlock") && (ministryPublishRoles.has(roleType) || isPrivileged)) {
     return { roleType, employeeId: null };
   }
 
@@ -187,6 +200,8 @@ async function setWorkflowStatus(params: {
 
   if (params.subjectId) {
     conds.push(eq(resultsWorkflows.subjectId, params.subjectId));
+  } else {
+    conds.push(isNull(resultsWorkflows.subjectId));
   }
 
   const existing = await db.query.resultsWorkflows.findFirst({
@@ -461,6 +476,8 @@ export async function getResultsWorkflowStatus(params: {
 
     if (params.subjectId) {
       conds.push(eq(resultsWorkflows.subjectId, params.subjectId));
+    } else {
+      conds.push(isNull(resultsWorkflows.subjectId));
     }
 
     const row = await db.query.resultsWorkflows.findFirst({
