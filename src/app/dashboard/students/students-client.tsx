@@ -131,6 +131,7 @@ function getCompatibleEducationalLevels(level: string): string[] {
 export default function StudentsClient({ initialStudents, currentUser, activeSchoolId, canEdit, canDelete }: StudentsClientProps) {
   const [allStudents, setAllStudents] = useState<any[]>(initialStudents);
   const [isLocal, setIsLocal] = useState(false);
+  const [unsyncedAdmissions, setUnsyncedAdmissions] = useState<Set<string>>(new Set());
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
