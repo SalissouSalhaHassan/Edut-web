@@ -802,3 +802,170 @@ export const bulletinRecordsRelations = relations(bulletinRecords, ({ one }) => 
     references: [academicPeriods.id],
   }),
 }));
+
+// ─── LMD & HIGHER EDUCATION TABLES (Système Universitaire LMD / ECTS) ─────────
+
+/**
+ * Facultés, Instituts, Écoles ou UFR
+ */
+export const universityFaculties = pgTable("university_faculties", {
+  id: serial("id").primaryKey(),
+  schoolId: integer("school_id").references(() => schools.id, { onDelete: "cascade" }),
+  name: varchar("name", { length: 150 }).notNull(),
+  code: varchar("code", { length: 30 }),
+  deanEmployeeId: integer("dean_employee_id").references(() => employees.id),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const universityFacultiesRelations = relations(universityFaculties, ({ one, many }) => ({
+  school: one(schools, { fields: [universityFaculties.schoolId], references: [schools.id] }),
+  dean: one(employees, { fields: [universityFaculties.deanEmployeeId], references: [employees.id] }),
+  departments: many(universityDepartments),
+}));
+
+/**
+ * Départements académiques au sein d'une Faculté
+ */
+export const universityDepartments = pgTable("university_departments", {
+  id: serial("id").primaryKey(),
+  facultyId: integer("faculty_id").references(() => universityFaculties.id, { onDelete: "cascade" }),
+  name: varchar("name", { length: 150 }).notNull(),
+  code: varchar("code", { length: 30 }),
+  headEmployeeId: integer("head_employee_id").references(() => employees.id),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const universityDepartmentsRelations = relations(universityDepartments, ({ one, many }) => ({
+  faculty: one(universityFaculties, { fields: [universityDepartments.facultyId], references: [universityFaculties.id] }),
+  head: one(employees, { fields: [universityDepartments.headEmployeeId], references: [employees.id] }),
+  programs: many(universityPrograms),
+}));
+
+/**
+ * Filières, Parcours et Spécialités LMD (ex: Licence Informatique, Master Finance)
+ */
+export const universityPrograms = pgTable("university_programs", {
+  id: serial("id").primaryKey(),
+  departmentId: integer("department_id").references(() => universityDepartments.id, { onDelete: "cascade" }),
+  schoolId: integer("school_id").references(() => schools.id, { onDelete: "cascade" }),
+  name: varchar("name", { length: 150 }).notNull(),
+  code: varchar("code", { length: 50 }),
+  degreeLevel: varchar("degree_level", { length: 50 }).notNull().default("Licence"), // Licence | Master | Doctorat
+  totalCredits: integer("total_credits").default(180), // 180 (Licence) | 120 (Master)
+  durationSemesters: integer("duration_semesters").default(6),
+  description: text("description"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const universityProgramsRelations = relations(universityPrograms, ({ one, many }) => ({
+  department: one(universityDepartments, { fields: [universityPrograms.departmentId], references: [universityDepartments.id] }),
+  school: one(schools, { fields: [universityPrograms.schoolId], references: [schools.id] }),
+  unitesEnseignement: many(lmdUnitesEnseignement),
+}));
+
+/**
+ * Unités d'Enseignement (UE) — 30 Crédits ECTS par Semestre
+ */
+export const lmdUnitesEnseignement = pgTable("lmd_unites_enseignement", {
+  id: serial("id").primaryKey(),
+  programId: integer("program_id").references(() => universityPrograms.id, { onDelete: "cascade" }),
+  semester: varchar("semester", { length: 20 }).notNull(), // S1, S2, S3, S4, S5, S6
+  codeUe: varchar("code_ue", { length: 50 }).notNull(),   // ex: INF1101, MTH1201
+  nameUe: varchar("name_ue", { length: 150 }).notNull(),
+  typeUe: varchar("type_ue", { length: 50 }).default("Fondamentale"), // Fondamentale | Méthodologique | Transversale | Optionnelle
+  creditsEcts: doublePrecision("credits_ects").notNull().default(6.0),
+  totalHours: doublePrecision("total_hours").default(60.0),
+  minPassingGrade: doublePrecision("min_passing_grade").default(10.0),
+  isEliminatory: boolean("is_eliminatory").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const lmdUnitesEnseignementRelations = relations(lmdUnitesEnseignement, ({ one, many }) => ({
+  program: one(universityPrograms, { fields: [lmdUnitesEnseignement.programId], references: [universityPrograms.id] }),
+  elementsConstitutifs: many(lmdElementsConstitutifs),
+  studentResults: many(studentLmdUeResults),
+}));
+
+/**
+ * Éléments Constitutifs d'UE (ECU / Matières)
+ */
+export const lmdElementsConstitutifs = pgTable("lmd_elements_constitutifs", {
+  id: serial("id").primaryKey(),
+  ueId: integer("ue_id").references(() => lmdUnitesEnseignement.id, { onDelete: "cascade" }),
+  subjectId: integer("subject_id").references(() => schoolSubjects.id),
+  codeEcu: varchar("code_ecu", { length: 50 }),
+  nameEcu: varchar("name_ecu", { length: 150 }).notNull(),
+  creditsEcts: doublePrecision("credits_ects").default(3.0),
+  coefficient: integer("coefficient").default(1),
+  hoursCm: doublePrecision("hours_cm").default(24.0), // Cours Magistraux
+  hoursTd: doublePrecision("hours_td").default(12.0), // Travaux Dirigés
+  hoursTp: doublePrecision("hours_tp").default(0.0),  // Travaux Pratiques
+  hoursTpe: doublePrecision("hours_tpe").default(24.0), // Travail Personnel
+  teacherEmployeeId: integer("teacher_employee_id").references(() => employees.id),
+  eliminatoryGrade: doublePrecision("eliminatory_grade").default(7.0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const lmdElementsConstitutifsRelations = relations(lmdElementsConstitutifs, ({ one }) => ({
+  uniteEnseignement: one(lmdUnitesEnseignement, { fields: [lmdElementsConstitutifs.ueId], references: [lmdUnitesEnseignement.id] }),
+  subject: one(schoolSubjects, { fields: [lmdElementsConstitutifs.subjectId], references: [schoolSubjects.id] }),
+  teacher: one(employees, { fields: [lmdElementsConstitutifs.teacherEmployeeId], references: [employees.id] }),
+}));
+
+/**
+ * Résultats et Capitalisation des UE par Étudiant
+ */
+export const studentLmdUeResults = pgTable("student_lmd_ue_results", {
+  id: serial("id").primaryKey(),
+  studentId: integer("student_id").references(() => students.id, { onDelete: "cascade" }),
+  ueId: integer("ue_id").references(() => lmdUnitesEnseignement.id, { onDelete: "cascade" }),
+  sessionId: integer("session_id").references(() => schoolSessions.id),
+  semester: varchar("semester", { length: 20 }).notNull(),
+  rawAverage: doublePrecision("raw_average"), // Note / 20
+  validatedStatus: varchar("validated_status", { length: 20 }).default("NV"), // V (Validé) | VC (Validé par Compensation) | NV (Non Validé) | CAP (Capitalisé) | RAT (En Rattrapage)
+  creditsAcquired: doublePrecision("credits_acquired").default(0.0),
+  sessionAcquisition: varchar("session_acquisition", { length: 30 }).default("Normale"), // Normale | Rattrapage
+  academicYear: varchar("academic_year", { length: 30 }),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const studentLmdUeResultsRelations = relations(studentLmdUeResults, ({ one }) => ({
+  student: one(students, { fields: [studentLmdUeResults.studentId], references: [students.id] }),
+  uniteEnseignement: one(lmdUnitesEnseignement, { fields: [studentLmdUeResults.ueId], references: [lmdUnitesEnseignement.id] }),
+  session: one(schoolSessions, { fields: [studentLmdUeResults.sessionId], references: [schoolSessions.id] }),
+}));
+
+/**
+ * Résultats Semestriels et Décisions LMD (30 Crédits ECTS / Semestre)
+ */
+export const studentLmdSemesters = pgTable("student_lmd_semesters", {
+  id: serial("id").primaryKey(),
+  studentId: integer("student_id").references(() => students.id, { onDelete: "cascade" }),
+  programId: integer("program_id").references(() => universityPrograms.id),
+  classId: integer("class_id").references(() => schoolClasses.id),
+  semester: varchar("semester", { length: 20 }).notNull(), // S1 .. S6
+  sessionId: integer("session_id").references(() => schoolSessions.id),
+  semesterAverage: doublePrecision("semester_average"),
+  creditsAcquired: doublePrecision("credits_acquired").default(0.0), // sur 30 ECTS
+  totalCreditsAccumulated: doublePrecision("total_credits_accumulated").default(0.0), // cumulé (ex: 90 / 180)
+  decision: varchar("decision", { length: 100 }).default("Ajourné"), // Admis | Admis par Compensation | Ajourné | Admis avec Dettes | Enjambement
+  rank: varchar("rank", { length: 20 }),
+  mention: varchar("mention", { length: 50 }), // Passable | Assez Bien | Bien | Très Bien
+  sessionType: varchar("session_type", { length: 30 }).default("Normale"), // Normale | Rattrapage
+  juryDeliberationNotes: text("jury_deliberation_notes"),
+  validatedAt: timestamp("validated_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const studentLmdSemestersRelations = relations(studentLmdSemesters, ({ one }) => ({
+  student: one(students, { fields: [studentLmdSemesters.studentId], references: [students.id] }),
+  program: one(universityPrograms, { fields: [studentLmdSemesters.programId], references: [universityPrograms.id] }),
+  class: one(schoolClasses, { fields: [studentLmdSemesters.classId], references: [schoolClasses.id] }),
+  session: one(schoolSessions, { fields: [studentLmdSemesters.sessionId], references: [schoolSessions.id] }),
+}));
+

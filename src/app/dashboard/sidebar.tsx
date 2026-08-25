@@ -102,6 +102,7 @@ const sections: NavSection[] = [
       { href: "/dashboard/students/promote", label: "Promotions", icon: <GraduationCap className="size-[18px]" />, color: "text-indigo-500" },
       { href: "/dashboard/attendance", label: "Présences élèves", icon: <CalendarCheck2 className="size-[18px]" />, color: "text-emerald-500" },
       { href: "/dashboard/academics", label: "Gestion académique", icon: <BookOpen className="size-[18px]" />, color: "text-blue-500" },
+      { href: "/dashboard/academics/lmd", label: "Système LMD / ECTS", icon: <GraduationCap className="size-[18px]" />, color: "text-indigo-600", badge: "Supérieur", badgeColor: "bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-400" },
       { href: "/dashboard/academics/sections", label: "Sections / Filières", icon: <Bookmark className="size-[18px]" />, color: "text-amber-500" },
       { href: "/dashboard/academics/pedagogical-units", label: "Unités pédagogiques", icon: <UsersRound className="size-[18px]" />, color: "text-indigo-500" },
       { href: "/dashboard/academics/exams", label: "Examens", icon: <ClipboardList className="size-[18px]" />, color: "text-indigo-500" },
