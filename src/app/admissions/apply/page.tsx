@@ -31,6 +31,7 @@ import {
   Info,
   Clock,
   Download,
+  Briefcase,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import {
@@ -723,71 +724,102 @@ function ApplyFormContent() {
             )}
 
             {/* ═══════════════════════════════════════════════════════════════════
-                STEP 4: UPLOADED DIGITAL DOCUMENTS
+                STEP 4: UPLOADED DIGITAL DOCUMENTS & CLOUD LINKS
             ═══════════════════════════════════════════════════════════════════ */}
             {step === 4 && (
               <div className="space-y-6 animate-in fade-in duration-300">
-                <div className="border-b border-slate-800 pb-3">
-                  <h3 className="text-lg font-black text-white flex items-center gap-2">
-                    <Upload className="size-5 text-emerald-400" />
-                    Dossier Numérique &amp; Pièces Justificatives
-                  </h3>
-                  <p className="text-xs text-slate-400 mt-1">Collez les liens Cloud (Google Drive, Dropbox, Cloudinary) ou saisissez vos documents.</p>
+                <div className="border-b border-slate-800 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-lg font-black text-white flex items-center gap-2">
+                      <Upload className="size-5 text-emerald-400" />
+                      Dossier Numérique &amp; Pièces Justificatives
+                    </h3>
+                    <p className="text-xs text-slate-400 mt-1">
+                      Téléversez vos fichiers depuis votre téléphone / ordinateur ou collez vos liens Cloud (Google Drive, Dropbox).
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 text-[11px] font-bold text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/20 w-fit">
+                    <ShieldCheck className="size-4 shrink-0" />
+                    <span>Formats acceptés : PDF, PNG, JPG, WEBP (Max 10 Mo)</span>
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-300">Photo d&apos;identité (URL)</label>
-                    <input
-                      type="url"
-                      value={formData.photoUrl}
-                      onChange={(e) => setFormData({ ...formData, photoUrl: e.target.value })}
-                      placeholder="https://.../photo.jpg"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-xs font-bold text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
-                    />
-                  </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  {/* 1. Photo d'identité */}
+                  <DocumentUploadCard
+                    label="1. Photo d'Identité (Format Passeport) *"
+                    description="Photo récente sur fond clair (Visage dégagé)"
+                    accept="image/*"
+                    icon={<Camera className="size-5 text-emerald-400" />}
+                    value={formData.photoUrl}
+                    onChange={(val) => setFormData({ ...formData, photoUrl: val })}
+                  />
 
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-300">Pièce d&apos;identité / Passeport (URL)</label>
-                    <input
-                      type="url"
-                      value={formData.idCardPassportUrl}
-                      onChange={(e) => setFormData({ ...formData, idCardPassportUrl: e.target.value })}
-                      placeholder="https://.../passport.pdf"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-xs font-bold text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
-                    />
-                  </div>
+                  {/* 2. Pièce d'identité / Passeport */}
+                  <DocumentUploadCard
+                    label="2. Pièce d'Identité / Passeport / Acte de Naissance *"
+                    description="CNI, Passeport valide ou Extrait d'acte de naissance"
+                    accept="image/*,application/pdf"
+                    icon={<FileText className="size-5 text-blue-400" />}
+                    value={formData.idCardPassportUrl || formData.birthCertificateUrl}
+                    onChange={(val) => setFormData({ ...formData, idCardPassportUrl: val, birthCertificateUrl: val })}
+                  />
 
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-300">Relevé de notes du Bac (URL)</label>
-                    <input
-                      type="url"
-                      value={formData.bacTranscriptUrl}
-                      onChange={(e) => setFormData({ ...formData, bacTranscriptUrl: e.target.value })}
-                      placeholder="https://.../releve-bac.pdf"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-xs font-bold text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
-                    />
-                  </div>
+                  {/* 3. Relevé de notes du Bac */}
+                  <DocumentUploadCard
+                    label="3. Relevé de Notes du Baccalauréat *"
+                    description="Relevé officiel délivré par l'Office du Baccalauréat"
+                    accept="image/*,application/pdf"
+                    icon={<Award className="size-5 text-amber-400" />}
+                    value={formData.bacTranscriptUrl}
+                    onChange={(val) => setFormData({ ...formData, bacTranscriptUrl: val })}
+                  />
 
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-300">Diplôme / Attestation du Bac (URL)</label>
-                    <input
-                      type="url"
-                      value={formData.bacCertificateUrl}
-                      onChange={(e) => setFormData({ ...formData, bacCertificateUrl: e.target.value })}
-                      placeholder="https://.../diplome-bac.pdf"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-xs font-bold text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
-                    />
-                  </div>
+                  {/* 4. Diplôme / Attestation du Bac */}
+                  <DocumentUploadCard
+                    label="4. Diplôme ou Attestation de Réussite au Bac *"
+                    description="Attestation provisoire ou Diplôme définitif du Bac"
+                    accept="image/*,application/pdf"
+                    icon={<GraduationCap className="size-5 text-purple-400" />}
+                    value={formData.bacCertificateUrl}
+                    onChange={(val) => setFormData({ ...formData, bacCertificateUrl: val })}
+                  />
 
-                  <div className="space-y-2 sm:col-span-2">
-                    <label className="text-xs font-bold text-slate-300">Lettre de motivation / Projet professionnel</label>
+                  {/* 5. Relevés Universitaires Antérieurs (Optionnel / Master) */}
+                  <DocumentUploadCard
+                    label="5. Relevés de Notes Universitaires (S1 à S6)"
+                    description="Obligatoire pour les admissions en Licence 2, 3 ou Master"
+                    accept="image/*,application/pdf"
+                    icon={<BookOpen className="size-5 text-teal-400" />}
+                    value={formData.higherEdTranscriptUrl}
+                    onChange={(val) => setFormData({ ...formData, higherEdTranscriptUrl: val })}
+                  />
+
+                  {/* 6. Curriculum Vitae (CV) */}
+                  <DocumentUploadCard
+                    label="6. Curriculum Vitae (CV actualisé)"
+                    description="Recommandé pour les filières professionnelles & Master"
+                    accept="application/pdf,image/*"
+                    icon={<Briefcase className="size-5 text-indigo-400" />}
+                    value={formData.cvUrl}
+                    onChange={(val) => setFormData({ ...formData, cvUrl: val })}
+                  />
+
+                  {/* 7. Lettre de Motivation */}
+                  <div className="md:col-span-2 space-y-2 p-5 bg-slate-950/80 border border-slate-800 rounded-3xl">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-black text-white flex items-center gap-2">
+                        <FileText className="size-4 text-emerald-400" />
+                        Lettre de motivation / Projet professionnel &amp; Ambitions
+                      </label>
+                      <span className="text-[10px] text-slate-500 font-bold uppercase">Texte direct</span>
+                    </div>
                     <textarea
-                      rows={3}
+                      rows={4}
                       value={formData.coverLetter}
                       onChange={(e) => setFormData({ ...formData, coverLetter: e.target.value })}
-                      placeholder="Expliquez brièvement les motivations qui guident votre choix pour cette filière et vos ambitions de carrière..."
-                      className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-xs font-bold text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
+                      placeholder="Expliquez brièvement les motivations qui guident votre choix pour cette filière, votre parcours et vos ambitions professionnelles futures..."
+                      className="w-full bg-slate-900 border border-slate-800 rounded-2xl px-4 py-3 text-xs font-medium text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500 leading-relaxed"
                     />
                   </div>
                 </div>
@@ -933,6 +965,252 @@ function ApplyFormContent() {
   );
 }
 
+// ─── DOCUMENT UPLOAD / CLOUD LINK CARD COMPONENT ─────────────────────────────
+
+interface DocumentUploadCardProps {
+  label: string;
+  description: string;
+  accept?: string;
+  icon: React.ReactNode;
+  value?: string;
+  onChange: (val: string) => void;
+}
+
+function DocumentUploadCard({
+  label,
+  description,
+  accept = "image/*,application/pdf",
+  icon,
+  value,
+  onChange,
+}: DocumentUploadCardProps) {
+  const [mode, setMode] = useState<"file" | "cloud">("file");
+  const [fileName, setFileName] = useState<string>("");
+  const [fileSize, setFileSize] = useState<string>("");
+  const [isDragging, setIsDragging] = useState(false);
+  const [isReading, setIsReading] = useState(false);
+
+  const handleFile = (file: File) => {
+    if (!file) return;
+
+    if (file.size > 12 * 1024 * 1024) {
+      toast.error("Le fichier dépasse la taille maximale autorisée de 12 Mo.");
+      return;
+    }
+
+    setFileName(file.name);
+    const sizeInMb = (file.size / (1024 * 1024)).toFixed(2);
+    const sizeStr = file.size > 1024 * 1024 ? `${sizeInMb} Mo` : `${Math.round(file.size / 1024)} Ko`;
+    setFileSize(sizeStr);
+
+    setIsReading(true);
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      onChange(result);
+      setIsReading(false);
+      toast.success(`Fichier "${file.name}" chargé avec succès !`);
+    };
+    reader.onerror = () => {
+      setIsReading(false);
+      toast.error("Erreur lors de la lecture du fichier.");
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const isImage = value?.startsWith("data:image/") || value?.match(/\.(jpg|jpeg|png|webp|gif)/i);
+  const isPdf = value?.startsWith("data:application/pdf") || value?.match(/\.pdf/i);
+  const hasValue = Boolean(value && value.trim().length > 0);
+
+  return (
+    <div className="p-5 bg-slate-950/90 border border-slate-800 rounded-3xl space-y-4 relative overflow-hidden transition hover:border-slate-700">
+      {/* Header Info */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <div className="size-9 bg-slate-900 border border-slate-800 rounded-xl flex items-center justify-center shrink-0 shadow-sm">
+            {icon}
+          </div>
+          <div>
+            <h4 className="text-xs font-black text-white">{label}</h4>
+            <p className="text-[11px] text-slate-400 mt-0.5">{description}</p>
+          </div>
+        </div>
+
+        {hasValue && (
+          <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20 shrink-0">
+            <CheckCircle2 className="size-3" /> Prêt
+          </span>
+        )}
+      </div>
+
+      {/* Mode Switcher Tabs */}
+      <div className="flex items-center gap-1.5 p-1 bg-slate-900 rounded-2xl border border-slate-800/80">
+        <button
+          type="button"
+          onClick={() => setMode("file")}
+          className={`flex-1 py-2 px-3 rounded-xl text-[11px] font-black flex items-center justify-center gap-1.5 transition ${
+            mode === "file"
+              ? "bg-slate-800 text-white shadow-sm"
+              : "text-slate-400 hover:text-slate-200"
+          }`}
+        >
+          <Upload className="size-3.5" />
+          Importer depuis l&apos;appareil
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode("cloud")}
+          className={`flex-1 py-2 px-3 rounded-xl text-[11px] font-black flex items-center justify-center gap-1.5 transition ${
+            mode === "cloud"
+              ? "bg-slate-800 text-white shadow-sm"
+              : "text-slate-400 hover:text-slate-200"
+          }`}
+        >
+          <Globe className="size-3.5" />
+          Lien Cloud (Drive / Dropbox)
+        </button>
+      </div>
+
+      {/* Mode 1: File Browser / Drag & Drop */}
+      {mode === "file" && (
+        <div>
+          {hasValue ? (
+            <div className="p-3.5 bg-slate-900 border border-emerald-500/30 rounded-2xl flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 overflow-hidden">
+                {isImage && (
+                  <img
+                    src={value}
+                    alt="Preview"
+                    className="size-12 rounded-xl object-cover border border-slate-700 shrink-0"
+                  />
+                )}
+                {isPdf && (
+                  <div className="size-12 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl flex flex-col items-center justify-center shrink-0 text-[9px] font-black">
+                    <FileText className="size-5" />
+                    PDF
+                  </div>
+                )}
+                {!isImage && !isPdf && (
+                  <div className="size-12 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl flex items-center justify-center shrink-0">
+                    <FileText className="size-6" />
+                  </div>
+                )}
+                <div className="truncate text-xs">
+                  <p className="font-bold text-white truncate">{fileName || "Document numérisé"}</p>
+                  <p className="text-[10px] text-slate-400">{fileSize || "Fichier attaché"}</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1.5 shrink-0">
+                <label className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 cursor-pointer border border-slate-700 transition">
+                  Remplacer
+                  <input
+                    type="file"
+                    accept={accept}
+                    onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
+                    className="hidden"
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onChange("");
+                    setFileName("");
+                    setFileSize("");
+                  }}
+                  className="px-2.5 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-xs font-bold border border-rose-500/20 transition"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+          ) : (
+            <label
+              onDragOver={(e) => {
+                e.preventDefault();
+                setIsDragging(true);
+              }}
+              onDragLeave={() => setIsDragging(false)}
+              onDrop={handleDrop}
+              className={`border-2 border-dashed rounded-2xl p-4 flex flex-col items-center justify-center gap-2 cursor-pointer transition text-center ${
+                isDragging
+                  ? "border-emerald-400 bg-emerald-500/10"
+                  : "border-slate-800 hover:border-slate-700 bg-slate-900/50 hover:bg-slate-900"
+              }`}
+            >
+              <input
+                type="file"
+                accept={accept}
+                onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
+                className="hidden"
+              />
+              {isReading ? (
+                <div className="flex items-center gap-2 text-xs text-emerald-400 font-bold py-2">
+                  <Loader2 className="size-4 animate-spin" />
+                  Lecture du document en cours...
+                </div>
+              ) : (
+                <>
+                  <div className="size-10 bg-slate-800 text-emerald-400 rounded-xl flex items-center justify-center shadow-inner">
+                    <Upload className="size-5" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-black text-white block">
+                      Cliquez pour choisir un fichier
+                    </span>
+                    <span className="text-[10px] text-slate-500 block mt-0.5">
+                      ou glissez-déposez ici (PDF, PNG, JPG, WEBP)
+                    </span>
+                  </div>
+                </>
+              )}
+            </label>
+          )}
+        </div>
+      )}
+
+      {/* Mode 2: Cloud Link Input */}
+      {mode === "cloud" && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <input
+              type="url"
+              value={value || ""}
+              onChange={(e) => {
+                onChange(e.target.value);
+                setFileName("Lien Cloud");
+              }}
+              placeholder="https://drive.google.com/... ou dropbox.com/..."
+              className="flex-1 bg-slate-900 border border-slate-800 rounded-2xl px-4 py-2.5 text-xs font-mono text-emerald-400 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
+            />
+            {hasValue && (
+              <a
+                href={value}
+                target="_blank"
+                rel="noreferrer"
+                className="px-3 py-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 border border-slate-700 flex items-center gap-1 shrink-0"
+              >
+                Tester <ArrowRight className="size-3" />
+              </a>
+            )}
+          </div>
+          <p className="text-[10px] text-slate-500">
+            💡 Astuce : Sur Google Drive, faites un clic droit sur le fichier ➔ <em>Partager</em> ➔ Définissez sur <strong>« Tous les utilisateurs disposant du lien »</strong>.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ApplyPage() {
   return (
     <Suspense
@@ -946,3 +1224,4 @@ export default function ApplyPage() {
     </Suspense>
   );
 }
+
