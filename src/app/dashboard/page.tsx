@@ -5,80 +5,48 @@ import { students } from "@/infrastructure/database/schema/students";
 import { schoolSessions, exams, academicPeriods } from "@/infrastructure/database/schema/academics";
 import { employees } from "@/infrastructure/database/schema/hr";
 import { feePayments, studentFees, expenses } from "@/infrastructure/database/schema/finance";
-import { sql, eq, and, inArray, ilike, isNull, or } from "drizzle-orm";
+import { sql, eq, and, inArray, ilike, isNull, or, desc } from "drizzle-orm";
 import DashboardUI, { type DashboardUIProps } from "./dashboard-ui";
 import { getUnreadNotificationsCount } from "@/domains/messaging/actions/notifications.actions";
 import { getActiveSchoolId, getActiveBranchData } from "@/domains/auth/services/school";
 import { getCurrentUser } from "@/domains/auth/services/session";
 import { getActiveEducationalLevel, getCompatibleLevels, hasAllEducationalLevels } from "@/domains/auth/services/rbac";
 
-async function getActiveSessionLabel() {
+async function getActiveSessionLabel(schoolId: number | null) {
+  const currentYear = new Date().getFullYear();
+  if (!schoolId) {
+    return `${currentYear - 1} - ${currentYear}`;
+  }
+
   try {
-    const schoolId = await getActiveSchoolId();
-    const currentYear = new Date().getFullYear();
-
-    if (!schoolId) {
-      return `${currentYear - 1} - ${currentYear}`;
-    }
-
-    // 1. Try explicitly active session (isActive: true)
-    let activeSession = await readDb.query.schoolSessions.findFirst({
-      where: and(
-        eq(schoolSessions.schoolId, schoolId),
-        eq(schoolSessions.isActive, true)
-      )
+    // Single optimized SQL query prioritizing active, then named 'actif', then current year, then latest ID
+    const activeSession = await readDb.query.schoolSessions.findFirst({
+      where: or(eq(schoolSessions.schoolId, schoolId), isNull(schoolSessions.schoolId)),
+      orderBy: [
+        sql`CASE WHEN ${schoolSessions.isActive} = TRUE THEN 0 WHEN LOWER(TRIM(${schoolSessions.status})) = 'actif' THEN 1 WHEN ${schoolSessions.sessionName} ILIKE ${'%' + currentYear + '%'} THEN 2 ELSE 3 END`,
+        desc(schoolSessions.id)
+      ],
     });
-
-    // 2. If not found by isActive, try status = "Actif"
-    if (!activeSession) {
-      activeSession = await readDb.query.schoolSessions.findFirst({
-        where: and(
-          eq(schoolSessions.schoolId, schoolId),
-          ilike(schoolSessions.status, "actif")
-        )
-      });
-    }
-
-    // 3. If still not found, try matching current calendar year in sessionName
-    if (!activeSession) {
-      activeSession = await readDb.query.schoolSessions.findFirst({
-        where: and(
-          eq(schoolSessions.schoolId, schoolId),
-          ilike(schoolSessions.sessionName, `%${currentYear}%`)
-        )
-      });
-    }
-
-    // 4. Fallback to session record or current academic year string
-    if (!activeSession) {
-      activeSession = await readDb.query.schoolSessions.findFirst({
-        where: eq(schoolSessions.schoolId, schoolId),
-        orderBy: (sessions, { desc }) => [desc(sessions.id)],
-      });
-    }
 
     return activeSession?.sessionName || `${currentYear - 1} - ${currentYear}`;
   } catch (error) {
-    const currentYear = new Date().getFullYear();
     return `${currentYear - 1} - ${currentYear}`;
   }
 }
 
-async function getStats(user: any) {
+async function getStats(user: any, schoolId: number) {
   try {
-    const schoolId = (await getActiveSchoolId()) || user?.schoolId || 1;
-
     const activeLevel = await getActiveEducationalLevel(user);
     const isGlobalLevel = !activeLevel || hasAllEducationalLevels(activeLevel);
-    
-    // Flexible student filter: schoolId + (Actif / Inscrit / null)
+
+    // Filter scoped to school with tenant boundary protection
     let studentWhere = and(
-      schoolId ? or(eq(students.schoolId, schoolId), isNull(students.schoolId)) : undefined,
+      or(eq(students.schoolId, schoolId), isNull(students.schoolId)),
       or(ilike(students.statut, "%actif%"), ilike(students.statut, "%inscrit%"), isNull(students.statut))
     ) as any;
 
-    let employeeWhere = (schoolId ? or(eq(employees.schoolId, schoolId), isNull(employees.schoolId)) : undefined) as any;
-    let expenseWhere = (schoolId ? or(eq(expenses.schoolId, schoolId), isNull(expenses.schoolId)) : undefined) as any;
+    let employeeWhere = or(eq(employees.schoolId, schoolId), isNull(employees.schoolId)) as any;
+    let expenseWhere = or(eq(expenses.schoolId, schoolId), isNull(expenses.schoolId)) as any;
 
     let queryRevenue;
 
@@ -87,26 +55,31 @@ async function getStats(user: any) {
       studentWhere = and(studentWhere, inArray(students.educationalLevel, compatibleLevels)) as any;
       employeeWhere = and(employeeWhere, inArray(employees.educationalLevel, compatibleLevels)) as any;
       expenseWhere = and(expenseWhere, inArray(expenses.educationalLevel, compatibleLevels)) as any;
-      
-      queryRevenue = readDb.select({ sum: sql<number>`coalesce(sum(${feePayments.amount}), 0)` })
+
+      queryRevenue = readDb
+        .select({ sum: sql<number>`coalesce(sum(${feePayments.amount}), 0)` })
         .from(feePayments)
         .innerJoin(studentFees, eq(feePayments.feeId, studentFees.id))
         .innerJoin(students, eq(studentFees.studentId, students.id))
-        .where(and(
-          or(eq(feePayments.schoolId, schoolId), isNull(feePayments.schoolId)),
-          inArray(students.educationalLevel, compatibleLevels)
-        ));
+        .where(
+          and(
+            or(eq(feePayments.schoolId, schoolId), isNull(feePayments.schoolId)),
+            inArray(students.educationalLevel, compatibleLevels)
+          )
+        );
     } else {
-      queryRevenue = readDb.select({ sum: sql<number>`coalesce(sum(amount), 0)` })
+      queryRevenue = readDb
+        .select({ sum: sql<number>`coalesce(sum(${feePayments.amount}), 0)` })
         .from(feePayments)
         .where(or(eq(feePayments.schoolId, schoolId), isNull(feePayments.schoolId)));
     }
 
-    const queryExpense = readDb.select({ sum: sql<number>`coalesce(sum(amount), 0)` })
+    const queryExpense = readDb
+      .select({ sum: sql<number>`coalesce(sum(${expenses.amount}), 0)` })
       .from(expenses)
       .where(expenseWhere);
 
-    // Parallelize database queries using readDb
+    // Parallel execution of indexed count and sum aggregations
     const [studentCountRes, employeeCountRes, totalRevenueRes, totalExpenseRes] = await Promise.all([
       readDb.select({ count: sql<number>`count(*)` }).from(students).where(studentWhere).catch(() => [{ count: 0 }]),
       readDb.select({ count: sql<number>`count(*)` }).from(employees).where(employeeWhere).catch(() => [{ count: 0 }]),
@@ -114,32 +87,10 @@ async function getStats(user: any) {
       queryExpense.catch(() => [{ sum: 0 }]),
     ]);
 
-    let studentCount = Number(studentCountRes[0]?.count || 0);
-    let employeeCount = Number(employeeCountRes[0]?.count || 0);
-    let totalRevenue = Number(totalRevenueRes[0]?.sum || 0);
-    let totalExpense = Number(totalExpenseRes[0]?.sum || 0);
-
-    // If 0 records were returned for this specific school filter, fallback to all available database records
-    if (studentCount === 0 && employeeCount === 0) {
-      const [allStudentsRes, allEmployeesRes, allRevRes, allExpRes] = await Promise.all([
-        readDb.select({ count: sql<number>`count(*)` }).from(students).where(or(ilike(students.statut, "%actif%"), ilike(students.statut, "%inscrit%"), isNull(students.statut))).catch(() => [{ count: 0 }]),
-        readDb.select({ count: sql<number>`count(*)` }).from(employees).catch(() => [{ count: 0 }]),
-        readDb.select({ sum: sql<number>`coalesce(sum(${feePayments.amount}), 0)` }).from(feePayments).catch(() => [{ sum: 0 }]),
-        readDb.select({ sum: sql<number>`coalesce(sum(${expenses.amount}), 0)` }).from(expenses).catch(() => [{ sum: 0 }]),
-      ]);
-
-      const fStudents = Number(allStudentsRes[0]?.count || 0);
-      const fEmployees = Number(allEmployeesRes[0]?.count || 0);
-      const fRevenue = Number(allRevRes[0]?.sum || 0);
-      const fExpense = Number(allExpRes[0]?.sum || 0);
-
-      if (fStudents > 0 || fEmployees > 0 || fRevenue > 0) {
-        studentCount = fStudents;
-        employeeCount = fEmployees;
-        totalRevenue = fRevenue;
-        totalExpense = fExpense;
-      }
-    }
+    const studentCount = Number(studentCountRes[0]?.count || 0);
+    const employeeCount = Number(employeeCountRes[0]?.count || 0);
+    const totalRevenue = Number(totalRevenueRes[0]?.sum || 0);
+    const totalExpense = Number(totalExpenseRes[0]?.sum || 0);
 
     return {
       students: studentCount,
@@ -165,32 +116,34 @@ function monthLabelsFr() {
 
 async function getMonthlyAnalytics(schoolId: number, revenueTotal: number, expenseTotal: number) {
   const months = monthLabelsFr();
-  
+
   try {
     const [monthlyRevenueRaw, monthlyExpenseRaw] = await Promise.all([
-      readDb.select({
-        month: sql<number>`extract(month from ${feePayments.datePaid})`,
-        sum: sql<number>`coalesce(sum(${feePayments.amount}), 0)`
-      })
-      .from(feePayments)
-      .where(eq(feePayments.schoolId, schoolId))
-      .groupBy(sql`extract(month from ${feePayments.datePaid})`)
-      .catch(() => []),
+      readDb
+        .select({
+          month: sql<number>`extract(month from ${feePayments.datePaid})`,
+          sum: sql<number>`coalesce(sum(${feePayments.amount}), 0)`,
+        })
+        .from(feePayments)
+        .where(eq(feePayments.schoolId, schoolId))
+        .groupBy(sql`extract(month from ${feePayments.datePaid})`)
+        .catch(() => []),
 
-      readDb.select({
-        month: sql<number>`extract(month from ${expenses.dateExpense})`,
-        sum: sql<number>`coalesce(sum(${expenses.amount}), 0)`
-      })
-      .from(expenses)
-      .where(eq(expenses.schoolId, schoolId))
-      .groupBy(sql`extract(month from ${expenses.dateExpense})`)
-      .catch(() => [])
+      readDb
+        .select({
+          month: sql<number>`extract(month from ${expenses.dateExpense})`,
+          sum: sql<number>`coalesce(sum(${expenses.amount}), 0)`,
+        })
+        .from(expenses)
+        .where(eq(expenses.schoolId, schoolId))
+        .groupBy(sql`extract(month from ${expenses.dateExpense})`)
+        .catch(() => []),
     ]);
 
-    const revMap = new Map(monthlyRevenueRaw.map(r => [Number(r.month), Number(r.sum)]));
-    const expMap = new Map(monthlyExpenseRaw.map(e => [Number(e.month), Number(e.sum)]));
+    const revMap = new Map(monthlyRevenueRaw.map((r) => [Number(r.month), Number(r.sum)]));
+    const expMap = new Map(monthlyExpenseRaw.map((e) => [Number(e.month), Number(e.sum)]));
 
-    const hasRealData = Array.from(revMap.values()).some(v => v > 0) || Array.from(expMap.values()).some(v => v > 0);
+    const hasRealData = Array.from(revMap.values()).some((v) => v > 0) || Array.from(expMap.values()).some((v) => v > 0);
 
     if (hasRealData) {
       return months.map((m, idx) => {
@@ -210,7 +163,7 @@ async function getMonthlyAnalytics(schoolId: number, revenueTotal: number, expen
     console.error("Monthly analytics fetch error:", e);
   }
 
-  // Fallback to proportional curve if no monthly records exist
+  // Proportional curve fallback
   const recettesM = [2.7, 3.4, 3.0, 3.9, 3.4, 3.4, 3.0, 3.3, 3.9, 5.2, 3.4, 2.9];
   const depensesM = [1.3, 1.7, 1.7, 2.0, 1.9, 1.7, 1.6, 1.7, 1.9, 2.4, 1.8, 1.5];
   const recouv = [52, 78, 68, 80, 70, 82, 70, 71, 80, 98, 74, 62];
@@ -239,22 +192,19 @@ async function getUpcomingEvents(schoolId: number) {
   try {
     const now = new Date();
     const upcomingExams = await readDb.query.exams.findMany({
-      where: and(
-        eq(exams.schoolId, schoolId),
-        sql`${exams.examDate} >= ${now}`
-      ),
+      where: and(eq(exams.schoolId, schoolId), sql`${exams.examDate} >= ${now}`),
       orderBy: (e, { asc }) => [asc(e.examDate)],
-      limit: 3
+      limit: 3,
     });
 
     if (upcomingExams.length > 0) {
-      return upcomingExams.map(ex => {
+      return upcomingExams.map((ex) => {
         const d = ex.examDate ? new Date(ex.examDate) : new Date();
         const diffDays = Math.max(0, Math.ceil((d.getTime() - now.getTime()) / (1000 * 3600 * 24)));
         return {
           title: ex.examName,
-          date: `${d.toLocaleDateString("fr-FR", { day: '2-digit', month: 'short', year: 'numeric' })} • ${d.toLocaleTimeString("fr-FR", { hour: '2-digit', minute: '2-digit' })}`,
-          pill: diffDays === 0 ? "Aujourd'hui" : `Dans ${diffDays} jour${diffDays > 1 ? 's' : ''}`,
+          date: `${d.toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" })} • ${d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`,
+          pill: diffDays === 0 ? "Aujourd'hui" : `Dans ${diffDays} jour${diffDays > 1 ? "s" : ""}`,
           pillTone: diffDays <= 7 ? ("purple" as const) : diffDays <= 30 ? ("green" as const) : ("orange" as const),
           icon: "exam" as const,
         };
@@ -291,40 +241,41 @@ async function getUpcomingEvents(schoolId: number) {
 
 export default async function DashboardPage() {
   const user = await getCurrentUser();
-  const schoolId = await getActiveSchoolId();
+  const schoolId = (await getActiveSchoolId()) || user?.schoolId || 1;
 
   const [stats, unreadCount, { branchData, allBranches }, activeSessionLabel] = await Promise.all([
-    getStats(user),
+    getStats(user, schoolId),
     getUnreadNotificationsCount().catch(() => 0),
     getActiveBranchData(user),
-    getActiveSessionLabel()
+    getActiveSessionLabel(schoolId),
   ]);
 
   const [analyticsSeries, upcomingEvents] = await Promise.all([
     schoolId ? getMonthlyAnalytics(schoolId, stats.revenue, stats.expense) : Promise.resolve(null),
-    schoolId ? getUpcomingEvents(schoolId) : Promise.resolve(null)
+    schoolId ? getUpcomingEvents(schoolId) : Promise.resolve(null),
   ]);
 
   const bd = branchData as any;
   const us = user?.school as any;
   const ab = (allBranches as any[]) || [];
   const firstBranch = ab.find((x: any) => x.logoPath || x.logo_path || x.logoUrl);
-  const schoolLogo = bd?.logoPath || 
-                     bd?.logo_path || 
-                     bd?.logoUrl || 
-                     us?.logoPath || 
-                     us?.logo_path || 
-                     us?.logoUrl || 
-                     us?.logo || 
-                     firstBranch?.logoPath || 
-                     firstBranch?.logo_path || 
-                     firstBranch?.logoUrl || 
-                     null;
+  const schoolLogo =
+    bd?.logoPath ||
+    bd?.logo_path ||
+    bd?.logoUrl ||
+    us?.logoPath ||
+    us?.logo_path ||
+    us?.logoUrl ||
+    us?.logo ||
+    firstBranch?.logoPath ||
+    firstBranch?.logo_path ||
+    firstBranch?.logoUrl ||
+    null;
 
   const branding = {
     name: branchData?.branchName || user?.school?.name || "GROUP AIIU-NIGER",
     logoPath: schoolLogo,
-    level: branchData?.instType || user?.educationalLevel || "Gestion Scolaire"
+    level: branchData?.instType || user?.educationalLevel || "Gestion Scolaire",
   };
 
   const revenueTotal = stats.revenue;

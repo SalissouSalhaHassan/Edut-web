@@ -23,6 +23,24 @@ export async function GET(request: NextRequest) {
 
     let rows = await readDb.query.students.findMany({
       where: cond.length > 0 ? and(...cond) : undefined,
+      columns: {
+        id: true,
+        schoolId: true,
+        numAdmission: true,
+        nomEtudiant: true,
+        photoPath: true,
+        educationalLevel: true,
+        classe: true,
+        section: true,
+        session: true,
+        sexe: true,
+        statut: true,
+        mobile: true,
+        whatsapp: true,
+        nomPere: true,
+        createdAt: true,
+      },
+      orderBy: [students.nomEtudiant],
     });
 
     const isTeacher = roleType === "teacher" || roleType === "enseignant";

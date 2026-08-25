@@ -26,7 +26,11 @@ export const expenses = pgTable("expenses", {
   recordedBy: varchar("recorded_by", { length: 100 }),
   educationalLevel: varchar("educational_level", { length: 50 }),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+  schoolIdIdx: index("expenses_school_id_idx").on(table.schoolId),
+  schoolDateIdx: index("expenses_school_date_idx").on(table.schoolId, table.dateExpense),
+  schoolLevelIdx: index("expenses_school_level_idx").on(table.schoolId, table.educationalLevel),
+}));
 
 export const revenueCategories = pgTable("revenue_categories", {
   id: serial("id").primaryKey(),
@@ -50,7 +54,11 @@ export const revenues = pgTable("revenues", {
   recordedBy: varchar("recorded_by", { length: 100 }),
   educationalLevel: varchar("educational_level", { length: 50 }),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+  schoolIdIdx: index("revenues_school_id_idx").on(table.schoolId),
+  schoolDateIdx: index("revenues_school_date_idx").on(table.schoolId, table.dateReceived),
+  schoolLevelIdx: index("revenues_school_level_idx").on(table.schoolId, table.educationalLevel),
+}));
 
 // POS specific tables for Sales
 export const posSales = pgTable("pos_sales", {
@@ -78,6 +86,7 @@ export const studentFees = pgTable("student_fees", {
   schoolIdIdx: index("student_fees_school_id_idx").on(table.schoolId),
   schoolSessionIdx: index("student_fees_school_session_idx").on(table.schoolId, table.sessionId),
   studentIdIdx: index("student_fees_student_id_idx").on(table.studentId),
+  statusIdx: index("student_fees_status_idx").on(table.schoolId, table.sessionId, table.status),
 }));
 
 export const feePayments = pgTable("fee_payments", {

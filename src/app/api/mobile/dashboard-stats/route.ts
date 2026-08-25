@@ -177,22 +177,13 @@ export async function GET(request: NextRequest) {
     : [];
 
   const homeworkCount = scopedClassIds.length > 0
-    ? await countRows(readDb.query.homework.findMany({
-        where: inArray(homework.classId, scopedClassIds),
-        columns: { id: true },
-      }))
+    ? (await readDb.select({ count: count() }).from(homework).where(inArray(homework.classId, scopedClassIds)))[0]?.count || 0
     : 0;
 
   const examsCount = scopedClassIds.length > 0
-    ? await countRows(readDb.query.exams.findMany({
-        where: inArray(exams.classId, scopedClassIds),
-        columns: { id: true },
-      }))
+    ? (await readDb.select({ count: count() }).from(exams).where(inArray(exams.classId, scopedClassIds)))[0]?.count || 0
     : schoolId
-      ? await countRows(readDb.query.exams.findMany({
-          where: eq(exams.schoolId, schoolId),
-          columns: { id: true },
-        }))
+      ? (await readDb.select({ count: count() }).from(exams).where(eq(exams.schoolId, schoolId)))[0]?.count || 0
       : 0;
 
   const plannedHours = isTeacher && user.employeeId
@@ -207,12 +198,9 @@ export async function GET(request: NextRequest) {
         columns: { statut: true },
       })
     : [];
-  const teacherLessons = isTeacher && user.employeeId
-    ? await readDb.query.cahierTextes.findMany({
-        where: eq(cahierTextes.employeeId, user.employeeId),
-        columns: { id: true },
-      })
-    : [];
+  const teacherLessonsCount = isTeacher && user.employeeId
+    ? (await readDb.select({ count: count() }).from(cahierTextes).where(eq(cahierTextes.employeeId, user.employeeId)))[0]?.count || 0
+    : 0;
   const completedPlans = teacherPlans.filter((row) => {
     const status = normalizeStatus(row.statut);
     return status.includes("realise") || status.includes("valide");
@@ -243,8 +231,8 @@ export async function GET(request: NextRequest) {
     hasGradeData: resultRows.length > 0,
     hasHomeworkData: homeworkCount > 0,
     plannedLessons: teacherPlans.length,
-    completedLessons: completedPlans || teacherLessons.length,
-    pedagogicalProgressRate: rate(completedPlans || teacherLessons.length, teacherPlans.length || teacherLessons.length),
+    completedLessons: completedPlans || teacherLessonsCount,
+    pedagogicalProgressRate: rate(completedPlans || teacherLessonsCount, teacherPlans.length || teacherLessonsCount),
     clubsCount: 0,
     eventsCount: 0,
   };

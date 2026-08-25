@@ -131,13 +131,22 @@ function getCompatibleEducationalLevels(level: string): string[] {
 export default function StudentsClient({ initialStudents, currentUser, activeSchoolId, canEdit, canDelete }: StudentsClientProps) {
   const [allStudents, setAllStudents] = useState<any[]>(initialStudents);
   const [isLocal, setIsLocal] = useState(false);
-  const [unsyncedAdmissions, setUnsyncedAdmissions] = useState<Set<string>>(new Set());
+  const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [page, setPage] = useState(1);
   const [editingStudent, setEditingStudent] = useState<any>(null);
   const itemsPerPage = 8;
   const schoolId = activeSchoolId ?? currentUser?.schoolId ?? null;
+
+  // Debounce search input changes by 250ms
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setSearch(searchInput);
+      setPage(1);
+    }, 250);
+    return () => clearTimeout(handler);
+  }, [searchInput]);
 
   useEffect(() => {
     async function loadData() {
@@ -353,8 +362,7 @@ export default function StudentsClient({ initialStudents, currentUser, activeSch
   };
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearch(e.target.value);
-    setPage(1);
+    setSearchInput(e.target.value);
   };
 
   return (
@@ -454,7 +462,7 @@ export default function StudentsClient({ initialStudents, currentUser, activeSch
         <div className="relative w-full md:w-[450px]">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
           <input 
-            value={search}
+            value={searchInput}
             onChange={handleSearchChange}
             placeholder="Rechercher un étudiant par nom, ID ou admission..." 
             className="w-full pl-12 pr-4 h-12 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 outline-none text-sm font-medium placeholder:text-slate-400 shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"

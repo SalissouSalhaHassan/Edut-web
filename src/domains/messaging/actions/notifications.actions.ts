@@ -42,8 +42,10 @@ export async function getNotifications() {
   }
 }
 
+import { cache } from "react";
+
 // Get unread notifications count for current user
-export async function getUnreadNotificationsCount() {
+export const getUnreadNotificationsCount = cache(async () => {
   try {
     const user = await getCurrentUser();
     if (!user) return 0;
@@ -76,7 +78,7 @@ export async function getUnreadNotificationsCount() {
     console.error("Error getting unread notifications count:", error);
     return 0;
   }
-}
+});
 
 // Mark a single notification as read
 export async function markAsRead(id: number) {

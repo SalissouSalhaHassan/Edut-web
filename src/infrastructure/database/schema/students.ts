@@ -49,5 +49,9 @@ export const students = pgTable("students", {
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
   schoolIdIdx: index("students_school_id_idx").on(table.schoolId),
+  schoolLevelIdx: index("students_school_level_idx").on(table.schoolId, table.educationalLevel),
+  schoolClassIdx: index("students_school_class_idx").on(table.schoolId, table.classe),
+  schoolStatusIdx: index("students_school_status_idx").on(table.schoolId, table.statut),
+  schoolCreatedIdx: index("students_school_created_idx").on(table.schoolId, table.createdAt),
   unqNumAdmission: unique().on(table.schoolId, table.numAdmission),
 }));
