@@ -190,6 +190,214 @@ export default function DevoirEntryGrid({
     });
   }, [processedData, search, filterStatus]);
 
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
+
+  const handleExportPDF = async () => {
+    try {
+      setIsExportingPdf(true);
+      const { jsPDF } = await import("jspdf");
+      const autoTableModule = await import("jspdf-autotable");
+      const autoTable = (autoTableModule as any).default || autoTableModule;
+
+      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const W = 210, m = 14;
+      const dateStr = new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
+
+      // ─── Header Decorative Bands ───
+      doc.setFillColor(15, 23, 42); // slate-900
+      doc.rect(0, 0, W, 6, "F");
+      doc.setFillColor(16, 185, 129); // emerald-500
+      doc.rect(0, 6, 90, 2, "F");
+
+      // ─── Title & Academic Metadata ───
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(13);
+      doc.setTextColor(15, 23, 42);
+      doc.text("PROCÈS-VERBAL DES DEVOIRS SURVEILLÉS (DS)", W / 2, 18, { align: "center" });
+
+      doc.setFontSize(8.5);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(71, 85, 105);
+      doc.text(`RELEVÉ OFFICIEL DES ÉVALUATIONS CONTINUES • ${term.toUpperCase()}`, W / 2, 23.5, { align: "center" });
+
+      // ─── Info Box (Classe, Matière, Coeff, Date) ───
+      doc.setFillColor(248, 250, 252);
+      doc.setDrawColor(226, 232, 240);
+      doc.setLineWidth(0.4);
+      doc.roundedRect(m, 27, W - 2 * m, 18, 2, 2, "FD");
+
+      doc.setFontSize(8);
+      doc.setTextColor(30, 41, 59);
+      
+      // Column 1
+      doc.setFont("helvetica", "bold");
+      doc.text("Classe :", m + 4, 33);
+      doc.setFont("helvetica", "normal");
+      doc.text(className, m + 20, 33);
+
+      doc.setFont("helvetica", "bold");
+      doc.text("Matière :", m + 4, 40);
+      doc.setFont("helvetica", "normal");
+      doc.text(subjectName, m + 20, 40);
+
+      // Column 2
+      doc.setFont("helvetica", "bold");
+      doc.text("Coefficient :", W / 2 - 12, 33);
+      doc.setFont("helvetica", "normal");
+      doc.text(String(coefficient), W / 2 + 10, 33);
+
+      doc.setFont("helvetica", "bold");
+      doc.text("Période :", W / 2 - 12, 40);
+      doc.setFont("helvetica", "normal");
+      doc.text(term, W / 2 + 10, 40);
+
+      // Column 3
+      doc.setFont("helvetica", "bold");
+      doc.text("Date d'édition :", W - m - 45, 33);
+      doc.setFont("helvetica", "normal");
+      doc.text(dateStr, W - m - 20, 33);
+
+      doc.setFont("helvetica", "bold");
+      doc.text("Moyenne Classe :", W - m - 45, 40);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(16, 185, 129);
+      doc.text(`${stats.avg.toFixed(2)} / 20`, W - m - 16, 40);
+
+      // ─── Mini Analytics Grid Bar ───
+      doc.setFillColor(241, 245, 249);
+      doc.roundedRect(m, 48, W - 2 * m, 8, 1.5, 1.5, "F");
+      doc.setFontSize(7);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(51, 65, 85);
+      const evalPct = stats.totalCount > 0 ? Math.round((stats.evaluatedCount / stats.totalCount) * 100) : 0;
+      const statLine = `Effectif : ${stats.totalCount}  |  Évalués : ${stats.evaluatedCount} (${evalPct}%)  |  Taux Réussite : ${stats.passRate}%  |  Max : ${stats.max.toFixed(2)} (${stats.topStudent})  |  Min : ${stats.min.toFixed(2)}`;
+      doc.text(statLine, W / 2, 53, { align: "center" });
+
+      // ─── Table Data ───
+      const tableBody = filteredData.map((row, idx) => {
+        const isEvaluated = row.devoirs.some((d: string) => d !== "");
+        const d1 = row.devoirs[0] !== "" ? row.devoirs[0] : "-";
+        const d2 = row.devoirs[1] !== "" ? row.devoirs[1] : "-";
+        const d3 = row.devoirs[2] !== "" ? row.devoirs[2] : "-";
+        const d4 = row.devoirs[3] !== "" ? row.devoirs[3] : "-";
+        const d5 = row.devoirs[4] !== "" ? row.devoirs[4] : "-";
+        const moy = isEvaluated ? row.moyenneDevoirs.toFixed(2) : "-";
+        const statut = !isEvaluated ? "En attente" : row.moyenneDevoirs >= 10 ? "Admis" : "Faible";
+        return [
+          String(idx + 1),
+          row.matricule,
+          row.name,
+          d1,
+          d2,
+          d3,
+          d4,
+          d5,
+          moy,
+          statut
+        ];
+      });
+
+      autoTable(doc, {
+        startY: 59,
+        head: [["#", "Matricule", "Nom & Prénom", "DS 1", "DS 2", "DS 3", "DS 4", "DS 5", "Moy. DS", "Statut"]],
+        body: tableBody,
+        theme: "grid",
+        headStyles: {
+          fillColor: [15, 23, 42],
+          textColor: 255,
+          fontSize: 7.5,
+          fontStyle: "bold",
+          halign: "center",
+        },
+        bodyStyles: {
+          fontSize: 7.5,
+          textColor: [30, 41, 59],
+        },
+        columnStyles: {
+          0: { cellWidth: 8, halign: "center" },
+          1: { cellWidth: 24, fontStyle: "bold" },
+          2: { cellWidth: 54 },
+          3: { cellWidth: 14, halign: "center" },
+          4: { cellWidth: 14, halign: "center" },
+          5: { cellWidth: 14, halign: "center" },
+          6: { cellWidth: 14, halign: "center" },
+          7: { cellWidth: 14, halign: "center" },
+          8: { cellWidth: 16, halign: "center", fontStyle: "bold" },
+          9: { cellWidth: 18, halign: "center", fontStyle: "bold" },
+        },
+        didParseCell: function (data: any) {
+          if (data.section === "body") {
+            if (data.column.index === 8) {
+              const val = parseFloat(data.cell.raw);
+              if (!isNaN(val)) {
+                if (val >= 10) {
+                  data.cell.styles.textColor = [5, 150, 105]; // emerald
+                } else {
+                  data.cell.styles.textColor = [225, 29, 72]; // rose
+                }
+              }
+            }
+            if (data.column.index === 9) {
+              if (data.cell.raw === "Admis") {
+                data.cell.styles.textColor = [5, 150, 105];
+              } else if (data.cell.raw === "Faible") {
+                data.cell.styles.textColor = [225, 29, 72];
+              }
+            }
+          }
+        },
+        margin: { left: m, right: m, bottom: 35 },
+      });
+
+      // ─── Signatures Box on Last Page ───
+      const pageCount = (doc as any).internal.getNumberOfPages();
+      for (let p = 1; p <= pageCount; p++) {
+        doc.setPage(p);
+        
+        if (p === pageCount) {
+          const finalY = (doc as any).lastAutoTable.finalY || 180;
+          const sigY = Math.min(finalY + 8, 245);
+          
+          doc.setFontSize(8);
+          doc.setFont("helvetica", "bold");
+          doc.setTextColor(30, 41, 59);
+
+          doc.text("L'Enseignant Titulaire :", m + 6, sigY);
+          doc.setFont("helvetica", "normal");
+          doc.text("Date & Signature", m + 6, sigY + 4);
+          doc.setDrawColor(148, 163, 184);
+          doc.setLineDashPattern([1.5, 1.5], 0);
+          doc.line(m + 6, sigY + 22, m + 60, sigY + 22);
+
+          doc.setFont("helvetica", "bold");
+          doc.text("Visa de la Direction des Études :", W - m - 60, sigY);
+          doc.setFont("helvetica", "normal");
+          doc.text("Cachet officiel & Approbation", W - m - 60, sigY + 4);
+          doc.line(W - m - 60, sigY + 22, W - m - 6, sigY + 22);
+          doc.setLineDashPattern([], 0);
+        }
+
+        // Footer Pagination & Timestamp
+        doc.setFontSize(7);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(148, 163, 184);
+        doc.text(`Document officiel Edut • Généré le ${dateStr}`, m, 290);
+        doc.text(`Page ${p} / ${pageCount}`, W - m, 290, { align: "right" });
+      }
+
+      const cleanClass = className.replace(/[^a-zA-Z0-9]/g, "_");
+      const cleanSubject = subjectName.replace(/[^a-zA-Z0-9]/g, "_");
+      const cleanTerm = term.replace(/[^a-zA-Z0-9]/g, "_");
+      const fileName = `PV_Devoirs_${cleanClass}_${cleanSubject}_${cleanTerm}.pdf`;
+
+      doc.save(fileName);
+    } catch (err: any) {
+      console.error("PDF export error:", err);
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
+
   const handlePrint = () => {
     window.print();
   };
@@ -307,6 +515,20 @@ export default function DevoirEntryGrid({
         </div>
 
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={handleExportPDF}
+            disabled={isExportingPdf || loading}
+            className="h-10 px-4 rounded-xl border-emerald-500/30 bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-300 font-bold text-xs flex items-center gap-2 hover:bg-emerald-100/60 dark:hover:bg-emerald-900/40 transition"
+          >
+            {isExportingPdf ? (
+              <Loader2 size={15} className="animate-spin text-emerald-600" />
+            ) : (
+              <FileSpreadsheet size={15} />
+            )}
+            <span>Exporter PDF (PV)</span>
+          </Button>
+
           <Button
             variant="outline"
             onClick={handlePrint}
