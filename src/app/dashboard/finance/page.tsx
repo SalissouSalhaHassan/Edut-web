@@ -7,7 +7,7 @@ import { db, readDb } from "@/infrastructure/database";
 import { students } from "@/infrastructure/database/schema/students";
 import { schoolSessions, schoolClasses } from "@/infrastructure/database/schema/academics";
 import { studentFees, feePayments, cogesPayments } from "@/infrastructure/database/schema/finance";
-import { eq, and, or, isNull, desc, inArray, sql, gte } from "drizzle-orm";
+import { eq, and, or, isNull, desc, inArray, sql } from "drizzle-orm";
 import FinanceClient from "./finance-client";
 import StudentFinanceView from "@/domains/finance/components/StudentFinanceView";
 
@@ -40,7 +40,7 @@ export default async function FinancePage({
     if (user.studentId) {
       linkedStudent = await readDb.query.students.findFirst({
         where: eq(students.id, user.studentId),
-      });
+      }).catch(() => null);
     }
 
     if (!linkedStudent) {
@@ -55,7 +55,7 @@ export default async function FinancePage({
             eq(students.nomEtudiant, cleanName)
           )
         ),
-      });
+      }).catch(() => null);
     }
 
     if (linkedStudent) {
@@ -65,7 +65,7 @@ export default async function FinancePage({
             eq(studentFees.schoolId, user.schoolId),
             eq(studentFees.studentId, linkedStudent.id)
           ),
-        }),
+        }).catch(() => null),
         readDb.query.cogesPayments
           .findMany({
             where: and(
@@ -106,13 +106,13 @@ export default async function FinancePage({
 
   // 2. IF ADMIN / STAFF: General School Financial Management
   // Fast single-query session lookup prioritizing active session
-  const sessionRow = await readDb.query.schoolSessions.findFirst({
+  let sessionRow = await readDb.query.schoolSessions.findFirst({
     where: or(eq(schoolSessions.schoolId, schoolId), isNull(schoolSessions.schoolId)),
     orderBy: [
       sql`CASE WHEN ${schoolSessions.isActive} = TRUE THEN 0 WHEN LOWER(TRIM(${schoolSessions.status})) = 'actif' THEN 1 ELSE 2 END`,
       desc(schoolSessions.id),
     ],
-  });
+  }).catch(() => null);
 
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -122,41 +122,44 @@ export default async function FinancePage({
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const yearStart = new Date(now.getFullYear(), 0, 1);
 
-  // Fast Parallel Queries with SQL JOIN and Aggregations
-  const [feeRowsJoined, paymentSumsRes, classRows, headerConfigRes] = await Promise.all([
-    // Direct selective SQL JOIN between studentFees and students
-    readDb
-      .select({
-        id: studentFees.id,
-        schoolId: studentFees.schoolId,
-        studentId: studentFees.studentId,
-        sessionId: studentFees.sessionId,
-        totalExpected: studentFees.totalExpected,
-        totalPaid: studentFees.totalPaid,
-        totalReduction: studentFees.totalReduction,
-        balance: studentFees.balance,
-        status: studentFees.status,
-        createdAt: studentFees.createdAt,
+  // Parallel Query Execution
+  const [feeRowsRes, paymentSumsRes, classRows, headerConfigRes] = await Promise.all([
+    // Relational query with Drizzle `with`
+    readDb.query.studentFees.findMany({
+      where: and(
+        sessionRow?.id ? eq(studentFees.sessionId, sessionRow.id) : undefined,
+        or(eq(studentFees.schoolId, schoolId), isNull(studentFees.schoolId))
+      ),
+      with: {
         student: {
-          id: students.id,
-          nomEtudiant: students.nomEtudiant,
-          numAdmission: students.numAdmission,
-          classe: students.classe,
-          educationalLevel: students.educationalLevel,
-          photoPath: students.photoPath,
-          sexe: students.sexe,
-          statut: students.statut,
+          columns: {
+            id: true,
+            nomEtudiant: true,
+            numAdmission: true,
+            classe: true,
+            educationalLevel: true,
+            photoPath: true,
+            sexe: true,
+            statut: true,
+          }
         },
-      })
-      .from(studentFees)
-      .leftJoin(students, eq(studentFees.studentId, students.id))
-      .where(
-        and(
-          sessionRow?.id ? eq(studentFees.sessionId, sessionRow.id) : undefined,
-          or(eq(studentFees.schoolId, schoolId), isNull(studentFees.schoolId))
-        )
-      )
-      .orderBy(desc(studentFees.id)),
+        payments: {
+          columns: {
+            id: true,
+            feeId: true,
+            amount: true,
+            reduction: true,
+            paymentMode: true,
+            reference: true,
+            datePaid: true,
+            recordedBy: true,
+            monthConcerned: true,
+          },
+          orderBy: [desc(feePayments.datePaid)]
+        }
+      },
+      orderBy: [desc(studentFees.id)]
+    }).catch(() => []),
 
     // Fast SQL Aggregation for Revenue Milestones
     readDb
@@ -169,7 +172,15 @@ export default async function FinancePage({
         totalCount: sql<number>`COUNT(*)`,
       })
       .from(feePayments)
-      .where(or(eq(feePayments.schoolId, schoolId), isNull(feePayments.schoolId))),
+      .where(or(eq(feePayments.schoolId, schoolId), isNull(feePayments.schoolId)))
+      .catch(() => [{
+        totalAmount: 0,
+        todayAmount: 0,
+        weekAmount: 0,
+        monthAmount: 0,
+        yearAmount: 0,
+        totalCount: 0,
+      }]),
 
     readDb
       .select()
@@ -180,20 +191,54 @@ export default async function FinancePage({
     getDocumentHeaderConfig().catch(() => ({ data: null })),
   ]);
 
-  // Fast Deduplication map if any duplicate fee assignment exists
+  let feeRows = feeRowsRes;
+  // If no fees found for the active session, fallback to all fees of school
+  if (feeRows.length === 0) {
+    feeRows = await readDb.query.studentFees.findMany({
+      where: or(eq(studentFees.schoolId, schoolId), isNull(studentFees.schoolId)),
+      with: {
+        student: {
+          columns: {
+            id: true,
+            nomEtudiant: true,
+            numAdmission: true,
+            classe: true,
+            educationalLevel: true,
+            photoPath: true,
+            sexe: true,
+            statut: true,
+          }
+        },
+        payments: {
+          columns: {
+            id: true,
+            feeId: true,
+            amount: true,
+            reduction: true,
+            paymentMode: true,
+            reference: true,
+            datePaid: true,
+            recordedBy: true,
+            monthConcerned: true,
+          },
+          orderBy: [desc(feePayments.datePaid)]
+        }
+      },
+      orderBy: [desc(studentFees.id)]
+    }).catch(() => []);
+  }
+
+  // Fast Deduplication map
   const seenStudents = new Map<number, any>();
-  for (const f of feeRowsJoined) {
+  for (const f of feeRows) {
     if (!f.studentId) continue;
     const existing = seenStudents.get(f.studentId);
     if (!existing || (f.totalPaid || 0) > (existing.totalPaid || 0)) {
-      seenStudents.set(f.studentId, {
-        ...f,
-        payments: [],
-      });
+      seenStudents.set(f.studentId, f);
     }
   }
   const fees = Array.from(seenStudents.values());
-  const classes = classRows as any[];
+  const classes = (classRows || []) as any[];
   const headerConfig = (headerConfigRes as any)?.data || null;
 
   // KPI Calculations
@@ -219,7 +264,7 @@ export default async function FinancePage({
   const revenueToday = Number(paymentAgg.todayAmount || 0);
   const revenueWeek = Number(paymentAgg.weekAmount || 0);
   const revenueMonth = Number(paymentAgg.monthAmount || 0);
-  const revenueYear = Number(paymentAgg.yearAmount || 0);
+  const revenueYear = Number(paymentAgg.yearAmount || 0) || totalPaid;
   const totalPaymentsCount = Number(paymentAgg.totalCount || 0);
 
   // Month labels and curve
@@ -262,7 +307,7 @@ export default async function FinancePage({
       totalExpected: f.totalExpected || 0,
       totalPaid: f.totalPaid || 0,
       status: f.status || "Impayé",
-      lastPayment: null,
+      lastPayment: f.payments?.[0]?.datePaid || null,
     }))
     .sort((a, b) => b.balance - a.balance);
 
