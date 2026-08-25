@@ -22,6 +22,12 @@ export default function DevoirEntryPage() {
   const [loading, setLoading] = useState(false);
   const [students, setStudents] = useState<any[]>([]);
   const [activeFilters, setActiveFilters] = useState<any>(null);
+  const [gridMeta, setGridMeta] = useState<{
+    coefficient?: number;
+    subjectName?: string;
+    className?: string;
+    educationalLevel?: string;
+  }>({});
   const [showAIModal, setShowAIModal] = useState(false);
 
   const handleLoad = async (filters: any) => {
@@ -30,7 +36,7 @@ export default function DevoirEntryPage() {
     setActiveFilters(filters);
     
     try {
-      const result = await getDevoirGrid({
+      const result: any = await getDevoirGrid({
         classId: filters.classId,
         subjectId: filters.subjectId,
         sessionId: filters.sessionId,
@@ -38,7 +44,13 @@ export default function DevoirEntryPage() {
       });
       
       if (result?.data) {
-        setStudents(result.data as unknown as any[]);
+        setStudents(result.data);
+        setGridMeta({
+          coefficient: result.coefficient,
+          subjectName: result.subjectName,
+          className: result.className,
+          educationalLevel: result.educationalLevel
+        });
         toast.success("Grille des devoirs (DS) chargée avec succès.");
       } else if (result?.error) {
         toast.error("Erreur de chargement", { description: result.error });
@@ -55,7 +67,7 @@ export default function DevoirEntryPage() {
     if (!activeFilters) return;
     
     setLoading(true);
-    const toastId = toast.loading("Enregistrement et ترحيل البيانات en cours... Veuillez patienter.");
+    const toastId = toast.loading("Enregistrement et synchronisation des devoirs en cours...");
 
     try {
       const payload = data.map(row => ({
@@ -70,13 +82,13 @@ export default function DevoirEntryPage() {
 
       const result = await saveDevoirGrades(payload);
       if (result?.success) {
-        toast.success("Succès du ترحيل !", {
+        toast.success("Succès de l'enregistrement !", {
           id: toastId,
-          description: "Les devoirs (DS) et les moyennes de classe ont été enregistrés et transférés avec succès.",
+          description: "Les devoirs (DS), moyennes de matière et bulletins ont été synchronisés avec succès.",
           duration: 5000
         });
       } else {
-        toast.error("Erreur de ترحيل البيانات", {
+        toast.error("Erreur d'enregistrement", {
           id: toastId,
           description: result?.error || "Une erreur est survenue lors de l'enregistrement.",
           duration: 5000
@@ -84,7 +96,7 @@ export default function DevoirEntryPage() {
       }
     } catch (err: any) {
       console.error(err);
-      toast.error("Erreur critique de ترحيل", {
+      toast.error("Erreur critique de synchronisation", {
         id: toastId,
         description: err?.message || "Impossible de joindre le serveur.",
         duration: 5000
@@ -107,15 +119,20 @@ export default function DevoirEntryPage() {
             </Link>
             <div>
               <div className="flex items-center gap-3 mb-1">
-                <div className="p-2 bg-indigo-500 rounded-lg text-white">
+                <div className="p-2 bg-emerald-500 rounded-lg text-white">
                   <ClipboardCheck size={20} />
                 </div>
                 <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
                   Gestion des Devoirs (DS)
                 </h1>
+                {gridMeta.coefficient && (
+                  <span className="px-3 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-mono font-bold text-xs rounded-full border border-emerald-500/20">
+                    Coeff : {gridMeta.coefficient}
+                  </span>
+                )}
               </div>
               <p className="text-slate-500 dark:text-slate-400 font-medium ml-1">
-                Saisie détaillée des évaluations continues et calcul des moyennes de classe.
+                Saisie détaillée des évaluations continues, calcul des moyennes et synchronisation directe avec les bulletins.
               </p>
             </div>
           </div>
@@ -123,9 +140,9 @@ export default function DevoirEntryPage() {
           <div className="flex items-center gap-3">
             <Button
               onClick={() => setShowAIModal(true)}
-              className="h-14 px-6 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-black hover:from-indigo-700 hover:to-purple-700 shadow-lg shadow-indigo-200 dark:shadow-none transition-all flex items-center gap-2 text-sm"
+              className="h-12 px-5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-black hover:from-indigo-700 hover:to-purple-700 shadow-md shadow-indigo-500/20 transition-all flex items-center gap-2 text-xs"
             >
-              <Wand2 size={18} /> Assistant IA Devoirs 🪄
+              <Wand2 size={16} /> Assistant IA Devoirs 🪄
             </Button>
           </div>
         </div>
@@ -146,6 +163,10 @@ export default function DevoirEntryPage() {
                 students={students} 
                 onSave={handleSave} 
                 loading={loading}
+                subjectName={gridMeta.subjectName}
+                className={gridMeta.className}
+                coefficient={gridMeta.coefficient}
+                term={activeFilters?.period}
               />
             </motion.div>
           ) : (

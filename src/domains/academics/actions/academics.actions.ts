@@ -1038,7 +1038,10 @@ export async function getDevoirGrid(params: { classId: number, subjectId: number
       return { error: "Accès refusé. Vous n'êtes pas autorisé pour cette classe et cette matière." };
     }
 
-    const cls = await readDb.query.schoolClasses.findFirst({ where: eq(schoolClasses.id, params.classId), with: { section: true } });
+    const cls = await readDb.query.schoolClasses.findFirst({
+      where: eq(schoolClasses.id, params.classId),
+      with: { section: true }
+    });
     if (!cls) return { error: "Classe non trouvée" };
 
     const classIdNum = Number(params.classId);
@@ -1048,6 +1051,27 @@ export async function getDevoirGrid(params: { classId: number, subjectId: number
     const sessionObj = sessionIdNum ? await readDb.query.schoolSessions.findFirst({ where: eq(schoolSessions.id, sessionIdNum) }) : null;
     const sessionNameStr = sessionObj?.sessionName?.trim();
     const schoolId = cls.schoolId ?? 0;
+
+    // Fetch subject info & coefficient
+    const subjectObj = await readDb.query.schoolSubjects.findFirst({
+      where: eq(schoolSubjects.id, subjectIdNum)
+    });
+
+    const classSubject = await readDb.query.classSubjects.findFirst({
+      where: and(
+        eq(classSubjects.classId, classIdNum),
+        eq(classSubjects.subjectId, subjectIdNum)
+      )
+    });
+
+    const sectionSubject = cls.sectionId ? await readDb.query.sectionSubjects.findFirst({
+      where: and(
+        eq(sectionSubjects.sectionId, cls.sectionId),
+        eq(sectionSubjects.subjectId, subjectIdNum)
+      )
+    }) : null;
+
+    const coefficient = classSubject?.coefficient || sectionSubject?.defaultCoef || 1;
 
     // Fetch results first (to know which studentIds already have data)
     const results = await readDb.query.studentResults.findMany({
@@ -1098,16 +1122,26 @@ export async function getDevoirGrid(params: { classId: number, subjectId: number
           devoir5: res.devoir5,
           moyenneDevoirs: res.moyenneDevoirs,
           classWorkScore: res.classWorkScore,
+          examScore: res.examScore,
+          totalScore: res.totalScore,
+          coefficient: res.coefficient || coefficient,
+          weightedScore: res.weightedScore,
         } : null,
         fullStudent: s
       };
     });
 
-    return { data };
+    return {
+      data,
+      coefficient,
+      subjectName: subjectObj?.subjectName || "Matière",
+      className: cls.className,
+      educationalLevel: cls.section?.educationalLevel || "Secondaire"
+    };
   });
 }
 
-// Save Devoir Grades
+// Save Devoir Grades & Sync with Notes & Results
 export async function saveDevoirGrades(payload: any[]) {
   return protectedDbAction("Academics", "canEdit", async (user) => {
     if (payload.length === 0) return { success: true };
@@ -1130,6 +1164,31 @@ export async function saveDevoirGrades(payload: any[]) {
       return { error: workflowGuard.error };
     }
 
+    // Get Class & Section info to determine educational level and subject coefficient
+    const cls = await readDb.query.schoolClasses.findFirst({
+      where: eq(schoolClasses.id, first.classId),
+      with: { section: true }
+    });
+
+    const isHigherEd = ["Licence", "Master", "Doctorat", "Supérieur", "Université"].includes(cls?.section?.educationalLevel || "");
+
+    // Fetch classSubject or sectionSubject link to get coefficient
+    const classSubject = await readDb.query.classSubjects.findFirst({
+      where: and(
+        eq(classSubjects.classId, first.classId),
+        eq(classSubjects.subjectId, first.subjectId)
+      )
+    });
+
+    const sectionSubject = cls?.sectionId ? await readDb.query.sectionSubjects.findFirst({
+      where: and(
+        eq(sectionSubjects.sectionId, cls.sectionId),
+        eq(sectionSubjects.subjectId, first.subjectId)
+      )
+    }) : null;
+
+    const coefficient = classSubject?.coefficient || sectionSubject?.defaultCoef || 1;
+
     const existing = await db.query.studentResults.findMany({
       where: and(
         eq(studentResults.classId, first.classId),
@@ -1139,11 +1198,28 @@ export async function saveDevoirGrades(payload: any[]) {
       )
     });
 
-    const existingMap = new Map(existing.map(r => [r.studentId, r.id]));
+    const existingMap = new Map(existing.map(r => [r.studentId, r]));
 
     await Promise.all(payload.map(async (row) => {
       const { studentId, subjectId, classId, sessionId, term, devoirs, moyenneDevoirs } = row;
+      const exist = existingMap.get(studentId);
       
+      const examScore = exist?.examScore !== null && exist?.examScore !== undefined ? Number(exist.examScore) : null;
+      const classWork = Number(moyenneDevoirs) || 0;
+
+      let totalScore: number;
+      if (examScore !== null && !isNaN(examScore)) {
+        if (isHigherEd) {
+          totalScore = Number(((classWork * 0.4) + (examScore * 0.6)).toFixed(2));
+        } else {
+          totalScore = Number(((classWork + examScore) / 2).toFixed(2));
+        }
+      } else {
+        totalScore = Number(classWork.toFixed(2));
+      }
+
+      const weightedScore = Number((totalScore * coefficient).toFixed(2));
+
       const dbValues = {
         studentId,
         subjectId,
@@ -1155,13 +1231,15 @@ export async function saveDevoirGrades(payload: any[]) {
         devoir3: devoirs[2] ?? null,
         devoir4: devoirs[3] ?? null,
         devoir5: devoirs[4] ?? null,
-        moyenneDevoirs,
-        classWorkScore: moyenneDevoirs, // Usually classWorkScore is the average of devoirs
+        moyenneDevoirs: classWork,
+        classWorkScore: classWork,
+        totalScore,
+        coefficient,
+        weightedScore,
       };
 
-      const existingId = existingMap.get(studentId);
-      if (existingId) {
-        await db.update(studentResults).set(dbValues).where(eq(studentResults.id, existingId));
+      if (exist?.id) {
+        await db.update(studentResults).set(dbValues).where(eq(studentResults.id, exist.id));
       } else {
         await db.insert(studentResults).values(dbValues);
       }
