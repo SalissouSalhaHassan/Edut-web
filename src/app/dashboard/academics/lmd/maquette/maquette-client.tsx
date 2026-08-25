@@ -1,14 +1,22 @@
 "use client";
 
-import React, { useState, useTransition, useEffect } from "react";
+import React, { useState, useTransition, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { 
   Layers, Plus, Trash2, Edit3, BookOpen, Clock, 
   User, CheckCircle2, AlertTriangle, ChevronRight, 
-  Sparkles, Award, ArrowLeft, RefreshCw, Filter, HelpCircle
+  Sparkles, Award, ArrowLeft, RefreshCw, Filter, HelpCircle,
+  GraduationCap
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import {
   getMaquettePedagogique,
@@ -41,9 +49,31 @@ export default function MaquetteClient({
   teachers,
 }: Props) {
   const [programs, setPrograms] = useState(initialPrograms);
+  const [selectedCycle, setSelectedCycle] = useState<string>("Tous");
+
+  const filteredPrograms = useMemo(() => {
+    if (!selectedCycle || selectedCycle === "Tous") return programs;
+    return programs.filter((p) => {
+      const level = (p.degreeLevel || "Licence").toLowerCase();
+      return level.includes(selectedCycle.toLowerCase());
+    });
+  }, [programs, selectedCycle]);
+
   const [selectedProgramId, setSelectedProgramId] = useState<number | null>(
-    programs.length > 0 ? programs[0].id : null
+    filteredPrograms.length > 0 ? filteredPrograms[0].id : null
   );
+
+  useEffect(() => {
+    if (filteredPrograms.length > 0) {
+      const exists = filteredPrograms.some((p) => p.id === selectedProgramId);
+      if (!exists) {
+        setSelectedProgramId(filteredPrograms[0].id);
+      }
+    } else {
+      setSelectedProgramId(null);
+    }
+  }, [filteredPrograms]);
+
   const [selectedSemester, setSelectedSemester] = useState<string>("S1");
 
   const [maquette, setMaquette] = useState<{
@@ -303,21 +333,46 @@ export default function MaquetteClient({
       {/* Program Selector & Semester Bar */}
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex-1 max-w-md">
-            <label className="block text-xs font-bold text-slate-700 mb-1">
-              Filière / Parcours LMD
-            </label>
-            <select
-              value={selectedProgramId || ""}
-              onChange={(e) => setSelectedProgramId(Number(e.target.value))}
-              className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              {programs.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} ({p.degreeLevel} • {p.totalCredits} ECTS)
-                </option>
-              ))}
-            </select>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1">
+            {/* Cycle / Diplôme */}
+            <div className="w-full sm:w-48">
+              <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                Cycle / Diplôme
+              </label>
+              <Select value={selectedCycle} onValueChange={(val) => setSelectedCycle(val || "Tous")}>
+                <SelectTrigger className="w-full text-xs font-medium bg-slate-50 border-slate-200">
+                  <SelectValue placeholder="Cycle LMD" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Tous" className="text-xs">Tous les cycles</SelectItem>
+                  <SelectItem value="Licence" className="text-xs">Licence (L1 - L3)</SelectItem>
+                  <SelectItem value="Master" className="text-xs">Master (M1 - M2)</SelectItem>
+                  <SelectItem value="Doctorat" className="text-xs">Doctorat</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Filière LMD */}
+            <div className="flex-1">
+              <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                Filière / Parcours LMD ({filteredPrograms.length})
+              </label>
+              <Select
+                value={selectedProgramId ? String(selectedProgramId) : ""}
+                onValueChange={(val) => setSelectedProgramId(Number(val))}
+              >
+                <SelectTrigger className="w-full text-xs font-medium bg-slate-50 border-slate-200">
+                  <SelectValue placeholder="Choisir la filière" />
+                </SelectTrigger>
+                <SelectContent>
+                  {filteredPrograms.map((p) => (
+                    <SelectItem key={p.id} value={String(p.id)} className="text-xs">
+                      {p.name} ({p.degreeLevel || "Licence"} • {p.totalCredits} ECTS)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {/* 30 ECTS Balance Bar */}

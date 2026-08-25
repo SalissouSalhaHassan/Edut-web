@@ -1,13 +1,22 @@
 "use client";
 
-import React, { useState, useTransition, useEffect } from "react";
+import React, { useState, useTransition, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { 
   Scale, ArrowLeft, Download, CheckCircle2, 
   AlertTriangle, RefreshCw, Sparkles, Filter, 
-  UserCheck, ShieldCheck, FileSpreadsheet, Printer, Award
+  UserCheck, ShieldCheck, FileSpreadsheet, Printer, Award,
+  Calendar, Layers, School, GraduationCap, Search, CheckCircle,
+  HelpCircle, BookOpen, AlertCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { 
   getLmdDeliberationCohort, 
@@ -28,26 +37,50 @@ export default function DeliberationClient({
   periods = [],
 }: Props) {
   const [programs] = useState(initialPrograms);
-  const [selectedProgramId, setSelectedProgramId] = useState<number | null>(
-    programs.length > 0 ? programs[0].id : null
-  );
 
-  // Active session lookup
+  // 1. Session Académique (défaut sur session active)
   const activeSession = sessions.find((s) => s.isActive || s.status === "Actif") || sessions[0];
-  const [selectedSessionId, setSelectedSessionId] = useState<number | null>(
-    activeSession ? activeSession.id : null
+  const [selectedSessionId, setSelectedSessionId] = useState<string>(
+    activeSession ? String(activeSession.id) : ""
   );
 
-  const selectedProgram = programs.find((p) => p.id === selectedProgramId);
+  // 2. Cycle / Niveau LMD (Tous, Licence, Master, Doctorat)
+  const [selectedCycle, setSelectedCycle] = useState<string>("Tous");
 
-  // Dynamic filter: Show only classes belonging to the selected Filière/Section
-  const filteredClasses = React.useMemo(() => {
+  // 3. Filière LMD filtrée par Cycle
+  const filteredPrograms = useMemo(() => {
+    if (!selectedCycle || selectedCycle === "Tous") return programs;
+    return programs.filter((p) => {
+      const level = (p.degreeLevel || "Licence").toLowerCase();
+      return level.includes(selectedCycle.toLowerCase());
+    });
+  }, [programs, selectedCycle]);
+
+  const [selectedProgramId, setSelectedProgramId] = useState<string>(
+    filteredPrograms.length > 0 ? String(filteredPrograms[0].id) : ""
+  );
+
+  // Auto-switch program if current is not in filteredPrograms
+  useEffect(() => {
+    if (filteredPrograms.length > 0) {
+      const exists = filteredPrograms.some((p) => String(p.id) === selectedProgramId);
+      if (!exists) {
+        setSelectedProgramId(String(filteredPrograms[0].id));
+      }
+    } else {
+      setSelectedProgramId("");
+    }
+  }, [filteredPrograms]);
+
+  const selectedProgram = programs.find((p) => String(p.id) === selectedProgramId);
+
+  // 4. Promotions / Classes filtrées strictement par Filière (sectionId)
+  const filteredClasses = useMemo(() => {
     if (!selectedProgram) return classes;
     if (selectedProgram.sectionId) {
       const matched = classes.filter((c) => c.sectionId === selectedProgram.sectionId);
       return matched.length > 0 ? matched : classes;
     }
-    // Fallback: match by name if sectionId is not explicit
     const progName = (selectedProgram.name || "").toLowerCase();
     const matched = classes.filter((c) => 
       (c.className || "").toLowerCase().includes(progName) || 
@@ -56,30 +89,29 @@ export default function DeliberationClient({
     return matched.length > 0 ? matched : classes;
   }, [selectedProgram, classes]);
 
-  const [selectedClassId, setSelectedClassId] = useState<number | null>(
-    filteredClasses.length > 0 ? filteredClasses[0].id : (classes[0]?.id || null)
+  const [selectedClassId, setSelectedClassId] = useState<string>(
+    filteredClasses.length > 0 ? String(filteredClasses[0].id) : (classes[0] ? String(classes[0].id) : "")
   );
 
-  // Auto-switch selected class when selected program changes
+  // Auto-switch class when program changes
   useEffect(() => {
     if (filteredClasses.length > 0) {
-      const exists = filteredClasses.some((c) => c.id === selectedClassId);
+      const exists = filteredClasses.some((c) => String(c.id) === selectedClassId);
       if (!exists) {
-        setSelectedClassId(filteredClasses[0].id);
+        setSelectedClassId(String(filteredClasses[0].id));
       }
     } else {
-      setSelectedClassId(null);
+      setSelectedClassId("");
     }
   }, [selectedProgramId, filteredClasses]);
 
-  // Semestres dynamically adapted to degree level (Master: S1-S4, Licence: S1-S6)
-  const availableSemesters = React.useMemo(() => {
+  // 5. Semestres adaptés au cursus (Licence: S1-S6, Master: S1-S4)
+  const availableSemesters = useMemo(() => {
     const isMaster = selectedProgram?.degreeLevel === "Master";
     const maxSem = isMaster ? 4 : 6;
     const list = [];
     for (let i = 1; i <= maxSem; i++) {
       const sCode = `S${i}`;
-      // Check if real period matching this semester exists in settings
       const matchingPeriod = periods.find((p) => 
         (p.name || "").toLowerCase().includes(`semestre ${i}`) || 
         (p.name || "").toLowerCase().includes(`s${i}`)
@@ -94,6 +126,7 @@ export default function DeliberationClient({
 
   const [selectedSemester, setSelectedSemester] = useState<string>("S1");
 
+  // 6. Données de Délibération
   const [deliberationData, setDeliberationData] = useState<{
     ues: any[];
     cohort: any[];
@@ -105,17 +138,16 @@ export default function DeliberationClient({
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
-  const [isPending, startTransition] = useTransition();
 
   const loadDeliberationData = async () => {
     if (!selectedProgramId || !selectedClassId || !selectedSessionId) return;
     setIsLoading(true);
     try {
       const res = await getLmdDeliberationCohort(
-        selectedProgramId,
-        selectedClassId,
+        Number(selectedProgramId),
+        Number(selectedClassId),
         selectedSemester,
-        selectedSessionId
+        Number(selectedSessionId)
       );
       if (res.success && res.data) {
         setDeliberationData(res.data);
@@ -130,11 +162,13 @@ export default function DeliberationClient({
   };
 
   useEffect(() => {
-    loadDeliberationData();
+    if (selectedProgramId && selectedClassId && selectedSessionId) {
+      loadDeliberationData();
+    }
   }, [selectedProgramId, selectedClassId, selectedSemester, selectedSessionId]);
 
-  const selectedClass = classes.find((c) => c.id === selectedClassId);
-  const selectedSession = sessions.find((s) => s.id === selectedSessionId);
+  const selectedClass = classes.find((c) => String(c.id) === selectedClassId);
+  const selectedSession = sessions.find((s) => String(s.id) === selectedSessionId);
 
   // ─── Save / Validate Deliberation ──────────────────────────────────────────
   const handleSaveDeliberation = async () => {
@@ -147,26 +181,26 @@ export default function DeliberationClient({
     setIsSaving(true);
     try {
       const res = await saveLmdDeliberation({
-        programId: selectedProgramId,
-        classId: selectedClassId,
+        programId: Number(selectedProgramId),
+        classId: Number(selectedClassId),
         semester: selectedSemester,
-        sessionId: selectedSessionId,
+        sessionId: Number(selectedSessionId),
         cohort: deliberationData.cohort,
       });
 
       if (res.success) {
-        toast.success("Délibération officielle enregistrée et validée avec succès !");
+        toast.success(res.message || "Délibération validée et clôturée avec succès !");
       } else {
-        toast.error(res.error || "Erreur d'enregistrement");
+        toast.error(res.error || "Erreur de validation");
       }
     } catch (e: any) {
-      toast.error("Erreur critique lors de la validation");
+      toast.error("Erreur réseau lors de la validation");
     } finally {
       setIsSaving(false);
     }
   };
 
-  // ─── Export Official Deliberation PDF ───────────────────────────────────────
+  // ─── Export Official Deliberation PV (PDF A4 Paysage) ──────────────────────
   const handleExportPDF = async () => {
     if (deliberationData.cohort.length === 0) {
       toast.error("Aucune donnée à exporter");
@@ -175,77 +209,79 @@ export default function DeliberationClient({
 
     setIsExportingPdf(true);
     try {
-      const { jsPDF } = await import("jspdf");
-      const autoTable = (await import("jspdf-autotable")).default;
+      const { default: jsPDF } = await import("jspdf");
+      const { default: autoTable } = await import("jspdf-autotable");
 
       const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
       const pageWidth = doc.internal.pageSize.getWidth();
       const pageHeight = doc.internal.pageSize.getHeight();
 
-      // Header Bar
-      doc.setFillColor(15, 23, 42); // slate-900
-      doc.rect(0, 0, pageWidth, 24, "F");
+      // Header Box
+      doc.setFillColor(248, 250, 252);
+      doc.rect(10, 10, pageWidth - 20, 26, "F");
+      doc.setDrawColor(226, 232, 240);
+      doc.rect(10, 10, pageWidth - 20, 26, "S");
 
       doc.setFont("helvetica", "bold");
       doc.setFontSize(14);
-      doc.setTextColor(255, 255, 255);
-      doc.text("PROCÈS-VERBAL OFFICIEL DE DÉLIBÉRATION DU JURY LMD", pageWidth / 2, 11, { align: "center" });
+      doc.setTextColor(15, 23, 42); // slate-900
+      doc.text("PROCÈS-VERBAL OFFICIEL DE DÉLIBÉRATION SEMESTRIELLE", pageWidth / 2, 18, { align: "center" });
 
-      doc.setFont("helvetica", "normal");
       doc.setFontSize(9);
-      doc.setTextColor(148, 163, 184); // slate-400
-      doc.text(
-        `FILIÈRE : ${selectedProgram?.name || ""} | CLASSE : ${selectedClass?.className || ""} | SEMESTRE : ${selectedSemester} | SESSION : ${selectedSession?.sessionName || ""}`,
-        pageWidth / 2,
-        18,
-        { align: "center" }
-      );
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(71, 85, 105); // slate-600
+      const subTitle = `Filière : ${selectedProgram?.name || "LMD"} (${selectedProgram?.degreeLevel || "Licence"})   |   Promotion : ${selectedClass?.className || "Classe"}   |   ${selectedSemester}   |   Session : ${selectedSession?.sessionName || "2025-2026"}`;
+      doc.text(subTitle, pageWidth / 2, 24, { align: "center" });
 
-      // Summary Card
-      doc.setFillColor(248, 250, 252);
-      doc.roundedRect(14, 28, pageWidth - 28, 12, 2, 2, "F");
-      doc.setFontSize(8.5);
-      doc.setTextColor(15, 23, 42);
-      doc.setFont("helvetica", "bold");
-      doc.text(
-        `Effectif Total : ${deliberationData.totalStudents}  |  Admis : ${deliberationData.passedCount}  |  Taux de Réussite : ${deliberationData.successRate}%  |  Objectif ECTS : 30 Crédits  |  Date : ${new Date().toLocaleDateString("fr-FR")}`,
-        pageWidth / 2,
-        35.5,
-        { align: "center" }
-      );
+      doc.setFontSize(8);
+      doc.setTextColor(100, 116, 139);
+      doc.text(`Norme LMD : 30 Crédits ECTS / Semestre   •   Seuil de Compensation : 10.00 / 20   •   Note Éliminatoire : < 7.00 / 20`, pageWidth / 2, 30, { align: "center" });
 
-      // Build Headers
-      const dynamicUeHeaders = deliberationData.ues.map((u) => `${u.codeUe}\n(${u.creditsEcts} ECTS)`);
-      const tableHeaders = [
-        ["#", "Matricule", "Nom & Prénom", ...dynamicUeHeaders, "Moyenne", "Crédits", "Mention", "Décision Jury"],
+      // Table columns
+      const headers = [
+        "N°",
+        "Matricule",
+        "Nom & Prénoms",
+        ...deliberationData.ues.map((ue) => `${ue.codeUe}\n(${ue.creditsEcts} ECTS)`),
+        "Moyenne\n/20",
+        "Crédits\n/30",
+        "Décision du Jury",
+        "Mention",
+        "Rang"
       ];
 
-      // Build Rows
-      const tableRows = deliberationData.cohort.map((c) => {
-        const d = c.deliberation;
-        const ueGrades = d.ueResults.map((u: any) => `${u.average.toFixed(2)} [${u.status}]`);
+      // Table rows
+      const body = deliberationData.cohort.map((item) => {
+        const d = item.deliberation;
+        const ueGrades = deliberationData.ues.map((ue) => {
+          const res = d.ueResults.find((r: any) => r.codeUe === ue.codeUe || r.ueId === ue.id);
+          if (!res) return "-";
+          return `${res.average.toFixed(2)} [${res.status}]`;
+        });
+
         return [
-          c.rank,
-          c.student.matricule || "-",
-          c.student.nom,
+          item.rank,
+          item.student.matricule || "N/A",
+          item.student.nom,
           ...ueGrades,
-          `${d.semesterAverage.toFixed(2)}/20`,
-          `${d.creditsAcquired}/30`,
-          d.mention,
+          d.semesterAverage.toFixed(2),
+          `${d.creditsAcquired} / 30`,
           d.decision,
+          d.mention,
+          `${item.rank}e`
         ];
       });
 
       autoTable(doc, {
-        head: tableHeaders,
-        body: tableRows,
-        startY: 44,
-        theme: "grid",
+        head: [headers],
+        body: body,
+        startY: 40,
+        margin: { left: 10, right: 10 },
         styles: {
-          fontSize: 7.5,
+          fontSize: 8,
           cellPadding: 2,
           halign: "center",
-          textColor: [15, 23, 42],
+          valign: "middle",
         },
         headStyles: {
           fillColor: [15, 23, 42],
@@ -262,10 +298,10 @@ export default function DeliberationClient({
           if (data.section === "body" && data.column.index >= 3 + deliberationData.ues.length) {
             const val = String(data.cell.raw);
             if (val.includes("Admis")) {
-              data.cell.styles.textColor = [5, 150, 105]; // emerald-600
+              data.cell.styles.textColor = [5, 150, 105];
               data.cell.styles.fontStyle = "bold";
             } else if (val.includes("Ajourné")) {
-              data.cell.styles.textColor = [225, 29, 72]; // rose-600
+              data.cell.styles.textColor = [225, 29, 72];
             }
           }
         },
@@ -340,7 +376,7 @@ export default function DeliberationClient({
           <Button
             onClick={handleSaveDeliberation}
             disabled={deliberationData.cohort.length === 0 || isSaving}
-            className="gap-2 bg-indigo-600 hover:bg-indigo-700 font-bold text-xs"
+            className="gap-2 bg-indigo-600 hover:bg-indigo-700 font-bold text-xs shadow-sm"
           >
             <ShieldCheck className="h-4 w-4" />
             {isSaving ? "Validation en cours..." : "Valider & Clôturer Délibération"}
@@ -348,184 +384,279 @@ export default function DeliberationClient({
         </div>
       </div>
 
-      {/* Filter Bar */}
+      {/* ─── FILTRES ACADÉMIQUES CONFORMES À NOTES & RÉSULTATS ───────────────── */}
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Filière LMD</label>
-            <select
-              value={selectedProgramId || ""}
-              onChange={(e) => setSelectedProgramId(Number(e.target.value))}
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              {programs.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} ({p.degreeLevel || "Licence"})
-                </option>
-              ))}
-            </select>
-          </div>
+        <div className="flex items-center gap-2 border-b border-slate-100 pb-3 text-xs font-bold text-slate-700">
+          <Filter className="h-4 w-4 text-indigo-600" />
+          <span>Filtres de Délibération Universitaire</span>
+        </div>
 
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3.5">
+          {/* 1. Session Académique */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">
-              Promotion / Classe ({filteredClasses.length})
+            <label className="block text-[11px] font-bold text-slate-600 mb-1">
+              1. Session Académique
             </label>
-            <select
-              value={selectedClassId || ""}
-              onChange={(e) => setSelectedClassId(Number(e.target.value))}
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              {filteredClasses.length === 0 ? (
-                <option value="">Aucune classe rattachée</option>
-              ) : (
-                filteredClasses.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.className} {c.section?.sectionName ? `(${c.section.sectionName})` : ""}
-                  </option>
-                ))
-              )}
-            </select>
+            <Select value={selectedSessionId} onValueChange={(val) => setSelectedSessionId(val || "")}>
+              <SelectTrigger className="w-full text-xs font-medium bg-slate-50 border-slate-200">
+                <SelectValue placeholder="Sélectionner la session" />
+              </SelectTrigger>
+              <SelectContent>
+                {sessions.map((s) => (
+                  <SelectItem key={s.id} value={String(s.id)} className="text-xs">
+                    {s.sessionName} {s.isActive || s.status === "Actif" ? "• (Actif)" : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
+          {/* 2. Cycle / Niveau LMD */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Semestre</label>
-            <select
-              value={selectedSemester}
-              onChange={(e) => setSelectedSemester(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              {availableSemesters.map((s) => (
-                <option key={s.code} value={s.code}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
+            <label className="block text-[11px] font-bold text-slate-600 mb-1">
+              2. Cycle / Diplôme
+            </label>
+            <Select value={selectedCycle} onValueChange={(val) => setSelectedCycle(val || "Tous")}>
+              <SelectTrigger className="w-full text-xs font-medium bg-slate-50 border-slate-200">
+                <SelectValue placeholder="Cycle LMD" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Tous" className="text-xs">Tous les cycles</SelectItem>
+                <SelectItem value="Licence" className="text-xs">Licence (L1 - L3)</SelectItem>
+                <SelectItem value="Master" className="text-xs">Master (M1 - M2)</SelectItem>
+                <SelectItem value="Doctorat" className="text-xs">Doctorat (D1 - D3)</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
+          {/* 3. Filière LMD */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Session Académique</label>
-            <select
-              value={selectedSessionId || ""}
-              onChange={(e) => setSelectedSessionId(Number(e.target.value))}
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              {sessions.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.sessionName} {s.isActive || s.status === "Actif" ? "• (En cours / Actif)" : ""}
-                </option>
-              ))}
-            </select>
+            <label className="block text-[11px] font-bold text-slate-600 mb-1">
+              3. Filière LMD
+            </label>
+            <Select value={selectedProgramId} onValueChange={(val) => setSelectedProgramId(val || "")}>
+              <SelectTrigger className="w-full text-xs font-medium bg-slate-50 border-slate-200">
+                <SelectValue placeholder="Choisir la filière" />
+              </SelectTrigger>
+              <SelectContent>
+                {filteredPrograms.map((p) => (
+                  <SelectItem key={p.id} value={String(p.id)} className="text-xs">
+                    {p.name} ({p.degreeLevel || "Licence"})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
+
+          {/* 4. Promotion / Classe (Filtrée dynamiquement) */}
+          <div>
+            <label className="block text-[11px] font-bold text-slate-600 mb-1">
+              4. Promotion / Classe ({filteredClasses.length})
+            </label>
+            <Select value={selectedClassId} onValueChange={(val) => setSelectedClassId(val || "")}>
+              <SelectTrigger className="w-full text-xs font-medium bg-slate-50 border-slate-200">
+                <SelectValue placeholder="Sélectionner la classe" />
+              </SelectTrigger>
+              <SelectContent>
+                {filteredClasses.length === 0 ? (
+                  <SelectItem value="none" disabled className="text-xs text-slate-400">
+                    Aucune classe rattachée
+                  </SelectItem>
+                ) : (
+                  filteredClasses.map((c) => (
+                    <SelectItem key={c.id} value={String(c.id)} className="text-xs">
+                      {c.className}
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* 5. Semestre */}
+          <div>
+            <label className="block text-[11px] font-bold text-slate-600 mb-1">
+              5. Semestre d'Évaluation
+            </label>
+            <Select value={selectedSemester} onValueChange={(val) => setSelectedSemester(val || "S1")}>
+              <SelectTrigger className="w-full text-xs font-medium bg-slate-50 border-slate-200">
+                <SelectValue placeholder="Choisir le semestre" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableSemesters.map((s) => (
+                  <SelectItem key={s.code} value={s.code} className="text-xs">
+                    {s.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Action Button & Active Filter Chips */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-slate-100">
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <span className="text-slate-400 font-medium">Sélection active :</span>
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 font-semibold border border-indigo-100">
+              <GraduationCap className="h-3 w-3" /> {selectedProgram?.name || "Filière"}
+            </span>
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-semibold border border-emerald-100">
+              <School className="h-3 w-3" /> {selectedClass?.className || "Classe"}
+            </span>
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-purple-50 text-purple-700 font-semibold border border-purple-100">
+              <Layers className="h-3 w-3" /> {selectedSemester}
+            </span>
+          </div>
+
+          <Button
+            onClick={loadDeliberationData}
+            disabled={isLoading || !selectedProgramId || !selectedClassId}
+            className="gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs"
+          >
+            <Search className={`h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`} />
+            {isLoading ? "Chargement en cours..." : "Afficher la Délibération"}
+          </Button>
         </div>
       </div>
 
-      {/* Live Statistics Cards */}
+      {/* ─── STATISTIQUES EN DIRECT ────────────────────────────────────────── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
           <div className="text-[11px] font-bold text-slate-500">Effectif de la promotion</div>
           <div className="text-2xl font-black text-slate-900 mt-1">{deliberationData.totalStudents}</div>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
           <div className="text-[11px] font-bold text-emerald-600">Admis (Validation Semestre)</div>
-          <div className="text-2xl font-black text-emerald-700 mt-1">{deliberationData.passedCount}</div>
+          <div className="text-2xl font-black text-emerald-600 mt-1">{deliberationData.passedCount}</div>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
+          <div className="text-[11px] font-bold text-rose-600">Ajournés (Rattrapage)</div>
+          <div className="text-2xl font-black text-rose-600 mt-1">
+            {deliberationData.totalStudents - deliberationData.passedCount}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
           <div className="text-[11px] font-bold text-indigo-600">Taux de Réussite</div>
-          <div className="text-2xl font-black text-indigo-700 mt-1">{deliberationData.successRate}%</div>
-        </div>
-
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="text-[11px] font-bold text-purple-600">Standard de Crédits</div>
-          <div className="text-2xl font-black text-purple-700 mt-1">30 ECTS</div>
+          <div className="text-2xl font-black text-indigo-600 mt-1">{deliberationData.successRate} %</div>
         </div>
       </div>
 
-      {/* Deliberation Grid Table */}
+      {/* ─── TABLEAU DU PROCÈS-VERBAL DE DÉLIBÉRATION ──────────────────────── */}
       <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50/50">
+          <div className="flex items-center gap-2">
+            <Scale className="h-4 w-4 text-indigo-600" />
+            <span className="font-bold text-sm text-slate-800">
+              Grille Collective de Délibération du Jury ({selectedSemester})
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3 text-xs font-semibold text-slate-500">
+            <span className="flex items-center gap-1 text-emerald-600">
+              <span className="h-2 w-2 rounded-full bg-emerald-500" /> V = Validé (Note ≥ 10)
+            </span>
+            <span className="flex items-center gap-1 text-indigo-600">
+              <span className="h-2 w-2 rounded-full bg-indigo-500" /> VC = Compensé (Moy ≥ 10)
+            </span>
+            <span className="flex items-center gap-1 text-rose-600">
+              <span className="h-2 w-2 rounded-full bg-rose-500" /> NV = Non Validé (&lt; 10)
+            </span>
+          </div>
+        </div>
+
         {isLoading ? (
-          <div className="p-12 text-center text-xs text-slate-400 font-medium">
-            Calcul et simulation des compensations semestrielles...
+          <div className="p-12 text-center text-xs text-slate-400">
+            <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2 text-indigo-600" />
+            Calcul des compensations LMD en temps réel...
           </div>
         ) : deliberationData.cohort.length === 0 ? (
           <div className="p-12 text-center text-xs text-slate-400">
-            Aucun résultat d’étudiant trouvé pour ces critères de délibération.
+            <AlertTriangle className="h-6 w-6 mx-auto mb-2 text-amber-500" />
+            Aucun étudiant trouvé dans cette promotion ou aucune note saisie pour ce semestre.
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="bg-slate-900 text-white font-bold">
-                  <th className="p-3 w-10 text-center">Rang</th>
-                  <th className="p-3">Matricule</th>
-                  <th className="p-3">Étudiant(e)</th>
+                <tr className="border-b border-slate-200 bg-slate-900 text-white">
+                  <th className="p-3 text-center w-12 font-bold">Rang</th>
+                  <th className="p-3 font-bold">Étudiant</th>
                   {deliberationData.ues.map((ue) => (
-                    <th key={ue.id} className="p-3 text-center border-l border-slate-800">
+                    <th key={ue.id} className="p-3 text-center font-bold border-l border-slate-800">
                       <div>{ue.codeUe}</div>
-                      <div className="text-[10px] text-indigo-300 font-normal">({ue.creditsEcts} ECTS)</div>
+                      <div className="text-[10px] text-slate-400 font-normal">{ue.creditsEcts} ECTS</div>
                     </th>
                   ))}
-                  <th className="p-3 text-center border-l border-slate-800 bg-slate-800">Moyenne / 20</th>
-                  <th className="p-3 text-center bg-slate-800">Crédits Acquis</th>
-                  <th className="p-3 text-center bg-slate-800">Mention</th>
-                  <th className="p-3 text-center bg-slate-800">Décision Jury</th>
+                  <th className="p-3 text-center font-bold border-l border-slate-800 bg-slate-800">Moyenne /20</th>
+                  <th className="p-3 text-center font-bold bg-slate-800">Crédits /30</th>
+                  <th className="p-3 text-center font-bold bg-slate-800">Décision</th>
+                  <th className="p-3 text-center font-bold bg-slate-800">Mention</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
-                {deliberationData.cohort.map((row) => {
-                  const d = row.deliberation;
-                  const isPass = d.isSemesterValidated;
-
+              <tbody className="divide-y divide-slate-100 font-medium">
+                {deliberationData.cohort.map((item) => {
+                  const d = item.deliberation;
                   return (
-                    <tr key={row.student.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="p-3 text-center font-bold text-slate-500">{row.rank}</td>
-                      <td className="p-3 font-mono font-bold text-slate-600">{row.student.matricule || "-"}</td>
-                      <td className="p-3 font-bold text-slate-900">{row.student.nom}</td>
+                    <tr key={item.student.id} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="p-3 text-center font-bold text-slate-500">
+                        {item.rank === 1 ? "🥇 1" : `${item.rank}`}
+                      </td>
+                      <td className="p-3">
+                        <div className="font-bold text-slate-900">{item.student.nom}</div>
+                        <div className="text-[10px] text-slate-400 font-mono">{item.student.matricule || "N/A"}</div>
+                      </td>
 
                       {/* UE Results */}
-                      {d.ueResults.map((ueRes: any) => {
-                        const isUePass = ueRes.status === "V" || ueRes.status === "VC" || ueRes.status === "CAP";
+                      {deliberationData.ues.map((ue) => {
+                        const r = d.ueResults.find((res: any) => res.codeUe === ue.codeUe || res.ueId === ue.id);
+                        if (!r) return <td key={ue.id} className="p-3 text-center text-slate-300">-</td>;
+
+                        const isV = r.status === "V";
+                        const isVC = r.status === "VC";
+
                         return (
-                          <td key={ueRes.id} className="p-3 text-center border-l border-slate-100">
-                            <div className={`font-bold ${isUePass ? "text-emerald-700" : "text-rose-700"}`}>
-                              {ueRes.average.toFixed(2)}
+                          <td key={ue.id} className="p-3 text-center border-l border-slate-100">
+                            <div className="font-mono font-bold text-slate-800">
+                              {r.average.toFixed(2)}
                             </div>
-                            <span className={`inline-block text-[9px] font-black px-1.5 py-0.2 rounded mt-0.5 ${
-                              ueRes.status === "V"
-                                ? "bg-emerald-100 text-emerald-800"
-                                : ueRes.status === "VC"
-                                ? "bg-blue-100 text-blue-800"
-                                : "bg-rose-100 text-rose-800"
-                            }`}>
-                              {ueRes.status} ({ueRes.creditsAcquired} ECTS)
+                            <span
+                              className={`text-[9px] px-1.5 py-0.2 rounded font-bold ${
+                                isV
+                                  ? "bg-emerald-100 text-emerald-800"
+                                  : isVC
+                                  ? "bg-indigo-100 text-indigo-800"
+                                  : "bg-rose-100 text-rose-800"
+                              }`}
+                            >
+                              {r.status} ({r.creditsAcquired} ECTS)
                             </span>
                           </td>
                         );
                       })}
 
                       {/* Semester Summary */}
-                      <td className="p-3 text-center border-l border-slate-200 font-black text-sm bg-slate-50/50">
-                        <span className={d.semesterAverage >= 10 ? "text-emerald-700" : "text-rose-700"}>
-                          {d.semesterAverage.toFixed(2)}
-                        </span>
+                      <td className="p-3 text-center border-l border-slate-200 bg-slate-50/50 font-mono font-bold text-sm text-slate-900">
+                        {d.semesterAverage.toFixed(2)}
                       </td>
-                      <td className="p-3 text-center font-black bg-slate-50/50">
-                        <span className={d.creditsAcquired === 30 ? "text-emerald-700" : "text-amber-700"}>
-                          {d.creditsAcquired} / 30
-                        </span>
+                      <td className="p-3 text-center bg-slate-50/50 font-mono font-bold text-xs text-indigo-700">
+                        {d.creditsAcquired} / 30
                       </td>
-                      <td className="p-3 text-center font-semibold text-slate-700 bg-slate-50/50">
-                        {d.mention}
-                      </td>
-                      <td className="p-3 text-center font-bold bg-slate-50/50">
-                        <span className={`px-2.5 py-1 rounded-full text-[10px] uppercase tracking-wider ${
-                          d.decision.includes("Admis")
-                            ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
-                            : "bg-rose-100 text-rose-800 border border-rose-200"
-                        }`}>
+                      <td className="p-3 text-center bg-slate-50/50">
+                        <span
+                          className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${
+                            d.isSemesterValidated
+                              ? "bg-emerald-100 text-emerald-800"
+                              : "bg-rose-100 text-rose-800"
+                          }`}
+                        >
                           {d.decision}
                         </span>
+                      </td>
+                      <td className="p-3 text-center bg-slate-50/50 text-slate-600 font-semibold">
+                        {d.mention}
                       </td>
                     </tr>
                   );
