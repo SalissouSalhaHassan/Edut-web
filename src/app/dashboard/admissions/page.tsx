@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import {
@@ -34,6 +34,11 @@ import {
   Globe,
   Download,
   School,
+  GraduationCap,
+  Briefcase,
+  Layers,
+  HelpCircle,
+  FileCheck,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import {
@@ -41,11 +46,12 @@ import {
   getAdmissionApplicationsList,
   submitAdmissionApplicationAction,
   reviewAdmissionApplicationAction,
+  scoreAdmissionApplicationAction,
   deleteAdmissionApplicationAction,
   getPublicSchoolInfoForAdmissionsAction,
+  UNIVERSITY_FACULTIES,
 } from "@/domains/admissions/actions/admissions.actions";
 import { getDocumentHeaderConfig } from "@/domains/settings/actions/settings.actions";
-import { Settings } from "lucide-react";
 import AdmissionsPrintModal, { AdmissionsDocType } from "@/domains/admissions/components/AdmissionsPrintModal";
 
 export default function AdmissionsPage() {
@@ -55,14 +61,25 @@ export default function AdmissionsPage() {
     pendingReview: 0,
     admitted: 0,
     rejected: 0,
+    universityCount: 0,
   });
 
   const [applications, setApplications] = useState<any[]>([]);
+  const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
-  const [classFilter, setClassFilter] = useState("ALL");
+  const [levelFilter, setLevelFilter] = useState("ALL"); // 'ALL' | 'UNIV' | 'GENERAL'
+  const [facultyFilter, setFacultyFilter] = useState("ALL");
   const [classesList, setClassesList] = useState<string[]>([]);
   const [headerConfig, setHeaderConfig] = useState<any>(null);
+
+  // Debounced search
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setSearchQuery(searchInput);
+    }, 250);
+    return () => clearTimeout(handler);
+  }, [searchInput]);
 
   // Print Modal States
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
@@ -75,6 +92,9 @@ export default function AdmissionsPage() {
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [reviewNotes, setReviewNotes] = useState("");
   const [assignedClass, setAssignedClass] = useState("");
+  const [admissionScore, setAdmissionScore] = useState<number | undefined>(undefined);
+  const [interviewScore, setInterviewScore] = useState<number | undefined>(undefined);
+  const [juryDecision, setJuryDecision] = useState<string>("Admis / Accepté");
 
   // Share & QR Modal
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
@@ -90,13 +110,26 @@ export default function AdmissionsPage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isSubmittingNew, setIsSubmittingNew] = useState(false);
   const [newApp, setNewApp] = useState({
+    educationLevel: "Université / Supérieur",
+    faculty: "Faculté des Sciences & Technologies",
+    department: "Informatique & Génie Logiciel",
+    degreeProgram: "Licence Informatique & Génie Logiciel (L1-L3)",
+    degreeLevel: "Licence 1",
+    studyMode: "Présentiel / Temps plein",
+    targetClass: "Licence 1 Informatique & Génie Logiciel",
     studentFirstName: "",
     studentLastName: "",
     dateOfBirth: "",
     gender: "M",
     placeOfBirth: "Niamey",
     nationality: "Nigérienne",
-    targetClass: "6ème A",
+    candidateEmail: "",
+    candidatePhone: "",
+    candidateWhatsapp: "",
+    bacSeries: "Série D",
+    bacYear: "2026",
+    bacMention: "Bien",
+    bacRollNumber: "",
     previousSchool: "",
     previousGradeAvg: "",
     parentName: "",
@@ -110,14 +143,13 @@ export default function AdmissionsPage() {
     medicalNotes: "",
   });
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setIsLoading(true);
       const [statsRes, listRes, schoolInfoRes, headerConfigRes] = await Promise.all([
         getAdmissionsDashboardStats(),
         getAdmissionApplicationsList({
           status: statusFilter,
-          targetClass: classFilter,
           query: searchQuery,
         }),
         getPublicSchoolInfoForAdmissionsAction(),
@@ -128,886 +160,744 @@ export default function AdmissionsPage() {
       const apps = (listRes as any)?.data?.applications || (listRes as any)?.applications || [];
       setApplications(apps);
 
-      if (headerConfigRes?.data) {
-        const cfg = (headerConfigRes.data as any).data || headerConfigRes.data;
-        setHeaderConfig(cfg);
-      }
-
-      // ── Load real classes from school_classes table (set in /settings?tab=academic)
-      if (schoolInfoRes?.classes && schoolInfoRes.classes.length > 0) {
+      if (schoolInfoRes?.classes) {
         setClassesList(schoolInfoRes.classes);
-        // Always sync targetClass to the first real class from settings
-        setNewApp((prev) => ({ ...prev, targetClass: schoolInfoRes.classes[0] }));
       }
-    } catch (err: any) {
-      toast.error("Erreur de chargement des admissions.");
+      if (headerConfigRes) {
+        setHeaderConfig((headerConfigRes as any)?.data || headerConfigRes);
+      }
+    } catch (error) {
+      console.error("Failed to load admissions data:", error);
+      toast.error("Erreur de chargement des candidatures.");
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleOpenPrintModal = (app?: any, type: AdmissionsDocType = "letter") => {
-    setPrintSelectedApp(app || null);
-    setPrintDocType(type);
-    setIsPrintModalOpen(true);
-  };
+  }, [statusFilter, searchQuery]);
 
   useEffect(() => {
     loadData();
-  }, [statusFilter, classFilter, searchQuery]);
+  }, [loadData]);
 
-  const handleOpenReview = (app: any) => {
-    setSelectedApp(app);
-    setAssignedClass(app.targetClass);
-    setReviewNotes(app.reviewNotes || "");
-    setIsReviewModalOpen(true);
-  };
+  // Client-Side Level & Faculty Filtering
+  const filteredApplications = useMemo(() => {
+    return applications.filter((app) => {
+      const isUniv = (app.educationLevel || "").toLowerCase().includes("univ") || (app.educationLevel || "").toLowerCase().includes("sup");
+      if (levelFilter === "UNIV" && !isUniv) return false;
+      if (levelFilter === "GENERAL" && isUniv) return false;
+      if (facultyFilter !== "ALL" && app.faculty !== facultyFilter) return false;
+      return true;
+    });
+  }, [applications, levelFilter, facultyFilter]);
 
-  const handleDecision = async (decision: "Admis / Accepté" | "Refusé" | "Liste d'attente") => {
+  // Handle Review Submission
+  const handleReview = async (decision: "Admis / Accepté" | "Refusé" | "Liste d'attente" | "En examen" | "Admis sous condition") => {
     if (!selectedApp) return;
 
     try {
       setIsSubmittingReview(true);
-      const res = await reviewAdmissionApplicationAction({
+      const res: any = await reviewAdmissionApplicationAction({
         applicationId: selectedApp.id,
         decision,
         reviewNotes,
-        assignedClass,
+        assignedClass: assignedClass || selectedApp.degreeProgram || selectedApp.targetClass,
+        admissionScore: admissionScore,
       });
 
-      const payload = (res as any)?.data || res;
+      const payload = res?.data || res;
       if (payload?.success) {
-        if (decision === "Admis / Accepté") {
-          toast.success(`Candidat admis avec succès ! Matricule généré : ${payload.matricule || "Nouveau"}`);
-        } else {
-          toast.success(`Dossier mis à jour (${decision}).`);
-        }
+        toast.success(payload.message || `Dossier marqué comme : ${decision}`);
         setIsReviewModalOpen(false);
+        setSelectedApp(null);
         loadData();
-      } else if (res?.error || payload?.error) {
-        toast.error(res?.error || payload?.error);
+      } else {
+        toast.error(payload?.error || res?.error || "Erreur lors de la décision.");
       }
     } catch (err: any) {
-      toast.error("Erreur lors du traitement de la décision.");
+      toast.error("Erreur serveur lors de la validation.");
     } finally {
       setIsSubmittingReview(false);
     }
   };
 
-  const handleCreateDirectApp = async (e: React.FormEvent) => {
+  // Handle Adding New Candidate from Dashboard
+  const handleAddNewCandidate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newApp.studentFirstName || !newApp.studentLastName || !newApp.dateOfBirth || !newApp.parentPhone) {
-      toast.error("Veuillez remplir tous les champs obligatoires.");
+    if (!newApp.studentFirstName || !newApp.studentLastName || !newApp.parentName || !newApp.parentPhone) {
+      toast.error("Veuillez renseigner les champs obligatoires (*).");
       return;
     }
 
     try {
       setIsSubmittingNew(true);
-      const res = await submitAdmissionApplicationAction(newApp);
+      const res = await submitAdmissionApplicationAction({
+        ...newApp,
+      });
 
       if (res.success) {
-        toast.success(`Dossier ${res.applicationNumber} créé avec succès ! Accusé envoyé par SMS/WhatsApp.`);
+        toast.success(`Candidature créée avec succès ! N° ${res.applicationNumber}`);
         setIsAddModalOpen(false);
-        setNewApp({
-          studentFirstName: "",
-          studentLastName: "",
-          dateOfBirth: "",
-          gender: "M",
-          placeOfBirth: "Niamey",
-          nationality: "Nigérienne",
-          targetClass: classesList[0] || "6ème A", // Use first real class from settings
-          previousSchool: "",
-          previousGradeAvg: "",
-          parentName: "",
-          parentRelation: "Père",
-          parentPhone: "",
-          parentWhatsapp: "",
-          parentEmail: "",
-          parentProfession: "",
-          address: "",
-          city: "Niamey",
-          medicalNotes: "",
-        });
         loadData();
-      } else if (res.error) {
-        toast.error(res.error);
+      } else {
+        toast.error(res.error || "Erreur lors de la création.");
       }
-    } catch (err) {
-      toast.error("Erreur lors de la création du dossier.");
+    } catch (err: any) {
+      toast.error("Erreur serveur lors de l'enregistrement.");
     } finally {
       setIsSubmittingNew(false);
     }
   };
 
+  // Handle Deleting Application
   const handleDelete = async (id: number) => {
-    if (!confirm("Voulez-vous supprimer ce dossier de candidature ?")) return;
+    if (!confirm("Voulez-vous vraiment supprimer ce dossier de candidature ?")) return;
+
     try {
       const res = await deleteAdmissionApplicationAction(id);
-      if (res?.success) {
+      if (res.success) {
         toast.success("Dossier supprimé.");
-        loadData();
+        setApplications(prev => prev.filter(a => a.id !== id));
+      } else {
+        toast.error(res.error || "Erreur lors de la suppression.");
       }
-    } catch (err) {
-      toast.error("Erreur lors de la suppression.");
+    } catch (err: any) {
+      toast.error("Erreur serveur.");
     }
   };
 
-  const copyPublicLink = () => {
-    navigator.clipboard.writeText(publicUrl);
-    toast.success("Lien d'inscription copié dans le presse-papier !");
+  // Export to CSV
+  const handleExportCSV = () => {
+    if (filteredApplications.length === 0) {
+      toast.info("Aucune candidature à exporter.");
+      return;
+    }
+
+    const headers = [
+      "Numéro Dossier",
+      "Nom",
+      "Prénom",
+      "Niveau / Cycle",
+      "Faculté",
+      "Filière / Classe",
+      "Série Bac",
+      "Année Bac",
+      "Mention",
+      "Statut",
+      "Téléphone Candidat",
+      "Parent / Tuteur",
+      "Téléphone Parent",
+      "Date de Dépôt"
+    ];
+
+    const rows = filteredApplications.map(a => [
+      `"${a.applicationNumber || ""}"`,
+      `"${a.studentLastName || ""}"`,
+      `"${a.studentFirstName || ""}"`,
+      `"${a.educationLevel || ""}"`,
+      `"${a.faculty || ""}"`,
+      `"${a.degreeProgram || a.targetClass || ""}"`,
+      `"${a.bacSeries || ""}"`,
+      `"${a.bacYear || ""}"`,
+      `"${a.bacMention || ""}"`,
+      `"${a.status || ""}"`,
+      `"${a.candidatePhone || ""}"`,
+      `"${a.parentName || ""}"`,
+      `"${a.parentPhone || ""}"`,
+      `"${a.createdAt ? new Date(a.createdAt).toLocaleDateString("fr-FR") : ""}"`,
+    ]);
+
+    const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `Admissions_Export_${new Date().toISOString().split("T")[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success("Exportation CSV réussie !");
   };
-
-  // ─── PDF: Lettre d'Admission officielle ─────────────────────────────────────
-  const downloadAdmissionPDF = (app: any) => {
-    handleOpenPrintModal(app, "letter");
-  };
-
-  // classesList is dynamically loaded from school_classes (configured in /settings?tab=academic)
-  // Fallback to a default list only if school has no classes configured yet
-  const CLASSES_LIST = classesList.length > 0
-    ? classesList
-    : ["CI", "CP", "CE1", "CE2", "CM1", "CM2",
-       "6ème A", "6ème B", "5ème A", "5ème B", "4ème A", "4ème B", "3ème A", "3ème B",
-       "2nde C", "2nde A", "1ère D", "1ère A", "Terminale D", "Terminale A", "Terminale C"];
-
 
   return (
-    <div className="space-y-8 p-6 max-w-7xl mx-auto font-sans">
-      {/* ─── Header ────────────────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-gradient-to-r from-emerald-950 via-teal-900 to-slate-900 p-6 sm:p-8 rounded-3xl text-white shadow-xl relative overflow-hidden">
-        <div className="space-y-2 relative z-10">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-xs font-semibold uppercase tracking-wider backdrop-blur-md">
-            <UserPlus className="size-3.5" /> Portail Admissions & Inscriptions
+    <div className="p-4 sm:p-6 lg:p-8 space-y-8 max-w-[1600px] mx-auto min-h-screen bg-slate-50/50 dark:bg-slate-950/50">
+
+      {/* ─── Top Header & Global Actions ───────────────────────────────────── */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm">
+        <div className="space-y-1">
+          <div className="flex items-center gap-3">
+            <div className="size-12 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-emerald-500/20">
+              <GraduationCap className="size-6" />
+            </div>
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2.5">
+                Admissions &amp; Nouvelles Inscriptions
+                <span className="text-xs uppercase font-bold bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-300 px-3 py-1 rounded-full border border-emerald-200/50 dark:border-emerald-800">
+                  LMD &amp; Multi-Cycles
+                </span>
+              </h1>
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                Pilotage centralisé des candidatures universitaires, jurys de sélection, notations et immatriculation.
+              </p>
+            </div>
           </div>
-          <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight">
-            Admissions & Nouvelles Inscriptions 📝
-          </h1>
-          <p className="text-emerald-100 text-sm sm:text-base max-w-2xl font-medium">
-            Gestion des candidatures en ligne, attribution automatique du Matricule et portail public accessible par QR Code et lien direct pour les parents.
-          </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 relative z-10">
+        <div className="flex flex-wrap items-center gap-2.5">
           <button
-            onClick={() => handleOpenPrintModal(undefined, "pv")}
-            className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-indigo-600/90 hover:bg-indigo-600 text-white font-bold text-xs border border-indigo-400/30 backdrop-blur-md transition shadow-lg"
+            onClick={() => setIsShareModalOpen(true)}
+            className="px-4 py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-black flex items-center gap-2 transition"
           >
-            <Printer className="size-4 text-indigo-200" />
-            Documents Officiels & PV
+            <Share2 className="size-4" />
+            Lien &amp; QR Candidat
           </button>
 
           <button
-            onClick={() => setIsShareModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-white/20 backdrop-blur-md transition shadow-lg"
+            onClick={handleExportCSV}
+            className="px-4 py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-black flex items-center gap-2 transition"
           >
-            <QrCode className="size-4 text-emerald-400" />
-            Lien Public & QR Code
+            <Download className="size-4" />
+            Export CSV
           </button>
 
           <button
             onClick={() => setIsAddModalOpen(true)}
-            className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs shadow-lg transition transform active:scale-95"
+            className="px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition"
           >
-            <Plus className="size-4" /> Nouveau Dossier
+            <Plus className="size-4" />
+            Nouveau Dossier
           </button>
         </div>
       </div>
 
-      {/* ─── Official Header Linkage Banner (En-têtes Officiels & Designer) ─── */}
-      {headerConfig && (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm">
-          <div className="flex items-center gap-3.5">
-            {(headerConfig.leftLogo || headerConfig.centerLogo) ? (
-              <img
-                src={headerConfig.leftLogo || headerConfig.centerLogo}
-                alt="Logo Établissement"
-                className="w-12 h-12 object-contain rounded-2xl border border-slate-200 dark:border-slate-700 p-1 bg-slate-50 dark:bg-slate-800 shrink-0"
-              />
-            ) : (
-              <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-black text-xs shrink-0 border border-indigo-100 dark:border-indigo-900">
-                <School className="size-6" />
-              </div>
-            )}
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">
-                  {headerConfig.schoolName || "ÉTABLISSEMENT SCOLAIRE"}
-                </h4>
-                <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                  En-tête Officiel Lié
-                </span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                  Style: {headerConfig.style || "Classique"}
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold mt-0.5">
-                {headerConfig.country || "RÉPUBLIQUE"} • {headerConfig.ministry || "Ministère de l'Éducation"} • Année {headerConfig.schoolYear || "2024 - 2025"}
-              </p>
-            </div>
+      {/* ─── KPI Metrics ───────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="p-5 bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm space-y-2">
+          <div className="flex items-center justify-between text-slate-400">
+            <span className="text-[10px] font-black uppercase tracking-wider">Total Candidatures</span>
+            <FileText className="size-4" />
           </div>
+          <p className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white font-mono">{stats.totalApplications}</p>
+          <span className="text-[10px] font-bold text-slate-500">Toutes filières confondues</span>
+        </div>
 
-          <div className="flex items-center gap-2.5 w-full md:w-auto justify-end">
+        <div className="p-5 bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm space-y-2">
+          <div className="flex items-center justify-between text-blue-500">
+            <span className="text-[10px] font-black uppercase tracking-wider">Pôle Universitaire</span>
+            <GraduationCap className="size-4" />
+          </div>
+          <p className="text-2xl sm:text-3xl font-black text-blue-600 dark:text-blue-400 font-mono">{stats.universityCount}</p>
+          <span className="text-[10px] font-bold text-slate-500">Licence • Master • Doctorat</span>
+        </div>
+
+        <div className="p-5 bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm space-y-2">
+          <div className="flex items-center justify-between text-amber-500">
+            <span className="text-[10px] font-black uppercase tracking-wider">En Attente / Examen</span>
+            <Clock className="size-4" />
+          </div>
+          <p className="text-2xl sm:text-3xl font-black text-amber-600 dark:text-amber-400 font-mono">{stats.pendingReview}</p>
+          <span className="text-[10px] font-bold text-slate-500">Dossiers à délibérer</span>
+        </div>
+
+        <div className="p-5 bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm space-y-2">
+          <div className="flex items-center justify-between text-emerald-500">
+            <span className="text-[10px] font-black uppercase tracking-wider">Admis Définitivement</span>
+            <CheckCircle2 className="size-4" />
+          </div>
+          <p className="text-2xl sm:text-3xl font-black text-emerald-600 dark:text-emerald-400 font-mono">{stats.admitted}</p>
+          <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+            {stats.totalApplications > 0 ? `${Math.round((stats.admitted / stats.totalApplications) * 100)}% d'admission` : "0%"}
+          </span>
+        </div>
+
+        <div className="p-5 bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm space-y-2">
+          <div className="flex items-center justify-between text-rose-500">
+            <span className="text-[10px] font-black uppercase tracking-wider">Non Retenus</span>
+            <XCircle className="size-4" />
+          </div>
+          <p className="text-2xl sm:text-3xl font-black text-rose-600 dark:text-rose-400 font-mono">{stats.rejected}</p>
+          <span className="text-[10px] font-bold text-slate-500">Dossiers refusés</span>
+        </div>
+      </div>
+
+      {/* ─── Main Filters & Search Toolbar ─────────────────────────────────── */}
+      <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm space-y-4">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+          
+          {/* Level Switcher (Tabs style) */}
+          <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-950 rounded-2xl w-full md:w-auto">
             <button
-              onClick={() => handleOpenPrintModal(undefined, "pv")}
-              className="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-xs flex items-center gap-2 transition"
+              onClick={() => setLevelFilter("ALL")}
+              className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition ${
+                levelFilter === "ALL"
+                  ? "bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm"
+                  : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
+              }`}
             >
-              <FileText className="size-3.5 text-emerald-600" />
-              Imprimer PV Délibération
+              Tous les Niveaux ({applications.length})
             </button>
-            <Link
-              href="/dashboard/settings/headers"
-              className="px-4 py-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900 text-indigo-700 dark:text-indigo-300 font-bold text-xs border border-indigo-200 dark:border-indigo-800 flex items-center gap-2 transition"
+            <button
+              onClick={() => setLevelFilter("UNIV")}
+              className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition ${
+                levelFilter === "UNIV"
+                  ? "bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-sm"
+                  : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
+              }`}
             >
-              <Settings className="size-3.5" />
-              En-têtes & Designer
-            </Link>
+              <GraduationCap className="size-3.5" />
+              Pôle Universitaire ({stats.universityCount})
+            </button>
+            <button
+              onClick={() => setLevelFilter("GENERAL")}
+              className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition ${
+                levelFilter === "GENERAL"
+                  ? "bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm"
+                  : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
+              }`}
+            >
+              <School className="size-3.5" />
+              Général / Lycée ({applications.length - stats.universityCount})
+            </button>
           </div>
-        </div>
-      )}
 
-      {/* ─── KPI Stats Cards ────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-4">
-          <div className="p-3.5 bg-blue-50 dark:bg-blue-950 text-blue-600 rounded-2xl">
-            <Users className="size-6" />
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Candidatures</p>
-            <h3 className="text-2xl font-black text-slate-900 dark:text-white mt-0.5">{stats.totalApplications}</h3>
-            <p className="text-xs text-slate-400">Dossiers déposés</p>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-4">
-          <div className="p-3.5 bg-amber-50 dark:bg-amber-950 text-amber-600 rounded-2xl">
-            <Clock className="size-6" />
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">En Attente d'Examen</p>
-            <h3 className="text-2xl font-black text-slate-900 dark:text-white mt-0.5">{stats.pendingReview}</h3>
-            <p className="text-xs text-slate-400">À délibérer</p>
+          {/* Search Box */}
+          <div className="relative w-full md:w-96">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 size-4" />
+            <input
+              type="text"
+              placeholder="Rechercher candidat, dossier, email, matricule..."
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              className="w-full pl-11 pr-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs font-bold text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:border-emerald-500 transition"
+            />
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-4">
-          <div className="p-3.5 bg-emerald-50 dark:bg-emerald-950 text-emerald-600 rounded-2xl">
-            <CheckCircle2 className="size-6" />
+        {/* Dropdown Filters Row */}
+        <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-slate-100 dark:border-slate-800/80">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-slate-500">Statut :</span>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-900 dark:text-white focus:outline-none"
+            >
+              <option value="ALL">Tous les statuts</option>
+              <option value="En attente">En attente de commission</option>
+              <option value="En examen">En examen / Entretien</option>
+              <option value="Admis / Accepté">Admis Définitivement</option>
+              <option value="Admis sous condition">Admis sous condition</option>
+              <option value="Liste d'attente">Liste d&apos;attente</option>
+              <option value="Refusé">Refusé</option>
+            </select>
           </div>
-          <div>
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Admis / Acceptés</p>
-            <h3 className="text-2xl font-black text-slate-900 dark:text-white mt-0.5">{stats.admitted}</h3>
-            <p className="text-xs text-slate-400">Matricules générés</p>
-          </div>
-        </div>
 
-        <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-4">
-          <div className="p-3.5 bg-rose-50 dark:bg-rose-950 text-rose-600 rounded-2xl">
-            <XCircle className="size-6" />
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-slate-500">Faculté :</span>
+            <select
+              value={facultyFilter}
+              onChange={(e) => setFacultyFilter(e.target.value)}
+              className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-900 dark:text-white focus:outline-none"
+            >
+              <option value="ALL">Toutes les facultés</option>
+              {UNIVERSITY_FACULTIES.map(f => (
+                <option key={f.name} value={f.name}>{f.name}</option>
+              ))}
+            </select>
           </div>
-          <div>
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Rejetés / Listes</p>
-            <h3 className="text-2xl font-black text-slate-900 dark:text-white mt-0.5">{stats.rejected}</h3>
-            <p className="text-xs text-slate-400">Dossiers non retenus</p>
-          </div>
-        </div>
-      </div>
 
-      {/* ─── Public Portal Promotion Banner ───────────────────────────────── */}
-      <div className="bg-gradient-to-r from-emerald-900/30 to-teal-900/20 border border-emerald-500/20 rounded-2xl p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-3 text-center sm:text-left">
-          <div className="size-10 rounded-xl bg-emerald-500 text-slate-950 flex items-center justify-center font-bold shrink-0">
-            <Globe className="size-5" />
-          </div>
-          <div>
-            <h4 className="text-sm font-black text-slate-900 dark:text-white">
-              Votre portail d'inscription public est ouvert !
-            </h4>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Les parents peuvent s'inscrire depuis chez eux via le lien sécurisé ou en scannant le QR code.
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 shrink-0">
-          <button
-            onClick={copyPublicLink}
-            className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs font-bold flex items-center gap-1.5 hover:bg-slate-50 transition shadow-sm"
-          >
-            <Copy className="size-3.5" />
-            Copier le Lien
-          </button>
-          <a
-            href="/admissions/apply"
-            target="_blank"
-            rel="noreferrer"
-            className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 transition shadow-sm"
-          >
-            <ExternalLink className="size-3.5" />
-            Tester le Formulaire
-          </a>
+          <span className="text-xs text-slate-400 ml-auto font-bold">
+            {filteredApplications.length} dossier(s) affiché(s)
+          </span>
         </div>
       </div>
 
-      {/* ─── Filter & Search Bar ────────────────────────────────────────────── */}
-      <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="relative w-full sm:w-96">
-          <Search className="size-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Rechercher par n° de dossier, élève, parent..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
-          />
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 outline-none"
-          >
-            <option value="ALL">Tous les statuts</option>
-            <option value="En attente">🟡 En attente</option>
-            <option value="En examen">🔵 En examen</option>
-            <option value="Admis / Accepté">🟢 Admis / Accepté</option>
-            <option value="Liste d'attente">⏳ Liste d'attente</option>
-            <option value="Refusé">🔴 Refusé</option>
-          </select>
-
-          <select
-            value={classFilter}
-            onChange={(e) => setClassFilter(e.target.value)}
-            className="px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 outline-none"
-          >
-            <option value="ALL">Toutes les classes</option>
-            {CLASSES_LIST.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {/* ─── Notice: No Classes Configured ─────────────────────────────────── */}
-      {!isLoading && classesList.length === 0 && (
-        <div className="flex items-center gap-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-600/40 rounded-2xl px-5 py-3.5 text-xs">
-          <Settings className="size-4 text-amber-500 shrink-0" />
-          <p className="text-amber-800 dark:text-amber-300 font-medium flex-1">
-            Aucune classe configurée pour cette école. Les classes affichées sont des valeurs par défaut.
-          </p>
-          <Link
-            href="/dashboard/settings?tab=academic"
-            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-white font-bold transition"
-          >
-            <Settings className="size-3" />
-            Configurer les classes
-          </Link>
-        </div>
-      )}
-
-      {/* ─── Applications Table ────────────────────────────────────────────── */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800 text-slate-500 font-bold uppercase tracking-wider">
-                <th className="py-3.5 px-4">N° Dossier</th>
-                <th className="py-3.5 px-4">Élève Candidat</th>
-                <th className="py-3.5 px-4">Classe</th>
-                <th className="py-3.5 px-4">Parent / Contact</th>
-                <th className="py-3.5 px-4">Statut</th>
-                <th className="py-3.5 px-4">Date de Dépôt</th>
-                <th className="py-3.5 px-4 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300 font-medium">
-              {isLoading ? (
+      {/* ─── Applications Data Table ────────────────────────────────────────── */}
+      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden">
+        {isLoading ? (
+          <div className="py-24 text-center space-y-3">
+            <Loader2 className="size-8 text-emerald-500 animate-spin mx-auto" />
+            <p className="text-xs font-bold text-slate-400">Chargement des dossiers d&apos;admissions...</p>
+          </div>
+        ) : filteredApplications.length === 0 ? (
+          <div className="py-24 text-center space-y-3">
+            <FileText className="size-12 text-slate-300 dark:text-slate-700 mx-auto" />
+            <p className="text-sm font-black text-slate-700 dark:text-slate-300">Aucun dossier de candidature trouvé</p>
+            <p className="text-xs text-slate-400">Modifiez vos critères de recherche ou ajoutez un nouveau dossier.</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-50 dark:bg-slate-950/60 text-[10px] font-black uppercase tracking-wider text-slate-400 border-b border-slate-100 dark:border-slate-800">
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-400">
-                    <Loader2 className="size-6 animate-spin mx-auto mb-2 text-emerald-500" />
-                    Chargement des dossiers...
-                  </td>
+                  <th className="px-5 py-4">Dossier / Date</th>
+                  <th className="px-5 py-4">Candidat &amp; Identité</th>
+                  <th className="px-5 py-4">Programme &amp; Faculté</th>
+                  <th className="px-5 py-4">Baccalauréat / Score</th>
+                  <th className="px-5 py-4">Statut &amp; Décision</th>
+                  <th className="px-5 py-4 text-right">Actions</th>
                 </tr>
-              ) : applications.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-400">
-                    Aucun dossier de candidature trouvé.
-                  </td>
-                </tr>
-              ) : (
-                applications.map((app) => (
-                  <tr key={app.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition">
-                    <td className="py-3.5 px-4 font-mono font-bold text-slate-900 dark:text-white">
-                      {app.applicationNumber}
-                    </td>
-                    <td className="py-3.5 px-4">
-                      <div className="font-bold text-slate-900 dark:text-white">
-                        {app.studentLastName?.toUpperCase()} {app.studentFirstName}
-                      </div>
-                      <div className="text-[11px] text-slate-400">
-                        {app.gender === "M" ? "Garçon" : "Fille"} • Né(e) le {app.dateOfBirth}
-                      </div>
-                    </td>
-                    <td className="py-3.5 px-4">
-                      <span className="px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 font-bold border border-emerald-200 dark:border-emerald-800">
-                        {app.targetClass}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-4">
-                      <div className="font-semibold text-slate-800 dark:text-slate-200">{app.parentName}</div>
-                      <div className="text-[11px] font-mono text-slate-400">{app.parentPhone}</div>
-                    </td>
-                    <td className="py-3.5 px-4">
-                      {app.status === "Admis / Accepté" && (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                          <CheckCircle2 className="size-3" /> Admis
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
+                {filteredApplications.map((app) => {
+                  const isUniv = (app.educationLevel || "").toLowerCase().includes("univ") || (app.educationLevel || "").toLowerCase().includes("sup");
+
+                  return (
+                    <tr key={app.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition">
+                      
+                      {/* 1. Dossier Number & Date */}
+                      <td className="px-5 py-4">
+                        <span className="font-mono font-black text-emerald-600 dark:text-emerald-400 block">
+                          {app.applicationNumber}
                         </span>
-                      )}
-                      {app.status === "En attente" && (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
-                          <Clock className="size-3" /> En attente
+                        <span className="text-[10px] text-slate-400">
+                          {app.createdAt ? new Date(app.createdAt).toLocaleDateString("fr-FR") : "—"}
                         </span>
-                      )}
-                      {app.status === "En examen" && (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300">
-                          <Clock className="size-3" /> En examen
+                      </td>
+
+                      {/* 2. Candidate & Identity */}
+                      <td className="px-5 py-4">
+                        <div className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                          {app.studentLastName?.toUpperCase()} {app.studentFirstName}
+                          {app.gender === "F" ? (
+                            <span className="text-[10px] text-pink-500 font-bold">(F)</span>
+                          ) : (
+                            <span className="text-[10px] text-blue-500 font-bold">(M)</span>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-slate-400 flex items-center gap-2 mt-0.5">
+                          <span>{app.candidatePhone || app.parentPhone}</span>
+                          {app.candidateEmail && (
+                            <span className="text-slate-500 truncate max-w-[140px]">{app.candidateEmail}</span>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* 3. Program & Faculty */}
+                      <td className="px-5 py-4">
+                        <span className="font-bold text-slate-800 dark:text-slate-200 block">
+                          {app.degreeProgram || app.targetClass}
                         </span>
-                      )}
-                      {app.status === "Liste d'attente" && (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300">
-                          Liste d'attente
-                        </span>
-                      )}
-                      {app.status === "Refusé" && (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300">
-                          <XCircle className="size-3" /> Refusé
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-3.5 px-4 text-slate-400 font-mono">
-                      {app.createdAt ? new Date(app.createdAt).toLocaleDateString("fr-FR") : "N/A"}
-                    </td>
-                    <td className="py-3.5 px-4 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          onClick={() => handleOpenReview(app)}
-                          className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-emerald-500 hover:text-slate-950 text-slate-700 dark:text-slate-300 font-bold transition flex items-center gap-1"
-                        >
-                          <Eye className="size-3.5" />
-                          Examiner
-                        </button>
-                        <button
-                          onClick={() => handleOpenPrintModal(app, app.status === "Admis / Accepté" ? "letter" : "fiche")}
-                          className="px-2.5 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-600 hover:text-white text-indigo-700 dark:text-indigo-300 font-bold transition flex items-center gap-1 border border-indigo-200 dark:border-indigo-800"
-                          title="Imprimer ou générer le document officiel (En-tête Designer)"
-                        >
-                          <Printer className="size-3.5" />
-                          {app.status === "Admis / Accepté" ? "Lettre" : "Fiche"}
-                        </button>
-                        {app.status === "Admis / Accepté" && (
-                          <button
-                            onClick={() => downloadAdmissionPDF(app)}
-                            className="px-2.5 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-500 hover:text-white text-emerald-700 dark:text-emerald-300 font-bold transition flex items-center gap-1 border border-emerald-200 dark:border-emerald-800"
-                            title="Télécharger la lettre d'admission PDF"
-                          >
-                            <Download className="size-3.5" />
-                            PDF
-                          </button>
+                        {app.faculty && (
+                          <span className="text-[10px] text-slate-400 truncate max-w-[200px] block">
+                            {app.faculty}
+                          </span>
                         )}
-                        <button
-                          onClick={() => handleDelete(app.id)}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950 transition"
-                          title="Supprimer"
-                        >
-                          <Trash2 className="size-3.5" />
-                        </button>
-                      </div>
+                        <span className="text-[10px] font-bold text-emerald-500 uppercase">
+                          {isUniv ? (app.degreeLevel || "Licence") : (app.educationLevel || "Secondaire")}
+                        </span>
+                      </td>
 
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                      {/* 4. Bac & Score */}
+                      <td className="px-5 py-4">
+                        {app.bacSeries ? (
+                          <div className="space-y-0.5">
+                            <span className="font-bold text-slate-700 dark:text-slate-300 block text-[11px]">
+                              {app.bacSeries} ({app.bacYear || "2026"})
+                            </span>
+                            <span className="text-[10px] text-slate-400">
+                              Mention : <strong className="text-slate-200">{app.bacMention || "Passable"}</strong>
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-slate-400 text-[11px]">—</span>
+                        )}
+                        {app.admissionScore !== null && app.admissionScore !== undefined && (
+                          <span className="inline-block mt-1 text-[10px] font-black bg-purple-50 text-purple-600 dark:bg-purple-950/60 dark:text-purple-300 px-2 py-0.5 rounded-md">
+                            Score : {app.admissionScore}/100
+                          </span>
+                        )}
+                      </td>
+
+                      {/* 5. Status & Decision */}
+                      <td className="px-5 py-4">
+                        {app.status === "Admis / Accepté" && (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-900">
+                            <CheckCircle2 className="size-3" /> Admis
+                          </span>
+                        )}
+                        {app.status === "Admis sous condition" && (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black bg-teal-50 text-teal-600 dark:bg-teal-950/60 dark:text-teal-300 border border-teal-200/60 dark:border-teal-900">
+                            <CheckCircle2 className="size-3" /> Sous Réserve
+                          </span>
+                        )}
+                        {app.status === "En attente" && (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200/60 dark:border-amber-900">
+                            <Clock className="size-3" /> En attente
+                          </span>
+                        )}
+                        {app.status === "En examen" && (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200/60 dark:border-blue-900">
+                            <Clock className="size-3" /> En examen
+                          </span>
+                        )}
+                        {app.status === "Liste d'attente" && (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black bg-purple-50 text-purple-600 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200/60 dark:border-purple-900">
+                            Attente
+                          </span>
+                        )}
+                        {app.status === "Refusé" && (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200/60 dark:border-rose-900">
+                            <XCircle className="size-3" /> Refusé
+                          </span>
+                        )}
+
+                        {app.generatedMatricule && (
+                          <span className="text-[10px] font-mono text-emerald-500 font-bold block mt-1">
+                            {app.generatedMatricule}
+                          </span>
+                        )}
+                      </td>
+
+                      {/* 6. Actions */}
+                      <td className="px-5 py-4 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => {
+                              setSelectedApp(app);
+                              setReviewNotes(app.reviewNotes || "");
+                              setAssignedClass(app.targetClass || app.degreeProgram || "");
+                              setAdmissionScore(app.admissionScore || undefined);
+                              setIsReviewModalOpen(true);
+                            }}
+                            className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition"
+                            title="Examiner et Délibérer"
+                          >
+                            <Eye className="size-4" />
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              setPrintSelectedApp(app);
+                              setPrintDocType("letter");
+                              setIsPrintModalOpen(true);
+                            }}
+                            className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition"
+                            title="Imprimer l'Attestation / Récépissé"
+                          >
+                            <Printer className="size-4" />
+                          </button>
+
+                          <button
+                            onClick={() => handleDelete(app.id)}
+                            className="p-2 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 text-rose-600 transition"
+                            title="Supprimer"
+                          >
+                            <Trash2 className="size-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
-      {/* ─── MODAL: SHARE & QR CODE ─────────────────────────────────────────── */}
-      {isShareModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 space-y-6 text-center animate-in zoom-in-95 duration-200">
-            <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3 text-left">
-              <div>
-                <h3 className="font-extrabold text-lg text-slate-900 dark:text-white">Portail Public d'Admission</h3>
-                <p className="text-xs text-slate-500">Diffusez ce lien ou affichez le QR Code dans l'école</p>
-              </div>
-              <button
-                onClick={() => setIsShareModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 font-bold"
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* QR Code Container */}
-            <div className="bg-slate-50 dark:bg-slate-950 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center space-y-3">
-              <div className="bg-white p-4 rounded-2xl shadow-md">
-                <QRCodeSVG value={publicUrl} size={180} level="H" />
-              </div>
-              <span className="text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                Scanner pour s'inscrire en ligne
-              </span>
-            </div>
-
-            {/* Link Box */}
-            <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 p-2 rounded-xl border border-slate-200 dark:border-slate-700">
-              <input
-                type="text"
-                readOnly
-                value={publicUrl}
-                className="bg-transparent text-xs font-mono text-slate-700 dark:text-slate-200 w-full outline-none px-2"
-              />
-              <button
-                onClick={copyPublicLink}
-                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold shrink-0 transition"
-              >
-                Copier
-              </button>
-            </div>
-
-            {/* Social Share Buttons */}
-            <div className="grid grid-cols-2 gap-3 pt-2">
-              <a
-                href={`https://wa.me/?text=${encodeURIComponent(
-                  `Inscriptions Ouvertes ! Vous pouvez inscrire votre enfant en ligne dès maintenant via ce lien : ${publicUrl}`
-                )}`}
-                target="_blank"
-                rel="noreferrer"
-                className="py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition"
-              >
-                <MessageSquare className="size-4" />
-                Partager WhatsApp
-              </a>
-
-              <button
-                onClick={() => window.print()}
-                className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition"
-              >
-                <Printer className="size-4" />
-                Imprimer l'Affiche
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ─── MODAL: EXAMINER & DÉLIBÉRER ─────────────────────────────────────── */}
+      {/* ─── REVIEW & JURY DELIBERATION MODAL ──────────────────────────────── */}
       {isReviewModalOpen && selectedApp && (
-        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 w-full max-w-xl rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 space-y-6 max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-start border-b border-slate-100 dark:border-slate-800 pb-3">
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="max-w-3xl w-full bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6 animate-in fade-in zoom-in-95 duration-200 my-8">
+            
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
               <div>
-                <span className="text-[10px] font-mono font-bold text-emerald-600 uppercase">
+                <span className="text-[10px] font-black uppercase tracking-wider text-emerald-500">
                   Dossier : {selectedApp.applicationNumber}
                 </span>
-                <h3 className="font-extrabold text-xl text-slate-900 dark:text-white">
-                  {selectedApp.studentLastName?.toUpperCase()} {selectedApp.studentFirstName}
+                <h3 className="text-xl font-black text-slate-900 dark:text-white">
+                  Délibération du Jury • {selectedApp.studentLastName?.toUpperCase()} {selectedApp.studentFirstName}
                 </h3>
-                {selectedApp.generatedMatricule && (
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-[10px] font-bold text-slate-400">Matricule :</span>
-                    <span className="text-xs font-black font-mono text-emerald-600 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-lg border border-emerald-200 dark:border-emerald-800">
-                      {selectedApp.generatedMatricule}
-                    </span>
-                  </div>
-                )}
               </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => handleOpenPrintModal(selectedApp, selectedApp.status === "Admis / Accepté" ? "letter" : "fiche")}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition shadow"
-                  title="Ouvrir le centre d'impression officiel"
-                >
-                  <Printer className="size-3.5" />
-                  Imprimer Officiel
-                </button>
-                {selectedApp.status === "Admis / Accepté" && (
-                  <button
-                    onClick={() => downloadAdmissionPDF(selectedApp)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition shadow"
-                    title="Télécharger la lettre d'admission PDF"
-                  >
-                    <Download className="size-3.5" />
-                    Lettre PDF
-                  </button>
-                )}
-                <button
-                  onClick={() => setIsReviewModalOpen(false)}
-                  className="text-slate-400 hover:text-slate-600 font-bold"
-                >
-                  ✕
-                </button>
-              </div>
-            </div>
-
-
-            {/* Candidate Summary */}
-            <div className="bg-slate-50 dark:bg-slate-800/60 p-4 rounded-2xl space-y-3 text-xs">
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <span className="text-slate-400">Date de naissance :</span>
-                  <div className="font-bold text-slate-800 dark:text-slate-200">{selectedApp.dateOfBirth}</div>
-                </div>
-                <div>
-                  <span className="text-slate-400">Classe demandée :</span>
-                  <div className="font-bold text-emerald-600 dark:text-emerald-400">{selectedApp.targetClass}</div>
-                </div>
-                <div>
-                  <span className="text-slate-400">Parent / Contact :</span>
-                  <div className="font-bold text-slate-800 dark:text-slate-200">
-                    {selectedApp.parentName} ({selectedApp.parentPhone})
-                  </div>
-                </div>
-                <div>
-                  <span className="text-slate-400">École précédente :</span>
-                  <div className="font-medium text-slate-800 dark:text-slate-200">
-                    {selectedApp.previousSchool || "Non renseigné"}
-                  </div>
-                </div>
-              </div>
-
-              {selectedApp.medicalNotes && (
-                <div className="pt-2 border-t border-slate-200 dark:border-slate-700">
-                  <span className="text-slate-400 font-semibold">Notes médicales : </span>
-                  <span className="text-rose-600 font-medium">{selectedApp.medicalNotes}</span>
-                </div>
-              )}
-            </div>
-
-            {/* Class Assignment */}
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                Classe Officielle à Attribuer :
-              </label>
-              <select
-                value={assignedClass}
-                onChange={(e) => setAssignedClass(e.target.value)}
-                className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white outline-none"
-              >
-                {CLASSES_LIST.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Review Notes */}
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                Avis de la Commission / Remarques :
-              </label>
-              <textarea
-                rows={2}
-                value={reviewNotes}
-                onChange={(e) => setReviewNotes(e.target.value)}
-                placeholder="Ex: Dossier validé. Frais d'inscription à régler sous 15 jours..."
-                className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder:text-slate-400 outline-none"
-              />
-            </div>
-
-            {/* Action Buttons */}
-            <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
               <button
-                type="button"
-                disabled={isSubmittingReview}
-                onClick={() => handleDecision("Admis / Accepté")}
-                className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl shadow-lg flex items-center justify-center gap-2 transition disabled:opacity-50"
+                onClick={() => setIsReviewModalOpen(false)}
+                className="size-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 font-bold"
               >
-                {isSubmittingReview ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  <Sparkles className="size-4" />
-                )}
-                Valider l'Admission & Générer le Matricule Officiel 🎉
-              </button>
-
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  disabled={isSubmittingReview}
-                  onClick={() => handleDecision("Liste d'attente")}
-                  className="py-2.5 bg-amber-50 dark:bg-amber-950/60 hover:bg-amber-100 text-amber-800 dark:text-amber-300 font-bold text-xs rounded-xl border border-amber-200 dark:border-amber-800 transition"
-                >
-                  ⏳ Mettre en Liste d'Attente
-                </button>
-                <button
-                  type="button"
-                  disabled={isSubmittingReview}
-                  onClick={() => handleDecision("Refusé")}
-                  className="py-2.5 bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-100 text-rose-800 dark:text-rose-300 font-bold text-xs rounded-xl border border-rose-200 dark:border-rose-800 transition"
-                >
-                  ❌ Rejeter le Dossier
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ─── MODAL: NOUVELLE INSCRIPTION DIRECTE ────────────────────────────── */}
-      {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 w-full max-w-xl rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 space-y-5 max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3">
-              <h3 className="font-extrabold text-lg text-slate-900 dark:text-white flex items-center gap-2">
-                <UserPlus className="size-5 text-emerald-600" />
-                Nouvelle Inscription Directe
-              </h3>
-              <button onClick={() => setIsAddModalOpen(false)} className="text-slate-400 hover:text-slate-600 font-bold">
                 ✕
               </button>
             </div>
 
-            <form onSubmit={handleCreateDirectApp} className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Nom de famille *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Ex: MAHAMAN"
-                    value={newApp.studentLastName}
-                    onChange={(e) => setNewApp({ ...newApp, studentLastName: e.target.value })}
-                    className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-900 dark:text-white placeholder:text-slate-400 outline-none"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Prénom(s) *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Ex: Ibrahim"
-                    value={newApp.studentFirstName}
-                    onChange={(e) => setNewApp({ ...newApp, studentFirstName: e.target.value })}
-                    className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-900 dark:text-white placeholder:text-slate-400 outline-none"
-                  />
+            {/* Candidate Dossier Overview Grid */}
+            <div className="p-4 bg-slate-50 dark:bg-slate-950 rounded-2xl grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
+              <div>
+                <span className="text-slate-400 block text-[10px] uppercase font-bold">Cycle &amp; Niveau</span>
+                <strong className="text-slate-800 dark:text-slate-200">{selectedApp.educationLevel || "Université"} ({selectedApp.degreeLevel || "L1"})</strong>
+              </div>
+              <div>
+                <span className="text-slate-400 block text-[10px] uppercase font-bold">Filière / Programme</span>
+                <strong className="text-slate-800 dark:text-slate-200">{selectedApp.degreeProgram || selectedApp.targetClass}</strong>
+              </div>
+              <div>
+                <span className="text-slate-400 block text-[10px] uppercase font-bold">Régime d&apos;Étude</span>
+                <strong className="text-slate-800 dark:text-slate-200">{selectedApp.studyMode || "Présentiel"}</strong>
+              </div>
+              <div>
+                <span className="text-slate-400 block text-[10px] uppercase font-bold">Baccalauréat</span>
+                <strong className="text-slate-800 dark:text-slate-200">{selectedApp.bacSeries || "—"} ({selectedApp.bacYear || "—"}) - {selectedApp.bacMention || "—"}</strong>
+              </div>
+              <div>
+                <span className="text-slate-400 block text-[10px] uppercase font-bold">Contact Candidat</span>
+                <strong className="text-slate-800 dark:text-slate-200 font-mono">{selectedApp.candidatePhone || selectedApp.parentPhone}</strong>
+              </div>
+              <div>
+                <span className="text-slate-400 block text-[10px] uppercase font-bold">Email</span>
+                <strong className="text-slate-800 dark:text-slate-200">{selectedApp.candidateEmail || selectedApp.parentEmail || "—"}</strong>
+              </div>
+            </div>
+
+            {/* Document Links */}
+            {(selectedApp.bacTranscriptUrl || selectedApp.cvUrl || selectedApp.idCardPassportUrl || selectedApp.coverLetter) && (
+              <div className="space-y-2">
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Pièces Justificatives Numérisées :</span>
+                <div className="flex flex-wrap gap-2">
+                  {selectedApp.bacTranscriptUrl && (
+                    <a href={selectedApp.bacTranscriptUrl} target="_blank" rel="noreferrer" className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold text-blue-500 hover:underline flex items-center gap-1.5">
+                      <FileText className="size-3.5" /> Relevé Bac
+                    </a>
+                  )}
+                  {selectedApp.cvUrl && (
+                    <a href={selectedApp.cvUrl} target="_blank" rel="noreferrer" className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold text-blue-500 hover:underline flex items-center gap-1.5">
+                      <FileText className="size-3.5" /> CV Candidat
+                    </a>
+                  )}
+                  {selectedApp.idCardPassportUrl && (
+                    <a href={selectedApp.idCardPassportUrl} target="_blank" rel="noreferrer" className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold text-blue-500 hover:underline flex items-center gap-1.5">
+                      <FileText className="size-3.5" /> Pièce d&apos;Identité
+                    </a>
+                  )}
                 </div>
               </div>
+            )}
 
-              <div className="grid grid-cols-3 gap-3">
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Date de naissance *</label>
-                  <input
-                    type="date"
-                    required
-                    value={newApp.dateOfBirth}
-                    onChange={(e) => setNewApp({ ...newApp, dateOfBirth: e.target.value })}
-                    className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white outline-none"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Genre</label>
-                  <select
-                    value={newApp.gender}
-                    onChange={(e) => setNewApp({ ...newApp, gender: e.target.value })}
-                    className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white outline-none"
-                  >
-                    <option value="M">Masculin</option>
-                    <option value="F">Féminin</option>
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Classe demandée *</label>
-                  <select
-                    value={newApp.targetClass}
-                    onChange={(e) => setNewApp({ ...newApp, targetClass: e.target.value })}
-                    className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-emerald-600 outline-none"
-                  >
-                    {CLASSES_LIST.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Nom du Parent *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Ex: M. Oumarou"
-                    value={newApp.parentName}
-                    onChange={(e) => setNewApp({ ...newApp, parentName: e.target.value })}
-                    className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-900 dark:text-white placeholder:text-slate-400 outline-none"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Téléphone Parent (SMS) *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="+227 90 00 00 00"
-                    value={newApp.parentPhone}
-                    onChange={(e) => setNewApp({ ...newApp, parentPhone: e.target.value })}
-                    className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono font-bold text-slate-900 dark:text-white placeholder:text-slate-400 outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">École de provenance</label>
+            {/* Deliberation Inputs */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Score / Note du Dossier (sur 100)</label>
                 <input
-                  type="text"
-                  placeholder="Ex: Complexe Scolaire Les Étoiles"
-                  value={newApp.previousSchool}
-                  onChange={(e) => setNewApp({ ...newApp, previousSchool: e.target.value })}
-                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder:text-slate-400 outline-none"
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={admissionScore ?? ""}
+                  onChange={(e) => setAdmissionScore(e.target.value ? Number(e.target.value) : undefined)}
+                  placeholder="Ex: 85"
+                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-900 dark:text-white"
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Classe / Filière d&apos;Affectation Finale</label>
+                <input
+                  type="text"
+                  value={assignedClass}
+                  onChange={(e) => setAssignedClass(e.target.value)}
+                  placeholder="Ex: Licence 1 Informatique"
+                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-900 dark:text-white"
+                />
+              </div>
+
+              <div className="space-y-1.5 sm:col-span-2">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Observations &amp; Décision du Jury</label>
+                <textarea
+                  rows={3}
+                  value={reviewNotes}
+                  onChange={(e) => setReviewNotes(e.target.value)}
+                  placeholder="Mentionnez les motifs d'admission, les dispenses accordées ou les réserves pédagogiques..."
+                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-900 dark:text-white"
+                />
+              </div>
+            </div>
+
+            {/* Decision Buttons */}
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => setIsAddModalOpen(false)}
-                  className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-700"
+                  onClick={() => handleReview("Refusé")}
+                  disabled={isSubmittingReview}
+                  className="px-4 py-2.5 rounded-2xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 text-rose-600 text-xs font-black transition"
                 >
-                  Annuler
+                  Refuser
                 </button>
                 <button
-                  type="submit"
-                  disabled={isSubmittingNew}
-                  className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow transition disabled:opacity-50"
+                  type="button"
+                  onClick={() => handleReview("Liste d'attente")}
+                  disabled={isSubmittingReview}
+                  className="px-4 py-2.5 rounded-2xl bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/40 text-purple-600 text-xs font-black transition"
                 >
-                  {isSubmittingNew && <Loader2 className="size-3.5 animate-spin mr-1 inline" />}
-                  Enregistrer la candidature
+                  Liste d&apos;Attente
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleReview("En examen")}
+                  disabled={isSubmittingReview}
+                  className="px-4 py-2.5 rounded-2xl bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 text-blue-600 text-xs font-black transition"
+                >
+                  Mettre en Examen
                 </button>
               </div>
-            </form>
+
+              <button
+                type="button"
+                onClick={() => handleReview("Admis / Accepté")}
+                disabled={isSubmittingReview}
+                className="px-6 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition"
+              >
+                {isSubmittingReview ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
+                Valider l&apos;Admission &amp; Immatriculer
+              </button>
+            </div>
+
           </div>
         </div>
       )}
 
-      {/* ─── MODAL: CENTRE D'IMPRESSION & DOCUMENTS OFFICIELS ─── */}
-      <AdmissionsPrintModal
-        isOpen={isPrintModalOpen}
-        onClose={() => setIsPrintModalOpen(false)}
-        headerConfig={headerConfig}
-        selectedApp={printSelectedApp}
-        applicationsList={applications}
-        stats={stats}
-        filterInfo={{
-          status: statusFilter,
-          targetClass: classFilter,
-          query: searchQuery,
-        }}
-        initialDocType={printDocType}
-      />
+      {/* ─── SHARE & QR CODE MODAL ────────────────────────────────────────── */}
+      {isShareModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="max-w-md w-full bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6 text-center animate-in fade-in zoom-in-95 duration-200">
+            <div className="space-y-1">
+              <h3 className="text-xl font-black text-slate-900 dark:text-white">Portail Candidatures Public</h3>
+              <p className="text-xs text-slate-500">Partagez ce QR Code ou ce lien sur vos affiches, site web et réseaux sociaux.</p>
+            </div>
+
+            <div className="p-4 bg-white rounded-3xl shadow-inner inline-block mx-auto border border-slate-100">
+              <QRCodeSVG value={publicUrl} size={180} level="H" />
+            </div>
+
+            <div className="p-3 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
+              <span className="text-xs font-mono text-slate-600 dark:text-slate-300 truncate">{publicUrl}</span>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(publicUrl);
+                  toast.success("Lien copié dans le presse-papier !");
+                }}
+                className="p-2 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-100 text-slate-700 dark:text-slate-200 shrink-0 shadow-sm"
+              >
+                <Copy className="size-4" />
+              </button>
+            </div>
+
+            <button
+              onClick={() => setIsShareModalOpen(false)}
+              className="w-full py-3 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-bold transition"
+            >
+              Fermer
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ─── PRINT MODAL ──────────────────────────────────────────────────── */}
+      {isPrintModalOpen && printSelectedApp && (
+        <AdmissionsPrintModal
+          isOpen={isPrintModalOpen}
+          onClose={() => setIsPrintModalOpen(false)}
+          selectedApp={printSelectedApp}
+          initialDocType={printDocType}
+          headerConfig={headerConfig}
+          applicationsList={filteredApplications}
+          stats={stats}
+        />
+      )}
+
     </div>
   );
 }

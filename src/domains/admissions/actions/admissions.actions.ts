@@ -12,7 +12,64 @@ import { protectedDbAction } from "@/lib/protected-action";
 import { getActiveSchoolId, getCurrentSchool } from "@/domains/auth/services/school";
 import { MessagingService } from "@/shared/services/messaging.service";
 
-// ─── 1. Public School Info & Classes for Admissions ─────────────────────────
+// ─── University & General Default Offerings ───────────────────────────────────
+export const UNIVERSITY_FACULTIES = [
+  {
+    name: "Faculté des Sciences & Technologies",
+    departments: ["Informatique & Génie Logiciel", "Réseaux & Télécoms", "Génie Civil & Architecture", "Mathématiques & IA"],
+    programs: [
+      "Licence Informatique & Génie Logiciel (L1-L3)",
+      "Licence Réseaux, Systèmes & Cybersécurité (L1-L3)",
+      "Licence Génie Civil & BTP (L1-L3)",
+      "Master Big Data, IA & Cloud Computing (M1-M2)",
+      "Master Ingénierie Logicielle & Systèmes Distribués (M1-M2)",
+      "Doctorat en Sciences & Technologies de l'Information",
+    ]
+  },
+  {
+    name: "Faculté des Sciences Économiques & de Gestion",
+    departments: ["Finance & Comptabilité", "Management & RH", "Marketing & Commerce International", "Banque & Microfinance"],
+    programs: [
+      "Licence Comptabilité, Contrôle & Audit (L1-L3)",
+      "Licence Gestion des Entreprises & Administration (L1-L3)",
+      "Licence Marketing Digital & E-Commerce (L1-L3)",
+      "Master Banque, Finance & Marchés (M1-M2)",
+      "Master Management Stratégique & Gestion de Projets (M1-M2)",
+      "Doctorat en Sciences de Gestion",
+    ]
+  },
+  {
+    name: "Faculté des Sciences Juridiques, Politiques & Administratives",
+    departments: ["Droit Privé & des Affaires", "Droit Public & Relations Internationales", "Sciences Politiques"],
+    programs: [
+      "Licence en Droit Privé des Affaires (L1-L3)",
+      "Licence en Droit Public & Carrières Juridiques (L1-L3)",
+      "Master Droit Minier, Pétrolier & Énergies (M1-M2)",
+      "Master Diplomatie & Coopération Internationale (M1-M2)",
+    ]
+  },
+  {
+    name: "Faculté des Sciences de la Santé & Médicales",
+    departments: ["Médecine Générale", "Pharmacie", "Sciences Infirmières & Obstétricales", "Santé Publique"],
+    programs: [
+      "Doctorat d'État en Médecine Générale",
+      "Licence en Sciences Infirmières (L1-L3)",
+      "Licence Sage-Femme / Maïeutique (L1-L3)",
+      "Master en Santé Publique & Épidémiologie (M1-M2)",
+    ]
+  },
+  {
+    name: "École Supérieure de Communication & Journalisme",
+    departments: ["Journalisme & Médias", "Communication d'Entreprise & Relations Publiques"],
+    programs: [
+      "Licence Journalisme Multimédia (L1-L3)",
+      "Licence Communication & Relations Publiques (L1-L3)",
+      "Master Communication Digitale & Médias Sociaux (M1-M2)",
+    ]
+  }
+];
+
+// ─── 1. Public School Info, University Faculties & Classes ────────────────────
 
 export async function getPublicSchoolInfoForAdmissionsAction(schoolSlugOrId?: string | number) {
   try {
@@ -35,7 +92,6 @@ export async function getPublicSchoolInfoForAdmissionsAction(schoolSlugOrId?: st
     }
 
     if (!school) {
-      // Default to first school if no context is found
       school = await readDb.query.schools.findFirst({
         orderBy: [schools.id],
       });
@@ -51,9 +107,11 @@ export async function getPublicSchoolInfoForAdmissionsAction(schoolSlugOrId?: st
 
     const classNames = classes.map((c) => c.className);
     const defaultClasses = [
-      "Maternelle 1", "Maternelle 2", "CI", "CP", "CE1", "CE2", "CM1", "CM2",
-      "6ème A", "6ème B", "5ème A", "5ème B", "4ème A", "4ème B", "3ème A", "3ème B",
-      "2nde C", "2nde A", "1ère D", "1ère A", "1ère C", "Terminale D", "Terminale A", "Terminale C"
+      "Licence 1 Informatique & IA", "Licence 1 Gestion & Finance", "Licence 1 Droit Privé",
+      "Licence 2 Génie Logiciel", "Licence 3 Audit & Finance", "Master 1 Data Science",
+      "Terminale D", "Terminale C", "Terminale A", "1ère D", "2nde C",
+      "3ème A", "4ème A", "5ème A", "6ème A",
+      "CM2", "CM1", "CE2", "CE1", "CP", "CI"
     ];
 
     return {
@@ -65,25 +123,27 @@ export async function getPublicSchoolInfoForAdmissionsAction(schoolSlugOrId?: st
         customDomain: school.customDomain,
       } : {
         id: 1,
-        name: "Edut Pro",
+        name: "Edut Pro - Pôle Universitaire & Scolaire",
         slug: "main",
         logoPath: null,
       },
       classes: classNames.length > 0 ? classNames : defaultClasses,
+      faculties: UNIVERSITY_FACULTIES,
     };
   } catch (error: any) {
     console.error("❌ Error fetching public school info:", error);
     return {
-      school: { id: 1, name: "Edut Pro", slug: "main", logoPath: null },
+      school: { id: 1, name: "Edut Pro - Pôle Universitaire & Scolaire", slug: "main", logoPath: null },
       classes: [
-        "CI", "CP", "CE1", "CE2", "CM1", "CM2",
-        "6ème", "5ème", "4ème", "3ème", "2nde", "1ère", "Terminale"
+        "Licence 1 Informatique", "Licence 1 Gestion", "Licence 1 Droit",
+        "Terminale D", "1ère D", "2nde C", "3ème", "6ème"
       ],
+      faculties: UNIVERSITY_FACULTIES,
     };
   }
 }
 
-// ─── 2. Public Application Tracker (Parent Self-Service) ────────────────────
+// ─── 2. Public Application Tracker ────────────────────────────────────────────
 
 export async function getPublicApplicationStatusAction(params: {
   applicationNumber: string;
@@ -94,31 +154,28 @@ export async function getPublicApplicationStatusAction(params: {
     const cleanPhone = params.phone?.trim().replace(/\s+/g, "");
 
     if (!cleanAppNumber || !cleanPhone) {
-      return { error: "Veuillez fournir le numéro de dossier et le numéro de téléphone." };
+      return { error: "Veuillez fournir le numéro de dossier et votre numéro de téléphone." };
     }
 
     const application = await readDb.query.admissionApplications.findFirst({
-      where: eq(admissionApplications.applicationNumber, cleanAppNumber),
+      where: and(
+        eq(admissionApplications.applicationNumber, cleanAppNumber),
+        or(
+          ilike(admissionApplications.parentPhone, `%${cleanPhone}%`),
+          ilike(admissionApplications.candidatePhone, `%${cleanPhone}%`),
+          ilike(admissionApplications.parentWhatsapp, `%${cleanPhone}%`)
+        )
+      ),
       with: {
         school: true,
+        admittedStudent: true,
       },
     });
 
     if (!application) {
-      return { error: "Aucun dossier trouvé avec ce numéro de candidature." };
-    }
-
-    // Verify phone match (last 6 digits to accommodate country code variations)
-    const appPhone = (application.parentPhone || "").replace(/\s+/g, "");
-    const appWhatsapp = (application.parentWhatsapp || "").replace(/\s+/g, "");
-
-    const matchesPhone =
-      appPhone.includes(cleanPhone.slice(-6)) ||
-      appWhatsapp.includes(cleanPhone.slice(-6)) ||
-      cleanPhone.includes(appPhone.slice(-6));
-
-    if (!matchesPhone) {
-      return { error: "Le numéro de téléphone ne correspond pas au dossier renseigné." };
+      return {
+        error: "Aucun dossier trouvé pour ces identifiants. Vérifiez le numéro de dossier (ex: ADM-2026-0012) et votre numéro de téléphone.",
+      };
     }
 
     return {
@@ -126,82 +183,82 @@ export async function getPublicApplicationStatusAction(params: {
       application: {
         id: application.id,
         applicationNumber: application.applicationNumber,
-        studentName: `${application.studentLastName.toUpperCase()} ${application.studentFirstName}`,
-        targetClass: application.targetClass,
+        studentFirstName: application.studentFirstName,
+        studentLastName: application.studentLastName,
         dateOfBirth: application.dateOfBirth,
-        parentName: application.parentName,
-        parentPhone: application.parentPhone,
+        gender: application.gender,
+        educationLevel: application.educationLevel || "Université / Supérieur",
+        faculty: application.faculty,
+        department: application.department,
+        degreeProgram: application.degreeProgram,
+        degreeLevel: application.degreeLevel,
+        studyMode: application.studyMode,
+        targetClass: application.targetClass,
         status: application.status,
+        admissionScore: application.admissionScore,
+        interviewScore: application.interviewScore,
+        interviewDate: application.interviewDate,
+        juryDecision: application.juryDecision,
+        juryComment: application.juryComment,
         reviewNotes: application.reviewNotes,
-        generatedMatricule: application.generatedMatricule,
         reviewedBy: application.reviewedBy,
         reviewedAt: application.reviewedAt,
+        generatedMatricule: application.generatedMatricule,
         createdAt: application.createdAt,
-        photoUrl: application.photoUrl,
         schoolName: application.school?.name || "Edut Pro",
-        schoolLogo: application.school?.logoPath || null,
+        schoolLogo: application.school?.logoPath,
+        tuitionDepositPaid: application.tuitionDepositPaid,
       },
     };
   } catch (error: any) {
-    console.error("❌ Error tracking application:", error);
-    return { error: "Erreur lors de la recherche du dossier." };
+    console.error("❌ Application tracker error:", error);
+    return { error: "Erreur serveur lors de la recherche du dossier." };
   }
 }
 
-// ─── 3. Dashboard KPI Stats ─────────────────────────────────────────────────
+// ─── 3. Dashboard Statistics ──────────────────────────────────────────────────
 
 export async function getAdmissionsDashboardStats() {
   return protectedDbAction("Students", "canView", async () => {
     const schoolId = await getActiveSchoolId();
+    if (!schoolId) {
+      return { totalApplications: 0, pendingReview: 0, admitted: 0, rejected: 0, universityCount: 0 };
+    }
 
-    const [totalRes, pendingRes, admittedRes, rejectedRes] = await Promise.all([
-      db
-        .select({ count: sql<number>`count(*)` })
-        .from(admissionApplications)
-        .where(schoolId ? eq(admissionApplications.schoolId, schoolId) : undefined),
-      db
-        .select({ count: sql<number>`count(*)` })
-        .from(admissionApplications)
-        .where(
-          and(
-            schoolId ? eq(admissionApplications.schoolId, schoolId) : undefined,
-            eq(admissionApplications.status, "En attente")
-          )
-        ),
-      db
-        .select({ count: sql<number>`count(*)` })
-        .from(admissionApplications)
-        .where(
-          and(
-            schoolId ? eq(admissionApplications.schoolId, schoolId) : undefined,
-            eq(admissionApplications.status, "Admis / Accepté")
-          )
-        ),
-      db
-        .select({ count: sql<number>`count(*)` })
-        .from(admissionApplications)
-        .where(
-          and(
-            schoolId ? eq(admissionApplications.schoolId, schoolId) : undefined,
-            eq(admissionApplications.status, "Refusé")
-          )
-        ),
-    ]);
+    const rows = await readDb.query.admissionApplications.findMany({
+      where: eq(admissionApplications.schoolId, schoolId),
+      columns: {
+        id: true,
+        status: true,
+        educationLevel: true,
+        degreeLevel: true,
+        admissionScore: true,
+      },
+    });
+
+    const totalApplications = rows.length;
+    const pendingReview = rows.filter((r) => r.status === "En attente" || r.status === "En examen").length;
+    const admitted = rows.filter((r) => r.status === "Admis / Accepté" || r.status === "Admis sous condition").length;
+    const rejected = rows.filter((r) => r.status === "Refusé").length;
+    const universityCount = rows.filter((r) => (r.educationLevel || "").toLowerCase().includes("univ") || (r.educationLevel || "").toLowerCase().includes("sup")).length;
 
     return {
-      totalApplications: Number(totalRes[0]?.count || 0),
-      pendingReview: Number(pendingRes[0]?.count || 0),
-      admitted: Number(admittedRes[0]?.count || 0),
-      rejected: Number(rejectedRes[0]?.count || 0),
+      totalApplications,
+      pendingReview,
+      admitted,
+      rejected,
+      universityCount,
     };
   });
 }
 
-// ─── 4. List Applications ───────────────────────────────────────────────────
+// ─── 4. List Applications with Rich Filters ───────────────────────────────────
 
 export async function getAdmissionApplicationsList(params?: {
   status?: string;
   targetClass?: string;
+  educationLevel?: string;
+  faculty?: string;
   query?: string;
   page?: number;
   limit?: number;
@@ -218,6 +275,12 @@ export async function getAdmissionApplicationsList(params?: {
     if (params?.targetClass && params.targetClass !== "ALL" && params.targetClass !== "Tous") {
       whereClause = and(whereClause, eq(admissionApplications.targetClass, params.targetClass)) as any;
     }
+    if (params?.educationLevel && params.educationLevel !== "ALL" && params.educationLevel !== "Tous") {
+      whereClause = and(whereClause, eq(admissionApplications.educationLevel, params.educationLevel)) as any;
+    }
+    if (params?.faculty && params.faculty !== "ALL" && params.faculty !== "Toutes") {
+      whereClause = and(whereClause, eq(admissionApplications.faculty, params.faculty)) as any;
+    }
 
     if (params?.query && params.query.trim()) {
       const q = `%${params.query.trim()}%`;
@@ -227,6 +290,8 @@ export async function getAdmissionApplicationsList(params?: {
           ilike(admissionApplications.applicationNumber, q),
           ilike(admissionApplications.studentFirstName, q),
           ilike(admissionApplications.studentLastName, q),
+          ilike(admissionApplications.candidateEmail, q),
+          ilike(admissionApplications.degreeProgram, q),
           ilike(admissionApplications.parentName, q),
           ilike(admissionApplications.parentPhone, q)
         )
@@ -264,18 +329,32 @@ export async function getAdmissionApplicationsList(params?: {
   });
 }
 
-// ─── 5. Submit Public / Remote Application ─────────────────────────────────
+// ─── 5. Submit Multi-Level & University Application ─────────────────────────
 
 export async function submitAdmissionApplicationAction(data: {
   schoolId?: number;
   schoolSlug?: string;
+  educationLevel?: string;
+  faculty?: string;
+  department?: string;
+  degreeProgram?: string;
+  degreeLevel?: string;
+  studyMode?: string;
+  academicYear?: string;
+  targetClass: string;
   studentFirstName: string;
   studentLastName: string;
   dateOfBirth: string;
   gender: string;
   placeOfBirth?: string;
   nationality?: string;
-  targetClass: string;
+  candidateEmail?: string;
+  candidatePhone?: string;
+  candidateWhatsapp?: string;
+  bacSeries?: string;
+  bacYear?: string;
+  bacMention?: string;
+  bacRollNumber?: string;
   previousSchool?: string;
   previousGradeAvg?: string;
   parentName: string;
@@ -288,11 +367,18 @@ export async function submitAdmissionApplicationAction(data: {
   city?: string;
   birthCertificateUrl?: string;
   photoUrl?: string;
+  idCardPassportUrl?: string;
+  bacTranscriptUrl?: string;
+  bacCertificateUrl?: string;
+  higherEdTranscriptUrl?: string;
+  cvUrl?: string;
+  coverLetter?: string;
+  recommendationLetterUrl?: string;
   reportCardUrl?: string;
   medicalNotes?: string;
+  paymentReceiptUrl?: string;
 }) {
   try {
-    // Resolve target schoolId
     let schoolId: number | undefined = data.schoolId;
 
     if (!schoolId && data.schoolSlug) {
@@ -308,13 +394,11 @@ export async function submitAdmissionApplicationAction(data: {
 
     const finalSchoolId: number = Number(schoolId || 1);
 
-    // Get school details for response / SMS
     const schoolRow = await readDb.query.schools.findFirst({
       where: eq(schools.id, finalSchoolId),
     });
     const schoolName = schoolRow?.name || "Edut Pro";
 
-    // Generate unique application number ADM-YYYY-SEQ-RANDOM
     const currentYear = new Date().getFullYear();
     const countRes = await db
       .select({ count: sql<number>`count(*)` })
@@ -323,20 +407,35 @@ export async function submitAdmissionApplicationAction(data: {
     
     const seq = Number(countRes[0]?.count || 0) + 1;
     const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-    const applicationNumber = `ADM-${currentYear}-${String(seq).padStart(3, "0")}-${randomSuffix}`;
+    const prefix = (data.educationLevel || "").toLowerCase().includes("univ") ? "UNIV" : "ADM";
+    const applicationNumber = `${prefix}-${currentYear}-${String(seq).padStart(3, "0")}-${randomSuffix}`;
 
     const [inserted] = await db
       .insert(admissionApplications)
       .values({
         applicationNumber,
-        schoolId,
+        schoolId: finalSchoolId,
+        educationLevel: data.educationLevel || "Université / Supérieur",
+        faculty: data.faculty || null,
+        department: data.department || null,
+        degreeProgram: data.degreeProgram || data.targetClass,
+        degreeLevel: data.degreeLevel || "Licence 1",
+        studyMode: data.studyMode || "Présentiel / Temps plein",
+        academicYear: data.academicYear || `${currentYear}–${currentYear + 1}`,
+        targetClass: data.targetClass,
         studentFirstName: data.studentFirstName.trim(),
         studentLastName: data.studentLastName.trim(),
         dateOfBirth: data.dateOfBirth,
         gender: data.gender || "M",
-        placeOfBirth: data.placeOfBirth || null,
+        placeOfBirth: data.placeOfBirth || "Niamey",
         nationality: data.nationality || "Nigérienne",
-        targetClass: data.targetClass,
+        candidateEmail: data.candidateEmail || null,
+        candidatePhone: data.candidatePhone || null,
+        candidateWhatsapp: data.candidateWhatsapp || null,
+        bacSeries: data.bacSeries || null,
+        bacYear: data.bacYear || null,
+        bacMention: data.bacMention || null,
+        bacRollNumber: data.bacRollNumber || null,
         previousSchool: data.previousSchool || null,
         previousGradeAvg: data.previousGradeAvg || null,
         parentName: data.parentName.trim(),
@@ -347,25 +446,34 @@ export async function submitAdmissionApplicationAction(data: {
         parentProfession: data.parentProfession || null,
         address: data.address || null,
         city: data.city || "Niamey",
-        birthCertificateUrl: data.birthCertificateUrl || null,
         photoUrl: data.photoUrl || null,
+        birthCertificateUrl: data.birthCertificateUrl || null,
+        idCardPassportUrl: data.idCardPassportUrl || null,
+        bacTranscriptUrl: data.bacTranscriptUrl || null,
+        bacCertificateUrl: data.bacCertificateUrl || null,
+        higherEdTranscriptUrl: data.higherEdTranscriptUrl || null,
+        cvUrl: data.cvUrl || null,
+        coverLetter: data.coverLetter || null,
+        recommendationLetterUrl: data.recommendationLetterUrl || null,
         reportCardUrl: data.reportCardUrl || null,
         medicalNotes: data.medicalNotes || null,
+        paymentReceiptUrl: data.paymentReceiptUrl || null,
         status: "En attente",
         parentNotified: false,
       })
       .returning();
 
-    // Send instant WhatsApp / SMS acknowledgment to parent
+    // Send instant WhatsApp / SMS acknowledgment
     try {
       const studentFullName = `${data.studentLastName.toUpperCase()} ${data.studentFirstName}`;
+      const contactPhone = data.candidatePhone || data.parentPhone;
       await MessagingService.sendAdmissionReceivedAlert({
-        to: data.parentPhone,
-        whatsapp: data.parentWhatsapp || data.parentPhone,
+        to: contactPhone,
+        whatsapp: data.candidateWhatsapp || data.parentWhatsapp || contactPhone,
         parentName: data.parentName,
         studentName: studentFullName,
         applicationNumber,
-        targetClass: data.targetClass,
+        targetClass: data.degreeProgram || data.targetClass,
         schoolName: schoolName,
         sendSMS: true,
         sendWhatsApp: true,
@@ -393,13 +501,54 @@ export async function submitAdmissionApplicationAction(data: {
   }
 }
 
-// ─── 6. Review & Decision (Admin Workflow) ───────────────────────────────────
+// ─── 6. Jury Scoring & Evaluation Action ────────────────────────────────────
+
+export async function scoreAdmissionApplicationAction(data: {
+  applicationId: number;
+  admissionScore?: number;
+  interviewScore?: number;
+  interviewDate?: string;
+  juryDecision?: string;
+  juryComment?: string;
+}) {
+  return protectedDbAction("Students", "canEdit", async (user) => {
+    const schoolId = await getActiveSchoolId();
+    if (!schoolId) return { error: "Aucune école active." };
+
+    const reviewerName = (user as any).name || (user as any).nom || user.utilisateur || "Commission Pédagogique";
+
+    await db
+      .update(admissionApplications)
+      .set({
+        admissionScore: data.admissionScore,
+        interviewScore: data.interviewScore,
+        interviewDate: data.interviewDate,
+        juryDecision: data.juryDecision,
+        juryComment: data.juryComment,
+        reviewedBy: reviewerName,
+        reviewedAt: new Date(),
+        status: data.juryDecision ? (data.juryDecision as any) : "En examen",
+      })
+      .where(
+        and(
+          eq(admissionApplications.id, data.applicationId),
+          eq(admissionApplications.schoolId, schoolId)
+        )
+      );
+
+    revalidatePath("/dashboard/admissions");
+    return { success: true, message: "Évaluation du jury enregistrée avec succès." };
+  });
+}
+
+// ─── 7. Review, Decision & Single-Click Immatriculation ───────────────────────
 
 export async function reviewAdmissionApplicationAction(data: {
   applicationId: number;
-  decision: "Admis / Accepté" | "Refusé" | "Liste d'attente" | "En examen";
+  decision: "Admis / Accepté" | "Refusé" | "Liste d'attente" | "En examen" | "Admis sous condition";
   reviewNotes?: string;
   assignedClass?: string;
+  admissionScore?: number;
 }) {
   return protectedDbAction("Students", "canEdit", async (user) => {
     const schoolId = await getActiveSchoolId();
@@ -421,24 +570,25 @@ export async function reviewAdmissionApplicationAction(data: {
 
     const schoolName = application.school?.name || "Edut Pro";
     const reviewerName = (user as any).name || (user as any).nom || user.utilisateur || "Commission des Admissions";
-    const targetClass = data.assignedClass || application.targetClass;
+    const targetClass = data.assignedClass || application.degreeProgram || application.targetClass;
+    const isUniv = (application.educationLevel || "").toLowerCase().includes("univ") || (application.educationLevel || "").toLowerCase().includes("sup");
 
-    // IF APPROVED: Automatically create student & generate Matricule
-    if (data.decision === "Admis / Accepté") {
+    // IF APPROVED: Automatically create student & generate University Matricule
+    if (data.decision === "Admis / Accepté" || data.decision === "Admis sous condition") {
       const year = new Date().getFullYear();
 
-      // Get count of existing students for unique matricule sequence
       const studentCountRes = await db
         .select({ count: sql<number>`count(*)` })
         .from(students)
         .where(eq(students.schoolId, schoolId));
       
       const seq = Number(studentCountRes[0]?.count || 0) + 1;
-      const matricule = `MAT-${year}-${String(seq).padStart(4, "0")}`;
+      const prefix = isUniv ? "ETU" : "MAT";
+      const matricule = `${prefix}-${year}-${String(seq).padStart(4, "0")}`;
 
       const studentFullName = `${application.studentLastName.toUpperCase()} ${application.studentFirstName}`;
 
-      // 1. Insert official student record
+      // 1. Insert official student record with university metadata
       const [newStudent] = await db
         .insert(students)
         .values({
@@ -449,16 +599,17 @@ export async function reviewAdmissionApplicationAction(data: {
           sexe: application.gender || "M",
           lieuNaissance: application.placeOfBirth || "Niamey",
           classe: targetClass,
+          educationalLevel: isUniv ? "Université" : (application.educationLevel || "Secondaire"),
           statut: "Actif",
           nomPere: application.parentName,
-          mobile: application.parentPhone,
-          whatsapp: application.parentWhatsapp || application.parentPhone,
+          mobile: application.candidatePhone || application.parentPhone,
+          whatsapp: application.candidateWhatsapp || application.parentWhatsapp || application.parentPhone,
           photoPath: application.photoUrl || null,
           behaviorScore: 20,
         })
         .returning();
 
-      // 2. Insert initial health record if medical notes are present
+      // 2. Insert health notes if present
       if (application.medicalNotes) {
         await db.insert(studentMedicalRecords).values({
           schoolId,
@@ -466,7 +617,7 @@ export async function reviewAdmissionApplicationAction(data: {
           allergies: application.medicalNotes,
           emergencyContactName: application.parentName,
           emergencyContactPhone: application.parentPhone,
-          emergencyContactRelation: application.parentRelation || "Parent",
+          emergencyContactRelation: application.parentRelation || "Parent/Tuteur",
         });
       }
 
@@ -474,21 +625,23 @@ export async function reviewAdmissionApplicationAction(data: {
       await db
         .update(admissionApplications)
         .set({
-          status: "Admis / Accepté",
+          status: data.decision,
           targetClass,
           admittedStudentId: newStudent.id,
           generatedMatricule: matricule,
-          reviewNotes: data.reviewNotes || "Dossier complet et validé par la commission.",
+          admissionScore: data.admissionScore || application.admissionScore,
+          reviewNotes: data.reviewNotes || "Candidature acceptée et étudiant immatriculé avec succès.",
           reviewedBy: reviewerName,
           reviewedAt: new Date(),
         })
         .where(eq(admissionApplications.id, data.applicationId));
 
-      // 4. Send official Acceptance & Matricule alert via WhatsApp, SMS and Email
+      // 4. Send official Acceptance Alert via WhatsApp and SMS
       try {
+        const contactPhone = application.candidatePhone || application.parentPhone;
         await MessagingService.sendAdmissionApprovedAlert({
-          to: application.parentPhone,
-          whatsapp: application.parentWhatsapp || application.parentPhone,
+          to: contactPhone,
+          whatsapp: application.candidateWhatsapp || application.parentWhatsapp || contactPhone,
           parentName: application.parentName,
           studentName: studentFullName,
           matricule,
@@ -497,42 +650,20 @@ export async function reviewAdmissionApplicationAction(data: {
           sendSMS: true,
           sendWhatsApp: true,
         });
-
-        // 📧 Email notification if parent email is available
-        if (application.parentEmail) {
-          await MessagingService.sendAdmissionApprovedEmail({
-            parentEmail: application.parentEmail,
-            parentName: application.parentName,
-            studentName: studentFullName,
-            matricule,
-            targetClass,
-            schoolName,
-            applicationNumber: application.applicationNumber,
-            reviewNotes: data.reviewNotes,
-          });
-        }
-
-        await db
-          .update(admissionApplications)
-          .set({ parentNotified: true, parentNotificationSentAt: new Date() })
-          .where(eq(admissionApplications.id, data.applicationId));
       } catch (err) {
-        console.error("⚠️ Failed to send admission approval notification:", err);
+        console.error("⚠️ Failed to send acceptance notification:", err);
       }
-
 
       revalidatePath("/dashboard/admissions");
       revalidatePath("/dashboard/students");
-
       return {
         success: true,
-        decision: "Admis / Accepté",
         matricule,
         studentId: newStudent.id,
-        message: `Élève admis avec succès ! Matricule officiel généré : ${matricule}`,
+        message: `Félicitations ! L'étudiant a été admis et immatriculé avec le numéro : ${matricule}`,
       };
     } else {
-      // For Rejected / Waitlisted / In Review
+      // For Rejections, Waiting List or In Review
       await db
         .update(admissionApplications)
         .set({
@@ -543,39 +674,21 @@ export async function reviewAdmissionApplicationAction(data: {
         })
         .where(eq(admissionApplications.id, data.applicationId));
 
-      // 📧 Email notification for rejected / waitlisted (if parent email available)
-      if (application.parentEmail && data.decision !== "En examen") {
-        try {
-          await MessagingService.sendAdmissionRejectedEmail({
-            parentEmail: application.parentEmail,
-            parentName: application.parentName,
-            studentName: `${application.studentLastName.toUpperCase()} ${application.studentFirstName}`,
-            schoolName,
-            decision: data.decision,
-            reviewNotes: data.reviewNotes,
-          });
-        } catch (err) {
-          console.error("⚠️ Failed to send rejection email:", err);
-        }
-      }
-
       revalidatePath("/dashboard/admissions");
-
       return {
         success: true,
-        decision: data.decision,
-        message: `Dossier mis à jour avec le statut : ${data.decision}`,
+        message: `Statut du dossier mis à jour : ${data.decision}`,
       };
     }
   });
 }
 
-// ─── 7. Delete Application ───────────────────────────────────────────────────
+// ─── 8. Delete Application Action ───────────────────────────────────────────
 
 export async function deleteAdmissionApplicationAction(id: number) {
   return protectedDbAction("Students", "canDelete", async () => {
     const schoolId = await getActiveSchoolId();
-    if (!schoolId) return { error: "Aucune école active." };
+    if (!schoolId) return { error: "Non autorisé." };
 
     await db
       .delete(admissionApplications)
@@ -587,6 +700,6 @@ export async function deleteAdmissionApplicationAction(id: number) {
       );
 
     revalidatePath("/dashboard/admissions");
-    return { success: true };
+    return { success: true, message: "Dossier de candidature supprimé." };
   });
 }
