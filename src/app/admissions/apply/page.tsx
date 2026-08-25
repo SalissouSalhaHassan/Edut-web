@@ -32,6 +32,7 @@ import {
   Clock,
   Download,
   Briefcase,
+  Copy,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import {
@@ -39,6 +40,38 @@ import {
   getPublicSchoolInfoForAdmissionsAction,
 } from "@/domains/admissions/actions/admissions.actions";
 import { UNIVERSITY_FACULTIES } from "@/domains/admissions/constants/admissions.constants";
+
+interface SubmittedAdmissionData {
+  applicationNumber: string;
+  studentFirstName: string;
+  studentLastName: string;
+  studentFullName: string;
+  photoUrl?: string;
+  gender: string;
+  dateOfBirth: string;
+  placeOfBirth: string;
+  nationality: string;
+  educationLevel: string;
+  faculty?: string;
+  department?: string;
+  degreeProgram: string;
+  degreeLevel?: string;
+  studyMode?: string;
+  academicYear?: string;
+  bacSeries?: string;
+  bacYear?: string;
+  bacMention?: string;
+  bacRollNumber?: string;
+  candidatePhone?: string;
+  candidateEmail?: string;
+  parentName: string;
+  parentPhone: string;
+  parentRelation?: string;
+  parentEmail?: string;
+  schoolName: string;
+  contactPhone: string;
+  createdAt: string;
+}
 
 function ApplyFormContent() {
   const searchParams = useSearchParams();
@@ -62,13 +95,7 @@ function ApplyFormContent() {
     "3ème A", "4ème A", "5ème A", "6ème A"
   ]);
 
-  const [submittedData, setSubmittedData] = useState<{
-    applicationNumber: string;
-    studentName: string;
-    degreeProgram: string;
-    schoolName: string;
-    contactPhone: string;
-  } | null>(null);
+  const [submittedData, setSubmittedData] = useState<SubmittedAdmissionData | null>(null);
 
   const [selectedFacultyIndex, setSelectedFacultyIndex] = useState(0);
 
@@ -208,10 +235,34 @@ function ApplyFormContent() {
       if (res.success && res.applicationNumber) {
         setSubmittedData({
           applicationNumber: res.applicationNumber,
-          studentName: `${formData.studentLastName.toUpperCase()} ${formData.studentFirstName}`,
+          studentFirstName: formData.studentFirstName.trim(),
+          studentLastName: formData.studentLastName.trim(),
+          studentFullName: `${formData.studentLastName.toUpperCase()} ${formData.studentFirstName}`,
+          photoUrl: formData.photoUrl,
+          gender: formData.gender,
+          dateOfBirth: formData.dateOfBirth,
+          placeOfBirth: formData.placeOfBirth || "Niamey",
+          nationality: formData.nationality || "Nigérienne",
+          educationLevel: formData.educationLevel || "Université / Supérieur",
+          faculty: formData.faculty,
+          department: formData.department,
           degreeProgram: formData.degreeProgram || formData.targetClass,
+          degreeLevel: formData.degreeLevel || "Licence 1",
+          studyMode: formData.studyMode || "Présentiel / Temps plein",
+          academicYear: formData.academicYear || "2026–2027",
+          bacSeries: formData.bacSeries,
+          bacYear: formData.bacYear,
+          bacMention: formData.bacMention,
+          bacRollNumber: formData.bacRollNumber,
+          candidatePhone: formData.candidatePhone,
+          candidateEmail: formData.candidateEmail,
+          parentName: formData.parentName,
+          parentPhone: formData.parentPhone,
+          parentRelation: formData.parentRelation,
+          parentEmail: formData.parentEmail,
           schoolName: res.schoolName || schoolInfo.name,
           contactPhone: formData.candidatePhone || formData.parentPhone,
+          createdAt: new Date().toISOString(),
         });
         toast.success(res.message || "Candidature enregistrée avec succès !");
         window.scrollTo({ top: 0, behavior: "smooth" });
@@ -228,72 +279,175 @@ function ApplyFormContent() {
   // ── SUCCESS CONFIRMATION SCREEN ─────────────────────────────────────────────
   if (submittedData) {
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-center items-center p-4 sm:p-8 font-sans selection:bg-emerald-500 selection:text-slate-950">
-        <div className="max-w-2xl w-full bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-10 shadow-2xl space-y-8 animate-in fade-in zoom-in-95 duration-500 text-center relative overflow-hidden">
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between p-4 sm:p-8 font-sans selection:bg-emerald-500 selection:text-slate-950">
+        <div className="max-w-3xl w-full mx-auto bg-slate-900/95 border border-slate-800 rounded-3xl p-6 sm:p-10 shadow-2xl space-y-8 animate-in fade-in zoom-in-95 duration-500 relative overflow-hidden backdrop-blur-xl">
           <div className="absolute -top-24 -right-24 size-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
           <div className="absolute -bottom-24 -left-24 size-48 bg-teal-500/10 rounded-full blur-3xl pointer-events-none" />
 
-          <div className="size-20 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-3xl mx-auto flex items-center justify-center shadow-inner">
-            <CheckCircle2 className="size-10" />
-          </div>
-
-          <div className="space-y-2">
-            <span className="text-[11px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-500/10 px-3.5 py-1 rounded-full border border-emerald-500/20">
-              Dossier de Candidature Enregistré
-            </span>
-            <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white mt-3">
-              Candidature Soumise avec Succès !
-            </h2>
-            <p className="text-sm text-slate-400 max-w-lg mx-auto">
-              Votre dossier a été transmis à la Commission des Admissions de <strong className="text-white">{submittedData.schoolName}</strong>.
-            </p>
-          </div>
-
-          {/* Dossier Badge Box */}
-          <div className="p-6 bg-slate-950/80 border border-slate-800 rounded-2xl space-y-4 text-left">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800/80">
-              <div>
-                <p className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Numéro de Dossier Officiel</p>
-                <p className="text-2xl font-mono font-black text-emerald-400 tracking-wider">{submittedData.applicationNumber}</p>
-              </div>
-              <div className="p-2 bg-white rounded-xl w-fit shadow-md">
-                <QRCodeSVG
-                  value={`https://edut.pro/admissions/status?app=${submittedData.applicationNumber}&phone=${encodeURIComponent(submittedData.contactPhone)}`}
-                  size={68}
-                  level="M"
-                />
-              </div>
+          {/* Success Top Icon */}
+          <div className="text-center space-y-3">
+            <div className="size-20 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-3xl mx-auto flex items-center justify-center shadow-inner">
+              <CheckCircle2 className="size-10" />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-              <div>
-                <span className="text-slate-400 font-medium">Candidat :</span>{" "}
-                <strong className="text-white font-bold">{submittedData.studentName}</strong>
+            <div className="space-y-1">
+              <span className="text-[11px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-500/10 px-3.5 py-1 rounded-full border border-emerald-500/20 inline-block">
+                Dossier de Candidature Officiellement Enregistré
+              </span>
+              <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white mt-2">
+                Candidature Soumise avec Succès !
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-400 max-w-xl mx-auto">
+                Votre dossier a été transmis à la Commission des Admissions de <strong className="text-white">{submittedData.schoolName}</strong>.
+              </p>
+            </div>
+          </div>
+
+          {/* Detailed Candidate Dossier Card */}
+          <div className="p-6 bg-slate-950/90 border border-slate-800 rounded-3xl space-y-6 text-left shadow-lg">
+            
+            {/* Top Bar: Number + Photo + QR */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-800/80">
+              <div className="flex items-center gap-4">
+                {submittedData.photoUrl ? (
+                  <img
+                    src={submittedData.photoUrl}
+                    alt={submittedData.studentFullName}
+                    className="size-20 rounded-2xl object-cover border-2 border-emerald-500/40 shadow-md shadow-emerald-500/20 shrink-0"
+                  />
+                ) : (
+                  <div className="size-20 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-700 text-slate-950 flex flex-col items-center justify-center font-black text-xl shadow-md shrink-0">
+                    <UserPlus className="size-8 text-white" />
+                  </div>
+                )}
+
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider block">
+                    Numéro de Dossier Officiel
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <p className="text-xl sm:text-2xl font-mono font-black text-emerald-400 tracking-wider">
+                      {submittedData.applicationNumber}
+                    </p>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(submittedData.applicationNumber);
+                        toast.success("Numéro de dossier copié !");
+                      }}
+                      className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white transition"
+                      title="Copier le numéro"
+                    >
+                      <Copy className="size-3.5" />
+                    </button>
+                  </div>
+                  <h3 className="text-base font-black text-white mt-1">
+                    {submittedData.studentFullName}
+                    <span className="text-xs text-slate-400 font-medium ml-2">
+                      ({submittedData.gender === "F" ? "Féminin" : "Masculin"})
+                    </span>
+                  </h3>
+                </div>
               </div>
-              <div>
-                <span className="text-slate-400 font-medium">Programme :</span>{" "}
-                <strong className="text-white font-bold">{submittedData.degreeProgram}</strong>
-              </div>
-              <div>
-                <span className="text-slate-400 font-medium">Contact Notifié :</span>{" "}
-                <strong className="text-white font-mono">{submittedData.contactPhone}</strong>
-              </div>
-              <div>
-                <span className="text-slate-400 font-medium">Statut :</span>{" "}
-                <span className="inline-flex items-center gap-1.5 text-amber-400 font-bold">
-                  <Clock className="size-3.5" /> En cours d&apos;examen
+
+              <div className="flex sm:flex-col items-center sm:items-end justify-between gap-2 p-2 bg-white rounded-2xl w-fit shadow-md shrink-0">
+                <QRCodeSVG
+                  value={`https://edut.pro/admissions/status?app=${submittedData.applicationNumber}&phone=${encodeURIComponent(submittedData.contactPhone)}`}
+                  size={76}
+                  level="M"
+                />
+                <span className="text-[9px] font-mono text-slate-900 font-bold text-center w-full block">
+                  Scan Suivi
                 </span>
               </div>
             </div>
+
+            {/* Academic Information Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+              
+              <div className="p-3 bg-slate-900/60 rounded-2xl border border-slate-800/80 space-y-1">
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">Programme &amp; Spécialité</span>
+                <p className="text-slate-100 font-bold text-sm flex items-center gap-1.5">
+                  <GraduationCap className="size-4 text-emerald-400 shrink-0" />
+                  {submittedData.degreeProgram}
+                </p>
+                {submittedData.faculty && (
+                  <p className="text-[11px] text-slate-400">{submittedData.faculty}</p>
+                )}
+              </div>
+
+              <div className="p-3 bg-slate-900/60 rounded-2xl border border-slate-800/80 space-y-1">
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">Cycle &amp; Mode d&apos;Études</span>
+                <p className="text-slate-100 font-bold text-sm flex items-center gap-1.5">
+                  <BookOpen className="size-4 text-blue-400 shrink-0" />
+                  {submittedData.degreeLevel || "Licence 1"} • {submittedData.studyMode || "Présentiel"}
+                </p>
+                <p className="text-[11px] text-slate-400">Année Universitaire : {submittedData.academicYear}</p>
+              </div>
+
+              {submittedData.bacSeries && (
+                <div className="p-3 bg-slate-900/60 rounded-2xl border border-slate-800/80 space-y-1">
+                  <span className="text-[10px] uppercase font-bold text-slate-500 block">Baccalauréat</span>
+                  <p className="text-slate-100 font-bold flex items-center gap-1.5">
+                    <Award className="size-4 text-amber-400 shrink-0" />
+                    {submittedData.bacSeries} ({submittedData.bacYear || "2026"})
+                  </p>
+                  <p className="text-[11px] text-slate-400">
+                    Mention : <strong className="text-emerald-400">{submittedData.bacMention || "Passable"}</strong>
+                    {submittedData.bacRollNumber && ` • N°: ${submittedData.bacRollNumber}`}
+                  </p>
+                </div>
+              )}
+
+              <div className="p-3 bg-slate-900/60 rounded-2xl border border-slate-800/80 space-y-1">
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">État Civil &amp; Naissance</span>
+                <p className="text-slate-100 font-bold flex items-center gap-1.5">
+                  <Calendar className="size-4 text-purple-400 shrink-0" />
+                  {submittedData.dateOfBirth ? new Date(submittedData.dateOfBirth).toLocaleDateString("fr-FR") : "—"} à {submittedData.placeOfBirth}
+                </p>
+                <p className="text-[11px] text-slate-400">Nationalité : {submittedData.nationality}</p>
+              </div>
+
+              <div className="p-3 bg-slate-900/60 rounded-2xl border border-slate-800/80 space-y-1">
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">Contact Notifié</span>
+                <p className="text-slate-100 font-mono font-bold flex items-center gap-1.5">
+                  <Phone className="size-4 text-teal-400 shrink-0" />
+                  {submittedData.contactPhone}
+                </p>
+                {submittedData.candidateEmail && (
+                  <p className="text-[11px] text-slate-400 truncate">{submittedData.candidateEmail}</p>
+                )}
+              </div>
+
+              <div className="p-3 bg-slate-900/60 rounded-2xl border border-slate-800/80 space-y-1">
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">Tuteur / Répondant Légal</span>
+                <p className="text-slate-100 font-bold flex items-center gap-1.5">
+                  <ShieldCheck className="size-4 text-emerald-400 shrink-0" />
+                  {submittedData.parentName} ({submittedData.parentRelation || "Parent"})
+                </p>
+                <p className="text-[11px] text-slate-400 font-mono">{submittedData.parentPhone}</p>
+              </div>
+
+            </div>
+
+            {/* Live Status Bar */}
+            <div className="p-3.5 bg-slate-900 rounded-2xl border border-slate-800 flex items-center justify-between">
+              <span className="text-xs text-slate-400 font-medium">Statut de la candidature :</span>
+              <span className="inline-flex items-center gap-1.5 text-xs font-black text-amber-400 bg-amber-500/10 px-3 py-1 rounded-full border border-amber-500/20">
+                <Clock className="size-3.5" /> En cours d&apos;examen par le Jury
+              </span>
+            </div>
+
           </div>
 
+          {/* SMS / WhatsApp Banner */}
           <div className="p-4 bg-emerald-950/30 border border-emerald-900/50 rounded-2xl text-xs text-emerald-300 flex items-start gap-3 text-left">
             <Sparkles className="size-5 text-emerald-400 shrink-0 mt-0.5" />
             <p>
-              Un accusé de réception instantané contenant votre code de suivi et le lien direct a été expédié par <strong>SMS &amp; WhatsApp</strong>. Conservez précieusement ce code.
+              Un accusé de réception officiel contenant votre code de dossier <strong>{submittedData.applicationNumber}</strong> et le lien direct de suivi a été expédié par <strong>SMS &amp; WhatsApp</strong>.
             </p>
           </div>
 
+          {/* Action Buttons */}
           <div className="flex flex-col sm:flex-row gap-3 pt-2">
             <Link
               href={`/admissions/status?app=${submittedData.applicationNumber}&phone=${encodeURIComponent(submittedData.contactPhone)}`}
@@ -302,15 +456,95 @@ function ApplyFormContent() {
               Suivre l&apos;Évolution du Dossier
               <ArrowRight className="size-4" />
             </Link>
+
             <button
               onClick={() => window.print()}
-              className="py-3.5 px-6 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs flex items-center justify-center gap-2 border border-slate-700 transition"
+              className="py-3.5 px-6 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 transition"
             >
               <Printer className="size-4" />
-              Imprimer le Récépissé
+              Imprimer / Télécharger le Récépissé Officiel (PDF)
             </button>
           </div>
         </div>
+
+        {/* ─── PRINT-ONLY OFFICIAL A4 RECEIPT TEMPLATE ─────────────────────── */}
+        <div className="hidden print:block print:fixed print:inset-0 print:bg-white print:text-black print:p-8 font-sans text-xs">
+          <div className="max-w-2xl mx-auto border-2 border-slate-900 p-8 space-y-6">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b-2 border-slate-900 pb-4">
+              <div>
+                <h1 className="text-xl font-black uppercase tracking-tight">{submittedData.schoolName}</h1>
+                <p className="text-xs font-bold text-slate-700 uppercase">Commission Générale des Admissions &amp; Inscriptions</p>
+                <p className="text-[10px] text-slate-500">Année Académique : {submittedData.academicYear}</p>
+              </div>
+              <div className="p-2 border border-slate-900 rounded-lg">
+                <QRCodeSVG
+                  value={`https://edut.pro/admissions/status?app=${submittedData.applicationNumber}&phone=${encodeURIComponent(submittedData.contactPhone)}`}
+                  size={70}
+                  level="M"
+                />
+              </div>
+            </div>
+
+            {/* Document Title */}
+            <div className="text-center py-2 bg-slate-100 border border-slate-300 rounded-md">
+              <h2 className="text-sm font-black uppercase tracking-wider">
+                RÉCÉPISSÉ D&apos;ENREGISTREMENT DE CANDIDATURE
+              </h2>
+              <p className="text-xs font-mono font-bold mt-0.5">Dossier N° : {submittedData.applicationNumber}</p>
+            </div>
+
+            {/* Body Info */}
+            <div className="grid grid-cols-2 gap-4 border border-slate-300 p-4 rounded-md">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">Nom &amp; Prénom du Candidat</span>
+                <p className="text-sm font-bold">{submittedData.studentFullName}</p>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">Date &amp; Lieu de Naissance</span>
+                <p className="text-sm font-bold">{submittedData.dateOfBirth} à {submittedData.placeOfBirth}</p>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">Programme / Filière convoité</span>
+                <p className="text-sm font-bold text-emerald-700">{submittedData.degreeProgram}</p>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">Cycle &amp; Mode d&apos;Études</span>
+                <p className="text-sm font-bold">{submittedData.degreeLevel} • {submittedData.studyMode}</p>
+              </div>
+              {submittedData.bacSeries && (
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-500 block">Baccalauréat</span>
+                  <p className="text-sm font-bold">{submittedData.bacSeries} ({submittedData.bacYear}) - Mention {submittedData.bacMention}</p>
+                </div>
+              )}
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">Parent / Tuteur</span>
+                <p className="text-sm font-bold">{submittedData.parentName} ({submittedData.parentPhone})</p>
+              </div>
+            </div>
+
+            {/* Instructions */}
+            <div className="text-[10px] text-slate-600 space-y-1 bg-slate-50 p-3 rounded border border-slate-200">
+              <p className="font-bold text-slate-800">Notice Importante :</p>
+              <p>• Ce récépissé atteste du dépôt officiel de votre dossier de candidature auprès de l&apos;établissement.</p>
+              <p>• Les résultats d&apos;éligibilité et convocations aux entretiens vous seront notifiés par SMS et consultables via le code QR ci-dessus.</p>
+            </div>
+
+            {/* Signatures */}
+            <div className="grid grid-cols-2 gap-8 pt-6 border-t border-slate-300">
+              <div className="text-center">
+                <p className="text-[10px] font-bold uppercase text-slate-600">Signature du Candidat</p>
+                <div className="h-16 mt-2 border-b border-dashed border-slate-400" />
+              </div>
+              <div className="text-center">
+                <p className="text-[10px] font-bold uppercase text-slate-600">Cachet &amp; Visa de l&apos;Établissement</p>
+                <div className="h-16 mt-2 border-b border-dashed border-slate-400" />
+              </div>
+            </div>
+          </div>
+        </div>
+
       </div>
     );
   }
