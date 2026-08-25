@@ -18,23 +18,80 @@ type Props = {
   initialPrograms: any[];
   classes: any[];
   sessions: any[];
+  periods?: any[];
 };
 
 export default function DeliberationClient({
   initialPrograms,
   classes,
   sessions,
+  periods = [],
 }: Props) {
   const [programs] = useState(initialPrograms);
   const [selectedProgramId, setSelectedProgramId] = useState<number | null>(
     programs.length > 0 ? programs[0].id : null
   );
-  const [selectedClassId, setSelectedClassId] = useState<number | null>(
-    classes.length > 0 ? classes[0].id : null
-  );
+
+  // Active session lookup
+  const activeSession = sessions.find((s) => s.isActive || s.status === "Actif") || sessions[0];
   const [selectedSessionId, setSelectedSessionId] = useState<number | null>(
-    sessions.length > 0 ? sessions[0].id : null
+    activeSession ? activeSession.id : null
   );
+
+  const selectedProgram = programs.find((p) => p.id === selectedProgramId);
+
+  // Dynamic filter: Show only classes belonging to the selected Filière/Section
+  const filteredClasses = React.useMemo(() => {
+    if (!selectedProgram) return classes;
+    if (selectedProgram.sectionId) {
+      const matched = classes.filter((c) => c.sectionId === selectedProgram.sectionId);
+      return matched.length > 0 ? matched : classes;
+    }
+    // Fallback: match by name if sectionId is not explicit
+    const progName = (selectedProgram.name || "").toLowerCase();
+    const matched = classes.filter((c) => 
+      (c.className || "").toLowerCase().includes(progName) || 
+      (c.section?.sectionName || "").toLowerCase().includes(progName)
+    );
+    return matched.length > 0 ? matched : classes;
+  }, [selectedProgram, classes]);
+
+  const [selectedClassId, setSelectedClassId] = useState<number | null>(
+    filteredClasses.length > 0 ? filteredClasses[0].id : (classes[0]?.id || null)
+  );
+
+  // Auto-switch selected class when selected program changes
+  useEffect(() => {
+    if (filteredClasses.length > 0) {
+      const exists = filteredClasses.some((c) => c.id === selectedClassId);
+      if (!exists) {
+        setSelectedClassId(filteredClasses[0].id);
+      }
+    } else {
+      setSelectedClassId(null);
+    }
+  }, [selectedProgramId, filteredClasses]);
+
+  // Semestres dynamically adapted to degree level (Master: S1-S4, Licence: S1-S6)
+  const availableSemesters = React.useMemo(() => {
+    const isMaster = selectedProgram?.degreeLevel === "Master";
+    const maxSem = isMaster ? 4 : 6;
+    const list = [];
+    for (let i = 1; i <= maxSem; i++) {
+      const sCode = `S${i}`;
+      // Check if real period matching this semester exists in settings
+      const matchingPeriod = periods.find((p) => 
+        (p.name || "").toLowerCase().includes(`semestre ${i}`) || 
+        (p.name || "").toLowerCase().includes(`s${i}`)
+      );
+      list.push({
+        code: sCode,
+        label: matchingPeriod ? `${matchingPeriod.name} (${sCode})` : `Semestre ${i} (${sCode})`,
+      });
+    }
+    return list;
+  }, [selectedProgram, periods]);
+
   const [selectedSemester, setSelectedSemester] = useState<string>("S1");
 
   const [deliberationData, setDeliberationData] = useState<{
@@ -76,7 +133,6 @@ export default function DeliberationClient({
     loadDeliberationData();
   }, [selectedProgramId, selectedClassId, selectedSemester, selectedSessionId]);
 
-  const selectedProgram = programs.find((p) => p.id === selectedProgramId);
   const selectedClass = classes.find((c) => c.id === selectedClassId);
   const selectedSession = sessions.find((s) => s.id === selectedSessionId);
 
@@ -304,24 +360,30 @@ export default function DeliberationClient({
             >
               {programs.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.name} ({p.degreeLevel})
+                  {p.name} ({p.degreeLevel || "Licence"})
                 </option>
               ))}
             </select>
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Promotion / Classe</label>
+            <label className="block text-xs font-bold text-slate-700 mb-1">
+              Promotion / Classe ({filteredClasses.length})
+            </label>
             <select
               value={selectedClassId || ""}
               onChange={(e) => setSelectedClassId(Number(e.target.value))}
               className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
-              {classes.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.className}
-                </option>
-              ))}
+              {filteredClasses.length === 0 ? (
+                <option value="">Aucune classe rattachée</option>
+              ) : (
+                filteredClasses.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.className} {c.section?.sectionName ? `(${c.section.sectionName})` : ""}
+                  </option>
+                ))
+              )}
             </select>
           </div>
 
@@ -332,12 +394,11 @@ export default function DeliberationClient({
               onChange={(e) => setSelectedSemester(e.target.value)}
               className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
-              <option value="S1">Semestre 1 (S1)</option>
-              <option value="S2">Semestre 2 (S2)</option>
-              <option value="S3">Semestre 3 (S3)</option>
-              <option value="S4">Semestre 4 (S4)</option>
-              <option value="S5">Semestre 5 (S5)</option>
-              <option value="S6">Semestre 6 (S6)</option>
+              {availableSemesters.map((s) => (
+                <option key={s.code} value={s.code}>
+                  {s.label}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -350,7 +411,7 @@ export default function DeliberationClient({
             >
               {sessions.map((s) => (
                 <option key={s.id} value={s.id}>
-                  {s.sessionName}
+                  {s.sessionName} {s.isActive || s.status === "Actif" ? "• (En cours / Actif)" : ""}
                 </option>
               ))}
             </select>

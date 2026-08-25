@@ -850,6 +850,7 @@ export const universityPrograms = pgTable("university_programs", {
   id: serial("id").primaryKey(),
   departmentId: integer("department_id").references(() => universityDepartments.id, { onDelete: "cascade" }),
   schoolId: integer("school_id").references(() => schools.id, { onDelete: "cascade" }),
+  sectionId: integer("section_id").references(() => schoolSections.id),
   name: varchar("name", { length: 150 }).notNull(),
   code: varchar("code", { length: 50 }),
   degreeLevel: varchar("degree_level", { length: 50 }).notNull().default("Licence"), // Licence | Master | Doctorat
@@ -863,6 +864,7 @@ export const universityPrograms = pgTable("university_programs", {
 export const universityProgramsRelations = relations(universityPrograms, ({ one, many }) => ({
   department: one(universityDepartments, { fields: [universityPrograms.departmentId], references: [universityDepartments.id] }),
   school: one(schools, { fields: [universityPrograms.schoolId], references: [schools.id] }),
+  section: one(schoolSections, { fields: [universityPrograms.sectionId], references: [schoolSections.id] }),
   unitesEnseignement: many(lmdUnitesEnseignement),
 }));
 

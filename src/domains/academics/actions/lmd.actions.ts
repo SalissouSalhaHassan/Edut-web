@@ -10,19 +10,207 @@ import {
   studentLmdUeResults,
   studentLmdSemesters,
   schoolClasses,
+  schoolSections,
+  educationalLevels,
   schoolSessions,
+  academicPeriods,
+  schoolSubjects,
+  classSubjects,
   studentResults,
 } from "@/infrastructure/database/schema/academics";
 import { students } from "@/infrastructure/database/schema/students";
 import { employees } from "@/infrastructure/database/schema/hr";
-import { eq, and, desc, asc } from "drizzle-orm";
+import { eq, and, desc, asc, or, ilike, inArray, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { deliberateSemester, UeInput, EcuInput } from "../utils/lmd-engine";
+
+// ─── 0. SYNCHRONISATION AUTOMATIQUE AVEC LES PARAMÈTRES ACADÉMIQUES ───────────
+/**
+ * Scanne les paramètres académiques réels (settings?tab=academic):
+ * - Sections & Filières (school_sections)
+ * - Classes & Promotions (school_classes)
+ * - Sessions académiques (school_sessions)
+ * - Périodes & Semestres (academic_periods)
+ * et initialise ou synchronise la cartographie LMD sans doublons.
+ */
+export async function syncAcademicSettingsToLmd(schoolId: number = 1) {
+  try {
+    // 1. Récupérer les données réelles configurées
+    const [realSections, realClasses, realSessions, realSubjects, existingFaculties, existingPrograms] = await Promise.all([
+      readDb.query.schoolSections.findMany({
+        where: or(eq(schoolSections.schoolId, schoolId), isNull(schoolSections.schoolId)),
+        orderBy: [asc(schoolSections.sectionName)],
+      }),
+      readDb.query.schoolClasses.findMany({
+        where: or(eq(schoolClasses.schoolId, schoolId), isNull(schoolClasses.schoolId)),
+        orderBy: [asc(schoolClasses.className)],
+      }),
+      readDb.query.schoolSessions.findMany({
+        where: or(eq(schoolSessions.schoolId, schoolId), isNull(schoolSessions.schoolId)),
+        orderBy: [desc(schoolSessions.startDate)],
+      }),
+      readDb.query.schoolSubjects.findMany({
+        where: or(eq(schoolSubjects.schoolId, schoolId), isNull(schoolSubjects.schoolId)),
+        orderBy: [asc(schoolSubjects.subjectName)],
+      }),
+      readDb.query.universityFaculties.findMany({
+        where: eq(universityFaculties.schoolId, schoolId),
+        with: { departments: true },
+      }),
+      readDb.query.universityPrograms.findMany({
+        where: eq(universityPrograms.schoolId, schoolId),
+      }),
+    ]);
+
+    // 2. Créer une Faculté Principale si aucune n'existe
+    let defaultFacultyId: number;
+    let defaultDeptId: number;
+
+    if (existingFaculties.length === 0) {
+      const [newFac] = await db.insert(universityFaculties).values({
+        schoolId,
+        name: "Faculté des Sciences, Technologies & Gestion",
+        code: "FSTG",
+        description: "Faculté principale synchronisée depuis les paramètres académiques",
+      }).returning({ id: universityFaculties.id });
+
+      defaultFacultyId = newFac.id;
+
+      const [newDept] = await db.insert(universityDepartments).values({
+        facultyId: defaultFacultyId,
+        name: "Département des Cursus Universitaires & Professionnels",
+        code: "DCUP",
+        description: "Département fédérant les filières LMD",
+      }).returning({ id: universityDepartments.id });
+
+      defaultDeptId = newDept.id;
+    } else {
+      defaultFacultyId = existingFaculties[0].id;
+      if (existingFaculties[0].departments.length > 0) {
+        defaultDeptId = existingFaculties[0].departments[0].id;
+      } else {
+        const [newDept] = await db.insert(universityDepartments).values({
+          facultyId: defaultFacultyId,
+          name: "Département Académique",
+          code: "DEPT-1",
+        }).returning({ id: universityDepartments.id });
+        defaultDeptId = newDept.id;
+      }
+    }
+
+    // 3. Mapper chaque section réelle vers un programme/filière LMD
+    const programSectionMap = new Map<number, number>();
+    for (const prog of existingPrograms) {
+      if (prog.sectionId) {
+        programSectionMap.set(prog.sectionId, prog.id);
+      }
+    }
+
+    let createdProgramsCount = 0;
+    for (const sec of realSections) {
+      if (!programSectionMap.has(sec.id)) {
+        const isMaster = (sec.sectionName || "").toLowerCase().includes("master") || (sec.educationalLevel || "").toLowerCase().includes("master");
+        const degreeLevel = isMaster ? "Master" : "Licence";
+        const totalCredits = isMaster ? 120 : 180;
+        const durationSemesters = isMaster ? 4 : 6;
+
+        const [createdProg] = await db.insert(universityPrograms).values({
+          schoolId,
+          departmentId: defaultDeptId,
+          sectionId: sec.id,
+          name: sec.sectionName,
+          code: sec.series || `FIL-${sec.id}`,
+          degreeLevel,
+          totalCredits,
+          durationSemesters,
+          description: sec.description || `Filière LMD issue de la section ${sec.sectionName}`,
+          isActive: true,
+        }).returning({ id: universityPrograms.id });
+
+        programSectionMap.set(sec.id, createdProg.id);
+        createdProgramsCount++;
+
+        // 4. Générer des UE standard (S1 & S2) pour la nouvelle filière si des matières existent
+        if (realSubjects.length > 0) {
+          const subjectsChunk1 = realSubjects.slice(0, Math.min(4, realSubjects.length));
+          const subjectsChunk2 = realSubjects.slice(4, Math.min(8, realSubjects.length));
+
+          // UE Fondamentale S1
+          const [ue1] = await db.insert(lmdUnitesEnseignement).values({
+            programId: createdProg.id,
+            semester: "S1",
+            codeUe: `UE11-${sec.id}`,
+            nameUe: "UE Fondamentale & Méthodologique 1",
+            typeUe: "Fondamentale",
+            creditsEcts: 18.0,
+            totalHours: 180.0,
+            minPassingGrade: 10.0,
+          }).returning({ id: lmdUnitesEnseignement.id });
+
+          for (const sb of subjectsChunk1) {
+            await db.insert(lmdElementsConstitutifs).values({
+              ueId: ue1.id,
+              subjectId: sb.id,
+              codeEcu: sb.subjectCode || `ECU-${sb.id}`,
+              nameEcu: sb.subjectName,
+              creditsEcts: 4.5,
+              coefficient: 2,
+              hoursCm: 30,
+              hoursTd: 15,
+              hoursTp: 0,
+              hoursTpe: 30,
+              eliminatoryGrade: 7.0,
+            });
+          }
+
+          // UE Transversale S1
+          const [ue2] = await db.insert(lmdUnitesEnseignement).values({
+            programId: createdProg.id,
+            semester: "S1",
+            codeUe: `UE12-${sec.id}`,
+            nameUe: "UE Transversale & Langues 1",
+            typeUe: "Transversale",
+            creditsEcts: 12.0,
+            totalHours: 120.0,
+            minPassingGrade: 10.0,
+          }).returning({ id: lmdUnitesEnseignement.id });
+
+          for (const sb of (subjectsChunk2.length > 0 ? subjectsChunk2 : subjectsChunk1.slice(0, 2))) {
+            await db.insert(lmdElementsConstitutifs).values({
+              ueId: ue2.id,
+              subjectId: sb.id,
+              codeEcu: sb.subjectCode || `ECU-TR-${sb.id}`,
+              nameEcu: sb.subjectName,
+              creditsEcts: 6.0,
+              coefficient: 1,
+              hoursCm: 20,
+              hoursTd: 10,
+              hoursTp: 0,
+              hoursTpe: 20,
+              eliminatoryGrade: 7.0,
+            });
+          }
+        }
+      }
+    }
+
+    revalidatePath("/dashboard/academics/lmd");
+    revalidatePath("/dashboard/academics/lmd/maquette");
+    revalidatePath("/dashboard/academics/lmd/deliberation");
+
+    return {
+      success: true,
+      message: `Synchronisation réussie : ${createdProgramsCount} filière(s) initialisée(s) à partir de vos paramètres réels.`,
+    };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
 
 // ─── 1. FACULTÉS / ÉCOLES / UFR ──────────────────────────────────────────────
 export async function getFaculties(schoolId: number = 1) {
   try {
-    const list = await readDb.query.universityFaculties.findMany({
+    let list = await readDb.query.universityFaculties.findMany({
       where: eq(universityFaculties.schoolId, schoolId),
       with: {
         dean: true,
@@ -35,6 +223,25 @@ export async function getFaculties(schoolId: number = 1) {
       },
       orderBy: [asc(universityFaculties.name)],
     });
+
+    // Si aucune faculté n'existe, synchroniser automatiquement
+    if (list.length === 0) {
+      await syncAcademicSettingsToLmd(schoolId);
+      list = await readDb.query.universityFaculties.findMany({
+        where: eq(universityFaculties.schoolId, schoolId),
+        with: {
+          dean: true,
+          departments: {
+            with: {
+              head: true,
+              programs: true,
+            }
+          }
+        },
+        orderBy: [asc(universityFaculties.name)],
+      });
+    }
+
     return { success: true, data: list };
   } catch (error: any) {
     return { success: false, error: error.message };
@@ -129,7 +336,7 @@ export async function deleteDepartment(id: number) {
 // ─── 3. FILIÈRES ET PARCOURS LMD ─────────────────────────────────────────────
 export async function getUniversityPrograms(schoolId: number = 1) {
   try {
-    const list = await readDb.query.universityPrograms.findMany({
+    let list = await readDb.query.universityPrograms.findMany({
       where: eq(universityPrograms.schoolId, schoolId),
       with: {
         department: {
@@ -137,6 +344,7 @@ export async function getUniversityPrograms(schoolId: number = 1) {
             faculty: true,
           }
         },
+        section: true,
         unitesEnseignement: {
           with: {
             elementsConstitutifs: {
@@ -150,6 +358,34 @@ export async function getUniversityPrograms(schoolId: number = 1) {
       },
       orderBy: [asc(universityPrograms.name)],
     });
+
+    // Si aucune filière n'est configurée, synchroniser avec les sections réelles
+    if (list.length === 0) {
+      await syncAcademicSettingsToLmd(schoolId);
+      list = await readDb.query.universityPrograms.findMany({
+        where: eq(universityPrograms.schoolId, schoolId),
+        with: {
+          department: {
+            with: {
+              faculty: true,
+            }
+          },
+          section: true,
+          unitesEnseignement: {
+            with: {
+              elementsConstitutifs: {
+                with: {
+                  teacher: true,
+                  subject: true,
+                }
+              }
+            }
+          }
+        },
+        orderBy: [asc(universityPrograms.name)],
+      });
+    }
+
     return { success: true, data: list };
   } catch (error: any) {
     return { success: false, error: error.message };
@@ -160,6 +396,7 @@ export async function saveUniversityProgram(data: {
   id?: number;
   schoolId: number;
   departmentId: number;
+  sectionId?: number;
   name: string;
   code?: string;
   degreeLevel: string;
@@ -171,6 +408,7 @@ export async function saveUniversityProgram(data: {
     if (data.id) {
       await db.update(universityPrograms).set({
         departmentId: data.departmentId,
+        sectionId: data.sectionId || null,
         name: data.name,
         code: data.code,
         degreeLevel: data.degreeLevel,
@@ -182,6 +420,7 @@ export async function saveUniversityProgram(data: {
       await db.insert(universityPrograms).values({
         schoolId: data.schoolId,
         departmentId: data.departmentId,
+        sectionId: data.sectionId || null,
         name: data.name,
         code: data.code,
         degreeLevel: data.degreeLevel,
@@ -191,6 +430,8 @@ export async function saveUniversityProgram(data: {
       });
     }
     revalidatePath("/dashboard/academics/lmd");
+    revalidatePath("/dashboard/academics/lmd/maquette");
+    revalidatePath("/dashboard/academics/lmd/deliberation");
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };
@@ -201,6 +442,8 @@ export async function deleteUniversityProgram(id: number) {
   try {
     await db.delete(universityPrograms).where(eq(universityPrograms.id, id));
     revalidatePath("/dashboard/academics/lmd");
+    revalidatePath("/dashboard/academics/lmd/maquette");
+    revalidatePath("/dashboard/academics/lmd/deliberation");
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };
@@ -208,34 +451,34 @@ export async function deleteUniversityProgram(id: number) {
 }
 
 // ─── 4. MAQUETTE PÉDAGOGIQUE (UE & ECU) ───────────────────────────────────────
-export async function getMaquettePedagogique(programId: number, semester?: string) {
+export async function getMaquettePedagogique(programId: number, semester: string) {
   try {
-    const whereClause = semester
-      ? and(eq(lmdUnitesEnseignement.programId, programId), eq(lmdUnitesEnseignement.semester, semester))
-      : eq(lmdUnitesEnseignement.programId, programId);
-
     const ues = await readDb.query.lmdUnitesEnseignement.findMany({
-      where: whereClause,
+      where: and(
+        eq(lmdUnitesEnseignement.programId, programId),
+        eq(lmdUnitesEnseignement.semester, semester)
+      ),
       with: {
         elementsConstitutifs: {
           with: {
-            subject: true,
             teacher: true,
-          },
-          orderBy: [asc(lmdElementsConstitutifs.nameEcu)],
+            subject: true,
+          }
         }
       },
       orderBy: [asc(lmdUnitesEnseignement.codeUe)],
     });
 
-    const totalCredits = ues.reduce((sum, ue) => sum + Number(ue.creditsEcts || 0), 0);
+    const totalCredits = ues.reduce((acc, ue) => acc + (Number(ue.creditsEcts) || 0), 0);
+    const totalHours = ues.reduce((acc, ue) => acc + (Number(ue.totalHours) || 0), 0);
 
     return {
       success: true,
       data: {
         ues,
         totalCredits,
-        isCompliant30Credits: totalCredits === 30,
+        totalHours,
+        isCompliant30Credits: totalCredits === 30.0,
       }
     };
   } catch (error: any) {
@@ -249,7 +492,7 @@ export async function saveUniteEnseignement(data: {
   semester: string;
   codeUe: string;
   nameUe: string;
-  typeUe?: "Fondamentale" | "Méthodologique" | "Transversale" | "Optionnelle";
+  typeUe: string;
   creditsEcts: number;
   totalHours?: number;
   minPassingGrade?: number;
@@ -258,12 +501,11 @@ export async function saveUniteEnseignement(data: {
   try {
     if (data.id) {
       await db.update(lmdUnitesEnseignement).set({
-        semester: data.semester,
         codeUe: data.codeUe,
         nameUe: data.nameUe,
-        typeUe: data.typeUe || "Fondamentale",
+        typeUe: data.typeUe,
         creditsEcts: data.creditsEcts,
-        totalHours: data.totalHours || 60.0,
+        totalHours: data.totalHours,
         minPassingGrade: data.minPassingGrade || 10.0,
         isEliminatory: data.isEliminatory || false,
       }).where(eq(lmdUnitesEnseignement.id, data.id));
@@ -273,14 +515,15 @@ export async function saveUniteEnseignement(data: {
         semester: data.semester,
         codeUe: data.codeUe,
         nameUe: data.nameUe,
-        typeUe: data.typeUe || "Fondamentale",
+        typeUe: data.typeUe,
         creditsEcts: data.creditsEcts,
-        totalHours: data.totalHours || 60.0,
+        totalHours: data.totalHours || 60,
         minPassingGrade: data.minPassingGrade || 10.0,
         isEliminatory: data.isEliminatory || false,
       });
     }
-    revalidatePath("/dashboard/academics/lmd");
+    revalidatePath("/dashboard/academics/lmd/maquette");
+    revalidatePath("/dashboard/academics/lmd/deliberation");
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };
@@ -290,7 +533,8 @@ export async function saveUniteEnseignement(data: {
 export async function deleteUniteEnseignement(id: number) {
   try {
     await db.delete(lmdUnitesEnseignement).where(eq(lmdUnitesEnseignement.id, id));
-    revalidatePath("/dashboard/academics/lmd");
+    revalidatePath("/dashboard/academics/lmd/maquette");
+    revalidatePath("/dashboard/academics/lmd/deliberation");
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };
@@ -318,14 +562,14 @@ export async function saveElementConstitutif(data: {
         subjectId: data.subjectId,
         codeEcu: data.codeEcu,
         nameEcu: data.nameEcu,
-        creditsEcts: data.creditsEcts || 3.0,
-        coefficient: data.coefficient || 1,
-        hoursCm: data.hoursCm || 24.0,
-        hoursTd: data.hoursTd || 12.0,
-        hoursTp: data.hoursTp || 0.0,
-        hoursTpe: data.hoursTpe || 24.0,
+        creditsEcts: data.creditsEcts,
+        coefficient: data.coefficient,
+        hoursCm: data.hoursCm,
+        hoursTd: data.hoursTd,
+        hoursTp: data.hoursTp,
+        hoursTpe: data.hoursTpe,
         teacherEmployeeId: data.teacherEmployeeId,
-        eliminatoryGrade: data.eliminatoryGrade || 7.0,
+        eliminatoryGrade: data.eliminatoryGrade,
       }).where(eq(lmdElementsConstitutifs.id, data.id));
     } else {
       await db.insert(lmdElementsConstitutifs).values({
@@ -335,15 +579,16 @@ export async function saveElementConstitutif(data: {
         nameEcu: data.nameEcu,
         creditsEcts: data.creditsEcts || 3.0,
         coefficient: data.coefficient || 1,
-        hoursCm: data.hoursCm || 24.0,
-        hoursTd: data.hoursTd || 12.0,
-        hoursTp: data.hoursTp || 0.0,
-        hoursTpe: data.hoursTpe || 24.0,
+        hoursCm: data.hoursCm || 24,
+        hoursTd: data.hoursTd || 12,
+        hoursTp: data.hoursTp || 0,
+        hoursTpe: data.hoursTpe || 24,
         teacherEmployeeId: data.teacherEmployeeId,
         eliminatoryGrade: data.eliminatoryGrade || 7.0,
       });
     }
-    revalidatePath("/dashboard/academics/lmd");
+    revalidatePath("/dashboard/academics/lmd/maquette");
+    revalidatePath("/dashboard/academics/lmd/deliberation");
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };
@@ -353,7 +598,8 @@ export async function saveElementConstitutif(data: {
 export async function deleteElementConstitutif(id: number) {
   try {
     await db.delete(lmdElementsConstitutifs).where(eq(lmdElementsConstitutifs.id, id));
-    revalidatePath("/dashboard/academics/lmd");
+    revalidatePath("/dashboard/academics/lmd/maquette");
+    revalidatePath("/dashboard/academics/lmd/deliberation");
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };
@@ -368,8 +614,8 @@ export async function getLmdDeliberationCohort(
   sessionId: number
 ) {
   try {
-    // 1. Fetch Maquette UEs and ECUs
-    const ues = await readDb.query.lmdUnitesEnseignement.findMany({
+    // 1. Récupérer les UEs et ECUs configurés pour ce programme et semestre
+    let ues = await readDb.query.lmdUnitesEnseignement.findMany({
       where: and(
         eq(lmdUnitesEnseignement.programId, programId),
         eq(lmdUnitesEnseignement.semester, semester)
@@ -379,17 +625,68 @@ export async function getLmdDeliberationCohort(
       }
     });
 
-    // 2. Fetch Students of the Class
+    // Fallback dynamique si aucune UE n'est encore configurée pour ce semestre précis :
+    // On mappe directement les matières affectées à la classe (class_subjects)
+    if (ues.length === 0) {
+      const clsSubjects = await readDb.query.classSubjects.findMany({
+        where: eq(classSubjects.classId, classId),
+        with: {
+          subject: true,
+        }
+      });
+
+      if (clsSubjects.length > 0) {
+        const autoEcus: any[] = clsSubjects.map((cs, idx) => ({
+          id: cs.id,
+          subjectId: cs.subjectId,
+          codeEcu: cs.subject?.subjectCode || `ECU-${idx + 1}`,
+          nameEcu: cs.subject?.subjectName || `Matière ${idx + 1}`,
+          coefficient: cs.coefficient || 1,
+          creditsEcts: cs.credits || (30.0 / Math.max(1, clsSubjects.length)),
+          eliminatoryGrade: 7.0,
+        }));
+
+        ues = [
+          {
+            id: 999991,
+            programId,
+            semester,
+            codeUe: `UE-AUTO-${semester}`,
+            nameUe: `UE Unifiée du Semestre (${semester})`,
+            typeUe: "Fondamentale",
+            creditsEcts: 30.0,
+            totalHours: 300.0,
+            minPassingGrade: 10.0,
+            isEliminatory: false,
+            elementsConstitutifs: autoEcus,
+          } as any
+        ];
+      }
+    }
+
+    // 2. Récupérer les Étudiants inscrits dans cette classe
     const enrolledStudents = await readDb.query.students.findMany({
       where: eq(students.classId, classId),
       orderBy: [asc(students.nomEtudiant)],
     });
 
-    // 3. Fetch Grades of Students for this Session & Term
+    // 3. Récupérer les notes réelles enregistrées (student_results)
+    const semNumMatch = semester.match(/\d+/);
+    const semNum = semNumMatch ? semNumMatch[0] : "1";
+
     const results = await readDb.query.studentResults.findMany({
       where: and(
         eq(studentResults.classId, classId),
-        eq(studentResults.sessionId, sessionId)
+        eq(studentResults.sessionId, sessionId),
+        or(
+          eq(studentResults.term, semester),
+          eq(studentResults.term, `Semestre ${semNum}`),
+          eq(studentResults.term, `${semNum}er Semestre`),
+          eq(studentResults.term, `${semNum}ème Semestre`),
+          eq(studentResults.term, `S${semNum}`),
+          ilike(studentResults.term, `%${semester}%`),
+          ilike(studentResults.term, `%Semestre ${semNum}%`)
+        )
       )
     });
 
@@ -398,7 +695,7 @@ export async function getLmdDeliberationCohort(
       resultMap.set(`${r.studentId}_${r.subjectId}`, r);
     }
 
-    // 4. Compute LMD Deliberation for each student
+    // 4. Calculer la délibération LMD pour chaque étudiant
     const cohortDeliberation = enrolledStudents.map((st) => {
       const studentUeInputs: UeInput[] = ues.map((ue) => {
         const ecus: EcuInput[] = ue.elementsConstitutifs.map((ecu) => {
@@ -441,7 +738,7 @@ export async function getLmdDeliberationCohort(
       };
     });
 
-    // Rank cohort by semester average
+    // 5. Classement de la cohorte selon la moyenne semestrielle
     cohortDeliberation.sort((a, b) => b.deliberation.semesterAverage - a.deliberation.semesterAverage);
 
     const cohortWithRank = cohortDeliberation.map((c, index) => ({
@@ -449,16 +746,18 @@ export async function getLmdDeliberationCohort(
       rank: index + 1,
     }));
 
+    const passedCount = cohortWithRank.filter((c) => c.deliberation.isSemesterValidated).length;
+    const totalStudents = cohortWithRank.length;
+    const successRate = totalStudents > 0 ? (passedCount / totalStudents) * 100 : 0;
+
     return {
       success: true,
       data: {
         ues,
         cohort: cohortWithRank,
-        totalStudents: cohortWithRank.length,
-        passedCount: cohortWithRank.filter(c => c.deliberation.isSemesterValidated).length,
-        successRate: cohortWithRank.length > 0
-          ? Number(((cohortWithRank.filter(c => c.deliberation.isSemesterValidated).length / cohortWithRank.length) * 100).toFixed(1))
-          : 0,
+        totalStudents,
+        passedCount,
+        successRate: Number(successRate.toFixed(2)),
       }
     };
   } catch (error: any) {
@@ -466,85 +765,97 @@ export async function getLmdDeliberationCohort(
   }
 }
 
-export async function saveLmdDeliberation(payload: {
+// ─── 6. CLÔTURE ET ENREGISTREMENT DE LA DÉLIBÉRATION OFFICIELLE ──────────────
+export async function saveLmdDeliberation(data: {
   programId: number;
   classId: number;
   semester: string;
   sessionId: number;
   cohort: any[];
-  academicYear?: string;
 }) {
   try {
-    const { programId, classId, semester, sessionId, cohort, academicYear } = payload;
+    for (const item of data.cohort) {
+      const studentId = item.student.id;
+      const delib = item.deliberation;
 
-    await Promise.all(
-      cohort.map(async (row) => {
-        const studentId = row.student.id;
-        const delib = row.deliberation;
-
-        // 1. Save or update Semester Summary
-        const existingSem = await readDb.query.studentLmdSemesters.findFirst({
-          where: and(
-            eq(studentLmdSemesters.studentId, studentId),
-            eq(studentLmdSemesters.semester, semester),
-            eq(studentLmdSemesters.sessionId, sessionId)
-          )
-        });
-
-        const semValues = {
-          studentId,
-          programId,
-          classId,
-          semester,
-          sessionId,
-          semesterAverage: delib.semesterAverage,
-          creditsAcquired: delib.creditsAcquired,
-          decision: delib.decision,
-          rank: `${row.rank}ème`,
-          mention: delib.mention,
-          sessionType: "Normale",
-          validatedAt: new Date(),
-        };
-
-        if (existingSem) {
-          await db.update(studentLmdSemesters).set(semValues).where(eq(studentLmdSemesters.id, existingSem.id));
-        } else {
-          await db.insert(studentLmdSemesters).values(semValues);
-        }
-
-        // 2. Save or update UE Results
-        for (const ueRes of delib.ueResults) {
-          const existingUe = await readDb.query.studentLmdUeResults.findFirst({
+      // 1. Sauvegarder les résultats par UE
+      for (const ue of delib.ueResults) {
+        if (ue.ueId && ue.ueId < 900000) {
+          const existing = await readDb.query.studentLmdUeResults.findFirst({
             where: and(
               eq(studentLmdUeResults.studentId, studentId),
-              eq(studentLmdUeResults.ueId, ueRes.id),
-              eq(studentLmdUeResults.sessionId, sessionId)
+              eq(studentLmdUeResults.ueId, ue.ueId),
+              eq(studentLmdUeResults.sessionId, data.sessionId),
+              eq(studentLmdUeResults.semester, data.semester)
             )
           });
 
-          const ueValues = {
-            studentId,
-            ueId: ueRes.id,
-            sessionId,
-            semester,
-            rawAverage: ueRes.average,
-            validatedStatus: ueRes.status,
-            creditsAcquired: ueRes.creditsAcquired,
-            sessionAcquisition: "Normale",
-            academicYear: academicYear || new Date().getFullYear().toString(),
-          };
-
-          if (existingUe) {
-            await db.update(studentLmdUeResults).set(ueValues).where(eq(studentLmdUeResults.id, existingUe.id));
+          if (existing) {
+            await db.update(studentLmdUeResults).set({
+              rawAverage: ue.average,
+              validatedStatus: ue.status,
+              creditsAcquired: ue.creditsAcquired,
+              updatedAt: new Date(),
+            }).where(eq(studentLmdUeResults.id, existing.id));
           } else {
-            await db.insert(studentLmdUeResults).values(ueValues);
+            await db.insert(studentLmdUeResults).values({
+              studentId,
+              ueId: ue.ueId,
+              sessionId: data.sessionId,
+              semester: data.semester,
+              rawAverage: ue.average,
+              validatedStatus: ue.status,
+              creditsAcquired: ue.creditsAcquired,
+            });
           }
         }
-      })
-    );
+      }
+
+      // 2. Sauvegarder le bilan semestriel officiel
+      const existingSem = await readDb.query.studentLmdSemesters.findFirst({
+        where: and(
+          eq(studentLmdSemesters.studentId, studentId),
+          eq(studentLmdSemesters.semester, data.semester),
+          eq(studentLmdSemesters.sessionId, data.sessionId)
+        )
+      });
+
+      if (existingSem) {
+        await db.update(studentLmdSemesters).set({
+          programId: data.programId,
+          classId: data.classId,
+          semesterAverage: delib.semesterAverage,
+          creditsAcquired: delib.creditsAcquired,
+          decision: delib.decision,
+          mention: delib.mention,
+          rank: `${item.rank}e`,
+          validatedAt: new Date(),
+          updatedAt: new Date(),
+        }).where(eq(studentLmdSemesters.id, existingSem.id));
+      } else {
+        await db.insert(studentLmdSemesters).values({
+          studentId,
+          programId: data.programId,
+          classId: data.classId,
+          semester: data.semester,
+          sessionId: data.sessionId,
+          semesterAverage: delib.semesterAverage,
+          creditsAcquired: delib.creditsAcquired,
+          decision: delib.decision,
+          mention: delib.mention,
+          rank: `${item.rank}e`,
+          validatedAt: new Date(),
+        });
+      }
+    }
 
     revalidatePath("/dashboard/academics/lmd");
-    return { success: true };
+    revalidatePath("/dashboard/academics/lmd/deliberation");
+
+    return {
+      success: true,
+      message: `Délibération du ${data.semester} enregistrée et clôturée avec succès pour ${data.cohort.length} étudiant(s).`,
+    };
   } catch (error: any) {
     return { success: false, error: error.message };
   }

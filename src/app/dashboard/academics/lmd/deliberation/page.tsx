@@ -1,7 +1,7 @@
 import React from "react";
 import { getUniversityPrograms } from "@/domains/academics/actions/lmd.actions";
 import { readDb } from "@/infrastructure/database";
-import { schoolClasses, schoolSessions } from "@/infrastructure/database/schema/academics";
+import { schoolClasses, schoolSessions, academicPeriods } from "@/infrastructure/database/schema/academics";
 import { eq, asc, desc } from "drizzle-orm";
 import DeliberationClient from "./deliberation-client";
 
@@ -24,11 +24,17 @@ export default async function UniversityDeliberationPage() {
     orderBy: [desc(schoolSessions.startDate)],
   });
 
+  const periods = await readDb.query.academicPeriods.findMany({
+    where: eq(academicPeriods.schoolId, 1),
+    orderBy: [asc(academicPeriods.startDate)],
+  });
+
   return (
     <DeliberationClient
       initialPrograms={programs}
       classes={classes}
       sessions={sessions}
+      periods={periods}
     />
   );
 }

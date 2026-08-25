@@ -711,7 +711,7 @@ export default function MaquetteClient({
                   <option value="">Sélectionner un enseignant...</option>
                   {teachers.map((t) => (
                     <option key={t.id} value={t.id}>
-                      {t.firstName} {t.lastName} ({t.jobTitle || "Enseignant"})
+                      {t.nom} ({t.poste || "Enseignant"})
                     </option>
                   ))}
                 </select>
