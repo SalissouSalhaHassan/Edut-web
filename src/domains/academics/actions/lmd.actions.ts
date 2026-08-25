@@ -1,6 +1,7 @@
 "use server";
 
 import { db, readDb } from "@/infrastructure/database";
+import { getActiveSchoolId } from "@/domains/auth/services/school";
 import {
   universityFaculties,
   universityDepartments,
@@ -33,7 +34,8 @@ import { deliberateSemester, UeInput, EcuInput } from "../utils/lmd-engine";
  * - Périodes & Semestres (academic_periods)
  * et initialise ou synchronise la cartographie LMD sans doublons.
  */
-export async function syncAcademicSettingsToLmd(schoolId: number = 1) {
+export async function syncAcademicSettingsToLmd(inputSchoolId?: number) {
+  const schoolId: number = inputSchoolId || await getActiveSchoolId();
   try {
     // 1. Récupérer les données réelles configurées
     const [realSections, realClasses, realSessions, realSubjects, existingFaculties, existingPrograms] = await Promise.all([
@@ -208,7 +210,8 @@ export async function syncAcademicSettingsToLmd(schoolId: number = 1) {
 }
 
 // ─── 1. FACULTÉS / ÉCOLES / UFR ──────────────────────────────────────────────
-export async function getFaculties(schoolId: number = 1) {
+export async function getFaculties(inputSchoolId?: number) {
+  const schoolId: number = inputSchoolId || await getActiveSchoolId();
   try {
     let list = await readDb.query.universityFaculties.findMany({
       where: eq(universityFaculties.schoolId, schoolId),
@@ -334,7 +337,8 @@ export async function deleteDepartment(id: number) {
 }
 
 // ─── 3. FILIÈRES ET PARCOURS LMD ─────────────────────────────────────────────
-export async function getUniversityPrograms(schoolId: number = 1) {
+export async function getUniversityPrograms(inputSchoolId?: number) {
+  const schoolId: number = inputSchoolId || await getActiveSchoolId();
   try {
     let list = await readDb.query.universityPrograms.findMany({
       where: eq(universityPrograms.schoolId, schoolId),
@@ -674,6 +678,9 @@ export async function getLmdDeliberationCohort(
     const semNumMatch = semester.match(/\d+/);
     const semNum = semNumMatch ? semNumMatch[0] : "1";
 
+    // Build comprehensive term aliases covering all known real formats:
+    // S1, Semestre 1, 1er Semestre, 1ère Semestre, 1er Semestre (S1), 2ème Semestre (S2), etc.
+    const semNumSuffix = semNum === "1" ? "er" : "ème";
     const results = await readDb.query.studentResults.findMany({
       where: and(
         eq(studentResults.classId, classId),
@@ -683,9 +690,15 @@ export async function getLmdDeliberationCohort(
           eq(studentResults.term, `Semestre ${semNum}`),
           eq(studentResults.term, `${semNum}er Semestre`),
           eq(studentResults.term, `${semNum}ème Semestre`),
+          eq(studentResults.term, `${semNum}ère Semestre`),
+          eq(studentResults.term, `${semNum}${semNumSuffix} Semestre`),
+          eq(studentResults.term, `${semNum}${semNumSuffix} Semestre (S${semNum})`),
           eq(studentResults.term, `S${semNum}`),
-          ilike(studentResults.term, `%${semester}%`),
-          ilike(studentResults.term, `%Semestre ${semNum}%`)
+          ilike(studentResults.term, `%S${semNum}%`),
+          ilike(studentResults.term, `%Semestre ${semNum}%`),
+          ilike(studentResults.term, `%${semNum}er Semestre%`),
+          ilike(studentResults.term, `%${semNum}ème Semestre%`),
+          ilike(studentResults.term, `%${semNum}ère Semestre%`)
         )
       )
     });
