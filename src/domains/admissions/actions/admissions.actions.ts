@@ -90,27 +90,36 @@ export async function getPublicSchoolInfoForAdmissionsAction(schoolSlugOrId?: st
 
 // ─── 2. Public Application Tracker ────────────────────────────────────────────
 
+function matchPhoneDigits(dbPhone?: string | null, inputPhone?: string | null): boolean {
+  if (!dbPhone || !inputPhone) return false;
+  const dbDigits = dbPhone.replace(/\D/g, "");
+  const inputDigits = inputPhone.replace(/\D/g, "");
+  if (!dbDigits || !inputDigits) return false;
+
+  if (dbDigits === inputDigits) return true;
+  if (dbDigits.endsWith(inputDigits) || inputDigits.endsWith(dbDigits)) return true;
+  if (dbDigits.includes(inputDigits) || inputDigits.includes(dbDigits)) return true;
+
+  // Last 8 digits match (standard phone number without international country code)
+  const last8Db = dbDigits.slice(-8);
+  const last8Input = inputDigits.slice(-8);
+  return last8Db.length >= 6 && last8Db === last8Input;
+}
+
 export async function getPublicApplicationStatusAction(params: {
   applicationNumber: string;
   phone: string;
 }) {
   try {
     const cleanAppNumber = params.applicationNumber?.trim().toUpperCase();
-    const cleanPhone = params.phone?.trim().replace(/\s+/g, "");
+    const rawPhone = params.phone?.trim();
 
-    if (!cleanAppNumber || !cleanPhone) {
+    if (!cleanAppNumber || !rawPhone) {
       return { error: "Veuillez fournir le numéro de dossier et votre numéro de téléphone." };
     }
 
     const application = await readDb.query.admissionApplications.findFirst({
-      where: and(
-        eq(admissionApplications.applicationNumber, cleanAppNumber),
-        or(
-          ilike(admissionApplications.parentPhone, `%${cleanPhone}%`),
-          ilike(admissionApplications.candidatePhone, `%${cleanPhone}%`),
-          ilike(admissionApplications.parentWhatsapp, `%${cleanPhone}%`)
-        )
-      ),
+      where: eq(admissionApplications.applicationNumber, cleanAppNumber),
       with: {
         school: true,
         admittedStudent: true,
@@ -119,7 +128,21 @@ export async function getPublicApplicationStatusAction(params: {
 
     if (!application) {
       return {
-        error: "Aucun dossier trouvé pour ces identifiants. Vérifiez le numéro de dossier (ex: ADM-2026-0012) et votre numéro de téléphone.",
+        error: "Aucun dossier trouvé avec ce numéro. Vérifiez le numéro de dossier (ex: UNIV-2026-001-XXXX ou ADM-2026-001-XXXX).",
+      };
+    }
+
+    // Verify Phone matches candidate or parent
+    const isPhoneValid = (
+      matchPhoneDigits(application.parentPhone, rawPhone) ||
+      matchPhoneDigits(application.candidatePhone, rawPhone) ||
+      matchPhoneDigits(application.parentWhatsapp, rawPhone) ||
+      matchPhoneDigits(application.candidateWhatsapp, rawPhone)
+    );
+
+    if (!isPhoneValid) {
+      return {
+        error: "Le numéro de téléphone ne correspond pas à ce dossier. Veuillez saisir le numéro utilisé lors de l'inscription.",
       };
     }
 
@@ -130,14 +153,27 @@ export async function getPublicApplicationStatusAction(params: {
         applicationNumber: application.applicationNumber,
         studentFirstName: application.studentFirstName,
         studentLastName: application.studentLastName,
+        photoUrl: application.photoUrl,
         dateOfBirth: application.dateOfBirth,
+        placeOfBirth: application.placeOfBirth,
+        nationality: application.nationality,
         gender: application.gender,
         educationLevel: application.educationLevel || "Université / Supérieur",
         faculty: application.faculty,
         department: application.department,
-        degreeProgram: application.degreeProgram,
+        degreeProgram: application.degreeProgram || application.targetClass,
         degreeLevel: application.degreeLevel,
         studyMode: application.studyMode,
+        academicYear: application.academicYear,
+        bacSeries: application.bacSeries,
+        bacYear: application.bacYear,
+        bacMention: application.bacMention,
+        bacRollNumber: application.bacRollNumber,
+        candidatePhone: application.candidatePhone,
+        candidateEmail: application.candidateEmail,
+        parentName: application.parentName,
+        parentPhone: application.parentPhone,
+        parentRelation: application.parentRelation,
         targetClass: application.targetClass,
         status: application.status,
         admissionScore: application.admissionScore,

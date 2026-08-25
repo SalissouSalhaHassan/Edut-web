@@ -177,19 +177,32 @@ function StatusTrackingContent() {
             
             {/* Header / Identity Banner */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-800">
-              <div className="space-y-1">
-                <span className="text-[11px] font-mono font-bold text-slate-400 uppercase tracking-wider block">
-                  Établissement : <strong className="text-white">{result.schoolName}</strong>
-                </span>
-                <h3 className="text-2xl font-black text-white">{result.studentFirstName} {result.studentLastName}</h3>
-                <p className="text-xs text-emerald-400 font-semibold">
-                  {result.faculty ? `${result.faculty} • ` : ""}<span className="font-bold text-white">{result.degreeProgram || result.targetClass}</span>
-                </p>
-                {result.degreeLevel && (
-                  <p className="text-[11px] text-slate-400">
-                    Cycle : <strong className="text-slate-200">{result.degreeLevel}</strong> • Régime : <strong className="text-slate-200">{result.studyMode || "Présentiel"}</strong>
-                  </p>
+              <div className="flex items-center gap-4">
+                {result.photoUrl ? (
+                  <img
+                    src={result.photoUrl}
+                    alt={result.studentLastName}
+                    className="size-20 rounded-2xl object-cover border-2 border-emerald-500/40 shadow-md shadow-emerald-500/20 shrink-0"
+                  />
+                ) : (
+                  <div className="size-20 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-700 text-slate-950 flex flex-col items-center justify-center font-black text-xl shadow-md shrink-0">
+                    <User className="size-8 text-white" />
+                  </div>
                 )}
+                <div className="space-y-1">
+                  <span className="text-[11px] font-mono font-bold text-slate-400 uppercase tracking-wider block">
+                    Établissement : <strong className="text-white">{result.schoolName}</strong>
+                  </span>
+                  <h3 className="text-2xl font-black text-white">{result.studentFirstName} {result.studentLastName}</h3>
+                  <p className="text-xs text-emerald-400 font-semibold">
+                    {result.faculty ? `${result.faculty} • ` : ""}<span className="font-bold text-white">{result.degreeProgram || result.targetClass}</span>
+                  </p>
+                  {result.degreeLevel && (
+                    <p className="text-[11px] text-slate-400">
+                      Cycle : <strong className="text-slate-200">{result.degreeLevel}</strong> • Régime : <strong className="text-slate-200">{result.studyMode || "Présentiel"}</strong>
+                    </p>
+                  )}
+                </div>
               </div>
 
               {/* Status Badge */}
