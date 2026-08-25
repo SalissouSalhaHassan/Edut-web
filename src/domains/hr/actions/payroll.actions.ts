@@ -2,9 +2,10 @@
 
 import { db } from "@/infrastructure/database";
 import { employees, salaryRecords, payrollRules, employeeAttendance } from "@/infrastructure/database/schema/hr";
-import { eq, desc, and, sql, sum } from "drizzle-orm";
+import { eq, desc, and, or, isNull, sql, sum, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { protectedDbAction } from "@/lib/protected-action";
+import { getActiveSchoolId } from "@/domains/auth/services/school";
 
 // ── Payroll Rules ─────────────────────────────────────────────────────
 export async function getPayrollRules() {
@@ -37,24 +38,49 @@ export async function savePayrollRules(data: {
 
 // ── Dashboard Stats ───────────────────────────────────────────────────
 export async function getPayrollDashboard() {
-  return protectedDbAction("HR", "canView", async () => {
+  return protectedDbAction("HR", "canView", async (user) => {
+    const schoolId = user?.schoolId || (await getActiveSchoolId()) || 1;
     const now = new Date();
     const months = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
     const currentMonthYear = `${months[now.getMonth()]} ${now.getFullYear()}`;
 
+    const schoolEmpWhere = or(eq(employees.schoolId, schoolId), isNull(employees.schoolId));
+
+    // Get school employee IDs to scope salary records
+    const schoolEmployees = await db.select({ id: employees.id })
+      .from(employees)
+      .where(schoolEmpWhere);
+    const empIds = schoolEmployees.map(e => e.id);
+
     const [activeEmps, paidSum, unpaidSum, recentRecords] = await Promise.all([
-      db.select({ count: sql<number>`count(*)` }).from(employees).where(eq(employees.statut, "Actif")),
-      db.select({ total: sum(salaryRecords.netSalary) })
-        .from(salaryRecords)
-        .where(and(eq(salaryRecords.monthYear, currentMonthYear), eq(salaryRecords.status, "Paid"))),
-      db.select({ total: sum(salaryRecords.netSalary) })
-        .from(salaryRecords)
-        .where(eq(salaryRecords.status, "Unpaid")),
-      db.query.salaryRecords.findMany({
-        orderBy: [desc(salaryRecords.id)],
-        limit: 10,
-        with: { employee: true },
-      }),
+      db.select({ count: sql<number>`count(*)` })
+        .from(employees)
+        .where(and(schoolEmpWhere, eq(employees.statut, "Actif"))),
+      empIds.length > 0
+        ? db.select({ total: sum(salaryRecords.netSalary) })
+            .from(salaryRecords)
+            .where(and(
+              inArray(salaryRecords.employeeId, empIds),
+              eq(salaryRecords.monthYear, currentMonthYear),
+              eq(salaryRecords.status, "Paid")
+            ))
+        : Promise.resolve([{ total: 0 }]),
+      empIds.length > 0
+        ? db.select({ total: sum(salaryRecords.netSalary) })
+            .from(salaryRecords)
+            .where(and(
+              inArray(salaryRecords.employeeId, empIds),
+              eq(salaryRecords.status, "Unpaid")
+            ))
+        : Promise.resolve([{ total: 0 }]),
+      empIds.length > 0
+        ? db.query.salaryRecords.findMany({
+            where: inArray(salaryRecords.employeeId, empIds),
+            orderBy: [desc(salaryRecords.id)],
+            limit: 10,
+            with: { employee: true },
+          })
+        : Promise.resolve([]),
     ]);
 
     return {

@@ -79,12 +79,22 @@ export default function HrClient({
   deleteEmployeeAction: (id: number) => Promise<any>;
 }) {
   const [tab, setTab] = useState("employees");
+  const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [deptFilter, setDeptFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [page, setPage] = useState(1);
   const itemsPerPage = 8;
+
+  // 250ms search debounce
+  React.useEffect(() => {
+    const handler = setTimeout(() => {
+      setSearch(searchInput);
+      setPage(1);
+    }, 250);
+    return () => clearTimeout(handler);
+  }, [searchInput]);
 
   const [isPending, startTransition] = useTransition();
 
@@ -140,38 +150,53 @@ export default function HrClient({
     toast.info("Congé refusé.");
   };
 
-  // Filter Employees
-  const departmentsList = Array.from(new Set(allEmployees.map(e => e.departement).filter(Boolean)));
+  // Memoized Filter Employees
+  const departmentsList = React.useMemo(() => {
+    return Array.from(new Set(allEmployees.map(e => e.departement).filter(Boolean)));
+  }, [allEmployees]);
 
-  const filteredEmployees = allEmployees.filter((e: any) => {
-    const matchesSearch =
-      (e.nom || "").toLowerCase().includes(search.toLowerCase()) ||
-      (e.empId && e.empId.toLowerCase().includes(search.toLowerCase())) ||
-      (e.poste && e.poste.toLowerCase().includes(search.toLowerCase())) ||
-      (e.fonction && e.fonction.toLowerCase().includes(search.toLowerCase()));
+  const filteredEmployees = React.useMemo(() => {
+    const searchLower = search.trim().toLowerCase();
+    return allEmployees.filter((e: any) => {
+      const matchesSearch =
+        !searchLower ||
+        (e.nom || "").toLowerCase().includes(searchLower) ||
+        (e.empId && e.empId.toLowerCase().includes(searchLower)) ||
+        (e.poste && e.poste.toLowerCase().includes(searchLower)) ||
+        (e.fonction && e.fonction.toLowerCase().includes(searchLower));
 
-    const matchesDept = deptFilter === "all" || e.departement === deptFilter;
-    const matchesStatus = statusFilter === "all" || (e.statut || "Actif").toUpperCase() === statusFilter.toUpperCase();
+      const matchesDept = deptFilter === "all" || e.departement === deptFilter;
+      const matchesStatus = statusFilter === "all" || (e.statut || "Actif").toUpperCase() === statusFilter.toUpperCase();
 
-    return matchesSearch && matchesDept && matchesStatus;
-  });
+      return matchesSearch && matchesDept && matchesStatus;
+    });
+  }, [allEmployees, search, deptFilter, statusFilter]);
 
   const start = (page - 1) * itemsPerPage;
   const paginatedEmployees = filteredEmployees.slice(start, start + itemsPerPage);
   const totalPages = Math.ceil(filteredEmployees.length / itemsPerPage);
 
-  // General Metrics
-  const totalEmployees = allEmployees.length;
-  const actifsCount = allEmployees.filter((e: any) => (e.statut || "Actif").toUpperCase() === "ACTIF").length;
-  const currentMonth = new Date().getMonth();
-  const currentYear = new Date().getFullYear();
-  const nouveauxCount = allEmployees.filter((e: any) => {
-    if (!e.createdAt) return false;
-    const d = new Date(e.createdAt);
-    return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
-  }).length;
+  // Memoized General Metrics
+  const { totalEmployees, actifsCount, nouveauxCount, payrollTotal } = React.useMemo(() => {
+    const total = allEmployees.length;
+    const actifs = allEmployees.filter((e: any) => (e.statut || "Actif").toUpperCase() === "ACTIF").length;
+    const currentMonth = new Date().getMonth();
+    const currentYear = new Date().getFullYear();
+    const nouveaux = allEmployees.filter((e: any) => {
+      if (!e.createdAt) return false;
+      const d = new Date(e.createdAt);
+      return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+    }).length;
+    const payroll = allEmployees.reduce((acc, e) => acc + Number(e.salaireBase || 0), 0);
 
-  const payrollTotal = allEmployees.reduce((acc, e) => acc + Number(e.salaireBase || 0), 0);
+    return {
+      totalEmployees: total,
+      actifsCount: actifs,
+      nouveauxCount: nouveaux,
+      payrollTotal: payroll,
+    };
+  }, [allEmployees]);
+
   const todayStr = new Date().toISOString().split("T")[0];
 
   return (
@@ -328,8 +353,8 @@ export default function HrClient({
             <div className="relative w-full md:w-[400px]">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" size={16} />
               <input
-                value={search}
-                onChange={e => { setSearch(e.target.value); setPage(1); }}
+                value={searchInput}
+                onChange={e => setSearchInput(e.target.value)}
                 placeholder="Rechercher par nom, matricule ou poste..."
                 className="w-full pl-11 pr-4 h-11 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-950 transition-all"
               />

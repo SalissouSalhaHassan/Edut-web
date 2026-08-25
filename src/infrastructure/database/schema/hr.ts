@@ -37,6 +37,10 @@ export const employees = pgTable("employees", {
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
   schoolIdIdx: index("employees_school_id_idx").on(table.schoolId),
+  schoolLevelIdx: index("employees_school_level_idx").on(table.schoolId, table.educationalLevel),
+  schoolDeptIdx: index("employees_school_dept_idx").on(table.schoolId, table.departement),
+  schoolStatusIdx: index("employees_school_status_idx").on(table.schoolId, table.statut),
+  schoolCreatedIdx: index("employees_school_created_idx").on(table.schoolId, table.createdAt),
   unqSchoolEmpId: unique().on(table.schoolId, table.empId),
 }));
 
@@ -49,7 +53,10 @@ export const employeeAttendance = pgTable("employee_attendance", {
   heureEntree: varchar("heure_entree", { length: 20 }),
   heureSortie: varchar("heure_sortie", { length: 20 }),
   remarques: text("remarques"),
-});
+}, (table) => ({
+  employeeIdIdx: index("employee_attendance_emp_id_idx").on(table.employeeId),
+  empDateIdx: index("employee_attendance_emp_date_idx").on(table.employeeId, table.date),
+}));
 
 export const payrollRules = pgTable("payroll_rules", {
   id: serial("id").primaryKey(),
@@ -79,7 +86,11 @@ export const salaryRecords = pgTable("salary_records", {
   paymentMode: varchar("payment_mode", { length: 50 }),
   remark: varchar("remark", { length: 200 }),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+  employeeIdIdx: index("salary_records_emp_id_idx").on(table.employeeId),
+  empMonthIdx: index("salary_records_emp_month_idx").on(table.employeeId, table.monthYear),
+  empStatusIdx: index("salary_records_emp_status_idx").on(table.employeeId, table.status),
+}));
 
 export const teacherExtraHours = pgTable("teacher_extra_hours", {
   id: serial("id").primaryKey(),
@@ -95,7 +106,10 @@ export const teacherExtraHours = pgTable("teacher_extra_hours", {
   status: varchar("status", { length: 30 }).default("En attente"), // En attente, Approuvé, Payé, Rejeté
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+  schoolEmpIdx: index("teacher_extra_hours_school_emp_idx").on(table.schoolId, table.employeeId),
+  schoolStatusIdx: index("teacher_extra_hours_school_status_idx").on(table.schoolId, table.status),
+}));
 
 export const teacherHrRequests = pgTable("teacher_hr_requests", {
   id: serial("id").primaryKey(),
@@ -111,7 +125,10 @@ export const teacherHrRequests = pgTable("teacher_hr_requests", {
   status: varchar("status", { length: 30 }).default("En attente"), // En attente, Approuvé, Rejeté
   adminComment: text("admin_comment"),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+  schoolEmpIdx: index("teacher_hr_requests_school_emp_idx").on(table.schoolId, table.employeeId),
+  schoolStatusIdx: index("teacher_hr_requests_school_status_idx").on(table.schoolId, table.status),
+}));
 
 // ── Relations ─────────────────────────────────────────────────
 export const employeesRelations = relations(employees, ({ many }) => ({
