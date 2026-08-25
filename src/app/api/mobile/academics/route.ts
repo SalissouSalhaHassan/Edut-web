@@ -5,6 +5,7 @@ import {
   schoolSessions,
   academicPeriods,
   classSubjects,
+  sectionSubjects,
   schoolClasses,
   schoolSubjects,
   studentResults,
@@ -798,7 +799,6 @@ export async function POST(request: NextRequest) {
       if (!cls || (schoolId && cls.schoolId !== schoolId)) {
         return mobileJsonError("Accès refusé.", 403);
       }
-
       const allExisting = await readDb.query.studentResults.findMany({
         where: and(
           eq(studentResults.classId, classId),
@@ -808,14 +808,54 @@ export async function POST(request: NextRequest) {
       });
 
       const existing = allExisting.filter(r => matchTerm(r.term, term));
-      const existingMap = new Map(existing.map((r) => [r.studentId, r.id]));
+      
+      // Get Class & Section info to determine educational level and subject coefficient
+      const clsInfo = await readDb.query.schoolClasses.findFirst({
+        where: eq(schoolClasses.id, classId),
+        with: { section: true }
+      });
+
+      const isHigherEd = ["Licence", "Master", "Doctorat", "Supérieur", "Université"].includes(clsInfo?.section?.educationalLevel || "");
+
+      const classSubject = await readDb.query.classSubjects.findFirst({
+        where: and(
+          eq(classSubjects.classId, classId),
+          eq(classSubjects.subjectId, subjectId)
+        )
+      });
+
+      const sectionSubject = clsInfo?.sectionId ? await readDb.query.sectionSubjects.findFirst({
+        where: and(
+          eq(sectionSubjects.sectionId, clsInfo.sectionId),
+          eq(sectionSubjects.subjectId, subjectId)
+        )
+      }) : null;
+
+      const coefficient = classSubject?.coefficient || sectionSubject?.defaultCoef || 1;
+
+      const existingMap = new Map(existing.map((r) => [r.studentId, r]));
 
       await Promise.all(
         devoirsList.map(async (row: any) => {
           const studentId = Number(row.student_id);
-          const existingId = existingMap.get(studentId);
+          const exist = existingMap.get(studentId);
           const devoirs = row.devoirs as any[];
-          const avg = Number(row.moyenne_devoirs);
+          const avg = Number(row.moyenne_devoirs) || 0;
+
+          const examScore = exist?.examScore !== null && exist?.examScore !== undefined ? Number(exist.examScore) : null;
+
+          let totalScore: number;
+          if (examScore !== null && !isNaN(examScore)) {
+            if (isHigherEd) {
+              totalScore = Number(((avg * 0.4) + (examScore * 0.6)).toFixed(2));
+            } else {
+              totalScore = Number(((avg + examScore) / 2).toFixed(2));
+            }
+          } else {
+            totalScore = Number(avg.toFixed(2));
+          }
+
+          const weightedScore = Number((totalScore * coefficient).toFixed(2));
 
           const dbValues = {
             studentId,
@@ -823,20 +863,20 @@ export async function POST(request: NextRequest) {
             classId,
             sessionId,
             term,
-            devoir1: devoirs[0] !== null ? Number(devoirs[0]) : null,
-            devoir2: devoirs[1] !== null ? Number(devoirs[1]) : null,
-            devoir3: devoirs[2] !== null ? Number(devoirs[2]) : null,
-            devoir4: devoirs[3] !== null ? Number(devoirs[3]) : null,
-            devoir5: devoirs[4] !== null ? Number(devoirs[4]) : null,
-            moyenneDevoirs: avg,
-            classWorkScore: avg,
+            devoir1: devoirs[0] !== null && devoirs[0] !== undefined && devoirs[0] !== "" ? Number(devoirs[0]) : null,
+            devoir2: devoirs[1] !== null && devoirs[1] !== undefined && devoirs[1] !== "" ? Number(devoirs[1]) : null,
+            devoir3: devoirs[2] !== null && devoirs[2] !== undefined && devoirs[2] !== "" ? Number(devoirs[2]) : null,
+            devoir4: devoirs[3] !== null && devoirs[3] !== undefined && devoirs[3] !== "" ? Number(devoirs[3]) : null,
+            totalScore,
+            coefficient,
+            weightedScore,
           };
 
-          if (existingId) {
+          if (exist?.id) {
             await db
               .update(studentResults)
               .set(dbValues)
-              .where(eq(studentResults.id, existingId));
+              .where(eq(studentResults.id, exist.id));
           } else {
             await db.insert(studentResults).values(dbValues);
           }
