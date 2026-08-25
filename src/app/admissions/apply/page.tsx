@@ -36,8 +36,8 @@ import { QRCodeSVG } from "qrcode.react";
 import {
   submitAdmissionApplicationAction,
   getPublicSchoolInfoForAdmissionsAction,
-  UNIVERSITY_FACULTIES,
 } from "@/domains/admissions/actions/admissions.actions";
+import { UNIVERSITY_FACULTIES } from "@/domains/admissions/constants/admissions.constants";
 
 function ApplyFormContent() {
   const searchParams = useSearchParams();

@@ -49,8 +49,8 @@ import {
   scoreAdmissionApplicationAction,
   deleteAdmissionApplicationAction,
   getPublicSchoolInfoForAdmissionsAction,
-  UNIVERSITY_FACULTIES,
 } from "@/domains/admissions/actions/admissions.actions";
+import { UNIVERSITY_FACULTIES } from "@/domains/admissions/constants/admissions.constants";
 import { getDocumentHeaderConfig } from "@/domains/settings/actions/settings.actions";
 import AdmissionsPrintModal, { AdmissionsDocType } from "@/domains/admissions/components/AdmissionsPrintModal";
 
