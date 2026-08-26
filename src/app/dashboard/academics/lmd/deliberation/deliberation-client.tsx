@@ -166,9 +166,10 @@ export default function DeliberationClient({
 
   const selectedClass = classes.find((c) => String(c.id) === selectedClassId);
 
-  // 5. Semestres / Périodes dynamiques (Logique conforme AcademicFilters & Norme LMD)
+  // 5. Semestres / Périodes dynamiques (Logique 100% conforme AcademicFilters & settings?tab=academic)
   const periodOptions = useMemo(() => {
     const normLevel = normalizeFilterText(selectedLevel);
+    const isPrimaire = normLevel.includes("prim") || normLevel.includes("matern") || normLevel.includes("fonda") || normLevel.includes("elem");
     const isSuperior = normLevel.includes("licence") || normLevel.includes("lmd") || normLevel.includes("master") || normLevel.includes("doc") || normLevel.includes("super") || normLevel.includes("univ");
 
     let sessionPeriods = (periods || []).filter((p: any) =>
@@ -178,39 +179,72 @@ export default function DeliberationClient({
       sessionPeriods = periods;
     }
 
+    // 1. Primaire (3 Trimestres)
+    if (isPrimaire) {
+      const dbTrimestres = sessionPeriods.filter((p: any) =>
+        p.periodType === "Trimestre" || String(p.name).toLowerCase().includes("trimestre")
+      );
+      if (dbTrimestres.length > 0) {
+        return dbTrimestres.map((p: any) => ({ id: p.name, name: p.name, code: p.name }));
+      }
+      return [
+        { id: "1er Trimestre", name: "1er Trimestre", code: "T1" },
+        { id: "2ème Trimestre", name: "2ème Trimestre", code: "T2" },
+        { id: "3ème Trimestre", name: "3ème Trimestre", code: "T3" },
+      ];
+    }
+
+    // 2. Supérieur / Université LMD (Semestres S1 .. S6 / S14)
     if (isSuperior) {
       const isMaster = normLevel.includes("master");
       const maxSem = isMaster ? 4 : 6;
-      
-      // Look for DB periods configured as Semestres
-      const dbSuperior = sessionPeriods.filter((p: any) =>
-        p.periodType === "Semestre" || String(p.name).toLowerCase().includes("semest") || /^s\d+/i.test(p.name)
-      );
 
-      if (dbSuperior.length >= 2) {
-        return dbSuperior.map((p: any) => {
-          const m = p.name.match(/\d+/);
-          const c = m ? `S${m[0]}` : p.name;
-          return { id: p.name, name: p.name, code: c };
-        });
-      }
-
-      // Standard LMD Semesters Presets
-      return Array.from({ length: maxSem }, (_, i) => {
+      const superiorPresets = Array.from({ length: maxSem }, (_, i) => {
         const num = i + 1;
         const code = `S${num}`;
         const label = `${num === 1 ? "1er" : `${num}ème`} Semestre (${code})`;
         return { id: label, name: label, code };
       });
+
+      const dbSuperior = sessionPeriods.filter((p: any) =>
+        p.periodType === "Semestre" || String(p.name).toLowerCase().includes("semest") || /^s\d+/i.test(p.name)
+      );
+
+      if (dbSuperior.length > 0) {
+        const dbList = dbSuperior.map((p: any) => {
+          const m = p.name.match(/\d+/);
+          const c = m ? `S${m[0]}` : p.name;
+          return { id: p.name, name: p.name, code: c };
+        });
+        return dbList.length >= 2 ? dbList : superiorPresets;
+      }
+      return superiorPresets;
     }
 
-    // Default for Collège / Lycée -> 2 Semestres
+    // 3. Système Séquentiel (si configuré dans settings)
+    const dbSequences = sessionPeriods.filter((p: any) =>
+      p.periodType === "Séquence" || String(p.name).toLowerCase().includes("séquence") || String(p.name).toLowerCase().includes("sequence")
+    );
+    if (dbSequences.length >= 2) {
+      return dbSequences.map((p: any) => ({ id: p.name, name: p.name, code: p.name }));
+    }
+
+    // 4. Collège & Lycée (2 Semestres standard)
     const dbSemestres = sessionPeriods.filter((p: any) =>
       p.periodType === "Semestre" || String(p.name).toLowerCase().includes("semest")
     );
 
-    if (dbSemestres.length >= 2) {
-      return dbSemestres.map((p: any) => ({ id: p.name, name: p.name, code: p.name }));
+    if (dbSemestres.length > 0) {
+      const collegePeriods = dbSemestres
+        .filter((p: any) => {
+          const n = String(p.name).toLowerCase();
+          return n.includes("1") || n.includes("2") || n.includes("premiere") || n.includes("deuxieme");
+        })
+        .map((p: any) => ({ id: p.name, name: p.name, code: p.name }));
+
+      if (collegePeriods.length >= 2) {
+        return collegePeriods.slice(0, 2);
+      }
     }
 
     return [
@@ -220,10 +254,16 @@ export default function DeliberationClient({
   }, [selectedLevel, selectedSessionId, periods]);
 
   const [selectedSemester, setSelectedSemester] = useState<string>("1er Semestre (S1)");
+  const [prevClassId, setPrevClassId] = useState<string>("");
 
   // Intelligent initial semester auto-selection based on class level (L1 -> S1, L2 -> S3, L3 -> S5, M2 -> S3)
   useEffect(() => {
-    if (periodOptions.length > 0) {
+    if (periodOptions.length === 0) return;
+
+    const currentExists = periodOptions.some((p) => p.id === selectedSemester);
+
+    if (selectedClassId !== prevClassId) {
+      setPrevClassId(selectedClassId);
       const normClass = normalizeFilterText(selectedClass?.className);
       let targetCode = "S1";
       if (normClass.includes("l2") || normClass.includes("licence 2") || normClass.includes("2eme annee") || normClass.includes("2ème année")) {
@@ -236,8 +276,13 @@ export default function DeliberationClient({
 
       const matchOption = periodOptions.find((p) => p.code === targetCode || p.id.includes(targetCode)) || periodOptions[0];
       setSelectedSemester(matchOption.id);
+      return;
     }
-  }, [selectedClassId, periodOptions]);
+
+    if (!currentExists) {
+      setSelectedSemester(periodOptions[0].id);
+    }
+  }, [selectedClassId, periodOptions, selectedClass, prevClassId, selectedSemester]);
 
   // Resolve University Program mapped to current Section
   const selectedProgram = useMemo(() => {
