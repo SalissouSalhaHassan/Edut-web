@@ -101,7 +101,7 @@ export async function getStudentLmdTrajectoryData(studentIdentifier: string | nu
         dateNaissance: students.dateNaissance,
         lieuNaissance: students.lieuNaissance,
         photoUrl: students.photoPath,
-        classeId: students.classeId,
+        classId: students.classId,
       })
       .from(students)
       .where(
@@ -122,14 +122,14 @@ export async function getStudentLmdTrajectoryData(studentIdentifier: string | nu
     let programName = "Licence Générale & Systèmes d'Information";
     let degreeLevel = "Licence";
 
-    if (student.classeId) {
+    if (student.classId) {
       const cls = await (readDb || db)
         .select({
           name: schoolClasses.nomClasse,
           programId: schoolClasses.programId,
         })
         .from(schoolClasses)
-        .where(eq(schoolClasses.id, student.classeId))
+        .where(eq(schoolClasses.id, student.classId))
         .limit(1);
 
       if (cls[0]) {

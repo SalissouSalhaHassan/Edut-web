@@ -18,7 +18,7 @@ export default async function StudentTrajectoryPage() {
       id: students.id,
       nom: students.nomEtudiant,
       matricule: students.numAdmission,
-      classeId: students.classeId,
+      classId: students.classId,
     })
     .from(students)
     .orderBy(desc(students.id))
