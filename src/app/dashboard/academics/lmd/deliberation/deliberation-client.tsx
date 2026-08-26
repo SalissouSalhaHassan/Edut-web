@@ -5,9 +5,9 @@ import Link from "next/link";
 import { 
   Scale, ArrowLeft, CheckCircle2, 
   AlertTriangle, RefreshCw, Sparkles, Filter, 
-  ShieldCheck, Printer,
-  Layers, School, GraduationCap, Search,
-  Sun, Moon, Award, Activity, BookOpen
+  ShieldCheck, Printer, FileText, Download,
+  Layers, School, GraduationCap, Search, Eye,
+  Sun, Moon, Award, Activity, BookOpen, UserCheck, X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,6 +17,12 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { 
   getLmdDeliberationCohort, 
@@ -24,6 +30,12 @@ import {
 } from "@/domains/academics/actions/lmd.actions";
 import { getClassDisplayName } from "@/domains/academics/utils/class-name";
 import { useTheme } from "@/hooks/use-theme";
+import { 
+  generateLmdStudentRelevePDF, 
+  generateLmdBatchRelevesPDF,
+  getEctsGrade,
+  LmdReleveParams
+} from "@/domains/academics/utils/lmd-releve-generator";
 
 type Props = {
   initialPrograms: any[];
@@ -257,7 +269,7 @@ export default function DeliberationClient({
       { id: "1er Semestre", name: "1er Semestre (S1)", code: "S1" },
       { id: "2ème Semestre", name: "2ème Semestre (S2)", code: "S2" },
     ];
-  }, [selectedLevel, selectedSessionId, periods]);
+  }, [selectedLevel, selectedSessionId, periods, currentSection, selectedClass]);
 
   const [selectedSemester, setSelectedSemester] = useState<string>("1er Semestre (S1)");
   const [prevClassId, setPrevClassId] = useState<string>("");
@@ -311,6 +323,8 @@ export default function DeliberationClient({
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [isExportingBatchReleves, setIsExportingBatchReleves] = useState(false);
+  const [previewStudentItem, setPreviewStudentItem] = useState<any | null>(null);
 
   const loadDeliberationData = async () => {
     if (!selectedClassId || !selectedSessionId) {
@@ -474,7 +488,7 @@ export default function DeliberationClient({
           1: { cellWidth: 24, fontStyle: "bold" },
           2: { cellWidth: 46, halign: "left" },
         },
-        didParseCell: (data) => {
+        didParseCell: (data: any) => {
           if (data.section === "body" && (data.column.index === headers.length - 3)) {
             const val = String(data.cell.raw || "");
             if (val.includes("Admis")) {
@@ -520,6 +534,67 @@ export default function DeliberationClient({
     }
   };
 
+  // ─── Single Student Transcript PDF Export ──────────────────────────────────
+  const handleExportSingleReleve = async (item: any) => {
+    try {
+      const relevePayload: LmdReleveParams = {
+        student: item.student,
+        deliberation: item.deliberation,
+        institution: {
+          name: "ÉTABLISSEMENT D'ENSEIGNEMENT SUPÉRIEUR",
+          facultyName: currentSection?.sectionName || "Faculté LMD",
+          departmentName: selectedProgram?.name || "Département Universitaire",
+          programName: selectedProgram?.name || currentSection?.sectionName || "Tronc Commun LMD",
+          degreeLevel: selectedLevel,
+          className: getClassDisplayName(selectedClass),
+          sessionName: selectedSession?.sessionName || "2025-2026",
+        },
+        rank: item.rank,
+        totalCohort: deliberationData.totalStudents,
+      };
+
+      await generateLmdStudentRelevePDF(relevePayload);
+      toast.success(`Relevé de notes officiel généré pour ${item.student.nom}`);
+    } catch (e: any) {
+      toast.error("Erreur lors de la génération du relevé de notes");
+    }
+  };
+
+  // ─── Batch Cohort Transcripts PDF Export ───────────────────────────────────
+  const handleExportBatchReleves = async () => {
+    if (deliberationData.cohort.length === 0) {
+      toast.error("Aucune donnée à exporter");
+      return;
+    }
+
+    setIsExportingBatchReleves(true);
+    try {
+      const batchPayload: LmdReleveParams[] = deliberationData.cohort.map((item) => ({
+        student: item.student,
+        deliberation: item.deliberation,
+        institution: {
+          name: "ÉTABLISSEMENT D'ENSEIGNEMENT SUPÉRIEUR",
+          facultyName: currentSection?.sectionName || "Faculté LMD",
+          departmentName: selectedProgram?.name || "Département Universitaire",
+          programName: selectedProgram?.name || currentSection?.sectionName || "Tronc Commun LMD",
+          degreeLevel: selectedLevel,
+          className: getClassDisplayName(selectedClass),
+          sessionName: selectedSession?.sessionName || "2025-2026",
+        },
+        rank: item.rank,
+        totalCohort: deliberationData.totalStudents,
+      }));
+
+      const sessionLabel = `${selectedClass?.className || "Promotion"}_${selectedSemester}`;
+      await generateLmdBatchRelevesPDF(batchPayload, sessionLabel);
+      toast.success("Tous les relevés de notes de la promotion ont été générés en PDF avec succès !");
+    } catch (e: any) {
+      toast.error("Erreur lors de l'export des relevés par lot");
+    } finally {
+      setIsExportingBatchReleves(false);
+    }
+  };
+
   return (
     <div className="min-h-screen space-y-6">
       {/* ─── HEADER BAR ──────────────────────────────────────────────────────── */}
@@ -541,12 +616,12 @@ export default function DeliberationClient({
               </span>
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Moteur de compensation semestrielle inter-UE, calcul des 30 ECTS et procès-verbal officiel du jury
+              Moteur de compensation semestrielle inter-UE, calcul des 30 ECTS, procès-verbal officiel et relevés de notes
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {/* Dark Mode Toggle */}
           <button
             onClick={toggleTheme}
@@ -556,6 +631,18 @@ export default function DeliberationClient({
             <span>{isDark ? "Clair" : "Sombre"}</span>
           </button>
 
+          {/* Batch Transcripts Export */}
+          <Button
+            onClick={handleExportBatchReleves}
+            disabled={deliberationData.cohort.length === 0 || isExportingBatchReleves}
+            variant="outline"
+            className="gap-2 text-xs font-bold border-indigo-600 text-indigo-700 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/50"
+          >
+            <FileText className="h-4 w-4" />
+            {isExportingBatchReleves ? "Génération Relevés..." : "Relevés LMD (Batch PDF)"}
+          </Button>
+
+          {/* Deliberation PV Export */}
           <Button
             onClick={handleExportPDF}
             disabled={deliberationData.cohort.length === 0 || isExportingPdf}
@@ -563,9 +650,10 @@ export default function DeliberationClient({
             className="gap-2 text-xs font-bold border-emerald-600 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/50"
           >
             <Printer className="h-4 w-4" />
-            {isExportingPdf ? "Génération PDF..." : "Exporter PV (PDF)"}
+            {isExportingPdf ? "Génération PV..." : "Exporter PV (PDF)"}
           </Button>
 
+          {/* Validate & Close Deliberation */}
           <Button
             onClick={handleSaveDeliberation}
             disabled={deliberationData.cohort.length === 0 || isSaving}
@@ -685,7 +773,7 @@ export default function DeliberationClient({
             <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
               5. Semestre d'Évaluation
             </label>
-            <Select value={selectedSemester} onValueChange={(val) => setSelectedSemester(val || "S1")}>
+            <Select value={selectedSemester} onValueChange={(val) => setSelectedSemester(val || "1er Semestre (S1)")}>
               <SelectTrigger className="w-full text-xs font-medium bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-xl h-10">
                 <SelectValue placeholder="Choisir le semestre" />
               </SelectTrigger>
@@ -797,9 +885,9 @@ export default function DeliberationClient({
               <thead>
                 <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-900 dark:bg-slate-950 text-white">
                   <th className="p-3 text-center w-12 font-bold">Rang</th>
-                  <th className="p-3 font-bold">Étudiant</th>
+                  <th className="p-3 font-bold min-w-[180px]">Étudiant</th>
                   {deliberationData.ues.map((ue) => (
-                    <th key={ue.id} className="p-3 text-center font-bold border-l border-slate-800 dark:border-slate-900">
+                    <th key={ue.id} className="p-3 text-center font-bold border-l border-slate-800 dark:border-slate-900 min-w-[110px]">
                       <div>{ue.codeUe}</div>
                       <div className="text-[10px] text-slate-400 font-normal">{ue.creditsEcts} ECTS</div>
                     </th>
@@ -808,6 +896,7 @@ export default function DeliberationClient({
                   <th className="p-3 text-center font-bold bg-slate-800 dark:bg-slate-900">Crédits /30</th>
                   <th className="p-3 text-center font-bold bg-slate-800 dark:bg-slate-900">Décision</th>
                   <th className="p-3 text-center font-bold bg-slate-800 dark:bg-slate-900">Mention</th>
+                  <th className="p-3 text-center font-bold bg-slate-800 dark:bg-slate-900 min-w-[120px]">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
@@ -872,6 +961,31 @@ export default function DeliberationClient({
                       <td className="p-3 text-center bg-slate-50/50 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 font-semibold">
                         {d.mention}
                       </td>
+
+                      {/* Actions Column */}
+                      <td className="p-3 text-center bg-slate-50/50 dark:bg-slate-800/40">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setPreviewStudentItem(item)}
+                            className="h-8 w-8 p-0 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400"
+                            title="Aperçu du relevé"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleExportSingleReleve(item)}
+                            className="h-8 px-2.5 text-[11px] font-bold gap-1 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/50"
+                            title="Imprimer Relevé Officiel"
+                          >
+                            <Printer className="h-3 w-3" />
+                            <span>Relevé</span>
+                          </Button>
+                        </div>
+                      </td>
                     </tr>
                   );
                 })}
@@ -880,6 +994,120 @@ export default function DeliberationClient({
           </div>
         )}
       </div>
+
+      {/* ─── MODAL APERÇU RELEVÉ DE NOTES INDIVIDUEL ────────────────────────── */}
+      {previewStudentItem && (
+        <Dialog open={Boolean(previewStudentItem)} onOpenChange={(open) => !open && setPreviewStudentItem(null)}>
+          <DialogContent className="max-w-2xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 p-6 rounded-2xl">
+            <DialogHeader className="border-b border-slate-100 dark:border-slate-800 pb-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <DialogTitle className="text-lg font-black text-slate-900 dark:text-slate-100">
+                    Relevé de Notes & Crédits LMD
+                  </DialogTitle>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    {previewStudentItem.student.nom} ({previewStudentItem.student.matricule || "N/A"}) • {selectedSemester}
+                  </p>
+                </div>
+                <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                  previewStudentItem.deliberation.isSemesterValidated
+                    ? "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300"
+                    : "bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300"
+                }`}>
+                  {previewStudentItem.deliberation.decision}
+                </span>
+              </div>
+            </DialogHeader>
+
+            {/* Performance Summary Banner */}
+            <div className="grid grid-cols-3 gap-3 my-4">
+              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+                <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">Moyenne Semestrielle</div>
+                <div className="text-xl font-black text-slate-900 dark:text-slate-100 mt-0.5">
+                  {previewStudentItem.deliberation.semesterAverage.toFixed(2)} / 20
+                </div>
+              </div>
+              <div className="p-3.5 rounded-xl bg-indigo-50/50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800">
+                <div className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase">Crédits ECTS Acquis</div>
+                <div className="text-xl font-black text-indigo-700 dark:text-indigo-300 mt-0.5">
+                  {previewStudentItem.deliberation.creditsAcquired} / 30 ECTS
+                </div>
+              </div>
+              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+                <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">Grade ECTS & Rang</div>
+                <div className="text-xl font-black text-slate-900 dark:text-slate-100 mt-0.5">
+                  Grade {getEctsGrade(previewStudentItem.deliberation.semesterAverage).grade} • {previewStudentItem.rank}e
+                </div>
+              </div>
+            </div>
+
+            {/* Breakdown per UE */}
+            <div className="space-y-2.5 max-h-[320px] overflow-y-auto pr-1">
+              {previewStudentItem.deliberation.ueResults.map((ue: any) => {
+                const isV = ue.status === "V";
+                const isVC = ue.status === "VC";
+                return (
+                  <div key={ue.ueId || ue.codeUe} className="rounded-xl border border-slate-200 dark:border-slate-800 p-3 bg-white dark:bg-slate-900/80">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                          {ue.codeUe}
+                        </span>
+                        <span className="font-bold text-xs text-slate-800 dark:text-slate-200">{ue.nameUe}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="font-mono font-bold text-xs text-slate-900 dark:text-slate-100">
+                          {ue.average.toFixed(2)} / 20
+                        </span>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold ${
+                          isV
+                            ? "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300"
+                            : isVC
+                            ? "bg-indigo-100 dark:bg-indigo-950/60 text-indigo-800 dark:text-indigo-300"
+                            : "bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300"
+                        }`}>
+                          {ue.status} ({ue.creditsAcquired} ECTS)
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* ECUs list if present */}
+                    {ue.ecuResults && ue.ecuResults.length > 0 && (
+                      <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-800 space-y-1">
+                        {ue.ecuResults.map((ecu: any) => (
+                          <div key={ecu.id} className="flex items-center justify-between text-[11px] text-slate-600 dark:text-slate-400 pl-3">
+                            <span>• {ecu.nameEcu} (Coef {ecu.coefficient || 1})</span>
+                            <span className="font-mono font-medium">{ecu.finalGrade > 0 ? ecu.finalGrade.toFixed(2) : "-"}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Modal Footer Actions */}
+            <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800 mt-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setPreviewStudentItem(null)}
+                className="text-xs text-slate-500 hover:text-slate-700"
+              >
+                Fermer
+              </Button>
+              <Button
+                onClick={() => handleExportSingleReleve(previewStudentItem)}
+                className="gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl"
+              >
+                <Printer className="h-4 w-4" />
+                Imprimer le Relevé Officiel (PDF)
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
