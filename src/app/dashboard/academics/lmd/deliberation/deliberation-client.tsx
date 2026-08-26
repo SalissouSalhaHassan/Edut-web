@@ -7,7 +7,7 @@ import {
   AlertTriangle, RefreshCw, Sparkles, Filter, 
   ShieldCheck, Printer, FileText, Download,
   Layers, School, GraduationCap, Search, Eye,
-  Sun, Moon, Award, Activity, BookOpen, UserCheck, X
+  Sun, Moon, Award, Activity, BookOpen, UserCheck, X, Building2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -45,6 +45,10 @@ import {
   LmdAnnualParams,
   LmdAnnualStudent
 } from "@/domains/academics/utils/lmd-annual-pv-generator";
+import {
+  generateLmdMinisterialPVPDF,
+  MinisterialPVParams
+} from "@/domains/academics/utils/lmd-ministerial-pv-generator";
 
 type Props = {
   initialPrograms: any[];
@@ -626,6 +630,51 @@ export default function DeliberationClient({
     }
   };
 
+  // ─── Export Official Ministerial & CAMES PV (PDF A3 / A4 Paysage) ───────────
+  const handleExportMinisterialPV = async (paperFormat: "a3" | "a4" = "a3") => {
+    if (deliberationData.cohort.length === 0) {
+      toast.error("Aucune donnée à exporter");
+      return;
+    }
+
+    setIsExportingPdf(true);
+    try {
+      const schoolName = headerConfig?.schoolName || headerConfig?.name || "UNIVERSITÉ DES SCIENCES & TECHNOLOGIES";
+      const facultyName = currentSection?.sectionName 
+        ? (currentSection.sectionName.toLowerCase().startsWith("faculté") ? currentSection.sectionName : `Faculté : ${currentSection.sectionName}`)
+        : "Faculté Universitaire LMD";
+      const departmentName = selectedProgram?.name || currentSection?.sectionName || "Département Universitaire";
+
+      const ministerialPayload: MinisterialPVParams = {
+        paperFormat: paperFormat,
+        institution: {
+          name: schoolName,
+          countryName: headerConfig?.countryName || "RÉPUBLIQUE DU NIGER",
+          ministryName: headerConfig?.ministryName || "MINISTÈRE DE L'ENSEIGNEMENT SUPÉRIEUR ET DE LA RECHERCHE",
+          motto: headerConfig?.motto || "Fraternité — Travail — Progrès",
+          facultyName: facultyName,
+          departmentName: departmentName,
+          programName: selectedProgram?.name || currentSection?.sectionName || "Tronc Commun LMD",
+          degreeLevel: selectedLevel,
+          className: getClassDisplayName(selectedClass),
+          sessionName: selectedSession?.sessionName || "2025-2026",
+          city: headerConfig?.city || "Niamey",
+        },
+        semester: selectedSemester,
+        sessionType: sessionMode,
+        ues: deliberationData.ues,
+        cohort: deliberationData.cohort,
+      };
+
+      await generateLmdMinisterialPVPDF(ministerialPayload);
+      toast.success(`PV Ministériel & CAMES (${paperFormat.toUpperCase()} Paysage) généré avec succès !`);
+    } catch (e: any) {
+      toast.error("Erreur lors de l'export du PV ministériel");
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
+
   // ─── Export Official Deliberation PV (PDF A4 Paysage) ──────────────────────
   const handleExportPDF = async () => {
     if (deliberationData.cohort.length === 0) {
@@ -951,6 +1000,31 @@ export default function DeliberationClient({
                 <FileText className="h-4 w-4" />
                 {isExportingBatchReleves ? "Génération..." : "Relevés LMD (Batch PDF)"}
               </Button>
+
+              {/* Ministerial & CAMES PV Export */}
+              <div className="flex items-center rounded-xl border border-amber-500/40 bg-amber-50/50 dark:bg-amber-950/20 p-0.5">
+                <Button
+                  onClick={() => handleExportMinisterialPV("a3")}
+                  disabled={deliberationData.cohort.length === 0 || isExportingPdf}
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1.5 text-xs font-bold text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/50 h-8"
+                  title="Générer le Procès-Verbal Officiel Grand Format A3 pour le Ministère / CAMES"
+                >
+                  <Building2 className="h-3.5 w-3.5 text-amber-600" />
+                  <span>PV CAMES (A3)</span>
+                </Button>
+                <Button
+                  onClick={() => handleExportMinisterialPV("a4")}
+                  disabled={deliberationData.cohort.length === 0 || isExportingPdf}
+                  variant="ghost"
+                  size="sm"
+                  className="text-[11px] font-bold text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/50 h-8 px-2 border-l border-amber-300 dark:border-amber-800"
+                  title="Format A4 Paysage"
+                >
+                  <span>A4</span>
+                </Button>
+              </div>
 
               {/* Deliberation PV Export */}
               <Button
