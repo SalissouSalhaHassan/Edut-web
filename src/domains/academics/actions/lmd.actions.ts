@@ -615,7 +615,8 @@ export async function getLmdDeliberationCohort(
   programId: number,
   classId: number,
   semester: string,
-  sessionId: number
+  sessionId: number,
+  sessionType: "Normale" | "Rattrapage" = "Normale"
 ) {
   try {
     const semNumMatch = semester.match(/\d+/);
@@ -717,9 +718,7 @@ export async function getLmdDeliberationCohort(
       orderBy: [asc(students.nomEtudiant)],
     });
 
-    // 3. Récupérer les notes réelles enregistrées (student_results)
-    // Build comprehensive term aliases covering all known real formats:
-    // S1, Semestre 1, 1er Semestre, 1ère Semestre, 1er Semestre (S1), 2ème Semestre (S2), etc.
+    // 3. Récupérer les notes réelles enregistrées (student_results - Session Normale)
     const semNumSuffix = semNum === "1" ? "er" : "ème";
     const studentIds = enrolledStudents.map((s) => s.id);
     
@@ -750,6 +749,25 @@ export async function getLmdDeliberationCohort(
       }
     });
 
+    // 3.1 Récupérer les notes de Rattrapage si existantes
+    const rattrapageResults = await readDb.query.studentResults.findMany({
+      where: and(
+        studentIds.length > 0
+          ? or(eq(studentResults.classId, classId), inArray(studentResults.studentId, studentIds))
+          : eq(studentResults.classId, classId),
+        eq(studentResults.sessionId, sessionId),
+        or(
+          ilike(studentResults.term, `%Rattrapage%`),
+          ilike(studentResults.term, `%Session 2%`),
+          ilike(studentResults.term, `%${sCode}%Rat%`),
+          ilike(studentResults.term, `%Semestre ${semNum}%Rat%`)
+        )
+      ),
+      with: {
+        subject: true,
+      }
+    });
+
     const normalizeKey = (str?: string | null) => (str || "").toLowerCase().trim().replace(/[^a-z0-9]/g, "");
 
     const resultMap = new Map<string, any>();
@@ -759,6 +777,16 @@ export async function getLmdDeliberationCohort(
       }
       if (r.subject?.subjectName) {
         resultMap.set(`${r.studentId}_name_${normalizeKey(r.subject.subjectName)}`, r);
+      }
+    }
+
+    const rattrapageResultMap = new Map<string, any>();
+    for (const r of rattrapageResults) {
+      if (r.subjectId) {
+        rattrapageResultMap.set(`${r.studentId}_${r.subjectId}`, r);
+      }
+      if (r.subject?.subjectName) {
+        rattrapageResultMap.set(`${r.studentId}_name_${normalizeKey(r.subject.subjectName)}`, r);
       }
     }
 
@@ -850,6 +878,10 @@ export async function getLmdDeliberationCohort(
             || resultMap.get(`${st.id}_name_${normEcuName}`)
             || null;
 
+          const ratRes = (ecu.subjectId ? rattrapageResultMap.get(`${st.id}_${ecu.subjectId}`) : null)
+            || rattrapageResultMap.get(`${st.id}_name_${normEcuName}`)
+            || null;
+
           return {
             id: ecu.id,
             codeEcu: ecu.codeEcu || undefined,
@@ -860,6 +892,8 @@ export async function getLmdDeliberationCohort(
             classWorkScore: res?.classWorkScore !== null && res?.classWorkScore !== undefined ? Number(res.classWorkScore) : null,
             examScore: res?.examScore !== null && res?.examScore !== undefined ? Number(res.examScore) : null,
             totalScore: res?.totalScore !== null && res?.totalScore !== undefined ? Number(res.totalScore) : null,
+            rattrapageScore: ratRes?.totalScore !== null && ratRes?.totalScore !== undefined ? Number(ratRes.totalScore) : (ratRes?.examScore !== null && ratRes?.examScore !== undefined ? Number(ratRes.examScore) : null),
+            sessionType: sessionType,
           };
         });
 
@@ -887,8 +921,6 @@ export async function getLmdDeliberationCohort(
         },
         deliberation,
       };
-    });
-
     // 5. Classement de la cohorte selon la moyenne semestrielle
     cohortDeliberation.sort((a, b) => b.deliberation.semesterAverage - a.deliberation.semesterAverage);
 
@@ -1011,3 +1043,56 @@ export async function saveLmdDeliberation(data: {
     return { success: false, error: error.message };
   }
 }
+
+// ─── 7. SAISIE DES NOTES DE RATTRAPAGE (SESSION 2) ───────────────────────────
+export async function saveLmdRattrapageGrade(data: {
+  studentId: number;
+  subjectId: number;
+  classId: number;
+  sessionId: number;
+  semester: string;
+  rattrapageScore: number;
+}) {
+  try {
+    const semNumMatch = data.semester.match(/\d+/);
+    const semNum = semNumMatch ? semNumMatch[0] : "1";
+    const rattrapageTerm = `Semestre ${semNum} (Rattrapage)`;
+
+    const existing = await readDb.query.studentResults.findFirst({
+      where: and(
+        eq(studentResults.studentId, data.studentId),
+        eq(studentResults.subjectId, data.subjectId),
+        eq(studentResults.classId, data.classId),
+        eq(studentResults.sessionId, data.sessionId),
+        or(
+          eq(studentResults.term, rattrapageTerm),
+          ilike(studentResults.term, `%Rattrapage%`)
+        )
+      )
+    });
+
+    if (existing) {
+      await db.update(studentResults).set({
+        examScore: data.rattrapageScore,
+        totalScore: data.rattrapageScore,
+      }).where(eq(studentResults.id, existing.id));
+    } else {
+      await db.insert(studentResults).values({
+        studentId: data.studentId,
+        subjectId: data.subjectId,
+        classId: data.classId,
+        sessionId: data.sessionId,
+        term: rattrapageTerm,
+        examScore: data.rattrapageScore,
+        totalScore: data.rattrapageScore,
+        coefficient: 1,
+      });
+    }
+
+    revalidatePath("/dashboard/academics/lmd/deliberation");
+    return { success: true, message: "Note de rattrapage enregistrée avec succès !" };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+

@@ -576,6 +576,12 @@ export default function LmdHubClient({
                 features: ["Cumul ECTS semestriel et annuel", "Mentions Passable / AB / Bien / TB", "Attestation de mobilité internationale", "Export PDF sécurisé"],
               },
               {
+                icon: Sparkles, color: "rose", title: "Session de Rattrapage (Session 2)",
+                desc: "Gestion de la 2ème session d'évaluation avec application stricte de la règle du meilleur score Max(N1, N2), recalcul automatique des compensations et relevés post-rattrapage.",
+                href: "/dashboard/academics/lmd/deliberation",
+                features: ["Règle du meilleur score Max(N1, N2)", "Filtrage intelligent des ajournés", "Saisie interactive des notes de rattrapage", "Relevés de notes officiels Session 2"],
+              },
+              {
                 icon: BarChart3, color: "amber", title: "Statistiques & Pilotage",
                 desc: "Tableau de bord analytique des taux de réussite par filière, semestre et session. Indicateurs de performance pédagogique pour le pilotage qualité.",
                 href: "/dashboard/academics/lmd",

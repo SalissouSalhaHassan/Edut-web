@@ -59,6 +59,7 @@ export interface LmdReleveParams {
   };
   rank?: number | string;
   totalCohort?: number;
+  sessionType?: "Normale" | "Rattrapage";
 }
 
 export function getEctsGrade(average: number): { grade: string; label: string } {
@@ -82,7 +83,8 @@ export async function generateLmdStudentRelevePDF(data: LmdReleveParams): Promis
 
   const cleanNom = (data.student.nom || "Etudiant").replace(/[^a-zA-Z0-9]/g, "_");
   const semCode = (data.deliberation.semester || "Semestre").replace(/[^a-zA-Z0-9]/g, "_");
-  doc.save(`Releve_LMD_${semCode}_${cleanNom}.pdf`);
+  const sessPrefix = data.sessionType === "Rattrapage" ? "Rattrapage_" : "";
+  doc.save(`Releve_LMD_${sessPrefix}${semCode}_${cleanNom}.pdf`);
 }
 
 export async function generateLmdBatchRelevesPDF(cohort: LmdReleveParams[], sessionLabel: string): Promise<void> {
@@ -103,7 +105,7 @@ export async function generateLmdBatchRelevesPDF(cohort: LmdReleveParams[], sess
 }
 
 function buildRelevePage(doc: any, autoTable: any, data: LmdReleveParams, pageWidth: number, pageHeight: number) {
-  const { student, deliberation, institution, rank, totalCohort } = data;
+  const { student, deliberation, institution, rank, totalCohort, sessionType } = data;
   const ects = getEctsGrade(deliberation.semesterAverage);
 
   // 1. Dual Luxury Security Borders
@@ -118,20 +120,23 @@ function buildRelevePage(doc: any, autoTable: any, data: LmdReleveParams, pageWi
   // 2. Official Republic & Institutional Header
   const country = institution.countryName || "RÉPUBLIQUE DU NIGER";
   const ministry = institution.ministryName || "MINISTÈRE DE L'ENSEIGNEMENT SUPÉRIEUR ET DE LA RECHERCHE";
-  const schoolName = institution.name || "UNIVERSITÉ / INSTITUT D'ENSEIGNEMENT SUPÉRIEUR";
-  const faculty = institution.facultyName ? institution.facultyName.toUpperCase() : "FACULTÉ DES SCIENCES & TECHNOLOGIES";
-  const department = institution.departmentName ? institution.departmentName.toUpperCase() : "DÉPARTEMENT ACADÉMIQUE";
+  const schoolName = institution.name || "UNIVERSITÉ / ÉCOLE SUPÉRIEURE";
+  const faculty = institution.facultyName || "FACULTÉ / DÉPARTEMENT";
+  const department = institution.departmentName || faculty;
 
-  // Left Ministry Info
+  // Left Republic Info
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.5);
-  doc.setTextColor(30, 41, 59); // slate-800
+  doc.setFontSize(8.5);
+  doc.setTextColor(15, 23, 42); // slate-900
   doc.text(country.toUpperCase(), 14, 14);
+
+  doc.setDrawColor(15, 23, 42);
+  doc.setLineWidth(0.4);
+  doc.line(14, 15.5, 52, 15.5);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(6.5);
-  doc.setTextColor(100, 116, 139);
-  doc.text("---------------------------------------------", 14, 17);
+  doc.setTextColor(71, 85, 105); // slate-600
   doc.text(ministry, 14, 20, { maxWidth: 65 });
 
   // Right University Info
@@ -150,18 +155,31 @@ function buildRelevePage(doc: any, autoTable: any, data: LmdReleveParams, pageWi
 
   // 3. Document Title Banner (Sleek Dark Navy with Gold Accents)
   const bannerY = 27;
-  doc.setFillColor(15, 23, 42); // slate-900
+  const isRattrapage = sessionType === "Rattrapage";
+  doc.setFillColor(isRattrapage ? 67 : 15, isRattrapage ? 24 : 23, isRattrapage ? 112 : 42); // deep indigo/purple if rattrapage
   doc.roundedRect(12, bannerY, pageWidth - 24, 12, 1.5, 1.5, "F");
 
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
+  doc.setFontSize(10.5);
   doc.setTextColor(255, 255, 255);
-  doc.text("RELEVÉ DE NOTES ET RÉSULTATS OFFICIEL", pageWidth / 2, bannerY + 5.5, { align: "center" });
+  doc.text(
+    isRattrapage ? "RELEVÉ DE NOTES ET RÉSULTATS — SESSION DE RATTRAPAGE" : "RELEVÉ DE NOTES ET RÉSULTATS OFFICIEL",
+    pageWidth / 2,
+    bannerY + 5.5,
+    { align: "center" }
+  );
 
-  doc.setFontSize(7);
+  doc.setFontSize(6.8);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(226, 232, 240);
-  doc.text("Système LMD (Licence - Master - Doctorat) • Norme ECTS / REESAO / CAMES", pageWidth / 2, bannerY + 9.5, { align: "center" });
+  doc.text(
+    isRattrapage
+      ? "2ème Session d'Évaluation • Règle Max(N1, N2) • Norme ECTS / REESAO / CAMES"
+      : "Système LMD (Licence - Master - Doctorat) • Norme ECTS / REESAO / CAMES",
+    pageWidth / 2,
+    bannerY + 9.5,
+    { align: "center" }
+  );
 
   // 4. Student & Academic Info Box
   const infoY = 41;

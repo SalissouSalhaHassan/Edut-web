@@ -26,7 +26,8 @@ import {
 import { toast } from "sonner";
 import { 
   getLmdDeliberationCohort, 
-  saveLmdDeliberation 
+  saveLmdDeliberation,
+  saveLmdRattrapageGrade
 } from "@/domains/academics/actions/lmd.actions";
 import { getClassDisplayName } from "@/domains/academics/utils/class-name";
 import { useTheme } from "@/hooks/use-theme";
@@ -314,6 +315,8 @@ export default function DeliberationClient({
   }, [selectedSectionId, programs]);
 
   // 6. Données de Délibération
+  const [sessionMode, setSessionMode] = useState<"Normale" | "Rattrapage">("Normale");
+  const [onlyAjournes, setOnlyAjournes] = useState(false);
   const [deliberationData, setDeliberationData] = useState<{
     ues: any[];
     cohort: any[];
@@ -321,6 +324,14 @@ export default function DeliberationClient({
     passedCount: number;
     successRate: number;
   }>({ ues: [], cohort: [], totalStudents: 0, passedCount: 0, successRate: 0 });
+
+  const [rattrapageEditState, setRattrapageEditState] = useState<{
+    open: boolean;
+    student: any | null;
+    ecu: any | null;
+    currentGrade: number;
+    rattrapageGrade: string;
+  }>({ open: false, student: null, ecu: null, currentGrade: 0, rattrapageGrade: "" });
 
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -340,12 +351,13 @@ export default function DeliberationClient({
         progId,
         Number(selectedClassId),
         selectedSemester,
-        Number(selectedSessionId)
+        Number(selectedSessionId),
+        sessionMode
       );
       if (res.success && res.data) {
         setDeliberationData(res.data);
         if (res.data.cohort.length > 0) {
-          toast.success(`Délibération chargée : ${res.data.cohort.length} étudiant(s) calculé(s).`);
+          toast.success(`Délibération (${sessionMode === "Rattrapage" ? "Session 2 - Rattrapage" : "Session 1 - Normale"}) chargée : ${res.data.cohort.length} étudiant(s).`);
         } else {
           toast.info("Aucun résultat saisi pour cette promotion et ce semestre.");
         }
@@ -364,7 +376,37 @@ export default function DeliberationClient({
     if (selectedClassId && selectedSessionId && selectedSemester) {
       loadDeliberationData();
     }
-  }, [selectedClassId, selectedSemester, selectedSessionId]);
+  }, [selectedClassId, selectedSemester, selectedSessionId, sessionMode]);
+
+  const handleSaveRattrapageGrade = async () => {
+    if (!rattrapageEditState.student || !rattrapageEditState.ecu) return;
+    const val = parseFloat(rattrapageEditState.rattrapageGrade);
+    if (isNaN(val) || val < 0 || val > 20) {
+      toast.error("Veuillez saisir une note valide entre 0 et 20.");
+      return;
+    }
+
+    try {
+      const res = await saveLmdRattrapageGrade({
+        studentId: rattrapageEditState.student.id,
+        subjectId: rattrapageEditState.ecu.subjectId || rattrapageEditState.ecu.id,
+        classId: Number(selectedClassId),
+        sessionId: Number(selectedSessionId),
+        semester: selectedSemester,
+        rattrapageScore: val,
+      });
+
+      if (res.success) {
+        toast.success(res.message || "Note de rattrapage enregistrée !");
+        setRattrapageEditState({ open: false, student: null, ecu: null, currentGrade: 0, rattrapageGrade: "" });
+        loadDeliberationData();
+      } else {
+        toast.error(res.error || "Erreur lors de l'enregistrement");
+      }
+    } catch (e: any) {
+      toast.error("Erreur réseau");
+    }
+  };
 
   const selectedSession = sessions.find((s) => String(s.id) === selectedSessionId);
 
@@ -562,10 +604,11 @@ export default function DeliberationClient({
         },
         rank: item.rank,
         totalCohort: deliberationData.totalStudents,
+        sessionType: sessionMode,
       };
 
       await generateLmdStudentRelevePDF(relevePayload);
-      toast.success(`Relevé de notes officiel généré pour ${item.student.nom}`);
+      toast.success(`Relevé de notes officiel (${sessionMode === "Rattrapage" ? "Rattrapage" : "Session 1"}) généré pour ${item.student.nom}`);
     } catch (e: any) {
       toast.error("Erreur lors de la génération du relevé de notes");
     }
@@ -603,11 +646,12 @@ export default function DeliberationClient({
         },
         rank: item.rank,
         totalCohort: deliberationData.totalStudents,
+        sessionType: sessionMode,
       }));
 
-      const sessionLabel = `${selectedClass?.className || "Promotion"}_${selectedSemester}`;
+      const sessionLabel = `${selectedClass?.className || "Promotion"}_${sessionMode === "Rattrapage" ? "Rattrapage_" : ""}${selectedSemester}`;
       await generateLmdBatchRelevesPDF(batchPayload, sessionLabel);
-      toast.success("Tous les relevés de notes de la promotion ont été générés en PDF avec succès !");
+      toast.success(`Tous les relevés de notes de la promotion (${sessionMode === "Rattrapage" ? "Session de Rattrapage" : "Session 1"}) ont été générés en PDF avec succès !`);
     } catch (e: any) {
       toast.error("Erreur lors de l'export des relevés par lot");
     } finally {
@@ -642,6 +686,37 @@ export default function DeliberationClient({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {/* Session Switcher (Normale vs Rattrapage) */}
+          <div className="flex items-center p-1 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xs">
+            <button
+              type="button"
+              onClick={() => {
+                setSessionMode("Normale");
+                setOnlyAjournes(false);
+              }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                sessionMode === "Normale"
+                  ? "bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
+              }`}
+            >
+              <GraduationCap className="h-3.5 w-3.5" />
+              <span>Session 1 (Normale)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setSessionMode("Rattrapage")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                sessionMode === "Rattrapage"
+                  ? "bg-gradient-to-r from-amber-500 to-rose-500 text-white shadow-md shadow-amber-500/20 font-black"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
+              }`}
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              <span>Session 2 (Rattrapage ⚡)</span>
+            </button>
+          </div>
+
           {/* Dark Mode Toggle */}
           <button
             onClick={toggleTheme}
@@ -684,6 +759,37 @@ export default function DeliberationClient({
           </Button>
         </div>
       </div>
+
+      {/* ─── BANNIÈRE ACTIVE SESSION DE RATTRAPAGE ──────────────────────────── */}
+      {sessionMode === "Rattrapage" && (
+        <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-rose-500/10 to-indigo-500/10 border border-amber-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-2xl bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+              <Sparkles className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="text-xs font-black text-amber-700 dark:text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
+                <span>Session de Rattrapage Active (Session 2)</span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-200 dark:bg-amber-900/60 text-amber-900 dark:text-amber-200 font-bold">
+                  Règle Max(N1, N2)
+                </span>
+              </div>
+              <div className="text-xs text-slate-600 dark:text-slate-300 mt-0.5">
+                Les notes de rattrapage remplacent les notes de Session 1 uniquement si elles sont supérieures. Cliquez sur <strong>Rattrapage</strong> pour saisir les notes des matières ajournées.
+              </div>
+            </div>
+          </div>
+          <label className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer self-start sm:self-center bg-white dark:bg-slate-800 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xs">
+            <input
+              type="checkbox"
+              checked={onlyAjournes}
+              onChange={(e) => setOnlyAjournes(e.target.checked)}
+              className="h-4 w-4 rounded accent-indigo-600 cursor-pointer"
+            />
+            <span>Afficher uniquement les ajournés ({deliberationData.totalStudents - deliberationData.passedCount})</span>
+          </label>
+        </div>
+      )}
 
       {/* ─── FILTRES ACADÉMIQUES CONFORMES À SETTINGS & NOTES & RÉSULTATS ──────── */}
       <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm space-y-4">
@@ -741,24 +847,18 @@ export default function DeliberationClient({
           {/* 3. Section / Filière (school_sections filtrées par niveau) */}
           <div className="space-y-1.5">
             <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              3. Section / Filière ({filteredSections.length})
+              3. Section / Filière
             </label>
             <Select value={selectedSectionId} onValueChange={(val) => setSelectedSectionId(val || "")}>
               <SelectTrigger className="w-full text-xs font-medium bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-xl h-10">
                 <SelectValue placeholder="Choisir la filière" />
               </SelectTrigger>
               <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
-                {filteredSections.length === 0 ? (
-                  <SelectItem value="none" disabled className="text-xs text-slate-400">
-                    Aucune section trouvée
+                {filteredSections.map((sec) => (
+                  <SelectItem key={sec.id} value={String(sec.id)} className="text-xs">
+                    {sec.sectionName}
                   </SelectItem>
-                ) : (
-                  filteredSections.map((s) => (
-                    <SelectItem key={s.id} value={String(s.id)} className="text-xs">
-                      {s.sectionName}
-                    </SelectItem>
-                  ))
-                )}
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -766,24 +866,18 @@ export default function DeliberationClient({
           {/* 4. Promotion / Classe (school_classes filtrées par sectionId) */}
           <div className="space-y-1.5">
             <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              4. Promotion / Classe ({filteredClasses.length})
+              4. Promotion / Classe
             </label>
             <Select value={selectedClassId} onValueChange={(val) => setSelectedClassId(val || "")}>
               <SelectTrigger className="w-full text-xs font-medium bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-xl h-10">
                 <SelectValue placeholder="Choisir la classe" />
               </SelectTrigger>
               <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
-                {filteredClasses.length === 0 ? (
-                  <SelectItem value="none" disabled className="text-xs text-slate-400">
-                    Aucune classe rattachée
+                {filteredClasses.map((cls) => (
+                  <SelectItem key={cls.id} value={String(cls.id)} className="text-xs">
+                    {cls.className}
                   </SelectItem>
-                ) : (
-                  filteredClasses.map((c) => (
-                    <SelectItem key={c.id} value={String(c.id)} className="text-xs">
-                      {getClassDisplayName(c)}
-                    </SelectItem>
-                  ))
-                )}
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -843,13 +937,13 @@ export default function DeliberationClient({
         </div>
 
         <div className="rounded-2xl border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50/40 dark:bg-emerald-950/20 p-5 shadow-xs">
-          <div className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400">Admis (Validation Semestre)</div>
+          <div className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400">Admis ({sessionMode === "Rattrapage" ? "Session 2" : "Session 1"})</div>
           <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1">{deliberationData.passedCount}</div>
           <div className="text-[10px] text-emerald-600/70 mt-0.5">Moyenne ≥ 10.00 / 20</div>
         </div>
 
         <div className="rounded-2xl border border-rose-200 dark:border-rose-900/50 bg-rose-50/40 dark:bg-rose-950/20 p-5 shadow-xs">
-          <div className="text-[11px] font-bold text-rose-700 dark:text-rose-400">Ajournés (Rattrapage)</div>
+          <div className="text-[11px] font-bold text-rose-700 dark:text-rose-400">Ajournés (Non validés)</div>
           <div className="text-2xl font-black text-rose-600 dark:text-rose-400 mt-1">
             {deliberationData.totalStudents - deliberationData.passedCount}
           </div>
@@ -869,7 +963,7 @@ export default function DeliberationClient({
           <div className="flex items-center gap-2">
             <Scale className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
             <span className="font-bold text-sm text-slate-800 dark:text-slate-200">
-              Grille Collective de Délibération du Jury ({selectedSemester})
+              Grille Collective de Délibération du Jury ({selectedSemester} • {sessionMode === "Rattrapage" ? "Session de Rattrapage" : "Session Normale"})
             </span>
           </div>
 
@@ -889,7 +983,7 @@ export default function DeliberationClient({
         {isLoading ? (
           <div className="p-16 text-center text-xs text-slate-400 dark:text-slate-500">
             <RefreshCw className="h-7 w-7 animate-spin mx-auto mb-3 text-indigo-600 dark:text-indigo-400" />
-            Calcul des compensations ECTS en temps réel...
+            Calcul des compensations ECTS ({sessionMode === "Rattrapage" ? "Session 2 - Règle Max" : "Session 1"}) en temps réel...
           </div>
         ) : deliberationData.cohort.length === 0 ? (
           <div className="p-16 text-center text-xs text-slate-400 dark:text-slate-500 space-y-2">
@@ -916,12 +1010,16 @@ export default function DeliberationClient({
                   <th className="p-3 text-center font-bold bg-slate-800 dark:bg-slate-900">Crédits /30</th>
                   <th className="p-3 text-center font-bold bg-slate-800 dark:bg-slate-900">Décision</th>
                   <th className="p-3 text-center font-bold bg-slate-800 dark:bg-slate-900">Mention</th>
-                  <th className="p-3 text-center font-bold bg-slate-800 dark:bg-slate-900 min-w-[120px]">Actions</th>
+                  <th className="p-3 text-center font-bold bg-slate-800 dark:bg-slate-900 min-w-[140px]">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-                {deliberationData.cohort.map((item) => {
+                {(onlyAjournes
+                  ? deliberationData.cohort.filter((c) => !c.deliberation.isSemesterValidated)
+                  : deliberationData.cohort
+                ).map((item) => {
                   const d = item.deliberation;
+                  const hasUnvalidated = !d.isSemesterValidated;
                   return (
                     <tr key={item.student.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
                       <td className="p-3 text-center font-bold text-slate-500 dark:text-slate-400">
@@ -985,6 +1083,30 @@ export default function DeliberationClient({
                       {/* Actions Column */}
                       <td className="p-3 text-center bg-slate-50/50 dark:bg-slate-800/40">
                         <div className="flex items-center justify-center gap-1.5">
+                          {sessionMode === "Rattrapage" && hasUnvalidated && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                const unvalidatedEcus = d.ueResults
+                                  .filter((ue: any) => ue.status === "NV")
+                                  .flatMap((ue: any) => ue.ecuResults?.filter((e: any) => e.finalGrade < 10) || []);
+                                const targetEcu = unvalidatedEcus[0] || d.ueResults[0]?.ecuResults?.[0];
+                                setRattrapageEditState({
+                                  open: true,
+                                  student: item.student,
+                                  ecu: targetEcu,
+                                  currentGrade: targetEcu?.finalGrade || 0,
+                                  rattrapageGrade: targetEcu?.rattrapageScore ? String(targetEcu.rattrapageScore) : "",
+                                });
+                              }}
+                              className="h-8 px-2 text-[11px] font-bold gap-1 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100"
+                              title="Saisir Note de Rattrapage (N2)"
+                            >
+                              <Sparkles className="h-3 w-3 text-amber-500" />
+                              <span>Rattrapage</span>
+                            </Button>
+                          )}
                           <Button
                             size="sm"
                             variant="ghost"
@@ -1169,15 +1291,36 @@ export default function DeliberationClient({
                                 {ecu.creditsEcts} ECTS
                               </td>
                               <td className="p-2.5 text-center">
-                                {isGraded ? (
-                                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                                    ecuPass ? "text-emerald-700 bg-emerald-50 dark:bg-emerald-950/40" : "text-rose-700 bg-rose-50 dark:bg-rose-950/40"
-                                  }`}>
-                                    {ecuPass ? "Validé" : "Ajourné"}
-                                  </span>
-                                ) : (
-                                  <span className="text-[10px] text-slate-400">Non évalué</span>
-                                )}
+                                <div className="flex items-center justify-center gap-1.5">
+                                  {isGraded ? (
+                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                                      ecuPass ? "text-emerald-700 bg-emerald-50 dark:bg-emerald-950/40" : "text-rose-700 bg-rose-50 dark:bg-rose-950/40"
+                                    }`}>
+                                      {ecuPass ? "Validé" : "Ajourné"}
+                                    </span>
+                                  ) : (
+                                    <span className="text-[10px] text-slate-400">Non évalué</span>
+                                  )}
+
+                                  {sessionMode === "Rattrapage" && (!ecuPass || (ecu.rattrapageScore !== null && ecu.rattrapageScore !== undefined)) && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setRattrapageEditState({
+                                          open: true,
+                                          student: previewStudentItem.student,
+                                          ecu: ecu,
+                                          currentGrade: ecu.examScore || ecu.finalGrade || 0,
+                                          rattrapageGrade: ecu.rattrapageScore !== null && ecu.rattrapageScore !== undefined ? String(ecu.rattrapageScore) : "",
+                                        });
+                                      }}
+                                      className="px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 hover:bg-amber-200 text-[10px] font-bold inline-flex items-center gap-1 transition-colors"
+                                      title="Saisir note de rattrapage (N2)"
+                                    >
+                                      <Sparkles className="h-2.5 w-2.5" /> Note N2
+                                    </button>
+                                  )}
+                                </div>
                               </td>
                             </tr>
                           );
@@ -1192,7 +1335,7 @@ export default function DeliberationClient({
             {/* Modal Footer Actions */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t border-slate-100 dark:border-slate-800 mt-3 shrink-0">
               <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                Normes REESAO / CAMES • Seuil de compensation inter-UE : 10.00 / 20
+                Normes REESAO / CAMES • Seuil de compensation inter-UE : 10.00 / 20 • Règle Max(N1, N2)
               </div>
               <div className="flex items-center gap-2">
                 <Button
@@ -1215,6 +1358,114 @@ export default function DeliberationClient({
           </DialogContent>
         </Dialog>
       )}
+
+      {/* ─── MODAL SAISIE DE NOTE DE RATTRAPAGE (SESSION 2 - N2) ────────────────── */}
+      <Dialog
+        open={rattrapageEditState.open}
+        onOpenChange={(open) => {
+          if (!open) {
+            setRattrapageEditState((prev) => ({ ...prev, open: false }));
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-2xl">
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-2xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+                <Sparkles className="h-5 w-5" />
+              </div>
+              <div>
+                <DialogTitle className="text-lg font-black text-slate-900 dark:text-slate-100">
+                  Saisie Note de Rattrapage (Session 2)
+                </DialogTitle>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Règle du meilleur score : <strong>Note Retenue = Max(N1, N2)</strong>
+                </p>
+              </div>
+            </div>
+          </DialogHeader>
+
+          {rattrapageEditState.student && (
+            <div className="space-y-4 my-2">
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 text-xs space-y-1.5">
+                <div className="flex justify-between">
+                  <span className="text-slate-500 font-medium">Étudiant :</span>
+                  <span className="font-bold text-slate-900 dark:text-slate-100">{rattrapageEditState.student.nom}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500 font-medium">Matricule :</span>
+                  <span className="font-mono text-slate-700 dark:text-slate-300">{rattrapageEditState.student.matricule || "N/A"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500 font-medium">Promotion / Semestre :</span>
+                  <span className="font-medium text-indigo-600 dark:text-indigo-400">{getClassDisplayName(selectedClass)} • {selectedSemester}</span>
+                </div>
+              </div>
+
+              {/* Matière en cours */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                  Matière / Électif Constitutif (ECU) :
+                </label>
+                <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center justify-between">
+                  <span>{rattrapageEditState.ecu?.nameEcu || "Matière"}</span>
+                  <span className="font-mono text-xs px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                    Note Session 1 (N1) : {rattrapageEditState.currentGrade.toFixed(2)} / 20
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                  Nouvelle Note de Rattrapage (N2) / 20 :
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="20"
+                  step="0.25"
+                  value={rattrapageEditState.rattrapageGrade}
+                  onChange={(e) => setRattrapageEditState((prev) => ({ ...prev, rattrapageGrade: e.target.value }))}
+                  placeholder="Ex: 14.50"
+                  autoFocus
+                  className="w-full text-lg font-mono font-black px-4 py-2.5 rounded-xl border border-indigo-300 dark:border-indigo-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+                <div className="text-[11px] text-slate-500 mt-1 flex items-center gap-1">
+                  <span>Score retenu pour la délibération :</span>
+                  <span className="font-bold text-indigo-600 dark:text-indigo-400">
+                    {Math.max(
+                      rattrapageEditState.currentGrade,
+                      parseFloat(rattrapageEditState.rattrapageGrade) || 0
+                    ).toFixed(2)} / 20
+                  </span>
+                  {parseFloat(rattrapageEditState.rattrapageGrade) >= 10 && (
+                    <span className="text-emerald-600 font-bold ml-1">→ Validé ! 🎉</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setRattrapageEditState((prev) => ({ ...prev, open: false }))}
+              className="text-xs font-semibold px-4 h-9 rounded-xl"
+            >
+              Annuler
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleSaveRattrapageGrade}
+              className="gap-2 bg-gradient-to-r from-amber-500 to-indigo-600 hover:from-amber-600 hover:to-indigo-700 text-white font-bold text-xs h-9 px-5 rounded-xl shadow-md"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              <span>Enregistrer & Recalculer</span>
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
