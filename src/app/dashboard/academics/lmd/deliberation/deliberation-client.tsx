@@ -49,6 +49,10 @@ import {
   generateLmdMinisterialPVPDF,
   MinisterialPVParams
 } from "@/domains/academics/utils/lmd-ministerial-pv-generator";
+import {
+  generateDiplomaSupplementPDF,
+  DiplomaSupplementParams
+} from "@/domains/academics/utils/lmd-diploma-supplement-generator";
 
 type Props = {
   initialPrograms: any[];
@@ -594,6 +598,58 @@ export default function DeliberationClient({
       toast.success(`Relevé annuel généré pour ${item.student.nom}`);
     } catch (e: any) {
       toast.error("Erreur lors de la génération du relevé annuel");
+    }
+  };
+
+  // ─── Export Diploma Supplement (UNESCO / CAMES) ───────────────────────────
+  const handleExportDiplomaSupplement = async (studentItem: any) => {
+    try {
+      const schoolName = headerConfig?.schoolName || headerConfig?.name || "UNIVERSITÉ DES SCIENCES & TECHNOLOGIES";
+      const facultyName = currentSection?.sectionName 
+        ? (currentSection.sectionName.toLowerCase().startsWith("faculté") ? currentSection.sectionName : `Faculté : ${currentSection.sectionName}`)
+        : "Faculté Universitaire LMD";
+      const departmentName = selectedProgram?.name || currentSection?.sectionName || "Département Universitaire";
+
+      const isAnnual = !!studentItem.annual;
+      const finalAvg = isAnnual ? studentItem.annual.annualAverage : studentItem.deliberation.semesterAverage;
+      const honors = isAnnual ? studentItem.annual.mention : studentItem.deliberation.mention;
+      const totalCreds = isAnnual ? studentItem.annual.totalCreditsAcquired : studentItem.deliberation.creditsAcquired;
+
+      const supplementPayload: DiplomaSupplementParams = {
+        student: {
+          id: studentItem.student.id,
+          nom: studentItem.student.nom,
+          matricule: studentItem.student.matricule || "N/A",
+          dateNaissance: studentItem.student.dateNaissance || "15/10/2002",
+          lieuNaissance: studentItem.student.lieuNaissance || "Niamey",
+          nationalite: "Nigérienne",
+          sexe: studentItem.student.sexe || "M",
+        },
+        diploma: {
+          title: `DIPLÔME DE ${selectedLevel ? selectedLevel.toUpperCase() : "LICENCE"} LMD`,
+          degreeLevel: selectedLevel || "Licence",
+          fieldOfStudy: currentSection?.sectionName || selectedProgram?.name || "Sciences & Technologies",
+          mention: selectedProgram?.name || currentSection?.sectionName || "Informatique & Télécommunications",
+          graduationYear: selectedSession?.sessionName || "2025-2026",
+          finalGradeAverage: finalAvg,
+          totalCreditsAcquired: totalCreds,
+          honors: honors,
+        },
+        institution: {
+          name: schoolName,
+          countryName: headerConfig?.countryName || "RÉPUBLIQUE DU NIGER",
+          ministryName: headerConfig?.ministryName || "MINISTÈRE DE L'ENSEIGNEMENT SUPÉRIEUR ET DE LA RECHERCHE",
+          facultyName: facultyName,
+          departmentName: departmentName,
+          city: headerConfig?.city || "Niamey",
+          website: headerConfig?.website || "www.universite-edut.org",
+        },
+      };
+
+      await generateDiplomaSupplementPDF(supplementPayload);
+      toast.success(`Annexe au diplôme (Diploma Supplement UNESCO) générée pour ${studentItem.student.nom}`);
+    } catch (e: any) {
+      toast.error("Erreur lors de la génération du supplément au diplôme");
     }
   };
 
@@ -1446,6 +1502,16 @@ export default function DeliberationClient({
                             <Button
                               size="sm"
                               variant="outline"
+                              onClick={() => handleExportDiplomaSupplement(item)}
+                              className="h-8 px-2 text-[11px] font-bold gap-1 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/50"
+                              title="Générer l'Annexe au Diplôme (UNESCO / CAMES)"
+                            >
+                              <GraduationCap className="h-3 w-3" />
+                              <span>Annexe UNESCO</span>
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
                               onClick={() => handleExportAnnualSingleReleve(item)}
                               className="h-8 px-2.5 text-[11px] font-bold gap-1 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/50"
                               title="Imprimer Relevé Annuel Officiel (PDF)"
@@ -1616,6 +1682,15 @@ export default function DeliberationClient({
                             <Button
                               size="sm"
                               variant="ghost"
+                              onClick={() => handleExportDiplomaSupplement(item)}
+                              className="h-8 w-8 p-0 text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400"
+                              title="Générer l'Annexe au Diplôme (UNESCO / CAMES)"
+                            >
+                              <GraduationCap className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
                               onClick={() => setPreviewStudentItem(item)}
                               className="h-8 w-8 p-0 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400"
                               title="Aperçu du relevé"
@@ -1643,59 +1718,6 @@ export default function DeliberationClient({
           )}
         </div>
       )}
-                          {sessionMode === "Rattrapage" && hasUnvalidated && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                const unvalidatedEcus = d.ueResults
-                                  .filter((ue: any) => ue.status === "NV")
-                                  .flatMap((ue: any) => ue.ecuResults?.filter((e: any) => e.finalGrade < 10) || []);
-                                const targetEcu = unvalidatedEcus[0] || d.ueResults[0]?.ecuResults?.[0];
-                                setRattrapageEditState({
-                                  open: true,
-                                  student: item.student,
-                                  ecu: targetEcu,
-                                  currentGrade: targetEcu?.finalGrade || 0,
-                                  rattrapageGrade: targetEcu?.rattrapageScore ? String(targetEcu.rattrapageScore) : "",
-                                });
-                              }}
-                              className="h-8 px-2 text-[11px] font-bold gap-1 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100"
-                              title="Saisir Note de Rattrapage (N2)"
-                            >
-                              <Sparkles className="h-3 w-3 text-amber-500" />
-                              <span>Rattrapage</span>
-                            </Button>
-                          )}
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => setPreviewStudentItem(item)}
-                            className="h-8 w-8 p-0 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400"
-                            title="Aperçu du relevé"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleExportSingleReleve(item)}
-                            className="h-8 px-2.5 text-[11px] font-bold gap-1 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/50"
-                            title="Imprimer Relevé Officiel"
-                          >
-                            <Printer className="h-3 w-3" />
-                            <span>Relevé</span>
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
 
       {/* ─── MODAL APERÇU RELEVÉ DE NOTES INDIVIDUEL (GRAND FORMAT WIDE) ──── */}
       {previewStudentItem && (

@@ -588,6 +588,12 @@ export default function LmdHubClient({
                 features: ["Cumul annuel des 60 Crédits ECTS", "Règle d'enjambement (≥ 45 ECTS)", "Moyenne Générale Annuelle (MGA / 20)", "Procès-verbal annuel & relevé annuel"],
               },
               {
+                icon: GraduationCap, color: "emerald", title: "Annexe Descriptive au Diplôme (UNESCO)",
+                desc: "Édition du Diploma Supplement en 8 sections standardisées (UNESCO / Conseil de l'Europe / CAMES) pour la reconnaissance internationale des diplômes et la mobilité académique.",
+                href: "/dashboard/academics/lmd/deliberation",
+                features: ["8 sections normalisées UNESCO / CAMES", "Grille ECTS internationale A/B/C/D/E", "Validation des 180 ECTS (Licence) / 120 ECTS (Master)", "Export PDF officiel infalsifiable"],
+              },
+              {
                 icon: BarChart3, color: "amber", title: "Statistiques & Pilotage",
                 desc: "Tableau de bord analytique des taux de réussite par filière, semestre et session. Indicateurs de performance pédagogique pour le pilotage qualité.",
                 href: "/dashboard/academics/lmd",
