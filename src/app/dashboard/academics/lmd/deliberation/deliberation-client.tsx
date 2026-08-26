@@ -170,7 +170,25 @@ export default function DeliberationClient({
   const periodOptions = useMemo(() => {
     const normLevel = normalizeFilterText(selectedLevel);
     const isPrimaire = normLevel.includes("prim") || normLevel.includes("matern") || normLevel.includes("fonda") || normLevel.includes("elem");
-    const isSuperior = normLevel.includes("licence") || normLevel.includes("lmd") || normLevel.includes("master") || normLevel.includes("doc") || normLevel.includes("super") || normLevel.includes("univ");
+    const isSuperior = 
+      normLevel.includes("licence") || 
+      normLevel.includes("lmd") || 
+      normLevel.includes("master") || 
+      normLevel.includes("doc") || 
+      normLevel.includes("super") || 
+      normLevel.includes("univ") ||
+      (currentSection?.educationalLevel && (
+        normalizeFilterText(currentSection.educationalLevel).includes("licence") ||
+        normalizeFilterText(currentSection.educationalLevel).includes("master") ||
+        normalizeFilterText(currentSection.educationalLevel).includes("univ") ||
+        normalizeFilterText(currentSection.educationalLevel).includes("super")
+      )) ||
+      (selectedClass?.className && (
+        /^l[1-3]/i.test(selectedClass.className) || 
+        /^m[1-2]/i.test(selectedClass.className) ||
+        /licence/i.test(selectedClass.className) ||
+        /master/i.test(selectedClass.className)
+      ));
 
     let sessionPeriods = (periods || []).filter((p: any) =>
       !p.sessionId || p.sessionId === 0 || String(p.sessionId) === "" || p.sessionId?.toString() === selectedSessionId
@@ -194,21 +212,18 @@ export default function DeliberationClient({
       ];
     }
 
-    // 2. Supérieur / Université LMD (Semestres S1 .. S6 / S14)
+    // 2. Supérieur / Université LMD (Semestres S1 .. S14) - Identique à AcademicFilters
     if (isSuperior) {
-      const isMaster = normLevel.includes("master");
-      const maxSem = isMaster ? 4 : 6;
-
-      const superiorPresets = Array.from({ length: maxSem }, (_, i) => {
-        const num = i + 1;
-        const code = `S${num}`;
-        const label = `${num === 1 ? "1er" : `${num}ème`} Semestre (${code})`;
-        return { id: label, name: label, code };
-      });
-
       const dbSuperior = sessionPeriods.filter((p: any) =>
         p.periodType === "Semestre" || String(p.name).toLowerCase().includes("semest") || /^s\d+/i.test(p.name)
       );
+
+      const superiorPresets = Array.from({ length: 14 }, (_, i) => {
+        const num = i + 1;
+        const code = `S${num}`;
+        const label = `${num === 1 ? "1er" : `${num}ème`} Semestre (S${num})`;
+        return { id: label, name: label, code };
+      });
 
       if (dbSuperior.length > 0) {
         const dbList = dbSuperior.map((p: any) => {
@@ -216,7 +231,7 @@ export default function DeliberationClient({
           const c = m ? `S${m[0]}` : p.name;
           return { id: p.name, name: p.name, code: c };
         });
-        return dbList.length >= 2 ? dbList : superiorPresets;
+        return dbList.length >= 6 ? dbList : superiorPresets;
       }
       return superiorPresets;
     }
