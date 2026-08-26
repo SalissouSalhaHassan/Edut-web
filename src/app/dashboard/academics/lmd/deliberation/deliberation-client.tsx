@@ -615,6 +615,18 @@ export default function DeliberationClient({
       const honors = isAnnual ? studentItem.annual.mention : studentItem.deliberation.mention;
       const totalCreds = isAnnual ? studentItem.annual.totalCreditsAcquired : studentItem.deliberation.creditsAcquired;
 
+      const rawUeResults = isAnnual
+        ? [...(studentItem.sem1?.ueResults || []), ...(studentItem.sem2?.ueResults || [])]
+        : (studentItem.deliberation?.ueResults || []);
+
+      const ueList = rawUeResults.map((ue: any) => ({
+        codeUe: ue.codeUe || "UE",
+        nameUe: ue.nameUe || ue.codeUe || "Unité d'Enseignement",
+        creditsEcts: Number(ue.creditsEcts) || 6,
+        average: Number(ue.average) || 0,
+        status: ue.status || "V",
+      }));
+
       const supplementPayload: DiplomaSupplementParams = {
         student: {
           id: studentItem.student.id,
@@ -644,6 +656,7 @@ export default function DeliberationClient({
           city: headerConfig?.city || "Niamey",
           website: headerConfig?.website || "www.universite-edut.org",
         },
+        ueList: ueList,
       };
 
       await generateDiplomaSupplementPDF(supplementPayload);
