@@ -23,6 +23,7 @@ import {
   saveLmdDeliberation 
 } from "@/domains/academics/actions/lmd.actions";
 import { getClassDisplayName } from "@/domains/academics/utils/class-name";
+import { useTheme } from "@/hooks/use-theme";
 
 type Props = {
   initialPrograms: any[];
@@ -58,17 +59,7 @@ export default function DeliberationClient({
   periods = [],
 }: Props) {
   const [programs] = useState(initialPrograms || []);
-  const [darkMode, setDarkMode] = useState(false);
-
-  // Toggle Dark Mode
-  useEffect(() => {
-    const root = document.documentElement;
-    if (darkMode) {
-      root.classList.add("dark");
-    } else {
-      root.classList.remove("dark");
-    }
-  }, [darkMode]);
+  const { isDark, toggleTheme } = useTheme();
 
   // 1. Session Académique (défaut sur session active)
   const activeSession = sessions.find((s) => s.isActive || s.status === "Actif") || sessions[0];
@@ -558,11 +549,11 @@ export default function DeliberationClient({
         <div className="flex items-center gap-2">
           {/* Dark Mode Toggle */}
           <button
-            onClick={() => setDarkMode(!darkMode)}
+            onClick={toggleTheme}
             className="flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors shadow-sm"
           >
-            {darkMode ? <Sun className="h-3.5 w-3.5 text-amber-400" /> : <Moon className="h-3.5 w-3.5 text-indigo-500" />}
-            <span>{darkMode ? "Clair" : "Sombre"}</span>
+            {isDark ? <Sun className="h-3.5 w-3.5 text-amber-400" /> : <Moon className="h-3.5 w-3.5 text-indigo-500" />}
+            <span>{isDark ? "Clair" : "Sombre"}</span>
           </button>
 
           <Button

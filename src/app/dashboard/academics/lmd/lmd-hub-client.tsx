@@ -19,6 +19,7 @@ import {
   syncAcademicSettingsToLmd,
   saveFaculty,
 } from "@/domains/academics/actions/lmd.actions";
+import { useTheme } from "@/hooks/use-theme";
 
 type Props = {
   initialFaculties: any[];
@@ -68,20 +69,10 @@ export default function LmdHubClient({
   const [facultyForm, setFacultyForm] = useState({ name: "", code: "", description: "" });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
-  const [darkMode, setDarkMode] = useState(false);
+  const { isDark, toggleTheme } = useTheme();
   const [expandedFaculty, setExpandedFaculty] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCycle, setSelectedCycle] = useState("Tous");
-
-  // Dark mode toggle (controls html class)
-  useEffect(() => {
-    const root = document.documentElement;
-    if (darkMode) {
-      root.classList.add("dark");
-    } else {
-      root.classList.remove("dark");
-    }
-  }, [darkMode]);
 
   const handleSync = async () => {
     setIsSyncing(true);
@@ -209,11 +200,11 @@ export default function LmdHubClient({
           <div className="flex flex-col items-end gap-3">
             {/* Dark Mode Toggle */}
             <button
-              onClick={() => setDarkMode(!darkMode)}
+              onClick={toggleTheme}
               className="flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-white/20 transition-colors border border-white/10 backdrop-blur-sm"
             >
-              {darkMode ? <Sun className="h-4 w-4 text-amber-300" /> : <Moon className="h-4 w-4 text-indigo-300" />}
-              {darkMode ? "Mode Clair" : "Mode Sombre"}
+              {isDark ? <Sun className="h-4 w-4 text-amber-300" /> : <Moon className="h-4 w-4 text-indigo-300" />}
+              {isDark ? "Mode Clair" : "Mode Sombre"}
             </button>
 
             {/* ECTS Progress Ring */}
