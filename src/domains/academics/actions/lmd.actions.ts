@@ -618,16 +618,44 @@ export async function getLmdDeliberationCohort(
   sessionId: number
 ) {
   try {
-    // 1. Récupérer les UEs et ECUs configurés pour ce programme et semestre
-    let ues = await readDb.query.lmdUnitesEnseignement.findMany({
-      where: and(
-        eq(lmdUnitesEnseignement.programId, programId),
-        eq(lmdUnitesEnseignement.semester, semester)
-      ),
-      with: {
-        elementsConstitutifs: true,
+    const semNumMatch = semester.match(/\d+/);
+    const semNum = semNumMatch ? semNumMatch[0] : "1";
+    const sCode = `S${semNum}`;
+
+    // 0. Résoudre programId si 0 ou manquant à partir de la classe
+    let resolvedProgramId = programId;
+    if (!resolvedProgramId || resolvedProgramId === 0) {
+      const cls = await readDb.query.schoolClasses.findFirst({
+        where: eq(schoolClasses.id, classId),
+      });
+      if (cls?.sectionId) {
+        const prog = await readDb.query.universityPrograms.findFirst({
+          where: eq(universityPrograms.sectionId, cls.sectionId),
+        });
+        if (prog) {
+          resolvedProgramId = prog.id;
+        }
       }
-    });
+    }
+
+    // 1. Récupérer les UEs et ECUs configurés pour ce programme et semestre (support S1, 1er Semestre, etc.)
+    let ues: any[] = [];
+    if (resolvedProgramId && resolvedProgramId > 0) {
+      ues = await readDb.query.lmdUnitesEnseignement.findMany({
+        where: and(
+          eq(lmdUnitesEnseignement.programId, resolvedProgramId),
+          or(
+            eq(lmdUnitesEnseignement.semester, semester),
+            eq(lmdUnitesEnseignement.semester, sCode),
+            eq(lmdUnitesEnseignement.semester, `Semestre ${semNum}`),
+            ilike(lmdUnitesEnseignement.semester, `%${sCode}%`)
+          )
+        ),
+        with: {
+          elementsConstitutifs: true,
+        }
+      });
+    }
 
     // Fallback dynamique si aucune UE n'est encore configurée pour ce semestre précis :
     // On mappe directement les matières affectées à la classe (class_subjects)
@@ -646,16 +674,16 @@ export async function getLmdDeliberationCohort(
           codeEcu: cs.subject?.subjectCode || `ECU-${idx + 1}`,
           nameEcu: cs.subject?.subjectName || `Matière ${idx + 1}`,
           coefficient: cs.coefficient || 1,
-          creditsEcts: cs.credits || (30.0 / Math.max(1, clsSubjects.length)),
+          creditsEcts: cs.credits && Number(cs.credits) > 0 ? Number(cs.credits) : Number((30.0 / Math.max(1, clsSubjects.length)).toFixed(1)),
           eliminatoryGrade: 7.0,
         }));
 
         ues = [
           {
             id: 999991,
-            programId,
-            semester,
-            codeUe: `UE-AUTO-${semester}`,
+            programId: resolvedProgramId || 0,
+            semester: sCode,
+            codeUe: `UE-AUTO-${sCode}`,
             nameUe: `UE Unifiée du Semestre (${semester})`,
             typeUe: "Fondamentale",
             creditsEcts: 30.0,
@@ -675,9 +703,6 @@ export async function getLmdDeliberationCohort(
     });
 
     // 3. Récupérer les notes réelles enregistrées (student_results)
-    const semNumMatch = semester.match(/\d+/);
-    const semNum = semNumMatch ? semNumMatch[0] : "1";
-
     // Build comprehensive term aliases covering all known real formats:
     // S1, Semestre 1, 1er Semestre, 1ère Semestre, 1er Semestre (S1), 2ème Semestre (S2), etc.
     const semNumSuffix = semNum === "1" ? "er" : "ème";
@@ -711,7 +736,7 @@ export async function getLmdDeliberationCohort(
     // 4. Calculer la délibération LMD pour chaque étudiant
     const cohortDeliberation = enrolledStudents.map((st) => {
       const studentUeInputs: UeInput[] = ues.map((ue) => {
-        const ecus: EcuInput[] = ue.elementsConstitutifs.map((ecu) => {
+        const ecus: EcuInput[] = (ue.elementsConstitutifs || []).map((ecu: any) => {
           const res = ecu.subjectId ? resultMap.get(`${st.id}_${ecu.subjectId}`) : null;
           return {
             id: ecu.id,
