@@ -34,7 +34,7 @@ import {
 interface EquivalenceItem {
   id: number;
   schoolId?: number | null;
-  studentId: number;
+  studentId?: number | null;
   originInstitution: string;
   originCountry?: string | null;
   originProgram?: string | null;
@@ -133,7 +133,7 @@ export function EquivalencesClient({
 
   const handleOpenEdit = (item: EquivalenceItem) => {
     setEditingItem(item);
-    setSelectedStudentId(item.studentId);
+    setSelectedStudentId(item.studentId || studentsList[0]?.id || 0);
     setOriginInstitution(item.originInstitution || "");
     setOriginCountry(item.originCountry || "International");
     setOriginProgram(item.originProgram || "");
@@ -222,9 +222,9 @@ export function EquivalencesClient({
           ],
         },
         student: {
-          id: item.studentId,
+          id: item.studentId || 0,
           nom: item.studentNom || "Étudiant",
-          matricule: item.studentMatricule || `EDUT-${item.studentId}`,
+          matricule: item.studentMatricule || `EDUT-${item.studentId || 0}`,
           dateNaissance: "15/10/2002",
           lieuNaissance: "Niamey",
           nationalite: "Nigérienne",
