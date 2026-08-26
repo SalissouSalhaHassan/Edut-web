@@ -1018,7 +1018,7 @@ export default function DeliberationClient({
       {/* ─── MODAL APERÇU RELEVÉ DE NOTES INDIVIDUEL (GRAND FORMAT WIDE) ──── */}
       {previewStudentItem && (
         <Dialog open={Boolean(previewStudentItem)} onOpenChange={(open) => !open && setPreviewStudentItem(null)}>
-          <DialogContent className="max-w-4xl max-h-[92vh] flex flex-col bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 p-6 rounded-3xl shadow-2xl overflow-hidden">
+          <DialogContent className="!w-[94vw] !max-w-5xl sm:!max-w-5xl md:!max-w-5xl lg:!max-w-5xl max-h-[92vh] flex flex-col bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 p-6 sm:p-7 rounded-3xl shadow-2xl overflow-hidden">
             {/* Modal Header */}
             <DialogHeader className="border-b border-slate-100 dark:border-slate-800 pb-4 shrink-0">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
