@@ -112,20 +112,27 @@ export function calculateUeMetrics(ue: UeInput): UeResult {
   let totalWeighted = 0;
   let totalCoefs = 0;
   let hasEliminatoryGrade = false;
+  let evaluatedCount = 0;
 
   for (const ecuRes of ecuResults) {
-    totalWeighted += ecuRes.weightedGrade;
-    totalCoefs += ecuRes.coefficient;
-    if (ecuRes.isEliminated) {
-      hasEliminatoryGrade = true;
+    const isEvaluated = ecuRes.examScore !== null || ecuRes.classWorkScore !== null || ecuRes.totalScore !== null;
+    if (isEvaluated) {
+      totalWeighted += ecuRes.weightedGrade;
+      totalCoefs += ecuRes.coefficient;
+      evaluatedCount++;
+      if (ecuRes.isEliminated) {
+        hasEliminatoryGrade = true;
+      }
     }
   }
 
+  const allCoefs = ecuResults.reduce((acc, e) => acc + (Number(e.coefficient) || 1), 0);
+  // Average is computed on evaluated ECUs (or 0 if none evaluated)
   const average = totalCoefs > 0 ? Number((totalWeighted / totalCoefs).toFixed(2)) : 0.0;
   const minPass = ue.minPassingGrade ?? 10.0;
 
-  // Une UE est validée si moyenne >= 10 et aucune note éliminatoire
-  const isValidated = average >= minPass && !hasEliminatoryGrade;
+  // Une UE est validée si moyenne >= 10, au moins 1 ECU évalué, et aucune note éliminatoire
+  const isValidated = evaluatedCount > 0 && average >= minPass && !hasEliminatoryGrade;
 
   let status: "V" | "VC" | "NV" | "CAP" | "RAT" = "NV";
   let creditsAcquired = 0.0;
@@ -145,7 +152,7 @@ export function calculateUeMetrics(ue: UeInput): UeResult {
     creditsEcts: ue.creditsEcts,
     creditsAcquired,
     average,
-    totalCoefficients: totalCoefs,
+    totalCoefficients: totalCoefs > 0 ? totalCoefs : allCoefs,
     status,
     hasEliminatoryGrade,
     ecuResults,

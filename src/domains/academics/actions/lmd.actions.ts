@@ -762,9 +762,88 @@ export async function getLmdDeliberationCohort(
       }
     }
 
+    // 3.5 Découverte et intégration intelligente des matières réelles évaluées
+    const distinctEvaluatedSubjects = new Map<number, { id: number; name: string; code?: string; coef: number }>();
+    for (const r of results) {
+      if (r.subjectId && !distinctEvaluatedSubjects.has(r.subjectId)) {
+        distinctEvaluatedSubjects.set(r.subjectId, {
+          id: r.subjectId,
+          name: r.subject?.subjectName || `Matière ${r.subjectId}`,
+          code: r.subject?.subjectCode || `ECU-${r.subjectId}`,
+          coef: r.coefficient ? Number(r.coefficient) : 1,
+        });
+      }
+    }
+
+    const existingUeSubjectIds = new Set<number>();
+    const existingUeSubjectNames = new Set<string>();
+    for (const u of ues) {
+      for (const e of u.elementsConstitutifs || []) {
+        if (e.subjectId) existingUeSubjectIds.add(e.subjectId);
+        if (e.nameEcu) existingUeSubjectNames.add(normalizeKey(e.nameEcu));
+      }
+    }
+
+    const missingEvaluatedSubjects = Array.from(distinctEvaluatedSubjects.values()).filter(
+      (s) => !existingUeSubjectIds.has(s.id) && !existingUeSubjectNames.has(normalizeKey(s.name))
+    );
+
+    let effectiveUes = [...ues];
+
+    if (effectiveUes.length === 0 && distinctEvaluatedSubjects.size > 0) {
+      const allEvaluatedList = Array.from(distinctEvaluatedSubjects.values());
+      const ectsPerSubject = Number((30.0 / Math.max(1, allEvaluatedList.length)).toFixed(1));
+      effectiveUes = [
+        {
+          id: 999991,
+          programId: resolvedProgramId || 0,
+          semester: sCode,
+          codeUe: `UE-FOND-${sCode}`,
+          nameUe: `UE Fondamentale du Semestre (${semester})`,
+          typeUe: "Fondamentale",
+          creditsEcts: 30.0,
+          totalHours: 300.0,
+          minPassingGrade: 10.0,
+          isEliminatory: false,
+          elementsConstitutifs: allEvaluatedList.map((s, idx) => ({
+            id: s.id,
+            subjectId: s.id,
+            codeEcu: s.code || `ECU-${idx + 1}`,
+            nameEcu: s.name,
+            coefficient: s.coef || 1,
+            creditsEcts: ectsPerSubject,
+            eliminatoryGrade: 7.0,
+          })),
+        } as any
+      ];
+    } else if (missingEvaluatedSubjects.length > 0) {
+      const ectsPerMissing = Number((12.0 / Math.max(1, missingEvaluatedSubjects.length)).toFixed(1));
+      effectiveUes.push({
+        id: 999992,
+        programId: resolvedProgramId || 0,
+        semester: sCode,
+        codeUe: `UE-SPEC-${sCode}`,
+        nameUe: `UE Spécialité & Modules Complémentaires (${sCode})`,
+        typeUe: "Fondamentale",
+        creditsEcts: 12.0,
+        totalHours: 120.0,
+        minPassingGrade: 10.0,
+        isEliminatory: false,
+        elementsConstitutifs: missingEvaluatedSubjects.map((s, idx) => ({
+          id: s.id,
+          subjectId: s.id,
+          codeEcu: s.code || `ECU-SPEC-${idx + 1}`,
+          nameEcu: s.name,
+          coefficient: s.coef || 1,
+          creditsEcts: ectsPerMissing,
+          eliminatoryGrade: 7.0,
+        })),
+      } as any);
+    }
+
     // 4. Calculer la délibération LMD pour chaque étudiant
     const cohortDeliberation = enrolledStudents.map((st) => {
-      const studentUeInputs: UeInput[] = ues.map((ue) => {
+      const studentUeInputs: UeInput[] = effectiveUes.map((ue) => {
         const ecus: EcuInput[] = (ue.elementsConstitutifs || []).map((ecu: any) => {
           const normEcuName = normalizeKey(ecu.nameEcu);
           const res = (ecu.subjectId ? resultMap.get(`${st.id}_${ecu.subjectId}`) : null)
@@ -825,7 +904,7 @@ export async function getLmdDeliberationCohort(
     return {
       success: true,
       data: {
-        ues,
+        ues: effectiveUes,
         cohort: cohortWithRank,
         totalStudents,
         passedCount,
