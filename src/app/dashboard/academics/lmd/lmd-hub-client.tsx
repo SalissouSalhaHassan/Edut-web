@@ -618,6 +618,12 @@ export default function LmdHubClient({
                 features: ["Attribution des encadrants & rapporteurs", "Planning des soutenances & gestion des salles", "Grille critériée d'évaluation du jury", "PV officiel de soutenance & attestation PDF"],
               },
               {
+                icon: Globe2, color: "blue", title: "Équivalences & Transferts ECTS (Mobilité)",
+                desc: "Gestion des validations des acquis, mobilités internationales et transferts d'étudiants. Reconnaissance officielle des crédits et attestations ECTS.",
+                href: "/dashboard/academics/lmd/equivalences",
+                features: ["Validation des acquis antérieurs", "Attestation de transfert ECTS (PDF)", "Homologation normes REESAO / CAMES", "Intégration directe au bilan 180 ECTS"],
+              },
+              {
                 icon: BarChart3, color: "indigo", title: "Statistiques & Pilotage",
                 desc: "Tableau de bord analytique des taux de réussite par filière, semestre et session. Indicateurs de performance pédagogique pour le pilotage qualité.",
                 href: "/dashboard/academics/lmd",

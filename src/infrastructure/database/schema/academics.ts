@@ -971,3 +971,34 @@ export const studentLmdSemestersRelations = relations(studentLmdSemesters, ({ on
   session: one(schoolSessions, { fields: [studentLmdSemesters.sessionId], references: [schoolSessions.id] }),
 }));
 
+/**
+ * Équivalences & Transferts de Crédits ECTS (Mobilité Internationale & Passerelles LMD)
+ */
+export const lmdCreditEquivalences = pgTable("lmd_credit_equivalences", {
+  id: serial("id").primaryKey(),
+  schoolId: integer("school_id").references(() => schools.id),
+  studentId: integer("student_id").references(() => students.id, { onDelete: "cascade" }),
+  originInstitution: varchar("origin_institution", { length: 200 }).notNull(),
+  originCountry: varchar("origin_country", { length: 100 }).default("International"),
+  originProgram: varchar("origin_program", { length: 200 }),
+  academicYear: varchar("academic_year", { length: 50 }),
+  targetProgramId: integer("target_program_id").references(() => universityPrograms.id),
+  targetLevel: varchar("target_level", { length: 50 }).default("L2"), // L1, L2, L3, M1, M2
+  targetSemester: varchar("target_semester", { length: 50 }).default("S3"), // S1 .. S6
+  creditsTransferred: doublePrecision("credits_transferred").notNull().default(60.0), // Total ECTS
+  equivalentUesJson: text("equivalent_ues_json"), // JSON stringified array of recognized UEs
+  decision: varchar("decision", { length: 50 }).default("Validé"), // Validé | Rejeté | En Commission
+  decisionDate: timestamp("decision_date").defaultNow(),
+  commissionPresident: varchar("commission_president", { length: 150 }),
+  commissionComments: text("commission_comments"),
+  certificateNumber: varchar("certificate_number", { length: 100 }),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const lmdCreditEquivalencesRelations = relations(lmdCreditEquivalences, ({ one }) => ({
+  student: one(students, { fields: [lmdCreditEquivalences.studentId], references: [students.id] }),
+  targetProgram: one(universityPrograms, { fields: [lmdCreditEquivalences.targetProgramId], references: [universityPrograms.id] }),
+}));
+
+
