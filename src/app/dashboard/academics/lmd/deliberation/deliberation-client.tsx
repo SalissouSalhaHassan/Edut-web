@@ -7,7 +7,7 @@ import {
   AlertTriangle, RefreshCw, Sparkles, Filter, 
   ShieldCheck, Printer, FileText, Download,
   Layers, School, GraduationCap, Search, Eye,
-  Sun, Moon, Award, Activity, BookOpen, UserCheck, X, Building2
+  Sun, Moon, Award, Activity, BookOpen, UserCheck, X, Building2, FileCheck
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -53,6 +53,11 @@ import {
   generateDiplomaSupplementPDF,
   DiplomaSupplementParams
 } from "@/domains/academics/utils/lmd-diploma-supplement-generator";
+import {
+  generateLmdOfficialDiplomaPDF,
+  generateLmdAttestationReussitePDF,
+  LmdDiplomaParams
+} from "@/domains/academics/utils/lmd-diploma-generator";
 
 type Props = {
   initialPrograms: any[];
@@ -663,6 +668,104 @@ export default function DeliberationClient({
       toast.success(`Annexe au diplôme (Diploma Supplement UNESCO) générée pour ${studentItem.student.nom}`);
     } catch (e: any) {
       toast.error("Erreur lors de la génération du supplément au diplôme");
+    }
+  };
+
+  // ─── Export Official Diploma (Landscape Gold/Navy Luxury) ───────────────────
+  const handleExportOfficialDiploma = async (studentItem: any) => {
+    try {
+      const schoolName = headerConfig?.schoolName || headerConfig?.name || "UNIVERSITÉ DES SCIENCES & TECHNOLOGIES";
+      const facultyName = currentSection?.sectionName 
+        ? (currentSection.sectionName.toLowerCase().startsWith("faculté") ? currentSection.sectionName : `Faculté : ${currentSection.sectionName}`)
+        : "Faculté Universitaire LMD";
+
+      const isAnnual = !!studentItem.annual;
+      const finalAvg = isAnnual ? studentItem.annual.annualAverage : studentItem.deliberation.semesterAverage;
+      const honors = isAnnual ? studentItem.annual.mention : studentItem.deliberation.mention;
+      const totalCreds = isAnnual ? studentItem.annual.totalCreditsAcquired : studentItem.deliberation.creditsAcquired;
+
+      const payload: LmdDiplomaParams = {
+        student: {
+          id: studentItem.student.id,
+          nom: studentItem.student.nom,
+          matricule: studentItem.student.matricule || `EDUT-${studentItem.student.id}`,
+          dateNaissance: studentItem.student.dateNaissance || "15/10/2002",
+          lieuNaissance: studentItem.student.lieuNaissance || "Niamey",
+          nationalite: "Nigérienne",
+          sexe: studentItem.student.sexe || "M",
+        },
+        degree: {
+          title: selectedLevel ? selectedLevel.toUpperCase() : "LICENCE",
+          specialization: selectedProgram?.name || currentSection?.sectionName || "Informatique & Systèmes d'Information",
+          fieldOfStudy: currentSection?.sectionName || selectedProgram?.name || "Sciences & Technologies",
+          mention: honors || "Bien",
+          finalGradeAverage: finalAvg,
+          totalCreditsAcquired: totalCreds || 180,
+          sessionName: selectedSession?.sessionName || "2025-2026",
+          diplomaNumber: `DIP-LMD-${studentItem.student.id}-2026`,
+        },
+        institution: {
+          name: schoolName,
+          countryName: headerConfig?.countryName || "RÉPUBLIQUE DU NIGER",
+          ministryName: headerConfig?.ministryName || "MINISTÈRE DE L'ENSEIGNEMENT SUPÉRIEUR ET DE LA RECHERCHE",
+          facultyName: facultyName,
+          city: headerConfig?.city || "Niamey",
+        },
+      };
+
+      await generateLmdOfficialDiplomaPDF(payload);
+      toast.success(`Diplôme Officiel généré pour ${studentItem.student.nom}`);
+    } catch (e) {
+      toast.error("Erreur lors de la génération du diplôme");
+    }
+  };
+
+  // ─── Export Attestation de Réussite (Portrait Official) ─────────────────────
+  const handleExportAttestationReussite = async (studentItem: any) => {
+    try {
+      const schoolName = headerConfig?.schoolName || headerConfig?.name || "UNIVERSITÉ DES SCIENCES & TECHNOLOGIES";
+      const facultyName = currentSection?.sectionName 
+        ? (currentSection.sectionName.toLowerCase().startsWith("faculté") ? currentSection.sectionName : `Faculté : ${currentSection.sectionName}`)
+        : "Faculté Universitaire LMD";
+
+      const isAnnual = !!studentItem.annual;
+      const finalAvg = isAnnual ? studentItem.annual.annualAverage : studentItem.deliberation.semesterAverage;
+      const honors = isAnnual ? studentItem.annual.mention : studentItem.deliberation.mention;
+      const totalCreds = isAnnual ? studentItem.annual.totalCreditsAcquired : studentItem.deliberation.creditsAcquired;
+
+      const payload: LmdDiplomaParams = {
+        student: {
+          id: studentItem.student.id,
+          nom: studentItem.student.nom,
+          matricule: studentItem.student.matricule || `EDUT-${studentItem.student.id}`,
+          dateNaissance: studentItem.student.dateNaissance || "15/10/2002",
+          lieuNaissance: studentItem.student.lieuNaissance || "Niamey",
+          nationalite: "Nigérienne",
+          sexe: studentItem.student.sexe || "M",
+        },
+        degree: {
+          title: selectedLevel ? selectedLevel.toUpperCase() : "LICENCE",
+          specialization: selectedProgram?.name || currentSection?.sectionName || "Informatique & Systèmes d'Information",
+          fieldOfStudy: currentSection?.sectionName || selectedProgram?.name || "Sciences & Technologies",
+          mention: honors || "Bien",
+          finalGradeAverage: finalAvg,
+          totalCreditsAcquired: totalCreds || 180,
+          sessionName: selectedSession?.sessionName || "2025-2026",
+          diplomaNumber: `ATT-LMD-${studentItem.student.id}-2026`,
+        },
+        institution: {
+          name: schoolName,
+          countryName: headerConfig?.countryName || "RÉPUBLIQUE DU NIGER",
+          ministryName: headerConfig?.ministryName || "MINISTÈRE DE L'ENSEIGNEMENT SUPÉRIEUR ET DE LA RECHERCHE",
+          facultyName: facultyName,
+          city: headerConfig?.city || "Niamey",
+        },
+      };
+
+      await generateLmdAttestationReussitePDF(payload);
+      toast.success(`Attestation de réussite générée pour ${studentItem.student.nom}`);
+    } catch (e) {
+      toast.error("Erreur lors de la génération de l'attestation");
     }
   };
 
@@ -1509,7 +1612,27 @@ export default function DeliberationClient({
 
                         {/* Actions */}
                         <td className="p-3 text-center bg-slate-50/50 dark:bg-slate-800/40">
-                          <div className="flex items-center justify-center gap-1.5">
+                          <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleExportOfficialDiploma(item)}
+                              className="h-8 px-2 text-[11px] font-bold gap-1 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-800 hover:bg-amber-50 dark:hover:bg-amber-950/50"
+                              title="Imprimer Diplôme Officiel Grand Format (A4 Paysage)"
+                            >
+                              <Award className="h-3 w-3 text-amber-500" />
+                              <span>Diplôme</span>
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleExportAttestationReussite(item)}
+                              className="h-8 px-2 text-[11px] font-bold gap-1 text-teal-700 dark:text-teal-300 border-teal-300 dark:border-teal-800 hover:bg-teal-50 dark:hover:bg-teal-950/50"
+                              title="Imprimer Attestation Provisoire de Réussite"
+                            >
+                              <FileCheck className="h-3 w-3 text-teal-500" />
+                              <span>Attestation</span>
+                            </Button>
                             <Button
                               size="sm"
                               variant="outline"
@@ -1518,7 +1641,7 @@ export default function DeliberationClient({
                               title="Générer l'Annexe au Diplôme (UNESCO / CAMES)"
                             >
                               <GraduationCap className="h-3 w-3" />
-                              <span>Annexe UNESCO</span>
+                              <span>Annexe</span>
                             </Button>
                             <Button
                               size="sm"
@@ -1528,7 +1651,7 @@ export default function DeliberationClient({
                               title="Imprimer Relevé Annuel Officiel (PDF)"
                             >
                               <Printer className="h-3 w-3" />
-                              <span>Relevé Annuel</span>
+                              <span>Relevé</span>
                             </Button>
                           </div>
                         </td>
@@ -1690,6 +1813,24 @@ export default function DeliberationClient({
                                 <span>Rattrapage</span>
                               </Button>
                             )}
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleExportOfficialDiploma(item)}
+                              className="h-8 w-8 p-0 text-slate-600 dark:text-slate-300 hover:text-amber-600 dark:hover:text-amber-400"
+                              title="Imprimer Diplôme Officiel (A4 Paysage)"
+                            >
+                              <Award className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleExportAttestationReussite(item)}
+                              className="h-8 w-8 p-0 text-slate-600 dark:text-slate-300 hover:text-teal-600 dark:hover:text-teal-400"
+                              title="Imprimer Attestation de Réussite"
+                            >
+                              <FileCheck className="h-4 w-4" />
+                            </Button>
                             <Button
                               size="sm"
                               variant="ghost"

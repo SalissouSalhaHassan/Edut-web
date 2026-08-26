@@ -1,198 +1,171 @@
+import { Metadata } from "next";
+import { getAcademicVerificationData } from "@/domains/academics/actions/verification.actions";
+import { CheckCircle2, ShieldCheck, Award, GraduationCap, Building2, Calendar, FileText, Printer, ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import {
-  AlertTriangle,
-  Building2,
-  Calendar,
-  ExternalLink,
-  FileText,
-  HelpCircle,
-  Printer,
-  ShieldAlert,
-  ShieldCheck,
-  XCircle,
-  User,
-} from "lucide-react";
-import {
-  DocumentVerificationData,
-  verifyOfficialDocument,
-} from "@/domains/verification/actions/document-verification.actions";
 
-type VerificationPageProps = {
+interface VerifyPageProps {
   params: Promise<{ id: string }>;
-};
-
-function getStatusConfig(statut: DocumentVerificationData["statut"]) {
-  const config = {
-    validé: {
-      bg: "bg-emerald-50 text-emerald-700 border-emerald-100",
-      badge: "bg-emerald-600 text-white",
-      text: "DOCUMENT AUTHENTIQUE ET VALIDÉ",
-      icon: <ShieldCheck className="text-emerald-600 size-16" />,
-      watermark: "VALIDÉ",
-      watermarkColor: "text-emerald-500/5",
-    },
-    provisoire: {
-      bg: "bg-amber-50 text-amber-800 border-amber-100",
-      badge: "bg-amber-500 text-white",
-      text: "DOCUMENT PROVISOIRE OU EN ATTENTE DE SYNCHRONISATION",
-      icon: <AlertTriangle className="text-amber-500 size-16" />,
-      watermark: "PROVISOIRE",
-      watermarkColor: "text-amber-500/5",
-    },
-    annulé: {
-      bg: "bg-rose-50 text-rose-700 border-rose-100",
-      badge: "bg-rose-600 text-white",
-      text: "DOCUMENT ANNULÉ OU NON RECEVABLE",
-      icon: <XCircle className="text-rose-600 size-16" />,
-      watermark: "ANNULÉ",
-      watermarkColor: "text-rose-500/5",
-    },
-    introuvable: {
-      bg: "bg-rose-50 text-rose-700 border-rose-100",
-      badge: "bg-rose-600 text-white",
-      text: "DOCUMENT NON RÉFÉRENCÉ",
-      icon: <ShieldAlert className="text-rose-600 size-16" />,
-      watermark: "NON RÉFÉRENCÉ",
-      watermarkColor: "text-rose-500/5",
-    },
-    erreur: {
-      bg: "bg-slate-50 text-slate-700 border-slate-200",
-      badge: "bg-slate-600 text-white",
-      text: "VÉRIFICATION TEMPORAIREMENT INDISPONIBLE",
-      icon: <HelpCircle className="text-slate-500 size-16" />,
-      watermark: "INDISPONIBLE",
-      watermarkColor: "text-slate-400/5",
-    },
-  };
-
-  return config[statut] || config.introuvable;
 }
 
-export default async function DocumentVerificationPage({ params }: VerificationPageProps) {
+export async function generateMetadata({ params }: VerifyPageProps): Promise<Metadata> {
   const { id } = await params;
-  const cleanId = decodeURIComponent(id || "").trim();
-  const verifiedDocument = await verifyOfficialDocument(cleanId);
-  const docData: DocumentVerificationData = verifiedDocument || {
-    documentNumber: cleanId,
-    type: "Document officiel",
-    recipientName: "Non disponible",
-    classOrDetails: "Cette référence n'existe pas dans la base officielle.",
-    schoolName: "Base centrale",
-    schoolId: "N/A",
-    dateGeneration: "Non disponible",
-    utilisateur: "Système de vérification",
-    statut: "introuvable",
-    hash: "Non disponible",
+  return {
+    title: `Vérification d'authenticité - ${id} | EDUT Academic Portal`,
+    description: "Portail officiel de vérification d'authenticité des diplômes et attestations LMD",
   };
+}
 
-  const currentStatus = getStatusConfig(docData.statut);
+export default async function VerifyPage({ params }: VerifyPageProps) {
+  const { id } = await params;
+  const data = await getAcademicVerificationData(id);
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-slate-950 flex flex-col items-center justify-center p-4 md:p-8">
-      <div className="w-full max-w-2xl bg-white rounded-[2.5rem] border border-slate-100 shadow-2xl p-6 md:p-10 space-y-8 relative overflow-hidden">
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none overflow-hidden z-0">
-          <span className={`text-[7rem] md:text-[9rem] font-black tracking-widest rotate-[30deg] uppercase ${currentStatus.watermarkColor}`}>
-            {currentStatus.watermark}
-          </span>
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-slate-100 flex flex-col items-center justify-center p-4 sm:p-6 md:p-8">
+      {/* Top Brand / Back link */}
+      <div className="w-full max-w-3xl flex items-center justify-between mb-6">
+        <div className="flex items-center gap-2 text-indigo-400 font-bold text-sm">
+          <GraduationCap className="h-5 w-5" />
+          <span>EDUT UNIVERSITÉ • PORTAIL PUBLIC DE VÉRIFICATION</span>
         </div>
+        <Link
+          href="/"
+          className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          <span>Accueil</span>
+        </Link>
+      </div>
 
-        <div className="relative z-10 space-y-8">
-          <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-100 pb-6 gap-4">
-            <div>
-              <p className="text-[10px] font-black text-orange-600 uppercase tracking-widest">République du Niger</p>
-              <h2 className="text-sm font-black text-slate-900 uppercase">Ministère de l'Éducation Nationale</h2>
-              <p className="text-[11px] font-bold text-slate-400">Vérification officielle des documents enregistrés</p>
-            </div>
+      {/* Main Verification Card */}
+      <div className="w-full max-w-3xl bg-slate-900/90 backdrop-blur-xl border border-slate-700/80 rounded-3xl p-6 sm:p-8 md:p-10 shadow-2xl relative overflow-hidden">
+        {/* Ambient Top Glow */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-2 bg-gradient-to-r from-emerald-500 via-teal-400 to-indigo-500 rounded-full blur-xs" />
 
-            <div className="flex items-center gap-2">
-              <span className="h-3 w-3 rounded-full bg-orange-500" />
-              <span className="h-3 w-3 rounded-full bg-white border border-slate-200" />
-              <span className="h-3 w-3 rounded-full bg-emerald-500" />
-              <span className="text-[10px] font-black uppercase text-slate-400 ml-1">MEN-NE</span>
-            </div>
-          </div>
-
-          <div className={`p-6 rounded-3xl border flex items-center gap-4 ${currentStatus.bg}`}>
-            {currentStatus.icon}
-            <div>
-              <span className={`px-2.5 py-0.5 rounded text-[9px] font-black uppercase tracking-widest ${currentStatus.badge}`}>
-                {docData.statut}
+        {data && data.isValid ? (
+          <>
+            {/* Status Header Badge */}
+            <div className="flex flex-col items-center text-center mb-8">
+              <div className="h-16 w-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center mb-3.5 shadow-lg shadow-emerald-500/10">
+                <ShieldCheck className="h-9 w-9" />
+              </div>
+              <span className="px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 mb-2">
+                Document Authentique & Officiel
               </span>
-              <h3 className="text-base font-black mt-2 leading-tight">{currentStatus.text}</h3>
-              <p className="text-[10px] font-bold text-slate-500 mt-1 uppercase tracking-widest">Réf : {docData.documentNumber}</p>
-            </div>
-          </div>
-
-          {docData.statut === "introuvable" && (
-            <div className="bg-rose-50 border border-rose-100 text-rose-700 rounded-2xl p-4 text-xs font-bold leading-relaxed">
-              Cette référence ne correspond à aucun document enregistré dans la base centrale. Les documents générés localement ou hors ligne ne sont pas considérés comme officiels tant qu'ils ne sont pas synchronisés.
-            </div>
-          )}
-
-          <div className="grid gap-3 grid-cols-1 md:grid-cols-2">
-            <div className="bg-slate-50/50 border border-slate-100 p-4 rounded-2xl">
-              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Type de document</p>
-              <p className="text-xs font-black text-slate-900 mt-1 flex items-center gap-1.5">
-                <FileText size={14} className="text-indigo-500" /> {docData.type}
+              <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                Authenticité Académique Certifiée
+              </h1>
+              <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-md">
+                Les données ci-dessous correspondent fidèlement aux registres officiels de délibération de l'établissement.
               </p>
             </div>
 
-            <div className="bg-slate-50/50 border border-slate-100 p-4 rounded-2xl">
-              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Élève / Bénéficiaire</p>
-              <p className="text-xs font-black text-slate-900 mt-1 flex items-center gap-1.5">
-                <User size={14} className="text-indigo-500" /> {docData.recipientName}
-              </p>
-            </div>
+            {/* Verification Content Grid */}
+            <div className="space-y-6">
+              {/* 1. Student Identity Section */}
+              <div className="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-5">
+                <div className="flex items-center gap-2 text-xs font-bold text-indigo-400 uppercase tracking-wider mb-4 border-b border-slate-700/60 pb-2">
+                  <GraduationCap className="h-4 w-4" />
+                  <span>Informations sur le Titulaire</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <div className="text-xs text-slate-400">Nom & Prénoms</div>
+                    <div className="font-bold text-white text-base mt-0.5">{data.student.nom}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-400">Numéro Matricule / INE</div>
+                    <div className="font-mono font-bold text-indigo-300 text-base mt-0.5">{data.student.matricule}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-400">Date & Lieu de naissance</div>
+                    <div className="font-medium text-slate-200 mt-0.5">{data.student.dateNaissance} à {data.student.lieuNaissance}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-400">Nationalité</div>
+                    <div className="font-medium text-slate-200 mt-0.5">{data.student.nationalite || "Nigérienne"}</div>
+                  </div>
+                </div>
+              </div>
 
-            <div className="bg-slate-50/50 border border-slate-100 p-4 rounded-2xl">
-              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Classe / Détails de la pièce</p>
-              <p className="text-xs font-black text-slate-900 mt-1">{docData.classOrDetails}</p>
-            </div>
+              {/* 2. Conferred Degree Section */}
+              <div className="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-5">
+                <div className="flex items-center gap-2 text-xs font-bold text-amber-400 uppercase tracking-wider mb-4 border-b border-slate-700/60 pb-2">
+                  <Award className="h-4 w-4" />
+                  <span>Titre & Qualification Délivrés</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <div className="text-xs text-slate-400">Intitulé du Diplôme</div>
+                    <div className="font-bold text-white text-base mt-0.5">{data.degree.title}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-400">Domaine & Mention</div>
+                    <div className="font-medium text-slate-200 mt-0.5">{data.degree.field} — {data.degree.mention}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-400">Décision & Mention du Jury</div>
+                    <div className="font-bold text-emerald-400 mt-0.5">{data.degree.status}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-400">Crédits ECTS Capitalisés</div>
+                    <div className="font-bold text-indigo-300 mt-0.5">{data.degree.ectsCredits} ECTS (100% Validé)</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-400">Année Académique de Promotion</div>
+                    <div className="font-medium text-slate-200 mt-0.5">{data.degree.graduationYear}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-400">Date de Délibération</div>
+                    <div className="font-medium text-slate-200 mt-0.5">{data.degree.deliberationDate}</div>
+                  </div>
+                </div>
+              </div>
 
-            <div className="bg-slate-50/50 border border-slate-100 p-4 rounded-2xl">
-              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Établissement d'origine</p>
-              <p className="text-xs font-black text-slate-900 mt-1 flex items-center gap-1.5">
-                <Building2 size={14} className="text-indigo-500" /> {docData.schoolName} ({docData.schoolId})
-              </p>
-            </div>
+              {/* 3. Institution & Legal Authority */}
+              <div className="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-5">
+                <div className="flex items-center gap-2 text-xs font-bold text-teal-400 uppercase tracking-wider mb-4 border-b border-slate-700/60 pb-2">
+                  <Building2 className="h-4 w-4" />
+                  <span>Établissement & Autorité de Tutelle</span>
+                </div>
+                <div className="space-y-2 text-sm">
+                  <div className="font-bold text-white">{data.institution.name}</div>
+                  <div className="text-xs text-slate-300">{data.institution.ministry} • {data.institution.country}</div>
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-teal-500/10 border border-teal-500/30 text-teal-300 text-xs font-semibold mt-2">
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    <span>{data.institution.accreditation}</span>
+                  </div>
+                </div>
+              </div>
 
-            <div className="bg-slate-50/50 border border-slate-100 p-4 rounded-2xl">
-              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Généré le</p>
-              <p className="text-xs font-black text-slate-900 mt-1 flex items-center gap-1.5">
-                <Calendar size={14} className="text-indigo-500" /> {docData.dateGeneration}
-              </p>
+              {/* 4. Digital Fingerprint / Hash */}
+              <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 text-[11px] font-mono text-slate-400 break-all">
+                <span className="text-slate-500 font-bold block mb-1">EMPREINTE NUMÉRIQUE SHA-256 :</span>
+                {data.degree.verificationHash}
+              </div>
             </div>
-
-            <div className="bg-slate-50/50 border border-slate-100 p-4 rounded-2xl">
-              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Opérateur / Signature</p>
-              <p className="text-xs font-black text-slate-900 mt-1">{docData.utilisateur}</p>
+          </>
+        ) : (
+          <div className="flex flex-col items-center text-center py-12">
+            <div className="h-16 w-16 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-400 flex items-center justify-center mb-4">
+              <FileText className="h-8 w-8" />
             </div>
-          </div>
-
-          {docData.amount && (
-            <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-2xl">
-              <p className="text-[9px] font-black uppercase tracking-widest text-emerald-600">Montant enregistré</p>
-              <p className="text-sm font-black text-emerald-900 mt-1">{docData.amount}</p>
-            </div>
-          )}
-
-          <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl space-y-1.5">
-            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Empreinte numérique de sécurité</p>
-            <p className="text-[10px] font-mono font-bold text-slate-600 break-all select-all">{docData.hash}</p>
-          </div>
-
-          <div className="flex gap-2 justify-end pt-4 border-t border-slate-100">
-            <div className="px-4 h-11 border border-slate-200 text-slate-500 rounded-xl text-xs font-black uppercase tracking-widest flex items-center gap-2">
-              <Printer size={14} /> Vérification officielle
-            </div>
+            <h2 className="text-xl font-bold text-white mb-2">Identifiant Non Trouvé</h2>
+            <p className="text-xs sm:text-sm text-slate-400 max-w-sm mb-6">
+              Aucun document officiel ne correspond à la référence <span className="text-white font-mono">{id}</span>. Veuillez vérifier l'exactitude du QR Code ou contacter l'administration universitaire.
+            </p>
             <Link
-              href="/dashboard"
-              className="px-5 h-11 bg-indigo-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-indigo-700 transition flex items-center gap-2"
+              href="/"
+              className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all shadow-lg shadow-indigo-600/30"
             >
-              Accéder au portail <ExternalLink size={14} />
+              Retour à l'accueil
             </Link>
           </div>
-        </div>
+        )}
+      </div>
+
+      {/* Footer Security Notice */}
+      <div className="mt-8 text-center text-xs text-slate-500 max-w-md">
+        Portail de Certification & d'Intégrité Académique conforme aux normes CAMES & REESAO. Système Sécurisé EDUT.
       </div>
     </div>
   );

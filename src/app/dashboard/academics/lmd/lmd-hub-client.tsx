@@ -594,7 +594,19 @@ export default function LmdHubClient({
                 features: ["8 sections normalisées UNESCO / CAMES", "Grille ECTS internationale A/B/C/D/E", "Validation des 180 ECTS (Licence) / 120 ECTS (Master)", "Export PDF officiel infalsifiable"],
               },
               {
-                icon: BarChart3, color: "amber", title: "Statistiques & Pilotage",
+                icon: Award, color: "amber", title: "Diplômes Officiels & Attestations de Réussite",
+                desc: "Édition des diplômes universitaires de prestige (A4 Paysage doré) et attestations provisoires de réussite avec cadre anti-fraude et QR code de sécurité.",
+                href: "/dashboard/academics/lmd/deliberation",
+                features: ["Diplôme de Licence / Master grand format", "Attestation provisoire de réussite", "Bordures de sécurité royales & dorées", "QR Code de vérification infalsifiable"],
+              },
+              {
+                icon: ShieldCheck, color: "teal", title: "Portail Public de Vérification Anti-Fraude",
+                desc: "Système de vérification cryptographique en temps réel permettant aux ministères, ambassades et recruteurs de valider l'authenticité des diplômes émis.",
+                href: "/verify",
+                features: ["Scan QR instantané par smartphone", "Empreinte numérique SHA-256 certifiée", "Registre public d'intégrité académique", "Conforme normes CAMES / REESAO"],
+              },
+              {
+                icon: BarChart3, color: "indigo", title: "Statistiques & Pilotage",
                 desc: "Tableau de bord analytique des taux de réussite par filière, semestre et session. Indicateurs de performance pédagogique pour le pilotage qualité.",
                 href: "/dashboard/academics/lmd",
                 features: ["Taux de réussite par UE", "Comparatif sessions N et N-1", "Analyse des notes éliminatoires", "Rapport pédagogique exportable"],
