@@ -612,6 +612,12 @@ export default function LmdHubClient({
                 features: ["Compteur d'ECTS interactif en direct", "Historique semestriel S1 à S6", "Gestion & alertes de dettes académiques", "Téléchargement 1-clic des diplômes et relevés"],
               },
               {
+                icon: BookOpen, color: "purple", title: "Projets de Fin d'Études & Mémoires (PFE / Thèses)",
+                desc: "Gestion du cycle de graduation LMD : enregistrement des thèmes, encadrement, programmation des jurys et génération du PV officiel de soutenance avec crédits ECTS.",
+                href: "/dashboard/academics/research-graduation",
+                features: ["Attribution des encadrants & rapporteurs", "Planning des soutenances & gestion des salles", "Grille critériée d'évaluation du jury", "PV officiel de soutenance & attestation PDF"],
+              },
+              {
                 icon: BarChart3, color: "indigo", title: "Statistiques & Pilotage",
                 desc: "Tableau de bord analytique des taux de réussite par filière, semestre et session. Indicateurs de performance pédagogique pour le pilotage qualité.",
                 href: "/dashboard/academics/lmd",
