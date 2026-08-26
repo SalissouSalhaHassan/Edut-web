@@ -721,9 +721,13 @@ export async function getLmdDeliberationCohort(
     // Build comprehensive term aliases covering all known real formats:
     // S1, Semestre 1, 1er Semestre, 1ère Semestre, 1er Semestre (S1), 2ème Semestre (S2), etc.
     const semNumSuffix = semNum === "1" ? "er" : "ème";
+    const studentIds = enrolledStudents.map((s) => s.id);
+    
     const results = await readDb.query.studentResults.findMany({
       where: and(
-        eq(studentResults.classId, classId),
+        studentIds.length > 0
+          ? or(eq(studentResults.classId, classId), inArray(studentResults.studentId, studentIds))
+          : eq(studentResults.classId, classId),
         eq(studentResults.sessionId, sessionId),
         or(
           eq(studentResults.term, semester),
@@ -740,19 +744,33 @@ export async function getLmdDeliberationCohort(
           ilike(studentResults.term, `%${semNum}ème Semestre%`),
           ilike(studentResults.term, `%${semNum}ère Semestre%`)
         )
-      )
+      ),
+      with: {
+        subject: true,
+      }
     });
+
+    const normalizeKey = (str?: string | null) => (str || "").toLowerCase().trim().replace(/[^a-z0-9]/g, "");
 
     const resultMap = new Map<string, any>();
     for (const r of results) {
-      resultMap.set(`${r.studentId}_${r.subjectId}`, r);
+      if (r.subjectId) {
+        resultMap.set(`${r.studentId}_${r.subjectId}`, r);
+      }
+      if (r.subject?.subjectName) {
+        resultMap.set(`${r.studentId}_name_${normalizeKey(r.subject.subjectName)}`, r);
+      }
     }
 
     // 4. Calculer la délibération LMD pour chaque étudiant
     const cohortDeliberation = enrolledStudents.map((st) => {
       const studentUeInputs: UeInput[] = ues.map((ue) => {
         const ecus: EcuInput[] = (ue.elementsConstitutifs || []).map((ecu: any) => {
-          const res = ecu.subjectId ? resultMap.get(`${st.id}_${ecu.subjectId}`) : null;
+          const normEcuName = normalizeKey(ecu.nameEcu);
+          const res = (ecu.subjectId ? resultMap.get(`${st.id}_${ecu.subjectId}`) : null)
+            || resultMap.get(`${st.id}_name_${normEcuName}`)
+            || null;
+
           return {
             id: ecu.id,
             codeEcu: ecu.codeEcu || undefined,
@@ -762,6 +780,7 @@ export async function getLmdDeliberationCohort(
             eliminatoryGrade: Number(ecu.eliminatoryGrade) || 7.0,
             classWorkScore: res?.classWorkScore !== null && res?.classWorkScore !== undefined ? Number(res.classWorkScore) : null,
             examScore: res?.examScore !== null && res?.examScore !== undefined ? Number(res.examScore) : null,
+            totalScore: res?.totalScore !== null && res?.totalScore !== undefined ? Number(res.totalScore) : null,
           };
         });
 

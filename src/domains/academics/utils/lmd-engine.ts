@@ -12,6 +12,7 @@ export interface EcuInput {
   eliminatoryGrade?: number; // Défaut: 7.0 / 20
   classWorkScore?: number | null; // Devoirs (40%)
   examScore?: number | null;      // Examen (60%)
+  totalScore?: number | null;     // Note globale directe si renseignée
   rattrapageScore?: number | null; // Rattrapage (Session 2)
   sessionType?: "Normale" | "Rattrapage";
 }
@@ -64,15 +65,22 @@ export interface SemesterDeliberationResult {
  * 1. Calcul de la note finale d'un ECU (Matière)
  */
 export function calculateEcuFinalGrade(ecu: EcuInput): EcuResult {
-  const cc = Number(ecu.classWorkScore) || 0;
+  const cc = ecu.classWorkScore !== null && ecu.classWorkScore !== undefined ? Number(ecu.classWorkScore) : null;
   const exam = ecu.examScore !== null && ecu.examScore !== undefined ? Number(ecu.examScore) : null;
+  const total = ecu.totalScore !== null && ecu.totalScore !== undefined ? Number(ecu.totalScore) : null;
   const rat = ecu.rattrapageScore !== null && ecu.rattrapageScore !== undefined ? Number(ecu.rattrapageScore) : null;
 
   let session1Grade: number;
-  if (exam !== null) {
+  if (total !== null && !isNaN(total)) {
+    session1Grade = Number(total.toFixed(2));
+  } else if (cc !== null && exam !== null) {
     session1Grade = Number(((cc * 0.4) + (exam * 0.6)).toFixed(2));
-  } else {
+  } else if (exam !== null) {
+    session1Grade = Number(exam.toFixed(2));
+  } else if (cc !== null) {
     session1Grade = Number(cc.toFixed(2));
+  } else {
+    session1Grade = 0.0;
   }
 
   let finalGrade = session1Grade;
