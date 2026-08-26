@@ -626,7 +626,7 @@ export default function LmdHubClient({
               {
                 icon: BarChart3, color: "indigo", title: "Statistiques & Pilotage",
                 desc: "Tableau de bord analytique des taux de réussite par filière, semestre et session. Indicateurs de performance pédagogique pour le pilotage qualité.",
-                href: "/dashboard/academics/lmd",
+                href: "/dashboard/academics/lmd/analytics",
                 features: ["Taux de réussite par UE", "Comparatif sessions N et N-1", "Analyse des notes éliminatoires", "Rapport pédagogique exportable"],
               },
             ].map(({ icon: Icon, color, title, desc, href, features }) => (
