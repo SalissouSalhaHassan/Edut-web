@@ -1,8 +1,9 @@
 "use server";
 
-import { db } from "@/db";
-import { etudiants, classes, filieres, matieresSections } from "@/db/schema";
-import { eq, or, sql } from "drizzle-orm";
+import { db, readDb } from "@/infrastructure/database";
+import { students } from "@/infrastructure/database/schema/students";
+import { schoolClasses, schoolSections, universityPrograms } from "@/infrastructure/database/schema/academics";
+import { eq, or } from "drizzle-orm";
 
 export interface VerificationResult {
   isValid: boolean;
@@ -42,21 +43,21 @@ export async function getAcademicVerificationData(identifier: string): Promise<V
 
     const numId = !isNaN(Number(rawId)) ? Number(rawId) : 0;
 
-    // Search student by matricule or id
-    const foundStudents = await db
+    // Search student by matricule (numAdmission / codeEtudiant) or id
+    const foundStudents = await (readDb || db)
       .select({
-        id: etudiants.id,
-        nom: etudiants.nomEtudiant,
-        matricule: etudiants.numAdmission,
-        dateNaissance: etudiants.dateNaissance,
-        lieuNaissance: etudiants.lieuNaissance,
-        sexe: etudiants.sexe,
+        id: students.id,
+        nom: students.nomEtudiant,
+        matricule: students.numAdmission,
+        dateNaissance: students.dateNaissance,
+        lieuNaissance: students.lieuNaissance,
+        sexe: students.sexe,
       })
-      .from(etudiants)
+      .from(students)
       .where(
         or(
-          eq(etudiants.numAdmission, rawId),
-          numId > 0 ? eq(etudiants.id, numId) : undefined
+          eq(students.numAdmission, rawId),
+          numId > 0 ? eq(students.id, numId) : undefined
         )
       )
       .limit(1);
