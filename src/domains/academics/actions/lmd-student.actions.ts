@@ -161,14 +161,14 @@ export async function getStudentLmdTrajectoryData(studentIdentifier: string | nu
     // 3. Fetch Grades & Results for the student
     const studentGrades = await (readDb || db)
       .select({
-        subjectId: studentResults.matiereId,
-        periodCode: studentResults.codePeriode,
-        examScore: studentResults.noteExamen,
-        classWorkScore: studentResults.noteClasse,
-        totalScore: studentResults.noteFinale,
+        subjectId: studentResults.subjectId,
+        periodCode: studentResults.term,
+        examScore: studentResults.examScore,
+        classWorkScore: studentResults.classWorkScore,
+        totalScore: studentResults.totalScore,
       })
       .from(studentResults)
-      .where(eq(studentResults.etudiantId, student.id));
+      .where(eq(studentResults.studentId, student.id));
 
     const gradeMap = new Map<string, number>();
     studentGrades.forEach((g) => {
