@@ -606,6 +606,12 @@ export default function LmdHubClient({
                 features: ["Scan QR instantané par smartphone", "Empreinte numérique SHA-256 certifiée", "Registre public d'intégrité académique", "Conforme normes CAMES / REESAO"],
               },
               {
+                icon: TrendingUp, color: "rose", title: "Suivi de Trajectoire Étudiant & Compteur ECTS",
+                desc: "Espace de consultation individuel pour les étudiants et tuteurs. Compteur d'ECTS en temps réel (Progression 0-100%), suivi des dettes et téléchargement des diplômes.",
+                href: "/dashboard/academics/lmd/student-trajectory",
+                features: ["Compteur d'ECTS interactif en direct", "Historique semestriel S1 à S6", "Gestion & alertes de dettes académiques", "Téléchargement 1-clic des diplômes et relevés"],
+              },
+              {
                 icon: BarChart3, color: "indigo", title: "Statistiques & Pilotage",
                 desc: "Tableau de bord analytique des taux de réussite par filière, semestre et session. Indicateurs de performance pédagogique pour le pilotage qualité.",
                 href: "/dashboard/academics/lmd",
