@@ -653,8 +653,6 @@ export default function DeliberationClient({
     }
   };
 
-  const selectedSession = sessions.find((s) => String(s.id) === selectedSessionId);
-
   // ─── Save / Validate Deliberation ──────────────────────────────────────────
   const handleSaveDeliberation = async () => {
     if (!selectedClassId || !selectedSessionId) return;

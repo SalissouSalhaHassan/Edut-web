@@ -921,6 +921,8 @@ export async function getLmdDeliberationCohort(
         },
         deliberation,
       };
+    });
+
     // 5. Classement de la cohorte selon la moyenne semestrielle
     cohortDeliberation.sort((a, b) => b.deliberation.semesterAverage - a.deliberation.semesterAverage);
 
