@@ -107,7 +107,7 @@ export function AnalyticsClient({ initialData }: { initialData: QualityAnalytics
           <p className="text-3xl font-black text-slate-900 dark:text-white mt-2">{m.overallPassRate.toFixed(1)}%</p>
           <div className="flex items-center gap-1 text-[11px] font-bold text-emerald-600 mt-1">
             <ArrowUpRight className="h-3.5 w-3.5" />
-            <span>Admis &amp; Enjambement (>=45 ECTS)</span>
+            <span>Admis &amp; Enjambement (&ge; 45 ECTS)</span>
           </div>
         </div>
 
