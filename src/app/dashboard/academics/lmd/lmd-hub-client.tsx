@@ -582,6 +582,12 @@ export default function LmdHubClient({
                 features: ["Règle du meilleur score Max(N1, N2)", "Filtrage intelligent des ajournés", "Saisie interactive des notes de rattrapage", "Relevés de notes officiels Session 2"],
               },
               {
+                icon: Award, color: "indigo", title: "Bilan Annuel & Enjambement (60 ECTS)",
+                desc: "Délibération annuelle globale agrégeant les 2 semestres (S1+S2, S3+S4, S5+S6). Calcul de la MGA, validation des 60 ECTS et application de la règle d'enjambement (passage avec dettes si ≥ 45 ECTS).",
+                href: "/dashboard/academics/lmd/deliberation",
+                features: ["Cumul annuel des 60 Crédits ECTS", "Règle d'enjambement (≥ 45 ECTS)", "Moyenne Générale Annuelle (MGA / 20)", "Procès-verbal annuel & relevé annuel"],
+              },
+              {
                 icon: BarChart3, color: "amber", title: "Statistiques & Pilotage",
                 desc: "Tableau de bord analytique des taux de réussite par filière, semestre et session. Indicateurs de performance pédagogique pour le pilotage qualité.",
                 href: "/dashboard/academics/lmd",

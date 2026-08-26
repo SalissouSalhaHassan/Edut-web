@@ -1096,3 +1096,230 @@ export async function saveLmdRattrapageGrade(data: {
   }
 }
 
+// ─── 8. DÉLIBÉRATION ANNUELLE & BILAN DES 60 CRÉDITS ECTS ─────────────────────
+export async function getLmdAnnualDeliberation(
+  programId: number,
+  classId: number,
+  sessionId: number,
+  sessionType: "Normale" | "Rattrapage" = "Normale"
+) {
+  try {
+    // 1. Récupérer la classe pour déterminer les semestres correspondants (S1+S2, S3+S4, S5+S6)
+    const cls = await readDb.query.schoolClasses.findFirst({
+      where: eq(schoolClasses.id, classId),
+      with: {
+        section: true,
+      }
+    });
+
+    const normClassName = (cls?.className || "").toLowerCase();
+    let sem1 = "1er Semestre (S1)";
+    let sem2 = "2ème Semestre (S2)";
+    let cycleLevel = "Licence 1 (L1)";
+
+    if (normClassName.includes("l2") || normClassName.includes("licence 2") || normClassName.includes("2eme") || normClassName.includes("2ème")) {
+      sem1 = "3ème Semestre (S3)";
+      sem2 = "4ème Semestre (S4)";
+      cycleLevel = "Licence 2 (L2)";
+    } else if (normClassName.includes("l3") || normClassName.includes("licence 3") || normClassName.includes("3eme") || normClassName.includes("3ème")) {
+      sem1 = "5ème Semestre (S5)";
+      sem2 = "6ème Semestre (S6)";
+      cycleLevel = "Licence 3 (L3)";
+    } else if (normClassName.includes("m2") || normClassName.includes("master 2")) {
+      sem1 = "3ème Semestre (S3)";
+      sem2 = "4ème Semestre (S4)";
+      cycleLevel = "Master 2 (M2)";
+    } else if (normClassName.includes("m1") || normClassName.includes("master 1") || normClassName.includes("master")) {
+      sem1 = "1er Semestre (S1)";
+      sem2 = "2ème Semestre (S2)";
+      cycleLevel = "Master 1 (M1)";
+    }
+
+    // 2. Récupérer les délibérations des 2 semestres
+    const resSem1 = await getLmdDeliberationCohort(programId, classId, sem1, sessionId, sessionType);
+    const resSem2 = await getLmdDeliberationCohort(programId, classId, sem2, sessionId, sessionType);
+
+    const cohort1 = (resSem1.success && resSem1.data ? resSem1.data.cohort : []) as any[];
+    const cohort2 = (resSem2.success && resSem2.data ? resSem2.data.cohort : []) as any[];
+
+    // 3. Fusionner les résultats des deux semestres par étudiant
+    const allStudentsMap = new Map<number, any>();
+    for (const c of cohort1) {
+      allStudentsMap.set(c.student.id, { student: c.student, sem1: c.deliberation, sem2: null });
+    }
+    for (const c of cohort2) {
+      if (allStudentsMap.has(c.student.id)) {
+        const entry = allStudentsMap.get(c.student.id);
+        entry.sem2 = c.deliberation;
+      } else {
+        allStudentsMap.set(c.student.id, { student: c.student, sem1: null, sem2: c.deliberation });
+      }
+    }
+
+    const annualCohort = Array.from(allStudentsMap.values()).map(({ student, sem1: d1, sem2: d2 }) => {
+      const s1Avg = d1 ? d1.semesterAverage : 0;
+      const s1Credits = d1 ? d1.creditsAcquired : 0;
+      const s1Valid = d1 ? d1.isSemesterValidated : false;
+
+      const s2Avg = d2 ? d2.semesterAverage : 0;
+      const s2Credits = d2 ? d2.creditsAcquired : 0;
+      const s2Valid = d2 ? d2.isSemesterValidated : false;
+
+      // Calcul de la Moyenne Générale Annuelle (MGA)
+      const countEvaluated = (d1 ? 1 : 0) + (d2 ? 1 : 0);
+      const annualAverage = countEvaluated > 0 ? Number(((s1Avg + s2Avg) / countEvaluated).toFixed(2)) : 0;
+      const totalCreditsAcquired = Number((s1Credits + s2Credits).toFixed(1)); // sur 60 ECTS
+
+      // Règle de décision annuelle selon le référentiel LMD / REESAO / CAMES:
+      // 1. Admis : 60 crédits validés OU Moyenne annuelle >= 10.00 et pas d'éliminatoire
+      // 2. Admis par Enjambement (Dettes) : >= 45 ECTS (75% des crédits acquis)
+      // 3. Ajourné : < 45 ECTS
+      let decision = "Ajourné (Redoublement)";
+      let isAnnualValidated = false;
+      let isEnjambement = false;
+
+      if (totalCreditsAcquired >= 60 || (s1Valid && s2Valid) || (annualAverage >= 10.00 && totalCreditsAcquired >= 54)) {
+        decision = "Admis en Année Supérieure";
+        isAnnualValidated = true;
+      } else if (totalCreditsAcquired >= 45.0) {
+        decision = "Admis par Enjambement (Avec Dettes)";
+        isEnjambement = true;
+      } else {
+        decision = "Ajourné (Redoublement)";
+      }
+
+      let mention = "Ajourné";
+      if (annualAverage >= 16.0) mention = "Très Bien";
+      else if (annualAverage >= 14.0) mention = "Bien";
+      else if (annualAverage >= 12.0) mention = "Assez Bien";
+      else if (annualAverage >= 10.0) mention = "Passable";
+
+      return {
+        student,
+        sem1: {
+          name: sem1,
+          average: s1Avg,
+          creditsAcquired: s1Credits,
+          isValidated: s1Valid,
+          decision: d1?.decision || "Non évalué",
+          ueResults: d1?.ueResults || [],
+        },
+        sem2: {
+          name: sem2,
+          average: s2Avg,
+          creditsAcquired: s2Credits,
+          isValidated: s2Valid,
+          decision: d2?.decision || "Non évalué",
+          ueResults: d2?.ueResults || [],
+        },
+        annual: {
+          annualAverage,
+          totalCreditsAcquired,
+          totalCreditsTarget: 60.0,
+          decision,
+          mention,
+          isAnnualValidated,
+          isEnjambement,
+          cycleLevel,
+        },
+      };
+    });
+
+    // 4. Classement selon la moyenne générale annuelle
+    annualCohort.sort((a, b) => b.annual.annualAverage - a.annual.annualAverage);
+
+    const rankedCohort = annualCohort.map((c, index) => ({
+      ...c,
+      rank: index + 1,
+    }));
+
+    const totalStudents = rankedCohort.length;
+    const passedCount = rankedCohort.filter((c) => c.annual.isAnnualValidated).length;
+    const enjambementCount = rankedCohort.filter((c) => c.annual.isEnjambement).length;
+    const ajournesCount = totalStudents - passedCount - enjambementCount;
+    const successRate = totalStudents > 0 ? Number((((passedCount + enjambementCount) / totalStudents) * 100).toFixed(1)) : 0;
+
+    return {
+      success: true,
+      data: {
+        sem1Name: sem1,
+        sem2Name: sem2,
+        cycleLevel,
+        uesSem1: resSem1.data?.ues || [],
+        uesSem2: resSem2.data?.ues || [],
+        cohort: rankedCohort,
+        totalStudents,
+        passedCount,
+        enjambementCount,
+        ajournesCount,
+        successRate,
+      },
+    };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+// ─── 9. VALIDATION ET CLÔTURE DE LA DÉLIBÉRATION ANNUELLE ─────────────────────
+export async function saveLmdAnnualDeliberation(data: {
+  programId: number;
+  classId: number;
+  sessionId: number;
+  cycleLevel: string;
+  cohort: any[];
+}) {
+  try {
+    for (const item of data.cohort) {
+      const studentId = item.student.id;
+      const annual = item.annual;
+
+      const existingSem = await readDb.query.studentLmdSemesters.findFirst({
+        where: and(
+          eq(studentLmdSemesters.studentId, studentId),
+          eq(studentLmdSemesters.semester, `Annuel-${data.cycleLevel}`),
+          eq(studentLmdSemesters.sessionId, data.sessionId)
+        )
+      });
+
+      if (existingSem) {
+        await db.update(studentLmdSemesters).set({
+          programId: data.programId,
+          classId: data.classId,
+          semesterAverage: annual.annualAverage,
+          creditsAcquired: annual.totalCreditsAcquired,
+          totalCreditsAccumulated: annual.totalCreditsAcquired,
+          decision: annual.decision,
+          mention: annual.mention,
+          rank: `${item.rank}e`,
+          validatedAt: new Date(),
+          updatedAt: new Date(),
+        }).where(eq(studentLmdSemesters.id, existingSem.id));
+      } else {
+        await db.insert(studentLmdSemesters).values({
+          studentId,
+          programId: data.programId,
+          classId: data.classId,
+          semester: `Annuel-${data.cycleLevel}`,
+          sessionId: data.sessionId,
+          semesterAverage: annual.annualAverage,
+          creditsAcquired: annual.totalCreditsAcquired,
+          totalCreditsAccumulated: annual.totalCreditsAcquired,
+          decision: annual.decision,
+          mention: annual.mention,
+          rank: `${item.rank}e`,
+          validatedAt: new Date(),
+        });
+      }
+    }
+
+    revalidatePath("/dashboard/academics/lmd/deliberation");
+    return {
+      success: true,
+      message: `Délibération annuelle (${data.cycleLevel} - Bilan 60 ECTS) validée et clôturée avec succès pour ${data.cohort.length} étudiant(s).`,
+    };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+

@@ -27,7 +27,9 @@ import { toast } from "sonner";
 import { 
   getLmdDeliberationCohort, 
   saveLmdDeliberation,
-  saveLmdRattrapageGrade
+  saveLmdRattrapageGrade,
+  getLmdAnnualDeliberation,
+  saveLmdAnnualDeliberation
 } from "@/domains/academics/actions/lmd.actions";
 import { getClassDisplayName } from "@/domains/academics/utils/class-name";
 import { useTheme } from "@/hooks/use-theme";
@@ -37,6 +39,12 @@ import {
   getEctsGrade,
   LmdReleveParams
 } from "@/domains/academics/utils/lmd-releve-generator";
+import {
+  generateLmdAnnualDeliberationPVPDF,
+  generateLmdStudentAnnualRelevePDF,
+  LmdAnnualParams,
+  LmdAnnualStudent
+} from "@/domains/academics/utils/lmd-annual-pv-generator";
 
 type Props = {
   initialPrograms: any[];
@@ -315,6 +323,7 @@ export default function DeliberationClient({
   }, [selectedSectionId, programs]);
 
   // 6. Données de Délibération
+  const [evaluationScope, setEvaluationScope] = useState<"Semestriel" | "Annuel">("Semestriel");
   const [sessionMode, setSessionMode] = useState<"Normale" | "Rattrapage">("Normale");
   const [onlyAjournes, setOnlyAjournes] = useState(false);
   const [deliberationData, setDeliberationData] = useState<{
@@ -324,6 +333,32 @@ export default function DeliberationClient({
     passedCount: number;
     successRate: number;
   }>({ ues: [], cohort: [], totalStudents: 0, passedCount: 0, successRate: 0 });
+
+  const [annualData, setAnnualData] = useState<{
+    sem1Name: string;
+    sem2Name: string;
+    cycleLevel: string;
+    uesSem1: any[];
+    uesSem2: any[];
+    cohort: LmdAnnualStudent[];
+    totalStudents: number;
+    passedCount: number;
+    enjambementCount: number;
+    ajournesCount: number;
+    successRate: number;
+  }>({
+    sem1Name: "1er Semestre (S1)",
+    sem2Name: "2ème Semestre (S2)",
+    cycleLevel: "Licence 1 (L1)",
+    uesSem1: [],
+    uesSem2: [],
+    cohort: [],
+    totalStudents: 0,
+    passedCount: 0,
+    enjambementCount: 0,
+    ajournesCount: 0,
+    successRate: 0,
+  });
 
   const [rattrapageEditState, setRattrapageEditState] = useState<{
     open: boolean;
@@ -372,11 +407,46 @@ export default function DeliberationClient({
     }
   };
 
-  useEffect(() => {
-    if (selectedClassId && selectedSessionId && selectedSemester) {
-      loadDeliberationData();
+  const loadAnnualData = async () => {
+    if (!selectedClassId || !selectedSessionId) {
+      toast.warning("Veuillez sélectionner une classe et une session.");
+      return;
     }
-  }, [selectedClassId, selectedSemester, selectedSessionId, sessionMode]);
+    setIsLoading(true);
+    try {
+      const progId = selectedProgram ? Number(selectedProgram.id) : 0;
+      const res = await getLmdAnnualDeliberation(
+        progId,
+        Number(selectedClassId),
+        Number(selectedSessionId),
+        sessionMode
+      );
+      if (res.success && res.data) {
+        setAnnualData(res.data as any);
+        if (res.data.cohort.length > 0) {
+          toast.success(`Bilan Annuel (${res.data.cycleLevel} • 60 ECTS) calculé : ${res.data.cohort.length} étudiant(s).`);
+        } else {
+          toast.info("Aucun résultat semestriel pour cette promotion.");
+        }
+      } else {
+        toast.error(res.error || "Erreur de calcul du bilan annuel");
+      }
+    } catch (e) {
+      toast.error("Erreur de chargement du bilan annuel");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedClassId && selectedSessionId) {
+      if (evaluationScope === "Annuel") {
+        loadAnnualData();
+      } else if (selectedSemester) {
+        loadDeliberationData();
+      }
+    }
+  }, [selectedClassId, selectedSemester, selectedSessionId, sessionMode, evaluationScope]);
 
   const handleSaveRattrapageGrade = async () => {
     if (!rattrapageEditState.student || !rattrapageEditState.ecu) return;
@@ -399,12 +469,127 @@ export default function DeliberationClient({
       if (res.success) {
         toast.success(res.message || "Note de rattrapage enregistrée !");
         setRattrapageEditState({ open: false, student: null, ecu: null, currentGrade: 0, rattrapageGrade: "" });
-        loadDeliberationData();
+        if (evaluationScope === "Annuel") {
+          loadAnnualData();
+        } else {
+          loadDeliberationData();
+        }
       } else {
         toast.error(res.error || "Erreur lors de l'enregistrement");
       }
     } catch (e: any) {
       toast.error("Erreur réseau");
+    }
+  };
+
+  const selectedSession = sessions.find((s) => String(s.id) === selectedSessionId);
+
+  // ─── Save / Validate Annual Deliberation ───────────────────────────────────
+  const handleSaveAnnualDeliberation = async () => {
+    if (!selectedClassId || !selectedSessionId) return;
+    if (annualData.cohort.length === 0) {
+      toast.error("Aucun étudiant à délibérer");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const progId = selectedProgram ? Number(selectedProgram.id) : 0;
+      const res = await saveLmdAnnualDeliberation({
+        programId: progId,
+        classId: Number(selectedClassId),
+        sessionId: Number(selectedSessionId),
+        cycleLevel: annualData.cycleLevel,
+        cohort: annualData.cohort,
+      });
+
+      if (res.success) {
+        toast.success(res.message || "Délibération annuelle validée avec succès !");
+      } else {
+        toast.error(res.error || "Erreur de validation");
+      }
+    } catch (e: any) {
+      toast.error("Erreur réseau");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // ─── Export Annual Deliberation PV (PDF A4 Paysage) ────────────────────────
+  const handleExportAnnualPDF = async () => {
+    if (annualData.cohort.length === 0) {
+      toast.error("Aucune donnée à exporter");
+      return;
+    }
+
+    setIsExportingPdf(true);
+    try {
+      const schoolName = headerConfig?.schoolName || headerConfig?.name || "UNIVERSITÉ DES SCIENCES & TECHNOLOGIES";
+      const facultyName = currentSection?.sectionName 
+        ? (currentSection.sectionName.toLowerCase().startsWith("faculté") ? currentSection.sectionName : `Faculté : ${currentSection.sectionName}`)
+        : "Faculté Universitaire LMD";
+      const departmentName = selectedProgram?.name || currentSection?.sectionName || "Département Universitaire";
+
+      const annualPayload: LmdAnnualParams = {
+        institution: {
+          name: schoolName,
+          countryName: headerConfig?.countryName || "RÉPUBLIQUE DU NIGER",
+          ministryName: headerConfig?.ministryName || "MINISTÈRE DE L'ENSEIGNEMENT SUPÉRIEUR ET DE LA RECHERCHE",
+          facultyName: facultyName,
+          departmentName: departmentName,
+          programName: selectedProgram?.name || currentSection?.sectionName || "Tronc Commun LMD",
+          className: getClassDisplayName(selectedClass),
+          sessionName: selectedSession?.sessionName || "2025-2026",
+          cycleLevel: annualData.cycleLevel,
+        },
+        sem1Name: annualData.sem1Name,
+        sem2Name: annualData.sem2Name,
+        cycleLevel: annualData.cycleLevel,
+        cohort: annualData.cohort,
+        totalStudents: annualData.totalStudents,
+        passedCount: annualData.passedCount,
+        enjambementCount: annualData.enjambementCount,
+        ajournesCount: annualData.ajournesCount,
+        successRate: annualData.successRate,
+        sessionType: sessionMode,
+      };
+
+      await generateLmdAnnualDeliberationPVPDF(annualPayload);
+      toast.success("Procès-verbal annuel exporté en PDF avec succès !");
+    } catch (e: any) {
+      toast.error("Erreur lors de l'export du PV annuel");
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
+
+  // ─── Export Single Student Annual Transcript ──────────────────────────────
+  const handleExportAnnualSingleReleve = async (item: LmdAnnualStudent) => {
+    try {
+      const schoolName = headerConfig?.schoolName || headerConfig?.name || "UNIVERSITÉ DES SCIENCES & TECHNOLOGIES";
+      const facultyName = currentSection?.sectionName 
+        ? (currentSection.sectionName.toLowerCase().startsWith("faculté") ? currentSection.sectionName : `Faculté : ${currentSection.sectionName}`)
+        : "Faculté Universitaire LMD";
+      const departmentName = selectedProgram?.name || currentSection?.sectionName || "Département Universitaire";
+
+      await generateLmdStudentAnnualRelevePDF(
+        item,
+        {
+          name: schoolName,
+          countryName: headerConfig?.countryName || "RÉPUBLIQUE DU NIGER",
+          ministryName: headerConfig?.ministryName || "MINISTÈRE DE L'ENSEIGNEMENT SUPÉRIEUR ET DE LA RECHERCHE",
+          facultyName: facultyName,
+          departmentName: departmentName,
+          programName: selectedProgram?.name || currentSection?.sectionName || "Tronc Commun LMD",
+          degreeLevel: selectedLevel,
+          className: getClassDisplayName(selectedClass),
+          sessionName: selectedSession?.sessionName || "2025-2026",
+        },
+        annualData.totalStudents
+      );
+      toast.success(`Relevé annuel généré pour ${item.student.nom}`);
+    } catch (e: any) {
+      toast.error("Erreur lors de la génération du relevé annuel");
     }
   };
 
@@ -686,6 +871,34 @@ export default function DeliberationClient({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {/* Evaluation Scope Switcher (Semestriel vs Annuel) */}
+          <div className="flex items-center p-1 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xs">
+            <button
+              type="button"
+              onClick={() => setEvaluationScope("Semestriel")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                evaluationScope === "Semestriel"
+                  ? "bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
+              }`}
+            >
+              <Layers className="h-3.5 w-3.5" />
+              <span>Semestriel (30 ECTS)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setEvaluationScope("Annuel")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                evaluationScope === "Annuel"
+                  ? "bg-indigo-600 text-white shadow-md shadow-indigo-500/20 font-black"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
+              }`}
+            >
+              <Award className="h-3.5 w-3.5" />
+              <span>Bilan Annuel (60 ECTS 🏆)</span>
+            </button>
+          </div>
+
           {/* Session Switcher (Normale vs Rattrapage) */}
           <div className="flex items-center p-1 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xs">
             <button
@@ -701,7 +914,7 @@ export default function DeliberationClient({
               }`}
             >
               <GraduationCap className="h-3.5 w-3.5" />
-              <span>Session 1 (Normale)</span>
+              <span>Session 1</span>
             </button>
             <button
               type="button"
@@ -713,7 +926,7 @@ export default function DeliberationClient({
               }`}
             >
               <Sparkles className="h-3.5 w-3.5" />
-              <span>Session 2 (Rattrapage ⚡)</span>
+              <span>Session 2 ⚡</span>
             </button>
           </div>
 
@@ -726,37 +939,64 @@ export default function DeliberationClient({
             <span>{isDark ? "Clair" : "Sombre"}</span>
           </button>
 
-          {/* Batch Transcripts Export */}
-          <Button
-            onClick={handleExportBatchReleves}
-            disabled={deliberationData.cohort.length === 0 || isExportingBatchReleves}
-            variant="outline"
-            className="gap-2 text-xs font-bold border-indigo-600 text-indigo-700 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/50"
-          >
-            <FileText className="h-4 w-4" />
-            {isExportingBatchReleves ? "Génération Relevés..." : "Relevés LMD (Batch PDF)"}
-          </Button>
+          {evaluationScope === "Semestriel" ? (
+            <>
+              {/* Batch Transcripts Export */}
+              <Button
+                onClick={handleExportBatchReleves}
+                disabled={deliberationData.cohort.length === 0 || isExportingBatchReleves}
+                variant="outline"
+                className="gap-2 text-xs font-bold border-indigo-600 text-indigo-700 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/50"
+              >
+                <FileText className="h-4 w-4" />
+                {isExportingBatchReleves ? "Génération..." : "Relevés LMD (Batch PDF)"}
+              </Button>
 
-          {/* Deliberation PV Export */}
-          <Button
-            onClick={handleExportPDF}
-            disabled={deliberationData.cohort.length === 0 || isExportingPdf}
-            variant="outline"
-            className="gap-2 text-xs font-bold border-emerald-600 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/50"
-          >
-            <Printer className="h-4 w-4" />
-            {isExportingPdf ? "Génération PV..." : "Exporter PV (PDF)"}
-          </Button>
+              {/* Deliberation PV Export */}
+              <Button
+                onClick={handleExportPDF}
+                disabled={deliberationData.cohort.length === 0 || isExportingPdf}
+                variant="outline"
+                className="gap-2 text-xs font-bold border-emerald-600 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/50"
+              >
+                <Printer className="h-4 w-4" />
+                {isExportingPdf ? "Génération PV..." : "Exporter PV (PDF)"}
+              </Button>
 
-          {/* Validate & Close Deliberation */}
-          <Button
-            onClick={handleSaveDeliberation}
-            disabled={deliberationData.cohort.length === 0 || isSaving}
-            className="gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-sm"
-          >
-            <ShieldCheck className="h-4 w-4" />
-            {isSaving ? "Validation..." : "Valider & Clôturer"}
-          </Button>
+              {/* Validate & Close Deliberation */}
+              <Button
+                onClick={handleSaveDeliberation}
+                disabled={deliberationData.cohort.length === 0 || isSaving}
+                className="gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-sm"
+              >
+                <ShieldCheck className="h-4 w-4" />
+                {isSaving ? "Validation..." : "Valider & Clôturer"}
+              </Button>
+            </>
+          ) : (
+            <>
+              {/* Annual PV Export */}
+              <Button
+                onClick={handleExportAnnualPDF}
+                disabled={annualData.cohort.length === 0 || isExportingPdf}
+                variant="outline"
+                className="gap-2 text-xs font-bold border-emerald-600 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/50"
+              >
+                <Printer className="h-4 w-4" />
+                {isExportingPdf ? "Génération PV..." : "Exporter PV Annuel (PDF)"}
+              </Button>
+
+              {/* Validate Annual Bilan */}
+              <Button
+                onClick={handleSaveAnnualDeliberation}
+                disabled={annualData.cohort.length === 0 || isSaving}
+                className="gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-sm"
+              >
+                <ShieldCheck className="h-4 w-4" />
+                {isSaving ? "Validation..." : "Valider Bilan Annuel"}
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -786,7 +1026,7 @@ export default function DeliberationClient({
               onChange={(e) => setOnlyAjournes(e.target.checked)}
               className="h-4 w-4 rounded accent-indigo-600 cursor-pointer"
             />
-            <span>Afficher uniquement les ajournés ({deliberationData.totalStudents - deliberationData.passedCount})</span>
+            <span>Afficher uniquement les ajournés ({evaluationScope === "Annuel" ? annualData.ajournesCount : deliberationData.totalStudents - deliberationData.passedCount})</span>
           </label>
         </div>
       )}
@@ -798,10 +1038,10 @@ export default function DeliberationClient({
             <div className="p-1.5 bg-indigo-50 dark:bg-indigo-950/60 rounded-lg text-indigo-600 dark:text-indigo-400">
               <Filter className="h-4 w-4" />
             </div>
-            <span>Filtres de Délibération Académique</span>
+            <span>Filtres de Délibération Académique ({evaluationScope === "Annuel" ? "Bilan Annuel 60 ECTS" : "Semestre Unique 30 ECTS"})</span>
           </div>
           <span className="text-[11px] text-slate-400 dark:text-slate-500 font-medium">
-            Cascade : Session → Niveau → Filière → Classe → Semestre
+            Cascade : Session → Niveau → Filière → Classe → {evaluationScope === "Annuel" ? "Année Complète" : "Semestre"}
           </span>
         </div>
 
@@ -885,20 +1125,26 @@ export default function DeliberationClient({
           {/* 5. Semestre / Période d'évaluation */}
           <div className="space-y-1.5">
             <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              5. Semestre d'Évaluation
+              5. Période Évaluée
             </label>
-            <Select value={selectedSemester} onValueChange={(val) => setSelectedSemester(val || "1er Semestre (S1)")}>
-              <SelectTrigger className="w-full text-xs font-medium bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-xl h-10">
-                <SelectValue placeholder="Choisir le semestre" />
-              </SelectTrigger>
-              <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
-                {periodOptions.map((p) => (
-                  <SelectItem key={p.id} value={p.id} className="text-xs">
-                    {p.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {evaluationScope === "Annuel" ? (
+              <div className="h-10 px-3 flex items-center rounded-xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-xs font-bold truncate">
+                <span>Année Complète (2 Semestres : S1 + S2)</span>
+              </div>
+            ) : (
+              <Select value={selectedSemester} onValueChange={(val) => setSelectedSemester(val || "1er Semestre (S1)")}>
+                <SelectTrigger className="w-full text-xs font-medium bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-xl h-10">
+                  <SelectValue placeholder="Choisir le semestre" />
+                </SelectTrigger>
+                <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
+                  {periodOptions.map((p) => (
+                    <SelectItem key={p.id} value={p.id} className="text-xs">
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
         </div>
 
@@ -913,176 +1159,416 @@ export default function DeliberationClient({
               <School className="h-3 w-3" /> {getClassDisplayName(selectedClass) || "Classe"}
             </span>
             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 font-semibold border border-purple-100 dark:border-purple-800 text-[11px]">
-              <Layers className="h-3 w-3" /> {selectedSemester}
+              <Layers className="h-3 w-3" /> {evaluationScope === "Annuel" ? "Année Académique (60 ECTS)" : selectedSemester}
             </span>
           </div>
 
           <Button
-            onClick={loadDeliberationData}
+            onClick={evaluationScope === "Annuel" ? loadAnnualData : loadDeliberationData}
             disabled={isLoading || !selectedClassId}
             className="gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md shadow-indigo-500/20 px-6 h-10 rounded-xl"
           >
             <Search className={`h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`} />
-            {isLoading ? "Calcul en cours..." : "Afficher la Délibération"}
+            {isLoading ? "Calcul en cours..." : evaluationScope === "Annuel" ? "Calculer le Bilan Annuel" : "Afficher la Délibération"}
           </Button>
         </div>
       </div>
 
-      {/* ─── STATISTIQUES EN DIRECT ────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-xs">
-          <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Effectif de la Promotion</div>
-          <div className="text-2xl font-black text-slate-900 dark:text-slate-100 mt-1">{deliberationData.totalStudents}</div>
-          <div className="text-[10px] text-slate-400 mt-0.5">Étudiants inscrits</div>
-        </div>
-
-        <div className="rounded-2xl border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50/40 dark:bg-emerald-950/20 p-5 shadow-xs">
-          <div className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400">Admis ({sessionMode === "Rattrapage" ? "Session 2" : "Session 1"})</div>
-          <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1">{deliberationData.passedCount}</div>
-          <div className="text-[10px] text-emerald-600/70 mt-0.5">Moyenne ≥ 10.00 / 20</div>
-        </div>
-
-        <div className="rounded-2xl border border-rose-200 dark:border-rose-900/50 bg-rose-50/40 dark:bg-rose-950/20 p-5 shadow-xs">
-          <div className="text-[11px] font-bold text-rose-700 dark:text-rose-400">Ajournés (Non validés)</div>
-          <div className="text-2xl font-black text-rose-600 dark:text-rose-400 mt-1">
-            {deliberationData.totalStudents - deliberationData.passedCount}
-          </div>
-          <div className="text-[10px] text-rose-600/70 mt-0.5">Moyenne &lt; 10 ou éliminatoire</div>
-        </div>
-
-        <div className="rounded-2xl border border-indigo-200 dark:border-indigo-900/50 bg-indigo-50/40 dark:bg-indigo-950/20 p-5 shadow-xs">
-          <div className="text-[11px] font-bold text-indigo-700 dark:text-indigo-400">Taux de Réussite Global</div>
-          <div className="text-2xl font-black text-indigo-600 dark:text-indigo-400 mt-1">{deliberationData.successRate} %</div>
-          <div className="text-[10px] text-indigo-600/70 mt-0.5">Norme ECTS validée</div>
-        </div>
-      </div>
-
-      {/* ─── TABLEAU DU PROCÈS-VERBAL DE DÉLIBÉRATION ──────────────────────── */}
-      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/50 dark:bg-slate-800/40">
-          <div className="flex items-center gap-2">
-            <Scale className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-            <span className="font-bold text-sm text-slate-800 dark:text-slate-200">
-              Grille Collective de Délibération du Jury ({selectedSemester} • {sessionMode === "Rattrapage" ? "Session de Rattrapage" : "Session Normale"})
-            </span>
+      {/* ─── STATISTIQUES EN DIRECT (SEMESTRIEL VS ANNUEL) ─────────────────── */}
+      {evaluationScope === "Annuel" ? (
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3.5">
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-xs">
+            <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Effectif de la Promotion</div>
+            <div className="text-2xl font-black text-slate-900 dark:text-slate-100 mt-1">{annualData.totalStudents}</div>
+            <div className="text-[10px] text-slate-400 mt-0.5">{annualData.cycleLevel}</div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 text-xs font-semibold text-slate-500 dark:text-slate-400">
-            <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
-              <span className="h-2 w-2 rounded-full bg-emerald-500" /> V = Validé (≥ 10)
-            </span>
-            <span className="flex items-center gap-1 text-indigo-600 dark:text-indigo-400">
-              <span className="h-2 w-2 rounded-full bg-indigo-500" /> VC = Compensé (Moy ≥ 10)
-            </span>
-            <span className="flex items-center gap-1 text-rose-600 dark:text-rose-400">
-              <span className="h-2 w-2 rounded-full bg-rose-500" /> NV = Non Validé (&lt; 10)
-            </span>
+          <div className="rounded-2xl border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50/40 dark:bg-emerald-950/20 p-5 shadow-xs">
+            <div className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400">Admis en Année Sup.</div>
+            <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1">{annualData.passedCount}</div>
+            <div className="text-[10px] text-emerald-600/70 mt-0.5">60 ECTS ou MGA ≥ 10</div>
+          </div>
+
+          <div className="rounded-2xl border border-amber-200 dark:border-amber-900/50 bg-amber-50/40 dark:bg-amber-950/20 p-5 shadow-xs">
+            <div className="text-[11px] font-bold text-amber-700 dark:text-amber-400">Enjambement (Dettes)</div>
+            <div className="text-2xl font-black text-amber-600 dark:text-amber-400 mt-1">{annualData.enjambementCount}</div>
+            <div className="text-[10px] text-amber-600/70 mt-0.5">≥ 45 ECTS (Passage conditionnel)</div>
+          </div>
+
+          <div className="rounded-2xl border border-rose-200 dark:border-rose-900/50 bg-rose-50/40 dark:bg-rose-950/20 p-5 shadow-xs">
+            <div className="text-[11px] font-bold text-rose-700 dark:text-rose-400">Ajournés (Redoublement)</div>
+            <div className="text-2xl font-black text-rose-600 dark:text-rose-400 mt-1">{annualData.ajournesCount}</div>
+            <div className="text-[10px] text-rose-600/70 mt-0.5">&lt; 45 ECTS</div>
+          </div>
+
+          <div className="rounded-2xl border border-indigo-200 dark:border-indigo-900/50 bg-indigo-50/40 dark:bg-indigo-950/20 p-5 shadow-xs">
+            <div className="text-[11px] font-bold text-indigo-700 dark:text-indigo-400">Taux de Passage Global</div>
+            <div className="text-2xl font-black text-indigo-600 dark:text-indigo-400 mt-1">{annualData.successRate} %</div>
+            <div className="text-[10px] text-indigo-600/70 mt-0.5">Admis + Enjambement</div>
           </div>
         </div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-xs">
+            <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Effectif de la Promotion</div>
+            <div className="text-2xl font-black text-slate-900 dark:text-slate-100 mt-1">{deliberationData.totalStudents}</div>
+            <div className="text-[10px] text-slate-400 mt-0.5">Étudiants inscrits</div>
+          </div>
 
-        {isLoading ? (
-          <div className="p-16 text-center text-xs text-slate-400 dark:text-slate-500">
-            <RefreshCw className="h-7 w-7 animate-spin mx-auto mb-3 text-indigo-600 dark:text-indigo-400" />
-            Calcul des compensations ECTS ({sessionMode === "Rattrapage" ? "Session 2 - Règle Max" : "Session 1"}) en temps réel...
+          <div className="rounded-2xl border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50/40 dark:bg-emerald-950/20 p-5 shadow-xs">
+            <div className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400">Admis ({sessionMode === "Rattrapage" ? "Session 2" : "Session 1"})</div>
+            <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1">{deliberationData.passedCount}</div>
+            <div className="text-[10px] text-emerald-600/70 mt-0.5">Moyenne ≥ 10.00 / 20</div>
           </div>
-        ) : deliberationData.cohort.length === 0 ? (
-          <div className="p-16 text-center text-xs text-slate-400 dark:text-slate-500 space-y-2">
-            <AlertTriangle className="h-8 w-8 mx-auto mb-2 text-amber-500" />
-            <div className="font-bold text-slate-700 dark:text-slate-300 text-sm">Aucun étudiant ou résultat trouvé</div>
-            <p className="max-w-md mx-auto">
-              Vérifiez que des notes ont bien été saisies pour cette promotion dans la rubrique <strong>Notes & Résultats</strong> pour ce semestre.
-            </p>
+
+          <div className="rounded-2xl border border-rose-200 dark:border-rose-900/50 bg-rose-50/40 dark:bg-rose-950/20 p-5 shadow-xs">
+            <div className="text-[11px] font-bold text-rose-700 dark:text-rose-400">Ajournés (Non validés)</div>
+            <div className="text-2xl font-black text-rose-600 dark:text-rose-400 mt-1">
+              {deliberationData.totalStudents - deliberationData.passedCount}
+            </div>
+            <div className="text-[10px] text-rose-600/70 mt-0.5">Moyenne &lt; 10 ou éliminatoire</div>
           </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-900 dark:bg-slate-950 text-white">
-                  <th className="p-3 text-center w-12 font-bold">Rang</th>
-                  <th className="p-3 font-bold min-w-[180px]">Étudiant</th>
-                  {deliberationData.ues.map((ue) => (
-                    <th key={ue.id} className="p-3 text-center font-bold border-l border-slate-800 dark:border-slate-900 min-w-[110px]">
-                      <div>{ue.codeUe}</div>
-                      <div className="text-[10px] text-slate-400 font-normal">{ue.creditsEcts} ECTS</div>
+
+          <div className="rounded-2xl border border-indigo-200 dark:border-indigo-900/50 bg-indigo-50/40 dark:bg-indigo-950/20 p-5 shadow-xs">
+            <div className="text-[11px] font-bold text-indigo-700 dark:text-indigo-400">Taux de Réussite Global</div>
+            <div className="text-2xl font-black text-indigo-600 dark:text-indigo-400 mt-1">{deliberationData.successRate} %</div>
+            <div className="text-[10px] text-indigo-600/70 mt-0.5">Norme ECTS validée</div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── TABLEAU DU PROCÈS-VERBAL DE DÉLIBÉRATION (SEMESTRIEL VS ANNUEL) ─── */}
+      {evaluationScope === "Annuel" ? (
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+          <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/50 dark:bg-slate-800/40">
+            <div className="flex items-center gap-2">
+              <Award className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+              <span className="font-bold text-sm text-slate-800 dark:text-slate-200">
+                Grille Collective de Délibération Annuelle — {annualData.cycleLevel} (Bilan des 60 Crédits ECTS & Décision de Passage)
+              </span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3 text-xs font-semibold text-slate-500 dark:text-slate-400">
+              <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                <span className="h-2 w-2 rounded-full bg-emerald-500" /> Admis (60 ECTS)
+              </span>
+              <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                <span className="h-2 w-2 rounded-full bg-amber-500" /> Enjambement (≥ 45 ECTS)
+              </span>
+              <span className="flex items-center gap-1 text-rose-600 dark:text-rose-400">
+                <span className="h-2 w-2 rounded-full bg-rose-500" /> Ajourné (&lt; 45 ECTS)
+              </span>
+            </div>
+          </div>
+
+          {isLoading ? (
+            <div className="p-16 text-center text-xs text-slate-400 dark:text-slate-500">
+              <RefreshCw className="h-7 w-7 animate-spin mx-auto mb-3 text-indigo-600 dark:text-indigo-400" />
+              Calcul du bilan annuel des 60 ECTS et progression en cours...
+            </div>
+          ) : annualData.cohort.length === 0 ? (
+            <div className="p-16 text-center text-xs text-slate-400 dark:text-slate-500 space-y-2">
+              <AlertTriangle className="h-8 w-8 mx-auto mb-2 text-amber-500" />
+              <div className="font-bold text-slate-700 dark:text-slate-300 text-sm">Aucun résultat trouvé pour cette promotion</div>
+              <p className="max-w-md mx-auto">
+                Vérifiez que des notes ont bien été enregistrées pour les semestres composant cette année académique.
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-900 dark:bg-slate-950 text-white">
+                    <th className="p-3 text-center w-12 font-bold">Rang</th>
+                    <th className="p-3 font-bold min-w-[180px]">Étudiant</th>
+                    <th className="p-3 text-center font-bold border-l border-slate-800 dark:border-slate-900 min-w-[140px]">
+                      <div>{annualData.sem1Name}</div>
+                      <div className="text-[10px] text-slate-400 font-normal">Moy / 30 ECTS</div>
                     </th>
-                  ))}
-                  <th className="p-3 text-center font-bold border-l border-slate-800 dark:border-slate-900 bg-slate-800 dark:bg-slate-900">Moyenne /20</th>
-                  <th className="p-3 text-center font-bold bg-slate-800 dark:bg-slate-900">Crédits /30</th>
-                  <th className="p-3 text-center font-bold bg-slate-800 dark:bg-slate-900">Décision</th>
-                  <th className="p-3 text-center font-bold bg-slate-800 dark:bg-slate-900">Mention</th>
-                  <th className="p-3 text-center font-bold bg-slate-800 dark:bg-slate-900 min-w-[140px]">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-                {(onlyAjournes
-                  ? deliberationData.cohort.filter((c) => !c.deliberation.isSemesterValidated)
-                  : deliberationData.cohort
-                ).map((item) => {
-                  const d = item.deliberation;
-                  const hasUnvalidated = !d.isSemesterValidated;
-                  return (
-                    <tr key={item.student.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
-                      <td className="p-3 text-center font-bold text-slate-500 dark:text-slate-400">
-                        {item.rank === 1 ? "🥇 1" : `${item.rank}`}
-                      </td>
-                      <td className="p-3">
-                        <div className="font-bold text-slate-900 dark:text-slate-100">{item.student.nom}</div>
-                        <div className="text-[10px] text-slate-400 font-mono">{item.student.matricule || "N/A"}</div>
-                      </td>
+                    <th className="p-3 text-center font-bold border-l border-slate-800 dark:border-slate-900 min-w-[140px]">
+                      <div>{annualData.sem2Name}</div>
+                      <div className="text-[10px] text-slate-400 font-normal">Moy / 30 ECTS</div>
+                    </th>
+                    <th className="p-3 text-center font-bold border-l border-slate-800 dark:border-slate-900 bg-slate-800 dark:bg-slate-900">Moyenne Annuelle /20</th>
+                    <th className="p-3 text-center font-bold bg-slate-800 dark:bg-slate-900">Crédits /60 ECTS</th>
+                    <th className="p-3 text-center font-bold bg-slate-800 dark:bg-slate-900">Décision Annuelle</th>
+                    <th className="p-3 text-center font-bold bg-slate-800 dark:bg-slate-900">Mention</th>
+                    <th className="p-3 text-center font-bold bg-slate-800 dark:bg-slate-900 min-w-[140px]">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
+                  {(onlyAjournes
+                    ? annualData.cohort.filter((c) => !c.annual.isAnnualValidated)
+                    : annualData.cohort
+                  ).map((item) => {
+                    const a = item.annual;
+                    return (
+                      <tr key={item.student.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
+                        <td className="p-3 text-center font-bold text-slate-500 dark:text-slate-400">
+                          {item.rank === 1 ? "🥇 1" : `${item.rank}`}
+                        </td>
+                        <td className="p-3">
+                          <div className="font-bold text-slate-900 dark:text-slate-100">{item.student.nom}</div>
+                          <div className="text-[10px] text-slate-400 font-mono">{item.student.matricule || "N/A"}</div>
+                        </td>
 
-                      {/* UE Results */}
-                      {deliberationData.ues.map((ue) => {
-                        const r = d.ueResults.find((res: any) => res.codeUe === ue.codeUe || res.ueId === ue.id);
-                        if (!r) return <td key={ue.id} className="p-3 text-center text-slate-300 dark:text-slate-600">-</td>;
+                        {/* Semestre 1 */}
+                        <td className="p-3 text-center border-l border-slate-100 dark:border-slate-800">
+                          <div className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                            {item.sem1.average.toFixed(2)} / 20
+                          </div>
+                          <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold ${
+                            item.sem1.isValidated ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300" : "bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300"
+                          }`}>
+                            {item.sem1.creditsAcquired} ECTS
+                          </span>
+                        </td>
 
-                        const isV = r.status === "V";
-                        const isVC = r.status === "VC";
+                        {/* Semestre 2 */}
+                        <td className="p-3 text-center border-l border-slate-100 dark:border-slate-800">
+                          <div className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                            {item.sem2.average.toFixed(2)} / 20
+                          </div>
+                          <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold ${
+                            item.sem2.isValidated ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300" : "bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300"
+                          }`}>
+                            {item.sem2.creditsAcquired} ECTS
+                          </span>
+                        </td>
 
-                        return (
-                          <td key={ue.id} className="p-3 text-center border-l border-slate-100 dark:border-slate-800">
-                            <div className="font-mono font-bold text-slate-800 dark:text-slate-200">
-                              {r.average.toFixed(2)}
-                            </div>
-                            <span
-                              className={`text-[9px] px-1.5 py-0.5 rounded font-bold ${
-                                isV
-                                  ? "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300"
-                                  : isVC
-                                  ? "bg-indigo-100 dark:bg-indigo-950/60 text-indigo-800 dark:text-indigo-300"
-                                  : "bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300"
-                              }`}
+                        {/* Moyenne Annuelle */}
+                        <td className="p-3 text-center border-l border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 font-mono font-bold text-sm text-slate-900 dark:text-slate-100">
+                          {a.annualAverage.toFixed(2)}
+                        </td>
+
+                        {/* Crédits Annuel / 60 */}
+                        <td className="p-3 text-center bg-slate-50/50 dark:bg-slate-800/40 font-mono font-bold text-xs text-indigo-700 dark:text-indigo-400">
+                          {a.totalCreditsAcquired} / 60
+                        </td>
+
+                        {/* Décision Annuelle */}
+                        <td className="p-3 text-center bg-slate-50/50 dark:bg-slate-800/40">
+                          <span
+                            className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${
+                              a.isAnnualValidated
+                                ? "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300"
+                                : a.isEnjambement
+                                ? "bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300"
+                                : "bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300"
+                            }`}
+                          >
+                            {a.decision}
+                          </span>
+                        </td>
+
+                        {/* Mention */}
+                        <td className="p-3 text-center bg-slate-50/50 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 font-semibold">
+                          {a.mention}
+                        </td>
+
+                        {/* Actions */}
+                        <td className="p-3 text-center bg-slate-50/50 dark:bg-slate-800/40">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleExportAnnualSingleReleve(item)}
+                              className="h-8 px-2.5 text-[11px] font-bold gap-1 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/50"
+                              title="Imprimer Relevé Annuel Officiel (PDF)"
                             >
-                              {r.status} ({r.creditsAcquired} ECTS)
-                            </span>
-                          </td>
-                        );
-                      })}
+                              <Printer className="h-3 w-3" />
+                              <span>Relevé Annuel</span>
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+          <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/50 dark:bg-slate-800/40">
+            <div className="flex items-center gap-2">
+              <Scale className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+              <span className="font-bold text-sm text-slate-800 dark:text-slate-200">
+                Grille Collective de Délibération du Jury ({selectedSemester} • {sessionMode === "Rattrapage" ? "Session de Rattrapage" : "Session Normale"})
+              </span>
+            </div>
 
-                      {/* Semester Summary */}
-                      <td className="p-3 text-center border-l border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 font-mono font-bold text-sm text-slate-900 dark:text-slate-100">
-                        {d.semesterAverage.toFixed(2)}
-                      </td>
-                      <td className="p-3 text-center bg-slate-50/50 dark:bg-slate-800/40 font-mono font-bold text-xs text-indigo-700 dark:text-indigo-400">
-                        {d.creditsAcquired} / 30
-                      </td>
-                      <td className="p-3 text-center bg-slate-50/50 dark:bg-slate-800/40">
-                        <span
-                          className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${
-                            d.isSemesterValidated
-                              ? "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300"
-                              : "bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300"
-                          }`}
-                        >
-                          {d.decision}
-                        </span>
-                      </td>
-                      <td className="p-3 text-center bg-slate-50/50 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 font-semibold">
-                        {d.mention}
-                      </td>
+            <div className="flex flex-wrap items-center gap-3 text-xs font-semibold text-slate-500 dark:text-slate-400">
+              <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                <span className="h-2 w-2 rounded-full bg-emerald-500" /> V = Validé (≥ 10)
+              </span>
+              <span className="flex items-center gap-1 text-indigo-600 dark:text-indigo-400">
+                <span className="h-2 w-2 rounded-full bg-indigo-500" /> VC = Compensé (Moy ≥ 10)
+              </span>
+              <span className="flex items-center gap-1 text-rose-600 dark:text-rose-400">
+                <span className="h-2 w-2 rounded-full bg-rose-500" /> NV = Non Validé (&lt; 10)
+              </span>
+            </div>
+          </div>
 
-                      {/* Actions Column */}
-                      <td className="p-3 text-center bg-slate-50/50 dark:bg-slate-800/40">
-                        <div className="flex items-center justify-center gap-1.5">
+          {isLoading ? (
+            <div className="p-16 text-center text-xs text-slate-400 dark:text-slate-500">
+              <RefreshCw className="h-7 w-7 animate-spin mx-auto mb-3 text-indigo-600 dark:text-indigo-400" />
+              Calcul des compensations ECTS ({sessionMode === "Rattrapage" ? "Session 2 - Règle Max" : "Session 1"}) en temps réel...
+            </div>
+          ) : deliberationData.cohort.length === 0 ? (
+            <div className="p-16 text-center text-xs text-slate-400 dark:text-slate-500 space-y-2">
+              <AlertTriangle className="h-8 w-8 mx-auto mb-2 text-amber-500" />
+              <div className="font-bold text-slate-700 dark:text-slate-300 text-sm">Aucun étudiant ou résultat trouvé</div>
+              <p className="max-w-md mx-auto">
+                Vérifiez que des notes ont bien été saisies pour cette promotion dans la rubrique <strong>Notes & Résultats</strong> pour ce semestre.
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-900 dark:bg-slate-950 text-white">
+                    <th className="p-3 text-center w-12 font-bold">Rang</th>
+                    <th className="p-3 font-bold min-w-[180px]">Étudiant</th>
+                    {deliberationData.ues.map((ue) => (
+                      <th key={ue.id} className="p-3 text-center font-bold border-l border-slate-800 dark:border-slate-900 min-w-[110px]">
+                        <div>{ue.codeUe}</div>
+                        <div className="text-[10px] text-slate-400 font-normal">{ue.creditsEcts} ECTS</div>
+                      </th>
+                    ))}
+                    <th className="p-3 text-center font-bold border-l border-slate-800 dark:border-slate-900 bg-slate-800 dark:bg-slate-900">Moyenne /20</th>
+                    <th className="p-3 text-center font-bold bg-slate-800 dark:bg-slate-900">Crédits /30</th>
+                    <th className="p-3 text-center font-bold bg-slate-800 dark:bg-slate-900">Décision</th>
+                    <th className="p-3 text-center font-bold bg-slate-800 dark:bg-slate-900">Mention</th>
+                    <th className="p-3 text-center font-bold bg-slate-800 dark:bg-slate-900 min-w-[140px]">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
+                  {(onlyAjournes
+                    ? deliberationData.cohort.filter((c) => !c.deliberation.isSemesterValidated)
+                    : deliberationData.cohort
+                  ).map((item) => {
+                    const d = item.deliberation;
+                    const hasUnvalidated = !d.isSemesterValidated;
+                    return (
+                      <tr key={item.student.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
+                        <td className="p-3 text-center font-bold text-slate-500 dark:text-slate-400">
+                          {item.rank === 1 ? "🥇 1" : `${item.rank}`}
+                        </td>
+                        <td className="p-3">
+                          <div className="font-bold text-slate-900 dark:text-slate-100">{item.student.nom}</div>
+                          <div className="text-[10px] text-slate-400 font-mono">{item.student.matricule || "N/A"}</div>
+                        </td>
+
+                        {/* UE Results */}
+                        {deliberationData.ues.map((ue) => {
+                          const r = d.ueResults.find((res: any) => res.codeUe === ue.codeUe || res.ueId === ue.id);
+                          if (!r) return <td key={ue.id} className="p-3 text-center text-slate-300 dark:text-slate-600">-</td>;
+
+                          const isV = r.status === "V";
+                          const isVC = r.status === "VC";
+
+                          return (
+                            <td key={ue.id} className="p-3 text-center border-l border-slate-100 dark:border-slate-800">
+                              <div className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                                {r.average.toFixed(2)}
+                              </div>
+                              <span
+                                className={`text-[9px] px-1.5 py-0.5 rounded font-bold ${
+                                  isV
+                                    ? "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300"
+                                    : isVC
+                                    ? "bg-indigo-100 dark:bg-indigo-950/60 text-indigo-800 dark:text-indigo-300"
+                                    : "bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300"
+                                }`}
+                              >
+                                {r.status} ({r.creditsAcquired} ECTS)
+                              </span>
+                            </td>
+                          );
+                        })}
+
+                        {/* Semester Summary */}
+                        <td className="p-3 text-center border-l border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 font-mono font-bold text-sm text-slate-900 dark:text-slate-100">
+                          {d.semesterAverage.toFixed(2)}
+                        </td>
+                        <td className="p-3 text-center bg-slate-50/50 dark:bg-slate-800/40 font-mono font-bold text-xs text-indigo-700 dark:text-indigo-400">
+                          {d.creditsAcquired} / 30
+                        </td>
+                        <td className="p-3 text-center bg-slate-50/50 dark:bg-slate-800/40">
+                          <span
+                            className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${
+                              d.isSemesterValidated
+                                ? "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300"
+                                : "bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300"
+                            }`}
+                          >
+                            {d.decision}
+                          </span>
+                        </td>
+                        <td className="p-3 text-center bg-slate-50/50 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 font-semibold">
+                          {d.mention}
+                        </td>
+
+                        {/* Actions Column */}
+                        <td className="p-3 text-center bg-slate-50/50 dark:bg-slate-800/40">
+                          <div className="flex items-center justify-center gap-1.5">
+                            {sessionMode === "Rattrapage" && hasUnvalidated && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  const unvalidatedEcus = d.ueResults
+                                    .filter((ue: any) => ue.status === "NV")
+                                    .flatMap((ue: any) => ue.ecuResults?.filter((e: any) => e.finalGrade < 10) || []);
+                                  const targetEcu = unvalidatedEcus[0] || d.ueResults[0]?.ecuResults?.[0];
+                                  setRattrapageEditState({
+                                    open: true,
+                                    student: item.student,
+                                    ecu: targetEcu,
+                                    currentGrade: targetEcu?.finalGrade || 0,
+                                    rattrapageGrade: targetEcu?.rattrapageScore ? String(targetEcu.rattrapageScore) : "",
+                                  });
+                                }}
+                                className="h-8 px-2 text-[11px] font-bold gap-1 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100"
+                                title="Saisir Note de Rattrapage (N2)"
+                              >
+                                <Sparkles className="h-3 w-3 text-amber-500" />
+                                <span>Rattrapage</span>
+                              </Button>
+                            )}
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setPreviewStudentItem(item)}
+                              className="h-8 w-8 p-0 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400"
+                              title="Aperçu du relevé"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleExportSingleReleve(item)}
+                              className="h-8 px-2.5 text-[11px] font-bold gap-1 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/50"
+                              title="Imprimer Relevé Officiel"
+                            >
+                              <Printer className="h-3 w-3" />
+                              <span>Relevé</span>
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
                           {sessionMode === "Rattrapage" && hasUnvalidated && (
                             <Button
                               size="sm"
