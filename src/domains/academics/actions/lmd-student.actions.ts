@@ -43,7 +43,7 @@ export interface StudentLmdTrajectory {
     ectsGrade: {
       grade: string;
       label: string;
-      color: string;
+      color?: string;
     };
     mention: string;
     status: "Diplômé" | "En cours de cursus" | "Enjambement (Avec dettes)" | "Ajourné";
