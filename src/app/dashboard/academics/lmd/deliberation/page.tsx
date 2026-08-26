@@ -1,6 +1,7 @@
 import React from "react";
 import { getUniversityPrograms } from "@/domains/academics/actions/lmd.actions";
 import { getActiveSchoolId } from "@/domains/auth/services/school";
+import { getDocumentHeaderConfig } from "@/domains/settings/actions/settings.actions";
 import { readDb } from "@/infrastructure/database";
 import {
   schoolClasses,
@@ -17,7 +18,7 @@ export const dynamic = "force-dynamic";
 export default async function UniversityDeliberationPage() {
   const schoolId = await getActiveSchoolId();
 
-  const [programsRes, classes, sections, levels, sessions, periods] = await Promise.all([
+  const [programsRes, classes, sections, levels, sessions, periods, headerConfigRes] = await Promise.all([
     getUniversityPrograms(schoolId),
     readDb.query.schoolClasses.findMany({
       where: or(eq(schoolClasses.schoolId, schoolId), isNull(schoolClasses.schoolId)),
@@ -42,9 +43,11 @@ export default async function UniversityDeliberationPage() {
       where: or(eq(academicPeriods.schoolId, schoolId), isNull(academicPeriods.schoolId)),
       orderBy: [asc(academicPeriods.startDate)],
     }),
+    getDocumentHeaderConfig().catch(() => ({ data: null })),
   ]);
 
   const programs = programsRes.success ? (programsRes.data || []) : [];
+  const headerConfig = (headerConfigRes as any)?.data || null;
 
   return (
     <DeliberationClient
@@ -54,6 +57,8 @@ export default async function UniversityDeliberationPage() {
       levels={levels}
       sessions={sessions}
       periods={periods}
+      headerConfig={headerConfig}
     />
   );
 }
+

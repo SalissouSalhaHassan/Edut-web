@@ -44,6 +44,7 @@ type Props = {
   levels: any[];
   sessions: any[];
   periods?: any[];
+  headerConfig?: any;
 };
 
 function normalizeFilterText(value: unknown) {
@@ -69,6 +70,7 @@ export default function DeliberationClient({
   levels = [],
   sessions = [],
   periods = [],
+  headerConfig = null,
 }: Props) {
   const [programs] = useState(initialPrograms || []);
   const { isDark, toggleTheme } = useTheme();
@@ -537,17 +539,26 @@ export default function DeliberationClient({
   // ─── Single Student Transcript PDF Export ──────────────────────────────────
   const handleExportSingleReleve = async (item: any) => {
     try {
+      const schoolName = headerConfig?.schoolName || headerConfig?.name || "UNIVERSITÉ DES SCIENCES & TECHNOLOGIES";
+      const facultyName = currentSection?.sectionName 
+        ? (currentSection.sectionName.toLowerCase().startsWith("faculté") ? currentSection.sectionName : `Faculté : ${currentSection.sectionName}`)
+        : "Faculté Universitaire LMD";
+      const departmentName = selectedProgram?.name || currentSection?.sectionName || "Département Universitaire";
+
       const relevePayload: LmdReleveParams = {
         student: item.student,
         deliberation: item.deliberation,
         institution: {
-          name: "ÉTABLISSEMENT D'ENSEIGNEMENT SUPÉRIEUR",
-          facultyName: currentSection?.sectionName || "Faculté LMD",
-          departmentName: selectedProgram?.name || "Département Universitaire",
+          name: schoolName,
+          countryName: headerConfig?.countryName || "RÉPUBLIQUE DU NIGER",
+          ministryName: headerConfig?.ministryName || "MINISTÈRE DE L'ENSEIGNEMENT SUPÉRIEUR ET DE LA RECHERCHE",
+          facultyName: facultyName,
+          departmentName: departmentName,
           programName: selectedProgram?.name || currentSection?.sectionName || "Tronc Commun LMD",
           degreeLevel: selectedLevel,
           className: getClassDisplayName(selectedClass),
           sessionName: selectedSession?.sessionName || "2025-2026",
+          logoUrl: headerConfig?.logo || headerConfig?.logoUrl || undefined,
         },
         rank: item.rank,
         totalCohort: deliberationData.totalStudents,
@@ -569,17 +580,26 @@ export default function DeliberationClient({
 
     setIsExportingBatchReleves(true);
     try {
+      const schoolName = headerConfig?.schoolName || headerConfig?.name || "UNIVERSITÉ DES SCIENCES & TECHNOLOGIES";
+      const facultyName = currentSection?.sectionName 
+        ? (currentSection.sectionName.toLowerCase().startsWith("faculté") ? currentSection.sectionName : `Faculté : ${currentSection.sectionName}`)
+        : "Faculté Universitaire LMD";
+      const departmentName = selectedProgram?.name || currentSection?.sectionName || "Département Universitaire";
+
       const batchPayload: LmdReleveParams[] = deliberationData.cohort.map((item) => ({
         student: item.student,
         deliberation: item.deliberation,
         institution: {
-          name: "ÉTABLISSEMENT D'ENSEIGNEMENT SUPÉRIEUR",
-          facultyName: currentSection?.sectionName || "Faculté LMD",
-          departmentName: selectedProgram?.name || "Département Universitaire",
+          name: schoolName,
+          countryName: headerConfig?.countryName || "RÉPUBLIQUE DU NIGER",
+          ministryName: headerConfig?.ministryName || "MINISTÈRE DE L'ENSEIGNEMENT SUPÉRIEUR ET DE LA RECHERCHE",
+          facultyName: facultyName,
+          departmentName: departmentName,
           programName: selectedProgram?.name || currentSection?.sectionName || "Tronc Commun LMD",
           degreeLevel: selectedLevel,
           className: getClassDisplayName(selectedClass),
           sessionName: selectedSession?.sessionName || "2025-2026",
+          logoUrl: headerConfig?.logo || headerConfig?.logoUrl || undefined,
         },
         rank: item.rank,
         totalCohort: deliberationData.totalStudents,

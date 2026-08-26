@@ -1,6 +1,7 @@
 /**
  * LMD Official Transcript (Relevé de Notes) Generator
  * Standards: REESAO / CAMES / ECTS / Bologne
+ * High-precision, pixel-perfect vector A4 layout
  */
 
 export interface LmdReleveParams {
@@ -42,6 +43,9 @@ export interface LmdReleveParams {
   };
   institution: {
     name?: string;
+    countryName?: string;
+    ministryName?: string;
+    motto?: string;
     facultyName?: string;
     departmentName?: string;
     programName?: string;
@@ -49,6 +53,9 @@ export interface LmdReleveParams {
     className?: string;
     sessionName?: string;
     logoUrl?: string;
+    city?: string;
+    phone?: string;
+    email?: string;
   };
   rank?: number | string;
   totalCohort?: number;
@@ -99,77 +106,119 @@ function buildRelevePage(doc: any, autoTable: any, data: LmdReleveParams, pageWi
   const { student, deliberation, institution, rank, totalCohort } = data;
   const ects = getEctsGrade(deliberation.semesterAverage);
 
-  // Decorative Border
+  // 1. Dual Luxury Security Borders
   doc.setDrawColor(203, 213, 225); // slate-300
-  doc.setLineWidth(0.5);
-  doc.rect(8, 8, pageWidth - 16, pageHeight - 16, "S");
+  doc.setLineWidth(0.7);
+  doc.rect(7, 7, pageWidth - 14, pageHeight - 14, "S");
 
-  // Institutional Header
+  doc.setDrawColor(226, 232, 240); // slate-200
+  doc.setLineWidth(0.3);
+  doc.rect(8.5, 8.5, pageWidth - 17, pageHeight - 17, "S");
+
+  // 2. Official Republic & Institutional Header
+  const country = institution.countryName || "RÉPUBLIQUE DU NIGER";
+  const ministry = institution.ministryName || "MINISTÈRE DE L'ENSEIGNEMENT SUPÉRIEUR ET DE LA RECHERCHE";
+  const schoolName = institution.name || "UNIVERSITÉ / INSTITUT D'ENSEIGNEMENT SUPÉRIEUR";
+  const faculty = institution.facultyName ? institution.facultyName.toUpperCase() : "FACULTÉ DES SCIENCES & TECHNOLOGIES";
+  const department = institution.departmentName ? institution.departmentName.toUpperCase() : "DÉPARTEMENT ACADÉMIQUE";
+
+  // Left Ministry Info
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
+  doc.setFontSize(7.5);
   doc.setTextColor(30, 41, 59); // slate-800
-  doc.text(institution.name || "ÉTABLISSEMENT D'ENSEIGNEMENT SUPÉRIEUR", pageWidth / 2, 16, { align: "center" });
+  doc.text(country.toUpperCase(), 14, 14);
 
-  doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
-  doc.setTextColor(71, 85, 105);
-  doc.text(`${institution.facultyName || "Faculté des Sciences et Technologies"}  •  ${institution.departmentName || "Département Académique"}`, pageWidth / 2, 21, { align: "center" });
+  doc.setFontSize(6.5);
+  doc.setTextColor(100, 116, 139);
+  doc.text("---------------------------------------------", 14, 17);
+  doc.text(ministry, 14, 20, { maxWidth: 65 });
 
-  // Document Title Banner
+  // Right University Info
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8.5);
+  doc.setTextColor(15, 23, 42);
+  doc.text(schoolName.toUpperCase(), pageWidth - 14, 14, { align: "right" });
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7);
+  doc.setTextColor(71, 85, 105);
+  doc.text(faculty, pageWidth - 14, 18.5, { align: "right" });
+  if (faculty !== department) {
+    doc.text(department, pageWidth - 14, 22.5, { align: "right" });
+  }
+
+  // 3. Document Title Banner (Sleek Dark Navy with Gold Accents)
+  const bannerY = 27;
   doc.setFillColor(15, 23, 42); // slate-900
-  doc.roundedRect(12, 25, pageWidth - 24, 12, 2, 2, "F");
+  doc.roundedRect(12, bannerY, pageWidth - 24, 12, 1.5, 1.5, "F");
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
   doc.setTextColor(255, 255, 255);
-  doc.text("RELEVÉ DE NOTES ET RÉSULTATS OFFICIEL", pageWidth / 2, 31, { align: "center" });
+  doc.text("RELEVÉ DE NOTES ET RÉSULTATS OFFICIEL", pageWidth / 2, bannerY + 5.5, { align: "center" });
 
-  doc.setFontSize(7.5);
+  doc.setFontSize(7);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(226, 232, 240);
-  doc.text("Système LMD (Licence - Master - Doctorat) • Norme ECTS / REESAO / CAMES", pageWidth / 2, 35, { align: "center" });
+  doc.text("Système LMD (Licence - Master - Doctorat) • Norme ECTS / REESAO / CAMES", pageWidth / 2, bannerY + 9.5, { align: "center" });
 
-  // Student & Academic Info Box
+  // 4. Student & Academic Info Box
+  const infoY = 41;
   doc.setFillColor(248, 250, 252); // slate-50
   doc.setDrawColor(226, 232, 240);
-  doc.roundedRect(12, 40, pageWidth - 24, 25, 2, 2, "FD");
-
-  doc.setFontSize(8);
-  doc.setTextColor(30, 41, 59);
+  doc.roundedRect(12, infoY, pageWidth - 24, 24, 1.5, 1.5, "FD");
 
   // Left Column
+  doc.setFontSize(7.5);
   doc.setFont("helvetica", "bold");
-  doc.text("Nom & Prénoms :", 16, 46);
-  doc.setFont("helvetica", "normal");
-  doc.text(student.nom || "N/A", 44, 46);
+  doc.setTextColor(71, 85, 105);
+  doc.text("Nom & Prénoms :", 16, infoY + 6);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(15, 23, 42);
+  doc.text(student.nom || "N/A", 44, infoY + 6);
 
   doc.setFont("helvetica", "bold");
-  doc.text("N° Matricule :", 16, 52);
+  doc.setTextColor(71, 85, 105);
+  doc.text("N° Matricule :", 16, infoY + 12);
   doc.setFont("helvetica", "normal");
-  doc.text(student.matricule || "N/A", 44, 52);
+  doc.setFont("courier", "bold");
+  doc.setTextColor(15, 23, 42);
+  doc.text(student.matricule || "N/A", 44, infoY + 12);
 
   doc.setFont("helvetica", "bold");
-  doc.text("Filière / Parcours :", 16, 58);
+  doc.setTextColor(71, 85, 105);
+  doc.text("Filière / Parcours :", 16, infoY + 18);
   doc.setFont("helvetica", "normal");
-  doc.text(institution.programName || "Tronc Commun LMD", 44, 58);
+  doc.setTextColor(15, 23, 42);
+  doc.text(institution.programName || "Tronc Commun LMD", 44, infoY + 18, { maxWidth: 58 });
 
   // Right Column
-  doc.setFont("helvetica", "bold");
-  doc.text("Année Universitaire :", pageWidth / 2 + 10, 46);
-  doc.setFont("helvetica", "normal");
-  doc.text(institution.sessionName || "2025-2026", pageWidth / 2 + 44, 46);
+  const rightColX = pageWidth / 2 + 8;
+  const rightValX = rightColX + 34;
 
   doc.setFont("helvetica", "bold");
-  doc.text("Semestre d'Études :", pageWidth / 2 + 10, 52);
+  doc.setTextColor(71, 85, 105);
+  doc.text("Année Universitaire :", rightColX, infoY + 6);
   doc.setFont("helvetica", "normal");
-  doc.text(deliberation.semester || "S1", pageWidth / 2 + 44, 52);
+  doc.setTextColor(15, 23, 42);
+  doc.text(institution.sessionName || "2025-2026", rightValX, infoY + 6);
 
   doc.setFont("helvetica", "bold");
-  doc.text("Promotion / Classe :", pageWidth / 2 + 10, 58);
+  doc.setTextColor(71, 85, 105);
+  doc.text("Semestre d'Études :", rightColX, infoY + 12);
   doc.setFont("helvetica", "normal");
-  doc.text(institution.className || "L1", pageWidth / 2 + 44, 58);
+  doc.setTextColor(15, 23, 42);
+  doc.text(deliberation.semester || "S1", rightValX, infoY + 12);
 
-  // Table of UEs and ECUs
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(71, 85, 105);
+  doc.text("Promotion / Classe :", rightColX, infoY + 18);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(15, 23, 42);
+  doc.text(institution.className || "L1", rightValX, infoY + 18);
+
+  // 5. Table of UEs and ECUs (Clean Academic Grid)
   const tableHead = [
     [
       { content: "Code UE", styles: { halign: "center" as const } },
@@ -204,7 +253,12 @@ function buildRelevePage(doc: any, autoTable: any, data: LmdReleveParams, pageWi
       },
       {
         content: ue.average.toFixed(2),
-        styles: { fontStyle: "bold", fillColor: [241, 245, 249], textColor: isV ? [5, 150, 105] : isVC ? [79, 70, 229] : [225, 29, 72], halign: "center" }
+        styles: { 
+          fontStyle: "bold", 
+          fillColor: [241, 245, 249], 
+          textColor: isV ? [5, 150, 105] : isVC ? [79, 70, 229] : [225, 29, 72], 
+          halign: "center" 
+        }
       },
       {
         content: `${ue.creditsAcquired} / ${ue.creditsEcts}`,
@@ -212,21 +266,43 @@ function buildRelevePage(doc: any, autoTable: any, data: LmdReleveParams, pageWi
       },
       {
         content: ueStatusLabel,
-        styles: { fontStyle: "bold", fillColor: [241, 245, 249], textColor: isV ? [5, 150, 105] : isVC ? [79, 70, 229] : [225, 29, 72], halign: "center" }
+        styles: { 
+          fontStyle: "bold", 
+          fillColor: [241, 245, 249], 
+          textColor: isV ? [5, 150, 105] : isVC ? [79, 70, 229] : [225, 29, 72], 
+          halign: "center" 
+        }
       }
     ]);
 
     // Sub-items ECUs
     if (ue.ecuResults && ue.ecuResults.length > 0) {
       ue.ecuResults.forEach((ecu) => {
-        const ecuPass = ecu.finalGrade >= 10.0;
+        const isGraded = ecu.finalGrade !== null && ecu.finalGrade !== undefined && ecu.finalGrade > 0;
+        const ecuPass = isGraded && ecu.finalGrade >= 10.0;
+        const ecuStatusLabel = isGraded ? (ecuPass ? "Validé" : "Ajourné") : "Non évalué";
+
         tableBody.push([
           { content: ecu.codeEcu || "", styles: { textColor: [100, 116, 139], halign: "center" } },
           { content: `   • ${ecu.nameEcu}`, styles: { textColor: [51, 65, 85] } },
           { content: String(ecu.coefficient || 1), styles: { halign: "center", textColor: [100, 116, 139] } },
-          { content: ecu.finalGrade > 0 ? ecu.finalGrade.toFixed(2) : "-", styles: { halign: "center", fontStyle: ecuPass ? "normal" : "bold", textColor: ecuPass ? [30, 41, 59] : [225, 29, 72] } },
+          { 
+            content: isGraded ? ecu.finalGrade.toFixed(2) : "-", 
+            styles: { 
+              halign: "center", 
+              fontStyle: isGraded ? "bold" : "normal", 
+              textColor: isGraded ? (ecuPass ? [15, 23, 42] : [225, 29, 72]) : [148, 163, 184] 
+            } 
+          },
           { content: `${ecu.creditsEcts} ECTS`, styles: { halign: "center", textColor: [100, 116, 139] } },
-          { content: ecuPass ? "Admis" : "Ajourné", styles: { halign: "center", textColor: ecuPass ? [5, 150, 105] : [225, 29, 72] } }
+          { 
+            content: ecuStatusLabel, 
+            styles: { 
+              halign: "center", 
+              textColor: isGraded ? (ecuPass ? [5, 150, 105] : [225, 29, 72]) : [148, 163, 184],
+              fontStyle: isGraded ? "bold" : "normal"
+            } 
+          }
         ]);
       });
     }
@@ -239,7 +315,7 @@ function buildRelevePage(doc: any, autoTable: any, data: LmdReleveParams, pageWi
     margin: { left: 12, right: 12 },
     styles: {
       fontSize: 7.5,
-      cellPadding: 1.8,
+      cellPadding: 1.6,
       valign: "middle",
     },
     headStyles: {
@@ -258,89 +334,130 @@ function buildRelevePage(doc: any, autoTable: any, data: LmdReleveParams, pageWi
     },
   });
 
-  const finalY = (doc as any).lastAutoTable.finalY + 6;
+  const finalY = (doc as any).lastAutoTable.finalY + 5;
 
-  // Semester Synthesis & Decision Box
+  // 6. Semester Synthesis & Decision Box (Robust 2-column Bounded Layout)
+  const boxHeight = 27;
   doc.setFillColor(248, 250, 252);
   doc.setDrawColor(203, 213, 225);
-  doc.roundedRect(12, finalY, pageWidth - 24, 26, 2, 2, "FD");
+  doc.roundedRect(12, finalY, pageWidth - 24, boxHeight, 1.5, 1.5, "FD");
 
-  // Summary Metrics
-  doc.setFontSize(8);
-  doc.setTextColor(51, 65, 85);
+  // Column 1 (Left Metrics)
+  const col1LabelX = 16;
+  const col1ValX = 64;
 
+  doc.setFontSize(7.5);
   doc.setFont("helvetica", "bold");
-  doc.text("Moyenne Générale du Semestre :", 16, finalY + 7);
-  doc.setFontSize(10);
+  doc.setTextColor(71, 85, 105);
+  doc.text("Moyenne du Semestre :", col1LabelX, finalY + 6.5);
+  doc.setFontSize(9.5);
   doc.setTextColor(15, 23, 42);
-  doc.text(`${deliberation.semesterAverage.toFixed(2)} / 20`, 68, finalY + 7);
+  doc.text(`${deliberation.semesterAverage.toFixed(2)} / 20`, col1ValX, finalY + 6.5);
 
-  doc.setFontSize(8);
-  doc.setTextColor(51, 65, 85);
-  doc.text("Total Crédits ECTS Capitalisés :", 16, finalY + 14);
-  doc.setFontSize(10);
+  doc.setFontSize(7.5);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(71, 85, 105);
+  doc.text("Total Crédits ECTS :", col1LabelX, finalY + 13.5);
+  doc.setFontSize(9.5);
   doc.setTextColor(79, 70, 229);
-  doc.text(`${deliberation.creditsAcquired} / 30 ECTS`, 68, finalY + 14);
+  doc.text(`${deliberation.creditsAcquired} / 30 ECTS`, col1ValX, finalY + 13.5);
 
-  doc.setFontSize(8);
-  doc.setTextColor(51, 65, 85);
-  doc.text("Notation / Grade ECTS :", 16, finalY + 21);
-  doc.setFontSize(9);
+  doc.setFontSize(7.5);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(71, 85, 105);
+  doc.text("Notation / Grade ECTS :", col1LabelX, finalY + 20.5);
+  doc.setFontSize(8.5);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(15, 23, 42);
-  doc.text(`Grade ${ects.grade} (${ects.label})`, 68, finalY + 21);
+  doc.text(`Grade ${ects.grade} (${ects.label})`, col1ValX, finalY + 20.5, { maxWidth: 45 });
 
-  // Right Side: Decision & Mention
-  doc.setFontSize(8);
-  doc.setTextColor(51, 65, 85);
-  doc.text("Décision Officielle du Jury :", pageWidth / 2 + 10, finalY + 7);
-  doc.setFontSize(10);
+  // Column 2 (Right Decisions - Fully Bounded to Avoid Right Clipping)
+  const col2LabelX = pageWidth / 2 + 8;
+  const col2ValX = col2LabelX + 38;
+
+  doc.setFontSize(7.5);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(71, 85, 105);
+  doc.text("Décision du Jury :", col2LabelX, finalY + 6.5);
+
+  doc.setFontSize(9);
   doc.setFont("helvetica", "bold");
   if (deliberation.isSemesterValidated) {
     doc.setTextColor(5, 150, 105); // emerald-600
-    doc.text("ADMIS(E) AU SEMESTRE ✅", pageWidth / 2 + 52, finalY + 7);
+    doc.text("ADMIS(E) AU SEMESTRE", col2ValX, finalY + 6.5);
   } else {
     doc.setTextColor(225, 29, 72); // rose-600
-    doc.text("AJOURNÉ(E) (RATTRAPAGE) ❌", pageWidth / 2 + 52, finalY + 7);
+    doc.text("AJOURNÉ(E) (RATTRAPAGE)", col2ValX, finalY + 6.5);
   }
 
-  doc.setFontSize(8);
-  doc.setTextColor(51, 65, 85);
-  doc.text("Mention Attribuée :", pageWidth / 2 + 10, finalY + 14);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(15, 23, 42);
-  doc.text(deliberation.mention || "Passable", pageWidth / 2 + 52, finalY + 14);
-
+  doc.setFontSize(7.5);
   doc.setFont("helvetica", "bold");
-  doc.setTextColor(51, 65, 85);
-  doc.text("Rang dans la Promotion :", pageWidth / 2 + 10, finalY + 21);
+  doc.setTextColor(71, 85, 105);
+  doc.text("Mention Attribuée :", col2LabelX, finalY + 13.5);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(15, 23, 42);
-  doc.text(`${rank || 1}e / ${totalCohort || 1} étudiants`, pageWidth / 2 + 52, finalY + 21);
+  doc.text(deliberation.mention || "Ajourné", col2ValX, finalY + 13.5);
 
-  // Signatures & Security Stamp Zone
-  const sigY = finalY + 32;
-  if (sigY < pageHeight - 25) {
+  doc.setFontSize(7.5);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(71, 85, 105);
+  doc.text("Rang Promotion :", col2LabelX, finalY + 20.5);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(15, 23, 42);
+  doc.text(`${rank || 1}e / ${totalCohort || 1} étudiants`, col2ValX, finalY + 20.5);
+
+  // 7. Official Signatures & Security Stamp Zone
+  const sigY = finalY + boxHeight + 6;
+  if (sigY < pageHeight - 20) {
     doc.setFontSize(7.5);
     doc.setFont("helvetica", "bold");
-    doc.setTextColor(51, 65, 85);
+    doc.setTextColor(30, 41, 59);
 
+    // Left Signature
     doc.text("Le Président du Jury de Délibération :", 16, sigY);
+    doc.setFontSize(6.5);
     doc.setFont("helvetica", "normal");
-    doc.text("Signature et approbation", 16, sigY + 4);
-    doc.line(16, sigY + 16, 65, sigY + 16);
+    doc.setTextColor(100, 116, 139);
+    doc.text("Signature et approbation officielle", 16, sigY + 4);
+    doc.setDrawColor(148, 163, 184);
+    doc.setLineWidth(0.4);
+    doc.line(16, sigY + 16, 68, sigY + 16);
 
+    // Center Security Verification Box
+    const centerBoxX = pageWidth / 2 - 20;
+    doc.setDrawColor(203, 213, 225);
+    doc.setFillColor(255, 255, 255);
+    doc.roundedRect(centerBoxX, sigY - 2, 40, 18, 1, 1, "FD");
+
+    doc.setFontSize(6);
     doc.setFont("helvetica", "bold");
+    doc.setTextColor(79, 70, 229);
+    doc.text("SÉCURITÉ LMD / ECTS", pageWidth / 2, sigY + 2.5, { align: "center" });
+
+    doc.setFontSize(5.5);
+    doc.setFont("courier", "normal");
+    doc.setTextColor(100, 116, 139);
+    const hash = `LMD-${student.id}-${deliberation.creditsAcquired}C-${(deliberation.semesterAverage * 100).toFixed(0)}`;
+    doc.text(hash, pageWidth / 2, sigY + 7.5, { align: "center" });
+    doc.text("AUTHENTIFIÉ CONFORME", pageWidth / 2, sigY + 12.5, { align: "center" });
+
+    // Right Signature
+    doc.setFontSize(7.5);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(30, 41, 59);
     doc.text("Le Doyen / Chef d'Établissement :", pageWidth - 70, sigY);
+    doc.setFontSize(6.5);
     doc.setFont("helvetica", "normal");
+    doc.setTextColor(100, 116, 139);
     doc.text("Cachet officiel et validation", pageWidth - 70, sigY + 4);
+    doc.setDrawColor(148, 163, 184);
     doc.line(pageWidth - 70, sigY + 16, pageWidth - 16, sigY + 16);
 
-    // Security Verification Code & Footer Notice
+    // Footer Legal Notice
     const today = new Date().toLocaleDateString("fr-FR", { year: "numeric", month: "long", day: "numeric" });
-    doc.setFontSize(6.5);
+    doc.setFontSize(6);
     doc.setTextColor(148, 163, 184); // slate-400
-    doc.text(`Fait le ${today} • Certifié conforme aux délibérations officielles • Réf: LMD-SEC-${student.id}-${Date.now().toString().slice(-6)}`, pageWidth / 2, pageHeight - 11, { align: "center" });
+    doc.text(`Fait le ${today} • Document certifié conforme au Procès-Verbal de Délibération • Réf: LMD-SEC-${student.id}-${Date.now().toString().slice(-6)}`, pageWidth / 2, pageHeight - 11, { align: "center" });
     doc.text("Ce relevé de notes est délivré en un seul exemplaire original. Toute rature ou altération annule sa validité.", pageWidth / 2, pageHeight - 8, { align: "center" });
   }
 }
