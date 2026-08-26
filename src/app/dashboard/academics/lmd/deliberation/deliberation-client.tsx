@@ -1015,115 +1015,202 @@ export default function DeliberationClient({
         )}
       </div>
 
-      {/* ─── MODAL APERÇU RELEVÉ DE NOTES INDIVIDUEL ────────────────────────── */}
+      {/* ─── MODAL APERÇU RELEVÉ DE NOTES INDIVIDUEL (GRAND FORMAT WIDE) ──── */}
       {previewStudentItem && (
         <Dialog open={Boolean(previewStudentItem)} onOpenChange={(open) => !open && setPreviewStudentItem(null)}>
-          <DialogContent className="max-w-2xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 p-6 rounded-2xl">
-            <DialogHeader className="border-b border-slate-100 dark:border-slate-800 pb-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <DialogTitle className="text-lg font-black text-slate-900 dark:text-slate-100">
-                    Relevé de Notes & Crédits LMD
-                  </DialogTitle>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                    {previewStudentItem.student.nom} ({previewStudentItem.student.matricule || "N/A"}) • {selectedSemester}
-                  </p>
+          <DialogContent className="max-w-4xl max-h-[92vh] flex flex-col bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 p-6 rounded-3xl shadow-2xl overflow-hidden">
+            {/* Modal Header */}
+            <DialogHeader className="border-b border-slate-100 dark:border-slate-800 pb-4 shrink-0">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-800">
+                    <GraduationCap className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <DialogTitle className="text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
+                      Relevé de Notes & Crédits LMD
+                    </DialogTitle>
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                      <span className="font-bold text-slate-800 dark:text-slate-200">{previewStudentItem.student.nom}</span>
+                      <span>•</span>
+                      <span className="font-mono text-[11px] px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold">
+                        {previewStudentItem.student.matricule || "N/A"}
+                      </span>
+                      <span>•</span>
+                      <span className="text-indigo-600 dark:text-indigo-400 font-medium">
+                        {selectedSemester}
+                      </span>
+                      <span>•</span>
+                      <span>{getClassDisplayName(selectedClass)}</span>
+                    </div>
+                  </div>
                 </div>
-                <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+
+                <span className={`self-start sm:self-center px-3.5 py-1.5 rounded-full text-xs font-black tracking-wide border shadow-xs ${
                   previewStudentItem.deliberation.isSemesterValidated
-                    ? "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300"
-                    : "bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300"
+                    ? "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800"
+                    : "bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800"
                 }`}>
                   {previewStudentItem.deliberation.decision}
                 </span>
               </div>
             </DialogHeader>
 
-            {/* Performance Summary Banner */}
-            <div className="grid grid-cols-3 gap-3 my-4">
-              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
-                <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">Moyenne Semestrielle</div>
-                <div className="text-xl font-black text-slate-900 dark:text-slate-100 mt-0.5">
-                  {previewStudentItem.deliberation.semesterAverage.toFixed(2)} / 20
+            {/* Performance Summary Banner (4 Columns) */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 my-4 shrink-0">
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80">
+                <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Moyenne Semestrielle</div>
+                <div className="text-2xl font-black text-slate-900 dark:text-slate-100 mt-1">
+                  {previewStudentItem.deliberation.semesterAverage.toFixed(2)} <span className="text-xs font-bold text-slate-400">/ 20</span>
                 </div>
               </div>
-              <div className="p-3.5 rounded-xl bg-indigo-50/50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800">
-                <div className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase">Crédits ECTS Acquis</div>
-                <div className="text-xl font-black text-indigo-700 dark:text-indigo-300 mt-0.5">
-                  {previewStudentItem.deliberation.creditsAcquired} / 30 ECTS
+
+              <div className="p-4 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/30 border border-indigo-200/80 dark:border-indigo-800/80">
+                <div className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">Crédits ECTS Capitalisés</div>
+                <div className="text-2xl font-black text-indigo-700 dark:text-indigo-300 mt-1">
+                  {previewStudentItem.deliberation.creditsAcquired} <span className="text-xs font-bold text-indigo-400">/ 30 ECTS</span>
                 </div>
               </div>
-              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
-                <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">Grade ECTS & Rang</div>
-                <div className="text-xl font-black text-slate-900 dark:text-slate-100 mt-0.5">
-                  Grade {getEctsGrade(previewStudentItem.deliberation.semesterAverage).grade} • {previewStudentItem.rank}e
+
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80">
+                <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Grade ECTS International</div>
+                <div className="text-lg font-black text-slate-900 dark:text-slate-100 mt-1.5 flex items-center gap-1.5">
+                  <span className="px-2 py-0.5 rounded-lg bg-indigo-600 text-white text-xs font-bold font-mono">
+                    Grade {getEctsGrade(previewStudentItem.deliberation.semesterAverage).grade}
+                  </span>
+                  <span className="text-xs text-slate-500 font-medium truncate">
+                    {getEctsGrade(previewStudentItem.deliberation.semesterAverage).label}
+                  </span>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80">
+                <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Rang & Promotion</div>
+                <div className="text-2xl font-black text-slate-900 dark:text-slate-100 mt-1">
+                  {previewStudentItem.rank === 1 ? "🥇 1er" : `${previewStudentItem.rank}e`} <span className="text-xs font-bold text-slate-400">/ {deliberationData.totalStudents}</span>
                 </div>
               </div>
             </div>
 
-            {/* Breakdown per UE */}
-            <div className="space-y-2.5 max-h-[320px] overflow-y-auto pr-1">
-              {previewStudentItem.deliberation.ueResults.map((ue: any) => {
-                const isV = ue.status === "V";
-                const isVC = ue.status === "VC";
-                return (
-                  <div key={ue.ueId || ue.codeUe} className="rounded-xl border border-slate-200 dark:border-slate-800 p-3 bg-white dark:bg-slate-900/80">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
-                          {ue.codeUe}
-                        </span>
-                        <span className="font-bold text-xs text-slate-800 dark:text-slate-200">{ue.nameUe}</span>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className="font-mono font-bold text-xs text-slate-900 dark:text-slate-100">
-                          {ue.average.toFixed(2)} / 20
-                        </span>
-                        <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold ${
-                          isV
-                            ? "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300"
-                            : isVC
-                            ? "bg-indigo-100 dark:bg-indigo-950/60 text-indigo-800 dark:text-indigo-300"
-                            : "bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300"
-                        }`}>
-                          {ue.status} ({ue.creditsAcquired} ECTS)
-                        </span>
-                      </div>
-                    </div>
+            {/* Comprehensive Academic Table (Scrollable Body) */}
+            <div className="flex-1 overflow-y-auto border border-slate-200 dark:border-slate-800 rounded-2xl">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead className="sticky top-0 bg-slate-900 dark:bg-slate-950 text-white font-bold z-10">
+                  <tr className="border-b border-slate-800">
+                    <th className="p-3 w-28 text-center">Code UE</th>
+                    <th className="p-3">Unités d'Enseignement & Matières (ECU)</th>
+                    <th className="p-3 text-center w-16">Coef</th>
+                    <th className="p-3 text-center w-24">Note /20</th>
+                    <th className="p-3 text-center w-28">Crédits ECTS</th>
+                    <th className="p-3 text-center w-36">Statut / Décision</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {previewStudentItem.deliberation.ueResults.map((ue: any) => {
+                    const isV = ue.status === "V";
+                    const isVC = ue.status === "VC";
+                    return (
+                      <React.Fragment key={ue.ueId || ue.codeUe}>
+                        {/* UE Row Header */}
+                        <tr className="bg-slate-100/70 dark:bg-slate-800/70 font-bold">
+                          <td className="p-3 text-center font-mono text-xs text-indigo-700 dark:text-indigo-400">
+                            {ue.codeUe}
+                          </td>
+                          <td className="p-3 text-slate-900 dark:text-slate-100">
+                            {ue.nameUe} <span className="text-[10px] text-slate-500 font-normal">({ue.typeUe || "Fondamentale"})</span>
+                          </td>
+                          <td className="p-3 text-center text-slate-400">-</td>
+                          <td className="p-3 text-center font-mono font-bold text-sm">
+                            <span className={isV ? "text-emerald-600" : isVC ? "text-indigo-600" : "text-rose-600"}>
+                              {ue.average.toFixed(2)}
+                            </span>
+                          </td>
+                          <td className="p-3 text-center font-mono font-bold text-indigo-600 dark:text-indigo-400">
+                            {ue.creditsAcquired} / {ue.creditsEcts}
+                          </td>
+                          <td className="p-3 text-center">
+                            <span className={`inline-flex px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                              isV
+                                ? "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300"
+                                : isVC
+                                ? "bg-indigo-100 dark:bg-indigo-950/60 text-indigo-800 dark:text-indigo-300"
+                                : "bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300"
+                            }`}>
+                              {isV ? "Validé (V)" : isVC ? "Compensé (VC)" : "Non Validé (NV)"}
+                            </span>
+                          </td>
+                        </tr>
 
-                    {/* ECUs list if present */}
-                    {ue.ecuResults && ue.ecuResults.length > 0 && (
-                      <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-800 space-y-1">
-                        {ue.ecuResults.map((ecu: any) => (
-                          <div key={ecu.id} className="flex items-center justify-between text-[11px] text-slate-600 dark:text-slate-400 pl-3">
-                            <span>• {ecu.nameEcu} (Coef {ecu.coefficient || 1})</span>
-                            <span className="font-mono font-medium">{ecu.finalGrade > 0 ? ecu.finalGrade.toFixed(2) : "-"}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+                        {/* ECU Sub-rows */}
+                        {ue.ecuResults && ue.ecuResults.map((ecu: any) => {
+                          const isGraded = ecu.finalGrade !== null && ecu.finalGrade !== undefined && ecu.finalGrade > 0;
+                          const ecuPass = isGraded && ecu.finalGrade >= 10.0;
+                          return (
+                            <tr key={ecu.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 text-slate-600 dark:text-slate-400">
+                              <td className="p-2.5 text-center font-mono text-[11px] text-slate-400">
+                                {ecu.codeEcu || "-"}
+                              </td>
+                              <td className="p-2.5 pl-6 font-medium text-slate-800 dark:text-slate-200">
+                                • {ecu.nameEcu}
+                              </td>
+                              <td className="p-2.5 text-center font-mono text-[11px]">
+                                {ecu.coefficient || 1}
+                              </td>
+                              <td className="p-2.5 text-center font-mono font-semibold">
+                                {isGraded ? (
+                                  <span className={ecuPass ? "text-slate-900 dark:text-slate-100" : "text-rose-600 font-bold"}>
+                                    {ecu.finalGrade.toFixed(2)}
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-400">-</span>
+                                )}
+                              </td>
+                              <td className="p-2.5 text-center font-mono text-[11px] text-slate-500">
+                                {ecu.creditsEcts} ECTS
+                              </td>
+                              <td className="p-2.5 text-center">
+                                {isGraded ? (
+                                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                                    ecuPass ? "text-emerald-700 bg-emerald-50 dark:bg-emerald-950/40" : "text-rose-700 bg-rose-50 dark:bg-rose-950/40"
+                                  }`}>
+                                    {ecuPass ? "Validé" : "Ajourné"}
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] text-slate-400">Non évalué</span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </React.Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
 
             {/* Modal Footer Actions */}
-            <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800 mt-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setPreviewStudentItem(null)}
-                className="text-xs text-slate-500 hover:text-slate-700"
-              >
-                Fermer
-              </Button>
-              <Button
-                onClick={() => handleExportSingleReleve(previewStudentItem)}
-                className="gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl"
-              >
-                <Printer className="h-4 w-4" />
-                Imprimer le Relevé Officiel (PDF)
-              </Button>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t border-slate-100 dark:border-slate-800 mt-3 shrink-0">
+              <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                Normes REESAO / CAMES • Seuil de compensation inter-UE : 10.00 / 20
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPreviewStudentItem(null)}
+                  className="text-xs font-semibold px-4 h-9 rounded-xl border-slate-200 dark:border-slate-700"
+                >
+                  Fermer
+                </Button>
+                <Button
+                  onClick={() => handleExportSingleReleve(previewStudentItem)}
+                  className="gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs h-9 px-5 rounded-xl shadow-md shadow-indigo-500/20"
+                >
+                  <Printer className="h-4 w-4" />
+                  Imprimer le Relevé Officiel (PDF)
+                </Button>
+              </div>
             </div>
           </DialogContent>
         </Dialog>
@@ -1131,3 +1218,4 @@ export default function DeliberationClient({
     </div>
   );
 }
+
