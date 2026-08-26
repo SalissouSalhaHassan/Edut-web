@@ -37,7 +37,7 @@ export default async function EquivalencesPage() {
     .select({
       id: universityPrograms.id,
       name: universityPrograms.name,
-      level: universityPrograms.level,
+      level: universityPrograms.degreeLevel,
     })
     .from(universityPrograms)
     .limit(50);
