@@ -696,9 +696,24 @@ export async function getLmdDeliberationCohort(
       }
     }
 
-    // 2. Récupérer les Étudiants inscrits dans cette classe
+    // 2. Récupérer les Étudiants inscrits dans cette classe OU ayant des résultats dans cette classe
+    const resultsForClass = await readDb.query.studentResults.findMany({
+      where: and(
+        eq(studentResults.classId, classId),
+        eq(studentResults.sessionId, sessionId)
+      ),
+      columns: { studentId: true },
+    });
+    const extraStudentIds: number[] = Array.from(
+      new Set(resultsForClass.map((r) => r.studentId).filter((id): id is number => typeof id === "number"))
+    );
+
+    const studentWhere = extraStudentIds.length > 0
+      ? or(eq(students.classId, classId), inArray(students.id, extraStudentIds))
+      : eq(students.classId, classId);
+
     const enrolledStudents = await readDb.query.students.findMany({
-      where: eq(students.classId, classId),
+      where: studentWhere,
       orderBy: [asc(students.nomEtudiant)],
     });
 
