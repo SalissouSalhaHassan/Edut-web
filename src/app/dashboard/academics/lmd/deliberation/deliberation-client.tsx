@@ -166,7 +166,7 @@ export default function DeliberationClient({
 
   const selectedClass = classes.find((c) => String(c.id) === selectedClassId);
 
-  // 5. Semestres / Périodes dynamiques (Logique conforme AcademicFilters)
+  // 5. Semestres / Périodes dynamiques (Logique conforme AcademicFilters & Norme LMD)
   const periodOptions = useMemo(() => {
     const normLevel = normalizeFilterText(selectedLevel);
     const isSuperior = normLevel.includes("licence") || normLevel.includes("lmd") || normLevel.includes("master") || normLevel.includes("doc") || normLevel.includes("super") || normLevel.includes("univ");
@@ -181,45 +181,63 @@ export default function DeliberationClient({
     if (isSuperior) {
       const isMaster = normLevel.includes("master");
       const maxSem = isMaster ? 4 : 6;
-      const superiorPresets = Array.from({ length: maxSem }, (_, i) => {
-        const num = i + 1;
-        const code = `S${num}`;
-        const label = `${num === 1 ? "1er" : `${num}ème`} Semestre (${code})`;
-        return { id: code, name: label, code };
-      });
-
+      
+      // Look for DB periods configured as Semestres
       const dbSuperior = sessionPeriods.filter((p: any) =>
         p.periodType === "Semestre" || String(p.name).toLowerCase().includes("semest") || /^s\d+/i.test(p.name)
       );
 
-      if (dbSuperior.length > 0) {
-        const dbList = dbSuperior.map((p: any) => {
+      if (dbSuperior.length >= 2) {
+        return dbSuperior.map((p: any) => {
           const m = p.name.match(/\d+/);
           const c = m ? `S${m[0]}` : p.name;
-          return { id: c, name: p.name, code: c };
+          return { id: p.name, name: p.name, code: c };
         });
-        return dbList.length >= 2 ? dbList : superiorPresets;
       }
-      return superiorPresets;
+
+      // Standard LMD Semesters Presets
+      return Array.from({ length: maxSem }, (_, i) => {
+        const num = i + 1;
+        const code = `S${num}`;
+        const label = `${num === 1 ? "1er" : `${num}ème`} Semestre (${code})`;
+        return { id: label, name: label, code };
+      });
     }
 
-    // Default for other levels -> Semestre 1 & 2
+    // Default for Collège / Lycée -> 2 Semestres
+    const dbSemestres = sessionPeriods.filter((p: any) =>
+      p.periodType === "Semestre" || String(p.name).toLowerCase().includes("semest")
+    );
+
+    if (dbSemestres.length >= 2) {
+      return dbSemestres.map((p: any) => ({ id: p.name, name: p.name, code: p.name }));
+    }
+
     return [
-      { id: "S1", name: "1er Semestre (S1)", code: "S1" },
-      { id: "S2", name: "2ème Semestre (S2)", code: "S2" },
+      { id: "1er Semestre", name: "1er Semestre (S1)", code: "S1" },
+      { id: "2ème Semestre", name: "2ème Semestre (S2)", code: "S2" },
     ];
   }, [selectedLevel, selectedSessionId, periods]);
 
-  const [selectedSemester, setSelectedSemester] = useState<string>("S1");
+  const [selectedSemester, setSelectedSemester] = useState<string>("1er Semestre (S1)");
 
+  // Intelligent initial semester auto-selection based on class level (L1 -> S1, L2 -> S3, L3 -> S5, M2 -> S3)
   useEffect(() => {
     if (periodOptions.length > 0) {
-      const exists = periodOptions.some((p) => p.id === selectedSemester || p.code === selectedSemester);
-      if (!exists) {
-        setSelectedSemester(periodOptions[0].id);
+      const normClass = normalizeFilterText(selectedClass?.className);
+      let targetCode = "S1";
+      if (normClass.includes("l2") || normClass.includes("licence 2") || normClass.includes("2eme annee") || normClass.includes("2ème année")) {
+        targetCode = "S3";
+      } else if (normClass.includes("l3") || normClass.includes("licence 3") || normClass.includes("3eme annee") || normClass.includes("3ème année")) {
+        targetCode = "S5";
+      } else if (normClass.includes("m2") || normClass.includes("master 2")) {
+        targetCode = "S3";
       }
+
+      const matchOption = periodOptions.find((p) => p.code === targetCode || p.id.includes(targetCode)) || periodOptions[0];
+      setSelectedSemester(matchOption.id);
     }
-  }, [periodOptions]);
+  }, [selectedClassId, periodOptions]);
 
   // Resolve University Program mapped to current Section
   const selectedProgram = useMemo(() => {
