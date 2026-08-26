@@ -11,6 +11,7 @@ import {
   lmdElementsConstitutifs, 
   studentResults, 
   schoolClasses,
+  schoolSections,
   schoolSessions
 } from "@/infrastructure/database/schema/academics";
 import { eq, and, or, inArray } from "drizzle-orm";
@@ -125,8 +126,8 @@ export async function getStudentLmdTrajectoryData(studentIdentifier: string | nu
     if (student.classId) {
       const cls = await (readDb || db)
         .select({
-          name: schoolClasses.nomClasse,
-          programId: schoolClasses.programId,
+          name: schoolClasses.className,
+          sectionId: schoolClasses.sectionId,
         })
         .from(schoolClasses)
         .where(eq(schoolClasses.id, student.classId))
@@ -134,19 +135,20 @@ export async function getStudentLmdTrajectoryData(studentIdentifier: string | nu
 
       if (cls[0]) {
         className = cls[0].name || className;
-        if (cls[0].programId) {
-          const prog = await (readDb || db)
+        if (cls[0].sectionId) {
+          const sec = await (readDb || db)
             .select({
-              name: universityPrograms.name,
-              level: universityPrograms.level,
+              name: schoolSections.sectionName,
             })
-            .from(universityPrograms)
-            .where(eq(universityPrograms.id, cls[0].programId))
+            .from(schoolSections)
+            .where(eq(schoolSections.id, cls[0].sectionId))
             .limit(1);
 
-          if (prog[0]) {
-            programName = prog[0].name || programName;
-            degreeLevel = prog[0].level || degreeLevel;
+          if (sec[0] && sec[0].name) {
+            programName = sec[0].name;
+            if (sec[0].name.toLowerCase().includes("master")) {
+              degreeLevel = "Master";
+            }
           }
         }
       }
