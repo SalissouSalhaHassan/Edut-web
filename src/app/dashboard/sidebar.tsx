@@ -116,6 +116,7 @@ const sections: NavSection[] = [
       { href: "/dashboard/academics/devoirs", label: "Devoirs IA", icon: <BriefcaseBusiness className="size-[18px]" />, color: "text-indigo-500" },
       { href: "/dashboard/academics/research-graduation", label: "Mémoires & PFE", icon: <GraduationCap className="size-[18px]" />, color: "text-purple-500" },
       { href: "/dashboard/alumni", label: "Alumni & Diplômes", icon: <Award className="size-[18px]" />, color: "text-violet-500", badge: "QR Code", badgeColor: "bg-violet-100 text-violet-700 dark:bg-violet-500/20 dark:text-violet-400" },
+      { href: "/verify", label: "Portail Vérification Public", icon: <ShieldCheck className="size-[18px]" />, color: "text-emerald-400", badge: "Officiel", badgeColor: "bg-emerald-500/20 text-emerald-300" },
     ],
   },
   {
@@ -147,6 +148,7 @@ const sections: NavSection[] = [
       { href: "/dashboard/finance/expenses", label: "Gestion des Dépenses", icon: <TrendingDown className="size-[18px]" />, color: "text-rose-500" },
       { href: "/dashboard/finance/syscohada", label: "Paiements Mobile & SYSCOHADA", icon: <Smartphone className="size-[18px]" />, color: "text-orange-500", badge: "Phase 3", badgeColor: "bg-orange-500/20 text-orange-400" },
       { href: "/dashboard/coges", label: "Paiement COGES", icon: <BriefcaseBusiness className="size-[18px]" />, color: "text-indigo-500" },
+      { href: "/verify", label: "Vérifier Quittances & Reçus", icon: <ShieldCheck className="size-[18px]" />, color: "text-amber-400", badge: "SYSCOHADA", badgeColor: "bg-amber-500/20 text-amber-300" },
     ],
   },
   {

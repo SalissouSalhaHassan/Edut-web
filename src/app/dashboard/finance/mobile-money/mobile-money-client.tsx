@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useTransition } from "react";
+import Link from "next/link";
 import { 
   Smartphone, 
   CreditCard, 
@@ -180,7 +181,7 @@ export function MobileMoneyClient({
       `📲 *Canal :* ${t.provider.replace("_", " ")}\n` +
       `📑 *Motif :* ${t.purpose}\n` +
       `🔖 *Réf :* ${t.transactionReference}\n\n` +
-      `🔗 *Vérifier l'authenticité :* https://edut.org/verify/txn/${t.transactionReference}`
+      `🔗 *Vérifier l'authenticité :* ${typeof window !== "undefined" ? window.location.origin : "https://niger.edut.pro"}/verify/${encodeURIComponent(t.transactionReference)}`
     );
     window.open(`https://api.whatsapp.com/send?text=${text}`, "_blank");
   };
@@ -447,6 +448,16 @@ export function MobileMoneyClient({
                         <FileDown className="h-3.5 w-3.5" />
                         Reçu PDF
                       </Button>
+
+                      <Link
+                        href={`/verify/${encodeURIComponent(t.transactionReference)}`}
+                        target="_blank"
+                        className="inline-flex items-center h-8 px-2.5 rounded-xl text-[10px] font-bold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 gap-1 border border-slate-200 dark:border-slate-700 transition-colors"
+                        title="Vérifier la transaction sur le portail public"
+                      >
+                        <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
+                        <span>Vérifier</span>
+                      </Link>
 
                       <Button
                         size="sm"

@@ -328,7 +328,8 @@ export async function generateLmdOfficialDiplomaPDF(data: LmdDiplomaParams): Pro
   const footY = 181;
 
   // Left QR Code (Placed at x = 26mm to clear the corner rosette at x = 14mm)
-  const verifUrl = `https://edut.org/verify/${data.student.matricule || data.student.id}`;
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://niger.edut.pro";
+  const verifUrl = `${appUrl}/verify/${encodeURIComponent(data.student.matricule || data.student.id)}`;
   try {
     const qrDataUrl = await QRCode.toDataURL(verifUrl, { margin: 1, width: 80 });
     doc.addImage(qrDataUrl, "PNG", 26, footY, 16, 16);
@@ -522,7 +523,8 @@ export async function generateLmdAttestationReussitePDF(data: LmdDiplomaParams):
   const bottomY = noteY + 15;
 
   // Verification QR
-  const verifUrl = `https://edut.org/verify/${data.student.matricule || data.student.id}`;
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://niger.edut.pro";
+  const verifUrl = `${appUrl}/verify/${encodeURIComponent(data.student.matricule || data.student.id)}`;
   try {
     const qrDataUrl = await QRCode.toDataURL(verifUrl, { margin: 1, width: 80 });
     doc.addImage(qrDataUrl, "PNG", 16, bottomY + 2, 25, 25);

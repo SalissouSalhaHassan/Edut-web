@@ -1721,6 +1721,15 @@ export default function DeliberationClient({
                               )}
                               <span>Relevé</span>
                             </Button>
+                            <Link
+                              href={`/verify/${encodeURIComponent(item.student.matricule || item.student.id)}`}
+                              target="_blank"
+                              className="inline-flex items-center h-8 px-2 text-[11px] font-bold gap-1 rounded-md text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 transition-colors"
+                              title="Vérifier l'Authenticité sur le Portail Public"
+                            >
+                              <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
+                              <span>Vérifier</span>
+                            </Link>
                           </div>
                         </td>
                       </tr>
@@ -1947,6 +1956,15 @@ export default function DeliberationClient({
                               )}
                               <span>Relevé</span>
                             </Button>
+                            <Link
+                              href={`/verify/${encodeURIComponent(item.student.matricule || item.student.id)}`}
+                              target="_blank"
+                              className="inline-flex items-center h-8 px-2 text-[11px] font-bold gap-1 rounded-md text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 transition-colors"
+                              title="Vérifier l'Authenticité sur le Portail Public"
+                            >
+                              <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
+                              <span>Vérifier</span>
+                            </Link>
                           </div>
                         </td>
                       </tr>

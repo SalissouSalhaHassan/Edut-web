@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import { 
   Users, CalendarCheck2, Award, Wallet, Smartphone, ShieldCheck, 
   Download, Printer, CheckCircle2, AlertTriangle, Clock, ChevronRight,
@@ -423,13 +424,24 @@ export default function ParentDashboard({ initialData, currentUser, branding }: 
                 </p>
               </div>
 
-              <button
-                onClick={() => window.print()}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold hover:bg-slate-200 transition-all cursor-pointer self-start md:self-auto"
-              >
-                <Printer size={16} />
-                Imprimer le Bulletin PDF
-              </button>
+              <div className="flex items-center gap-2 flex-wrap self-start md:self-auto">
+                <Link
+                  href={`/verify/${encodeURIComponent(selectedChild?.numAdmission || selectedChild?.id || "PARENT")}`}
+                  target="_blank"
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-bold hover:bg-emerald-500/20 transition-all cursor-pointer"
+                >
+                  <ShieldCheck size={16} />
+                  <span>Vérification Officielle</span>
+                </Link>
+
+                <button
+                  onClick={() => window.print()}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold hover:bg-slate-200 transition-all cursor-pointer"
+                >
+                  <Printer size={16} />
+                  <span>Imprimer le Bulletin PDF</span>
+                </button>
+              </div>
             </div>
 
             {/* Subject Breakdown Table */}
@@ -603,12 +615,22 @@ export default function ParentDashboard({ initialData, currentUser, branding }: 
               </div>
             </div>
 
-            <button
-              onClick={() => window.print()}
-              className="w-full py-3 rounded-2xl bg-indigo-600 text-white font-bold text-xs hover:bg-indigo-700 transition-all shadow-lg cursor-pointer"
-            >
-              Imprimer la Carte Scolaire
-            </button>
+            <div className="flex items-center gap-3">
+              <Link
+                href={`/verify/${encodeURIComponent(selectedChild?.numAdmission || selectedChild?.id || "CARD")}`}
+                target="_blank"
+                className="flex-1 py-3 rounded-2xl bg-emerald-600 text-white font-bold text-xs hover:bg-emerald-700 transition-all shadow-lg text-center flex items-center justify-center gap-2"
+              >
+                <ShieldCheck size={16} />
+                <span>Vérifier en Ligne (Portail Public)</span>
+              </Link>
+              <button
+                onClick={() => window.print()}
+                className="flex-1 py-3 rounded-2xl bg-indigo-600 text-white font-bold text-xs hover:bg-indigo-700 transition-all shadow-lg cursor-pointer"
+              >
+                Imprimer la Carte
+              </button>
+            </div>
           </div>
         </div>
       )}

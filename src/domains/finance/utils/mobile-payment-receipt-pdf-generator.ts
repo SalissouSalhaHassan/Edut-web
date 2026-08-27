@@ -297,7 +297,8 @@ export async function generateMobilePaymentReceiptPDF(data: MobilePaymentReceipt
 
   // 9. Bottom QR Code & Anti-Fraud Registry
   const footY = pageHeight - 16;
-  const verifUrl = `https://edut.org/verify/txn/${data.transaction.reference}`;
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://niger.edut.pro";
+  const verifUrl = `${appUrl}/verify/${encodeURIComponent(data.transaction.reference)}`;
   try {
     const qrDataUrl = await QRCode.toDataURL(verifUrl, { margin: 1, width: 80 });
     doc.addImage(qrDataUrl, "PNG", 14, footY - 6, 14, 14);
