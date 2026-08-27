@@ -18,10 +18,12 @@ import {
   Building2, 
   Layers, 
   ArrowRight,
+  ArrowLeft,
   ShieldCheck,
   CreditCard,
   Percent
 } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -305,11 +307,21 @@ export function BoursesEcheanciersClient({
       {/* ─── HEADER ─── */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm">
         <div className="flex items-center gap-4">
-          <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center text-white shadow-md shadow-amber-500/20">
+          <Link href="/dashboard/finance">
+            <Button
+              variant="outline"
+              className="h-12 w-12 rounded-2xl p-0 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-indigo-600 transition-all flex items-center justify-center shrink-0 cursor-pointer shadow-sm"
+              title="Retour à la gestion financière"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          </Link>
+
+          <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center text-white shadow-md shadow-amber-500/20 shrink-0">
             <Award className="h-7 w-7" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white">
                 Bourses, Exonérations &amp; Échéanciers
               </h1>
