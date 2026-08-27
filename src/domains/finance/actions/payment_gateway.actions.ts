@@ -338,3 +338,23 @@ export async function getOnlineTransactionsData() {
     };
   });
 }
+
+/**
+ * Fetch all online transactions for school admin dashboard (legacy format for Syscohada page)
+ */
+export async function getOnlineTransactions() {
+  return protectedDbAction("Finance", "canView", async (user) => {
+    await ensurePhase3Tables();
+    const schoolId = user.schoolId;
+    if (!schoolId) return { success: true, data: [] };
+
+    const transactions = await (readDb || db)
+      .select()
+      .from(onlineTransactions)
+      .where(eq(onlineTransactions.schoolId, schoolId))
+      .orderBy(desc(onlineTransactions.createdAt));
+
+    return { success: true, data: transactions };
+  });
+}
+
