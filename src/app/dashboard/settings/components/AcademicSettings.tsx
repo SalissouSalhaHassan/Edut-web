@@ -127,6 +127,17 @@ export function AcademicSettings({
 
   const [sectionName, setSectionName] = useState("");
   const [sectionLevel, setSectionLevel] = useState("");
+  
+  // Section Edit states
+  const [editingSectionId, setEditingSectionId] = useState<number | null>(null);
+  const [editSectionName, setEditSectionName] = useState("");
+  const [editSectionLevel, setEditSectionLevel] = useState("");
+  const [editMinPassingGrade, setEditMinPassingGrade] = useState("10");
+  const [editRedoublementThreshold, setEditRedoublementThreshold] = useState("8");
+  const [editExclusionThreshold, setEditExclusionThreshold] = useState("5");
+  const [editNumTerms, setEditNumTerms] = useState(3);
+  const [editTermLabels, setEditTermLabels] = useState("");
+
   const [subjectName, setSubjectName] = useState("");
   const [levelName, setLevelName] = useState("");
   const [canevasTypeName, setCanevasTypeName] = useState("");
@@ -583,6 +594,59 @@ export function AcademicSettings({
       } else {
         setSectionsList((prev: any[]) => prev.filter((s: any) => s.id !== tempId));
         toast.error(res.error || "Erreur lors de la création de la section");
+      }
+    });
+  };
+
+  const startEditSection = (s: any) => {
+    setEditingSectionId(s.id);
+    setEditSectionName(s.sectionName || "");
+    setEditSectionLevel(s.educationalLevel || "");
+    setEditMinPassingGrade((s.minPassingGrade ?? 10).toString());
+    setEditRedoublementThreshold((s.redoublementThreshold ?? 8).toString());
+    setEditExclusionThreshold((s.exclusionThreshold ?? 5).toString());
+    setEditNumTerms(s.numTerms || 3);
+    setEditTermLabels(s.termLabels || "");
+  };
+
+  const handleSaveSection = (id: number) => {
+    if (!editSectionName.trim()) {
+      toast.error("Le nom de la section est requis");
+      return;
+    }
+    const passing = parseFloat(editMinPassingGrade) || 10;
+    const redoubl = parseFloat(editRedoublementThreshold) || 8;
+    const exclus = parseFloat(editExclusionThreshold) || 5;
+
+    const oldSections = [...sectionsList];
+    setSectionsList((prev: any[]) => prev.map((s: any) => s.id === id ? {
+      ...s,
+      sectionName: editSectionName.trim(),
+      educationalLevel: editSectionLevel,
+      minPassingGrade: passing,
+      redoublementThreshold: redoubl,
+      exclusionThreshold: exclus,
+      numTerms: editNumTerms,
+      termLabels: editTermLabels,
+    } : s));
+    setEditingSectionId(null);
+
+    startTransition(async () => {
+      const res = await updateSection(id, {
+        sectionName: editSectionName.trim(),
+        educationalLevel: editSectionLevel,
+        minPassingGrade: passing,
+        redoublementThreshold: redoubl,
+        exclusionThreshold: exclus,
+        numTerms: editNumTerms,
+        termLabels: editTermLabels,
+      });
+      if (res.success) {
+        toast.success(`Section "${editSectionName}" mise à jour avec succès`);
+        router.refresh();
+      } else {
+        setSectionsList(oldSections);
+        toast.error(res.error || "Erreur lors de la modification de la section");
       }
     });
   };
@@ -1656,116 +1720,239 @@ export function AcademicSettings({
           </Button>
         </div>
         <div className="space-y-4">
-          {sectionsList.map((s: any) => (
-            <div key={s.id} className="p-6 rounded-3xl bg-[#181924] border border-slate-800/50 space-y-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <span className="text-xl font-bold text-white">{s.sectionName}</span>
-                  <span className="text-xs bg-slate-800 text-slate-400 px-3 py-1.5 rounded-full font-black uppercase tracking-wider">{s.educationalLevel}</span>
-                </div>
-                <button 
-                  onClick={() => {
-                    if (confirm(`Supprimer la section "${s.sectionName}" ?`)) {
-                      setSectionsList((prev: any[]) => prev.filter((item: any) => item.id !== s.id));
-                      startTransition(async () => {
-                        const res = await deleteSection(s.id);
-                        if (res.success) {
-                          toast.success("Section supprimée avec succès");
-                          router.refresh();
-                        } else {
-                          toast.error(res.error || "Erreur lors de la suppression");
-                        }
-                      });
-                    }
-                  }}
-                  disabled={isPending || !canEdit}
-                  className="text-rose-500/70 hover:text-rose-500 transition-colors p-2 hover:bg-rose-500/10 rounded-xl disabled:opacity-30 disabled:cursor-not-allowed"
-                >
-                  <Trash2 size={20} />
-                </button>
-              </div>
+          {sectionsList.map((s: any) => {
+            const isEditing = editingSectionId === s.id;
 
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-6 pt-4 border-t border-slate-800/50">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">Passage</label>
-                  <input 
-                    type="number" 
-                    step="0.1"
-                    defaultValue={s.minPassingGrade}
-                    onBlur={(e) => {
-                      const val = parseFloat(e.target.value);
-                      if (!isNaN(val)) {
-                        setSectionsList((prev: any[]) => prev.map((item: any) => item.id === s.id ? { ...item, minPassingGrade: val } : item));
-                        startTransition(() => { updateSection(s.id, { minPassingGrade: val }); });
-                      }
-                    }}
-                    className="w-full bg-[#1F222B] border border-slate-800 text-white rounded-xl h-12 px-4 focus:outline-none focus:border-amber-500 font-bold"
-                  />
+            if (isEditing) {
+              return (
+                <div key={s.id} className="p-6 rounded-3xl bg-[#181924] border-2 border-amber-500/50 shadow-2xl space-y-6 animate-in zoom-in-95 duration-200">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <span className="text-amber-400 font-bold text-sm flex items-center gap-2">
+                      <Pencil size={16} /> Modifier la Section : <span className="text-white underline">{s.sectionName}</span>
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <Button 
+                        onClick={() => handleSaveSection(s.id)}
+                        disabled={isPending || !editSectionName.trim()}
+                        className="h-9 bg-amber-500 hover:bg-amber-600 text-white rounded-xl px-4 text-xs font-bold shadow-md shadow-amber-900/30 flex items-center gap-1.5"
+                      >
+                        {isPending ? <Loader2 className="animate-spin" size={14} /> : <Check size={14} />}
+                        <span>Enregistrer</span>
+                      </Button>
+                      <button 
+                        onClick={() => setEditingSectionId(null)}
+                        className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl px-3 py-2 font-semibold transition-all"
+                      >
+                        Annuler
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Nom de la Section</label>
+                      <input 
+                        type="text" 
+                        value={editSectionName}
+                        onChange={(e) => setEditSectionName(e.target.value)}
+                        placeholder="Ex: Scientifique (Série D)"
+                        className="w-full bg-[#1F222B] border border-slate-800 text-white rounded-xl h-12 px-4 focus:outline-none focus:border-amber-500 font-bold"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Niveau d'Étude</label>
+                      <select 
+                        value={editSectionLevel}
+                        onChange={(e) => setEditSectionLevel(e.target.value)}
+                        className="w-full bg-[#1F222B] border border-slate-800 text-white rounded-xl h-12 px-4 focus:outline-none focus:border-amber-500 font-bold"
+                      >
+                        <option value="">Sélectionner un niveau</option>
+                        {educationalLevelsList?.map((l: any) => (
+                          <option key={l.id} value={l.levelName}>{l.levelName}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4 pt-4 border-t border-slate-800/50">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Passage (Min)</label>
+                      <input 
+                        type="number" 
+                        step="0.1"
+                        value={editMinPassingGrade}
+                        onChange={(e) => setEditMinPassingGrade(e.target.value)}
+                        className="w-full bg-[#1F222B] border border-slate-800 text-white rounded-xl h-12 px-4 focus:outline-none focus:border-amber-500 font-bold"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Redoubl. (Seuil)</label>
+                      <input 
+                        type="number" 
+                        step="0.1"
+                        value={editRedoublementThreshold}
+                        onChange={(e) => setEditRedoublementThreshold(e.target.value)}
+                        className="w-full bg-[#1F222B] border border-slate-800 text-white rounded-xl h-12 px-4 focus:outline-none focus:border-amber-500 font-bold"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Exclusion (Seuil)</label>
+                      <input 
+                        type="number" 
+                        step="0.1"
+                        value={editExclusionThreshold}
+                        onChange={(e) => setEditExclusionThreshold(e.target.value)}
+                        className="w-full bg-[#1F222B] border border-slate-800 text-white rounded-xl h-12 px-4 focus:outline-none focus:border-amber-500 font-bold"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Périodes</label>
+                      <select 
+                        value={editNumTerms}
+                        onChange={(e) => setEditNumTerms(parseInt(e.target.value))}
+                        className="w-full bg-[#1F222B] border border-slate-800 text-white rounded-xl h-12 px-4 focus:outline-none font-bold"
+                      >
+                        <option value={2}>2 (Semestres)</option>
+                        <option value={3}>3 (Trimestres)</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Libellés (comma separated)</label>
+                      <input 
+                        type="text" 
+                        value={editTermLabels}
+                        onChange={(e) => setEditTermLabels(e.target.value)}
+                        className="w-full bg-[#1F222B] border border-slate-800 text-white rounded-xl h-12 px-4 focus:outline-none focus:border-amber-500 font-bold text-xs"
+                        placeholder="T1, T2, T3"
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">Redoubl.</label>
-                  <input 
-                    type="number" 
-                    step="0.1"
-                    defaultValue={s.redoublementThreshold}
-                    onBlur={(e) => {
-                      const val = parseFloat(e.target.value);
-                      if (!isNaN(val)) {
-                        setSectionsList((prev: any[]) => prev.map((item: any) => item.id === s.id ? { ...item, redoublementThreshold: val } : item));
-                        startTransition(() => { updateSection(s.id, { redoublementThreshold: val }); });
-                      }
-                    }}
-                    className="w-full bg-[#1F222B] border border-slate-800 text-white rounded-xl h-12 px-4 focus:outline-none focus:border-amber-500 font-bold"
-                  />
+              );
+            }
+
+            return (
+              <div key={s.id} className="p-6 rounded-3xl bg-[#181924] border border-slate-800/50 space-y-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <span className="text-xl font-bold text-white">{s.sectionName}</span>
+                    <span className="text-xs bg-slate-800 text-slate-400 px-3 py-1.5 rounded-full font-black uppercase tracking-wider">{s.educationalLevel}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={() => startEditSection(s)}
+                      disabled={isPending || !canEdit}
+                      title="Modifier la section"
+                      className="text-slate-400 hover:text-amber-400 transition-colors p-2 hover:bg-amber-500/10 rounded-xl disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      <Pencil size={18} />
+                    </button>
+                    <button 
+                      onClick={() => {
+                        if (confirm(`Supprimer la section "${s.sectionName}" ?`)) {
+                          setSectionsList((prev: any[]) => prev.filter((item: any) => item.id !== s.id));
+                          startTransition(async () => {
+                            const res = await deleteSection(s.id);
+                            if (res.success) {
+                              toast.success("Section supprimée avec succès");
+                              router.refresh();
+                            } else {
+                              toast.error(res.error || "Erreur lors de la suppression");
+                            }
+                          });
+                        }
+                      }}
+                      disabled={isPending || !canEdit}
+                      title="Supprimer la section"
+                      className="text-rose-500/70 hover:text-rose-500 transition-colors p-2 hover:bg-rose-500/10 rounded-xl disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">Exclusion</label>
-                  <input 
-                    type="number" 
-                    step="0.1"
-                    defaultValue={s.exclusionThreshold}
-                    onBlur={(e) => {
-                      const val = parseFloat(e.target.value);
-                      if (!isNaN(val)) {
-                        setSectionsList((prev: any[]) => prev.map((item: any) => item.id === s.id ? { ...item, exclusionThreshold: val } : item));
-                        startTransition(() => { updateSection(s.id, { exclusionThreshold: val }); });
-                      }
-                    }}
-                    className="w-full bg-[#1F222B] border border-slate-800 text-white rounded-xl h-12 px-4 focus:outline-none focus:border-amber-500 font-bold"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">Périodes</label>
-                  <select 
-                    defaultValue={s.numTerms}
-                    onChange={(e) => {
-                      const n = parseInt(e.target.value);
-                      setSectionsList((prev: any[]) => prev.map((item: any) => item.id === s.id ? { ...item, numTerms: n } : item));
-                      startTransition(() => { updateSection(s.id, { numTerms: n }); });
-                    }}
-                    className="w-full bg-[#1F222B] border border-slate-800 text-white rounded-xl h-12 px-4 focus:outline-none font-bold"
-                  >
-                    <option value={2}>2 (Semestres)</option>
-                    <option value={3}>3 (Trimestres)</option>
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">Libellés (comma separated)</label>
-                  <input 
-                    type="text" 
-                    defaultValue={s.termLabels}
-                    onBlur={(e) => {
-                      const txt = e.target.value;
-                      setSectionsList((prev: any[]) => prev.map((item: any) => item.id === s.id ? { ...item, termLabels: txt } : item));
-                      startTransition(() => { updateSection(s.id, { termLabels: txt }); });
-                    }}
-                    className="w-full bg-[#1F222B] border border-slate-800 text-white rounded-xl h-12 px-4 focus:outline-none focus:border-amber-500 font-bold text-xs"
-                    placeholder="T1, T2, T3"
-                  />
+
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-6 pt-4 border-t border-slate-800/50">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">Passage</label>
+                    <input 
+                      type="number" 
+                      step="0.1"
+                      defaultValue={s.minPassingGrade}
+                      onBlur={(e) => {
+                        const val = parseFloat(e.target.value);
+                        if (!isNaN(val)) {
+                          setSectionsList((prev: any[]) => prev.map((item: any) => item.id === s.id ? { ...item, minPassingGrade: val } : item));
+                          startTransition(() => { updateSection(s.id, { minPassingGrade: val }); });
+                        }
+                      }}
+                      className="w-full bg-[#1F222B] border border-slate-800 text-white rounded-xl h-12 px-4 focus:outline-none focus:border-amber-500 font-bold"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">Redoubl.</label>
+                    <input 
+                      type="number" 
+                      step="0.1"
+                      defaultValue={s.redoublementThreshold}
+                      onBlur={(e) => {
+                        const val = parseFloat(e.target.value);
+                        if (!isNaN(val)) {
+                          setSectionsList((prev: any[]) => prev.map((item: any) => item.id === s.id ? { ...item, redoublementThreshold: val } : item));
+                          startTransition(() => { updateSection(s.id, { redoublementThreshold: val }); });
+                        }
+                      }}
+                      className="w-full bg-[#1F222B] border border-slate-800 text-white rounded-xl h-12 px-4 focus:outline-none focus:border-amber-500 font-bold"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">Exclusion</label>
+                    <input 
+                      type="number" 
+                      step="0.1"
+                      defaultValue={s.exclusionThreshold}
+                      onBlur={(e) => {
+                        const val = parseFloat(e.target.value);
+                        if (!isNaN(val)) {
+                          setSectionsList((prev: any[]) => prev.map((item: any) => item.id === s.id ? { ...item, exclusionThreshold: val } : item));
+                          startTransition(() => { updateSection(s.id, { exclusionThreshold: val }); });
+                        }
+                      }}
+                      className="w-full bg-[#1F222B] border border-slate-800 text-white rounded-xl h-12 px-4 focus:outline-none focus:border-amber-500 font-bold"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">Périodes</label>
+                    <select 
+                      defaultValue={s.numTerms}
+                      onChange={(e) => {
+                        const n = parseInt(e.target.value);
+                        setSectionsList((prev: any[]) => prev.map((item: any) => item.id === s.id ? { ...item, numTerms: n } : item));
+                        startTransition(() => { updateSection(s.id, { numTerms: n }); });
+                      }}
+                      className="w-full bg-[#1F222B] border border-slate-800 text-white rounded-xl h-12 px-4 focus:outline-none font-bold"
+                    >
+                      <option value={2}>2 (Semestres)</option>
+                      <option value={3}>3 (Trimestres)</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">Libellés (comma separated)</label>
+                    <input 
+                      type="text" 
+                      defaultValue={s.termLabels}
+                      onBlur={(e) => {
+                        const txt = e.target.value;
+                        setSectionsList((prev: any[]) => prev.map((item: any) => item.id === s.id ? { ...item, termLabels: txt } : item));
+                        startTransition(() => { updateSection(s.id, { termLabels: txt }); });
+                      }}
+                      className="w-full bg-[#1F222B] border border-slate-800 text-white rounded-xl h-12 px-4 focus:outline-none focus:border-amber-500 font-bold text-xs"
+                      placeholder="T1, T2, T3"
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
