@@ -36,8 +36,72 @@ export interface StudentScholarshipAssignInput {
   notes?: string;
 }
 
+let migrationPromise: Promise<void> | null = null;
+
+async function ensureFinanceTables() {
+  if (migrationPromise) return migrationPromise;
+
+  migrationPromise = (async () => {
+    try {
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS "scholarships" (
+          "id" SERIAL PRIMARY KEY,
+          "school_id" integer REFERENCES "schools"("id"),
+          "name" varchar(150) NOT NULL,
+          "provider" varchar(150) DEFAULT 'Ministère de l''Enseignement Supérieur',
+          "type" varchar(50) DEFAULT 'Pourcentage',
+          "discount_value" double precision NOT NULL DEFAULT 50.0,
+          "applies_to" varchar(50) DEFAULT 'Frais de Scolarité',
+          "academic_year" varchar(50),
+          "criteria" text,
+          "is_active" boolean DEFAULT true,
+          "created_at" timestamp DEFAULT now(),
+          "updated_at" timestamp DEFAULT now()
+        );
+        CREATE TABLE IF NOT EXISTS "student_scholarships" (
+          "id" SERIAL PRIMARY KEY,
+          "school_id" integer REFERENCES "schools"("id"),
+          "student_id" integer REFERENCES "students"("id") ON DELETE CASCADE,
+          "scholarship_id" integer REFERENCES "scholarships"("id") ON DELETE CASCADE,
+          "academic_year" varchar(50),
+          "custom_discount_percentage" double precision,
+          "allocated_amount" double precision DEFAULT 0,
+          "decision_reference" varchar(100),
+          "decision_date" timestamp DEFAULT now(),
+          "status" varchar(50) DEFAULT 'Actif',
+          "notes" text,
+          "created_at" timestamp DEFAULT now()
+        );
+        CREATE TABLE IF NOT EXISTS "student_payment_schedules" (
+          "id" SERIAL PRIMARY KEY,
+          "school_id" integer REFERENCES "schools"("id"),
+          "student_id" integer REFERENCES "students"("id") ON DELETE CASCADE,
+          "session_id" integer REFERENCES "school_sessions"("id"),
+          "installment_number" integer NOT NULL DEFAULT 1,
+          "label" varchar(100) NOT NULL,
+          "due_date" timestamp NOT NULL,
+          "gross_amount" double precision NOT NULL,
+          "scholarship_deduction" double precision DEFAULT 0,
+          "net_amount" double precision NOT NULL,
+          "paid_amount" double precision DEFAULT 0,
+          "balance" double precision NOT NULL,
+          "status" varchar(50) DEFAULT 'À échoir',
+          "reminder_sent_at" timestamp,
+          "created_at" timestamp DEFAULT now(),
+          "updated_at" timestamp DEFAULT now()
+        );
+      `);
+    } catch (err: any) {
+      console.warn("ensureFinanceTables warning:", err.message);
+    }
+  })();
+
+  return migrationPromise;
+}
+
 export async function getBoursesAndEcheanciersDashboardData() {
   try {
+    await ensureFinanceTables();
     const schoolId = await getActiveSchoolId();
 
     // 1. Scholarships Catalog

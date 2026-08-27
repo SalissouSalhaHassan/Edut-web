@@ -1,4 +1,4 @@
-import { pgTable, serial, varchar, text, timestamp, doublePrecision, integer, index, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, serial, varchar, text, timestamp, doublePrecision, integer, index, jsonb, boolean } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { students } from "./students";
 import { schoolSessions } from "./academics";
