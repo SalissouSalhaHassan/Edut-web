@@ -6,7 +6,7 @@ import {
   Layers, Plus, Trash2, Edit3, BookOpen, Clock, 
   User, CheckCircle2, AlertTriangle, ChevronRight, 
   Sparkles, Award, ArrowLeft, RefreshCw, Filter, HelpCircle,
-  GraduationCap, Sun, Moon, School, BookMarked
+  GraduationCap, Sun, Moon, School, BookMarked, Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -506,8 +506,9 @@ export default function MaquetteClient({
                   <Button
                     size="sm"
                     variant="ghost"
+                    disabled={isPending}
                     onClick={() => handleDeleteUe(ue.id)}
-                    className="h-8 w-8 p-0 text-rose-400 hover:text-rose-300 hover:bg-rose-950/30 rounded-lg"
+                    className="h-8 w-8 p-0 text-rose-400 hover:text-rose-300 hover:bg-rose-950/30 rounded-lg disabled:opacity-50"
                     title="Supprimer l'UE"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
@@ -579,8 +580,9 @@ export default function MaquetteClient({
                           <Button
                             size="sm"
                             variant="ghost"
+                            disabled={isPending}
                             onClick={() => handleDeleteEcu(ecu.id)}
-                            className="h-8 w-8 p-0 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg"
+                            className="h-8 w-8 p-0 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg disabled:opacity-50"
                             title="Supprimer l'ECU"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
@@ -695,8 +697,15 @@ export default function MaquetteClient({
               <Button type="button" variant="outline" size="sm" onClick={() => setIsUeModalOpen(false)}>
                 Annuler
               </Button>
-              <Button type="submit" size="sm" disabled={isPending} className="bg-indigo-600 hover:bg-indigo-700 text-white">
-                {isPending ? "Enregistrement..." : "Enregistrer l'UE"}
+              <Button type="submit" size="sm" disabled={isPending} className="bg-indigo-600 hover:bg-indigo-700 text-white gap-1.5">
+                {isPending ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <span>Enregistrement...</span>
+                  </>
+                ) : (
+                  <span>Enregistrer l'UE</span>
+                )}
               </Button>
             </DialogFooter>
           </form>
@@ -855,8 +864,15 @@ export default function MaquetteClient({
               <Button type="button" variant="outline" size="sm" onClick={() => setIsEcuModalOpen(false)}>
                 Annuler
               </Button>
-              <Button type="submit" size="sm" disabled={isPending} className="bg-indigo-600 hover:bg-indigo-700 text-white">
-                {isPending ? "Enregistrement..." : "Enregistrer l'ECU"}
+              <Button type="submit" size="sm" disabled={isPending} className="bg-indigo-600 hover:bg-indigo-700 text-white gap-1.5">
+                {isPending ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <span>Enregistrement...</span>
+                  </>
+                ) : (
+                  <span>Enregistrer l'ECU</span>
+                )}
               </Button>
             </DialogFooter>
           </form>

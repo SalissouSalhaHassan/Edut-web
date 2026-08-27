@@ -14,7 +14,8 @@ import {
   ShieldCheck,
   Building2,
   Calendar,
-  Filter
+  Filter,
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -89,8 +90,12 @@ export function AnalyticsClient({ initialData }: { initialData: QualityAnalytics
             disabled={isExporting}
             className="h-11 px-5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-2 shadow-md shadow-emerald-500/20"
           >
-            <FileDown className="h-4 w-4" />
-            {isExporting ? "Génération..." : "Rapport d'Audit (PDF)"}
+            {isExporting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <FileDown className="h-4 w-4" />
+            )}
+            {isExporting ? "Génération en cours..." : "Rapport d'Audit (PDF)"}
           </Button>
         </div>
       </div>

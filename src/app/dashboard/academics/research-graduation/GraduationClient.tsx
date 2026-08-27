@@ -183,6 +183,7 @@ export default function GraduationClient({ initialProjects, teachers, initialSta
   const [isPending, startTransition] = useTransition();
   const [expandedProject, setExpandedProject] = useState<number | null>(null);
   const [rooms, setRooms] = useState<DefenseRoom[]>(initialRooms);
+  const [exportingPvId, setExportingPvId] = useState<number | null>(null);
 
   // ── Modals state ──
   const [modal, setModal] = useState<"project" | "defense" | "jury" | "document" | "archive" | "room" | null>(null);
@@ -388,6 +389,7 @@ export default function GraduationClient({ initialProjects, teachers, initialSta
   };
 
   const handleExportPvSoutenance = async (project: Project) => {
+    setExportingPvId(project.id);
     try {
       const studentNom = project.student?.nomEtudiant || "Étudiant";
       const studentMatricule = project.student?.numAdmission || `EDUT-${project.studentId || project.id}`;
@@ -442,6 +444,8 @@ export default function GraduationClient({ initialProjects, teachers, initialSta
       toast.success(`PV de soutenance généré pour ${studentNom}`);
     } catch (e) {
       toast.error("Erreur lors de la génération du PV de soutenance");
+    } finally {
+      setExportingPvId(null);
     }
   };
 
@@ -952,7 +956,15 @@ export default function GraduationClient({ initialProjects, teachers, initialSta
                         <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-all">
                           <button onClick={() => openModal("defense", p)} className="px-2.5 py-1 text-[8px] font-black rounded-lg bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/50 uppercase">Planifier</button>
                           <button onClick={() => openModal("jury", p)} className="px-2.5 py-1 text-[8px] font-black rounded-lg bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 uppercase">Évaluer</button>
-                          <button onClick={() => handleExportPvSoutenance(p)} className="px-2.5 py-1 text-[8px] font-black rounded-lg bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/50 uppercase" title="Générer le PV Officiel de Soutenance">PV PDF</button>
+                          <button
+                            onClick={() => handleExportPvSoutenance(p)}
+                            disabled={exportingPvId === p.id}
+                            className="px-2.5 py-1 text-[8px] font-black rounded-lg bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/50 uppercase flex items-center gap-1"
+                            title="Générer le PV Officiel de Soutenance"
+                          >
+                            {exportingPvId === p.id && <Loader2 size={10} className="animate-spin" />}
+                            PV PDF
+                          </button>
                         </div>
                       </td>
                     </tr>

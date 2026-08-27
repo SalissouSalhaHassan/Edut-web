@@ -7,7 +7,7 @@ import {
   AlertTriangle, RefreshCw, Sparkles, Filter, 
   ShieldCheck, Printer, FileText, Download,
   Layers, School, GraduationCap, Search, Eye,
-  Sun, Moon, Award, Activity, BookOpen, UserCheck, X, Building2, FileCheck
+  Sun, Moon, Award, Activity, BookOpen, UserCheck, X, Building2, FileCheck, Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -383,8 +383,10 @@ export default function DeliberationClient({
 
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSavingRattrapage, setIsSavingRattrapage] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [isExportingBatchReleves, setIsExportingBatchReleves] = useState(false);
+  const [rowExportingState, setRowExportingState] = useState<{ id: number; type: string } | null>(null);
   const [previewStudentItem, setPreviewStudentItem] = useState<any | null>(null);
 
   const loadDeliberationData = async () => {
@@ -469,6 +471,7 @@ export default function DeliberationClient({
       return;
     }
 
+    setIsSavingRattrapage(true);
     try {
       const res = await saveLmdRattrapageGrade({
         studentId: rattrapageEditState.student.id,
@@ -492,6 +495,8 @@ export default function DeliberationClient({
       }
     } catch (e: any) {
       toast.error("Erreur réseau");
+    } finally {
+      setIsSavingRattrapage(false);
     }
   };
 
@@ -576,8 +581,9 @@ export default function DeliberationClient({
     }
   };
 
-  // ─── Export Single Student Annual Transcript ──────────────────────────────
+  // ─── Single Student Annual Transcript PDF Export ───────────────────────────
   const handleExportAnnualSingleReleve = async (item: LmdAnnualStudent) => {
+    setRowExportingState({ id: item.student.id, type: "releve-annual" });
     try {
       const schoolName = headerConfig?.schoolName || headerConfig?.name || "UNIVERSITÉ DES SCIENCES & TECHNOLOGIES";
       const facultyName = currentSection?.sectionName 
@@ -587,6 +593,11 @@ export default function DeliberationClient({
 
       await generateLmdStudentAnnualRelevePDF(
         item,
+        annualData.uesSem1,
+        annualData.uesSem2,
+        annualData.sem1Name,
+        annualData.sem2Name,
+        annualData.cycleLevel,
         {
           name: schoolName,
           countryName: headerConfig?.countryName || "RÉPUBLIQUE DU NIGER",
@@ -603,11 +614,15 @@ export default function DeliberationClient({
       toast.success(`Relevé annuel généré pour ${item.student.nom}`);
     } catch (e: any) {
       toast.error("Erreur lors de la génération du relevé annuel");
+    } finally {
+      setRowExportingState(null);
     }
   };
 
   // ─── Export Diploma Supplement (UNESCO / CAMES) ───────────────────────────
   const handleExportDiplomaSupplement = async (studentItem: any) => {
+    const studentId = studentItem?.student?.id || 0;
+    setRowExportingState({ id: studentId, type: "annexe" });
     try {
       const schoolName = headerConfig?.schoolName || headerConfig?.name || "UNIVERSITÉ DES SCIENCES & TECHNOLOGIES";
       const facultyName = currentSection?.sectionName 
@@ -668,11 +683,15 @@ export default function DeliberationClient({
       toast.success(`Annexe au diplôme (Diploma Supplement UNESCO) générée pour ${studentItem.student.nom}`);
     } catch (e: any) {
       toast.error("Erreur lors de la génération du supplément au diplôme");
+    } finally {
+      setRowExportingState(null);
     }
   };
 
   // ─── Export Official Diploma (Landscape Gold/Navy Luxury) ───────────────────
   const handleExportOfficialDiploma = async (studentItem: any) => {
+    const studentId = studentItem?.student?.id || 0;
+    setRowExportingState({ id: studentId, type: "diploma" });
     try {
       const schoolName = headerConfig?.schoolName || headerConfig?.name || "UNIVERSITÉ DES SCIENCES & TECHNOLOGIES";
       const facultyName = currentSection?.sectionName 
@@ -717,11 +736,15 @@ export default function DeliberationClient({
       toast.success(`Diplôme Officiel généré pour ${studentItem.student.nom}`);
     } catch (e) {
       toast.error("Erreur lors de la génération du diplôme");
+    } finally {
+      setRowExportingState(null);
     }
   };
 
   // ─── Export Attestation de Réussite (Portrait Official) ─────────────────────
   const handleExportAttestationReussite = async (studentItem: any) => {
+    const studentId = studentItem?.student?.id || 0;
+    setRowExportingState({ id: studentId, type: "attestation" });
     try {
       const schoolName = headerConfig?.schoolName || headerConfig?.name || "UNIVERSITÉ DES SCIENCES & TECHNOLOGIES";
       const facultyName = currentSection?.sectionName 
@@ -766,6 +789,8 @@ export default function DeliberationClient({
       toast.success(`Attestation de réussite générée pour ${studentItem.student.nom}`);
     } catch (e) {
       toast.error("Erreur lors de la génération de l'attestation");
+    } finally {
+      setRowExportingState(null);
     }
   };
 
@@ -984,6 +1009,8 @@ export default function DeliberationClient({
 
   // ─── Single Student Transcript PDF Export ──────────────────────────────────
   const handleExportSingleReleve = async (item: any) => {
+    const studentId = item?.student?.id || 0;
+    setRowExportingState({ id: studentId, type: "releve-single" });
     try {
       const schoolName = headerConfig?.schoolName || headerConfig?.name || "UNIVERSITÉ DES SCIENCES & TECHNOLOGIES";
       const facultyName = currentSection?.sectionName 
@@ -1015,6 +1042,8 @@ export default function DeliberationClient({
       toast.success(`Relevé de notes officiel (${sessionMode === "Rattrapage" ? "Rattrapage" : "Session 1"}) généré pour ${item.student.nom}`);
     } catch (e: any) {
       toast.error("Erreur lors de la génération du relevé de notes");
+    } finally {
+      setRowExportingState(null);
     }
   };
 
@@ -1167,7 +1196,11 @@ export default function DeliberationClient({
                 variant="outline"
                 className="gap-2 text-xs font-bold border-indigo-600 text-indigo-700 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/50"
               >
-                <FileText className="h-4 w-4" />
+                {isExportingBatchReleves ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <FileText className="h-4 w-4" />
+                )}
                 {isExportingBatchReleves ? "Génération..." : "Relevés LMD (Batch PDF)"}
               </Button>
 
@@ -1181,7 +1214,11 @@ export default function DeliberationClient({
                   className="gap-1.5 text-xs font-bold text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/50 h-8"
                   title="Générer le Procès-Verbal Officiel Grand Format A3 pour le Ministère / CAMES"
                 >
-                  <Building2 className="h-3.5 w-3.5 text-amber-600" />
+                  {isExportingPdf ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-amber-600" />
+                  ) : (
+                    <Building2 className="h-3.5 w-3.5 text-amber-600" />
+                  )}
                   <span>PV CAMES (A3)</span>
                 </Button>
                 <Button
@@ -1203,7 +1240,11 @@ export default function DeliberationClient({
                 variant="outline"
                 className="gap-2 text-xs font-bold border-emerald-600 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/50"
               >
-                <Printer className="h-4 w-4" />
+                {isExportingPdf ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Printer className="h-4 w-4" />
+                )}
                 {isExportingPdf ? "Génération PV..." : "Exporter PV (PDF)"}
               </Button>
 
@@ -1213,8 +1254,12 @@ export default function DeliberationClient({
                 disabled={deliberationData.cohort.length === 0 || isSaving}
                 className="gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-sm"
               >
-                <ShieldCheck className="h-4 w-4" />
-                {isSaving ? "Validation..." : "Valider & Clôturer"}
+                {isSaving ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <ShieldCheck className="h-4 w-4" />
+                )}
+                {isSaving ? "Validation en cours..." : "Valider & Clôturer"}
               </Button>
             </>
           ) : (
@@ -1226,7 +1271,11 @@ export default function DeliberationClient({
                 variant="outline"
                 className="gap-2 text-xs font-bold border-emerald-600 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/50"
               >
-                <Printer className="h-4 w-4" />
+                {isExportingPdf ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Printer className="h-4 w-4" />
+                )}
                 {isExportingPdf ? "Génération PV..." : "Exporter PV Annuel (PDF)"}
               </Button>
 
@@ -1236,8 +1285,12 @@ export default function DeliberationClient({
                 disabled={annualData.cohort.length === 0 || isSaving}
                 className="gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-sm"
               >
-                <ShieldCheck className="h-4 w-4" />
-                {isSaving ? "Validation..." : "Valider Bilan Annuel"}
+                {isSaving ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <ShieldCheck className="h-4 w-4" />
+                )}
+                {isSaving ? "Validation du bilan..." : "Valider Bilan Annuel"}
               </Button>
             </>
           )}
@@ -1616,41 +1669,61 @@ export default function DeliberationClient({
                             <Button
                               size="sm"
                               variant="outline"
+                              disabled={rowExportingState !== null}
                               onClick={() => handleExportOfficialDiploma(item)}
                               className="h-8 px-2 text-[11px] font-bold gap-1 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-800 hover:bg-amber-50 dark:hover:bg-amber-950/50"
                               title="Imprimer Diplôme Officiel Grand Format (A4 Paysage)"
                             >
-                              <Award className="h-3 w-3 text-amber-500" />
+                              {rowExportingState?.id === item.student.id && rowExportingState?.type === "diploma" ? (
+                                <Loader2 className="h-3 w-3 animate-spin text-amber-500" />
+                              ) : (
+                                <Award className="h-3 w-3 text-amber-500" />
+                              )}
                               <span>Diplôme</span>
                             </Button>
                             <Button
                               size="sm"
                               variant="outline"
+                              disabled={rowExportingState !== null}
                               onClick={() => handleExportAttestationReussite(item)}
                               className="h-8 px-2 text-[11px] font-bold gap-1 text-teal-700 dark:text-teal-300 border-teal-300 dark:border-teal-800 hover:bg-teal-50 dark:hover:bg-teal-950/50"
                               title="Imprimer Attestation Provisoire de Réussite"
                             >
-                              <FileCheck className="h-3 w-3 text-teal-500" />
+                              {rowExportingState?.id === item.student.id && rowExportingState?.type === "attestation" ? (
+                                <Loader2 className="h-3 w-3 animate-spin text-teal-500" />
+                              ) : (
+                                <FileCheck className="h-3 w-3 text-teal-500" />
+                              )}
                               <span>Attestation</span>
                             </Button>
                             <Button
                               size="sm"
                               variant="outline"
+                              disabled={rowExportingState !== null}
                               onClick={() => handleExportDiplomaSupplement(item)}
                               className="h-8 px-2 text-[11px] font-bold gap-1 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/50"
                               title="Générer l'Annexe au Diplôme (UNESCO / CAMES)"
                             >
-                              <GraduationCap className="h-3 w-3" />
+                              {rowExportingState?.id === item.student.id && rowExportingState?.type === "annexe" ? (
+                                <Loader2 className="h-3 w-3 animate-spin text-emerald-500" />
+                              ) : (
+                                <GraduationCap className="h-3 w-3" />
+                              )}
                               <span>Annexe</span>
                             </Button>
                             <Button
                               size="sm"
                               variant="outline"
+                              disabled={rowExportingState !== null}
                               onClick={() => handleExportAnnualSingleReleve(item)}
                               className="h-8 px-2.5 text-[11px] font-bold gap-1 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/50"
                               title="Imprimer Relevé Annuel Officiel (PDF)"
                             >
-                              <Printer className="h-3 w-3" />
+                              {rowExportingState?.id === item.student.id && rowExportingState?.type === "releve-annual" ? (
+                                <Loader2 className="h-3 w-3 animate-spin text-indigo-500" />
+                              ) : (
+                                <Printer className="h-3 w-3" />
+                              )}
                               <span>Relevé</span>
                             </Button>
                           </div>
@@ -1816,29 +1889,44 @@ export default function DeliberationClient({
                             <Button
                               size="sm"
                               variant="ghost"
+                              disabled={rowExportingState !== null}
                               onClick={() => handleExportOfficialDiploma(item)}
                               className="h-8 w-8 p-0 text-slate-600 dark:text-slate-300 hover:text-amber-600 dark:hover:text-amber-400"
                               title="Imprimer Diplôme Officiel (A4 Paysage)"
                             >
-                              <Award className="h-4 w-4" />
+                              {rowExportingState?.id === item.student.id && rowExportingState?.type === "diploma" ? (
+                                <Loader2 className="h-4 w-4 animate-spin text-amber-500" />
+                              ) : (
+                                <Award className="h-4 w-4" />
+                              )}
                             </Button>
                             <Button
                               size="sm"
                               variant="ghost"
+                              disabled={rowExportingState !== null}
                               onClick={() => handleExportAttestationReussite(item)}
                               className="h-8 w-8 p-0 text-slate-600 dark:text-slate-300 hover:text-teal-600 dark:hover:text-teal-400"
                               title="Imprimer Attestation de Réussite"
                             >
-                              <FileCheck className="h-4 w-4" />
+                              {rowExportingState?.id === item.student.id && rowExportingState?.type === "attestation" ? (
+                                <Loader2 className="h-4 w-4 animate-spin text-teal-500" />
+                              ) : (
+                                <FileCheck className="h-4 w-4" />
+                              )}
                             </Button>
                             <Button
                               size="sm"
                               variant="ghost"
+                              disabled={rowExportingState !== null}
                               onClick={() => handleExportDiplomaSupplement(item)}
                               className="h-8 w-8 p-0 text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400"
                               title="Générer l'Annexe au Diplôme (UNESCO / CAMES)"
                             >
-                              <GraduationCap className="h-4 w-4" />
+                              {rowExportingState?.id === item.student.id && rowExportingState?.type === "annexe" ? (
+                                <Loader2 className="h-4 w-4 animate-spin text-emerald-500" />
+                              ) : (
+                                <GraduationCap className="h-4 w-4" />
+                              )}
                             </Button>
                             <Button
                               size="sm"
@@ -1852,11 +1940,16 @@ export default function DeliberationClient({
                             <Button
                               size="sm"
                               variant="outline"
+                              disabled={rowExportingState !== null}
                               onClick={() => handleExportSingleReleve(item)}
                               className="h-8 px-2.5 text-[11px] font-bold gap-1 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/50"
                               title="Imprimer Relevé Officiel"
                             >
-                              <Printer className="h-3 w-3" />
+                              {rowExportingState?.id === item.student.id && rowExportingState?.type === "releve-single" ? (
+                                <Loader2 className="h-3 w-3 animate-spin text-indigo-500" />
+                              ) : (
+                                <Printer className="h-3 w-3" />
+                              )}
                               <span>Relevé</span>
                             </Button>
                           </div>
@@ -2191,11 +2284,16 @@ export default function DeliberationClient({
             </Button>
             <Button
               size="sm"
+              disabled={isSavingRattrapage}
               onClick={handleSaveRattrapageGrade}
               className="gap-2 bg-gradient-to-r from-amber-500 to-indigo-600 hover:from-amber-600 hover:to-indigo-700 text-white font-bold text-xs h-9 px-5 rounded-xl shadow-md"
             >
-              <Sparkles className="h-3.5 w-3.5" />
-              <span>Enregistrer & Recalculer</span>
+              {isSavingRattrapage ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Sparkles className="h-3.5 w-3.5" />
+              )}
+              <span>{isSavingRattrapage ? "Enregistrement..." : "Enregistrer & Recalculer"}</span>
             </Button>
           </div>
         </DialogContent>

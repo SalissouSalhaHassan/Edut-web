@@ -6,7 +6,7 @@ import {
   GraduationCap, ArrowLeft, Search, Award, 
   CheckCircle2, AlertTriangle, Printer, FileText, 
   Sparkles, BookOpen, Layers, User, Calendar, 
-  TrendingUp, ShieldCheck, Download, FileCheck, School
+  TrendingUp, ShieldCheck, Download, FileCheck, School, Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -30,6 +30,7 @@ export function StudentTrajectoryClient({ initialTrajectory, studentsList }: Pro
   );
   const [activeSemester, setActiveSemester] = useState<string>("S1");
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [exportingType, setExportingType] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>("");
 
   const filteredStudents = studentsList.filter((s) => 
@@ -59,6 +60,7 @@ export function StudentTrajectoryClient({ initialTrajectory, studentsList }: Pro
   // ─── PDF Handlers ──────────────────────────────────────────────────────────
   const handleExportDiploma = async () => {
     if (!trajectory) return;
+    setExportingType("diploma");
     try {
       await generateLmdOfficialDiplomaPDF({
         student: {
@@ -89,11 +91,14 @@ export function StudentTrajectoryClient({ initialTrajectory, studentsList }: Pro
       toast.success("Diplôme Officiel généré avec succès !");
     } catch (e) {
       toast.error("Erreur lors de la génération du diplôme");
+    } finally {
+      setExportingType(null);
     }
   };
 
   const handleExportAttestation = async () => {
     if (!trajectory) return;
+    setExportingType("attestation");
     try {
       await generateLmdAttestationReussitePDF({
         student: {
@@ -124,11 +129,14 @@ export function StudentTrajectoryClient({ initialTrajectory, studentsList }: Pro
       toast.success("Attestation de réussite générée !");
     } catch (e) {
       toast.error("Erreur lors de la génération de l'attestation");
+    } finally {
+      setExportingType(null);
     }
   };
 
   const handleExportSupplement = async () => {
     if (!trajectory) return;
+    setExportingType("supplement");
     try {
       await generateDiplomaSupplementPDF({
         student: {
@@ -160,6 +168,8 @@ export function StudentTrajectoryClient({ initialTrajectory, studentsList }: Pro
       toast.success("Annexe au diplôme UNESCO générée !");
     } catch (e) {
       toast.error("Erreur lors de la génération de l'annexe");
+    } finally {
+      setExportingType(null);
     }
   };
 
@@ -265,32 +275,47 @@ export function StudentTrajectoryClient({ initialTrajectory, studentsList }: Pro
                 <Button
                   size="sm"
                   variant="outline"
+                  disabled={exportingType !== null}
                   onClick={handleExportDiploma}
                   className="h-8 px-2 text-[11px] font-bold gap-1 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-800 hover:bg-amber-50"
                   title="Télécharger le Diplôme Officiel"
                 >
-                  <Award className="h-3.5 w-3.5 text-amber-500" />
-                  <span>Diplôme</span>
+                  {exportingType === "diploma" ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-amber-500" />
+                  ) : (
+                    <Award className="h-3.5 w-3.5 text-amber-500" />
+                  )}
+                  <span>{exportingType === "diploma" ? "Génération..." : "Diplôme"}</span>
                 </Button>
                 <Button
                   size="sm"
                   variant="outline"
+                  disabled={exportingType !== null}
                   onClick={handleExportAttestation}
                   className="h-8 px-2 text-[11px] font-bold gap-1 text-teal-700 dark:text-teal-300 border-teal-300 dark:border-teal-800 hover:bg-teal-50"
                   title="Télécharger l'Attestation de Réussite"
                 >
-                  <FileCheck className="h-3.5 w-3.5 text-teal-500" />
-                  <span>Attestation</span>
+                  {exportingType === "attestation" ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-teal-500" />
+                  ) : (
+                    <FileCheck className="h-3.5 w-3.5 text-teal-500" />
+                  )}
+                  <span>{exportingType === "attestation" ? "Génération..." : "Attestation"}</span>
                 </Button>
                 <Button
                   size="sm"
                   variant="outline"
+                  disabled={exportingType !== null}
                   onClick={handleExportSupplement}
                   className="h-8 px-2 text-[11px] font-bold gap-1 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800 hover:bg-emerald-50"
                   title="Télécharger l'Annexe UNESCO"
                 >
-                  <GraduationCap className="h-3.5 w-3.5" />
-                  <span>Annexe</span>
+                  {exportingType === "supplement" ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-500" />
+                  ) : (
+                    <GraduationCap className="h-3.5 w-3.5" />
+                  )}
+                  <span>{exportingType === "supplement" ? "Génération..." : "Annexe"}</span>
                 </Button>
               </div>
             </div>

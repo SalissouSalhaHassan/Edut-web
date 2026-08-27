@@ -15,7 +15,8 @@ import {
   Trash2, 
   Edit3, 
   ArrowRight,
-  ShieldCheck
+  ShieldCheck,
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -77,6 +78,7 @@ export function EquivalencesClient({
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [exportingId, setExportingId] = useState<number | null>(null);
   const [search, setSearch] = useState("");
   const [filterLevel, setFilterLevel] = useState("ALL");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -197,6 +199,7 @@ export function EquivalencesClient({
 
   const handleExportPDF = async (item: EquivalenceItem) => {
     try {
+      setExportingId(item.id);
       const payload: EquivalenceCertificateParams = {
         equivalence: {
           id: item.id,
@@ -242,6 +245,8 @@ export function EquivalencesClient({
       toast.success(`Attestation ECTS générée pour ${item.studentNom}`);
     } catch (e) {
       toast.error("Erreur lors de la génération du PDF d'équivalence");
+    } finally {
+      setExportingId(null);
     }
   };
 
@@ -407,12 +412,17 @@ export function EquivalencesClient({
                       <Button
                         size="sm"
                         variant="outline"
+                        disabled={exportingId === item.id}
                         onClick={() => handleExportPDF(item)}
                         className="h-8 px-2.5 rounded-xl text-[10px] font-black text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800/60 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 gap-1"
                         title="Générer l'Attestation Officielle d'Équivalence ECTS"
                       >
-                        <FileDown className="h-3.5 w-3.5" />
-                        Attestation PDF
+                        {exportingId === item.id ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <FileDown className="h-3.5 w-3.5" />
+                        )}
+                        {exportingId === item.id ? "Génération..." : "Attestation PDF"}
                       </Button>
 
                       <button
@@ -424,8 +434,9 @@ export function EquivalencesClient({
                       </button>
 
                       <button
+                        disabled={isPending}
                         onClick={() => handleDelete(item.id)}
-                        className="p-1.5 rounded-lg text-rose-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50"
+                        className="p-1.5 rounded-lg text-rose-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 disabled:opacity-50"
                         title="Supprimer"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -643,9 +654,16 @@ export function EquivalencesClient({
               <Button
                 onClick={handleSave}
                 disabled={isPending}
-                className="h-10 px-5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md shadow-indigo-500/20"
+                className="h-10 px-5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md shadow-indigo-500/20 gap-1.5"
               >
-                {isPending ? "Enregistrement..." : editingItem ? "Mettre à jour" : "Valider l'Équivalence"}
+                {isPending ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <span>Enregistrement...</span>
+                  </>
+                ) : (
+                  <span>{editingItem ? "Mettre à jour" : "Valider l'Équivalence"}</span>
+                )}
               </Button>
             </div>
           </div>
