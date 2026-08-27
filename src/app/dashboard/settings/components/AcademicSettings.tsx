@@ -46,6 +46,7 @@ export function AcademicSettings({
   const [periodsList, setPeriodsList] = useState(initialPeriods || []);
   const [gradingList, setGradingList] = useState(initialGradingAppreciations || []);
   const [remarksList, setRemarksList] = useState(initialSchoolRemarks || []);
+  const [educationalLevelsList, setEducationalLevelsList] = useState(initialEducationalLevels || []);
 
   useEffect(() => { setSessionsList(initialSessions || []); }, [initialSessions]);
   useEffect(() => { setClassesList(initialClasses || []); }, [initialClasses]);
@@ -56,6 +57,7 @@ export function AcademicSettings({
   useEffect(() => { setPeriodsList(initialPeriods || []); }, [initialPeriods]);
   useEffect(() => { setGradingList(initialGradingAppreciations || []); }, [initialGradingAppreciations]);
   useEffect(() => { setRemarksList(initialSchoolRemarks || []); }, [initialSchoolRemarks]);
+  useEffect(() => { setEducationalLevelsList(initialEducationalLevels || []); }, [initialEducationalLevels]);
 
   const clearAcademicFilterCache = () => {
     try {
@@ -175,13 +177,17 @@ export function AcademicSettings({
 
   const handleCreateSession = () => {
     if (!sessionName) return;
+    const tempName = sessionName.trim();
+    const tempId = Date.now();
+    setSessionsList((prev: any[]) => [...prev, { id: tempId, sessionName: tempName, isActive: false, status: "Inactif" }]);
+    setSessionName("");
     startTransition(async () => {
-      const res = await createSession(sessionName);
+      const res = await createSession(tempName);
       if (res.success) {
-        toast.success(`Année scolaire "${sessionName}" ajoutée avec succès`);
-        setSessionName("");
+        toast.success(`Année scolaire "${tempName}" ajoutée avec succès`);
         router.refresh();
       } else {
+        setSessionsList((prev: any[]) => prev.filter((s: any) => s.id !== tempId));
         toast.error(res.error || "Erreur lors de l'ajout de l'année scolaire");
       }
     });
@@ -405,30 +411,48 @@ export function AcademicSettings({
 
   const handleCreateClass = () => {
     if (!className || !classSectionId) return;
+    const targetSec = sectionsList.find((s: any) => s.id === Number(classSectionId));
+    const tempId = Date.now();
+    const tempClassObj = {
+      id: tempId,
+      className,
+      sectionId: Number(classSectionId),
+      roomName,
+      scolariteMensuelle: scolarite ? Number(scolarite) : 0,
+      droitsInscription: inscription ? Number(inscription) : 0,
+      cogesCarteId: coges ? Number(coges) : 0,
+      transportInternat: transport ? Number(transport) : 0,
+      ancienSolde: ancienSolde ? Number(ancienSolde) : 0,
+      statutInitial,
+      section: targetSec,
+    };
+    setClassesList((prev: any[]) => [...prev, tempClassObj]);
+    setClassName("");
+    setRoomName("");
+    setScolarite("");
+    setInscription("");
+    setCoges("");
+    setTransport("");
+    setAncienSolde("");
+    setStatutInitial("");
+
     startTransition(async () => {
       const res = await createClass({ 
-        className, 
+        className: tempClassObj.className, 
         sectionId: Number(classSectionId),
-        roomName,
-        scolariteMensuelle: scolarite ? Number(scolarite) : 0,
-        droitsInscription: inscription ? Number(inscription) : 0,
-        cogesCarteId: coges ? Number(coges) : 0,
-        transportInternat: transport ? Number(transport) : 0,
-        ancienSolde: ancienSolde ? Number(ancienSolde) : 0,
-        statutInitial
+        roomName: tempClassObj.roomName,
+        scolariteMensuelle: tempClassObj.scolariteMensuelle,
+        droitsInscription: tempClassObj.droitsInscription,
+        cogesCarteId: tempClassObj.cogesCarteId,
+        transportInternat: tempClassObj.transportInternat,
+        ancienSolde: tempClassObj.ancienSolde,
+        statutInitial: tempClassObj.statutInitial
       });
       if (res.success) {
-        toast.success(`Classe "${className}" créée avec succès`);
-        setClassName("");
-        setRoomName("");
-        setScolarite("");
-        setInscription("");
-        setCoges("");
-        setTransport("");
-        setAncienSolde("");
-        setStatutInitial("");
+        toast.success(`Classe "${tempClassObj.className}" créée avec succès`);
         router.refresh();
       } else {
+        setClassesList((prev: any[]) => prev.filter((c: any) => c.id !== tempId));
         toast.error(res.error || "Erreur lors de la création de la classe");
       }
     });
@@ -449,6 +473,23 @@ export function AcademicSettings({
 
   const handleUpdateClass = (id: number) => {
     if (!editClassName || !editClassSectionId) return;
+    const targetSec = sectionsList.find((s: any) => s.id === Number(editClassSectionId));
+    const oldClasses = [...classesList];
+    setClassesList((prev: any[]) => prev.map((c: any) => c.id === id ? {
+      ...c,
+      className: editClassName,
+      sectionId: Number(editClassSectionId),
+      roomName: editRoomName,
+      scolariteMensuelle: editScolarite ? Number(editScolarite) : 0,
+      droitsInscription: editInscription ? Number(editInscription) : 0,
+      cogesCarteId: editCoges ? Number(editCoges) : 0,
+      transportInternat: editTransport ? Number(editTransport) : 0,
+      ancienSolde: editAncienSolde ? Number(editAncienSolde) : 0,
+      statutInitial: editStatutInitial,
+      section: targetSec || c.section,
+    } : c));
+    setEditingClassId(null);
+
     startTransition(async () => {
       const res = await updateClass(id, {
         className: editClassName,
@@ -463,23 +504,42 @@ export function AcademicSettings({
       });
       if (res.success) {
         toast.success(`Classe "${editClassName}" mise à jour avec succès`);
-        setEditingClassId(null);
         router.refresh();
       } else {
+        setClassesList(oldClasses);
         toast.error(res.error || "Erreur lors de la mise à jour de la classe");
+      }
+    });
+  };
+
+  const handleDeleteClass = (id: number, name: string) => {
+    if (!confirm(`Supprimer la classe "${name}" ?`)) return;
+    setClassesList((prev: any[]) => prev.filter((c: any) => c.id !== id));
+    startTransition(async () => {
+      const res = await deleteClass(id);
+      if (res.success) {
+        toast.success("Classe supprimée avec succès");
+        router.refresh();
+      } else {
+        toast.error(res.error || "Erreur lors de la suppression de la classe");
       }
     });
   };
 
   const handleCreateLevel = () => {
     if (!levelName) return;
+    const tempName = levelName.trim();
+    const tempId = Date.now();
+    setEducationalLevelsList((prev: any[]) => [...prev, { id: tempId, levelName: tempName }]);
+    setLevelName("");
+
     startTransition(async () => {
-      const res = await createEducationalLevel(levelName);
+      const res = await createEducationalLevel(tempName);
       if (res.success) {
-        toast.success(`Niveau "${levelName}" ajouté avec succès`);
-        setLevelName("");
+        toast.success(`Niveau "${tempName}" ajouté avec succès`);
         router.refresh();
       } else {
+        setEducationalLevelsList((prev: any[]) => prev.filter((l: any) => l.id !== tempId));
         toast.error(res.error || "Erreur lors de l'ajout du niveau");
       }
     });
@@ -490,24 +550,38 @@ export function AcademicSettings({
     startTransition(async () => {
       const res = await createCanevasReferenceItem(category, value);
       if (res.success) {
-        toast.success("R?f?rence canevas ajout?e avec succ?s");
+        toast.success("Référence canevas ajoutée avec succès");
         reset();
         router.refresh();
       } else {
-        toast.error(res.error || "Erreur lors de l'ajout de la r?f?rence");
+        toast.error(res.error || "Erreur lors de l'ajout de la référence");
       }
     });
   };
 
   const handleCreateSection = () => {
     if (!sectionName) return;
+    const tempName = sectionName.trim();
+    const tempLevel = sectionLevel;
+    const tempId = Date.now();
+    setSectionsList((prev: any[]) => [...prev, {
+      id: tempId,
+      sectionName: tempName,
+      educationalLevel: tempLevel,
+      minPassingGrade: 10,
+      redoublementThreshold: 8,
+      exclusionThreshold: 5,
+      numTerms: 3,
+    }]);
+    setSectionName("");
+
     startTransition(async () => {
-      const res = await createSection({ sectionName, educationalLevel: sectionLevel });
+      const res = await createSection({ sectionName: tempName, educationalLevel: tempLevel });
       if (res.success) {
-        toast.success(`Section "${sectionName}" créée avec succès`);
-        setSectionName("");
+        toast.success(`Section "${tempName}" créée avec succès`);
         router.refresh();
       } else {
+        setSectionsList((prev: any[]) => prev.filter((s: any) => s.id !== tempId));
         toast.error(res.error || "Erreur lors de la création de la section");
       }
     });
@@ -515,19 +589,45 @@ export function AcademicSettings({
 
   const handleCreateSubject = () => {
     if (!subjectName) return;
+    const tempName = subjectName.trim();
+    const tempId = Date.now();
+    setSubjectsList((prev: any[]) => [...prev, {
+      id: tempId,
+      subjectName: tempName,
+      category: null,
+      subjectCode: null,
+    }]);
+    setSubjectName("");
+    setSubjectSectionId("");
+    setSubjectNiveau("");
+    setSubjectSearch("");
+
     startTransition(async () => {
       const res = await createSubject({ 
-        subjectName, 
-        sectionId: subjectSectionId ? Number(subjectSectionId) : undefined 
+        subjectName: tempName, 
+        sectionId: subjectSectionId ? Number(subjectSectionId) : undefined,
+        educationalLevel: subjectNiveau || undefined,
       });
       if (res.success) {
-        toast.success(`Matière "${subjectName}" créée avec succès`);
-        setSubjectName("");
-        setSubjectSectionId("");
-        setSubjectNiveau("");
+        toast.success(`Matière "${tempName}" créée avec succès`);
         router.refresh();
       } else {
+        setSubjectsList((prev: any[]) => prev.filter((s: any) => s.id !== tempId));
         toast.error(res.error || "Erreur lors de la création de la matière");
+      }
+    });
+  };
+
+  const handleDeleteSubject = (id: number, name: string) => {
+    if (!confirm(`Supprimer la matière "${name}" ?`)) return;
+    setSubjectsList((prev: any[]) => prev.filter((s: any) => s.id !== id));
+    startTransition(async () => {
+      const res = await deleteSubject(id);
+      if (res.success) {
+        toast.success("Matière supprimée avec succès");
+        router.refresh();
+      } else {
+        toast.error(res.error || "Erreur lors de la suppression");
       }
     });
   };
@@ -767,13 +867,19 @@ export function AcademicSettings({
 
   const handleCreateGrading = () => {
     if (!gradingName) return;
+    const tempName = gradingName.trim();
+    const tempScore = Number(gradingScore) || 10;
+    const tempId = Date.now();
+    setGradingList((prev: any[]) => [...prev, { id: tempId, name: tempName, baseScore: tempScore }]);
+    setGradingName("");
+
     startTransition(async () => {
-      const res = await createGradingAppreciation(gradingName, Number(gradingScore));
+      const res = await createGradingAppreciation(tempName, tempScore);
       if (res.success) {
         toast.success("Appréciation ajoutée avec succès");
-        setGradingName("");
         router.refresh();
       } else {
+        setGradingList((prev: any[]) => prev.filter((g: any) => g.id !== tempId));
         toast.error(res.error || "Erreur lors de l'ajout de l'appréciation");
       }
     });
@@ -781,17 +887,31 @@ export function AcademicSettings({
 
   const handleCreateRemark = () => {
     if (!remarkContent) return;
+    const tempContent = remarkContent.trim();
+    const tempCat = remarkCategory;
+    const tempSecId = remarkSectionId ? Number(remarkSectionId) : null;
+    const targetSec = sectionsList.find((s: any) => s.id === tempSecId);
+    const tempId = Date.now();
+    setRemarksList((prev: any[]) => [...prev, {
+      id: tempId,
+      category: tempCat,
+      content: tempContent,
+      sectionId: tempSecId,
+      section: targetSec,
+    }]);
+    setRemarkContent("");
+
     startTransition(async () => {
       const res = await createSchoolRemark({
-        category: remarkCategory,
-        content: remarkContent,
-        sectionId: remarkSectionId ? Number(remarkSectionId) : undefined
+        category: tempCat,
+        content: tempContent,
+        sectionId: tempSecId || undefined
       });
       if (res.success) {
         toast.success("Mention ajoutée avec succès");
-        setRemarkContent("");
         router.refresh();
       } else {
+        setRemarksList((prev: any[]) => prev.filter((r: any) => r.id !== tempId));
         toast.error(res.error || "Erreur lors de l'ajout de la remarque");
       }
     });
@@ -1474,16 +1594,18 @@ export function AcademicSettings({
           </Button>
         </div>
         <div className="space-y-2">
-          {initialEducationalLevels?.map((l: any) => (
+          {educationalLevelsList?.map((l: any) => (
             <div key={l.id} className="flex items-center justify-between p-3 rounded-xl bg-[#181924] border border-slate-800/50">
               <span className="text-slate-300 font-medium">{l.levelName}</span>
               <button 
                 onClick={() => {
                   if (confirm(`Supprimer le niveau "${l.levelName}" ?`)) {
+                    setEducationalLevelsList((prev: any[]) => prev.filter((item: any) => item.id !== l.id));
                     startTransition(async () => {
                       const res = await deleteEducationalLevel(l.id);
                       if (res.success) {
                         toast.success("Niveau supprimé avec succès");
+                        router.refresh();
                       } else {
                         toast.error(res.error || "Erreur lors de la suppression");
                       }
@@ -1497,7 +1619,7 @@ export function AcademicSettings({
               </button>
             </div>
           ))}
-          {(!initialEducationalLevels || initialEducationalLevels.length === 0) && (
+          {(!educationalLevelsList || educationalLevelsList.length === 0) && (
             <div className="text-center p-4 text-slate-500 text-sm">Aucun niveau défini.</div>
           )}
         </div>
@@ -1525,7 +1647,7 @@ export function AcademicSettings({
             className="flex-1 bg-[#181924] border border-slate-700 text-white rounded-xl px-4 h-12 focus:outline-none disabled:opacity-50"
           >
             <option value="">Sélectionner un niveau</option>
-            {initialEducationalLevels?.map((l: any) => (
+            {educationalLevelsList?.map((l: any) => (
               <option key={l.id} value={l.levelName}>{l.levelName}</option>
             ))}
           </select>
@@ -1534,7 +1656,7 @@ export function AcademicSettings({
           </Button>
         </div>
         <div className="space-y-4">
-          {initialSections.map((s: any) => (
+          {sectionsList.map((s: any) => (
             <div key={s.id} className="p-6 rounded-3xl bg-[#181924] border border-slate-800/50 space-y-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
@@ -1542,7 +1664,20 @@ export function AcademicSettings({
                   <span className="text-xs bg-slate-800 text-slate-400 px-3 py-1.5 rounded-full font-black uppercase tracking-wider">{s.educationalLevel}</span>
                 </div>
                 <button 
-                  onClick={() => startTransition(() => { deleteSection(s.id); })}
+                  onClick={() => {
+                    if (confirm(`Supprimer la section "${s.sectionName}" ?`)) {
+                      setSectionsList((prev: any[]) => prev.filter((item: any) => item.id !== s.id));
+                      startTransition(async () => {
+                        const res = await deleteSection(s.id);
+                        if (res.success) {
+                          toast.success("Section supprimée avec succès");
+                          router.refresh();
+                        } else {
+                          toast.error(res.error || "Erreur lors de la suppression");
+                        }
+                      });
+                    }
+                  }}
                   disabled={isPending || !canEdit}
                   className="text-rose-500/70 hover:text-rose-500 transition-colors p-2 hover:bg-rose-500/10 rounded-xl disabled:opacity-30 disabled:cursor-not-allowed"
                 >
@@ -1560,6 +1695,7 @@ export function AcademicSettings({
                     onBlur={(e) => {
                       const val = parseFloat(e.target.value);
                       if (!isNaN(val)) {
+                        setSectionsList((prev: any[]) => prev.map((item: any) => item.id === s.id ? { ...item, minPassingGrade: val } : item));
                         startTransition(() => { updateSection(s.id, { minPassingGrade: val }); });
                       }
                     }}
@@ -1575,6 +1711,7 @@ export function AcademicSettings({
                     onBlur={(e) => {
                       const val = parseFloat(e.target.value);
                       if (!isNaN(val)) {
+                        setSectionsList((prev: any[]) => prev.map((item: any) => item.id === s.id ? { ...item, redoublementThreshold: val } : item));
                         startTransition(() => { updateSection(s.id, { redoublementThreshold: val }); });
                       }
                     }}
@@ -1590,6 +1727,7 @@ export function AcademicSettings({
                     onBlur={(e) => {
                       const val = parseFloat(e.target.value);
                       if (!isNaN(val)) {
+                        setSectionsList((prev: any[]) => prev.map((item: any) => item.id === s.id ? { ...item, exclusionThreshold: val } : item));
                         startTransition(() => { updateSection(s.id, { exclusionThreshold: val }); });
                       }
                     }}
@@ -1600,7 +1738,11 @@ export function AcademicSettings({
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">Périodes</label>
                   <select 
                     defaultValue={s.numTerms}
-                    onChange={(e) => startTransition(() => { updateSection(s.id, { numTerms: parseInt(e.target.value) }); })}
+                    onChange={(e) => {
+                      const n = parseInt(e.target.value);
+                      setSectionsList((prev: any[]) => prev.map((item: any) => item.id === s.id ? { ...item, numTerms: n } : item));
+                      startTransition(() => { updateSection(s.id, { numTerms: n }); });
+                    }}
                     className="w-full bg-[#1F222B] border border-slate-800 text-white rounded-xl h-12 px-4 focus:outline-none font-bold"
                   >
                     <option value={2}>2 (Semestres)</option>
@@ -1612,7 +1754,11 @@ export function AcademicSettings({
                   <input 
                     type="text" 
                     defaultValue={s.termLabels}
-                    onBlur={(e) => startTransition(() => { updateSection(s.id, { termLabels: e.target.value }); })}
+                    onBlur={(e) => {
+                      const txt = e.target.value;
+                      setSectionsList((prev: any[]) => prev.map((item: any) => item.id === s.id ? { ...item, termLabels: txt } : item));
+                      startTransition(() => { updateSection(s.id, { termLabels: txt }); });
+                    }}
                     className="w-full bg-[#1F222B] border border-slate-800 text-white rounded-xl h-12 px-4 focus:outline-none focus:border-amber-500 font-bold text-xs"
                     placeholder="T1, T2, T3"
                   />
@@ -1651,7 +1797,7 @@ export function AcademicSettings({
                 className="w-full bg-[#1F222B] border border-slate-800 text-white rounded-xl px-4 h-12 focus:outline-none"
               >
                 <option value="">Sélectionner une Section</option>
-                {initialSections.map((s: any) => (
+                {sectionsList.map((s: any) => (
                   <option key={s.id} value={s.id}>{s.sectionName}</option>
                 ))}
               </select>
@@ -1743,7 +1889,7 @@ export function AcademicSettings({
 
         {/* Classes List */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {initialClasses.map((c: any) => {
+          {classesList.map((c: any) => {
             const isEditing = editingClassId === c.id;
             
             if (isEditing) {
@@ -1795,7 +1941,7 @@ export function AcademicSettings({
                         className="w-full bg-[#1F222B] border border-slate-800 text-white rounded-lg px-2 py-1 text-xs focus:outline-none"
                       >
                         <option value="">Sélectionner une Section</option>
-                        {initialSections.map((s: any) => (
+                        {sectionsList.map((s: any) => (
                           <option key={s.id} value={s.id}>{s.sectionName}</option>
                         ))}
                       </select>
@@ -1878,7 +2024,7 @@ export function AcademicSettings({
                       <Pencil size={15} />
                     </button>
                     <button 
-                      onClick={() => startTransition(() => { deleteClass(c.id); })}
+                      onClick={() => handleDeleteClass(c.id, c.className)}
                       disabled={isPending}
                       className="text-rose-500/70 hover:text-rose-500 transition-colors p-1"
                     >
@@ -1940,7 +2086,15 @@ export function AcademicSettings({
                    if (input && input.trim()) {
                       const list = input.split(",").map(s => s.trim()).filter(Boolean);
                       startTransition(async () => {
-                         await importSubjects(list, subjectSectionId ? Number(subjectSectionId) : undefined);
+                         const res = await importSubjects(list, subjectSectionId ? Number(subjectSectionId) : undefined);
+                         if (res.success) {
+                           setSubjectsList((prev: any[]) => [
+                             ...prev,
+                             ...list.map((name, i) => ({ id: Date.now() + i, subjectName: name, category: null, subjectCode: null }))
+                           ]);
+                           toast.success(`${list.length} matière(s) importée(s) avec succès`);
+                           router.refresh();
+                         }
                       });
                    }
                 }}
@@ -1970,7 +2124,7 @@ export function AcademicSettings({
               className="w-full bg-[#181924] border border-slate-700 text-white rounded-xl px-4 h-12 focus:outline-none focus:border-purple-500"
             >
               <option value="">Tous les niveaux</option>
-              {initialEducationalLevels?.map((l: any) => (
+              {educationalLevelsList?.map((l: any) => (
                 <option key={l.id} value={l.levelName}>{l.levelName}</option>
               ))}
             </select>
@@ -1983,7 +2137,7 @@ export function AcademicSettings({
               className="w-full bg-[#181924] border border-slate-700 text-white rounded-xl px-4 h-12 focus:outline-none focus:border-purple-500"
             >
               <option value="">Global (Toutes les sections)</option>
-              {initialSections
+              {sectionsList
                 ?.filter((s: any) => !subjectNiveau || s.educationalLevel === subjectNiveau)
                 .map((s: any) => (
                   <option key={s.id} value={s.id}>{s.sectionName}</option>
@@ -2007,7 +2161,7 @@ export function AcademicSettings({
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[500px] overflow-y-auto pr-3 custom-scrollbar">
-          {initialSubjects
+          {subjectsList
             .filter((s: any) => s.subjectName.toLowerCase().includes(subjectSearch.toLowerCase()))
             .map((s: any) => (
             <div key={s.id} className="flex flex-col gap-4 p-6 rounded-[2rem] bg-[#181924] border border-slate-800/50 hover:border-purple-500/40 transition-all hover:bg-[#1c1d29] group/item relative overflow-hidden">
@@ -2021,11 +2175,7 @@ export function AcademicSettings({
                    <span className="text-slate-200 font-black text-xl tracking-tight">{s.subjectName}</span>
                 </div>
                 <button 
-                  onClick={() => {
-                    if(confirm(`Supprimer la matière "${s.subjectName}" ?`)) {
-                      startTransition(() => { deleteSubject(s.id); });
-                    }
-                  }}
+                  onClick={() => handleDeleteSubject(s.id, s.subjectName)}
                   disabled={isPending}
                   className="text-slate-600 hover:text-rose-500 transition-all p-2.5 hover:bg-rose-500/10 rounded-2xl opacity-0 group-hover/item:opacity-100"
                 >
@@ -2053,7 +2203,7 @@ export function AcademicSettings({
             </div>
           ))}
           
-          {(initialSubjects.length === 0 || initialSubjects.filter((s: any) => s.subjectName.toLowerCase().includes(subjectSearch.toLowerCase())).length === 0) && (
+          {(subjectsList.length === 0 || subjectsList.filter((s: any) => s.subjectName.toLowerCase().includes(subjectSearch.toLowerCase())).length === 0) && (
              <div className="col-span-full py-20 text-center space-y-4 bg-[#181924]/50 rounded-[2.5rem] border-2 border-dashed border-slate-800">
                 <div className="w-20 h-20 rounded-3xl bg-slate-800/50 mx-auto flex items-center justify-center text-slate-700 shadow-inner">
                    <BookOpen size={40} />
@@ -2127,7 +2277,7 @@ export function AcademicSettings({
                   className="w-full bg-[#1F222B] border border-slate-700 text-white rounded-xl px-4 h-12 focus:outline-none focus:border-cyan-500 font-bold text-sm"
                 >
                   <option value="">-- Choisir une Section --</option>
-                  {initialSections.map((s: any) => (
+                  {sectionsList.map((s: any) => (
                     <option key={s.id} value={s.id}>{s.sectionName} ({s.educationalLevel || 'Tous'})</option>
                   ))}
                 </select>
@@ -2142,10 +2292,10 @@ export function AcademicSettings({
                   className="w-full bg-[#1F222B] border border-slate-700 text-white rounded-xl px-4 h-12 focus:outline-none focus:border-cyan-500 font-bold text-sm"
                 >
                   <option value="Tous">Toutes les Périodes (Tous)</option>
-                  {initialPeriods?.map((p: any) => (
+                  {periodsList?.map((p: any) => (
                     <option key={p.id} value={p.name}>{p.name}</option>
                   ))}
-                  {(!initialPeriods || initialPeriods.length === 0) && (
+                  {(!periodsList || periodsList.length === 0) && (
                     <>
                       <option value="1er Trimestre">1er Trimestre</option>
                       <option value="2ème Trimestre">2ème Trimestre</option>
@@ -2166,7 +2316,7 @@ export function AcademicSettings({
                   className="w-full bg-[#1F222B] border border-slate-700 text-white rounded-xl px-4 h-12 focus:outline-none focus:border-cyan-500 font-bold text-sm"
                 >
                   <option value="">-- Choisir une Matière --</option>
-                  {initialSubjects.map((s: any) => (
+                  {subjectsList.map((s: any) => (
                     <option key={s.id} value={s.id}>{s.subjectName}</option>
                   ))}
                 </select>
@@ -2378,7 +2528,7 @@ export function AcademicSettings({
                   onChange={(e) => setEditLinkSectionId(e.target.value)}
                   className="w-full bg-[#1F222B] border border-slate-700 text-white rounded-xl px-4 h-12 focus:outline-none focus:border-cyan-500 font-bold text-sm"
                 >
-                  {initialSections.map((s: any) => (
+                  {sectionsList.map((s: any) => (
                     <option key={s.id} value={s.id}>{s.sectionName}</option>
                   ))}
                 </select>
@@ -2392,10 +2542,10 @@ export function AcademicSettings({
                   className="w-full bg-[#1F222B] border border-slate-700 text-white rounded-xl px-4 h-12 focus:outline-none focus:border-cyan-500 font-bold text-sm"
                 >
                   <option value="Tous">Toutes les Périodes (Tous)</option>
-                  {initialPeriods?.map((p: any) => (
+                  {periodsList?.map((p: any) => (
                     <option key={p.id} value={p.name}>{p.name}</option>
                   ))}
-                  {(!initialPeriods || initialPeriods.length === 0) && (
+                  {(!periodsList || periodsList.length === 0) && (
                     <>
                       <option value="1er Trimestre">1er Trimestre</option>
                       <option value="2ème Trimestre">2ème Trimestre</option>
@@ -2414,7 +2564,7 @@ export function AcademicSettings({
                   onChange={(e) => setEditLinkSubjectId(e.target.value)}
                   className="w-full bg-[#1F222B] border border-slate-700 text-white rounded-xl px-4 h-12 focus:outline-none focus:border-cyan-500 font-bold text-sm"
                 >
-                  {initialSubjects.map((s: any) => (
+                  {subjectsList.map((s: any) => (
                     <option key={s.id} value={s.id}>{s.subjectName}</option>
                   ))}
                 </select>
@@ -2523,7 +2673,7 @@ export function AcademicSettings({
                   className="w-full bg-[#1F222B] border border-slate-700 text-white rounded-xl px-4 h-12 focus:outline-none focus:border-emerald-500 font-bold text-sm"
                 >
                   <option value="">-- Sélectionner --</option>
-                  {initialSubjects.map((s: any) => (
+                  {subjectsList.map((s: any) => (
                     <option key={s.id} value={s.id}>{s.subjectName}</option>
                   ))}
                 </select>
@@ -2589,7 +2739,7 @@ export function AcademicSettings({
                   onChange={(e) => setEditClassSubjectId(e.target.value)}
                   className="w-full bg-[#1F222B] border border-slate-700 text-white rounded-xl px-4 h-12 focus:outline-none focus:border-emerald-500 font-bold text-sm"
                 >
-                  {initialSubjects.map((s: any) => (
+                  {subjectsList.map((s: any) => (
                     <option key={s.id} value={s.id}>{s.subjectName}</option>
                   ))}
                 </select>
@@ -2664,7 +2814,7 @@ export function AcademicSettings({
 
                 return (
                   <div 
-                    key={cls.id}
+                    key={cls.id} 
                     className="bg-[#161822] border border-slate-800/90 hover:border-emerald-500/40 rounded-2xl p-5 shadow-lg space-y-4 transition-all duration-300 flex flex-col justify-between"
                   >
                     {/* Class Card Header */}
@@ -2788,14 +2938,25 @@ export function AcademicSettings({
           </Button>
         </div>
         <div className="space-y-2">
-          {initialGradingAppreciations.map((ga: any) => (
+          {gradingList.map((ga: any) => (
             <div key={ga.id} className="flex items-center justify-between p-3 rounded-xl bg-[#181924] border border-slate-800/50">
               <div className="flex items-center gap-4">
                 <span className="text-slate-300 font-medium">{ga.name}</span>
                 <span className="text-xs bg-indigo-900/30 text-indigo-400 border border-indigo-800/50 px-2 py-1 rounded-full font-bold">Min: {ga.baseScore}</span>
               </div>
               <button 
-                onClick={() => startTransition(() => { deleteGradingAppreciation(ga.id); })}
+                onClick={() => {
+                  setGradingList((prev: any[]) => prev.filter((item: any) => item.id !== ga.id));
+                  startTransition(async () => {
+                    const res = await deleteGradingAppreciation(ga.id);
+                    if (res.success) {
+                      toast.success("Appréciation supprimée");
+                      router.refresh();
+                    } else {
+                      toast.error(res.error || "Erreur lors de la suppression");
+                    }
+                  });
+                }}
                 disabled={isPending}
                 className="text-rose-500/70 hover:text-rose-500 transition-colors"
               >
@@ -2836,7 +2997,7 @@ export function AcademicSettings({
             className="flex-1 bg-[#181924] border border-slate-700 text-white rounded-xl px-4 h-12 focus:outline-none"
           >
             <option value="">Toutes Sections</option>
-            {initialSections.map((s: any) => (
+            {sectionsList.map((s: any) => (
               <option key={s.id} value={s.id}>{s.sectionName}</option>
             ))}
           </select>
@@ -2845,7 +3006,7 @@ export function AcademicSettings({
           </Button>
         </div>
         <div className="space-y-2">
-          {initialSchoolRemarks.map((sr: any) => (
+          {remarksList.map((sr: any) => (
             <div key={sr.id} className="flex items-center justify-between p-3 rounded-xl bg-[#181924] border border-slate-800/50">
               <div className="flex items-center gap-4">
                 <span className="text-xs bg-slate-800 text-slate-400 px-2 py-1 rounded-full">{sr.category}</span>
@@ -2853,7 +3014,18 @@ export function AcademicSettings({
                 {sr.section && <span className="text-xs text-slate-500">Section: {sr.section.sectionName}</span>}
               </div>
               <button 
-                onClick={() => startTransition(() => { deleteSchoolRemark(sr.id); })}
+                onClick={() => {
+                  setRemarksList((prev: any[]) => prev.filter((item: any) => item.id !== sr.id));
+                  startTransition(async () => {
+                    const res = await deleteSchoolRemark(sr.id);
+                    if (res.success) {
+                      toast.success("Remarque supprimée");
+                      router.refresh();
+                    } else {
+                      toast.error(res.error || "Erreur lors de la suppression");
+                    }
+                  });
+                }}
                 disabled={isPending}
                 className="text-rose-500/70 hover:text-rose-500 transition-colors"
               >

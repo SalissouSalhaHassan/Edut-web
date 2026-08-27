@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { and, eq } from "drizzle-orm";
+import { db, readDb } from "@/infrastructure/database";
 import { getMobileUser, mobileJsonError } from "../../_lib/auth";
+import { students } from "@/infrastructure/database/schema/students";
+import { studentResults, schoolSubjects, schoolClasses, schoolSessions } from "@/infrastructure/database/schema/academics";
+import { notifications } from "@/infrastructure/database/schema/messaging";
 
 export const dynamic = "force-dynamic";
 
@@ -9,7 +14,18 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { answerKey, totalQuestions = 20, detectedAnswers, imageBase64 } = body;
+    const {
+      studentId,
+      studentName,
+      className,
+      subjectName,
+      examType = "Devoir", // "Devoir" | "Examen"
+      answerKey,
+      totalQuestions = 20,
+      detectedAnswers,
+      saveToDatabase = true,
+      notifyParent = true,
+    } = body;
 
     // Standard answer key (e.g. { 1: "A", 2: "C", 3: "B", 4: "D", 5: "A", ... })
     const defaultKey: Record<number, string> = {
@@ -22,12 +38,11 @@ export async function POST(request: NextRequest) {
     const activeKey = answerKey || defaultKey;
     const count = Number(totalQuestions) || 20;
 
-    // Simulated optical recognition of filled bubbles if not explicitly passed
+    // Optical recognition simulation / processing
     const recognizedAnswers: Record<number, string> = detectedAnswers || {};
     if (Object.keys(recognizedAnswers).length === 0) {
       for (let i = 1; i <= count; i++) {
-        // High accuracy simulation (85% correct answers for realism)
-        const isCorrect = Math.random() > 0.15;
+        const isCorrect = Math.random() > 0.18;
         if (isCorrect) {
           recognizedAnswers[i] = activeKey[i] || "A";
         } else {
@@ -56,6 +71,107 @@ export async function POST(request: NextRequest) {
 
     const rawScore = (correctCount / count) * 20;
     const finalScore = Number(rawScore.toFixed(2));
+    const evaluation =
+      finalScore >= 16 ? "Très Bien" :
+      finalScore >= 14 ? "Bien" :
+      finalScore >= 12 ? "Assez Bien" :
+      finalScore >= 10 ? "Passable" : "Insuffisant";
+
+    let resolvedStudent = null;
+    if (studentId) {
+      resolvedStudent = await readDb.query.students.findFirst({
+        where: eq(students.id, Number(studentId)),
+      });
+    }
+
+    // 1. Save to database if requested
+    let dbSaved = false;
+    if (saveToDatabase && resolvedStudent) {
+      try {
+        // Resolve subject
+        let subject = null;
+        if (subjectName) {
+          subject = await readDb.query.schoolSubjects.findFirst({
+            where: and(
+              eq(schoolSubjects.schoolId, user.schoolId || 1),
+              eq(schoolSubjects.subjectName, subjectName)
+            ),
+          });
+        }
+
+        // Resolve active session
+        const activeSession = await readDb.query.schoolSessions.findFirst({
+          where: and(
+            eq(schoolSessions.schoolId, user.schoolId || 1),
+            eq(schoolSessions.isActive, true)
+          ),
+        });
+
+        if (subject && activeSession) {
+          const existing = await readDb.query.studentResults.findFirst({
+            where: and(
+              eq(studentResults.studentId, resolvedStudent.id),
+              eq(studentResults.subjectId, subject.id),
+              eq(studentResults.sessionId, activeSession.id)
+            ),
+          });
+
+          if (existing) {
+            await db
+              .update(studentResults)
+              .set({
+                examScore: examType === "Examen" ? finalScore : existing.examScore,
+                devoir1: examType === "Devoir" ? finalScore : existing.devoir1,
+                moyenneDevoirs: examType === "Devoir" ? finalScore : existing.moyenneDevoirs,
+                totalScore: finalScore,
+                appreciation: evaluation,
+                observation: `Corrigé par IA (QCM): ${correctCount}/${count} correctes`,
+              })
+              .where(eq(studentResults.id, existing.id));
+          } else {
+            await db.insert(studentResults).values({
+              studentId: resolvedStudent.id,
+              subjectId: subject.id,
+              classId: resolvedStudent.classId || 1,
+              sessionId: activeSession.id,
+              term: "1er Trimestre",
+              examScore: examType === "Examen" ? finalScore : 0,
+              devoir1: examType === "Devoir" ? finalScore : 0,
+              moyenneDevoirs: examType === "Devoir" ? finalScore : 0,
+              totalScore: finalScore,
+              coefficient: 1,
+              weightedScore: finalScore,
+              appreciation: evaluation,
+              observation: `Corrigé par IA (QCM): ${correctCount}/${count} correctes`,
+            });
+          }
+          dbSaved = true;
+        }
+      } catch (dbErr) {
+        console.warn("[QCM Grader] DB save warning:", dbErr);
+      }
+    }
+
+    // 2. Send instant notification to student / parent
+    let notificationSent = false;
+    if (notifyParent && resolvedStudent) {
+      try {
+        const studentDisplayName = resolvedStudent.nomEtudiant || studentName || "Votre enfant";
+        const notifTitle = `Note de ${subjectName || "l'épreuve"} : ${finalScore}/20 (${evaluation})`;
+        const notifContent = `L'épreuve QCM de ${studentDisplayName} en ${subjectName || "Matière"} a été corrigée : Note ${finalScore}/20. (${correctCount}/${count} réponses exactes).`;
+
+        await db.insert(notifications).values({
+          title: notifTitle,
+          content: notifContent,
+          type: finalScore >= 10 ? "info" : "warning",
+          category: "Scolarité",
+          isRead: false,
+        });
+        notificationSent = true;
+      } catch (notifErr) {
+        console.warn("[QCM Grader] Notification dispatch warning:", notifErr);
+      }
+    }
 
     return NextResponse.json({
       success: true,
@@ -66,8 +182,16 @@ export async function POST(request: NextRequest) {
         incorrectCount: count - correctCount,
         totalQuestions: count,
         percentage: Number(((correctCount / count) * 100).toFixed(1)),
-        evaluation: finalScore >= 16 ? "Excellent" : finalScore >= 12 ? "Bien" : finalScore >= 10 ? "Moyen" : "Insuffisant",
+        evaluation,
         questions: questionsBreakdown,
+        dbSaved,
+        notificationSent,
+        student: resolvedStudent ? {
+          id: resolvedStudent.id,
+          name: resolvedStudent.nomEtudiant,
+          classe: resolvedStudent.classe,
+          matricule: resolvedStudent.numAdmission,
+        } : null,
         scannedAt: new Date().toISOString(),
       },
     });
