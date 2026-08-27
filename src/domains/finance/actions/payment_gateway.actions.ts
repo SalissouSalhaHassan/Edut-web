@@ -1,7 +1,16 @@
 "use server";
 
-import { db } from "@/infrastructure/database";
-import { onlineTransactions, feePayments, cogesPayments, studentFees, syscohadaAccounts, syscohadaEntries } from "@/infrastructure/database/schema/finance";
+import { db, readDb } from "@/infrastructure/database";
+import { 
+  onlineTransactions, 
+  feePayments, 
+  cogesPayments, 
+  studentFees, 
+  syscohadaAccounts, 
+  syscohadaEntries,
+  studentPaymentSchedules 
+} from "@/infrastructure/database/schema/finance";
+import { students } from "@/infrastructure/database/schema/students";
 import { getCurrentUser } from "@/domains/auth/services/session";
 import { protectedDbAction } from "@/lib/protected-action";
 import { eq, and, desc, sql } from "drizzle-orm";
@@ -27,9 +36,7 @@ async function ensurePhase3Tables() {
         "created_at" timestamp DEFAULT now(),
         "updated_at" timestamp DEFAULT now()
       );
-    `);
 
-    await db.execute(sql`
       CREATE TABLE IF NOT EXISTS "syscohada_accounts" (
         "id" serial PRIMARY KEY,
         "school_id" integer,
@@ -39,9 +46,7 @@ async function ensurePhase3Tables() {
         "account_type" varchar(20) DEFAULT 'ACTIF',
         "created_at" timestamp DEFAULT now()
       );
-    `);
 
-    await db.execute(sql`
       CREATE TABLE IF NOT EXISTS "syscohada_entries" (
         "id" serial PRIMARY KEY,
         "school_id" integer,
@@ -56,19 +61,6 @@ async function ensurePhase3Tables() {
         "created_at" timestamp DEFAULT now()
       );
     `);
-
-    await db.execute(sql`
-      CREATE TABLE IF NOT EXISTS "coges_budgets" (
-        "id" serial PRIMARY KEY,
-        "school_id" integer,
-        "session_id" integer,
-        "category" varchar(100) NOT NULL,
-        "budgeted_amount" double precision NOT NULL,
-        "realized_amount" double precision DEFAULT 0,
-        "comments" text,
-        "created_at" timestamp DEFAULT now()
-      );
-    `);
   } catch (e) {
     console.warn("[ensurePhase3Tables] Error creating tables:", e);
   }
@@ -80,7 +72,7 @@ export interface InitiatePaymentParams {
   amount: number;
   provider: "AIRTEL_MONEY" | "MOOV_MONEY" | "FLOOZ" | "ORANGE_MONEY" | "WAVE" | "NITA" | "BANK_CARD" | "CINETPAY";
   phoneNumber?: string;
-  purpose: "Scolarité" | "Inscription" | "COGES" | "Autre";
+  purpose: "Scolarité" | "Inscription" | "Mensualité" | "COGES" | "Soutenance PFE" | "Autre";
 }
 
 /**
@@ -90,9 +82,13 @@ export async function initiateMobilePayment(params: InitiatePaymentParams) {
   return protectedDbAction("Finance", "canEdit", async (user) => {
     await ensurePhase3Tables();
     const schoolId = user.schoolId;
-    if (!schoolId) return { success: false, error: "School context missing" };
+    if (!schoolId) return { success: false, error: "Contexte d'établissement manquant" };
 
-    const txnRef = `TXN-${params.provider.substring(0, 3)}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    if (!params.amount || params.amount <= 0) {
+      return { success: false, error: "Montant de paiement invalide" };
+    }
+
+    const txnRef = `TXN-${params.provider.substring(0, 3)}-${Date.now().toString().slice(-6)}-${Math.floor(100 + Math.random() * 900)}`;
 
     const [newTxn] = await db.insert(onlineTransactions).values({
       schoolId,
@@ -105,11 +101,10 @@ export async function initiateMobilePayment(params: InitiatePaymentParams) {
       phoneNumber: params.phoneNumber,
       purpose: params.purpose,
       status: "PENDING",
-      providerTransactionId: `EXT-${Date.now()}`,
+      providerTransactionId: `EXT-${Date.now().toString().slice(-8)}`,
     }).returning();
 
-    // Simulated payment URL for Web / Mobile Checkout redirect
-    const payUrl = `/dashboard/finance/syscohada?checkout=${newTxn.id}&ref=${txnRef}&amount=${params.amount}&provider=${params.provider}`;
+    const payUrl = `/dashboard/finance/mobile-money?checkout=${newTxn.id}&ref=${txnRef}&amount=${params.amount}&provider=${params.provider}`;
 
     return {
       success: true,
@@ -123,7 +118,7 @@ export async function initiateMobilePayment(params: InitiatePaymentParams) {
 }
 
 /**
- * Confirm / Process payment completion (Webhook or Manual Callback verification)
+ * Confirm / Process payment completion (Webhook or Instant Payment Execution)
  */
 export async function confirmMobilePayment(transactionId: number, status: "SUCCESS" | "FAILED" = "SUCCESS") {
   return protectedDbAction("Finance", "canEdit", async (user) => {
@@ -159,7 +154,7 @@ export async function confirmMobilePayment(transactionId: number, status: "SUCCE
             datePaid: new Date(),
             paymentMode: `Mobile Money (${txn.provider})`,
             reference: txn.transactionReference,
-            recordedBy: user.email || "Système Mobile Money"
+            recordedBy: user.email || "Passerelle Mobile Money"
           });
 
           // Update student fee totals
@@ -174,7 +169,40 @@ export async function confirmMobilePayment(transactionId: number, status: "SUCCE
           }).where(eq(studentFees.id, txn.feeId));
         }
       } 
-      // 2. If COGES Purpose, record in COGES Payments
+      // 2. If student has monthly payment schedules, settle the earliest overdue schedule
+      if (txn.studentId) {
+        try {
+          const pendingSchedules = await db
+            .select()
+            .from(studentPaymentSchedules)
+            .where(
+              and(
+                eq(studentPaymentSchedules.studentId, txn.studentId),
+                sql`${studentPaymentSchedules.balance} > 0`
+              )
+            )
+            .orderBy(studentPaymentSchedules.dueDate)
+            .limit(1);
+
+          if (pendingSchedules.length > 0) {
+            const sched = pendingSchedules[0];
+            const paidForSched = Math.min(sched.balance, txn.amount);
+            const newPaid = (sched.paidAmount || 0) + paidForSched;
+            const newBal = Math.max(0, sched.netAmount - newPaid);
+            const newStatus = newBal === 0 ? "Payé" : "Partiel";
+
+            await db.update(studentPaymentSchedules).set({
+              paidAmount: newPaid,
+              balance: newBal,
+              status: newStatus,
+              updatedAt: new Date(),
+            }).where(eq(studentPaymentSchedules.id, sched.id));
+          }
+        } catch (e) {
+          console.warn("Could not auto-settle studentPaymentSchedules:", e);
+        }
+      }
+      // 3. If COGES Purpose, record in COGES Payments
       else if (txn.purpose === "COGES") {
         await db.insert(cogesPayments).values({
           schoolId,
@@ -188,7 +216,7 @@ export async function confirmMobilePayment(transactionId: number, status: "SUCCE
         });
       }
 
-      // 3. Post Automatic SYSCOHADA Ledger Entry (512000 Banque/Mobile ↔ 706000 Prestations)
+      // 4. Post Automatic SYSCOHADA Ledger Entry (512000 Banque/Mobile ↔ 706000 Prestations)
       try {
         const [bankAccount] = await db.select().from(syscohadaAccounts).where(
           and(eq(syscohadaAccounts.schoolId, schoolId), eq(syscohadaAccounts.accountNumber, "512000"))
@@ -198,7 +226,6 @@ export async function confirmMobilePayment(transactionId: number, status: "SUCCE
         );
 
         if (bankAccount && revenueAccount) {
-          // Debit Bank/Mobile Money Account (512000)
           await db.insert(syscohadaEntries).values({
             schoolId,
             reference: txn.transactionReference,
@@ -209,7 +236,6 @@ export async function confirmMobilePayment(transactionId: number, status: "SUCCE
             recordedBy: user.email || "Automatique"
           });
 
-          // Credit Revenue Account (706000)
           await db.insert(syscohadaEntries).values({
             schoolId,
             reference: txn.transactionReference,
@@ -225,25 +251,90 @@ export async function confirmMobilePayment(transactionId: number, status: "SUCCE
       }
     }
 
-    revalidatePath("/dashboard/finance/syscohada");
-    return { success: true, message: `Paiement de ${txn.amount} FCFA confirmé avec succès!` };
+    revalidatePath("/dashboard/finance/mobile-money");
+    revalidatePath("/dashboard/finance");
+    return { success: true, message: `Paiement de ${txn.amount.toLocaleString()} FCFA confirmé avec succès!` };
   });
 }
 
 /**
- * Fetch all online transactions for school admin dashboard
+ * Fetch all online transactions with full Student details for the Mobile Money Hub
  */
-export async function getOnlineTransactions() {
+export async function getOnlineTransactionsData() {
   return protectedDbAction("Finance", "canView", async (user) => {
     await ensurePhase3Tables();
     const schoolId = user.schoolId;
-    if (!schoolId) return { success: true, data: [] };
+    if (!schoolId) {
+      return {
+        success: true,
+        data: {
+          transactions: [],
+          metrics: {
+            totalAmount: 0,
+            successCount: 0,
+            pendingCount: 0,
+            airtelVolume: 0,
+            moovVolume: 0,
+            orangeVolume: 0,
+            waveVolume: 0,
+            cardVolume: 0,
+          }
+        }
+      };
+    }
 
-    const transactions = await db.select()
+    const records = await (readDb || db)
+      .select({
+        id: onlineTransactions.id,
+        schoolId: onlineTransactions.schoolId,
+        studentId: onlineTransactions.studentId,
+        feeId: onlineTransactions.feeId,
+        transactionReference: onlineTransactions.transactionReference,
+        provider: onlineTransactions.provider,
+        providerTransactionId: onlineTransactions.providerTransactionId,
+        amount: onlineTransactions.amount,
+        currency: onlineTransactions.currency,
+        phoneNumber: onlineTransactions.phoneNumber,
+        status: onlineTransactions.status,
+        purpose: onlineTransactions.purpose,
+        createdAt: onlineTransactions.createdAt,
+        updatedAt: onlineTransactions.updatedAt,
+        studentNom: students.nomEtudiant,
+        studentMatricule: students.numAdmission,
+        studentClasse: students.classe,
+      })
       .from(onlineTransactions)
+      .leftJoin(students, eq(onlineTransactions.studentId, students.id))
       .where(eq(onlineTransactions.schoolId, schoolId))
       .orderBy(desc(onlineTransactions.createdAt));
 
-    return { success: true, data: transactions };
+    // Calculate aggregated metrics
+    const successfulTxns = records.filter(r => r.status === "SUCCESS");
+    const totalAmount = successfulTxns.reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
+    const successCount = successfulTxns.length;
+    const pendingCount = records.filter(r => r.status === "PENDING").length;
+
+    const airtelVolume = successfulTxns.filter(r => r.provider === "AIRTEL_MONEY").reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
+    const moovVolume = successfulTxns.filter(r => r.provider === "MOOV_MONEY").reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
+    const orangeVolume = successfulTxns.filter(r => r.provider === "ORANGE_MONEY").reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
+    const waveVolume = successfulTxns.filter(r => r.provider === "WAVE").reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
+    const cardVolume = successfulTxns.filter(r => r.provider === "BANK_CARD" || r.provider === "CINETPAY").reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
+
+    return {
+      success: true,
+      data: {
+        transactions: records,
+        metrics: {
+          totalAmount,
+          successCount,
+          pendingCount,
+          airtelVolume,
+          moovVolume,
+          orangeVolume,
+          waveVolume,
+          cardVolume,
+        }
+      }
+    };
   });
 }

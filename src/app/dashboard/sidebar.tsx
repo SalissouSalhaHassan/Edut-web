@@ -142,6 +142,8 @@ const sections: NavSection[] = [
     dotColor: "bg-emerald-500",
     items: [
       { href: "/dashboard/finance", label: "Gestion financière", icon: <Wallet className="size-[18px]" />, color: "text-emerald-500" },
+      { href: "/dashboard/finance/mobile-money", label: "Mobile Money & UEMOA", icon: <Smartphone className="size-[18px]" />, color: "text-emerald-500", badge: "Direct", badgeColor: "bg-emerald-500/20 text-emerald-400" },
+      { href: "/dashboard/finance/bourses-echeanciers", label: "Bourses & Échéanciers", icon: <Award className="size-[18px]" />, color: "text-amber-500" },
       { href: "/dashboard/finance/expenses", label: "Gestion des Dépenses", icon: <TrendingDown className="size-[18px]" />, color: "text-rose-500" },
       { href: "/dashboard/finance/syscohada", label: "Paiements Mobile & SYSCOHADA", icon: <Smartphone className="size-[18px]" />, color: "text-orange-500", badge: "Phase 3", badgeColor: "bg-orange-500/20 text-orange-400" },
       { href: "/dashboard/coges", label: "Paiement COGES", icon: <BriefcaseBusiness className="size-[18px]" />, color: "text-indigo-500" },
