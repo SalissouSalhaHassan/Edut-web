@@ -29,7 +29,9 @@ import {
   Printer,
   Wrench,
   RefreshCw,
+  Award,
 } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -512,7 +514,12 @@ export default function FinanceClient({
           </div>
         </div>
         
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          <Link href="/dashboard/finance/bourses-echeanciers">
+            <Button className="h-12 px-5 rounded-2xl bg-amber-600 hover:bg-amber-700 text-white font-black text-xs uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-amber-500/20 cursor-pointer transition-all">
+              <Award size={18} /> Bourses &amp; Échéanciers
+            </Button>
+          </Link>
           {canEdit && (
             <PaymentDialog
               feeData={localFees[0] || { id: 0, balance: 0, totalExpected: 0, totalPaid: 0, student: null }}

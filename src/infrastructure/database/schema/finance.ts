@@ -220,3 +220,62 @@ export const cogesBudgets = pgTable("coges_budgets", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+/**
+ * Catalogue des Bourses & Exonérations
+ */
+export const scholarships = pgTable("scholarships", {
+  id: serial("id").primaryKey(),
+  schoolId: integer("school_id").references(() => schools.id),
+  name: varchar("name", { length: 150 }).notNull(), // e.g. "Bourse d'État UEMOA", "Excellence Académique"
+  provider: varchar("provider", { length: 150 }).default("Ministère de l'Enseignement Supérieur"),
+  type: varchar("type", { length: 50 }).default("Pourcentage"), // Pourcentage | Montant Fixe
+  discountValue: doublePrecision("discount_value").notNull().default(50.0), // 50% or fixed amount
+  appliesTo: varchar("applies_to", { length: 50 }).default("Frais de Scolarité"), // Frais de Scolarité | Totalité des Frais | Inscription
+  academicYear: varchar("academic_year", { length: 50 }),
+  criteria: text("criteria"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+/**
+ * Attribution des Bourses aux Étudiants
+ */
+export const studentScholarships = pgTable("student_scholarships", {
+  id: serial("id").primaryKey(),
+  schoolId: integer("school_id").references(() => schools.id),
+  studentId: integer("student_id").references(() => students.id, { onDelete: "cascade" }),
+  scholarshipId: integer("scholarship_id").references(() => scholarships.id, { onDelete: "cascade" }),
+  academicYear: varchar("academic_year", { length: 50 }),
+  customDiscountPercentage: doublePrecision("custom_discount_percentage"),
+  allocatedAmount: doublePrecision("allocated_amount").default(0),
+  decisionReference: varchar("decision_reference", { length: 100 }),
+  decisionDate: timestamp("decision_date").defaultNow(),
+  status: varchar("status", { length: 50 }).default("Actif"), // Actif | Suspendu | Expiré
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+/**
+ * Échéanciers & Mensualités de Paiement des Frais
+ */
+export const studentPaymentSchedules = pgTable("student_payment_schedules", {
+  id: serial("id").primaryKey(),
+  schoolId: integer("school_id").references(() => schools.id),
+  studentId: integer("student_id").references(() => students.id, { onDelete: "cascade" }),
+  sessionId: integer("session_id").references(() => schoolSessions.id),
+  installmentNumber: integer("installment_number").notNull().default(1),
+  label: varchar("label", { length: 100 }).notNull(), // e.g. "Mensualité Octobre 2025"
+  dueDate: timestamp("due_date").notNull(),
+  grossAmount: doublePrecision("gross_amount").notNull(), // Montant brut
+  scholarshipDeduction: doublePrecision("scholarship_deduction").default(0), // Déduction bourse
+  netAmount: doublePrecision("net_amount").notNull(), // Net à payer
+  paidAmount: doublePrecision("paid_amount").default(0),
+  balance: doublePrecision("balance").notNull(),
+  status: varchar("status", { length: 50 }).default("À échoir"), // Payé | Partiel | À échoir | En retard | Relancé
+  reminderSentAt: timestamp("reminder_sent_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+
