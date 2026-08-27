@@ -275,80 +275,86 @@ export async function generateLmdOfficialDiplomaPDF(data: LmdDiplomaParams): Pro
   );
 
   // ─── 6. SECTION DES SIGNATURES & SCEAU OFFICIEL VECTORIEL ──────────────────
-  const sigY = currentY + 7;
+  const sigY = currentY + 6;
 
   // 1. Doyen de la Faculté (Left)
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8.5);
   doc.setTextColor(15, 23, 42);
-  doc.text("Le Doyen de la Faculté / Directeur", 45, sigY);
+  doc.text("Le Doyen de la Faculté / Directeur", 52, sigY);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(6.8);
   doc.setTextColor(100, 116, 139);
-  doc.text("Signature et Visa officiel", 45, sigY + 4.5);
+  doc.text("Signature et Visa officiel", 52, sigY + 4.5);
   doc.setDrawColor(203, 213, 225);
-  doc.line(25, sigY + 22, 75, sigY + 22);
+  doc.setLineWidth(0.4);
+  doc.line(26, sigY + 19, 78, sigY + 19);
 
   // 2. Sceau Officiel de l'Université (Center Vector Seal)
   const sealCx = pageWidth / 2;
-  const sealCy = sigY + 11;
+  const sealCy = sigY + 9.5;
   doc.setDrawColor(217, 119, 6);
   doc.setLineWidth(0.8);
-  doc.circle(sealCx, sealCy, 12, "S");
-  doc.circle(sealCx, sealCy, 9.5, "S");
+  doc.circle(sealCx, sealCy, 11.5, "S");
+  doc.circle(sealCx, sealCy, 9, "S");
 
   doc.setFontSize(4.5);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(217, 119, 6);
-  doc.text("RÉPUBLIQUE DU NIGER", sealCx, sealCy - 6, { align: "center" });
-  doc.text("• UNIVERSITÉ EDUT •", sealCx, sealCy - 3, { align: "center" });
+  doc.text("RÉPUBLIQUE DU NIGER", sealCx, sealCy - 5.5, { align: "center" });
+  doc.text("• UNIVERSITÉ EDUT •", sealCx, sealCy - 2.5, { align: "center" });
   doc.setFontSize(5.5);
   doc.setTextColor(15, 23, 42);
   doc.text("SCEAU OFFICIEL", sealCx, sealCy + 2, { align: "center" });
   doc.setFontSize(4.5);
   doc.setTextColor(79, 70, 229);
-  doc.text("DÉLIBÉRATION LMD", sealCx, sealCy + 5.5, { align: "center" });
-  doc.text("HOMOLOGUÉ CAMES", sealCx, sealCy + 8, { align: "center" });
+  doc.text("DÉLIBÉRATION LMD", sealCx, sealCy + 5.2, { align: "center" });
+  doc.text("HOMOLOGUÉ CAMES", sealCx, sealCy + 7.5, { align: "center" });
 
   // 3. Recteur de l'Université (Right)
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8.5);
   doc.setTextColor(15, 23, 42);
-  doc.text("Le Recteur / Président de l'Université", pageWidth - 45, sigY, { align: "right" });
+  doc.text("Le Recteur / Président de l'Université", pageWidth - 52, sigY, { align: "right" });
   doc.setFont("helvetica", "normal");
   doc.setFontSize(6.8);
   doc.setTextColor(100, 116, 139);
-  doc.text("Sceau officiel et Approbation", pageWidth - 45, sigY + 4.5, { align: "right" });
-  doc.line(pageWidth - 75, sigY + 22, pageWidth - 25, sigY + 22);
+  doc.text("Sceau officiel et Approbation", pageWidth - 52, sigY + 4.5, { align: "right" });
+  doc.setDrawColor(203, 213, 225);
+  doc.setLineWidth(0.4);
+  doc.line(pageWidth - 78, sigY + 19, pageWidth - 26, sigY + 19);
 
   // ─── 7. PIED DE PAGE : CODE QR ANTI-FRAUDE & RÉFÉRENCE NATIONALE ───────────
-  const footY = pageHeight - 21;
+  const footY = 181;
 
-  // Left QR Code
+  // Left QR Code (Placed at x = 26mm to clear the corner rosette at x = 14mm)
   const verifUrl = `https://edut.org/verify/${data.student.matricule || data.student.id}`;
   try {
     const qrDataUrl = await QRCode.toDataURL(verifUrl, { margin: 1, width: 80 });
-    doc.addImage(qrDataUrl, "PNG", 14, footY - 4, 16, 16);
-    doc.setFontSize(6);
+    doc.addImage(qrDataUrl, "PNG", 26, footY, 16, 16);
+    doc.setFontSize(6.5);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(79, 70, 229);
-    doc.text("VÉRIFICATION NUMÉRIQUE", 33, footY + 1);
+    doc.text("VÉRIFICATION NUMÉRIQUE OFFICIELLE", 45, footY + 4.5);
     doc.setFont("helvetica", "normal");
+    doc.setFontSize(5.8);
     doc.setTextColor(100, 116, 139);
-    doc.text("Scannez pour vérifier l'authenticité", 33, footY + 5);
-    doc.text(`Réf : ${data.degree.diplomaNumber || `DIP-${data.student.id}-2026`}`, 33, footY + 9);
+    doc.text("Scannez le QR Code pour vérifier l'authenticité", 45, footY + 8.5);
+    doc.setFontSize(5.5);
+    doc.setTextColor(148, 163, 184);
+    doc.text(`Réf : ${data.degree.diplomaNumber || `DIP-${data.student.id}-2026`}`, 45, footY + 12.5);
   } catch (e) {}
 
-  // Right Date & Location
+  // Right Date & Location (Aligned right at pageWidth - 26mm to clear the corner rosette at pageWidth - 14mm)
   const dateStr = data.degree.deliberationDate || new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
   doc.setFontSize(7.5);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(15, 23, 42);
-  doc.text(`Fait à ${data.institution.city || "Niamey"}, le ${dateStr}`, pageWidth - 14, footY + 5, { align: "right" });
+  doc.text(`Fait à ${data.institution.city || "Niamey"}, le ${dateStr}`, pageWidth - 26, footY + 5.5, { align: "right" });
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(6.2);
+  doc.setFontSize(5.8);
   doc.setTextColor(148, 163, 184);
-  doc.text("Enregistré au Registre National des Titres et Diplômes d'Enseignement Supérieur", pageWidth - 14, footY + 9, { align: "right" });
+  doc.text("Enregistré au Registre National des Titres et Diplômes d'Enseignement Supérieur", pageWidth - 26, footY + 10, { align: "right" });
 
   const cleanNom = (data.student.nom || "Etudiant").replace(/[^a-zA-Z0-9]/g, "_");
   doc.save(`Diplome_Officiel_${data.degree.title}_${cleanNom}.pdf`);
