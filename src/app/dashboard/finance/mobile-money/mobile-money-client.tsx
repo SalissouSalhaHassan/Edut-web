@@ -102,13 +102,18 @@ export function MobileMoneyClient({
         purpose,
       });
 
-      if (!initRes.success || !initRes.data?.transaction) {
-        toast.error(initRes.error || "Échec de l'initialisation du paiement");
+      if (!initRes || !initRes.success || !initRes.data) {
+        toast.error(initRes?.error || "Échec de l'initialisation du paiement");
         setCheckoutStep("form");
         return;
       }
 
-      const txn = initRes.data.transaction;
+      const txn = (initRes.data as any).transaction;
+      if (!txn) {
+        toast.error("Transaction non initialisée");
+        setCheckoutStep("form");
+        return;
+      }
       setActiveTxn(txn);
 
       // Simulate USSD Push / Operator Instant Confirmation
