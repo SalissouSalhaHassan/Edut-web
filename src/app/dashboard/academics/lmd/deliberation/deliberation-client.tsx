@@ -593,11 +593,6 @@ export default function DeliberationClient({
 
       await generateLmdStudentAnnualRelevePDF(
         item,
-        annualData.uesSem1,
-        annualData.uesSem2,
-        annualData.sem1Name,
-        annualData.sem2Name,
-        annualData.cycleLevel,
         {
           name: schoolName,
           countryName: headerConfig?.countryName || "RÉPUBLIQUE DU NIGER",
