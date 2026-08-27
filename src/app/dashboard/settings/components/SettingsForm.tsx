@@ -13,7 +13,7 @@ export function SettingsForm({ children }: { children: React.ReactNode }) {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const settingsData: Record<string, string> = {};
-    const customDomain = formData.get("custom_domain") as string;
+    const customDomain = formData.get("custom_domain");
 
     formData.forEach((value, key) => {
       if (typeof value === "string" && key && key !== "custom_domain") {
@@ -23,12 +23,17 @@ export function SettingsForm({ children }: { children: React.ReactNode }) {
 
     startTransition(async () => {
       try {
-        // Save regular settings
-        await saveSettings(settingsData);
+        // Save regular settings if any exist
+        if (Object.keys(settingsData).length > 0) {
+          await saveSettings(settingsData);
+        }
         
-        // Save school domain if present
-        if (customDomain !== null) {
-          await updateSchoolDomain(customDomain);
+        // Save custom domain only when explicitly changed/present (not null or undefined)
+        if (customDomain !== null && typeof customDomain === "string") {
+          const trimmed = customDomain.trim();
+          if (trimmed.length > 0) {
+            await updateSchoolDomain(trimmed);
+          }
         }
         
         toast.success("Paramètres enregistrés avec succès");

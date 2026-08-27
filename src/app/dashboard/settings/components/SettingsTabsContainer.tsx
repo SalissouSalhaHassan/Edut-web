@@ -34,25 +34,34 @@ function SettingsTabsInner(props: SettingsTabsContainerProps) {
 
   const handleTabChange = (newTab: string) => {
     setActiveTab(newTab);
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("tab", newTab);
-    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    // Smooth URL update without triggering full server re-render or session interrupt
+    try {
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href);
+        url.searchParams.set("tab", newTab);
+        window.history.replaceState(null, "", url.toString());
+      }
+    } catch {
+      // Fallback
+    }
   };
+
+  const tabsConfig = [
+    { v: 'general', l: 'Général', i: <School size={18} /> },
+    { v: 'finance', l: 'Finances', i: <CreditCard size={18} /> },
+    { v: 'academic', l: 'Académique', i: <BookOpen size={18} /> },
+    { v: 'curriculum', l: 'Matières de Base', i: <LayoutGrid size={18} /> },
+    { v: 'security', l: 'Sécurité', i: <Shield size={18} /> },
+    { v: 'notifications', l: 'Alertes', i: <Bell size={18} /> },
+    { v: 'system', l: 'Système', i: <Database size={18} /> },
+    { v: 'headers', l: 'En-têtes', i: <FileText size={18} /> },
+  ];
 
   return (
     <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full grid grid-cols-1 lg:grid-cols-12 gap-10">
       <div className="lg:col-span-3">
         <TabsList className="flex flex-col h-fit bg-white dark:bg-[#12131C] p-4 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/60 shadow-sm gap-2">
-          {[
-            { v: 'general', l: 'Général', i: <School size={18} /> },
-            { v: 'finance', l: 'Finances', i: <CreditCard size={18} /> },
-            { v: 'academic', l: 'Académique', i: <BookOpen size={18} /> },
-            { v: 'curriculum', l: 'Matières de Base', i: <LayoutGrid size={18} /> },
-            { v: 'security', l: 'Sécurité', i: <Shield size={18} /> },
-            { v: 'notifications', l: 'Alertes', i: <Bell size={18} /> },
-            { v: 'system', l: 'Système', i: <Database size={18} /> },
-            { v: 'headers', l: 'En-têtes', i: <FileText size={18} /> },
-          ].map((t) => (
+          {tabsConfig.map((t) => (
             <TabsTrigger 
               key={t.v} 
               value={t.v} 
