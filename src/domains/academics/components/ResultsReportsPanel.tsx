@@ -16,6 +16,7 @@ import {
   GraduationCap,
   Calendar,
   Sparkles,
+  ShieldCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -274,6 +275,13 @@ export default function ResultsReportsPanel({
           </div>
 
           <div className="flex flex-wrap gap-3 print:hidden">
+            <Link
+              href="/verify"
+              target="_blank"
+              className="inline-flex items-center justify-center h-11 px-4 rounded-xl font-black text-xs uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20 transition-colors"
+            >
+              <ShieldCheck size={16} className="mr-2 text-emerald-400" /> Portail Vérification
+            </Link>
             <Button variant="outline" className="h-11 rounded-xl font-black uppercase tracking-widest border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800" onClick={() => window.print()} disabled={loading}>
               <Printer size={16} className="mr-2" /> Imprimer
             </Button>

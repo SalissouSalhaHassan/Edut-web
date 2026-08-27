@@ -3,6 +3,7 @@ import originalAutoTable from "jspdf-autotable";
 import { amiriFontBase64 } from "@/domains/printing/utils/amiri-font";
 import { hasArabicCharacters, reshapeArabicText } from "@/domains/printing/utils/arabic-reshaper";
 import * as XLSX from "xlsx";
+import QRCode from "qrcode";
 
 function ensureAmiriRegistered(doc: jsPDF) {
   try {
@@ -127,28 +128,34 @@ function drawOfflineWatermark(doc: jsPDF, text: string = "PROVISOIRE - HORS LIGN
 }
 
 async function fetchQRCodeBase64(data: string): Promise<string> {
-  const url = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(data)}`;
-  return new Promise((resolve) => {
-    if (typeof window === 'undefined') {
-      resolve("");
-      return;
+  try {
+    return await QRCode.toDataURL(data, {
+      margin: 1,
+      width: 256,
+      color: { dark: "#0f172a", light: "#ffffff" },
+    });
+  } catch (e) {
+    try {
+      const url = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(data)}`;
+      if (typeof window === 'undefined') return "";
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.crossOrigin = 'Anonymous';
+        img.src = url;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0);
+          resolve(canvas.toDataURL('image/png'));
+        };
+        img.onerror = () => resolve("");
+      });
+    } catch {
+      return "";
     }
-    const img = new Image();
-    img.crossOrigin = 'Anonymous';
-    img.src = url;
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width;
-      canvas.height = img.height;
-      const ctx = canvas.getContext('2d');
-      ctx?.drawImage(img, 0, 0);
-      const dataUrl = canvas.toDataURL('image/png');
-      resolve(dataUrl);
-    };
-    img.onerror = () => {
-      resolve("");
-    };
-  });
+  }
 }
 
 async function fetchTransparentLogoBase64(url: string, opacity: number = 0.08): Promise<string> {
@@ -878,12 +885,13 @@ export async function generateBulletinBlob(data: any): Promise<Blob> {
 
   const displayRank = formatRank(rawRank);
 
-  // QR — uses verifyToken if provided (from bulletin_records), else fallback plain text
+  // QR — routes to universal verification portal with student identifier or verifyToken
   let qrBase64: string | null = null;
   try {
+    const studentMatricule = student?.numAdmission || student?.matricule || student?.id;
     const verifyUrl = data.verifyToken
-      ? `${process.env.NEXT_PUBLIC_APP_URL || "https://edut.app"}/verify/bulletin/${data.verifyToken}`
-      : `ELEVE: ${student?.nomEtudiant || "N/A"} | MATRICULE: ${student?.numAdmission || "N/A"} | MOYENNE: ${displayAverage.toFixed(2)}/20`;
+      ? `${process.env.NEXT_PUBLIC_APP_URL || "https://niger.edut.pro"}/verify/bulletin/${data.verifyToken}`
+      : `${process.env.NEXT_PUBLIC_APP_URL || "https://niger.edut.pro"}/verify/${encodeURIComponent(studentMatricule || "BULLETIN")}`;
     qrBase64 = await fetchQRCodeBase64(verifyUrl);
   } catch (e) {}
 
@@ -2052,10 +2060,11 @@ export async function generateReleveNotesPDF(data: any) {
   doc.setFontSize(7);
   doc.text("Il ne sera pas délivré de duplicata de ce relevé. Il vous appartient d'en faire des copies et de les faire certifier conformes.", 105, pageHeight - 5, { align: "center" });
 
-  // Draw QR Code in top right position
+  // Draw Official Verification QR Code in top right position
   try {
-    const qrData = `RELEVE: ${student?.nomEtudiant || student?.name || "N/A"} | MATRICULE: ${student?.numAdmission || student?.matricule || "N/A"} | DECISION: ${hasRealS2 ? decision2 : "—"} | ANNEE: ${session || "2024-2025"}`;
-    const qrBase64 = await fetchQRCodeBase64(qrData);
+    const studentMatricule = student?.numAdmission || student?.matricule || student?.id;
+    const verifyUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://niger.edut.pro"}/verify/${encodeURIComponent(studentMatricule || "RELEVE")}`;
+    const qrBase64 = await fetchQRCodeBase64(verifyUrl);
     if (qrBase64) {
       doc.addImage(qrBase64, 'PNG', 175, studentInfoY - 4, 18, 18);
     }

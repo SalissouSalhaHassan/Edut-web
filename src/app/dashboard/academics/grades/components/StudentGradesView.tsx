@@ -183,8 +183,17 @@ export default function StudentGradesView({ currentUser }: StudentGradesViewProp
             </div>
           </div>
 
-          {/* Action Download Button */}
-          <div className="flex items-center gap-3">
+          {/* Action Download & Verification Buttons */}
+          <div className="flex items-center flex-wrap gap-3">
+            <Link
+              href={`/verify/${encodeURIComponent(student?.numAdmission || student?.id || currentUser?.username || "345")}`}
+              target="_blank"
+              className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black shadow-lg hover:shadow-emerald-500/20 rounded-xl px-4 h-12 flex items-center gap-2 text-xs transition-all border border-emerald-400/40"
+            >
+              <ShieldCheck className="size-4 text-slate-950" />
+              <span>Vérifier l&apos;Authenticité (Portail Public)</span>
+            </Link>
+
             <Button
               onClick={handleDownloadBulletin}
               disabled={generatingPdf || loading || grades.length === 0}
