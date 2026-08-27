@@ -23,7 +23,14 @@ import {
   Sparkles,
   Loader2,
   QrCode,
-  Check
+  Check,
+  CreditCard,
+  DollarSign,
+  Wallet,
+  Receipt,
+  Clock,
+  UserCheck,
+  BadgeAlert
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -35,17 +42,20 @@ type Language = "fr" | "en" | "ar";
 
 const DICT = {
   fr: {
-    portalBrand: "EDUT UNIVERSITÉ • PORTAIL PUBLIC DE VÉRIFICATION ACADÉMIQUE",
+    portalBrand: "EDUT UNIVERSITÉ • PORTAIL UNIVERSEL DE VÉRIFICATION OFFICIELLE",
     backHome: "Accueil",
     docAuthentic: "DOCUMENT AUTHENTIQUE & OFFICIEL",
+    finAuthentic: "TRANSACTION FINANCIÈRE & QUITTANCE AUTHENTIFIÉE",
     certifiedTitle: "Authenticité Académique Certifiée",
-    certifiedSub: "Les données ci-dessous correspondent fidèlement aux registres officiels de délibération de l'établissement et aux normes internationales CAMES & UNESCO.",
+    finCertifiedTitle: "Quittance de Paiement & Solvabilité Certifiée",
+    certifiedSub: "Les données ci-dessous correspondent fidèlement aux registres officiels de l'établissement et aux normes internationales CAMES & UNESCO.",
+    finCertifiedSub: "Cette quittance financière est enregistrée dans le grand livre comptable central SYSCOHADA de l'établissement.",
     downloadPdf: "Télécharger Certificat (PDF)",
     downloading: "Génération du PDF...",
-    printCert: "Imprimer le Certificat",
+    printCert: "Imprimer la Quittance / Certificat",
     copyLink: "Copier le Lien Sécurisé",
     linkCopied: "Lien de vérification copié dans le presse-papier !",
-    holderTitle: "Informations sur le Titulaire",
+    holderTitle: "Informations sur l'Étudiant / Bénéficiaire",
     fullName: "Nom & Prénoms",
     matricule: "Numéro Matricule / INE",
     birth: "Date & Lieu de Naissance",
@@ -53,6 +63,7 @@ const DICT = {
     gender: "Sexe",
     genderM: "Masculin",
     genderF: "Féminin",
+    classeFiliere: "Classe & Filière",
     degreeTitle: "Titre & Qualification Délivrés",
     diplomaName: "Intitulé du Diplôme",
     fieldMention: "Domaine & Mention",
@@ -75,22 +86,38 @@ const DICT = {
     curriculumTitle: "Programme & Relevé des Unités d'Enseignement (UE)",
     showCurriculum: "Afficher le détail des 180 ECTS et des matières",
     hideCurriculum: "Masquer le détail du programme",
-    securityNotice: "Portail de Certification & d'Intégrité Académique conforme aux normes CAMES, REESAO, Processus de Bologne et UNESCO. Système Sécurisé EDUT.",
+    securityNotice: "Portail de Certification & d'Intégrité Universelle conforme aux normes CAMES, REESAO, SYSCOHADA et UNESCO. Système Sécurisé EDUT.",
     securityLevel: "Niveau 3 - Ancrage Cryptographique & Registre Public Inviolable",
     shareSuccess: "Lien partagé avec succès !",
+    // Financial Terms
+    finTitle: "Détails du Paiement & de la Transaction",
+    amountPaid: "Montant Encaissé",
+    paymentMode: "Mode de Règlement",
+    paymentDateTime: "Date & Heure du Paiement",
+    receiptNo: "Numéro de Quittance / Reçu",
+    feeLabel: "Objet du Règlement",
+    cashierLabel: "Agent Comptable / Caisse",
+    payerLabel: "Payeur Déclaré",
+    financialStatus: "État Financier de l'Étudiant",
+    totalExpected: "Total Droits Scolarité",
+    totalPaid: "Total Déjà Versé",
+    balanceRemaining: "Solde Restant à Régler",
   },
   en: {
-    portalBrand: "EDUT UNIVERSITY • PUBLIC ACADEMIC VERIFICATION PORTAL",
+    portalBrand: "EDUT UNIVERSITY • UNIVERSAL PUBLIC VERIFICATION PORTAL",
     backHome: "Home",
     docAuthentic: "OFFICIALLY AUTHENTIC & CERTIFIED DOCUMENT",
+    finAuthentic: "OFFICIALLY AUTHENTICATED PAYMENT SETTLEMENT",
     certifiedTitle: "Certified Academic Authenticity",
-    certifiedSub: "The data below strictly matches the official academic deliberation records of the institution and international CAMES & UNESCO standards.",
+    finCertifiedTitle: "Payment Receipt & Financial Solvency Certified",
+    certifiedSub: "The data below strictly matches the official academic records of the institution and international CAMES & UNESCO standards.",
+    finCertifiedSub: "This financial receipt is officially recorded in the central SYSCOHADA accounting ledger of the institution.",
     downloadPdf: "Download Certificate (PDF)",
     downloading: "Generating PDF...",
-    printCert: "Print Certificate",
+    printCert: "Print Official Certificate",
     copyLink: "Copy Secure Link",
     linkCopied: "Verification link copied to clipboard!",
-    holderTitle: "Holder Information",
+    holderTitle: "Student / Beneficiary Information",
     fullName: "Full Name",
     matricule: "Student ID / National Student No.",
     birth: "Date & Place of Birth",
@@ -98,6 +125,7 @@ const DICT = {
     gender: "Gender",
     genderM: "Male",
     genderF: "Female",
+    classeFiliere: "Class & Major",
     degreeTitle: "Conferred Academic Qualification",
     diplomaName: "Conferred Degree Title",
     fieldMention: "Field of Study & Specialization",
@@ -114,28 +142,44 @@ const DICT = {
     institutionTitle: "Awarding Institution & Legal Authority",
     rectorat: "Registrar & Academic Registry",
     securityTitle: "Cryptographic Proof & Public Ledger",
-    shaHash: "SHA-256 Fingerprint of Deliberation Record",
+    shaHash: "SHA-256 Fingerprint of Record",
     w3cId: "W3C Verifiable Credential Identifier",
     trustAnchor: "Digital Trust Anchor & Cryptographic Signature",
     curriculumTitle: "Official Curriculum & Educational Units (UE) Breakdown",
     showCurriculum: "Show complete 180 ECTS course breakdown",
     hideCurriculum: "Hide course breakdown",
-    securityNotice: "Academic Certification & Integrity Portal compliant with CAMES, REESAO, European Bologna Process, and UNESCO standards. Secured by EDUT.",
+    securityNotice: "Universal Certification & Integrity Portal compliant with CAMES, REESAO, SYSCOHADA and UNESCO standards. Secured by EDUT.",
     securityLevel: "Security Level 3 - Cryptographically Anchored Public Record",
     shareSuccess: "Verification link shared successfully!",
+    // Financial Terms
+    finTitle: "Payment & Transaction Breakdown",
+    amountPaid: "Amount Received",
+    paymentMode: "Payment Method",
+    paymentDateTime: "Payment Date & Time",
+    receiptNo: "Receipt / Quittance No.",
+    feeLabel: "Fee Purpose",
+    cashierLabel: "Cashier / Account Officer",
+    payerLabel: "Declared Payer",
+    financialStatus: "Student Financial Standing",
+    totalExpected: "Total Tuition Due",
+    totalPaid: "Total Paid to Date",
+    balanceRemaining: "Remaining Balance Due",
   },
   ar: {
-    portalBrand: "جامعة EDUT • البوابة العامة للتحقق والمصادقة الأكاديمية",
+    portalBrand: "جامعة EDUT • البوابة العامة الشاملة للتحقق الأكاديمي والمالي",
     backHome: "الرئيسية",
     docAuthentic: "وثيقة أصلية وموثقة رسمياً",
+    finAuthentic: "معاملة مالية وإيصال سداد معتمد رسمياً",
     certifiedTitle: "صحة أكاديمية معتمدة وموثقة",
+    finCertifiedTitle: "إيصال سداد وبراءة ذمة مالية معتمدة",
     certifiedSub: "البيانات الواردة أدناه مطابقة تماماً لسجلات المداولات الرسمية الصادرة عن المؤسسة وتستوفي معايير اليونسكو وCAMES الدولية.",
+    finCertifiedSub: "هذا الإيصال المالي مسجل رسمياً في السجل المحاسبي المركزي المعتمد للمؤسسة.",
     downloadPdf: "تحميل شهادة التحقق (PDF)",
     downloading: "جاري إنشاء وثيقة PDF...",
-    printCert: "طباعة الشهادة الرسمية",
+    printCert: "طباعة الإيصال / الشهادة",
     copyLink: "نسخ الرابط الآمن",
     linkCopied: "تم نسخ رابط التحقق المباشر إلى الحافظة بنجاح!",
-    holderTitle: "بيانات حامل المؤهل الأكاديمي",
+    holderTitle: "بيانات الطالب / المستفيد",
     fullName: "الاسم الكامل",
     matricule: "رقم التسجيل / الرقم الوطني للطالب",
     birth: "تاريخ ومكان الميلاد",
@@ -143,6 +187,7 @@ const DICT = {
     gender: "الجنس",
     genderM: "ذكر",
     genderF: "أنثى",
+    classeFiliere: "الفصل والشعبة",
     degreeTitle: "المؤهل والتخصص الممنوح",
     diplomaName: "عنوان الشهادة الأكاديمية",
     fieldMention: "المجال والتخصص الدقيق",
@@ -157,7 +202,7 @@ const DICT = {
     wesEquiv: "جاهزية المعادلة لدى WES / NACES (أمريكا الشمالية)",
     accreditation: "الاعتماد الأكاديمي الدولي",
     institutionTitle: "المؤسسة المانحة وسلطة الوصاية",
-    rectorat: "إدارة الشؤون الأكاديمية والسجل العام",
+    rectorat: "إدارة الشؤون المالية والسجل العام",
     securityTitle: "الإثبات المشفر وسجل الأمان الرقمي غير القابل للتعديل",
     shaHash: "بصمة التشفير الرقمية SHA-256 للمحضر الرسمي",
     w3cId: "معرف الاعتماد الرقمي W3C Verifiable Credential",
@@ -165,9 +210,22 @@ const DICT = {
     curriculumTitle: "السجل الدراسي المعتمد وتفاصيل الوحدات التعليمية (UE)",
     showCurriculum: "عرض تفاصيل المقررات و 180 نقطة ECTS",
     hideCurriculum: "إخفاء تفاصيل المقررات",
-    securityNotice: "بوابة المصادقة والنزاهة الأكاديمية متوافقة مع معايير اليونسكو (UNESCO)، مسار بولونيا الأوروبي، وهيئات CAMES و REESAO. نظام EDUT الآمن.",
+    securityNotice: "بوابة المصادقة والنزاهة الأكاديمية والمالية متوافقة مع معايير اليونسكو وCAMES و SYSCOHADA. نظام EDUT الآمن.",
     securityLevel: "مستوى الأمان 3 - سجل موثق مشفراً ومقاوم للتلاعب (W3C Standard)",
     shareSuccess: "تمت مشاركة رابط التحقق بنجاح!",
+    // Financial Terms
+    finTitle: "تفاصيل المعاملة المالية وإيصال السداد",
+    amountPaid: "المبلغ المحصل",
+    paymentMode: "طريقة السداد",
+    paymentDateTime: "تاريخ ووقت المعاملة",
+    receiptNo: "رقم الإيصال المرجعي",
+    feeLabel: "بند الرسوم المدفوعة",
+    cashierLabel: "أمين الخزينة / المحاسب",
+    payerLabel: "المسدد للرسوم",
+    financialStatus: "الوضعية المالية وحساب الطالب",
+    totalExpected: "إجمالي الرسوم المقررة",
+    totalPaid: "إجمالي المدفوع حتى الآن",
+    balanceRemaining: "المتبقي للوفاء الكامل",
   }
 };
 
@@ -185,6 +243,7 @@ export function VerificationClient({
 
   const t = DICT[lang];
   const isRtl = lang === "ar";
+  const isFinancial = data?.category === "financial";
 
   const currentUrl = typeof window !== "undefined" ? window.location.href : `https://niger.edut.pro/verify/${rawId}`;
 
@@ -220,8 +279,8 @@ export function VerificationClient({
     if (typeof navigator !== "undefined" && navigator.share) {
       try {
         await navigator.share({
-          title: `Certification Académique - ${data?.student.nom || rawId}`,
-          text: `Vérification officielle d'authenticité du diplôme pour ${data?.student.nom} (${data?.degree.title})`,
+          title: `Certification Officielle EDUT - ${data?.student.nom || rawId}`,
+          text: `Vérification officielle d'authenticité pour ${data?.student.nom} (${isFinancial ? data?.financial?.receiptNumber : data?.degree.title})`,
           url: currentUrl,
         });
         toast.success(t.shareSuccess);
@@ -242,85 +301,109 @@ export function VerificationClient({
       <header className="w-full max-w-4xl flex flex-col sm:flex-row items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-800">
         <div className="flex items-center gap-2 text-indigo-400 font-bold text-xs sm:text-sm tracking-wide">
           <div className="p-1.5 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-400">
-            <GraduationCap className="h-5 w-5" />
+            {isFinancial ? <Receipt className="h-5 w-5" /> : <GraduationCap className="h-5 w-5" />}
           </div>
           <span>{t.portalBrand}</span>
         </div>
 
-        {/* Language Switcher Buttons */}
-        <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-slate-900 border border-slate-800 shadow-inner">
-          <button
-            onClick={() => setLang("fr")}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-              lang === "fr"
-                ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
-                : "text-slate-400 hover:text-slate-200"
-            }`}
-          >
-            <span>🇫🇷</span>
-            <span>Français</span>
-          </button>
+        {/* Category Badge & Language Switcher Buttons */}
+        <div className="flex items-center gap-3">
+          <span className={`px-3 py-1 rounded-xl text-[11px] font-black uppercase tracking-wider border ${
+            isFinancial 
+              ? "bg-amber-500/10 text-amber-300 border-amber-500/30" 
+              : "bg-indigo-500/10 text-indigo-300 border-indigo-500/30"
+          }`}>
+            {isFinancial ? "💳 Document Financier" : "🎓 Document Académique"}
+          </span>
 
-          <button
-            onClick={() => setLang("en")}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-              lang === "en"
-                ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
-                : "text-slate-400 hover:text-slate-200"
-            }`}
-          >
-            <span>🇬🇧</span>
-            <span>English</span>
-          </button>
+          <div className="flex items-center gap-1 p-1 rounded-2xl bg-slate-900 border border-slate-800 shadow-inner">
+            <button
+              onClick={() => setLang("fr")}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                lang === "fr"
+                  ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
+                  : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              <span>🇫🇷</span>
+              <span>Français</span>
+            </button>
 
-          <button
-            onClick={() => setLang("ar")}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-              lang === "ar"
-                ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
-                : "text-slate-400 hover:text-slate-200"
-            }`}
-          >
-            <span>🇸🇦</span>
-            <span>العربية</span>
-          </button>
+            <button
+              onClick={() => setLang("en")}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                lang === "en"
+                  ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
+                  : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              <span>🇬🇧</span>
+              <span>English</span>
+            </button>
+
+            <button
+              onClick={() => setLang("ar")}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                lang === "ar"
+                  ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
+                  : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              <span>🇸🇦</span>
+              <span>العربية</span>
+            </button>
+          </div>
         </div>
       </header>
 
       {/* ─── MAIN CERTIFICATION CONTAINER ─── */}
       <main className="w-full max-w-4xl bg-slate-900/90 backdrop-blur-2xl border border-slate-800 rounded-3xl p-6 sm:p-8 md:p-10 shadow-2xl relative overflow-hidden">
         {/* Ambient Top Glow */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-4/5 h-2.5 bg-gradient-to-r from-emerald-500 via-teal-400 via-indigo-500 to-amber-500 rounded-full blur-xs" />
+        <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-4/5 h-2.5 rounded-full blur-xs ${
+          isFinancial 
+            ? "bg-gradient-to-r from-amber-500 via-emerald-400 to-indigo-500" 
+            : "bg-gradient-to-r from-emerald-500 via-teal-400 via-indigo-500 to-amber-500"
+        }`} />
 
         {data && data.isValid ? (
           <>
             {/* ─── HERO VERIFICATION BADGE ─── */}
             <div className="flex flex-col items-center text-center mb-8">
               <div className="relative mb-4">
-                <div className="h-20 w-20 rounded-3xl bg-emerald-500/10 border-2 border-emerald-500/40 text-emerald-400 flex items-center justify-center shadow-xl shadow-emerald-500/20 animate-in zoom-in-90 duration-300">
-                  <ShieldCheck className="h-11 w-11" />
+                <div className={`h-20 w-20 rounded-3xl border-2 flex items-center justify-center shadow-xl animate-in zoom-in-90 duration-300 ${
+                  isFinancial
+                    ? "bg-amber-500/10 border-amber-500/40 text-amber-400 shadow-amber-500/20"
+                    : "bg-emerald-500/10 border-emerald-500/40 text-emerald-400 shadow-emerald-500/20"
+                }`}>
+                  {isFinancial ? <Receipt className="h-11 w-11" /> : <ShieldCheck className="h-11 w-11" />}
                 </div>
-                <div className="absolute -bottom-1.5 -right-1.5 p-1.5 rounded-full bg-emerald-500 text-slate-950 shadow-md">
+                <div className={`absolute -bottom-1.5 -right-1.5 p-1.5 rounded-full text-slate-950 shadow-md ${
+                  isFinancial ? "bg-amber-400" : "bg-emerald-500"
+                }`}>
                   <Check className="h-3.5 w-3.5 stroke-[3]" />
                 </div>
               </div>
 
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 mb-3 shadow-inner">
-                <Sparkles className="h-3.5 w-3.5 text-emerald-400 animate-pulse" />
-                <span>{t.docAuthentic}</span>
+              <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider border mb-3 shadow-inner ${
+                isFinancial
+                  ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
+                  : "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+              }`}>
+                <Sparkles className={`h-3.5 w-3.5 animate-pulse ${isFinancial ? "text-amber-400" : "text-emerald-400"}`} />
+                <span>{isFinancial ? t.finAuthentic : t.docAuthentic}</span>
               </div>
 
               <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-white tracking-tight">
-                {t.certifiedTitle}
+                {isFinancial ? t.finCertifiedTitle : t.certifiedTitle}
               </h1>
 
               <p className="text-xs sm:text-sm text-slate-400 mt-2 max-w-xl leading-relaxed">
-                {t.certifiedSub}
+                {isFinancial ? t.finCertifiedSub : t.certifiedSub}
               </p>
 
               {/* Security Anchoring Pill */}
               <div className="mt-4 flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-950/80 border border-slate-800 text-[11px] font-mono text-slate-400">
-                <Lock className="h-3.5 w-3.5 text-emerald-400" />
+                <Lock className={`h-3.5 w-3.5 ${isFinancial ? "text-amber-400" : "text-emerald-400"}`} />
                 <span>{t.securityLevel}</span>
               </div>
             </div>
@@ -371,7 +454,105 @@ export function VerificationClient({
             {/* ─── STRUCTURED DATA SECTIONS ─── */}
             <div className="space-y-6">
               
-              {/* 1. HOLDER IDENTITY */}
+              {/* ─────────────────────────────────────────────────────────────
+                  IF FINANCIAL DOCUMENT: FINANCIAL CARDS
+              ────────────────────────────────────────────────────────────── */}
+              {isFinancial && data.financial && (
+                <>
+                  {/* Financial Hero Settlement Box */}
+                  <div className="bg-gradient-to-br from-slate-900 via-amber-950/20 to-slate-900 border border-amber-500/30 rounded-3xl p-6 shadow-sm">
+                    <div className="flex items-center justify-between gap-3 border-b border-amber-500/20 pb-4 mb-5 flex-wrap">
+                      <div className="flex items-center gap-2.5 text-xs font-black text-amber-400 uppercase tracking-wider">
+                        <div className="p-1.5 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                          <Receipt className="h-4 w-4" />
+                        </div>
+                        <span>{t.finTitle}</span>
+                      </div>
+
+                      <span className="px-3.5 py-1 rounded-full text-xs font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                        {lang === "en" ? data.financial.statusEn : lang === "ar" ? data.financial.statusAr : data.financial.status}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-5 text-sm">
+                      <div className="sm:col-span-2">
+                        <div className="text-xs text-slate-400 font-medium">{t.amountPaid}</div>
+                        <div className="font-black text-3xl text-emerald-400 mt-1 font-mono tracking-tight">
+                          {data.financial.amount.toLocaleString("fr-FR")} <span className="text-sm font-bold text-slate-300">{data.financial.currency}</span>
+                        </div>
+                        <p className="text-[11px] text-slate-400 italic mt-0.5">{data.financial.amountInWords}</p>
+                      </div>
+
+                      <div className="sm:col-span-2">
+                        <div className="text-xs text-slate-400 font-medium">{t.receiptNo}</div>
+                        <div className="font-mono font-black text-amber-300 text-lg mt-1 tracking-wider">
+                          {data.financial.receiptNumber}
+                        </div>
+                        <p className="text-[11px] text-slate-400 mt-0.5">Réf : {data.financial.transactionReference}</p>
+                      </div>
+
+                      <div>
+                        <div className="text-xs text-slate-400 font-medium">{t.paymentMode}</div>
+                        <div className="font-bold text-slate-200 mt-1 flex items-center gap-1.5">
+                          <CreditCard className="h-4 w-4 text-indigo-400" />
+                          <span>{lang === "en" ? data.financial.paymentMethodEn : lang === "ar" ? data.financial.paymentMethodAr : data.financial.paymentMethod}</span>
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="text-xs text-slate-400 font-medium">{t.paymentDateTime}</div>
+                        <div className="font-bold text-slate-200 mt-1 flex items-center gap-1.5">
+                          <Clock className="h-4 w-4 text-slate-400" />
+                          <span>{data.financial.paymentDate}</span>
+                        </div>
+                        <p className="text-[10px] text-slate-400 font-mono mt-0.5">{data.financial.paymentTime}</p>
+                      </div>
+
+                      <div className="sm:col-span-2">
+                        <div className="text-xs text-slate-400 font-medium">{t.feeLabel}</div>
+                        <div className="font-bold text-white mt-1">
+                          {lang === "en" ? data.financial.feeTypeEn : lang === "ar" ? data.financial.feeTypeAr : data.financial.feeType}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Student Balance & Solvency Card */}
+                  <div className="bg-slate-800/60 border border-slate-700/60 rounded-3xl p-6 shadow-sm">
+                    <div className="flex items-center gap-2.5 text-xs font-black text-emerald-400 uppercase tracking-wider mb-4 border-b border-slate-700/60 pb-3">
+                      <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                        <Wallet className="h-4 w-4" />
+                      </div>
+                      <span>{t.financialStatus}</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
+                      <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800">
+                        <div className="text-xs text-slate-400">{t.totalExpected}</div>
+                        <div className="text-lg font-black text-slate-200 font-mono mt-1">
+                          {data.financial.totalDue.toLocaleString("fr-FR")} FCFA
+                        </div>
+                      </div>
+
+                      <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800">
+                        <div className="text-xs text-slate-400">{t.totalPaid}</div>
+                        <div className="text-lg font-black text-emerald-400 font-mono mt-1">
+                          {data.financial.totalPaidSoFar.toLocaleString("fr-FR")} FCFA
+                        </div>
+                      </div>
+
+                      <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800">
+                        <div className="text-xs text-slate-400">{t.balanceRemaining}</div>
+                        <div className="text-lg font-black text-amber-400 font-mono mt-1">
+                          {data.financial.remainingBalance.toLocaleString("fr-FR")} FCFA
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* 1. HOLDER / STUDENT IDENTITY */}
               <div className="bg-slate-800/60 border border-slate-700/60 rounded-3xl p-6 shadow-sm hover:border-slate-600 transition-colors">
                 <div className="flex items-center gap-2.5 text-xs font-black text-indigo-400 uppercase tracking-wider mb-5 border-b border-slate-700/60 pb-3">
                   <div className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
@@ -408,119 +589,126 @@ export function VerificationClient({
                 </div>
               </div>
 
-              {/* 2. CONFERRED ACADEMIC QUALIFICATION & DEGREE */}
-              <div className="bg-slate-800/60 border border-slate-700/60 rounded-3xl p-6 shadow-sm hover:border-slate-600 transition-colors">
-                <div className="flex items-center gap-2.5 text-xs font-black text-amber-400 uppercase tracking-wider mb-5 border-b border-slate-700/60 pb-3">
-                  <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                    <Award className="h-4 w-4" />
-                  </div>
-                  <span>{t.degreeTitle}</span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5 text-sm">
-                  <div className="sm:col-span-2 md:col-span-3">
-                    <div className="text-xs text-slate-400 font-medium">{t.diplomaName}</div>
-                    <div className="font-black text-white text-lg sm:text-xl mt-1 text-emerald-300">
-                      {lang === "en" ? data.degree.titleEn : lang === "ar" ? data.degree.titleAr : data.degree.title}
+              {/* ─────────────────────────────────────────────────────────────
+                  IF ACADEMIC DOCUMENT: ACADEMIC QUALIFICATION & STANDARDS
+              ────────────────────────────────────────────────────────────── */}
+              {!isFinancial && (
+                <>
+                  {/* 2. CONFERRED ACADEMIC QUALIFICATION & DEGREE */}
+                  <div className="bg-slate-800/60 border border-slate-700/60 rounded-3xl p-6 shadow-sm hover:border-slate-600 transition-colors">
+                    <div className="flex items-center gap-2.5 text-xs font-black text-amber-400 uppercase tracking-wider mb-5 border-b border-slate-700/60 pb-3">
+                      <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                        <Award className="h-4 w-4" />
+                      </div>
+                      <span>{t.degreeTitle}</span>
                     </div>
-                  </div>
 
-                  <div className="sm:col-span-2">
-                    <div className="text-xs text-slate-400 font-medium">{t.fieldMention}</div>
-                    <div className="font-bold text-slate-200 mt-1">
-                      {lang === "en" ? `${data.degree.fieldEn} — ${data.degree.mentionEn}` : lang === "ar" ? `${data.degree.fieldAr} — ${data.degree.mentionAr}` : `${data.degree.field} — ${data.degree.mention}`}
-                    </div>
-                  </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5 text-sm">
+                      <div className="sm:col-span-2 md:col-span-3">
+                        <div className="text-xs text-slate-400 font-medium">{t.diplomaName}</div>
+                        <div className="font-black text-white text-lg sm:text-xl mt-1 text-emerald-300">
+                          {lang === "en" ? data.degree.titleEn : lang === "ar" ? data.degree.titleAr : data.degree.title}
+                        </div>
+                      </div>
 
-                  <div>
-                    <div className="text-xs text-slate-400 font-medium">{t.decisionHonors}</div>
-                    <div className="font-black text-emerald-400 mt-1 text-base">
-                      {lang === "en" ? data.degree.statusEn : lang === "ar" ? data.degree.statusAr : data.degree.status}
-                    </div>
-                  </div>
+                      <div className="sm:col-span-2">
+                        <div className="text-xs text-slate-400 font-medium">{t.fieldMention}</div>
+                        <div className="font-bold text-slate-200 mt-1">
+                          {lang === "en" ? `${data.degree.fieldEn} — ${data.degree.mentionEn}` : lang === "ar" ? `${data.degree.fieldAr} — ${data.degree.mentionAr}` : `${data.degree.field} — ${data.degree.mention}`}
+                        </div>
+                      </div>
 
-                  <div>
-                    <div className="text-xs text-slate-400 font-medium">{t.creditsEcts}</div>
-                    <div className="font-mono font-black text-indigo-300 text-base mt-1">
-                      {data.degree.ectsCredits} ECTS (100% Validé)
-                    </div>
-                  </div>
+                      <div>
+                        <div className="text-xs text-slate-400 font-medium">{t.decisionHonors}</div>
+                        <div className="font-black text-emerald-400 mt-1 text-base">
+                          {lang === "en" ? data.degree.statusEn : lang === "ar" ? data.degree.statusAr : data.degree.status}
+                        </div>
+                      </div>
 
-                  <div>
-                    <div className="text-xs text-slate-400 font-medium">{t.gpaScore}</div>
-                    <div className="font-mono font-black text-amber-300 text-base mt-1">
-                      {data.degree.gpa}
-                    </div>
-                  </div>
+                      <div>
+                        <div className="text-xs text-slate-400 font-medium">{t.creditsEcts}</div>
+                        <div className="font-mono font-black text-indigo-300 text-base mt-1">
+                          {data.degree.ectsCredits} ECTS (100% Validé)
+                        </div>
+                      </div>
 
-                  <div>
-                    <div className="text-xs text-slate-400 font-medium">{t.promoYear} / {t.delibDate}</div>
-                    <div className="font-semibold text-slate-200 mt-1">
-                      {data.degree.graduationYear} • {data.degree.deliberationDate}
-                    </div>
-                  </div>
-                </div>
-              </div>
+                      <div>
+                        <div className="text-xs text-slate-400 font-medium">{t.gpaScore}</div>
+                        <div className="font-mono font-black text-amber-300 text-base mt-1">
+                          {data.degree.gpa}
+                        </div>
+                      </div>
 
-              {/* 3. GLOBAL STANDARDS & INTERNATIONAL EQUIVALENCIES */}
-              <div className="bg-gradient-to-br from-slate-800/80 via-slate-800/50 to-indigo-950/40 border border-indigo-500/30 rounded-3xl p-6 shadow-sm">
-                <div className="flex items-center gap-2.5 text-xs font-black text-indigo-300 uppercase tracking-wider mb-5 border-b border-indigo-500/20 pb-3">
-                  <div className="p-1.5 rounded-lg bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                    <Globe className="h-4 w-4" />
-                  </div>
-                  <span>{t.standardsTitle}</span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                  <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 flex items-start gap-3">
-                    <div className="p-2 rounded-xl bg-blue-500/10 text-blue-400 font-bold text-xs mt-0.5">
-                      UNESCO
-                    </div>
-                    <div>
-                      <div className="font-bold text-slate-300">{t.unescoIsced}</div>
-                      <div className="text-slate-400 mt-0.5 leading-relaxed">
-                        {lang === "en" ? data.standards.unescoIscedEn : lang === "ar" ? data.standards.unescoIscedAr : data.standards.unescoIsced}
+                      <div>
+                        <div className="text-xs text-slate-400 font-medium">{t.promoYear} / {t.delibDate}</div>
+                        <div className="font-semibold text-slate-200 mt-1">
+                          {data.degree.graduationYear} • {data.degree.deliberationDate}
+                        </div>
                       </div>
                     </div>
                   </div>
 
-                  <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 flex items-start gap-3">
-                    <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 font-bold text-xs mt-0.5">
-                      BOLOGNA
-                    </div>
-                    <div>
-                      <div className="font-bold text-slate-300">{t.europeanEqf}</div>
-                      <div className="text-slate-400 mt-0.5 leading-relaxed">
-                        {data.standards.eqfLevel} • {data.standards.bolognaCycle}
+                  {/* 3. GLOBAL STANDARDS & INTERNATIONAL EQUIVALENCIES */}
+                  <div className="bg-gradient-to-br from-slate-800/80 via-slate-800/50 to-indigo-950/40 border border-indigo-500/30 rounded-3xl p-6 shadow-sm">
+                    <div className="flex items-center gap-2.5 text-xs font-black text-indigo-300 uppercase tracking-wider mb-5 border-b border-indigo-500/20 pb-3">
+                      <div className="p-1.5 rounded-lg bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                        <Globe className="h-4 w-4" />
                       </div>
+                      <span>{t.standardsTitle}</span>
                     </div>
-                  </div>
 
-                  <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 flex items-start gap-3">
-                    <div className="p-2 rounded-xl bg-amber-500/10 text-amber-400 font-bold text-xs mt-0.5">
-                      WES / ECE
-                    </div>
-                    <div>
-                      <div className="font-bold text-slate-300">{t.wesEquiv}</div>
-                      <div className="text-slate-400 mt-0.5 leading-relaxed">
-                        {data.standards.wesEquivalency}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                      <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 flex items-start gap-3">
+                        <div className="p-2 rounded-xl bg-blue-500/10 text-blue-400 font-bold text-xs mt-0.5">
+                          UNESCO
+                        </div>
+                        <div>
+                          <div className="font-bold text-slate-300">{t.unescoIsced}</div>
+                          <div className="text-slate-400 mt-0.5 leading-relaxed">
+                            {lang === "en" ? data.standards.unescoIscedEn : lang === "ar" ? data.standards.unescoIscedAr : data.standards.unescoIsced}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
 
-                  <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 flex items-start gap-3">
-                    <div className="p-2 rounded-xl bg-teal-500/10 text-teal-400 font-bold text-xs mt-0.5">
-                      CAMES
-                    </div>
-                    <div>
-                      <div className="font-bold text-slate-300">{t.accreditation}</div>
-                      <div className="text-slate-400 mt-0.5 leading-relaxed">
-                        {lang === "en" ? data.institution.accreditationEn : lang === "ar" ? data.institution.accreditationAr : data.institution.accreditation}
+                      <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 flex items-start gap-3">
+                        <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 font-bold text-xs mt-0.5">
+                          BOLOGNA
+                        </div>
+                        <div>
+                          <div className="font-bold text-slate-300">{t.europeanEqf}</div>
+                          <div className="text-slate-400 mt-0.5 leading-relaxed">
+                            {data.standards.eqfLevel} • {data.standards.bolognaCycle}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 flex items-start gap-3">
+                        <div className="p-2 rounded-xl bg-amber-500/10 text-amber-400 font-bold text-xs mt-0.5">
+                          WES / ECE
+                        </div>
+                        <div>
+                          <div className="font-bold text-slate-300">{t.wesEquiv}</div>
+                          <div className="text-slate-400 mt-0.5 leading-relaxed">
+                            {data.standards.wesEquivalency}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 flex items-start gap-3">
+                        <div className="p-2 rounded-xl bg-teal-500/10 text-teal-400 font-bold text-xs mt-0.5">
+                          CAMES
+                        </div>
+                        <div>
+                          <div className="font-bold text-slate-300">{t.accreditation}</div>
+                          <div className="text-slate-400 mt-0.5 leading-relaxed">
+                            {lang === "en" ? data.institution.accreditationEn : lang === "ar" ? data.institution.accreditationAr : data.institution.accreditation}
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              </div>
+                </>
+              )}
 
               {/* 4. INSTITUTION & LEGAL AUTHORITY */}
               <div className="bg-slate-800/60 border border-slate-700/60 rounded-3xl p-6 shadow-sm hover:border-slate-600 transition-colors">
@@ -561,8 +749,8 @@ export function VerificationClient({
                 </div>
               </div>
 
-              {/* 5. INTERACTIVE CURRICULUM ACCORDION */}
-              {data.curriculum && data.curriculum.length > 0 && (
+              {/* 5. INTERACTIVE CURRICULUM ACCORDION (If Academic with UEs) */}
+              {!isFinancial && data.curriculum && data.curriculum.length > 0 && (
                 <div className="bg-slate-800/60 border border-slate-700/60 rounded-3xl overflow-hidden shadow-sm">
                   <button
                     onClick={() => setShowCurriculum(!showCurriculum)}
@@ -650,13 +838,13 @@ export function VerificationClient({
             </div>
             <h2 className="text-2xl font-black text-white mb-2">Identifiant Non Trouvé / Invalid Record</h2>
             <p className="text-xs sm:text-sm text-slate-400 max-w-md mb-8 leading-relaxed">
-              Aucun document officiel ne correspond à la référence <span className="text-white font-mono font-bold bg-slate-800 px-2 py-1 rounded">{rawId}</span>. Veuillez vérifier l'exactitude du QR Code ou contacter le secrétariat académique de l'établissement.
+              Aucun document académique ou reçu financier officiel ne correspond à la référence <span className="text-white font-mono font-bold bg-slate-800 px-2 py-1 rounded">{rawId}</span>. Veuillez vérifier l'exactitude du QR Code ou contacter l'administration de l'établissement.
             </p>
             <Link
-              href="/"
+              href="/verify"
               className="px-6 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black uppercase tracking-wider transition-all shadow-lg shadow-indigo-600/30"
             >
-              Retour à l'accueil
+              Rechercher un autre document
             </Link>
           </div>
         )}
