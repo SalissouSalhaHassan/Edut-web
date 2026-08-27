@@ -10,7 +10,7 @@ import {
   studentLmdSemesters
 } from "@/infrastructure/database/schema/academics";
 import { students } from "@/infrastructure/database/schema/students";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 export interface CreditEquivalenceInput {
@@ -31,8 +31,47 @@ export interface CreditEquivalenceInput {
   certificateNumber?: string;
 }
 
+let migrationPromise: Promise<void> | null = null;
+
+async function ensureEquivalencesTable() {
+  if (migrationPromise) return migrationPromise;
+
+  migrationPromise = (async () => {
+    try {
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS "lmd_credit_equivalences" (
+          "id" SERIAL PRIMARY KEY,
+          "school_id" integer REFERENCES "schools"("id"),
+          "student_id" integer REFERENCES "students"("id") ON DELETE CASCADE,
+          "origin_institution" varchar(200) NOT NULL,
+          "origin_country" varchar(100) DEFAULT 'International',
+          "origin_program" varchar(200),
+          "academic_year" varchar(50),
+          "target_program_id" integer REFERENCES "university_programs"("id"),
+          "target_level" varchar(50) DEFAULT 'L2',
+          "target_semester" varchar(50) DEFAULT 'S3',
+          "credits_transferred" double precision NOT NULL DEFAULT 60.0,
+          "equivalent_ues_json" text,
+          "decision" varchar(50) DEFAULT 'Validé',
+          "decision_date" timestamp DEFAULT now(),
+          "commission_president" varchar(150),
+          "commission_comments" text,
+          "certificate_number" varchar(100),
+          "created_at" timestamp DEFAULT now(),
+          "updated_at" timestamp DEFAULT now()
+        )
+      `);
+    } catch (err: any) {
+      console.warn("ensureEquivalencesTable warning:", err.message);
+    }
+  })();
+
+  return migrationPromise;
+}
+
 export async function getEquivalencesList() {
   try {
+    await ensureEquivalencesTable();
     const schoolId = await getActiveSchoolId();
 
     const records = await (readDb || db)
@@ -73,6 +112,7 @@ export async function getEquivalencesList() {
 
 export async function saveCreditEquivalence(input: CreditEquivalenceInput) {
   try {
+    await ensureEquivalencesTable();
     const schoolId = await getActiveSchoolId();
 
     if (!input.studentId) {
@@ -117,7 +157,7 @@ export async function saveCreditEquivalence(input: CreditEquivalenceInput) {
         originInstitution: input.originInstitution,
         originCountry: input.originCountry || "International",
         originProgram: input.originProgram || "Licence",
-        academicYear: input.academicYear || "2025-2026",
+        academicYear: input.academicYear || "2024-2025",
         targetProgramId: input.targetProgramId,
         targetLevel: input.targetLevel || "L2",
         targetSemester: input.targetSemester || "S3",
@@ -141,6 +181,7 @@ export async function saveCreditEquivalence(input: CreditEquivalenceInput) {
 
 export async function deleteCreditEquivalence(id: number) {
   try {
+    await ensureEquivalencesTable();
     await db.delete(lmdCreditEquivalences).where(eq(lmdCreditEquivalences.id, id));
     revalidatePath("/dashboard/academics/lmd/equivalences");
     return { success: true };
