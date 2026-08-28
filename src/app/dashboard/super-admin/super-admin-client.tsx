@@ -252,7 +252,7 @@ export default function SuperAdminClient({
         if (res.success) {
           toast.success("Établissement créé avec succès !");
           if (res.data) {
-            setSchools(prev => [res.data, ...prev]);
+            setSchools(prev => [res.data as SchoolType, ...prev]);
           } else {
             setSchools(prev => [{
               id: Date.now(),
@@ -290,7 +290,7 @@ export default function SuperAdminClient({
         if (res.success) {
           toast.success("Établissement mis à jour avec succès !");
           if (res.data) {
-            setSchools(prev => prev.map(s => s.id === selectedSchool.id ? res.data : s));
+            setSchools(prev => prev.map(s => s.id === selectedSchool.id ? (res.data as SchoolType) : s));
           } else {
             setSchools(prev => prev.map(s => s.id === selectedSchool.id ? { ...s, plan: editPlan, status: editStatus } : s));
           }
