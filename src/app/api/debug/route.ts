@@ -4,6 +4,8 @@ import { students } from "@/infrastructure/database/schema/students";
 import { studentFees, feePayments } from "@/infrastructure/database/schema/finance";
 import { count, eq } from "drizzle-orm";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   try {
     const totalStudents = await db.select({ value: count() }).from(students);

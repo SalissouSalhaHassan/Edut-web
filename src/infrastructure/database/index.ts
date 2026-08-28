@@ -37,16 +37,18 @@ function normalizeDatabaseUrl(value: string | undefined) {
   return url || undefined;
 }
 
-const connectionString = 
+const rawConnectionString = 
   normalizeDatabaseUrl(process.env.REMOTE_DATABASE_URL) || 
   normalizeDatabaseUrl(process.env.DATABASE_URL);
 
-if (!connectionString) {
-  throw new Error(
-    "[DB] FATAL: No database connection string found. " +
-    "Set DATABASE_URL or REMOTE_DATABASE_URL in your environment variables (.env.local or Vercel dashboard)."
+if (!rawConnectionString) {
+  console.warn(
+    "⚠️ [DB] No database connection string found in environment variables. " +
+    "Using build-time fallback. Ensure DATABASE_URL is configured in your Vercel/production environment."
   );
 }
+
+const connectionString = rawConnectionString || "postgres://postgres:postgres@127.0.0.1:5432/edut_placeholder";
 const readReplicaUrl = normalizeDatabaseUrl(process.env.READ_REPLICA_URL);
 
 // Log connection target for debugging (masking password)
