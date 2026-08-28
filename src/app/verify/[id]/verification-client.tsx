@@ -897,10 +897,17 @@ export function VerificationClient({
                           </thead>
                           <tbody className="divide-y divide-slate-700/50">
                             {data.bulletin.subjects.map((sub, idx) => {
-                              const s1 = sub.s1Average ?? sub.average;
-                              const s2 = sub.s2Average ?? (sub.average + 1.5);
-                              const annual = sub.annualAverage ?? ((s1 + s2) / 2);
-                              const diff = sub.trendDiff ?? (s2 - s1);
+                              const norm = (v: number | undefined) => {
+                                if (v === undefined || isNaN(v)) return 0;
+                                if (v > 40 && v <= 60) return Number((v / 3).toFixed(2));
+                                if (v > 20 && v <= 40) return Number((v / 2).toFixed(2));
+                                return Number(v.toFixed(2));
+                              };
+
+                              const s1 = norm(sub.s1Average ?? sub.average);
+                              const s2 = norm(sub.s2Average ?? (sub.average + 1.5));
+                              const annual = norm(sub.annualAverage ?? ((s1 + s2) / 2));
+                              const diff = Number((s2 - s1).toFixed(2));
                               const isPositive = diff > 0;
                               const isNeutral = diff === 0;
 
@@ -1003,11 +1010,18 @@ export function VerificationClient({
                           </thead>
                           <tbody className="divide-y divide-slate-700/50">
                             {data.bulletin.subjects.map((sub, idx) => {
-                              const avg = activePeriodTab === "s1"
+                              const norm = (v: number | undefined) => {
+                                if (v === undefined || isNaN(v)) return 0;
+                                if (v > 40 && v <= 60) return Number((v / 3).toFixed(2));
+                                if (v > 20 && v <= 40) return Number((v / 2).toFixed(2));
+                                return Number(v.toFixed(2));
+                              };
+
+                              const avg = norm(activePeriodTab === "s1"
                                 ? (sub.s1Average ?? sub.average)
                                 : activePeriodTab === "s2"
                                 ? (sub.s2Average ?? (sub.average + 1.5))
-                                : (sub.annualAverage ?? sub.average);
+                                : (sub.annualAverage ?? sub.average));
 
                               const rank = activePeriodTab === "s1"
                                 ? (sub.s1Rank ?? sub.rank)

@@ -557,10 +557,17 @@ export async function generateVerificationCertificatePDF(
       doc.setDrawColor(226, 232, 240);
       doc.line(marginX, p2Y + 6.5, marginX + contentWidth, p2Y + 6.5);
 
-      const s1 = sub.s1Average ?? sub.average;
-      const s2 = sub.s2Average ?? (sub.average + 1.5);
-      const ann = sub.annualAverage ?? sub.average;
-      const diff = sub.trendDiff ?? (s2 - s1);
+      const normalizeOn20 = (val: number | undefined): number => {
+        if (val === undefined || isNaN(val)) return 0;
+        if (val > 40 && val <= 60) return Number((val / 3).toFixed(2));
+        if (val > 20 && val <= 40) return Number((val / 2).toFixed(2));
+        return Number(val.toFixed(2));
+      };
+
+      const s1 = normalizeOn20(sub.s1Average ?? sub.average);
+      const s2 = normalizeOn20(sub.s2Average ?? (sub.average + 1.5));
+      const ann = normalizeOn20(sub.annualAverage ?? sub.average);
+      const diff = Number((s2 - s1).toFixed(2));
 
       doc.setFont("helvetica", "bold");
       doc.setFontSize(6.8);

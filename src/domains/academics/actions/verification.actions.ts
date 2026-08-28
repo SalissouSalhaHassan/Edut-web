@@ -743,6 +743,37 @@ export async function getAcademicVerificationData(identifier: string): Promise<V
         }
       }
 
+      // Helper function to extract and normalize grade on 20 scale
+      const getNormalizedGradeOn20 = (row: any): number => {
+        if (!row) return 0;
+        const cw = typeof row.classWorkScore === "number" && !isNaN(row.classWorkScore) ? row.classWorkScore : null;
+        const ex = typeof row.examScore === "number" && !isNaN(row.examScore) ? row.examScore : null;
+        const total = typeof row.totalScore === "number" && !isNaN(row.totalScore) ? row.totalScore : null;
+
+        // If both classWorkScore and examScore are <= 20
+        if (cw !== null && ex !== null && cw <= 20 && ex <= 20) {
+          return Number(((cw + ex) / 2).toFixed(2));
+        }
+
+        // If totalScore is stored
+        if (total !== null) {
+          if (total > 40 && total <= 60) {
+            return Number((total / 3).toFixed(2));
+          }
+          if (total > 20 && total <= 40) {
+            return Number((total / 2).toFixed(2));
+          }
+          if (total <= 20 && total >= 0) {
+            return Number(total.toFixed(2));
+          }
+        }
+
+        if (ex !== null) return ex > 20 ? Number((ex / 2).toFixed(2)) : Number(ex.toFixed(2));
+        if (cw !== null) return cw > 20 ? Number((cw / 2).toFixed(2)) : Number(cw.toFixed(2));
+
+        return 0;
+      };
+
       // Helper function for qualitative appreciation
       const getApprec = (grade: number) => {
         if (grade >= 16) return { fr: "Très Bien", ar: "جيد جداً", en: "Very Good" };
@@ -775,24 +806,29 @@ export async function getAcademicVerificationData(identifier: string): Promise<V
           const s2Row = rows.find(r => r.term?.toLowerCase().includes("2") || r.term?.toLowerCase().includes("s2") || r.term?.toLowerCase().includes("t2"));
           const annualRow = rows.find(r => r.term?.toLowerCase().includes("annuel") || r.term?.toLowerCase().includes("3") || r.term?.toLowerCase().includes("t3"));
 
-          const s1Score = s1Row ? (s1Row.totalScore ?? s1Row.examScore ?? s1Row.classWorkScore ?? 0) : null;
-          const s2Score = s2Row ? (s2Row.totalScore ?? s2Row.examScore ?? s2Row.classWorkScore ?? 0) : null;
+          const s1Score = s1Row ? getNormalizedGradeOn20(s1Row) : null;
+          const s2Score = s2Row ? getNormalizedGradeOn20(s2Row) : null;
           const annScore = annualRow 
-            ? (annualRow.totalScore ?? annualRow.examScore ?? 0) 
-            : (s1Score !== null && s2Score !== null ? (s1Score + s2Score) / 2 : s1Score ?? s2Score ?? 0);
+            ? getNormalizedGradeOn20(annualRow) 
+            : (s1Score !== null && s2Score !== null ? Number(((s1Score + s2Score) / 2).toFixed(2)) : s1Score ?? s2Score ?? 0);
 
           const activeRow = s2Row || s1Row || rows[0];
-          const activeAverage = activeRow?.totalScore ?? activeRow?.examScore ?? activeRow?.classWorkScore ?? 0;
+          const activeAverage = getNormalizedGradeOn20(activeRow);
           const diff = (s1Score !== null && s2Score !== null) ? Number((s2Score - s1Score).toFixed(2)) : 0;
           const trend: "up" | "down" | "stable" = diff > 0 ? "up" : diff < 0 ? "down" : "stable";
 
           const apprecObj = getApprec(activeAverage);
 
+          const rawCw = activeRow?.classWorkScore;
+          const rawEx = activeRow?.examScore;
+          const cwNormalized = typeof rawCw === "number" ? (rawCw > 20 ? rawCw / 2 : rawCw) : undefined;
+          const exNormalized = typeof rawEx === "number" ? (rawEx > 20 ? rawEx / 2 : rawEx) : undefined;
+
           finalSubjects.push({
             name: subName,
             coef: coef,
-            classWorkScore: activeRow?.classWorkScore ?? undefined,
-            examScore: activeRow?.examScore ?? undefined,
+            classWorkScore: cwNormalized,
+            examScore: exNormalized,
             average: activeAverage,
             weightedScore: Number((activeAverage * coef).toFixed(2)),
             rank: activeRow?.rank || "—",
@@ -1228,9 +1264,17 @@ export async function getAcademicVerificationData(identifier: string): Promise<V
       const s2Summary = dbSummaries.find(s => s.term?.toLowerCase().includes("2") || s.term?.toLowerCase().includes("s2") || s.term?.toLowerCase().includes("t2"));
       const annSummary = dbSummaries.find(s => s.term?.toLowerCase().includes("annuel") || s.term?.toLowerCase().includes("3") || s.term?.toLowerCase().includes("t3"));
 
-      const s1Avg = s1Summary?.average ?? computedGeneralAvg;
-      const s2Avg = s2Summary?.average ?? (computedGeneralAvg + 0.5);
-      const annAvg = annSummary?.average ?? Number(((s1Avg + s2Avg) / 2).toFixed(2));
+      const normalizeSummaryAvg = (val: number | null | undefined, fallback: number): number => {
+        if (val === null || val === undefined || isNaN(val)) return fallback;
+        if (val > 40 && val <= 60) return Number((val / 3).toFixed(2));
+        if (val > 20 && val <= 40) return Number((val / 2).toFixed(2));
+        if (val <= 20 && val >= 0) return Number(val.toFixed(2));
+        return fallback;
+      };
+
+      const s1Avg = normalizeSummaryAvg(s1Summary?.average, computedGeneralAvg);
+      const s2Avg = normalizeSummaryAvg(s2Summary?.average, computedGeneralAvg);
+      const annAvg = normalizeSummaryAvg(annSummary?.average, Number(((s1Avg + s2Avg) / 2).toFixed(2)));
 
       const bulletinPeriods: BulletinPeriod[] = [
         {
