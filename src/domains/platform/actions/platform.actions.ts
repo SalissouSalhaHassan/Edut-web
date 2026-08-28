@@ -377,10 +377,10 @@ export async function generateAndAssignSchoolLicense(
     // Audit log entry
     try {
       await db.insert(auditLogs).values({
-        action: "GENERATE_LICENSE_KEY",
-        details: `Génération licence ${plan.toUpperCase()} (${durationMonths} mois) - Clé: ${key} pour école ID ${schoolId}`,
-        entityType: "SCHOOL",
-        entityId: schoolId,
+        action: "GENERATE_LICENSE",
+        tableName: "schools",
+        recordId: schoolId.toString(),
+        newData: JSON.stringify({ plan, durationMonths, licenseKey: key, expiry: newExpiry }),
         schoolId,
       });
     } catch (err) {
