@@ -50,27 +50,45 @@ export async function getAllSchools() {
 /**
  * Update school status or plan
  */
-export async function updateSchoolStatus(schoolId: number, data: { status?: string; plan?: string }) {
+export async function updateSchoolStatus(
+  schoolIdOrObj: number | { id: number | string; status?: string; plan?: string },
+  dataParam?: { status?: string; plan?: string }
+) {
   return protectedDbAction("Admin", "canEdit", async (user) => {
     if (!user.superAdmin) throw new Error("Accès non autorisé.");
 
-    await db.update(schools)
-      .set({
-        ...data,
-      })
-      .where(eq(schools.id, schoolId));
+    const schoolId = typeof schoolIdOrObj === "object" ? Number(schoolIdOrObj.id) : Number(schoolIdOrObj);
+    const updateData = typeof schoolIdOrObj === "object"
+      ? { ...(schoolIdOrObj.status ? { status: schoolIdOrObj.status } : {}), ...(schoolIdOrObj.plan ? { plan: schoolIdOrObj.plan } : {}) }
+      : dataParam || {};
+
+    const [updated] = await db.update(schools)
+      .set(updateData)
+      .where(eq(schools.id, schoolId))
+      .returning();
 
     revalidatePath("/dashboard/super-admin");
-    return { success: true };
+    revalidatePath("/platform-admin");
+    return updated || { success: true };
   });
 }
 
 /**
  * Create a new school manually
  */
-export async function createSchoolAction(name: string, slug: string, plan: string, status: string) {
+export async function createSchoolAction(
+  nameOrData: string | { name: string; slug: string; plan?: string; status?: string },
+  slugParam?: string,
+  planParam?: string,
+  statusParam?: string
+) {
   return protectedDbAction("Admin", "canEdit", async (user) => {
     if (!user.superAdmin) throw new Error("Accès non autorisé.");
+
+    const name = typeof nameOrData === "object" ? nameOrData.name : nameOrData;
+    const slug = typeof nameOrData === "object" ? nameOrData.slug : slugParam || "";
+    const plan = typeof nameOrData === "object" ? nameOrData.plan || "basic" : planParam || "basic";
+    const status = typeof nameOrData === "object" ? nameOrData.status || "active" : statusParam || "active";
 
     if (!name || !name.trim()) throw new Error("Le nom de l'école est requis.");
     if (!slug || !slug.trim()) throw new Error("Le slug (sous-domaine) est requis.");
@@ -89,16 +107,16 @@ export async function createSchoolAction(name: string, slug: string, plan: strin
     const expiry = new Date();
     expiry.setFullYear(expiry.getFullYear() + 1); // 1 year of validity by default for manual creation
 
-    await db.insert(schools).values({
+    const [newSchool] = await db.insert(schools).values({
       name: name.trim(),
       slug: cleanSlug,
       plan: plan || "basic",
       status: status || "active",
       subscriptionExpiry: expiry,
-    });
+    }).returning();
 
     revalidatePath("/dashboard/super-admin");
-    return { success: true };
+    revalidatePath("/platform-admin");
+    return newSchool || { success: true };
   });
 }
-

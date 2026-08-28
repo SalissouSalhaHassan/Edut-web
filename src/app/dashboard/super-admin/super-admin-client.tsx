@@ -249,9 +249,20 @@ export default function SuperAdminClient({
           status: createStatus as any,
         });
 
-        if (res.success && res.data) {
+        if (res.success) {
           toast.success("Établissement créé avec succès !");
-          setSchools(prev => [res.data, ...prev]);
+          if (res.data) {
+            setSchools(prev => [res.data, ...prev]);
+          } else {
+            setSchools(prev => [{
+              id: Date.now(),
+              name: createName,
+              slug: createSlug,
+              plan: createPlan,
+              status: createStatus,
+              createdAt: new Date(),
+            }, ...prev]);
+          }
           setIsCreateOpen(false);
         } else {
           setCreateError(res.error || "Une erreur est survenue lors de la création.");
@@ -276,9 +287,13 @@ export default function SuperAdminClient({
           status: editStatus as any,
         });
 
-        if (res.success && res.data) {
+        if (res.success) {
           toast.success("Établissement mis à jour avec succès !");
-          setSchools(prev => prev.map(s => s.id === selectedSchool.id ? res.data : s));
+          if (res.data) {
+            setSchools(prev => prev.map(s => s.id === selectedSchool.id ? res.data : s));
+          } else {
+            setSchools(prev => prev.map(s => s.id === selectedSchool.id ? { ...s, plan: editPlan, status: editStatus } : s));
+          }
           setIsEditOpen(false);
         } else {
           setEditError(res.error || "Une erreur est survenue.");
