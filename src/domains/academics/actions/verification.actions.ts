@@ -16,7 +16,7 @@ export type VerificationSubType =
   | "admission_attestation" 
   | "administrative_cert";
 
-export type EducationLevelType = "higher_ed" | "secondary" | "primary" | "general";
+export type EducationLevelType = "higher_ed" | "secondary" | "primary" | "general" | "financial";
 
 export interface VerificationUeItem {
   codeUe: string;
