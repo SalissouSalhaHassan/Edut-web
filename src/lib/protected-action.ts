@@ -79,6 +79,8 @@ export async function protectedDbAction<T>(
   }
 }
 
+import { isConfiguredPlatformOwner } from "@/domains/auth/services/session";
+
 /**
  * Ensures the user is a Super Admin (Platform Owner)
  */
@@ -88,7 +90,16 @@ export async function superAdminAction<T>(
   try {
     const user = await getCurrentUser();
     
-    if (!user || !user.superAdmin) {
+    const isSuper = Boolean(
+      user && (
+        user.superAdmin === true ||
+        user.superAdmin === 1 ||
+        user.admin === true ||
+        isConfiguredPlatformOwner(user.utilisateur)
+      )
+    );
+
+    if (!isSuper) {
       return { error: "Accès réservé au propriétaire de la plateforme.", success: false };
     }
 

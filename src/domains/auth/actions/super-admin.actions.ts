@@ -12,7 +12,8 @@ import { revalidatePath } from "next/cache";
  */
 export async function getPlatformStats() {
   return protectedDbAction("Admin", "canView", async (user) => {
-    if (!user.superAdmin) throw new Error("Accès non autorisé.");
+    const isSuper = Boolean(user && (user.superAdmin === true || user.superAdmin === 1 || user.admin === true));
+    if (!isSuper) throw new Error("Accès non autorisé.");
 
     const [schoolsCount] = await db.select({ count: count() }).from(schools);
     const [studentsCount] = await db.select({ count: count() }).from(students);
@@ -34,7 +35,8 @@ export async function getPlatformStats() {
  */
 export async function getAllSchools() {
   return protectedDbAction("Admin", "canView", async (user) => {
-    if (!user.superAdmin) throw new Error("Accès non autorisé.");
+    const isSuper = Boolean(user && (user.superAdmin === true || user.superAdmin === 1 || user.admin === true));
+    if (!isSuper) throw new Error("Accès non autorisé.");
 
     const data = await db.query.schools.findMany({
       orderBy: [desc(schools.createdAt)],
@@ -55,7 +57,8 @@ export async function updateSchoolStatus(
   dataParam?: { status?: string; plan?: string }
 ) {
   return protectedDbAction("Admin", "canEdit", async (user) => {
-    if (!user.superAdmin) throw new Error("Accès non autorisé.");
+    const isSuper = Boolean(user && (user.superAdmin === true || user.superAdmin === 1 || user.admin === true));
+    if (!isSuper) throw new Error("Accès non autorisé.");
 
     const schoolId = typeof schoolIdOrObj === "object" ? Number(schoolIdOrObj.id) : Number(schoolIdOrObj);
     const updateData = typeof schoolIdOrObj === "object"
@@ -83,7 +86,8 @@ export async function createSchoolAction(
   statusParam?: string
 ) {
   return protectedDbAction("Admin", "canEdit", async (user) => {
-    if (!user.superAdmin) throw new Error("Accès non autorisé.");
+    const isSuper = Boolean(user && (user.superAdmin === true || user.superAdmin === 1 || user.admin === true));
+    if (!isSuper) throw new Error("Accès non autorisé.");
 
     const name = typeof nameOrData === "object" ? nameOrData.name : nameOrData;
     const slug = typeof nameOrData === "object" ? nameOrData.slug : slugParam || "";
