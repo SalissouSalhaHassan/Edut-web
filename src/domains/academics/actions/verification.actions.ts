@@ -9,7 +9,8 @@ import {
   studentResults, 
   studentTermSummaries, 
   schoolSubjects, 
-  classSubjects 
+  classSubjects,
+  gradingAppreciations
 } from "@/infrastructure/database/schema/academics";
 import { feePayments, onlineTransactions, cogesPayments, studentFees } from "@/infrastructure/database/schema/finance";
 import { eq, or, desc, and, inArray } from "drizzle-orm";
@@ -94,6 +95,7 @@ export interface BulletinVerificationData {
   appreciation: string;
   subjects: BulletinSubjectItem[];
   periods?: BulletinPeriod[];
+  gradingScale?: { name: string; baseScore: number }[];
 }
 
 export interface AdmissionVerificationData {
@@ -690,10 +692,20 @@ export async function getAcademicVerificationData(identifier: string): Promise<V
     // 4A. BULLETIN & GRADES METADATA (ACROSS ALL EDUCATION LEVELS)
     // ──────────────────────────────────────────────────────────────────────────
     if (subType === "school_bulletin" || isSecondaryEducation || isPrimaryEducation || isHigherEducation) {
-      // 1. Fetch Real Database Grades & Summaries if available
+      // 1. Fetch Real Database Grades & Summaries & School Barème (Grille de Notation) if available
       let dbResults: any[] = [];
       let dbSummaries: any[] = [];
+      let dbGradingScale: any[] = [];
       const dbSubjectsMap = new Map<number, { name: string; nameAr?: string; code?: string; coef: number }>();
+
+      try {
+        dbGradingScale = await (readDb || db)
+          .select()
+          .from(gradingAppreciations)
+          .orderBy(desc(gradingAppreciations.baseScore));
+      } catch (err) {
+        console.warn("DB query for grading scale error:", err);
+      }
 
       if (foundStudent?.id) {
         try {
@@ -774,8 +786,21 @@ export async function getAcademicVerificationData(identifier: string): Promise<V
         return 0;
       };
 
-      // Helper function for qualitative appreciation strictly calculated from the grade
+      // Helper function for qualitative appreciation linked to School Barème (Grille de Notation)
       const getApprec = (grade: number, isHigherEd: boolean = false) => {
+        if (dbGradingScale && dbGradingScale.length > 0) {
+          const sorted = [...dbGradingScale].sort((a, b) => (b.baseScore || 0) - (a.baseScore || 0));
+          for (const item of sorted) {
+            if (grade >= (item.baseScore || 0)) {
+              return {
+                fr: item.name,
+                ar: item.name,
+                en: item.name,
+              };
+            }
+          }
+        }
+
         if (grade >= 16) return { fr: "Très Bien", ar: "جيد جداً", en: "Very Good" };
         if (grade >= 14) return { fr: "Bien", ar: "جيد", en: "Good" };
         if (grade >= 12) return { fr: "Assez Bien", ar: "حسن", en: "Fairly Good" };
@@ -1442,6 +1467,7 @@ export async function getAcademicVerificationData(identifier: string): Promise<V
         appreciation: (isDisplayS1 ? s1Avg : s2Avg) >= 14 ? "Tableau d'Honneur" : (isDisplayS1 ? s1Avg : s2Avg) >= 11 ? "Encouragements du Conseil" : "Passable (Avertissement Travail)",
         subjects: finalSubjects,
         periods: bulletinPeriods,
+        gradingScale: dbGradingScale.map(g => ({ name: g.name, baseScore: Number(g.baseScore) || 0 })),
       };
 
       return {

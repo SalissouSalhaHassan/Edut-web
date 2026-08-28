@@ -605,6 +605,14 @@ export async function generateVerificationCertificatePDF(
       doc.text(diff >= 0 ? `+${diff.toFixed(1)}` : diff.toFixed(1), colEvolX, p2Y + 4.2);
 
       const getGradeApprec = (g: number, isHE: boolean): string => {
+        if (data.bulletin?.gradingScale && data.bulletin.gradingScale.length > 0) {
+          const sorted = [...data.bulletin.gradingScale].sort((a, b) => b.baseScore - a.baseScore);
+          for (const item of sorted) {
+            if (g >= item.baseScore) {
+              return item.name;
+            }
+          }
+        }
         if (g >= 16) return "Très Bien";
         if (g >= 14) return "Bien";
         if (g >= 12) return "Assez Bien";
