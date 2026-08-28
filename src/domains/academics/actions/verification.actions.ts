@@ -48,6 +48,7 @@ export interface BulletinSubjectItem {
   rank: string;
   appreciation: string;
   appreciationAr?: string;
+  appreciationEn?: string;
   // Multi-Period Data
   s1Average?: number;
   s1Rank?: string;
