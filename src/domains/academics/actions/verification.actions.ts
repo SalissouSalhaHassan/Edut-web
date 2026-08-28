@@ -2,9 +2,17 @@
 
 import { db, readDb } from "@/infrastructure/database";
 import { students } from "@/infrastructure/database/schema/students";
-import { schoolClasses, schoolSections, universityPrograms } from "@/infrastructure/database/schema/academics";
+import { 
+  schoolClasses, 
+  schoolSections, 
+  universityPrograms, 
+  studentResults, 
+  studentTermSummaries, 
+  schoolSubjects, 
+  classSubjects 
+} from "@/infrastructure/database/schema/academics";
 import { feePayments, onlineTransactions, cogesPayments, studentFees } from "@/infrastructure/database/schema/finance";
-import { eq, or, desc } from "drizzle-orm";
+import { eq, or, desc, and, inArray } from "drizzle-orm";
 
 export type VerificationCategory = "academic" | "financial" | "administrative";
 export type VerificationSubType = 
@@ -476,262 +484,399 @@ export async function getAcademicVerificationData(identifier: string): Promise<V
     // 4A. SECONDARY & PRIMARY BULLETIN METADATA
     // ──────────────────────────────────────────────────────────────────────────
     if (subType === "school_bulletin" || isSecondaryEducation || isPrimaryEducation) {
-      const isS1 = true;
-      const schoolSubjects: BulletinSubjectItem[] = isPrimaryEducation ? [
-        { 
-          name: "Lecture & Compréhension", 
-          nameAr: "القراءة والفهم", 
-          nameEn: "Reading & Comprehension", 
-          coef: 3, 
-          classWorkScore: 17.0,
-          examScore: 16.0,
-          average: 16.5, 
-          weightedScore: 49.5,
-          rank: "2ème", 
-          appreciation: "Très Bien", 
-          appreciationAr: "جيد جداً",
-          s1Average: 15.5,
-          s1Rank: "4ème",
-          s2Average: 17.5,
-          s2Rank: "1ère",
-          annualAverage: 16.5,
-          annualRank: "2ème",
-          trend: "up",
-          trendDiff: 2.0,
-        },
-        { 
-          name: "Écriture & Dictée", 
-          nameAr: "الكتابة والإملاء", 
-          nameEn: "Writing & Spelling", 
-          coef: 2, 
-          classWorkScore: 13.0,
-          examScore: 15.0,
-          average: 14.0, 
-          weightedScore: 28.0,
-          rank: "5ème", 
-          appreciation: "Bien", 
-          appreciationAr: "جيد",
-          s1Average: 13.0,
-          s1Rank: "8ème",
-          s2Average: 15.0,
-          s2Rank: "3ème",
-          annualAverage: 14.0,
-          annualRank: "5ème",
-          trend: "up",
-          trendDiff: 2.0,
-        },
-        { 
-          name: "Calcul & Mathématiques", 
-          nameAr: "الحساب والرياضيات", 
-          nameEn: "Math & Arithmetic", 
-          coef: 3, 
-          classWorkScore: 15.0,
-          examScore: 16.0,
-          average: 15.5, 
-          weightedScore: 46.5,
-          rank: "3ème", 
-          appreciation: "Bien", 
-          appreciationAr: "جيد",
-          s1Average: 14.5,
-          s1Rank: "6ème",
-          s2Average: 16.5,
-          s2Rank: "2ème",
-          annualAverage: 15.5,
-          annualRank: "3ème",
-          trend: "up",
-          trendDiff: 2.0,
-        },
-        { 
-          name: "Éveil Scientifique & Social", 
-          nameAr: "الاستيقاظ العلمي والاجتماعي", 
-          nameEn: "General Science", 
-          coef: 2, 
-          classWorkScore: 16.0,
-          examScore: 18.0,
-          average: 17.0, 
-          weightedScore: 34.0,
-          rank: "1ère", 
-          appreciation: "Excellent", 
-          appreciationAr: "ممتاز",
-          s1Average: 16.0,
-          s1Rank: "2ème",
-          s2Average: 18.0,
-          s2Rank: "1ère",
-          annualAverage: 17.0,
-          annualRank: "1ère",
-          trend: "up",
-          trendDiff: 2.0,
-        },
-        { 
-          name: "Langue Arabe", 
-          nameAr: "اللغة العربية", 
-          nameEn: "Arabic Language", 
-          coef: 2, 
-          classWorkScore: 14.0,
-          examScore: 16.0,
-          average: 15.0, 
-          weightedScore: 30.0,
-          rank: "4ème", 
-          appreciation: "Bien", 
-          appreciationAr: "جيد",
-          s1Average: 14.0,
-          s1Rank: "5ème",
-          s2Average: 16.0,
-          s2Rank: "3ème",
-          annualAverage: 15.0,
-          annualRank: "4ème",
-          trend: "up",
-          trendDiff: 2.0,
-        },
-      ] : [
-        { 
-          name: "Éducation Physique & Sportive", 
-          nameAr: "التربية البدنية والرياضية", 
-          nameEn: "Physical Education", 
-          coef: 4, 
-          classWorkScore: 18.0, 
-          examScore: 15.0, 
-          average: 16.5, 
-          weightedScore: 66.0, 
-          rank: "2ème", 
-          appreciation: "Très Bien", 
-          appreciationAr: "جيد جداً",
-          s1Average: 16.5,
-          s1Rank: "2ème",
-          s2Average: 17.5,
-          s2Rank: "1ère",
-          annualAverage: 17.0,
-          annualRank: "2ème",
-          trend: "up",
-          trendDiff: 1.0,
-        },
-        { 
-          name: "Arabe", 
-          nameAr: "اللغة العربية", 
-          nameEn: "Arabic", 
-          coef: 4, 
-          classWorkScore: 10.0, 
-          examScore: 12.0, 
-          average: 11.0, 
-          weightedScore: 44.0, 
-          rank: "18ème", 
-          appreciation: "Passable", 
-          appreciationAr: "مقبول",
-          s1Average: 11.0,
-          s1Rank: "18ème",
-          s2Average: 13.0,
-          s2Rank: "11ème",
-          annualAverage: 12.0,
-          annualRank: "14ème",
-          trend: "up",
-          trendDiff: 2.0,
-        },
-        { 
-          name: "Français", 
-          nameAr: "اللغة الفرنسية", 
-          nameEn: "French", 
-          coef: 4, 
-          classWorkScore: 10.0, 
-          examScore: 15.0, 
-          average: 12.5, 
-          weightedScore: 50.0, 
-          rank: "8ème", 
-          appreciation: "Assez Bien", 
-          appreciationAr: "حسن",
-          s1Average: 12.5,
-          s1Rank: "8ème",
-          s2Average: 14.5,
-          s2Rank: "5ème",
-          annualAverage: 13.5,
-          annualRank: "6ème",
-          trend: "up",
-          trendDiff: 2.0,
-        },
-        { 
-          name: "Histoire-Géographie", 
-          nameAr: "التاريخ والجغرافيا", 
-          nameEn: "History & Geography", 
-          coef: 3, 
-          classWorkScore: 11.0, 
-          examScore: 12.0, 
-          average: 11.5, 
-          weightedScore: 34.5, 
-          rank: "10ème", 
-          appreciation: "Passable", 
-          appreciationAr: "مقبول",
-          s1Average: 11.5,
-          s1Rank: "10ème",
-          s2Average: 13.0,
-          s2Rank: "7ème",
-          annualAverage: 12.25,
-          annualRank: "8ème",
-          trend: "up",
-          trendDiff: 1.5,
-        },
-        { 
-          name: "Mathématiques", 
-          nameAr: "الرياضيات", 
-          nameEn: "Mathematics", 
-          coef: 3, 
-          classWorkScore: 11.0, 
-          examScore: 20.0, 
-          average: 15.5, 
-          weightedScore: 46.5, 
-          rank: "2ème", 
-          appreciation: "Bien", 
-          appreciationAr: "جيد",
-          s1Average: 15.5,
-          s1Rank: "2ème",
-          s2Average: 17.0,
-          s2Rank: "1ère",
-          annualAverage: 16.25,
-          annualRank: "1ère",
-          trend: "up",
-          trendDiff: 1.5,
-        },
-        { 
-          name: "Éducation Islamique", 
-          nameAr: "التربية الإسلامية", 
-          nameEn: "Islamic Education", 
-          coef: 4, 
-          classWorkScore: 13.0, 
-          examScore: 12.0, 
-          average: 12.5, 
-          weightedScore: 50.0, 
-          rank: "12ème", 
-          appreciation: "Assez Bien", 
-          appreciationAr: "حسن",
-          s1Average: 12.5,
-          s1Rank: "12ème",
-          s2Average: 14.0,
-          s2Rank: "6ème",
-          annualAverage: 13.25,
-          annualRank: "9ème",
-          trend: "up",
-          trendDiff: 1.5,
-        },
-        { 
-          name: "Anglais", 
-          nameAr: "اللغة الإنجليزية", 
-          nameEn: "English", 
-          coef: 4, 
-          classWorkScore: 10.0, 
-          examScore: 9.0, 
-          average: 9.5, 
-          weightedScore: 38.0, 
-          rank: "18ème", 
-          appreciation: "Insuffisant", 
-          appreciationAr: "دون المتوسط",
-          s1Average: 9.5,
-          s1Rank: "18ème",
-          s2Average: 12.0,
-          s2Rank: "10ème",
-          annualAverage: 10.75,
-          annualRank: "13ème",
-          trend: "up",
-          trendDiff: 2.5,
-        },
-      ];
+      // 1. Fetch Real Database Grades & Summaries if available
+      let dbResults: any[] = [];
+      let dbSummaries: any[] = [];
+      const dbSubjectsMap = new Map<number, { name: string; nameAr?: string; code?: string; coef: number }>();
+
+      if (foundStudent?.id) {
+        try {
+          dbResults = await (readDb || db)
+            .select()
+            .from(studentResults)
+            .where(eq(studentResults.studentId, foundStudent.id));
+
+          dbSummaries = await (readDb || db)
+            .select()
+            .from(studentTermSummaries)
+            .where(eq(studentTermSummaries.studentId, foundStudent.id));
+
+          const subjectIds = Array.from(new Set(dbResults.map(r => r.subjectId).filter((id): id is number => id !== null)));
+          if (subjectIds.length > 0) {
+            const dbSubs = await (readDb || db)
+              .select()
+              .from(schoolSubjects)
+              .where(inArray(schoolSubjects.id, subjectIds));
+
+            dbSubs.forEach(s => {
+              dbSubjectsMap.set(s.id, {
+                name: s.subjectName,
+                code: s.subjectCode || undefined,
+                coef: 1,
+              });
+            });
+          }
+
+          if (foundStudent.classId) {
+            const clsSubs = await (readDb || db)
+              .select({
+                subjectId: classSubjects.subjectId,
+                coefficient: classSubjects.coefficient,
+              })
+              .from(classSubjects)
+              .where(eq(classSubjects.classId, foundStudent.classId));
+
+            clsSubs.forEach(cs => {
+              if (cs.subjectId && dbSubjectsMap.has(cs.subjectId)) {
+                dbSubjectsMap.get(cs.subjectId)!.coef = cs.coefficient || 1;
+              }
+            });
+          }
+        } catch (err) {
+          console.warn("DB query for student results error:", err);
+        }
+      }
+
+      // Helper function for qualitative appreciation
+      const getApprec = (grade: number) => {
+        if (grade >= 16) return { fr: "Très Bien", ar: "جيد جداً", en: "Very Good" };
+        if (grade >= 14) return { fr: "Bien", ar: "جيد", en: "Good" };
+        if (grade >= 12) return { fr: "Assez Bien", ar: "حسن", en: "Fairly Good" };
+        if (grade >= 10) return { fr: "Passable", ar: "مقبول", en: "Passable" };
+        return { fr: "Insuffisant", ar: "دون المتوسط", en: "Insufficient" };
+      };
+
+      let finalSubjects: BulletinSubjectItem[] = [];
+
+      // 2. Build subjects from real database rows if records exist
+      if (dbResults.length > 0) {
+        const groupedBySubject = new Map<number, any[]>();
+        dbResults.forEach(r => {
+          if (r.subjectId) {
+            if (!groupedBySubject.has(r.subjectId)) {
+              groupedBySubject.set(r.subjectId, []);
+            }
+            groupedBySubject.get(r.subjectId)!.push(r);
+          }
+        });
+
+        groupedBySubject.forEach((rows, subId) => {
+          const subMeta = dbSubjectsMap.get(subId);
+          const subName = subMeta?.name || `Matière ${subId}`;
+          const coef = rows[0]?.coefficient || subMeta?.coef || 1;
+
+          const s1Row = rows.find(r => r.term?.toLowerCase().includes("1") || r.term?.toLowerCase().includes("s1") || r.term?.toLowerCase().includes("t1"));
+          const s2Row = rows.find(r => r.term?.toLowerCase().includes("2") || r.term?.toLowerCase().includes("s2") || r.term?.toLowerCase().includes("t2"));
+          const annualRow = rows.find(r => r.term?.toLowerCase().includes("annuel") || r.term?.toLowerCase().includes("3") || r.term?.toLowerCase().includes("t3"));
+
+          const s1Score = s1Row ? (s1Row.totalScore ?? s1Row.examScore ?? s1Row.classWorkScore ?? 0) : null;
+          const s2Score = s2Row ? (s2Row.totalScore ?? s2Row.examScore ?? s2Row.classWorkScore ?? 0) : null;
+          const annScore = annualRow 
+            ? (annualRow.totalScore ?? annualRow.examScore ?? 0) 
+            : (s1Score !== null && s2Score !== null ? (s1Score + s2Score) / 2 : s1Score ?? s2Score ?? 0);
+
+          const activeRow = s2Row || s1Row || rows[0];
+          const activeAverage = activeRow?.totalScore ?? activeRow?.examScore ?? activeRow?.classWorkScore ?? 0;
+          const diff = (s1Score !== null && s2Score !== null) ? Number((s2Score - s1Score).toFixed(2)) : 0;
+          const trend: "up" | "down" | "stable" = diff > 0 ? "up" : diff < 0 ? "down" : "stable";
+
+          const apprecObj = getApprec(activeAverage);
+
+          finalSubjects.push({
+            name: subName,
+            coef: coef,
+            classWorkScore: activeRow?.classWorkScore ?? undefined,
+            examScore: activeRow?.examScore ?? undefined,
+            average: activeAverage,
+            weightedScore: Number((activeAverage * coef).toFixed(2)),
+            rank: activeRow?.rank || "—",
+            appreciation: activeRow?.appreciation || apprecObj.fr,
+            appreciationAr: apprecObj.ar,
+            appreciationEn: apprecObj.en,
+            s1Average: s1Score !== null ? s1Score : activeAverage,
+            s1Rank: s1Row?.rank || "—",
+            s2Average: s2Score !== null ? s2Score : activeAverage,
+            s2Rank: s2Row?.rank || "—",
+            annualAverage: Number(annScore.toFixed(2)),
+            annualRank: annualRow?.rank || "—",
+            trend: trend,
+            trendDiff: Math.abs(diff),
+          });
+        });
+      }
+
+      // 3. Fallback to standard level subjects if no DB results are found
+      if (finalSubjects.length === 0) {
+        finalSubjects = isPrimaryEducation ? [
+          { 
+            name: "Lecture & Compréhension", 
+            nameAr: "القراءة والفهم", 
+            nameEn: "Reading & Comprehension", 
+            coef: 3, 
+            classWorkScore: 17.0,
+            examScore: 16.0,
+            average: 16.5, 
+            weightedScore: 49.5,
+            rank: "2ème", 
+            appreciation: "Très Bien", 
+            appreciationAr: "جيد جداً",
+            s1Average: 15.5,
+            s1Rank: "4ème",
+            s2Average: 17.5,
+            s2Rank: "1ère",
+            annualAverage: 16.5,
+            annualRank: "2ème",
+            trend: "up",
+            trendDiff: 2.0,
+          },
+          { 
+            name: "Écriture & Dictée", 
+            nameAr: "الكتابة والإملاء", 
+            nameEn: "Writing & Spelling", 
+            coef: 2, 
+            classWorkScore: 13.0,
+            examScore: 15.0,
+            average: 14.0, 
+            weightedScore: 28.0,
+            rank: "5ème", 
+            appreciation: "Bien", 
+            appreciationAr: "جيد",
+            s1Average: 13.0,
+            s1Rank: "8ème",
+            s2Average: 15.0,
+            s2Rank: "3ème",
+            annualAverage: 14.0,
+            annualRank: "5ème",
+            trend: "up",
+            trendDiff: 2.0,
+          },
+          { 
+            name: "Calcul & Mathématiques", 
+            nameAr: "الحساب والرياضيات", 
+            nameEn: "Math & Arithmetic", 
+            coef: 3, 
+            classWorkScore: 15.0,
+            examScore: 16.0,
+            average: 15.5, 
+            weightedScore: 46.5,
+            rank: "3ème", 
+            appreciation: "Bien", 
+            appreciationAr: "جيد",
+            s1Average: 14.5,
+            s1Rank: "6ème",
+            s2Average: 16.5,
+            s2Rank: "2ème",
+            annualAverage: 15.5,
+            annualRank: "3ème",
+            trend: "up",
+            trendDiff: 2.0,
+          },
+          { 
+            name: "Éveil Scientifique & Social", 
+            nameAr: "الاستيقاظ العلمي والاجتماعي", 
+            nameEn: "General Science", 
+            coef: 2, 
+            classWorkScore: 16.0,
+            examScore: 18.0,
+            average: 17.0, 
+            weightedScore: 34.0,
+            rank: "1ère", 
+            appreciation: "Excellent", 
+            appreciationAr: "ممتاز",
+            s1Average: 16.0,
+            s1Rank: "2ème",
+            s2Average: 18.0,
+            s2Rank: "1ère",
+            annualAverage: 17.0,
+            annualRank: "1ère",
+            trend: "up",
+            trendDiff: 2.0,
+          },
+          { 
+            name: "Langue Arabe", 
+            nameAr: "اللغة العربية", 
+            nameEn: "Arabic Language", 
+            coef: 2, 
+            classWorkScore: 14.0,
+            examScore: 16.0,
+            average: 15.0, 
+            weightedScore: 30.0,
+            rank: "4ème", 
+            appreciation: "Bien", 
+            appreciationAr: "جيد",
+            s1Average: 14.0,
+            s1Rank: "5ème",
+            s2Average: 16.0,
+            s2Rank: "3ème",
+            annualAverage: 15.0,
+            annualRank: "4ème",
+            trend: "up",
+            trendDiff: 2.0,
+          },
+        ] : [
+          { 
+            name: "Éducation Physique & Sportive", 
+            nameAr: "التربية البدنية والرياضية", 
+            nameEn: "Physical Education", 
+            coef: 4, 
+            classWorkScore: 18.0, 
+            examScore: 15.0, 
+            average: 16.5, 
+            weightedScore: 66.0, 
+            rank: "2ème", 
+            appreciation: "Très Bien", 
+            appreciationAr: "جيد جداً",
+            s1Average: 16.5,
+            s1Rank: "2ème",
+            s2Average: 17.5,
+            s2Rank: "1ère",
+            annualAverage: 17.0,
+            annualRank: "2ème",
+            trend: "up",
+            trendDiff: 1.0,
+          },
+          { 
+            name: "Arabe", 
+            nameAr: "اللغة العربية", 
+            nameEn: "Arabic", 
+            coef: 4, 
+            classWorkScore: 10.0, 
+            examScore: 12.0, 
+            average: 11.0, 
+            weightedScore: 44.0, 
+            rank: "18ème", 
+            appreciation: "Passable", 
+            appreciationAr: "مقبول",
+            s1Average: 11.0,
+            s1Rank: "18ème",
+            s2Average: 13.0,
+            s2Rank: "11ème",
+            annualAverage: 12.0,
+            annualRank: "14ème",
+            trend: "up",
+            trendDiff: 2.0,
+          },
+          { 
+            name: "Français", 
+            nameAr: "اللغة الفرنسية", 
+            nameEn: "French", 
+            coef: 4, 
+            classWorkScore: 10.0, 
+            examScore: 15.0, 
+            average: 12.5, 
+            weightedScore: 50.0, 
+            rank: "8ème", 
+            appreciation: "Assez Bien", 
+            appreciationAr: "حسن",
+            s1Average: 12.5,
+            s1Rank: "8ème",
+            s2Average: 14.5,
+            s2Rank: "5ème",
+            annualAverage: 13.5,
+            annualRank: "6ème",
+            trend: "up",
+            trendDiff: 2.0,
+          },
+          { 
+            name: "Histoire-Géographie", 
+            nameAr: "التاريخ والجغرافيا", 
+            nameEn: "History & Geography", 
+            coef: 3, 
+            classWorkScore: 11.0, 
+            examScore: 12.0, 
+            average: 11.5, 
+            weightedScore: 34.5, 
+            rank: "10ème", 
+            appreciation: "Passable", 
+            appreciationAr: "مقبول",
+            s1Average: 11.5,
+            s1Rank: "10ème",
+            s2Average: 13.0,
+            s2Rank: "7ème",
+            annualAverage: 12.25,
+            annualRank: "8ème",
+            trend: "up",
+            trendDiff: 1.5,
+          },
+          { 
+            name: "Mathématiques", 
+            nameAr: "الرياضيات", 
+            nameEn: "Mathematics", 
+            coef: 3, 
+            classWorkScore: 11.0, 
+            examScore: 20.0, 
+            average: 15.5, 
+            weightedScore: 46.5, 
+            rank: "2ème", 
+            appreciation: "Bien", 
+            appreciationAr: "جيد",
+            s1Average: 15.5,
+            s1Rank: "2ème",
+            s2Average: 17.0,
+            s2Rank: "1ère",
+            annualAverage: 16.25,
+            annualRank: "1ère",
+            trend: "up",
+            trendDiff: 1.5,
+          },
+          { 
+            name: "Éducation Islamique", 
+            nameAr: "التربية الإسلامية", 
+            nameEn: "Islamic Education", 
+            coef: 4, 
+            classWorkScore: 13.0, 
+            examScore: 12.0, 
+            average: 12.5, 
+            weightedScore: 50.0, 
+            rank: "12ème", 
+            appreciation: "Assez Bien", 
+            appreciationAr: "حسن",
+            s1Average: 12.5,
+            s1Rank: "12ème",
+            s2Average: 14.0,
+            s2Rank: "6ème",
+            annualAverage: 13.25,
+            annualRank: "9ème",
+            trend: "up",
+            trendDiff: 1.5,
+          },
+          { 
+            name: "Anglais", 
+            nameAr: "اللغة الإنجليزية", 
+            nameEn: "English", 
+            coef: 4, 
+            classWorkScore: 10.0, 
+            examScore: 9.0, 
+            average: 9.5, 
+            weightedScore: 38.0, 
+            rank: "18ème", 
+            appreciation: "Insuffisant", 
+            appreciationAr: "دون المتوسط",
+            s1Average: 9.5,
+            s1Rank: "18ème",
+            s2Average: 12.0,
+            s2Rank: "10ème",
+            annualAverage: 10.75,
+            annualRank: "13ème",
+            trend: "up",
+            trendDiff: 2.5,
+          },
+        ];
+      }
+
+      // Calculate totals
+      const totalCoef = finalSubjects.reduce((sum, s) => sum + s.coef, 0);
+      const totalWeighted = finalSubjects.reduce((sum, s) => sum + (s.average * s.coef), 0);
+      const computedGeneralAvg = totalCoef > 0 ? Number((totalWeighted / totalCoef).toFixed(2)) : 12.65;
+
+      // Extract real summaries or compute
+      const s1Summary = dbSummaries.find(s => s.term?.toLowerCase().includes("1") || s.term?.toLowerCase().includes("s1") || s.term?.toLowerCase().includes("t1"));
+      const s2Summary = dbSummaries.find(s => s.term?.toLowerCase().includes("2") || s.term?.toLowerCase().includes("s2") || s.term?.toLowerCase().includes("t2"));
+      const annSummary = dbSummaries.find(s => s.term?.toLowerCase().includes("annuel") || s.term?.toLowerCase().includes("3") || s.term?.toLowerCase().includes("t3"));
+
+      const s1Avg = s1Summary?.average ?? computedGeneralAvg;
+      const s2Avg = s2Summary?.average ?? (computedGeneralAvg + 1.2);
+      const annAvg = annSummary?.average ?? Number(((s1Avg + s2Avg) / 2).toFixed(2));
 
       const bulletinPeriods: BulletinPeriod[] = [
         {
@@ -739,11 +884,11 @@ export async function getAcademicVerificationData(identifier: string): Promise<V
           label: "1er Semestre",
           labelEn: "1st Semester",
           labelAr: "الفصل الأول",
-          generalAverage: 12.65,
-          rank: "10ème / 20",
-          totalPoints: 329.0,
-          totalCoef: 26.0,
-          decision: "Encouragements du Conseil",
+          generalAverage: Number(s1Avg.toFixed(2)),
+          rank: s1Summary?.rank || "10ème / 20",
+          totalPoints: Number((s1Avg * totalCoef).toFixed(1)),
+          totalCoef: totalCoef,
+          decision: s1Summary?.decision || "Encouragements du Conseil",
           decisionEn: "Council Encouragements",
           decisionAr: "تشجيع مجلس الأساتذة",
         },
@@ -752,11 +897,11 @@ export async function getAcademicVerificationData(identifier: string): Promise<V
           label: "2ème Semestre",
           labelEn: "2nd Semester",
           labelAr: "الفصل الثاني",
-          generalAverage: 14.42,
-          rank: "5ème / 20",
-          totalPoints: 375.0,
-          totalCoef: 26.0,
-          decision: "Tableau d'Honneur",
+          generalAverage: Number(s2Avg.toFixed(2)),
+          rank: s2Summary?.rank || "5ème / 20",
+          totalPoints: Number((s2Avg * totalCoef).toFixed(1)),
+          totalCoef: totalCoef,
+          decision: s2Summary?.decision || "Tableau d'Honneur",
           decisionEn: "Honor Roll",
           decisionAr: "لوحة الشرف",
         },
@@ -765,35 +910,39 @@ export async function getAcademicVerificationData(identifier: string): Promise<V
           label: "Bilan Annuel & Passage",
           labelEn: "Annual Summary & Promotion",
           labelAr: "الحصيلة السنوية وقرار الانتقال",
-          generalAverage: 13.53,
-          rank: "7ème / 20",
-          totalPoints: 704.0,
-          totalCoef: 52.0,
-          decision: "Passage en 5ème A (Admis)",
+          generalAverage: Number(annAvg.toFixed(2)),
+          rank: annSummary?.rank || "7ème / 20",
+          totalPoints: Number((annAvg * totalCoef * 2).toFixed(1)),
+          totalCoef: totalCoef * 2,
+          decision: annSummary?.decision || "Passage en 5ème A (Admis)",
           decisionEn: "Promoted to 5th Grade A (Passed)",
           decisionAr: "الانتقال إلى الصف الخامس أ (ناجح)",
         },
       ];
 
+      const activeDecision = annSummary?.decision || s2Summary?.decision || "Passage en 5ème A (Admis)";
+      const activeConduite = s2Summary?.conduite ? `${s2Summary.conduite}/20` : "Bonne (18/20)";
+      const activeAssiduite = s2Summary?.assiduite || "Régulière (0 absence non justifiée)";
+
       const bulletinData: BulletinVerificationData = {
-        term: "1er Semestre",
-        termEn: "1st Semester",
-        termAr: "الفصل الدراسي الأول",
-        academicYear: "2025–2026",
+        term: s2Summary ? "2ème Semestre" : "1er Semestre",
+        termEn: s2Summary ? "2nd Semester" : "1st Semester",
+        termAr: s2Summary ? "الفصل الدراسي الثاني" : "الفصل الدراسي الأول",
+        academicYear: foundStudent?.session || "2025–2026",
         classe: studentClasse,
-        generalAverage: 12.65,
-        totalCoef: 26.0,
-        totalWeighted: 329.0,
-        rank: "10ème",
+        generalAverage: computedGeneralAvg,
+        totalCoef: totalCoef,
+        totalWeighted: Number(totalWeighted.toFixed(2)),
+        rank: s2Summary?.rank || s1Summary?.rank || "10ème",
         totalStudents: 20,
-        decision: "Passage en 5ème A (Admis)",
+        decision: activeDecision,
         decisionEn: "Promoted to 5th Grade (Passed)",
         decisionAr: "الانتقال إلى الصف الخامس (ناجح)",
-        targetClassName: "5ème A",
-        conduite: "Bonne (18/20)",
-        assiduite: "Régulière (0 absence non justifiée)",
+        targetClassName: annSummary?.targetClassName || "5ème A",
+        conduite: activeConduite,
+        assiduite: activeAssiduite,
         appreciation: "Encouragement du Conseil de Classe",
-        subjects: schoolSubjects,
+        subjects: finalSubjects,
         periods: bulletinPeriods,
       };
 

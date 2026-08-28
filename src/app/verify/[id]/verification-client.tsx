@@ -846,34 +846,39 @@ export function VerificationClient({
                     </div>
 
                     {/* Period Summary Pills when a specific tab is selected */}
-                    {activePeriodTab !== "comparison" && data.bulletin.periods && (
-                      <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800 mb-4 flex items-center justify-between flex-wrap gap-3 text-xs">
-                        <div className="flex items-center gap-2">
-                          <span className="text-slate-400 font-medium">Période :</span>
-                          <span className="font-bold text-white">
-                            {activePeriodTab === "s1" ? "1er Semestre (S1)" : activePeriodTab === "s2" ? "2ème Semestre (S2)" : "Bilan Annuel & Passage"}
-                          </span>
+                    {activePeriodTab !== "comparison" && data.bulletin.periods && (() => {
+                      const curPeriod = data.bulletin.periods.find(p => p.id === activePeriodTab);
+                      const periodLabel = lang === "ar" ? curPeriod?.labelAr : lang === "en" ? curPeriod?.labelEn : curPeriod?.label;
+                      const decisionText = lang === "ar" ? curPeriod?.decisionAr : lang === "en" ? curPeriod?.decisionEn : curPeriod?.decision;
+                      return (
+                        <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800 mb-4 flex items-center justify-between flex-wrap gap-3 text-xs">
+                          <div className="flex items-center gap-2">
+                            <span className="text-slate-400 font-medium">Période :</span>
+                            <span className="font-bold text-white">
+                              {periodLabel || activePeriodTab}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-slate-400 font-medium">Moyenne :</span>
+                            <span className="font-mono font-black text-blue-400">
+                              {curPeriod ? `${curPeriod.generalAverage.toFixed(2)} / 20` : "—"}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-slate-400 font-medium">Rang :</span>
+                            <span className="font-bold text-emerald-400">
+                              {curPeriod?.rank || "—"}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-slate-400 font-medium">Décision :</span>
+                            <span className="font-bold text-amber-300">
+                              {decisionText || data.bulletin.decision}
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-slate-400 font-medium">Moyenne :</span>
-                          <span className="font-mono font-black text-blue-400">
-                            {activePeriodTab === "s1" ? "12.65 / 20" : activePeriodTab === "s2" ? "14.42 / 20" : "13.53 / 20"}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-slate-400 font-medium">Rang :</span>
-                          <span className="font-bold text-emerald-400">
-                            {activePeriodTab === "s1" ? "10ème / 20" : activePeriodTab === "s2" ? "5ème / 20" : "7ème / 20"}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-slate-400 font-medium">Décision :</span>
-                          <span className="font-bold text-amber-300">
-                            {activePeriodTab === "s1" ? "Encouragements" : activePeriodTab === "s2" ? "Tableau d'Honneur" : "Passage en 5ème A (Admis)"}
-                          </span>
-                        </div>
-                      </div>
-                    )}
+                      );
+                    })()}
 
                     {/* ─── TAB 1: COMPARATIVE VIEW TABLE ─── */}
                     {activePeriodTab === "comparison" && (
@@ -950,15 +955,32 @@ export function VerificationClient({
                             })}
                           </tbody>
                           <tfoot>
-                            <tr className="bg-slate-900/90 font-black border-t border-slate-700 text-xs">
-                              <td className="p-3 text-white uppercase">{t.allPeriodsSummary}</td>
-                              <td className="p-3 text-center text-amber-400 font-mono">{data.bulletin.totalCoef}</td>
-                              <td className="p-3 text-center text-blue-400 font-mono">S1: 12.65</td>
-                              <td className="p-3 text-center text-emerald-400 font-mono">S2: 14.42</td>
-                              <td className="p-3 text-center text-emerald-300 font-mono text-sm bg-emerald-950/40">Annuel: 13.53 / 20</td>
-                              <td className="p-3 text-center font-mono text-emerald-400 font-bold">+1.77 pts</td>
-                              <td className="p-3 text-emerald-300 font-bold">Passage en 5ème A (Admis)</td>
-                            </tr>
+                            {(() => {
+                              const s1Obj = data.bulletin.periods?.find(p => p.id === "s1");
+                              const s2Obj = data.bulletin.periods?.find(p => p.id === "s2");
+                              const annObj = data.bulletin.periods?.find(p => p.id === "annual");
+                              const diff = (s2Obj && s1Obj) ? Number((s2Obj.generalAverage - s1Obj.generalAverage).toFixed(2)) : 0;
+                              const diffStr = diff >= 0 ? `+${diff.toFixed(2)} pts` : `${diff.toFixed(2)} pts`;
+                              const decisionText = lang === "ar" 
+                                ? (annObj?.decisionAr || data.bulletin.decisionAr || data.bulletin.decision) 
+                                : lang === "en" 
+                                ? (annObj?.decisionEn || data.bulletin.decisionEn || data.bulletin.decision) 
+                                : (annObj?.decision || data.bulletin.decision);
+
+                              return (
+                                <tr className="bg-slate-900/90 font-black border-t border-slate-700 text-xs">
+                                  <td className="p-3 text-white uppercase">{t.allPeriodsSummary}</td>
+                                  <td className="p-3 text-center text-amber-400 font-mono">{data.bulletin.totalCoef}</td>
+                                  <td className="p-3 text-center text-blue-400 font-mono">S1: {s1Obj ? s1Obj.generalAverage.toFixed(2) : "—"}</td>
+                                  <td className="p-3 text-center text-emerald-400 font-mono">S2: {s2Obj ? s2Obj.generalAverage.toFixed(2) : "—"}</td>
+                                  <td className="p-3 text-center text-emerald-300 font-mono text-sm bg-emerald-950/40">
+                                    Annuel: {annObj ? annObj.generalAverage.toFixed(2) : data.bulletin.generalAverage.toFixed(2)} / 20
+                                  </td>
+                                  <td className="p-3 text-center font-mono text-emerald-400 font-bold">{diffStr}</td>
+                                  <td className="p-3 text-emerald-300 font-bold">{decisionText}</td>
+                                </tr>
+                              );
+                            })()}
                           </tfoot>
                         </table>
                       </div>
