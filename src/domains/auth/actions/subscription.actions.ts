@@ -111,6 +111,8 @@ export async function updateMySchoolSubscription(plan: string, schoolId?: number
   });
 }
 
+import { parseLicenseKey, generateLicenseKey, SubscriptionPlan } from "@/domains/platform/services/tenant-licensing.service";
+
 /**
  * Activate an offline or digital enterprise license key
  */
@@ -119,24 +121,14 @@ export async function activateLicenseKey(licenseKey: string, schoolId?: number) 
     const targetSchoolId = schoolId ?? await getActiveSchoolId();
     if (!targetSchoolId) throw new Error("Aucun contexte d'école trouvé.");
 
-    const cleanKey = licenseKey.trim().toUpperCase();
-    if (!cleanKey.startsWith("EDUT-")) {
-      throw new Error("Format de clé de licence invalide. Doit commencer par 'EDUT-'.");
+    const parsed = parseLicenseKey(licenseKey);
+    if (!parsed.isValid || !parsed.plan) {
+      throw new Error(parsed.error || "Clé de licence invalide.");
     }
 
-    let plan = "basic";
-    let validityDays = 30;
-
-    if (cleanKey.includes("ENT") || cleanKey.includes("ENTERPRISE")) {
-      plan = "enterprise";
-      validityDays = 365;
-    } else if (cleanKey.includes("PRO")) {
-      plan = "pro";
-      validityDays = 90;
-    } else {
-      plan = "basic";
-      validityDays = 30;
-    }
+    const plan: SubscriptionPlan = parsed.plan;
+    const durationMonths = parsed.durationMonths || 12;
+    const validityDays = durationMonths * 30;
 
     const newExpiry = new Date();
     newExpiry.setDate(newExpiry.getDate() + validityDays);
@@ -146,18 +138,19 @@ export async function activateLicenseKey(licenseKey: string, schoolId?: number) 
         plan,
         status: "active",
         subscriptionExpiry: newExpiry,
-        licenseKey: cleanKey,
+        licenseKey: licenseKey.trim().toUpperCase(),
       })
       .where(eq(schools.id, targetSchoolId));
 
     revalidatePath("/dashboard/subscription");
     revalidatePath("/dashboard", "layout");
+    revalidatePath("/platform-admin");
 
     return { 
       success: true, 
       plan, 
       expiry: newExpiry,
-      message: `Licence ${plan.toUpperCase()} activée avec succès pour ${validityDays} jours.` 
+      message: `Licence ${plan.toUpperCase()} (${durationMonths} mois) activée avec succès jusqu'au ${newExpiry.toLocaleDateString("fr-FR")}.` 
     };
   });
 }

@@ -8,6 +8,7 @@ import {
   updateSchoolCustomDomain,
   updateSchool,
   deleteSchool,
+  generateAndAssignSchoolLicense,
 } from "@/domains/platform/actions/platform.actions";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -36,6 +37,10 @@ import {
   Globe,
   Edit2,
   Trash2,
+  Key,
+  Copy,
+  Sparkles,
+  ShieldCheck,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -112,6 +117,13 @@ export function SchoolManagerNew({ schools: initialSchools }: { schools: SchoolR
   const [selectedSchoolForDelete, setSelectedSchoolForDelete] = useState<SchoolRecord | null>(null);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isDeleteSaving, setIsDeleteSaving] = useState(false);
+
+  // License Generator States
+  const [selectedSchoolForLicense, setSelectedSchoolForLicense] = useState<SchoolRecord | null>(null);
+  const [isLicenseOpen, setIsLicenseOpen] = useState(false);
+  const [licensePlan, setLicensePlan] = useState<"basic" | "pro" | "enterprise">("pro");
+  const [licenseDuration, setLicenseDuration] = useState<number>(12);
+  const [generatedLicenseKey, setGeneratedLicenseKey] = useState<string>("");
 
   const hostConfig = useMemo<{ baseDomain: string; mode: HostMode }>(() => {
     if (typeof window === "undefined") {
@@ -427,6 +439,37 @@ export function SchoolManagerNew({ schools: initialSchools }: { schools: SchoolR
                                 <Globe className="w-3.5 h-3.5" />
                               </div>
                               Domaine Perso
+                            </DropdownMenuItem>
+                          </DropdownMenuGroup>
+
+                          <DropdownMenuSeparator className="my-1.5 bg-slate-100" />
+
+                          <DropdownMenuGroup>
+                            <DropdownMenuLabel className="text-[9px] font-black uppercase text-slate-400 px-3 py-1.5 tracking-widest">
+                              Licence & Accès Direct
+                            </DropdownMenuLabel>
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setSelectedSchoolForLicense(school);
+                                setLicensePlan((school.plan === "enterprise" ? "enterprise" : school.plan === "basic" ? "basic" : "pro") as any);
+                                setGeneratedLicenseKey("");
+                                setIsLicenseOpen(true);
+                              }}
+                              className="rounded-xl font-semibold gap-3 p-2.5 text-indigo-600 focus:bg-indigo-50 focus:text-indigo-600 cursor-pointer text-xs"
+                            >
+                              <div className="size-6 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+                                <Key className="w-3.5 h-3.5" />
+                              </div>
+                              Générer Clé de Licence & Quotas
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleImpersonate(school.id)}
+                              className="rounded-xl font-semibold gap-3 p-2.5 text-blue-600 focus:bg-blue-50 focus:text-blue-600 cursor-pointer text-xs"
+                            >
+                              <div className="size-6 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                                <Eye className="w-3.5 h-3.5" />
+                              </div>
+                              Accéder au Dashboard École
                             </DropdownMenuItem>
                           </DropdownMenuGroup>
 
@@ -799,6 +842,112 @@ export function SchoolManagerNew({ schools: initialSchools }: { schools: SchoolR
             >
               {isDeleteSaving ? <Loader2 className="animate-spin size-5" /> : "Supprimer"}
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog for Generating & Assigning License Key */}
+      <Dialog open={isLicenseOpen} onOpenChange={setIsLicenseOpen}>
+        <DialogContent className="max-w-md rounded-[2.5rem] p-8 border-none shadow-2xl">
+          <DialogHeader className="mb-4">
+            <div className="w-16 h-16 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-4 shadow-sm">
+              <Key className="w-8 h-8" />
+            </div>
+            <DialogTitle className="text-xl font-black text-slate-900">
+              Générer une Clé de Licence
+            </DialogTitle>
+            <DialogDescription className="text-xs font-semibold text-slate-400">
+              Établissement: <strong className="text-slate-700">{selectedSchoolForLicense?.name}</strong>
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div>
+              <Label className="text-xs font-bold text-slate-700 mb-1.5 block">Forfait & Capacités</Label>
+              <select
+                value={licensePlan}
+                onChange={(e) => setLicensePlan(e.target.value as any)}
+                className="w-full h-11 px-4 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-700 focus:outline-none focus:border-indigo-500"
+              >
+                <option value="basic">Forfait Basique (150 Élèves - 10 GB)</option>
+                <option value="pro">Forfait Professionnel (500 Élèves - 50 GB - LMD/AI)</option>
+                <option value="enterprise">Forfait Entreprise & Univ (10 000 Élèves - 500 GB)</option>
+              </select>
+            </div>
+
+            <div>
+              <Label className="text-xs font-bold text-slate-700 mb-1.5 block">Durée de Validité</Label>
+              <select
+                value={licenseDuration}
+                onChange={(e) => setLicenseDuration(Number(e.target.value))}
+                className="w-full h-11 px-4 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-700 focus:outline-none focus:border-indigo-500"
+              >
+                <option value={1}>1 Mois</option>
+                <option value={3}>3 Mois</option>
+                <option value={6}>6 Mois</option>
+                <option value={12}>12 Mois (1 Année Scolaire)</option>
+                <option value={24}>24 Mois (2 Ans)</option>
+              </select>
+            </div>
+
+            {generatedLicenseKey && (
+              <div className="p-4 rounded-2xl bg-indigo-50/60 border border-indigo-100">
+                <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">Clé Générée & Activée</p>
+                <div className="flex items-center justify-between gap-2">
+                  <code className="text-xs font-mono font-bold text-indigo-900 select-all break-all">
+                    {generatedLicenseKey}
+                  </code>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      navigator.clipboard.writeText(generatedLicenseKey);
+                      toast.success("Clé copiée dans le presse-papier !");
+                    }}
+                    className="h-8 px-3 rounded-lg text-indigo-600 border-indigo-200 bg-white hover:bg-indigo-50 shrink-0"
+                  >
+                    <Copy className="w-3.5 h-3.5 mr-1" />
+                    Copier
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-3 pt-2">
+              <Button
+                variant="outline"
+                onClick={() => setIsLicenseOpen(false)}
+                className="flex-1 h-12 rounded-2xl font-bold text-slate-600 border-slate-200"
+              >
+                Fermer
+              </Button>
+              <Button
+                onClick={() => {
+                  if (!selectedSchoolForLicense) return;
+                  startTransition(async () => {
+                    const res = await generateAndAssignSchoolLicense(
+                      selectedSchoolForLicense.id,
+                      licensePlan,
+                      licenseDuration
+                    );
+                    if (res.success && res.licenseKey) {
+                      setGeneratedLicenseKey(res.licenseKey);
+                      setSchools((prev) =>
+                        prev.map((s) => (s.id === selectedSchoolForLicense.id ? { ...s, plan: licensePlan } : s))
+                      );
+                      toast.success(res.message);
+                    } else {
+                      toast.error("Erreur lors de la génération de la licence.");
+                    }
+                  });
+                }}
+                disabled={isPending}
+                className="flex-1 h-12 rounded-2xl font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-600/20"
+              >
+                {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />}
+                Générer & Activer
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

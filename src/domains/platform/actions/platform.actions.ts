@@ -348,3 +348,57 @@ export async function deleteSchool(id: number) {
   });
 }
 
+import { generateLicenseKey, PLAN_MATRIX, SubscriptionPlan } from "../services/tenant-licensing.service";
+
+/**
+ * Generate & assign an instant cryptographic license key to a school (Super Admin)
+ */
+export async function generateAndAssignSchoolLicense(
+  schoolId: number,
+  plan: SubscriptionPlan,
+  durationMonths: number = 12
+) {
+  return superAdminAction(async () => {
+    const key = generateLicenseKey(plan, durationMonths);
+    const validityDays = durationMonths * 30;
+    
+    const newExpiry = new Date();
+    newExpiry.setDate(newExpiry.getDate() + validityDays);
+
+    await db.update(schools)
+      .set({
+        plan,
+        status: "active",
+        subscriptionExpiry: newExpiry,
+        licenseKey: key,
+      })
+      .where(eq(schools.id, schoolId));
+
+    // Audit log entry
+    try {
+      await db.insert(auditLogs).values({
+        action: "GENERATE_LICENSE_KEY",
+        details: `Génération licence ${plan.toUpperCase()} (${durationMonths} mois) - Clé: ${key} pour école ID ${schoolId}`,
+        entityType: "SCHOOL",
+        entityId: schoolId,
+        schoolId,
+      });
+    } catch (err) {
+      console.warn("Non-fatal audit log error:", err);
+    }
+
+    revalidatePath("/platform-admin");
+    revalidatePath("/dashboard/super-admin");
+    revalidatePath("/dashboard/subscription");
+
+    return {
+      success: true,
+      licenseKey: key,
+      plan,
+      expiry: newExpiry,
+      message: `Licence ${plan.toUpperCase()} générée et assignée avec succès (${key}).`,
+    };
+  });
+}
+
+

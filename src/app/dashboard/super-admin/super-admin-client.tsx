@@ -14,8 +14,12 @@ import {
   X,
   Filter,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Eye,
+  Layers,
+  ExternalLink,
 } from "lucide-react";
+import Link from "next/link";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -29,6 +33,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { createSchoolAction, updateSchoolStatus } from "@/domains/auth/actions/super-admin.actions";
+import { impersonateSchool } from "@/domains/platform/actions/platform.actions";
 
 type SchoolType = {
   id: number | string;
@@ -206,13 +211,22 @@ export default function SuperAdminClient({
             Gestion de la plateforme, enregistrement des établissements et des abonnements.
           </p>
         </div>
-        <Button 
-          onClick={openCreateModal}
-          className="bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-200 text-white font-black text-xs uppercase tracking-wider rounded-2xl h-12 px-6 gap-2 cursor-pointer transition-all"
-        >
-          <Plus size={16} />
-          Ajouter une école
-        </Button>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/platform-admin"
+            className="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs uppercase tracking-wider rounded-2xl h-12 px-5 transition-all shadow-md"
+          >
+            <Layers size={16} />
+            Tour de Contrôle SaaS
+          </Link>
+          <Button 
+            onClick={openCreateModal}
+            className="bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-200 text-white font-black text-xs uppercase tracking-wider rounded-2xl h-12 px-6 gap-2 cursor-pointer transition-all"
+          >
+            <Plus size={16} />
+            Ajouter une école
+          </Button>
+        </div>
       </div>
 
       {/* Stats Grid */}
@@ -332,15 +346,35 @@ export default function SuperAdminClient({
                     <TableCell className="text-slate-500 text-sm font-semibold">
                       {school.createdAt ? new Date(school.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }) : "N/A"}
                     </TableCell>
-                    <TableCell className="text-center pr-8">
-                      <Button 
-                        onClick={() => openEditModal(school)}
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-9 w-9 rounded-xl text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer"
-                      >
-                        <Settings2 size={18} />
-                      </Button>
+                    <TableCell className="text-right pr-8">
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={async () => {
+                            toast.loading("Connexion à l'espace établissement...");
+                            const res = await impersonateSchool(Number(school.id));
+                            if (res.success) {
+                              window.location.href = "/dashboard";
+                            } else {
+                              toast.error("Erreur d'accès à l'établissement.");
+                            }
+                          }}
+                          className="h-9 px-3 rounded-xl text-blue-600 bg-blue-50 hover:bg-blue-100 font-bold text-xs gap-1.5 transition-colors cursor-pointer"
+                          title="Se connecter en tant qu'administrateur de cet établissement"
+                        >
+                          <Eye size={15} />
+                          Accéder
+                        </Button>
+                        <Button 
+                          onClick={() => openEditModal(school)}
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-9 w-9 rounded-xl text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer"
+                        >
+                          <Settings2 size={18} />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
