@@ -72,11 +72,18 @@ export async function generateVerificationCertificatePDF(
   doc.setFontSize(7);
   doc.setTextColor(71, 85, 105);
 
+  const isHigherEd = data.educationLevelType === "higher_ed";
+  const isPrimary = data.educationLevelType === "primary";
+
   const subDeptText = isFinancial
     ? "Direction des Affaires Financières • Agence Comptable Centrale"
-    : isBulletin
-    ? "Direction Régionale de l'Éducation Nationale • Inspection Pédagogique"
-    : "Direction des Affaires Académiques • Registre Central des Titres";
+    : data.institution.departmentalDirection || (
+        isHigherEd
+          ? "Direction des Affaires Académiques • Registre Central LMD"
+          : isPrimary
+          ? "Direction Régionale de l'Éducation Nationale • Inspection Primaire"
+          : "Direction Régionale de l'Éducation Nationale • Inspection Secondaire"
+      );
 
   doc.text(`${subDeptText} • ${data.institution.city}`, pageWidth / 2, currentY, { align: "center" });
 
@@ -87,7 +94,7 @@ export async function generateVerificationCertificatePDF(
   doc.roundedRect(marginX, currentY, contentWidth, 13.5, 2, 2, "FD");
 
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(9.5);
+  doc.setFontSize(9.2);
   
   if (isFinancial) {
     doc.setTextColor(217, 119, 6);
@@ -95,18 +102,15 @@ export async function generateVerificationCertificatePDF(
     doc.setFontSize(6.8);
     doc.setTextColor(100, 116, 139);
     doc.text("OFFICIAL CERTIFICATE OF PAYMENT SETTLEMENT & FINANCIAL SOLVENCY", pageWidth / 2, currentY + 10, { align: "center" });
-  } else if (isBulletin) {
-    doc.setTextColor(37, 99, 235);
-    doc.text("ATTESTATION OFFICIELLE DE BULLETIN DE NOTES & RÉSULTATS", pageWidth / 2, currentY + 5.2, { align: "center" });
-    doc.setFontSize(6.8);
-    doc.setTextColor(100, 116, 139);
-    doc.text("OFFICIAL CERTIFIED ACADEMIC TRANSCRIPT & REPORT CARD RECORD", pageWidth / 2, currentY + 10, { align: "center" });
   } else {
-    doc.setTextColor(5, 150, 105);
-    doc.text("ATTESTATION OFFICIELLE D'AUTHENTICITÉ DE DIPLÔME (LMD)", pageWidth / 2, currentY + 5.2, { align: "center" });
+    doc.setTextColor(isHigherEd ? 37 : 37, 99, 235);
+    const docTitle = data.documentType || (isHigherEd ? "RELEVÉ OFFICIEL DE NOTES & CRÉDITS ECTS (LMD)" : "ATTESTATION OFFICIELLE DE BULLETIN DE NOTES & RÉSULTATS");
+    const docTitleEn = data.documentTypeEn || (isHigherEd ? "OFFICIAL ACADEMIC TRANSCRIPT & ECTS CREDIT RECORD" : "OFFICIAL CERTIFIED ACADEMIC TRANSCRIPT & REPORT CARD RECORD");
+    
+    doc.text(docTitle, pageWidth / 2, currentY + 5.2, { align: "center" });
     doc.setFontSize(6.8);
     doc.setTextColor(100, 116, 139);
-    doc.text("OFFICIAL CERTIFICATE OF DEGREE AUTHENTICITY & ACADEMIC MERIT", pageWidth / 2, currentY + 10, { align: "center" });
+    doc.text(docTitleEn, pageWidth / 2, currentY + 10, { align: "center" });
   }
 
   // QR Code & Digital Trust Stamp Block
@@ -448,9 +452,11 @@ export async function generateVerificationCertificatePDF(
 
   const leftSigner = isFinancial
     ? "L'Agent Comptable / Trésorier :"
-    : isBulletin
-    ? "Le Directeur des Études / Principal :"
-    : "Le Directeur du Registre Central :";
+    : isHigherEd
+    ? "Le Doyen / Directeur Académique :"
+    : isPrimary
+    ? "L'Enseignant Titulaire :"
+    : "Le Directeur des Études / Principal :";
 
   doc.text(leftSigner, col1X, currentY);
   doc.setFont("helvetica", "normal");
@@ -463,10 +469,12 @@ export async function generateVerificationCertificatePDF(
   doc.setFontSize(7.5);
 
   const rightSigner = isFinancial
-    ? "Le Chef d'Établissement / Recteur :"
-    : isBulletin
-    ? "Le Proviseur / Chef d'Établissement :"
-    : "Le Recteur de l'Université :";
+    ? "Le Contrôleur Financier / Recteur :"
+    : isHigherEd
+    ? "Le Recteur / Président de l'Université :"
+    : isPrimary
+    ? "Le Directeur de l'École :"
+    : "Le Proviseur / Chef d'Établissement :";
 
   doc.text(rightSigner, rightSigX, currentY);
   doc.setFont("helvetica", "normal");
@@ -497,15 +505,23 @@ export async function generateVerificationCertificatePDF(
     doc.text(data.institution.country.toUpperCase(), pageWidth / 2, p2Y, { align: "center" });
 
     p2Y += 4;
-    doc.setFontSize(11);
+    doc.setFontSize(10.5);
     doc.setTextColor(15, 23, 42);
-    doc.text("RELEVÉ DÉTAILLÉ DES MATIÈRES & SYNTHÈSE DES PÉRIODES SCOLAIRES", pageWidth / 2, p2Y, { align: "center" });
+
+    const page2Title = isHigherEd
+      ? "RELEVÉ DÉTAILLÉ DES MATIÈRES, UNITÉS D'ENSEIGNEMENT (UE) & CRÉDITS ECTS"
+      : isPrimary
+      ? "RELEVÉ DÉTAILLÉ DES ÉVALUATIONS & SYNTHÈSE DES PÉRIODES ÉLÉMENTAIRES"
+      : "RELEVÉ DÉTAILLÉ DES MATIÈRES & SYNTHÈSE DES PÉRIODES SCOLAIRES";
+
+    doc.text(page2Title, pageWidth / 2, p2Y, { align: "center" });
 
     p2Y += 4;
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7);
     doc.setTextColor(71, 85, 105);
-    doc.text(`Élève : ${data.student.nom.toUpperCase()} (${data.student.matricule}) • Classe : ${data.student.classe} • Année : ${data.bulletin.academicYear}`, pageWidth / 2, p2Y, { align: "center" });
+    const userRoleLabel = isHigherEd ? "Étudiant" : "Élève";
+    doc.text(`${userRoleLabel} : ${data.student.nom.toUpperCase()} (${data.student.matricule}) • Classe : ${data.student.classe} • Année : ${data.bulletin.academicYear}`, pageWidth / 2, p2Y, { align: "center" });
 
     // Table Header
     p2Y += 6;
@@ -523,8 +539,9 @@ export async function generateVerificationCertificatePDF(
     const colEvolX = marginX + 140;
     const colAppX = marginX + 155;
 
-    doc.text("DISCIPLINES PÉDAGOGIQUES", colSubX, p2Y + 4.5);
-    doc.text("COEF", colCoefX, p2Y + 4.5);
+    const colHeaderName = isHigherEd ? "UNITÉS D'ENSEIGNEMENT (UE) / MATIÈRES" : "DISCIPLINES PÉDAGOGIQUES";
+    doc.text(colHeaderName, colSubX, p2Y + 4.5);
+    doc.text(isHigherEd ? "CRÉD/COEF" : "COEF", colCoefX, p2Y + 4.5);
     doc.text("SEM. 1", colS1X, p2Y + 4.5);
     doc.text("SEM. 2", colS2X, p2Y + 4.5);
     doc.text("ANNUEL", colAnnX, p2Y + 4.5);
@@ -582,17 +599,30 @@ export async function generateVerificationCertificatePDF(
     doc.setDrawColor(187, 247, 208);
     doc.roundedRect(marginX, p2Y, contentWidth, 16, 2, 2, "FD");
 
+    const s1Period = data.bulletin.periods?.find(p => p.id === "s1");
+    const s2Period = data.bulletin.periods?.find(p => p.id === "s2");
+    const annPeriod = data.bulletin.periods?.find(p => p.id === "annual");
+
+    const s1AvgStr = s1Period ? s1Period.generalAverage.toFixed(2) : data.bulletin.generalAverage.toFixed(2);
+    const s2AvgStr = s2Period ? s2Period.generalAverage.toFixed(2) : "—";
+    const annAvgStr = annPeriod ? annPeriod.generalAverage.toFixed(2) : data.bulletin.generalAverage.toFixed(2);
+    const rankStr = annPeriod?.rank || s2Period?.rank || `${data.bulletin.rank} sur ${data.bulletin.totalStudents} ${isHigherEd ? "étudiants" : "élèves"}`;
+
+    const synthesisTitle = isHigherEd
+      ? "SYNTHÈSE DU PARCOURS UNIVERSITAIRE LMD & DÉCISION DU JURY :"
+      : "SYNTHÈSE ANNUELLE ET DÉCISION DU CONSEIL DE CLASSE :";
+
     doc.setFont("helvetica", "bold");
     doc.setFontSize(7.5);
     doc.setTextColor(21, 128, 61);
-    doc.text("SYNTHÈSE ANNUELLE ET DÉCISION DU CONSEIL DE CLASSE :", marginX + 4, p2Y + 5.5);
+    doc.text(synthesisTitle, marginX + 4, p2Y + 5.5);
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(6.8);
     doc.setTextColor(51, 65, 85);
     doc.text(
-      `Moyenne Générale S1 : 12.65 / 20  •  Moyenne S2 : 14.42 / 20  •  Moyenne Générale Annuelle : 13.53 / 20 (Rang : 7ème / 20 élèves)\n` +
-      `Décision Officielle : ${data.bulletin.decision}  •  Conduite : ${data.bulletin.conduite}`,
+      `Moyenne Semestre 1 : ${s1AvgStr} / 20  •  Moyenne Semestre 2 : ${s2AvgStr} / 20  •  Moyenne Générale Annuelle : ${annAvgStr} / 20 (Rang : ${rankStr})\n` +
+      `Décision Officielle : ${data.bulletin.decision}  •  Conduite & Assiduité : ${data.bulletin.conduite}`,
       marginX + 4,
       p2Y + 10,
       { maxWidth: contentWidth - 8 }

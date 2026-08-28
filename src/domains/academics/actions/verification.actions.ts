@@ -439,25 +439,45 @@ export async function getAcademicVerificationData(identifier: string): Promise<V
     // ──────────────────────────────────────────────────────────────────────────
     // 3. DETERMINE INTELLIGENT EDUCATION LEVEL & SUBTYPE
     // ──────────────────────────────────────────────────────────────────────────
+    const normClasse = (studentClasse || "").toUpperCase().trim();
+    const normLevel = (studentLevel || "").toUpperCase().trim();
+
     const isHigherEducation = 
-      studentLevel.toLowerCase().includes("supérieur") || 
-      studentLevel.toLowerCase().includes("universit") || 
-      studentLevel.toLowerCase().includes("lmd") || 
-      studentClasse.toLowerCase().includes("licence") || 
-      studentClasse.toLowerCase().includes("master") || 
-      studentClasse.toLowerCase().includes("doctorat") ||
+      normLevel.includes("SUPÉRIEUR") || 
+      normLevel.includes("SUPERIEUR") || 
+      normLevel.includes("UNIVERSIT") || 
+      normLevel.includes("LMD") || 
+      normClasse.startsWith("L1") || 
+      normClasse.startsWith("L2") || 
+      normClasse.startsWith("L3") || 
+      normClasse.startsWith("M1") || 
+      normClasse.startsWith("M2") || 
+      normClasse.includes("LICENCE") || 
+      normClasse.includes("MASTER") || 
+      normClasse.includes("DOCTORAT") || 
+      normClasse.includes("BTS") || 
+      normClasse.includes("DUT") ||
+      normClasse.includes("INGÉNIEUR") ||
+      normClasse.includes("INGENIEUR") ||
+      normClasse.includes("ADMINISTRATION") ||
+      normClasse.includes("DROIT") ||
+      normClasse.includes("GESTION") ||
       isDiplomaLookup;
 
     const isPrimaryEducation = 
-      studentLevel.toLowerCase().includes("primaire") || 
-      studentLevel.toLowerCase().includes("maternelle") || 
-      studentLevel.toLowerCase().includes("élémentaire") ||
-      studentClasse.toUpperCase().includes("CI") ||
-      studentClasse.toUpperCase().includes("CP") ||
-      studentClasse.toUpperCase().includes("CE1") ||
-      studentClasse.toUpperCase().includes("CE2") ||
-      studentClasse.toUpperCase().includes("CM1") ||
-      studentClasse.toUpperCase().includes("CM2");
+      !isHigherEducation && (
+        normLevel.includes("PRIMAIRE") || 
+        normLevel.includes("MATERNELLE") || 
+        normLevel.includes("ÉLÉMENTAIRE") ||
+        normLevel.includes("ELEMENTAIRE") ||
+        normClasse.startsWith("CI") ||
+        normClasse.startsWith("CP") ||
+        normClasse.startsWith("CE1") ||
+        normClasse.startsWith("CE2") ||
+        normClasse.startsWith("CM1") ||
+        normClasse.startsWith("CM2") ||
+        normClasse.includes("PRIMAIRE")
+      );
 
     const isSecondaryEducation = !isHigherEducation && !isPrimaryEducation;
 
@@ -473,18 +493,203 @@ export async function getAcademicVerificationData(identifier: string): Promise<V
       ? "student_badge" 
       : isDiplomaLookup 
       ? "academic_degree" 
-      : (isSecondaryEducation || isPrimaryEducation || isBulletinLookup) 
-      ? "school_bulletin" 
-      : "academic_transcript";
+      : "school_bulletin";
 
     const hexHash = Buffer.from(`${studentMatricule}-${eduLevelType}-UNESCO-2026`).toString("hex").toUpperCase();
     const verificationHash = `SHA256:${hexHash.slice(0, 16)}-${hexHash.slice(16, 32)}-${hexHash.slice(32, 48)}`;
     const merkleProof = `urn:uuid:w3c-vc-edut-${hexHash.slice(0, 8)}-${hexHash.slice(8, 12)}-${hexHash.slice(12, 16)}`;
 
+    // Level-specific dynamic defaults
+    let levelMinistry = "MINISTÈRE DE L'ÉDUCATION NATIONALE";
+    let levelMinistryEn = "MINISTRY OF NATIONAL EDUCATION";
+    let levelMinistryAr = "وزارة التربية الوطنية";
+    let levelInstitutionName = "ÉCOLE EXCELLENCE & COMPLEXE SCOLAIRE EDUT";
+    let levelInstitutionEn = "EDUT EXCELLENCE SCHOOL COMPLEX";
+    let levelInstitutionAr = "مدرسة التميز والمجمع المدرسي إيدوت";
+    let levelSubDept = "Direction Régionale de l'Éducation Nationale • Inspection Pédagogique";
+    let levelUnesco = "UNESCO ISCED 2011 Level 2 (Lower Secondary Education)";
+    let levelUnescoAr = "تصنيف اليونسكو CITE 2011 المستوى 2 (التعليم الثانوي الأول)";
+    let levelDecision = "Passage en Classe Supérieure (Admis)";
+    let levelDecisionEn = "Promoted to Higher Grade (Passed)";
+    let levelDecisionAr = "الانتقال إلى الصف الأعلى (ناجح)";
+    let levelTargetClass = "Classe Supérieure";
+    let levelDocumentType = "BULLETIN OFFICIEL DE NOTES & RÉSULTATS";
+    let levelDocumentTypeEn = "OFFICIAL CERTIFIED ACADEMIC TRANSCRIPT & REPORT CARD RECORD";
+    let levelDocumentTypeAr = "كشف درجات وجلاء رسمي معتمد";
+
+    if (isHigherEducation) {
+      levelMinistry = "MINISTÈRE DE L'ENSEIGNEMENT SUPÉRIEUR, DE LA RECHERCHE ET DE L'INNOVATION TECHNOLOGIQUE";
+      levelMinistryEn = "MINISTRY OF HIGHER EDUCATION, RESEARCH AND TECHNOLOGICAL INNOVATION";
+      levelMinistryAr = "وزارة التعليم العالي والبحث والابتكار التكنولوجي";
+      levelInstitutionName = normClasse.includes("ADMIN") || normClasse.includes("DROIT") || normClasse.includes("GESTION")
+        ? "EDUT UNIVERSITÉ • FACULTÉ DES SCIENCES JURIDIQUES, ÉCONOMIQUES & DE GESTION"
+        : "EDUT UNIVERSITÉ INTERNATIONALE • PÔLE D'EXCELLENCE LMD";
+      levelInstitutionEn = "EDUT INTERNATIONAL UNIVERSITY • HIGHER EDUCATION FACULTY";
+      levelInstitutionAr = "جامعة إيدوت الدولية • كلية العلوم الاقتصادية والإدارية والتكنولوجيا";
+      levelSubDept = "Direction des Affaires Académiques & de la Scolarité Centrale • Registre LMD";
+      levelDocumentType = "RELEVÉ OFFICIEL DE NOTES & CRÉDITS ECTS (LMD)";
+      levelDocumentTypeEn = "OFFICIAL ACADEMIC TRANSCRIPT & ECTS CREDIT RECORD (LMD)";
+      levelDocumentTypeAr = "كشف درجات وأرصدة ECTS الجامعية الرسمية (LMD)";
+
+      if (normClasse.startsWith("L1") || normClasse.includes("LICENCE 1")) {
+        levelUnesco = "UNESCO ISCED 2011 Level 6 (Bachelor's 1st Year / Undergraduate LMD)";
+        levelUnescoAr = "تصنيف اليونسكو CITE 2011 المستوى 6 (السنة الأولى جامعي - ليسانس L1)";
+        levelDecision = "Admis en Licence 2 (L2) - Semestre Validé (60 ECTS)";
+        levelDecisionEn = "Promoted to 2nd Year Bachelor (L2) - Passed (60 ECTS)";
+        levelDecisionAr = "النجاح إلى السنة الثانية ليسانس (L2) - استيفاء 60 رصيد ECTS";
+        levelTargetClass = "Licence 2 (L2)";
+      } else if (normClasse.startsWith("L2") || normClasse.includes("LICENCE 2")) {
+        levelUnesco = "UNESCO ISCED 2011 Level 6 (Bachelor's 2nd Year / Undergraduate LMD)";
+        levelUnescoAr = "تصنيف اليونسكو CITE 2011 المستوى 6 (السنة الثانية جامعي - ليسانس L2)";
+        levelDecision = "Admis en Licence 3 (L3) - Semestre Validé (120 ECTS)";
+        levelDecisionEn = "Promoted to 3rd Year Bachelor (L3) - Passed (120 ECTS)";
+        levelDecisionAr = "النجاح إلى السنة الثالثة ليسانس (L3) - استيفاء 120 رصيد ECTS";
+        levelTargetClass = "Licence 3 (L3)";
+      } else if (normClasse.startsWith("L3") || normClasse.includes("LICENCE 3")) {
+        levelUnesco = "UNESCO ISCED 2011 Level 6 (Bachelor's Degree Conferred / 180 ECTS)";
+        levelUnescoAr = "تصنيف اليونسكو CITE 2011 المستوى 6 (شهادة الليسانس / 180 رصيد ECTS)";
+        levelDecision = "Diplômé de Licence (Admis Définitivement - 180 ECTS)";
+        levelDecisionEn = "Bachelor's Degree Conferred (Passed - 180 ECTS)";
+        levelDecisionAr = "نيل شهادة الإجازة / الليسانس بنجاح (180 رصيد ECTS)";
+        levelTargetClass = "Master 1 (M1)";
+      } else if (normClasse.startsWith("M1") || normClasse.includes("MASTER 1")) {
+        levelUnesco = "UNESCO ISCED 2011 Level 7 (Master's 1st Year / Postgraduate LMD)";
+        levelUnescoAr = "تصنيف اليونسكو CITE 2011 المستوى 7 (السنة الأولى ماستر M1)";
+        levelDecision = "Admis en Master 2 (M2) - Semestre Validé (60 ECTS)";
+        levelDecisionEn = "Promoted to 2nd Year Master (M2) - Passed";
+        levelDecisionAr = "النجاح إلى السنة الثانية ماستر (M2)";
+        levelTargetClass = "Master 2 (M2)";
+      } else if (normClasse.startsWith("M2") || normClasse.includes("MASTER 2")) {
+        levelUnesco = "UNESCO ISCED 2011 Level 7 (Master's Degree Conferred / 120 ECTS)";
+        levelUnescoAr = "تصنيف اليونسكو CITE 2011 المستوى 7 (شهادة الماستر / 120 رصيد ECTS)";
+        levelDecision = "Diplômé de Master (Admis Définitivement - 120 ECTS)";
+        levelDecisionEn = "Master's Degree Conferred (Passed - 120 ECTS)";
+        levelDecisionAr = "نيل شهادة الماجستير / الماستر بنجاح";
+        levelTargetClass = "Doctorat / Vie Professionnelle";
+      } else {
+        levelUnesco = "UNESCO ISCED 2011 Level 6 (Tertiary Higher Education)";
+        levelUnescoAr = "تصنيف اليونسكو CITE 2011 المستوى 6 (التعليم الجامعي العالي)";
+        levelDecision = "Admis en Année Supérieure (Semestre Validé)";
+        levelDecisionEn = "Promoted to Next Academic Year (Passed)";
+        levelDecisionAr = "الانتقال إلى السنة الجامعية التالية (ناجح)";
+        levelTargetClass = "Année Supérieure";
+      }
+    } else if (isSecondaryEducation) {
+      levelMinistry = "MINISTÈRE DE L'ÉDUCATION NATIONALE, DE L'ALPHABÉTISATION ET DE LA PROMOTION DES LANGUES NATIONALES";
+      levelMinistryEn = "MINISTRY OF NATIONAL EDUCATION AND LITERACY";
+      levelMinistryAr = "وزارة التربية الوطنية ومحو الأمية وترقية اللغات الوطنية";
+      levelInstitutionName = normClasse.includes("2NDE") || normClasse.includes("1ÈRE") || normClasse.includes("TLE") || normClasse.includes("TERMINALE")
+        ? "LYCÉE D'EXCELLENCE & COMPLEXE SECONDAIRE EDUT"
+        : "COMPLEXE SCOLAIRE & COLLÈGE D'EXCELLENCE EDUT";
+      levelInstitutionEn = "EDUT SECONDARY & HIGH SCHOOL EXCELLENCE COMPLEX";
+      levelInstitutionAr = "ثانوية ومجمع التميز التعليمي إيدوت";
+      levelSubDept = "Direction Régionale de l'Éducation Nationale • Inspection Pédagogique Secondaire";
+      levelDocumentType = "BULLETIN OFFICIEL DE NOTES — ENSEIGNEMENT SECONDAIRE";
+      levelDocumentTypeEn = "OFFICIAL REPORT CARD & ACADEMIC TRANSCRIPT — SECONDARY EDUCATION";
+      levelDocumentTypeAr = "كشف درجات وجلاء رسمي معتمد — التعليم الثانوي والإعدادي";
+
+      if (normClasse.includes("6ÈME") || normClasse.includes("6EME") || normClasse.startsWith("6")) {
+        levelUnesco = "UNESCO ISCED 2011 Level 2 (Lower Secondary Education)";
+        levelUnescoAr = "تصنيف اليونسكو CITE 2011 المستوى 2 (التعليم الثانوي الأول - السنة الأولى)";
+        levelDecision = "Passage en 5ème (Admis)";
+        levelDecisionEn = "Promoted to 5th Grade (Passed)";
+        levelDecisionAr = "الانتقال إلى الصف الخامس (ناجح)";
+        levelTargetClass = "5ème";
+      } else if (normClasse.includes("5ÈME") || normClasse.includes("5EME") || normClasse.startsWith("5")) {
+        levelUnesco = "UNESCO ISCED 2011 Level 2 (Lower Secondary Education)";
+        levelUnescoAr = "تصنيف اليونسكو CITE 2011 المستوى 2 (التعليم الثانوي الأول)";
+        levelDecision = "Passage en 4ème (Admis)";
+        levelDecisionEn = "Promoted to 4th Grade (Passed)";
+        levelDecisionAr = "الانتقال إلى الصف الرابع (ناجح)";
+        levelTargetClass = "4ème";
+      } else if (normClasse.includes("4ÈME") || normClasse.includes("4EME") || normClasse.startsWith("4")) {
+        levelUnesco = "UNESCO ISCED 2011 Level 2 (Lower Secondary Education)";
+        levelUnescoAr = "تصنيف اليونسكو CITE 2011 المستوى 2 (التعليم الثانوي الأول)";
+        levelDecision = "Passage en 3ème (Admis)";
+        levelDecisionEn = "Promoted to 3rd Grade (Passed)";
+        levelDecisionAr = "الانتقال إلى الصف الثالث (ناجح)";
+        levelTargetClass = "3ème";
+      } else if (normClasse.includes("3ÈME") || normClasse.includes("3EME") || normClasse.startsWith("3")) {
+        levelUnesco = "UNESCO ISCED 2011 Level 2 (Lower Secondary Education / BEPC)";
+        levelUnescoAr = "تصنيف اليونسكو CITE 2011 المستوى 2 (نهاية التعليم الإعدادي - شهادة BEPC)";
+        levelDecision = "Admis au BEPC / Passage en 2nde";
+        levelDecisionEn = "BEPC Conferred / Promoted to 2nde";
+        levelDecisionAr = "النجاح في شهادة BEPC / الانتقال إلى الثانية ثانوي";
+        levelTargetClass = "2nde A / C";
+      } else if (normClasse.includes("2NDE") || normClasse.includes("SECONDE") || normClasse.startsWith("2")) {
+        levelUnesco = "UNESCO ISCED 2011 Level 3 (Upper Secondary General Education)";
+        levelUnescoAr = "تصنيف اليونسكو CITE 2011 المستوى 3 (التعليم الثانوي العام - السنة الثانية)";
+        levelDecision = "Passage en 1ère (Admis)";
+        levelDecisionEn = "Promoted to 1ère (Passed)";
+        levelDecisionAr = "الانتقال إلى الصف الأول ثانوي (ناجح)";
+        levelTargetClass = "1ère A / D / C";
+      } else if (normClasse.includes("1ÈRE") || normClasse.includes("1ERE") || normClasse.startsWith("1")) {
+        levelUnesco = "UNESCO ISCED 2011 Level 3 (Upper Secondary General Education)";
+        levelUnescoAr = "تصنيف اليونسكو CITE 2011 المستوى 3 (التعليم الثانوي العام - السنة قبل الختامية)";
+        levelDecision = "Passage en Terminale (Admis)";
+        levelDecisionEn = "Promoted to Terminale (Passed)";
+        levelDecisionAr = "الانتقال إلى السنة الختامية بكالوريا (ناجح)";
+        levelTargetClass = "Terminale";
+      } else if (normClasse.includes("TLE") || normClasse.includes("TERMINALE")) {
+        levelUnesco = "UNESCO ISCED 2011 Level 3 (Upper Secondary - Baccalauréat Conferred)";
+        levelUnescoAr = "تصنيف اليونسكو CITE 2011 المستوى 3 (نيل شهادة البكالوريا الوطنية)";
+        levelDecision = "Admis au Baccalauréat National (Session Normale)";
+        levelDecisionEn = "National Baccalaureate Conferred (Passed)";
+        levelDecisionAr = "نيل شهادة البكالوريا الوطنية بنجاح";
+        levelTargetClass = "Enseignement Supérieur / Université";
+      }
+    } else {
+      // Primary
+      levelMinistry = "MINISTÈRE DE L'ÉDUCATION NATIONALE";
+      levelMinistryEn = "MINISTRY OF NATIONAL EDUCATION";
+      levelMinistryAr = "وزارة التربية الوطنية";
+      levelInstitutionName = "ÉCOLE PRIMAIRE & COMPLEXE ÉLÉMENTAIRE EDUT";
+      levelInstitutionEn = "EDUT PRIMARY & ELEMENTARY SCHOOL COMPLEX";
+      levelInstitutionAr = "مدرسة التميز الابتدائية والمجمع الأساسي إيدوت";
+      levelSubDept = "Direction Régionale de l'Éducation Nationale • Inspection Pédagogique Primaire";
+      levelUnesco = "UNESCO ISCED 2011 Level 1 (Primary Basic Education)";
+      levelUnescoAr = "تصنيف اليونسكو CITE 2011 المستوى 1 (التعليم الابتدائي الأساسي)";
+      levelDocumentType = "BULLETIN OFFICIEL D'ÉVALUATION ÉLÉMENTAIRE — ENSEIGNEMENT PRIMAIRE";
+      levelDocumentTypeEn = "OFFICIAL PRIMARY SCHOOL REPORT CARD & EVALUATION RECORD";
+      levelDocumentTypeAr = "كشف درجات وجلاء تقييم ابتدائي رسمي معتمد";
+
+      if (normClasse.startsWith("CI")) {
+        levelDecision = "Passage au CP (Admis)";
+        levelDecisionEn = "Promoted to CP (Passed)";
+        levelDecisionAr = "الانتقال إلى التحضيري (ناجح)";
+        levelTargetClass = "CP";
+      } else if (normClasse.startsWith("CP")) {
+        levelDecision = "Passage au CE1 (Admis)";
+        levelDecisionEn = "Promoted to CE1 (Passed)";
+        levelDecisionAr = "الانتقال إلى الصف الأول ابتدائي (ناجح)";
+        levelTargetClass = "CE1";
+      } else if (normClasse.startsWith("CE1")) {
+        levelDecision = "Passage au CE2 (Admis)";
+        levelDecisionEn = "Promoted to CE2 (Passed)";
+        levelDecisionAr = "الانتقال إلى الصف الثاني ابتدائي (ناجح)";
+        levelTargetClass = "CE2";
+      } else if (normClasse.startsWith("CE2")) {
+        levelDecision = "Passage au CM1 (Admis)";
+        levelDecisionEn = "Promoted to CM1 (Passed)";
+        levelDecisionAr = "الانتقال إلى الصف الثالث ابتدائي (ناجح)";
+        levelTargetClass = "CM1";
+      } else if (normClasse.startsWith("CM1")) {
+        levelDecision = "Passage au CM2 (Admis)";
+        levelDecisionEn = "Promoted to CM2 (Passed)";
+        levelDecisionAr = "الانتقال إلى الصف الرابع ابتدائي (ناجح)";
+        levelTargetClass = "CM2";
+      } else if (normClasse.startsWith("CM2")) {
+        levelDecision = "Admis au CFEPD / Passage en 6ème";
+        levelDecisionEn = "CFEPD Conferred / Promoted to 6ème";
+        levelDecisionAr = "النجاح في الشهادة الابتدائية / الانتقال إلى الإعدادي";
+        levelTargetClass = "6ème (Collège)";
+      }
+    }
+
     // ──────────────────────────────────────────────────────────────────────────
-    // 4A. SECONDARY & PRIMARY BULLETIN METADATA
+    // 4A. BULLETIN & GRADES METADATA (ACROSS ALL EDUCATION LEVELS)
     // ──────────────────────────────────────────────────────────────────────────
-    if (subType === "school_bulletin" || isSecondaryEducation || isPrimaryEducation) {
+    if (subType === "school_bulletin" || isSecondaryEducation || isPrimaryEducation || isHigherEducation) {
       // 1. Fetch Real Database Grades & Summaries if available
       let dbResults: any[] = [];
       let dbSummaries: any[] = [];
@@ -714,6 +919,154 @@ export async function getAcademicVerificationData(identifier: string): Promise<V
             trend: "up",
             trendDiff: 2.0,
           },
+        ] : isHigherEducation ? [
+          {
+            name: "Gestion Budgétaire 1",
+            nameAr: "التسيير المالي والميزانية",
+            nameEn: "Budget Management 1",
+            coef: 3,
+            classWorkScore: 18.0,
+            examScore: 18.0,
+            average: 18.0,
+            weightedScore: 54.0,
+            rank: "1ère",
+            appreciation: "Excellent",
+            appreciationAr: "ممتاز",
+            s1Average: 18.0,
+            s1Rank: "1ère",
+            s2Average: 18.0,
+            s2Rank: "1ère",
+            annualAverage: 18.0,
+            annualRank: "1ère",
+            trend: "stable",
+            trendDiff: 0.0,
+          },
+          {
+            name: "Statistiques 1",
+            nameAr: "الإحصاء التطبيقي 1",
+            nameEn: "Applied Statistics 1",
+            coef: 4,
+            classWorkScore: 16.0,
+            examScore: 18.0,
+            average: 17.0,
+            weightedScore: 68.0,
+            rank: "2ème",
+            appreciation: "Très Bien",
+            appreciationAr: "جيد جداً",
+            s1Average: 18.0,
+            s1Rank: "1ère",
+            s2Average: 16.0,
+            s2Rank: "3ème",
+            annualAverage: 17.0,
+            annualRank: "2ème",
+            trend: "up",
+            trendDiff: 2.0,
+          },
+          {
+            name: "Anglais Administratif",
+            nameAr: "الإنجليزية الإدارية",
+            nameEn: "Administrative English",
+            coef: 4,
+            classWorkScore: 17.0,
+            examScore: 17.0,
+            average: 17.0,
+            weightedScore: 68.0,
+            rank: "2ème",
+            appreciation: "Très Bien",
+            appreciationAr: "جيد جداً",
+            s1Average: 18.0,
+            s1Rank: "1ère",
+            s2Average: 16.0,
+            s2Rank: "3ème",
+            annualAverage: 17.0,
+            annualRank: "2ème",
+            trend: "up",
+            trendDiff: 2.0,
+          },
+          {
+            name: "Environnement de la GRH",
+            nameAr: "بيئة إدارة الموارد البشرية",
+            nameEn: "HR Management Environment",
+            coef: 4,
+            classWorkScore: 17.0,
+            examScore: 18.0,
+            average: 17.5,
+            weightedScore: 70.0,
+            rank: "1ère",
+            appreciation: "Très Bien",
+            appreciationAr: "جيد جداً",
+            s1Average: 18.0,
+            s1Rank: "1ère",
+            s2Average: 17.0,
+            s2Rank: "2ème",
+            annualAverage: 17.5,
+            annualRank: "1ère",
+            trend: "up",
+            trendDiff: 1.0,
+          },
+          {
+            name: "Droit Administratif",
+            nameAr: "القانون الإداري",
+            nameEn: "Administrative Law",
+            coef: 3,
+            classWorkScore: 16.0,
+            examScore: 19.0,
+            average: 17.5,
+            weightedScore: 52.5,
+            rank: "1ère",
+            appreciation: "Excellent",
+            appreciationAr: "ممتاز",
+            s1Average: 16.0,
+            s1Rank: "2ème",
+            s2Average: 19.0,
+            s2Rank: "1ère",
+            annualAverage: 17.5,
+            annualRank: "1ère",
+            trend: "up",
+            trendDiff: 3.0,
+          },
+          {
+            name: "Informatique 1",
+            nameAr: "المعلوماتية 1",
+            nameEn: "Computer Science 1",
+            coef: 5,
+            classWorkScore: 16.0,
+            examScore: 14.0,
+            average: 15.0,
+            weightedScore: 75.0,
+            rank: "4ème",
+            appreciation: "Bien",
+            appreciationAr: "جيد",
+            s1Average: 16.0,
+            s1Rank: "2ème",
+            s2Average: 14.0,
+            s2Rank: "5ème",
+            annualAverage: 15.0,
+            annualRank: "4ème",
+            trend: "up",
+            trendDiff: 2.0,
+          },
+          {
+            name: "Psycho-social du travail 1",
+            nameAr: "علم النفس الاجتماعي للعمل 1",
+            nameEn: "Workplace Social Psychology 1",
+            coef: 4,
+            classWorkScore: 16.0,
+            examScore: 18.0,
+            average: 17.0,
+            weightedScore: 68.0,
+            rank: "2ème",
+            appreciation: "Excellent",
+            appreciationAr: "ممتاز",
+            s1Average: 16.0,
+            s1Rank: "2ème",
+            s2Average: 18.0,
+            s2Rank: "1ère",
+            annualAverage: 17.0,
+            annualRank: "2ème",
+            trend: "up",
+            trendDiff: 2.0,
+          },
         ] : [
           { 
             name: "Éducation Physique & Sportive", 
@@ -868,7 +1221,7 @@ export async function getAcademicVerificationData(identifier: string): Promise<V
       // Calculate totals
       const totalCoef = finalSubjects.reduce((sum, s) => sum + s.coef, 0);
       const totalWeighted = finalSubjects.reduce((sum, s) => sum + (s.average * s.coef), 0);
-      const computedGeneralAvg = totalCoef > 0 ? Number((totalWeighted / totalCoef).toFixed(2)) : 12.65;
+      const computedGeneralAvg = totalCoef > 0 ? Number((totalWeighted / totalCoef).toFixed(2)) : 16.63;
 
       // Extract real summaries or compute
       const s1Summary = dbSummaries.find(s => s.term?.toLowerCase().includes("1") || s.term?.toLowerCase().includes("s1") || s.term?.toLowerCase().includes("t1"));
@@ -876,7 +1229,7 @@ export async function getAcademicVerificationData(identifier: string): Promise<V
       const annSummary = dbSummaries.find(s => s.term?.toLowerCase().includes("annuel") || s.term?.toLowerCase().includes("3") || s.term?.toLowerCase().includes("t3"));
 
       const s1Avg = s1Summary?.average ?? computedGeneralAvg;
-      const s2Avg = s2Summary?.average ?? (computedGeneralAvg + 1.2);
+      const s2Avg = s2Summary?.average ?? (computedGeneralAvg + 0.5);
       const annAvg = annSummary?.average ?? Number(((s1Avg + s2Avg) / 2).toFixed(2));
 
       const bulletinPeriods: BulletinPeriod[] = [
@@ -886,12 +1239,12 @@ export async function getAcademicVerificationData(identifier: string): Promise<V
           labelEn: "1st Semester",
           labelAr: "الفصل الأول",
           generalAverage: Number(s1Avg.toFixed(2)),
-          rank: s1Summary?.rank || "10ème / 20",
+          rank: s1Summary?.rank || "2ème / 20",
           totalPoints: Number((s1Avg * totalCoef).toFixed(1)),
           totalCoef: totalCoef,
-          decision: s1Summary?.decision || "Encouragements du Conseil",
-          decisionEn: "Council Encouragements",
-          decisionAr: "تشجيع مجلس الأساتذة",
+          decision: s1Summary?.decision || (isHigherEducation ? "Semestre 1 Validé (30 ECTS)" : "Encouragements du Conseil"),
+          decisionEn: isHigherEducation ? "Semester 1 Passed (30 ECTS)" : "Council Encouragements",
+          decisionAr: isHigherEducation ? "استيفاء الفصل الأول (30 رصيد ECTS)" : "تشجيع مجلس الأساتذة",
         },
         {
           id: "s2",
@@ -899,29 +1252,29 @@ export async function getAcademicVerificationData(identifier: string): Promise<V
           labelEn: "2nd Semester",
           labelAr: "الفصل الثاني",
           generalAverage: Number(s2Avg.toFixed(2)),
-          rank: s2Summary?.rank || "5ème / 20",
+          rank: s2Summary?.rank || "1ère / 20",
           totalPoints: Number((s2Avg * totalCoef).toFixed(1)),
           totalCoef: totalCoef,
-          decision: s2Summary?.decision || "Tableau d'Honneur",
-          decisionEn: "Honor Roll",
-          decisionAr: "لوحة الشرف",
+          decision: s2Summary?.decision || (isHigherEducation ? "Semestre 2 Validé (30 ECTS)" : "Tableau d'Honneur"),
+          decisionEn: isHigherEducation ? "Semester 2 Passed (30 ECTS)" : "Honor Roll",
+          decisionAr: isHigherEducation ? "استيفاء الفصل الثاني (30 رصيد ECTS)" : "لوحة الشرف",
         },
         {
           id: "annual",
-          label: "Bilan Annuel & Passage",
-          labelEn: "Annual Summary & Promotion",
-          labelAr: "الحصيلة السنوية وقرار الانتقال",
+          label: isHigherEducation ? "Bilan Annuel & Capitalisation" : "Bilan Annuel & Passage",
+          labelEn: isHigherEducation ? "Annual Summary & ECTS Credits" : "Annual Summary & Promotion",
+          labelAr: isHigherEducation ? "الحصيلة السنوية واستيفاء الأرصدة" : "الحصيلة السنوية وقرار الانتقال",
           generalAverage: Number(annAvg.toFixed(2)),
-          rank: annSummary?.rank || "7ème / 20",
+          rank: annSummary?.rank || "1ère / 20",
           totalPoints: Number((annAvg * totalCoef * 2).toFixed(1)),
           totalCoef: totalCoef * 2,
-          decision: annSummary?.decision || "Passage en 5ème A (Admis)",
-          decisionEn: "Promoted to 5th Grade A (Passed)",
-          decisionAr: "الانتقال إلى الصف الخامس أ (ناجح)",
+          decision: annSummary?.decision || levelDecision,
+          decisionEn: levelDecisionEn,
+          decisionAr: levelDecisionAr,
         },
       ];
 
-      const activeDecision = annSummary?.decision || s2Summary?.decision || "Passage en 5ème A (Admis)";
+      const activeDecision = annSummary?.decision || s2Summary?.decision || levelDecision;
       const activeConduite = s2Summary?.conduite ? `${s2Summary.conduite}/20` : "Bonne (18/20)";
       const activeAssiduite = s2Summary?.assiduite || "Régulière (0 absence non justifiée)";
 
@@ -929,20 +1282,20 @@ export async function getAcademicVerificationData(identifier: string): Promise<V
         term: s2Summary ? "2ème Semestre" : "1er Semestre",
         termEn: s2Summary ? "2nd Semester" : "1st Semester",
         termAr: s2Summary ? "الفصل الدراسي الثاني" : "الفصل الدراسي الأول",
-        academicYear: foundStudent?.session || "2025–2026",
+        academicYear: foundStudent?.session || "2024–2025",
         classe: studentClasse,
         generalAverage: computedGeneralAvg,
         totalCoef: totalCoef,
         totalWeighted: Number(totalWeighted.toFixed(2)),
-        rank: s2Summary?.rank || s1Summary?.rank || "10ème",
+        rank: s2Summary?.rank || s1Summary?.rank || "1ère",
         totalStudents: 20,
         decision: activeDecision,
-        decisionEn: "Promoted to 5th Grade (Passed)",
-        decisionAr: "الانتقال إلى الصف الخامس (ناجح)",
-        targetClassName: annSummary?.targetClassName || "5ème A",
+        decisionEn: levelDecisionEn,
+        decisionAr: levelDecisionAr,
+        targetClassName: annSummary?.targetClassName || levelTargetClass,
         conduite: activeConduite,
         assiduite: activeAssiduite,
-        appreciation: "Encouragement du Conseil de Classe",
+        appreciation: computedGeneralAvg >= 16 ? "Félicitations du Jury" : "Encouragements du Conseil",
         subjects: finalSubjects,
         periods: bulletinPeriods,
       };
@@ -950,11 +1303,11 @@ export async function getAcademicVerificationData(identifier: string): Promise<V
       return {
         isValid: true,
         category: "academic",
-        subType: "school_bulletin",
+        subType: subType,
         educationLevelType: eduLevelType,
-        documentType: `BULLETIN OFFICIEL DE NOTES — ${isPrimaryEducation ? "ENSEIGNEMENT PRIMAIRE" : "ENSEIGNEMENT SECONDAIRE"}`,
-        documentTypeEn: `OFFICIAL REPORT CARD & ACADEMIC TRANSCRIPT — ${isPrimaryEducation ? "PRIMARY EDUCATION" : "SECONDARY EDUCATION"}`,
-        documentTypeAr: `كشف درجات وجلاء رسمي معتمد — ${isPrimaryEducation ? "التعليم الابتدائي" : "التعليم الثانوي والإعدادي"}`,
+        documentType: levelDocumentType,
+        documentTypeEn: levelDocumentTypeEn,
+        documentTypeAr: levelDocumentTypeAr,
         student: {
           id: studentId,
           nom: studentNom,
@@ -965,62 +1318,64 @@ export async function getAcademicVerificationData(identifier: string): Promise<V
           nationalite: "Nigérienne",
           sexe: studentSexe,
           classe: studentClasse,
-          filiere: isSecondaryEducation ? "Enseignement Général" : "Cycle Fondamental",
-          educationalLevel: studentLevel,
+          filiere: isHigherEducation ? (foundStudent?.filiere || "Administration & Gestion") : isSecondaryEducation ? "Enseignement Général" : "Cycle Fondamental",
+          educationalLevel: isHigherEducation ? "Enseignement Supérieur (LMD)" : studentLevel,
         },
         degree: {
-          title: `BULLETIN DE NOTES OFFICIEL (${studentClasse})`,
-          titleEn: `OFFICIAL REPORT CARD (${studentClasse})`,
-          titleAr: `كشف درجات رسمي (${studentClasse})`,
-          field: isPrimaryEducation ? "Enseignement Fondamental" : "Enseignement Général Secondaire",
-          fieldEn: isPrimaryEducation ? "Primary Education" : "Secondary General Education",
-          fieldAr: isPrimaryEducation ? "التعليم الابتدائي الأساسي" : "التعليم الثانوي العام",
-          mention: "Tableau d'Honneur & Encouragements",
-          mentionEn: "Honors & Encouragement",
-          mentionAr: "لوحة الشرف والتشجيع",
-          status: "DÉLIBÉRATION DU CONSEIL DE CLASSE VALIDÉE",
-          statusEn: "CLASS COUNCIL DELIBERATION OFFICIALLY CONFIRMED",
-          statusAr: "تمت مداولات مجلس الأساتذة واعتماد النتيجة",
-          ectsCredits: 0,
-          totalRequiredEcts: 0,
-          gpa: "Moyenne : 12.65 / 20",
-          gpaLetter: "Rang : 10ème / 20",
-          graduationYear: "2025–2026",
+          title: `${levelDocumentType} (${studentClasse})`,
+          titleEn: `${levelDocumentTypeEn} (${studentClasse})`,
+          titleAr: `${levelDocumentTypeAr} (${studentClasse})`,
+          field: isHigherEducation ? (foundStudent?.filiere || "Sciences Économiques & Gestion") : isPrimaryEducation ? "Enseignement Fondamental" : "Enseignement Général Secondaire",
+          fieldEn: isHigherEducation ? "Economics & Management Sciences" : isPrimaryEducation ? "Primary Education" : "Secondary General Education",
+          fieldAr: isHigherEducation ? "العلوم الاقتصادية والإدارية والتصرف" : isPrimaryEducation ? "التعليم الابتدائي الأساسي" : "التعليم الثانوي العام",
+          mention: computedGeneralAvg >= 16 ? "Très Bien / Félicitations" : "Bien / Tableau d'Honneur",
+          mentionEn: computedGeneralAvg >= 16 ? "High Honors" : "Honors",
+          mentionAr: computedGeneralAvg >= 16 ? "جيد جداً مع تهنئة المجلس" : "جيد مع لوحة الشرف",
+          status: isHigherEducation ? "DÉLIBÉRATION DU JURY LMD VALIDÉE (CRÉDITS CAPITALISÉS)" : "DÉLIBÉRATION DU CONSEIL DE CLASSE VALIDÉE",
+          statusEn: isHigherEducation ? "LMD JURY DELIBERATION OFFICIALLY CONFIRMED" : "CLASS COUNCIL DELIBERATION OFFICIALLY CONFIRMED",
+          statusAr: isHigherEducation ? "تمت مداولات لجنة التحكيم الجامعية LMD واعتماد الأرصدة" : "تمت مداولات مجلس الأساتذة واعتماد النتيجة",
+          ectsCredits: isHigherEducation ? 60 : 0,
+          totalRequiredEcts: isHigherEducation ? 60 : 0,
+          gpa: `Moyenne : ${computedGeneralAvg.toFixed(2)} / 20`,
+          gpaLetter: `Rang : ${bulletinData.rank} sur ${bulletinData.totalStudents}`,
+          graduationYear: foundStudent?.session || "2024–2025",
           deliberationDate: new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" }),
           verificationHash: verificationHash,
           merkleProof: merkleProof,
-          digitalSignature: "Direction Régionale de l'Éducation Nationale • Inspection Secondaire",
+          digitalSignature: isHigherEducation 
+            ? "Direction des Affaires Académiques • Registre Central LMD" 
+            : "Direction Régionale de l'Éducation Nationale • Inspection Secondaire",
           certificateNumber: `BUL-${new Date().getFullYear()}-${String(studentId).padStart(6, "0")}`,
         },
         bulletin: bulletinData,
         standards: {
-          unescoIsced: isPrimaryEducation ? "CITE / ISCED 2011 Niveau 1 (Enseignement Primaire)" : "CITE / ISCED 2011 Niveau 2 (Enseignement Secondaire Premier Cycle)",
-          unescoIscedEn: isPrimaryEducation ? "UNESCO ISCED 2011 Level 1 (Primary Education)" : "UNESCO ISCED 2011 Level 2 (Lower Secondary Education)",
-          unescoIscedAr: isPrimaryEducation ? "تصنيف اليونسكو CITE 2011 المستوى 1 (التعليم الابتدائي)" : "تصنيف اليونسكو CITE 2011 المستوى 2 (التعليم الثانوي الأول)",
-          eqfLevel: isPrimaryEducation ? "Niveau Fondamental" : "Cadre National des Certifications (Niveau 2/3)",
-          bolognaCycle: "Programme National Officiel du Ministère de l'Éducation",
-          wesEquivalency: "Secondary School Academic Transcript Certified",
+          unescoIsced: levelUnesco,
+          unescoIscedEn: levelUnesco,
+          unescoIscedAr: levelUnescoAr,
+          eqfLevel: isHigherEducation ? "EQF Level 6 (Undergraduate LMD)" : isPrimaryEducation ? "Niveau Fondamental" : "Cadre National des Certifications (Niveau 2/3)",
+          bolognaCycle: isHigherEducation ? "Processus de Bologne / CAMES LMD (Système de Crédits Capitalisables)" : "Programme National Officiel du Ministère de l'Éducation",
+          wesEquivalency: isHigherEducation ? "Post-Secondary Higher Education Transcript Verified" : "Secondary School Academic Transcript Certified",
           apostilleRef: `BUL-HAGUE-NE-${studentId}-2026`,
           securityLevel: "Niveau 3 - Horodatage & Sceau Académique Officiel",
         },
         institution: {
-          name: "ÉCOLE EXCELLENCE & COMPLEXE SCOLAIRE EDUT",
-          nameEn: "EDUT EXCELLENCE SCHOOL COMPLEX",
-          nameAr: "مدرسة التميز والمجمع المدرسي إيدوت",
+          name: levelInstitutionName,
+          nameEn: levelInstitutionEn,
+          nameAr: levelInstitutionAr,
           country: "RÉPUBLIQUE DU NIGER",
           countryEn: "REPUBLIC OF NIGER",
           countryAr: "جمهورية النيجر",
-          ministry: "MINISTÈRE DE L'ÉDUCATION NATIONALE",
-          ministryEn: "MINISTRY OF NATIONAL EDUCATION",
-          ministryAr: "وزارة التربية الوطنية",
-          regionalDirection: "Direction Régionale de l'Éducation Nationale",
-          departmentalDirection: "Inspection Pédagogique Régionale",
-          accreditation: "Agrément Officiel MEN / DREN",
-          accreditationEn: "Official Government Accreditation",
-          accreditationAr: "اعتماد رسمي من وزارة التربية الوطنية",
-          status: "Établissement Scolaire Privé Homologué",
-          rectorat: "Service des Examens & des Évaluations Pédagogiques",
-          city: "Maradi-Niger",
+          ministry: levelMinistry,
+          ministryEn: levelMinistryEn,
+          ministryAr: levelMinistryAr,
+          regionalDirection: isHigherEducation ? "Direction Générale de l'Enseignement Supérieur" : "Direction Régionale de l'Éducation Nationale",
+          departmentalDirection: levelSubDept,
+          accreditation: isHigherEducation ? "Habilitation Officielle MESR/IT • CAMES" : "Agrément Officiel MEN / DREN",
+          accreditationEn: isHigherEducation ? "Official Government Accreditation • CAMES" : "Official Government Accreditation",
+          accreditationAr: isHigherEducation ? "اعتماد رسمي من وزارة التعليم العالي ومنظمة CAMES" : "اعتماد رسمي من وزارة التربية الوطنية",
+          status: isHigherEducation ? "Établissement d'Enseignement Supérieur Homologué" : "Établissement Scolaire Privé Homologué",
+          rectorat: isHigherEducation ? "Direction de la Scolarité Centrale & des Examens" : "Service des Examens & des Évaluations Pédagogiques",
+          city: "Niamey / Maradi-Niger",
           website: "https://niger.edut.pro",
         },
         curriculum: [],
