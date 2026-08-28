@@ -80,54 +80,55 @@ export function PlatformChartsNew({
               vertical={false}
               stroke="#33415525"
             />
-          <XAxis
-            dataKey="name"
-            axisLine={false}
-            tickLine={false}
-            tick={{ fill: "#94a3b8", fontSize: 11, fontWeight: 600 }}
-            dy={8}
-          />
-          <YAxis
-            yAxisId="revenue"
-            axisLine={false}
-            tickLine={false}
-            tick={{ fill: "#94a3b8", fontSize: 11, fontWeight: 600 }}
-            tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
-            domain={[0, "dataMax + 2000"]}
-            width={36}
-          />
-          <YAxis
-            yAxisId="schools"
-            orientation="right"
-            axisLine={false}
-            tickLine={false}
-            tick={{ fill: "#94a3b8", fontSize: 11, fontWeight: 600 }}
-            domain={[0, "dataMax + 2"]}
-            width={24}
-            allowDecimals={false}
-          />
-          <Tooltip content={<CustomTooltip />} />
-          <Line
-            yAxisId="revenue"
-            type="monotone"
-            dataKey="Revenus (CFA)"
-            stroke="#4f46e5"
-            strokeWidth={2.5}
-            dot={{ r: 4, fill: "#4f46e5", strokeWidth: 0 }}
-            activeDot={{ r: 6, fill: "#4f46e5", strokeWidth: 0 }}
-          />
-          <Line
-            yAxisId="schools"
-            type="monotone"
-            dataKey="Écoles"
-            stroke="#8b5cf6"
-            strokeWidth={1.5}
-            strokeDasharray="5 4"
-            dot={{ r: 3.5, fill: "#8b5cf6", strokeWidth: 0 }}
-            activeDot={{ r: 5, fill: "#8b5cf6", strokeWidth: 0 }}
-          />
-        </LineChart>
-      </ResponsiveContainer>
+            <XAxis
+              dataKey="name"
+              axisLine={false}
+              tickLine={false}
+              tick={{ fill: "#94a3b8", fontSize: 11, fontWeight: 600 }}
+              dy={8}
+            />
+            <YAxis
+              yAxisId="revenue"
+              axisLine={false}
+              tickLine={false}
+              tick={{ fill: "#94a3b8", fontSize: 11, fontWeight: 600 }}
+              tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
+              domain={[0, "dataMax + 2000"]}
+              width={36}
+            />
+            <YAxis
+              yAxisId="schools"
+              orientation="right"
+              axisLine={false}
+              tickLine={false}
+              tick={{ fill: "#94a3b8", fontSize: 11, fontWeight: 600 }}
+              domain={[0, "dataMax + 2"]}
+              width={24}
+              allowDecimals={false}
+            />
+            <Tooltip content={<CustomTooltip />} />
+            <Line
+              yAxisId="revenue"
+              type="monotone"
+              dataKey="Revenus (CFA)"
+              stroke="#4f46e5"
+              strokeWidth={2.5}
+              dot={{ r: 4, fill: "#4f46e5", strokeWidth: 0 }}
+              activeDot={{ r: 6, fill: "#4f46e5", strokeWidth: 0 }}
+            />
+            <Line
+              yAxisId="schools"
+              type="monotone"
+              dataKey="Écoles"
+              stroke="#8b5cf6"
+              strokeWidth={1.5}
+              strokeDasharray="5 4"
+              dot={{ r: 3.5, fill: "#8b5cf6", strokeWidth: 0 }}
+              activeDot={{ r: 5, fill: "#8b5cf6", strokeWidth: 0 }}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 }
