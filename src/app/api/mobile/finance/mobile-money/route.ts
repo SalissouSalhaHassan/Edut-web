@@ -406,7 +406,7 @@ export async function POST(request: NextRequest) {
       datePaid: new Date().toISOString(),
       balance: newBalance,
       qrVerificationData: verificationPayload,
-      qrVerificationUrl: `https://edut.app/verify/receipt?ref=${encodeURIComponent(txnRef)}&receipt=${encodeURIComponent(receiptNo)}&amount=${payAmount}`,
+      qrVerificationUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://niger.edut.pro"}/verify/${encodeURIComponent(txnRef)}`,
       message: `Paiement de ${payAmount.toLocaleString("fr-FR")} FCFA validé avec succès via ${providerCode} !`,
     });
   } catch (error: any) {

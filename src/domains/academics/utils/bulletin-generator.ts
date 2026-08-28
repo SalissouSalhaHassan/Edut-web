@@ -496,11 +496,14 @@ export async function generateBulletinPDF(data: any) {
   
   const displayRank = formatRank(rawRank);
 
-  // Load QR Code early to place inside the box
+  // Load QR Code early to place inside the box - routes to universal verification portal
   let qrBase64: string | null = null;
   try {
-    const qrData = `ELEVE: ${student?.nomEtudiant || student?.name || "N/A"} | MATRICULE: ${student?.numAdmission || student?.matricule || "N/A"} | MOYENNE: ${displayAverage.toFixed(2)}/20 | CLASSE: ${student?.classe || student?.className || "N/A"}`;
-    qrBase64 = await fetchQRCodeBase64(qrData);
+    const studentMatricule = student?.numAdmission || student?.matricule || student?.id;
+    const verifyUrl = data.verifyToken
+      ? `${process.env.NEXT_PUBLIC_APP_URL || "https://niger.edut.pro"}/verify/bulletin/${data.verifyToken}`
+      : `${process.env.NEXT_PUBLIC_APP_URL || "https://niger.edut.pro"}/verify/${encodeURIComponent(studentMatricule || "BULLETIN")}`;
+    qrBase64 = await fetchQRCodeBase64(verifyUrl);
   } catch (e) {
     console.warn("Failed to load QR code for Bulletin:", e);
   }

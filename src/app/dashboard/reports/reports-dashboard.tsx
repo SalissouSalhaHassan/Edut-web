@@ -888,7 +888,7 @@ function ReportsDashboardContent({ unifiedData: initialData, branding, currentUs
     editorName: currentUser?.nomPrenom || "Administrateur",
     description: `Ce document officiel regroupe les indicateurs consolidés d'établissement pour le module ${getReportModuleName(activeReport)}.`,
     isLandscape: activeReport === "finances" || activeReport === "presence" || activeReport === "security" || activeReport === "canevas" || activeReport === "ministry" || activeReport === "inspection",
-    qrValue: `https://edut.ne/verify/report/RPT-${activeReport.substring(0, 3).toUpperCase()}-${Date.now().toString().slice(-6)}`
+    qrValue: `${typeof window !== "undefined" ? window.location.origin : "https://niger.edut.pro"}/verify/${encodeURIComponent(`RPT-${activeReport.substring(0, 3).toUpperCase()}-${Date.now().toString().slice(-6)}`)}`
   };
 
   const fSel = "w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-2.5 rounded-2xl text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-300 dark:focus:ring-indigo-600";

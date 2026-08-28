@@ -730,9 +730,9 @@ export default function AdminDocsPage() {
       doc.text("EDUT PRO", 35, sigY + 13, { align: "center" });
       doc.text("S.A.R.L", 35, sigY + 17, { align: "center" });
 
-      // Verification Center – Real QR code (reference + localId + syncStatus)
-      const refText = `Réf : DOC-${activeDoc.id.toUpperCase()}-${Date.now().toString().slice(-6)}`;
-      const qrPayload = `REF: ${refText} | LOCAL_ID: ${activeEntity.id} | STATUS: ${isProvisoire ? "provisoire" : "officiel"}`;
+      // Verification Center – Real QR code pointing to universal verification portal
+      const appUrl = typeof window !== "undefined" ? window.location.origin : "https://niger.edut.pro";
+      const qrPayload = `${appUrl}/verify/${encodeURIComponent(activeEntity.matricule || activeEntity.numAdmission || activeEntity.id || "DOC")}`;
       doc.setFontSize(8);
       doc.setTextColor(100, 116, 139);
       doc.text("VÉRIFICATION EN LIGNE", pageWidth / 2, sigY + 28, { align: "center" });

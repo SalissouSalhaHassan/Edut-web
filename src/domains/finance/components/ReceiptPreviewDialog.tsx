@@ -34,6 +34,7 @@ import {
 import { cn } from "@/lib/utils";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+import QRCode from "qrcode";
 import { toast } from "sonner";
 import { cancelFeePayment } from "../actions/finance.actions";
 import { getBranchByLevel } from "../../settings/actions/settings.actions";
@@ -196,6 +197,7 @@ export default function ReceiptPreviewDialog({
   const [activeTab, setActiveTab] = useState<"receipt" | "history">("receipt");
   const [activeHeaderConfig, setActiveHeaderConfig] = useState<any>(headerConfig);
   const [selectedPaperSize, setSelectedPaperSize] = useState<"A4" | "A5">("A5");
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>("");
 
   // Payment cancellation & real-time sync state
   const [currentPayments, setCurrentPayments] = useState<any[]>(feeData?.payments || []);
@@ -204,6 +206,22 @@ export default function ReceiptPreviewDialog({
   const [paymentToCancel, setPaymentToCancel] = useState<any | null>(null);
   const [cancelReason, setCancelReason] = useState<string>("");
   const [isCancelling, setIsCancelling] = useState(false);
+
+  useEffect(() => {
+    if (feeData) {
+      const ref = feeData.payment?.reference || `REC-${new Date().getFullYear()}-${String(feeData.id || feeData.payment?.id || 1).padStart(6, "0")}`;
+      const appUrl = typeof window !== "undefined" ? window.location.origin : "https://niger.edut.pro";
+      const verifUrl = `${appUrl}/verify/${encodeURIComponent(ref)}`;
+      
+      QRCode.toDataURL(verifUrl, {
+        margin: 1,
+        width: 256,
+        color: { dark: "#0f172a", light: "#ffffff" },
+      }).then((url) => {
+        setQrCodeDataUrl(url);
+      }).catch(() => {});
+    }
+  }, [feeData]);
 
   useEffect(() => {
     if (feeData) {
@@ -1014,30 +1032,18 @@ export default function ReceiptPreviewDialog({
     doc.setDrawColor(220, 225, 240);
     doc.roundedRect(qrCardX, bottomCardsY, certWidth, bottomCardHeight, isA5 ? 1.5 : 2, isA5 ? 1.5 : 2, "FD");
 
-    if (qrCodeDataUrl) {
-      try {
-        const qrBase64 = await new Promise<string>((resolve) => {
-          if (typeof window === "undefined") return resolve("");
-          const img = new Image();
-          img.crossOrigin = "Anonymous";
-          img.src = qrCodeDataUrl;
-          img.onload = () => {
-            const canvas = document.createElement("canvas");
-            canvas.width = img.width;
-            canvas.height = img.height;
-            const ctx = canvas.getContext("2d");
-            ctx?.drawImage(img, 0, 0);
-            resolve(canvas.toDataURL("image/png"));
-          };
-          img.onerror = () => resolve("");
-        });
-        if (qrBase64) {
-          const qrSize = isA5 ? 14 : 20;
-          doc.addImage(qrBase64, "PNG", qrCardX + 3, bottomCardsY + (isA5 ? 3 : 4), qrSize, qrSize);
-        }
-      } catch (e) {
-        console.warn("QR code render error:", e);
-      }
+    try {
+      const appUrl = typeof window !== "undefined" ? window.location.origin : "https://niger.edut.pro";
+      const verifUrl = `${appUrl}/verify/${encodeURIComponent(refNumber)}`;
+      const qrData = await QRCode.toDataURL(verifUrl, {
+        margin: 1,
+        width: 160,
+        color: { dark: "#0f172a", light: "#ffffff" },
+      });
+      const qrSize = isA5 ? 14 : 20;
+      doc.addImage(qrData, "PNG", qrCardX + 3, bottomCardsY + (isA5 ? 3 : 4), qrSize, qrSize);
+    } catch (e) {
+      console.warn("QR code render error:", e);
     }
     doc.setFontSize(isA5 ? 4.5 : 6);
     doc.setFont("helvetica", "normal");

@@ -345,7 +345,7 @@ export async function getParentPortalDataAction(selectedStudentId?: number) {
         cardId: `CARD-EDUT-${currentChild.id}`,
         schoolName: user.schoolName || "Établissement Scolaire Edut Pro",
         academicYear: currentChild.session || "2024-2025",
-        qrCodeUrl: `https://edut.ne/verify/student/${currentChild.numAdmission}`
+        qrCodeUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://niger.edut.pro"}/verify/${encodeURIComponent(currentChild.numAdmission || currentChild.id)}`
       },
       announcements
     };

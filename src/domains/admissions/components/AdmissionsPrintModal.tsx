@@ -152,9 +152,11 @@ export default function AdmissionsPrintModal({
       const schoolYear = cfg.schoolYear || "2024 - 2025";
 
       // Preload images (School Logo, Student Photo, Verification QR Code)
-      const qrString = currentApp
-        ? `EDUT-ADM-${currentApp.applicationNumber}-${currentApp.generatedMatricule || "VAL"}`
-        : `EDUT-PV-ADMISSIONS-${new Date().getFullYear()}`;
+      const appUrl = typeof window !== "undefined" ? window.location.origin : "https://niger.edut.pro";
+      const identifier = currentApp
+        ? (currentApp.generatedMatricule || currentApp.applicationNumber || currentApp.id)
+        : `ADM-${new Date().getFullYear()}`;
+      const qrString = `${appUrl}/verify/${encodeURIComponent(identifier)}`;
 
       const [schoolLogoDataUrl, studentPhotoDataUrl, qrCodeDataUrl] = await Promise.all([
         getImageDataUrl(cfg.centerLogo || cfg.leftLogo),

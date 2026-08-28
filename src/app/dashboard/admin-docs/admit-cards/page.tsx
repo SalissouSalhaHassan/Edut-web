@@ -654,8 +654,9 @@ export default function AdmitCardsPage() {
     doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(100, 116, 139);
     doc.text("Signature du directeur", m + 27, sigY + 23, { align: "center" });
 
-    // Real QR code
-    const qrPayload = `REF: ${ref} | LOCAL_ID: ${student.id} | STATUS: ${isProvisoire ? "provisoire" : "officiel"}`;
+    // Real QR code pointing to universal verification portal
+    const appUrl = typeof window !== "undefined" ? window.location.origin : "https://niger.edut.pro";
+    const qrPayload = `${appUrl}/verify/${encodeURIComponent(student.matricule || student.numAdmission || student.id || "ADMIT")}`;
     let qrBase64 = "";
     try {
       const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrPayload)}`;
