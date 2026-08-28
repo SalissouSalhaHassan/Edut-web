@@ -330,8 +330,10 @@ export async function generateVerificationCertificatePDF(
     doc.setFont("helvetica", "bold");
     doc.setTextColor(15, 23, 42);
     doc.setFontSize(7.5);
-    doc.text(`${data.bulletin.appreciation} • Conduite: ${data.bulletin.conduite}`, col1X, currentY, { maxWidth: colWidth });
+    const apprecLines = doc.splitTextToSize(`${data.bulletin.appreciation} • Conduite: ${data.bulletin.conduite}`, colWidth);
+    doc.text(apprecLines, col1X, currentY);
     doc.text(`${data.bulletin.totalWeighted} pts / Coef ${data.bulletin.totalCoef}`, col2X, currentY);
+    currentY += (apprecLines.length - 1) * 3.5;
   } else {
     currentY += headerBarHeight + 4;
     doc.setFont("helvetica", "normal");
@@ -379,7 +381,7 @@ export async function generateVerificationCertificatePDF(
   }
 
   // Section 3: Global Standards & Accreditation
-  currentY += 7;
+  currentY += 6;
   doc.setFillColor(15, 23, 42);
   doc.rect(marginX, currentY, contentWidth, headerBarHeight, "F");
   doc.setFont("helvetica", "bold");
@@ -395,10 +397,16 @@ export async function generateVerificationCertificatePDF(
     currentY + 3.5
   );
 
-  currentY += headerBarHeight + 4;
+  currentY += headerBarHeight + 3.5;
   const labelX = col1X;
-  const valueX = marginX + 52;
-  const valWidth = contentWidth - 56;
+  const valueX = marginX + 42;
+  const valWidth = contentWidth - 45;
+
+  const tutelleText = data.institution.departmentalDirection || (
+    data.institution.regionalDirection 
+      ? `${data.institution.regionalDirection} • Inspection Pédagogique` 
+      : "Inspection Pédagogique Régionale"
+  );
 
   const standardsItems = isFinancial ? [
     { label: "Norme Comptable :", value: "SYSCOHADA Révisé • Plan Comptable de l'Enseignement Supérieur" },
@@ -406,10 +414,10 @@ export async function generateVerificationCertificatePDF(
     { label: "Réf. Trésorerie :", value: `${data.financial?.transactionReference} • Année Académique 2025-2026` },
     { label: "Autorité de Tutelle :", value: `${data.institution.accreditation} • Ministère de l'Enseignement Supérieur` },
   ] : isBulletin ? [
-    { label: "Cadre Réglementaire :", value: "Arrêté Ministériel portant organisation des évaluations et examens scolaires" },
+    { label: "Cadre Réglementaire :", value: "Arrêté Ministériel portant organisation des évaluations et examens" },
     { label: "Classification UNESCO :", value: data.standards.unescoIscedEn },
-    { label: "Inspection Tutelle :", value: `${data.institution.regionalDirection || "DREN"} • ${data.institution.departmentalDirection || "Inspection Pédagogique"}` },
-    { label: "Statut Établissement :", value: `${data.institution.accreditation} • ${data.institution.ministry}` },
+    { label: "Inspection Tutelle :", value: tutelleText },
+    { label: "Statut Établissement :", value: `${data.institution.accreditation} • ${data.institution.city || "République du Niger"}` },
   ] : [
     { label: "UNESCO ISCED 2011 :", value: data.standards.unescoIscedEn },
     { label: "European Framework :", value: `${data.standards.eqfLevel} • ${data.standards.bolognaCycle}` },
@@ -419,15 +427,18 @@ export async function generateVerificationCertificatePDF(
 
   standardsItems.forEach((item) => {
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(6.8);
+    doc.setFontSize(6.5);
     doc.setTextColor(100, 116, 139);
     doc.text(item.label, labelX, currentY);
 
     doc.setFont("helvetica", "normal");
+    doc.setFontSize(6.5);
     doc.setTextColor(15, 23, 42);
-    doc.text(item.value, valueX, currentY, { maxWidth: valWidth });
+    const lines = doc.splitTextToSize(item.value, valWidth);
+    doc.text(lines, valueX, currentY);
 
-    currentY += 4.5;
+    const rowHeight = Math.max(3.8, lines.length * 3.3);
+    currentY += rowHeight + 1.0;
   });
 
   // Cryptographic Proof & Ledger Box
