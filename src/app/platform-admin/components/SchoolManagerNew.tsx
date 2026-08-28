@@ -224,16 +224,16 @@ export function SchoolManagerNew({ schools: initialSchools }: { schools: SchoolR
   };
 
   return (
-    <div>
+    <div className="bg-white dark:bg-[#111827] rounded-3xl border border-slate-200/80 dark:border-slate-800 overflow-hidden shadow-sm transition-colors">
       {/* Toolbar */}
-      <div className="flex flex-col sm:flex-row gap-3 items-center justify-between px-6 py-4 border-b border-slate-50">
+      <div className="flex flex-col sm:flex-row gap-3 items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
         {/* Search */}
         <div className="relative w-full sm:w-72">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
             placeholder="Rechercher une école ou un domaine..."
-            className="w-full pl-9 pr-4 py-2 text-sm border border-slate-100 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-200 transition-all font-medium text-slate-700 placeholder:text-slate-400"
+            className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium"
             value={searchQuery}
             onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
           />
@@ -243,7 +243,7 @@ export function SchoolManagerNew({ schools: initialSchools }: { schools: SchoolR
           {/* Export CSV */}
           <button
             onClick={handleExportCSV}
-            className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-slate-600 border border-slate-200 rounded-xl bg-white hover:bg-slate-50 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
           >
             <Download className="w-3.5 h-3.5" />
             Exporter CSV
@@ -253,7 +253,7 @@ export function SchoolManagerNew({ schools: initialSchools }: { schools: SchoolR
           <DropdownMenu>
             <DropdownMenuTrigger
               render={
-                <div className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-slate-600 border border-slate-200 rounded-xl bg-white hover:bg-slate-50 transition-colors cursor-pointer select-none" />
+                <div className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer select-none" />
               }
               nativeButton={false}
             >
@@ -265,10 +265,10 @@ export function SchoolManagerNew({ schools: initialSchools }: { schools: SchoolR
                 ? "Actifs"
                 : "Suspendus"}
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-44 rounded-xl p-1.5 shadow-xl border-slate-100">
-              <DropdownMenuItem onClick={() => { setStatusFilter("all"); setPage(1); }} className="rounded-lg text-xs font-semibold p-2.5 cursor-pointer">Tous</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => { setStatusFilter("active"); setPage(1); }} className="rounded-lg text-xs font-semibold p-2.5 cursor-pointer text-emerald-600">Actifs</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => { setStatusFilter("suspended"); setPage(1); }} className="rounded-lg text-xs font-semibold p-2.5 cursor-pointer text-rose-600">Suspendus</DropdownMenuItem>
+            <DropdownMenuContent align="end" className="w-44 rounded-xl p-1.5 shadow-xl border-slate-100 dark:border-slate-800 dark:bg-slate-800">
+              <DropdownMenuItem onClick={() => { setStatusFilter("all"); setPage(1); }} className="rounded-lg text-xs font-semibold p-2.5 cursor-pointer dark:hover:bg-slate-700">Tous</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => { setStatusFilter("active"); setPage(1); }} className="rounded-lg text-xs font-semibold p-2.5 cursor-pointer text-emerald-600 dark:hover:bg-slate-700">Actifs</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => { setStatusFilter("suspended"); setPage(1); }} className="rounded-lg text-xs font-semibold p-2.5 cursor-pointer text-rose-600 dark:hover:bg-slate-700">Suspendus</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -278,19 +278,19 @@ export function SchoolManagerNew({ schools: initialSchools }: { schools: SchoolR
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
-            <tr className="border-b border-slate-50">
-              <th className="px-6 py-3.5 text-left text-[10px] font-black uppercase tracking-widest text-slate-400">École</th>
-              <th className="px-6 py-3.5 text-left text-[10px] font-black uppercase tracking-widest text-slate-400">Domaine</th>
-              <th className="px-6 py-3.5 text-left text-[10px] font-black uppercase tracking-widest text-slate-400">Forfait</th>
-              <th className="px-6 py-3.5 text-left text-[10px] font-black uppercase tracking-widest text-slate-400">Statut</th>
-              <th className="px-6 py-3.5 text-center text-[10px] font-black uppercase tracking-widest text-slate-400">Actions</th>
+            <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50">
+              <th className="px-6 py-3.5 text-left text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">École</th>
+              <th className="px-6 py-3.5 text-left text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Domaine</th>
+              <th className="px-6 py-3.5 text-left text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Forfait</th>
+              <th className="px-6 py-3.5 text-left text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Statut</th>
+              <th className="px-6 py-3.5 text-center text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-50">
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
             {pagedSchools.length === 0 ? (
               <tr>
                 <td colSpan={5} className="py-16 text-center">
-                  <p className="text-sm font-semibold text-slate-400">
+                  <p className="text-sm font-semibold text-slate-400 dark:text-slate-500">
                     Aucune école ne correspond à votre recherche.
                   </p>
                 </td>
@@ -308,16 +308,16 @@ export function SchoolManagerNew({ schools: initialSchools }: { schools: SchoolR
 
                 // Pick a color based on initials hash
                 const colors = [
-                  "bg-indigo-100 text-indigo-700",
-                  "bg-blue-100 text-blue-700",
-                  "bg-violet-100 text-violet-700",
-                  "bg-emerald-100 text-emerald-700",
-                  "bg-amber-100 text-amber-700",
+                  "bg-indigo-100 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-400",
+                  "bg-blue-100 dark:bg-blue-950/50 text-blue-700 dark:text-blue-400",
+                  "bg-violet-100 dark:bg-violet-950/50 text-violet-700 dark:text-violet-400",
+                  "bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400",
+                  "bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400",
                 ];
                 const colorClass = colors[school.id % colors.length];
 
                 return (
-                  <tr key={school.id} className="hover:bg-slate-50/60 transition-colors">
+                  <tr key={school.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
                     {/* School name */}
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
@@ -329,8 +329,8 @@ export function SchoolManagerNew({ schools: initialSchools }: { schools: SchoolR
                           )}
                         </div>
                         <div>
-                          <p className="text-sm font-bold text-slate-900 leading-tight">{school.name}</p>
-                          <p className="text-[10px] text-slate-400 mt-0.5">
+                          <p className="text-sm font-bold text-slate-900 dark:text-white leading-tight">{school.name}</p>
+                          <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
                             Inscrit le {school.createdAt ? new Date(school.createdAt).toLocaleDateString("fr-FR") : "—"}
                           </p>
                         </div>
@@ -567,16 +567,16 @@ export function SchoolManagerNew({ schools: initialSchools }: { schools: SchoolR
       </div>
 
       {/* Pagination */}
-      <div className="flex items-center justify-between px-6 py-4 border-t border-slate-50 bg-slate-50/30">
-        <div className="flex items-center gap-2 text-xs text-slate-500">
+      <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40">
+        <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
           <span>Lignes par page</span>
-          <span className="inline-flex items-center gap-1 border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white font-semibold text-slate-700">
+          <span className="inline-flex items-center gap-1 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200">
             {PAGE_SIZE}
             <ChevronLeft className="w-3 h-3 rotate-90 text-slate-400" />
           </span>
         </div>
 
-        <div className="text-xs text-slate-500 font-medium">
+        <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">
           Affichage de {Math.min((page - 1) * PAGE_SIZE + 1, filteredSchools.length)} à{" "}
           {Math.min(page * PAGE_SIZE, filteredSchools.length)} sur {filteredSchools.length} école
           {filteredSchools.length !== 1 ? "s" : ""}
@@ -586,7 +586,7 @@ export function SchoolManagerNew({ schools: initialSchools }: { schools: SchoolR
           <button
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page === 1}
-            className="w-7 h-7 rounded-lg border border-slate-200 bg-white flex items-center justify-center text-slate-500 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="w-7 h-7 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             <ChevronLeft className="w-3.5 h-3.5" />
           </button>
@@ -599,7 +599,7 @@ export function SchoolManagerNew({ schools: initialSchools }: { schools: SchoolR
                 "w-7 h-7 rounded-lg border text-xs font-bold transition-colors",
                 page === p
                   ? "bg-indigo-600 border-indigo-600 text-white shadow-sm"
-                  : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                  : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
               )}
             >
               {p}
@@ -609,7 +609,7 @@ export function SchoolManagerNew({ schools: initialSchools }: { schools: SchoolR
           <button
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             disabled={page === totalPages}
-            className="w-7 h-7 rounded-lg border border-slate-200 bg-white flex items-center justify-center text-slate-500 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="w-7 h-7 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             <ChevronRight className="w-3.5 h-3.5" />
           </button>

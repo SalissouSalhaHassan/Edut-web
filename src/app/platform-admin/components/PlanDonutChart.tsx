@@ -9,13 +9,46 @@ type PlanItem = {
   percent: number;
 };
 
+interface PlanDonutChartProps {
+  data?: PlanItem[];
+  totalSchools?: number;
+  premium?: number;
+  basic?: number;
+  gratuit?: number;
+  total?: number;
+}
+
 export function PlanDonutChart({
-  data,
+  data: rawData,
   totalSchools,
-}: {
-  data: PlanItem[];
-  totalSchools: number;
-}) {
+  premium = 0,
+  basic = 0,
+  gratuit = 0,
+  total,
+}: PlanDonutChartProps) {
+  const effectiveTotal = total ?? totalSchools ?? (premium + basic + gratuit || 1);
+
+  const data: PlanItem[] = rawData || [
+    {
+      name: "Entreprise & Pro",
+      value: premium,
+      color: "#4f46e5",
+      percent: Math.round((premium / effectiveTotal) * 100),
+    },
+    {
+      name: "Basique",
+      value: basic,
+      color: "#06b6d4",
+      percent: Math.round((basic / effectiveTotal) * 100),
+    },
+    {
+      name: "Gratuit",
+      value: gratuit,
+      color: "#94a3b8",
+      percent: Math.round((gratuit / effectiveTotal) * 100),
+    },
+  ];
+
   const hasData = data.some((d) => d.value > 0);
 
   return (
@@ -25,7 +58,7 @@ export function PlanDonutChart({
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
-              data={hasData ? data.filter((d) => d.value > 0) : [{ name: "Vide", value: 1, color: "#e2e8f0", percent: 100 }]}
+              data={hasData ? data.filter((d) => d.value > 0) : [{ name: "Vide", value: 1, color: "#334155", percent: 100 }]}
               cx="50%"
               cy="50%"
               innerRadius={60}
@@ -36,7 +69,7 @@ export function PlanDonutChart({
               endAngle={-270}
               stroke="none"
             >
-              {(hasData ? data.filter((d) => d.value > 0) : [{ color: "#e2e8f0" }]).map(
+              {(hasData ? data.filter((d) => d.value > 0) : [{ color: "#334155" }]).map(
                 (entry: any, index: number) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 )
@@ -47,7 +80,9 @@ export function PlanDonutChart({
                 contentStyle={{
                   borderRadius: "12px",
                   border: "none",
-                  boxShadow: "0 4px 24px rgba(0,0,0,0.08)",
+                  backgroundColor: "rgba(15, 23, 42, 0.95)",
+                  color: "#fff",
+                  boxShadow: "0 4px 24px rgba(0,0,0,0.25)",
                   padding: "8px 12px",
                   fontSize: "12px",
                   fontWeight: 700,
@@ -59,27 +94,9 @@ export function PlanDonutChart({
         </ResponsiveContainer>
         {/* Center label */}
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-          <span className="text-3xl font-black text-slate-900 leading-none">{totalSchools}</span>
-          <span className="text-[11px] font-semibold text-slate-400 mt-0.5">Écoles</span>
+          <span className="text-3xl font-black text-slate-900 dark:text-white leading-none">{effectiveTotal}</span>
+          <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 mt-0.5">Écoles</span>
         </div>
-      </div>
-
-      {/* Legend */}
-      <div className="w-full space-y-2.5">
-        {data.map((item) => (
-          <div key={item.name} className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span
-                className="w-3 h-3 rounded-full shrink-0"
-                style={{ backgroundColor: item.color }}
-              />
-              <span className="text-sm font-semibold text-slate-700">{item.name}</span>
-            </div>
-            <span className="text-sm font-black text-slate-500">
-              {item.value} ({item.percent}%)
-            </span>
-          </div>
-        ))}
       </div>
     </div>
   );

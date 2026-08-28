@@ -68,24 +68,24 @@ export function AddSchoolDialog() {
         <Plus size={16} />
         Ajouter une école
       </DialogTrigger>
-      <DialogContent className="max-w-md rounded-[2.5rem] p-8 border-none shadow-2xl">
+      <DialogContent className="max-w-md rounded-[2.5rem] p-8 border border-slate-100 dark:border-slate-800 bg-white dark:bg-[#111827] shadow-2xl">
         <DialogHeader className="mb-6">
-          <div className="w-16 h-16 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-4 shadow-sm">
+          <div className="w-16 h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mb-4 shadow-sm">
             <Building2 size={32} />
           </div>
-          <DialogTitle className="text-3xl font-black text-slate-900 tracking-tight">Nouvelle École</DialogTitle>
-          <p className="text-slate-500 font-medium italic">Enregistrez un nouvel établissement sur la plateforme.</p>
+          <DialogTitle className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Nouvelle École</DialogTitle>
+          <p className="text-slate-500 dark:text-slate-400 font-medium text-xs">Enregistrez un nouvel établissement sur la plateforme.</p>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
-            <Label htmlFor="name" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Nom de l'Établissement</Label>
+            <Label htmlFor="name" className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1">Nom de l'Établissement</Label>
             <div className="relative group">
               <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-slate-400 group-focus-within:text-indigo-600 transition-colors" />
               <Input
                 id="name"
                 placeholder="Ex: Lycée Moderne d'Abidjan"
-                className="pl-11 h-14 rounded-2xl border-slate-100 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 transition-all font-bold"
+                className="pl-11 h-14 rounded-2xl border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-700 focus:ring-2 focus:ring-indigo-500/20 transition-all font-bold"
                 value={formData.name}
                 onChange={(e) => {
                   const name = e.target.value;
@@ -99,33 +99,33 @@ export function AddSchoolDialog() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="slug" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Nom de Domaine (Slug)</Label>
+            <Label htmlFor="slug" className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1">Nom de Domaine (Slug)</Label>
             <div className="relative group">
               <Globe className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-slate-400 group-focus-within:text-indigo-600 transition-colors" />
               <Input
                 id="slug"
                 placeholder="nom-ecole"
-                className="pl-11 h-14 rounded-2xl border-slate-100 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 transition-all font-black text-indigo-600"
+                className="pl-11 h-14 rounded-2xl border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-700 focus:ring-2 focus:ring-indigo-500/20 transition-all font-black text-indigo-600 dark:text-indigo-400"
                 value={formData.slug}
                 onChange={(e) => setFormData(prev => ({ ...prev, slug: e.target.value }))}
               />
-              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-300 uppercase">.edut.pro</span>
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase">.edut.pro</span>
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Forfait d'Abonnement</Label>
+            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1">Forfait d'Abonnement</Label>
             <Select 
               value={formData.plan} 
               onValueChange={(value: any) => setFormData(prev => ({ ...prev, plan: value }))}
             >
-              <SelectTrigger className="h-14 rounded-2xl border-slate-100 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 transition-all font-bold">
+              <SelectTrigger className="h-14 rounded-2xl border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-700 focus:ring-2 focus:ring-indigo-500/20 transition-all font-bold">
                 <SelectValue placeholder="Choisir un forfait" />
               </SelectTrigger>
-              <SelectContent className="rounded-2xl border-slate-100 p-2 shadow-xl">
-                <SelectItem value="basic" className="rounded-xl font-bold p-3">Basic (Gratuit)</SelectItem>
-                <SelectItem value="premium" className="rounded-xl font-bold p-3 text-amber-600">Premium</SelectItem>
-                <SelectItem value="enterprise" className="rounded-xl font-bold p-3 text-indigo-600">Enterprise</SelectItem>
+              <SelectContent className="rounded-2xl border-slate-200 dark:border-slate-700 dark:bg-slate-800 p-2 shadow-xl">
+                <SelectItem value="basic" className="rounded-xl font-bold p-3 dark:hover:bg-slate-700">Basic (Gratuit)</SelectItem>
+                <SelectItem value="premium" className="rounded-xl font-bold p-3 text-amber-600 dark:text-amber-400 dark:hover:bg-slate-700">Premium</SelectItem>
+                <SelectItem value="enterprise" className="rounded-xl font-bold p-3 text-indigo-600 dark:text-indigo-400 dark:hover:bg-slate-700">Enterprise</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -134,7 +134,7 @@ export function AddSchoolDialog() {
             <Button
               type="submit"
               disabled={isPending}
-              className="w-full h-14 rounded-2xl bg-slate-900 hover:bg-indigo-600 text-white font-black uppercase tracking-widest transition-all shadow-lg shadow-slate-200 border-none flex items-center justify-center gap-3"
+              className="w-full h-14 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest transition-all shadow-lg shadow-indigo-600/20 border-none flex items-center justify-center gap-3"
             >
               {isPending ? (
                 <Loader2 className="animate-spin size-5" />
