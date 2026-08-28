@@ -38,6 +38,7 @@ import {
   Store,
   Settings,
   Shield,
+  ShieldCheck,
   ShieldAlert,
   UsersRound,
   UserRound,
