@@ -475,7 +475,6 @@ export default function ReceiptPreviewDialog({
       });
 
   const schoolName = activeHeaderConfig?.schoolName || branchInfo?.branchName || "EDUT ACADEMY";
-  const qrCodeDataUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`REC-${refNumber}|${feeData.student?.nomEtudiant || "Eleve"}|${totalPaid}|${balance}`)}`;
   const schoolAddress = activeHeaderConfig?.address || branchInfo?.address || "Secteur 5, Niamey, Niger";
   const schoolPhone = activeHeaderConfig?.phone || branchInfo?.contactNo || "+227 90 12 34 56";
   const schoolEmail = activeHeaderConfig?.email || branchInfo?.email || "contact@edutacademy.ne";
