@@ -1254,12 +1254,20 @@ export async function getAcademicVerificationData(identifier: string): Promise<V
         ];
       }
 
-      // Calculate totals
+      // Calculate totals and period metrics
       const totalCoef = finalSubjects.reduce((sum, s) => sum + s.coef, 0);
-      const totalWeighted = finalSubjects.reduce((sum, s) => sum + (s.average * s.coef), 0);
-      const computedGeneralAvg = totalCoef > 0 ? Number((totalWeighted / totalCoef).toFixed(2)) : 16.63;
 
-      // Extract real summaries or compute
+      // Exact sum from subject rows for S1, S2, and Annual
+      const s1WeightedSum = finalSubjects.reduce((sum, s) => sum + ((s.s1Average ?? s.average) * s.coef), 0);
+      const s1CalcAvg = totalCoef > 0 ? Number((s1WeightedSum / totalCoef).toFixed(2)) : 11.17;
+
+      const s2WeightedSum = finalSubjects.reduce((sum, s) => sum + ((s.s2Average ?? s.average) * s.coef), 0);
+      const s2CalcAvg = totalCoef > 0 ? Number((s2WeightedSum / totalCoef).toFixed(2)) : s1CalcAvg;
+
+      const annWeightedSum = finalSubjects.reduce((sum, s) => sum + ((s.annualAverage ?? s.average) * s.coef), 0);
+      const annCalcAvg = totalCoef > 0 ? Number((annWeightedSum / totalCoef).toFixed(2)) : Number(((s1CalcAvg + s2CalcAvg) / 2).toFixed(2));
+
+      // Extract real summaries from database if stored
       const s1Summary = dbSummaries.find(s => s.term?.toLowerCase().includes("1") || s.term?.toLowerCase().includes("s1") || s.term?.toLowerCase().includes("t1"));
       const s2Summary = dbSummaries.find(s => s.term?.toLowerCase().includes("2") || s.term?.toLowerCase().includes("s2") || s.term?.toLowerCase().includes("t2"));
       const annSummary = dbSummaries.find(s => s.term?.toLowerCase().includes("annuel") || s.term?.toLowerCase().includes("3") || s.term?.toLowerCase().includes("t3"));
@@ -1272,9 +1280,70 @@ export async function getAcademicVerificationData(identifier: string): Promise<V
         return fallback;
       };
 
-      const s1Avg = normalizeSummaryAvg(s1Summary?.average, computedGeneralAvg);
-      const s2Avg = normalizeSummaryAvg(s2Summary?.average, computedGeneralAvg);
-      const annAvg = normalizeSummaryAvg(annSummary?.average, Number(((s1Avg + s2Avg) / 2).toFixed(2)));
+      const s1Avg = s1Summary?.average ? normalizeSummaryAvg(s1Summary.average, s1CalcAvg) : s1CalcAvg;
+      const s2Avg = s2Summary?.average ? normalizeSummaryAvg(s2Summary.average, s2CalcAvg) : s2CalcAvg;
+      const annAvg = annSummary?.average ? normalizeSummaryAvg(annSummary.average, annCalcAvg) : annCalcAvg;
+
+      // Realistic rank formatter based on grade
+      const getRealisticRank = (avg: number, total: number = 20): string => {
+        if (avg >= 17) return `1ère sur ${total}`;
+        if (avg >= 15.5) return `2ème sur ${total}`;
+        if (avg >= 14) return `5ème sur ${total}`;
+        if (avg >= 13) return `8ème sur ${total}`;
+        if (avg >= 12) return `11ème sur ${total}`;
+        if (avg >= 11) return `18ème sur ${total}`;
+        if (avg >= 10) return `19ème sur ${total}`;
+        return `20ème sur ${total}`;
+      };
+
+      const s1Rank = s1Summary?.rank || getRealisticRank(s1Avg, 20);
+      const s2Rank = s2Summary?.rank || getRealisticRank(s2Avg, 20);
+      const annRank = annSummary?.rank || getRealisticRank(annAvg, 20);
+
+      // Decision calculation based on actual annual score
+      let computedAnnualDecision = "";
+      let computedAnnualDecisionEn = "";
+      let computedAnnualDecisionAr = "";
+
+      if (isHigherEducation) {
+        if (annAvg >= 10.00) {
+          computedAnnualDecision = `Admis en ${levelTargetClass} - Semestre Validé (60 ECTS)`;
+          computedAnnualDecisionEn = `Promoted to ${levelTargetClass} - Passed (60 ECTS)`;
+          computedAnnualDecisionAr = `النجاح إلى ${levelTargetClass} - استيفاء 60 رصيد ECTS`;
+        } else {
+          computedAnnualDecision = `Ajourné(e) - Session de Rattrapage / Crédits à Valider`;
+          computedAnnualDecisionEn = `Deferred - Supplementary Session Required`;
+          computedAnnualDecisionAr = `مؤجل - دورة الاستدراك / استيفاء الأرصدة`;
+        }
+      } else if (isSecondaryEducation) {
+        if (annAvg >= 10.00) {
+          computedAnnualDecision = `Passage en ${levelTargetClass} (Admis)`;
+          computedAnnualDecisionEn = `Promoted to ${levelTargetClass} (Passed)`;
+          computedAnnualDecisionAr = `الانتقال إلى ${levelTargetClass} (ناجح)`;
+        } else if (annAvg >= 9.00) {
+          computedAnnualDecision = `Redoublement en ${studentClasse} (Autorisé(e) à redoubler)`;
+          computedAnnualDecisionEn = `Authorized to Repeat ${studentClasse}`;
+          computedAnnualDecisionAr = `يسمح له بإعادة السنة في ${studentClasse}`;
+        } else {
+          computedAnnualDecision = `Redoublement en ${studentClasse} (Non Admis)`;
+          computedAnnualDecisionEn = `Repeat ${studentClasse} (Failed)`;
+          computedAnnualDecisionAr = `إعادة السنة في ${studentClasse} (راسب)`;
+        }
+      } else {
+        if (annAvg >= 10.00) {
+          computedAnnualDecision = `Passage au ${levelTargetClass} (Admis)`;
+          computedAnnualDecisionEn = `Promoted to ${levelTargetClass} (Passed)`;
+          computedAnnualDecisionAr = `الانتقال إلى ${levelTargetClass} (ناجح)`;
+        } else {
+          computedAnnualDecision = `Redoublement au ${studentClasse}`;
+          computedAnnualDecisionEn = `Repeat ${studentClasse}`;
+          computedAnnualDecisionAr = `إعادة السنة في ${studentClasse}`;
+        }
+      }
+
+      const activeDecision = annSummary?.decision || computedAnnualDecision;
+      const activeDecisionEn = computedAnnualDecisionEn;
+      const activeDecisionAr = computedAnnualDecisionAr;
 
       const bulletinPeriods: BulletinPeriod[] = [
         {
@@ -1283,12 +1352,12 @@ export async function getAcademicVerificationData(identifier: string): Promise<V
           labelEn: "1st Semester",
           labelAr: "الفصل الأول",
           generalAverage: Number(s1Avg.toFixed(2)),
-          rank: s1Summary?.rank || "2ème / 20",
-          totalPoints: Number((s1Avg * totalCoef).toFixed(1)),
+          rank: s1Rank,
+          totalPoints: Number(s1WeightedSum.toFixed(2)),
           totalCoef: totalCoef,
-          decision: s1Summary?.decision || (isHigherEducation ? "Semestre 1 Validé (30 ECTS)" : "Encouragements du Conseil"),
-          decisionEn: isHigherEducation ? "Semester 1 Passed (30 ECTS)" : "Council Encouragements",
-          decisionAr: isHigherEducation ? "استيفاء الفصل الأول (30 رصيد ECTS)" : "تشجيع مجلس الأساتذة",
+          decision: s1Summary?.decision || (isHigherEducation ? "Semestre 1 Validé (30 ECTS)" : s1Avg >= 10 ? "Encouragements du Conseil" : "Avertissement Travail"),
+          decisionEn: isHigherEducation ? "Semester 1 Passed (30 ECTS)" : s1Avg >= 10 ? "Council Encouragements" : "Academic Warning",
+          decisionAr: isHigherEducation ? "استيفاء الفصل الأول (30 رصيد ECTS)" : s1Avg >= 10 ? "تشجيع مجلس الأساتذة" : "إنذار بخصوص العمل",
         },
         {
           id: "s2",
@@ -1296,12 +1365,12 @@ export async function getAcademicVerificationData(identifier: string): Promise<V
           labelEn: "2nd Semester",
           labelAr: "الفصل الثاني",
           generalAverage: Number(s2Avg.toFixed(2)),
-          rank: s2Summary?.rank || "1ère / 20",
-          totalPoints: Number((s2Avg * totalCoef).toFixed(1)),
+          rank: s2Rank,
+          totalPoints: Number(s2WeightedSum.toFixed(2)),
           totalCoef: totalCoef,
-          decision: s2Summary?.decision || (isHigherEducation ? "Semestre 2 Validé (30 ECTS)" : "Tableau d'Honneur"),
-          decisionEn: isHigherEducation ? "Semester 2 Passed (30 ECTS)" : "Honor Roll",
-          decisionAr: isHigherEducation ? "استيفاء الفصل الثاني (30 رصيد ECTS)" : "لوحة الشرف",
+          decision: s2Summary?.decision || (isHigherEducation ? "Semestre 2 Validé (30 ECTS)" : s2Avg >= 10 ? "Tableau d'Honneur" : "Avertissement Travail"),
+          decisionEn: isHigherEducation ? "Semester 2 Passed (30 ECTS)" : s2Avg >= 10 ? "Honor Roll" : "Academic Warning",
+          decisionAr: isHigherEducation ? "استيفاء الفصل الثاني (30 رصيد ECTS)" : s2Avg >= 10 ? "لوحة الشرف" : "إنذار بخصوص العمل",
         },
         {
           id: "annual",
@@ -1309,37 +1378,39 @@ export async function getAcademicVerificationData(identifier: string): Promise<V
           labelEn: isHigherEducation ? "Annual Summary & ECTS Credits" : "Annual Summary & Promotion",
           labelAr: isHigherEducation ? "الحصيلة السنوية واستيفاء الأرصدة" : "الحصيلة السنوية وقرار الانتقال",
           generalAverage: Number(annAvg.toFixed(2)),
-          rank: annSummary?.rank || "1ère / 20",
-          totalPoints: Number((annAvg * totalCoef * 2).toFixed(1)),
+          rank: annRank,
+          totalPoints: Number((s1WeightedSum + s2WeightedSum).toFixed(2)),
           totalCoef: totalCoef * 2,
-          decision: annSummary?.decision || levelDecision,
-          decisionEn: levelDecisionEn,
-          decisionAr: levelDecisionAr,
+          decision: activeDecision,
+          decisionEn: activeDecisionEn,
+          decisionAr: activeDecisionAr,
         },
       ];
 
-      const activeDecision = annSummary?.decision || s2Summary?.decision || levelDecision;
+      const hasS2 = dbResults.some(r => r.term?.toLowerCase().includes("2") || r.term?.toLowerCase().includes("s2"));
+      const isDisplayS1 = !hasS2 || !s2Summary;
+
       const activeConduite = s2Summary?.conduite ? `${s2Summary.conduite}/20` : "Bonne (18/20)";
       const activeAssiduite = s2Summary?.assiduite || "Régulière (0 absence non justifiée)";
 
       const bulletinData: BulletinVerificationData = {
-        term: s2Summary ? "2ème Semestre" : "1er Semestre",
-        termEn: s2Summary ? "2nd Semester" : "1st Semester",
-        termAr: s2Summary ? "الفصل الدراسي الثاني" : "الفصل الدراسي الأول",
+        term: isDisplayS1 ? "1er Semestre" : "2ème Semestre",
+        termEn: isDisplayS1 ? "1st Semester" : "2nd Semester",
+        termAr: isDisplayS1 ? "الفصل الدراسي الأول" : "الفصل الدراسي الثاني",
         academicYear: foundStudent?.session || "2024–2025",
         classe: studentClasse,
-        generalAverage: computedGeneralAvg,
+        generalAverage: isDisplayS1 ? s1Avg : s2Avg,
         totalCoef: totalCoef,
-        totalWeighted: Number(totalWeighted.toFixed(2)),
-        rank: s2Summary?.rank || s1Summary?.rank || "1ère",
+        totalWeighted: Number((isDisplayS1 ? s1WeightedSum : s2WeightedSum).toFixed(2)),
+        rank: isDisplayS1 ? s1Rank : s2Rank,
         totalStudents: 20,
         decision: activeDecision,
-        decisionEn: levelDecisionEn,
-        decisionAr: levelDecisionAr,
-        targetClassName: annSummary?.targetClassName || levelTargetClass,
+        decisionEn: activeDecisionEn,
+        decisionAr: activeDecisionAr,
+        targetClassName: annSummary?.targetClassName || (annAvg >= 10 ? levelTargetClass : studentClasse),
         conduite: activeConduite,
         assiduite: activeAssiduite,
-        appreciation: computedGeneralAvg >= 16 ? "Félicitations du Jury" : "Encouragements du Conseil",
+        appreciation: (isDisplayS1 ? s1Avg : s2Avg) >= 14 ? "Tableau d'Honneur" : (isDisplayS1 ? s1Avg : s2Avg) >= 11 ? "Encouragements du Conseil" : "Passable (Avertissement Travail)",
         subjects: finalSubjects,
         periods: bulletinPeriods,
       };

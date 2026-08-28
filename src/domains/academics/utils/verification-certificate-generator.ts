@@ -611,12 +611,6 @@ export async function generateVerificationCertificatePDF(
       p2Y += 6.5;
     });
 
-    // Summary Box on Page 2
-    p2Y += 5;
-    doc.setFillColor(240, 253, 244);
-    doc.setDrawColor(187, 247, 208);
-    doc.roundedRect(marginX, p2Y, contentWidth, 16, 2, 2, "FD");
-
     const s1Period = data.bulletin.periods?.find(p => p.id === "s1");
     const s2Period = data.bulletin.periods?.find(p => p.id === "s2");
     const annPeriod = data.bulletin.periods?.find(p => p.id === "annual");
@@ -624,7 +618,19 @@ export async function generateVerificationCertificatePDF(
     const s1AvgStr = s1Period ? s1Period.generalAverage.toFixed(2) : data.bulletin.generalAverage.toFixed(2);
     const s2AvgStr = s2Period ? s2Period.generalAverage.toFixed(2) : "—";
     const annAvgStr = annPeriod ? annPeriod.generalAverage.toFixed(2) : data.bulletin.generalAverage.toFixed(2);
+    const annAvgVal = annPeriod?.generalAverage ?? data.bulletin.generalAverage;
+    const isPassed = annAvgVal >= 10.0;
     const rankStr = annPeriod?.rank || s2Period?.rank || `${data.bulletin.rank} sur ${data.bulletin.totalStudents} ${isHigherEd ? "étudiants" : "élèves"}`;
+
+    p2Y += 5;
+    if (isPassed) {
+      doc.setFillColor(240, 253, 244);
+      doc.setDrawColor(187, 247, 208);
+    } else {
+      doc.setFillColor(254, 242, 242);
+      doc.setDrawColor(254, 202, 202);
+    }
+    doc.roundedRect(marginX, p2Y, contentWidth, 16, 2, 2, "FD");
 
     const synthesisTitle = isHigherEd
       ? "SYNTHÈSE DU PARCOURS UNIVERSITAIRE LMD & DÉCISION DU JURY :"
@@ -632,7 +638,7 @@ export async function generateVerificationCertificatePDF(
 
     doc.setFont("helvetica", "bold");
     doc.setFontSize(7.5);
-    doc.setTextColor(21, 128, 61);
+    doc.setTextColor(isPassed ? 21 : 185, isPassed ? 128 : 28, isPassed ? 61 : 28);
     doc.text(synthesisTitle, marginX + 4, p2Y + 5.5);
 
     doc.setFont("helvetica", "normal");
@@ -640,7 +646,7 @@ export async function generateVerificationCertificatePDF(
     doc.setTextColor(51, 65, 85);
     doc.text(
       `Moyenne Semestre 1 : ${s1AvgStr} / 20  •  Moyenne Semestre 2 : ${s2AvgStr} / 20  •  Moyenne Générale Annuelle : ${annAvgStr} / 20 (Rang : ${rankStr})\n` +
-      `Décision Officielle : ${data.bulletin.decision}  •  Conduite & Assiduité : ${data.bulletin.conduite}`,
+      `Décision Officielle : ${annPeriod?.decision || data.bulletin.decision}  •  Conduite & Assiduité : ${data.bulletin.conduite}`,
       marginX + 4,
       p2Y + 10,
       { maxWidth: contentWidth - 8 }
