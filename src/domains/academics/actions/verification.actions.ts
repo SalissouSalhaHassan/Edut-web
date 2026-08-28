@@ -774,13 +774,14 @@ export async function getAcademicVerificationData(identifier: string): Promise<V
         return 0;
       };
 
-      // Helper function for qualitative appreciation
-      const getApprec = (grade: number) => {
+      // Helper function for qualitative appreciation strictly calculated from the grade
+      const getApprec = (grade: number, isHigherEd: boolean = false) => {
         if (grade >= 16) return { fr: "Très Bien", ar: "جيد جداً", en: "Very Good" };
         if (grade >= 14) return { fr: "Bien", ar: "جيد", en: "Good" };
         if (grade >= 12) return { fr: "Assez Bien", ar: "حسن", en: "Fairly Good" };
         if (grade >= 10) return { fr: "Passable", ar: "مقبول", en: "Passable" };
-        return { fr: "Insuffisant", ar: "دون المتوسط", en: "Insufficient" };
+        if (grade >= 8) return { fr: isHigherEd ? "Ajourné" : "Insuffisant", ar: isHigherEd ? "مؤجل" : "دون المتوسط", en: isHigherEd ? "Deferred" : "Insufficient" };
+        return { fr: isHigherEd ? "Non Validé" : "Médiocre", ar: isHigherEd ? "غير مستوفى" : "ضعيف", en: isHigherEd ? "Not Validated" : "Poor" };
       };
 
       let finalSubjects: BulletinSubjectItem[] = [];
@@ -845,7 +846,7 @@ export async function getAcademicVerificationData(identifier: string): Promise<V
           const diff = Number((s2Final - s1Final).toFixed(2));
           const trend: "up" | "down" | "stable" = diff > 0 ? "up" : diff < 0 ? "down" : "stable";
 
-          const apprecObj = getApprec(activeAverage);
+          const apprecObj = getApprec(annFinal, isHigherEducation);
 
           const rawCw = activeRow?.classWorkScore;
           const rawEx = activeRow?.examScore;
@@ -860,7 +861,7 @@ export async function getAcademicVerificationData(identifier: string): Promise<V
             average: activeAverage,
             weightedScore: Number((activeAverage * coef).toFixed(2)),
             rank: activeRow?.rank || "—",
-            appreciation: activeRow?.appreciation || apprecObj.fr,
+            appreciation: apprecObj.fr,
             appreciationAr: apprecObj.ar,
             appreciationEn: apprecObj.en,
             s1Average: s1Final,

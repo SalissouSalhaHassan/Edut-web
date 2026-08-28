@@ -604,9 +604,19 @@ export async function generateVerificationCertificatePDF(
       doc.setTextColor(diff >= 0 ? 16 : 225, diff >= 0 ? 185 : 29, diff >= 0 ? 129 : 72);
       doc.text(diff >= 0 ? `+${diff.toFixed(1)}` : diff.toFixed(1), colEvolX, p2Y + 4.2);
 
+      const getGradeApprec = (g: number, isHE: boolean): string => {
+        if (g >= 16) return "Très Bien";
+        if (g >= 14) return "Bien";
+        if (g >= 12) return "Assez Bien";
+        if (g >= 10) return "Passable";
+        if (g >= 8) return isHE ? "Ajourné" : "Insuffisant";
+        return isHE ? "Non Validé" : "Médiocre";
+      };
+
+      const finalApprec = getGradeApprec(ann, isHigherEd);
       doc.setFont("helvetica", "normal");
-      doc.setTextColor(71, 85, 105);
-      doc.text(sub.appreciation, colAppX, p2Y + 4.2, { maxWidth: 20 });
+      doc.setTextColor(ann >= 10 ? 71 : 225, ann >= 10 ? 85 : 29, ann >= 10 ? 105 : 72);
+      doc.text(finalApprec, colAppX, p2Y + 4.2, { maxWidth: 22 });
 
       p2Y += 6.5;
     });
