@@ -930,14 +930,17 @@ export function SchoolManagerNew({ schools: initialSchools }: { schools: SchoolR
                       licensePlan,
                       licenseDuration
                     );
-                    if (res.success && res.licenseKey) {
-                      setGeneratedLicenseKey(res.licenseKey);
+                    const licenseKey = res.data?.licenseKey || (res as any).licenseKey;
+                    const message = res.data?.message || (res as any).message || "Licence générée et assignée avec succès.";
+
+                    if (res.success && licenseKey) {
+                      setGeneratedLicenseKey(licenseKey);
                       setSchools((prev) =>
                         prev.map((s) => (s.id === selectedSchoolForLicense.id ? { ...s, plan: licensePlan } : s))
                       );
-                      toast.success(res.message);
+                      toast.success(message);
                     } else {
-                      toast.error("Erreur lors de la génération de la licence.");
+                      toast.error(res.error || "Erreur lors de la génération de la licence.");
                     }
                   });
                 }}
