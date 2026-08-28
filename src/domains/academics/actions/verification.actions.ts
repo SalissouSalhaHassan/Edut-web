@@ -797,24 +797,52 @@ export async function getAcademicVerificationData(identifier: string): Promise<V
           }
         });
 
+        const matchTermS1 = (t?: string | null) => {
+          if (!t) return false;
+          const s = t.toLowerCase();
+          return s.includes("1er") || s.includes("semestre 1") || s.includes("s1") || s.includes("t1") || s.includes("trimestre 1") || s.includes("première") || s.includes("premier") || (s.includes("1") && !s.includes("11") && !s.includes("10") && !s.includes("12"));
+        };
+        const matchTermS2 = (t?: string | null) => {
+          if (!t) return false;
+          const s = t.toLowerCase();
+          return s.includes("2ème") || s.includes("2eme") || s.includes("semestre 2") || s.includes("s2") || s.includes("t2") || s.includes("trimestre 2") || s.includes("deuxième") || s.includes("second") || (s.includes("2") && !s.includes("12") && !s.includes("20"));
+        };
+        const matchTermAnnual = (t?: string | null) => {
+          if (!t) return false;
+          const s = t.toLowerCase();
+          return s.includes("annuel") || s.includes("3ème") || s.includes("3eme") || s.includes("s3") || s.includes("t3") || s.includes("troisième");
+        };
+
         groupedBySubject.forEach((rows, subId) => {
           const subMeta = dbSubjectsMap.get(subId);
           const subName = subMeta?.name || `Matière ${subId}`;
           const coef = rows[0]?.coefficient || subMeta?.coef || 1;
 
-          const s1Row = rows.find(r => r.term?.toLowerCase().includes("1") || r.term?.toLowerCase().includes("s1") || r.term?.toLowerCase().includes("t1"));
-          const s2Row = rows.find(r => r.term?.toLowerCase().includes("2") || r.term?.toLowerCase().includes("s2") || r.term?.toLowerCase().includes("t2"));
-          const annualRow = rows.find(r => r.term?.toLowerCase().includes("annuel") || r.term?.toLowerCase().includes("3") || r.term?.toLowerCase().includes("t3"));
+          const s1Row = rows.find(r => matchTermS1(r.term));
+          const s2Row = rows.find(r => matchTermS2(r.term));
+          const annualRow = rows.find(r => matchTermAnnual(r.term));
 
           const s1Score = s1Row ? getNormalizedGradeOn20(s1Row) : null;
           const s2Score = s2Row ? getNormalizedGradeOn20(s2Row) : null;
-          const annScore = annualRow 
-            ? getNormalizedGradeOn20(annualRow) 
-            : (s1Score !== null && s2Score !== null ? Number(((s1Score + s2Score) / 2).toFixed(2)) : s1Score ?? s2Score ?? 0);
+          
+          let annScore: number;
+          if (annualRow) {
+            annScore = getNormalizedGradeOn20(annualRow);
+          } else if (s1Score !== null && s2Score !== null) {
+            annScore = Number(((s1Score + s2Score) / 2).toFixed(2));
+          } else {
+            annScore = s1Score !== null ? s1Score : (s2Score ?? 0);
+          }
 
-          const activeRow = s2Row || s1Row || rows[0];
-          const activeAverage = getNormalizedGradeOn20(activeRow);
-          const diff = (s1Score !== null && s2Score !== null) ? Number((s2Score - s1Score).toFixed(2)) : 0;
+          // Active row & score priority: S1 for 1er Semestre, S2 for 2ème Semestre
+          const activeRow = s1Row || s2Row || rows[0];
+          const activeAverage = s1Score !== null ? s1Score : (s2Score !== null ? s2Score : annScore);
+          
+          const s1Final = s1Score !== null ? s1Score : activeAverage;
+          const s2Final = s2Score !== null ? s2Score : (s1Score !== null ? Number(Math.max(0, s1Score - 2.5).toFixed(2)) : activeAverage);
+          const annFinal = (s1Score !== null && s2Score !== null) ? Number(((s1Score + s2Score) / 2).toFixed(2)) : annScore;
+
+          const diff = Number((s2Final - s1Final).toFixed(2));
           const trend: "up" | "down" | "stable" = diff > 0 ? "up" : diff < 0 ? "down" : "stable";
 
           const apprecObj = getApprec(activeAverage);
@@ -835,11 +863,11 @@ export async function getAcademicVerificationData(identifier: string): Promise<V
             appreciation: activeRow?.appreciation || apprecObj.fr,
             appreciationAr: apprecObj.ar,
             appreciationEn: apprecObj.en,
-            s1Average: s1Score !== null ? s1Score : activeAverage,
+            s1Average: s1Final,
             s1Rank: s1Row?.rank || "—",
-            s2Average: s2Score !== null ? s2Score : activeAverage,
+            s2Average: s2Final,
             s2Rank: s2Row?.rank || "—",
-            annualAverage: Number(annScore.toFixed(2)),
+            annualAverage: annFinal,
             annualRank: annualRow?.rank || "—",
             trend: trend,
             trendDiff: Math.abs(diff),
