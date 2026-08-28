@@ -1443,15 +1443,39 @@ export async function getAcademicVerificationData(identifier: string): Promise<V
           field: isHigherEducation ? (foundStudent?.filiere || "Sciences Économiques & Gestion") : isPrimaryEducation ? "Enseignement Fondamental" : "Enseignement Général Secondaire",
           fieldEn: isHigherEducation ? "Economics & Management Sciences" : isPrimaryEducation ? "Primary Education" : "Secondary General Education",
           fieldAr: isHigherEducation ? "العلوم الاقتصادية والإدارية والتصرف" : isPrimaryEducation ? "التعليم الابتدائي الأساسي" : "التعليم الثانوي العام",
-          mention: computedGeneralAvg >= 16 ? "Très Bien / Félicitations" : "Bien / Tableau d'Honneur",
-          mentionEn: computedGeneralAvg >= 16 ? "High Honors" : "Honors",
-          mentionAr: computedGeneralAvg >= 16 ? "جيد جداً مع تهنئة المجلس" : "جيد مع لوحة الشرف",
+          mention: bulletinData.generalAverage >= 16 
+            ? "Très Bien / Félicitations" 
+            : bulletinData.generalAverage >= 14 
+            ? "Bien / Tableau d'Honneur" 
+            : bulletinData.generalAverage >= 12 
+            ? "Assez Bien / Encouragements" 
+            : bulletinData.generalAverage >= 10 
+            ? "Passable" 
+            : "Avertissement Travail",
+          mentionEn: bulletinData.generalAverage >= 16 
+            ? "High Honors" 
+            : bulletinData.generalAverage >= 14 
+            ? "Honors" 
+            : bulletinData.generalAverage >= 12 
+            ? "Good Standing" 
+            : bulletinData.generalAverage >= 10 
+            ? "Pass" 
+            : "Academic Warning",
+          mentionAr: bulletinData.generalAverage >= 16 
+            ? "جيد جداً مع تهنئة المجلس" 
+            : bulletinData.generalAverage >= 14 
+            ? "جيد مع لوحة الشرف" 
+            : bulletinData.generalAverage >= 12 
+            ? "حسن مع تشجيع المجلس" 
+            : bulletinData.generalAverage >= 10 
+            ? "مقبول" 
+            : "إنذار بخصوص العمل",
           status: isHigherEducation ? "DÉLIBÉRATION DU JURY LMD VALIDÉE (CRÉDITS CAPITALISÉS)" : "DÉLIBÉRATION DU CONSEIL DE CLASSE VALIDÉE",
           statusEn: isHigherEducation ? "LMD JURY DELIBERATION OFFICIALLY CONFIRMED" : "CLASS COUNCIL DELIBERATION OFFICIALLY CONFIRMED",
           statusAr: isHigherEducation ? "تمت مداولات لجنة التحكيم الجامعية LMD واعتماد الأرصدة" : "تمت مداولات مجلس الأساتذة واعتماد النتيجة",
           ectsCredits: isHigherEducation ? 60 : 0,
           totalRequiredEcts: isHigherEducation ? 60 : 0,
-          gpa: `Moyenne : ${computedGeneralAvg.toFixed(2)} / 20`,
+          gpa: `Moyenne : ${bulletinData.generalAverage.toFixed(2)} / 20`,
           gpaLetter: `Rang : ${bulletinData.rank} sur ${bulletinData.totalStudents}`,
           graduationYear: foundStudent?.session || "2024–2025",
           deliberationDate: new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" }),
