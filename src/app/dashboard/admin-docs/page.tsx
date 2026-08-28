@@ -731,6 +731,7 @@ export default function AdminDocsPage() {
       doc.text("S.A.R.L", 35, sigY + 17, { align: "center" });
 
       // Verification Center – Real QR code pointing to universal verification portal
+      const refText = `Réf : DOC-${activeDoc.id.toUpperCase()}-${Date.now().toString().slice(-6)}`;
       const appUrl = typeof window !== "undefined" ? window.location.origin : "https://niger.edut.pro";
       const qrPayload = `${appUrl}/verify/${encodeURIComponent(activeEntity.matricule || activeEntity.numAdmission || activeEntity.id || "DOC")}`;
       doc.setFontSize(8);
