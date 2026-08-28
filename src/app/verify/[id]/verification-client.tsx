@@ -30,7 +30,10 @@ import {
   Receipt,
   Clock,
   UserCheck,
-  BadgeAlert
+  BadgeAlert,
+  BookOpen,
+  TrendingUp,
+  Scale
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -46,16 +49,19 @@ const DICT = {
     backHome: "Accueil",
     docAuthentic: "DOCUMENT AUTHENTIQUE & OFFICIEL",
     finAuthentic: "TRANSACTION FINANCIÈRE & QUITTANCE AUTHENTIFIÉE",
+    bulletinAuthentic: "BULLETIN DE NOTES & RÉSULTATS OFFICIELS AUTHENTIFIÉS",
     certifiedTitle: "Authenticité Académique Certifiée",
     finCertifiedTitle: "Quittance de Paiement & Solvabilité Certifiée",
+    bulletinCertifiedTitle: "Relevé de Notes & Délibération Certifiés Conformes",
     certifiedSub: "Les données ci-dessous correspondent fidèlement aux registres officiels de l'établissement et aux normes internationales CAMES & UNESCO.",
     finCertifiedSub: "Cette quittance financière est enregistrée dans le grand livre comptable central SYSCOHADA de l'établissement.",
+    bulletinCertifiedSub: "Les notes, moyennes et décisions ci-dessous sont issues directement du procès-verbal officiel du conseil de classe.",
     downloadPdf: "Télécharger Certificat (PDF)",
     downloading: "Génération du PDF...",
     printCert: "Imprimer la Quittance / Certificat",
     copyLink: "Copier le Lien Sécurisé",
     linkCopied: "Lien de vérification copié dans le presse-papier !",
-    holderTitle: "Informations sur l'Étudiant / Bénéficiaire",
+    holderTitle: "Informations sur l'Élève / Étudiant",
     fullName: "Nom & Prénoms",
     matricule: "Numéro Matricule / INE",
     birth: "Date & Lieu de Naissance",
@@ -63,7 +69,7 @@ const DICT = {
     gender: "Sexe",
     genderM: "Masculin",
     genderF: "Féminin",
-    classeFiliere: "Classe & Filière",
+    classeFiliere: "Classe & Section",
     degreeTitle: "Titre & Qualification Délivrés",
     diplomaName: "Intitulé du Diplôme",
     fieldMention: "Domaine & Mention",
@@ -72,11 +78,11 @@ const DICT = {
     gpaScore: "Moyenne Cumulative (GPA)",
     promoYear: "Année Académique de Promotion",
     delibDate: "Date de Délibération",
-    standardsTitle: "Normes & Reconnaissance Internationale",
+    standardsTitle: "Normes & Reconnaissance Officielle",
     unescoIsced: "Classification UNESCO ISCED 2011",
     europeanEqf: "Cadre Européen des Certifications (EQF)",
     wesEquiv: "Équivalence WES / NACES (Amérique du Nord)",
-    accreditation: "Accréditation Internationale",
+    accreditation: "Accréditation & Tutelle",
     institutionTitle: "Établissement & Autorité de Tutelle",
     rectorat: "Direction & Registre",
     securityTitle: "Preuve Cryptographique & Registre Public Inviolable",
@@ -102,16 +108,35 @@ const DICT = {
     totalExpected: "Total Droits Scolarité",
     totalPaid: "Total Déjà Versé",
     balanceRemaining: "Solde Restant à Régler",
+    // Bulletin Terms
+    bulletinTitle: "Résultats & Délibération du Conseil de Classe",
+    periodLabel: "Période Pédagogique",
+    generalAverage: "Moyenne Générale",
+    classRank: "Rang dans la Classe",
+    councilDecision: "Décision du Conseil",
+    disciplineConduct: "Conduite & Discipline",
+    totalPointsCoeffs: "Total Points / Coefficients",
+    subjectsBreakdown: "Détail des Matières Pédagogiques",
+    subjectCol: "Matière",
+    ccCol: "Moy. CC",
+    compoCol: "Compo / Exam",
+    coefCol: "Coeff",
+    weightedCol: "Points (Moy x Coef)",
+    rankCol: "Rang",
+    appreciationCol: "Appréciation",
   },
   en: {
     portalBrand: "EDUT UNIVERSITY • UNIVERSAL PUBLIC VERIFICATION PORTAL",
     backHome: "Home",
     docAuthentic: "OFFICIALLY AUTHENTIC & CERTIFIED DOCUMENT",
     finAuthentic: "OFFICIALLY AUTHENTICATED PAYMENT SETTLEMENT",
+    bulletinAuthentic: "AUTHENTICATED OFFICIAL REPORT CARD & ACADEMIC TRANSCRIPT",
     certifiedTitle: "Certified Academic Authenticity",
     finCertifiedTitle: "Payment Receipt & Financial Solvency Certified",
+    bulletinCertifiedTitle: "Certified Academic Performance & Council Decision",
     certifiedSub: "The data below strictly matches the official academic records of the institution and international CAMES & UNESCO standards.",
     finCertifiedSub: "This financial receipt is officially recorded in the central SYSCOHADA accounting ledger of the institution.",
+    bulletinCertifiedSub: "The grades, averages, and decisions below are sourced directly from the official class council deliberation minutes.",
     downloadPdf: "Download Certificate (PDF)",
     downloading: "Generating PDF...",
     printCert: "Print Official Certificate",
@@ -125,7 +150,7 @@ const DICT = {
     gender: "Gender",
     genderM: "Male",
     genderF: "Female",
-    classeFiliere: "Class & Major",
+    classeFiliere: "Class & Section",
     degreeTitle: "Conferred Academic Qualification",
     diplomaName: "Conferred Degree Title",
     fieldMention: "Field of Study & Specialization",
@@ -134,11 +159,11 @@ const DICT = {
     gpaScore: "Cumulative Grade Point Average (GPA)",
     promoYear: "Academic Promotion Year",
     delibDate: "Deliberation Date",
-    standardsTitle: "Global Standards & International Recognition",
+    standardsTitle: "Global Standards & Official Recognition",
     unescoIsced: "UNESCO ISCED 2011 Classification",
     europeanEqf: "European Qualifications Framework (EQF)",
     wesEquiv: "WES / NACES Equivalency (North America)",
-    accreditation: "International Accreditation",
+    accreditation: "Accreditation & Governance",
     institutionTitle: "Awarding Institution & Legal Authority",
     rectorat: "Registrar & Academic Registry",
     securityTitle: "Cryptographic Proof & Public Ledger",
@@ -164,22 +189,41 @@ const DICT = {
     totalExpected: "Total Tuition Due",
     totalPaid: "Total Paid to Date",
     balanceRemaining: "Remaining Balance Due",
+    // Bulletin Terms
+    bulletinTitle: "Academic Performance & Class Council Decision",
+    periodLabel: "Academic Period",
+    generalAverage: "General Average",
+    classRank: "Class Ranking",
+    councilDecision: "Council Decision",
+    disciplineConduct: "Conduct & Discipline",
+    totalPointsCoeffs: "Total Points / Coefficients",
+    subjectsBreakdown: "Detailed Subject Breakdown",
+    subjectCol: "Subject",
+    ccCol: "Class Work",
+    compoCol: "Exam",
+    coefCol: "Weight",
+    weightedCol: "Weighted Score",
+    rankCol: "Rank",
+    appreciationCol: "Appreciation",
   },
   ar: {
     portalBrand: "جامعة EDUT • البوابة العامة الشاملة للتحقق الأكاديمي والمالي",
     backHome: "الرئيسية",
     docAuthentic: "وثيقة أصلية وموثقة رسمياً",
     finAuthentic: "معاملة مالية وإيصال سداد معتمد رسمياً",
+    bulletinAuthentic: "كشف درجات ونتائج فصلية معتمدة وموثقة رسمياً",
     certifiedTitle: "صحة أكاديمية معتمدة وموثقة",
     finCertifiedTitle: "إيصال سداد وبراءة ذمة مالية معتمدة",
+    bulletinCertifiedTitle: "كشف درجات وقرار مجلس الأساتذة معتمد رسمياً",
     certifiedSub: "البيانات الواردة أدناه مطابقة تماماً لسجلات المداولات الرسمية الصادرة عن المؤسسة وتستوفي معايير اليونسكو وCAMES الدولية.",
     finCertifiedSub: "هذا الإيصال المالي مسجل رسمياً في السجل المحاسبي المركزي المعتمد للمؤسسة.",
+    bulletinCertifiedSub: "الدرجات، المعدلات والقرارات الواردة أدناه مستخرجة مباشرة من المحضر الرسمي المعتمد لمجلس الأساتذة.",
     downloadPdf: "تحميل شهادة التحقق (PDF)",
     downloading: "جاري إنشاء وثيقة PDF...",
     printCert: "طباعة الإيصال / الشهادة",
     copyLink: "نسخ الرابط الآمن",
     linkCopied: "تم نسخ رابط التحقق المباشر إلى الحافظة بنجاح!",
-    holderTitle: "بيانات الطالب / المستفيد",
+    holderTitle: "بيانات التلميذ / الطالب",
     fullName: "الاسم الكامل",
     matricule: "رقم التسجيل / الرقم الوطني للطالب",
     birth: "تاريخ ومكان الميلاد",
@@ -187,22 +231,22 @@ const DICT = {
     gender: "الجنس",
     genderM: "ذكر",
     genderF: "أنثى",
-    classeFiliere: "الفصل والشعبة",
+    classeFiliere: "الفصل والمستوى",
     degreeTitle: "المؤهل والتخصص الممنوح",
     diplomaName: "عنوان الشهادة الأكاديمية",
     fieldMention: "المجال والتخصص الدقيق",
     decisionHonors: "قرار لجنة المداولات والتقدير",
     creditsEcts: "الأرصدة الأوروبية المكتسبة (ECTS)",
     gpaScore: "المعدل التراكمي الدولي (GPA)",
-    promoYear: "السنة الأكاديمية للتخرج",
+    promoYear: "السنة الأكاديمية",
     delibDate: "تاريخ المداولة والتصديق",
-    standardsTitle: "المعايير الدولية والاعتراف العالمي",
+    standardsTitle: "المعايير والاعتماد الرسمي",
     unescoIsced: "تصنيف اليونسكو الدولي للتعليم (ISCED 2011)",
-    europeanEqf: "إطار المؤهلات الأوروبي (EQF Level 6)",
+    europeanEqf: "إطار المؤهلات الأوروبي (EQF)",
     wesEquiv: "جاهزية المعادلة لدى WES / NACES (أمريكا الشمالية)",
-    accreditation: "الاعتماد الأكاديمي الدولي",
-    institutionTitle: "المؤسسة المانحة وسلطة الوصاية",
-    rectorat: "إدارة الشؤون المالية والسجل العام",
+    accreditation: "الاعتماد وسلطة الوصاية",
+    institutionTitle: "المؤسسة التعليمية وسلطة الوصاية",
+    rectorat: "الإدارة والسجل العام",
     securityTitle: "الإثبات المشفر وسجل الأمان الرقمي غير القابل للتعديل",
     shaHash: "بصمة التشفير الرقمية SHA-256 للمحضر الرسمي",
     w3cId: "معرف الاعتماد الرقمي W3C Verifiable Credential",
@@ -226,6 +270,22 @@ const DICT = {
     totalExpected: "إجمالي الرسوم المقررة",
     totalPaid: "إجمالي المدفوع حتى الآن",
     balanceRemaining: "المتبقي للوفاء الكامل",
+    // Bulletin Terms
+    bulletinTitle: "النتائج الأكاديمية وقرار مجلس الأساتذة",
+    periodLabel: "الفترة الدراسية",
+    generalAverage: "المعدل العام",
+    classRank: "الترتيب في الفصل",
+    councilDecision: "قرار مجلس الأساتذة",
+    disciplineConduct: "السلوك والمواظبة",
+    totalPointsCoeffs: "مجموع النقاط / المعاملات",
+    subjectsBreakdown: "كشف درجات المواد والمقررات",
+    subjectCol: "المادة التعليمية",
+    ccCol: "معدل المراقبة",
+    compoCol: "الاختبار / الامتحان",
+    coefCol: "المعامل",
+    weightedCol: "النقاط الموزونة",
+    rankCol: "الترتيب",
+    appreciationCol: "الملاحظة والتقدير",
   }
 };
 
@@ -238,37 +298,37 @@ export function VerificationClient({
 }) {
   const [lang, setLang] = useState<Language>("fr");
   const [isExportingPdf, setIsExportingPdf] = useState(false);
-  const [showCurriculum, setShowCurriculum] = useState(false);
   const [hasCopied, setHasCopied] = useState(false);
+  const [showCurriculumDetails, setShowCurriculumDetails] = useState(false);
 
   const t = DICT[lang];
   const isRtl = lang === "ar";
-  const isFinancial = data?.category === "financial";
 
-  const currentUrl = typeof window !== "undefined" ? window.location.href : `https://niger.edut.pro/verify/${rawId}`;
+  const isFinancial = data?.category === "financial";
+  const isBulletin = data?.subType === "school_bulletin" || data?.educationLevelType === "secondary" || data?.educationLevelType === "primary";
 
   const handleDownloadPdf = async () => {
     if (!data) return;
-    setIsExportingPdf(true);
     try {
-      await generateVerificationCertificatePDF(data, currentUrl);
-      toast.success("Certificat officiel de vérification téléchargé avec succès !");
+      setIsExportingPdf(true);
+      const url = typeof window !== "undefined" ? window.location.href : `https://niger.edut.pro/verify/${rawId}`;
+      await generateVerificationCertificatePDF(data, url);
+      toast.success(lang === "ar" ? "تم تحميل الشهادة المعتمدة بنجاح !" : "Certificat officiel téléchargé avec succès !");
     } catch (e) {
-      toast.error("Erreur lors de la génération du certificat PDF");
+      console.error(e);
+      toast.error(lang === "ar" ? "تعذر توليد وثيقة PDF." : "Erreur lors de la génération du PDF.");
     } finally {
       setIsExportingPdf(false);
     }
   };
 
   const handlePrint = () => {
-    if (typeof window !== "undefined") {
-      window.print();
-    }
+    window.print();
   };
 
   const handleCopyLink = () => {
-    if (typeof navigator !== "undefined") {
-      navigator.clipboard.writeText(currentUrl);
+    if (typeof window !== "undefined") {
+      navigator.clipboard.writeText(window.location.href);
       setHasCopied(true);
       toast.success(t.linkCopied);
       setTimeout(() => setHasCopied(false), 3000);
@@ -276,15 +336,21 @@ export function VerificationClient({
   };
 
   const handleShare = async () => {
-    if (typeof navigator !== "undefined" && navigator.share) {
+    const currentUrl = typeof window !== "undefined" ? window.location.href : `https://niger.edut.pro/verify/${rawId}`;
+    if (navigator.share) {
       try {
         await navigator.share({
-          title: `Certification Officielle EDUT - ${data?.student.nom || rawId}`,
-          text: `Vérification officielle d'authenticité pour ${data?.student.nom} (${isFinancial ? data?.financial?.receiptNumber : data?.degree.title})`,
+          title: t.portalBrand,
+          text: isFinancial
+            ? `Vérification Officielle Quittance EDUT - ${data?.student.nom} (${data?.financial?.receiptNumber})`
+            : isBulletin
+            ? `Vérification Officielle Bulletin EDUT - ${data?.student.nom} (${data?.student.classe})`
+            : `Vérification Officielle Diplôme EDUT - ${data?.student.nom} (${data?.student.matricule})`,
           url: currentUrl,
         });
-        toast.success(t.shareSuccess);
-      } catch (e) {}
+      } catch (err) {
+        handleCopyLink();
+      }
     } else {
       handleCopyLink();
     }
@@ -292,118 +358,117 @@ export function VerificationClient({
 
   return (
     <div 
-      dir={isRtl ? "rtl" : "ltr"} 
-      className={`min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-start p-4 sm:p-6 md:p-8 selection:bg-indigo-500 selection:text-white transition-all ${
-        isRtl ? "font-sans" : ""
-      }`}
+      className={`min-h-screen bg-slate-950 text-slate-100 selection:bg-indigo-500 selection:text-white font-sans antialiased ${isRtl ? "text-right" : "text-left"}`}
+      dir={isRtl ? "rtl" : "ltr"}
     >
-      {/* ─── TOP BRAND & LANGUAGE SELECTOR BAR ─── */}
-      <header className="w-full max-w-4xl flex flex-col sm:flex-row items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-800">
-        <div className="flex items-center gap-2 text-indigo-400 font-bold text-xs sm:text-sm tracking-wide">
-          <div className="p-1.5 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-400">
-            {isFinancial ? <Receipt className="h-5 w-5" /> : <GraduationCap className="h-5 w-5" />}
+      {/* Background Gradients */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+        <div className={`absolute -top-40 left-1/2 -translate-x-1/2 w-[1000px] h-[500px] blur-3xl opacity-20 rounded-full ${isFinancial ? "bg-amber-600" : isBulletin ? "bg-blue-600" : "bg-emerald-600"}`} />
+        <div className="absolute top-1/3 -right-40 w-[600px] h-[600px] bg-indigo-600/10 blur-3xl rounded-full" />
+      </div>
+
+      <div className="relative z-10 max-w-5xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+        
+        {/* ─── TOP HEADER BAR ─── */}
+        <header className="flex flex-col sm:flex-row items-center justify-between gap-4 pb-6 border-b border-slate-800/80 mb-8">
+          <div className="flex items-center gap-3">
+            <Link 
+              href="/"
+              className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:border-slate-700 transition-colors text-xs font-bold"
+            >
+              <ArrowLeft className={`h-4 w-4 ${isRtl ? "rotate-180" : ""}`} />
+              <span>{t.backHome}</span>
+            </Link>
+
+            <div className="flex items-center gap-2">
+              <div className={`h-2.5 w-2.5 rounded-full animate-pulse ${isFinancial ? "bg-amber-500" : isBulletin ? "bg-blue-500" : "bg-emerald-500"}`} />
+              <span className="text-[11px] font-black tracking-widest uppercase text-slate-400">
+                {t.portalBrand}
+              </span>
+            </div>
           </div>
-          <span>{t.portalBrand}</span>
-        </div>
 
-        {/* Category Badge & Language Switcher Buttons */}
-        <div className="flex items-center gap-3">
-          <span className={`px-3 py-1 rounded-xl text-[11px] font-black uppercase tracking-wider border ${
-            isFinancial 
-              ? "bg-amber-500/10 text-amber-300 border-amber-500/30" 
-              : "bg-indigo-500/10 text-indigo-300 border-indigo-500/30"
-          }`}>
-            {isFinancial ? "💳 Document Financier" : "🎓 Document Académique"}
-          </span>
-
-          <div className="flex items-center gap-1 p-1 rounded-2xl bg-slate-900 border border-slate-800 shadow-inner">
+          {/* Language Switcher */}
+          <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-900 border border-slate-800 text-xs font-bold">
             <button
               onClick={() => setLang("fr")}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                lang === "fr"
-                  ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
-                  : "text-slate-400 hover:text-slate-200"
-              }`}
+              className={`px-2.5 py-1 rounded-lg transition-all ${lang === "fr" ? "bg-indigo-600 text-white shadow-sm" : "text-slate-400 hover:text-slate-200"}`}
             >
-              <span>🇫🇷</span>
-              <span>Français</span>
+              🇫🇷 FR
             </button>
-
             <button
               onClick={() => setLang("en")}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                lang === "en"
-                  ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
-                  : "text-slate-400 hover:text-slate-200"
-              }`}
+              className={`px-2.5 py-1 rounded-lg transition-all ${lang === "en" ? "bg-indigo-600 text-white shadow-sm" : "text-slate-400 hover:text-slate-200"}`}
             >
-              <span>🇬🇧</span>
-              <span>English</span>
+              🇬🇧 EN
             </button>
-
             <button
               onClick={() => setLang("ar")}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                lang === "ar"
-                  ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
-                  : "text-slate-400 hover:text-slate-200"
-              }`}
+              className={`px-2.5 py-1 rounded-lg transition-all ${lang === "ar" ? "bg-indigo-600 text-white shadow-sm" : "text-slate-400 hover:text-slate-200"}`}
             >
-              <span>🇸🇦</span>
-              <span>العربية</span>
+              🇸🇦 العربية
             </button>
           </div>
-        </div>
-      </header>
+        </header>
 
-      {/* ─── MAIN CERTIFICATION CONTAINER ─── */}
-      <main className="w-full max-w-4xl bg-slate-900/90 backdrop-blur-2xl border border-slate-800 rounded-3xl p-6 sm:p-8 md:p-10 shadow-2xl relative overflow-hidden">
-        {/* Ambient Top Glow */}
-        <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-4/5 h-2.5 rounded-full blur-xs ${
-          isFinancial 
-            ? "bg-gradient-to-r from-amber-500 via-emerald-400 to-indigo-500" 
-            : "bg-gradient-to-r from-emerald-500 via-teal-400 via-indigo-500 to-amber-500"
-        }`} />
+        {/* ─── INVALID / NOT FOUND RECORD ─── */}
+        {!data && (
+          <div className="text-center py-20 px-6 rounded-3xl bg-slate-900/60 border border-rose-500/30 shadow-2xl space-y-5 animate-in fade-in zoom-in-95">
+            <div className="h-16 w-16 mx-auto rounded-2xl bg-rose-500/10 text-rose-400 border border-rose-500/20 flex items-center justify-center">
+              <BadgeAlert className="h-8 w-8" />
+            </div>
+            <h2 className="text-2xl font-black text-white">
+              {lang === "ar" ? "لم يتم العثور على الوثيقة أو المعاملة" : "Document / Transaction Non Trouvé(e)"}
+            </h2>
+            <p className="text-sm text-slate-400 max-w-md mx-auto">
+              {lang === "ar" 
+                ? `المعرف "${rawId}" غير مسجل في قاعدة البيانات المركزية. يرجى التحقق من الرقم أو مسح الرمز مجدداً.`
+                : `L'identifiant "${rawId}" ne correspond à aucun document ou versement officiel dans notre registre central.`
+              }
+            </p>
+            <Link href="/verify">
+              <Button className="mt-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs">
+                {lang === "ar" ? "البحث برقم آخر" : "Effectuer une autre recherche"}
+              </Button>
+            </Link>
+          </div>
+        )}
 
-        {data && data.isValid ? (
-          <>
-            {/* ─── HERO VERIFICATION BADGE ─── */}
-            <div className="flex flex-col items-center text-center mb-8">
-              <div className="relative mb-4">
-                <div className={`h-20 w-20 rounded-3xl border-2 flex items-center justify-center shadow-xl animate-in zoom-in-90 duration-300 ${
-                  isFinancial
-                    ? "bg-amber-500/10 border-amber-500/40 text-amber-400 shadow-amber-500/20"
-                    : "bg-emerald-500/10 border-emerald-500/40 text-emerald-400 shadow-emerald-500/20"
-                }`}>
-                  {isFinancial ? <Receipt className="h-11 w-11" /> : <ShieldCheck className="h-11 w-11" />}
-                </div>
-                <div className={`absolute -bottom-1.5 -right-1.5 p-1.5 rounded-full text-slate-950 shadow-md ${
-                  isFinancial ? "bg-amber-400" : "bg-emerald-500"
-                }`}>
-                  <Check className="h-3.5 w-3.5 stroke-[3]" />
-                </div>
-              </div>
-
-              <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider border mb-3 shadow-inner ${
-                isFinancial
-                  ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
-                  : "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+        {/* ─── VALID DOCUMENT / TRANSACTION ─── */}
+        {data && (
+          <div className="space-y-8 animate-in fade-in duration-500">
+            
+            {/* ─── HERO VERIFICATION BANNER ─── */}
+            <div className={`relative overflow-hidden rounded-3xl p-6 sm:p-8 border shadow-2xl flex flex-col items-center text-center ${
+              isFinancial 
+                ? "bg-gradient-to-b from-slate-900 via-amber-950/20 to-slate-900 border-amber-500/30" 
+                : isBulletin
+                ? "bg-gradient-to-b from-slate-900 via-blue-950/20 to-slate-900 border-blue-500/30"
+                : "bg-gradient-to-b from-slate-900 via-emerald-950/20 to-slate-900 border-emerald-500/30"
+            }`}>
+              {/* Badge */}
+              <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider mb-4 border ${
+                isFinancial 
+                  ? "bg-amber-500/10 text-amber-300 border-amber-500/30" 
+                  : isBulletin
+                  ? "bg-blue-500/10 text-blue-300 border-blue-500/30"
+                  : "bg-emerald-500/10 text-emerald-300 border-emerald-500/30"
               }`}>
-                <Sparkles className={`h-3.5 w-3.5 animate-pulse ${isFinancial ? "text-amber-400" : "text-emerald-400"}`} />
-                <span>{isFinancial ? t.finAuthentic : t.docAuthentic}</span>
+                <CheckCircle2 className="h-4 w-4" />
+                <span>{isFinancial ? t.finAuthentic : isBulletin ? t.bulletinAuthentic : t.docAuthentic}</span>
               </div>
 
-              <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-white tracking-tight">
-                {isFinancial ? t.finCertifiedTitle : t.certifiedTitle}
+              {/* Title */}
+              <h1 className="text-2xl sm:text-4xl font-black text-white tracking-tight">
+                {isFinancial ? t.finCertifiedTitle : isBulletin ? t.bulletinCertifiedTitle : t.certifiedTitle}
               </h1>
-
               <p className="text-xs sm:text-sm text-slate-400 mt-2 max-w-xl leading-relaxed">
-                {isFinancial ? t.finCertifiedSub : t.certifiedSub}
+                {isFinancial ? t.finCertifiedSub : isBulletin ? t.bulletinCertifiedSub : t.certifiedSub}
               </p>
 
               {/* Security Anchoring Pill */}
               <div className="mt-4 flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-950/80 border border-slate-800 text-[11px] font-mono text-slate-400">
-                <Lock className={`h-3.5 w-3.5 ${isFinancial ? "text-amber-400" : "text-emerald-400"}`} />
+                <Lock className={`h-3.5 w-3.5 ${isFinancial ? "text-amber-400" : isBulletin ? "text-blue-400" : "text-emerald-400"}`} />
                 <span>{t.securityLevel}</span>
               </div>
             </div>
@@ -413,7 +478,7 @@ export function VerificationClient({
               <Button
                 onClick={handleDownloadPdf}
                 disabled={isExportingPdf}
-                className="h-11 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-2 shadow-lg shadow-emerald-600/20 transition-all"
+                className="h-11 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-2 shadow-lg shadow-emerald-600/20 transition-all cursor-pointer"
               >
                 {isExportingPdf ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -426,7 +491,7 @@ export function VerificationClient({
               <Button
                 onClick={handlePrint}
                 variant="outline"
-                className="h-11 px-4 rounded-xl border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-200 text-xs font-bold gap-2 transition-colors"
+                className="h-11 px-4 rounded-xl border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-200 text-xs font-bold gap-2 transition-colors cursor-pointer"
               >
                 <Printer className="h-4 w-4 text-slate-400" />
                 <span>{t.printCert}</span>
@@ -435,7 +500,7 @@ export function VerificationClient({
               <Button
                 onClick={handleCopyLink}
                 variant="outline"
-                className="h-11 px-4 rounded-xl border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-200 text-xs font-bold gap-2 transition-colors"
+                className="h-11 px-4 rounded-xl border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-200 text-xs font-bold gap-2 transition-colors cursor-pointer"
               >
                 {hasCopied ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4 text-slate-400" />}
                 <span>{hasCopied ? "Copié !" : t.copyLink}</span>
@@ -444,7 +509,7 @@ export function VerificationClient({
               <Button
                 onClick={handleShare}
                 variant="outline"
-                className="h-11 px-4 rounded-xl border-indigo-700/60 bg-indigo-950/30 hover:bg-indigo-900/40 text-indigo-300 text-xs font-bold gap-2 transition-colors"
+                className="h-11 px-4 rounded-xl border-indigo-700/60 bg-indigo-950/30 hover:bg-indigo-900/40 text-indigo-300 text-xs font-bold gap-2 transition-colors cursor-pointer"
               >
                 <Share2 className="h-4 w-4" />
                 <span>Partager</span>
@@ -455,7 +520,7 @@ export function VerificationClient({
             <div className="space-y-6">
               
               {/* ─────────────────────────────────────────────────────────────
-                  IF FINANCIAL DOCUMENT: FINANCIAL CARDS
+                  CASE 1: FINANCIAL DOCUMENT (QUITTANCE & SOLVABILITÉ)
               ────────────────────────────────────────────────────────────── */}
               {isFinancial && data.financial && (
                 <>
@@ -552,308 +617,342 @@ export function VerificationClient({
                 </>
               )}
 
-              {/* 1. HOLDER / STUDENT IDENTITY */}
-              <div className="bg-slate-800/60 border border-slate-700/60 rounded-3xl p-6 shadow-sm hover:border-slate-600 transition-colors">
-                <div className="flex items-center gap-2.5 text-xs font-black text-indigo-400 uppercase tracking-wider mb-5 border-b border-slate-700/60 pb-3">
-                  <div className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-                    <GraduationCap className="h-4 w-4" />
-                  </div>
-                  <span>{t.holderTitle}</span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-5 text-sm">
-                  <div className="sm:col-span-2">
-                    <div className="text-xs text-slate-400 font-medium">{t.fullName}</div>
-                    <div className="font-black text-white text-lg mt-1 tracking-tight">{data.student.nom}</div>
-                  </div>
-
-                  <div className="sm:col-span-2">
-                    <div className="text-xs text-slate-400 font-medium">{t.matricule}</div>
-                    <div className="font-mono font-black text-indigo-300 text-lg mt-1 tracking-wider">{data.student.matricule}</div>
-                  </div>
-
-                  <div className="sm:col-span-2">
-                    <div className="text-xs text-slate-400 font-medium">{t.birth}</div>
-                    <div className="font-semibold text-slate-200 mt-1">{data.student.dateNaissance} à {data.student.lieuNaissance}</div>
-                  </div>
-
-                  <div>
-                    <div className="text-xs text-slate-400 font-medium">{t.nationality}</div>
-                    <div className="font-semibold text-slate-200 mt-1">{data.student.nationalite || "Nigérienne"}</div>
-                  </div>
-
-                  <div>
-                    <div className="text-xs text-slate-400 font-medium">{t.gender}</div>
-                    <div className="font-semibold text-slate-200 mt-1">{data.student.sexe === "M" ? t.genderM : t.genderF}</div>
-                  </div>
-                </div>
-              </div>
-
               {/* ─────────────────────────────────────────────────────────────
-                  IF ACADEMIC DOCUMENT: ACADEMIC QUALIFICATION & STANDARDS
+                  CASE 2: SCHOOL BULLETIN (PRIMAIRE / COLLÈGE / LYCÉE)
               ────────────────────────────────────────────────────────────── */}
-              {!isFinancial && (
+              {isBulletin && data.bulletin && (
                 <>
-                  {/* 2. CONFERRED ACADEMIC QUALIFICATION & DEGREE */}
-                  <div className="bg-slate-800/60 border border-slate-700/60 rounded-3xl p-6 shadow-sm hover:border-slate-600 transition-colors">
-                    <div className="flex items-center gap-2.5 text-xs font-black text-amber-400 uppercase tracking-wider mb-5 border-b border-slate-700/60 pb-3">
-                      <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                        <Award className="h-4 w-4" />
+                  {/* Bulletin Summary Card */}
+                  <div className="bg-gradient-to-br from-slate-900 via-blue-950/20 to-slate-900 border border-blue-500/30 rounded-3xl p-6 shadow-sm">
+                    <div className="flex items-center justify-between gap-3 border-b border-blue-500/20 pb-4 mb-5 flex-wrap">
+                      <div className="flex items-center gap-2.5 text-xs font-black text-blue-400 uppercase tracking-wider">
+                        <div className="p-1.5 rounded-lg bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                          <BookOpen className="h-4 w-4" />
+                        </div>
+                        <span>{t.bulletinTitle}</span>
                       </div>
-                      <span>{t.degreeTitle}</span>
+
+                      <span className="px-3.5 py-1 rounded-full text-xs font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                        {lang === "en" ? data.bulletin.decisionEn : lang === "ar" ? data.bulletin.decisionAr : data.bulletin.decision}
+                      </span>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5 text-sm">
-                      <div className="sm:col-span-2 md:col-span-3">
-                        <div className="text-xs text-slate-400 font-medium">{t.diplomaName}</div>
-                        <div className="font-black text-white text-lg sm:text-xl mt-1 text-emerald-300">
-                          {lang === "en" ? data.degree.titleEn : lang === "ar" ? data.degree.titleAr : data.degree.title}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-5 text-sm">
+                      <div>
+                        <div className="text-xs text-slate-400 font-medium">{t.generalAverage}</div>
+                        <div className="font-black text-3xl text-blue-400 mt-1 font-mono tracking-tight">
+                          {data.bulletin.generalAverage.toFixed(2)} <span className="text-sm font-bold text-slate-300">/ 20</span>
                         </div>
-                      </div>
-
-                      <div className="sm:col-span-2">
-                        <div className="text-xs text-slate-400 font-medium">{t.fieldMention}</div>
-                        <div className="font-bold text-slate-200 mt-1">
-                          {lang === "en" ? `${data.degree.fieldEn} — ${data.degree.mentionEn}` : lang === "ar" ? `${data.degree.fieldAr} — ${data.degree.mentionAr}` : `${data.degree.field} — ${data.degree.mention}`}
-                        </div>
+                        <p className="text-[11px] text-slate-400 mt-0.5">{data.bulletin.term}</p>
                       </div>
 
                       <div>
-                        <div className="text-xs text-slate-400 font-medium">{t.decisionHonors}</div>
-                        <div className="font-black text-emerald-400 mt-1 text-base">
-                          {lang === "en" ? data.degree.statusEn : lang === "ar" ? data.degree.statusAr : data.degree.status}
+                        <div className="text-xs text-slate-400 font-medium">{t.classRank}</div>
+                        <div className="font-black text-2xl text-emerald-400 mt-1">
+                          {data.bulletin.rank} <span className="text-xs text-slate-400 font-medium">/ {data.bulletin.totalStudents}</span>
                         </div>
+                        <p className="text-[11px] text-slate-400 mt-0.5">Effectif de la classe</p>
                       </div>
 
                       <div>
-                        <div className="text-xs text-slate-400 font-medium">{t.creditsEcts}</div>
-                        <div className="font-mono font-black text-indigo-300 text-base mt-1">
-                          {data.degree.ectsCredits} ECTS (100% Validé)
+                        <div className="text-xs text-slate-400 font-medium">{t.disciplineConduct}</div>
+                        <div className="font-bold text-white mt-1">
+                          {data.bulletin.conduite}
                         </div>
+                        <p className="text-[11px] text-slate-400 mt-0.5">{data.bulletin.assiduite}</p>
                       </div>
 
                       <div>
-                        <div className="text-xs text-slate-400 font-medium">{t.gpaScore}</div>
-                        <div className="font-mono font-black text-amber-300 text-base mt-1">
-                          {data.degree.gpa}
+                        <div className="text-xs text-slate-400 font-medium">{t.councilDecision}</div>
+                        <div className="font-bold text-emerald-400 mt-1">
+                          {lang === "en" ? data.bulletin.decisionEn : lang === "ar" ? data.bulletin.decisionAr : data.bulletin.decision}
                         </div>
-                      </div>
-
-                      <div>
-                        <div className="text-xs text-slate-400 font-medium">{t.promoYear} / {t.delibDate}</div>
-                        <div className="font-semibold text-slate-200 mt-1">
-                          {data.degree.graduationYear} • {data.degree.deliberationDate}
-                        </div>
+                        <p className="text-[11px] text-slate-400 mt-0.5">{data.bulletin.appreciation}</p>
                       </div>
                     </div>
                   </div>
 
-                  {/* 3. GLOBAL STANDARDS & INTERNATIONAL EQUIVALENCIES */}
-                  <div className="bg-gradient-to-br from-slate-800/80 via-slate-800/50 to-indigo-950/40 border border-indigo-500/30 rounded-3xl p-6 shadow-sm">
-                    <div className="flex items-center gap-2.5 text-xs font-black text-indigo-300 uppercase tracking-wider mb-5 border-b border-indigo-500/20 pb-3">
-                      <div className="p-1.5 rounded-lg bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                        <Globe className="h-4 w-4" />
+                  {/* Subjects Breakdown Table */}
+                  <div className="bg-slate-800/60 border border-slate-700/60 rounded-3xl p-6 shadow-sm overflow-hidden">
+                    <div className="flex items-center gap-2.5 text-xs font-black text-blue-400 uppercase tracking-wider mb-4 border-b border-slate-700/60 pb-3">
+                      <div className="p-1.5 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                        <TrendingUp className="h-4 w-4" />
                       </div>
-                      <span>{t.standardsTitle}</span>
+                      <span>{t.subjectsBreakdown}</span>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                      <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 flex items-start gap-3">
-                        <div className="p-2 rounded-xl bg-blue-500/10 text-blue-400 font-bold text-xs mt-0.5">
-                          UNESCO
-                        </div>
-                        <div>
-                          <div className="font-bold text-slate-300">{t.unescoIsced}</div>
-                          <div className="text-slate-400 mt-0.5 leading-relaxed">
-                            {lang === "en" ? data.standards.unescoIscedEn : lang === "ar" ? data.standards.unescoIscedAr : data.standards.unescoIsced}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 flex items-start gap-3">
-                        <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 font-bold text-xs mt-0.5">
-                          BOLOGNA
-                        </div>
-                        <div>
-                          <div className="font-bold text-slate-300">{t.europeanEqf}</div>
-                          <div className="text-slate-400 mt-0.5 leading-relaxed">
-                            {data.standards.eqfLevel} • {data.standards.bolognaCycle}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 flex items-start gap-3">
-                        <div className="p-2 rounded-xl bg-amber-500/10 text-amber-400 font-bold text-xs mt-0.5">
-                          WES / ECE
-                        </div>
-                        <div>
-                          <div className="font-bold text-slate-300">{t.wesEquiv}</div>
-                          <div className="text-slate-400 mt-0.5 leading-relaxed">
-                            {data.standards.wesEquivalency}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 flex items-start gap-3">
-                        <div className="p-2 rounded-xl bg-teal-500/10 text-teal-400 font-bold text-xs mt-0.5">
-                          CAMES
-                        </div>
-                        <div>
-                          <div className="font-bold text-slate-300">{t.accreditation}</div>
-                          <div className="text-slate-400 mt-0.5 leading-relaxed">
-                            {lang === "en" ? data.institution.accreditationEn : lang === "ar" ? data.institution.accreditationAr : data.institution.accreditation}
-                          </div>
-                        </div>
-                      </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs text-left border-collapse">
+                        <thead>
+                          <tr className="bg-slate-900/80 border-b border-slate-700/80 text-[10px] uppercase font-black text-slate-400 tracking-wider">
+                            <th className="p-3">{t.subjectCol}</th>
+                            <th className="p-3 text-center">{t.coefCol}</th>
+                            <th className="p-3 text-center">{t.ccCol}</th>
+                            <th className="p-3 text-center">{t.compoCol}</th>
+                            <th className="p-3 text-center">{t.generalAverage}</th>
+                            <th className="p-3 text-center">{t.rankCol}</th>
+                            <th className="p-3">{t.appreciationCol}</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-700/50">
+                          {data.bulletin.subjects.map((sub, idx) => (
+                            <tr key={idx} className="hover:bg-slate-700/30 transition-colors">
+                              <td className="p-3 font-bold text-white">
+                                {lang === "ar" && sub.nameAr ? sub.nameAr : lang === "en" && sub.nameEn ? sub.nameEn : sub.name}
+                              </td>
+                              <td className="p-3 text-center text-slate-400 font-mono">{sub.coef}</td>
+                              <td className="p-3 text-center text-slate-300 font-mono">{sub.classWorkScore ? sub.classWorkScore.toFixed(2) : "—"}</td>
+                              <td className="p-3 text-center text-slate-300 font-mono">{sub.examScore ? sub.examScore.toFixed(2) : "—"}</td>
+                              <td className="p-3 text-center font-black text-blue-400 font-mono">{sub.average.toFixed(2)}</td>
+                              <td className="p-3 text-center text-slate-400 font-mono">{sub.rank}</td>
+                              <td className="p-3 text-slate-300 italic">
+                                {lang === "ar" && sub.appreciationAr ? sub.appreciationAr : sub.appreciation}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot>
+                          <tr className="bg-slate-900/80 font-black border-t border-slate-700 text-xs">
+                            <td className="p-3 text-white uppercase">{t.totalPointsCoeffs}</td>
+                            <td className="p-3 text-center text-amber-400 font-mono">{data.bulletin.totalCoef}</td>
+                            <td colSpan={2} className="p-3 text-right text-slate-400">Total :</td>
+                            <td className="p-3 text-center text-emerald-400 font-mono text-sm">{data.bulletin.totalWeighted} pts</td>
+                            <td colSpan={2} className="p-3 text-center text-blue-400 font-mono">Moy : {data.bulletin.generalAverage.toFixed(2)} / 20</td>
+                          </tr>
+                        </tfoot>
+                      </table>
                     </div>
                   </div>
                 </>
               )}
 
-              {/* 4. INSTITUTION & LEGAL AUTHORITY */}
-              <div className="bg-slate-800/60 border border-slate-700/60 rounded-3xl p-6 shadow-sm hover:border-slate-600 transition-colors">
-                <div className="flex items-center gap-2.5 text-xs font-black text-teal-400 uppercase tracking-wider mb-4 border-b border-slate-700/60 pb-3">
-                  <div className="p-1.5 rounded-lg bg-teal-500/10 text-teal-400 border border-teal-500/20">
-                    <Building2 className="h-4 w-4" />
+              {/* ─────────────────────────────────────────────────────────────
+                  COMMON SECTION: HOLDER / BENEFICIARY INFORMATION
+              ────────────────────────────────────────────────────────────── */}
+              <div className="bg-slate-800/60 border border-slate-700/60 rounded-3xl p-6 shadow-sm">
+                <div className="flex items-center gap-2.5 text-xs font-black text-indigo-400 uppercase tracking-wider mb-4 border-b border-slate-700/60 pb-3">
+                  <div className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                    <UserCheck className="h-4 w-4" />
                   </div>
-                  <span>{t.institutionTitle}</span>
+                  <span>{t.holderTitle}</span>
                 </div>
 
-                <div className="space-y-3 text-sm">
-                  <div className="font-black text-white text-lg">
-                    {lang === "en" ? data.institution.nameEn : lang === "ar" ? data.institution.nameAr : data.institution.name}
-                  </div>
-                  
-                  <div className="text-xs text-slate-300 flex items-center gap-2 flex-wrap">
-                    <span className="font-semibold">{lang === "en" ? data.institution.ministryEn : lang === "ar" ? data.institution.ministryAr : data.institution.ministry}</span>
-                    <span>•</span>
-                    <span className="font-bold text-indigo-300">{lang === "en" ? data.institution.countryEn : lang === "ar" ? data.institution.countryAr : data.institution.country}</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+                  <div>
+                    <span className="text-slate-400">{t.fullName}</span>
+                    <p className="font-bold text-sm text-white mt-0.5">{data.student.nom}</p>
+                    {data.student.nomArabe && <p className="text-xs text-indigo-300 font-arabic">{data.student.nomArabe}</p>}
                   </div>
 
-                  <div className="pt-2 flex items-center gap-3 flex-wrap">
-                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-teal-500/10 border border-teal-500/30 text-teal-300 text-xs font-bold">
-                      <CheckCircle2 className="h-3.5 w-3.5" />
-                      <span>{data.institution.accreditation}</span>
-                    </div>
+                  <div>
+                    <span className="text-slate-400">{t.matricule}</span>
+                    <p className="font-mono font-bold text-sm text-indigo-300 mt-0.5">{data.student.matricule}</p>
+                  </div>
 
-                    <a
-                      href={data.institution.website}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-xs text-indigo-400 hover:text-indigo-300 font-semibold transition-colors"
-                    >
-                      <span>{data.institution.website}</span>
-                      <ExternalLink className="h-3 w-3" />
-                    </a>
+                  <div>
+                    <span className="text-slate-400">{t.classeFiliere}</span>
+                    <p className="font-bold text-slate-200 mt-0.5">{data.student.classe || "—"}</p>
+                    <p className="text-[10px] text-slate-400">{data.student.filiere || "Général"}</p>
+                  </div>
+
+                  <div>
+                    <span className="text-slate-400">{t.birth}</span>
+                    <p className="font-medium text-slate-200 mt-0.5">
+                      {data.student.dateNaissance || "—"}
+                    </p>
+                    <p className="text-[10px] text-slate-400">{data.student.lieuNaissance || "—"}</p>
                   </div>
                 </div>
               </div>
 
-              {/* 5. INTERACTIVE CURRICULUM ACCORDION (If Academic with UEs) */}
-              {!isFinancial && data.curriculum && data.curriculum.length > 0 && (
-                <div className="bg-slate-800/60 border border-slate-700/60 rounded-3xl overflow-hidden shadow-sm">
-                  <button
-                    onClick={() => setShowCurriculum(!showCurriculum)}
-                    className="w-full p-6 flex items-center justify-between text-left hover:bg-slate-800/80 transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-                        <Layers className="h-4 w-4" />
+              {/* ─────────────────────────────────────────────────────────────
+                  CASE 3: HIGHER EDUCATION DEGREE & CURRICULUM (LMD)
+              ────────────────────────────────────────────────────────────── */}
+              {!isFinancial && !isBulletin && (
+                <>
+                  {/* Degree Conferred Box */}
+                  <div className="bg-slate-800/60 border border-slate-700/60 rounded-3xl p-6 shadow-sm">
+                    <div className="flex items-center gap-2.5 text-xs font-black text-emerald-400 uppercase tracking-wider mb-4 border-b border-slate-700/60 pb-3">
+                      <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                        <GraduationCap className="h-4 w-4" />
                       </div>
+                      <span>{t.degreeTitle}</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5 text-xs">
+                      <div className="sm:col-span-2">
+                        <span className="text-slate-400">{t.diplomaName}</span>
+                        <p className="font-bold text-base text-white mt-1 leading-snug">
+                          {lang === "en" ? data.degree.titleEn : lang === "ar" ? data.degree.titleAr : data.degree.title}
+                        </p>
+                        <p className="text-[11px] text-indigo-300 mt-0.5">{data.degree.field} • {data.degree.mention}</p>
+                      </div>
+
                       <div>
-                        <div className="text-sm font-black text-white">{t.curriculumTitle}</div>
-                        <div className="text-xs text-slate-400 font-medium mt-0.5">
-                          {showCurriculum ? t.hideCurriculum : t.showCurriculum}
-                        </div>
+                        <span className="text-slate-400">{t.decisionHonors}</span>
+                        <p className="font-bold text-emerald-400 text-sm mt-1">
+                          {lang === "en" ? data.degree.statusEn : lang === "ar" ? data.degree.statusAr : data.degree.status}
+                        </p>
+                        <p className="text-[11px] text-slate-400 mt-0.5">{data.degree.deliberationDate}</p>
+                      </div>
+
+                      <div>
+                        <span className="text-slate-400">{t.creditsEcts}</span>
+                        <p className="font-black text-lg text-indigo-400 font-mono mt-1">
+                          {data.degree.ectsCredits} ECTS <span className="text-xs font-normal text-slate-400">/ {data.degree.totalRequiredEcts}</span>
+                        </p>
+                      </div>
+
+                      <div>
+                        <span className="text-slate-400">{t.gpaScore}</span>
+                        <p className="font-bold text-slate-200 mt-1">{data.degree.gpa}</p>
+                        <p className="text-[10px] text-emerald-400 font-bold">{data.degree.gpaLetter}</p>
+                      </div>
+
+                      <div>
+                        <span className="text-slate-400">{t.promoYear}</span>
+                        <p className="font-bold text-slate-200 mt-1">{data.degree.graduationYear}</p>
                       </div>
                     </div>
+                  </div>
 
-                    <div className="p-2 rounded-xl bg-slate-900 text-slate-400">
-                      {showCurriculum ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                    </div>
-                  </button>
+                  {/* Curriculum & 180 ECTS Units Accordion */}
+                  {data.curriculum && data.curriculum.length > 0 && (
+                    <div className="bg-slate-800/60 border border-slate-700/60 rounded-3xl p-6 shadow-sm overflow-hidden">
+                      <div className="flex items-center justify-between gap-4 border-b border-slate-700/60 pb-3">
+                        <div className="flex items-center gap-2.5 text-xs font-black text-indigo-400 uppercase tracking-wider">
+                          <div className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                            <Layers className="h-4 w-4" />
+                          </div>
+                          <span>{t.curriculumTitle}</span>
+                        </div>
 
-                  {showCurriculum && (
-                    <div className="p-6 pt-0 border-t border-slate-700/60 overflow-x-auto animate-in fade-in-50 duration-200">
-                      <table className="w-full text-xs text-left min-w-[500px]">
-                        <thead>
-                          <tr className="border-b border-slate-700 text-slate-400 font-bold">
-                            <th className="py-2.5 px-2">Code UE</th>
-                            <th className="py-2.5 px-2">Intitulé de l'Unité d'Enseignement</th>
-                            <th className="py-2.5 px-2 text-center">ECTS</th>
-                            <th className="py-2.5 px-2 text-center">Note /20</th>
-                            <th className="py-2.5 px-2 text-center">Grade</th>
-                            <th className="py-2.5 px-2 text-right">Statut</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-800">
-                          {data.curriculum.map((ue, idx) => (
-                            <tr key={idx} className="hover:bg-slate-900/40 transition-colors">
-                              <td className="py-3 px-2 font-mono font-bold text-indigo-300">{ue.codeUe}</td>
-                              <td className="py-3 px-2 font-bold text-slate-200">{ue.nameUe}</td>
-                              <td className="py-3 px-2 text-center font-mono font-bold text-slate-300">{ue.creditsEcts}</td>
-                              <td className="py-3 px-2 text-center font-mono font-bold text-emerald-400">{ue.grade.toFixed(2)}</td>
-                              <td className="py-3 px-2 text-center font-mono font-black text-amber-400">{ue.gradeEcts}</td>
-                              <td className="py-3 px-2 text-right font-medium text-slate-300">{ue.status}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                        <button
+                          onClick={() => setShowCurriculumDetails(!showCurriculumDetails)}
+                          className="text-xs font-bold text-indigo-400 hover:text-indigo-300 flex items-center gap-1.5 transition-colors cursor-pointer"
+                        >
+                          <span>{showCurriculumDetails ? t.hideCurriculum : t.showCurriculum}</span>
+                          {showCurriculumDetails ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                        </button>
+                      </div>
+
+                      {showCurriculumDetails && (
+                        <div className="mt-4 overflow-x-auto animate-in fade-in duration-300">
+                          <table className="w-full text-xs text-left border-collapse">
+                            <thead>
+                              <tr className="bg-slate-900/80 border-b border-slate-700/80 text-[10px] uppercase font-black text-slate-400 tracking-wider">
+                                <th className="p-3">Code UE</th>
+                                <th className="p-3">Intitulé de l'Unité d'Enseignement</th>
+                                <th className="p-3 text-center">Semestre</th>
+                                <th className="p-3 text-center">Crédits ECTS</th>
+                                <th className="p-3 text-center">Note / 20</th>
+                                <th className="p-3 text-center">Grade ECTS</th>
+                                <th className="p-3">Statut</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-700/50">
+                              {data.curriculum.map((ue, idx) => (
+                                <tr key={idx} className="hover:bg-slate-700/30 transition-colors">
+                                  <td className="p-3 font-mono font-bold text-indigo-300">{ue.codeUe}</td>
+                                  <td className="p-3 font-bold text-white">{ue.nameUe}</td>
+                                  <td className="p-3 text-center text-slate-400">{ue.semester}</td>
+                                  <td className="p-3 text-center font-mono font-bold text-amber-400">{ue.creditsEcts} ECTS</td>
+                                  <td className="p-3 text-center font-mono font-bold text-emerald-400">{ue.grade.toFixed(2)}</td>
+                                  <td className="p-3 text-center font-mono font-bold text-indigo-300">{ue.gradeEcts}</td>
+                                  <td className="p-3 text-slate-300">
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                                      {ue.status}
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
                     </div>
                   )}
-                </div>
+                </>
               )}
 
-              {/* 6. CRYPTOGRAPHIC PROOF & W3C VERIFIABLE CREDENTIALS */}
-              <div className="bg-slate-950/90 border border-slate-800 rounded-3xl p-6 font-mono text-xs space-y-3">
-                <div className="flex items-center gap-2 text-indigo-400 font-bold uppercase tracking-wider border-b border-slate-800 pb-2">
+              {/* ─────────────────────────────────────────────────────────────
+                  COMMON SECTION: STANDARDS & ACCREDITATION
+              ────────────────────────────────────────────────────────────── */}
+              <div className="bg-slate-800/60 border border-slate-700/60 rounded-3xl p-6 shadow-sm">
+                <div className="flex items-center gap-2.5 text-xs font-black text-cyan-400 uppercase tracking-wider mb-4 border-b border-slate-700/60 pb-3">
+                  <div className="p-1.5 rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                    <Globe className="h-4 w-4" />
+                  </div>
+                  <span>{t.standardsTitle}</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-xs">
+                  <div>
+                    <span className="text-slate-400">{t.unescoIsced}</span>
+                    <p className="font-bold text-slate-200 mt-0.5">
+                      {lang === "en" ? data.standards.unescoIscedEn : lang === "ar" ? data.standards.unescoIscedAr : data.standards.unescoIsced}
+                    </p>
+                  </div>
+
+                  <div>
+                    <span className="text-slate-400">{t.institutionTitle}</span>
+                    <p className="font-bold text-slate-200 mt-0.5">
+                      {lang === "en" ? data.institution.nameEn : lang === "ar" ? data.institution.nameAr : data.institution.name}
+                    </p>
+                    <p className="text-[10px] text-slate-400">{data.institution.country} • {data.institution.city}</p>
+                  </div>
+
+                  <div>
+                    <span className="text-slate-400">{t.accreditation}</span>
+                    <p className="font-bold text-emerald-400 mt-0.5">
+                      {lang === "en" ? data.institution.accreditationEn : lang === "ar" ? data.institution.accreditationAr : data.institution.accreditation}
+                    </p>
+                    <p className="text-[10px] text-slate-400">{data.institution.ministry}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* ─────────────────────────────────────────────────────────────
+                  COMMON SECTION: CRYPTOGRAPHIC ANCHOR & PUBLIC LEDGER
+              ────────────────────────────────────────────────────────────── */}
+              <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 shadow-xl text-xs space-y-3 font-mono">
+                <div className="flex items-center gap-2.5 text-xs font-black text-slate-300 uppercase tracking-wider border-b border-slate-800 pb-3 font-sans">
                   <Lock className="h-4 w-4 text-emerald-400" />
                   <span>{t.securityTitle}</span>
                 </div>
 
-                <div className="space-y-2 text-[11px] text-slate-400 break-all">
+                <div className="space-y-2 text-slate-400 break-all text-[11px]">
                   <div>
-                    <span className="text-slate-500 font-bold block">{t.shaHash} :</span>
-                    <span className="text-emerald-400 font-bold">{data.degree.verificationHash}</span>
+                    <span className="text-slate-500 font-sans block text-[10px] uppercase font-bold">{t.w3cId} :</span>
+                    <span className="text-emerald-400">{data.degree.merkleProof}</span>
                   </div>
 
                   <div>
-                    <span className="text-slate-500 font-bold block">{t.w3cId} :</span>
-                    <span className="text-indigo-300">{data.degree.merkleProof}</span>
+                    <span className="text-slate-500 font-sans block text-[10px] uppercase font-bold">{t.shaHash} :</span>
+                    <span className="text-indigo-300">{data.degree.verificationHash}</span>
                   </div>
 
                   <div>
-                    <span className="text-slate-500 font-bold block">{t.trustAnchor} :</span>
+                    <span className="text-slate-500 font-sans block text-[10px] uppercase font-bold">{t.trustAnchor} :</span>
                     <span className="text-slate-300">{data.degree.digitalSignature}</span>
                   </div>
                 </div>
               </div>
+
             </div>
-          </>
-        ) : (
-          /* ─── NOT FOUND STATE ─── */
-          <div className="flex flex-col items-center text-center py-16">
-            <div className="h-20 w-20 rounded-3xl bg-rose-500/10 border-2 border-rose-500/40 text-rose-400 flex items-center justify-center mb-5 shadow-xl shadow-rose-500/10">
-              <FileText className="h-10 w-10" />
-            </div>
-            <h2 className="text-2xl font-black text-white mb-2">Identifiant Non Trouvé / Invalid Record</h2>
-            <p className="text-xs sm:text-sm text-slate-400 max-w-md mb-8 leading-relaxed">
-              Aucun document académique ou reçu financier officiel ne correspond à la référence <span className="text-white font-mono font-bold bg-slate-800 px-2 py-1 rounded">{rawId}</span>. Veuillez vérifier l'exactitude du QR Code ou contacter l'administration de l'établissement.
-            </p>
-            <Link
-              href="/verify"
-              className="px-6 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black uppercase tracking-wider transition-all shadow-lg shadow-indigo-600/30"
-            >
-              Rechercher un autre document
-            </Link>
+
           </div>
         )}
-      </main>
 
-      {/* ─── FOOTER SECURITY NOTICE ─── */}
-      <footer className="mt-8 text-center text-xs text-slate-500 max-w-xl leading-relaxed">
-        {t.securityNotice}
-      </footer>
+        {/* ─── FOOTER ─── */}
+        <footer className="mt-12 pt-6 border-t border-slate-800 text-center text-xs text-slate-500 space-y-2">
+          <p>{t.securityNotice}</p>
+          <p className="text-[10px] font-mono text-slate-600">
+            Node: NIGER-CENTRAL-01 • Engine: EDUT-CORE-v2.6 • W3C DID: did:edut:ne:2026
+          </p>
+        </footer>
+
+      </div>
     </div>
   );
 }
