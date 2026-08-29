@@ -178,9 +178,6 @@ function drawPDFHeader(
       headerConfig?.ministryAr || "وزارة التربية الوطنية",
       headerConfig?.schoolNameAr || schoolName,
       headerConfig?.serviceAr || "مصلحة الشؤون المالية",
-      headerConfig?.addressAr || "",
-      phone ? `الهاتف: ${phone}` : "",
-      email ? `البريد: ${email}` : "",
     ].filter(Boolean);
 
     const colWidth = centerLogo ? (centerX - margin - (isA5 ? 12 : 15)) : (centerX - margin - 4);

@@ -263,10 +263,6 @@ function drawPDFHeader(
       headerConfig?.inspectionAr || "",
       headerConfig?.schoolNameAr || schoolName,
       headerConfig?.serviceAr || "",
-      headerConfig?.addressAr || "",
-      bp ? `ص.ب: ${bp}` : "",
-      phone ? `الهاتف: ${phone}` : "",
-      email ? `البريد: ${email}` : "",
     ].filter(Boolean);
 
     const colWidth = centerLogo ? 78 : 92;

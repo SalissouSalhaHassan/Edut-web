@@ -606,10 +606,6 @@ export default function ReceiptPreviewDialog({
         headerConfig?.departmentalDirectionAr || "",
         headerConfig?.schoolNameAr || schoolName,
         headerConfig?.serviceAr || "",
-        headerConfig?.addressAr || "",
-        bp ? `ص.ب: ${bp}` : "",
-        schoolPhone ? `الهاتف: ${schoolPhone}` : "",
-        schoolEmail ? `البريد: ${schoolEmail}` : "",
       ].filter(Boolean);
 
       let rightY = isA5 ? 8 : 12;

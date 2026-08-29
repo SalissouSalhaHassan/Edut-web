@@ -77,10 +77,6 @@ function ArabicMetaLines({ cfg }: { cfg: DocumentHeaderConfig }) {
     cfg.schoolCode ? `رمز المؤسسة: ${cfg.schoolCode}` : "",
     schoolNameAr,
     cfg.serviceAr,
-    cfg.addressAr,
-    cfg.bp ? `ص.ب: ${cfg.bp}` : "",
-    cfg.phone ? `الهاتف: ${cfg.phone}` : "",
-    cfg.email ? `البريد: ${cfg.email}` : "",
   ].map(cleanHeaderText).filter(Boolean);
 
   return (

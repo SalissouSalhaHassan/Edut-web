@@ -225,10 +225,6 @@ function drawPDFHeader(
       mergedCfg.schoolCode ? `رمز المؤسسة: ${mergedCfg.schoolCode}` : "",
       mergedCfg.schoolNameAr || schoolName,
       mergedCfg.serviceAr || "",
-      mergedCfg.addressAr || "",
-      bp ? `ص.ب: ${bp}` : "",
-      phone ? `الهاتف: ${phone}` : "",
-      email ? `البريد: ${email}` : "",
     ].filter(Boolean);
 
     const colWidth = centerLogo ? (centerX - margin - 15) : (centerX - margin - 4);

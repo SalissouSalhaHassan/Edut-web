@@ -324,9 +324,6 @@ async function drawOfficialHeaderLandscape(doc: any, headerConfig: any, schoolIn
       inspectionAr,
       schoolNameAr || schoolName,
       serviceAr,
-      addressAr,
-      bp ? `ص.ب: ${bp}` : "",
-      phone ? `الهاتف: ${phone}` : "",
     ].filter(Boolean);
 
     const colWidth = centerLogo ? 115 : 130;
