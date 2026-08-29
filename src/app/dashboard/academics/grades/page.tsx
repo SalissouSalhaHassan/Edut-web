@@ -889,7 +889,7 @@ export default function AcademicResultsPage() {
           {previewData && (
             <div className="space-y-6 mt-2">
               {/* Level-specific Document Header Profile Preview */}
-              <div className="p-4 bg-slate-50/80 dark:bg-slate-900/60 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
+              <div className="p-6 bg-white text-slate-900 rounded-2xl border border-slate-200 shadow-sm">
                 <OfficialDocumentHeader config={previewData?.headerConfig || headerConfig} variant="compact" />
               </div>
               {/* Summary KPIs */}

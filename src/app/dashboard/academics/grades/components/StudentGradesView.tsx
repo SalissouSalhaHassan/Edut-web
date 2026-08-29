@@ -154,7 +154,7 @@ export default function StudentGradesView({ currentUser }: StudentGradesViewProp
     <div className="space-y-6 max-w-7xl mx-auto pb-12">
       {/* Official Header Preview */}
       {headerConfig && (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm">
+        <div className="bg-white text-slate-900 border border-slate-200 rounded-2xl p-6 shadow-sm">
           <OfficialDocumentHeader config={headerConfig} variant="compact" />
         </div>
       )}
