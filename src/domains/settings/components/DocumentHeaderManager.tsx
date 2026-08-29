@@ -16,9 +16,14 @@ import {
   type LevelHeaderProfile,
   type EducationalLevelKey,
 } from "@/domains/printing/document-header";
+import dynamic from "next/dynamic";
 import { saveDocumentHeaderConfig } from "@/domains/settings/actions/settings.actions";
-import TemplateDesigner from "@/domains/settings/components/designer/TemplateDesigner";
 import { LayoutGrid } from "lucide-react";
+
+const TemplateDesigner = dynamic(() => import("@/domains/settings/components/designer/TemplateDesigner"), {
+  ssr: false,
+  loading: () => <div className="p-12 text-center text-slate-400 font-bold">Chargement du studio graphique...</div>,
+});
 
 const HEADER_STYLES: { value: DocumentHeaderStyle; label: string; description: string }[] = [
   { value: "classic_dual_logo", label: "Classique deux logos", description: "Lycée, collège, primaire, rapports officiels." },
