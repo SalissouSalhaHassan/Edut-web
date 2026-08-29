@@ -301,5 +301,43 @@ export async function syncOutbox() {
     return false;
   } finally {
     syncInProgress = false;
+    // Periodically clean up synced records older than 7 days to conserve browser storage
+    try {
+      await cleanupOldSyncedOutbox(7);
+    } catch (e) {
+      console.warn("[Sync] Periodic outbox cleanup error:", e);
+    }
+  }
+}
+
+/**
+ * Automatically purges synced outbox items that are older than retentionDays (default: 7 days)
+ * to free up IndexedDB storage in the client browser.
+ */
+export async function cleanupOldSyncedOutbox(retentionDays = 7): Promise<number> {
+  try {
+    const cutoffTimestamp = Date.now() - retentionDays * 24 * 60 * 60 * 1000;
+    
+    // Find all outbox entries with status 'synced' that were synced/updated before the cutoff
+    const itemsToDelete = await localDb.outbox
+      .filter((item) => {
+        if (item.status !== "synced") return false;
+        const itemTime = item.syncedAt || item.updatedAt || item.timestamp;
+        return itemTime < cutoffTimestamp;
+      })
+      .toArray();
+
+    if (itemsToDelete.length === 0) return 0;
+
+    const idsToDelete = itemsToDelete.map((item) => item.id!).filter(Boolean);
+    await localDb.outbox.bulkDelete(idsToDelete);
+
+    console.log(
+      `[Sync Cleanup] Purged ${idsToDelete.length} synced outbox operations older than ${retentionDays} days.`
+    );
+    return idsToDelete.length;
+  } catch (error) {
+    console.warn("[Sync Cleanup] Failed to purge old synced outbox items:", error);
+    return 0;
   }
 }
