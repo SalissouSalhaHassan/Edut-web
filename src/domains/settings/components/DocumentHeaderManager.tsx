@@ -177,7 +177,6 @@ export default function DocumentHeaderManager({ initialConfig }: { initialConfig
   const save = () => {
     startTransition(async () => {
       try {
-        // 1. Direct REST API POST (Bypasses Next.js Server Action CSRF & Subdomain Origin constraints)
         const response = await fetch("/api/settings/headers", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -185,33 +184,18 @@ export default function DocumentHeaderManager({ initialConfig }: { initialConfig
           body: JSON.stringify(config),
         });
 
-        if (response.ok) {
-          const result = await response.json();
-          if (result.success) {
-            if (result.data) {
-              setConfig(mergeDocumentHeaderConfig(result.data));
-            }
-            toast.success("En-têtes officiels et profils par niveau enregistrés avec succès ! 🎉");
-            return;
-          }
-        }
+        const result = await response.json().catch(() => null);
 
-        // 2. Fallback to Server Action if REST API returns non-200
-        const res = await saveDocumentHeaderConfig(config);
-        if (res?.success) {
+        if (response.ok && result?.success) {
+          if (result.data) {
+            setConfig(mergeDocumentHeaderConfig(result.data));
+          }
           toast.success("En-têtes officiels et profils par niveau enregistrés avec succès ! 🎉");
         } else {
-          toast.error((res as any)?.error || "Impossible d'enregistrer l'en-tête");
+          toast.error(result?.error || `Erreur lors de l'enregistrement (${response.status})`);
         }
       } catch (err: any) {
         console.error("Save header error:", err);
-        try {
-          const fallbackRes = await saveDocumentHeaderConfig(config);
-          if (fallbackRes?.success) {
-            toast.success("En-têtes officiels enregistrés avec succès ! 🎉");
-            return;
-          }
-        } catch (_) {}
         toast.error(err?.message || "Erreur lors de l'enregistrement de l'en-tête");
       }
     });
