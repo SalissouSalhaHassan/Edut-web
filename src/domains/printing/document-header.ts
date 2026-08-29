@@ -127,6 +127,40 @@ export function mergeDocumentHeaderConfig(input?: Partial<DocumentHeaderConfig> 
   };
 }
 
+function normalizeLevel(val: string): string {
+  return String(val || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+}
+
+const LEVEL_GROUPS: Record<string, string[]> = {
+  maternelle: ["maternelle", "creche", "prescolaire", "petite", "moyenne", "grande"],
+  primaire: ["primaire", "elementaire", "ci", "cp", "ce1", "ce2", "cm1", "cm2", "1ere annee", "2eme annee", "3eme annee", "4eme annee", "5eme annee", "6eme annee"],
+  college: ["college", "moyen", "cem", "6eme", "5eme", "4eme", "3eme", "brevet", "bepc"],
+  lycee: ["lycee", "secondaire", "2nde", "1ere", "tle", "terminale", "bac", "scientifique", "litteraire", "technique"],
+  university: ["university", "universite", "superieur", "licence", "master", "doctorat", "lmd", "l1", "l2", "l3", "m1", "m2", "faculte", "institut", "bts", "dut"],
+};
+
+export function isLevelMatching(candidateLevel: string, targetLevel: string): boolean {
+  const normCandidate = normalizeLevel(candidateLevel);
+  const normTarget = normalizeLevel(targetLevel);
+
+  if (!normCandidate || !normTarget) return false;
+  if (normCandidate === normTarget) return true;
+  if (normCandidate.includes(normTarget) || normTarget.includes(normCandidate)) return true;
+
+  // Check group aliases
+  for (const [, aliases] of Object.entries(LEVEL_GROUPS)) {
+    const candidateInGroup = aliases.some((a) => normCandidate.includes(a) || a.includes(normCandidate));
+    const targetInGroup = aliases.some((a) => normTarget.includes(a) || a.includes(normTarget));
+    if (candidateInGroup && targetInGroup) return true;
+  }
+
+  return false;
+}
+
 /**
  * Resolves the specific header config for a given educational level
  * Supports single levels (e.g. "Primaire"), merged levels (e.g. "Primaire, College"), or fallback to global.
@@ -140,20 +174,17 @@ export function getActiveLevelHeaderConfig(
     return safeBase;
   }
 
-  const cleanTarget = String(targetLevel).trim().toLowerCase();
-
-  // Find matching profile whose applicableLevels includes targetLevel
-  const matchedProfile = safeBase.levelProfiles.find((profile) =>
-    Array.isArray(profile.applicableLevels) &&
-    profile.applicableLevels.some((lvl) => {
-      const cleanLvl = String(lvl).trim().toLowerCase();
-      return (
-        cleanLvl === cleanTarget ||
-        cleanTarget.includes(cleanLvl) ||
-        cleanLvl.includes(cleanTarget)
-      );
-    })
-  );
+  // Find matching profile whose applicableLevels includes targetLevel or matches fusion
+  const matchedProfile = safeBase.levelProfiles.find((profile) => {
+    if (Array.isArray(profile.applicableLevels) && profile.applicableLevels.length > 0) {
+      const hasMatch = profile.applicableLevels.some((lvl) => isLevelMatching(String(lvl), targetLevel));
+      if (hasMatch) return true;
+    }
+    if (profile.name && isLevelMatching(profile.name, targetLevel)) {
+      return true;
+    }
+    return false;
+  });
 
   if (!matchedProfile || !matchedProfile.headerConfig) {
     return safeBase;

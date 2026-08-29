@@ -34,11 +34,12 @@ const HEADER_STYLES: { value: DocumentHeaderStyle; label: string; description: s
 ];
 
 const PRESET_LEVELS: { key: EducationalLevelKey; label: string; icon: string; defaultMinistry: string; defaultInspection: string }[] = [
+  { key: "Maternelle", label: "Maternelle / Préscolaire", icon: "🧸", defaultMinistry: "Ministère de l'Éducation Nationale", defaultInspection: "Inspection de l'Enseignement Préscolaire" },
   { key: "Primaire", label: "Primaire", icon: "📚", defaultMinistry: "Ministère de l'Éducation Nationale", defaultInspection: "Inspection de l'Enseignement Primaire" },
-  { key: "College", label: "Collège", icon: "📖", defaultMinistry: "Ministère de l'Éducation Nationale", defaultInspection: "Direction de l'Enseignement Moyen" },
-  { key: "Lycée", label: "Lycée", icon: "🎓", defaultMinistry: "Ministère de l'Éducation Nationale", defaultInspection: "Direction de l'Enseignement Secondaire" },
-  { key: "University", label: "Université", icon: "🏛️", defaultMinistry: "Ministère de l'Enseignement Supérieur & de la Recherche", defaultInspection: "Rectorat & Conseil d'Administration" },
-  { key: "Autre", label: "Autre / Spécialisé", icon: "✨", defaultMinistry: "Ministère de la Formation Professionnelle", defaultInspection: "Direction de la Pédagogie" },
+  { key: "College", label: "Collège (Moyen)", icon: "📖", defaultMinistry: "Ministère de l'Éducation Nationale", defaultInspection: "Direction de l'Enseignement Moyen" },
+  { key: "Lycée", label: "Lycée (Secondaire)", icon: "🎓", defaultMinistry: "Ministère de l'Éducation Nationale", defaultInspection: "Direction de l'Enseignement Secondaire" },
+  { key: "University", label: "Université (Supérieur / LMD)", icon: "🏛️", defaultMinistry: "Ministère de l'Enseignement Supérieur & de la Recherche", defaultInspection: "Rectorat & Conseil d'Administration" },
+  { key: "Autre", label: "Formation Pro / Autre", icon: "✨", defaultMinistry: "Ministère de la Formation Professionnelle", defaultInspection: "Direction de la Pédagogie" },
 ];
 
 const fieldClass = "h-11 rounded-xl border-slate-200 bg-white text-sm font-bold dark:border-slate-800 dark:bg-slate-900 dark:text-white";

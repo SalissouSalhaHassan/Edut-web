@@ -209,8 +209,17 @@ export default function AcademicResultsPage() {
         const resObj = gridResult as any;
         if (Array.isArray(studentData)) {
           setStudents(studentData);
-          setLevel(resObj.level || filters.level);
+          const effectiveLevel = resObj.level || filters.level;
+          setLevel(effectiveLevel);
           setActiveCoef(resObj.activeCoefficient || 1);
+          
+          if (effectiveLevel) {
+            getDocumentHeaderConfig(effectiveLevel).then((res) => {
+              if (res?.data) {
+                setHeaderConfig(res.data);
+              }
+            }).catch(console.warn);
+          }
           
           try {
             const { cacheReferenceItems } = await import("@/infrastructure/local-db/references");
@@ -525,6 +534,19 @@ export default function AcademicResultsPage() {
             <p className="text-slate-600 dark:text-slate-400 font-medium ml-1">
               Gestion académique, saisie des notes et matrice des résultats.
             </p>
+            {headerConfig && (
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-500/10 border border-indigo-500/20 text-indigo-700 dark:text-indigo-300 text-xs font-bold rounded-xl">
+                  <Sparkles size={13} className="text-indigo-500" />
+                  En-tête appliqué ({level}) : <strong className="font-black">{headerConfig.schoolName}</strong>
+                  {headerConfig.activeLevelProfileId && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-600/15 font-black uppercase text-indigo-700 dark:text-indigo-200">
+                      Profil Niveau & Fusion
+                    </span>
+                  )}
+                </span>
+              </div>
+            )}
           </div>
         </div>
 
