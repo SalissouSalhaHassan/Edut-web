@@ -12,6 +12,7 @@ import { cache as redisCache } from "@/lib/redis";
 import {
   DOCUMENT_HEADER_SETTING_KEY,
   mergeDocumentHeaderConfig,
+  getActiveLevelHeaderConfig,
   type DocumentHeaderConfig,
 } from "@/domains/printing/document-header";
 
@@ -207,106 +208,113 @@ export async function updateSetting(key: string, value: string) {
   });
 }
 
-export async function fetchDocumentHeaderConfigForSchool(schoolId: number): Promise<DocumentHeaderConfig> {
+export async function fetchDocumentHeaderConfigForSchool(schoolId: number, targetLevel?: string | null): Promise<DocumentHeaderConfig> {
   const cacheKey = `edut:header_config:${schoolId}`;
 
   // 1. Try Redis Cache first to save Database Egress
+  let configData: DocumentHeaderConfig | null = null;
   try {
     const cached = await redisCache.get<DocumentHeaderConfig>(cacheKey);
     if (cached) {
-      return cached;
+      configData = cached;
     }
   } catch (e) {
     console.warn("[Redis Cache] Error checking header config cache:", e);
   }
 
-  // Fetch first branch of the school for fallback values
-  let branchFallback: any = null;
-  try {
-    const branches = await db.query.schoolBranches.findMany({
-      where: eq(schoolBranches.schoolId, schoolId),
-      orderBy: [desc(schoolBranches.createdAt)]
-    });
-    if (branches && branches.length > 0) {
-      branchFallback = branches[0];
-    }
-  } catch (e) {
-    console.error("Error fetching branch fallback in fetchDocumentHeaderConfigForSchool:", e);
-  }
-
-  const existing = await db.query.settings.findFirst({
-    where: and(
-      eq(settings.key, DOCUMENT_HEADER_SETTING_KEY),
-      eq(settings.schoolId, schoolId)
-    )
-  });
-
-  let configData: any;
-  if (!existing?.value) {
-    configData = mergeDocumentHeaderConfig();
-  } else {
+  if (!configData) {
+    // Fetch first branch of the school for fallback values
+    let branchFallback: any = null;
     try {
-      configData = mergeDocumentHeaderConfig(JSON.parse(existing.value));
-    } catch {
-      configData = mergeDocumentHeaderConfig();
-    }
-  }
-
-  // Apply fallbacks from branch if header config fields are missing
-  if (branchFallback) {
-    if (!configData.schoolName) configData.schoolName = branchFallback.branchName || "";
-    if (!configData.ministry) configData.ministry = branchFallback.ministry || "";
-    if (!configData.regionalDirection) configData.regionalDirection = branchFallback.dren || branchFallback.region || "";
-    if (!configData.departmentalDirection) configData.departmentalDirection = branchFallback.dden || branchFallback.department || "";
-    if (!configData.inspection) configData.inspection = branchFallback.inspection || "";
-    if (!configData.commune) configData.commune = branchFallback.commune || "";
-    if (!configData.schoolCode) configData.schoolCode = branchFallback.schoolCode || "";
-
-    const branchLogo = branchFallback.logoPath || branchFallback.logo || branchFallback.schoolLogo;
-    if (branchLogo) {
-      if (!configData.leftLogo) configData.leftLogo = branchLogo;
-      if (!configData.rightLogo) configData.rightLogo = branchLogo;
-      if (!configData.centerLogo) configData.centerLogo = branchLogo;
-    }
-  }
-
-  // Fallback to school_logo setting if leftLogo is still empty
-  if (!configData.leftLogo) {
-    try {
-      const logoSetting = await db.query.settings.findFirst({
-        where: and(
-          or(
-            eq(settings.key, "school_logo"),
-            eq(settings.key, "logo"),
-            eq(settings.key, "schoolLogo")
-          ),
-          eq(settings.schoolId, schoolId)
-        )
+      const branches = await db.query.schoolBranches.findMany({
+        where: eq(schoolBranches.schoolId, schoolId),
+        orderBy: [desc(schoolBranches.createdAt)]
       });
-      if (logoSetting?.value) {
-        configData.leftLogo = logoSetting.value;
-        if (!configData.rightLogo) configData.rightLogo = logoSetting.value;
-        if (!configData.centerLogo) configData.centerLogo = logoSetting.value;
+      if (branches && branches.length > 0) {
+        branchFallback = branches[0];
       }
     } catch (e) {
-      console.error("Error fetching logo setting fallback:", e);
+      console.error("Error fetching branch fallback in fetchDocumentHeaderConfigForSchool:", e);
+    }
+
+    const existing = await db.query.settings.findFirst({
+      where: and(
+        eq(settings.key, DOCUMENT_HEADER_SETTING_KEY),
+        eq(settings.schoolId, schoolId)
+      )
+    });
+
+    if (!existing?.value) {
+      configData = mergeDocumentHeaderConfig();
+    } else {
+      try {
+        configData = mergeDocumentHeaderConfig(JSON.parse(existing.value));
+      } catch {
+        configData = mergeDocumentHeaderConfig();
+      }
+    }
+
+    // Apply fallbacks from branch if header config fields are missing
+    if (branchFallback) {
+      if (!configData.schoolName) configData.schoolName = branchFallback.branchName || "";
+      if (!configData.ministry) configData.ministry = branchFallback.ministry || "";
+      if (!configData.regionalDirection) configData.regionalDirection = branchFallback.dren || branchFallback.region || "";
+      if (!configData.departmentalDirection) configData.departmentalDirection = branchFallback.dden || branchFallback.department || "";
+      if (!configData.inspection) configData.inspection = branchFallback.inspection || "";
+      if (!configData.commune) configData.commune = branchFallback.commune || "";
+      if (!configData.schoolCode) configData.schoolCode = branchFallback.schoolCode || "";
+
+      const branchLogo = branchFallback.logoPath || branchFallback.logo || branchFallback.schoolLogo;
+      if (branchLogo) {
+        if (!configData.leftLogo) configData.leftLogo = branchLogo;
+        if (!configData.rightLogo) configData.rightLogo = branchLogo;
+        if (!configData.centerLogo) configData.centerLogo = branchLogo;
+      }
+    }
+
+    // Fallback to school_logo setting if leftLogo is still empty
+    if (!configData.leftLogo) {
+      try {
+        const logoSetting = await db.query.settings.findFirst({
+          where: and(
+            or(
+              eq(settings.key, "school_logo"),
+              eq(settings.key, "logo"),
+              eq(settings.key, "schoolLogo")
+            ),
+            eq(settings.schoolId, schoolId)
+          )
+        });
+        if (logoSetting?.value) {
+          configData.leftLogo = logoSetting.value;
+          if (!configData.rightLogo) configData.rightLogo = logoSetting.value;
+          if (!configData.centerLogo) configData.centerLogo = logoSetting.value;
+        }
+      } catch (e) {
+        console.error("Error fetching logo setting fallback:", e);
+      }
+    }
+
+    // 2. Store in Redis for 1 hour
+    try {
+      await redisCache.set(cacheKey, configData, 3600);
+    } catch (e) {
+      console.warn("[Redis Cache] Error writing header config cache:", e);
     }
   }
 
-  // 2. Store in Redis for 1 hour
-  try {
-    await redisCache.set(cacheKey, configData, 3600);
-  } catch (e) {
-    console.warn("[Redis Cache] Error writing header config cache:", e);
+  // Resolve level-specific overrides if targetLevel is provided
+  if (targetLevel && configData) {
+    return getActiveLevelHeaderConfig(configData, targetLevel);
   }
 
-  return configData;
+  return configData || mergeDocumentHeaderConfig();
 }
 
-export async function getDocumentHeaderConfig() {
+export async function getDocumentHeaderConfig(targetLevel?: string | null) {
   return protectedDbAction("Settings", "canView", async () => {
     const schoolId = await getActiveSchoolId();
-    const data = await fetchDocumentHeaderConfigForSchool(schoolId);
+    const data = await fetchDocumentHeaderConfigForSchool(schoolId, targetLevel);
     return { data };
   });
 }

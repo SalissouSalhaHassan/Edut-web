@@ -476,6 +476,19 @@ export function CampusSetup({ initialBranches }: { initialBranches: Branch[] }) 
                       );
                     })}
                   </div>
+
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-3 pt-3 border-t border-slate-100 dark:border-slate-800/80">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                      💡 Chaque niveau sélectionné peut disposer de sa propre tutelle ministérielle, ses libellés et son logo spécifique ou être fusionné en groupe.
+                    </p>
+                    <a
+                      href="/dashboard/settings?tab=headers"
+                      className="inline-flex items-center gap-1.5 text-xs font-black text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition"
+                    >
+                      <Sparkles size={13} />
+                      Configurer les En-têtes & Logos de ces Niveaux →
+                    </a>
+                  </div>
                 </div>
 
                 <div className="md:col-span-2 space-y-4">
