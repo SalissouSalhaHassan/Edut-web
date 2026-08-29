@@ -177,11 +177,14 @@ export default function DocumentHeaderManager({ initialConfig }: { initialConfig
   const save = () => {
     startTransition(async () => {
       try {
+        toast.loading("Optimisation et enregistrement des en-têtes...", { id: "saving-header" });
+        const optimizedConfig = await prepareConfigForSave(config);
+
         const response = await fetch("/api/settings/headers", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
-          body: JSON.stringify(config),
+          body: JSON.stringify(optimizedConfig),
         });
 
         const result = await response.json().catch(() => null);
@@ -190,13 +193,13 @@ export default function DocumentHeaderManager({ initialConfig }: { initialConfig
           if (result.data) {
             setConfig(mergeDocumentHeaderConfig(result.data));
           }
-          toast.success("En-têtes officiels et profils par niveau enregistrés avec succès ! 🎉");
+          toast.success("En-têtes officiels et profils par niveau enregistrés avec succès ! 🎉", { id: "saving-header" });
         } else {
-          toast.error(result?.error || `Erreur lors de l'enregistrement (${response.status})`);
+          toast.error(result?.error || `Erreur lors de l'enregistrement (${response.status})`, { id: "saving-header" });
         }
       } catch (err: any) {
         console.error("Save header error:", err);
-        toast.error(err?.message || "Erreur lors de l'enregistrement de l'en-tête");
+        toast.error(err?.message || "Erreur lors de l'enregistrement de l'en-tête", { id: "saving-header" });
       }
     });
   };
@@ -610,44 +613,107 @@ function ColorField({ label, value, onChange }: { label: string; value: string; 
   );
 }
 
-function compressImage(file: File, maxWidth = 350, maxHeight = 350, quality = 0.85): Promise<string> {
+function compressBase64Image(dataUrl: string, maxWidth = 300, maxHeight = 300, quality = 0.8): Promise<string> {
+  if (!dataUrl || typeof dataUrl !== "string" || !dataUrl.startsWith("data:image")) {
+    return Promise.resolve(dataUrl || "");
+  }
+  // If already small (less than 40KB base64), return as is
+  if (dataUrl.length < 50000) {
+    return Promise.resolve(dataUrl);
+  }
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.src = dataUrl;
+    img.onload = () => {
+      let width = img.width;
+      let height = img.height;
+
+      if (width > height) {
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+      } else {
+        if (height > maxHeight) {
+          width = Math.round((width * maxHeight) / height);
+          height = maxHeight;
+        }
+      }
+
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, width);
+      canvas.height = Math.max(1, height);
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        resolve(dataUrl);
+        return;
+      }
+
+      ctx.drawImage(img, 0, 0, width, height);
+      const isPng = dataUrl.startsWith("data:image/png");
+      const compressed = canvas.toDataURL(isPng ? "image/png" : "image/jpeg", quality);
+      resolve(compressed.length < dataUrl.length ? compressed : dataUrl);
+    };
+    img.onerror = () => resolve(dataUrl);
+  });
+}
+
+async function prepareConfigForSave(cfg: DocumentHeaderConfig): Promise<DocumentHeaderConfig> {
+  const [leftLogo, centerLogo, rightLogo] = await Promise.all([
+    compressBase64Image(cfg.leftLogo || ""),
+    compressBase64Image(cfg.centerLogo || ""),
+    compressBase64Image(cfg.rightLogo || ""),
+  ]);
+
+  const sanitizedProfiles = await Promise.all(
+    (cfg.levelProfiles || []).map(async (prof) => {
+      const [pLeft, pCenter, pRight, pCustom] = await Promise.all([
+        compressBase64Image(prof.leftLogo || ""),
+        compressBase64Image(prof.centerLogo || ""),
+        compressBase64Image(prof.rightLogo || ""),
+        compressBase64Image(prof.customLogo || ""),
+      ]);
+
+      const profHeaderCfg = prof.headerConfig || {};
+      const [phLeft, phCenter, phRight] = await Promise.all([
+        compressBase64Image(profHeaderCfg.leftLogo || ""),
+        compressBase64Image(profHeaderCfg.centerLogo || ""),
+        compressBase64Image(profHeaderCfg.rightLogo || ""),
+      ]);
+
+      return {
+        ...prof,
+        leftLogo: pLeft || undefined,
+        centerLogo: pCenter || undefined,
+        rightLogo: pRight || undefined,
+        customLogo: pCustom || undefined,
+        headerConfig: {
+          ...profHeaderCfg,
+          leftLogo: phLeft || undefined,
+          centerLogo: phCenter || undefined,
+          rightLogo: phRight || undefined,
+        },
+      };
+    })
+  );
+
+  return {
+    ...cfg,
+    leftLogo: leftLogo || undefined,
+    centerLogo: centerLogo || undefined,
+    rightLogo: rightLogo || undefined,
+    levelProfiles: sanitizedProfiles,
+  };
+}
+
+function compressImage(file: File, maxWidth = 300, maxHeight = 300, quality = 0.8): Promise<string> {
   return new Promise((resolve) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
     reader.onload = (event) => {
-      const img = new Image();
-      img.src = event.target?.result as string;
-      img.onload = () => {
-        let width = img.width;
-        let height = img.height;
-
-        if (width > height) {
-          if (width > maxWidth) {
-            height = Math.round((height * maxWidth) / width);
-            width = maxWidth;
-          }
-        } else {
-          if (height > maxHeight) {
-            width = Math.round((width * maxHeight) / height);
-            height = maxHeight;
-          }
-        }
-
-        const canvas = document.createElement("canvas");
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) {
-          resolve(event.target?.result as string);
-          return;
-        }
-
-        ctx.drawImage(img, 0, 0, width, height);
-        const isPng = file.type === "image/png" || file.name.toLowerCase().endsWith(".png");
-        const compressed = canvas.toDataURL(isPng ? "image/png" : "image/jpeg", quality);
-        resolve(compressed);
-      };
-      img.onerror = () => resolve(event.target?.result as string);
+      const dataUrl = event.target?.result as string;
+      compressBase64Image(dataUrl, maxWidth, maxHeight, quality).then(resolve);
     };
     reader.onerror = () => resolve("");
   });
