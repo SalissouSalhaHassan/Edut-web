@@ -125,6 +125,7 @@ const sections: NavSection[] = [
     title: "PÉDAGOGIE",
     dotColor: "bg-violet-500",
     items: [
+      { href: "/dashboard/pedagogie/copilot", label: "Copilot Pédagogique IA", icon: <Sparkles className="size-[18px]" />, color: "text-purple-600", badge: "Enterprise", badgeColor: "bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-400" },
       { href: "/dashboard/pedagogie", label: "Tableau de bord pédagogique", icon: <LayoutDashboard className="size-[18px]" />, color: "text-violet-600" },
       { href: "/dashboard/pedagogie/ai-analytics", label: "Analytique IA & Décrochage", icon: <BrainCircuit className="size-[18px]" />, color: "text-purple-500" },
       { href: "/dashboard/analytics", label: "Analyses prédictives & BI", icon: <BarChart3 className="size-[18px]" />, color: "text-indigo-500" },

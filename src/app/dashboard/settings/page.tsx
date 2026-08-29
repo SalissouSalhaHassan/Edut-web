@@ -18,6 +18,7 @@ import TimetableManager from "./components/TimetableManager";
 import { CampusSetup } from "./components/CampusSetup";
 import DocumentHeaderManager from "@/domains/settings/components/DocumentHeaderManager";
 
+import { DeveloperApiHub } from "./components/DeveloperApiHub";
 import { SettingsTabsContainer } from "./components/SettingsTabsContainer";
 
 function safeArray(res: any): any[] {
@@ -238,27 +239,32 @@ export default async function SettingsPage({
             />
           }
           securityContent={
-            <div className="bg-white dark:bg-[#12131C] p-10 rounded-[3rem] border border-slate-100 dark:border-slate-800/60 shadow-sm space-y-10">
-               <div className="flex items-center gap-4 border-b border-slate-100 dark:border-slate-800/60 pb-6">
+            <div className="space-y-8">
+              <div className="bg-white dark:bg-[#12131C] p-10 rounded-[3rem] border border-slate-100 dark:border-slate-800/60 shadow-sm space-y-10">
+                <div className="flex items-center gap-4 border-b border-slate-100 dark:border-slate-800/60 pb-6">
                   <div className="w-12 h-12 rounded-2xl bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 flex items-center justify-center">
-                     <Lock size={24} />
+                    <Lock size={24} />
                   </div>
                   <h3 className="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight">Sécurité & Accès</h3>
-               </div>
+                </div>
 
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-3">
-                     <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-2">Délai Expiration Session (min)</label>
-                     <Input name="session_timeout" type="number" defaultValue={getVal('session_timeout') || "120"} className="h-14 rounded-2xl border-slate-100 dark:border-slate-800 shadow-sm bg-slate-50 dark:bg-[#0E0F18] dark:text-white font-bold" />
+                    <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-2">Délai Expiration Session (min)</label>
+                    <Input name="session_timeout" type="number" defaultValue={getVal('session_timeout') || "120"} className="h-14 rounded-2xl border-slate-100 dark:border-slate-800 shadow-sm bg-slate-50 dark:bg-[#0E0F18] dark:text-white font-bold" />
                   </div>
                   <div className="space-y-3">
-                     <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-2">Politique de Mots de Passe</label>
-                     <select name="password_policy" defaultValue={getVal('password_policy') || "strict"} className="w-full h-14 bg-slate-50 dark:bg-[#0E0F18] dark:text-white border-none rounded-2xl px-4 font-bold text-slate-700 shadow-sm outline-none focus:ring-2 focus:ring-primary/20">
-                        <option value="strict">Stricte (Majuscules, Chiffres, Symboles)</option>
-                        <option value="medium">Moyenne (8 caractères minimum)</option>
-                     </select>
+                    <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-2">Politique de Mots de Passe</label>
+                    <select name="password_policy" defaultValue={getVal('password_policy') || "strict"} className="w-full h-14 bg-slate-50 dark:bg-[#0E0F18] dark:text-white border-none rounded-2xl px-4 font-bold text-slate-700 shadow-sm outline-none focus:ring-2 focus:ring-primary/20">
+                      <option value="strict">Stricte (Majuscules, Chiffres, Symboles)</option>
+                      <option value="medium">Moyenne (8 caractères minimum)</option>
+                    </select>
                   </div>
-               </div>
+                </div>
+              </div>
+
+              {/* Developer API & SSO Hub */}
+              <DeveloperApiHub schoolSlug={currentSchool?.slug || "ecole"} />
             </div>
           }
           notificationsContent={
@@ -283,27 +289,44 @@ export default async function SettingsPage({
             </div>
           }
           systemContent={
-            <div className="bg-white dark:bg-[#12131C] p-10 rounded-[3rem] border border-slate-100 dark:border-slate-800/60 shadow-sm space-y-10">
-               <div className="flex items-center gap-4 border-b border-slate-100 dark:border-slate-800/60 pb-6">
+            <div className="space-y-8">
+              <div className="bg-white dark:bg-[#12131C] p-10 rounded-[3rem] border border-slate-100 dark:border-slate-800/60 shadow-sm space-y-10">
+                <div className="flex items-center gap-4 border-b border-slate-100 dark:border-slate-800/60 pb-6">
                   <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 flex items-center justify-center">
-                     <Server size={24} />
+                    <Server size={24} />
                   </div>
                   <h3 className="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight">Système & Avancé</h3>
-               </div>
+                </div>
 
-               <div className="grid grid-cols-1 gap-8">
-                  <div className="p-6 rounded-2xl border border-red-100 dark:border-red-500/20 bg-red-50 dark:bg-red-500/5 flex items-start gap-4">
-                     <AlertCircle className="text-red-500 mt-1 flex-shrink-0" size={24} />
-                     <div>
-                        <h4 className="font-bold text-red-900 dark:text-red-400">Mode Maintenance</h4>
-                        <p className="text-sm text-red-700/80 dark:text-red-400/70 mt-1 mb-4">Activer ce mode bloque l'accès à tous les utilisateurs sauf les administrateurs.</p>
-                        <select name="maintenance_mode" defaultValue={getVal('maintenance_mode') || "false"} className="w-full md:w-auto h-12 bg-white dark:bg-[#0E0F18] dark:text-white border-red-200 dark:border-red-500/30 rounded-xl px-4 font-bold text-red-900 dark:text-red-400 shadow-sm outline-none focus:ring-2 focus:ring-red-500/20">
-                           <option value="false">Désactivé (Opérationnel)</option>
-                           <option value="true">Activé (Maintenance en cours)</option>
-                        </select>
-                     </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Maintenance Mode */}
+                  <div className="p-6 rounded-3xl border border-red-100 dark:border-red-500/20 bg-red-50/50 dark:bg-red-500/5 flex items-start gap-4">
+                    <AlertCircle className="text-red-500 mt-1 flex-shrink-0" size={24} />
+                    <div>
+                      <h4 className="font-bold text-red-900 dark:text-red-400">Mode Maintenance</h4>
+                      <p className="text-xs text-red-700/80 dark:text-red-400/70 mt-1 mb-4">Activer ce mode bloque l'accès à tous les utilisateurs sauf les administrateurs.</p>
+                      <select name="maintenance_mode" defaultValue={getVal('maintenance_mode') || "false"} className="w-full h-11 bg-white dark:bg-[#0E0F18] dark:text-white border-red-200 dark:border-red-500/30 rounded-xl px-4 font-bold text-xs text-red-900 dark:text-red-400 shadow-sm outline-none focus:ring-2 focus:ring-red-500/20">
+                        <option value="false">Désactivé (Opérationnel)</option>
+                        <option value="true">Activé (Maintenance en cours)</option>
+                      </select>
+                    </div>
                   </div>
-               </div>
+
+                  {/* Encrypted Backups & Sovereign Cloud */}
+                  <div className="p-6 rounded-3xl border border-indigo-100 dark:border-indigo-500/20 bg-indigo-50/50 dark:bg-indigo-500/5 flex items-start gap-4">
+                    <Database className="text-indigo-500 mt-1 flex-shrink-0" size={24} />
+                    <div>
+                      <h4 className="font-bold text-indigo-900 dark:text-indigo-300">Sauvegardes Chiffrées & Cloud Souverain</h4>
+                      <p className="text-xs text-indigo-700/80 dark:text-indigo-400/70 mt-1 mb-4">
+                        Vos données académiques et financières sont répliquées quotidiennement et chiffrées AES-256.
+                      </p>
+                      <span className="inline-flex items-center gap-1.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase px-3 py-1.5 rounded-xl">
+                        Statut : Sauvegardes Quotidiennes Actives
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           }
           headersContent={
