@@ -23,6 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { getStudentPersonalGradesAction } from "@/domains/academics/actions/academics.actions";
 import { generateBulletinPDF, generateReleveNotesPDF } from "@/domains/academics/utils/bulletin-generator";
 import { getDocumentHeaderConfig } from "@/domains/settings/actions/settings.actions";
+import OfficialDocumentHeader from "@/domains/printing/components/OfficialDocumentHeader";
 import { toast } from "sonner";
 
 interface StudentGradesViewProps {
@@ -39,14 +40,15 @@ export default function StudentGradesView({ currentUser }: StudentGradesViewProp
   useEffect(() => {
     async function loadHeader() {
       try {
-        const res = await getDocumentHeaderConfig();
+        const studentLevel = data?.student?.educationalLevel || currentUser?.educationalLevel || data?.class?.level || undefined;
+        const res = await getDocumentHeaderConfig(studentLevel);
         if (res?.data) setHeaderConfig(res.data);
       } catch (e) {
         console.warn("Failed to load header config:", e);
       }
     }
     loadHeader();
-  }, []);
+  }, [data?.student?.educationalLevel, currentUser?.educationalLevel, data?.class?.level]);
 
   const loadGrades = async (period?: string) => {
     setLoading(true);
@@ -150,6 +152,13 @@ export default function StudentGradesView({ currentUser }: StudentGradesViewProp
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12">
+      {/* Official Header Preview */}
+      {headerConfig && (
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm">
+          <OfficialDocumentHeader config={headerConfig} variant="compact" />
+        </div>
+      )}
+
       {/* 1. Header & Identity Card */}
       <motion.div 
         initial={{ opacity: 0, y: -10 }}

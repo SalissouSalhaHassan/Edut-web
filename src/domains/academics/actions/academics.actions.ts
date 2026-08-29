@@ -2298,6 +2298,14 @@ export async function fetchStudentBulletinDataRaw(sId: number, sessionId: number
         logoPath: branchRecord?.logoPath || ""
       };
 
+      let levelHeaderConfig = null;
+      try {
+        const { fetchDocumentHeaderConfigForSchool } = await import("@/domains/settings/actions/settings.actions");
+        levelHeaderConfig = await fetchDocumentHeaderConfigForSchool(student.schoolId ?? 0, student.educationalLevel || student.level || branchRecord?.instType);
+      } catch (e) {
+        console.warn("Failed to fetch level header config in fetchStudentBulletinDataRaw:", e);
+      }
+
       return {
         student,
         session: sessionRecord?.sessionName || sessionId,
@@ -2317,7 +2325,8 @@ export async function fetchStudentBulletinDataRaw(sId: number, sessionId: number
         summaryS5,
         summaryS6,
         totalStudents,
-        branchInfo
+        branchInfo,
+        headerConfig: levelHeaderConfig
       };
     };
 
@@ -2364,6 +2373,14 @@ export async function getBatchBulletinData(classId: number, sessionId: number, t
       address: branchRecord?.address || "",
       logoPath: branchRecord?.logoPath || ""
     };
+
+    let batchHeaderConfig = null;
+    try {
+      const { fetchDocumentHeaderConfigForSchool } = await import("@/domains/settings/actions/settings.actions");
+      batchHeaderConfig = await fetchDocumentHeaderConfigForSchool(cls.schoolId ?? 0, cls.section?.educationalLevel || branchRecord?.instType || "Lycée");
+    } catch (e) {
+      console.warn("Failed to fetch batch header config:", e);
+    }
 
     const sessionRecord = await db.query.schoolSessions.findFirst({ where: eq(schoolSessions.id, sessionId) });
 
@@ -2645,7 +2662,8 @@ export async function getBatchBulletinData(classId: number, sessionId: number, t
         summaryS5,
         summaryS6,
         totalStudents: studentList.length,
-        branchInfo
+        branchInfo,
+        headerConfig: batchHeaderConfig
       };
     });
 

@@ -40,6 +40,7 @@ import {
 import { getCurrentUserAction } from "@/domains/auth/actions/session.actions";
 import { GradeApprovalWorkflowBar, WorkflowStatus } from "@/domains/academics/components/GradeApprovalWorkflowBar";
 import StudentGradesView from "./components/StudentGradesView";
+import OfficialDocumentHeader from "@/domains/printing/components/OfficialDocumentHeader";
 
 export default function AcademicResultsPage() {
   const [loading, setLoading] = useState(false);
@@ -159,6 +160,16 @@ export default function AcademicResultsPage() {
     setLoading(true);
     setLevel(filters.level);
     setActiveFilters(filters);
+
+    // Fetch level-specific document header config
+    if (filters.level) {
+      getDocumentHeaderConfig(filters.level).then((res) => {
+        if (res?.data) {
+          setHeaderConfig(res.data);
+        }
+      }).catch(console.warn);
+    }
+
     // Reset old data
     setStudents([]);
     setMatrixData(null);
@@ -412,7 +423,7 @@ export default function AcademicResultsPage() {
         
         for (const studentData of batchData) {
           if (studentData.results && studentData.results.length > 0) {
-            await generateBulletinPDF({ ...studentData, headerConfig });
+            await generateBulletinPDF({ ...studentData, headerConfig: studentData.headerConfig || headerConfig });
           }
         }
         
@@ -837,10 +848,11 @@ export default function AcademicResultsPage() {
                   onClick={() => {
                     const isOffline = !navigator.onLine;
                     const isHigherEd = ["Licence", "Master", "Doctorat", "Supérieur", "Université"].includes(activeFilters?.level || "Lycée");
+                    const activeHeader = previewData?.headerConfig || headerConfig;
                     if (isHigherEd) {
-                      generateReleveNotesPDF({ ...previewData, headerConfig, isOffline });
+                      generateReleveNotesPDF({ ...previewData, headerConfig: activeHeader, isOffline });
                     } else {
-                      generateBulletinPDF({ ...previewData, headerConfig, isOffline });
+                      generateBulletinPDF({ ...previewData, headerConfig: activeHeader, isOffline });
                     }
                   }}
                   className="bg-indigo-600 hover:bg-indigo-700 text-white font-black px-6 h-12 rounded-2xl shadow-lg shadow-indigo-500/20 gap-2 transition-all text-xs uppercase tracking-wider"
@@ -854,6 +866,10 @@ export default function AcademicResultsPage() {
 
           {previewData && (
             <div className="space-y-6 mt-2">
+              {/* Level-specific Document Header Profile Preview */}
+              <div className="p-4 bg-slate-50/80 dark:bg-slate-900/60 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
+                <OfficialDocumentHeader config={previewData?.headerConfig || headerConfig} variant="compact" />
+              </div>
               {/* Summary KPIs */}
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                 {/* 1. Moyenne General */}
@@ -1016,10 +1032,11 @@ export default function AcademicResultsPage() {
                     onClick={() => {
                       const isOffline = !navigator.onLine;
                       const isHigherEd = ["Licence", "Master", "Doctorat", "Supérieur", "Université"].includes(activeFilters?.level || "Lycée");
+                      const activeHeader = previewData?.headerConfig || headerConfig;
                       if (isHigherEd) {
-                        generateReleveNotesPDF({ ...previewData, headerConfig, isOffline });
+                        generateReleveNotesPDF({ ...previewData, headerConfig: activeHeader, isOffline });
                       } else {
-                        generateBulletinPDF({ ...previewData, headerConfig, isOffline });
+                        generateBulletinPDF({ ...previewData, headerConfig: activeHeader, isOffline });
                       }
                       setShowPreview(false);
                     }}
