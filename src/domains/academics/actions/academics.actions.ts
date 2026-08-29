@@ -2301,7 +2301,8 @@ export async function fetchStudentBulletinDataRaw(sId: number, sessionId: number
       let levelHeaderConfig = null;
       try {
         const { fetchDocumentHeaderConfigForSchool } = await import("@/domains/settings/actions/settings.actions");
-        levelHeaderConfig = await fetchDocumentHeaderConfigForSchool(student.schoolId ?? 0, student.educationalLevel || student.level || branchRecord?.instType);
+        const targetLvl = (student as any)?.educationalLevel || (student as any)?.level || branchRecord?.instType || "Lycée";
+        levelHeaderConfig = await fetchDocumentHeaderConfigForSchool(student.schoolId ?? 0, targetLvl);
       } catch (e) {
         console.warn("Failed to fetch level header config in fetchStudentBulletinDataRaw:", e);
       }

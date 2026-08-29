@@ -84,12 +84,12 @@ export default async function BulletinsBatchPage({ searchParams }: Props) {
   let headerConfig: any = {};
   try {
     const { schoolBranches } = await import("@/infrastructure/database/schema/settings");
-    const { fetchDocumentHeaderConfigForSchool } = await import("@/domains/settings/actions/settings.actions");
+    const targetLevel = (selectedClass as any)?.section?.educationalLevel || (selectedClass as any)?.classLevel || undefined;
     const [branchRes, headerRes] = await Promise.all([
       db.query.schoolBranches.findFirst({
         where: eq(schoolBranches.schoolId, schoolId),
       }),
-      fetchDocumentHeaderConfigForSchool(schoolId, selectedClass?.section?.educationalLevel || selectedClass?.classLevel || undefined)
+      fetchDocumentHeaderConfigForSchool(schoolId, targetLevel)
     ]);
     branchInfo = branchRes || {};
     headerConfig = headerRes || {};
