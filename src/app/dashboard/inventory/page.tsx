@@ -13,6 +13,14 @@ import {
 } from "@/domains/inventory/actions/inventory.actions";
 import InventoryClient from "@/domains/inventory/components/InventoryClient";
 
+function safeDataArray(res: any): any[] {
+  if (!res) return [];
+  if (Array.isArray(res)) return res;
+  if (Array.isArray(res?.data)) return res.data;
+  if (Array.isArray(res?.data?.data)) return res.data.data;
+  return [];
+}
+
 export default async function InventoryPage() {
   let items: any[] = [];
   let assignments: any[] = [];
@@ -37,15 +45,25 @@ export default async function InventoryPage() {
       getStockMovements().catch(() => null),
     ]);
 
-    if (itemsRes) items = (itemsRes as any)?.data ?? [];
-    if (assignmentsRes) assignments = (assignmentsRes as any)?.data ?? [];
-    if (empRes) employees = (empRes as any)?.data ?? [];
-    if (catRes) categories = (catRes as any)?.data ?? [];
-    if (supRes) suppliers = (supRes as any)?.data ?? [];
-    if (poRes) purchaseOrders = (poRes as any)?.data ?? [];
-    if (kpiRes) kpis = (kpiRes as any)?.data ?? kpis;
-    if (lowRes) lowStockItems = (lowRes as any)?.data ?? [];
-    if (movRes) movements = (movRes as any)?.data ?? [];
+    items = safeDataArray(itemsRes);
+    assignments = safeDataArray(assignmentsRes);
+    employees = safeDataArray(empRes);
+    categories = safeDataArray(catRes);
+    suppliers = safeDataArray(supRes);
+    purchaseOrders = safeDataArray(poRes);
+    
+    if (kpiRes && typeof kpiRes === "object") {
+      const rawKpis = (kpiRes as any)?.data || kpiRes;
+      kpis = {
+        totalItems: rawKpis?.totalItems ?? items.length,
+        lowStockCount: rawKpis?.lowStockCount ?? 0,
+        activeAssignments: rawKpis?.activeAssignments ?? assignments.length,
+        totalStockValue: rawKpis?.totalStockValue ?? 0,
+      };
+    }
+
+    lowStockItems = safeDataArray(lowRes);
+    movements = safeDataArray(movRes);
   } catch (err) {
     console.error("Inventory page SSR load error:", err);
   }

@@ -17,66 +17,83 @@ import { getActiveSchoolId } from "@/domains/auth/services/school";
 
 // ─── Utility: Ensure extended columns ──────────────────────────────────────
 
+let isInventorySchemaInitialized = false;
+let inventoryInitPromise: Promise<void> | null = null;
+
 async function ensureInventoryExtensions() {
-  const alters = [
-    `ALTER TABLE inventory_categories ADD COLUMN IF NOT EXISTS school_id INTEGER`,
-    `ALTER TABLE inventory_categories ADD COLUMN IF NOT EXISTS description TEXT`,
-    `ALTER TABLE inventory_categories ADD COLUMN IF NOT EXISTS icon VARCHAR(50) DEFAULT 'Package'`,
-    `ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS min_threshold INTEGER DEFAULT 5`,
-    `ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS brand_model VARCHAR(150)`,
-    `ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS serial_number VARCHAR(100)`,
-    `ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS is_asset BOOLEAN DEFAULT FALSE`,
-    `ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS assigned_room VARCHAR(100)`,
-    `ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS supplier_name VARCHAR(150)`,
-    `ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS notes TEXT`,
-    `CREATE TABLE IF NOT EXISTS inventory_stock_movements (
-      id SERIAL PRIMARY KEY,
-      school_id INTEGER,
-      item_id INTEGER REFERENCES inventory_items(id) ON DELETE CASCADE NOT NULL,
-      movement_type VARCHAR(50) NOT NULL,
-      quantity INTEGER NOT NULL,
-      unit_cost DOUBLE PRECISION DEFAULT 0,
-      reference_doc VARCHAR(100),
-      performed_by VARCHAR(150) DEFAULT 'Gestionnaire de Stock',
-      notes TEXT,
-      movement_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
-    )`,
-    `CREATE TABLE IF NOT EXISTS inventory_suppliers (
-      id SERIAL PRIMARY KEY,
-      school_id INTEGER,
-      name VARCHAR(150) NOT NULL,
-      contact_person VARCHAR(100),
-      phone VARCHAR(50),
-      email VARCHAR(100),
-      address TEXT,
-      category VARCHAR(100) DEFAULT 'Fournitures',
-      tax_id VARCHAR(50),
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )`,
-    `CREATE TABLE IF NOT EXISTS inventory_purchase_orders (
-      id SERIAL PRIMARY KEY,
-      school_id INTEGER,
-      order_number VARCHAR(100) NOT NULL UNIQUE,
-      supplier_id INTEGER REFERENCES inventory_suppliers(id) ON DELETE SET NULL,
-      order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
-      expected_delivery_date TIMESTAMP,
-      total_amount DOUBLE PRECISION DEFAULT 0 NOT NULL,
-      status VARCHAR(50) DEFAULT 'Commandé',
-      items_json TEXT,
-      approved_by VARCHAR(150) DEFAULT 'Direction',
-      notes TEXT,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )`,
-    `ALTER TABLE inventory_assignments ADD COLUMN IF NOT EXISTS expected_return_date TIMESTAMP`,
-    `ALTER TABLE inventory_assignments ADD COLUMN IF NOT EXISTS actual_return_date TIMESTAMP`,
-    `ALTER TABLE inventory_assignments ADD COLUMN IF NOT EXISTS condition_at_assignment VARCHAR(50) DEFAULT 'Bon état'`,
-    `ALTER TABLE inventory_assignments ADD COLUMN IF NOT EXISTS condition_at_return VARCHAR(50)`,
-    `ALTER TABLE inventory_assignments ADD COLUMN IF NOT EXISTS notes TEXT`,
-    `ALTER TABLE inventory_assignments ADD COLUMN IF NOT EXISTS assigned_by VARCHAR(150) DEFAULT 'Intendant'`,
-  ];
-  for (const stmt of alters) {
-    await db.execute(sql.raw(stmt)).catch(() => {});
-  }
+  if (isInventorySchemaInitialized) return;
+  if (inventoryInitPromise) return inventoryInitPromise;
+
+  inventoryInitPromise = (async () => {
+    try {
+      const alters = [
+        `ALTER TABLE inventory_categories ADD COLUMN IF NOT EXISTS school_id INTEGER`,
+        `ALTER TABLE inventory_categories ADD COLUMN IF NOT EXISTS description TEXT`,
+        `ALTER TABLE inventory_categories ADD COLUMN IF NOT EXISTS icon VARCHAR(50) DEFAULT 'Package'`,
+        `ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS min_threshold INTEGER DEFAULT 5`,
+        `ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS brand_model VARCHAR(150)`,
+        `ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS serial_number VARCHAR(100)`,
+        `ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS is_asset BOOLEAN DEFAULT FALSE`,
+        `ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS assigned_room VARCHAR(100)`,
+        `ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS supplier_name VARCHAR(150)`,
+        `ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS notes TEXT`,
+        `CREATE TABLE IF NOT EXISTS inventory_stock_movements (
+          id SERIAL PRIMARY KEY,
+          school_id INTEGER,
+          item_id INTEGER REFERENCES inventory_items(id) ON DELETE CASCADE NOT NULL,
+          movement_type VARCHAR(50) NOT NULL,
+          quantity INTEGER NOT NULL,
+          unit_cost DOUBLE PRECISION DEFAULT 0,
+          reference_doc VARCHAR(100),
+          performed_by VARCHAR(150) DEFAULT 'Gestionnaire de Stock',
+          notes TEXT,
+          movement_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
+        )`,
+        `CREATE TABLE IF NOT EXISTS inventory_suppliers (
+          id SERIAL PRIMARY KEY,
+          school_id INTEGER,
+          name VARCHAR(150) NOT NULL,
+          contact_person VARCHAR(100),
+          phone VARCHAR(50),
+          email VARCHAR(100),
+          address TEXT,
+          category VARCHAR(100) DEFAULT 'Fournitures',
+          tax_id VARCHAR(50),
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )`,
+        `CREATE TABLE IF NOT EXISTS inventory_purchase_orders (
+          id SERIAL PRIMARY KEY,
+          school_id INTEGER,
+          order_number VARCHAR(100) NOT NULL UNIQUE,
+          supplier_id INTEGER REFERENCES inventory_suppliers(id) ON DELETE SET NULL,
+          order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+          expected_delivery_date TIMESTAMP,
+          total_amount DOUBLE PRECISION DEFAULT 0 NOT NULL,
+          status VARCHAR(50) DEFAULT 'Commandé',
+          items_json TEXT,
+          approved_by VARCHAR(150) DEFAULT 'Direction',
+          notes TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )`,
+        `ALTER TABLE inventory_assignments ADD COLUMN IF NOT EXISTS expected_return_date TIMESTAMP`,
+        `ALTER TABLE inventory_assignments ADD COLUMN IF NOT EXISTS actual_return_date TIMESTAMP`,
+        `ALTER TABLE inventory_assignments ADD COLUMN IF NOT EXISTS condition_at_assignment VARCHAR(50) DEFAULT 'Bon état'`,
+        `ALTER TABLE inventory_assignments ADD COLUMN IF NOT EXISTS condition_at_return VARCHAR(50)`,
+        `ALTER TABLE inventory_assignments ADD COLUMN IF NOT EXISTS notes TEXT`,
+        `ALTER TABLE inventory_assignments ADD COLUMN IF NOT EXISTS assigned_by VARCHAR(150) DEFAULT 'Intendant'`,
+      ];
+      for (const stmt of alters) {
+        await db.execute(sql.raw(stmt)).catch(() => {});
+      }
+      isInventorySchemaInitialized = true;
+    } catch (e) {
+      console.warn("Inventory schema check warning:", e);
+    } finally {
+      inventoryInitPromise = null;
+    }
+  })();
+
+  return inventoryInitPromise;
 }
 
 // ─── KPIs ───────────────────────────────────────────────────────────────────
