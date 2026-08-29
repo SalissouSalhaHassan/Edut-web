@@ -176,11 +176,19 @@ export default function DocumentHeaderManager({ initialConfig }: { initialConfig
 
   const save = () => {
     startTransition(async () => {
-      const res = await saveDocumentHeaderConfig(config);
-      if (res?.success) {
-        toast.success("En-têtes officiels et profils par niveau enregistrés avec succès ! 🎉");
-      } else {
-        toast.error((res as any)?.error || "Impossible d'enregistrer l'en-tête");
+      try {
+        const res = await saveDocumentHeaderConfig(config);
+        if (res?.success) {
+          if (res.data) {
+            setConfig(mergeDocumentHeaderConfig(res.data as any));
+          }
+          toast.success("En-têtes officiels et profils par niveau enregistrés avec succès ! 🎉");
+        } else {
+          toast.error((res as any)?.error || "Impossible d'enregistrer l'en-tête");
+        }
+      } catch (err: any) {
+        console.error("Save header error:", err);
+        toast.error(err?.message || "Erreur lors de l'enregistrement de l'en-tête");
       }
     });
   };

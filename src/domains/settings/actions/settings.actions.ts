@@ -322,7 +322,9 @@ export async function getDocumentHeaderConfig(targetLevel?: string | null) {
 export async function saveDocumentHeaderConfig(config: DocumentHeaderConfig) {
   return protectedDbAction("Settings", "canEdit", async () => {
     const schoolId = await getActiveSchoolId();
-    const value = JSON.stringify(mergeDocumentHeaderConfig(config));
+    const cleanConfig = mergeDocumentHeaderConfig(config);
+    const value = JSON.stringify(cleanConfig);
+    
     const existing = await db.query.settings.findFirst({
       where: and(
         eq(settings.key, DOCUMENT_HEADER_SETTING_KEY),
@@ -347,9 +349,13 @@ export async function saveDocumentHeaderConfig(config: DocumentHeaderConfig) {
       await redisCache.del(`edut:header_config:${schoolId}`);
     } catch (_) {}
 
-    revalidateTag(SETTINGS_TAG);
-    revalidatePath("/dashboard/settings");
-    return { success: true };
+    try {
+      if (typeof revalidateTag === "function") {
+        revalidateTag(SETTINGS_TAG);
+      }
+    } catch (_) {}
+
+    return { success: true, data: cleanConfig };
   });
 }
 
