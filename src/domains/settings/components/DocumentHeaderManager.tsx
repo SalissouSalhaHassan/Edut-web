@@ -602,21 +602,64 @@ function ColorField({ label, value, onChange }: { label: string; value: string; 
   );
 }
 
+function compressImage(file: File, maxWidth = 350, maxHeight = 350, quality = 0.85): Promise<string> {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          resolve(event.target?.result as string);
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+        const isPng = file.type === "image/png" || file.name.toLowerCase().endsWith(".png");
+        const compressed = canvas.toDataURL(isPng ? "image/png" : "image/jpeg", quality);
+        resolve(compressed);
+      };
+      img.onerror = () => resolve(event.target?.result as string);
+    };
+    reader.onerror = () => resolve("");
+  });
+}
+
 function LogoUploaderField({ label, value, onChange }: { label: string; value: string; onChange: (base64: string) => void }) {
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 3 * 1024 * 1024) {
-        toast.error("La taille du logo ne doit pas dépasser 3 Mo");
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("La taille du logo ne doit pas dépasser 5 Mo");
         return;
       }
-      const reader = new FileReader();
-      reader.onload = () => {
-        const base64 = reader.result as string;
-        onChange(base64);
-        toast.success("Logo chargé avec succès");
-      };
-      reader.readAsDataURL(file);
+      try {
+        const compressedBase64 = await compressImage(file);
+        onChange(compressedBase64);
+        toast.success("Logo optimisé et chargé avec succès ! ✨");
+      } catch {
+        toast.error("Impossible de charger le fichier image");
+      }
     }
   };
 

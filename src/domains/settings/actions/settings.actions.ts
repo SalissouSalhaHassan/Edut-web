@@ -355,7 +355,7 @@ export async function saveDocumentHeaderConfig(config: DocumentHeaderConfig) {
       }
     } catch (_) {}
 
-    return { success: true, data: cleanConfig };
+    return { success: true, saved: true };
   });
 }
 
