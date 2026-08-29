@@ -310,7 +310,7 @@ export default function DocumentHeaderManager({ initialConfig }: { initialConfig
                       <GraduationCap size={15} />
                       <span>{prof.name}</span>
                       <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-black/15 uppercase font-bold">
-                        {prof.applicableLevels.join(" + ")}
+                        {(prof.applicableLevels || []).join(" + ")}
                       </span>
                     </button>
                     <button
@@ -364,7 +364,7 @@ export default function DocumentHeaderManager({ initialConfig }: { initialConfig
 
               <div className="flex flex-wrap gap-2 pt-1">
                 {PRESET_LEVELS.map((lvl) => {
-                  const isChecked = currentEditingProfile.applicableLevels.includes(lvl.key);
+                  const isChecked = (currentEditingProfile?.applicableLevels || []).includes(lvl.key);
                   return (
                     <button
                       key={lvl.key}
@@ -537,7 +537,7 @@ export default function DocumentHeaderManager({ initialConfig }: { initialConfig
                   <OfficialDocumentHeader config={previewConfig} title={previewTitle} />
                   <div className="mt-10 space-y-4 text-sm font-semibold text-slate-800">
                     <p className="text-slate-500 italic text-xs">
-                      Ce document utilise automatiquement l'en-tête et le logo configurés pour : <strong>{selectedProfileId === "global" ? "Tous les niveaux (Défaut)" : currentEditingProfile?.applicableLevels.join(", ")}</strong>.
+                      Ce document utilise automatiquement l'en-tête et le logo configurés pour : <strong>{selectedProfileId === "global" ? "Tous les niveaux (Défaut)" : (currentEditingProfile?.applicableLevels || []).join(", ")}</strong>.
                     </p>
                     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
                       <table className="w-full text-left">
@@ -549,7 +549,7 @@ export default function DocumentHeaderManager({ initialConfig }: { initialConfig
                             <tr key={n} className="border-t border-slate-200 text-slate-900">
                               <td className="p-3 font-bold">{n}</td>
                               <td className="p-3">Exemple de rapport officiel</td>
-                              <td className="p-3">Donnée niveau {currentEditingProfile?.applicableLevels[0] || "Global"}</td>
+                              <td className="p-3">Donnée niveau {(currentEditingProfile?.applicableLevels || [])[0] || "Global"}</td>
                               <td className="p-3"><span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 text-xs font-black">Validé</span></td>
                             </tr>
                           ))}

@@ -104,10 +104,26 @@ export const defaultDocumentHeaderConfig: DocumentHeaderConfig = {
 };
 
 export function mergeDocumentHeaderConfig(input?: Partial<DocumentHeaderConfig> | null): DocumentHeaderConfig {
+  const rawProfiles = Array.isArray(input?.levelProfiles) ? input.levelProfiles : [];
+  const safeProfiles: LevelHeaderProfile[] = rawProfiles.map((p: any, idx: number) => ({
+    id: String(p?.id || `profile_${idx}_${Date.now()}`),
+    name: String(p?.name || "Profil sans nom"),
+    applicableLevels: Array.isArray(p?.applicableLevels)
+      ? p.applicableLevels.map(String)
+      : typeof p?.applicableLevels === "string" && p.applicableLevels
+      ? [p.applicableLevels]
+      : [],
+    leftLogo: p?.leftLogo || p?.customLogo || undefined,
+    centerLogo: p?.centerLogo || undefined,
+    rightLogo: p?.rightLogo || undefined,
+    customLogo: p?.customLogo || undefined,
+    headerConfig: typeof p?.headerConfig === "object" && p?.headerConfig !== null ? p.headerConfig : {},
+  }));
+
   return {
     ...defaultDocumentHeaderConfig,
     ...(input || {}),
-    levelProfiles: input?.levelProfiles || [],
+    levelProfiles: safeProfiles,
   };
 }
 
@@ -119,35 +135,39 @@ export function getActiveLevelHeaderConfig(
   baseConfig: DocumentHeaderConfig,
   targetLevel?: string | null
 ): DocumentHeaderConfig {
-  if (!targetLevel || !baseConfig.levelProfiles || baseConfig.levelProfiles.length === 0) {
-    return baseConfig;
+  const safeBase = mergeDocumentHeaderConfig(baseConfig);
+  if (!targetLevel || !safeBase.levelProfiles || safeBase.levelProfiles.length === 0) {
+    return safeBase;
   }
 
-  const cleanTarget = targetLevel.trim().toLowerCase();
+  const cleanTarget = String(targetLevel).trim().toLowerCase();
 
   // Find matching profile whose applicableLevels includes targetLevel
-  const matchedProfile = baseConfig.levelProfiles.find((profile) =>
-    profile.applicableLevels.some(
-      (lvl) =>
-        lvl.toLowerCase() === cleanTarget ||
-        cleanTarget.includes(lvl.toLowerCase()) ||
-        lvl.toLowerCase().includes(cleanTarget)
-    )
+  const matchedProfile = safeBase.levelProfiles.find((profile) =>
+    Array.isArray(profile.applicableLevels) &&
+    profile.applicableLevels.some((lvl) => {
+      const cleanLvl = String(lvl).trim().toLowerCase();
+      return (
+        cleanLvl === cleanTarget ||
+        cleanTarget.includes(cleanLvl) ||
+        cleanLvl.includes(cleanTarget)
+      );
+    })
   );
 
   if (!matchedProfile || !matchedProfile.headerConfig) {
-    return baseConfig;
+    return safeBase;
   }
 
   const overrides = matchedProfile.headerConfig;
 
   return {
-    ...baseConfig,
+    ...safeBase,
     ...overrides,
-    leftLogo: matchedProfile.leftLogo || matchedProfile.customLogo || overrides.leftLogo || baseConfig.leftLogo,
-    centerLogo: matchedProfile.centerLogo || overrides.centerLogo || baseConfig.centerLogo,
-    rightLogo: matchedProfile.rightLogo || overrides.rightLogo || baseConfig.rightLogo,
-    levelProfiles: baseConfig.levelProfiles,
+    leftLogo: matchedProfile.leftLogo || matchedProfile.customLogo || overrides.leftLogo || safeBase.leftLogo,
+    centerLogo: matchedProfile.centerLogo || overrides.centerLogo || safeBase.centerLogo,
+    rightLogo: matchedProfile.rightLogo || overrides.rightLogo || safeBase.rightLogo,
+    levelProfiles: safeBase.levelProfiles,
     activeLevelProfileId: matchedProfile.id,
   };
 }
