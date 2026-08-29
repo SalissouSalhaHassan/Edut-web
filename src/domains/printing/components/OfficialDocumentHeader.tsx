@@ -32,10 +32,11 @@ const mojibakeArabicMap: Record<string, string> = {
 };
 
 function cleanHeaderText(value?: string | null) {
-  if (!value) return "";
+  if (value === null || value === undefined) return "";
+  const str = typeof value === "string" ? value : String(value);
   return Object.entries(mojibakeArabicMap).reduce(
     (text, [broken, fixed]) => text.split(broken).join(fixed),
-    value,
+    str,
   );
 }
 
@@ -57,7 +58,7 @@ function MetaLines({ cfg, align = "left" }: { cfg: DocumentHeaderConfig; align?:
 
   return (
     <div dir="ltr" lang="fr" className={`space-y-0.5 text-${align} text-[11px] font-bold leading-tight text-slate-900 print:text-black french-text`}>
-      {lines.map((line) => <p key={line}>{cleanHeaderText(line)}</p>)}
+      {lines.map((line, idx) => <p key={`${line}-${idx}`}>{cleanHeaderText(line)}</p>)}
     </div>
   );
 }

@@ -106,7 +106,7 @@ export const defaultDocumentHeaderConfig: DocumentHeaderConfig = {
 export function mergeDocumentHeaderConfig(input?: Partial<DocumentHeaderConfig> | null): DocumentHeaderConfig {
   const rawProfiles = Array.isArray(input?.levelProfiles) ? input.levelProfiles : [];
   const safeProfiles: LevelHeaderProfile[] = rawProfiles.map((p: any, idx: number) => ({
-    id: String(p?.id || `profile_${idx}_${Date.now()}`),
+    id: String(p?.id || `profile_${idx}`),
     name: String(p?.name || "Profil sans nom"),
     applicableLevels: Array.isArray(p?.applicableLevels)
       ? p.applicableLevels.map(String)

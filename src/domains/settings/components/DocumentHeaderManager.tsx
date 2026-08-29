@@ -64,12 +64,13 @@ export default function DocumentHeaderManager({ initialConfig }: { initialConfig
     if (!currentEditingProfile) {
       return config;
     }
+    const profCfg = currentEditingProfile.headerConfig || {};
     return {
       ...config,
-      ...currentEditingProfile.headerConfig,
-      leftLogo: currentEditingProfile.leftLogo || currentEditingProfile.customLogo || currentEditingProfile.headerConfig.leftLogo || config.leftLogo,
-      centerLogo: currentEditingProfile.centerLogo || currentEditingProfile.headerConfig.centerLogo || config.centerLogo,
-      rightLogo: currentEditingProfile.rightLogo || currentEditingProfile.headerConfig.rightLogo || config.rightLogo,
+      ...profCfg,
+      leftLogo: currentEditingProfile.leftLogo || currentEditingProfile.customLogo || profCfg.leftLogo || config.leftLogo,
+      centerLogo: currentEditingProfile.centerLogo || profCfg.centerLogo || config.centerLogo,
+      rightLogo: currentEditingProfile.rightLogo || profCfg.rightLogo || config.rightLogo,
     };
   }, [config, currentEditingProfile]);
 
