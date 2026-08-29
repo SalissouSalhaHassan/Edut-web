@@ -6,7 +6,7 @@ import {
   Hash, Mail, Phone, Globe, Clock, AtSign, 
   ShieldCheck, Server, Key, Image as ImageIcon,
   CheckCircle2, ExternalLink, Eye, Send, Edit2, Pencil,
-  ChevronRight, LayoutGrid, GraduationCap, Upload
+  ChevronRight, LayoutGrid, GraduationCap, Upload, Sparkles
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
