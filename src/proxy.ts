@@ -1,45 +1,71 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+const MAIN_DOMAIN = "edut.pro";
+
+// Public path prefixes that don't require authentication
+const PUBLIC_PATHS = [
+  "/login",
+  "/register",
+  "/register-school",
+  "/forgot-password",
+  "/verify",
+  "/admissions",
+  "/auth",
+];
+
 export async function proxy(request: NextRequest) {
   const url = request.nextUrl.clone();
+  const { pathname } = request.nextUrl;
   const host = request.headers.get("host") || "";
-  
-  // Detect subdomain or custom domain
   const isLocalhost = host.includes("localhost");
   const parts = host.split(".");
+
+  // 1. Detect subdomain or custom domain for Multi-Tenancy
   let subdomain = "";
   let isCustomDomain = false;
 
-  const MAIN_DOMAIN = "edut.pro";
-
   if (isLocalhost) {
-    // Check if we have a subdomain on localhost (e.g., edutpro.localhost:3000)
     if (parts.length >= 2 && parts[parts.length - 1].includes("localhost")) {
-      // If it's something.localhost:3000 or something.localhost
       if (parts[0] !== "localhost" && parts[0] !== "www") {
         subdomain = parts[0];
       }
     }
   } else if (host.endsWith(MAIN_DOMAIN)) {
-    // Check for subdomain of edut.pro
     if (parts.length >= 3 && parts[0] !== "www") {
       subdomain = parts[0];
     }
   } else {
-    // Potential custom domain
     isCustomDomain = true;
   }
 
+  // 2. Handle CORS preflight for local or cross-subdomain requests
+  if (request.method === "OPTIONS") {
+    const response = new NextResponse(null, { status: 204 });
+    const origin = request.headers.get("origin");
+    if (origin && (origin.includes("localhost:3000") || origin.includes(".localhost:3000") || origin.endsWith(MAIN_DOMAIN))) {
+      response.headers.set("Access-Control-Allow-Origin", origin);
+      response.headers.set("Access-Control-Allow-Credentials", "true");
+      response.headers.set("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
+      response.headers.set(
+        "Access-Control-Allow-Headers",
+        "Content-Type, Authorization, x-school-slug, x-client-info, apikey"
+      );
+    }
+    return response;
+  }
+
+  // 3. Initialize Supabase SSR response with cookie management
   let supabaseResponse = NextResponse.next({ request });
 
-  // ... supabase client setup ...
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll() { return request.cookies.getAll(); },
+        getAll() {
+          return request.cookies.getAll();
+        },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value, options }) => {
             const cookieOptions = { ...options };
@@ -54,87 +80,21 @@ export async function proxy(request: NextRequest) {
     }
   );
 
-  // If it's a potential custom domain, verify it
+  // 4. Verify custom domain slug if applicable
   let schoolSlug = subdomain;
   if (isCustomDomain && !isLocalhost) {
-    // In a real app, we'd cache this lookup
-    const { data: schoolData } = await supabase
-      .from("schools")
-      .select("slug")
-      .eq("custom_domain", host)
-      .single();
-    
-    if (schoolData) {
-      schoolSlug = schoolData.slug;
-    } else {
-      // If no school found for this domain, maybe redirect to main site or error
-      // For now, we'll just continue
-    }
-  }
+    try {
+      const { data: schoolData } = await supabase
+        .from("schools")
+        .select("slug")
+        .eq("custom_domain", host)
+        .single();
 
-  const { data: { user } } = await supabase.auth.getUser();
-
-  // Handle Subdomain/Domain Routing
-  if (schoolSlug && !user && request.nextUrl.pathname === "/") {
-    url.pathname = "/login";
-    return NextResponse.redirect(url);
-  }
-
-  // Rewrite logic for subdomains to prevent 404s and handle multi-tenancy
-  if (schoolSlug) {
-    const rewriteUrl = new URL(request.nextUrl.pathname, request.url);
-    
-    // In development, rewrite to localhost:3000 to ensure Next.js resolves routes correctly
-    // In production, rewrite to the main domain
-    if (isLocalhost) {
-      rewriteUrl.host = host.includes(":") ? `localhost:${host.split(":")[1]}` : "localhost:3000";
-    } else if (!host.endsWith(MAIN_DOMAIN)) {
-      // If it's a custom domain, we also rewrite to the main domain internally
-      rewriteUrl.host = MAIN_DOMAIN;
-    }
-
-    // Only rewrite if the host is actually different to avoid infinite loops or unnecessary overhead
-    if (rewriteUrl.host !== host) {
-      console.log(`[Middleware] Rewriting ${host}${request.nextUrl.pathname} to ${rewriteUrl.host}${rewriteUrl.pathname}`);
-      
-      // Create a new response with the rewrite
-      const rewriteResponse = NextResponse.rewrite(rewriteUrl, {
-        request: {
-          headers: new Headers(request.headers),
-        },
-      });
-
-      // Set the school slug header so the app can identify the tenant
-      rewriteResponse.headers.set("x-school-slug", schoolSlug);
-      
-      // Copy all cookies from the supabaseResponse to the new rewriteResponse
-      supabaseResponse.cookies.getAll().forEach(cookie => {
-        rewriteResponse.cookies.set(cookie.name, cookie.value);
-      });
-
-      // Also set CORS headers on the rewriteResponse if on localhost
-      if (isLocalhost) {
-        const origin = request.headers.get("origin");
-        if (origin && (origin.includes("localhost:3000") || origin.includes(".localhost:3000"))) {
-          rewriteResponse.headers.set("Access-Control-Allow-Origin", origin);
-          rewriteResponse.headers.set("Access-Control-Allow-Credentials", "true");
-          rewriteResponse.headers.set("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
-          rewriteResponse.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization, x-school-slug");
-        }
+      if (schoolData?.slug) {
+        schoolSlug = schoolData.slug;
       }
-
-      // Handle Auth Protection for the rewritten request
-      if (!user && request.nextUrl.pathname.startsWith("/dashboard")) {
-        const loginUrl = new URL("/login", request.url);
-        return NextResponse.redirect(loginUrl);
-      }
-
-      if (user && request.nextUrl.pathname === "/login") {
-        const dashboardUrl = new URL("/dashboard", request.url);
-        return NextResponse.redirect(dashboardUrl);
-      }
-
-      return rewriteResponse;
+    } catch {
+      // Fallback silently if lookup fails
     }
   }
 
@@ -142,39 +102,62 @@ export async function proxy(request: NextRequest) {
     supabaseResponse.headers.set("x-school-slug", schoolSlug);
   }
 
-  // CORS Headers for localhost subdomains
-  if (isLocalhost) {
-    const origin = request.headers.get("origin");
-    if (origin && (origin.includes("localhost:3000") || origin.includes(".localhost:3000"))) {
-      supabaseResponse.headers.set("Access-Control-Allow-Origin", origin);
-      supabaseResponse.headers.set("Access-Control-Allow-Credentials", "true");
-      supabaseResponse.headers.set("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
-      supabaseResponse.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization, x-school-slug");
-    }
-  }
+  // 5. Get current authenticated user
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  // Auth Protection Logic
-  if (!user && request.nextUrl.pathname.startsWith("/dashboard")) {
+  const isPublicPath = PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+  const isDashboardRoute = pathname.startsWith("/dashboard") || pathname.startsWith("/platform-admin");
+
+  // 6. Handle Subdomain root redirect for unauthenticated visitors
+  if (schoolSlug && !user && pathname === "/") {
     url.pathname = "/login";
     return NextResponse.redirect(url);
   }
 
-  if (user && request.nextUrl.pathname === "/login") {
-    url.pathname = "/dashboard";
-    return NextResponse.redirect(url);
+  // 7. Route Protection Logic
+  // Unauthenticated user trying to access protected dashboard routes
+  if (!user && isDashboardRoute) {
+    const redirectUrl = new URL("/login", request.url);
+    if (pathname !== "/dashboard") {
+      redirectUrl.searchParams.set("redirect", pathname);
+    }
+    return NextResponse.redirect(redirectUrl);
   }
 
-  // Handle OPTIONS request for CORS preflight
-  if (request.method === "OPTIONS") {
-    const response = new NextResponse(null, { status: 204 });
-    const origin = request.headers.get("origin");
-    if (origin && (origin.includes("localhost:3000") || origin.includes(".localhost:3000"))) {
-      response.headers.set("Access-Control-Allow-Origin", origin);
-      response.headers.set("Access-Control-Allow-Credentials", "true");
-      response.headers.set("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
-      response.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization, x-school-slug, x-client-info, apikey");
+  // Authenticated user trying to access login/register pages
+  if (user && (pathname === "/login" || pathname === "/register")) {
+    const redirectParam = request.nextUrl.searchParams.get("redirect");
+    const targetPath = redirectParam && redirectParam.startsWith("/") ? redirectParam : "/dashboard";
+    const dashboardUrl = new URL(targetPath, request.url);
+    return NextResponse.redirect(dashboardUrl);
+  }
+
+  // 8. Handle Subdomain internal URL rewriting if necessary
+  if (schoolSlug) {
+    const rewriteUrl = new URL(pathname, request.url);
+
+    if (isLocalhost) {
+      rewriteUrl.host = host.includes(":") ? `localhost:${host.split(":")[1]}` : "localhost:3000";
+    } else if (!host.endsWith(MAIN_DOMAIN)) {
+      rewriteUrl.host = MAIN_DOMAIN;
     }
-    return response;
+
+    if (rewriteUrl.host !== host) {
+      const rewriteResponse = NextResponse.rewrite(rewriteUrl, {
+        request: {
+          headers: new Headers(request.headers),
+        },
+      });
+
+      rewriteResponse.headers.set("x-school-slug", schoolSlug);
+      supabaseResponse.cookies.getAll().forEach((cookie) => {
+        rewriteResponse.cookies.set(cookie.name, cookie.value);
+      });
+
+      return rewriteResponse;
+    }
   }
 
   return supabaseResponse;
@@ -182,6 +165,13 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|api|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    /*
+     * Match all request paths except:
+     * - api routes (they handle their own bearer authentication & tokens)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico, sw.js, manifest.json, and static media files
+     */
+    "/((?!api|_next/static|_next/image|favicon.ico|sw.js|manifest.json|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff|woff2)$).*)",
   ],
 };
