@@ -5,6 +5,8 @@ import { getBatchBulletinData } from "@/domains/academics/actions/academics.acti
 import { fetchBulletinDataForClass } from "@/domains/academics/actions/bulletin-batch.actions";
 import { db } from "@/infrastructure/database";
 import { schoolClasses, academicPeriods, schoolSessions } from "@/infrastructure/database/schema/academics";
+import { schoolBranches } from "@/infrastructure/database/schema/settings";
+import { fetchDocumentHeaderConfigForSchool } from "@/domains/settings/actions/settings.actions";
 import { and, eq, or, isNull } from "drizzle-orm";
 import BulletinBatchClient from "./batch-client";
 import { Printer, Sparkles, GraduationCap, Calendar, ArrowRight } from "lucide-react";
@@ -83,7 +85,6 @@ export default async function BulletinsBatchPage({ searchParams }: Props) {
   let branchInfo: any = {};
   let headerConfig: any = {};
   try {
-    const { schoolBranches } = await import("@/infrastructure/database/schema/settings");
     const targetLevel = (selectedClass as any)?.section?.educationalLevel || (selectedClass as any)?.classLevel || undefined;
     const [branchRes, headerRes] = await Promise.all([
       db.query.schoolBranches.findFirst({
