@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
       try {
         // Enforce Server-Side Validation & Tenant Isolation per Domain
         if (table === "student_attendance" || table === "attendance") {
-          const permitted = await canUseMobileModule(user, "attendance", "canCreate");
+          const permitted = await canUseMobileModule(user, "attendance", "canEdit");
           if (!permitted) {
             results.push({ id, success: false, error: "Permission insuffisante pour le module Présence." });
             continue;
@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
             results.push({ id, success: false, error: "Format d'opération Présence non supporté." });
           }
         } else if (table === "cahier_textes" || table === "pedagogie") {
-          const permitted = await canUseMobileModule(user, "pedagogie", "canCreate");
+          const permitted = await canUseMobileModule(user, "pedagogie", "canEdit");
           if (!permitted) {
             results.push({ id, success: false, error: "Permission insuffisante pour le Cahier de textes." });
             continue;
@@ -162,7 +162,7 @@ export async function POST(request: NextRequest) {
             results.push({ id, success: false, error: "Action Cahier de textes inconnue." });
           }
         } else if (table === "student_results" || table === "academics") {
-          const permitted = await canUseMobileModule(user, "academics", "canCreate");
+          const permitted = await canUseMobileModule(user, "academics", "canEdit");
           if (!permitted) {
             results.push({ id, success: false, error: "Permission insuffisante pour la saisie des notes." });
             continue;
@@ -209,7 +209,7 @@ export async function POST(request: NextRequest) {
             results.push({ id, success: false, error: "Format de notes non reconnu." });
           }
         } else if (table === "fee_payments" || table === "finance") {
-          const permitted = await canUseMobileModule(user, "finance", "canCreate");
+          const permitted = await canUseMobileModule(user, "finance", "canEdit");
           if (!permitted) {
             results.push({ id, success: false, error: "Permission insuffisante pour le module Finance." });
             continue;
