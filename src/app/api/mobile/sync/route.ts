@@ -4,7 +4,8 @@ import { db, readDb, withTenant } from "@/infrastructure/database";
 import { getMobileUser, mobileJsonError, canUseMobileModule } from "../_lib/auth";
 import { studentAttendance } from "@/infrastructure/database/schema/attendance";
 import { cahierTextes } from "@/infrastructure/database/schema/pedagogie";
-import { studentResults, homework } from "@/infrastructure/database/schema/academics";
+import { studentResults } from "@/infrastructure/database/schema/academics";
+import { homework } from "@/infrastructure/database/schema/homework";
 import { feePayments } from "@/infrastructure/database/schema/finance";
 import { disciplineIncidents } from "@/infrastructure/database/schema/discipline";
 
