@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { eq, and, sql } from "drizzle-orm";
-import { db, readDb, withTenant } from "@/infrastructure/database";
+import { eq, and } from "drizzle-orm";
+import { db } from "@/infrastructure/database";
 import { getMobileUser, mobileJsonError, canUseMobileModule } from "../_lib/auth";
 import { studentAttendance } from "@/infrastructure/database/schema/attendance";
 import { cahierTextes } from "@/infrastructure/database/schema/pedagogie";
 import { studentResults } from "@/infrastructure/database/schema/academics";
-import { homework } from "@/infrastructure/database/schema/homework";
 import { feePayments } from "@/infrastructure/database/schema/finance";
-import { disciplineIncidents } from "@/infrastructure/database/schema/discipline";
 
 export const dynamic = "force-dynamic";
 
@@ -48,7 +46,7 @@ export async function POST(request: NextRequest) {
       const { id, table, action, data } = op;
 
       try {
-        // Enforce Server-Side Validation & Tenant Isolation per Domain
+        // 1. Student Attendance Sync
         if (table === "student_attendance" || table === "attendance") {
           const permitted = await canUseMobileModule(user, "attendance", "canEdit");
           if (!permitted) {
@@ -57,24 +55,25 @@ export async function POST(request: NextRequest) {
           }
 
           if (action === "batch_attendance" && Array.isArray(data.records)) {
-            const dateStr = data.dateStr || new Date().toISOString().split("T")[0];
+            const dateVal = data.dateStr ? new Date(data.dateStr) : new Date();
             const records = data.records;
 
             await db.transaction(async (tx) => {
               for (const rec of records) {
                 const studentId = Number(rec.studentId);
-                const status = rec.status || "present";
-                const justification = rec.justification || null;
-                const remarks = rec.remarks || null;
+                const status = rec.status || "Présent";
+                const remark = rec.remark || rec.remarks || rec.justification || null;
+                const classId = data.classId ? Number(data.classId) : undefined;
+                const subjectId = data.subjectId ? Number(data.subjectId) : undefined;
+                const employeeId = data.employeeId ? Number(data.employeeId) : undefined;
 
                 if (!studentId) continue;
 
-                // Check existing record for that student and date
                 const existing = await tx.query.studentAttendance.findFirst({
                   where: and(
                     eq(studentAttendance.schoolId, schoolId),
                     eq(studentAttendance.studentId, studentId),
-                    eq(studentAttendance.date, dateStr)
+                    eq(studentAttendance.date, dateVal)
                   ),
                 });
 
@@ -83,20 +82,20 @@ export async function POST(request: NextRequest) {
                     .update(studentAttendance)
                     .set({
                       status,
-                      justification,
-                      remarks,
-                      updatedAt: new Date(),
+                      remark,
                     })
                     .where(eq(studentAttendance.id, existing.id));
                 } else {
                   await tx.insert(studentAttendance).values({
                     schoolId,
                     studentId,
-                    date: dateStr,
+                    classId,
+                    subjectId,
+                    employeeId,
+                    date: dateVal,
                     status,
-                    justification,
-                    remarks,
-                    recordedBy: user.id,
+                    remark,
+                    recordedBy: String(user.id),
                   });
                 }
               }
@@ -106,7 +105,10 @@ export async function POST(request: NextRequest) {
           } else {
             results.push({ id, success: false, error: "Format d'opération Présence non supporté." });
           }
-        } else if (table === "cahier_textes" || table === "pedagogie") {
+        } 
+        
+        // 2. Cahier de Textes Sync
+        else if (table === "cahier_textes" || table === "pedagogie") {
           const permitted = await canUseMobileModule(user, "pedagogie", "canEdit");
           if (!permitted) {
             results.push({ id, success: false, error: "Permission insuffisante pour le Cahier de textes." });
@@ -161,7 +163,10 @@ export async function POST(request: NextRequest) {
           } else {
             results.push({ id, success: false, error: "Action Cahier de textes inconnue." });
           }
-        } else if (table === "student_results" || table === "academics") {
+        } 
+        
+        // 3. Student Results & Grades Sync
+        else if (table === "student_results" || table === "academics") {
           const permitted = await canUseMobileModule(user, "academics", "canEdit");
           if (!permitted) {
             results.push({ id, success: false, error: "Permission insuffisante pour la saisie des notes." });
@@ -172,15 +177,19 @@ export async function POST(request: NextRequest) {
             await db.transaction(async (tx) => {
               for (const g of data.grades) {
                 const studentId = Number(g.studentId);
-                const examId = Number(g.examId);
-                const mark = Number(g.mark || g.note || 0);
+                const mark = Number(g.mark ?? g.examScore ?? g.note ?? 0);
+                const term = String(data.term || g.term || "Trimestre 1");
+                const subjectId = Number(g.subjectId || data.subjectId);
+                const classId = Number(g.classId || data.classId);
+                const sessionId = Number(g.sessionId || data.sessionId || 1);
 
-                if (!studentId || !examId) continue;
+                if (!studentId || !subjectId) continue;
 
                 const existing = await tx.query.studentResults.findFirst({
                   where: and(
                     eq(studentResults.studentId, studentId),
-                    eq(studentResults.examId, examId)
+                    eq(studentResults.subjectId, subjectId),
+                    eq(studentResults.term, term)
                   ),
                 });
 
@@ -188,17 +197,19 @@ export async function POST(request: NextRequest) {
                   await tx
                     .update(studentResults)
                     .set({
-                      mark: sql`${mark}`,
-                      comment: g.comment || null,
-                      updatedAt: new Date(),
+                      examScore: mark,
+                      observation: g.comment || g.observation || null,
                     })
                     .where(eq(studentResults.id, existing.id));
                 } else {
                   await tx.insert(studentResults).values({
                     studentId,
-                    examId,
-                    mark: sql`${mark}`,
-                    comment: g.comment || null,
+                    subjectId,
+                    classId,
+                    sessionId,
+                    term,
+                    examScore: mark,
+                    observation: g.comment || g.observation || null,
                   });
                 }
               }
@@ -208,7 +219,10 @@ export async function POST(request: NextRequest) {
           } else {
             results.push({ id, success: false, error: "Format de notes non reconnu." });
           }
-        } else if (table === "fee_payments" || table === "finance") {
+        } 
+        
+        // 4. Finance Fee Payments Sync
+        else if (table === "fee_payments" || table === "finance") {
           const permitted = await canUseMobileModule(user, "finance", "canEdit");
           if (!permitted) {
             results.push({ id, success: false, error: "Permission insuffisante pour le module Finance." });
@@ -228,13 +242,14 @@ export async function POST(request: NextRequest) {
               .insert(feePayments)
               .values({
                 schoolId,
-                feeStructureId: feeId,
-                studentId: Number(data.studentId),
-                amount: sql`${amount}`,
-                paymentMode: data.paymentMode || "cash",
+                feeId,
+                amount,
+                reduction: Number(data.reduction || 0),
+                paymentMode: data.paymentMode || "Espèces",
                 reference: data.reference || `REC-${Date.now()}`,
-                paidAt: new Date(),
-                recordedBy: user.id,
+                monthConcerned: data.monthConcerned || null,
+                datePaid: data.datePaid ? new Date(data.datePaid) : new Date(),
+                recordedBy: String(user.id),
               })
               .returning();
 
