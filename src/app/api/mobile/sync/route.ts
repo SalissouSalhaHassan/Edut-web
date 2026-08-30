@@ -3,7 +3,7 @@ import { eq, and, sql } from "drizzle-orm";
 import { db, readDb, withTenant } from "@/infrastructure/database";
 import { getMobileUser, mobileJsonError, canUseMobileModule } from "../_lib/auth";
 import { studentAttendance } from "@/infrastructure/database/schema/attendance";
-import { seancesCahierTextes } from "@/infrastructure/database/schema/pedagogie";
+import { cahierTextes } from "@/infrastructure/database/schema/pedagogie";
 import { studentResults, homework } from "@/infrastructure/database/schema/academics";
 import { feePayments } from "@/infrastructure/database/schema/finance";
 import { disciplineIncidents } from "@/infrastructure/database/schema/discipline";
@@ -114,43 +114,45 @@ export async function POST(request: NextRequest) {
 
           if (action === "create_seance") {
             const [created] = await db
-              .insert(seancesCahierTextes)
+              .insert(cahierTextes)
               .values({
                 schoolId,
                 classId: Number(data.classId),
                 subjectId: Number(data.subjectId),
                 employeeId: Number(data.employeeId || user.employeeId),
-                dateSeance: data.sessionDate || data.dateSeance || new Date().toISOString().split("T")[0],
-                titre: data.titreLecon || data.titre || "Séance",
+                sessionDate: data.sessionDate || data.dateSeance || new Date().toISOString().split("T")[0],
+                titreLecon: data.titreLecon || data.titre || "Séance",
                 heureDebut: data.heureDebut,
                 heureFin: data.heureFin,
                 objectifs: data.objectifs,
-                contenu: data.contenuRealise || data.contenu,
-                devoirMaison: data.devoirDonne || data.devoirMaison,
-                remarques: data.observation || data.remarques,
-                statut: "effectue",
+                contenuRealise: data.contenuRealise || data.contenu,
+                supportsUtilises: data.supportsUtilises,
+                devoirDonne: data.devoirDonne || data.devoirMaison,
+                observation: data.observation || data.remarques,
+                statut: data.statut || "En attente",
               })
               .returning();
 
             results.push({ id, success: true, data: { id: created?.id } });
           } else if (action === "update_seance" && data.id) {
             await db
-              .update(seancesCahierTextes)
+              .update(cahierTextes)
               .set({
-                titre: data.titreLecon || data.titre,
+                titreLecon: data.titreLecon || data.titre,
                 heureDebut: data.heureDebut,
                 heureFin: data.heureFin,
                 objectifs: data.objectifs,
-                contenu: data.contenuRealise || data.contenu,
-                devoirMaison: data.devoirDonne || data.devoirMaison,
-                remarques: data.observation || data.remarques,
-                statut: data.statut || "effectue",
+                contenuRealise: data.contenuRealise || data.contenu,
+                supportsUtilises: data.supportsUtilises,
+                devoirDonne: data.devoirDonne || data.devoirMaison,
+                observation: data.observation || data.remarques,
+                statut: data.statut || "En attente",
                 updatedAt: new Date(),
               })
               .where(
                 and(
-                  eq(seancesCahierTextes.id, Number(data.id)),
-                  eq(seancesCahierTextes.schoolId, schoolId)
+                  eq(cahierTextes.id, Number(data.id)),
+                  eq(cahierTextes.schoolId, schoolId)
                 )
               );
 
