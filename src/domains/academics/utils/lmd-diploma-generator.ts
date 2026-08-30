@@ -1,11 +1,10 @@
 /**
  * Official University Degree Generator – Diplôme de Licence / Master / Doctorat
- * v6 - Balanced Layout Adjustments:
- * 1. Lowered green banner (y=38) to give clean breathing room below logo & ministry box
- * 2. Bold VU legal clauses with clean 4.5mm line spacing and 0 overlap
- * 3. Lowered signature blocks to the bottom area with ample signing space
- * 4. Shifted QR code away from the bottom-left corner rosette
- * 5. Maintained clean, official aesthetic without clutter
+ * v7 - Layout Adjustments:
+ * 1. Pushed laureate box down (y=96) with more breathing room below VU clauses
+ * 2. Lowered all 3 signature blocks (y=148 to 176) to sit right above the bottom line as requested
+ * 3. Formatted bold VU legal clauses with balanced 5.0mm spacing
+ * 4. Clean bottom section with security QR verification code
  */
 
 import QRCode from "qrcode";
@@ -218,7 +217,7 @@ export async function generateLmdOfficialDiplomaPDF(data: LmdDiplomaParams): Pro
   doc.setTextColor(10, 10, 10);
   doc.text(school, hCX, 28, { align: "center", maxWidth: 160 });
 
-  // ─── 4. FULL-WIDTH GREEN BANNER (LOWERED TO CLEAR LOGOS) ───────────────
+  // ─── 4. FULL-WIDTH GREEN BANNER ────────────────────────────────────────
   const bannerY = 38;
   const bannerH = 15;
   doc.setFillColor(0, 100, 0);
@@ -236,12 +235,12 @@ export async function generateLmdOfficialDiplomaPDF(data: LmdDiplomaParams): Pro
     hCX, bannerY + 10.5, { align: "center" }
   );
 
-  // ─── 5. VU LEGAL CLAUSES (BOLD, CLEAR SPACING) ─────────────────────────
-  let cY = bannerY + bannerH + 4.5;
+  // ─── 5. VU LEGAL CLAUSES (BOLD, SPACIOUS 5.0mm) ────────────────────────
+  let cY = bannerY + bannerH + 5;
   const clauseX    = 13;
   const clauseMaxW = pw - 26;
-  const vuFontSize = 8.5;
-  const vuLineH    = 4.5;
+  const vuFontSize = 8.8;
+  const vuLineH    = 5.0;
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(vuFontSize);
@@ -259,11 +258,11 @@ export async function generateLmdOfficialDiplomaPDF(data: LmdDiplomaParams): Pro
   for (const clause of vuClauses) {
     const lines: string[] = doc.splitTextToSize(clause, clauseMaxW);
     doc.text(lines, clauseX, cY);
-    cY += lines.length * vuLineH + 0.5;
+    cY += lines.length * vuLineH + 0.6;
   }
 
-  // ─── 6. LAUREATE PARAGRAPH WITH INLINE BOLD ────────────────────────────
-  cY += 2;
+  // ─── 6. LAUREATE PARAGRAPH (LOWERED WITH AMPLE BREATHING ROOM) ─────────
+  cY = 96;
   const fullName = `${(data.student.nom || "").toUpperCase()} ${(data.student.prenom || "").toUpperCase()}`.trim();
   const dob      = data.student.dateNaissance || "01-01-2000";
   const pob      = data.student.lieuNaissance || "Niamey";
@@ -275,9 +274,9 @@ export async function generateLmdOfficialDiplomaPDF(data: LmdDiplomaParams): Pro
   const session  = data.degree.sessionName    || "2024-2025";
   const degTitle = data.degree.title          || "LICENCE";
 
-  const paraFontSize = 10;
-  const paraLineH    = 5.6;
-  const boxPad       = 3.5;
+  const paraFontSize = 10.5;
+  const paraLineH    = 6.0;
+  const boxPad       = 4;
   const innerW       = clauseMaxW - boxPad * 2;
 
   const segments: { text: string; bold?: boolean }[] = [
@@ -320,33 +319,33 @@ export async function generateLmdOfficialDiplomaPDF(data: LmdDiplomaParams): Pro
     paraFontSize
   );
 
-  // ─── 7. SIGNATURES BLOCK (LOWERED TO DESIGNATED RED MARKED AREA) ────────
-  const sigY = 138;
+  // ─── 7. SIGNATURES BLOCK (LOWERED TO EXACT RED LINE POSITION) ──────────
+  const sigY = 148;
 
   // Column 1 — L'impétrant (left)
   const col1X = 22;
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(9.5);
+  doc.setFontSize(10);
   doc.setTextColor(10, 10, 10);
   doc.text("L'impétrant:", col1X, sigY);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8.5);
-  doc.text("Signature.............", col1X, sigY + 9);
+  doc.text("Signature.............", col1X, sigY + 10);
 
   // Column 2 — Recteur (center)
   const col2X = pw / 2;
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(9.5);
+  doc.setFontSize(10);
   doc.setTextColor(10, 10, 10);
   doc.text("Le Recteur /", col2X, sigY, { align: "center" });
-  doc.text("Président du Conseil", col2X, sigY + 5.5, { align: "center" });
+  doc.text("Président du Conseil", col2X, sigY + 6, { align: "center" });
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8.5);
-  doc.text("Signature...............................", col2X, sigY + 13, { align: "center" });
+  doc.text("Signature...............................", col2X, sigY + 15, { align: "center" });
   if (rector) {
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(8.5);
-    doc.text(rector, col2X, sigY + 20, { align: "center" });
+    doc.setFontSize(9);
+    doc.text(rector, col2X, sigY + 23, { align: "center" });
   }
 
   // Column 3 — Fait à / Ministre (right)
@@ -358,33 +357,33 @@ export async function generateLmdOfficialDiplomaPDF(data: LmdDiplomaParams): Pro
   doc.setFontSize(9.5);
   doc.setTextColor(10, 10, 10);
   doc.text(`Fait à ${city}, le ${dateStr}`, col3X, sigY, { align: "right" });
-  doc.text("P. Le Ministre PO.", col3X, sigY + 8, { align: "right" });
+  doc.text("P. Le Ministre PO.", col3X, sigY + 7.5, { align: "right" });
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8.5);
   doc.text("Signature......................", col3X, sigY + 15, { align: "right" });
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(8.5);
-  doc.text(dirName, col3X, sigY + 22, { align: "right" });
+  doc.setFontSize(9);
+  doc.text(dirName, col3X, sigY + 23, { align: "right" });
   doc.setDrawColor(60, 60, 60);
   doc.setLineWidth(0.35);
-  doc.line(col3X - 56, sigY + 27, col3X, sigY + 27);
+  doc.line(col3X - 58, sigY + 28, col3X, sigY + 28);
 
-  // ─── 8. SECURITY QR CODE (SHIFTED RIGHT FROM CORNER ROSETTE) ───────────
+  // ─── 8. SECURITY QR CODE (BOTTOM LEFT) ─────────────────────────────────
   const appUrl   = process.env.NEXT_PUBLIC_APP_URL || "https://niger.edut.pro";
   const verifUrl = `${appUrl}/verify/${encodeURIComponent(data.student.matricule || String(data.student.id))}`;
-  const qrX      = 24;
-  const qrY      = ph - 30;
+  const qrX      = 22;
+  const qrY      = ph - 28;
   try {
     const qrData = await QRCode.toDataURL(verifUrl, { margin: 1, width: 128 });
-    doc.addImage(qrData, "PNG", qrX, qrY, 18, 18);
+    doc.addImage(qrData, "PNG", qrX, qrY - 1, 17, 17);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(6.2);
     doc.setTextColor(30, 30, 30);
-    doc.text("Veuillez visiter ce lien pour vérification", qrX + 22, qrY + 5.5);
-    doc.text("de l'authenticité du document:", qrX + 22, qrY + 10);
+    doc.text("Veuillez visiter ce lien pour vérification", qrX + 21, qrY + 5);
+    doc.text("de l'authenticité du document:", qrX + 21, qrY + 9.5);
     doc.setTextColor(0, 70, 180);
     doc.setFontSize(6);
-    doc.text(verifUrl, qrX + 22, qrY + 14.5);
+    doc.text(verifUrl, qrX + 21, qrY + 14);
   } catch (_) {}
 
   const cleanNom = (data.student.nom || "Etudiant").replace(/[^a-zA-Z0-9]/g, "_");
