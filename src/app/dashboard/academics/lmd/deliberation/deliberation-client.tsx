@@ -670,6 +670,7 @@ export default function DeliberationClient({
           departmentName: departmentName,
           city: headerConfig?.city || "Niamey",
           website: headerConfig?.website || "www.universite-edut.org",
+          logoUrl: headerConfig?.leftLogo || headerConfig?.schoolLogo || headerConfig?.logo || headerConfig?.logoUrl || headerConfig?.centerLogo || undefined,
         },
         ueList: ueList,
       };
@@ -731,6 +732,8 @@ export default function DeliberationClient({
           rectorName: headerConfig?.rectorName || "",
           directorGeneralName: headerConfig?.directorGeneralName || "Le Directeur Général des Enseignements",
           city: headerConfig?.city || "Niamey",
+          logo: headerConfig?.leftLogo || headerConfig?.schoolLogo || headerConfig?.logo || headerConfig?.logoUrl || headerConfig?.centerLogo || undefined,
+          ministryLogo: headerConfig?.rightLogo || headerConfig?.ministryLogo || undefined,
         },
       };
 
@@ -791,6 +794,8 @@ export default function DeliberationClient({
           rectorName: headerConfig?.rectorName || "",
           directorGeneralName: headerConfig?.directorGeneralName || "Le Directeur Général des Enseignements",
           city: headerConfig?.city || "Niamey",
+          logo: headerConfig?.leftLogo || headerConfig?.schoolLogo || headerConfig?.logo || headerConfig?.logoUrl || headerConfig?.centerLogo || undefined,
+          ministryLogo: headerConfig?.rightLogo || headerConfig?.ministryLogo || undefined,
         },
       };
 

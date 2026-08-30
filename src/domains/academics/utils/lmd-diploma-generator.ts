@@ -1,10 +1,15 @@
 /**
  * Official University Degree Generator – Diplôme de Licence / Master / Doctorat
- * v7 - Layout Adjustments:
- * 1. Pushed laureate box down (y=96) with more breathing room below VU clauses
- * 2. Lowered all 3 signature blocks (y=148 to 176) to sit right above the bottom line as requested
- * 3. Formatted bold VU legal clauses with balanced 5.0mm spacing
- * 4. Clean bottom section with security QR verification code
+ * Layout conforme au modèle officiel REESAO / Ministère de l'Enseignement Supérieur Niger
+ * 
+ * Includes:
+ * 1. Clear visible separation between Green Banner and VU clauses (y=62)
+ * 2. Official Coat of Arms of Niger (Armoiries de la République du Niger) in the top-right box
+ * 3. School Logo integration with proper scaling in top-left
+ * 4. Bold VU legal clauses with balanced line height
+ * 5. Laureate declaration box with selective inline bold
+ * 6. Lowered signature blocks with ample space for physical stamping & signatures
+ * 7. Security QR code with verification URL
  */
 
 import QRCode from "qrcode";
@@ -45,6 +50,87 @@ export interface LmdDiplomaParams {
     logo?: string;
     ministryLogo?: string;
   };
+}
+
+/* ─── Draw Official Coat of Arms of Niger (Armoiries du Niger) ─────────── */
+function drawNigerCoatOfArms(doc: any, cx: number, cy: number, scale = 1.0) {
+  // 1. Crossed Flagpoles (Gold lines)
+  doc.setDrawColor(200, 160, 20);
+  doc.setLineWidth(0.6 * scale);
+  doc.line(cx - 10 * scale, cy + 8 * scale, cx + 8 * scale, cy - 7 * scale);
+  doc.line(cx + 10 * scale, cy + 8 * scale, cx - 8 * scale, cy - 7 * scale);
+
+  // 2. Niger Flags on Left (Orange, White, Green)
+  // Left Flag 1
+  doc.setFillColor(224, 82, 4); // Niger Orange
+  doc.triangle(cx - 5 * scale, cy - 5 * scale, cx - 11 * scale, cy - 7 * scale, cx - 8 * scale, cy - 1 * scale, "F");
+  doc.setFillColor(255, 255, 255); // White
+  doc.triangle(cx - 5 * scale, cy - 3 * scale, cx - 9 * scale, cy - 4 * scale, cx - 7 * scale, cy + 1 * scale, "F");
+  doc.setFillColor(27, 122, 43); // Niger Green
+  doc.triangle(cx - 4 * scale, cy - 1 * scale, cx - 7 * scale, cy - 1 * scale, cx - 6 * scale, cy + 4 * scale, "F");
+
+  // Left Flag 2 (Lower Drape)
+  doc.setFillColor(224, 82, 4);
+  doc.triangle(cx - 4 * scale, cy + 1 * scale, cx - 9 * scale, cy + 2 * scale, cx - 6 * scale, cy + 6 * scale, "F");
+
+  // 3. Niger Flags on Right (Orange, White, Green)
+  // Right Flag 1
+  doc.setFillColor(224, 82, 4);
+  doc.triangle(cx + 5 * scale, cy - 5 * scale, cx + 11 * scale, cy - 7 * scale, cx + 8 * scale, cy - 1 * scale, "F");
+  doc.setFillColor(255, 255, 255);
+  doc.triangle(cx + 5 * scale, cy - 3 * scale, cx + 9 * scale, cy - 4 * scale, cx + 7 * scale, cy + 1 * scale, "F");
+  doc.setFillColor(27, 122, 43);
+  doc.triangle(cx + 4 * scale, cy - 1 * scale, cx + 7 * scale, cy - 1 * scale, cx + 6 * scale, cy + 4 * scale, "F");
+
+  // Right Flag 2 (Lower Drape)
+  doc.setFillColor(224, 82, 4);
+  doc.triangle(cx + 4 * scale, cy + 1 * scale, cx + 9 * scale, cy + 2 * scale, cx + 6 * scale, cy + 6 * scale, "F");
+
+  // 4. Central Shield (Green with Gold Border)
+  doc.setFillColor(27, 122, 43);
+  doc.setDrawColor(212, 175, 55);
+  doc.setLineWidth(0.6 * scale);
+  
+  // Custom shield shape
+  const sW = 6.5 * scale;
+  const sTop = cy - 6 * scale;
+  const sBot = cy + 4.5 * scale;
+  doc.roundedRect(cx - sW, sTop, sW * 2, 7.5 * scale, 1 * scale, 1 * scale, "FD");
+  doc.triangle(cx - sW, sTop + 6 * scale, cx + sW, sTop + 6 * scale, cx, sBot, "FD");
+
+  // 5. Golden Sun in Center of Shield
+  doc.setFillColor(245, 195, 20);
+  doc.circle(cx, cy - 2 * scale, 1.8 * scale, "F");
+  // Sun rays
+  doc.setDrawColor(245, 195, 20);
+  doc.setLineWidth(0.35 * scale);
+  for (let a = 0; a < 8; a++) {
+    const rad = (a * Math.PI) / 4;
+    doc.line(
+      cx + Math.cos(rad) * 2.0 * scale,
+      cy - 2 * scale + Math.sin(rad) * 2.0 * scale,
+      cx + Math.cos(rad) * 2.9 * scale,
+      cy - 2 * scale + Math.sin(rad) * 2.9 * scale
+    );
+  }
+
+  // 6. Zebu Horns / Head (Gold below the sun)
+  doc.setDrawColor(245, 195, 20);
+  doc.setLineWidth(0.5 * scale);
+  doc.line(cx - 2.5 * scale, cy + 0.5 * scale, cx, cy + 2.5 * scale);
+  doc.line(cx + 2.5 * scale, cy + 0.5 * scale, cx, cy + 2.5 * scale);
+  doc.circle(cx, cy + 2.5 * scale, 0.6 * scale, "F");
+
+  // 7. Golden Scroll / Ribbon at Bottom
+  doc.setFillColor(220, 180, 50);
+  doc.setDrawColor(180, 140, 20);
+  doc.setLineWidth(0.3 * scale);
+  doc.roundedRect(cx - 10 * scale, cy + 6.5 * scale, 20 * scale, 2.6 * scale, 0.6 * scale, 0.6 * scale, "FD");
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(3.2 * scale);
+  doc.setTextColor(80, 45, 0);
+  doc.text("RÉPUBLIQUE DU NIGER", cx, cy + 8.4 * scale, { align: "center" });
 }
 
 /* ─── Ornamental border ─────────────────────────────────────────────────── */
@@ -160,46 +246,72 @@ export async function generateLmdOfficialDiplomaPDF(data: LmdDiplomaParams): Pro
   const dirName = data.institution.directorGeneralName || "Le Directeur Général des Enseignements";
   const dipNum  = data.degree.diplomaNumber     || `${data.student.matricule || data.student.id}`;
 
-  // ─── 1. LEFT LOGO ──────────────────────────────────────────────────────
+  // ─── 1. LEFT LOGO (SCHOOL LOGO) ────────────────────────────────────────
   const logoX = 15, logoY = 11, logoSize = 23;
+  let logoLoaded = false;
   if (data.institution.logo) {
-    try { doc.addImage(data.institution.logo, "PNG", logoX, logoY, logoSize, logoSize); } catch (_) {}
-  } else {
+    try {
+      doc.addImage(data.institution.logo, "PNG", logoX, logoY, logoSize, logoSize);
+      logoLoaded = true;
+    } catch (_) {
+      try {
+        doc.addImage(data.institution.logo, "JPEG", logoX, logoY, logoSize, logoSize);
+        logoLoaded = true;
+      } catch (_) {}
+    }
+  }
+  
+  if (!logoLoaded) {
+    // Professional academic university crest
     doc.setDrawColor(0, 110, 0);
     doc.setLineWidth(0.8);
     doc.circle(logoX + logoSize / 2, logoY + logoSize / 2, logoSize / 2, "S");
-    doc.circle(logoX + logoSize / 2, logoY + logoSize / 2, logoSize / 2 - 3, "S");
+    doc.circle(logoX + logoSize / 2, logoY + logoSize / 2, logoSize / 2 - 2.8, "S");
+    doc.setFillColor(245, 250, 245);
+    doc.circle(logoX + logoSize / 2, logoY + logoSize / 2, logoSize / 2 - 2.8, "F");
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(5.5);
+    doc.setFontSize(4.8);
     doc.setTextColor(0, 110, 0);
-    doc.text("SCEAU", logoX + logoSize / 2, logoY + logoSize / 2 + 1.5, { align: "center" });
+    const shortUni = school.split(" ").filter((w: string) => w.length > 2).slice(0, 3).join(" ");
+    doc.text(shortUni, logoX + logoSize / 2, logoY + logoSize / 2 - 2, { align: "center", maxWidth: logoSize - 4 });
+    doc.setFontSize(4);
+    doc.setTextColor(150, 100, 0);
+    doc.text("• UNIVERSITÉ •", logoX + logoSize / 2, logoY + logoSize / 2 + 3.5, { align: "center" });
   }
 
-  // ─── 2. TOP-RIGHT MINISTRY BOX ─────────────────────────────────────────
-  const boxW = 52, boxH = 24;
-  const boxX = pw - 15 - boxW, boxY = 11;
+  // ─── 2. TOP-RIGHT MINISTRY BOX WITH OFFICIAL NIGER COAT OF ARMS ────────
+  const boxW = 56, boxH = 25;
+  const boxX = pw - 14 - boxW, boxY = 11;
   doc.setDrawColor(0, 110, 0);
   doc.setLineWidth(0.7);
   doc.rect(boxX, boxY, boxW, boxH, "S");
+
+  // Draw Coat of Arms of Niger (Center of Box Top)
   if (data.institution.ministryLogo) {
-    try { doc.addImage(data.institution.ministryLogo, "PNG", boxX + 2, boxY + 2, 14, 14); } catch (_) {}
+    try {
+      doc.addImage(data.institution.ministryLogo, "PNG", boxX + boxW / 2 - 9, boxY + 1.5, 18, 11);
+    } catch (_) {
+      drawNigerCoatOfArms(doc, boxX + boxW / 2, boxY + 6.5, 0.75);
+    }
   } else {
-    doc.setFillColor(200, 160, 0);
-    doc.circle(boxX + 9, boxY + 9, 6.5, "F");
-    doc.setFillColor(120, 80, 0);
-    doc.circle(boxX + 9, boxY + 9, 3.5, "F");
+    drawNigerCoatOfArms(doc, boxX + boxW / 2, boxY + 6.5, 0.75);
   }
-  const mlabel = data.institution.ministryLabel || "MINISTERE DE L'ENSEIGNEMENT SUPERIEUR\nDirection Générale de l'Enseignement";
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(5.2);
-  doc.setTextColor(15, 15, 15);
-  mlabel.split("\n").forEach((line: string, i: number) => {
-    doc.text(line, boxX + 18, boxY + 5.5 + i * 4.5, { maxWidth: boxW - 20 });
-  });
+
+  // Ministry Label & Diploma Number
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
+  doc.setFontSize(5.4);
   doc.setTextColor(10, 10, 10);
-  doc.text(dipNum, boxX + boxW / 2, boxY + 20, { align: "center" });
+  doc.text("MINISTERE DE L'ENSEIGNEMENT SUPERIEUR", boxX + boxW / 2, boxY + 14.8, { align: "center" });
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(4.8);
+  doc.setTextColor(40, 40, 40);
+  doc.text("Direction Générale de l'Enseignement", boxX + boxW / 2, boxY + 18.2, { align: "center" });
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10.5);
+  doc.setTextColor(10, 10, 10);
+  doc.text(dipNum, boxX + boxW / 2, boxY + 23.2, { align: "center" });
 
   // ─── 3. CENTER HEADER ──────────────────────────────────────────────────
   doc.setFont("helvetica", "bold");
@@ -218,7 +330,7 @@ export async function generateLmdOfficialDiplomaPDF(data: LmdDiplomaParams): Pro
   doc.text(school, hCX, 28, { align: "center", maxWidth: 160 });
 
   // ─── 4. FULL-WIDTH GREEN BANNER ────────────────────────────────────────
-  const bannerY = 38;
+  const bannerY = 37.5;
   const bannerH = 15;
   doc.setFillColor(0, 100, 0);
   doc.rect(10.5, bannerY, pw - 21, bannerH, "F");
@@ -235,12 +347,12 @@ export async function generateLmdOfficialDiplomaPDF(data: LmdDiplomaParams): Pro
     hCX, bannerY + 10.5, { align: "center" }
   );
 
-  // ─── 5. VU LEGAL CLAUSES (BOLD, SPACIOUS 5.0mm) ────────────────────────
-  let cY = bannerY + bannerH + 5;
+  // ─── 5. VU LEGAL CLAUSES (WITH DISTINCT 9mm SEPARATION FROM BANNER) ───
+  let cY = bannerY + bannerH + 8.5; // Clear visible separation (starts at y=61)
   const clauseX    = 13;
   const clauseMaxW = pw - 26;
-  const vuFontSize = 8.8;
-  const vuLineH    = 5.0;
+  const vuFontSize = 8.5;
+  const vuLineH    = 4.6;
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(vuFontSize);
@@ -258,11 +370,11 @@ export async function generateLmdOfficialDiplomaPDF(data: LmdDiplomaParams): Pro
   for (const clause of vuClauses) {
     const lines: string[] = doc.splitTextToSize(clause, clauseMaxW);
     doc.text(lines, clauseX, cY);
-    cY += lines.length * vuLineH + 0.6;
+    cY += lines.length * vuLineH + 0.5;
   }
 
-  // ─── 6. LAUREATE PARAGRAPH (LOWERED WITH AMPLE BREATHING ROOM) ─────────
-  cY = 96;
+  // ─── 6. LAUREATE PARAGRAPH (LOWERED WITH DISTINCT PADDING) ─────────────
+  cY = 97;
   const fullName = `${(data.student.nom || "").toUpperCase()} ${(data.student.prenom || "").toUpperCase()}`.trim();
   const dob      = data.student.dateNaissance || "01-01-2000";
   const pob      = data.student.lieuNaissance || "Niamey";
@@ -319,7 +431,7 @@ export async function generateLmdOfficialDiplomaPDF(data: LmdDiplomaParams): Pro
     paraFontSize
   );
 
-  // ─── 7. SIGNATURES BLOCK (LOWERED TO EXACT RED LINE POSITION) ──────────
+  // ─── 7. SIGNATURES BLOCK (LOWERED TO DESIGNATED RED MARKED AREA) ────────
   const sigY = 148;
 
   // Column 1 — L'impétrant (left)
@@ -425,6 +537,24 @@ export async function generateLmdAttestationReussitePDF(data: LmdDiplomaParams):
   const city   = data.institution.city          || "Niamey";
   const dirName= data.institution.directorGeneralName || "Le Directeur Général des Enseignements";
 
+  // Left School Logo
+  const logoX = 14, logoY = 12, logoSize = 22;
+  let logoLoaded = false;
+  if (data.institution.logo) {
+    try {
+      doc.addImage(data.institution.logo, "PNG", logoX, logoY, logoSize, logoSize);
+      logoLoaded = true;
+    } catch (_) {
+      try {
+        doc.addImage(data.institution.logo, "JPEG", logoX, logoY, logoSize, logoSize);
+        logoLoaded = true;
+      } catch (_) {}
+    }
+  }
+
+  // Right Coat of Arms
+  drawNigerCoatOfArms(doc, pw - 24, 22, 0.7);
+
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
   doc.setTextColor(10, 10, 10);
@@ -432,11 +562,11 @@ export async function generateLmdAttestationReussitePDF(data: LmdDiplomaParams):
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7);
   doc.setTextColor(40, 40, 40);
-  doc.text(ministry.toUpperCase(), hCX, 24.5, { align: "center", maxWidth: pw - 40 });
+  doc.text(ministry.toUpperCase(), hCX, 24.5, { align: "center", maxWidth: pw - 55 });
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12.5);
   doc.setTextColor(10, 10, 10);
-  doc.text(school, hCX, 32, { align: "center", maxWidth: pw - 28 });
+  doc.text(school, hCX, 32, { align: "center", maxWidth: pw - 55 });
 
   // Banner
   const bY2 = 38;
