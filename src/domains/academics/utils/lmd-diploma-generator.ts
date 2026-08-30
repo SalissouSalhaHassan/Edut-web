@@ -365,12 +365,12 @@ export async function generateLmdOfficialDiplomaPDF(data: LmdDiplomaParams): Pro
   const vuClauses = (customVu && customVu.length > 0) ? customVu : defaultVuClauses;
 
   const count = vuClauses.length;
-  const vuFontSize = count >= 9 ? 7.4 : count >= 7 ? 8.0 : 8.5;
-  const vuLineH    = count >= 9 ? 3.5 : count >= 7 ? 4.0 : 4.5;
+  const vuFontSize = 11;
+  const vuLineH    = 5.2;
   const clauseX    = 13;
   const clauseMaxW = pw - 26;
 
-  let cY = bannerY + bannerH + (count >= 9 ? 4.0 : 6.5);
+  let cY = bannerY + bannerH + 5.5;
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(vuFontSize);
@@ -383,7 +383,7 @@ export async function generateLmdOfficialDiplomaPDF(data: LmdDiplomaParams): Pro
   }
 
   // ─── 6. LAUREATE PARAGRAPH (DYNAMIC POSITIONING BELOW ALL VU CLAUSES) ───
-  cY += (count >= 9 ? 2.0 : 3.5);
+  cY += 2.5;
   const declBoxY = cY;
 
   const fullName = `${(data.student.nom || "").toUpperCase()} ${(data.student.prenom || "").toUpperCase()}`.trim();
@@ -614,12 +614,12 @@ export async function generateLmdAttestationReussitePDF(data: LmdDiplomaParams):
   const vuClauses = (customVu && customVu.length > 0) ? customVu : defaultVuClauses;
 
   const count = vuClauses.length;
-  const vuFontSize = count >= 9 ? 7.4 : count >= 7 ? 8.0 : 8.5;
-  const vuLineH    = count >= 9 ? 3.5 : count >= 7 ? 4.0 : 4.5;
+  const vuFontSize = 11;
+  const vuLineH    = 5.2;
   const clauseX    = 13;
   const clauseMaxW = pw - 26;
 
-  let cY = bannerY + bannerH + (count >= 9 ? 4.0 : 6.5);
+  let cY = bannerY + bannerH + 5.5;
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(vuFontSize);
@@ -631,13 +631,13 @@ export async function generateLmdAttestationReussitePDF(data: LmdDiplomaParams):
     cY += lines.length * vuLineH + 0.3;
   }
 
-  cY += (count >= 9 ? 2.0 : 3.0);
+  cY += 2.5;
 
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(count >= 9 ? 8.5 : 9.0);
+  doc.setFontSize(count >= 9 ? 9.0 : 9.5);
   doc.setTextColor(20, 20, 20);
   doc.text("Le Doyen de la Faculté et le Président du Jury d'Examen soussignés certifient que :", clauseX, cY);
-  cY += (count >= 9 ? 4.2 : 5.0);
+  cY += 4.5;
 
   const declBoxY = cY;
   const fullName2 = `${(data.student.nom || "").toUpperCase()} ${(data.student.prenom || "").toUpperCase()}`.trim();
