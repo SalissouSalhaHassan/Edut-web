@@ -702,10 +702,11 @@ export default function DeliberationClient({
         student: {
           id: studentItem.student.id,
           nom: studentItem.student.nom,
+          prenom: studentItem.student.prenom || "",
           matricule: studentItem.student.matricule || `EDUT-${studentItem.student.id}`,
           dateNaissance: studentItem.student.dateNaissance || "15/10/2002",
           lieuNaissance: studentItem.student.lieuNaissance || "Niamey",
-          nationalite: "Nigérienne",
+          nationalite: studentItem.student.nationalite || headerConfig?.nationality || "Nigérienne",
           sexe: studentItem.student.sexe || "M",
         },
         degree: {
@@ -716,13 +717,19 @@ export default function DeliberationClient({
           finalGradeAverage: finalAvg,
           totalCreditsAcquired: totalCreds || 180,
           sessionName: selectedSession?.sessionName || "2025-2026",
-          diplomaNumber: `DIP-LMD-${studentItem.student.id}-2026`,
+          diplomaNumber: headerConfig?.diplomaNumber || `${studentItem.student.matricule || studentItem.student.id}`,
+          deliberationDate: selectedSession?.endDate
+            ? new Date(selectedSession.endDate).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" })
+            : undefined,
         },
         institution: {
           name: schoolName,
           countryName: headerConfig?.countryName || "RÉPUBLIQUE DU NIGER",
           ministryName: headerConfig?.ministryName || "MINISTÈRE DE L'ENSEIGNEMENT SUPÉRIEUR ET DE LA RECHERCHE",
+          ministryLabel: headerConfig?.ministryLabel || "MINISTERE DE L'ENSEIGNEMENT SUPERIEUR\nDirection Générale de l'Enseignement",
           facultyName: facultyName,
+          rectorName: headerConfig?.rectorName || "",
+          directorGeneralName: headerConfig?.directorGeneralName || "Le Directeur Général des Enseignements",
           city: headerConfig?.city || "Niamey",
         },
       };
@@ -755,10 +762,11 @@ export default function DeliberationClient({
         student: {
           id: studentItem.student.id,
           nom: studentItem.student.nom,
+          prenom: studentItem.student.prenom || "",
           matricule: studentItem.student.matricule || `EDUT-${studentItem.student.id}`,
           dateNaissance: studentItem.student.dateNaissance || "15/10/2002",
           lieuNaissance: studentItem.student.lieuNaissance || "Niamey",
-          nationalite: "Nigérienne",
+          nationalite: studentItem.student.nationalite || headerConfig?.nationality || "Nigérienne",
           sexe: studentItem.student.sexe || "M",
         },
         degree: {
@@ -769,13 +777,19 @@ export default function DeliberationClient({
           finalGradeAverage: finalAvg,
           totalCreditsAcquired: totalCreds || 180,
           sessionName: selectedSession?.sessionName || "2025-2026",
-          diplomaNumber: `ATT-LMD-${studentItem.student.id}-2026`,
+          diplomaNumber: headerConfig?.attestationNumber || `ATT-${studentItem.student.matricule || studentItem.student.id}`,
+          deliberationDate: selectedSession?.endDate
+            ? new Date(selectedSession.endDate).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" })
+            : undefined,
         },
         institution: {
           name: schoolName,
           countryName: headerConfig?.countryName || "RÉPUBLIQUE DU NIGER",
           ministryName: headerConfig?.ministryName || "MINISTÈRE DE L'ENSEIGNEMENT SUPÉRIEUR ET DE LA RECHERCHE",
+          ministryLabel: headerConfig?.ministryLabel || "MINISTERE DE L'ENSEIGNEMENT SUPERIEUR\nDirection Générale de l'Enseignement",
           facultyName: facultyName,
+          rectorName: headerConfig?.rectorName || "",
+          directorGeneralName: headerConfig?.directorGeneralName || "Le Directeur Général des Enseignements",
           city: headerConfig?.city || "Niamey",
         },
       };
