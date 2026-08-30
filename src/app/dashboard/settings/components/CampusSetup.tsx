@@ -112,6 +112,12 @@ export function CampusSetup({ initialBranches }: { initialBranches: Branch[] }) 
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
   const [formData, setFormData] = useState<Branch>(DEFAULT_BRANCH_STATE);
 
+  React.useEffect(() => {
+    if (initialBranches && initialBranches.length > 0 && !selectedBranch) {
+      handleBranchSelect(initialBranches[0].id?.toString() || "");
+    }
+  }, [initialBranches]);
+
   // instType helpers
   const instTypeVal = formData.instType || "";
   const selectedTypes = instTypeVal === "Tous" 

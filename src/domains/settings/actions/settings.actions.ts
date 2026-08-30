@@ -146,7 +146,13 @@ export async function saveBranch(data: any) {
     }
     
     revalidateTag(BRANCHES_TAG);
+    revalidateTag(SETTINGS_TAG);
     revalidatePath("/dashboard/settings");
+    revalidatePath("/dashboard/campus-setup");
+    revalidatePath("/dashboard/academics/lmd/deliberation");
+    try {
+      await redisCache.del(`edut:header_config:${schoolId}`);
+    } catch (_) {}
     return { success: true };
   });
 }
@@ -271,12 +277,18 @@ export async function fetchDocumentHeaderConfigForSchool(schoolId: number, targe
       if (!configData.commune) configData.commune = branchFallback.commune || "";
       if (!configData.schoolCode) configData.schoolCode = branchFallback.schoolCode || "";
 
-      if (branchFallback.vuClauses && (!configData.vuClauses || configData.vuClauses.length === 0)) {
+      if (branchFallback.vuClauses) {
         try {
+          let parsed: string[] = [];
           if (typeof branchFallback.vuClauses === "string" && branchFallback.vuClauses.startsWith("[")) {
-            configData.vuClauses = JSON.parse(branchFallback.vuClauses);
+            parsed = JSON.parse(branchFallback.vuClauses);
           } else if (typeof branchFallback.vuClauses === "string") {
-            configData.vuClauses = branchFallback.vuClauses.split("\n").filter(Boolean);
+            parsed = branchFallback.vuClauses.split("\n").filter(Boolean);
+          } else if (Array.isArray(branchFallback.vuClauses)) {
+            parsed = branchFallback.vuClauses;
+          }
+          if (parsed && parsed.length > 0) {
+            configData.vuClauses = parsed;
           }
         } catch (_) {}
       }

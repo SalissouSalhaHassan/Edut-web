@@ -351,17 +351,7 @@ export async function generateLmdOfficialDiplomaPDF(data: LmdDiplomaParams): Pro
     hCX, bannerY + 10.5, { align: "center" }
   );
 
-  // ─── 5. VU LEGAL CLAUSES (WITH DISTINCT 9mm SEPARATION FROM BANNER) ───
-  let cY = bannerY + bannerH + 8.5; // Clear visible separation (starts at y=61)
-  const clauseX    = 13;
-  const clauseMaxW = pw - 26;
-  const vuFontSize = 8.5;
-  const vuLineH    = 4.6;
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(vuFontSize);
-  doc.setTextColor(15, 15, 15);
-
+  // ─── 5. VU LEGAL CLAUSES (DYNAMIC DENSITY SCALING FOR 6 TO 12+ CLAUSES) ───
   const defaultVuClauses = [
     "Vu la loi N° 98-12 du 1er Juin 1998, portant Orientation du Système Educatif Nigérien et les textes modifiants subséquents;",
     "Vu l'ordonnance N° 96-035 du 19 Juin 1996 portant réglementation de l'enseignement privé au Niger;",
@@ -374,14 +364,28 @@ export async function generateLmdOfficialDiplomaPDF(data: LmdDiplomaParams): Pro
   const customVu = data.degree.vuClauses || data.institution.vuClauses;
   const vuClauses = (customVu && customVu.length > 0) ? customVu : defaultVuClauses;
 
+  const count = vuClauses.length;
+  const vuFontSize = count >= 9 ? 7.4 : count >= 7 ? 8.0 : 8.5;
+  const vuLineH    = count >= 9 ? 3.5 : count >= 7 ? 4.0 : 4.5;
+  const clauseX    = 13;
+  const clauseMaxW = pw - 26;
+
+  let cY = bannerY + bannerH + (count >= 9 ? 4.0 : 6.5);
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(vuFontSize);
+  doc.setTextColor(15, 15, 15);
+
   for (const clause of vuClauses) {
     const lines: string[] = doc.splitTextToSize(clause, clauseMaxW);
     doc.text(lines, clauseX, cY);
-    cY += lines.length * vuLineH + 0.5;
+    cY += lines.length * vuLineH + 0.3;
   }
 
-  // ─── 6. LAUREATE PARAGRAPH (LOWERED WITH DISTINCT PADDING) ─────────────
-  cY = 97;
+  // ─── 6. LAUREATE PARAGRAPH (DYNAMIC POSITIONING BELOW ALL VU CLAUSES) ───
+  cY += (count >= 9 ? 2.0 : 3.5);
+  const declBoxY = cY;
+
   const fullName = `${(data.student.nom || "").toUpperCase()} ${(data.student.prenom || "").toUpperCase()}`.trim();
   const dob      = data.student.dateNaissance || "01-01-2000";
   const pob      = data.student.lieuNaissance || "Niamey";
@@ -393,9 +397,9 @@ export async function generateLmdOfficialDiplomaPDF(data: LmdDiplomaParams): Pro
   const session  = data.degree.sessionName    || "2024-2025";
   const degTitle = data.degree.title          || "LICENCE";
 
-  const paraFontSize = 10.5;
-  const paraLineH    = 6.0;
-  const boxPad       = 4;
+  const paraFontSize = count >= 9 ? 9.8 : 10.5;
+  const paraLineH    = count >= 9 ? 5.4 : 6.0;
+  const boxPad       = count >= 9 ? 3.5 : 4.0;
   const innerW       = clauseMaxW - boxPad * 2;
 
   const segments: { text: string; bold?: boolean }[] = [
@@ -421,27 +425,26 @@ export async function generateLmdOfficialDiplomaPDF(data: LmdDiplomaParams): Pro
 
   const fullPlain = segments.map(s => s.text).join("");
   const measLines = doc.splitTextToSize(fullPlain, innerW);
-  const declBoxH  = measLines.length * paraLineH + boxPad * 2 + 2;
+  const declBoxH  = measLines.length * paraLineH + boxPad * 2 + 1.5;
 
   doc.setFillColor(248, 252, 248);
   doc.setDrawColor(0, 110, 0);
   doc.setLineWidth(0.7);
-  doc.roundedRect(clauseX, cY, clauseMaxW, declBoxH, 2, 2, "FD");
+  doc.roundedRect(clauseX, declBoxY, clauseMaxW, declBoxH, 2, 2, "FD");
 
   renderMixedTextWrapped(
     doc,
     segments,
     clauseX + boxPad,
-    cY + boxPad + paraFontSize * 0.35,
+    declBoxY + boxPad + paraFontSize * 0.35,
     innerW,
     paraLineH,
     paraFontSize
   );
 
-  // ─── 7. SIGNATURES BLOCK (LOWERED TO DESIGNATED RED MARKED AREA) ────────
-  const sigY = 148;
+  // ─── 7. SIGNATURES BLOCK ───────────────────────────────────────────────
+  const sigY = Math.max(148, declBoxY + declBoxH + 4);
 
-  // Column 1 — L'impétrant (left)
   const col1X = 22;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
@@ -451,7 +454,6 @@ export async function generateLmdOfficialDiplomaPDF(data: LmdDiplomaParams): Pro
   doc.setFontSize(8.5);
   doc.text("Signature.............", col1X, sigY + 10);
 
-  // Column 2 — Recteur (center)
   const col2X = pw / 2;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
@@ -467,7 +469,6 @@ export async function generateLmdOfficialDiplomaPDF(data: LmdDiplomaParams): Pro
     doc.text(rector, col2X, sigY + 23, { align: "center" });
   }
 
-  // Column 3 — Fait à / Ministre (right)
   const col3X = pw - 22;
   const dateStr = data.degree.deliberationDate ||
     new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
@@ -498,54 +499,38 @@ export async function generateLmdOfficialDiplomaPDF(data: LmdDiplomaParams): Pro
     doc.setFont("helvetica", "normal");
     doc.setFontSize(6.2);
     doc.setTextColor(30, 30, 30);
-    doc.text("Veuillez visiter ce lien pour vérification", qrX + 21, qrY + 5);
-    doc.text("de l'authenticité du document:", qrX + 21, qrY + 9.5);
+    doc.text("Veuillez visiter ce lien pour vérification", qrX + 20, qrY + 4.5);
+    doc.text("de l'authenticité du document:", qrX + 20, qrY + 8.5);
     doc.setTextColor(0, 70, 180);
-    doc.setFontSize(6);
-    doc.text(verifUrl, qrX + 21, qrY + 14);
+    doc.text(verifUrl, qrX + 20, qrY + 12.5);
   } catch (_) {}
 
   const cleanNom = (data.student.nom || "Etudiant").replace(/[^a-zA-Z0-9]/g, "_");
   doc.save(`Diplome_Officiel_${data.degree.title}_${cleanNom}.pdf`);
 }
 
-/* ─── Attestation de Réussite (A4 Portrait) ─────────────────────────────── */
+/* ─── Attestation de Réussite (UNIFIED A4 Landscape) ─────────────────────── */
 export async function generateLmdAttestationReussitePDF(data: LmdDiplomaParams): Promise<void> {
   const { default: jsPDF } = await import("jspdf");
 
-  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
   const pw  = doc.internal.pageSize.getWidth();
   const ph  = doc.internal.pageSize.getHeight();
 
   doc.setFillColor(255, 255, 255);
   doc.rect(0, 0, pw, ph, "F");
+  drawOrnamentalBorder(doc, pw, ph);
 
-  // Border
-  doc.setDrawColor(0, 110, 0);
-  doc.setLineWidth(3.2);
-  doc.rect(5, 5, pw - 10, ph - 10, "S");
-  doc.setLineWidth(0.7);
-  doc.rect(9.5, 9.5, pw - 19, ph - 19, "S");
-  doc.setFillColor(0, 110, 0);
-  const step2 = 3.5;
-  for (let x = 11; x <= pw - 11; x += step2) {
-    doc.circle(x, 7.2, 0.55, "F");
-    doc.circle(x, ph - 7.2, 0.55, "F");
-  }
-  for (let y = 11; y <= ph - 11; y += step2) {
-    doc.circle(7.2, y, 0.55, "F");
-    doc.circle(pw - 7.2, y, 0.55, "F");
-  }
-
-  const hCX    = pw / 2;
-  const country= (data.institution.countryName || "REPUBLIQUE DU NIGER").toUpperCase();
+  const hCX     = pw / 2;
+  const country = (data.institution.countryName || "REPUBLIQUE DU NIGER").toUpperCase();
   const ministry= data.institution.ministryName || "MINISTERE DE L'ENSEIGNEMENT SUPERIEUR, DE LA RECHERCHE ET DE L'INNOVATION";
-  const school = (data.institution.name         || "UNIVERSITÉ PRIVÉE ENTENTE INTERNATIONALE").toUpperCase();
-  const city   = data.institution.city          || "Niamey";
-  const dirName= data.institution.directorGeneralName || "Le Directeur Général des Enseignements";
+  const school  = (data.institution.name        || "UNIVERSITE PRIVEE ENTENTE INTERNATIONALE").toUpperCase();
+  const city    = data.institution.city         || "Niamey";
+  const rector  = data.institution.rectorName   || "";
+  const dirName = data.institution.directorGeneralName || "Le Directeur Général des Enseignements";
+  const attNum  = data.degree.diplomaNumber     || `ATT-${data.student.matricule || data.student.id}`;
 
-  // Left School Logo (Positioned away from top-left rosette)
-  const logoX = 22, logoY = 13, logoSize = 20;
+  const logoX = 24, logoY = 12, logoSize = 22;
   let logoLoaded = false;
   if (data.institution.logo) {
     try {
@@ -559,145 +544,232 @@ export async function generateLmdAttestationReussitePDF(data: LmdDiplomaParams):
     }
   }
 
-  // Right Coat of Arms of Niger (Positioned away from top-right rosette)
-  drawNigerCoatOfArms(doc, pw - 26, 23, 0.72);
+  const boxW = 55, boxH = 22;
+  const boxX = pw - 24 - boxW;
+  const boxY = 12;
+
+  doc.setDrawColor(0, 100, 0);
+  doc.setLineWidth(0.7);
+  doc.rect(boxX, boxY, boxW, boxH, "S");
+
+  drawNigerCoatOfArms(doc, boxX + 27.5, boxY + 6.2, 0.42);
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(5.0);
+  doc.setTextColor(0, 100, 0);
+  doc.text("MINISTERE DE L'ENSEIGNEMENT SUPERIEUR", boxX + 27.5, boxY + 12.5, { align: "center" });
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(4.4);
+  doc.setTextColor(60, 60, 60);
+  doc.text("Direction Générale de l'Enseignement", boxX + 27.5, boxY + 15.5, { align: "center" });
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7.0);
+  doc.setTextColor(15, 15, 15);
+  doc.text(attNum, boxX + 27.5, boxY + 19.8, { align: "center" });
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(13);
+  doc.setTextColor(10, 10, 10);
+  doc.text(country, hCX, 16, { align: "center" });
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(6.8);
+  doc.setTextColor(50, 50, 50);
+  doc.text(ministry.toUpperCase(), hCX, 21.5, { align: "center", maxWidth: 155 });
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
   doc.setTextColor(10, 10, 10);
-  doc.text(country, hCX, 19, { align: "center" });
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(7);
-  doc.setTextColor(40, 40, 40);
-  doc.text(ministry.toUpperCase(), hCX, 24.5, { align: "center", maxWidth: pw - 75 });
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(12.5);
-  doc.setTextColor(10, 10, 10);
-  doc.text(school, hCX, 32, { align: "center", maxWidth: pw - 55 });
+  doc.text(school, hCX, 28, { align: "center", maxWidth: 160 });
 
-  // Banner
-  const bY2 = 38;
+  const bannerY = 37.5;
+  const bannerH = 15;
   doc.setFillColor(0, 100, 0);
-  doc.rect(10.5, bY2, pw - 21, 15, "F");
+  doc.rect(10.5, bannerY, pw - 21, bannerH, "F");
   doc.setDrawColor(180, 140, 0);
   doc.setLineWidth(1.2);
-  doc.line(10.5, bY2, pw - 10.5, bY2);
-  doc.line(10.5, bY2 + 15, pw - 10.5, bY2 + 15);
+  doc.line(10.5, bannerY, pw - 10.5, bannerY);
+  doc.line(10.5, bannerY + bannerH, pw - 10.5, bannerY + bannerH);
+
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(14);
+  doc.setFontSize(18);
   doc.setTextColor(255, 215, 0);
   doc.text(
     `ATTESTATION DE RÉUSSITE – DIPLÔME DE ${data.degree.title.toUpperCase()}`,
-    hCX, bY2 + 9.5, { align: "center", maxWidth: pw - 25 }
+    hCX, bannerY + 10.2, { align: "center", maxWidth: pw - 25 }
   );
 
-  let curY = bY2 + 22;
-  const bX = 13;
-  const bW = pw - 26;
-
-  // VU clauses (portrait – compact & bold)
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8.5);
-  doc.setTextColor(15, 15, 15);
-  const defaultVuPortrait = [
+  const defaultVuClauses = [
     "Vu la loi N° 98-12 du 1er Juin 1998, portant Orientation du Système Educatif Nigérien et les textes modifiants subséquents;",
     "Vu l'ordonnance N° 96-035 du 19 Juin 1996 portant réglementation de l'enseignement privé au Niger;",
     "Vu le décret N° 2010-402/PCSRD/MESS/RS du 14 Mai 2010, portant institution du système Licence, Master et Doctorat LMD;",
+    "Vu l'arrêté N° 00105/MEMS/SG/DGE/DES/DES/DEPRI du 13 Mai 2013, fixant les conditions et modalités de délivrance des diplômes;",
+    "Vu l'arrêté N° 092/MES/R/II/SG/DGE/DL/DESP/DESPRI du 28 Août 2017, portant autorisation de création de l'Université;",
     "Vu la décision du Conseil Universitaire dans son assise en date du présent;",
   ];
-  const customVuPortrait = data.degree.vuClauses || data.institution.vuClauses;
-  const vuPortrait = (customVuPortrait && customVuPortrait.length > 0) ? customVuPortrait.slice(0, 5) : defaultVuPortrait;
 
-  for (const clause of vuPortrait) {
-    const lines2: string[] = doc.splitTextToSize(clause, bW);
-    doc.text(lines2, bX, curY);
-    curY += lines2.length * 4.5 + 0.8;
+  const customVu = data.degree.vuClauses || data.institution.vuClauses;
+  const vuClauses = (customVu && customVu.length > 0) ? customVu : defaultVuClauses;
+
+  const count = vuClauses.length;
+  const vuFontSize = count >= 9 ? 7.4 : count >= 7 ? 8.0 : 8.5;
+  const vuLineH    = count >= 9 ? 3.5 : count >= 7 ? 4.0 : 4.5;
+  const clauseX    = 13;
+  const clauseMaxW = pw - 26;
+
+  let cY = bannerY + bannerH + (count >= 9 ? 4.0 : 6.5);
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(vuFontSize);
+  doc.setTextColor(15, 15, 15);
+
+  for (const clause of vuClauses) {
+    const lines: string[] = doc.splitTextToSize(clause, clauseMaxW);
+    doc.text(lines, clauseX, cY);
+    cY += lines.length * vuLineH + 0.3;
   }
-  curY += 4;
 
-  // Declaration preamble
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
+  cY += (count >= 9 ? 2.0 : 3.0);
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(count >= 9 ? 8.5 : 9.0);
   doc.setTextColor(20, 20, 20);
-  doc.text("Le Doyen de la Faculté et le Président du Jury d'Examen soussignés certifient que :", bX, curY);
-  curY += 7;
+  doc.text("Le Doyen de la Faculté et le Président du Jury d'Examen soussignés certifient que :", clauseX, cY);
+  cY += (count >= 9 ? 4.2 : 5.0);
 
+  const declBoxY = cY;
   const fullName2 = `${(data.student.nom || "").toUpperCase()} ${(data.student.prenom || "").toUpperCase()}`.trim();
-  const seg2: { text: string; bold?: boolean }[] = [
+  const dob2      = data.student.dateNaissance || "01-01-2000";
+  const pob2      = data.student.lieuNaissance || "Niamey";
+  const nat2      = data.student.nationalite   || "Nigériane";
+  const mat2      = data.student.matricule     || "N/A";
+  const spec2     = data.degree.specialization || "Sciences";
+  const faculty2  = data.degree.fieldOfStudy   || "Faculté";
+  const mention2  = data.degree.mention        || "Bien";
+  const session2  = data.degree.sessionName    || "2024-2025";
+  const degTitle2 = data.degree.title          || "LICENCE";
+
+  const paraFontSize2 = count >= 9 ? 9.5 : 10.0;
+  const paraLineH2    = count >= 9 ? 5.2 : 5.8;
+  const boxPad2       = count >= 9 ? 3.5 : 4.0;
+  const innerW2       = clauseMaxW - boxPad2 * 2;
+
+  const segments2: { text: string; bold?: boolean }[] = [
     { text: fullName2, bold: true },
-    { text: `, Né(e) le : ${data.student.dateNaissance || "01/01/2000"} à ${data.student.lieuNaissance || "Niamey"}, Nationalité: ${data.student.nationalite || "Nigériane"}, Matricule : ${data.student.matricule || "N/A"} a obtenu le Diplôme de ` },
-    { text: `${data.degree.title} en ${data.degree.specialization}`, bold: true },
+    { text: `, Né(e) le : ` },
+    { text: dob2 },
+    { text: ` à ` },
+    { text: pob2 },
+    { text: `, Nationalité: ` },
+    { text: nat2 },
+    { text: `, Matricule : ` },
+    { text: mat2 },
+    { text: ` a obtenu le Diplôme de ` },
+    { text: `${degTitle2} en ${spec2}`, bold: true },
     { text: `, dans la ` },
-    { text: data.degree.fieldOfStudy, bold: true },
+    { text: faculty2, bold: true },
     { text: ` avec la mention générale: ` },
-    { text: data.degree.mention, bold: true },
-    { text: `, Session: ${data.degree.sessionName}.` },
+    { text: mention2, bold: true },
+    { text: `, Session: ` },
+    { text: session2 },
+    { text: `.` },
   ];
-  const fullPlain2 = seg2.map(s => s.text).join("");
-  const mLines2 = doc.splitTextToSize(fullPlain2, bW - 7);
-  const declH2  = mLines2.length * 6.0 + 8;
+
+  const fullPlain2 = segments2.map(s => s.text).join("");
+  const measLines2 = doc.splitTextToSize(fullPlain2, innerW2);
+  const declBoxH2  = measLines2.length * paraLineH2 + boxPad2 * 2 + 1.5;
 
   doc.setFillColor(248, 252, 248);
   doc.setDrawColor(0, 110, 0);
   doc.setLineWidth(0.7);
-  doc.roundedRect(bX, curY, bW, declH2, 2, 2, "FD");
+  doc.roundedRect(clauseX, declBoxY, clauseMaxW, declBoxH2, 2, 2, "FD");
 
-  renderMixedTextWrapped(doc, seg2, bX + 3.5, curY + 6, bW - 7, 6.0, 10);
-  curY += declH2 + 8;
-
-  // Legal note
-  doc.setFont("helvetica", "italic");
-  doc.setFontSize(8.5);
-  doc.setTextColor(80, 80, 80);
-  const noteLines = doc.splitTextToSize(
-    "La présente attestation est délivrée en un seul exemplaire en attendant l'établissement du diplôme définitif.",
-    bW
+  renderMixedTextWrapped(
+    doc,
+    segments2,
+    clauseX + boxPad2,
+    declBoxY + boxPad2 + paraFontSize2 * 0.35,
+    innerW2,
+    paraLineH2,
+    paraFontSize2
   );
-  doc.text(noteLines, hCX, curY, { align: "center" });
-  curY += noteLines.length * 5 + 12;
 
-  // Signatures
+  const noteY = declBoxY + declBoxH2 + (count >= 9 ? 3.0 : 4.0);
+  doc.setFont("helvetica", "italic");
+  doc.setFontSize(7.8);
+  doc.setTextColor(80, 80, 80);
+  doc.text(
+    "La présente attestation est délivrée en un seul exemplaire en attendant l'établissement du diplôme définitif.",
+    hCX,
+    noteY,
+    { align: "center" }
+  );
+
+  const sigY2 = Math.max(148, noteY + (count >= 9 ? 4.5 : 7.0));
+
+  const col1X2 = 22;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9.5);
+  doc.setTextColor(10, 10, 10);
+  doc.text("Le Doyen de la Faculté", col1X2, sigY2);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8.5);
+  doc.text("Signature et Cachet Officiel", col1X2, sigY2 + 7.5);
+  doc.setDrawColor(80, 80, 80);
+  doc.setLineWidth(0.35);
+  doc.line(col1X2, sigY2 + 22, col1X2 + 55, sigY2 + 22);
+
+  const col2X2 = pw / 2;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9.5);
+  doc.setTextColor(10, 10, 10);
+  doc.text("Le Recteur /", col2X2, sigY2, { align: "center" });
+  doc.text("Président du Conseil", col2X2, sigY2 + 6, { align: "center" });
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8.5);
+  doc.text("Signature...............................", col2X2, sigY2 + 15, { align: "center" });
+  if (rector) {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.text(rector, col2X2, sigY2 + 23, { align: "center" });
+  }
+
+  const col3X2 = pw - 22;
   const dateStr2 = data.degree.deliberationDate ||
     new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9.5);
   doc.setTextColor(10, 10, 10);
-  doc.text("Le Doyen de la Faculté", bX, curY);
+  doc.text(`Fait à ${city}, le ${dateStr2}`, col3X2, sigY2, { align: "right" });
+  doc.text("P. Le Ministre PO.", col3X2, sigY2 + 7.5, { align: "right" });
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8.5);
-  doc.text("Signature et Cachet Officiel", bX, curY + 6.5);
-  doc.setDrawColor(80, 80, 80);
+  doc.text("Signature......................", col3X2, sigY2 + 15, { align: "right" });
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.text(dirName, col3X2, sigY2 + 23, { align: "right" });
+  doc.setDrawColor(60, 60, 60);
   doc.setLineWidth(0.35);
-  doc.line(bX, curY + 20, bX + 58, curY + 20);
+  doc.line(col3X2 - 58, sigY2 + 28, col3X2, sigY2 + 28);
 
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(9.5);
-  doc.text(`Fait à ${city}, le ${dateStr2}`, pw - bX, curY, { align: "right" });
-  doc.text("P. Le Ministre PO.", pw - bX, curY + 9, { align: "right" });
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8.5);
-  doc.text("Signature......................", pw - bX, curY + 15.5, { align: "right" });
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8.2);
-  doc.text(dirName, pw - bX, curY + 22, { align: "right" });
-  doc.setDrawColor(80, 80, 80);
-  doc.line(pw - bX - 58, curY + 28, pw - bX, curY + 28);
-  curY += 34;
-
-  // QR Code
+  // Security QR Code (Bottom Left)
   const appUrl2   = process.env.NEXT_PUBLIC_APP_URL || "https://niger.edut.pro";
   const verifUrl2 = `${appUrl2}/verify/${encodeURIComponent(data.student.matricule || String(data.student.id))}`;
+  const qrX2      = 22;
+  const qrY2      = ph - 28;
   try {
-    const qrData2 = await QRCode.toDataURL(verifUrl2, { margin: 1, width: 100 });
-    doc.addImage(qrData2, "PNG", bX, curY, 24, 24);
+    const qrData2 = await QRCode.toDataURL(verifUrl2, { margin: 1, width: 128 });
+    doc.addImage(qrData2, "PNG", qrX2, qrY2 - 1, 17, 17);
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(6.5);
+    doc.setFontSize(6.2);
     doc.setTextColor(30, 30, 30);
-    doc.text("Veuillez visiter ce lien pour vérification", bX + 27, curY + 7.5);
-    doc.text("de l'authenticité du document:", bX + 27, curY + 12);
+    doc.text("Veuillez visiter ce lien pour vérification", qrX2 + 20, qrY2 + 4.5);
+    doc.text("de l'authenticité du document:", qrX2 + 20, qrY2 + 8.5);
     doc.setTextColor(0, 70, 180);
-    doc.text(verifUrl2, bX + 27, curY + 17);
+    doc.text(verifUrl2, qrX2 + 20, qrY2 + 12.5);
   } catch (_) {}
 
   const cleanNom2 = (data.student.nom || "Etudiant").replace(/[^a-zA-Z0-9]/g, "_");
