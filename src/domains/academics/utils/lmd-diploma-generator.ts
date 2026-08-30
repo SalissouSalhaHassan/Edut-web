@@ -1,12 +1,11 @@
 /**
  * Official University Degree Generator – Diplôme de Licence / Master / Doctorat
- * v5 - Layout update:
- * 1. VU legal clauses: 10pt font with 5mm line spacing for optimal readability
- * 2. Prominent full-width green banner with large gold typography
- * 3. Deleted artificial circular seals and decorative central ornaments for a clean official finish
- * 4. Spacious laureate declaration box with selective inline bold
- * 5. Three clean signature columns (L'impétrant, Recteur, Ministre PO)
- * 6. Scannable security QR verification code
+ * v6 - Balanced Layout Adjustments:
+ * 1. Lowered green banner (y=38) to give clean breathing room below logo & ministry box
+ * 2. Bold VU legal clauses with clean 4.5mm line spacing and 0 overlap
+ * 3. Lowered signature blocks to the bottom area with ample signing space
+ * 4. Shifted QR code away from the bottom-left corner rosette
+ * 5. Maintained clean, official aesthetic without clutter
  */
 
 import QRCode from "qrcode";
@@ -163,14 +162,14 @@ export async function generateLmdOfficialDiplomaPDF(data: LmdDiplomaParams): Pro
   const dipNum  = data.degree.diplomaNumber     || `${data.student.matricule || data.student.id}`;
 
   // ─── 1. LEFT LOGO ──────────────────────────────────────────────────────
-  const logoX = 14, logoY = 12, logoSize = 25;
+  const logoX = 15, logoY = 11, logoSize = 23;
   if (data.institution.logo) {
     try { doc.addImage(data.institution.logo, "PNG", logoX, logoY, logoSize, logoSize); } catch (_) {}
   } else {
     doc.setDrawColor(0, 110, 0);
     doc.setLineWidth(0.8);
     doc.circle(logoX + logoSize / 2, logoY + logoSize / 2, logoSize / 2, "S");
-    doc.circle(logoX + logoSize / 2, logoY + logoSize / 2, logoSize / 2 - 3.5, "S");
+    doc.circle(logoX + logoSize / 2, logoY + logoSize / 2, logoSize / 2 - 3, "S");
     doc.setFont("helvetica", "bold");
     doc.setFontSize(5.5);
     doc.setTextColor(0, 110, 0);
@@ -178,50 +177,50 @@ export async function generateLmdOfficialDiplomaPDF(data: LmdDiplomaParams): Pro
   }
 
   // ─── 2. TOP-RIGHT MINISTRY BOX ─────────────────────────────────────────
-  const boxW = 52, boxH = 26;
-  const boxX = pw - 14 - boxW, boxY = 12;
+  const boxW = 52, boxH = 24;
+  const boxX = pw - 15 - boxW, boxY = 11;
   doc.setDrawColor(0, 110, 0);
   doc.setLineWidth(0.7);
   doc.rect(boxX, boxY, boxW, boxH, "S");
   if (data.institution.ministryLogo) {
-    try { doc.addImage(data.institution.ministryLogo, "PNG", boxX + 2, boxY + 2, 15, 15); } catch (_) {}
+    try { doc.addImage(data.institution.ministryLogo, "PNG", boxX + 2, boxY + 2, 14, 14); } catch (_) {}
   } else {
     doc.setFillColor(200, 160, 0);
-    doc.circle(boxX + 10, boxY + 10, 7, "F");
+    doc.circle(boxX + 9, boxY + 9, 6.5, "F");
     doc.setFillColor(120, 80, 0);
-    doc.circle(boxX + 10, boxY + 10, 4, "F");
+    doc.circle(boxX + 9, boxY + 9, 3.5, "F");
   }
   const mlabel = data.institution.ministryLabel || "MINISTERE DE L'ENSEIGNEMENT SUPERIEUR\nDirection Générale de l'Enseignement";
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(5.5);
+  doc.setFontSize(5.2);
   doc.setTextColor(15, 15, 15);
   mlabel.split("\n").forEach((line: string, i: number) => {
-    doc.text(line, boxX + 20, boxY + 6 + i * 5, { maxWidth: boxW - 22 });
+    doc.text(line, boxX + 18, boxY + 5.5 + i * 4.5, { maxWidth: boxW - 20 });
   });
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(11.5);
+  doc.setFontSize(11);
   doc.setTextColor(10, 10, 10);
-  doc.text(dipNum, boxX + boxW / 2, boxY + 21.5, { align: "center" });
+  doc.text(dipNum, boxX + boxW / 2, boxY + 20, { align: "center" });
 
   // ─── 3. CENTER HEADER ──────────────────────────────────────────────────
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
+  doc.setFontSize(11.5);
   doc.setTextColor(10, 10, 10);
-  doc.text(country, hCX, 17, { align: "center" });
+  doc.text(country, hCX, 16, { align: "center" });
 
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(7.2);
+  doc.setFontSize(6.8);
   doc.setTextColor(40, 40, 40);
-  doc.text(ministry.toUpperCase(), hCX, 22.5, { align: "center", maxWidth: 148 });
+  doc.text(ministry.toUpperCase(), hCX, 21, { align: "center", maxWidth: 146 });
 
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(13);
+  doc.setFontSize(12);
   doc.setTextColor(10, 10, 10);
-  doc.text(school, hCX, 29.5, { align: "center", maxWidth: 162 });
+  doc.text(school, hCX, 28, { align: "center", maxWidth: 160 });
 
-  // ─── 4. FULL-WIDTH GREEN BANNER ────────────────────────────────────────
-  const bannerY = 33.5;
-  const bannerH = 17;
+  // ─── 4. FULL-WIDTH GREEN BANNER (LOWERED TO CLEAR LOGOS) ───────────────
+  const bannerY = 38;
+  const bannerH = 15;
   doc.setFillColor(0, 100, 0);
   doc.rect(10.5, bannerY, pw - 21, bannerH, "F");
   doc.setDrawColor(180, 140, 0);
@@ -230,21 +229,21 @@ export async function generateLmdOfficialDiplomaPDF(data: LmdDiplomaParams): Pro
   doc.line(10.5, bannerY + bannerH, pw - 10.5, bannerY + bannerH);
 
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(24);
+  doc.setFontSize(22);
   doc.setTextColor(255, 215, 0);
   doc.text(
     `DIPLÔME DE ${data.degree.title.toUpperCase()}`,
-    hCX, bannerY + 12, { align: "center" }
+    hCX, bannerY + 10.5, { align: "center" }
   );
 
-  // ─── 5. VU LEGAL CLAUSES (10pt Font, 5mm Spacing) ──────────────────────
+  // ─── 5. VU LEGAL CLAUSES (BOLD, CLEAR SPACING) ─────────────────────────
   let cY = bannerY + bannerH + 4.5;
   const clauseX    = 13;
   const clauseMaxW = pw - 26;
-  const vuFontSize = 10;
-  const vuLineH    = 5.0;
+  const vuFontSize = 8.5;
+  const vuLineH    = 4.5;
 
-  doc.setFont("helvetica", "normal");
+  doc.setFont("helvetica", "bold");
   doc.setFontSize(vuFontSize);
   doc.setTextColor(15, 15, 15);
 
@@ -260,7 +259,7 @@ export async function generateLmdOfficialDiplomaPDF(data: LmdDiplomaParams): Pro
   for (const clause of vuClauses) {
     const lines: string[] = doc.splitTextToSize(clause, clauseMaxW);
     doc.text(lines, clauseX, cY);
-    cY += lines.length * vuLineH + 0.8;
+    cY += lines.length * vuLineH + 0.5;
   }
 
   // ─── 6. LAUREATE PARAGRAPH WITH INLINE BOLD ────────────────────────────
@@ -276,9 +275,9 @@ export async function generateLmdOfficialDiplomaPDF(data: LmdDiplomaParams): Pro
   const session  = data.degree.sessionName    || "2024-2025";
   const degTitle = data.degree.title          || "LICENCE";
 
-  const paraFontSize = 10.5;
-  const paraLineH    = 6.0;
-  const boxPad       = 4;
+  const paraFontSize = 10;
+  const paraLineH    = 5.6;
+  const boxPad       = 3.5;
   const innerW       = clauseMaxW - boxPad * 2;
 
   const segments: { text: string; bold?: boolean }[] = [
@@ -311,7 +310,7 @@ export async function generateLmdOfficialDiplomaPDF(data: LmdDiplomaParams): Pro
   doc.setLineWidth(0.7);
   doc.roundedRect(clauseX, cY, clauseMaxW, declBoxH, 2, 2, "FD");
 
-  const afterParaY = renderMixedTextWrapped(
+  renderMixedTextWrapped(
     doc,
     segments,
     clauseX + boxPad,
@@ -321,13 +320,11 @@ export async function generateLmdOfficialDiplomaPDF(data: LmdDiplomaParams): Pro
     paraFontSize
   );
 
-  cY = Math.max(afterParaY, cY + declBoxH) + 6;
-
-  // ─── 7. SIGNATURES BLOCK (CLEAN & SPACIOUS WITHOUT ARTIFICIAL SEALS) ────
-  const sigY = cY;
+  // ─── 7. SIGNATURES BLOCK (LOWERED TO DESIGNATED RED MARKED AREA) ────────
+  const sigY = 138;
 
   // Column 1 — L'impétrant (left)
-  const col1X = 18;
+  const col1X = 22;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9.5);
   doc.setTextColor(10, 10, 10);
@@ -353,7 +350,7 @@ export async function generateLmdOfficialDiplomaPDF(data: LmdDiplomaParams): Pro
   }
 
   // Column 3 — Fait à / Ministre (right)
-  const col3X = pw - 18;
+  const col3X = pw - 22;
   const dateStr = data.degree.deliberationDate ||
     new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
 
@@ -361,32 +358,33 @@ export async function generateLmdOfficialDiplomaPDF(data: LmdDiplomaParams): Pro
   doc.setFontSize(9.5);
   doc.setTextColor(10, 10, 10);
   doc.text(`Fait à ${city}, le ${dateStr}`, col3X, sigY, { align: "right" });
-  doc.text("P. Le Ministre PO.", col3X, sigY + 9, { align: "right" });
+  doc.text("P. Le Ministre PO.", col3X, sigY + 8, { align: "right" });
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8.5);
-  doc.text("Signature......................", col3X, sigY + 16, { align: "right" });
+  doc.text("Signature......................", col3X, sigY + 15, { align: "right" });
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8.5);
-  doc.text(dirName, col3X, sigY + 23, { align: "right" });
+  doc.text(dirName, col3X, sigY + 22, { align: "right" });
   doc.setDrawColor(60, 60, 60);
   doc.setLineWidth(0.35);
-  doc.line(col3X - 56, sigY + 28, col3X, sigY + 28);
+  doc.line(col3X - 56, sigY + 27, col3X, sigY + 27);
 
-  // ─── 8. SECURITY QR CODE BOTTOM-LEFT ───────────────────────────────────
+  // ─── 8. SECURITY QR CODE (SHIFTED RIGHT FROM CORNER ROSETTE) ───────────
   const appUrl   = process.env.NEXT_PUBLIC_APP_URL || "https://niger.edut.pro";
   const verifUrl = `${appUrl}/verify/${encodeURIComponent(data.student.matricule || String(data.student.id))}`;
-  const qrY      = ph - 28;
+  const qrX      = 24;
+  const qrY      = ph - 30;
   try {
     const qrData = await QRCode.toDataURL(verifUrl, { margin: 1, width: 128 });
-    doc.addImage(qrData, "PNG", clauseX, qrY - 2, 18, 18);
+    doc.addImage(qrData, "PNG", qrX, qrY, 18, 18);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(6.2);
     doc.setTextColor(30, 30, 30);
-    doc.text("Veuillez visiter ce lien pour vérification", clauseX + 21, qrY + 5);
-    doc.text("de l'authenticité du document:", clauseX + 21, qrY + 9.5);
+    doc.text("Veuillez visiter ce lien pour vérification", qrX + 22, qrY + 5.5);
+    doc.text("de l'authenticité du document:", qrX + 22, qrY + 10);
     doc.setTextColor(0, 70, 180);
     doc.setFontSize(6);
-    doc.text(verifUrl, clauseX + 21, qrY + 14);
+    doc.text(verifUrl, qrX + 22, qrY + 14.5);
   } catch (_) {}
 
   const cleanNom = (data.student.nom || "Etudiant").replace(/[^a-zA-Z0-9]/g, "_");
@@ -442,7 +440,7 @@ export async function generateLmdAttestationReussitePDF(data: LmdDiplomaParams):
   doc.text(school, hCX, 32, { align: "center", maxWidth: pw - 28 });
 
   // Banner
-  const bY2 = 36;
+  const bY2 = 38;
   doc.setFillColor(0, 100, 0);
   doc.rect(10.5, bY2, pw - 21, 15, "F");
   doc.setDrawColor(180, 140, 0);
@@ -461,8 +459,8 @@ export async function generateLmdAttestationReussitePDF(data: LmdDiplomaParams):
   const bX = 13;
   const bW = pw - 26;
 
-  // VU clauses (portrait – compact)
-  doc.setFont("helvetica", "normal");
+  // VU clauses (portrait – compact & bold)
+  doc.setFont("helvetica", "bold");
   doc.setFontSize(8.5);
   doc.setTextColor(15, 15, 15);
   const vuPortrait = [
@@ -542,7 +540,7 @@ export async function generateLmdAttestationReussitePDF(data: LmdDiplomaParams):
   doc.setFontSize(8.5);
   doc.text("Signature......................", pw - bX, curY + 15.5, { align: "right" });
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(8.5);
+  doc.setFontSize(8.2);
   doc.text(dirName, pw - bX, curY + 22, { align: "right" });
   doc.setDrawColor(80, 80, 80);
   doc.line(pw - bX - 58, curY + 28, pw - bX, curY + 28);
