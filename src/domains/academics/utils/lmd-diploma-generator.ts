@@ -247,7 +247,8 @@ export async function generateLmdOfficialDiplomaPDF(data: LmdDiplomaParams): Pro
   const dipNum  = data.degree.diplomaNumber     || `${data.student.matricule || data.student.id}`;
 
   // ─── 1. LEFT LOGO (SCHOOL LOGO) ────────────────────────────────────────
-  const logoX = 15, logoY = 11, logoSize = 23;
+  // Positioned with ample space away from the top-left corner rosette
+  const logoX = 24, logoY = 12, logoSize = 22;
   let logoLoaded = false;
   if (data.institution.logo) {
     try {
@@ -280,8 +281,9 @@ export async function generateLmdOfficialDiplomaPDF(data: LmdDiplomaParams): Pro
   }
 
   // ─── 2. TOP-RIGHT MINISTRY BOX WITH OFFICIAL NIGER COAT OF ARMS ────────
-  const boxW = 56, boxH = 25;
-  const boxX = pw - 14 - boxW, boxY = 11;
+  // Positioned symmetrically with ample space away from top-right corner rosette
+  const boxW = 55, boxH = 24;
+  const boxX = pw - 24 - boxW, boxY = 12;
   doc.setDrawColor(0, 110, 0);
   doc.setLineWidth(0.7);
   doc.rect(boxX, boxY, boxW, boxH, "S");
@@ -289,29 +291,29 @@ export async function generateLmdOfficialDiplomaPDF(data: LmdDiplomaParams): Pro
   // Draw Coat of Arms of Niger (Center of Box Top)
   if (data.institution.ministryLogo) {
     try {
-      doc.addImage(data.institution.ministryLogo, "PNG", boxX + boxW / 2 - 9, boxY + 1.5, 18, 11);
+      doc.addImage(data.institution.ministryLogo, "PNG", boxX + boxW / 2 - 9, boxY + 1.5, 18, 10.5);
     } catch (_) {
-      drawNigerCoatOfArms(doc, boxX + boxW / 2, boxY + 6.5, 0.75);
+      drawNigerCoatOfArms(doc, boxX + boxW / 2, boxY + 6.2, 0.72);
     }
   } else {
-    drawNigerCoatOfArms(doc, boxX + boxW / 2, boxY + 6.5, 0.75);
+    drawNigerCoatOfArms(doc, boxX + boxW / 2, boxY + 6.2, 0.72);
   }
 
   // Ministry Label & Diploma Number
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(5.4);
+  doc.setFontSize(5.3);
   doc.setTextColor(10, 10, 10);
-  doc.text("MINISTERE DE L'ENSEIGNEMENT SUPERIEUR", boxX + boxW / 2, boxY + 14.8, { align: "center" });
+  doc.text("MINISTERE DE L'ENSEIGNEMENT SUPERIEUR", boxX + boxW / 2, boxY + 14.2, { align: "center" });
 
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(4.8);
+  doc.setFontSize(4.7);
   doc.setTextColor(40, 40, 40);
-  doc.text("Direction Générale de l'Enseignement", boxX + boxW / 2, boxY + 18.2, { align: "center" });
+  doc.text("Direction Générale de l'Enseignement", boxX + boxW / 2, boxY + 17.5, { align: "center" });
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10.5);
   doc.setTextColor(10, 10, 10);
-  doc.text(dipNum, boxX + boxW / 2, boxY + 23.2, { align: "center" });
+  doc.text(dipNum, boxX + boxW / 2, boxY + 22.5, { align: "center" });
 
   // ─── 3. CENTER HEADER ──────────────────────────────────────────────────
   doc.setFont("helvetica", "bold");
@@ -537,8 +539,8 @@ export async function generateLmdAttestationReussitePDF(data: LmdDiplomaParams):
   const city   = data.institution.city          || "Niamey";
   const dirName= data.institution.directorGeneralName || "Le Directeur Général des Enseignements";
 
-  // Left School Logo
-  const logoX = 14, logoY = 12, logoSize = 22;
+  // Left School Logo (Positioned away from top-left rosette)
+  const logoX = 22, logoY = 13, logoSize = 20;
   let logoLoaded = false;
   if (data.institution.logo) {
     try {
@@ -552,8 +554,8 @@ export async function generateLmdAttestationReussitePDF(data: LmdDiplomaParams):
     }
   }
 
-  // Right Coat of Arms
-  drawNigerCoatOfArms(doc, pw - 24, 22, 0.7);
+  // Right Coat of Arms of Niger (Positioned away from top-right rosette)
+  drawNigerCoatOfArms(doc, pw - 26, 23, 0.72);
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
@@ -562,7 +564,7 @@ export async function generateLmdAttestationReussitePDF(data: LmdDiplomaParams):
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7);
   doc.setTextColor(40, 40, 40);
-  doc.text(ministry.toUpperCase(), hCX, 24.5, { align: "center", maxWidth: pw - 55 });
+  doc.text(ministry.toUpperCase(), hCX, 24.5, { align: "center", maxWidth: pw - 75 });
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12.5);
   doc.setTextColor(10, 10, 10);
