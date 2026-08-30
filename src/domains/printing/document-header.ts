@@ -64,10 +64,22 @@ export type DocumentHeaderConfig = {
   documentTypes?: string[];
   isDefault?: boolean;
   
+  // Official University Legal Visas & Clauses
+  vuClauses?: string[];
+
   // Multi-Level & Custom Profile Extension
   levelProfiles?: LevelHeaderProfile[];
   activeLevelProfileId?: string;
 };
+
+export const DEFAULT_LMD_VU_CLAUSES: string[] = [
+  "Vu la loi N° 98-12 du 1er Juin 1998, portant Orientation du Système Educatif Nigérien et les textes modifiants subséquents;",
+  "Vu l'ordonnance N° 96-035 du 19 Juin 1996 portant réglementation de l'enseignement privé au Niger;",
+  "Vu le décret N° 2010-402/PCSRD/MESS/RS du 14 Mai 2010, portant institution du système Licence, Master et Doctorat LMD;",
+  "Vu l'arrêté N° 00105/MEMS/SG/DGE/DES/DES/DEPRI du 13 Mai 2013, fixant les conditions et modalités de délivrance des diplômes;",
+  "Vu l'arrêté N° 092/MES/R/II/SG/DGE/DL/DESP/DESPRI du 28 Août 2017, portant autorisation de création de l'Université;",
+  "Vu la décision du Conseil Universitaire dans son assise en date du présent;",
+];
 
 export const DOCUMENT_HEADER_SETTING_KEY = "official_document_header";
 
@@ -100,6 +112,7 @@ export const defaultDocumentHeaderConfig: DocumentHeaderConfig = {
   bilingual: false,
   documentTypes: ["reports", "receipts", "transcripts", "certificates", "cards"],
   isDefault: true,
+  vuClauses: DEFAULT_LMD_VU_CLAUSES,
   levelProfiles: [],
 };
 

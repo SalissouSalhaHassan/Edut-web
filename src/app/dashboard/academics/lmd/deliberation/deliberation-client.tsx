@@ -734,6 +734,11 @@ export default function DeliberationClient({
           city: headerConfig?.city || "Niamey",
           logo: headerConfig?.leftLogo || headerConfig?.schoolLogo || headerConfig?.logo || headerConfig?.logoUrl || headerConfig?.centerLogo || undefined,
           ministryLogo: headerConfig?.rightLogo || headerConfig?.ministryLogo || undefined,
+          vuClauses: Array.isArray(headerConfig?.vuClauses)
+            ? headerConfig.vuClauses
+            : typeof headerConfig?.vuClauses === "string" && headerConfig.vuClauses.startsWith("[")
+            ? JSON.parse(headerConfig.vuClauses)
+            : undefined,
         },
       };
 
@@ -796,6 +801,11 @@ export default function DeliberationClient({
           city: headerConfig?.city || "Niamey",
           logo: headerConfig?.leftLogo || headerConfig?.schoolLogo || headerConfig?.logo || headerConfig?.logoUrl || headerConfig?.centerLogo || undefined,
           ministryLogo: headerConfig?.rightLogo || headerConfig?.ministryLogo || undefined,
+          vuClauses: Array.isArray(headerConfig?.vuClauses)
+            ? headerConfig.vuClauses
+            : typeof headerConfig?.vuClauses === "string" && headerConfig.vuClauses.startsWith("[")
+            ? JSON.parse(headerConfig.vuClauses)
+            : undefined,
         },
       };
 

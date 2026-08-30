@@ -36,6 +36,7 @@ export interface LmdDiplomaParams {
     sessionName: string;
     deliberationDate?: string;
     diplomaNumber?: string;
+    vuClauses?: string[];
   };
   institution: {
     name?: string;
@@ -49,6 +50,7 @@ export interface LmdDiplomaParams {
     city?: string;
     logo?: string;
     ministryLogo?: string;
+    vuClauses?: string[];
   };
 }
 
@@ -360,7 +362,7 @@ export async function generateLmdOfficialDiplomaPDF(data: LmdDiplomaParams): Pro
   doc.setFontSize(vuFontSize);
   doc.setTextColor(15, 15, 15);
 
-  const vuClauses = [
+  const defaultVuClauses = [
     "Vu la loi N° 98-12 du 1er Juin 1998, portant Orientation du Système Educatif Nigérien et les textes modifiants subséquents;",
     "Vu l'ordonnance N° 96-035 du 19 Juin 1996 portant réglementation de l'enseignement privé au Niger;",
     "Vu le décret N° 2010-402/PCSRD/MESS/RS du 14 Mai 2010, portant institution du système Licence, Master et Doctorat LMD;",
@@ -368,6 +370,9 @@ export async function generateLmdOfficialDiplomaPDF(data: LmdDiplomaParams): Pro
     "Vu l'arrêté N° 092/MES/R/II/SG/DGE/DL/DESP/DESPRI du 28 Août 2017, portant autorisation de création de l'Université;",
     "Vu la décision du Conseil Universitaire dans son assise en date du présent;",
   ];
+
+  const customVu = data.degree.vuClauses || data.institution.vuClauses;
+  const vuClauses = (customVu && customVu.length > 0) ? customVu : defaultVuClauses;
 
   for (const clause of vuClauses) {
     const lines: string[] = doc.splitTextToSize(clause, clauseMaxW);
@@ -594,12 +599,15 @@ export async function generateLmdAttestationReussitePDF(data: LmdDiplomaParams):
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8.5);
   doc.setTextColor(15, 15, 15);
-  const vuPortrait = [
+  const defaultVuPortrait = [
     "Vu la loi N° 98-12 du 1er Juin 1998, portant Orientation du Système Educatif Nigérien et les textes modifiants subséquents;",
     "Vu l'ordonnance N° 96-035 du 19 Juin 1996 portant réglementation de l'enseignement privé au Niger;",
     "Vu le décret N° 2010-402/PCSRD/MESS/RS du 14 Mai 2010, portant institution du système Licence, Master et Doctorat LMD;",
     "Vu la décision du Conseil Universitaire dans son assise en date du présent;",
   ];
+  const customVuPortrait = data.degree.vuClauses || data.institution.vuClauses;
+  const vuPortrait = (customVuPortrait && customVuPortrait.length > 0) ? customVuPortrait.slice(0, 5) : defaultVuPortrait;
+
   for (const clause of vuPortrait) {
     const lines2: string[] = doc.splitTextToSize(clause, bW);
     doc.text(lines2, bX, curY);

@@ -41,6 +41,7 @@ export const schoolBranches = pgTable("school_branches", {
   inspection: varchar("inspection", { length: 150 }),
   commune: varchar("commune", { length: 100 }),
   schoolCode: varchar("school_code", { length: 50 }),
+  vuClauses: text("vu_clauses"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

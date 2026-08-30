@@ -21,6 +21,7 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { saveBranch, deleteBranch } from "@/domains/settings/actions/settings.actions";
+import { DEFAULT_LMD_VU_CLAUSES } from "@/domains/printing/document-header";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -70,6 +71,7 @@ interface Branch {
   inspection?: string;
   commune?: string;
   schoolCode?: string;
+  vuClauses?: string | string[];
 }
 
 const DEFAULT_BRANCH_STATE: Branch = {
@@ -100,7 +102,8 @@ const DEFAULT_BRANCH_STATE: Branch = {
   dden: "",
   inspection: "",
   commune: "",
-  schoolCode: ""
+  schoolCode: "",
+  vuClauses: DEFAULT_LMD_VU_CLAUSES
 };
 
 export function CampusSetup({ initialBranches }: { initialBranches: Branch[] }) {
@@ -232,7 +235,16 @@ export function CampusSetup({ initialBranches }: { initialBranches: Branch[] }) 
           dden: branch.dden || "",
           inspection: branch.inspection || "",
           commune: branch.commune || "",
-          schoolCode: branch.schoolCode || ""
+          schoolCode: branch.schoolCode || "",
+          vuClauses: branch.vuClauses
+            ? typeof branch.vuClauses === "string" && branch.vuClauses.startsWith("[")
+              ? JSON.parse(branch.vuClauses)
+              : typeof branch.vuClauses === "string"
+              ? branch.vuClauses.split("\n").filter(Boolean)
+              : Array.isArray(branch.vuClauses)
+              ? branch.vuClauses
+              : DEFAULT_LMD_VU_CLAUSES
+            : DEFAULT_LMD_VU_CLAUSES
         });
       }
     }
@@ -240,6 +252,29 @@ export function CampusSetup({ initialBranches }: { initialBranches: Branch[] }) 
 
   const handleInputChange = (field: keyof Branch, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleAddVuClause = () => {
+    const current = Array.isArray(formData.vuClauses) ? [...formData.vuClauses] : [...DEFAULT_LMD_VU_CLAUSES];
+    current.push("Vu ");
+    handleInputChange("vuClauses", current);
+  };
+
+  const handleUpdateVuClause = (index: number, val: string) => {
+    const current = Array.isArray(formData.vuClauses) ? [...formData.vuClauses] : [...DEFAULT_LMD_VU_CLAUSES];
+    current[index] = val;
+    handleInputChange("vuClauses", current);
+  };
+
+  const handleDeleteVuClause = (index: number) => {
+    const current = Array.isArray(formData.vuClauses) ? [...formData.vuClauses] : [...DEFAULT_LMD_VU_CLAUSES];
+    current.splice(index, 1);
+    handleInputChange("vuClauses", current);
+  };
+
+  const handleResetVuClauses = () => {
+    handleInputChange("vuClauses", [...DEFAULT_LMD_VU_CLAUSES]);
+    toast.info("Visas juridiques réinitialisés aux textes officiels");
   };
 
   const handleDayToggle = (day: string) => {
@@ -764,6 +799,77 @@ export function CampusSetup({ initialBranches }: { initialBranches: Branch[] }) 
                     />
                   </div>
                 </div>
+              </div>
+           </div>
+
+           {/* Section 2.6: Visas Juridiques du Diplôme LMD (Clauses VU) */}
+           <div className="bg-white p-10 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/60 dark:bg-[#12131C] shadow-sm space-y-8">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <h3 className="text-lg font-black text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-3">
+                   <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                      <GraduationCap size={20} />
+                   </div>
+                   Visas Juridiques du Diplôme LMD (Textes VU)
+                </h3>
+                <div className="flex items-center gap-2 flex-wrap">
+                   <span className="px-3.5 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-[10px] font-black uppercase tracking-wider border border-emerald-100 dark:border-emerald-500/20">
+                      {Array.isArray(formData.vuClauses) ? formData.vuClauses.length : DEFAULT_LMD_VU_CLAUSES.length} Visas Actifs
+                   </span>
+                   <Button
+                     type="button"
+                     variant="outline"
+                     size="sm"
+                     onClick={handleResetVuClauses}
+                     className="h-9 px-3 text-[10px] font-bold text-slate-500 hover:text-slate-700 rounded-xl border-slate-200"
+                   >
+                     Réinitialiser
+                   </Button>
+                </div>
+              </div>
+
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
+                Configurez les décrets, lois et arrêtés ministériels (articles « Vu ») qui figureront automatiquement sur les diplômes officiels et attestations de réussite émis par ce campus.
+              </p>
+
+              <div className="space-y-4">
+                {(Array.isArray(formData.vuClauses) ? formData.vuClauses : DEFAULT_LMD_VU_CLAUSES).map((clause, idx) => (
+                  <div key={idx} className="flex items-start gap-3 p-4 rounded-2xl bg-slate-50/70 dark:bg-[#0E0F18] border border-slate-100 dark:border-slate-800/80 group transition-all hover:border-emerald-200">
+                    <div className="w-8 h-8 rounded-xl bg-emerald-100/60 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 flex items-center justify-center font-black text-xs shrink-0 mt-1">
+                      #{idx + 1}
+                    </div>
+                    <div className="flex-1 space-y-1">
+                      <Label className="text-[9px] font-black text-slate-400 uppercase tracking-wider">
+                        Texte / Arrêté juridique #{idx + 1}
+                      </Label>
+                      <Textarea
+                        value={clause}
+                        onChange={(e) => handleUpdateVuClause(idx, e.target.value)}
+                        placeholder="Vu la loi N°... portant..."
+                        rows={2}
+                        className="rounded-xl border-slate-200 dark:border-slate-700 bg-white dark:bg-[#12131C] text-xs font-semibold leading-relaxed focus:border-emerald-500"
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDeleteVuClause(idx)}
+                      className="h-8 w-8 text-slate-300 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg shrink-0 mt-6 transition-colors"
+                    >
+                      <Trash2 size={16} />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="pt-2">
+                <Button
+                  type="button"
+                  onClick={handleAddVuClause}
+                  className="h-12 px-6 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-sm transition-all"
+                >
+                  <Plus size={16} /> Ajouter un texte / visa VU
+                </Button>
               </div>
            </div>
 

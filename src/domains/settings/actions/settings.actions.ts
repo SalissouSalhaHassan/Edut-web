@@ -64,6 +64,7 @@ export async function getBranches() {
       await db.execute(sql`ALTER TABLE "school_branches" ADD COLUMN IF NOT EXISTS "inspection" varchar(150)`);
       await db.execute(sql`ALTER TABLE "school_branches" ADD COLUMN IF NOT EXISTS "commune" varchar(100)`);
       await db.execute(sql`ALTER TABLE "school_branches" ADD COLUMN IF NOT EXISTS "school_code" varchar(50)`);
+      await db.execute(sql`ALTER TABLE "school_branches" ADD COLUMN IF NOT EXISTS "vu_clauses" text`);
     } catch (err) {
       console.error("Error migrating columns in getBranches:", err);
     }
@@ -113,6 +114,7 @@ export async function saveBranch(data: any) {
       await db.execute(sql`ALTER TABLE "school_branches" ADD COLUMN IF NOT EXISTS "inspection" varchar(150)`);
       await db.execute(sql`ALTER TABLE "school_branches" ADD COLUMN IF NOT EXISTS "commune" varchar(100)`);
       await db.execute(sql`ALTER TABLE "school_branches" ADD COLUMN IF NOT EXISTS "school_code" varchar(50)`);
+      await db.execute(sql`ALTER TABLE "school_branches" ADD COLUMN IF NOT EXISTS "vu_clauses" text`);
       
       console.log("Database schema altered successfully inside saveBranch action.");
     } catch (err) {
@@ -122,6 +124,11 @@ export async function saveBranch(data: any) {
     // Sanitize workingDays array to a comma-separated string
     if (rest.workingDays && Array.isArray(rest.workingDays)) {
       rest.workingDays = rest.workingDays.join(",");
+    }
+
+    // Sanitize vuClauses array to JSON string
+    if (rest.vuClauses && Array.isArray(rest.vuClauses)) {
+      rest.vuClauses = JSON.stringify(rest.vuClauses.filter(Boolean));
     }
     
     if (id) {
@@ -263,6 +270,16 @@ export async function fetchDocumentHeaderConfigForSchool(schoolId: number, targe
       if (!configData.inspection) configData.inspection = branchFallback.inspection || "";
       if (!configData.commune) configData.commune = branchFallback.commune || "";
       if (!configData.schoolCode) configData.schoolCode = branchFallback.schoolCode || "";
+
+      if (branchFallback.vuClauses && (!configData.vuClauses || configData.vuClauses.length === 0)) {
+        try {
+          if (typeof branchFallback.vuClauses === "string" && branchFallback.vuClauses.startsWith("[")) {
+            configData.vuClauses = JSON.parse(branchFallback.vuClauses);
+          } else if (typeof branchFallback.vuClauses === "string") {
+            configData.vuClauses = branchFallback.vuClauses.split("\n").filter(Boolean);
+          }
+        } catch (_) {}
+      }
 
       const branchLogo = branchFallback.logoPath || branchFallback.logo || branchFallback.schoolLogo;
       if (branchLogo) {
