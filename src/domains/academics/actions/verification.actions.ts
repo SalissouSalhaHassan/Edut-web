@@ -25,7 +25,7 @@ export type VerificationSubType =
   | "admission_attestation" 
   | "administrative_cert";
 
-export type EducationLevelType = "higher_ed" | "secondary" | "primary" | "general" | "financial";
+export type EducationLevelType = "higher_ed" | "secondary" | "middle" | "primary" | "general" | "financial";
 
 export interface VerificationUeItem {
   codeUe: string;
@@ -481,12 +481,28 @@ export async function getAcademicVerificationData(identifier: string): Promise<V
         normClasse.includes("PRIMAIRE")
       );
 
-    const isSecondaryEducation = !isHigherEducation && !isPrimaryEducation;
+    const isMiddleEducation = !isHigherEducation && !isPrimaryEducation && (
+      normLevel.includes("MOYEN") ||
+      normLevel.includes("COLLÈGE") ||
+      normLevel.includes("COLLEGE") ||
+      normClasse.includes("6ÈME") ||
+      normClasse.includes("5ÈME") ||
+      normClasse.includes("4ÈME") ||
+      normClasse.includes("3ÈME") ||
+      normClasse.includes("6EME") ||
+      normClasse.includes("5EME") ||
+      normClasse.includes("4EME") ||
+      normClasse.includes("3EME")
+    );
+
+    const isSecondaryEducation = !isHigherEducation && !isPrimaryEducation && !isMiddleEducation;
 
     const eduLevelType: EducationLevelType = isHigherEducation 
       ? "higher_ed" 
       : isPrimaryEducation 
       ? "primary" 
+      : isMiddleEducation
+      ? "middle"
       : "secondary";
 
     const subType: VerificationSubType = isAdmissionLookup 
