@@ -105,8 +105,27 @@ export function VerificationClient({
     (isHigherEd && data?.bulletin)
   );
 
+interface PhaseText {
+  portalBrand: string;
+  docAuthentic: string;
+  certifiedTitle: string;
+  certifiedSub: string;
+  panelTitle: string;
+  metricCol2Label: string;
+  metricCol3Label: string;
+  metricCol4Label: string;
+  subjectsTitle: string;
+  tabComparison: string;
+  tabS1: string;
+  tabS2: string;
+  tabAnnual: string;
+  subjectCol: string;
+  creditsCol: string;
+  statusCol: string;
+}
+
   // ─── 2. Localized & Phase-Aware Dictionary ────────────────────────────────
-  const getPhaseText = () => {
+  const getPhaseText = (): PhaseText => {
     if (lang === "ar") {
       if (isFinancial) {
         return {
@@ -115,6 +134,17 @@ export function VerificationClient({
           certifiedTitle: "إيصال سداد وبراءة ذمة مالية معتمدة",
           certifiedSub: "هذا الإيصال المالي مسجل رسمياً في السجل المحاسبي المركزي المعتمد للمؤسسة.",
           panelTitle: "تفاصيل المعاملة المالية وإيصال السداد",
+          metricCol2Label: "الترتيب",
+          metricCol3Label: "الوضعية",
+          metricCol4Label: "الحالة",
+          subjectsTitle: "تفاصيل الرسوم والعمليات",
+          tabComparison: "المقارنة الشاملة",
+          tabS1: "الفصل 1",
+          tabS2: "الفصل 2",
+          tabAnnual: "السنوي",
+          subjectCol: "البند",
+          creditsCol: "المبلغ",
+          statusCol: "الحالة",
         };
       }
       if (isHigherEd) {
@@ -205,6 +235,17 @@ export function VerificationClient({
           certifiedTitle: "Payment Receipt & Financial Solvency Certified",
           certifiedSub: "This financial receipt is officially recorded in the central SYSCOHADA accounting ledger of the institution.",
           panelTitle: "Payment & Transaction Breakdown",
+          metricCol2Label: "Rank",
+          metricCol3Label: "Status",
+          metricCol4Label: "Decision",
+          subjectsTitle: "Payment Item Breakdown",
+          tabComparison: "Comparative View",
+          tabS1: "Period 1",
+          tabS2: "Period 2",
+          tabAnnual: "Annual Summary",
+          subjectCol: "Item",
+          creditsCol: "Amount",
+          statusCol: "Status",
         };
       }
       if (isHigherEd) {
@@ -295,6 +336,17 @@ export function VerificationClient({
         certifiedTitle: "Quittance de Paiement & Solvabilité Certifiée",
         certifiedSub: "Cette quittance financière est enregistrée dans le grand livre comptable central SYSCOHADA de l'établissement.",
         panelTitle: "Détails du Paiement & de la Transaction",
+        metricCol2Label: "Rang",
+        metricCol3Label: "Situation",
+        metricCol4Label: "Décision",
+        subjectsTitle: "Détail des Lignes de Règlement",
+        tabComparison: "Vue Comparative",
+        tabS1: "Période 1",
+        tabS2: "Période 2",
+        tabAnnual: "Bilan Annuel",
+        subjectCol: "Objet",
+        creditsCol: "Montant",
+        statusCol: "Statut",
       };
     }
     if (isHigherEd) {
@@ -433,6 +485,7 @@ export function VerificationClient({
     compoCol: lang === "ar" ? "الاختبار / الامتحان" : lang === "en" ? "Exam" : "Compo / Exam",
     rankCol: lang === "ar" ? "الترتيب" : lang === "en" ? "Rank" : "Rang",
     appreciationCol: lang === "ar" ? "الملاحظة والتقدير" : lang === "en" ? "Appreciation" : "Appréciation",
+    creditsCol: lang === "ar" ? "المعامل / الأرصدة" : lang === "en" ? "Weight / Credits" : "Coeff / Crédits",
   };
 
   const handleDownloadPdf = async () => {
@@ -1031,7 +1084,7 @@ export function VerificationClient({
                           <thead>
                             <tr className="bg-slate-900/90 border-b border-slate-700/80 text-[10px] uppercase font-black text-slate-400 tracking-wider">
                               <th className="p-3">{phaseText.subjectCol}</th>
-                              <th className="p-3 text-center">{isHigherEd ? "Crédits ECTS" : t.creditsCol}</th>
+                              <th className="p-3 text-center">{phaseText.creditsCol}</th>
                               <th className="p-3 text-center">{t.s1Col}</th>
                               <th className="p-3 text-center">{t.s2Col}</th>
                               <th className="p-3 text-center">{t.annualCol}</th>
@@ -1162,7 +1215,7 @@ export function VerificationClient({
                           <thead>
                             <tr className="bg-slate-900/90 border-b border-slate-700/80 text-[10px] uppercase font-black text-slate-400 tracking-wider">
                               <th className="p-3">{phaseText.subjectCol}</th>
-                              <th className="p-3 text-center">{isHigherEd ? "Crédits ECTS" : t.creditsCol}</th>
+                              <th className="p-3 text-center">{phaseText.creditsCol}</th>
                               <th className="p-3 text-center">{isHigherEd ? "Contrôle Continu" : t.ccCol}</th>
                               <th className="p-3 text-center">{isHigherEd ? "Examen Terminal" : t.compoCol}</th>
                               <th className="p-3 text-center">{t.generalAverage}</th>
