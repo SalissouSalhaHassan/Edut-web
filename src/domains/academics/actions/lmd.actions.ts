@@ -1119,11 +1119,11 @@ export async function getLmdAnnualDeliberation(
     let sem2 = "2ème Semestre (S2)";
     let cycleLevel = "Licence 1 (L1)";
 
-    if (normClassName.includes("l2") || normClassName.includes("licence 2") || normClassName.includes("2eme") || normClassName.includes("2ème")) {
+    if (normClassName.includes("l2") || normClassName.includes("licence 2") || normClassName.includes("2eme") || normClassName.includes("2ème") || normClassName.includes("2nd")) {
       sem1 = "3ème Semestre (S3)";
       sem2 = "4ème Semestre (S4)";
       cycleLevel = "Licence 2 (L2)";
-    } else if (normClassName.includes("l3") || normClassName.includes("licence 3") || normClassName.includes("3eme") || normClassName.includes("3ème")) {
+    } else if (normClassName.includes("l3") || normClassName.includes("licence 3") || normClassName.includes("3eme") || normClassName.includes("3ème") || normClassName.includes("3rd")) {
       sem1 = "5ème Semestre (S5)";
       sem2 = "6ème Semestre (S6)";
       cycleLevel = "Licence 3 (L3)";
@@ -1137,9 +1137,17 @@ export async function getLmdAnnualDeliberation(
       cycleLevel = "Master 1 (M1)";
     }
 
-    // 2. Récupérer les délibérations des 2 semestres
-    const resSem1 = await getLmdDeliberationCohort(programId, classId, sem1, sessionId, sessionType);
-    const resSem2 = await getLmdDeliberationCohort(programId, classId, sem2, sessionId, sessionType);
+    // 2. Récupérer les délibérations des 2 semestres avec gestion des erreurs
+    const [resSem1, resSem2] = await Promise.all([
+      getLmdDeliberationCohort(programId, classId, sem1, sessionId, sessionType).catch((err) => {
+        console.error(`[getLmdAnnualDeliberation] Error fetching sem1 (${sem1}):`, err);
+        return { success: false, data: null, error: err?.message };
+      }),
+      getLmdDeliberationCohort(programId, classId, sem2, sessionId, sessionType).catch((err) => {
+        console.error(`[getLmdAnnualDeliberation] Error fetching sem2 (${sem2}):`, err);
+        return { success: false, data: null, error: err?.message };
+      }),
+    ]);
 
     const cohort1 = (resSem1.success && resSem1.data ? resSem1.data.cohort : []) as any[];
     const cohort2 = (resSem2.success && resSem2.data ? resSem2.data.cohort : []) as any[];
@@ -1147,25 +1155,50 @@ export async function getLmdAnnualDeliberation(
     // 3. Fusionner les résultats des deux semestres par étudiant
     const allStudentsMap = new Map<number, any>();
     for (const c of cohort1) {
-      allStudentsMap.set(c.student.id, { student: c.student, sem1: c.deliberation, sem2: null });
+      if (c && c.student && c.student.id) {
+        allStudentsMap.set(c.student.id, { student: c.student, sem1: c.deliberation, sem2: null });
+      }
     }
     for (const c of cohort2) {
-      if (allStudentsMap.has(c.student.id)) {
-        const entry = allStudentsMap.get(c.student.id);
-        entry.sem2 = c.deliberation;
-      } else {
-        allStudentsMap.set(c.student.id, { student: c.student, sem1: null, sem2: c.deliberation });
+      if (c && c.student && c.student.id) {
+        if (allStudentsMap.has(c.student.id)) {
+          const entry = allStudentsMap.get(c.student.id);
+          entry.sem2 = c.deliberation;
+        } else {
+          allStudentsMap.set(c.student.id, { student: c.student, sem1: null, sem2: c.deliberation });
+        }
+      }
+    }
+
+    // Si aucun résultat semestriel n'est encore saisi, récupérer au moins les étudiants inscrits dans la classe
+    if (allStudentsMap.size === 0) {
+      const classStudents = await readDb.query.students.findMany({
+        where: eq(students.classId, classId),
+        orderBy: [asc(students.nomEtudiant)],
+      });
+      for (const st of classStudents) {
+        allStudentsMap.set(st.id, {
+          student: {
+            id: st.id,
+            matricule: st.numAdmission,
+            nom: st.nomEtudiant,
+            sexe: st.sexe,
+            photoUrl: st.photoPath,
+          },
+          sem1: null,
+          sem2: null,
+        });
       }
     }
 
     const annualCohort = Array.from(allStudentsMap.values()).map(({ student, sem1: d1, sem2: d2 }) => {
-      const s1Avg = d1 ? d1.semesterAverage : 0;
-      const s1Credits = d1 ? d1.creditsAcquired : 0;
-      const s1Valid = d1 ? d1.isSemesterValidated : false;
+      const s1Avg = d1 && typeof d1.semesterAverage === "number" && !isNaN(d1.semesterAverage) ? d1.semesterAverage : 0;
+      const s1Credits = d1 && typeof d1.creditsAcquired === "number" && !isNaN(d1.creditsAcquired) ? d1.creditsAcquired : 0;
+      const s1Valid = d1 ? !!d1.isSemesterValidated : false;
 
-      const s2Avg = d2 ? d2.semesterAverage : 0;
-      const s2Credits = d2 ? d2.creditsAcquired : 0;
-      const s2Valid = d2 ? d2.isSemesterValidated : false;
+      const s2Avg = d2 && typeof d2.semesterAverage === "number" && !isNaN(d2.semesterAverage) ? d2.semesterAverage : 0;
+      const s2Credits = d2 && typeof d2.creditsAcquired === "number" && !isNaN(d2.creditsAcquired) ? d2.creditsAcquired : 0;
+      const s2Valid = d2 ? !!d2.isSemesterValidated : false;
 
       // Calcul de la Moyenne Générale Annuelle (MGA)
       const countEvaluated = (d1 ? 1 : 0) + (d2 ? 1 : 0);
@@ -1228,7 +1261,7 @@ export async function getLmdAnnualDeliberation(
     });
 
     // 4. Classement selon la moyenne générale annuelle
-    annualCohort.sort((a, b) => b.annual.annualAverage - a.annual.annualAverage);
+    annualCohort.sort((a, b) => (b.annual?.annualAverage || 0) - (a.annual?.annualAverage || 0));
 
     const rankedCohort = annualCohort.map((c, index) => ({
       ...c,
@@ -1258,7 +1291,8 @@ export async function getLmdAnnualDeliberation(
       },
     };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    console.error("[getLmdAnnualDeliberation] Critical Error:", error);
+    return { success: false, error: error.message || "Erreur interne lors du calcul du bilan annuel" };
   }
 }
 

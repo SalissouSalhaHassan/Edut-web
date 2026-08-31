@@ -390,8 +390,8 @@ export default function DeliberationClient({
   const [previewStudentItem, setPreviewStudentItem] = useState<any | null>(null);
 
   const loadDeliberationData = async () => {
-    if (!selectedClassId || !selectedSessionId) {
-      toast.warning("Veuillez sélectionner une classe et une session.");
+    if (evaluationScope === "Annuel") return;
+    if (!selectedClassId || !selectedSessionId || !selectedSemester) {
       return;
     }
     setIsLoading(true);
@@ -415,8 +415,8 @@ export default function DeliberationClient({
         setDeliberationData({ ues: [], cohort: [], totalStudents: 0, passedCount: 0, successRate: 0 });
         toast.error(res.error || "Erreur de chargement des délibérations");
       }
-    } catch (e) {
-      toast.error("Erreur de chargement des délibérations");
+    } catch (e: any) {
+      toast.error(e?.message || "Erreur de chargement des délibérations");
     } finally {
       setIsLoading(false);
     }
@@ -446,8 +446,8 @@ export default function DeliberationClient({
       } else {
         toast.error(res.error || "Erreur de calcul du bilan annuel");
       }
-    } catch (e) {
-      toast.error("Erreur de chargement du bilan annuel");
+    } catch (e: any) {
+      toast.error(e?.message || "Erreur de chargement du bilan annuel");
     } finally {
       setIsLoading(false);
     }
@@ -461,7 +461,13 @@ export default function DeliberationClient({
         loadDeliberationData();
       }
     }
-  }, [selectedClassId, selectedSemester, selectedSessionId, sessionMode, evaluationScope]);
+  }, [
+    selectedClassId, 
+    selectedSessionId, 
+    sessionMode, 
+    evaluationScope, 
+    evaluationScope === "Semestriel" ? selectedSemester : null
+  ]);
 
   const handleSaveRattrapageGrade = async () => {
     if (!rattrapageEditState.student || !rattrapageEditState.ecu) return;
