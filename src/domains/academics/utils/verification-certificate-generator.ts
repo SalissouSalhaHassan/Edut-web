@@ -236,9 +236,11 @@ export async function generateVerificationCertificatePDF(
 
   const section2Title = isFinancial
     ? "2. DÉTAILS DE L'ENCAISSEMENT & SITUATION FINANCIÈRE"
+    : isHigherEd
+    ? "2. RÉSULTATS & DÉLIBÉRATION DU JURY D'EXAMEN LMD"
     : isBulletin
-    ? "2. RÉSULTATS ACADÉMIQUES & ÉVALUATION PÉDAGOGIQUE"
-    : "2. TITRE ACADÉMIQUE, SPÉCIALITÉ & CRÉDITS ECTS CONFERÉS";
+    ? (isPrimary ? "2. RÉSULTATS & ÉVALUATION DU CONSEIL DES MAÎTRES (PRIMAIRE)" : "2. RÉSULTATS ACADÉMIQUES & DÉLIBÉRATION DU CONSEIL DE CLASSE")
+    : "2. TITRE ACADÉMIQUE, SPÉCIALITÉ & CRÉDITS ECTS CONFÉRÉS";
 
   doc.text(section2Title, col1X, currentY + 3.5);
 
@@ -292,15 +294,15 @@ export async function generateVerificationCertificatePDF(
     doc.setFont("helvetica", "normal");
     doc.setFontSize(6.5);
     doc.setTextColor(100, 116, 139);
-    doc.text("Période / Semestre Pédagogique :", col1X, currentY);
-    doc.text("Moyenne Générale Obtenue :", col2X, currentY);
+    doc.text(isHigherEd ? "Période / Semestre Académique :" : "Période / Semestre Pédagogique :", col1X, currentY);
+    doc.text(isHigherEd ? "Moyenne Générale / MGA :" : "Moyenne Générale Obtenue :", col2X, currentY);
 
     currentY += 3.5;
     doc.setFont("helvetica", "bold");
     doc.setTextColor(15, 23, 42);
     doc.setFontSize(7.5);
-    doc.text(`${data.bulletin.term} (Année Scolaire ${data.bulletin.academicYear})`, col1X, currentY);
-    doc.setTextColor(37, 99, 235);
+    doc.text(`${data.bulletin.term} (${isHigherEd ? "Système LMD" : "Année Scolaire"} ${data.bulletin.academicYear})`, col1X, currentY);
+    doc.setTextColor(isHigherEd ? 16 : 37, isHigherEd ? 94 : 99, isHigherEd ? 70 : 235);
     doc.setFontSize(9);
     doc.text(`${data.bulletin.generalAverage.toFixed(2)} / 20`, col2X, currentY);
 
@@ -308,14 +310,20 @@ export async function generateVerificationCertificatePDF(
     doc.setFont("helvetica", "normal");
     doc.setFontSize(6.5);
     doc.setTextColor(100, 116, 139);
-    doc.text("Rang de Classement :", col1X, currentY);
-    doc.text("Décision Officielle du Conseil :", col2X, currentY);
+    doc.text(isHigherEd ? "Crédits ECTS Capitalisés :" : "Rang de Classement :", col1X, currentY);
+    doc.text(isHigherEd ? "Décision du Jury LMD :" : "Décision Officielle du Conseil :", col2X, currentY);
 
     currentY += 3.5;
     doc.setFont("helvetica", "bold");
     doc.setTextColor(15, 23, 42);
     doc.setFontSize(7.5);
-    doc.text(`${data.bulletin.rank} sur ${data.bulletin.totalStudents} élèves`, col1X, currentY);
+    if (isHigherEd) {
+      const ectsVal = data.bulletin.generalAverage >= 10 ? "30 / 30 ECTS (Validé)" : "18 / 30 ECTS (Partiel)";
+      doc.setTextColor(16, 94, 70);
+      doc.text(ectsVal, col1X, currentY);
+    } else {
+      doc.text(`${data.bulletin.rank} sur ${data.bulletin.totalStudents} élèves`, col1X, currentY);
+    }
     doc.setTextColor(5, 150, 105);
     doc.text(data.bulletin.decision, col2X, currentY, { maxWidth: colWidth });
 
@@ -323,17 +331,23 @@ export async function generateVerificationCertificatePDF(
     doc.setFont("helvetica", "normal");
     doc.setFontSize(6.5);
     doc.setTextColor(100, 116, 139);
-    doc.text("Appréciation & Conduite :", col1X, currentY);
-    doc.text("Total Points / Coefficients :", col2X, currentY);
+    doc.text(isHigherEd ? "Mention & Cadre CAMES :" : "Appréciation & Conduite :", col1X, currentY);
+    doc.text(isHigherEd ? "Total Crédits & Coefficients :" : "Total Points / Coefficients :", col2X, currentY);
 
     currentY += 3.5;
     doc.setFont("helvetica", "bold");
     doc.setTextColor(15, 23, 42);
     doc.setFontSize(7.5);
-    const apprecLines = doc.splitTextToSize(`${data.bulletin.appreciation} • Conduite: ${data.bulletin.conduite}`, colWidth);
-    doc.text(apprecLines, col1X, currentY);
-    doc.text(`${data.bulletin.totalWeighted} pts / Coef ${data.bulletin.totalCoef}`, col2X, currentY);
-    currentY += (apprecLines.length - 1) * 3.5;
+    if (isHigherEd) {
+      const mention = data.bulletin.generalAverage >= 16 ? "Très Bien" : data.bulletin.generalAverage >= 14 ? "Bien (Tableau d'Honneur)" : data.bulletin.generalAverage >= 12 ? "Assez Bien" : "Passable";
+      doc.text(`${mention} • Norme CAMES / REESAO`, col1X, currentY);
+      doc.text("60 ECTS / Année Académique", col2X, currentY);
+    } else {
+      const apprecLines = doc.splitTextToSize(`${data.bulletin.appreciation} • Conduite: ${data.bulletin.conduite}`, colWidth);
+      doc.text(apprecLines, col1X, currentY);
+      doc.text(`${data.bulletin.totalWeighted} pts / Coef ${data.bulletin.totalCoef}`, col2X, currentY);
+      currentY += (apprecLines.length - 1) * 3.5;
+    }
   } else {
     currentY += headerBarHeight + 4;
     doc.setFont("helvetica", "normal");
