@@ -539,12 +539,13 @@ export async function getAcademicVerificationData(identifier: string): Promise<V
       levelMinistry = "MINISTÈRE DE L'ENSEIGNEMENT SUPÉRIEUR, DE LA RECHERCHE ET DE L'INNOVATION TECHNOLOGIQUE";
       levelMinistryEn = "MINISTRY OF HIGHER EDUCATION, RESEARCH AND TECHNOLOGICAL INNOVATION";
       levelMinistryAr = "وزارة التعليم العالي والبحث والابتكار التكنولوجي";
-      levelInstitutionName = normClasse.includes("ADMIN") || normClasse.includes("DROIT") || normClasse.includes("GESTION")
-        ? "EDUT UNIVERSITÉ • FACULTÉ DES SCIENCES JURIDIQUES, ÉCONOMIQUES & DE GESTION"
-        : "EDUT UNIVERSITÉ INTERNATIONALE • PÔLE D'EXCELLENCE LMD";
-      levelInstitutionEn = "EDUT INTERNATIONAL UNIVERSITY • HIGHER EDUCATION FACULTY";
-      levelInstitutionAr = "جامعة إيدوت الدولية • كلية العلوم الاقتصادية والإدارية والتكنولوجيا";
-      levelSubDept = "Direction des Affaires Académiques & de la Scolarité Centrale • Registre LMD";
+      levelInstitutionName = "EDUT UNIVERSITÉ";
+      levelInstitutionEn = "EDUT INTERNATIONAL UNIVERSITY";
+      levelInstitutionAr = "جامعة إيدوت الدولية";
+      const facultyName = normClasse.includes("ADMIN") || normClasse.includes("DROIT") || normClasse.includes("GESTION")
+        ? "FACULTÉ DES SCIENCES JURIDIQUES, ÉCONOMIQUES & DE GESTION"
+        : "FACULTÉ DES SCIENCES & TECHNOLOGIES";
+      levelSubDept = `${facultyName} • Direction de la Scolarité Centrale • Registre LMD`;
       levelDocumentType = "RELEVÉ OFFICIEL DE NOTES & CRÉDITS ECTS (LMD)";
       levelDocumentTypeEn = "OFFICIAL ACADEMIC TRANSCRIPT & ECTS CREDIT RECORD (LMD)";
       levelDocumentTypeAr = "كشف درجات وأرصدة ECTS الجامعية الرسمية (LMD)";

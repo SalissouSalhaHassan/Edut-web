@@ -148,8 +148,9 @@ interface PhaseText {
         };
       }
       if (isHigherEd) {
+        const univAr = (data?.institution?.nameAr || data?.institution?.name || "جامعة إيدوت").split("•")[0].trim().toUpperCase();
         return {
-          portalBrand: `${(data?.institution?.nameAr || data?.institution?.name || "جامعة إيدوت").toUpperCase()} • البوابة العامة للتحقق الأكاديمي الرسمي`,
+          portalBrand: `${univAr} • البوابة العامة للتحقق الأكاديمي الرسمي`,
           docAuthentic: "كشف درجات وأرصدة LMD الجامعية المعتمدة رسمياً",
           certifiedTitle: "كشف الدرجات ومحضر المداولات الجامعية LMD المعتمد",
           certifiedSub: "الدرجات، أرصدة ECTS، المعدلات والقرارات الواردة أدناه مستخرجة مباشرة من المحضر الرسمي لمداولات لجنة التحكيم الأكاديمية LMD.",
@@ -249,8 +250,9 @@ interface PhaseText {
         };
       }
       if (isHigherEd) {
+        const univEn = (data?.institution?.nameEn || data?.institution?.name || "EDUT UNIVERSITY").split("•")[0].trim().toUpperCase();
         return {
-          portalBrand: `${(data?.institution?.nameEn || data?.institution?.name || "EDUT UNIVERSITY").toUpperCase()} • UNIVERSAL ACADEMIC VERIFICATION PORTAL`,
+          portalBrand: `${univEn} • UNIVERSAL ACADEMIC VERIFICATION PORTAL`,
           docAuthentic: "AUTHENTICATED OFFICIAL LMD TRANSCRIPT & ECTS CREDITS",
           certifiedTitle: "Certified Academic Transcript & LMD Jury Deliberation",
           certifiedSub: "The grades, ECTS credits, averages, and decisions below are sourced directly from the official LMD Examination Jury deliberation minutes.",
@@ -350,8 +352,9 @@ interface PhaseText {
       };
     }
     if (isHigherEd) {
+      const univFr = (data?.institution?.name || "EDUT UNIVERSITÉ").split("•")[0].trim().toUpperCase();
       return {
-        portalBrand: `${(data?.institution?.name || "EDUT UNIVERSITÉ").toUpperCase()} • PORTAIL UNIVERSEL DE VÉRIFICATION OFFICIELLE`,
+        portalBrand: `${univFr} • PORTAIL UNIVERSEL DE VÉRIFICATION OFFICIELLE`,
         docAuthentic: "BULLETIN DE NOTES & BILAN LMD (CRÉDITS ECTS) AUTHENTIFIÉS",
         certifiedTitle: "Relevé de Notes & Délibération LMD Certifiés Conformes",
         certifiedSub: "Les notes, crédits ECTS, moyennes et décisions ci-dessous sont issus directement du procès-verbal officiel de délibération du Jury d'examen LMD.",

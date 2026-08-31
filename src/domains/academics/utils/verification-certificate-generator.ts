@@ -50,36 +50,51 @@ export async function generateVerificationCertificatePDF(
   // ─── PAGE 1: OFFICIAL CERTIFICATE OF RECORD ──────────────────────────────────
   renderHeaderBorders(doc, 1, 1);
 
+  const isHigherEd = data.educationLevelType === "higher_ed";
+  const isPrimary = data.educationLevelType === "primary";
+
   // Republic & Institution Header
-  let currentY = 19;
+  let currentY = 18.5;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.5);
   doc.setTextColor(100, 116, 139);
   doc.text(data.institution.country.toUpperCase(), pageWidth / 2, currentY, { align: "center" });
 
-  currentY += 3.8;
-  doc.setFontSize(7);
+  currentY += 3.6;
+  doc.setFontSize(6.8);
   doc.text(data.institution.ministry.toUpperCase(), pageWidth / 2, currentY, { align: "center" });
 
-  currentY += 4.8;
+  currentY += 4.6;
+  
+  // Format Institution Name & Faculty cleanly
+  const rawInstName = data.institution.name || "EDUT UNIVERSITÉ";
+  const parts = rawInstName.split("•").map(p => p.trim());
+  const mainInst = parts[0].toUpperCase();
+  const subFaculty = parts.length > 1 ? parts[1].toUpperCase() : null;
+
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
+  doc.setFontSize(12.5);
   doc.setTextColor(15, 23, 42);
-  doc.text(data.institution.name.toUpperCase(), pageWidth / 2, currentY, { align: "center" });
+  doc.text(mainInst, pageWidth / 2, currentY, { align: "center" });
 
-  currentY += 3.8;
+  if (subFaculty) {
+    currentY += 4.0;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.5);
+    doc.setTextColor(30, 41, 59);
+    doc.text(subFaculty, pageWidth / 2, currentY, { align: "center" });
+  }
+
+  currentY += 3.6;
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(7);
+  doc.setFontSize(6.8);
   doc.setTextColor(71, 85, 105);
-
-  const isHigherEd = data.educationLevelType === "higher_ed";
-  const isPrimary = data.educationLevelType === "primary";
 
   const subDeptText = isFinancial
     ? "Direction des Affaires Financières • Agence Comptable Centrale"
     : data.institution.departmentalDirection || (
         isHigherEd
-          ? "Direction des Affaires Académiques • Registre Central LMD"
+          ? "Direction des Affaires Académiques & de la Scolarité Centrale • Registre LMD"
           : isPrimary
           ? "Direction Régionale de l'Éducation Nationale • Inspection Primaire"
           : "Direction Régionale de l'Éducation Nationale • Inspection Secondaire"
@@ -132,6 +147,8 @@ export async function generateVerificationCertificatePDF(
   doc.text(
     isFinancial 
       ? "STATUS : FINANCIAL TRANSACTION VERIFIED & RECORDED (SYSCOHADA)"
+      : isHigherEd
+      ? "STATUS : ACADEMIC TRANSCRIPT & ECTS CREDITS AUTHENTICATED (LMD)"
       : isBulletin
       ? "STATUS : ACADEMIC TRANSCRIPT AUTHENTICATED & CONFORM TO ARCHIVES"
       : "STATUS : ACADEMIC DEGREE CERTIFIED & CRYPTOGRAPHICALLY ANCHORED", 
@@ -145,6 +162,8 @@ export async function generateVerificationCertificatePDF(
   doc.text(
     isFinancial
       ? "Cette quittance certifie le règlement officiel et l'encaissement effectif des droits scolaires/universitaires."
+      : isHigherEd
+      ? "Ce document certifie l'authenticité légale des notes obtenues, des crédits ECTS et de la décision officielle du Jury d'examen LMD."
       : isBulletin
       ? "Ce document certifie l'authenticité légale des notes obtenues et de la décision officielle du conseil de classe."
       : "Ce document certifie la validité légale et académique du titre délivré conformément aux registres ministériels.",
