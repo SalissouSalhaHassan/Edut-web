@@ -553,18 +553,22 @@ export default function DeliberationClient({
         ? (currentSection.sectionName.toLowerCase().startsWith("faculté") ? currentSection.sectionName : `Faculté : ${currentSection.sectionName}`)
         : "Faculté Universitaire LMD";
       const departmentName = selectedProgram?.name || currentSection?.sectionName || "Département Universitaire";
+      const logo = headerConfig?.leftLogo || headerConfig?.schoolLogo || headerConfig?.logo || headerConfig?.logoUrl || headerConfig?.centerLogo || undefined;
 
       const annualPayload: LmdAnnualParams = {
         institution: {
           name: schoolName,
           countryName: headerConfig?.countryName || "RÉPUBLIQUE DU NIGER",
           ministryName: headerConfig?.ministryName || "MINISTÈRE DE L'ENSEIGNEMENT SUPÉRIEUR ET DE LA RECHERCHE",
+          motto: headerConfig?.motto || "Fraternité — Travail — Progrès",
           facultyName: facultyName,
           departmentName: departmentName,
           programName: selectedProgram?.name || currentSection?.sectionName || "Tronc Commun LMD",
           className: getClassDisplayName(selectedClass),
           sessionName: selectedSession?.sessionName || "2025-2026",
           cycleLevel: annualData.cycleLevel,
+          city: headerConfig?.city || "Niamey",
+          logoUrl: logo,
         },
         sem1Name: annualData.sem1Name,
         sem2Name: annualData.sem2Name,
@@ -596,6 +600,7 @@ export default function DeliberationClient({
         ? (currentSection.sectionName.toLowerCase().startsWith("faculté") ? currentSection.sectionName : `Faculté : ${currentSection.sectionName}`)
         : "Faculté Universitaire LMD";
       const departmentName = selectedProgram?.name || currentSection?.sectionName || "Département Universitaire";
+      const logo = headerConfig?.leftLogo || headerConfig?.schoolLogo || headerConfig?.logo || headerConfig?.logoUrl || headerConfig?.centerLogo || undefined;
 
       await generateLmdStudentAnnualRelevePDF(
         item,
@@ -603,12 +608,15 @@ export default function DeliberationClient({
           name: schoolName,
           countryName: headerConfig?.countryName || "RÉPUBLIQUE DU NIGER",
           ministryName: headerConfig?.ministryName || "MINISTÈRE DE L'ENSEIGNEMENT SUPÉRIEUR ET DE LA RECHERCHE",
+          motto: headerConfig?.motto || "Fraternité — Travail — Progrès",
           facultyName: facultyName,
           departmentName: departmentName,
           programName: selectedProgram?.name || currentSection?.sectionName || "Tronc Commun LMD",
           degreeLevel: selectedLevel,
           className: getClassDisplayName(selectedClass),
           sessionName: selectedSession?.sessionName || "2025-2026",
+          city: headerConfig?.city || "Niamey",
+          logoUrl: logo,
         },
         annualData.totalStudents
       );
@@ -902,139 +910,7 @@ export default function DeliberationClient({
 
   // ─── Export Official Deliberation PV (PDF A4 Paysage) ──────────────────────
   const handleExportPDF = async () => {
-    if (deliberationData.cohort.length === 0) {
-      toast.error("Aucune donnée à exporter");
-      return;
-    }
-
-    setIsExportingPdf(true);
-    try {
-      const { default: jsPDF } = await import("jspdf");
-      const { default: autoTable } = await import("jspdf-autotable");
-
-      const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const pageHeight = doc.internal.pageSize.getHeight();
-
-      // Header Box
-      doc.setFillColor(248, 250, 252);
-      doc.rect(10, 10, pageWidth - 20, 26, "F");
-      doc.setDrawColor(226, 232, 240);
-      doc.rect(10, 10, pageWidth - 20, 26, "S");
-
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(14);
-      doc.setTextColor(15, 23, 42);
-      doc.text("PROCÈS-VERBAL OFFICIEL DE DÉLIBÉRATION SEMESTRIELLE", pageWidth / 2, 18, { align: "center" });
-
-      doc.setFontSize(9);
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(71, 85, 105);
-      const subTitle = `Filière : ${currentSection?.sectionName || selectedProgram?.name || "LMD"} (${selectedLevel})   |   Promotion : ${getClassDisplayName(selectedClass)}   |   ${selectedSemester}   |   Session : ${selectedSession?.sessionName || "Session"}`;
-      doc.text(subTitle, pageWidth / 2, 24, { align: "center" });
-
-      doc.setFontSize(8);
-      doc.setTextColor(100, 116, 139);
-      doc.text(`Norme LMD : 30 Crédits ECTS / Semestre   •   Seuil de Compensation : 10.00 / 20   •   Note Éliminatoire : < 7.00 / 20`, pageWidth / 2, 30, { align: "center" });
-
-      // Table columns
-      const headers = [
-        "N°",
-        "Matricule",
-        "Nom & Prénoms",
-        ...deliberationData.ues.map((ue) => `${ue.codeUe}\n(${ue.creditsEcts} ECTS)`),
-        "Moyenne\n/20",
-        "Crédits\n/30",
-        "Décision du Jury",
-        "Mention",
-        "Rang"
-      ];
-
-      const body = deliberationData.cohort.map((item) => {
-        const d = item.deliberation;
-        const ueGrades = deliberationData.ues.map((ue) => {
-          const r = d.ueResults.find((res: any) => res.codeUe === ue.codeUe || res.ueId === ue.id);
-          return r ? `${r.average.toFixed(2)} (${r.status})` : "-";
-        });
-
-        return [
-          item.rank,
-          item.student.matricule || "N/A",
-          item.student.nom,
-          ...ueGrades,
-          d.semesterAverage.toFixed(2),
-          `${d.creditsAcquired} / 30`,
-          d.decision,
-          d.mention,
-          `${item.rank}e`
-        ];
-      });
-
-      autoTable(doc, {
-        head: [headers],
-        body,
-        startY: 40,
-        styles: {
-          fontSize: 8,
-          cellPadding: 2,
-          halign: "center",
-          valign: "middle",
-        },
-        headStyles: {
-          fillColor: [15, 23, 42],
-          textColor: [255, 255, 255],
-          fontStyle: "bold",
-          halign: "center",
-        },
-        columnStyles: {
-          0: { cellWidth: 10 },
-          1: { cellWidth: 24, fontStyle: "bold" },
-          2: { cellWidth: 46, halign: "left" },
-        },
-        didParseCell: (data: any) => {
-          if (data.section === "body" && (data.column.index === headers.length - 3)) {
-            const val = String(data.cell.raw || "");
-            if (val.includes("Admis")) {
-              data.cell.styles.textColor = [5, 150, 105];
-              data.cell.styles.fontStyle = "bold";
-            } else if (val.includes("Ajourné")) {
-              data.cell.styles.textColor = [225, 29, 72];
-            }
-          }
-        },
-      });
-
-      const finalY = (doc as any).lastAutoTable.finalY + 12;
-      if (finalY < pageHeight - 35) {
-        doc.setFontSize(8);
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(51, 65, 85);
-
-        doc.text("Le Président du Jury :", 20, finalY);
-        doc.setFont("helvetica", "normal");
-        doc.text("Date et Signature", 20, finalY + 4);
-        doc.line(20, finalY + 18, 70, finalY + 18);
-
-        doc.setFont("helvetica", "bold");
-        doc.text("Les Assesseurs / Membres du Jury :", pageWidth / 2 - 25, finalY);
-        doc.setFont("helvetica", "normal");
-        doc.text("Signatures", pageWidth / 2 - 25, finalY + 4);
-        doc.line(pageWidth / 2 - 25, finalY + 18, pageWidth / 2 + 35, finalY + 18);
-
-        doc.setFont("helvetica", "bold");
-        doc.text("Le Doyen / Chef d'Établissement :", pageWidth - 70, finalY);
-        doc.setFont("helvetica", "normal");
-        doc.text("Cachet officiel et Approbation", pageWidth - 70, finalY + 4);
-        doc.line(pageWidth - 70, finalY + 18, pageWidth - 20, finalY + 18);
-      }
-
-      doc.save(`PV_Deliberation_LMD_${selectedSemester}_${selectedClass?.className || "Classe"}.pdf`);
-      toast.success("Procès-verbal de délibération exporté en PDF avec succès !");
-    } catch (e: any) {
-      toast.error("Erreur lors de l'export PDF");
-    } finally {
-      setIsExportingPdf(false);
-    }
+    await handleExportMinisterialPV("a4");
   };
 
   // ─── Single Student Transcript PDF Export ──────────────────────────────────
@@ -1047,6 +923,7 @@ export default function DeliberationClient({
         ? (currentSection.sectionName.toLowerCase().startsWith("faculté") ? currentSection.sectionName : `Faculté : ${currentSection.sectionName}`)
         : "Faculté Universitaire LMD";
       const departmentName = selectedProgram?.name || currentSection?.sectionName || "Département Universitaire";
+      const logo = headerConfig?.leftLogo || headerConfig?.schoolLogo || headerConfig?.logo || headerConfig?.logoUrl || headerConfig?.centerLogo || undefined;
 
       const relevePayload: LmdReleveParams = {
         student: item.student,
@@ -1055,13 +932,15 @@ export default function DeliberationClient({
           name: schoolName,
           countryName: headerConfig?.countryName || "RÉPUBLIQUE DU NIGER",
           ministryName: headerConfig?.ministryName || "MINISTÈRE DE L'ENSEIGNEMENT SUPÉRIEUR ET DE LA RECHERCHE",
+          motto: headerConfig?.motto || "Fraternité — Travail — Progrès",
           facultyName: facultyName,
           departmentName: departmentName,
           programName: selectedProgram?.name || currentSection?.sectionName || "Tronc Commun LMD",
           degreeLevel: selectedLevel,
           className: getClassDisplayName(selectedClass),
           sessionName: selectedSession?.sessionName || "2025-2026",
-          logoUrl: headerConfig?.logo || headerConfig?.logoUrl || undefined,
+          city: headerConfig?.city || "Niamey",
+          logoUrl: logo,
         },
         rank: item.rank,
         totalCohort: deliberationData.totalStudents,
@@ -1091,6 +970,7 @@ export default function DeliberationClient({
         ? (currentSection.sectionName.toLowerCase().startsWith("faculté") ? currentSection.sectionName : `Faculté : ${currentSection.sectionName}`)
         : "Faculté Universitaire LMD";
       const departmentName = selectedProgram?.name || currentSection?.sectionName || "Département Universitaire";
+      const logo = headerConfig?.leftLogo || headerConfig?.schoolLogo || headerConfig?.logo || headerConfig?.logoUrl || headerConfig?.centerLogo || undefined;
 
       const batchPayload: LmdReleveParams[] = deliberationData.cohort.map((item) => ({
         student: item.student,
@@ -1099,13 +979,15 @@ export default function DeliberationClient({
           name: schoolName,
           countryName: headerConfig?.countryName || "RÉPUBLIQUE DU NIGER",
           ministryName: headerConfig?.ministryName || "MINISTÈRE DE L'ENSEIGNEMENT SUPÉRIEUR ET DE LA RECHERCHE",
+          motto: headerConfig?.motto || "Fraternité — Travail — Progrès",
           facultyName: facultyName,
           departmentName: departmentName,
           programName: selectedProgram?.name || currentSection?.sectionName || "Tronc Commun LMD",
           degreeLevel: selectedLevel,
           className: getClassDisplayName(selectedClass),
           sessionName: selectedSession?.sessionName || "2025-2026",
-          logoUrl: headerConfig?.logo || headerConfig?.logoUrl || undefined,
+          city: headerConfig?.city || "Niamey",
+          logoUrl: logo,
         },
         rank: item.rank,
         totalCohort: deliberationData.totalStudents,

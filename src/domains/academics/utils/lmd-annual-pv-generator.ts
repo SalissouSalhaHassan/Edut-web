@@ -4,7 +4,7 @@
  * Vector-perfect Landscape PV & Portrait Annual Transcripts
  */
 
-import { getEctsGrade } from "./lmd-releve-generator";
+import { drawUnifiedLmdHeader, drawUnifiedLmdSignatureZone } from "./lmd-header-helper";
 
 export interface LmdAnnualStudent {
   student: {
@@ -47,12 +47,15 @@ export interface LmdAnnualParams {
     name?: string;
     countryName?: string;
     ministryName?: string;
+    motto?: string;
     facultyName?: string;
     departmentName?: string;
     programName?: string;
     className?: string;
     sessionName?: string;
     cycleLevel?: string;
+    city?: string;
+    logoUrl?: string;
   };
   sem1Name: string;
   sem2Name: string;
@@ -76,48 +79,84 @@ export async function generateLmdAnnualDeliberationPVPDF(data: LmdAnnualParams):
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-
   const isRat = data.sessionType === "Rattrapage";
 
-  // Header Box
+  // 1. Unified Official Landscape Header
+  const headerBottomY = drawUnifiedLmdHeader(doc, {
+    orientation: "landscape",
+    countryName: data.institution.countryName,
+    ministryName: data.institution.ministryName,
+    motto: data.institution.motto,
+    schoolName: data.institution.name,
+    facultyName: data.institution.facultyName,
+    departmentName: data.institution.departmentName,
+    city: data.institution.city,
+    logoUrl: data.institution.logoUrl,
+    documentTitle: `PROCÈS-VERBAL ANNUEL DE DÉLIBÉRATION DU JURY LMD — ${data.cycleLevel.toUpperCase()}`,
+    documentSubtitle: `Filière : ${data.institution.programName || "Tronc Commun"} • Promo : ${data.institution.className || "Classe"} • Session : ${data.institution.sessionName || "2025-2026"} • ${isRat ? "Session 2 (Rattrapage)" : "Session 1 (Normale)"}`,
+    bannerColor: "emerald",
+  });
+
+  // 2. Summary Statistics Mini-Bar
+  const statsY = headerBottomY;
+  const marginX = 12;
+  const statsBoxW = (pageWidth - marginX * 2 - 12) / 4;
+  const statsH = 11;
+
+  // Box 1: Effectif Total
   doc.setFillColor(248, 250, 252);
-  doc.rect(10, 10, pageWidth - 20, 26, "F");
-  doc.setDrawColor(226, 232, 240);
-  doc.rect(10, 10, pageWidth - 20, 26, "S");
-
+  doc.setDrawColor(203, 213, 225);
+  doc.roundedRect(marginX, statsY, statsBoxW, statsH, 1, 1, "FD");
+  doc.setFontSize(6.5);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(13);
-  doc.setTextColor(15, 23, 42);
-  doc.text(
-    `PROCÈS-VERBAL ANNUEL DE DÉLIBÉRATION DU JURY LMD — ${data.cycleLevel.toUpperCase()}`,
-    pageWidth / 2,
-    17,
-    { align: "center" }
-  );
-
-  doc.setFontSize(8.5);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(71, 85, 105);
-  const subTitle = `Filière : ${data.institution.programName || "Tronc Commun LMD"}   |   Promotion : ${data.institution.className || "Classe"}   |   Année Académique : ${data.institution.sessionName || "2025-2026"}   |   ${isRat ? "Session de Rattrapage (Session 2)" : "Session Normale (Session 1)"}`;
-  doc.text(subTitle, pageWidth / 2, 23, { align: "center" });
-
-  doc.setFontSize(7.5);
   doc.setTextColor(100, 116, 139);
-  doc.text(
-    `Bilan Annuel : 60 Crédits ECTS   •   Règle d'Enjambement (Passage avec dettes) : ≥ 45 ECTS   •   Compensation Annuelle : MGA ≥ 10.00 / 20`,
-    pageWidth / 2,
-    29,
-    { align: "center" }
-  );
+  doc.text("EFFECTIF PROMOTION", marginX + statsBoxW / 2, statsY + 3.8, { align: "center" });
+  doc.setFontSize(8.5);
+  doc.setTextColor(15, 23, 42);
+  doc.text(`${data.totalStudents} Étudiants`, marginX + statsBoxW / 2, statsY + 8.5, { align: "center" });
 
-  // Table Columns
+  // Box 2: Admis Année Sup
+  const b2X = marginX + statsBoxW + 4;
+  doc.setFillColor(236, 253, 245); // emerald-50
+  doc.setDrawColor(167, 243, 208);
+  doc.roundedRect(b2X, statsY, statsBoxW, statsH, 1, 1, "FD");
+  doc.setFontSize(6.5);
+  doc.setTextColor(6, 95, 70);
+  doc.text("ADMIS EN ANNÉE SUP.", b2X + statsBoxW / 2, statsY + 3.8, { align: "center" });
+  doc.setFontSize(8.5);
+  doc.text(`${data.passedCount} (${data.totalStudents > 0 ? ((data.passedCount / data.totalStudents) * 100).toFixed(1) : 0}%)`, b2X + statsBoxW / 2, statsY + 8.5, { align: "center" });
+
+  // Box 3: Enjambement
+  const b3X = b2X + statsBoxW + 4;
+  doc.setFillColor(255, 251, 235); // amber-50
+  doc.setDrawColor(253, 230, 138);
+  doc.roundedRect(b3X, statsY, statsBoxW, statsH, 1, 1, "FD");
+  doc.setFontSize(6.5);
+  doc.setTextColor(146, 64, 14);
+  doc.text("ENJAMBEMENT (DETTES)", b3X + statsBoxW / 2, statsY + 3.8, { align: "center" });
+  doc.setFontSize(8.5);
+  doc.text(`${data.enjambementCount} (≥ 45 ECTS)`, b3X + statsBoxW / 2, statsY + 8.5, { align: "center" });
+
+  // Box 4: Taux Global
+  const b4X = b3X + statsBoxW + 4;
+  doc.setFillColor(241, 245, 249);
+  doc.setDrawColor(203, 213, 225);
+  doc.roundedRect(b4X, statsY, statsBoxW, statsH, 1, 1, "FD");
+  doc.setFontSize(6.5);
+  doc.setTextColor(71, 85, 105);
+  doc.text("TAUX DE RÉUSSITE GLOBAL", b4X + statsBoxW / 2, statsY + 3.8, { align: "center" });
+  doc.setFontSize(8.5);
+  doc.setTextColor(16, 94, 70);
+  doc.text(`${data.successRate}%`, b4X + statsBoxW / 2, statsY + 8.5, { align: "center" });
+
+  // 3. Table Columns
   const headers = [
     "Rang",
     "Matricule",
     "Nom & Prénoms",
     `${data.sem1Name}\n(Moy / 30 ECTS)`,
     `${data.sem2Name}\n(Moy / 30 ECTS)`,
-    "Moyenne\nAnnuelle",
+    "MGA /20\nAnnuelle",
     "Crédits\n/ 60 ECTS",
     "Décision Annuelle du Jury",
     "Mention",
@@ -137,13 +176,15 @@ export async function generateLmdAnnualDeliberationPVPDF(data: LmdAnnualParams):
     ];
   });
 
+  const tableStartY = statsY + statsH + 3.5;
+
   autoTable(doc, {
-    startY: 40,
+    startY: tableStartY,
     head: [headers],
     body: body,
     theme: "grid",
     headStyles: {
-      fillColor: [15, 23, 42],
+      fillColor: [16, 94, 70], // emerald-800
       textColor: [255, 255, 255],
       fontStyle: "bold",
       fontSize: 7.5,
@@ -161,12 +202,12 @@ export async function generateLmdAnnualDeliberationPVPDF(data: LmdAnnualParams):
     columnStyles: {
       0: { halign: "center", cellWidth: 14, fontStyle: "bold" },
       1: { halign: "center", cellWidth: 26, fontStyle: "bold" },
-      2: { halign: "left", cellWidth: 60, fontStyle: "bold" },
+      2: { halign: "left", cellWidth: 58, fontStyle: "bold" },
       3: { halign: "center", cellWidth: 32 },
       4: { halign: "center", cellWidth: 32 },
       5: { halign: "center", cellWidth: 22, fontStyle: "bold" },
       6: { halign: "center", cellWidth: 24, fontStyle: "bold" },
-      7: { halign: "center", cellWidth: 42, fontStyle: "bold" },
+      7: { halign: "center", cellWidth: 44, fontStyle: "bold" },
       8: { halign: "center", cellWidth: 22 },
     },
     didParseCell: (hookData: any) => {
@@ -174,9 +215,9 @@ export async function generateLmdAnnualDeliberationPVPDF(data: LmdAnnualParams):
         const text = String(hookData.cell.raw || "");
         if (hookData.column.index === 7) {
           if (text.includes("Admis en Année")) {
-            hookData.cell.styles.textColor = [16, 185, 129]; // emerald-500
+            hookData.cell.styles.textColor = [16, 94, 70]; // emerald-700
           } else if (text.includes("Enjambement")) {
-            hookData.cell.styles.textColor = [217, 119, 6]; // amber-600
+            hookData.cell.styles.textColor = [180, 83, 9]; // amber-700
           } else {
             hookData.cell.styles.textColor = [225, 29, 72]; // rose-600
           }
@@ -185,29 +226,17 @@ export async function generateLmdAnnualDeliberationPVPDF(data: LmdAnnualParams):
     },
   });
 
-  const finalY = (doc as any).lastAutoTable.finalY + 12;
-  if (finalY < pageHeight - 35) {
-    doc.setFontSize(8);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(51, 65, 85);
-
-    doc.text("Le Président du Jury :", 20, finalY);
-    doc.setFont("helvetica", "normal");
-    doc.text("Date et Signature", 20, finalY + 4);
-    doc.line(20, finalY + 18, 70, finalY + 18);
-
-    doc.setFont("helvetica", "bold");
-    doc.text("Les Assesseurs / Membres du Jury :", pageWidth / 2 - 25, finalY);
-    doc.setFont("helvetica", "normal");
-    doc.text("Signatures", pageWidth / 2 - 25, finalY + 4);
-    doc.line(pageWidth / 2 - 25, finalY + 18, pageWidth / 2 + 35, finalY + 18);
-
-    doc.setFont("helvetica", "bold");
-    doc.text("Le Doyen / Chef d'Établissement :", pageWidth - 70, finalY);
-    doc.setFont("helvetica", "normal");
-    doc.text("Cachet officiel et Approbation", pageWidth - 70, finalY + 4);
-    doc.line(pageWidth - 70, finalY + 18, pageWidth - 20, finalY + 18);
-  }
+  const finalY = (doc as any).lastAutoTable.finalY + 6;
+  drawUnifiedLmdSignatureZone(doc, {
+    startY: finalY,
+    leftTitle: "Le Président du Jury LMD",
+    leftSubtitle: "Signature et validation officielle du PV",
+    rightTitle: "Le Doyen / Directeur de l'Établissement",
+    rightSubtitle: "Approbation officielle et Sceau de l'Université",
+    centerCode: `PV-ANNUEL-${data.cycleLevel}-${Date.now().toString().slice(-6)}`,
+    city: data.institution.city,
+    orientation: "landscape",
+  });
 
   const cleanClass = (data.institution.className || "Classe").replace(/[^a-zA-Z0-9]/g, "_");
   doc.save(`PV_Deliberation_Annuelle_${data.cycleLevel.replace(/[^a-zA-Z0-9]/g, "_")}_${cleanClass}.pdf`);
@@ -226,124 +255,90 @@ export async function generateLmdStudentAnnualRelevePDF(
 
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
 
-  // Dual Security Borders
-  doc.setDrawColor(203, 213, 225);
-  doc.setLineWidth(0.7);
-  doc.rect(7, 7, pageWidth - 14, pageHeight - 14, "S");
+  // 1. Unified Official Header
+  const headerBottomY = drawUnifiedLmdHeader(doc, {
+    orientation: "portrait",
+    countryName: institution.countryName,
+    ministryName: institution.ministryName,
+    motto: institution.motto,
+    schoolName: institution.name,
+    facultyName: institution.facultyName,
+    departmentName: institution.departmentName,
+    city: institution.city,
+    logoUrl: institution.logoUrl,
+    documentTitle: "RELEVÉ DE NOTES ANNUEL & BILAN DES 60 CRÉDITS ECTS",
+    documentSubtitle: `Cycle LMD • ${item.annual.cycleLevel} • Validation de l'Année Académique • Norme REESAO / CAMES`,
+    bannerColor: "emerald",
+  });
 
-  doc.setDrawColor(226, 232, 240);
-  doc.setLineWidth(0.3);
-  doc.rect(8.5, 8.5, pageWidth - 17, pageHeight - 17, "S");
-
-  // Republic & University Header
-  const country = institution.countryName || "RÉPUBLIQUE DU NIGER";
-  const ministry = institution.ministryName || "MINISTÈRE DE L'ENSEIGNEMENT SUPÉRIEUR ET DE LA RECHERCHE";
-  const schoolName = institution.name || "UNIVERSITÉ / ÉCOLE SUPÉRIEURE";
-  const faculty = institution.facultyName || "FACULTÉ / DÉPARTEMENT";
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8.5);
-  doc.setTextColor(15, 23, 42);
-  doc.text(country.toUpperCase(), 14, 14);
-
-  doc.setDrawColor(15, 23, 42);
-  doc.setLineWidth(0.4);
-  doc.line(14, 15.5, 52, 15.5);
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(6.5);
-  doc.setTextColor(71, 85, 105);
-  doc.text(ministry, 14, 20, { maxWidth: 65 });
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8.5);
-  doc.setTextColor(15, 23, 42);
-  doc.text(schoolName.toUpperCase(), pageWidth - 14, 14, { align: "right" });
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(7);
-  doc.setTextColor(71, 85, 105);
-  doc.text(faculty, pageWidth - 14, 18.5, { align: "right" });
-
-  // Title Banner
-  const bannerY = 27;
-  doc.setFillColor(15, 23, 42);
-  doc.roundedRect(12, bannerY, pageWidth - 24, 12, 1.5, 1.5, "F");
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(10.5);
-  doc.setTextColor(255, 255, 255);
-  doc.text(
-    `RELEVÉ DE NOTES ANNUEL & BILAN DES 60 CRÉDITS ECTS`,
-    pageWidth / 2,
-    bannerY + 5.5,
-    { align: "center" }
-  );
-
-  doc.setFontSize(6.8);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(226, 232, 240);
-  doc.text(
-    `Cycle LMD • ${item.annual.cycleLevel} • Validation de l'Année Académique • Norme REESAO / CAMES`,
-    pageWidth / 2,
-    bannerY + 9.5,
-    { align: "center" }
-  );
-
-  // Student Info Box
-  const infoY = 41;
+  // 2. Student Info Box
+  const infoY = headerBottomY;
+  const marginX = 10;
   doc.setFillColor(248, 250, 252);
   doc.setDrawColor(226, 232, 240);
-  doc.roundedRect(12, infoY, pageWidth - 24, 24, 1.5, 1.5, "FD");
+  doc.roundedRect(marginX, infoY, pageWidth - marginX * 2, 24, 1.5, 1.5, "FD");
 
   doc.setFontSize(7.5);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(71, 85, 105);
-  doc.text("Nom & Prénoms :", 16, infoY + 6);
+  doc.text("Nom & Prénoms :", marginX + 4, infoY + 6);
   doc.setTextColor(15, 23, 42);
-  doc.text(item.student.nom.toUpperCase(), 44, infoY + 6);
+  doc.text(item.student.nom.toUpperCase(), marginX + 32, infoY + 6);
 
   doc.setTextColor(71, 85, 105);
-  doc.text("N° Matricule :", 16, infoY + 12);
+  doc.text("N° Matricule :", marginX + 4, infoY + 12);
+  doc.setFont("courier", "bold");
   doc.setTextColor(15, 23, 42);
-  doc.text(item.student.matricule || "N/A", 44, infoY + 12);
+  doc.text(item.student.matricule || "N/A", marginX + 32, infoY + 12);
 
+  doc.setFont("helvetica", "bold");
   doc.setTextColor(71, 85, 105);
-  doc.text("Filière / Cycle :", 16, infoY + 18);
+  doc.text("Filière / Cycle :", marginX + 4, infoY + 18);
+  doc.setFont("helvetica", "normal");
   doc.setTextColor(15, 23, 42);
-  doc.text(`${institution.programName || "LMD"} (${item.annual.cycleLevel})`, 44, infoY + 18);
+  doc.text(`${institution.programName || "LMD"} (${item.annual.cycleLevel})`, marginX + 32, infoY + 18);
 
+  const rightColX = pageWidth / 2 + 8;
+  const rightValX = rightColX + 34;
+
+  doc.setFont("helvetica", "bold");
   doc.setTextColor(71, 85, 105);
-  doc.text("Année Académique :", pageWidth / 2 + 10, infoY + 6);
+  doc.text("Année Académique :", rightColX, infoY + 6);
+  doc.setFont("helvetica", "normal");
   doc.setTextColor(15, 23, 42);
-  doc.text(institution.sessionName || "2025-2026", pageWidth / 2 + 42, infoY + 6);
+  doc.text(institution.sessionName || "2025-2026", rightValX, infoY + 6);
 
+  doc.setFont("helvetica", "bold");
   doc.setTextColor(71, 85, 105);
-  doc.text("Classe / Promotion :", pageWidth / 2 + 10, infoY + 12);
+  doc.text("Classe / Promotion :", rightColX, infoY + 12);
+  doc.setFont("helvetica", "normal");
   doc.setTextColor(15, 23, 42);
-  doc.text(institution.className || "Promotion LMD", pageWidth / 2 + 42, infoY + 12);
+  doc.text(institution.className || "Promotion LMD", rightValX, infoY + 12);
 
+  doc.setFont("helvetica", "bold");
   doc.setTextColor(71, 85, 105);
-  doc.text("Rang de l'Étudiant :", pageWidth / 2 + 10, infoY + 18);
-  doc.setTextColor(15, 23, 42);
-  doc.text(`${item.rank === 1 ? "1er (Major)" : `${item.rank}e`} sur ${totalCohort} étudiants`, pageWidth / 2 + 42, infoY + 18);
+  doc.text("Rang de l'Étudiant :", rightColX, infoY + 18);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(16, 94, 70);
+  doc.text(`${item.rank === 1 ? "1er (Major)" : `${item.rank}e`} sur ${totalCohort} étudiants`, rightValX, infoY + 18);
 
-  // Annual Balance Summary Table
+  // 3. Annual Balance Summary Table
   const tableHeaders = ["Période Académique", "Moyenne / 20", "Crédits Validés", "Total Visé", "Décision Semestrielle"];
   const tableBody = [
     [item.sem1.name, `${item.sem1.average.toFixed(2)} / 20`, `${item.sem1.creditsAcquired} ECTS`, "30 ECTS", item.sem1.decision],
     [item.sem2.name, `${item.sem2.average.toFixed(2)} / 20`, `${item.sem2.creditsAcquired} ECTS`, "30 ECTS", item.sem2.decision],
   ];
 
+  const tableStartY = infoY + 27;
+
   autoTable(doc, {
-    startY: 68,
+    startY: tableStartY,
     head: [tableHeaders],
     body: tableBody,
     theme: "grid",
     headStyles: {
-      fillColor: [15, 23, 42],
+      fillColor: [16, 94, 70], // emerald-800
       textColor: [255, 255, 255],
       fontStyle: "bold",
       fontSize: 8,
@@ -357,64 +352,67 @@ export async function generateLmdStudentAnnualRelevePDF(
     columnStyles: {
       0: { halign: "left", fontStyle: "bold", cellWidth: 50 },
       1: { fontStyle: "bold" },
-      2: { fontStyle: "bold", textColor: [79, 70, 229] },
+      2: { fontStyle: "bold", textColor: [16, 94, 70] },
       4: { fontStyle: "bold" },
     },
   });
 
-  // Annual Conclusion Card
-  const annualY = (doc as any).lastAutoTable.finalY + 8;
-  doc.setFillColor(241, 245, 249);
+  // 4. Annual Conclusion Card
+  const annualY = (doc as any).lastAutoTable.finalY + 6;
+  doc.setFillColor(248, 250, 252);
   doc.setDrawColor(203, 213, 225);
-  doc.roundedRect(12, annualY, pageWidth - 24, 30, 1.5, 1.5, "FD");
-
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(15, 23, 42);
-  doc.text("BILAN ANNUEL GLOBAL (60 CRÉDITS ECTS) :", 16, annualY + 7);
+  doc.roundedRect(marginX, annualY, pageWidth - marginX * 2, 28, 1.5, 1.5, "FD");
 
   doc.setFontSize(8.5);
-  doc.setFont("helvetica", "normal");
-  doc.text(`• Moyenne Générale Annuelle (MGA) : `, 16, annualY + 14);
   doc.setFont("helvetica", "bold");
-  doc.text(`${item.annual.annualAverage.toFixed(2)} / 20`, 72, annualY + 14);
+  doc.setTextColor(15, 23, 42);
+  doc.text("BILAN ANNUEL GLOBAL (60 CRÉDITS ECTS) :", marginX + 4, annualY + 6.5);
+
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "normal");
+  doc.text(`• Moyenne Générale Annuelle (MGA) : `, marginX + 4, annualY + 13);
+  doc.setFont("helvetica", "bold");
+  doc.text(`${item.annual.annualAverage.toFixed(2)} / 20`, marginX + 60, annualY + 13);
 
   doc.setFont("helvetica", "normal");
-  doc.text(`• Total Crédits ECTS Capitalisés : `, 16, annualY + 20);
+  doc.text(`• Total Crédits ECTS Capitalisés : `, marginX + 4, annualY + 19);
   doc.setFont("helvetica", "bold");
-  doc.setTextColor(79, 70, 229);
-  doc.text(`${item.annual.totalCreditsAcquired} / 60.0 ECTS`, 68, annualY + 20);
+  doc.setTextColor(16, 94, 70);
+  doc.text(`${item.annual.totalCreditsAcquired} / 60.0 ECTS`, marginX + 56, annualY + 19);
 
   doc.setFont("helvetica", "normal");
   doc.setTextColor(15, 23, 42);
-  doc.text(`• Mention Annuelle : `, 16, annualY + 26);
+  doc.text(`• Mention Annuelle : `, marginX + 4, annualY + 25);
   doc.setFont("helvetica", "bold");
-  doc.text(item.annual.mention, 52, annualY + 26);
+  doc.text(item.annual.mention, marginX + 42, annualY + 25);
 
-  // Big Decision Badge on the right
+  // Decision Badge on the right
   const isPass = item.annual.isAnnualValidated;
   const isEnj = item.annual.isEnjambement;
-  doc.setFillColor(isPass ? 209 : isEnj ? 254 : 255, isPass ? 250 : isEnj ? 243 : 228, isPass ? 229 : isEnj ? 199 : 230);
-  doc.roundedRect(pageWidth - 78, annualY + 5, 62, 20, 1.5, 1.5, "F");
+  doc.setFillColor(isPass ? 236 : isEnj ? 255 : 255, isPass ? 253 : isEnj ? 251 : 228, isPass ? 245 : isEnj ? 235 : 230);
+  doc.setDrawColor(isPass ? 167 : isEnj ? 253 : 254, isPass ? 243 : isEnj ? 230 : 205, isPass ? 208 : isEnj ? 138 : 211);
+  doc.roundedRect(pageWidth - 78, annualY + 4, 66, 20, 1.5, 1.5, "FD");
+
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(isPass ? 6 : isEnj ? 146 : 190, isPass ? 95 : isEnj ? 64 : 18, isPass ? 70 : isEnj ? 14 : 60);
+  doc.text("DÉCISION DU JURY ANNUEL", pageWidth - 45, annualY + 9.5, { align: "center" });
 
   doc.setFontSize(7.5);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(isPass ? 6 : isEnj ? 180 : 190, isPass ? 95 : isEnj ? 83 : 18, isPass ? 70 : isEnj ? 9 : 60);
-  doc.text("DÉCISION DU JURY ANNUEL", pageWidth - 47, annualY + 11, { align: "center" });
+  doc.text(item.annual.decision, pageWidth - 45, annualY + 16, { align: "center", maxWidth: 62 });
 
-  doc.setFontSize(8);
-  doc.text(item.annual.decision, pageWidth - 47, annualY + 18, { align: "center", maxWidth: 58 });
-
-  // Signatures
-  const sigY = pageHeight - 38;
-  doc.setFontSize(7.5);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(51, 65, 85);
-  doc.text("Le Doyen de Faculté / Chef d'Établissement", 16, sigY);
-  doc.line(16, sigY + 15, 65, sigY + 15);
-
-  doc.text("Le Président du Jury LMD", pageWidth - 65, sigY);
-  doc.line(pageWidth - 65, sigY + 15, pageWidth - 16, sigY + 15);
+  // 5. Signatures
+  const sigY = annualY + 34;
+  drawUnifiedLmdSignatureZone(doc, {
+    startY: sigY,
+    leftTitle: "Le Président du Jury LMD",
+    leftSubtitle: "Signature et approbation",
+    rightTitle: "Le Doyen / Directeur Général",
+    rightSubtitle: "Cachet officiel et validation",
+    centerCode: `ANNUEL-${item.student.id}-${(item.annual.annualAverage * 100).toFixed(0)}`,
+    city: institution.city,
+    orientation: "portrait",
+  });
 
   const cleanNom = (item.student.nom || "Etudiant").replace(/[^a-zA-Z0-9]/g, "_");
   doc.save(`Releve_Annuel_LMD_${item.annual.cycleLevel.replace(/[^a-zA-Z0-9]/g, "_")}_${cleanNom}.pdf`);

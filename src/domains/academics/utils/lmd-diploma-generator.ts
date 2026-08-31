@@ -55,7 +55,7 @@ export interface LmdDiplomaParams {
 }
 
 /* ─── Draw Official Coat of Arms of Niger (Armoiries du Niger) ─────────── */
-function drawNigerCoatOfArms(doc: any, cx: number, cy: number, scale = 1.0) {
+export function drawNigerCoatOfArms(doc: any, cx: number, cy: number, scale = 1.0) {
   // 1. Crossed Flagpoles (Gold lines)
   doc.setDrawColor(200, 160, 20);
   doc.setLineWidth(0.6 * scale);

@@ -1,8 +1,10 @@
 /**
  * LMD Official Transcript (Relevé de Notes) Generator
  * Standards: REESAO / CAMES / ECTS / Bologne
- * High-precision, pixel-perfect vector A4 layout
+ * Unified Modern Architecture with Authentic State Emblems & Vector Security
  */
+
+import { drawUnifiedLmdHeader, drawUnifiedLmdSignatureZone } from "./lmd-header-helper";
 
 export interface LmdReleveParams {
   student: {
@@ -106,112 +108,60 @@ export async function generateLmdBatchRelevesPDF(cohort: LmdReleveParams[], sess
 
 function buildRelevePage(doc: any, autoTable: any, data: LmdReleveParams, pageWidth: number, pageHeight: number) {
   const { student, deliberation, institution, rank, totalCohort, sessionType } = data;
+  const isRattrapage = sessionType === "Rattrapage";
   const ects = getEctsGrade(deliberation.semesterAverage);
 
-  // 1. Dual Luxury Security Borders
-  doc.setDrawColor(203, 213, 225); // slate-300
-  doc.setLineWidth(0.7);
-  doc.rect(7, 7, pageWidth - 14, pageHeight - 14, "S");
-
-  doc.setDrawColor(226, 232, 240); // slate-200
-  doc.setLineWidth(0.3);
-  doc.rect(8.5, 8.5, pageWidth - 17, pageHeight - 17, "S");
-
-  // 2. Official Republic & Institutional Header
-  const country = institution.countryName || "RÉPUBLIQUE DU NIGER";
-  const ministry = institution.ministryName || "MINISTÈRE DE L'ENSEIGNEMENT SUPÉRIEUR ET DE LA RECHERCHE";
-  const schoolName = institution.name || "UNIVERSITÉ / ÉCOLE SUPÉRIEURE";
-  const faculty = institution.facultyName || "FACULTÉ / DÉPARTEMENT";
-  const department = institution.departmentName || faculty;
-
-  // Left Republic Info
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8.5);
-  doc.setTextColor(15, 23, 42); // slate-900
-  doc.text(country.toUpperCase(), 14, 14);
-
-  doc.setDrawColor(15, 23, 42);
-  doc.setLineWidth(0.4);
-  doc.line(14, 15.5, 52, 15.5);
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(6.5);
-  doc.setTextColor(71, 85, 105); // slate-600
-  doc.text(ministry, 14, 20, { maxWidth: 65 });
-
-  // Right University Info
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8.5);
-  doc.setTextColor(15, 23, 42);
-  doc.text(schoolName.toUpperCase(), pageWidth - 14, 14, { align: "right" });
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(7);
-  doc.setTextColor(71, 85, 105);
-  doc.text(faculty, pageWidth - 14, 18.5, { align: "right" });
-  if (faculty !== department) {
-    doc.text(department, pageWidth - 14, 22.5, { align: "right" });
-  }
-
-  // 3. Document Title Banner (Sleek Dark Navy with Gold Accents)
-  const bannerY = 27;
-  const isRattrapage = sessionType === "Rattrapage";
-  doc.setFillColor(isRattrapage ? 67 : 15, isRattrapage ? 24 : 23, isRattrapage ? 112 : 42); // deep indigo/purple if rattrapage
-  doc.roundedRect(12, bannerY, pageWidth - 24, 12, 1.5, 1.5, "F");
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(10.5);
-  doc.setTextColor(255, 255, 255);
-  doc.text(
-    isRattrapage ? "RELEVÉ DE NOTES ET RÉSULTATS — SESSION DE RATTRAPAGE" : "RELEVÉ DE NOTES ET RÉSULTATS OFFICIEL",
-    pageWidth / 2,
-    bannerY + 5.5,
-    { align: "center" }
-  );
-
-  doc.setFontSize(6.8);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(226, 232, 240);
-  doc.text(
-    isRattrapage
+  // 1. Unified Official Header (Left Logo, Center University/Faculty, Right Niger Armoiries)
+  const headerBottomY = drawUnifiedLmdHeader(doc, {
+    orientation: "portrait",
+    countryName: institution.countryName,
+    ministryName: institution.ministryName,
+    motto: institution.motto,
+    schoolName: institution.name,
+    facultyName: institution.facultyName,
+    departmentName: institution.departmentName,
+    city: institution.city,
+    logoUrl: institution.logoUrl,
+    documentTitle: isRattrapage
+      ? "RELEVÉ DE NOTES ET RÉSULTATS — SESSION DE RATTRAPAGE"
+      : "RELEVÉ DE NOTES ET RÉSULTATS OFFICIEL",
+    documentSubtitle: isRattrapage
       ? "2ème Session d'Évaluation • Règle Max(N1, N2) • Norme ECTS / REESAO / CAMES"
       : "Système LMD (Licence - Master - Doctorat) • Norme ECTS / REESAO / CAMES",
-    pageWidth / 2,
-    bannerY + 9.5,
-    { align: "center" }
-  );
+    bannerColor: isRattrapage ? "indigo" : "emerald",
+  });
 
-  // 4. Student & Academic Info Box
-  const infoY = 41;
+  // 2. Student & Academic Info Box
+  const infoY = headerBottomY;
+  const marginX = 10;
   doc.setFillColor(248, 250, 252); // slate-50
   doc.setDrawColor(226, 232, 240);
-  doc.roundedRect(12, infoY, pageWidth - 24, 24, 1.5, 1.5, "FD");
+  doc.roundedRect(marginX, infoY, pageWidth - marginX * 2, 24, 1.5, 1.5, "FD");
 
-  // Left Column
+  // Left Info Column
   doc.setFontSize(7.5);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(71, 85, 105);
-  doc.text("Nom & Prénoms :", 16, infoY + 6);
+  doc.text("Nom & Prénoms :", marginX + 4, infoY + 6);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(15, 23, 42);
-  doc.text(student.nom || "N/A", 44, infoY + 6);
+  doc.text((student.nom || "N/A").toUpperCase(), marginX + 32, infoY + 6);
 
   doc.setFont("helvetica", "bold");
   doc.setTextColor(71, 85, 105);
-  doc.text("N° Matricule :", 16, infoY + 12);
-  doc.setFont("helvetica", "normal");
+  doc.text("N° Matricule :", marginX + 4, infoY + 12);
   doc.setFont("courier", "bold");
   doc.setTextColor(15, 23, 42);
-  doc.text(student.matricule || "N/A", 44, infoY + 12);
+  doc.text(student.matricule || "N/A", marginX + 32, infoY + 12);
 
   doc.setFont("helvetica", "bold");
   doc.setTextColor(71, 85, 105);
-  doc.text("Filière / Parcours :", 16, infoY + 18);
+  doc.text("Filière / Parcours :", marginX + 4, infoY + 18);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(15, 23, 42);
-  doc.text(institution.programName || "Tronc Commun LMD", 44, infoY + 18, { maxWidth: 58 });
+  doc.text(institution.programName || "Tronc Commun LMD", marginX + 32, infoY + 18, { maxWidth: 62 });
 
-  // Right Column
+  // Right Info Column
   const rightColX = pageWidth / 2 + 8;
   const rightValX = rightColX + 34;
 
@@ -225,8 +175,8 @@ function buildRelevePage(doc: any, autoTable: any, data: LmdReleveParams, pageWi
   doc.setFont("helvetica", "bold");
   doc.setTextColor(71, 85, 105);
   doc.text("Semestre d'Études :", rightColX, infoY + 12);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(15, 23, 42);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(16, 94, 70);
   doc.text(deliberation.semester || "S1", rightValX, infoY + 12);
 
   doc.setFont("helvetica", "bold");
@@ -234,9 +184,9 @@ function buildRelevePage(doc: any, autoTable: any, data: LmdReleveParams, pageWi
   doc.text("Promotion / Classe :", rightColX, infoY + 18);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(15, 23, 42);
-  doc.text(institution.className || "L1", rightValX, infoY + 18);
+  doc.text(institution.className || "Promotion LMD", rightValX, infoY + 18);
 
-  // 5. Table of UEs and ECUs (Clean Academic Grid)
+  // 3. Table of UEs and ECUs (Clean Academic Grid)
   const tableHead = [
     [
       { content: "Code UE", styles: { halign: "center" as const } },
@@ -274,20 +224,20 @@ function buildRelevePage(doc: any, autoTable: any, data: LmdReleveParams, pageWi
         styles: { 
           fontStyle: "bold", 
           fillColor: [241, 245, 249], 
-          textColor: isV ? [5, 150, 105] : isVC ? [79, 70, 229] : [225, 29, 72], 
+          textColor: isV ? [16, 94, 70] : isVC ? [79, 70, 229] : [225, 29, 72], 
           halign: "center" 
         }
       },
       {
         content: `${ue.creditsAcquired} / ${ue.creditsEcts}`,
-        styles: { fontStyle: "bold", fillColor: [241, 245, 249], textColor: [79, 70, 229], halign: "center" }
+        styles: { fontStyle: "bold", fillColor: [241, 245, 249], textColor: [16, 94, 70], halign: "center" }
       },
       {
         content: ueStatusLabel,
         styles: { 
           fontStyle: "bold", 
           fillColor: [241, 245, 249], 
-          textColor: isV ? [5, 150, 105] : isVC ? [79, 70, 229] : [225, 29, 72], 
+          textColor: isV ? [16, 94, 70] : isVC ? [79, 70, 229] : [225, 29, 72], 
           halign: "center" 
         }
       }
@@ -317,7 +267,7 @@ function buildRelevePage(doc: any, autoTable: any, data: LmdReleveParams, pageWi
             content: ecuStatusLabel, 
             styles: { 
               halign: "center", 
-              textColor: isGraded ? (ecuPass ? [5, 150, 105] : [225, 29, 72]) : [148, 163, 184],
+              textColor: isGraded ? (ecuPass ? [16, 94, 70] : [225, 29, 72]) : [148, 163, 184],
               fontStyle: isGraded ? "bold" : "normal"
             } 
           }
@@ -326,18 +276,20 @@ function buildRelevePage(doc: any, autoTable: any, data: LmdReleveParams, pageWi
     }
   });
 
+  const tableStartY = infoY + 27;
+
   autoTable(doc, {
     head: tableHead,
     body: tableBody,
-    startY: 68,
-    margin: { left: 12, right: 12 },
+    startY: tableStartY,
+    margin: { left: marginX, right: marginX },
     styles: {
       fontSize: 7.5,
-      cellPadding: 1.6,
+      cellPadding: 1.5,
       valign: "middle",
     },
     headStyles: {
-      fillColor: [30, 41, 59], // slate-800
+      fillColor: [16, 94, 70], // emerald-800
       textColor: [255, 255, 255],
       fontStyle: "bold",
       halign: "center",
@@ -348,134 +300,92 @@ function buildRelevePage(doc: any, autoTable: any, data: LmdReleveParams, pageWi
       2: { cellWidth: 14, halign: "center" },
       3: { cellWidth: 22, halign: "center" },
       4: { cellWidth: 24, halign: "center" },
-      5: { cellWidth: 26, halign: "center" },
+      5: { cellWidth: 30, halign: "center" },
     },
   });
 
-  const finalY = (doc as any).lastAutoTable.finalY + 5;
+  const finalY = (doc as any).lastAutoTable.finalY + 4;
 
-  // 6. Semester Synthesis & Decision Box (Robust 2-column Bounded Layout)
-  const boxHeight = 27;
+  // 4. Semester Synthesis & Decision Box (2-column Bounded Layout)
+  const boxHeight = 24;
   doc.setFillColor(248, 250, 252);
   doc.setDrawColor(203, 213, 225);
-  doc.roundedRect(12, finalY, pageWidth - 24, boxHeight, 1.5, 1.5, "FD");
+  doc.roundedRect(marginX, finalY, pageWidth - marginX * 2, boxHeight, 1.5, 1.5, "FD");
 
   // Column 1 (Left Metrics)
-  const col1LabelX = 16;
-  const col1ValX = 64;
+  const col1LabelX = marginX + 4;
+  const col1ValX = marginX + 50;
 
   doc.setFontSize(7.5);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(71, 85, 105);
-  doc.text("Moyenne du Semestre :", col1LabelX, finalY + 6.5);
-  doc.setFontSize(9.5);
+  doc.text("Moyenne du Semestre :", col1LabelX, finalY + 6);
+  doc.setFontSize(9);
   doc.setTextColor(15, 23, 42);
-  doc.text(`${deliberation.semesterAverage.toFixed(2)} / 20`, col1ValX, finalY + 6.5);
+  doc.text(`${deliberation.semesterAverage.toFixed(2)} / 20`, col1ValX, finalY + 6);
 
   doc.setFontSize(7.5);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(71, 85, 105);
-  doc.text("Total Crédits ECTS :", col1LabelX, finalY + 13.5);
-  doc.setFontSize(9.5);
-  doc.setTextColor(79, 70, 229);
-  doc.text(`${deliberation.creditsAcquired} / 30 ECTS`, col1ValX, finalY + 13.5);
+  doc.text("Total Crédits ECTS :", col1LabelX, finalY + 12.5);
+  doc.setFontSize(9);
+  doc.setTextColor(16, 94, 70);
+  doc.text(`${deliberation.creditsAcquired} / 30 ECTS`, col1ValX, finalY + 12.5);
 
   doc.setFontSize(7.5);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(71, 85, 105);
-  doc.text("Notation / Grade ECTS :", col1LabelX, finalY + 20.5);
-  doc.setFontSize(8.5);
+  doc.text("Grade ECTS :", col1LabelX, finalY + 19);
+  doc.setFontSize(8);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(15, 23, 42);
-  doc.text(`Grade ${ects.grade} (${ects.label})`, col1ValX, finalY + 20.5, { maxWidth: 45 });
+  doc.text(`Grade ${ects.grade} (${ects.label})`, col1ValX, finalY + 19, { maxWidth: 45 });
 
-  // Column 2 (Right Decisions - Fully Bounded to Avoid Right Clipping)
+  // Column 2 (Right Decisions)
   const col2LabelX = pageWidth / 2 + 8;
   const col2ValX = col2LabelX + 38;
 
   doc.setFontSize(7.5);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(71, 85, 105);
-  doc.text("Décision du Jury :", col2LabelX, finalY + 6.5);
+  doc.text("Décision du Jury :", col2LabelX, finalY + 6);
 
-  doc.setFontSize(9);
+  doc.setFontSize(8.5);
   doc.setFont("helvetica", "bold");
   if (deliberation.isSemesterValidated) {
-    doc.setTextColor(5, 150, 105); // emerald-600
-    doc.text("ADMIS(E) AU SEMESTRE", col2ValX, finalY + 6.5);
+    doc.setTextColor(16, 94, 70); // emerald-700
+    doc.text("ADMIS(E) AU SEMESTRE", col2ValX, finalY + 6);
   } else {
     doc.setTextColor(225, 29, 72); // rose-600
-    doc.text("AJOURNÉ(E) (RATTRAPAGE)", col2ValX, finalY + 6.5);
+    doc.text("AJOURNÉ(E) (RATTRAPAGE)", col2ValX, finalY + 6);
   }
 
   doc.setFontSize(7.5);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(71, 85, 105);
-  doc.text("Mention Attribuée :", col2LabelX, finalY + 13.5);
+  doc.text("Mention Attribuée :", col2LabelX, finalY + 12.5);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(15, 23, 42);
-  doc.text(deliberation.mention || "Ajourné", col2ValX, finalY + 13.5);
+  doc.text(deliberation.mention || "Ajourné", col2ValX, finalY + 12.5);
 
   doc.setFontSize(7.5);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(71, 85, 105);
-  doc.text("Rang Promotion :", col2LabelX, finalY + 20.5);
+  doc.text("Rang Promotion :", col2LabelX, finalY + 19);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(15, 23, 42);
-  doc.text(`${rank || 1}e / ${totalCohort || 1} étudiants`, col2ValX, finalY + 20.5);
+  doc.text(`${rank || 1}e / ${totalCohort || 1} étudiants`, col2ValX, finalY + 19);
 
-  // 7. Official Signatures & Security Stamp Zone
-  const sigY = finalY + boxHeight + 6;
-  if (sigY < pageHeight - 20) {
-    doc.setFontSize(7.5);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(30, 41, 59);
-
-    // Left Signature
-    doc.text("Le Président du Jury de Délibération :", 16, sigY);
-    doc.setFontSize(6.5);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(100, 116, 139);
-    doc.text("Signature et approbation officielle", 16, sigY + 4);
-    doc.setDrawColor(148, 163, 184);
-    doc.setLineWidth(0.4);
-    doc.line(16, sigY + 16, 68, sigY + 16);
-
-    // Center Security Verification Box
-    const centerBoxX = pageWidth / 2 - 20;
-    doc.setDrawColor(203, 213, 225);
-    doc.setFillColor(255, 255, 255);
-    doc.roundedRect(centerBoxX, sigY - 2, 40, 18, 1, 1, "FD");
-
-    doc.setFontSize(6);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(79, 70, 229);
-    doc.text("SÉCURITÉ LMD / ECTS", pageWidth / 2, sigY + 2.5, { align: "center" });
-
-    doc.setFontSize(5.5);
-    doc.setFont("courier", "normal");
-    doc.setTextColor(100, 116, 139);
-    const hash = `LMD-${student.id}-${deliberation.creditsAcquired}C-${(deliberation.semesterAverage * 100).toFixed(0)}`;
-    doc.text(hash, pageWidth / 2, sigY + 7.5, { align: "center" });
-    doc.text("AUTHENTIFIÉ CONFORME", pageWidth / 2, sigY + 12.5, { align: "center" });
-
-    // Right Signature
-    doc.setFontSize(7.5);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(30, 41, 59);
-    doc.text("Le Doyen / Chef d'Établissement :", pageWidth - 70, sigY);
-    doc.setFontSize(6.5);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(100, 116, 139);
-    doc.text("Cachet officiel et validation", pageWidth - 70, sigY + 4);
-    doc.setDrawColor(148, 163, 184);
-    doc.line(pageWidth - 70, sigY + 16, pageWidth - 16, sigY + 16);
-
-    // Footer Legal Notice
-    const today = new Date().toLocaleDateString("fr-FR", { year: "numeric", month: "long", day: "numeric" });
-    doc.setFontSize(6);
-    doc.setTextColor(148, 163, 184); // slate-400
-    doc.text(`Fait le ${today} • Document certifié conforme au Procès-Verbal de Délibération • Réf: LMD-SEC-${student.id}-${Date.now().toString().slice(-6)}`, pageWidth / 2, pageHeight - 11, { align: "center" });
-    doc.text("Ce relevé de notes est délivré en un seul exemplaire original. Toute rature ou altération annule sa validité.", pageWidth / 2, pageHeight - 8, { align: "center" });
-  }
+  // 5. Official Signatures Zone
+  const sigY = finalY + boxHeight + 5;
+  drawUnifiedLmdSignatureZone(doc, {
+    startY: sigY,
+    leftTitle: "Le Président du Jury LMD",
+    leftSubtitle: "Signature et approbation officielle",
+    rightTitle: "Le Doyen / Directeur Général",
+    rightSubtitle: "Cachet officiel de l'Établissement",
+    centerCode: `LMD-${student.id}-${deliberation.creditsAcquired}C-${(deliberation.semesterAverage * 100).toFixed(0)}`,
+    city: institution.city,
+    orientation: "portrait",
+  });
 }
