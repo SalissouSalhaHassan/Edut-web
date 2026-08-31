@@ -13,6 +13,8 @@ import {
   gradingAppreciations
 } from "@/infrastructure/database/schema/academics";
 import { feePayments, onlineTransactions, cogesPayments, studentFees } from "@/infrastructure/database/schema/finance";
+import { schoolBranches } from "@/infrastructure/database/schema/settings";
+import { schools } from "@/infrastructure/database/schema/auth";
 import { eq, or, desc, and, inArray } from "drizzle-orm";
 
 export type VerificationCategory = "academic" | "financial" | "administrative";
@@ -466,6 +468,54 @@ export async function getAcademicVerificationData(identifier: string): Promise<V
       normClasse.includes("GESTION") ||
       isDiplomaLookup;
 
+    // Fetch School Branch or Campus configuration from database
+    let realBranch: any = null;
+    let realSchool: any = null;
+
+    try {
+      if (foundStudent?.schoolId) {
+        const branchList = await (readDb || db)
+          .select()
+          .from(schoolBranches)
+          .where(eq(schoolBranches.schoolId, foundStudent.schoolId))
+          .limit(1);
+        if (branchList && branchList.length > 0) realBranch = branchList[0];
+
+        const schoolList = await (readDb || db)
+          .select()
+          .from(schools)
+          .where(eq(schools.id, foundStudent.schoolId))
+          .limit(1);
+        if (schoolList && schoolList.length > 0) realSchool = schoolList[0];
+      }
+
+      if (!realBranch) {
+        const allBranches = await (readDb || db)
+          .select()
+          .from(schoolBranches)
+          .limit(5);
+        if (allBranches && allBranches.length > 0) {
+          const match = isHigherEducation
+            ? allBranches.find(b => b.instType?.toLowerCase().includes("universit") || b.instType?.toLowerCase().includes("supérieur") || b.branchName?.toLowerCase().includes("universit"))
+            : allBranches[0];
+          realBranch = match || allBranches[0];
+        }
+      }
+
+      if (!realSchool && realBranch?.schoolId) {
+        const sList = await (readDb || db)
+          .select()
+          .from(schools)
+          .where(eq(schools.id, realBranch.schoolId))
+          .limit(1);
+        if (sList && sList.length > 0) realSchool = sList[0];
+      }
+    } catch (e) {
+      console.warn("DB School/Branch search error in verification:", e);
+    }
+
+    const configuredSchoolName = realBranch?.branchName || realSchool?.name;
+
     const isPrimaryEducation = 
       !isHigherEducation && (
         normLevel.includes("PRIMAIRE") || 
@@ -518,13 +568,13 @@ export async function getAcademicVerificationData(identifier: string): Promise<V
     const merkleProof = `urn:uuid:w3c-vc-edut-${hexHash.slice(0, 8)}-${hexHash.slice(8, 12)}-${hexHash.slice(12, 16)}`;
 
     // Level-specific dynamic defaults
-    let levelMinistry = "MINISTÈRE DE L'ÉDUCATION NATIONALE";
+    let levelMinistry = realBranch?.ministry || "MINISTÈRE DE L'ÉDUCATION NATIONALE";
     let levelMinistryEn = "MINISTRY OF NATIONAL EDUCATION";
     let levelMinistryAr = "وزارة التربية الوطنية";
-    let levelInstitutionName = "ÉCOLE EXCELLENCE & COMPLEXE SCOLAIRE EDUT";
-    let levelInstitutionEn = "EDUT EXCELLENCE SCHOOL COMPLEX";
-    let levelInstitutionAr = "مدرسة التميز والمجمع المدرسي إيدوت";
-    let levelSubDept = "Direction Régionale de l'Éducation Nationale • Inspection Pédagogique";
+    let levelInstitutionName = configuredSchoolName || "ÉCOLE EXCELLENCE & COMPLEXE SCOLAIRE EDUT";
+    let levelInstitutionEn = configuredSchoolName || "EDUT EXCELLENCE SCHOOL COMPLEX";
+    let levelInstitutionAr = realBranch?.branchAlias || "مدرسة التميز والمجمع المدرسي إيدوت";
+    let levelSubDept = realBranch?.inspection || "Direction Régionale de l'Éducation Nationale • Inspection Pédagogique";
     let levelUnesco = "UNESCO ISCED 2011 Level 2 (Lower Secondary Education)";
     let levelUnescoAr = "تصنيف اليونسكو CITE 2011 المستوى 2 (التعليم الثانوي الأول)";
     let levelDecision = "Passage en Classe Supérieure (Admis)";
@@ -536,12 +586,12 @@ export async function getAcademicVerificationData(identifier: string): Promise<V
     let levelDocumentTypeAr = "كشف درجات وجلاء رسمي معتمد";
 
     if (isHigherEducation) {
-      levelMinistry = "MINISTÈRE DE L'ENSEIGNEMENT SUPÉRIEUR, DE LA RECHERCHE ET DE L'INNOVATION TECHNOLOGIQUE";
+      levelMinistry = realBranch?.ministry || "MINISTÈRE DE L'ENSEIGNEMENT SUPÉRIEUR, DE LA RECHERCHE ET DE L'INNOVATION TECHNOLOGIQUE";
       levelMinistryEn = "MINISTRY OF HIGHER EDUCATION, RESEARCH AND TECHNOLOGICAL INNOVATION";
       levelMinistryAr = "وزارة التعليم العالي والبحث والابتكار التكنولوجي";
-      levelInstitutionName = "EDUT UNIVERSITÉ";
-      levelInstitutionEn = "EDUT INTERNATIONAL UNIVERSITY";
-      levelInstitutionAr = "جامعة إيدوت الدولية";
+      levelInstitutionName = configuredSchoolName || "EDUT UNIVERSITÉ";
+      levelInstitutionEn = configuredSchoolName || "EDUT INTERNATIONAL UNIVERSITY";
+      levelInstitutionAr = realBranch?.branchAlias || "جامعة إيدوت الدولية";
       const facultyName = normClasse.includes("ADMIN") || normClasse.includes("DROIT") || normClasse.includes("GESTION")
         ? "FACULTÉ DES SCIENCES JURIDIQUES, ÉCONOMIQUES & DE GESTION"
         : "FACULTÉ DES SCIENCES & TECHNOLOGIES";
@@ -1665,21 +1715,21 @@ export async function getAcademicVerificationData(identifier: string): Promise<V
         securityLevel: "Niveau 3 - Ancrage Cryptographique & Registre Public Inviolable (W3C Verifiable Credentials)",
       },
       institution: {
-        name: "UNIVERSITÉ DES SCIENCES & TECHNOLOGIES",
-        nameEn: "UNIVERSITY OF SCIENCES & TECHNOLOGY",
-        nameAr: "جامعة العلوم والتكنولوجيا",
+        name: levelInstitutionName,
+        nameEn: levelInstitutionEn,
+        nameAr: levelInstitutionAr,
         country: "RÉPUBLIQUE DU NIGER",
         countryEn: "REPUBLIC OF NIGER",
         countryAr: "جمهورية النيجر",
-        ministry: "MINISTÈRE DE L'ENSEIGNEMENT SUPÉRIEUR ET DE LA RECHERCHE",
-        ministryEn: "MINISTRY OF HIGHER EDUCATION AND RESEARCH",
-        ministryAr: "وزارة التعليم العالي والبحث العلمي",
+        ministry: levelMinistry,
+        ministryEn: levelMinistryEn,
+        ministryAr: levelMinistryAr,
         accreditation: "Accrédité CAMES / REESAO / ANAQ-Sup",
         accreditationEn: "Accredited by CAMES / REESAO / ANAQ-Sup",
         accreditationAr: "معتمد رسمياً من CAMES / REESAO / ANAQ-Sup",
         status: "Établissement d'Enseignement Supérieur Agréé & Reconnu Internationalement",
         rectorat: "Direction des Affaires Académiques & du Registre Central",
-        city: "Niamey",
+        city: "Niamey / Maradi-Niger",
         website: "https://niger.edut.pro",
       },
       curriculum: sampleCurriculum,
