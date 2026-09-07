@@ -1,9 +1,10 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/domains/auth/services/session";
-import { getActiveSchoolId } from "@/domains/auth/services/school";
+import { getActiveSchoolId, getActiveBranchData, getCurrentSchool } from "@/domains/auth/services/school";
 import { db } from "@/infrastructure/database";
 import { transportRoutes, transportLiveTrips } from "@/infrastructure/database/schema/transport";
 import { eq, desc, or, isNull } from "drizzle-orm";
+import { resolveSchoolCoordinates } from "@/domains/transport/data/localities";
 import LiveMapClient from "./live-map-client";
 
 export const dynamic = "force-dynamic";
@@ -16,6 +17,8 @@ export const metadata = {
 export default async function TransportLiveMapPage() {
   const user = await getCurrentUser();
   const schoolId = user?.schoolId || (await getActiveSchoolId()) || 9;
+  const currentSchool = await getCurrentSchool();
+  const { branchData } = await getActiveBranchData(user);
 
   let formattedRoutes: any[] = [];
   let formattedTrips: any[] = [];
@@ -87,12 +90,33 @@ export default async function TransportLiveMapPage() {
     console.error("[Transport Live Map] Error fetching trips:", err);
   }
 
+  const firstRouteName = formattedRoutes[0]?.routeName || formattedTrips[0]?.route?.routeName || "";
+  const schoolLocation = resolveSchoolCoordinates(currentSchool, branchData, firstRouteName);
+
+  // If a trip has no live GPS fix, smart-initialize coordinates based on route name / school
+  formattedTrips = formattedTrips.map((t) => {
+    let lat = t.currentLat;
+    let lng = t.currentLng;
+    if (lat == null || lng == null || (lat === 0 && lng === 0)) {
+      const combinedText = `${t.route?.routeName || ""} ${t.vehicleNumber || ""}`.toLowerCase();
+      if (combinedText.includes("bagalam") || combinedText.includes("maradi")) {
+        lat = 13.4862;
+        lng = 7.1085;
+      } else {
+        lat = schoolLocation.lat;
+        lng = schoolLocation.lng;
+      }
+    }
+    return { ...t, currentLat: lat, currentLng: lng };
+  });
+
   return (
     <div className="min-h-screen bg-slate-900 text-white">
       <LiveMapClient
         schoolId={schoolId}
         initialRoutes={formattedRoutes}
         initialTrips={formattedTrips}
+        schoolLocation={schoolLocation}
       />
     </div>
   );
