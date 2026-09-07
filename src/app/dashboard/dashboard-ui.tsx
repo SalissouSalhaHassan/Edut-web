@@ -44,6 +44,7 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { useTheme } from "@/hooks/use-theme";
 
 type SparkPoint = { i: number; v: number };
 type AnalyticPoint = { month: string; recettes: number; depenses: number; recouvrement: number };
@@ -236,30 +237,7 @@ function Pill({ tone, children }: { tone: "purple" | "green" | "orange"; childre
 }
 
 export default function DashboardUI(props: DashboardUIProps) {
-  const [isDark, setIsDark] = React.useState(true);
-
-  React.useEffect(() => {
-    const savedTheme = localStorage.getItem("edut_theme");
-    const shouldBeDark = savedTheme !== "light";
-    setIsDark(shouldBeDark);
-    if (shouldBeDark) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-  }, []);
-
-  const toggleDarkMode = () => {
-    const nextDark = !isDark;
-    setIsDark(nextDark);
-    if (nextDark) {
-      document.documentElement.classList.add("dark");
-      localStorage.setItem("edut_theme", "dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-      localStorage.setItem("edut_theme", "light");
-    }
-  };
+  const { isDark, toggleTheme: toggleDarkMode } = useTheme();
 
   const roleName = (props.user?.role?.roleName || props.user?.role || "").toLowerCase();
   const isStudent =
@@ -419,7 +397,7 @@ export default function DashboardUI(props: DashboardUIProps) {
       ];
 
   return (
-    <div className="p-10 space-y-10 animate-in fade-in duration-700 min-h-screen transition-colors duration-300 dark:bg-[#0c0e14]">
+    <div className="p-6 lg:p-10 space-y-8 lg:space-y-10 animate-in fade-in duration-700 min-h-full transition-colors duration-300 bg-transparent text-slate-900 dark:text-slate-100">
       {/* Header + Topbar */}
       <div className="flex flex-col 2xl:flex-row 2xl:items-center justify-between gap-6">
         <div className="space-y-2 flex items-start gap-4">
@@ -434,7 +412,7 @@ export default function DashboardUI(props: DashboardUIProps) {
                          s?.logoUrl || 
                          s?.logo;
             return (
-              <div className="w-16 h-16 rounded-[22px] bg-gradient-to-br from-indigo-600 to-indigo-800 text-white border border-indigo-200 dark:border-indigo-800/40 flex items-center justify-center overflow-hidden shrink-0 shadow-lg shadow-indigo-100 dark:shadow-none mt-1">
+              <div className="w-16 h-16 rounded-[22px] bg-gradient-to-br from-indigo-600 to-indigo-800 text-white border border-indigo-200/80 dark:border-indigo-800/40 flex items-center justify-center overflow-hidden shrink-0 shadow-lg shadow-indigo-100/50 dark:shadow-none mt-1 ring-2 ring-indigo-500/20">
                 {logo ? (
                   <img src={logo} alt="Logo" className="w-full h-full object-cover" />
                 ) : (
@@ -447,14 +425,16 @@ export default function DashboardUI(props: DashboardUIProps) {
           })()}
           <div>
             <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-5xl font-black text-slate-900 dark:text-white tracking-tight">Tableau de Bord</h1>
+              <h1 className="text-4xl lg:text-5xl font-black text-slate-900 dark:text-white tracking-tight drop-shadow-sm">
+                Tableau de Bord
+              </h1>
               {props.branding?.name && (
-                <span className="text-xs font-black text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-100/60 dark:border-indigo-800/60 px-3 py-1 rounded-full shadow-sm">
+                <span className="text-xs font-black text-indigo-700 dark:text-indigo-300 bg-indigo-100/80 dark:bg-indigo-950/70 border border-indigo-200 dark:border-indigo-800/80 px-3.5 py-1 rounded-full shadow-sm">
                   {props.branding.name}
                 </span>
               )}
             </div>
-            <p className="text-slate-500 dark:text-slate-400 font-medium flex items-center gap-2 mt-2">
+            <p className="text-slate-600 dark:text-slate-400 font-semibold flex items-center gap-2 mt-2 text-sm">
               <Zap className="size-4 text-indigo-600 dark:text-indigo-400 animate-pulse" />
               {welcomeMessage}
             </p>

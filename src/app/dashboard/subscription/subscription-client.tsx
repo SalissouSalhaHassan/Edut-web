@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useTransition, useEffect, useId } from "react";
+import { useTheme } from "@/hooks/use-theme";
 import {
   Check,
   Sparkles,
@@ -281,35 +282,13 @@ export default function SubscriptionClient({
   const [statsLoading, setStatsLoading] = useState(false);
 
   // Enterprise Licensing & Billing states
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const { isDark: isDarkMode, toggleTheme: toggleDarkMode } = useTheme();
   const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">("monthly");
   const [autoRenew, setAutoRenew] = useState<boolean>(initialSchool?.autoRenew ?? true);
   const [licenseKeyInput, setLicenseKeyInput] = useState("");
   const [licenseModalOpen, setLicenseModalOpen] = useState(false);
   const [showLicenseKey, setShowLicenseKey] = useState(false);
   const [qrModalOpen, setQrModalOpen] = useState(false);
-
-  // Initialize dark mode from system/local storage
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const isDark = document.documentElement.classList.contains("dark") || localStorage.getItem("edut_theme") === "dark";
-      setIsDarkMode(isDark);
-    }
-  }, []);
-
-  const toggleDarkMode = () => {
-    const next = !isDarkMode;
-    setIsDarkMode(next);
-    if (typeof window !== "undefined") {
-      if (next) {
-        document.documentElement.classList.add("dark");
-        localStorage.setItem("edut_theme", "dark");
-      } else {
-        document.documentElement.classList.remove("dark");
-        localStorage.setItem("edut_theme", "light");
-      }
-    }
-  };
 
   useEffect(() => {
     setDaysLeft(getDaysRemaining(school?.subscriptionExpiry ?? null));

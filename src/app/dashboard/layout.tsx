@@ -52,7 +52,7 @@ export default async function DashboardLayout({
   };
 
   return (
-    <div className="h-screen max-h-screen overflow-hidden bg-background dark:bg-[#08090e] gradient-bg font-sans relative transition-colors duration-300" dir="ltr">
+    <div className="h-screen max-h-screen overflow-hidden bg-slate-100 dark:bg-[#08090e] gradient-bg font-sans relative transition-colors duration-300" dir="ltr">
       <React.Suspense fallback={null}>
         <NavigationProgressProvider>
           <DashboardLoadingBar />
@@ -66,7 +66,7 @@ export default async function DashboardLayout({
               allBranches={allBranches}
               unreadNotificationsCount={unreadCount} 
             />
-            <main className="flex-1 min-w-0 overflow-y-auto h-full rounded-[32px]">
+            <main className="flex-1 min-w-0 overflow-y-auto h-full rounded-[32px] bg-slate-50/60 dark:bg-[#0c0e14]/80 backdrop-blur-md border border-slate-200/50 dark:border-slate-800/80 shadow-sm transition-colors duration-300">
               <div className="min-h-full bg-transparent">
                 {children}
               </div>
