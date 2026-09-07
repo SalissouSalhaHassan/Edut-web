@@ -11,28 +11,52 @@ import { PaymentFormData } from "../validators/finance.schema";
 import { CreditCard, Banknote, TrendingUp, TrendingDown, Info, AlertCircle, CheckCircle2, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useOfflineMutation } from "@/hooks/use-offline-mutation";
+import ReceiptPreviewDialog from "./ReceiptPreviewDialog";
 
 interface PaymentDialogProps {
   feeData: any;
+  allFees?: any[];
+  headerConfig?: any | null;
   trigger?: React.ReactNode;
+  onPaymentSuccess?: (updatedFeeData: any) => void;
 }
 
 const months = ["Septembre", "Octobre", "Novembre", "Décembre", "Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août"];
 
-export default function PaymentDialog({ feeData, trigger }: PaymentDialogProps) {
+export default function PaymentDialog({ 
+  feeData, 
+  allFees, 
+  headerConfig, 
+  trigger, 
+  onPaymentSuccess 
+}: PaymentDialogProps) {
   const { mutate, isOnline } = useOfflineMutation<PaymentFormData>();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [periods, setPeriods] = useState<any[]>([]);
   
+  // Selected student fee state (supports switching if allFees is provided)
+  const [selectedFee, setSelectedFee] = useState<any>(feeData);
+  const [showReceipt, setShowReceipt] = useState(false);
+  const [receiptFee, setReceiptFee] = useState<any>(null);
+
   // Form State for Live Calculations
-  const [amount, setAmount] = useState<number>(feeData.balance || 0);
+  const [amount, setAmount] = useState<number>(feeData?.balance || 0);
   const [reduction, setReduction] = useState<number>(0);
-  const [reference] = useState(() => `REC-${Date.now().toString().slice(-8)}`);
+  const [reference, setReference] = useState(() => `REC-${Date.now().toString().slice(-8)}`);
+
+  useEffect(() => {
+    if (feeData) {
+      setSelectedFee(feeData);
+      setAmount(feeData.balance || 0);
+      setReduction(0);
+    }
+  }, [feeData]);
 
   useEffect(() => {
     if (open) {
+      setReference(`REC-${Date.now().toString().slice(-8)}`);
       getPeriods().then(res => {
         if (res.data) setPeriods(res.data as any as any[]);
       });
@@ -40,7 +64,7 @@ export default function PaymentDialog({ feeData, trigger }: PaymentDialogProps) 
   }, [open]);
 
   const summary = useMemo(() => {
-    const totalDu = feeData.balance || 0;
+    const totalDu = selectedFee?.balance || feeData?.balance || 0;
     const netAPayer = totalDu - reduction;
     const reste = netAPayer - amount;
 
@@ -67,17 +91,24 @@ export default function PaymentDialog({ feeData, trigger }: PaymentDialogProps) 
     }
 
     return { reste, status, statusColor, Icon };
-  }, [feeData.balance, amount, reduction]);
+  }, [selectedFee?.balance, feeData?.balance, amount, reduction]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
     setError("");
 
+    const currentFee = selectedFee || feeData;
+    if (!currentFee?.id) {
+      setError("Veuillez sélectionner un élève valide.");
+      setLoading(false);
+      return;
+    }
+
     const form = new FormData(e.currentTarget);
-    const reference = (form.get("reference") as string)?.trim() || `PAY-IDEM-${Date.now()}-${Math.random().toString(36).substring(2, 11).toUpperCase()}`;
+    const reference = (form.get("reference") as string)?.trim() || `REC-${Date.now().toString().slice(-8)}`;
     const data: PaymentFormData = {
-      feeId: feeData.id,
+      feeId: currentFee.id,
       amount: Number(form.get("amount")),
       reduction: Number(form.get("reduction")) || 0,
       paymentMode: form.get("paymentMode") as string,
@@ -88,7 +119,7 @@ export default function PaymentDialog({ feeData, trigger }: PaymentDialogProps) 
     };
 
     // Client-side double payment check
-    const hasDuplicate = feeData.payments?.some((p: any) => {
+    const hasDuplicate = currentFee.payments?.some((p: any) => {
       const sameRef = reference && p.reference && p.reference.toLowerCase() === reference.toLowerCase();
       const sameAmountAndDate = p.amount === data.amount && p.datePaid && new Date(p.datePaid).toDateString() === new Date(data.datePaid || new Date()).toDateString();
       return sameRef || sameAmountAndDate;
@@ -111,7 +142,42 @@ export default function PaymentDialog({ feeData, trigger }: PaymentDialogProps) 
     setLoading(false);
 
     if (result.success) {
+      const newPaid = (currentFee.totalPaid || 0) + data.amount;
+      const newReduc = (currentFee.totalReduction || 0) + data.reduction;
+      const newBalance = Math.max(0, (currentFee.totalExpected || 0) - newPaid - newReduc);
+      const newStatus = newBalance <= 0 ? "Soldé" : newPaid > 0 ? "Partiel" : "Impayé";
+
+      const newPaymentRecord = {
+        id: (result as any)?.id || Date.now(),
+        feeId: currentFee.id,
+        amount: data.amount,
+        reduction: data.reduction,
+        paymentMode: data.paymentMode,
+        reference: data.reference,
+        monthConcerned: data.monthConcerned,
+        notes: data.notes,
+        datePaid: data.datePaid ? new Date(data.datePaid).toISOString() : new Date().toISOString(),
+        recordedBy: "Admin",
+      };
+
+      const updatedFee = {
+        ...currentFee,
+        totalPaid: newPaid,
+        totalReduction: newReduc,
+        balance: newBalance,
+        status: newStatus,
+        payments: [newPaymentRecord, ...(currentFee.payments || [])],
+        payment: newPaymentRecord,
+      };
+
       setOpen(false);
+
+      if (onPaymentSuccess) {
+        onPaymentSuccess(updatedFee);
+      } else {
+        setReceiptFee(updatedFee);
+        setShowReceipt(true);
+      }
     } else if (result.error) {
       setError(result.error);
     }
@@ -122,6 +188,7 @@ export default function PaymentDialog({ feeData, trigger }: PaymentDialogProps) 
   const suggestedMonth = months[currentMonthIdx] || "Septembre";
 
   return (
+    <>
     <Dialog open={open} onOpenChange={setOpen}>
       <div onClick={() => setOpen(true)} className="inline-block cursor-pointer">
         {trigger || (
@@ -136,15 +203,40 @@ export default function PaymentDialog({ feeData, trigger }: PaymentDialogProps) 
             <div className="w-14 h-14 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-600 shadow-sm shrink-0">
               <Banknote size={28} />
             </div>
-            <div>
+            <div className="flex-1 min-w-0">
               <DialogTitle className="text-3xl font-black text-slate-900 tracking-tight">
                 Encaissement des Frais
               </DialogTitle>
-              <div className="flex items-center gap-2 mt-1">
-                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{feeData.student?.nomEtudiant}</span>
-                 <span className="text-slate-200">|</span>
-                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{feeData.student?.classe}</span>
-              </div>
+              {allFees && allFees.length > 1 && (!feeData?.id || feeData?.id === 0) ? (
+                <div className="mt-2 relative">
+                  <select
+                    value={selectedFee?.id || ""}
+                    onChange={(e) => {
+                      const found = allFees.find((f: any) => String(f.id) === e.target.value);
+                      if (found) {
+                        setSelectedFee(found);
+                        setAmount(found.balance || 0);
+                        setReduction(0);
+                      }
+                    }}
+                    className="w-full rounded-xl border border-indigo-100 bg-indigo-50/40 px-3 py-1.5 text-xs font-bold text-slate-800 outline-none appearance-none cursor-pointer"
+                  >
+                    <option value="" disabled>Sélectionner un élève...</option>
+                    {allFees.map((f: any) => (
+                      <option key={f.id} value={f.id}>
+                        {f.student?.nomEtudiant || "Élève"} ({f.student?.classe || "Sans classe"}) — Solde: {(f.balance || 0).toLocaleString()} CFA
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 mt-1">
+                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{selectedFee?.student?.nomEtudiant || feeData?.student?.nomEtudiant}</span>
+                   <span className="text-slate-200">|</span>
+                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{selectedFee?.student?.classe || feeData?.student?.classe}</span>
+                </div>
+              )}
             </div>
           </div>
         </DialogHeader>
@@ -231,8 +323,8 @@ export default function PaymentDialog({ feeData, trigger }: PaymentDialogProps) 
                   <Label className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Montant à Payer (CFA) *</Label>
                   <button 
                     type="button" 
-                    onClick={() => setAmount(feeData.balance - reduction)}
-                    className="text-[9px] font-black text-indigo-500 uppercase hover:underline"
+                    onClick={() => setAmount((selectedFee?.balance || feeData?.balance || 0) - reduction)}
+                    className="text-[9px] font-black text-indigo-500 uppercase hover:underline cursor-pointer"
                   >
                     Tout payer
                   </button>
@@ -277,7 +369,7 @@ export default function PaymentDialog({ feeData, trigger }: PaymentDialogProps) 
                 Solde Final: {summary.reste.toLocaleString()} CFA
               </p>
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-7">
-                Basé sur un dû de {feeData.balance?.toLocaleString()} CFA
+                Basé sur un dû de {(selectedFee?.balance || feeData?.balance || 0).toLocaleString()} CFA
               </p>
             </div>
             <div className={cn("px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border", 
@@ -294,14 +386,14 @@ export default function PaymentDialog({ feeData, trigger }: PaymentDialogProps) 
               type="button" 
               variant="ghost" 
               onClick={() => setOpen(false)} 
-              className="rounded-2xl font-black text-xs uppercase tracking-widest h-14 px-8"
+              className="rounded-2xl font-black text-xs uppercase tracking-widest h-14 px-8 cursor-pointer"
             >
               Annuler
             </Button>
             <Button 
               type="submit" 
               disabled={loading} 
-              className="rounded-2xl px-12 bg-indigo-600 text-white hover:bg-indigo-700 font-black text-xs uppercase tracking-widest h-14 shadow-xl shadow-indigo-100 transition-all"
+              className="rounded-2xl px-12 bg-indigo-600 text-white hover:bg-indigo-700 font-black text-xs uppercase tracking-widest h-14 shadow-xl shadow-indigo-100 transition-all cursor-pointer"
             >
               {loading ? "Traitement..." : "Enregistrer le Paiement"}
             </Button>
@@ -309,5 +401,16 @@ export default function PaymentDialog({ feeData, trigger }: PaymentDialogProps) 
         </form>
       </DialogContent>
     </Dialog>
+
+    {/* Auto-opened Receipt Preview Dialog when standalone / fallback */}
+    {showReceipt && receiptFee && (
+      <ReceiptPreviewDialog
+        open={showReceipt}
+        onOpenChange={setShowReceipt}
+        feeData={receiptFee}
+        headerConfig={headerConfig}
+      />
+    )}
+    </>
   );
 }
