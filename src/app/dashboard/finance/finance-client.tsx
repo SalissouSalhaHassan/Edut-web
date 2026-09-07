@@ -30,6 +30,7 @@ import {
   Wrench,
   RefreshCw,
   Award,
+  RotateCcw,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -147,15 +148,48 @@ export default function FinanceClient({
       .trim();
   };
 
-  // High-speed client-side instant filtering logic
+  const normalizeClass = (val?: string | null) => {
+    if (!val) return "";
+    return String(val)
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "") // Remove accents/diacritics: è, é, ê, È -> e, E
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "") // Remove spaces, hyphens, punctuation
+      .trim();
+  };
+
+  // Available classes computed dynamically from schoolClasses + actual student classes
+  const availableClasses = React.useMemo(() => {
+    const map = new Map<string, string>();
+    (classes || []).forEach(c => {
+      const name = c?.className?.trim();
+      if (name) {
+        const norm = normalizeClass(name);
+        if (norm && !map.has(norm)) map.set(norm, name);
+      }
+    });
+    (localFees || []).forEach(f => {
+      const name = f?.student?.classe?.trim();
+      if (name) {
+        const norm = normalizeClass(name);
+        if (norm && !map.has(norm)) map.set(norm, name);
+      }
+    });
+    return Array.from(map.values()).sort((a, b) =>
+      a.localeCompare(b, "fr", { sensitivity: "base", numeric: true })
+    );
+  }, [classes, localFees]);
+
+  // High-speed client-side instant filtering logic (runs 100% in-memory and silently)
   const filteredFees = React.useMemo(() => {
     const searchLower = cleanString(search).toLowerCase();
-    const selectedClassNorm = cleanString(selectedClass).toLowerCase();
+    const normSelectedClass = normalizeClass(selectedClass);
 
     return localFees.filter((fee) => {
       const studentName = cleanString(fee.student?.nomEtudiant).toLowerCase();
       const numAdmission = cleanString(fee.student?.numAdmission).toLowerCase();
-      const studentClassNorm = cleanString(fee.student?.classe).toLowerCase();
+      const studentClassClean = cleanString(fee.student?.classe);
+      const studentClassNorm = normalizeClass(studentClassClean);
       const statusLower = cleanString(fee.status).toLowerCase();
       const paymentModeLower = cleanString(fee.payments?.[0]?.paymentMode).toLowerCase();
 
@@ -164,19 +198,22 @@ export default function FinanceClient({
         !searchLower ||
         studentName.includes(searchLower) ||
         numAdmission.includes(searchLower) ||
-        studentClassNorm.includes(searchLower) ||
+        studentClassClean.toLowerCase().includes(searchLower) ||
         statusLower.includes(searchLower) ||
         paymentModeLower.includes(searchLower);
 
-      // 2. Class filter
-      const matchesClass =
-        selectedClass === "Toutes" ||
-        !selectedClassNorm ||
-        studentClassNorm === selectedClassNorm ||
-        (studentClassNorm && selectedClassNorm && (
-          studentClassNorm.includes(selectedClassNorm) ||
-          selectedClassNorm.includes(studentClassNorm)
-        ));
+      // 2. Class filter - Completely silent and resilient to accents, case, and spacing
+      let matchesClass = true;
+      if (selectedClass && selectedClass !== "Toutes") {
+        if (!studentClassNorm) {
+          matchesClass = false;
+        } else {
+          matchesClass =
+            studentClassNorm === normSelectedClass ||
+            studentClassNorm.includes(normSelectedClass) ||
+            studentClassClean.toLowerCase() === cleanString(selectedClass).toLowerCase();
+        }
+      }
 
       // 3. Status filter
       const matchesStatus =
@@ -380,14 +417,26 @@ export default function FinanceClient({
     loadData();
   }, [fees]);
 
-  const updateFilters = (newParams: Record<string, string>) => {
-    const params = new URLSearchParams(searchParams.toString());
-    Object.entries(newParams).forEach(([key, value]) => {
-      if (value) params.set(key, value);
-      else params.delete(key);
-    });
-    router.push(`?${params.toString()}`);
+  // Completely silent URL filter sync - No page reload, no router.push, no server re-fetch, no progress bar
+  const updateFiltersSilently = (newParams: Record<string, string>) => {
+    if (typeof window === "undefined") return;
+    try {
+      const url = new URL(window.location.href);
+      Object.entries(newParams).forEach(([key, value]) => {
+        if (value && value !== "Toutes" && value !== "Tous" && value !== "all") {
+          url.searchParams.set(key, value);
+        } else {
+          url.searchParams.delete(key);
+        }
+      });
+      const newPath = url.pathname + (url.search ? url.search : "");
+      window.history.replaceState(null, "", newPath);
+    } catch (e) {
+      console.warn("Failed to update URL silently:", e);
+    }
   };
+
+  const updateFilters = updateFiltersSilently;
 
   const formatAmount = (val: number) => {
     if (typeof val !== "number" || isNaN(val)) return "0 CFA";
@@ -409,8 +458,25 @@ export default function FinanceClient({
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    updateFilters({ search });
+    setCurrentPage(1);
+    updateFiltersSilently({ search, class: selectedClass, status: selectedStatus, period: selectedPeriod });
   };
+
+  const handleResetFilters = () => {
+    setSearch("");
+    setSelectedClass("Toutes");
+    setSelectedStatus("Tous");
+    setSelectedPeriod("all");
+    setCurrentPage(1);
+    updateFiltersSilently({ search: "", class: "", status: "", period: "" });
+  };
+
+  const hasActiveFilters = Boolean(
+    search || 
+    (selectedClass && selectedClass !== "Toutes") || 
+    (selectedStatus && selectedStatus !== "Tous") || 
+    (selectedPeriod && selectedPeriod !== "all")
+  );
 
   const handleDelete = async (id: number) => {
     if (!confirm("Êtes-vous sûr de vouloir supprimer cette opération ? Cette action est irréversible.")) return;
@@ -609,11 +675,18 @@ export default function FinanceClient({
                   <div className="relative">
                     <select 
                       value={selectedClass}
-                      onChange={(e) => { setSelectedClass(e.target.value); updateFilters({ class: e.target.value }); }}
-                      className="w-full md:w-32 h-11 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl px-3 text-[11px] font-bold text-slate-700 dark:text-slate-200 appearance-none outline-none"
+                      onChange={(e) => { 
+                        const val = e.target.value;
+                        setSelectedClass(val); 
+                        setCurrentPage(1);
+                        updateFiltersSilently({ class: val, status: selectedStatus, period: selectedPeriod, search }); 
+                      }}
+                      className="w-full md:min-w-[140px] h-11 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl px-3 text-[11px] font-bold text-slate-700 dark:text-slate-200 appearance-none outline-none cursor-pointer"
                     >
-                      <option value="Toutes">Toutes</option>
-                      {classes.map(c => <option key={c.id} value={c.className}>{c.className}</option>)}
+                      <option value="Toutes">Toutes les classes</option>
+                      {availableClasses.map(cName => (
+                        <option key={cName} value={cName}>{cName}</option>
+                      ))}
                     </select>
                     <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={12} />
                   </div>
@@ -624,8 +697,13 @@ export default function FinanceClient({
                   <div className="relative">
                     <select 
                       value={selectedStatus}
-                      onChange={(e) => { setSelectedStatus(e.target.value); updateFilters({ status: e.target.value }); }}
-                      className="w-full md:w-32 h-11 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl px-3 text-[11px] font-bold text-slate-700 dark:text-slate-200 appearance-none outline-none"
+                      onChange={(e) => { 
+                        const val = e.target.value;
+                        setSelectedStatus(val); 
+                        setCurrentPage(1);
+                        updateFiltersSilently({ status: val, class: selectedClass, period: selectedPeriod, search }); 
+                      }}
+                      className="w-full md:w-32 h-11 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl px-3 text-[11px] font-bold text-slate-700 dark:text-slate-200 appearance-none outline-none cursor-pointer"
                     >
                       <option value="Tous">Tous</option>
                       <option value="Soldé">Soldé</option>
@@ -641,8 +719,13 @@ export default function FinanceClient({
                   <div className="relative">
                     <select 
                       value={selectedPeriod}
-                      onChange={(e) => setSelectedPeriod(e.target.value)}
-                      className="w-full md:w-40 h-11 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl px-3 text-[11px] font-bold text-slate-700 dark:text-slate-200 appearance-none outline-none cursor-pointer"
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSelectedPeriod(val);
+                        setCurrentPage(1);
+                        updateFiltersSilently({ period: val, class: selectedClass, status: selectedStatus, search });
+                      }}
+                      className="w-full md:w-36 h-11 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl px-3 text-[11px] font-bold text-slate-700 dark:text-slate-200 appearance-none outline-none cursor-pointer"
                     >
                       <option value="all">Toute période</option>
                       <option value="today">Aujourd'hui</option>
@@ -654,17 +737,88 @@ export default function FinanceClient({
                   </div>
                 </div>
 
-                <div className="flex items-end">
+                <div className="flex items-end gap-2">
                   <Button 
                     type="button"
-                    onClick={() => updateFilters({ search, class: selectedClass, status: selectedStatus })}
-                    className="w-full md:w-auto h-11 px-6 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/50 font-black text-[10px] uppercase tracking-widest flex items-center gap-2 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-all cursor-pointer"
+                    onClick={() => {
+                      setCurrentPage(1);
+                      updateFiltersSilently({ search, class: selectedClass, status: selectedStatus, period: selectedPeriod });
+                    }}
+                    className="flex-1 md:flex-initial h-11 px-5 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/50 font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-all cursor-pointer"
                   >
                     <Filter size={14} /> Filtrer
                   </Button>
+                  {hasActiveFilters && (
+                    <Button 
+                      type="button"
+                      onClick={handleResetFilters}
+                      title="Effacer les filtres"
+                      className="h-11 px-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-100 dark:border-rose-900/50 font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-1.5 hover:bg-rose-100 dark:hover:bg-rose-900/50 transition-all cursor-pointer"
+                    >
+                      <RotateCcw size={13} />
+                      <span className="hidden sm:inline">Effacer</span>
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>
+
+            {hasActiveFilters && (
+              <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
+                <span className="text-slate-400 font-bold text-[11px]">Filtres actifs :</span>
+                {selectedClass !== "Toutes" && (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-black text-[10px]">
+                    Classe: {selectedClass}
+                    <button 
+                      type="button" 
+                      onClick={() => { setSelectedClass("Toutes"); updateFiltersSilently({ class: "Toutes", status: selectedStatus, period: selectedPeriod, search }); }} 
+                      className="hover:text-indigo-900 dark:hover:text-indigo-100 cursor-pointer font-bold"
+                    >
+                      ×
+                    </button>
+                  </span>
+                )}
+                {selectedStatus !== "Tous" && (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-black text-[10px]">
+                    Statut: {selectedStatus}
+                    <button 
+                      type="button" 
+                      onClick={() => { setSelectedStatus("Tous"); updateFiltersSilently({ status: "Tous", class: selectedClass, period: selectedPeriod, search }); }} 
+                      className="hover:text-indigo-900 dark:hover:text-indigo-100 cursor-pointer font-bold"
+                    >
+                      ×
+                    </button>
+                  </span>
+                )}
+                {selectedPeriod !== "all" && (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-black text-[10px]">
+                    Période: {selectedPeriod}
+                    <button 
+                      type="button" 
+                      onClick={() => { setSelectedPeriod("all"); updateFiltersSilently({ period: "all", class: selectedClass, status: selectedStatus, search }); }} 
+                      className="hover:text-indigo-900 dark:hover:text-indigo-100 cursor-pointer font-bold"
+                    >
+                      ×
+                    </button>
+                  </span>
+                )}
+                {search && (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-black text-[10px]">
+                    « {search} »
+                    <button 
+                      type="button" 
+                      onClick={() => { setSearch(""); updateFiltersSilently({ search: "", class: selectedClass, status: selectedStatus, period: selectedPeriod }); }} 
+                      className="hover:text-indigo-900 dark:hover:text-indigo-100 cursor-pointer font-bold"
+                    >
+                      ×
+                    </button>
+                  </span>
+                )}
+                <span className="text-[11px] font-bold text-slate-400 ml-auto">
+                  {filteredFees.length} élève{filteredFees.length > 1 ? "s" : ""} trouvé{filteredFees.length > 1 ? "s" : ""} sur {localFees.length}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Table */}
