@@ -1,5 +1,5 @@
-const CACHE_VERSION = "edut-offline-v1";
-const APP_SHELL = ["/", "/dashboard", "/manifest.json"];
+const CACHE_VERSION = "edut-offline-v2";
+const APP_SHELL = ["/", "/dashboard", "/manifest.json", "/edut-icon.svg"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

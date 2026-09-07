@@ -61,6 +61,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { logout } from "@/domains/auth/actions/login";
+import { PWAInstallButton } from "@/components/common/PWAInstallButton";
 
 import { cn } from "@/lib/utils";
 
@@ -641,6 +642,11 @@ export default function DashboardSidebar({
           </div>
         ))}
       </nav>
+
+      {/* PWA Install Action */}
+      <div className="px-4 pb-2">
+        <PWAInstallButton variant="sidebar" />
+      </div>
 
       {/* FOOTER (Profile & Logout) */}
       <div className="p-4 mt-auto shrink-0 border-t border-slate-50/50 dark:border-slate-800/60">

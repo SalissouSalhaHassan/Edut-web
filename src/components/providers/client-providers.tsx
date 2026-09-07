@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { Toaster } from "sonner";
 import { PrintProvider } from "@/domains/printing/components/PrintManager";
+import { PWAInstallPrompt } from "@/components/common/PWAInstallPrompt";
 
 export function ClientProviders({ children }: { children: React.ReactNode }) {
   useEffect(() => {
@@ -17,6 +18,7 @@ export function ClientProviders({ children }: { children: React.ReactNode }) {
   return (
     <PrintProvider>
       {children}
+      <PWAInstallPrompt />
       <Toaster richColors position="top-right" closeButton />
     </PrintProvider>
   );

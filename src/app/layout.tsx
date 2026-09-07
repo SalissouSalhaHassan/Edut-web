@@ -17,6 +17,10 @@ export const metadata: Metadata = {
   title: "Edut Pro - Gestion Scolaire",
   description: "Système ERP complet de gestion scolaire",
   manifest: "/manifest.json",
+  icons: {
+    icon: "/edut-icon.svg",
+    apple: "/edut-icon.svg",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
