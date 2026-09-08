@@ -910,7 +910,25 @@ export default function FinanceClient({
                             </div>
                             <div className="min-w-0">
                               <p className="text-sm font-black text-slate-900 dark:text-white leading-tight truncate">{fee.student?.nomEtudiant}</p>
-                              <p className="text-xs font-bold text-slate-400 dark:text-slate-400 mt-1 uppercase tracking-tight">{fee.student?.classe}</p>
+                              <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                                <p className="text-xs font-bold text-slate-400 dark:text-slate-400 uppercase tracking-tight">{fee.student?.classe}</p>
+                                {fee.scholarship && (
+                                  <span 
+                                    className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-black bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800"
+                                    title={`Bourse: ${fee.scholarship.scholarshipName || 'Bourse'} (${fee.scholarship.scholarshipProvider || 'Établissement'})`}
+                                  >
+                                    🎓 {fee.scholarship.customDiscountPercentage ? `${fee.scholarship.customDiscountPercentage}%` : "Boursier"}
+                                  </span>
+                                )}
+                                {fee.schedules && fee.schedules.length > 0 && (
+                                  <span 
+                                    className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800"
+                                    title={`${fee.schedules.length} échéances planifiées (${fee.schedules.filter((s: any) => s.status === "Payé").length} soldées)`}
+                                  >
+                                    📅 {fee.schedules.filter((s: any) => s.status === "Payé").length}/{fee.schedules.length}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </td>

@@ -1,7 +1,15 @@
 "use server";
 
 import { db } from "@/infrastructure/database";
-import { studentFees, feePayments, expenses, expenseCategories } from "@/infrastructure/database/schema/finance";
+import { 
+  studentFees, 
+  feePayments, 
+  expenses, 
+  expenseCategories,
+  scholarships,
+  studentScholarships,
+  studentPaymentSchedules
+} from "@/infrastructure/database/schema/finance";
 import { eq, desc, sql, and, ilike, or, inArray, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { paymentSchema, expenseSchema, PaymentFormData, ExpenseFormData } from "../validators/finance.schema";
@@ -129,7 +137,61 @@ export async function getStudentFees(params?: {
     const dedupedData = Array.from(seenStudents.values());
     // ─────────────────────────────────────────────────────────────────────────────
 
-    let filteredData = dedupedData;
+    // Fetch scholarships and payment schedules for the students
+    const studentIds = dedupedData.map(d => d.studentId).filter(Boolean) as number[];
+    const scholarshipMap = new Map<number, any>();
+    const schedulesMap = new Map<number, any[]>();
+
+    if (studentIds.length > 0) {
+      try {
+        const [schRows, schedRows] = await Promise.all([
+          db
+            .select({
+              id: studentScholarships.id,
+              studentId: studentScholarships.studentId,
+              scholarshipId: studentScholarships.scholarshipId,
+              academicYear: studentScholarships.academicYear,
+              customDiscountPercentage: studentScholarships.customDiscountPercentage,
+              allocatedAmount: studentScholarships.allocatedAmount,
+              decisionReference: studentScholarships.decisionReference,
+              status: studentScholarships.status,
+              notes: studentScholarships.notes,
+              scholarshipName: scholarships.name,
+              scholarshipProvider: scholarships.provider,
+              scholarshipType: scholarships.type,
+              scholarshipDiscountValue: scholarships.discountValue,
+            })
+            .from(studentScholarships)
+            .leftJoin(scholarships, eq(studentScholarships.scholarshipId, scholarships.id))
+            .where(inArray(studentScholarships.studentId, studentIds)),
+          db
+            .select()
+            .from(studentPaymentSchedules)
+            .where(inArray(studentPaymentSchedules.studentId, studentIds))
+            .orderBy(studentPaymentSchedules.dueDate)
+        ]);
+
+        for (const s of schRows) {
+          if (s.studentId) scholarshipMap.set(s.studentId, s);
+        }
+        for (const sc of schedRows) {
+          if (sc.studentId) {
+            if (!schedulesMap.has(sc.studentId)) schedulesMap.set(sc.studentId, []);
+            schedulesMap.get(sc.studentId)!.push(sc);
+          }
+        }
+      } catch (err) {
+        console.warn("Warning fetching scholarships/schedules in getStudentFees:", err);
+      }
+    }
+
+    const enrichedData = dedupedData.map(item => ({
+      ...item,
+      scholarship: item.studentId ? scholarshipMap.get(item.studentId) || null : null,
+      schedules: item.studentId ? schedulesMap.get(item.studentId) || [] : [],
+    }));
+
+    let filteredData = enrichedData;
 
     // Apply level isolation for level_director, level_comptable, level_caissier
     const isLevelScoped = (roleType === "level_director" || roleType === "level_comptable" || roleType === "level_caissier") && !!activeLevel;
@@ -187,6 +249,57 @@ export async function getStudentFees(params?: {
       totalPages: limit ? Math.ceil(filteredData.length / limit) : 1
     };
   });
+}
+
+/**
+ * Synchronise et réconcilie automatiquement les échéanciers de paiement (Échéanciers & Mensualités)
+ * selon la méthode FIFO à chaque encaissement ou annulation de paiement.
+ */
+export async function reconcileStudentSchedules(studentId: number) {
+  try {
+    const schedules = await db.query.studentPaymentSchedules.findMany({
+      where: eq(studentPaymentSchedules.studentId, studentId),
+      orderBy: [studentPaymentSchedules.dueDate, studentPaymentSchedules.installmentNumber],
+    });
+
+    if (!schedules || schedules.length === 0) return { success: true, count: 0 };
+
+    // Retrouver le dossier financier et tous les paiements effectifs
+    const studentFee = await db.query.studentFees.findFirst({
+      where: eq(studentFees.studentId, studentId),
+      with: {
+        payments: true
+      }
+    });
+
+    const totalPaid = (studentFee?.payments || []).reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+    let remainingToAllocate = totalPaid;
+    const now = new Date();
+
+    for (const sched of schedules) {
+      const net = Number(sched.netAmount || 0);
+      const allocated = Math.max(0, Math.min(remainingToAllocate, net));
+      const bal = Math.max(0, net - allocated);
+      const isPast = new Date(sched.dueDate) < now;
+      const st = bal === 0 ? "Payé" : allocated > 0 ? "Partiel" : (isPast ? "En retard" : "À échoir");
+
+      await db.update(studentPaymentSchedules)
+        .set({
+          paidAmount: allocated,
+          balance: bal,
+          status: st,
+          updatedAt: now,
+        })
+        .where(eq(studentPaymentSchedules.id, sched.id));
+
+      remainingToAllocate = Math.max(0, remainingToAllocate - allocated);
+    }
+
+    return { success: true, count: schedules.length };
+  } catch (err) {
+    console.warn("reconcileStudentSchedules warning:", err);
+    return { success: false, error: err };
+  }
 }
 
 export async function recordPayment(formData: PaymentFormData) {
@@ -260,6 +373,11 @@ export async function recordPayment(formData: PaymentFormData) {
         status: newStatus,
       })
       .where(eq(studentFees.id, feeId));
+
+    // 3.5 Auto-reconcile with payment schedule (Échéanciers & Mensualités)
+    if (fee.studentId) {
+      await reconcileStudentSchedules(fee.studentId);
+    }
 
     // 4. Create in-app notification for student & parents
     try {
@@ -391,6 +509,11 @@ export async function cancelFeePayment(paymentId: number, reason?: string) {
 
     // 5. Delete the payment record
     await db.delete(feePayments).where(eq(feePayments.id, paymentId));
+
+    // 5.5 Auto-reconcile with payment schedule (Échéanciers & Mensualités)
+    if (fee.studentId) {
+      await reconcileStudentSchedules(fee.studentId);
+    }
 
     // 6. Audit logging
     try {

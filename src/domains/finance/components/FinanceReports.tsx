@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { FileText, Printer, Filter, FileSpreadsheet, ChevronDown, Download, CheckCircle2, ShieldCheck, Calendar, DollarSign, ArrowUpRight, ArrowDownRight, Layers, Users, BookOpen } from "lucide-react";
+import { FileText, Printer, Filter, FileSpreadsheet, ChevronDown, Download, CheckCircle2, ShieldCheck, Calendar, DollarSign, ArrowUpRight, ArrowDownRight, Layers, Users, BookOpen, GraduationCap, Clock, AlertTriangle, Send, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
@@ -47,6 +47,7 @@ export const ACCOUNTING_REPORTS = [
   { id: "creances", label: "Créances élèves", desc: "Liste nominative des impayés et reliquats avec contacts parents" },
   { id: "annulations", label: "Annulations et remises", desc: "Registre des réductions accordées et motifs appliqués" },
   { id: "bourses", label: "Bourses & Exonérations", desc: "Suivi des élèves boursiers, taux d'exonération et net attendu" },
+  { id: "echeanciers", label: "Échéanciers & Recouvrement", desc: "Suivi chronologique des mensualités, relances et échéances en retard" },
   { id: "audit", label: "Audit paiement", desc: "Journal de traçabilité des opérations de paiement et agents" },
   { id: "caissier", label: "Rapports par caissier", desc: "Performance et ventilation par mode de paiement par caissier" },
   { id: "tresorerie", label: "Rapport trésorerie", desc: "Ventilation des flux financiers par canal (Espèces, Mobile, Virement)" },
@@ -346,6 +347,7 @@ export default function FinanceReports({ fees = [], classes = [], classSummary =
   const [startDate, setStartDate] = React.useState("");
   const [endDate, setEndDate] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("Tous");
+  const [scheduleStatusFilter, setScheduleStatusFilter] = React.useState("Tous");
   const [refSearch, setRefSearch] = React.useState("");
   const [selectedFeeId, setSelectedFeeId] = React.useState<number | null>(null);
 
@@ -364,12 +366,45 @@ export default function FinanceReports({ fees = [], classes = [], classSummary =
     mobile: fee.student?.mobile,
   }))), [fees]);
 
+  // Aggregate and sort all student payment schedules
+  const allSchedules = React.useMemo(() => {
+    const list: any[] = [];
+    fees.forEach((f: any) => {
+      (f.schedules || []).forEach((sc: any) => {
+        list.push({
+          ...sc,
+          studentNom: f.student?.nomEtudiant || "Inconnu",
+          studentClasse: f.student?.classe || "-",
+          studentLevel: f.student?.educationalLevel || "-",
+          studentMobile: f.student?.mobile || "-",
+          studentWhatsapp: f.student?.whatsapp || f.student?.mobile || "-",
+          numAdmission: f.student?.numAdmission || "-",
+          feeBalance: f.balance || 0,
+        });
+      });
+    });
+    return list.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+  }, [fees]);
+
   const uniqueCashiers = React.useMemo(() => Array.from(new Set(allPayments.map((p: any) => p.recordedBy).filter(Boolean))), [allPayments]);
   const uniqueModes = React.useMemo(() => Array.from(new Set(allPayments.map((p: any) => p.paymentMode).filter(Boolean))), [allPayments]);
 
   React.useEffect(() => {
     if (fees.length > 0 && selectedFeeId === null) setSelectedFeeId(fees[0].id);
   }, [fees, selectedFeeId]);
+
+  const filteredSchedules = React.useMemo(() => {
+    return allSchedules.filter((sc: any) => {
+      if (classFilter !== "Tous" && sc.studentClasse !== classFilter) return false;
+      if (levelFilter !== "Tous" && sc.studentLevel !== levelFilter) return false;
+      if (scheduleStatusFilter !== "Tous" && sc.status !== scheduleStatusFilter) return false;
+      if (studentSearch) {
+        const s = studentSearch.toLowerCase();
+        if (!sc.studentNom?.toLowerCase().includes(s) && !sc.numAdmission?.toLowerCase().includes(s)) return false;
+      }
+      return true;
+    });
+  }, [allSchedules, classFilter, levelFilter, scheduleStatusFilter, studentSearch]);
 
   // ── FILTERS ──
   const filteredPayments = React.useMemo(() => allPayments.filter((p: any) => {
@@ -570,26 +605,81 @@ export default function FinanceReports({ fees = [], classes = [], classSummary =
       }
 
       case "bourses": {
-        const boursiers = filteredFees.filter((f: any) => (f.student?.bourse || 0) > 0 || (f.totalReduction || 0) > 0);
-        const headers = ["Élève", "Classe", "Frais Standard", "Bourse / Exonération", "Net Attendu", "Total Versé", "Solde Restant"];
-        const rows: (string | number)[][] = boursiers.map((f: any) => {
-          const bv = (f.student?.bourse || 0) + (f.totalReduction || 0);
+        const boursiers = filteredFees.filter((f: any) => 
+          (f.scholarship && f.scholarship.status !== "Expiré") ||
+          (f.student?.bourse || 0) > 0 || 
+          (f.totalReduction || 0) > 0
+        );
+        const headers = ["N°", "Élève", "Classe", "Bourse / Organisme", "Taux / Référence", "Frais Brut", "Exonération", "Net Attendu", "Total Versé", "Solde Restant"];
+        const rows: (string | number)[][] = boursiers.map((f: any, idx: number) => {
+          const schName = f.scholarship?.scholarshipName || f.scholarship?.name || "Bourse Scolaire";
+          const schProvider = f.scholarship?.scholarshipProvider || f.scholarship?.provider || "Établissement";
+          const schRate = f.scholarship?.customDiscountPercentage 
+            ? `${f.scholarship.customDiscountPercentage}%` 
+            : f.scholarship?.discountValue 
+              ? (f.scholarship.type === "Pourcentage" ? `${f.scholarship.discountValue}%` : `${f.scholarship.discountValue.toLocaleString("fr-FR")} CFA`)
+              : "-";
+          const decRef = f.scholarship?.decisionReference ? `Réf: ${f.scholarship.decisionReference}` : "-";
+          const reductionAmt = (f.totalReduction || 0) || (f.scholarship?.allocatedAmount || 0) || (f.student?.bourse || 0);
+          const grossExpected = f.totalExpected || 0;
+          const netExpected = Math.max(0, grossExpected - reductionAmt);
+          const paid = f.totalPaid || 0;
+          const bal = Math.max(0, netExpected - paid);
+
           return [
+            idx + 1,
             f.student?.nomEtudiant || "—",
             f.student?.classe || "—",
-            `${(f.totalExpected || 0).toLocaleString("fr-FR")} CFA`,
-            `${bv.toLocaleString("fr-FR")} CFA`,
-            `${((f.totalExpected || 0) - bv).toLocaleString("fr-FR")} CFA`,
-            `${(f.totalPaid || 0).toLocaleString("fr-FR")} CFA`,
-            `${(f.balance || 0).toLocaleString("fr-FR")} CFA`
+            `${schName} (${schProvider})`,
+            `${schRate} | ${decRef}`,
+            `${grossExpected.toLocaleString("fr-FR")} CFA`,
+            `${reductionAmt.toLocaleString("fr-FR")} CFA`,
+            `${netExpected.toLocaleString("fr-FR")} CFA`,
+            `${paid.toLocaleString("fr-FR")} CFA`,
+            `${bal.toLocaleString("fr-FR")} CFA`
           ];
         });
-        const totalBourses = boursiers.reduce((s: number, f: any) => s + ((f.student?.bourse || 0) + (f.totalReduction || 0)), 0);
+        const totalBourses = boursiers.reduce((s: number, f: any) => s + ((f.totalReduction || 0) || (f.scholarship?.allocatedAmount || 0) || (f.student?.bourse || 0)), 0);
+        const totalNetBoursiers = boursiers.reduce((s: number, f: any) => s + Math.max(0, (f.totalExpected || 0) - ((f.totalReduction || 0) || (f.scholarship?.allocatedAmount || 0) || (f.student?.bourse || 0))), 0);
+        const totalPaidBoursiers = boursiers.reduce((s: number, f: any) => s + (f.totalPaid || 0), 0);
         const kpis = [
           { label: "Total Bourses & Exonérations", value: fmt(totalBourses) },
-          { label: "Effectif Boursiers", value: `${boursiers.length}` }
+          { label: "Effectif Boursiers", value: `${boursiers.length}` },
+          { label: "Net Attendu Boursiers", value: fmt(totalNetBoursiers) },
+          { label: "Encaissé Boursiers", value: fmt(totalPaidBoursiers) },
         ];
         return { title: "Registre des Bourses et Exonérations", headers, rows, kpis };
+      }
+
+      case "echeanciers": {
+        const headers = ["N°", "Échéance", "Date Limite", "Élève", "Classe", "Brut", "Déduction Bourse", "Net Dû", "Déjà Payé", "Solde Restant", "Statut"];
+        const rows: (string | number)[][] = filteredSchedules.map((sc: any, idx: number) => [
+          idx + 1,
+          sc.label || `Tranche ${sc.installmentNumber}`,
+          isMounted && sc.dueDate ? new Date(sc.dueDate).toLocaleDateString("fr-FR") : "-",
+          sc.studentNom,
+          sc.studentClasse,
+          `${(sc.grossAmount || 0).toLocaleString("fr-FR")} CFA`,
+          `${(sc.scholarshipDeduction || 0).toLocaleString("fr-FR")} CFA`,
+          `${(sc.netAmount || 0).toLocaleString("fr-FR")} CFA`,
+          `${(sc.paidAmount || 0).toLocaleString("fr-FR")} CFA`,
+          `${(sc.balance || 0).toLocaleString("fr-FR")} CFA`,
+          sc.status || "À échoir"
+        ]);
+
+        const totalNetSchedule = filteredSchedules.reduce((s: number, sc: any) => s + (sc.netAmount || 0), 0);
+        const totalPaidSchedule = filteredSchedules.reduce((s: number, sc: any) => s + (sc.paidAmount || 0), 0);
+        const totalOverdueSchedule = filteredSchedules.filter((sc: any) => sc.status === "En retard").reduce((s: number, sc: any) => s + (sc.balance || 0), 0);
+        const rateSched = totalNetSchedule > 0 ? Math.round((totalPaidSchedule / totalNetSchedule) * 100) : 0;
+
+        const kpis = [
+          { label: "Total Échéances Nettes", value: fmt(totalNetSchedule) },
+          { label: "Montant Encaissé", value: fmt(totalPaidSchedule) },
+          { label: "Retards en Souffrance", value: fmt(totalOverdueSchedule) },
+          { label: "Taux Recouvrement Échéances", value: `${rateSched}%` }
+        ];
+
+        return { title: "Échéanciers & Plan de Recouvrement des Mensualités", headers, rows, kpis };
       }
 
       case "audit": {
@@ -898,7 +988,7 @@ export default function FinanceReports({ fees = [], classes = [], classSummary =
             <p className="text-[10px] font-black uppercase tracking-widest text-indigo-200">Centre Comptable</p>
           </div>
           <h2 className="mt-1 text-base font-black tracking-tight">Rapports &amp; Balance</h2>
-          <p className="text-[10px] text-slate-300 font-medium mt-0.5">10 états financiers &amp; comptables</p>
+          <p className="text-[10px] text-slate-300 font-medium mt-0.5">{ACCOUNTING_REPORTS.length} états financiers &amp; comptables</p>
         </div>
         
         <div className="space-y-1 overflow-auto max-h-[70vh] pr-1">
@@ -1348,38 +1438,252 @@ export default function FinanceReports({ fees = [], classes = [], classSummary =
             </div>
           )}
 
-          {/* 6. BOURSES */}
-          {activeReport === "bourses" && (
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-xs">
-                <thead className="bg-[#0F172A] text-white">
-                  <tr>
-                    {["Élève", "Classe", "Frais Standard", "Bourse / Exon.", "Net Attendu", "Total Payé", "Solde"].map(h => (
-                      <th key={h} className="px-5 py-4 text-[9.5px] font-black uppercase tracking-wider text-left">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {filteredFees.filter((f: any) => (f.student?.bourse||0) > 0 || (f.totalReduction||0) > 0).length === 0 ? (
-                    <tr><td colSpan={7} className="py-12 text-center text-slate-400 font-bold italic">Aucune bourse enregistrée.</td></tr>
-                  ) : filteredFees.filter((f: any) => (f.student?.bourse||0) > 0 || (f.totalReduction||0) > 0).map((f: any, i: number) => {
-                    const bv = (f.student?.bourse||0) + (f.totalReduction||0);
-                    return (
-                      <tr key={i} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
-                        <td className="px-5 py-3.5 font-black text-slate-800 dark:text-slate-100">{f.student?.nomEtudiant}</td>
-                        <td className="px-5 py-3.5 font-bold text-slate-500 uppercase text-[10px]">{f.student?.classe}</td>
-                        <td className="px-5 py-3.5 font-semibold text-slate-600 dark:text-slate-300">{(f.totalExpected||0).toLocaleString("fr-FR")} CFA</td>
-                        <td className="px-5 py-3.5 font-black text-amber-600">{bv.toLocaleString("fr-FR")} CFA</td>
-                        <td className="px-5 py-3.5 font-bold text-indigo-600 dark:text-indigo-400">{((f.totalExpected||0) - bv).toLocaleString("fr-FR")} CFA</td>
-                        <td className="px-5 py-3.5 font-bold text-emerald-600">{(f.totalPaid||0).toLocaleString("fr-FR")} CFA</td>
-                        <td className="px-5 py-3.5 font-black text-rose-500">{(f.balance||0).toLocaleString("fr-FR")} CFA</td>
+          {/* 6. BOURSES & EXONERATIONS */}
+          {activeReport === "bourses" && (() => {
+            const boursiersList = filteredFees.filter((f: any) => 
+              (f.scholarship && f.scholarship.status !== "Expiré") ||
+              (f.student?.bourse || 0) > 0 || 
+              (f.totalReduction || 0) > 0
+            );
+            const totalBoursesVal = boursiersList.reduce((s: number, f: any) => s + ((f.totalReduction || 0) || (f.scholarship?.allocatedAmount || 0) || (f.student?.bourse || 0)), 0);
+            const totalNetExpectedVal = boursiersList.reduce((s: number, f: any) => s + Math.max(0, (f.totalExpected || 0) - ((f.totalReduction || 0) || (f.scholarship?.allocatedAmount || 0) || (f.student?.bourse || 0))), 0);
+            const totalPaidVal = boursiersList.reduce((s: number, f: any) => s + (f.totalPaid || 0), 0);
+            const totalRemainingVal = boursiersList.reduce((s: number, f: any) => s + Math.max(0, (f.balance || 0)), 0);
+
+            return (
+              <div className="space-y-6">
+                {/* KPI Summary Cards */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 p-4 pb-0">
+                  <div className="bg-slate-50 dark:bg-slate-900 rounded-2xl p-4 border border-slate-100 dark:border-slate-800">
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Total Exonérations</p>
+                    <p className="text-lg font-black text-amber-600 mt-1">{fmt(totalBoursesVal)}</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5 font-bold">sur {boursiersList.length} boursiers</p>
+                  </div>
+                  <div className="bg-slate-50 dark:bg-slate-900 rounded-2xl p-4 border border-slate-100 dark:border-slate-800">
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Net Facturé</p>
+                    <p className="text-lg font-black text-indigo-600 dark:text-indigo-400 mt-1">{fmt(totalNetExpectedVal)}</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5 font-bold">Après déduction bourse</p>
+                  </div>
+                  <div className="bg-slate-50 dark:bg-slate-900 rounded-2xl p-4 border border-slate-100 dark:border-slate-800">
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Encaissé Boursiers</p>
+                    <p className="text-lg font-black text-emerald-600 dark:text-emerald-400 mt-1">{fmt(totalPaidVal)}</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5 font-bold">{totalNetExpectedVal > 0 ? Math.round((totalPaidVal / totalNetExpectedVal) * 100) : 0}% du net collecté</p>
+                  </div>
+                  <div className="bg-slate-50 dark:bg-slate-900 rounded-2xl p-4 border border-slate-100 dark:border-slate-800">
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Reste à Recouvrer</p>
+                    <p className="text-lg font-black text-rose-500 mt-1">{fmt(totalRemainingVal)}</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5 font-bold">Créances boursiers</p>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse text-xs">
+                    <thead className="bg-[#0F172A] text-white">
+                      <tr>
+                        {["Élève", "Classe", "Bourse & Organisme", "Taux / Référence", "Frais Brut", "Exonération", "Net Attendu", "Total Payé", "Solde Restant", "Statut"].map(h => (
+                          <th key={h} className="px-4 py-3.5 text-[9.5px] font-black uppercase tracking-wider text-left">{h}</th>
+                        ))}
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {boursiersList.length === 0 ? (
+                        <tr><td colSpan={10} className="py-12 text-center text-slate-400 font-bold italic">Aucune bourse ou exonération enregistrée.</td></tr>
+                      ) : boursiersList.map((f: any, i: number) => {
+                        const sch = f.scholarship;
+                        const schName = sch?.scholarshipName || sch?.name || "Bourse Scolaire";
+                        const schProvider = sch?.scholarshipProvider || sch?.provider || "Établissement";
+                        const schRate = sch?.customDiscountPercentage 
+                          ? `${sch.customDiscountPercentage}%` 
+                          : sch?.discountValue 
+                            ? (sch.type === "Pourcentage" ? `${sch.discountValue}%` : `${sch.discountValue.toLocaleString("fr-FR")} CFA`)
+                            : "-";
+                        const decRef = sch?.decisionReference || "-";
+                        const reductionAmt = (f.totalReduction || 0) || (sch?.allocatedAmount || 0) || (f.student?.bourse || 0);
+                        const grossExpected = f.totalExpected || 0;
+                        const netExpected = Math.max(0, grossExpected - reductionAmt);
+                        const paid = f.totalPaid || 0;
+                        const bal = Math.max(0, netExpected - paid);
+
+                        return (
+                          <tr key={i} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
+                            <td className="px-4 py-3.5">
+                              <p className="font-black text-slate-800 dark:text-slate-100">{f.student?.nomEtudiant}</p>
+                              <p className="text-[10px] font-mono text-slate-400 mt-0.5">{f.student?.numAdmission || "-"}</p>
+                            </td>
+                            <td className="px-4 py-3.5 font-bold text-slate-500 uppercase text-[10px]">{f.student?.classe}</td>
+                            <td className="px-4 py-3.5">
+                              <span className="inline-flex items-center gap-1 font-black text-amber-700 dark:text-amber-300">
+                                🎓 {schName}
+                              </span>
+                              <p className="text-[10px] text-slate-400 font-medium truncate max-w-[180px]">{schProvider}</p>
+                            </td>
+                            <td className="px-4 py-3.5">
+                              <span className="px-2 py-0.5 rounded bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 font-black text-[9px]">
+                                {schRate}
+                              </span>
+                              {decRef !== "-" && <p className="text-[9px] font-mono text-slate-400 mt-0.5 truncate max-w-[120px]">{decRef}</p>}
+                            </td>
+                            <td className="px-4 py-3.5 font-semibold text-slate-600 dark:text-slate-300">{grossExpected.toLocaleString("fr-FR")} CFA</td>
+                            <td className="px-4 py-3.5 font-black text-amber-600">-{reductionAmt.toLocaleString("fr-FR")} CFA</td>
+                            <td className="px-4 py-3.5 font-bold text-indigo-600 dark:text-indigo-400">{netExpected.toLocaleString("fr-FR")} CFA</td>
+                            <td className="px-4 py-3.5 font-bold text-emerald-600">{paid.toLocaleString("fr-FR")} CFA</td>
+                            <td className="px-4 py-3.5 font-black text-rose-500">{bal.toLocaleString("fr-FR")} CFA</td>
+                            <td className="px-4 py-3.5">
+                              <span className={cn(
+                                "px-2 py-0.5 rounded-full text-[9px] font-black uppercase",
+                                bal <= 0 ? "bg-emerald-50 text-emerald-600 border border-emerald-200" :
+                                paid > 0 ? "bg-amber-50 text-amber-600 border border-amber-200" :
+                                "bg-rose-50 text-rose-600 border border-rose-200"
+                              )}>
+                                {bal <= 0 ? "Soldé" : paid > 0 ? "Partiel" : "Impayé"}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* 6.5. ECHEANCIERS & RECOUVREMENT */}
+          {activeReport === "echeanciers" && (() => {
+            const totalNetSched = filteredSchedules.reduce((s: number, sc: any) => s + (sc.netAmount || 0), 0);
+            const totalPaidSched = filteredSchedules.reduce((s: number, sc: any) => s + (sc.paidAmount || 0), 0);
+            const totalOverdueSched = filteredSchedules.filter((sc: any) => sc.status === "En retard").reduce((s: number, sc: any) => s + (sc.balance || 0), 0);
+            const rateSched = totalNetSched > 0 ? Math.round((totalPaidSched / totalNetSched) * 100) : 0;
+
+            return (
+              <div className="space-y-6">
+                {/* KPI Summary Cards */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 p-4 pb-0">
+                  <div className="bg-slate-50 dark:bg-slate-900 rounded-2xl p-4 border border-slate-100 dark:border-slate-800">
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Total Planifié</p>
+                    <p className="text-lg font-black text-indigo-600 dark:text-indigo-400 mt-1">{fmt(totalNetSched)}</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5 font-bold">{filteredSchedules.length} échéances nettes</p>
+                  </div>
+                  <div className="bg-slate-50 dark:bg-slate-900 rounded-2xl p-4 border border-slate-100 dark:border-slate-800">
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Recouvrement Réalisé</p>
+                    <p className="text-lg font-black text-emerald-600 dark:text-emerald-400 mt-1">{fmt(totalPaidSched)}</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5 font-bold">{rateSched}% encaissé</p>
+                  </div>
+                  <div className="bg-slate-50 dark:bg-slate-900 rounded-2xl p-4 border border-slate-100 dark:border-slate-800">
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Retards en Souffrance</p>
+                    <p className="text-lg font-black text-rose-500 mt-1">{fmt(totalOverdueSched)}</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5 font-bold">{filteredSchedules.filter((sc: any) => sc.status === "En retard").length} mensualités échues</p>
+                  </div>
+                  <div className="bg-slate-50 dark:bg-slate-900 rounded-2xl p-4 border border-slate-100 dark:border-slate-800">
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Taux de Réalisation</p>
+                    <p className="text-lg font-black text-slate-800 dark:text-white mt-1">{rateSched}%</p>
+                    <div className="w-full bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden mt-1.5">
+                      <div className="bg-emerald-500 h-full rounded-full transition-all" style={{ width: `${rateSched}%` }} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Status Filter Bar */}
+                <div className="flex flex-wrap items-center gap-2 px-4 no-print">
+                  <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider mr-1">Statut d'échéance :</span>
+                  {["Tous", "En retard", "À échoir", "Partiel", "Payé"].map((st) => (
+                    <button
+                      key={st}
+                      onClick={() => setScheduleStatusFilter(st)}
+                      className={cn(
+                        "px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer",
+                        scheduleStatusFilter === st
+                          ? "bg-[#0F172A] text-white dark:bg-indigo-600 dark:text-white shadow-sm"
+                          : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+                      )}
+                    >
+                      {st} {st !== "Tous" && `(${allSchedules.filter((s: any) => s.status === st).length})`}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse text-xs">
+                    <thead className="bg-[#0F172A] text-white">
+                      <tr>
+                        {["Échéance", "Date Limite", "Élève", "Classe", "Brut", "Déduction Bourse", "Net Dû", "Déjà Payé", "Solde Restant", "Statut", "Relance"].map(h => (
+                          <th key={h} className="px-4 py-3.5 text-[9.5px] font-black uppercase tracking-wider text-left">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {filteredSchedules.length === 0 ? (
+                        <tr><td colSpan={11} className="py-12 text-center text-slate-400 font-bold italic">Aucune mensualité trouvée pour ce filtre.</td></tr>
+                      ) : filteredSchedules.map((sc: any, i: number) => {
+                        const isPast = new Date(sc.dueDate) < new Date();
+                        const isPaid = sc.status === "Payé" || sc.balance === 0;
+
+                        return (
+                          <tr key={i} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
+                            <td className="px-4 py-3.5 font-black text-slate-800 dark:text-slate-100">
+                              {sc.label || `Tranche ${sc.installmentNumber}`}
+                            </td>
+                            <td className="px-4 py-3.5">
+                              <span className={cn(
+                                "font-bold font-mono",
+                                !isPaid && isPast ? "text-rose-600 dark:text-rose-400 font-black" : "text-slate-500"
+                              )}>
+                                {isMounted && sc.dueDate ? new Date(sc.dueDate).toLocaleDateString("fr-FR") : "-"}
+                              </span>
+                              {!isPaid && isPast && (
+                                <span className="block text-[8px] font-black text-rose-500 uppercase">En retard</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3.5">
+                              <p className="font-black text-slate-800 dark:text-slate-100">{sc.studentNom}</p>
+                              <p className="text-[10px] font-mono text-slate-400">{sc.numAdmission}</p>
+                            </td>
+                            <td className="px-4 py-3.5 font-bold text-slate-500 uppercase text-[10px]">{sc.studentClasse}</td>
+                            <td className="px-4 py-3.5 text-slate-500 font-medium">{(sc.grossAmount || 0).toLocaleString("fr-FR")} CFA</td>
+                            <td className="px-4 py-3.5 font-bold text-amber-600">
+                              {(sc.scholarshipDeduction || 0) > 0 ? `-${(sc.scholarshipDeduction || 0).toLocaleString("fr-FR")} CFA` : "-"}
+                            </td>
+                            <td className="px-4 py-3.5 font-black text-indigo-600 dark:text-indigo-400">{(sc.netAmount || 0).toLocaleString("fr-FR")} CFA</td>
+                            <td className="px-4 py-3.5 font-bold text-emerald-600">{(sc.paidAmount || 0).toLocaleString("fr-FR")} CFA</td>
+                            <td className="px-4 py-3.5 font-black text-rose-500">{(sc.balance || 0).toLocaleString("fr-FR")} CFA</td>
+                            <td className="px-4 py-3.5">
+                              <span className={cn(
+                                "px-2 py-0.5 rounded-full text-[9px] font-black uppercase",
+                                sc.status === "Payé" ? "bg-emerald-50 text-emerald-600 border border-emerald-200" :
+                                sc.status === "Partiel" ? "bg-amber-50 text-amber-600 border border-amber-200" :
+                                sc.status === "En retard" ? "bg-rose-50 text-rose-600 border border-rose-200" :
+                                "bg-slate-100 text-slate-600 border border-slate-200"
+                              )}>
+                                {sc.status}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3.5 no-print">
+                              {!isPaid && (sc.studentWhatsapp || sc.studentMobile) ? (
+                                <a
+                                  href={`https://wa.me/${String(sc.studentWhatsapp || sc.studentMobile).replace(/[^0-9]/g, "")}?text=${encodeURIComponent(
+                                    `Bonjour, rappel amical concernant l'échéance de scolarité [${sc.label}] pour l'élève ${sc.studentNom}. Reste dû: ${Math.round(sc.balance).toLocaleString("fr-FR")} CFA. Date limite: ${new Date(sc.dueDate).toLocaleDateString("fr-FR")}. Merci de régulariser auprès de la comptabilité.`
+                                  )}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 font-black text-[9px] transition-all cursor-pointer"
+                                  title="Envoyer un rappel WhatsApp"
+                                >
+                                  <MessageCircle size={12} />
+                                  <span>Relance</span>
+                                </a>
+                              ) : (
+                                <span className="text-slate-300 text-[10px]">—</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* 7. AUDIT PAIEMENT */}
           {activeReport === "audit" && (

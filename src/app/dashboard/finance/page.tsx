@@ -6,7 +6,14 @@ import { getActiveSchoolId } from "@/domains/auth/services/school";
 import { db, readDb } from "@/infrastructure/database";
 import { students } from "@/infrastructure/database/schema/students";
 import { schoolSessions, schoolClasses } from "@/infrastructure/database/schema/academics";
-import { studentFees, feePayments, cogesPayments } from "@/infrastructure/database/schema/finance";
+import { 
+  studentFees, 
+  feePayments, 
+  cogesPayments,
+  scholarships,
+  studentScholarships,
+  studentPaymentSchedules
+} from "@/infrastructure/database/schema/finance";
 import { eq, and, or, isNull, desc, inArray, sql } from "drizzle-orm";
 import FinanceClient from "./finance-client";
 import StudentFinanceView from "@/domains/finance/components/StudentFinanceView";
@@ -135,7 +142,7 @@ export default async function FinancePage({
     const studentIds = (feeRows || []).map(f => f.studentId).filter(Boolean) as number[];
     const feeIds = (feeRows || []).map(f => f.id).filter(Boolean) as number[];
 
-    const [studentRows, paymentRows, classRows, headerConfigRes] = await Promise.all([
+    const [studentRows, paymentRows, classRows, headerConfigRes, scholarshipRows, scheduleRows] = await Promise.all([
       studentIds.length > 0
         ? readDb.select({
             id: students.id,
@@ -175,6 +182,38 @@ export default async function FinancePage({
         .catch(() => []),
 
       getDocumentHeaderConfig().catch(() => ({ data: null })),
+
+      studentIds.length > 0
+        ? (readDb || db)
+            .select({
+              id: studentScholarships.id,
+              studentId: studentScholarships.studentId,
+              scholarshipId: studentScholarships.scholarshipId,
+              academicYear: studentScholarships.academicYear,
+              customDiscountPercentage: studentScholarships.customDiscountPercentage,
+              allocatedAmount: studentScholarships.allocatedAmount,
+              decisionReference: studentScholarships.decisionReference,
+              status: studentScholarships.status,
+              notes: studentScholarships.notes,
+              scholarshipName: scholarships.name,
+              scholarshipProvider: scholarships.provider,
+              scholarshipType: scholarships.type,
+              scholarshipDiscountValue: scholarships.discountValue,
+            })
+            .from(studentScholarships)
+            .leftJoin(scholarships, eq(studentScholarships.scholarshipId, scholarships.id))
+            .where(inArray(studentScholarships.studentId, studentIds))
+            .catch(() => [])
+        : Promise.resolve([]),
+
+      studentIds.length > 0
+        ? (readDb || db)
+            .select()
+            .from(studentPaymentSchedules)
+            .where(inArray(studentPaymentSchedules.studentId, studentIds))
+            .orderBy(studentPaymentSchedules.dueDate)
+            .catch(() => [])
+        : Promise.resolve([]),
     ]);
 
     const studentMap = new Map((studentRows || []).map(s => [s.id, s]));
@@ -183,6 +222,14 @@ export default async function FinancePage({
       if (!p.feeId) continue;
       if (!paymentsMap.has(p.feeId)) paymentsMap.set(p.feeId, []);
       paymentsMap.get(p.feeId)!.push(p);
+    }
+
+    const scholarshipMap = new Map((scholarshipRows || []).map(s => [s.studentId, s]));
+    const schedulesMap = new Map<number, any[]>();
+    for (const sc of (scheduleRows || [])) {
+      if (!sc.studentId) continue;
+      if (!schedulesMap.has(sc.studentId)) schedulesMap.set(sc.studentId, []);
+      schedulesMap.get(sc.studentId)!.push(sc);
     }
 
     // Assemble and deduplicate fee objects
@@ -195,6 +242,8 @@ export default async function FinancePage({
           ...f,
           student: studentMap.get(f.studentId) || null,
           payments: paymentsMap.get(f.id) || [],
+          scholarship: scholarshipMap.get(f.studentId) || null,
+          schedules: schedulesMap.get(f.studentId) || [],
         });
       }
     }
