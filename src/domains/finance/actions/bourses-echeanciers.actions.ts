@@ -54,7 +54,7 @@ export interface BulkScheduleOptions {
   academicYear?: string;
 }
 
-export const DEFAULT_SCHOLARSHIP_TEMPLATES = [
+const DEFAULT_SCHOLARSHIP_TEMPLATES = [
   {
     name: "Bourse d'Excellence Académique",
     provider: "Ministère de l'Enseignement Supérieur",
