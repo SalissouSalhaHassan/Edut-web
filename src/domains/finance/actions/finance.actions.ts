@@ -554,7 +554,7 @@ export async function cancelFeePayment(paymentId: number, reason?: string) {
   });
 }
 
-export function normalizeClassName(val?: string | null): string {
+function normalizeClassName(val?: string | null): string {
   if (!val) return "";
   return String(val)
     .replace(/\u00a0/g, " ")
