@@ -55,8 +55,47 @@ export async function proxy(request: NextRequest) {
     return response;
   }
 
-  // 3. Initialize Supabase SSR response with cookie management
-  let supabaseResponse = NextResponse.next({ request });
+  // 3. Resolve school slug from custom domain or subdomain
+  let schoolSlug = subdomain;
+  if (!isLocalhost && (isCustomDomain || subdomain)) {
+    try {
+      const supabaseCheck = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+          cookies: {
+            getAll() { return request.cookies.getAll(); },
+            setAll() {},
+          },
+        }
+      );
+      const { data: schoolData } = await supabaseCheck
+        .from("schools")
+        .select("slug")
+        .or(`custom_domain.eq.${host},slug.eq.${subdomain}`)
+        .maybeSingle();
+
+      if (schoolData?.slug) {
+        schoolSlug = schoolData.slug;
+      }
+    } catch {
+      // Fallback silently if lookup fails
+    }
+  }
+
+  // 4. Set request headers to propagate multi-tenant context to Server Components/Actions
+  const requestHeaders = new Headers(request.headers);
+  if (schoolSlug) {
+    requestHeaders.set("x-school-slug", schoolSlug);
+  }
+  requestHeaders.set("x-school-host", host);
+
+  // 5. Initialize Supabase SSR response with cookie management
+  let supabaseResponse = NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  });
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -79,24 +118,6 @@ export async function proxy(request: NextRequest) {
       },
     }
   );
-
-  // 4. Verify custom domain slug if applicable
-  let schoolSlug = subdomain;
-  if (isCustomDomain && !isLocalhost) {
-    try {
-      const { data: schoolData } = await supabase
-        .from("schools")
-        .select("slug")
-        .eq("custom_domain", host)
-        .single();
-
-      if (schoolData?.slug) {
-        schoolSlug = schoolData.slug;
-      }
-    } catch {
-      // Fallback silently if lookup fails
-    }
-  }
 
   if (schoolSlug) {
     supabaseResponse.headers.set("x-school-slug", schoolSlug);
@@ -147,7 +168,7 @@ export async function proxy(request: NextRequest) {
     if (rewriteUrl.host !== host) {
       const rewriteResponse = NextResponse.rewrite(rewriteUrl, {
         request: {
-          headers: new Headers(request.headers),
+          headers: requestHeaders,
         },
       });
 

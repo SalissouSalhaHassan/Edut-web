@@ -53,14 +53,24 @@ export const getCurrentSchool = cache(async () => {
 
     try {
       const cleanSlug = slug.toLowerCase().trim();
+      const host = headerList.get("x-school-host") || headerList.get("x-forwarded-host") || headerList.get("host") || "";
+      const cleanHost = host.toLowerCase().trim();
+
+      const conditions = [
+        eq(schools.slug, cleanSlug),
+        ilike(schools.slug, cleanSlug),
+      ];
+      if (cleanHost) {
+        conditions.push(eq(schools.customDomain, cleanHost));
+        conditions.push(ilike(schools.customDomain, `%${cleanHost}%`));
+      }
+      if (cleanSlug && cleanSlug !== "edut" && cleanSlug !== "main") {
+        conditions.push(ilike(schools.customDomain, `%${cleanSlug}%`));
+        conditions.push(ilike(schools.name, `%${cleanSlug.replace(/-/g, " ")}%`));
+      }
+
       const school = await readDb.query.schools.findFirst({
-        where: or(
-          eq(schools.slug, cleanSlug),
-          ilike(schools.slug, cleanSlug),
-          ilike(schools.slug, `%${cleanSlug}%`),
-          ilike(schools.slug, `%${cleanSlug.replace(/group-|-niger/gi, "")}%`),
-          ilike(schools.name, `%${cleanSlug.replace(/-/g, " ")}%`)
-        ),
+        where: or(...conditions),
       });
       if (school) {
         // Cache for 1 hour
@@ -84,12 +94,6 @@ export const getCurrentSchool = cache(async () => {
   } catch (error) {
     console.error("[getCurrentSchool] Error fetching school by user context:", error);
   }
-
-  // 3. Fallback: Return first school record in database
-  try {
-    const firstSchool = await readDb.query.schools.findFirst();
-    if (firstSchool) return firstSchool;
-  } catch (_) {}
 
   return null;
 });

@@ -38,16 +38,30 @@ export default function LoginPage() {
     async function fetchBranding() {
       try {
         const branding = await getSchoolBranding();
-        if (branding && (branding.logoPath || branding.name)) {
+        if (typeof window !== "undefined") {
+          // Clean up legacy global keys that cause cross-tenant logo pollution
+          localStorage.removeItem("edut_school_logo");
+          localStorage.removeItem("edut_school_name");
+        }
+
+        if (branding) {
           setSchool(branding);
           if (typeof window !== "undefined") {
-            if (branding.logoPath) localStorage.setItem("edut_school_logo", branding.logoPath);
-            if (branding.name) localStorage.setItem("edut_school_name", branding.name);
+            const hostKey = window.location.hostname;
+            if (branding.logoPath) {
+              localStorage.setItem(`edut_logo_${hostKey}`, branding.logoPath);
+            } else {
+              localStorage.removeItem(`edut_logo_${hostKey}`);
+            }
+            if (branding.name) {
+              localStorage.setItem(`edut_name_${hostKey}`, branding.name);
+            }
           }
-        } else {
-          const cachedLogo = typeof window !== "undefined" ? localStorage.getItem("edut_school_logo") : null;
-          const cachedName = typeof window !== "undefined" ? localStorage.getItem("edut_school_name") : null;
-          if (cachedLogo || cachedName) {
+        } else if (typeof window !== "undefined") {
+          const hostKey = window.location.hostname;
+          const cachedLogo = localStorage.getItem(`edut_logo_${hostKey}`);
+          const cachedName = localStorage.getItem(`edut_name_${hostKey}`);
+          if (cachedName || cachedLogo) {
             setSchool({ name: cachedName, logoPath: cachedLogo });
           }
         }
