@@ -12,7 +12,7 @@ import {
 } from "@/infrastructure/database/schema/finance";
 import { students } from "@/infrastructure/database/schema/students";
 import { schoolClasses, schoolSessions } from "@/infrastructure/database/schema/academics";
-import { eq, desc, and, sql, inArray } from "drizzle-orm";
+import { eq, desc, and, or, isNull, sql, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 export interface ScholarshipInput {
@@ -52,6 +52,106 @@ export interface BulkScheduleOptions {
   className?: string;
   scheduleType?: "mensuel_9" | "mensuel_10" | "trimestriel" | "semestriel";
   academicYear?: string;
+}
+
+export const DEFAULT_SCHOLARSHIP_TEMPLATES = [
+  {
+    name: "Bourse d'Excellence Académique",
+    provider: "Ministère de l'Enseignement Supérieur",
+    type: "Pourcentage",
+    discountValue: 100,
+    appliesTo: "Frais de Scolarité",
+    academicYear: "2025-2026",
+    criteria: "Moyenne générale >= 16/20, assiduité parfaite",
+    isActive: true,
+  },
+  {
+    name: "Bourse Nationale au Mérite",
+    provider: "Ministère de l'Enseignement Supérieur",
+    type: "Pourcentage",
+    discountValue: 50,
+    appliesTo: "Frais de Scolarité",
+    academicYear: "2025-2026",
+    criteria: "Moyenne générale >= 14/20 ou recommandation ministérielle",
+    isActive: true,
+  },
+  {
+    name: "Bourse d'Étude Régionale / Collectivité",
+    provider: "Conseil Régional / Municipalité",
+    type: "Pourcentage",
+    discountValue: 40,
+    appliesTo: "Frais de Scolarité",
+    academicYear: "2025-2026",
+    criteria: "Ressortissant de la région partenaire",
+    isActive: true,
+  },
+  {
+    name: "Bourse Sociale / Aide Étudiante",
+    provider: "Fonds d'Action Sociale Universitaire",
+    type: "Pourcentage",
+    discountValue: 30,
+    appliesTo: "Frais de Scolarité",
+    academicYear: "2025-2026",
+    criteria: "Situation financière familiale précaire justifiée",
+    isActive: true,
+  },
+  {
+    name: "Exonération Institutionnelle / Partenariat",
+    provider: "Direction Générale de l'Établissement",
+    type: "Pourcentage",
+    discountValue: 25,
+    appliesTo: "Frais de Scolarité",
+    academicYear: "2025-2026",
+    criteria: "Accords-cadres et conventions institutionnelles",
+    isActive: true,
+  },
+  {
+    name: "Réduction Fratrie / Famille Nombreuse",
+    provider: "Établissement",
+    type: "Pourcentage",
+    discountValue: 15,
+    appliesTo: "Frais de Scolarité",
+    academicYear: "2025-2026",
+    criteria: "Au moins 2 enfants inscrits dans l'établissement",
+    isActive: true,
+  },
+];
+
+export async function initializeDefaultScholarships(targetSchoolId?: number) {
+  try {
+    await ensureFinanceTables();
+    const user = await getCurrentUser();
+    const schoolId = targetSchoolId || (await getActiveSchoolId()) || user?.schoolId || 9;
+
+    const existing = await (readDb || db)
+      .select({ name: scholarships.name })
+      .from(scholarships)
+      .where(
+        schoolId
+          ? or(eq(scholarships.schoolId, schoolId), isNull(scholarships.schoolId))
+          : undefined
+      );
+
+    const existingNames = new Set(existing.map((e) => e.name?.toLowerCase().trim()));
+
+    const toInsert = DEFAULT_SCHOLARSHIP_TEMPLATES
+      .filter((tmpl) => !existingNames.has(tmpl.name.toLowerCase().trim()))
+      .map((tmpl) => ({
+        ...tmpl,
+        schoolId,
+      }));
+
+    if (toInsert.length > 0) {
+      await db.insert(scholarships).values(toInsert);
+      console.log(`[initializeDefaultScholarships] Seeded ${toInsert.length} scholarships for school ${schoolId}.`);
+    }
+
+    revalidatePath("/dashboard/finance/bourses-echeanciers");
+    return { success: true, count: toInsert.length };
+  } catch (err: any) {
+    console.error("[initializeDefaultScholarships] Error:", err);
+    return { success: false, error: err.message };
+  }
 }
 
 let migrationPromise: Promise<void> | null = null;
@@ -120,14 +220,33 @@ async function ensureFinanceTables() {
 export async function getBoursesAndEcheanciersDashboardData() {
   try {
     await ensureFinanceTables();
-    const schoolId = await getActiveSchoolId();
+    const user = await getCurrentUser();
+    const schoolId = (await getActiveSchoolId()) || user?.schoolId || 9;
 
     // 1. Scholarships Catalog
-    const allScholarships = await (readDb || db)
+    let allScholarships = await (readDb || db)
       .select()
       .from(scholarships)
-      .where(schoolId ? eq(scholarships.schoolId, schoolId) : undefined)
+      .where(
+        schoolId 
+          ? or(eq(scholarships.schoolId, schoolId), isNull(scholarships.schoolId)) 
+          : undefined
+      )
       .orderBy(desc(scholarships.id));
+
+    // Auto-seed default templates if catalog is empty so it is never blank
+    if (allScholarships.length === 0) {
+      await initializeDefaultScholarships(schoolId);
+      allScholarships = await (readDb || db)
+        .select()
+        .from(scholarships)
+        .where(
+          schoolId 
+            ? or(eq(scholarships.schoolId, schoolId), isNull(scholarships.schoolId)) 
+            : undefined
+        )
+        .orderBy(desc(scholarships.id));
+    }
 
     // 2. Student Scholarship Allocations
     const allocations = await (readDb || db)
@@ -241,7 +360,8 @@ export async function getBoursesAndEcheanciersDashboardData() {
 
 export async function saveScholarship(input: ScholarshipInput) {
   try {
-    const schoolId = await getActiveSchoolId();
+    const user = await getCurrentUser();
+    const schoolId = (await getActiveSchoolId()) || user?.schoolId || 9;
 
     if (!input.name) {
       return { success: false, error: "Nom de la bourse requis" };
@@ -264,7 +384,7 @@ export async function saveScholarship(input: ScholarshipInput) {
         .where(eq(scholarships.id, input.id));
     } else {
       await db.insert(scholarships).values({
-        schoolId: schoolId || 1,
+        schoolId,
         name: input.name,
         provider: input.provider || "Ministère de l'Enseignement Supérieur",
         type: input.type || "Pourcentage",

@@ -30,7 +30,8 @@ import {
   Check,
   ChevronsUpDown,
   ExternalLink,
-  ChevronDown
+  ChevronDown,
+  Sparkles
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,7 @@ import { useRouter } from "next/navigation";
 import { 
   saveScholarship, 
   deleteScholarship, 
+  initializeDefaultScholarships,
   assignScholarshipToStudent, 
   deleteStudentScholarship,
   generateStudentPaymentSchedule,
@@ -133,6 +135,14 @@ export function BoursesEcheanciersClient({
   // Form states - Bulk Generation
   const [bulkClassId, setBulkClassId] = useState<number>(classesList[0]?.id || 0);
   const [bulkSchedType, setBulkSchedType] = useState<"mensuel_9" | "mensuel_10" | "trimestriel" | "semestriel">("mensuel_9");
+
+  // Keep assignScholarshipId in sync if scholarships catalog loads or updates
+  React.useEffect(() => {
+    if ((!assignScholarshipId || assignScholarshipId === 0) && (initialData.scholarships || []).length > 0) {
+      setAssignScholarshipId(initialData.scholarships[0].id);
+      setAssignDiscount(initialData.scholarships[0].discountValue || 50);
+    }
+  }, [initialData.scholarships, assignScholarshipId]);
 
   const m = initialData.metrics;
 
@@ -1045,71 +1055,136 @@ export function BoursesEcheanciersClient({
       {/* 6. Tab 3 Content: Types de Bourses */}
       {activeTab === "catalogue" && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-white">
-              Programmes & Types de Bourses Disponibles
-            </h2>
-            <Button
-              onClick={() => setIsNewBourseModal(true)}
-              className="bg-amber-600 hover:bg-amber-500 text-white font-medium"
-            >
-              <Plus className="w-4 h-4 mr-1.5" /> Ajouter une Bourse
-            </Button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {(initialData.scholarships || []).map((sch: any) => (
-              <div
-                key={sch.id}
-                className="relative overflow-hidden rounded-2xl bg-slate-900/80 border border-slate-800 p-5 shadow-xl hover:border-slate-700 transition-all"
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold text-white">
+                Programmes & Types de Bourses Disponibles
+              </h2>
+              <p className="text-xs text-slate-400">
+                Consultez, ajoutez ou personnalisez les programmes de bourses et d'exonérations applicables.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={() => {
+                  startTransition(async () => {
+                    const res = await initializeDefaultScholarships();
+                    if (res.success) {
+                      toast.success(`${res.count || 0} programmes standards initialisés / actualisés.`);
+                      router.refresh();
+                    } else {
+                      toast.error(res.error || "Erreur lors de l'initialisation.");
+                    }
+                  });
+                }}
+                disabled={isPending}
+                variant="outline"
+                className="border-slate-700 text-slate-300 hover:bg-slate-800 text-xs h-9"
               >
-                <div className="flex items-start justify-between">
-                  <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
-                    <Award className="w-6 h-6" />
-                  </div>
-                  <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-                    {sch.discountValue} %
-                  </span>
-                </div>
-
-                <div className="mt-4">
-                  <h3 className="text-lg font-bold text-white">{sch.name}</h3>
-                  <p className="text-xs text-slate-400 mt-0.5">{sch.provider}</p>
-                </div>
-
-                <div className="mt-4 pt-4 border-t border-slate-800/80 text-xs text-slate-400 space-y-1">
-                  <div className="flex justify-between">
-                    <span>Appliqué à :</span>
-                    <span className="font-medium text-slate-200">{sch.appliesTo || "Frais de Scolarité"}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Année :</span>
-                    <span className="font-medium text-slate-200">{sch.academicYear || "2025-2026"}</span>
-                  </div>
-                </div>
-
-                <div className="mt-4 flex items-center justify-end gap-2">
-                  <Button
-                    onClick={() => {
-                      if (confirm("Supprimer ce type de bourse du catalogue ?")) {
-                        startTransition(async () => {
-                          await deleteScholarship(sch.id);
-                          toast.success("Bourse supprimée du catalogue");
-                          router.refresh();
-                        });
-                      }
-                    }}
-                    size="sm"
-                    variant="ghost"
-                    className="h-8 w-8 p-0 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10"
-                    title="Supprimer"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            ))}
+                <Sparkles className="w-3.5 h-3.5 mr-1.5 text-amber-400" /> Initialiser Standards
+              </Button>
+              <Button
+                onClick={() => setIsNewBourseModal(true)}
+                className="bg-amber-600 hover:bg-amber-500 text-white font-medium text-xs h-9"
+              >
+                <Plus className="w-4 h-4 mr-1.5" /> Ajouter une Bourse
+              </Button>
+            </div>
           </div>
+
+          {(!initialData.scholarships || initialData.scholarships.length === 0) ? (
+            <div className="rounded-2xl bg-slate-900/60 border border-slate-800 p-8 text-center space-y-4">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mx-auto">
+                <Award className="w-6 h-6" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-base font-bold text-white">Aucun programme de bourse configuré</h3>
+                <p className="text-xs text-slate-400 max-w-md mx-auto">
+                  La liste est vide pour cet établissement. Vous pouvez initialiser en un clic les programmes standards (Excellence, Mérite, Sociale, Régionale, Fratrie) ou créer vos propres bourses personnalisées.
+                </p>
+              </div>
+              <div className="flex items-center justify-center gap-3 pt-2">
+                <Button
+                  onClick={() => {
+                    startTransition(async () => {
+                      const res = await initializeDefaultScholarships();
+                      if (res.success) {
+                        toast.success(`${res.count || 0} programmes standards initialisés avec succès !`);
+                        router.refresh();
+                      } else {
+                        toast.error(res.error || "Erreur lors de l'initialisation.");
+                      }
+                    });
+                  }}
+                  disabled={isPending}
+                  className="bg-amber-600 hover:bg-amber-500 text-white font-medium text-xs h-9"
+                >
+                  <Sparkles className="w-3.5 h-3.5 mr-1.5" /> Initialiser les Programmes Standards
+                </Button>
+                <Button
+                  onClick={() => setIsNewBourseModal(true)}
+                  variant="outline"
+                  className="border-slate-700 text-slate-200 hover:bg-slate-800 text-xs h-9"
+                >
+                  <Plus className="w-3.5 h-3.5 mr-1.5" /> Créer un Programme Personnalisé
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {(initialData.scholarships || []).map((sch: any) => (
+                <div
+                  key={sch.id}
+                  className="relative overflow-hidden rounded-2xl bg-slate-900/80 border border-slate-800 p-5 shadow-xl hover:border-slate-700 transition-all"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
+                      <Award className="w-6 h-6" />
+                    </div>
+                    <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                      {sch.discountValue} %
+                    </span>
+                  </div>
+
+                  <div className="mt-4">
+                    <h3 className="text-lg font-bold text-white">{sch.name}</h3>
+                    <p className="text-xs text-slate-400 mt-0.5">{sch.provider}</p>
+                  </div>
+
+                  <div className="mt-4 pt-4 border-t border-slate-800/80 text-xs text-slate-400 space-y-1">
+                    <div className="flex justify-between">
+                      <span>Appliqué à :</span>
+                      <span className="font-medium text-slate-200">{sch.appliesTo || "Frais de Scolarité"}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Année :</span>
+                      <span className="font-medium text-slate-200">{sch.academicYear || "2025-2026"}</span>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex items-center justify-end gap-2">
+                    <Button
+                      onClick={() => {
+                        if (confirm("Supprimer ce type de bourse du catalogue ?")) {
+                          startTransition(async () => {
+                            await deleteScholarship(sch.id);
+                            toast.success("Bourse supprimée du catalogue");
+                            router.refresh();
+                          });
+                        }
+                      }}
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 w-8 p-0 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10"
+                      title="Supprimer"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -1177,22 +1252,43 @@ export function BoursesEcheanciersClient({
                 <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">
                   Programme de Bourse *
                 </label>
-                <select
-                  value={assignScholarshipId}
-                  onChange={(e) => {
-                    const sid = Number(e.target.value);
-                    setAssignScholarshipId(sid);
-                    const found = initialData.scholarships.find((s: any) => s.id === sid);
-                    if (found) setAssignDiscount(found.discountValue);
-                  }}
-                  className="w-full rounded-xl bg-slate-950 border border-slate-800 text-slate-200 text-sm p-2.5 focus:ring-1 focus:ring-amber-500"
-                >
-                  {(initialData.scholarships || []).map((s: any) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name} ({s.discountValue}%) — {s.provider}
-                    </option>
-                  ))}
-                </select>
+                {(!initialData.scholarships || initialData.scholarships.length === 0) ? (
+                  <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 flex items-center justify-between">
+                    <span>Aucun programme disponible pour le moment.</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        startTransition(async () => {
+                          const res = await initializeDefaultScholarships();
+                          if (res.success) {
+                            toast.success("Programmes standards initialisés !");
+                            router.refresh();
+                          }
+                        });
+                      }}
+                      className="underline font-bold text-amber-400 hover:text-white ml-2"
+                    >
+                      Initialiser les bourses
+                    </button>
+                  </div>
+                ) : (
+                  <select
+                    value={assignScholarshipId}
+                    onChange={(e) => {
+                      const sid = Number(e.target.value);
+                      setAssignScholarshipId(sid);
+                      const found = initialData.scholarships.find((s: any) => s.id === sid);
+                      if (found) setAssignDiscount(found.discountValue);
+                    }}
+                    className="w-full rounded-xl bg-slate-950 border border-slate-800 text-slate-200 text-sm p-2.5 focus:ring-1 focus:ring-amber-500"
+                  >
+                    {(initialData.scholarships || []).map((s: any) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} ({s.discountValue}%) — {s.provider}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3">
