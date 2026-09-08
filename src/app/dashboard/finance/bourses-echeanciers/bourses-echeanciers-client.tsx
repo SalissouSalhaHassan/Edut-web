@@ -488,7 +488,7 @@ export function BoursesEcheanciersClient({
   };
 
   return (
-    <div className="space-y-6 text-slate-100">
+    <div className="w-full space-y-6 text-slate-100">
       {/* 1. Header Banner */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-slate-800 p-6 md:p-8 shadow-2xl">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">

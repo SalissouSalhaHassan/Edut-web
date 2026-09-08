@@ -86,7 +86,7 @@ export default async function BoursesEcheanciersPage() {
   }));
 
   return (
-    <div className="p-4 md:p-8 max-w-7xl mx-auto">
+    <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
       <BoursesEcheanciersClient
         initialData={initialData}
         studentsList={studentsList}
