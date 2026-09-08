@@ -20,6 +20,7 @@ import { eq, and, inArray, desc, sql, or } from "drizzle-orm";
 import { protectedDbAction } from "@/lib/protected-action";
 import { ActionResponse } from "@/lib/safe-action";
 import { revalidatePath } from "next/cache";
+import { notifications } from "@/infrastructure/database/schema/messaging";
 
 export interface ConsolidationOptions {
   classId: number;
@@ -515,6 +516,19 @@ export async function consolidateClassTermGradesAction(
       const passRate = validAverages.length > 0
         ? Number(((passCount / validAverages.length) * 100).toFixed(1))
         : 0;
+
+      // 11. Dispatch in-app notification
+      try {
+        await db.insert(notifications).values({
+          title: `Moyennes calculées : ${cls.className}`,
+          content: `Les moyennes et rangs du ${periodName} pour la classe ${cls.className} (${classStudents.length} élèves) ont été consolidés avec succès. Moyenne de classe : ${classAverage}/20 (Taux de réussite : ${passRate}%).`,
+          type: "success",
+          category: "Scolarité",
+          isRead: false,
+        });
+      } catch {
+        // notification non-blocking
+      }
 
       revalidatePath("/dashboard/academics/grades");
       revalidatePath("/dashboard/academics/bulletins-batch");

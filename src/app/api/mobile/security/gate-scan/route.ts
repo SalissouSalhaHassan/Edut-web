@@ -111,28 +111,45 @@ export async function POST(request: NextRequest) {
 
     // 6. Handle Action logging (Entry / Exit)
     let actionLogged = null;
+    let whatsappAlert = null;
     if (action === "entry" || action === "exit") {
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
       actionLogged = {
         action,
-        timestamp: new Date().toISOString(),
+        timestamp: now.toISOString(),
         recordedBy: user.utilisateur || "Agent de sécurité",
         note: note || "",
       };
 
-      // Push notification to parent if student has contact
-      try {
-        const notifTitle = action === "entry" ? "Arrivée à l'école" : "Départ de l'école";
-        const notifContent = `L'élève ${student.nomEtudiant} a franchi la porte de l'établissement (${action === "entry" ? "Entrée" : "Sortie"}) à ${new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}.`;
+      const parentPhone = student.whatsapp || student.mobile || student.phoneFixe;
+      const notifTitle = action === "entry" ? "Arrivée à l'école" : "Départ de l'école";
+      const notifContent = `L'élève ${student.nomEtudiant} (Classe: ${student.classe || "N/A"}) a franchi le portail (${action === "entry" ? "Entrée" : "Sortie"}) à ${timeStr}.`;
 
+      // 6a. Push notification to in-app notification center
+      try {
         await db.insert(notifications).values({
           title: notifTitle,
           content: notifContent,
           type: "info",
-          category: "Discipline",
+          category: "Sécurité",
           isRead: false,
         });
       } catch {
         // notification non-blocking
+      }
+
+      // 6b. Generate Instant WhatsApp payload & link
+      if (parentPhone) {
+        let cleanPhone = parentPhone.replace(/\D/g, "");
+        if (cleanPhone.length === 8) cleanPhone = `227${cleanPhone}`;
+        const isEntry = action === "entry";
+        const waText = `*SÉCURITÉ CAMPUS - CONTRÔLE D'ACCÈS* 🛡️\n\nBonjour Cher Parent (${student.nomPere || "Parent d'élève"}),\nNous vous informons que votre enfant *${student.nomEtudiant}* (${student.classe || ""}) a franchi le portail de l'établissement (*${isEntry ? "Entrée" : "Sortie"}*) à ${timeStr}.\n\n_Application Edut Mobile • Sécurité certifiée_`;
+        whatsappAlert = {
+          phone: cleanPhone,
+          message: waText,
+          link: `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(waText)}`,
+        };
       }
     }
 
@@ -142,6 +159,7 @@ export async function POST(request: NextRequest) {
       alertLevel,
       decisionReason,
       actionLogged,
+      whatsappAlert,
       student: {
         id: student.id,
         nom: student.nomEtudiant,

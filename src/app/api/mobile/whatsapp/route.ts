@@ -74,6 +74,19 @@ export async function POST(request: NextRequest) {
         }
         break;
 
+      case "gate_entry":
+      case "gate_exit":
+        const isEntry = type === "gate_entry";
+        const timeStr = body.time || new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+        if (language === "AR") {
+          generatedText = `*تنبيه أمني - مجمع إيدوت المدرسي* 🛡️\n\nالسلام عليكم ولي أمر الطالب (*${recipientName || "ولي الأمر"}*),\nنحيطكم علماً بأن الطالب *${studentName || ""}* (${className || ""}) قد سُجّل *${isEntry ? "دخوله إلى المدرسة" : "خروجه من المدرسة"}* في تمام الساعة *${timeStr}* عبر البوابة الرئيسية.\n\n_يمكنكم متابعة سجلات الحضور والأمان عبر تطبيق Edut Mobile._`;
+        } else if (language === "HA") {
+          generatedText = `*TSARON MAKARANTA - EDUT SECURITY* 🛡️\n\nBarka, ya mai girma (*${recipientName || "Waliyyi"}*),\nMuna sanar da ku cewa dalibi *${studentName || ""}* (${className || ""}) ya *${isEntry ? "shiga makaranta" : "fita daga makaranta"}* da misalin karfe *${timeStr}* ta babban kofa.\n\n_Ana iya duba rahoton tsaro a manhajar Edut Mobile._`;
+        } else {
+          generatedText = `*SÉCURITÉ CAMPUS - CONTRÔLE D'ACCÈS* 🛡️\n\nBonjour *${recipientName || "Parent"}*,\nNous vous informons que votre enfant *${studentName || "l'élève"}* (${className || ""}) a franchi le portail de l'établissement (*${isEntry ? "Entrée" : "Sortie"}*) à *${timeStr}*.\n\n_Retrouvez l'historique complet des passages sur votre application Edut Mobile._`;
+        }
+        break;
+
       case "fee_reminder":
         if (language === "HA") {
           generatedText = `*SANARWA DAGA MAKARANTAR EDUT* 🏫\n\nBarka, ya mai girma (*${recipientName || "Waliyyi"}*),\nMuna tunatar da ku cewa akwai sauran kudin makaranta na *${amount || "0"} FCFA* na dalibi *${studentName || ""}* (${className || ""}).\nKwanan wata na karshe: *${date || "Karshen wannan wata"}*.\n\nKuna iya biya cikin sauki ta *Airtel Money (*155#)* ko *Al-Izza (*800#)* ta manhajar Edut Mobile.\nMungode da hadin kai!`;
