@@ -2,14 +2,17 @@
 
 import { db, readDb } from "@/infrastructure/database";
 import { getActiveSchoolId } from "@/domains/auth/services/school";
+import { getCurrentUser } from "@/domains/auth/services/session";
 import { 
   scholarships, 
   studentScholarships, 
-  studentPaymentSchedules 
+  studentPaymentSchedules,
+  studentFees,
+  feePayments
 } from "@/infrastructure/database/schema/finance";
 import { students } from "@/infrastructure/database/schema/students";
-import { schoolClasses } from "@/infrastructure/database/schema/academics";
-import { eq, desc, and, sql } from "drizzle-orm";
+import { schoolClasses, schoolSessions } from "@/infrastructure/database/schema/academics";
+import { eq, desc, and, sql, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 export interface ScholarshipInput {
@@ -34,6 +37,21 @@ export interface StudentScholarshipAssignInput {
   decisionReference?: string;
   status?: string;
   notes?: string;
+}
+
+export interface ScheduleGenerationOptions {
+  studentId: number;
+  annualGrossAmount?: number;
+  scholarshipPercentage?: number;
+  scheduleType?: "mensuel_9" | "mensuel_10" | "trimestriel" | "semestriel";
+  academicYear?: string;
+}
+
+export interface BulkScheduleOptions {
+  classId?: number;
+  className?: string;
+  scheduleType?: "mensuel_9" | "mensuel_10" | "trimestriel" | "semestriel";
+  academicYear?: string;
 }
 
 let migrationPromise: Promise<void> | null = null;
@@ -128,6 +146,8 @@ export async function getBoursesAndEcheanciersDashboardData() {
         studentNom: students.nomEtudiant,
         studentMatricule: students.numAdmission,
         studentClasse: students.classe,
+        studentMobile: students.mobile,
+        studentWhatsapp: students.whatsapp,
         scholarshipName: scholarships.name,
         scholarshipProvider: scholarships.provider,
         scholarshipType: scholarships.type,
@@ -140,7 +160,7 @@ export async function getBoursesAndEcheanciersDashboardData() {
       .orderBy(desc(studentScholarships.id));
 
     // 3. Payment Schedules
-    const schedules = await (readDb || db)
+    const rawSchedules = await (readDb || db)
       .select({
         id: studentPaymentSchedules.id,
         schoolId: studentPaymentSchedules.schoolId,
@@ -158,12 +178,32 @@ export async function getBoursesAndEcheanciersDashboardData() {
         studentNom: students.nomEtudiant,
         studentMatricule: students.numAdmission,
         studentClasse: students.classe,
+        studentMobile: students.mobile,
+        studentWhatsapp: students.whatsapp,
+        studentNomPere: students.nomPere,
       })
       .from(studentPaymentSchedules)
       .leftJoin(students, eq(studentPaymentSchedules.studentId, students.id))
       .where(schoolId ? eq(studentPaymentSchedules.schoolId, schoolId) : undefined)
       .orderBy(desc(studentPaymentSchedules.dueDate))
-      .limit(200);
+      .limit(1000);
+
+    const now = new Date();
+    const schedules = rawSchedules.map((s) => {
+      const isPast = new Date(s.dueDate) < now;
+      let computedStatus = s.status;
+      if (s.balance === 0 || ((s.paidAmount || 0) >= s.netAmount && s.netAmount > 0)) {
+        computedStatus = "Payé";
+      } else if (s.status === "Relancé") {
+        computedStatus = "Relancé";
+      } else if (isPast && s.balance > 0) {
+        computedStatus = "En retard";
+      }
+      return {
+        ...s,
+        status: computedStatus,
+      };
+    });
 
     // 4. Calculate Aggregate KPIs
     const totalAllocatedBourses = allocations.reduce((acc, curr) => acc + Number(curr.allocatedAmount || 0), 0);
@@ -171,7 +211,7 @@ export async function getBoursesAndEcheanciersDashboardData() {
     const totalNetSchedules = schedules.reduce((acc, curr) => acc + Number(curr.netAmount || 0), 0);
     const totalPaidSchedules = schedules.reduce((acc, curr) => acc + Number(curr.paidAmount || 0), 0);
     const totalOverdueSchedules = schedules
-      .filter((s) => s.status === "En retard" || (s.balance > 0 && new Date(s.dueDate) < new Date()))
+      .filter((s) => s.status === "En retard" || (s.balance > 0 && new Date(s.dueDate) < now))
       .reduce((acc, curr) => acc + Number(curr.balance || 0), 0);
 
     const boursiersCount = allocations.filter((a) => a.status === "Actif").length;
@@ -273,11 +313,17 @@ export async function assignScholarshipToStudent(input: StudentScholarshipAssign
     const schItem = sch[0];
     const discountVal = input.customDiscountPercentage || schItem?.discountValue || 50;
 
-    // Estimate base annual tuition (e.g. 700,000 FCFA default or student fee)
-    const baseTuition = 700000;
+    // Fetch existing student fee
+    const feeList = await (readDb || db)
+      .select()
+      .from(studentFees)
+      .where(eq(studentFees.studentId, input.studentId))
+      .limit(1);
+
+    const baseTuition = feeList[0]?.totalExpected || 700000;
     const allocatedAmt = schItem?.type === "Pourcentage"
-      ? (baseTuition * discountVal) / 100
-      : (input.allocatedAmount || discountVal);
+      ? Math.round((baseTuition * discountVal) / 100)
+      : Math.round(input.allocatedAmount || discountVal);
 
     const ref = input.decisionReference || `DEC-BRS-${Date.now().toString().slice(-6)}`;
 
@@ -309,8 +355,24 @@ export async function assignScholarshipToStudent(input: StudentScholarshipAssign
       });
     }
 
+    // Direct synchronization with studentFees ledger
+    if (feeList[0]) {
+      const currentPaid = feeList[0].totalPaid || 0;
+      const newBalance = Math.max(0, feeList[0].totalExpected - currentPaid - allocatedAmt);
+      const newStatus = newBalance <= 0 ? "Soldé" : currentPaid > 0 ? "Partiel" : "Impayé";
+      await db
+        .update(studentFees)
+        .set({
+          totalReduction: allocatedAmt,
+          balance: newBalance,
+          status: newStatus,
+        })
+        .where(eq(studentFees.id, feeList[0].id));
+    }
+
     revalidatePath("/dashboard/finance/bourses-echeanciers");
-    return { success: true };
+    revalidatePath("/dashboard/finance");
+    return { success: true, allocatedAmount: allocatedAmt };
   } catch (error: any) {
     console.error("Error in assignScholarshipToStudent:", error);
     return { success: false, error: error.message || "Erreur lors de l'attribution de la bourse" };
@@ -319,8 +381,42 @@ export async function assignScholarshipToStudent(input: StudentScholarshipAssign
 
 export async function deleteStudentScholarship(id: number) {
   try {
-    await db.delete(studentScholarships).where(eq(studentScholarships.id, id));
+    const existing = await (readDb || db)
+      .select()
+      .from(studentScholarships)
+      .where(eq(studentScholarships.id, id))
+      .limit(1);
+
+    if (existing[0]) {
+      const studentId = existing[0].studentId;
+      await db.delete(studentScholarships).where(eq(studentScholarships.id, id));
+
+      // Reset reduction in studentFees
+      if (studentId) {
+        const feeList = await (readDb || db)
+          .select()
+          .from(studentFees)
+          .where(eq(studentFees.studentId, studentId))
+          .limit(1);
+
+        if (feeList[0]) {
+          const currentPaid = feeList[0].totalPaid || 0;
+          const newBalance = Math.max(0, feeList[0].totalExpected - currentPaid);
+          const newStatus = newBalance <= 0 ? "Soldé" : currentPaid > 0 ? "Partiel" : "Impayé";
+          await db
+            .update(studentFees)
+            .set({
+              totalReduction: 0,
+              balance: newBalance,
+              status: newStatus,
+            })
+            .where(eq(studentFees.id, feeList[0].id));
+        }
+      }
+    }
+
     revalidatePath("/dashboard/finance/bourses-echeanciers");
+    revalidatePath("/dashboard/finance");
     return { success: true };
   } catch (error: any) {
     console.error("Error in deleteStudentScholarship:", error);
@@ -328,73 +424,245 @@ export async function deleteStudentScholarship(id: number) {
   }
 }
 
+interface InstallmentPlanItem {
+  installmentNumber: number;
+  label: string;
+  dueDate: Date;
+  sharePercent: number; // e.g. 11.11% or 40%
+}
+
+function buildInstallmentBlueprint(
+  scheduleType: "mensuel_9" | "mensuel_10" | "trimestriel" | "semestriel",
+  startYear: number = 2025
+): InstallmentPlanItem[] {
+  if (scheduleType === "trimestriel") {
+    return [
+      { installmentNumber: 1, label: "Tranche 1 (Octobre)", dueDate: new Date(startYear, 9, 15), sharePercent: 0.40 },
+      { installmentNumber: 2, label: "Tranche 2 (Janvier)", dueDate: new Date(startYear + 1, 0, 15), sharePercent: 0.30 },
+      { installmentNumber: 3, label: "Tranche 3 (Avril)", dueDate: new Date(startYear + 1, 3, 15), sharePercent: 0.30 },
+    ];
+  }
+
+  if (scheduleType === "semestriel") {
+    return [
+      { installmentNumber: 1, label: "Semestre 1 (Rentrée)", dueDate: new Date(startYear, 9, 15), sharePercent: 0.50 },
+      { installmentNumber: 2, label: "Semestre 2 (Mi-Parcours)", dueDate: new Date(startYear + 1, 1, 15), sharePercent: 0.50 },
+    ];
+  }
+
+  if (scheduleType === "mensuel_10") {
+    const months = [
+      "Septembre", "Octobre", "Novembre", "Décembre",
+      "Janvier", "Février", "Mars", "Avril", "Mai", "Juin"
+    ];
+    return months.map((m, idx) => {
+      const monthIdx = (8 + idx) % 12;
+      const year = idx < 4 ? startYear : startYear + 1;
+      return {
+        installmentNumber: idx + 1,
+        label: `Mensualité ${m} ${year}`,
+        dueDate: new Date(year, monthIdx, 5),
+        sharePercent: 0.10,
+      };
+    });
+  }
+
+  // Default: mensuel_9
+  const months9 = [
+    "Octobre", "Novembre", "Décembre",
+    "Janvier", "Février", "Mars", "Avril", "Mai", "Juin"
+  ];
+  return months9.map((m, idx) => {
+    const monthIdx = (9 + idx) % 12;
+    const year = idx < 3 ? startYear : startYear + 1;
+    return {
+      installmentNumber: idx + 1,
+      label: `Mensualité ${m} ${year}`,
+      dueDate: new Date(year, monthIdx, 5),
+      sharePercent: 1 / 9,
+    };
+  });
+}
+
 export async function generateStudentPaymentSchedule(
-  studentId: number,
-  annualGrossAmount: number = 700000,
-  scholarshipPercentage: number = 0,
-  monthsCount: number = 9
+  optionsOrStudentId: ScheduleGenerationOptions | number,
+  legacyAnnualGross: number = 700000,
+  legacyDiscount: number = 0,
+  legacyMonths: number = 9
 ) {
   try {
     const schoolId = await getActiveSchoolId();
 
-    // Check if student has scholarship
+    const studentId = typeof optionsOrStudentId === "number" ? optionsOrStudentId : optionsOrStudentId.studentId;
+    const scheduleType = typeof optionsOrStudentId === "object" && optionsOrStudentId.scheduleType 
+      ? optionsOrStudentId.scheduleType 
+      : legacyMonths === 10 ? "mensuel_10" : "mensuel_9";
+
+    // 1. Fetch real student fees if exists
+    const feeList = await (readDb || db)
+      .select()
+      .from(studentFees)
+      .where(eq(studentFees.studentId, studentId))
+      .limit(1);
+
+    let annualGross = legacyAnnualGross;
+    if (typeof optionsOrStudentId === "object" && optionsOrStudentId.annualGrossAmount) {
+      annualGross = optionsOrStudentId.annualGrossAmount;
+    } else if (feeList[0]?.totalExpected && feeList[0].totalExpected > 0) {
+      annualGross = feeList[0].totalExpected;
+    }
+
+    // 2. Check active scholarship
     const studentBourse = await (readDb || db)
       .select()
       .from(studentScholarships)
       .where(and(eq(studentScholarships.studentId, studentId), eq(studentScholarships.status, "Actif")))
       .limit(1);
 
-    let effectiveDiscountPercent = scholarshipPercentage;
+    let effectiveDiscountPercent = typeof optionsOrStudentId === "object" && optionsOrStudentId.scholarshipPercentage !== undefined
+      ? optionsOrStudentId.scholarshipPercentage
+      : legacyDiscount;
+
     if (studentBourse[0]?.customDiscountPercentage) {
       effectiveDiscountPercent = Number(studentBourse[0].customDiscountPercentage);
     }
 
-    const totalScholarship = (annualGrossAmount * effectiveDiscountPercent) / 100;
-    const totalNet = annualGrossAmount - totalScholarship;
+    const totalScholarship = Math.round((annualGross * effectiveDiscountPercent) / 100);
+    const totalNet = annualGross - totalScholarship;
 
-    const monthlyGross = Math.round(annualGrossAmount / monthsCount);
-    const monthlyScholarship = Math.round(totalScholarship / monthsCount);
-    const monthlyNet = Math.round(totalNet / monthsCount);
-
-    const monthNames = [
-      "Octobre 2025", "Novembre 2025", "Décembre 2025", 
-      "Janvier 2026", "Février 2026", "Mars 2026", 
-      "Avril 2026", "Mai 2026", "Juin 2026"
-    ];
+    // 3. Build installments blueprint
+    const blueprint = buildInstallmentBlueprint(scheduleType);
+    const count = blueprint.length;
 
     // Delete existing schedules for this student
     await db.delete(studentPaymentSchedules).where(eq(studentPaymentSchedules.studentId, studentId));
 
-    // Insert new monthly installments
-    for (let i = 0; i < monthsCount; i++) {
-      const dueDate = new Date(2025, 9 + i, 5); // 5th of each month
-      const isPast = dueDate < new Date();
+    // Distribute amounts cleanly
+    let distributedGross = 0;
+    let distributedScholarship = 0;
+    let distributedNet = 0;
+
+    const now = new Date();
+
+    for (let i = 0; i < count; i++) {
+      const bp = blueprint[i];
+      const isLast = i === count - 1;
+
+      const instGross = isLast ? (annualGross - distributedGross) : Math.round(annualGross * bp.sharePercent);
+      const instScholarship = isLast ? (totalScholarship - distributedScholarship) : Math.round(totalScholarship * bp.sharePercent);
+      const instNet = isLast ? (totalNet - distributedNet) : (instGross - instScholarship);
+
+      distributedGross += instGross;
+      distributedScholarship += instScholarship;
+      distributedNet += instNet;
+
+      const isPast = bp.dueDate < now;
 
       await db.insert(studentPaymentSchedules).values({
         schoolId: schoolId || 1,
         studentId,
-        installmentNumber: i + 1,
-        label: `Mensualité ${monthNames[i] || `Mois ${i + 1}`}`,
-        dueDate,
-        grossAmount: monthlyGross,
-        scholarshipDeduction: monthlyScholarship,
-        netAmount: monthlyNet,
+        installmentNumber: bp.installmentNumber,
+        label: bp.label,
+        dueDate: bp.dueDate,
+        grossAmount: instGross,
+        scholarshipDeduction: instScholarship,
+        netAmount: instNet,
         paidAmount: 0,
-        balance: monthlyNet,
+        balance: instNet,
         status: isPast ? "En retard" : "À échoir",
       });
     }
 
     revalidatePath("/dashboard/finance/bourses-echeanciers");
-    return { success: true, count: monthsCount, totalNet };
+    return { success: true, count, totalNet, totalGross: annualGross, totalScholarship };
   } catch (error: any) {
     console.error("Error in generateStudentPaymentSchedule:", error);
     return { success: false, error: error.message || "Erreur lors de la génération de l'échéancier" };
   }
 }
 
-export async function recordSchedulePayment(scheduleId: number, paidAmount: number) {
+export async function generateBulkPaymentSchedules(params: BulkScheduleOptions) {
   try {
+    const schoolId = await getActiveSchoolId();
+    const { classId, className, scheduleType = "mensuel_9" } = params;
+
+    let targetStudents: any[] = [];
+
+    if (classId) {
+      targetStudents = await (readDb || db)
+        .select({
+          id: students.id,
+          nom: students.nomEtudiant,
+          classe: students.classe,
+          fraisMensuels: students.fraisMensuels,
+        })
+        .from(students)
+        .where(
+          and(
+            schoolId ? eq(students.schoolId, schoolId) : undefined,
+            eq(students.classId, classId),
+            eq(students.statut, "Actif")
+          )
+        );
+    } else if (className) {
+      targetStudents = await (readDb || db)
+        .select({
+          id: students.id,
+          nom: students.nomEtudiant,
+          classe: students.classe,
+          fraisMensuels: students.fraisMensuels,
+        })
+        .from(students)
+        .where(
+          and(
+            schoolId ? eq(students.schoolId, schoolId) : undefined,
+            eq(students.classe, className),
+            eq(students.statut, "Actif")
+          )
+        );
+    }
+
+    if (!targetStudents || targetStudents.length === 0) {
+      return { success: false, error: "Aucun étudiant actif trouvé pour cette classe" };
+    }
+
+    let processedCount = 0;
+    let totalInstallmentsCreated = 0;
+
+    for (const st of targetStudents) {
+      const res = await generateStudentPaymentSchedule({
+        studentId: st.id,
+        scheduleType,
+      });
+
+      if (res.success) {
+        processedCount++;
+        totalInstallmentsCreated += res.count || 0;
+      }
+    }
+
+    revalidatePath("/dashboard/finance/bourses-echeanciers");
+    return {
+      success: true,
+      processedStudents: processedCount,
+      totalInstallments: totalInstallmentsCreated,
+    };
+  } catch (error: any) {
+    console.error("Error in generateBulkPaymentSchedules:", error);
+    return { success: false, error: error.message || "Erreur lors de la génération groupée" };
+  }
+}
+
+export async function recordSchedulePayment(
+  scheduleId: number, 
+  paidAmount: number, 
+  paymentMode: string = "Espèces",
+  reference?: string
+) {
+  try {
+    const user = await getCurrentUser();
+    const schoolId = await getActiveSchoolId();
+
     const item = await (readDb || db)
       .select()
       .from(studentPaymentSchedules)
@@ -403,10 +671,12 @@ export async function recordSchedulePayment(scheduleId: number, paidAmount: numb
 
     if (!item[0]) return { success: false, error: "Échéance introuvable" };
 
-    const newPaid = Number(item[0].paidAmount || 0) + paidAmount;
-    const newBalance = Math.max(0, Number(item[0].netAmount) - newPaid);
+    const sched = item[0];
+    const newPaid = Number(sched.paidAmount || 0) + paidAmount;
+    const newBalance = Math.max(0, Number(sched.netAmount) - newPaid);
     const newStatus = newBalance === 0 ? "Payé" : newPaid > 0 ? "Partiel" : "En retard";
 
+    // 1. Update Installment Schedule
     await db
       .update(studentPaymentSchedules)
       .set({
@@ -417,8 +687,50 @@ export async function recordSchedulePayment(scheduleId: number, paidAmount: numb
       })
       .where(eq(studentPaymentSchedules.id, scheduleId));
 
+    // 2. Synchronize with studentFees & feePayments ledger
+    const feeList = await (readDb || db)
+      .select()
+      .from(studentFees)
+      .where(eq(studentFees.studentId, sched.studentId))
+      .limit(1);
+
+    const paymentRef = reference || `REG-ECH-${sched.installmentNumber}-${Date.now().toString().slice(-5)}`;
+
+    if (feeList[0]) {
+      const fee = feeList[0];
+      // Record payment transaction
+      await db.insert(feePayments).values({
+        schoolId: schoolId || fee.schoolId || 1,
+        feeId: fee.id,
+        amount: paidAmount,
+        reduction: 0,
+        paymentMode: paymentMode || "Espèces",
+        reference: paymentRef,
+        receiptToken: `REC-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`.toUpperCase(),
+        monthConcerned: sched.label,
+        datePaid: new Date(),
+        recordedBy: user?.nomPrenom || user?.utilisateur || "Comptable",
+      });
+
+      // Update student overall fee totals
+      const totalPaidAcc = (fee.totalPaid || 0) + paidAmount;
+      const totalReduc = fee.totalReduction || 0;
+      const feeNewBalance = Math.max(0, fee.totalExpected - totalPaidAcc - totalReduc);
+      const feeNewStatus = feeNewBalance <= 0 ? "Soldé" : totalPaidAcc > 0 ? "Partiel" : "Impayé";
+
+      await db
+        .update(studentFees)
+        .set({
+          totalPaid: totalPaidAcc,
+          balance: feeNewBalance,
+          status: feeNewStatus,
+        })
+        .where(eq(studentFees.id, fee.id));
+    }
+
     revalidatePath("/dashboard/finance/bourses-echeanciers");
-    return { success: true };
+    revalidatePath("/dashboard/finance");
+    return { success: true, paymentRef, newBalance };
   } catch (error: any) {
     console.error("Error in recordSchedulePayment:", error);
     return { success: false, error: error.message || "Erreur lors de l'enregistrement du règlement" };
@@ -427,6 +739,32 @@ export async function recordSchedulePayment(scheduleId: number, paidAmount: numb
 
 export async function triggerScheduleReminder(scheduleId: number) {
   try {
+    const item = await (readDb || db)
+      .select({
+        id: studentPaymentSchedules.id,
+        installmentNumber: studentPaymentSchedules.installmentNumber,
+        label: studentPaymentSchedules.label,
+        dueDate: studentPaymentSchedules.dueDate,
+        netAmount: studentPaymentSchedules.netAmount,
+        balance: studentPaymentSchedules.balance,
+        studentId: studentPaymentSchedules.studentId,
+        studentNom: students.nomEtudiant,
+        studentMatricule: students.numAdmission,
+        studentClasse: students.classe,
+        studentMobile: students.mobile,
+        studentWhatsapp: students.whatsapp,
+        studentNomPere: students.nomPere,
+      })
+      .from(studentPaymentSchedules)
+      .leftJoin(students, eq(studentPaymentSchedules.studentId, students.id))
+      .where(eq(studentPaymentSchedules.id, scheduleId))
+      .limit(1);
+
+    if (!item[0]) return { success: false, error: "Échéance introuvable" };
+
+    const s = item[0];
+
+    // Mark as Relancé
     await db
       .update(studentPaymentSchedules)
       .set({
@@ -436,8 +774,31 @@ export async function triggerScheduleReminder(scheduleId: number) {
       })
       .where(eq(studentPaymentSchedules.id, scheduleId));
 
+    // Construct WhatsApp Link and message template
+    const phone = (s.studentWhatsapp || s.studentMobile || "").replace(/[^0-9]/g, "");
+    const formattedDate = new Date(s.dueDate).toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
+    const formattedBalance = Number(s.balance).toLocaleString("fr-FR");
+
+    const messageText = `*AVIS DE RAPPEL - SERVICE FINANCIER UNIVERSITAIRE*\n` +
+      `Bonjour Monsieur/Madame,\n` +
+      `Nous vous rappelons que l'échéance *${s.label}* pour l'étudiant(e) *${(s.studentNom || "").toUpperCase()}* (Matricule: ${s.studentMatricule || "N/A"}, Classe: ${s.studentClasse || ""}) ` +
+      `est arrivée à échéance le *${formattedDate}*.\n\n` +
+      `📌 *Montant restant dû :* ${formattedBalance} FCFA\n\n` +
+      `Merci de bien vouloir régulariser cette situation auprès du Service Comptabilité ou par virement / Mobile Money afin d'éviter toute suspension de l'accès aux examens et cours.\n` +
+      `_Direction des Affaires Financières & du Recouvrement_`;
+
+    const encodedMsg = encodeURIComponent(messageText);
+    const whatsappUrl = phone ? `https://wa.me/${phone}?text=${encodedMsg}` : `https://api.whatsapp.com/send?text=${encodedMsg}`;
+
     revalidatePath("/dashboard/finance/bourses-echeanciers");
-    return { success: true };
+    return {
+      success: true,
+      whatsappUrl,
+      phone,
+      studentNom: s.studentNom,
+      balance: s.balance,
+      messageText,
+    };
   } catch (error: any) {
     console.error("Error in triggerScheduleReminder:", error);
     return { success: false, error: error.message || "Erreur lors de l'envoi de la relance" };

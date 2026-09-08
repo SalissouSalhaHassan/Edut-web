@@ -76,6 +76,47 @@ export interface PaymentSchedulePDFParams {
   };
 }
 
+export interface OverdueNoticePDFParams {
+  student: {
+    id: number;
+    nom: string;
+    matricule?: string;
+    classe?: string;
+    parentNom?: string;
+    telephone?: string;
+  };
+  schedule: {
+    id: number;
+    label: string;
+    dueDate: string;
+    grossAmount: number;
+    scholarshipDeduction: number;
+    netAmount: number;
+    paidAmount: number;
+    balance: number;
+  };
+  allOverdueSchedules?: Array<{
+    label: string;
+    dueDate: string;
+    netAmount: number;
+    balance: number;
+  }>;
+  totalBalanceDue: number;
+  academicYear: string;
+  currency?: string;
+  institution?: {
+    name?: string;
+    countryName?: string;
+    ministryName?: string;
+    facultyName?: string;
+    bankDetails?: string;
+    contactPhone?: string;
+    contactEmail?: string;
+    city?: string;
+  };
+}
+
+
 /**
  * 1. Generate Official Attestation d'Attribution de Bourse (A4 Portrait)
  */
@@ -491,3 +532,293 @@ export async function generateEcheancierPaiementPDF(data: PaymentSchedulePDFPara
   const cleanNom = (data.student.nom || "Etudiant").replace(/[^a-zA-Z0-9]/g, "_");
   doc.save(`Echeancier_Paiement_${cleanNom}.pdf`);
 }
+
+/**
+  * 3. Generate Official Lettre de Relance / Mise en Demeure de Paiement (A4 Portrait)
+  */
+export async function generateLettreRelancePDF(data: OverdueNoticePDFParams): Promise<void> {
+  const { default: jsPDF } = await import("jspdf");
+  const { default: autoTable } = await import("jspdf-autotable");
+
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const curr = data.currency || "FCFA";
+
+  // Dual Outer Border with Red warning tint
+  doc.setDrawColor(225, 29, 72); // Rose/Red 600
+  doc.setLineWidth(0.8);
+  doc.rect(8, 8, pageWidth - 16, pageHeight - 16, "S");
+
+  doc.setDrawColor(203, 213, 225);
+  doc.setLineWidth(0.3);
+  doc.rect(9.5, 9.5, pageWidth - 19, pageHeight - 19, "S");
+
+  // Headings
+  const country = (data.institution?.countryName || "RÉPUBLIQUE DU NIGER").toUpperCase();
+  const school = (data.institution?.name || "UNIVERSITÉ DES SCIENCES & TECHNOLOGIES").toUpperCase();
+  const faculty = (data.institution?.facultyName || "DIRECTION DU RECOUVREMENT & DE LA SCOLARITÉ").toUpperCase();
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8.5);
+  doc.setTextColor(15, 23, 42);
+  doc.text(country, 14, 16);
+  doc.text(school, pageWidth - 14, 16, { align: "right" });
+
+  doc.setFontSize(7.2);
+  doc.setTextColor(225, 29, 72);
+  doc.text(faculty, pageWidth - 14, 21, { align: "right" });
+
+  // Banner
+  const bannerY = 26;
+  doc.setFillColor(15, 23, 42);
+  doc.roundedRect(13, bannerY, pageWidth - 26, 14, 1.5, 1.5, "F");
+
+  doc.setFillColor(225, 29, 72); // Red left pill
+  doc.rect(13, bannerY, 3.5, 14, "F");
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10.5);
+  doc.setTextColor(255, 255, 255);
+  doc.text(
+    `AVIS DE RELANCE & MISE EN DEMEURE DE PAIEMENT`,
+    pageWidth / 2 + 1.5,
+    bannerY + 6,
+    { align: "center" }
+  );
+
+  doc.setFontSize(6.8);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(254, 205, 211);
+  doc.text(
+    `CONTENTIEUX FINANCIER ACADÉMIQUE • DÉFAUT DE RÈGLEMENT D'ÉCHÉANCE SCOLARITÉ`,
+    pageWidth / 2 + 1.5,
+    bannerY + 10.5,
+    { align: "center" }
+  );
+
+  // Reference and Date line
+  let currentY = 46;
+  const todayStr = new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
+  doc.setFontSize(7.5);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(71, 85, 105);
+  doc.text(`Réf : DAF/REL-${data.schedule.id}-${new Date().getFullYear()}`, 14, currentY);
+  doc.text(`Fait à ${data.institution?.city || "Niamey"}, le ${todayStr}`, pageWidth - 14, currentY, { align: "right" });
+
+  currentY += 6;
+
+  // Recipient Block
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(226, 232, 240);
+  doc.roundedRect(pageWidth - 95, currentY, 81, 24, 1, 1, "FD");
+
+  doc.setFontSize(7.2);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(15, 23, 42);
+  doc.text("DESTINATAIRE :", pageWidth - 91, currentY + 5);
+  doc.text(`À l'attention de l'Étudiant(e) : ${(data.student.nom || "").toUpperCase()}`, pageWidth - 91, currentY + 10);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(71, 85, 105);
+  doc.text(`Et ses Parents / Tuteur Légal`, pageWidth - 91, currentY + 14.5);
+  doc.text(`Matricule : ${data.student.matricule || "N/A"} • Classe : ${data.student.classe || ""}`, pageWidth - 91, currentY + 19);
+
+  currentY += 30;
+
+  // Objet
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(225, 29, 72);
+  doc.text("OBJET : MISE EN DEMEURE POUR NON-RÈGLEMENT DE FRAIS DE SCOLARITÉ", 14, currentY);
+
+  currentY += 6;
+
+  // Body text
+  doc.setFontSize(7.5);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(51, 65, 85);
+  const introText = 
+    `Madame, Monsieur,\n\n` +
+    `Sauf erreur de notre part, nous constatons qu'à ce jour, le versement relatif à l'échéance ` +
+    `de scolarité indiquée ci-dessous n'a pas été crédité sur les comptes de l'établissement.\n` +
+    `Cet impayé constitue une infraction au règlement financier universitaire régissant l'année académique ${data.academicYear}.`;
+
+  const splitIntro = doc.splitTextToSize(introText, pageWidth - 28);
+  doc.text(splitIntro, 14, currentY);
+  currentY += splitIntro.length * 4.5 + 4;
+
+  // Overdue Installments Table
+  const tableData = data.allOverdueSchedules && data.allOverdueSchedules.length > 0 
+    ? data.allOverdueSchedules.map((item) => [
+        item.label,
+        new Date(item.dueDate).toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" }),
+        `${item.netAmount.toLocaleString()} ${curr}`,
+        `${item.balance.toLocaleString()} ${curr}`,
+        "ÉCHUE - NON RÉGLÉE"
+      ])
+    : [[
+        data.schedule.label,
+        new Date(data.schedule.dueDate).toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" }),
+        `${data.schedule.netAmount.toLocaleString()} ${curr}`,
+        `${data.schedule.balance.toLocaleString()} ${curr}`,
+        "ÉCHUE - NON RÉGLÉE"
+      ]];
+
+  autoTable(doc, {
+    startY: currentY,
+    head: [["Désignation Échéance", "Date Limite Initiale", "Montant Exigible", "Solde Restant Dû", "Statut Constaté"]],
+    body: tableData,
+    theme: "grid",
+    headStyles: {
+      fillColor: [225, 29, 72],
+      textColor: [255, 255, 255],
+      fontStyle: "bold",
+      fontSize: 6.8,
+      halign: "center",
+      cellPadding: 2,
+    },
+    bodyStyles: {
+      fontSize: 6.5,
+      textColor: [51, 65, 85],
+      halign: "center",
+      cellPadding: 2,
+    },
+    columnStyles: {
+      0: { halign: "left", fontStyle: "bold", cellWidth: 45 },
+      1: { cellWidth: 35 },
+      2: { cellWidth: 30 },
+      3: { fontStyle: "bold", textColor: [225, 29, 72], cellWidth: 35 },
+      4: { fontStyle: "bold", textColor: [225, 29, 72], cellWidth: 35 },
+    },
+  });
+
+  currentY = (doc as any).lastAutoTable.finalY + 7;
+
+  // Total Plaque
+  doc.setFillColor(254, 242, 242);
+  doc.setDrawColor(254, 205, 211);
+  doc.roundedRect(14, currentY, pageWidth - 28, 12, 1, 1, "FD");
+
+  doc.setFontSize(8.5);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(225, 29, 72);
+  doc.text(`TOTAL GLOBAL EXIGIBLE IMMÉDIATEMENT : ${data.totalBalanceDue.toLocaleString()} ${curr}`, 20, currentY + 7.5);
+
+  currentY += 18;
+
+  // Injunction and Sanctions Notice
+  doc.setFontSize(7.2);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(51, 65, 85);
+
+  const injText = 
+    `En conséquence, nous vous mettons en demeure de régulariser cette somme sous un délai strict de 72 HEURES ` +
+    `à compter de la notification du présent document.\n\n` +
+    `À défaut de règlement dans ce délai imparti, l'administration se verra dans l'obligation d'appliquer sans préavis les mesures prévues au règlement intérieur :\n` +
+    `• Suspension immédiate de l'accès aux cours magistraux, travaux dirigés et plateforme en ligne (LMS)\n` +
+    `• Refus d'accès aux salles d'examens et sessions d'évaluations partielles ou finales\n` +
+    `• Rétention des relevés de notes et attestations de scolarité ou diplômes jusqu'à solde intégral.`;
+
+  const splitInj = doc.splitTextToSize(injText, pageWidth - 28);
+  doc.text(splitInj, 14, currentY);
+  currentY += splitInj.length * 4.2 + 6;
+
+  // Payment channels box
+  doc.setFillColor(241, 245, 249);
+  doc.setDrawColor(203, 213, 225);
+  doc.roundedRect(14, currentY, pageWidth - 28, 16, 1, 1, "FD");
+
+  doc.setFontSize(7.2);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(15, 23, 42);
+  doc.text("MODALITÉS DE RÈGLEMENT IMMÉDIAT :", 18, currentY + 5);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(6.5);
+  doc.setTextColor(71, 85, 105);
+  doc.text("1. Caisse Centrale de l'Établissement (Paiement direct en Espèces ou Chèque certifié)", 18, currentY + 9.5);
+  doc.text(`2. Virement Bancaire ou Mobile Money : ${data.institution?.bankDetails || "Orange Money / Moov Money / BOA NIGER Compte N° 25100049281"}`, 18, currentY + 13.5);
+
+  currentY += 23;
+
+  // Signatures
+  doc.setFontSize(7.5);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(15, 23, 42);
+  doc.text("L'Agent Chargé du Recouvrement", 22, currentY + 4);
+  doc.text("Le Directeur des Affaires Financières (DAF)", pageWidth - 78, currentY + 4);
+
+  doc.setDrawColor(203, 213, 225);
+  doc.line(20, currentY + 16, 75, currentY + 16);
+  doc.line(pageWidth - 80, currentY + 16, pageWidth - 20, currentY + 16);
+
+  // Bottom QR code
+  const footY = pageHeight - 16;
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://niger.edut.pro";
+  const verifUrl = `${appUrl}/verify/${encodeURIComponent(data.student.matricule || data.student.id)}`;
+  try {
+    const qrDataUrl = await QRCode.toDataURL(verifUrl, { margin: 1, width: 80 });
+    doc.addImage(qrDataUrl, "PNG", 14, footY - 6, 14, 14);
+    doc.setFontSize(5.5);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(225, 29, 72);
+    doc.text("DOCUMENT OFFICIEL DE CONTENTIEUX", 31, footY - 2);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(100, 116, 139);
+    doc.text(`Réf : MISE-EN-DEMEURE-${data.schedule.id}-${new Date().getFullYear()}`, 31, footY + 1.5);
+    doc.text("Scannez ce QR Code pour vérifier l'authenticité de cette créance universitaire", 31, footY + 5);
+  } catch (e) {}
+
+  const cleanNom = (data.student.nom || "Etudiant").replace(/[^a-zA-Z0-9]/g, "_");
+  doc.save(`Avis_Relance_Mise_En_Demeure_${cleanNom}.pdf`);
+}
+
+/**
+ * 4. Export Payment Schedules to CSV / Excel format
+ */
+export function exportSchedulesToCSV(schedules: any[], academicYear: string = "2025-2026"): void {
+  const headers = [
+    "ID Echeance",
+    "Matricule",
+    "Nom Etudiant",
+    "Classe",
+    "Telephone",
+    "Intitule Echeance",
+    "Date Limite",
+    "Montant Brut (FCFA)",
+    "Deduction Bourse (FCFA)",
+    "Net a Payer (FCFA)",
+    "Montant Regle (FCFA)",
+    "Solde Restant (FCFA)",
+    "Statut",
+    "Derniere Relance"
+  ];
+
+  const rows = schedules.map((s) => [
+    s.id,
+    `"${s.studentMatricule || ""}"`,
+    `"${(s.studentNom || "").replace(/"/g, '""')}"`,
+    `"${s.studentClasse || ""}"`,
+    `"${s.studentWhatsapp || s.studentMobile || ""}"`,
+    `"${(s.label || "").replace(/"/g, '""')}"`,
+    new Date(s.dueDate).toISOString().split("T")[0],
+    s.grossAmount || 0,
+    s.scholarshipDeduction || 0,
+    s.netAmount || 0,
+    s.paidAmount || 0,
+    s.balance || 0,
+    `"${s.status || ""}"`,
+    s.reminderSentAt ? new Date(s.reminderSentAt).toISOString().split("T")[0] : ""
+  ]);
+
+  const csvContent = "\uFEFF" + [headers.join(";"), ...rows.map((r) => r.join(";"))].join("\r\n");
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.setAttribute("href", url);
+  link.setAttribute("download", `Echeanciers_Bourses_${academicYear.replace(/[^a-zA-Z0-9]/g, "_")}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
