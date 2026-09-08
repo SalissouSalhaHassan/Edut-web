@@ -112,6 +112,33 @@ export default function BulletinBatchClient({
   const [pdfBlobs, setPdfBlobs] = React.useState<{ id: number; name: string; blob: Blob; url: string }[]>([]);
   const [previewPdfUrl, setPreviewPdfUrl] = React.useState<string | null>(null);
   const [previewStudentName, setPreviewStudentName] = React.useState<string>("");
+  const [isRecalculating, setIsRecalculating] = React.useState(false);
+
+  async function handleRecalculateClassAverages() {
+    setIsRecalculating(true);
+    toast.loading("Consolidation des devoirs et calcul des moyennes en cours...", { id: "recalc-toast" });
+    try {
+      const { consolidateClassTermGradesAction } = await import("@/domains/academics/actions/calculations.actions");
+      const res = await consolidateClassTermGradesAction({
+        classId,
+        sessionId,
+        periodId,
+        term: period,
+      });
+
+      if (res.success && res.data) {
+        const d = res.data;
+        toast.success(`Calcul terminé ! Moyenne de classe : ${d.classAverage}/20 (Taux : ${d.passRate}%)`, { id: "recalc-toast" });
+        window.location.reload();
+      } else {
+        toast.error(res.error || "Erreur lors du recalcul des moyennes", { id: "recalc-toast" });
+      }
+    } catch (err: any) {
+      toast.error(`Erreur critique : ${err.message}`, { id: "recalc-toast" });
+    } finally {
+      setIsRecalculating(false);
+    }
+  }
 
   // Filter students based on search and tabs
   const filteredStudents = React.useMemo(() => {
@@ -317,7 +344,16 @@ export default function BulletinBatchClient({
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={handleRecalculateClassAverages}
+              disabled={isRecalculating}
+              className="px-4 py-2.5 rounded-2xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 text-sm font-bold text-amber-300 transition flex items-center gap-2 disabled:opacity-50 shadow-sm"
+              title="Consolide automatiquement tous les devoirs et examens pour générer les moyennes et rangs"
+            >
+              <Zap size={16} className={isRecalculating ? "animate-spin text-amber-400" : "text-amber-400 fill-amber-400/20"} />
+              {isRecalculating ? "Calcul en cours..." : "Recalculer les Moyennes"}
+            </button>
             <a
               href="/dashboard/academics/grades"
               className="px-4 py-2.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-sm font-bold text-slate-300 hover:text-white transition flex items-center gap-2"

@@ -488,6 +488,42 @@ export default function AcademicResultsPage() {
     }
   };
 
+  const handleConsolidateGrades = async () => {
+    if (!activeFilters?.classId) {
+      toast.error("Veuillez sélectionner une classe d'abord.");
+      return;
+    }
+    setLoading(true);
+    const toastId = toast.loading("Consolidation des devoirs et calcul des moyennes en cours...");
+    try {
+      const { consolidateClassTermGradesAction } = await import("@/domains/academics/actions/calculations.actions");
+      const res = await consolidateClassTermGradesAction({
+        classId: Number(activeFilters.classId),
+        sessionId: Number(activeFilters.sessionId),
+        term: activeFilters.period,
+      });
+
+      if (res.success && res.data) {
+        const d = res.data;
+        toast.success("Consolidation terminée avec succès !", {
+          id: toastId,
+          description: `${d.studentsCount} élèves consolidés • Moyenne classe : ${d.classAverage}/20 • Taux de réussite : ${d.passRate}%`,
+          duration: 6000,
+        });
+        await handleLoad(activeFilters);
+      } else {
+        toast.error("Erreur de consolidation", {
+          id: toastId,
+          description: res.error || (res.data as any)?.error || "Échec du calcul automatique.",
+        });
+      }
+    } catch (e: any) {
+      toast.error("Erreur critique", { id: toastId, description: e.message });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const hasLoadedData = view === "entry"
     ? students.length > 0
     : view === "reports"
@@ -550,10 +586,22 @@ export default function AcademicResultsPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-3">
+          {activeFilters?.classId && (
+            <Button
+              onClick={handleConsolidateGrades}
+              disabled={loading}
+              className="h-12 px-5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 shadow-lg shadow-emerald-600/20 cursor-pointer"
+              title="Consolider automatiquement les devoirs et examens pour calculer les moyennes et rangs"
+            >
+              <Sparkles size={16} />
+              Calculer les Moyennes
+            </Button>
+          )}
+
           <Link href="/dashboard/academics/devoirs">
-            <Button className="h-12 px-6 rounded-xl bg-white dark:bg-slate-900 border-2 border-indigo-100 dark:border-slate-800 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-slate-800 font-bold text-sm uppercase tracking-widest transition-all flex items-center gap-2 shadow-sm">
-              <ClipboardCheck size={18} />
+            <Button className="h-12 px-5 rounded-xl bg-white dark:bg-slate-900 border-2 border-indigo-100 dark:border-slate-800 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-slate-800 font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 shadow-sm cursor-pointer">
+              <ClipboardCheck size={16} />
               Saisie des Devoirs (DS)
             </Button>
           </Link>
