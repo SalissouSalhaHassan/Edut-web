@@ -9,6 +9,7 @@ import { revalidatePath } from "next/cache";
 import { protectedDbAction } from "@/lib/protected-action";
 import { getActiveSchoolId } from "@/domains/auth/services/school";
 import { getUserRoleType } from "@/domains/auth/services/rbac";
+import { ensureStudentFeeRecord } from "@/domains/finance/actions/finance.actions";
 
 function formatDate(val: any): string | null {
   if (val === undefined || val === null || val === "") return null;
@@ -125,11 +126,25 @@ export async function importStudentRow(data: any) {
       await db.update(students)
         .set(studentData)
         .where(and(eq(students.id, existing.id), eq(students.schoolId, schoolId)));
+      
+      // Auto-sync financial record
+      await ensureStudentFeeRecord(existing.id, schoolId).catch(err =>
+        console.error("[importStudentRow] Auto-sync fee record failed:", err)
+      );
+
       revalidatePath("/dashboard/students");
+      revalidatePath("/dashboard/finance");
       return { success: true, action: "update", id: existing.id };
     } else {
       const [newStud] = await db.insert(students).values(studentData).returning({ id: students.id });
+      
+      // Auto-create financial record
+      await ensureStudentFeeRecord(newStud.id, schoolId).catch(err =>
+        console.error("[importStudentRow] Auto-create fee record failed:", err)
+      );
+
       revalidatePath("/dashboard/students");
+      revalidatePath("/dashboard/finance");
       return { success: true, action: "insert", id: newStud.id };
     }
   });

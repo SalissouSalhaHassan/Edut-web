@@ -14,9 +14,10 @@ import {
   studentScholarships,
   studentPaymentSchedules
 } from "@/infrastructure/database/schema/finance";
-import { eq, and, or, isNull, desc, inArray, sql } from "drizzle-orm";
+import { eq, and, or, isNull, desc, inArray, sql, ilike } from "drizzle-orm";
 import FinanceClient from "./finance-client";
 import StudentFinanceView from "@/domains/finance/components/StudentFinanceView";
+import { ensureStudentFeeRecord } from "@/domains/finance/actions/finance.actions";
 
 export default async function FinancePage({
   searchParams,
@@ -136,6 +137,49 @@ export default async function FinancePage({
       feeRows = await readDb.select().from(studentFees)
         .where(or(eq(studentFees.schoolId, schoolId), isNull(studentFees.schoolId)))
         .catch(() => []);
+    }
+
+    // Auto-heal check: ensure any active student missing from studentFees, or with totalExpected = 0, is repaired
+    if (sessionRow?.id) {
+      try {
+        const activeStudents = await readDb.select({ id: students.id }).from(students)
+          .where(
+            and(
+              or(eq(students.schoolId, schoolId), isNull(students.schoolId)),
+              or(
+                eq(students.statut, "Actif"),
+                isNull(students.statut),
+                ilike(students.statut, "actif%"),
+                eq(students.statut, "Inscrit")
+              )
+            )
+          )
+          .catch(() => []);
+
+        const existingFeeStudentIds = new Set((feeRows || []).map(f => f.studentId).filter(Boolean));
+        const missingStudentIds = activeStudents.map(s => s.id).filter(id => !existingFeeStudentIds.has(id));
+        const zeroExpectedStudentIds = (feeRows || []).filter(f => !f.totalExpected || Number(f.totalExpected) === 0).map(f => f.studentId).filter(Boolean) as number[];
+
+        const idsToHeal = Array.from(new Set([...missingStudentIds, ...zeroExpectedStudentIds]));
+        if (idsToHeal.length > 0) {
+          console.log(`[FinancePage] Auto-healing ${idsToHeal.length} student(s) (missing or zero expected)...`);
+          for (const id of idsToHeal) {
+            await ensureStudentFeeRecord(id, schoolId).catch(() => null);
+          }
+
+          // Refresh feeRows so the current render displays the fully healed and synchronized data
+          feeRows = await readDb.select().from(studentFees)
+            .where(
+              and(
+                eq(studentFees.sessionId, sessionRow.id),
+                or(eq(studentFees.schoolId, schoolId), isNull(studentFees.schoolId))
+              )
+            )
+            .catch(() => []);
+        }
+      } catch (healErr) {
+        console.warn("[FinancePage] Auto-heal check warning:", healErr);
+      }
     }
 
     // Fetch associated students and payments in parallel using our new composite indexes

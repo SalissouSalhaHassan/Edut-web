@@ -554,10 +554,147 @@ export async function cancelFeePayment(paymentId: number, reason?: string) {
   });
 }
 
+export function normalizeClassName(val?: string | null): string {
+  if (!val) return "";
+  return String(val)
+    .replace(/\u00a0/g, " ")
+    .replace(/[\u200B-\u200D\uFEFF]/g, "")
+    .replace(/\s+/g, " ")
+    .toLowerCase()
+    .trim();
+}
+
+/**
+ * Assure qu'un étudiant possède un dossier financier (studentFees) valide
+ * pour la session scolaire active, et calcule/corrige les montants attendus (scolarité, inscription, etc.)
+ */
+export async function ensureStudentFeeRecord(studentId: number, targetSchoolId?: number) {
+  try {
+    const student = await db.query.students.findFirst({
+      where: eq(students.id, studentId),
+    });
+    if (!student) return { success: false, error: "Étudiant introuvable" };
+
+    const schoolId = targetSchoolId || student.schoolId || (await getActiveSchoolId()) || 9;
+
+    // Retrouver la session scolaire active
+    let activeSession = await db.query.schoolSessions.findFirst({
+      where: and(
+        or(eq(schoolSessions.schoolId, schoolId), isNull(schoolSessions.schoolId)),
+        or(eq(schoolSessions.isActive, true), eq(schoolSessions.status, "Actif"))
+      ),
+      orderBy: [desc(schoolSessions.id)],
+    });
+
+    if (!activeSession) {
+      activeSession = await db.query.schoolSessions.findFirst({
+        where: or(eq(schoolSessions.schoolId, schoolId), isNull(schoolSessions.schoolId)),
+        orderBy: [desc(schoolSessions.id)],
+      });
+    }
+
+    if (!activeSession) {
+      return { success: false, error: "Aucune session scolaire trouvée" };
+    }
+
+    // Retrouver le modèle de frais de la classe
+    const allClasses = await db.query.schoolClasses.findMany({
+      where: or(eq(schoolClasses.schoolId, schoolId), isNull(schoolClasses.schoolId)),
+    });
+
+    const sClassNorm = normalizeClassName(student.classe);
+    let classObj = (student.classId ? allClasses.find(c => c.id === student.classId) : null) ||
+                   allClasses.find(c => normalizeClassName(c.className) === sClassNorm) ||
+                   allClasses.find(c => sClassNorm && normalizeClassName(c.className).includes(sClassNorm)) ||
+                   allClasses.find(c => sClassNorm && sClassNorm.includes(normalizeClassName(c.className)));
+
+    let monthly = Number(student.fraisMensuels || classObj?.scolariteMensuelle || 0);
+    let inscr = Number(student.fraisInscription || classObj?.droitsInscription || 0);
+    const oldBal = Number(student.ancienSolde || classObj?.ancienSolde || 0);
+    const cogesCard = Number(student.fraisCogesCard || classObj?.cogesCarteId || 0);
+    const transpInternat = Number(student.fraisTransportInternat || classObj?.transportInternat || 0);
+    let expected = inscr + oldBal + cogesCard + transpInternat + monthly;
+
+    // Fallback: si expected === 0, chercher un camarade de la même classe ayant des frais attendus
+    if (expected === 0 && student.classe) {
+      const peerInClass = await db.select({
+        totalExpected: studentFees.totalExpected,
+      })
+      .from(studentFees)
+      .innerJoin(students, eq(studentFees.studentId, students.id))
+      .where(and(
+        eq(studentFees.sessionId, activeSession.id),
+        sql`${studentFees.totalExpected} > 0`,
+        or(
+          eq(students.classe, student.classe),
+          sql`TRIM(REGEXP_REPLACE(${students.classe}, '\\s+', ' ', 'g')) = TRIM(REGEXP_REPLACE(${student.classe}, '\\s+', ' ', 'g'))`
+        )
+      ))
+      .limit(1);
+
+      if (peerInClass.length > 0 && peerInClass[0].totalExpected) {
+        expected = Number(peerInClass[0].totalExpected);
+      }
+    }
+
+    // Vérifier si un dossier student_fees existe déjà
+    const existingFee = await db.query.studentFees.findFirst({
+      where: and(
+        eq(studentFees.studentId, studentId),
+        eq(studentFees.sessionId, activeSession.id)
+      ),
+      orderBy: [desc(studentFees.totalPaid), desc(studentFees.id)],
+    });
+
+    if (existingFee) {
+      // Recalculer les paiements réels
+      const payments = await db.query.feePayments.findMany({
+        where: eq(feePayments.feeId, existingFee.id),
+        columns: { amount: true, reduction: true },
+      });
+      const totalPaid = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+      const totalReduction = payments.reduce((sum, p) => sum + Number(p.reduction || 0), 0);
+      
+      const newExpected = (existingFee.totalExpected && existingFee.totalExpected > 0) ? existingFee.totalExpected : expected;
+      const balance = Math.max(0, newExpected - totalPaid - totalReduction);
+      const status = balance <= 0 && newExpected > 0 ? "Soldé" : totalPaid > 0 ? "Partiel" : (newExpected > 0 ? "Impayé" : "En attente");
+
+      await db.update(studentFees)
+        .set({
+          totalExpected: newExpected,
+          totalPaid,
+          totalReduction,
+          balance,
+          status,
+        })
+        .where(eq(studentFees.id, existingFee.id));
+
+      return { success: true, id: existingFee.id, action: "updated", totalExpected: newExpected };
+    } else {
+      // Insérer nouveau dossier student_fees
+      const [newFee] = await db.insert(studentFees).values({
+        schoolId,
+        studentId,
+        sessionId: activeSession.id,
+        totalExpected: expected,
+        totalPaid: 0,
+        totalReduction: 0,
+        balance: expected,
+        status: expected > 0 ? "Impayé" : "Soldé",
+      }).returning({ id: studentFees.id });
+
+      return { success: true, id: newFee.id, action: "created", totalExpected: expected };
+    }
+  } catch (err: any) {
+    console.error(`[ensureStudentFeeRecord] Error for student ${studentId}:`, err);
+    return { success: false, error: err.message };
+  }
+}
+
 export async function syncStudentFees(revalidate: boolean = true) {
   return protectedDbAction("Finance", "canEdit", async (user) => {
     const roleType = await getUserRoleType(user);
-    const schoolId = await getActiveSchoolId();
+    const schoolId = (await getActiveSchoolId()) || user?.schoolId || 9;
     console.log("Starting syncStudentFees...");
     
     // Match active or newly registered students
@@ -568,7 +705,7 @@ export async function syncStudentFees(revalidate: boolean = true) {
         ilike(students.statut, "actif%"),
         eq(students.statut, "Inscrit")
       ),
-      eq(students.schoolId, schoolId)
+      or(eq(students.schoolId, schoolId), isNull(students.schoolId))
     );
     const isLevelScoped = roleType === "level_director" || roleType === "level_comptable" || roleType === "level_caissier";
     if (isLevelScoped) {
@@ -582,72 +719,55 @@ export async function syncStudentFees(revalidate: boolean = true) {
     
     console.log(`Found ${allStudents.length} active/enrolled students to sync.`);
 
-    function cleanString(val?: string | null): string {
-      if (!val) return "";
-      return String(val)
-        .replace(/\u00a0/g, " ")
-        .replace(/[\u200B-\u200D\uFEFF]/g, "")
-        .replace(/\s+/g, " ")
-        .trim();
-    }
-
     // Pre-fetch class fee templates for fallback defaults
     const allClasses = await db.query.schoolClasses.findMany({
-      where: eq(schoolClasses.schoolId, schoolId)
+      where: or(eq(schoolClasses.schoolId, schoolId), isNull(schoolClasses.schoolId))
     });
-    const classMapByName = new Map(allClasses.map(c => [cleanString(c.className).toLowerCase(), c]));
+    const classMapByName = new Map(allClasses.map(c => [normalizeClassName(c.className), c]));
     const classMapById = new Map(allClasses.map(c => [c.id, c]));
 
     // Get current active session
     let activeSession = await db.query.schoolSessions.findFirst({
-      where: (s, { eq, or, and }) => and(
-        eq(s.schoolId, schoolId),
+      where: (s, { eq, or, and, isNull }) => and(
+        or(eq(s.schoolId, schoolId), isNull(s.schoolId)),
         or(eq(s.isActive, true), eq(s.status, "Actif"))
       ),
       orderBy: [desc(schoolSessions.id)]
     });
 
     if (!activeSession) {
-      console.log("No active session found, creating default...");
-      const currentYear = new Date().getFullYear();
-      const nextYear = currentYear + 1;
-      const [newSession] = await db.insert(schoolSessions).values({
-        schoolId,
-        sessionName: `${currentYear} - ${nextYear}`,
-        startDate: new Date(`${currentYear}-09-01`),
-        endDate: new Date(`${nextYear}-06-30`),
-        status: "Actif",
-        isActive: true
-      }).returning();
-      activeSession = newSession;
-      console.log("Default session created:", activeSession.sessionName);
+      activeSession = await db.query.schoolSessions.findFirst({
+        where: or(eq(schoolSessions.schoolId, schoolId), isNull(schoolSessions.schoolId)),
+        orderBy: [desc(schoolSessions.id)]
+      });
     }
 
-    if (!activeSession) return { error: "Impossible de créer ou trouver une session active." };
+    if (!activeSession) return { error: "Impossible de trouver une session active." };
 
     // ────────────────────────────────────────────────────────────────────────────
     // DEDUP PASS: remove duplicate (student_id, session_id) rows before processing
-    // A duplicate is any row that is NOT the canonical row (highest totalPaid, lowest id)
     // ────────────────────────────────────────────────────────────────────────────
     try {
       await db.execute(sql`
         DELETE FROM student_fees
-        WHERE school_id = ${schoolId}
+        WHERE (school_id = ${schoolId} OR school_id IS NULL)
           AND session_id = ${activeSession.id}
           AND id NOT IN (
             SELECT DISTINCT ON (student_id, session_id) id
             FROM student_fees
-            WHERE school_id = ${schoolId} AND session_id = ${activeSession.id}
+            WHERE (school_id = ${schoolId} OR school_id IS NULL) AND session_id = ${activeSession.id}
             ORDER BY student_id, session_id, total_paid DESC NULLS LAST, id ASC
           )
       `);
     } catch (dedupErr) {
       console.warn("[syncStudentFees] Dedup pass failed (non-fatal):", dedupErr);
     }
-    // ────────────────────────────────────────────────────────────────────────────
 
     const existingFees = await db.query.studentFees.findMany({
-      where: and(eq(studentFees.sessionId, activeSession.id), eq(studentFees.schoolId, schoolId))
+      where: and(
+        eq(studentFees.sessionId, activeSession.id),
+        or(eq(studentFees.schoolId, schoolId), isNull(studentFees.schoolId))
+      )
     });
     const feeMap = new Map(existingFees.map(f => [f.studentId, f]));
 
@@ -674,7 +794,7 @@ export async function syncStudentFees(revalidate: boolean = true) {
     }
 
     for (const s of allStudents) {
-      const sClassNorm = cleanString(s.classe).toLowerCase();
+      const sClassNorm = normalizeClassName(s.classe);
       const classObj = (s.classId ? classMapById.get(s.classId) : null) || 
                        (sClassNorm ? classMapByName.get(sClassNorm) : null);
 
@@ -683,27 +803,27 @@ export async function syncStudentFees(revalidate: boolean = true) {
       const oldBal = Number(s.ancienSolde || classObj?.ancienSolde || 0);
       const cogesCard = Number(s.fraisCogesCard || classObj?.cogesCarteId || 0);
       const transpInternat = Number(s.fraisTransportInternat || classObj?.transportInternat || 0);
-      const expected = inscr + oldBal + cogesCard + transpInternat + monthly;
+      let expected = inscr + oldBal + cogesCard + transpInternat + monthly;
 
       const existing = feeMap.get(s.id);
 
       if (existing) {
-        // Re-aggregate from actual payment rows to prevent stale/zero values
+        // If stored totalExpected is 0 and we calculated expected > 0, repair totalExpected
+        const finalExpected = (existing.totalExpected && existing.totalExpected > 0) ? existing.totalExpected : expected;
         const actualPayments = paymentsMap.get(existing.id) || { totalPaid: 0, totalReduction: 0 };
         const realPaid = actualPayments.totalPaid;
         const realReduction = actualPayments.totalReduction;
-        const realBalance = expected - realPaid - realReduction;
-        const realStatus = realBalance <= 0 ? "Soldé" : realPaid > 0 ? "Partiel" : "Impayé";
+        const realBalance = Math.max(0, finalExpected - realPaid - realReduction);
+        const realStatus = realBalance <= 0 && finalExpected > 0 ? "Soldé" : realPaid > 0 ? "Partiel" : (finalExpected > 0 ? "Impayé" : "En attente");
 
-        // Update if expected changed OR if stored totals are out of sync with actual payments
         const paidDrift = Math.abs((existing.totalPaid || 0) - realPaid) > 0.01;
         const reductionDrift = Math.abs((existing.totalReduction || 0) - realReduction) > 0.01;
-        const expectedChanged = existing.totalExpected !== expected;
+        const expectedChanged = existing.totalExpected !== finalExpected;
 
         if (expectedChanged || paidDrift || reductionDrift) {
           toUpdate.push({
             id: existing.id,
-            totalExpected: expected,
+            totalExpected: finalExpected,
             totalPaid: realPaid,
             totalReduction: realReduction,
             balance: realBalance,
@@ -719,7 +839,7 @@ export async function syncStudentFees(revalidate: boolean = true) {
           totalPaid: 0,
           totalReduction: 0,
           balance: expected,
-          status: "Impayé"
+          status: expected > 0 ? "Impayé" : "Soldé"
         });
       }
     }
@@ -753,32 +873,37 @@ export async function syncStudentFees(revalidate: boolean = true) {
     if (revalidate) {
       revalidatePath("/dashboard/finance");
     }
-    return { success: true };
+    return { success: true, created: toInsert.length, updated: toUpdate.length };
   });
 }
-
 
 /**
  * repairStudentFeeTotals
  * ─────────────────────────────────────────────────────────────────────────────
- * Two-phase repair:
- *   Phase 1 — Remove duplicate (student_id, session_id) rows keeping the one
- *              with the highest totalPaid.  This fixes the "multiplied amounts"
- *              bug caused by missing UNIQUE constraint on student_fees.
- *   Phase 2 — Re-aggregate every fee_payments row and write the correct
- *              totalPaid / totalReduction / balance / status into every record.
+ * Multi-phase repair:
+ *   Phase 1 — Remove duplicate (student_id, session_id) rows.
+ *   Phase 2 — Identify active students missing from student_fees and auto-create them.
+ *   Phase 3 — Fix totalExpected = 0 using class templates or peer fee structures.
+ *   Phase 4 — Re-aggregate payments from fee_payments to correct totalPaid, balance, status.
  */
 export async function repairStudentFeeTotals() {
   return protectedDbAction("Finance", "canEdit", async (user) => {
-    const schoolId = await getActiveSchoolId();
+    const schoolId = (await getActiveSchoolId()) || user?.schoolId || 9;
 
-    const activeSession = await db.query.schoolSessions.findFirst({
-      where: (s, { eq, or, and }) => and(
-        eq(s.schoolId, schoolId),
+    let activeSession = await db.query.schoolSessions.findFirst({
+      where: (s, { eq, or, and, isNull }) => and(
+        or(eq(s.schoolId, schoolId), isNull(s.schoolId)),
         or(eq(s.isActive, true), eq(s.status, "Actif"))
       ),
       orderBy: [desc(schoolSessions.id)]
     });
+
+    if (!activeSession) {
+      activeSession = await db.query.schoolSessions.findFirst({
+        where: or(eq(schoolSessions.schoolId, schoolId), isNull(schoolSessions.schoolId)),
+        orderBy: [desc(schoolSessions.id)]
+      });
+    }
 
     if (!activeSession) return { error: "Aucune session active trouvée." };
 
@@ -787,12 +912,12 @@ export async function repairStudentFeeTotals() {
     try {
       const result = await db.execute(sql`
         DELETE FROM student_fees
-        WHERE school_id = ${schoolId}
+        WHERE (school_id = ${schoolId} OR school_id IS NULL)
           AND session_id = ${activeSession.id}
           AND id NOT IN (
             SELECT DISTINCT ON (student_id, session_id) id
             FROM student_fees
-            WHERE school_id = ${schoolId} AND session_id = ${activeSession.id}
+            WHERE (school_id = ${schoolId} OR school_id IS NULL) AND session_id = ${activeSession.id}
             ORDER BY student_id, session_id, total_paid DESC NULLS LAST, id ASC
           )
       `);
@@ -802,17 +927,66 @@ export async function repairStudentFeeTotals() {
       console.warn("[repairStudentFeeTotals] Phase 1 dedup failed:", e);
     }
 
+    // ── Phase 2: Find active students missing from student_fees ─────────────
+    let missingCreated = 0;
+    try {
+      const existingSessionFees = await db.query.studentFees.findMany({
+        where: and(
+          eq(studentFees.sessionId, activeSession.id),
+          or(eq(studentFees.schoolId, schoolId), isNull(studentFees.schoolId))
+        ),
+        columns: { studentId: true }
+      });
+      const existingStudentIds = new Set(existingSessionFees.map(f => f.studentId).filter(Boolean));
 
-    // Load all fee rows for this session
+      const activeStudents = await db.query.students.findMany({
+        where: and(
+          or(eq(students.schoolId, schoolId), isNull(students.schoolId)),
+          or(
+            eq(students.statut, "Actif"),
+            isNull(students.statut),
+            ilike(students.statut, "actif%"),
+            eq(students.statut, "Inscrit")
+          )
+        )
+      });
+
+      for (const st of activeStudents) {
+        if (!existingStudentIds.has(st.id)) {
+          const res = await ensureStudentFeeRecord(st.id, schoolId);
+          if (res.success && res.action === "created") {
+            missingCreated++;
+          }
+        }
+      }
+      console.log(`[repairStudentFeeTotals] Phase 2: created ${missingCreated} missing student fee record(s).`);
+    } catch (e) {
+      console.warn("[repairStudentFeeTotals] Phase 2 missing students check failed:", e);
+    }
+
+    // ── Phase 3: Pre-fetch class templates for zero-expected fee repair ────
+    const allClasses = await db.query.schoolClasses.findMany({
+      where: or(eq(schoolClasses.schoolId, schoolId), isNull(schoolClasses.schoolId))
+    });
+    const classMapByName = new Map(allClasses.map(c => [normalizeClassName(c.className), c]));
+    const classMapById = new Map(allClasses.map(c => [c.id, c]));
+
+    // Load all fee rows for this session with student info
     const allFees = await db.query.studentFees.findMany({
-      where: and(eq(studentFees.sessionId, activeSession.id), eq(studentFees.schoolId, schoolId)),
+      where: and(
+        eq(studentFees.sessionId, activeSession.id),
+        or(eq(studentFees.schoolId, schoolId), isNull(studentFees.schoolId))
+      ),
+      with: {
+        student: true
+      }
     });
 
-    if (allFees.length === 0) return { success: true, repaired: 0 };
+    if (allFees.length === 0) return { success: true, repaired: 0, duplicatesRemoved, missingCreated };
 
     const feeIds = allFees.map(f => f.id);
 
-    // Aggregate payments per fee
+    // Phase 4: Aggregate payments per fee
     const paymentRows = await db.query.feePayments.findMany({
       where: (p, { inArray }) => inArray(p.feeId, feeIds),
       columns: { feeId: true, amount: true, reduction: true },
@@ -827,23 +1001,48 @@ export async function repairStudentFeeTotals() {
       entry.totalReduction += Number(p.reduction || 0);
     }
 
-    // Build update list for any fee whose stored values differ from aggregated
+    // Build update list for any fee whose stored values differ or whose totalExpected = 0
     const repairs: Array<{
-      id: number; totalPaid: number; totalReduction: number; balance: number; status: string;
+      id: number; totalExpected: number; totalPaid: number; totalReduction: number; balance: number; status: string;
     }> = [];
 
     for (const fee of allFees) {
+      let expected = Number(fee.totalExpected || 0);
+
+      // If expected is 0, recalculate from student and class template
+      if (expected === 0 && fee.student) {
+        const s = fee.student;
+        const sClassNorm = normalizeClassName(s.classe);
+        const classObj = (s.classId ? classMapById.get(s.classId) : null) || 
+                         (sClassNorm ? classMapByName.get(sClassNorm) : null);
+
+        const monthly = Number(s.fraisMensuels || classObj?.scolariteMensuelle || 0);
+        const inscr = Number(s.fraisInscription || classObj?.droitsInscription || 0);
+        const oldBal = Number(s.ancienSolde || classObj?.ancienSolde || 0);
+        const cogesCard = Number(s.fraisCogesCard || classObj?.cogesCarteId || 0);
+        const transpInternat = Number(s.fraisTransportInternat || classObj?.transportInternat || 0);
+        expected = inscr + oldBal + cogesCard + transpInternat + monthly;
+      }
+
       const agg = paymentsMap.get(fee.id) || { totalPaid: 0, totalReduction: 0 };
       const realPaid = agg.totalPaid;
       const realReduction = agg.totalReduction;
-      const realBalance = (fee.totalExpected || 0) - realPaid - realReduction;
-      const realStatus = realBalance <= 0 ? "Soldé" : realPaid > 0 ? "Partiel" : "Impayé";
+      const realBalance = Math.max(0, expected - realPaid - realReduction);
+      const realStatus = realBalance <= 0 && expected > 0 ? "Soldé" : realPaid > 0 ? "Partiel" : (expected > 0 ? "Impayé" : "En attente");
 
+      const expectedDrift = Math.abs((fee.totalExpected || 0) - expected) > 0.01;
       const paidDrift = Math.abs((fee.totalPaid || 0) - realPaid) > 0.01;
       const reductDrift = Math.abs((fee.totalReduction || 0) - realReduction) > 0.01;
 
-      if (paidDrift || reductDrift) {
-        repairs.push({ id: fee.id, totalPaid: realPaid, totalReduction: realReduction, balance: realBalance, status: realStatus });
+      if (expectedDrift || paidDrift || reductDrift) {
+        repairs.push({ 
+          id: fee.id, 
+          totalExpected: expected, 
+          totalPaid: realPaid, 
+          totalReduction: realReduction, 
+          balance: realBalance, 
+          status: realStatus 
+        });
       }
     }
 
@@ -852,15 +1051,25 @@ export async function repairStudentFeeTotals() {
       const chunk = repairs.slice(i, i + 50);
       await Promise.all(chunk.map(r =>
         db.update(studentFees)
-          .set({ totalPaid: r.totalPaid, totalReduction: r.totalReduction, balance: r.balance, status: r.status })
+          .set({ 
+            totalExpected: r.totalExpected, 
+            totalPaid: r.totalPaid, 
+            totalReduction: r.totalReduction, 
+            balance: r.balance, 
+            status: r.status 
+          })
           .where(eq(studentFees.id, r.id))
       ));
     }
 
     revalidatePath("/dashboard/finance");
-    console.log(`[repairStudentFeeTotals] Phase 1: ${duplicatesRemoved} duplicates removed. Phase 2: ${repairs.length} records re-aggregated.`);
-    return { success: true, repaired: repairs.length, duplicatesRemoved };
-
+    console.log(`[repairStudentFeeTotals] Phase 1: ${duplicatesRemoved} dups removed. Phase 2: ${missingCreated} missing created. Phase 3/4: ${repairs.length} records repaired.`);
+    return { 
+      success: true, 
+      repaired: repairs.length, 
+      duplicatesRemoved, 
+      missingCreated 
+    };
   });
 }
 

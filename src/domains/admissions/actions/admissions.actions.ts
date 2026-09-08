@@ -11,6 +11,7 @@ import { revalidatePath } from "next/cache";
 import { protectedDbAction } from "@/lib/protected-action";
 import { getActiveSchoolId, getCurrentSchool } from "@/domains/auth/services/school";
 import { MessagingService } from "@/shared/services/messaging.service";
+import { ensureStudentFeeRecord } from "@/domains/finance/actions/finance.actions";
 
 import { UNIVERSITY_FACULTIES } from "@/domains/admissions/constants/admissions.constants";
 
@@ -590,6 +591,11 @@ export async function reviewAdmissionApplicationAction(data: {
         })
         .returning();
 
+      // Auto-create student financial record in Gestion Financière
+      await ensureStudentFeeRecord(newStudent.id, schoolId).catch(err =>
+        console.error("[reviewAdmissionApplicationAction] Auto-create fee record failed:", err)
+      );
+
       // 2. Insert health notes if present
       if (application.medicalNotes) {
         await db.insert(studentMedicalRecords).values({
@@ -637,6 +643,7 @@ export async function reviewAdmissionApplicationAction(data: {
 
       revalidatePath("/dashboard/admissions");
       revalidatePath("/dashboard/students");
+      revalidatePath("/dashboard/finance");
       return {
         success: true,
         matricule,

@@ -12,6 +12,7 @@ import { studentSchema, StudentFormData } from "../validators/student.schema";
 import { protectedDbAction } from "@/lib/protected-action";
 import { getActiveSchoolId } from "@/domains/auth/services/school";
 import { getCompatibleLevels, getUserRoleType, getTeacherEmployee, getTeacherClassIds, checkEducationalLevelAccess } from "@/domains/auth/services/rbac";
+import { ensureStudentFeeRecord } from "@/domains/finance/actions/finance.actions";
 
 export async function getStudents(params?: {
   page?: number;
@@ -222,7 +223,14 @@ export async function createStudent(formData: StudentFormData) {
     }
 
     const [newStudent] = await db.insert(students).values(studentData).returning({ id: students.id });
+    
+    // Auto-create student financial record in Gestion Financière
+    await ensureStudentFeeRecord(newStudent.id, schoolId).catch(err =>
+      console.error("[createStudent] Auto-create fee record failed:", err)
+    );
+
     revalidatePath("/dashboard/students");
+    revalidatePath("/dashboard/finance");
     return { success: true, id: newStudent.id };
   });
 }
@@ -343,8 +351,14 @@ export async function updateStudent(id: number, formData: StudentFormData, origi
         )
       );
     
+    // Auto-sync student financial record in Gestion Financière
+    await ensureStudentFeeRecord(id, schoolId).catch(err =>
+      console.error("[updateStudent] Auto-sync fee record failed:", err)
+    );
+
     revalidatePath("/dashboard/students");
     revalidatePath("/dashboard/students", "layout");
+    revalidatePath("/dashboard/finance");
     revalidatePath("/");
     
     return { success: true };

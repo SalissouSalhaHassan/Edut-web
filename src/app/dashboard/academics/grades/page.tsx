@@ -400,7 +400,7 @@ export default function AcademicResultsPage() {
           return;
         }
 
-        const data = response.data;
+        const data = (response as any).data;
 
         if (!data || !data.results || data.results.length === 0) {
           toast.warning("Attention: Aucune note trouvée pour cet élève sur cette période.");
