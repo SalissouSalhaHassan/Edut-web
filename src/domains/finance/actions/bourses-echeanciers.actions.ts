@@ -688,44 +688,46 @@ export async function recordSchedulePayment(
       .where(eq(studentPaymentSchedules.id, scheduleId));
 
     // 2. Synchronize with studentFees & feePayments ledger
-    const feeList = await (readDb || db)
-      .select()
-      .from(studentFees)
-      .where(eq(studentFees.studentId, sched.studentId))
-      .limit(1);
-
     const paymentRef = reference || `REG-ECH-${sched.installmentNumber}-${Date.now().toString().slice(-5)}`;
 
-    if (feeList[0]) {
-      const fee = feeList[0];
-      // Record payment transaction
-      await db.insert(feePayments).values({
-        schoolId: schoolId || fee.schoolId || 1,
-        feeId: fee.id,
-        amount: paidAmount,
-        reduction: 0,
-        paymentMode: paymentMode || "Espèces",
-        reference: paymentRef,
-        receiptToken: `REC-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`.toUpperCase(),
-        monthConcerned: sched.label,
-        datePaid: new Date(),
-        recordedBy: user?.nomPrenom || user?.utilisateur || "Comptable",
-      });
+    if (sched.studentId) {
+      const feeList = await (readDb || db)
+        .select()
+        .from(studentFees)
+        .where(eq(studentFees.studentId, sched.studentId))
+        .limit(1);
 
-      // Update student overall fee totals
-      const totalPaidAcc = (fee.totalPaid || 0) + paidAmount;
-      const totalReduc = fee.totalReduction || 0;
-      const feeNewBalance = Math.max(0, fee.totalExpected - totalPaidAcc - totalReduc);
-      const feeNewStatus = feeNewBalance <= 0 ? "Soldé" : totalPaidAcc > 0 ? "Partiel" : "Impayé";
+      if (feeList[0]) {
+        const fee = feeList[0];
+        // Record payment transaction
+        await db.insert(feePayments).values({
+          schoolId: schoolId || fee.schoolId || 1,
+          feeId: fee.id,
+          amount: paidAmount,
+          reduction: 0,
+          paymentMode: paymentMode || "Espèces",
+          reference: paymentRef,
+          receiptToken: `REC-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`.toUpperCase(),
+          monthConcerned: sched.label,
+          datePaid: new Date(),
+          recordedBy: user?.nomPrenom || user?.utilisateur || "Comptable",
+        });
 
-      await db
-        .update(studentFees)
-        .set({
-          totalPaid: totalPaidAcc,
-          balance: feeNewBalance,
-          status: feeNewStatus,
-        })
-        .where(eq(studentFees.id, fee.id));
+        // Update student overall fee totals
+        const totalPaidAcc = (fee.totalPaid || 0) + paidAmount;
+        const totalReduc = fee.totalReduction || 0;
+        const feeNewBalance = Math.max(0, fee.totalExpected - totalPaidAcc - totalReduc);
+        const feeNewStatus = feeNewBalance <= 0 ? "Soldé" : totalPaidAcc > 0 ? "Partiel" : "Impayé";
+
+        await db
+          .update(studentFees)
+          .set({
+            totalPaid: totalPaidAcc,
+            balance: feeNewBalance,
+            status: feeNewStatus,
+          })
+          .where(eq(studentFees.id, fee.id));
+      }
     }
 
     revalidatePath("/dashboard/finance/bourses-echeanciers");
