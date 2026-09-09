@@ -1,12 +1,16 @@
-import { getDocumentHeaderConfig } from "@/domains/settings/actions/settings.actions";
+import { getDocumentHeaderConfig, getBranches } from "@/domains/settings/actions/settings.actions";
 import DocumentHeaderManager from "@/domains/settings/components/DocumentHeaderManager";
 import { FileText, Sparkles } from "lucide-react";
 
 export const revalidate = 0;
 
 export default async function DocumentHeadersPage() {
-  const headerConfigRes = await getDocumentHeaderConfig() as any;
+  const [headerConfigRes, branchesRes] = await Promise.all([
+    getDocumentHeaderConfig().catch(() => null) as any,
+    getBranches().catch(() => null) as any,
+  ]);
   const initialConfig = headerConfigRes?.data?.data || headerConfigRes?.data || null;
+  const branches: any[] = branchesRes?.data?.data || branchesRes?.data || [];
 
   return (
     <div className="p-8 space-y-8 animate-in fade-in duration-700">
@@ -24,14 +28,14 @@ export default async function DocumentHeadersPage() {
               </span>
             </div>
             <p className="text-indigo-200 text-sm font-medium">
-              تصميم المستندات الإدارية والترويسات الرسمية بالكامل عبر محرر القوالب التفاعلي السلس.
+              تصميم المستندات الإدارية والترويسات الرسمية بالكامل بحسب الفروع والمستويات عبر محرر القوالب التفاعلي السلس.
             </p>
           </div>
         </div>
       </div>
 
       {/* Main Standalone Template Designer & Manager */}
-      <DocumentHeaderManager initialConfig={initialConfig} />
+      <DocumentHeaderManager initialConfig={initialConfig} branches={branches} />
     </div>
   );
 }

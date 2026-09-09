@@ -16,6 +16,8 @@ export type EducationalLevelKey =
 export type LevelHeaderProfile = {
   id: string;
   name: string;
+  branchId?: number | null; // Associated campus / branch ID (null / undefined for global / all campuses)
+  branchName?: string | null;
   applicableLevels: EducationalLevelKey[]; // e.g. ["Primaire"], ["College"], ["Lycée"], or ["Primaire", "College"]
   customLogo?: string;
   leftLogo?: string;
@@ -121,6 +123,8 @@ export function mergeDocumentHeaderConfig(input?: Partial<DocumentHeaderConfig> 
   const safeProfiles: LevelHeaderProfile[] = rawProfiles.map((p: any, idx: number) => ({
     id: String(p?.id || `profile_${idx}`),
     name: String(p?.name || "Profil sans nom"),
+    branchId: p?.branchId !== undefined && p?.branchId !== null && p?.branchId !== "all" && !isNaN(Number(p.branchId)) ? Number(p.branchId) : null,
+    branchName: p?.branchName ? String(p.branchName) : null,
     applicableLevels: Array.isArray(p?.applicableLevels)
       ? p.applicableLevels.map(String)
       : typeof p?.applicableLevels === "string" && p.applicableLevels
@@ -175,29 +179,58 @@ export function isLevelMatching(candidateLevel: string, targetLevel: string): bo
 }
 
 /**
- * Resolves the specific header config for a given educational level
- * Supports single levels (e.g. "Primaire"), merged levels (e.g. "Primaire, College"), or fallback to global.
+ * Resolves the specific header config for a given campus/branch and educational level.
+ * Order of priority:
+ * 1. Profile matching both branchId AND educational level
+ * 2. Profile matching branchId specifically
+ * 3. Profile matching educational level
+ * 4. Global base config
  */
 export function getActiveLevelHeaderConfig(
   baseConfig: DocumentHeaderConfig,
-  targetLevel?: string | null
+  targetLevel?: string | null,
+  targetBranchId?: number | string | null
 ): DocumentHeaderConfig {
   const safeBase = mergeDocumentHeaderConfig(baseConfig);
-  if (!targetLevel || !safeBase.levelProfiles || safeBase.levelProfiles.length === 0) {
+  const numBranchId = targetBranchId !== undefined && targetBranchId !== null && targetBranchId !== "all" && !isNaN(Number(targetBranchId))
+    ? Number(targetBranchId)
+    : null;
+
+  if (!safeBase.levelProfiles || safeBase.levelProfiles.length === 0) {
     return safeBase;
   }
 
-  // Find matching profile whose applicableLevels includes targetLevel or matches fusion
-  const matchedProfile = safeBase.levelProfiles.find((profile) => {
-    if (Array.isArray(profile.applicableLevels) && profile.applicableLevels.length > 0) {
-      const hasMatch = profile.applicableLevels.some((lvl) => isLevelMatching(String(lvl), targetLevel));
-      if (hasMatch) return true;
+  // 1. Check profile matching BOTH branch and level
+  let matchedProfile = safeBase.levelProfiles.find((profile) => {
+    if (!numBranchId || !profile.branchId || Number(profile.branchId) !== numBranchId) {
+      return false;
     }
-    if (profile.name && isLevelMatching(profile.name, targetLevel)) {
-      return true;
+    if (targetLevel && Array.isArray(profile.applicableLevels) && profile.applicableLevels.length > 0) {
+      return profile.applicableLevels.some((lvl) => isLevelMatching(String(lvl), targetLevel));
     }
-    return false;
+    return true;
   });
+
+  // 2. If no exact (branch + level) match, check profile matching ONLY branch
+  if (!matchedProfile && numBranchId) {
+    matchedProfile = safeBase.levelProfiles.find((profile) => {
+      return profile.branchId && Number(profile.branchId) === numBranchId;
+    });
+  }
+
+  // 3. Fallback: match by educational level across all profiles
+  if (!matchedProfile && targetLevel) {
+    matchedProfile = safeBase.levelProfiles.find((profile) => {
+      if (Array.isArray(profile.applicableLevels) && profile.applicableLevels.length > 0) {
+        const hasMatch = profile.applicableLevels.some((lvl) => isLevelMatching(String(lvl), targetLevel));
+        if (hasMatch) return true;
+      }
+      if (profile.name && isLevelMatching(profile.name, targetLevel)) {
+        return true;
+      }
+      return false;
+    });
+  }
 
   if (!matchedProfile || !matchedProfile.headerConfig) {
     return safeBase;

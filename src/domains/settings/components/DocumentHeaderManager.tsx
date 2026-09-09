@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { FileText, Printer, Save, Settings2, Upload, Plus, Trash2, Layers, Check, Globe, GraduationCap, Sparkles } from "lucide-react";
+import { FileText, Printer, Save, Settings2, Upload, Plus, Trash2, Layers, Check, Globe, GraduationCap, Sparkles, Building2, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -17,7 +17,7 @@ import {
   type EducationalLevelKey,
 } from "@/domains/printing/document-header";
 import dynamic from "next/dynamic";
-import { saveDocumentHeaderConfig } from "@/domains/settings/actions/settings.actions";
+import { saveDocumentHeaderConfig, getBranches } from "@/domains/settings/actions/settings.actions";
 import { LayoutGrid } from "lucide-react";
 
 const TemplateDesigner = dynamic(() => import("@/domains/settings/components/designer/TemplateDesigner"), {
@@ -44,13 +44,33 @@ const PRESET_LEVELS: { key: EducationalLevelKey; label: string; icon: string; de
 
 const fieldClass = "h-11 rounded-xl border-slate-200 bg-white text-sm font-bold dark:border-slate-800 dark:bg-slate-900 dark:text-white";
 
-export default function DocumentHeaderManager({ initialConfig }: { initialConfig?: Partial<DocumentHeaderConfig> | null }) {
+export default function DocumentHeaderManager({ 
+  initialConfig,
+  branches: initialBranches,
+}: { 
+  initialConfig?: Partial<DocumentHeaderConfig> | null;
+  branches?: any[];
+}) {
   const [activeTab, setActiveTab] = useState<"designer" | "preset">("preset");
   const [isPending, startTransition] = useTransition();
   const [config, setConfig] = useState<DocumentHeaderConfig>(() => mergeDocumentHeaderConfig(initialConfig));
+  const [branches, setBranches] = useState<any[]>(initialBranches || []);
+  const [selectedCampusFilter, setSelectedCampusFilter] = useState<string>("all");
   
   // Selected level/profile ID ('global' for base, or profile id)
   const [selectedProfileId, setSelectedProfileId] = useState<string>("global");
+
+  // Fallback fetch branches if empty
+  useEffect(() => {
+    if (!initialBranches || initialBranches.length === 0) {
+      getBranches().then((res: any) => {
+        const list = res?.data?.data || res?.data || [];
+        if (Array.isArray(list) && list.length > 0) {
+          setBranches(list);
+        }
+      }).catch(() => {});
+    }
+  }, [initialBranches]);
 
   const previewTitle = useMemo(() => "Exemple de rapport officiel", []);
 
@@ -99,25 +119,45 @@ export default function DocumentHeaderManager({ initialConfig }: { initialConfig
     }
   };
 
-  // Add new Level Profile (Single or Merged Group)
-  const handleAddProfile = (levelKey?: EducationalLevelKey) => {
-    const defaultLevel = levelKey || "Primaire";
+  // Add new Profile (Single or Merged Group or Campus-specific)
+  const handleAddProfile = (levelKey?: EducationalLevelKey, branchObj?: any) => {
+    const defaultLevel = levelKey || (branchObj?.instType as EducationalLevelKey) || "Primaire";
     const preset = PRESET_LEVELS.find((p) => p.key === defaultLevel);
     const newId = `profile_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-    const newName = preset ? `En-tête ${preset.label}` : "Nouveau Groupe d'En-têtes";
+    
+    const bName = branchObj?.branchName || null;
+    const bId = branchObj?.id ? Number(branchObj.id) : null;
+    const newName = bName 
+      ? `En-tête ${bName}${preset ? ` (${preset.label})` : ""}` 
+      : preset 
+        ? `En-tête ${preset.label}` 
+        : "Nouveau Groupe d'En-têtes";
 
     const newProfile: LevelHeaderProfile = {
       id: newId,
       name: newName,
+      branchId: bId,
+      branchName: bName,
       applicableLevels: [defaultLevel],
-      leftLogo: config.leftLogo,
+      leftLogo: branchObj?.logoPath || config.leftLogo,
       centerLogo: config.centerLogo,
       rightLogo: config.rightLogo,
       headerConfig: {
-        schoolName: config.schoolName,
+        schoolName: branchObj?.branchName || config.schoolName,
         schoolNameAr: config.schoolNameAr,
-        ministry: preset?.defaultMinistry || config.ministry,
-        inspection: preset?.defaultInspection || config.inspection,
+        campusSubtitle: branchObj?.branchAlias || "",
+        ministry: branchObj?.ministry || preset?.defaultMinistry || config.ministry,
+        regionalDirection: branchObj?.dren || config.regionalDirection,
+        departmentalDirection: branchObj?.dden || config.departmentalDirection,
+        inspection: branchObj?.inspection || preset?.defaultInspection || config.inspection,
+        commune: branchObj?.commune || config.commune,
+        schoolCode: branchObj?.schoolCode || config.schoolCode,
+        address: branchObj?.address || config.address,
+        phone: branchObj?.contactNo || branchObj?.officeNo || config.phone,
+        email: branchObj?.email || config.email,
+        authorizationText: Array.isArray(branchObj?.vuClauses)
+          ? branchObj.vuClauses.join("\n")
+          : (branchObj?.vuClauses || config.authorizationText),
         style: defaultLevel === "University" ? "university_formal" : config.style,
       },
     };
@@ -167,6 +207,92 @@ export default function DocumentHeaderManager({ initialConfig }: { initialConfig
       }
       return { ...prev, levelProfiles: profiles };
     });
+  };
+
+  // Assign or unassign branch from profile
+  const handleAssignBranchToProfile = (branchIdStr: string) => {
+    if (!currentEditingProfile) return;
+    const branch = branches.find((b) => String(b.id) === String(branchIdStr));
+    const bId = branch ? Number(branch.id) : null;
+    const bName = branch ? branch.branchName : null;
+
+    setConfig((prev) => {
+      const profiles = [...(prev.levelProfiles || [])];
+      const idx = profiles.findIndex((p) => p.id === selectedProfileId);
+      if (idx >= 0) {
+        profiles[idx] = {
+          ...profiles[idx],
+          branchId: bId,
+          branchName: bName,
+        };
+      }
+      return { ...prev, levelProfiles: profiles };
+    });
+  };
+
+  // One-click import campus official data into current editing profile (or global)
+  const handleImportBranchData = (branchIdToImport: number | string) => {
+    const branch = branches.find((b) => String(b.id) === String(branchIdToImport));
+    if (!branch) {
+      toast.error("Campus introuvable.");
+      return;
+    }
+
+    if (selectedProfileId === "global") {
+      setConfig((prev) => ({
+        ...prev,
+        schoolName: branch.branchName || prev.schoolName,
+        campusSubtitle: branch.branchAlias || prev.campusSubtitle,
+        ministry: branch.ministry || prev.ministry,
+        regionalDirection: branch.dren || prev.regionalDirection,
+        departmentalDirection: branch.dden || prev.departmentalDirection,
+        inspection: branch.inspection || prev.inspection,
+        commune: branch.commune || prev.commune,
+        schoolCode: branch.schoolCode || prev.schoolCode,
+        address: branch.address || prev.address,
+        phone: branch.contactNo || branch.officeNo || prev.phone,
+        email: branch.email || prev.email,
+        leftLogo: branch.logoPath || prev.leftLogo,
+        authorizationText: Array.isArray(branch.vuClauses)
+          ? branch.vuClauses.join("\n")
+          : (branch.vuClauses || prev.authorizationText),
+      }));
+      toast.success(`Données officielles du campus "${branch.branchName}" appliquées au profil global ! ⚡`);
+      return;
+    }
+
+    setConfig((prev) => {
+      const profiles = [...(prev.levelProfiles || [])];
+      const idx = profiles.findIndex((p) => p.id === selectedProfileId);
+      if (idx >= 0) {
+        const current = profiles[idx];
+        profiles[idx] = {
+          ...current,
+          branchId: Number(branch.id),
+          branchName: branch.branchName,
+          leftLogo: branch.logoPath || current.leftLogo,
+          headerConfig: {
+            ...current.headerConfig,
+            schoolName: branch.branchName || current.headerConfig?.schoolName,
+            campusSubtitle: branch.branchAlias || current.headerConfig?.campusSubtitle,
+            ministry: branch.ministry || current.headerConfig?.ministry,
+            regionalDirection: branch.dren || current.headerConfig?.regionalDirection,
+            departmentalDirection: branch.dden || current.headerConfig?.departmentalDirection,
+            inspection: branch.inspection || current.headerConfig?.inspection,
+            commune: branch.commune || current.headerConfig?.commune,
+            schoolCode: branch.schoolCode || current.headerConfig?.schoolCode,
+            address: branch.address || current.headerConfig?.address,
+            phone: branch.contactNo || branch.officeNo || current.headerConfig?.phone,
+            email: branch.email || current.headerConfig?.email,
+            authorizationText: Array.isArray(branch.vuClauses)
+              ? branch.vuClauses.join("\n")
+              : (branch.vuClauses || current.headerConfig?.authorizationText),
+          },
+        };
+      }
+      return { ...prev, levelProfiles: profiles };
+    });
+    toast.success(`Données officielles du campus "${branch.branchName}" importées avec succès ! ⚡`);
   };
 
   const reset = () => {
@@ -281,7 +407,48 @@ export default function DocumentHeaderManager({ initialConfig }: { initialConfig
           </div>
 
           {/* LEVEL & PROFILES SELECTOR BAR */}
-          <div className="space-y-3">
+          <div className="space-y-4">
+            {/* Campus Filtering Bar */}
+            {branches.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2 p-3 bg-slate-50 dark:bg-slate-900/60 rounded-2xl border border-slate-200/80 dark:border-slate-800">
+                <span className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5 mr-1 shrink-0">
+                  <Building2 size={14} className="text-indigo-600" />
+                  Filtrer par Campus :
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedCampusFilter("all")}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition cursor-pointer shrink-0 ${
+                    selectedCampusFilter === "all"
+                      ? "bg-indigo-600 text-white shadow-sm"
+                      : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+                  }`}
+                >
+                  🏢 Tous les campus ({config.levelProfiles?.length || 0})
+                </button>
+                {branches.map((b) => {
+                  const count = (config.levelProfiles || []).filter((p) => String(p.branchId) === String(b.id)).length;
+                  const isSelected = selectedCampusFilter === String(b.id);
+                  return (
+                    <button
+                      key={b.id}
+                      type="button"
+                      onClick={() => setSelectedCampusFilter(String(b.id))}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                        isSelected
+                          ? "bg-indigo-600 text-white shadow-sm"
+                          : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+                      }`}
+                    >
+                      <Building2 size={13} />
+                      <span>{b.branchName}</span>
+                      <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-black/10 dark:bg-white/10 font-bold">{count}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
             <div className="flex items-center justify-between">
               <p className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-2">
                 <Layers size={15} className="text-indigo-600" />
@@ -296,6 +463,31 @@ export default function DocumentHeaderManager({ initialConfig }: { initialConfig
                 >
                   <Plus size={13} /> Ajouter Profil Niveau
                 </Button>
+
+                {branches.length > 0 && (
+                  <div className="relative group">
+                    <Button
+                      size="sm"
+                      className="rounded-xl text-xs font-bold gap-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950 dark:text-indigo-300 dark:hover:bg-indigo-900 border border-indigo-200 dark:border-indigo-800 cursor-pointer"
+                    >
+                      <Building2 size={13} /> + Profil pour un Campus
+                    </Button>
+                    <div className="absolute right-0 mt-1 hidden group-hover:flex flex-col bg-white dark:bg-slate-900 rounded-xl shadow-xl border border-slate-200 dark:border-slate-800 p-1.5 z-30 min-w-[220px]">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 px-2 py-1">Créer profil pour :</span>
+                      {branches.map((b) => (
+                        <button
+                          key={b.id}
+                          type="button"
+                          onClick={() => handleAddProfile(undefined, b)}
+                          className="text-left px-3 py-2 text-xs font-bold rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/60 text-slate-700 dark:text-slate-200 flex items-center gap-2 cursor-pointer transition"
+                        >
+                          <Building2 size={14} className="text-indigo-600 shrink-0" />
+                          <span className="truncate">{b.branchName}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -311,50 +503,145 @@ export default function DocumentHeaderManager({ initialConfig }: { initialConfig
                 }`}
               >
                 <Globe size={15} />
-                <span>🌐 Défaut Global (Tous niveaux)</span>
+                <span>🌐 Défaut Global (Tous niveaux / Tous campus)</span>
               </button>
 
-              {/* Specific Level Profiles */}
-              {(config.levelProfiles || []).map((prof) => {
-                const isSelected = selectedProfileId === prof.id;
-                return (
-                  <div key={prof.id} className="flex items-center">
-                    <button
-                      type="button"
-                      onClick={() => setSelectedProfileId(prof.id)}
-                      className={`flex items-center gap-2 px-4 py-2.5 rounded-l-xl text-xs font-black transition cursor-pointer ${
-                        isSelected
-                          ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/20"
-                          : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
-                      }`}
-                    >
-                      <GraduationCap size={15} />
-                      <span>{prof.name}</span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-black/15 uppercase font-bold">
-                        {(prof.applicableLevels || []).join(" + ")}
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteProfile(prof.id)}
-                      title="Supprimer ce profil"
-                      className={`px-2.5 py-2.5 rounded-r-xl border-l border-black/10 text-xs transition cursor-pointer ${
-                        isSelected
-                          ? "bg-indigo-700 text-white hover:bg-rose-600"
-                          : "bg-white dark:bg-slate-800 text-slate-400 hover:text-rose-500 hover:bg-slate-200 dark:hover:bg-slate-700"
-                      }`}
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
-                );
-              })}
+              {/* Specific Level & Campus Profiles */}
+              {(config.levelProfiles || [])
+                .filter((prof) => selectedCampusFilter === "all" || String(prof.branchId) === String(selectedCampusFilter))
+                .map((prof) => {
+                  const isSelected = selectedProfileId === prof.id;
+                  return (
+                    <div key={prof.id} className="flex items-center">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedProfileId(prof.id)}
+                        className={`flex items-center gap-2 px-4 py-2.5 rounded-l-xl text-xs font-black transition cursor-pointer ${
+                          isSelected
+                            ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/20"
+                            : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+                        }`}
+                      >
+                        <GraduationCap size={15} />
+                        <span>{prof.name}</span>
+                        {prof.branchName && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-indigo-500/20 text-indigo-700 dark:text-indigo-200 font-bold flex items-center gap-1">
+                            <Building2 size={11} /> {prof.branchName}
+                          </span>
+                        )}
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-black/15 uppercase font-bold">
+                          {(prof.applicableLevels || []).join(" + ")}
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteProfile(prof.id)}
+                        title="Supprimer ce profil"
+                        className={`px-2.5 py-2.5 rounded-r-xl border-l border-black/10 text-xs transition cursor-pointer ${
+                          isSelected
+                            ? "bg-indigo-700 text-white hover:bg-rose-600"
+                            : "bg-white dark:bg-slate-800 text-slate-400 hover:text-rose-500 hover:bg-slate-200 dark:hover:bg-slate-700"
+                        }`}
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  );
+                })}
             </div>
           </div>
 
-          {/* IF EDITING A CUSTOM LEVEL PROFILE: SHOW APPLICABLE LEVELS CHECKBOXES */}
+          {/* GLOBAL DEFAULT HELPER: QUICK IMPORT FROM CAMPUS */}
+          {selectedProfileId === "global" && branches.length > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-2xl bg-indigo-50/60 dark:bg-indigo-950/30 border border-indigo-200/60 dark:border-indigo-800/40 animate-in fade-in duration-300">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-indigo-600 text-white shadow-sm">
+                  <Building2 size={18} />
+                </div>
+                <div>
+                  <p className="text-xs font-black text-slate-900 dark:text-white flex items-center gap-1.5">
+                    Pré-remplir les données par défaut à partir d'un Campus
+                    <Badge className="bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/30 text-[9px] font-black uppercase">
+                      Gain de temps
+                    </Badge>
+                  </p>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                    Importe en 1 clic le nom, ministère, DREN, inspection, adresse, code établissement et logos du campus choisi dans le modèle par défaut.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <select
+                  className="h-9 px-3 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-slate-100 cursor-pointer shadow-sm"
+                  defaultValue=""
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      handleImportBranchData(e.target.value);
+                      e.target.value = "";
+                    }
+                  }}
+                >
+                  <option value="" disabled>⚡ Choisir un campus à importer...</option>
+                  {branches.map((b) => (
+                    <option key={b.id} value={b.id}>🏢 {b.branchName} ({b.instType || "Général"})</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
+
+          {/* IF EDITING A CUSTOM LEVEL/CAMPUS PROFILE */}
           {currentEditingProfile && (
-            <div className="p-5 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-200/80 dark:border-indigo-800/60 space-y-3 animate-in fade-in duration-300">
+            <div className="p-5 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-200/80 dark:border-indigo-800/60 space-y-4 animate-in fade-in duration-300">
+              {/* Campus Attachment Row */}
+              {branches.length > 0 && (
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-indigo-200/60 dark:border-indigo-800/50">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2 rounded-xl bg-indigo-600 text-white shadow-sm">
+                      <Building2 size={16} />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-black text-indigo-950 dark:text-indigo-200 uppercase tracking-wide flex items-center gap-1.5">
+                        Rattachement au Campus (Branche) :
+                        {currentEditingProfile.branchName && (
+                          <Badge className="bg-indigo-600 text-white text-[9px] font-black uppercase">
+                            {currentEditingProfile.branchName}
+                          </Badge>
+                        )}
+                      </h4>
+                      <p className="text-[11px] text-indigo-800/80 dark:text-indigo-300 font-medium">
+                        Associez cet en-tête à un campus pour qu'il soit injecté automatiquement sur tous ses bulletins, reçus et attestations.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <select
+                      value={currentEditingProfile.branchId ? String(currentEditingProfile.branchId) : ""}
+                      onChange={(e) => handleAssignBranchToProfile(e.target.value)}
+                      className="h-9 px-3 rounded-xl border border-indigo-300 dark:border-indigo-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-white cursor-pointer shadow-sm"
+                    >
+                      <option value="">🌐 Tous les campus (Non restreint)</option>
+                      {branches.map((b) => (
+                        <option key={b.id} value={b.id}>🏢 {b.branchName} ({b.instType || "Campus"})</option>
+                      ))}
+                    </select>
+
+                    {currentEditingProfile.branchId && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => handleImportBranchData(currentEditingProfile.branchId!)}
+                        className="rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs gap-1.5 shadow-sm cursor-pointer"
+                      >
+                        <Sparkles size={14} /> ⚡ Importer les données de ce Campus
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Profile Name & Level Grouping */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
                   <h4 className="text-xs font-black text-indigo-950 dark:text-indigo-200 uppercase tracking-wide flex items-center gap-2">
@@ -479,6 +766,19 @@ export default function DocumentHeaderManager({ initialConfig }: { initialConfig
                 </div>
                 
                 <div className="grid grid-cols-2 gap-3">
+                  <Field
+                    label="Sous-titre / Mention Campus"
+                    value={previewConfig.campusSubtitle || ""}
+                    onChange={(v) => updateField("campusSubtitle", v)}
+                  />
+                  <Field
+                    label="Commune / Ville"
+                    value={previewConfig.commune || ""}
+                    onChange={(v) => updateField("commune", v)}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
                   <Field label="Adresse" value={previewConfig.address || ""} onChange={(v) => updateField("address", v)} />
                   <Field label="Code Établissement" value={previewConfig.schoolCode || ""} onChange={(v) => updateField("schoolCode", v)} />
                 </div>
@@ -558,7 +858,12 @@ export default function DocumentHeaderManager({ initialConfig }: { initialConfig
                   <OfficialDocumentHeader config={previewConfig} title={previewTitle} />
                   <div className="mt-10 space-y-4 text-sm font-semibold text-slate-800">
                     <p className="text-slate-500 italic text-xs">
-                      Ce document utilise automatiquement l'en-tête et le logo configurés pour : <strong>{selectedProfileId === "global" ? "Tous les niveaux (Défaut)" : (currentEditingProfile?.applicableLevels || []).join(", ")}</strong>.
+                      Ce document utilise automatiquement l'en-tête et le logo configurés pour :{" "}
+                      <strong>
+                        {selectedProfileId === "global"
+                          ? "Tous les campus et tous les niveaux (Défaut Global)"
+                          : `${currentEditingProfile?.branchName ? `Campus: ${currentEditingProfile.branchName} • ` : ""}${(currentEditingProfile?.applicableLevels || []).join(", ")}`}
+                      </strong>.
                     </p>
                     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
                       <table className="w-full text-left">

@@ -221,11 +221,14 @@ export async function updateSetting(key: string, value: string) {
   });
 }
 
-export async function fetchDocumentHeaderConfigForSchool(schoolId: number, targetLevel?: string | null): Promise<DocumentHeaderConfig> {
+async function fetchDocumentHeaderConfigForSchool(
+  schoolId: number,
+  targetLevel?: string | null,
+  targetBranchId?: number | string | null
+) {
   const cacheKey = `edut:header_config:${schoolId}`;
-
-  // 1. Try Redis Cache first to save Database Egress
   let configData: DocumentHeaderConfig | null = null;
+
   try {
     const cached = await redisCache.get<DocumentHeaderConfig>(cacheKey);
     if (cached) {
@@ -236,7 +239,7 @@ export async function fetchDocumentHeaderConfigForSchool(schoolId: number, targe
   }
 
   if (!configData) {
-    // Fetch first branch of the school for fallback values
+    // Fetch branch of the school for fallback values (matching targetBranchId if specified)
     let branchFallback: any = null;
     try {
       const branches = await db.query.schoolBranches.findMany({
@@ -244,7 +247,11 @@ export async function fetchDocumentHeaderConfigForSchool(schoolId: number, targe
         orderBy: [desc(schoolBranches.createdAt)]
       });
       if (branches && branches.length > 0) {
-        branchFallback = branches[0];
+        if (targetBranchId) {
+          branchFallback = branches.find(b => b.id === Number(targetBranchId)) || branches[0];
+        } else {
+          branchFallback = branches[0];
+        }
       }
     } catch (e) {
       console.error("Error fetching branch fallback in fetchDocumentHeaderConfigForSchool:", e);
@@ -332,18 +339,34 @@ export async function fetchDocumentHeaderConfigForSchool(schoolId: number, targe
     }
   }
 
-  // Resolve level-specific overrides if targetLevel is provided
-  if (targetLevel && configData) {
-    return getActiveLevelHeaderConfig(configData, targetLevel);
+  // Resolve branch and level-specific overrides if targetLevel or targetBranchId is provided
+  if (configData && (targetLevel || targetBranchId)) {
+    return getActiveLevelHeaderConfig(configData, targetLevel, targetBranchId);
   }
 
   return configData || mergeDocumentHeaderConfig();
 }
 
-export async function getDocumentHeaderConfig(targetLevel?: string | null) {
+export async function getDocumentHeaderConfig(
+  targetLevel?: string | null,
+  targetBranchId?: number | string | null
+) {
   return protectedDbAction("Settings", "canView", async () => {
     const schoolId = await getActiveSchoolId();
-    const data = await fetchDocumentHeaderConfigForSchool(schoolId, targetLevel);
+
+    let effectiveBranchId = targetBranchId;
+    if (!effectiveBranchId) {
+      try {
+        const { cookies } = await import("next/headers");
+        const cookieStore = await cookies();
+        const cookieBranch = cookieStore.get("selected_branch_id")?.value;
+        if (cookieBranch && cookieBranch !== "all" && !isNaN(parseInt(cookieBranch))) {
+          effectiveBranchId = parseInt(cookieBranch);
+        }
+      } catch (_) {}
+    }
+
+    const data = await fetchDocumentHeaderConfigForSchool(schoolId, targetLevel, effectiveBranchId);
     return { data };
   });
 }
