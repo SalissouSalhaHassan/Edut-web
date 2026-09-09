@@ -433,8 +433,8 @@ export default function LoginPage() {
                   <Mail size={16} />
                 </div>
                 <div>
-                  <p className="text-[11px] text-slate-400 font-bold">support@edutpro.com</p>
-                  <p className="text-[11px] text-slate-600 font-medium">+227 20 72 35 35</p>
+                  <a href="mailto:salissousalhahassan@gmail.com" className="text-[11px] text-slate-400 hover:text-indigo-400 font-bold block transition-colors">salissousalhahassan@gmail.com</a>
+                  <a href="tel:+22799425298" className="text-[11px] text-slate-500 hover:text-slate-300 font-medium block transition-colors">+227 99 42 52 98</a>
                 </div>
               </div>
             </div>
