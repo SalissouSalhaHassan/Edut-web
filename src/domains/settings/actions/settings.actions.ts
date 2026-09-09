@@ -221,7 +221,7 @@ export async function updateSetting(key: string, value: string) {
   });
 }
 
-async function fetchDocumentHeaderConfigForSchool(
+export async function fetchDocumentHeaderConfigForSchool(
   schoolId: number,
   targetLevel?: string | null,
   targetBranchId?: number | string | null
