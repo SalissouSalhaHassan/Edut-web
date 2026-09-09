@@ -30,6 +30,8 @@ export type DocumentHeaderConfig = {
   style: DocumentHeaderStyle;
   schoolName: string;
   schoolNameAr?: string;
+  campusSubtitle?: string;
+  campusSubtitleAr?: string;
   country?: string;
   countryAr?: string;
   ministry?: string;
@@ -89,6 +91,8 @@ export const defaultDocumentHeaderConfig: DocumentHeaderConfig = {
   style: "classic_dual_logo",
   schoolName: "ÉCOLE EXCELLENCE",
   schoolNameAr: "مدرسة التميز",
+  campusSubtitle: "",
+  campusSubtitleAr: "",
   country: "RÉPUBLIQUE DU NIGER",
   countryAr: "جمهورية النيجر",
   ministry: "Ministère de l'Éducation Nationale",

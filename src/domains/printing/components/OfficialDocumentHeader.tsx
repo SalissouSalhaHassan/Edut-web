@@ -49,6 +49,7 @@ function MetaLines({ cfg, align = "left" }: { cfg: DocumentHeaderConfig; align?:
     cfg.inspection,
     cfg.commune,
     cfg.schoolCode ? `Code Étab. : ${cfg.schoolCode}` : "",
+    cfg.campusSubtitle ? cfg.campusSubtitle : "",
     cfg.service,
     cfg.address,
     cfg.bp ? `BP : ${cfg.bp}` : "",
@@ -75,6 +76,7 @@ function ArabicMetaLines({ cfg }: { cfg: DocumentHeaderConfig }) {
     cfg.inspectionAr,
     cfg.communeAr,
     cfg.schoolCode ? `رمز المؤسسة: ${cfg.schoolCode}` : "",
+    cfg.campusSubtitleAr || cfg.campusSubtitle,
     schoolNameAr,
     cfg.serviceAr,
   ].map(cleanHeaderText).filter(Boolean);
