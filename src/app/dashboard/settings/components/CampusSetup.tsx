@@ -518,16 +518,22 @@ export function CampusSetup({ initialBranches }: { initialBranches: Branch[] }) 
                     })}
                   </div>
 
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-3 pt-3 border-t border-slate-100 dark:border-slate-800/80">
-                    <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                      💡 Chaque niveau sélectionné peut disposer de sa propre tutelle ministérielle, ses libellés et son logo spécifique ou être fusionné en groupe.
-                    </p>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-3 pt-3 border-t border-slate-100 dark:border-slate-800/80 bg-indigo-50/50 dark:bg-indigo-950/20 p-4 rounded-2xl border border-indigo-100 dark:border-indigo-900/40">
+                    <div className="space-y-1">
+                      <p className="text-xs text-indigo-950 dark:text-indigo-200 font-black flex items-center gap-1.5">
+                        <Sparkles size={14} className="text-indigo-600" />
+                        تخصيص اسم الترويسة لكل مستوى أو دمجها (Nom d'établissement par Niveau ou Fusion)
+                      </p>
+                      <p className="text-[11px] text-indigo-800/80 dark:text-indigo-300/80 font-semibold">
+                        يمكن لكل مستوى أن يحمل اسمه الرسمي الخاص (مثل: Primaire ➔ CSP BASMA ، Collège ➔ ALHOUSNA CSP ، Lycée ➔ CSP AL-NOUR) أو دمج المستويات معاً في ترويسة موحدة.
+                      </p>
+                    </div>
                     <a
-                      href="/dashboard/settings?tab=headers"
-                      className="inline-flex items-center gap-1.5 text-xs font-black text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition"
+                      href="/dashboard/settings/headers"
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black transition shrink-0 shadow-sm shadow-indigo-200 dark:shadow-none cursor-pointer"
                     >
                       <Sparkles size={13} />
-                      Configurer les En-têtes & Logos de ces Niveaux →
+                      تخصيص الترويسات والأسماء الرسمية ←
                     </a>
                   </div>
                 </div>

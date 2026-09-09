@@ -2302,7 +2302,7 @@ export async function fetchStudentBulletinDataRaw(sId: number, sessionId: number
       try {
         const { fetchDocumentHeaderConfigForSchool } = await import("@/domains/settings/actions/settings.actions");
         const targetLvl = (student as any)?.educationalLevel || (student as any)?.level || branchRecord?.instType || "Lycée";
-        levelHeaderConfig = await fetchDocumentHeaderConfigForSchool(student.schoolId ?? 0, targetLvl);
+        levelHeaderConfig = await fetchDocumentHeaderConfigForSchool(student.schoolId ?? 0, targetLvl, student.branchId || branchRecord?.id);
       } catch (e) {
         console.warn("Failed to fetch level header config in fetchStudentBulletinDataRaw:", e);
       }
@@ -2378,7 +2378,7 @@ export async function getBatchBulletinData(classId: number, sessionId: number, t
     let batchHeaderConfig = null;
     try {
       const { fetchDocumentHeaderConfigForSchool } = await import("@/domains/settings/actions/settings.actions");
-      batchHeaderConfig = await fetchDocumentHeaderConfigForSchool(cls.schoolId ?? 0, cls.section?.educationalLevel || branchRecord?.instType || "Lycée");
+      batchHeaderConfig = await fetchDocumentHeaderConfigForSchool(cls.schoolId ?? 0, cls.section?.educationalLevel || branchRecord?.instType || "Lycée", (cls as any)?.branchId || branchRecord?.id);
     } catch (e) {
       console.warn("Failed to fetch batch header config:", e);
     }
