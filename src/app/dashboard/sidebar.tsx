@@ -81,6 +81,78 @@ type NavSection = {
   items: NavItem[];
 };
 
+const sectionThemes: Record<string, {
+  text: string;
+  badgeBg: string;
+  badgeBorder: string;
+  dot: string;
+  divider: string;
+}> = {
+  general: {
+    text: "text-indigo-600 dark:text-indigo-400",
+    badgeBg: "bg-indigo-50/90 dark:bg-indigo-950/50",
+    badgeBorder: "border-indigo-200/80 dark:border-indigo-800/60",
+    dot: "bg-indigo-500",
+    divider: "from-indigo-300/60 dark:from-indigo-700/50",
+  },
+  schooling: {
+    text: "text-blue-600 dark:text-blue-400",
+    badgeBg: "bg-blue-50/90 dark:bg-blue-950/50",
+    badgeBorder: "border-blue-200/80 dark:border-blue-800/60",
+    dot: "bg-blue-500",
+    divider: "from-blue-300/60 dark:from-blue-700/50",
+  },
+  pedagogie: {
+    text: "text-violet-600 dark:text-violet-400",
+    badgeBg: "bg-violet-50/90 dark:bg-violet-950/50",
+    badgeBorder: "border-violet-200/80 dark:border-violet-800/60",
+    dot: "bg-violet-500",
+    divider: "from-violet-300/60 dark:from-violet-700/50",
+  },
+  finance: {
+    text: "text-emerald-600 dark:text-emerald-400",
+    badgeBg: "bg-emerald-50/90 dark:bg-emerald-950/50",
+    badgeBorder: "border-emerald-200/80 dark:border-emerald-800/60",
+    dot: "bg-emerald-500",
+    divider: "from-emerald-300/60 dark:from-emerald-700/50",
+  },
+  administration: {
+    text: "text-purple-600 dark:text-purple-400",
+    badgeBg: "bg-purple-50/90 dark:bg-purple-950/50",
+    badgeBorder: "border-purple-200/80 dark:border-purple-800/60",
+    dot: "bg-purple-500",
+    divider: "from-purple-300/60 dark:from-purple-700/50",
+  },
+  canevas: {
+    text: "text-cyan-600 dark:text-cyan-400",
+    badgeBg: "bg-cyan-50/90 dark:bg-cyan-950/50",
+    badgeBorder: "border-cyan-200/80 dark:border-cyan-800/60",
+    dot: "bg-cyan-500",
+    divider: "from-cyan-300/60 dark:from-cyan-700/50",
+  },
+  resources: {
+    text: "text-amber-600 dark:text-amber-400",
+    badgeBg: "bg-amber-50/90 dark:bg-amber-950/50",
+    badgeBorder: "border-amber-200/80 dark:border-amber-800/60",
+    dot: "bg-amber-500",
+    divider: "from-amber-300/60 dark:from-amber-700/50",
+  },
+  communication: {
+    text: "text-pink-600 dark:text-pink-400",
+    badgeBg: "bg-pink-50/90 dark:bg-pink-950/50",
+    badgeBorder: "border-pink-200/80 dark:border-pink-800/60",
+    dot: "bg-pink-500",
+    divider: "from-pink-300/60 dark:from-pink-700/50",
+  },
+  owner: {
+    text: "text-rose-600 dark:text-rose-400",
+    badgeBg: "bg-rose-50/90 dark:bg-rose-950/50",
+    badgeBorder: "border-rose-200/80 dark:border-rose-800/60",
+    dot: "bg-rose-500",
+    divider: "from-rose-300/60 dark:from-rose-700/50",
+  },
+};
+
 const sections: NavSection[] = [
   {
     id: "general",
@@ -562,29 +634,56 @@ export default function DashboardSidebar({
       </div>
 
       {/* NAVIGATION */}
-      <nav className="px-5 pb-4 space-y-6 flex-1 overflow-y-auto custom-scrollbar">
-        {dynamicSections.map((section) => (
-          <div key={section.id} className="space-y-2.5">
-            <p className="px-3 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-400 flex items-center gap-2">
-              <span
-                className={cn(
-                  section.id === "general" ? "text-indigo-600 dark:text-indigo-400" :
-                  section.id === "schooling" ? "text-blue-500 dark:text-blue-400" :
-                  section.id === "pedagogie" ? "text-violet-600 dark:text-violet-400" :
-                  section.id === "finance" ? "text-emerald-600 dark:text-emerald-400" :
-                  section.id === "administration" ? "text-violet-600 dark:text-violet-400" :
-                  section.id === "canevas" ? "text-cyan-600 dark:text-cyan-400" :
-                  section.id === "resources" ? "text-amber-600 dark:text-amber-400" :
-                  section.id === "communication" ? "text-pink-500 dark:text-pink-400" :
-                  section.id === "owner" ? "text-red-600 dark:text-red-400" :
-                  "text-slate-600 dark:text-slate-400"
-                )}
-              >
-                {section.title}
-              </span>
-              <span className={cn("w-1 h-1 rounded-full", section.dotColor)} />
-            </p>
-            <div className="space-y-1">
+      <nav className="px-4 pb-4 space-y-5 flex-1 overflow-y-auto custom-scrollbar">
+        {dynamicSections.map((section, sIdx) => {
+          const theme = sectionThemes[section.id] || {
+            text: "text-slate-600 dark:text-slate-400",
+            badgeBg: "bg-slate-100/80 dark:bg-slate-800/50",
+            badgeBorder: "border-slate-200/80 dark:border-slate-700/60",
+            dot: "bg-slate-400",
+            divider: "from-slate-200/60 dark:from-slate-700/50",
+          };
+
+          return (
+            <div
+              key={section.id}
+              className={cn(
+                "space-y-2.5",
+                sIdx > 0 && "pt-5 mt-3 border-t border-slate-200/70 dark:border-slate-800/80"
+              )}
+            >
+              {/* Distinctive Section Header with Glowing Dot & Divider Line */}
+              <div className="px-1 flex items-center justify-between gap-2.5 select-none">
+                <div
+                  className={cn(
+                    "inline-flex items-center gap-2 px-2.5 py-1 rounded-lg border shadow-xs transition-colors",
+                    theme.badgeBg,
+                    theme.badgeBorder
+                  )}
+                >
+                  <span className="relative flex h-2 w-2 shrink-0">
+                    <span className={cn("animate-ping absolute inline-flex h-full w-full rounded-full opacity-60", theme.dot)} />
+                    <span className={cn("relative inline-flex rounded-full h-2 w-2", theme.dot)} />
+                  </span>
+                  <span className={cn("text-[10px] font-black uppercase tracking-wider", theme.text)}>
+                    {section.title}
+                  </span>
+                </div>
+
+                {/* Horizontal Gradient Divider Line */}
+                <div
+                  className={cn(
+                    "h-px flex-1 bg-gradient-to-r to-transparent",
+                    theme.divider
+                  )}
+                />
+
+                {/* Counter Badge */}
+                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 px-1.5 py-0.5 rounded-md bg-slate-100/70 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-700/50">
+                  {section.items.length}
+                </span>
+              </div>
+              <div className="space-y-1">
               {section.items.map((item) => {
                 const active = activeHref === item.href;
                 const isPending = pendingHref === item.href;
