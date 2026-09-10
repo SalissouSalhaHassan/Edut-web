@@ -457,9 +457,10 @@ export function CampusSetup({ initialBranches }: { initialBranches: Branch[] }) 
                  toast.loading("Synchronisation de tous les campus...", { id: "sync-all" });
                  const res = await syncAllBranchesToHeaders();
                  if (res.success) {
-                   toast.success(`${res.count} campus synchronisés avec succès avec les En-têtes Officiels ! ⚡`, { id: "sync-all" });
+                   const count = res.data?.count;
+                   toast.success(`${count !== undefined ? `${count} ` : ""}campus synchronisés avec succès avec les En-têtes Officiels ! ⚡`, { id: "sync-all" });
                  } else {
-                   toast.error("Erreur lors de la synchronisation", { id: "sync-all" });
+                   toast.error(res.error || "Erreur lors de la synchronisation", { id: "sync-all" });
                  }
                });
              }}
