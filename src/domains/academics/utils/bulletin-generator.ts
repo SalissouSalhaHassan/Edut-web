@@ -1993,9 +1993,9 @@ export async function buildReleveNotesDoc(data: any): Promise<jsPDF> {
       ]
     ],
     theme: "grid",
-    headStyles: { fillColor: [210, 230, 210], textColor: [0, 50, 0], fontStyle: "bold", halign: "center", lineWidth: 0.2, lineColor: [150, 180, 150] },
-    footStyles: { fillColor: [210, 230, 210], textColor: [0, 50, 0], fontStyle: "bold", lineWidth: 0.2, lineColor: [150, 180, 150] },
-    styles: { fontSize: 8, cellPadding: 1.2, lineColor: [180, 180, 180], lineWidth: 0.1 },
+    headStyles: { fillColor: [210, 230, 210], textColor: [0, 50, 0], fontStyle: "bold", halign: "center", lineWidth: 0.35, lineColor: [100, 140, 100], minCellHeight: 6 },
+    footStyles: { fillColor: [210, 230, 210], textColor: [0, 50, 0], fontStyle: "bold", lineWidth: 0.35, lineColor: [100, 140, 100], minCellHeight: 5.5 },
+    styles: { fontSize: 8.5, cellPadding: 1.8, minCellHeight: 5.5, lineColor: [120, 130, 120], lineWidth: 0.3 },
     bodyStyles: { fillColor: false as any },
     alternateRowStyles: { fillColor: false as any },
     columnStyles: {
@@ -2062,9 +2062,9 @@ export async function buildReleveNotesDoc(data: any): Promise<jsPDF> {
       ]
     ],
     theme: "grid",
-    headStyles: { fillColor: [210, 230, 210], textColor: [0, 50, 0], fontStyle: "bold", halign: "center", lineWidth: 0.2, lineColor: [150, 180, 150] },
-    footStyles: { fillColor: [210, 230, 210], textColor: [0, 50, 0], fontStyle: "bold", lineWidth: 0.2, lineColor: [150, 180, 150] },
-    styles: { fontSize: 8, cellPadding: 1.2, lineColor: [180, 180, 180], lineWidth: 0.1 },
+    headStyles: { fillColor: [210, 230, 210], textColor: [0, 50, 0], fontStyle: "bold", halign: "center", lineWidth: 0.35, lineColor: [100, 140, 100], minCellHeight: 6 },
+    footStyles: { fillColor: [210, 230, 210], textColor: [0, 50, 0], fontStyle: "bold", lineWidth: 0.35, lineColor: [100, 140, 100], minCellHeight: 5.5 },
+    styles: { fontSize: 8.5, cellPadding: 1.8, minCellHeight: 5.5, lineColor: [120, 130, 120], lineWidth: 0.3 },
     bodyStyles: { fillColor: false as any },
     alternateRowStyles: { fillColor: false as any },
     columnStyles: {
