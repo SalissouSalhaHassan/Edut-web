@@ -238,7 +238,7 @@ export function inferEducationalLevel(hints?: string | {
     if (normLvl.includes("univ")) return "University";
   }
 
-  const defaultVal = hints?.defaultLevel || "Lycée";
+  const defaultVal = hintsObj?.defaultLevel || "Lycée";
   return (defaultVal === "Collège" ? "College" : defaultVal) as CanonicalLevel;
 }
 
