@@ -3,6 +3,7 @@ import { and, eq, sql, desc } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db, readDb } from "@/infrastructure/database";
 import { studentFees, feePayments } from "@/infrastructure/database/schema/finance";
+import { students } from "@/infrastructure/database/schema/students";
 import { getMobileUser, mobileJsonError } from "../../_lib/auth";
 import { getUserRoleType } from "@/domains/auth/services/rbac";
 
@@ -15,6 +16,91 @@ export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const action = searchParams.get("action");
 
+  const schoolId = user.schoolId;
+  const roleType = await getUserRoleType(user);
+
+  // 1. GET FULL PAYMENTS JOURNAL (Journal de caisse)
+  if (action === "getPaymentsJournal") {
+    const targetSchoolId = Number(searchParams.get("schoolId"));
+    const sessionId = searchParams.get("sessionId") ? Number(searchParams.get("sessionId")) : null;
+
+    if (!targetSchoolId) {
+      return mobileJsonError("schoolId manquant", 400);
+    }
+
+    if (schoolId && schoolId !== targetSchoolId) {
+      return mobileJsonError("Accès refusé", 403);
+    }
+
+    try {
+      const conditions: any[] = [
+        eq(feePayments.schoolId, targetSchoolId),
+      ];
+
+      if (sessionId) {
+        conditions.push(eq(studentFees.sessionId, sessionId));
+      }
+
+      if ((roleType === "parent" || roleType === "eleve") && user.studentId) {
+        conditions.push(eq(studentFees.studentId, user.studentId));
+      }
+
+      const payments = await readDb
+        .select({
+          id: feePayments.id,
+          school_id: feePayments.schoolId,
+          fee_id: feePayments.feeId,
+          amount: feePayments.amount,
+          reduction: feePayments.reduction,
+          date_paid: feePayments.datePaid,
+          month_concerned: feePayments.monthConcerned,
+          payment_mode: feePayments.paymentMode,
+          reference: feePayments.reference,
+          recorded_by: feePayments.recordedBy,
+          student_id: studentFees.studentId,
+          student_name: students.nomEtudiant,
+          num_admission: students.numAdmission,
+          classe: students.classe,
+          educational_level: students.educationalLevel,
+          fee_status: studentFees.status,
+          total_expected: studentFees.totalExpected,
+          balance: studentFees.balance,
+        })
+        .from(feePayments)
+        .innerJoin(studentFees, eq(studentFees.id, feePayments.feeId))
+        .leftJoin(students, eq(students.id, studentFees.studentId))
+        .where(and(...conditions))
+        .orderBy(desc(feePayments.datePaid), desc(feePayments.id));
+
+      const list = payments.map((p) => ({
+        id: p.id,
+        school_id: p.school_id,
+        fee_id: p.fee_id,
+        amount: Number(p.amount) || 0,
+        reduction: Number(p.reduction) || 0,
+        date_paid: p.date_paid?.toISOString() || null,
+        month_concerned: p.month_concerned,
+        payment_mode: p.payment_mode || "Espèces",
+        reference: p.reference || `REC-${p.id}`,
+        recorded_by: p.recorded_by || "Admin",
+        student_id: p.student_id,
+        student_name: p.student_name || "Élève",
+        num_admission: p.num_admission || "-",
+        classe: p.classe || "-",
+        educational_level: p.educational_level || "",
+        fee_status: p.fee_status || "Soldé",
+        total_expected: Number(p.total_expected) || 0,
+        balance: Number(p.balance) || 0,
+      }));
+
+      return NextResponse.json({ success: true, data: list });
+    } catch (err: any) {
+      console.error("[Payments Journal Error]:", err);
+      return mobileJsonError(`Erreur: ${err.message || err}`, 500);
+    }
+  }
+
+  // 2. GET FEE PAYMENTS BY SPECIFIC FEE ID
   if (action !== "getFeePayments") {
     return mobileJsonError("Action non supportée ou manquante", 400);
   }
