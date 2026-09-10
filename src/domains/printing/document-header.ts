@@ -48,6 +48,7 @@ export type DocumentHeaderConfig = {
   communeAr?: string;
   schoolCode?: string;
   schoolCodeAr?: string;
+  registrationNo?: string;
   service?: string;
   serviceAr?: string;
   address?: string;
