@@ -26,6 +26,7 @@ import {
 } from "@/domains/academics/actions/academics.actions";
 import { generateBulletinPDF, generatePVMatrixPDF, generatePVMatrixExcel, generateReleveNotesPDF, generateResultsPedagogicalReportPDF } from "@/domains/academics/utils/bulletin-generator";
 import { getDocumentHeaderConfig } from "@/domains/settings/actions/settings.actions";
+import { inferEducationalLevel, isHigherEducationLevel } from "@/domains/printing/document-header";
 import { useEffect } from "react";
 import { getPedagogicalReportAction } from "@/domains/pedagogie/actions/analytics.actions";
 import {
@@ -432,7 +433,17 @@ export default function AcademicResultsPage() {
         
         for (const studentData of batchData) {
           if (studentData.results && studentData.results.length > 0) {
-            await generateBulletinPDF({ ...studentData, headerConfig: studentData.headerConfig || headerConfig });
+            const studentLvl = inferEducationalLevel({
+              educationalLevel: studentData.student?.educationalLevel,
+              className: studentData.student?.classe,
+              defaultLevel: activeFilters?.level || "Lycée"
+            });
+            const activeHeader = studentData.headerConfig || headerConfig;
+            if (isHigherEducationLevel(studentLvl)) {
+              await generateReleveNotesPDF({ ...studentData, headerConfig: activeHeader });
+            } else {
+              await generateBulletinPDF({ ...studentData, headerConfig: activeHeader });
+            }
           }
         }
         
@@ -899,7 +910,17 @@ export default function AcademicResultsPage() {
               <div>
                 <div className="flex items-center gap-3">
                   <span className="px-3 py-1 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 rounded-xl text-[11px] font-black uppercase tracking-widest">
-                    Aperçu du Bulletin Officiel
+                    {(() => {
+                      const lvl = inferEducationalLevel({
+                        educationalLevel: previewData?.student?.educationalLevel,
+                        className: previewData?.student?.classe,
+                        defaultLevel: activeFilters?.level || "Lycée"
+                      });
+                      if (isHigherEducationLevel(lvl)) return "Aperçu du Relevé Officiel LMD";
+                      if (lvl === "College") return "Aperçu du Bulletin Officiel (Collège)";
+                      if (lvl === "Primaire") return "Aperçu du Carnet de Notes (Primaire)";
+                      return `Aperçu du Bulletin Officiel (${lvl})`;
+                    })()}
                   </span>
                   <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
                     {previewData?.session || "Année Scolaire"} • {previewData?.term || "Période"}
@@ -917,7 +938,12 @@ export default function AcademicResultsPage() {
                 <Button
                   onClick={() => {
                     const isOffline = !navigator.onLine;
-                    const isHigherEd = ["Licence", "Master", "Doctorat", "Supérieur", "Université"].includes(activeFilters?.level || "Lycée");
+                    const studentLvl = inferEducationalLevel({
+                      educationalLevel: previewData?.student?.educationalLevel,
+                      className: previewData?.student?.classe,
+                      defaultLevel: activeFilters?.level || "Lycée"
+                    });
+                    const isHigherEd = isHigherEducationLevel(studentLvl);
                     const activeHeader = previewData?.headerConfig || headerConfig;
                     if (isHigherEd) {
                       generateReleveNotesPDF({ ...previewData, headerConfig: activeHeader, isOffline });
@@ -1101,7 +1127,12 @@ export default function AcademicResultsPage() {
                   <Button
                     onClick={() => {
                       const isOffline = !navigator.onLine;
-                      const isHigherEd = ["Licence", "Master", "Doctorat", "Supérieur", "Université"].includes(activeFilters?.level || "Lycée");
+                      const studentLvl = inferEducationalLevel({
+                        educationalLevel: previewData?.student?.educationalLevel,
+                        className: previewData?.student?.classe,
+                        defaultLevel: activeFilters?.level || "Lycée"
+                      });
+                      const isHigherEd = isHigherEducationLevel(studentLvl);
                       const activeHeader = previewData?.headerConfig || headerConfig;
                       if (isHigherEd) {
                         generateReleveNotesPDF({ ...previewData, headerConfig: activeHeader, isOffline });

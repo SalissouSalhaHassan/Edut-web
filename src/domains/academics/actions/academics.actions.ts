@@ -35,6 +35,11 @@ import { employees } from "@/infrastructure/database/schema/hr";
 import { eq, and, or, ilike, isNull, sql, inArray, desc } from "drizzle-orm";
 import { revalidatePath, unstable_cache, revalidateTag as nextRevalidateTag } from "next/cache";
 const revalidateTag = nextRevalidateTag as any;
+import {
+  inferEducationalLevel,
+  isHigherEducationLevel,
+  isLevelMatching,
+} from "@/domains/printing/document-header";
 
 const ACADEMICS_CACHE_TAG = "academics-cache";
 const LOCKED_RESULT_WORKFLOW_STATUSES = ["VERROUILLE", "PUBLIE", "ARCHIVE"];
@@ -2278,15 +2283,62 @@ export async function fetchStudentBulletinDataRaw(sId: number, sessionId: number
         totalStudents = Number(classStudents[0]?.count || 0);
       }
 
-      // Fetch Branch Info
-      let branchRecord = await db.query.schoolBranches.findFirst({
-        where: ilike(schoolBranches.instType, student.educationalLevel || "Lycée")
+      // Infer educational level robustly from student record, class, and section
+      let clsRecord = null;
+      if (classId) {
+        try {
+          clsRecord = await db.query.schoolClasses.findFirst({
+            where: eq(schoolClasses.id, classId),
+            with: { section: true }
+          });
+        } catch (_) {}
+      }
+
+      const inferredLevel = inferEducationalLevel({
+        educationalLevel: student.educationalLevel,
+        className: student.classe || clsRecord?.className,
+        sectionName: clsRecord?.section?.sectionName,
+        defaultLevel: "Lycée"
       });
 
-      if (!branchRecord) {
-        branchRecord = await db.query.schoolBranches.findFirst({
-          orderBy: [desc(schoolBranches.createdAt)]
-        });
+      // Fetch all branches of the school
+      const schoolBranchesList = await db.query.schoolBranches.findMany({
+        where: eq(schoolBranches.schoolId, student.schoolId ?? schoolId),
+        orderBy: [desc(schoolBranches.createdAt)]
+      });
+
+      let branchRecord = null;
+      const targetBranchId = (student as any)?.branchId || (clsRecord as any)?.branchId;
+      if (targetBranchId && schoolBranchesList.length > 0) {
+        branchRecord = schoolBranchesList.find(b => b.id === Number(targetBranchId));
+      }
+
+      if (!branchRecord && schoolBranchesList.length > 0) {
+        // Priority 1: Specific level match (excluding generic "Tous" if a specialized branch exists)
+        branchRecord = schoolBranchesList.find(b => 
+          b.instType !== "Tous" && (isLevelMatching(b.instType || "", inferredLevel) || isLevelMatching(b.branchName || "", inferredLevel))
+        ) || schoolBranchesList.find(b => 
+          isLevelMatching(b.instType || "", inferredLevel) || isLevelMatching(b.branchName || "", inferredLevel)
+        );
+
+        // Priority 2: Respect Higher-Ed vs K-12 boundary
+        if (!branchRecord) {
+          const isUniv = isHigherEducationLevel(inferredLevel);
+          if (isUniv) {
+            branchRecord = schoolBranchesList.find(b => 
+              b.instType?.toLowerCase().includes("univ") || b.branchName?.toLowerCase().includes("univ")
+            );
+          } else {
+            branchRecord = schoolBranchesList.find(b => 
+              !b.instType?.toLowerCase().includes("univ") && !b.branchName?.toLowerCase().includes("univ")
+            );
+          }
+        }
+
+        // Priority 3: Fallback
+        if (!branchRecord) {
+          branchRecord = schoolBranchesList[0];
+        }
       }
 
       const branchInfo = {
@@ -2301,14 +2353,13 @@ export async function fetchStudentBulletinDataRaw(sId: number, sessionId: number
       let levelHeaderConfig = null;
       try {
         const { fetchDocumentHeaderConfigForSchool } = await import("@/domains/settings/actions/settings.actions");
-        const targetLvl = (student as any)?.educationalLevel || (student as any)?.level || branchRecord?.instType || "Lycée";
-        levelHeaderConfig = await fetchDocumentHeaderConfigForSchool(student.schoolId ?? 0, targetLvl, (student as any)?.branchId || branchRecord?.id);
+        levelHeaderConfig = await fetchDocumentHeaderConfigForSchool(student.schoolId ?? schoolId, inferredLevel, branchRecord?.id);
       } catch (e) {
         console.warn("Failed to fetch level header config in fetchStudentBulletinDataRaw:", e);
       }
 
       return {
-        student,
+        student: { ...student, educationalLevel: inferredLevel },
         session: sessionRecord?.sessionName || sessionId,
         term,
         results,
@@ -2362,9 +2413,46 @@ export async function getBatchBulletinData(classId: number, sessionId: number, t
     });
     if (!cls) return { error: "Classe non trouvée" };
 
-    const branchRecord = await db.query.schoolBranches.findFirst({
-      where: ilike(schoolBranches.instType, cls.section?.educationalLevel || "Lycée")
-    }) || await db.query.schoolBranches.findFirst({ orderBy: [desc(schoolBranches.createdAt)] });
+    const inferredLevel = inferEducationalLevel({
+      educationalLevel: cls.section?.educationalLevel,
+      className: cls.className,
+      sectionName: cls.section?.sectionName,
+      defaultLevel: "Lycée"
+    });
+
+    const schoolBranchesList = await db.query.schoolBranches.findMany({
+      where: eq(schoolBranches.schoolId, cls.schoolId ?? 0),
+      orderBy: [desc(schoolBranches.createdAt)]
+    });
+
+    let branchRecord = null;
+    const targetBranchId = (cls as any)?.branchId;
+    if (targetBranchId && schoolBranchesList.length > 0) {
+      branchRecord = schoolBranchesList.find(b => b.id === Number(targetBranchId));
+    }
+    if (!branchRecord && schoolBranchesList.length > 0) {
+      branchRecord = schoolBranchesList.find(b => 
+        b.instType !== "Tous" && (isLevelMatching(b.instType || "", inferredLevel) || isLevelMatching(b.branchName || "", inferredLevel))
+      ) || schoolBranchesList.find(b => 
+        isLevelMatching(b.instType || "", inferredLevel) || isLevelMatching(b.branchName || "", inferredLevel)
+      );
+
+      if (!branchRecord) {
+        const isUniv = isHigherEducationLevel(inferredLevel);
+        if (isUniv) {
+          branchRecord = schoolBranchesList.find(b => 
+            b.instType?.toLowerCase().includes("univ") || b.branchName?.toLowerCase().includes("univ")
+          );
+        } else {
+          branchRecord = schoolBranchesList.find(b => 
+            !b.instType?.toLowerCase().includes("univ") && !b.branchName?.toLowerCase().includes("univ")
+          );
+        }
+      }
+      if (!branchRecord && schoolBranchesList.length > 0) {
+        branchRecord = schoolBranchesList[0];
+      }
+    }
 
     const branchInfo = {
       branchName: branchRecord?.branchName || "ÉCOLE GESTION PRO",
@@ -2378,7 +2466,7 @@ export async function getBatchBulletinData(classId: number, sessionId: number, t
     let batchHeaderConfig = null;
     try {
       const { fetchDocumentHeaderConfigForSchool } = await import("@/domains/settings/actions/settings.actions");
-      batchHeaderConfig = await fetchDocumentHeaderConfigForSchool(cls.schoolId ?? 0, cls.section?.educationalLevel || branchRecord?.instType || "Lycée", (cls as any)?.branchId || branchRecord?.id);
+      batchHeaderConfig = await fetchDocumentHeaderConfigForSchool(cls.schoolId ?? 0, inferredLevel, branchRecord?.id);
     } catch (e) {
       console.warn("Failed to fetch batch header config:", e);
     }
@@ -2645,7 +2733,7 @@ export async function getBatchBulletinData(classId: number, sessionId: number, t
       }
 
       return {
-        student: s,
+        student: { ...s, educationalLevel: s.educationalLevel || inferredLevel },
         session: sessionRecord?.sessionName || sessionId,
         term,
         results,

@@ -7,7 +7,8 @@ import { db } from "@/infrastructure/database";
 import { schoolClasses, academicPeriods, schoolSessions } from "@/infrastructure/database/schema/academics";
 import { schoolBranches } from "@/infrastructure/database/schema/settings";
 import { fetchDocumentHeaderConfigForSchool } from "@/domains/settings/actions/settings.actions";
-import { and, eq, or, isNull } from "drizzle-orm";
+import { and, eq, or, isNull, desc } from "drizzle-orm";
+import { inferEducationalLevel, isHigherEducationLevel, isLevelMatching } from "@/domains/printing/document-header";
 import BulletinBatchClient from "./batch-client";
 import { Printer, Sparkles, GraduationCap, Calendar, ArrowRight } from "lucide-react";
 
@@ -85,14 +86,36 @@ export default async function BulletinsBatchPage({ searchParams }: Props) {
   let branchInfo: any = {};
   let headerConfig: any = {};
   try {
-    const targetLevel = (selectedClass as any)?.section?.educationalLevel || (selectedClass as any)?.classLevel || undefined;
+    const targetLevel = inferEducationalLevel({
+      educationalLevel: (selectedClass as any)?.section?.educationalLevel,
+      className: (selectedClass as any)?.className,
+      sectionName: (selectedClass as any)?.section?.sectionName,
+    });
     const targetBranchId = (selectedClass as any)?.branchId || undefined;
-    const [branchRes, headerRes] = await Promise.all([
-      db.query.schoolBranches.findFirst({
-        where: eq(schoolBranches.schoolId, schoolId),
-      }),
-      fetchDocumentHeaderConfigForSchool(schoolId, targetLevel, targetBranchId)
-    ]);
+    const branches = await db.query.schoolBranches.findMany({
+      where: eq(schoolBranches.schoolId, schoolId),
+      orderBy: [desc(schoolBranches.createdAt)],
+    });
+
+    let branchRes = null;
+    if (targetBranchId && branches.length > 0) {
+      branchRes = branches.find((b) => b.id === Number(targetBranchId));
+    }
+    if (!branchRes && branches.length > 0) {
+      branchRes =
+        branches.find((b) => b.instType !== "Tous" && (isLevelMatching(b.instType || "", targetLevel) || isLevelMatching(b.branchName || "", targetLevel))) ||
+        branches.find((b) => isLevelMatching(b.instType || "", targetLevel) || isLevelMatching(b.branchName || "", targetLevel));
+
+      if (!branchRes) {
+        const isUniv = isHigherEducationLevel(targetLevel);
+        branchRes = isUniv
+          ? branches.find((b) => b.instType?.toLowerCase().includes("univ") || b.branchName?.toLowerCase().includes("univ"))
+          : branches.find((b) => !b.instType?.toLowerCase().includes("univ") && !b.branchName?.toLowerCase().includes("univ"));
+      }
+      if (!branchRes) branchRes = branches[0];
+    }
+
+    const headerRes = await fetchDocumentHeaderConfigForSchool(schoolId, targetLevel, branchRes?.id);
     branchInfo = branchRes || {};
     headerConfig = headerRes || {};
   } catch (_) {}

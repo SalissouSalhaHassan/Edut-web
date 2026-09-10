@@ -32,6 +32,7 @@ import { cn } from "@/lib/utils";
 import { getStudentBulletinData } from "@/domains/academics/actions/bulletin-batch.actions";
 import type { BatchStudentResult } from "@/domains/academics/services/bulletin-engine";
 import { generateBulletinBlob, generateBulletinPDF } from "@/domains/academics/utils/bulletin-generator";
+import { isHigherEducationLevel } from "@/domains/printing/document-header";
 import { toast } from "sonner";
 
 // ─── Interfaces ─────────────────────────────────────────────────────────────
@@ -250,7 +251,8 @@ export default function BulletinBatchClient({
         });
 
         const blobUrl = URL.createObjectURL(pdfBlob);
-        const cleanName = `Bulletin_${s.nomEtudiant.replace(/\s+/g, "_")}_${period.replace(/\s+/g, "_")}`;
+        const docPrefix = isHigherEducationLevel(s.classe || s.educationalLevel) ? "Releve" : "Bulletin";
+        const cleanName = `${docPrefix}_${s.nomEtudiant.replace(/\s+/g, "_")}_${period.replace(/\s+/g, "_")}`;
 
         blobs.push({
           id: s.id,

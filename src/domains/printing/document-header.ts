@@ -156,13 +156,94 @@ function normalizeLevel(val: string): string {
     .trim();
 }
 
+export type CanonicalLevel = "Maternelle" | "Primaire" | "College" | "Lycée" | "University" | "Autre";
+
 const LEVEL_GROUPS: Record<string, string[]> = {
-  maternelle: ["maternelle", "creche", "prescolaire", "petite", "moyenne", "grande"],
-  primaire: ["primaire", "elementaire", "ci", "cp", "ce1", "ce2", "cm1", "cm2", "1ere annee", "2eme annee", "3eme annee", "4eme annee", "5eme annee", "6eme annee"],
-  college: ["college", "moyen", "cem", "6eme", "5eme", "4eme", "3eme", "brevet", "bepc"],
-  lycee: ["lycee", "secondaire", "2nde", "1ere", "tle", "terminale", "bac", "scientifique", "litteraire", "technique"],
+  maternelle: ["maternelle", "creche", "prescolaire", "petite", "moyenne", "grande", "garderie"],
+  primaire: ["primaire", "elementaire", "ci", "cp", "ce1", "ce2", "cm1", "cm2", "sil"],
+  college: ["college", "moyen", "cem", "6eme", "5eme", "4eme", "3eme", "6e", "5e", "4e", "3e", "brevet", "bepc", "premier cycle"],
+  lycee: ["lycee", "secondaire", "2nde", "seconde", "1ere", "premiere", "tle", "terminale", "bac", "scientifique", "litteraire", "technique", "second cycle"],
   university: ["university", "universite", "superieur", "licence", "master", "doctorat", "lmd", "l1", "l2", "l3", "m1", "m2", "faculte", "institut", "bts", "dut"],
 };
+
+/**
+ * Robustly infers canonical educational level from any combination of
+ * student educationalLevel, class name, and section name.
+ */
+export function inferEducationalLevel(hints?: {
+  educationalLevel?: string | null;
+  className?: string | null;
+  sectionName?: string | null;
+  defaultLevel?: string;
+}): CanonicalLevel {
+  const normLvl = normalizeLevel(hints?.educationalLevel || "");
+  const normCls = normalizeLevel(hints?.className || "");
+  const normSec = normalizeLevel(hints?.sectionName || "");
+  const fullText = `${normLvl} ${normCls} ${normSec}`.trim();
+
+  // 1. University / Supérieur / LMD check
+  if (
+    /\b(l[1-3]|m[1-2]|d[1-3]|licence|master|doctorat|bts|dut|deug|faculte|institut|superieur|universite|lmd)\b/i.test(fullText) ||
+    normLvl.includes("universit") || normLvl.includes("superieur") || normLvl.includes("licence") || normLvl.includes("master") || normLvl.includes("doctorat")
+  ) {
+    return "University";
+  }
+
+  // 2. Collège (Middle school: 6ème, 5ème, 4ème, 3ème, BEPC, etc.)
+  if (
+    /\b(6[eè]me?|5[eè]me?|4[eè]me?|3[eè]me?|6e|5e|4e|3e|college|coll[eè]ge|bepc|brevet|cem|moyen)\b/i.test(normCls) ||
+    /\b(6[eè]me?|5[eè]me?|4[eè]me?|3[eè]me?|6e|5e|4e|3e|college|coll[eè]ge|bepc|brevet|cem|moyen)\b/i.test(normSec) ||
+    normLvl.includes("coll") || normLvl.includes("moyen") || normLvl.includes("cem")
+  ) {
+    return "College";
+  }
+
+  // 3. Lycée (High school: 2nde, 1ère, Terminale, BAC, etc.)
+  if (
+    /\b(2nde?|seconde|1[eè]re?|premiere|premi[eè]re|tle|terminale|lycee|lyc[eè]e|bac)\b/i.test(normCls) ||
+    /\b(2nde?|seconde|1[eè]re?|premiere|premi[eè]re|tle|terminale|lycee|lyc[eè]e|bac)\b/i.test(normSec) ||
+    normLvl.includes("lyc") || normLvl.includes("secondaire")
+  ) {
+    return "Lycée";
+  }
+
+  // 4. Primaire (Elementary: CI, CP, CE1, CE2, CM1, CM2, SIL)
+  if (
+    /\b(ci|cp|cp1|cp2|ce1|ce2|cm1|cm2|sil|cours\s+d'initiation|cours\s+preparatoire|cours\s+elementaire|cours\s+moyen)\b/i.test(normCls) ||
+    /\b(ci|cp|cp1|cp2|ce1|ce2|cm1|cm2|sil)\b/i.test(normSec) ||
+    normLvl.includes("prim") || normLvl.includes("elem")
+  ) {
+    return "Primaire";
+  }
+
+  // 5. Maternelle / Preschool
+  if (
+    /\b(maternelle|creche|prescolaire|garderie|petite\s+section|moyenne\s+section|grande\s+section|ps|ms|gs)\b/i.test(fullText) ||
+    normLvl.includes("mat") || normLvl.includes("creche")
+  ) {
+    return "Maternelle";
+  }
+
+  // Fallback check on educationalLevel if provided
+  if (normLvl) {
+    if (normLvl.includes("coll")) return "College";
+    if (normLvl.includes("lyc") || normLvl.includes("sec")) return "Lycée";
+    if (normLvl.includes("prim")) return "Primaire";
+    if (normLvl.includes("univ")) return "University";
+  }
+
+  const defaultVal = hints?.defaultLevel || "Lycée";
+  return (defaultVal === "Collège" ? "College" : defaultVal) as CanonicalLevel;
+}
+
+export function isHigherEducationLevel(levelOrClass?: string | null): boolean {
+  if (!levelOrClass) return false;
+  const inferred = inferEducationalLevel({
+    educationalLevel: levelOrClass,
+    className: levelOrClass,
+  });
+  return inferred === "University";
+}
 
 export function isLevelMatching(candidateLevel: string, targetLevel: string): boolean {
   const normCandidate = normalizeLevel(candidateLevel);
@@ -170,6 +251,18 @@ export function isLevelMatching(candidateLevel: string, targetLevel: string): bo
 
   if (!normCandidate || !normTarget) return false;
   if (normCandidate === normTarget) return true;
+  if (normCandidate === "tous" || normTarget === "tous") return true;
+
+  // Infer canonical levels and compare
+  const canCandidate = inferEducationalLevel({ educationalLevel: candidateLevel, className: candidateLevel });
+  const canTarget = inferEducationalLevel({ educationalLevel: targetLevel, className: targetLevel });
+  if (canCandidate === canTarget && canCandidate !== "Lycée") {
+    return true;
+  }
+  if (canCandidate === canTarget && (normCandidate.includes("lyc") || normTarget.includes("lyc"))) {
+    return true;
+  }
+
   if (normCandidate.includes(normTarget) || normTarget.includes(normCandidate)) return true;
 
   // Check group aliases
@@ -186,8 +279,8 @@ export function isLevelMatching(candidateLevel: string, targetLevel: string): bo
  * Resolves the specific header config for a given campus/branch and educational level.
  * Order of priority:
  * 1. Profile matching both branchId AND educational level
- * 2. Profile matching branchId specifically
- * 3. Profile matching educational level
+ * 2. Profile matching educational level across all profiles
+ * 3. Profile matching branchId specifically (as long as it doesn't conflict with targetLevel)
  * 4. Global base config
  */
 export function getActiveLevelHeaderConfig(
@@ -215,14 +308,8 @@ export function getActiveLevelHeaderConfig(
     return true;
   });
 
-  // 2. If no exact (branch + level) match, check profile matching ONLY branch
-  if (!matchedProfile && numBranchId) {
-    matchedProfile = safeBase.levelProfiles.find((profile) => {
-      return profile.branchId && Number(profile.branchId) === numBranchId;
-    });
-  }
-
-  // 3. Fallback: match by educational level across all profiles
+  // 2. If targetLevel is provided, match by educational level across all profiles FIRST!
+  // This prevents an incorrect branchId fallback from imposing a University profile on a Collège student.
   if (!matchedProfile && targetLevel) {
     matchedProfile = safeBase.levelProfiles.find((profile) => {
       if (Array.isArray(profile.applicableLevels) && profile.applicableLevels.length > 0) {
@@ -236,15 +323,50 @@ export function getActiveLevelHeaderConfig(
     });
   }
 
+  // 3. Fallback: match by branchId specifically, but ONLY if not in conflict with targetLevel!
+  if (!matchedProfile && numBranchId) {
+    matchedProfile = safeBase.levelProfiles.find((profile) => {
+      if (!profile.branchId || Number(profile.branchId) !== numBranchId) return false;
+      if (targetLevel) {
+        const isTargetHigher = isHigherEducationLevel(targetLevel);
+        const isProfileHigher = profile.applicableLevels?.some((lvl) => isHigherEducationLevel(String(lvl))) ||
+                                profile.name?.toLowerCase().includes("univ");
+        if (isTargetHigher !== isProfileHigher) {
+          return false; // Conflicting educational stage!
+        }
+      }
+      return true;
+    });
+  }
+
   if (!matchedProfile || !matchedProfile.headerConfig) {
     return safeBase;
   }
 
   const overrides = matchedProfile.headerConfig;
 
+  // Resolve sensible schoolName from profile if override doesn't specify one
+  const resolvedSchoolName = overrides.schoolName || matchedProfile.branchName || matchedProfile.name.replace(/^En-tête\s+/i, "").replace(/\s*\(.*\)$/, "") || safeBase.schoolName;
+
+  // For K-12, ensure service does not display University "Faculté"
+  let resolvedService = overrides.service !== undefined ? overrides.service : safeBase.service;
+  const isTargetK12 = targetLevel ? !isHigherEducationLevel(targetLevel) : false;
+  if (isTargetK12 && resolvedService && (resolvedService.toLowerCase().includes("facult") || resolvedService.toLowerCase().includes("lmd"))) {
+    resolvedService = "Service de la Scolarité";
+  }
+
+  // Ensure style is compatible
+  let resolvedStyle = overrides.style || safeBase.style;
+  if (isTargetK12 && resolvedStyle === "university_formal") {
+    resolvedStyle = "classic_dual_logo";
+  }
+
   return {
     ...safeBase,
     ...overrides,
+    schoolName: resolvedSchoolName,
+    service: resolvedService,
+    style: resolvedStyle,
     leftLogo: matchedProfile.leftLogo || matchedProfile.customLogo || overrides.leftLogo || safeBase.leftLogo,
     centerLogo: matchedProfile.centerLogo || overrides.centerLogo || safeBase.centerLogo,
     rightLogo: matchedProfile.rightLogo || overrides.rightLogo || safeBase.rightLogo,

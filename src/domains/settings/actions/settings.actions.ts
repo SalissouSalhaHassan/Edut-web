@@ -13,6 +13,9 @@ import {
   DOCUMENT_HEADER_SETTING_KEY,
   mergeDocumentHeaderConfig,
   getActiveLevelHeaderConfig,
+  isLevelMatching,
+  inferEducationalLevel,
+  isHigherEducationLevel,
   type DocumentHeaderConfig,
 } from "@/domains/printing/document-header";
 
@@ -80,11 +83,19 @@ export async function getBranchByLevel(level: string) {
     const allBranches = await fetchCachedBranches(schoolId);
     
     let branch = allBranches.find(b => 
-      b.instType?.toLowerCase() === (level || "Lycée").toLowerCase()
+      isLevelMatching(b.instType || "", level) || isLevelMatching(b.branchName || "", level)
     );
 
     if (!branch && allBranches.length > 0) {
-      branch = allBranches[0];
+      const isUniv = isHigherEducationLevel(level);
+      if (isUniv) {
+        branch = allBranches.find(b => b.instType?.toLowerCase().includes("univ") || b.branchName?.toLowerCase().includes("univ"));
+      } else {
+        branch = allBranches.find(b => !b.instType?.toLowerCase().includes("univ") && !b.branchName?.toLowerCase().includes("univ"));
+      }
+      if (!branch) {
+        branch = allBranches[0];
+      }
     }
 
     return { data: branch || null };
@@ -449,7 +460,7 @@ export async function fetchDocumentHeaderConfigForSchool(
   }
 
   if (!configData) {
-    // Fetch branch of the school for fallback values (matching targetBranchId if specified)
+    // Fetch branch of the school for fallback values (matching targetBranchId and targetLevel if specified)
     let branchFallback: any = null;
     try {
       const branches = await db.query.schoolBranches.findMany({
@@ -458,8 +469,25 @@ export async function fetchDocumentHeaderConfigForSchool(
       });
       if (branches && branches.length > 0) {
         if (targetBranchId) {
-          branchFallback = branches.find(b => b.id === Number(targetBranchId)) || branches[0];
-        } else {
+          branchFallback = branches.find(b => b.id === Number(targetBranchId));
+        }
+        if (!branchFallback && targetLevel) {
+          // Priority 1: Specific level match (excluding pure "Tous" if a specific branch exists)
+          branchFallback = branches.find(b => 
+            b.instType !== "Tous" && (isLevelMatching(b.instType || "", targetLevel) || isLevelMatching(b.branchName || "", targetLevel))
+          ) || branches.find(b => 
+            isLevelMatching(b.instType || "", targetLevel) || isLevelMatching(b.branchName || "", targetLevel)
+          );
+        }
+        if (!branchFallback && targetLevel) {
+          const isUniv = isHigherEducationLevel(targetLevel);
+          if (isUniv) {
+            branchFallback = branches.find(b => b.instType?.toLowerCase().includes("univ") || b.branchName?.toLowerCase().includes("univ"));
+          } else {
+            branchFallback = branches.find(b => !b.instType?.toLowerCase().includes("univ") && !b.branchName?.toLowerCase().includes("univ"));
+          }
+        }
+        if (!branchFallback) {
           branchFallback = branches[0];
         }
       }

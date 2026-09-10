@@ -4,6 +4,7 @@ import { amiriFontBase64 } from "@/domains/printing/utils/amiri-font";
 import { hasArabicCharacters, reshapeArabicText } from "@/domains/printing/utils/arabic-reshaper";
 import * as XLSX from "xlsx";
 import QRCode from "qrcode";
+import { inferEducationalLevel, isHigherEducationLevel } from "@/domains/printing/document-header";
 
 function ensureAmiriRegistered(doc: jsPDF) {
   try {
@@ -193,15 +194,28 @@ function drawPDFHeader(
   eduLevel: string,
   session: string
 ) {
-  const style = headerConfig?.style || "classic_dual_logo";
+  const isUniv = isHigherEducationLevel(eduLevel);
+  let style = headerConfig?.style || (isUniv ? "university_formal" : "classic_dual_logo");
+  if (!isUniv && style === "university_formal") {
+    style = "classic_dual_logo";
+  }
+
   const schoolName = headerConfig?.schoolName || branchInfo?.branchName || "ÉCOLE EXCELLENCE";
   const address = headerConfig?.address || branchInfo?.address || "";
   const phone = headerConfig?.phone || branchInfo?.contactNo || "";
   const email = headerConfig?.email || branchInfo?.email || "";
   const registrationNo = headerConfig?.registrationNo || branchInfo?.registrationNo || "";
   const schoolYear = headerConfig?.schoolYear || session || "";
-  const ministry = headerConfig?.ministry || "Ministère de l'Éducation Nationale";
-  const service = headerConfig?.service || "Service de la Scolarité";
+  const defaultMinistry = isUniv
+    ? "Ministère de l'Enseignement Supérieur, de la Recherche et de l'Innovation"
+    : "Ministère de l'Éducation Nationale";
+  const ministry = headerConfig?.ministry || defaultMinistry;
+
+  let service = headerConfig?.service || (isUniv ? "Faculté / Direction des Études" : "Service de la Scolarité");
+  if (!isUniv && service && (service.toLowerCase().includes("facult") || service.toLowerCase().includes("lmd"))) {
+    service = "Service de la Scolarité";
+  }
+
   const bp = headerConfig?.bp || "";
   const motto = headerConfig?.motto || "";
   
@@ -416,8 +430,20 @@ function drawPDFHeader(
 }
 
 export async function generateBulletinPDF(data: any) {
-  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const { student, session, term, results, summary, summaryS1, summaryS2, totalStudents, branchInfo, headerConfig } = data;
+
+  const eduLevel = inferEducationalLevel({
+    educationalLevel: student?.educationalLevel,
+    className: student?.classe || student?.className,
+    defaultLevel: "Lycée"
+  });
+
+  // If this is higher education (University / LMD), seamlessly redirect to the official Relevé de Notes generator!
+  if (isHigherEducationLevel(eduLevel)) {
+    return await generateReleveNotesPDF(data);
+  }
+
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   
   if (amiriFontBase64) {
     try {
@@ -430,12 +456,11 @@ export async function generateBulletinPDF(data: any) {
   }
 
   const safeTerm = (term || "Semestre").toUpperCase();
-  const eduLevel = (student?.educationalLevel || "Lycée").toUpperCase();
   
   // Title mapping based on level
   let mainTitle = "BULLETIN DE NOTES";
-  if (eduLevel.includes("PRIMAIRE")) mainTitle = "CARNET DE NOTES";
-  if (eduLevel.includes("UNIVERSITÉ") || eduLevel.includes("SUPÉRIEUR")) mainTitle = "RELEVÉ DE NOTES";
+  if (eduLevel === "Primaire") mainTitle = "CARNET DE NOTES";
+  else if (eduLevel === "Maternelle") mainTitle = "BULLETIN D'ÉVALUATION";
 
   // Header
   const headerEndY = drawPDFHeader(doc, headerConfig, branchInfo, eduLevel, session);
@@ -818,8 +843,19 @@ export async function generateBulletinPDF(data: any) {
  * au lieu de déclencher un téléchargement. Utilisé par BulletinEngine pour le batch.
  */
 export async function generateBulletinBlob(data: any): Promise<Blob> {
-  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const { student, session, term, results, summary, summaryS1, summaryS2, totalStudents, branchInfo, headerConfig } = data;
+
+  const eduLevel = inferEducationalLevel({
+    educationalLevel: student?.educationalLevel,
+    className: student?.classe || student?.className,
+    defaultLevel: "Lycée"
+  });
+
+  if (isHigherEducationLevel(eduLevel)) {
+    return await generateReleveNotesBlob(data);
+  }
+
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
 
   if (amiriFontBase64) {
     try {
@@ -831,11 +867,10 @@ export async function generateBulletinBlob(data: any): Promise<Blob> {
   }
 
   const safeTerm = (term || "Semestre").toUpperCase();
-  const eduLevel = (student?.educationalLevel || "Lycée").toUpperCase();
 
   let mainTitle = "BULLETIN DE NOTES";
-  if (eduLevel.includes("PRIMAIRE")) mainTitle = "CARNET DE NOTES";
-  if (eduLevel.includes("UNIVERSITÉ") || eduLevel.includes("SUPÉRIEUR")) mainTitle = "RELEVÉ DE NOTES";
+  if (eduLevel === "Primaire") mainTitle = "CARNET DE NOTES";
+  else if (eduLevel === "Maternelle") mainTitle = "BULLETIN D'ÉVALUATION";
 
   const headerEndY = drawPDFHeader(doc, headerConfig, branchInfo, eduLevel, session);
 
@@ -1725,21 +1760,7 @@ export async function generateResultsPedagogicalReportPDF(payload: any) {
     doc.roundedRect(93, pageHeight - 28, 112, 7, 1.5, 1.5, "F");
     doc.text("DOCUMENT GENERE HORS LIGNE - SYNCHRONISATION EN ATTENTE", 149, pageHeight - 23.2, { align: "center" });
     drawOfflineWatermark(doc, "BULLETIN PROVISOIRE");
-  }
-
-  const pageCount = (doc as any).internal.getNumberOfPages?.() || 1;
-  for (let i = 1; i <= pageCount; i++) {
-    doc.setPage(i);
-    doc.setFontSize(7);
-    doc.setTextColor(100, 116, 139);
-    doc.text(`Page ${i}/${pageCount}`, 285, 204, { align: "right" });
-  }
-
-  const filterClassName = (filters?.className || "Classe").replace(/\s+/g, "_");
-  doc.save(`Rapport_Pedagogique_${filterClassName}_${Date.now()}.pdf`);
-}
-
-export async function generateReleveNotesPDF(data: any) {
+export async function buildReleveNotesDoc(data: any): Promise<jsPDF> {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const { student, session, term, results, summary, resultsS1, resultsS2, resultsS3, resultsS4, resultsS5, resultsS6, summaryS1, summaryS2, summaryS3, summaryS4, summaryS5, summaryS6, branchInfo, headerConfig } = data;
 
@@ -1747,14 +1768,14 @@ export async function generateReleveNotesPDF(data: any) {
     try {
       doc.addFileToVFS("Amiri-Regular.ttf", amiriFontBase64);
       doc.addFont("Amiri-Regular.ttf", "Amiri", "normal", "Identity-H");
-      console.log("[Amiri debug] Amiri registered directly on doc instance in generateReleveNotesPDF");
+      console.log("[Amiri debug] Amiri registered directly on doc instance in buildReleveNotesDoc");
     } catch (e) {
-      console.warn("[Amiri debug] Failed to register Amiri directly in generateReleveNotesPDF:", e);
+      console.warn("[Amiri debug] Failed to register Amiri directly in buildReleveNotesDoc:", e);
     }
   }
 
   // --- 1. HEADER SECTION ---
-  const headerEndY = drawPDFHeader(doc, headerConfig, branchInfo, (student?.educationalLevel || "Université").toUpperCase(), session);
+  const headerEndY = drawPDFHeader(doc, headerConfig, branchInfo, "Université", session);
 
   // --- 2. TITLE BAR ---
   // Background logo watermark - Expanded to cover page center behind tables
@@ -1791,11 +1812,11 @@ export async function generateReleveNotesPDF(data: any) {
   doc.text("Matricule:", 10, studentInfoY + 4.5);
   doc.text("Parcours:", 10, studentInfoY + 9);
   
-  const studentNameStr = student?.nomEtudiant || student?.name || "ADIATULLAHI RABIU AHMAD Nigeria";
+  const studentNameStr = student?.nomEtudiant || student?.name || "Élève";
   doc.setFont("helvetica", "bold");
   drawTextBilingual(doc, studentNameStr, 30, studentInfoY);
-  drawTextBilingual(doc, student?.numAdmission || student?.matricule || "20 D 004", 30, studentInfoY + 4.5);
-  drawTextBilingual(doc, student?.classe || student?.className || "Première année de licence en Shari'a and Law", 30, studentInfoY + 9);
+  drawTextBilingual(doc, student?.numAdmission || student?.matricule || "N/A", 30, studentInfoY + 4.5);
+  drawTextBilingual(doc, student?.classe || student?.className || "Licence", 30, studentInfoY + 9);
 
   // Date et lieu de naissance (Date & Place of birth) on the student name line
   const rawDob = student?.dateNaissance || student?.dateOfBirth || student?.birthDate || student?.dob;
@@ -1815,8 +1836,8 @@ export async function generateReleveNotesPDF(data: any) {
       }
     }
   }
-  const finalDob = dobVal || "15/01/2002";
-  const pobStr = rawPob ? ` à ${rawPob}` : " à Niamey";
+  const finalDob = dobVal || "—";
+  const pobStr = rawPob ? ` à ${rawPob}` : "";
   const fullDobPobStr = `${finalDob}${pobStr}`;
 
   const nameWidth = doc.getTextWidth(studentNameStr);
@@ -1856,15 +1877,12 @@ export async function generateReleveNotesPDF(data: any) {
     activeSummary2 = summaryS6;
     suffix1 = "5";
     suffix2 = "6";
-  } else {
-    firstSemesterName = isDoctorate ? "ANNEE 1" : "SEMESTRE 1";
-    secondSemesterName = isDoctorate ? "ANNEE 2" : "SEMESTRE 2";
   }
 
   doc.setFontSize(9);
   doc.setFont("helvetica", "bold");
   doc.text(`Première session`, 10, s1SectionY);
-  doc.text(`${session || "2022/2023"}`, 40, s1SectionY);
+  doc.text(`${session || "2024-2025"}`, 40, s1SectionY);
   
   doc.setFontSize(12);
   doc.text(firstSemesterName, 105, s1TitleY, { align: "center" });
@@ -1919,7 +1937,6 @@ export async function generateReleveNotesPDF(data: any) {
   const hasRealS1   = activeResults1 && activeResults1.length > 0;
   const rows1       = hasRealS1 ? buildTableRows(activeResults1, suffix1) : [];
   const { totalCoef: tc1, totalPoints: tp1, average: avg1 } = computeTotals(rows1);
-  // Always use fresh computed average from raw data; only fall back to saved if no raw results
   const usedAvg1    = hasRealS1 ? avg1 : (activeSummary1?.average ?? 0);
   const decision1   = getDecision(usedAvg1, activeSummary1?.decision);
 
@@ -1951,43 +1968,39 @@ export async function generateReleveNotesPDF(data: any) {
       ]
     ],
     theme: "grid",
-    headStyles: { textColor: 0, fontStyle: "bold", lineWidth: 0.15, lineColor: 0, fillColor: [210, 230, 210] },
-    bodyStyles: { textColor: 0, lineWidth: 0.15, lineColor: 0 },
-    footStyles: { textColor: 0, lineWidth: 0.15, lineColor: 0 },
-    styles: { fontSize: 9.5, cellPadding: { top: 1, bottom: 1, left: 1.5, right: 1.5 } },
+    headStyles: { fillColor: [210, 230, 210], textColor: [0, 50, 0], fontStyle: "bold", halign: "center", lineWidth: 0.2, lineColor: [150, 180, 150] },
+    footStyles: { fillColor: [210, 230, 210], textColor: [0, 50, 0], fontStyle: "bold", lineWidth: 0.2, lineColor: [150, 180, 150] },
+    styles: { fontSize: 8, cellPadding: 1.2, lineColor: [180, 180, 180], lineWidth: 0.1 },
     columnStyles: {
-      0: { fontStyle: "bold", halign: "center", cellWidth: 28 },
-      1: { cellWidth: 82 },
-      2: { halign: "center", cellWidth: 22 },
-      3: { halign: "center", cellWidth: 26 },
-      4: { halign: "center", cellWidth: 32 }
+      0: { halign: "center", fontStyle: "bold", cellWidth: 25 },
+      1: { halign: "left" },
+      2: { halign: "center", cellWidth: 20 },
+      3: { halign: "center", cellWidth: 25 },
+      4: { halign: "center", cellWidth: 35 },
     },
-    didParseCell: (data: any) => {
-      if (data.section === 'body') {
-        data.cell.styles.fillColor = false;
-        if (data.column.index === 3 && data.cell.text?.[0]) {
-          const val = parseFloat(data.cell.text[0]);
-          if (!isNaN(val)) {
-            if (val >= 16)       data.cell.styles.textColor = [0, 128, 0];
-            else if (val >= 10)  data.cell.styles.textColor = [0, 0, 150];
-            else                 data.cell.styles.textColor = [200, 0, 0];
-          }
+    didParseCell: (data) => {
+      if (data.section === 'body' && data.column.index === 3) {
+        const val = parseFloat(data.cell.raw as string);
+        if (!isNaN(val)) {
+          if (val < 10) data.cell.styles.textColor = [200, 0, 0];
+          else if (val >= 14) data.cell.styles.textColor = [0, 0, 200];
         }
       }
     },
     margin: { left: 10, right: 10 }
   });
 
-  const finalY1 = (doc as any).lastAutoTable.finalY + 6;
+  const finalY1 = (doc as any).lastAutoTable.finalY + 4;
+  const s2TitleY = finalY1 + 4;
+  const table2StartY = finalY1 + 7;
 
   doc.setFontSize(12);
   doc.setFont("helvetica", "bold");
-  doc.text(secondSemesterName, 105, finalY1, { align: "center" });
+  doc.text(secondSemesterName, 105, s2TitleY, { align: "center" });
 
   const hasRealS2   = activeResults2 && activeResults2.length > 0;
   const rows2       = hasRealS2 ? buildTableRows(activeResults2, suffix2) : [];
   const { totalCoef: tc2, totalPoints: tp2, average: avg2 } = computeTotals(rows2);
-  // Always use fresh computed average from raw data; only fall back to saved if no raw results
   const usedAvg2    = hasRealS2 ? avg2 : (activeSummary2?.average ?? 0);
   const decision2   = getDecision(usedAvg2, activeSummary2?.decision);
 
@@ -2000,7 +2013,7 @@ export async function generateReleveNotesPDF(data: any) {
   ]);
 
   autoTable(doc, {
-    startY: finalY1 + 3,
+    startY: table2StartY,
     head: [["Code", "Matières", "Crédits", "Notes/20", "Mention"]],
     body: bodyData2.length > 0 ? bodyData2 : [["—", "Aucune note saisie pour ce semestre", "—", "—", "—"]],
     foot: [
@@ -2019,27 +2032,22 @@ export async function generateReleveNotesPDF(data: any) {
       ]
     ],
     theme: "grid",
-    headStyles: { textColor: 0, fontStyle: "bold", lineWidth: 0.15, lineColor: 0, fillColor: [210, 230, 210] },
-    bodyStyles: { textColor: 0, lineWidth: 0.15, lineColor: 0 },
-    footStyles: { textColor: 0, lineWidth: 0.15, lineColor: 0 },
-    styles: { fontSize: 9.5, cellPadding: { top: 1, bottom: 1, left: 1.5, right: 1.5 } },
+    headStyles: { fillColor: [210, 230, 210], textColor: [0, 50, 0], fontStyle: "bold", halign: "center", lineWidth: 0.2, lineColor: [150, 180, 150] },
+    footStyles: { fillColor: [210, 230, 210], textColor: [0, 50, 0], fontStyle: "bold", lineWidth: 0.2, lineColor: [150, 180, 150] },
+    styles: { fontSize: 8, cellPadding: 1.2, lineColor: [180, 180, 180], lineWidth: 0.1 },
     columnStyles: {
-      0: { fontStyle: "bold", halign: "center", cellWidth: 28 },
-      1: { cellWidth: 82 },
-      2: { halign: "center", cellWidth: 22 },
-      3: { halign: "center", cellWidth: 26 },
-      4: { halign: "center", cellWidth: 32 }
+      0: { halign: "center", fontStyle: "bold", cellWidth: 25 },
+      1: { halign: "left" },
+      2: { halign: "center", cellWidth: 20 },
+      3: { halign: "center", cellWidth: 25 },
+      4: { halign: "center", cellWidth: 35 },
     },
-    didParseCell: (data: any) => {
-      if (data.section === 'body') {
-        data.cell.styles.fillColor = false;
-        if (data.column.index === 3 && data.cell.text?.[0]) {
-          const val = parseFloat(data.cell.text[0]);
-          if (!isNaN(val)) {
-            if (val >= 16)       data.cell.styles.textColor = [0, 128, 0];
-            else if (val >= 10)  data.cell.styles.textColor = [0, 0, 150];
-            else                 data.cell.styles.textColor = [200, 0, 0];
-          }
+    didParseCell: (data) => {
+      if (data.section === 'body' && data.column.index === 3) {
+        const val = parseFloat(data.cell.raw as string);
+        if (!isNaN(val)) {
+          if (val < 10) data.cell.styles.textColor = [200, 0, 0];
+          else if (val >= 14) data.cell.styles.textColor = [0, 0, 200];
         }
       }
     },
@@ -2047,19 +2055,15 @@ export async function generateReleveNotesPDF(data: any) {
   });
 
   const finalY2 = (doc as any).lastAutoTable.finalY + 8;
-
-  // --- 6. SIGNATURE ---
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
   doc.text("Le Doyen", 105, finalY2, { align: "center" });
 
-  // --- 7. FOOTER NOTE ---
   const pageHeight = doc.internal.pageSize.getHeight();
   doc.setFont("helvetica", "italic");
   doc.setFontSize(7);
   doc.text("Il ne sera pas délivré de duplicata de ce relevé. Il vous appartient d'en faire des copies et de les faire certifier conformes.", 105, pageHeight - 5, { align: "center" });
 
-  // Draw Official Verification QR Code in top right position
   try {
     const studentMatricule = student?.numAdmission || student?.matricule || student?.id;
     const verifyUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://niger.edut.pro"}/verify/${encodeURIComponent(studentMatricule || "RELEVE")}`;
@@ -2073,20 +2077,51 @@ export async function generateReleveNotesPDF(data: any) {
 
   if (data.isOffline || (typeof navigator !== "undefined" && !navigator.onLine)) {
     doc.saveGraphicsState();
-    doc.setFillColor(254, 243, 199); // light amber background
-    doc.setDrawColor(245, 158, 11);   // amber border
+    doc.setFillColor(254, 243, 199);
+    doc.setDrawColor(245, 158, 11);
     doc.setLineWidth(0.5);
     doc.roundedRect(10, doc.internal.pageSize.getHeight() - 15, 190, 8, 1, 1, "FD");
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8.5);
-    doc.setTextColor(180, 83, 9);     // dark amber text
+    doc.setTextColor(180, 83, 9);
     doc.text("⚠️ DOCUMENT GÉNÉRÉ HORS LIGNE - EN ATTENTE DE SYNCHRONISATION", 105, doc.internal.pageSize.getHeight() - 9.5, { align: "center" });
     doc.restoreGraphicsState();
     drawOfflineWatermark(doc, "RELEVÉ PROVISOIRE");
   }
 
+  return doc;
+}
+
+export async function generateReleveNotesPDF(data: any) {
+  const eduLevel = inferEducationalLevel({
+    educationalLevel: data.student?.educationalLevel,
+    className: data.student?.classe || data.student?.className,
+    defaultLevel: "University"
+  });
+
+  if (!isHigherEducationLevel(eduLevel)) {
+    return await generateBulletinPDF(data);
+  }
+
+  const doc = await buildReleveNotesDoc(data);
+  const student = data.student;
   const studentName = (student?.nomEtudiant || student?.name || "Eleve").replace(/\s+/g, "_");
   doc.save(`Releve_Notes_${studentName}_${Date.now()}.pdf`);
+}
+
+export async function generateReleveNotesBlob(data: any): Promise<Blob> {
+  const eduLevel = inferEducationalLevel({
+    educationalLevel: data.student?.educationalLevel,
+    className: data.student?.classe || data.student?.className,
+    defaultLevel: "University"
+  });
+
+  if (!isHigherEducationLevel(eduLevel)) {
+    return await generateBulletinBlob(data);
+  }
+
+  const doc = await buildReleveNotesDoc(data);
+  return doc.output("blob");
 }
 
 export async function generateClassReportPDF(payload: any) {
