@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,7 +39,13 @@ import { toast } from "sonner";
 import { cancelFeePayment } from "../actions/finance.actions";
 import { getBranchByLevel } from "../../settings/actions/settings.actions";
 import OfficialDocumentHeader from "@/domains/printing/components/OfficialDocumentHeader";
-import type { DocumentHeaderConfig } from "@/domains/printing/document-header";
+import { 
+  inferEducationalLevel, 
+  getActiveLevelHeaderConfig, 
+  isHigherEducationLevel,
+  type DocumentHeaderConfig,
+  type EducationalLevel 
+} from "@/domains/printing/document-header";
 import { amiriFontBase64 } from "@/domains/printing/utils/amiri-font";
 import { hasArabicCharacters, reshapeArabicText } from "@/domains/printing/utils/arabic-reshaper";
 
@@ -269,13 +275,37 @@ export default function ReceiptPreviewDialog({
     }
   }, [open, headerConfig]);
 
+  // Smart stage inference & educational cycle detection
+  const inferredLevel = useMemo(() => {
+    return inferEducationalLevel(
+      feeData?.student?.educationalLevel ||
+      feeData?.student?.classe ||
+      feeData?.student?.classroom?.name ||
+      feeData?.student?.class?.name ||
+      feeData?.student?.filiere ||
+      feeData?.student?.grade ||
+      ""
+    );
+  }, [feeData]);
+
+  const isHigherEd = isHigherEducationLevel(inferredLevel);
+
+  // Derive level-specific official document header configuration
+  const effectiveHeaderConfig = useMemo(() => {
+    if (!activeHeaderConfig) return null;
+    return getActiveLevelHeaderConfig(activeHeaderConfig, inferredLevel);
+  }, [activeHeaderConfig, inferredLevel]);
+
   useEffect(() => {
-    if (open && feeData?.student?.educationalLevel) {
-      getBranchByLevel(feeData.student.educationalLevel).then((res) => {
-        if (res.data) setBranchInfo(res.data);
-      });
+    if (open) {
+      const levelToFetch = inferredLevel || feeData?.student?.educationalLevel;
+      if (levelToFetch) {
+        getBranchByLevel(levelToFetch).then((res) => {
+          if (res?.data) setBranchInfo(res.data);
+        });
+      }
     }
-  }, [open, feeData?.student?.educationalLevel]);
+  }, [open, inferredLevel, feeData?.student?.educationalLevel]);
 
   useEffect(() => {
     const styleId = "receipt-print-style-v3";
@@ -474,22 +504,47 @@ export default function ReceiptPreviewDialog({
         year: "numeric",
       });
 
-  const schoolName = activeHeaderConfig?.schoolName || branchInfo?.branchName || "EDUT ACADEMY";
-  const schoolAddress = activeHeaderConfig?.address || branchInfo?.address || "Secteur 5, Niamey, Niger";
-  const schoolPhone = activeHeaderConfig?.phone || branchInfo?.contactNo || "+227 90 12 34 56";
-  const schoolEmail = activeHeaderConfig?.email || branchInfo?.email || "contact@edutacademy.ne";
+  const targetHeader = effectiveHeaderConfig || activeHeaderConfig;
+  const schoolName = targetHeader?.schoolName || branchInfo?.branchName || (isHigherEd ? "UNIVERSITÉ INTERNATIONALE" : "GROUPE SCOLAIRE");
+  const schoolAddress = targetHeader?.address || branchInfo?.address || "Niamey, Niger";
+  const schoolPhone = targetHeader?.phone || branchInfo?.contactNo || "+227 90 12 34 56";
+  const schoolEmail = targetHeader?.email || branchInfo?.email || "contact@edutacademy.ne";
+  const defaultMinistry = isHigherEd 
+    ? "Ministère de l'Enseignement Supérieur et de la Recherche" 
+    : "Ministère de l'Éducation Nationale";
+  const defaultMinistryAr = isHigherEd 
+    ? "وزارة التعليم العالي والبحث العلمي" 
+    : "وزارة التربية الوطنية";
+  const defaultService = isHigherEd 
+    ? "Agence Comptable Universitaire / Scolarité" 
+    : "Service de l'Intendance & Comptabilité";
+  const defaultServiceAr = isHigherEd 
+    ? "وكالة المحاسبة الجامعية / شؤون الطلاب" 
+    : "مصلحة الشؤون المالية والمحاسبة";
+
   const receiptHeaderConfig: Partial<DocumentHeaderConfig> = {
-    style: activeHeaderConfig?.style || "classic_dual_logo",
+    style: targetHeader?.style || "classic_dual_logo",
     schoolName,
     address: schoolAddress,
     phone: schoolPhone,
     email: schoolEmail,
-    schoolYear: activeHeaderConfig?.schoolYear || feeData?.session?.sessionName || "2024 - 2025",
-    leftLogo: activeHeaderConfig?.leftLogo || branchInfo?.logoPath || "",
-    rightLogo: activeHeaderConfig?.rightLogo || branchInfo?.logoPath || "",
-    centerLogo: activeHeaderConfig?.centerLogo || branchInfo?.logoPath || "",
-    ministry: activeHeaderConfig?.ministry || "Ministère de l'Éducation Nationale",
-    service: activeHeaderConfig?.service || "Service de la Scolarité",
+    schoolYear: targetHeader?.schoolYear || feeData?.session?.sessionName || "2025 - 2026",
+    leftLogo: targetHeader?.leftLogo || branchInfo?.logoPath || "",
+    rightLogo: targetHeader?.rightLogo || branchInfo?.logoPath || "",
+    centerLogo: targetHeader?.centerLogo || branchInfo?.logoPath || "",
+    ministry: targetHeader?.ministry || defaultMinistry,
+    ministryAr: targetHeader?.ministryAr || defaultMinistryAr,
+    service: targetHeader?.service || defaultService,
+    serviceAr: targetHeader?.serviceAr || defaultServiceAr,
+    country: targetHeader?.country || branchInfo?.country || "RÉPUBLIQUE DU NIGER",
+    countryAr: targetHeader?.countryAr || "جمهورية النيجر",
+    schoolNameAr: targetHeader?.schoolNameAr || branchInfo?.schoolNameAr || "",
+    regionalDirection: !isHigherEd ? (targetHeader?.regionalDirection || branchInfo?.dren || "") : "",
+    regionalDirectionAr: !isHigherEd ? (targetHeader?.regionalDirectionAr || "") : "",
+    departmentalDirection: !isHigherEd ? (targetHeader?.departmentalDirection || branchInfo?.dden || "") : "",
+    departmentalDirectionAr: !isHigherEd ? (targetHeader?.departmentalDirectionAr || "") : "",
+    registrationNo: targetHeader?.registrationNo || branchInfo?.registrationNo || "",
+    bp: targetHeader?.bp || "",
   };
 
   // ---------- PRINT ----------
@@ -527,8 +582,8 @@ export default function ReceiptPreviewDialog({
     paperSize: "A4" | "A5"
   ): number {
     const style = headerConfig?.style || "classic_dual_logo";
-    const ministry = headerConfig?.ministry || "Ministère de l'Éducation Nationale";
-    const service = headerConfig?.service || "Service de la Scolarité";
+    const ministry = headerConfig?.ministry || (isHigherEd ? "Ministère de l'Enseignement Supérieur et de la Recherche" : "Ministère de l'Éducation Nationale");
+    const service = headerConfig?.service || (isHigherEd ? "Agence Comptable Universitaire / Scolarité" : "Service de l'Intendance & Comptabilité");
     const bp = headerConfig?.bp || "";
     const registrationNo = headerConfig?.registrationNo || branchInfo?.registrationNo || "";
     
@@ -577,8 +632,8 @@ export default function ReceiptPreviewDialog({
       const leftLines = [
         headerConfig?.country || branchInfo?.country || "RÉPUBLIQUE DU NIGER",
         ministry,
-        headerConfig?.regionalDirection || branchInfo?.regionalDirection || "",
-        headerConfig?.departmentalDirection || branchInfo?.departmentalDirection || "",
+        (!isHigherEd ? (headerConfig?.regionalDirection || branchInfo?.regionalDirection || "") : ""),
+        (!isHigherEd ? (headerConfig?.departmentalDirection || branchInfo?.departmentalDirection || "") : ""),
         schoolName,
         service,
         schoolAddress,
@@ -601,11 +656,11 @@ export default function ReceiptPreviewDialog({
       
       const rightLines = [
         headerConfig?.countryAr || "جمهورية النيجر",
-        headerConfig?.ministryAr || "وزارة التربية الوطنية",
-        headerConfig?.regionalDirectionAr || "",
-        headerConfig?.departmentalDirectionAr || "",
+        headerConfig?.ministryAr || (isHigherEd ? "وزارة التعليم العالي والبحث العلمي" : "وزارة التربية الوطنية"),
+        (!isHigherEd ? (headerConfig?.regionalDirectionAr || "") : ""),
+        (!isHigherEd ? (headerConfig?.departmentalDirectionAr || "") : ""),
         headerConfig?.schoolNameAr || schoolName,
-        headerConfig?.serviceAr || "",
+        headerConfig?.serviceAr || (isHigherEd ? "وكالة المحاسبة الجامعية / شؤون الطلاب" : "مصلحة الشؤون المالية والمحاسبة"),
       ].filter(Boolean);
 
       let rightY = isA5 ? 8 : 12;
@@ -1205,8 +1260,12 @@ export default function ReceiptPreviewDialog({
                       <FileText className="text-white" size={20} />
                     </div>
                     <div>
-                      <h2 className="text-lg font-black tracking-tight leading-none uppercase">REÇU DE PAIEMENT</h2>
-                      <p className="text-xs text-slate-300 font-medium mt-1">Preuve officielle de paiement des frais scolaires</p>
+                      <h2 className="text-lg font-black tracking-tight leading-none uppercase">
+                        {isHigherEd ? "REÇU DE PAIEMENT UNIVERSITAIRE" : "REÇU DE PAIEMENT SCOLAIRE"}
+                      </h2>
+                      <p className="text-xs text-slate-300 font-medium mt-1">
+                        {isHigherEd ? "Preuve officielle de versement des droits universitaires (LMD)" : "Preuve officielle de paiement des frais de scolarité"}
+                      </p>
                     </div>
                   </div>
                   <span className="px-3.5 py-1 bg-blue-600 text-white rounded-full text-xs font-black uppercase tracking-wider shadow-sm shrink-0">
@@ -1234,7 +1293,7 @@ export default function ReceiptPreviewDialog({
                           <User size={14} className="text-indigo-600" />
                         </div>
                         <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">
-                          Informations Élève
+                          Informations {isHigherEd ? "Étudiant" : "Élève"}
                         </p>
                       </div>
                       <p className="text-[17px] font-black text-slate-900 leading-tight mb-3">
@@ -1242,9 +1301,9 @@ export default function ReceiptPreviewDialog({
                       </p>
                       <div className="space-y-1.5 text-[12px]">
                         {[
-                          { label: "Classe", value: feeData.student?.classe },
+                          { label: isHigherEd ? "Niveau / Filière" : "Classe", value: feeData.student?.classe },
                           { label: "Matricule", value: feeData.student?.numAdmission },
-                          { label: "Année Scolaire", value: feeData.session?.sessionName || "2024–2025" },
+                          { label: isHigherEd ? "Année Académique" : "Année Scolaire", value: feeData.session?.sessionName || receiptHeaderConfig.schoolYear || "2025–2026" },
                         ].map(({ label, value }) => (
                           <div key={label} className="flex items-center gap-2">
                             <span className="text-slate-500 font-medium w-24">{label}</span>
@@ -1390,7 +1449,7 @@ export default function ReceiptPreviewDialog({
                       <div className="w-[105px] h-[105px] rounded-full border-2 border-blue-900/30 flex items-center justify-center p-1 relative">
                         <div className="w-full h-full rounded-full border border-blue-900/30 flex flex-col items-center justify-center text-center p-1 text-blue-900/50 font-black">
                           <p className="text-[7.5px] uppercase tracking-wider">★ {schoolName.toUpperCase()} ★</p>
-                          <p className="text-[6.5px] font-bold mt-0.5">SERVICE SCOLARITÉ</p>
+                          <p className="text-[6.5px] font-bold mt-0.5">{isHigherEd ? "AGENCE COMPTABLE / SCOLARITÉ" : "SERVICE INTENDANCE / SCOLARITÉ"}</p>
                         </div>
                       </div>
                     </div>

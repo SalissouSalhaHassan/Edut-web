@@ -5,6 +5,7 @@
  */
 
 import QRCode from "qrcode";
+import { inferEducationalLevel, isHigherEducationLevel } from "@/domains/printing/document-header";
 
 export interface MobilePaymentReceiptParams {
   transaction: {
@@ -60,10 +61,16 @@ export async function generateMobilePaymentReceiptPDF(data: MobilePaymentReceipt
   doc.rect(9.5, 9.5, pageWidth - 19, pageHeight - 19, "S");
 
   // 2. En-tête Institutionnel et Républicain
+  const inferredLevel = inferEducationalLevel(data.student?.classe || data.student?.filiere || "");
+  const isHigherEd = isHigherEducationLevel(inferredLevel);
   const country = (data.institution?.countryName || "RÉPUBLIQUE DU NIGER").toUpperCase();
-  const ministry = data.institution?.ministryName || "MINISTÈRE DE L'ENSEIGNEMENT SUPÉRIEUR ET DE LA RECHERCHE";
-  const school = (data.institution?.name || "UNIVERSITÉ DES SCIENCES & TECHNOLOGIES").toUpperCase();
-  const agency = "AGENCE COMPTABLE • SERVICE DES ENCAISSEMENTS MOBILES";
+  const ministry = data.institution?.ministryName || (isHigherEd 
+    ? "MINISTÈRE DE L'ENSEIGNEMENT SUPÉRIEUR ET DE LA RECHERCHE" 
+    : "MINISTÈRE DE L'ÉDUCATION NATIONALE");
+  const school = (data.institution?.name || (isHigherEd ? "UNIVERSITÉ DES SCIENCES & TECHNOLOGIES" : "ÉTABLISSEMENT SCOLAIRE EXCELLENCE")).toUpperCase();
+  const agency = isHigherEd 
+    ? "AGENCE COMPTABLE • SERVICE DES ENCAISSEMENTS MOBILES" 
+    : "SERVICE DE L'INTENDANCE • CAISSE & ENCAISSEMENTS MOBILES";
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8.5);

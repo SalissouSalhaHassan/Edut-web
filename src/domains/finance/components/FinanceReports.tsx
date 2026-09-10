@@ -9,6 +9,12 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { Input } from "@/components/ui/input";
 import OfficialDocumentHeader from "@/domains/printing/components/OfficialDocumentHeader";
+import { 
+  inferEducationalLevel, 
+  getActiveLevelHeaderConfig, 
+  isHigherEducationLevel,
+  type EducationalLevel 
+} from "@/domains/printing/document-header";
 import { amiriFontBase64 } from "@/domains/printing/utils/amiri-font";
 import { hasArabicCharacters, reshapeArabicText } from "@/domains/printing/utils/arabic-reshaper";
 
@@ -38,6 +44,7 @@ interface FinanceReportsProps {
     revenueYear: number;
   };
   isMounted: boolean;
+  headerConfig?: any | null;
 }
 
 export const ACCOUNTING_REPORTS = [
@@ -103,14 +110,28 @@ function drawPDFHeader(
   title: string
 ): number {
   const style = headerConfig?.style || "classic_dual_logo";
-  const schoolName = headerConfig?.schoolName || "ÉCOLE EXCELLENCE";
+  const isHigherEd = isHigherEducationLevel(headerConfig?._inferredLevel);
+  const schoolName = headerConfig?.schoolName || (isHigherEd ? "UNIVERSITÉ INTERNATIONALE" : "ÉCOLE EXCELLENCE");
   const address = headerConfig?.address || "Niamey, Niger";
   const phone = headerConfig?.phone || "+227 90 12 34 56";
   const email = headerConfig?.email || "contact@edutacademy.ne";
   const registrationNo = headerConfig?.registrationNo || "";
-  const schoolYear = headerConfig?.schoolYear || "2024–2025";
-  const ministry = headerConfig?.ministry || "Ministère de l'Éducation Nationale";
-  const service = headerConfig?.service || "Service de la Scolarité & Comptabilité";
+  const schoolYear = headerConfig?.schoolYear || "2025–2026";
+  const defaultMinistry = isHigherEd 
+    ? "Ministère de l'Enseignement Supérieur et de la Recherche" 
+    : "Ministère de l'Éducation Nationale";
+  const defaultMinistryAr = isHigherEd 
+    ? "وزارة التعليم العالي والبحث العلمي" 
+    : "وزارة التربية الوطنية";
+  const defaultService = isHigherEd 
+    ? "Agence Comptable Universitaire / Scolarité" 
+    : "Service de la Scolarité & Comptabilité";
+  const defaultServiceAr = isHigherEd 
+    ? "وكالة المحاسبة الجامعية / شؤون الطلاب" 
+    : "مصلحة الشؤون المالية والمحاسبة";
+
+  const ministry = headerConfig?.ministry || defaultMinistry;
+  const service = headerConfig?.service || defaultService;
   const bp = headerConfig?.bp || "";
   const motto = headerConfig?.motto || "Discipline - Travail - Succès";
   
@@ -143,7 +164,7 @@ function drawPDFHeader(
     doc.setFont("helvetica", "normal");
     doc.setFontSize(isA5 ? 6.5 : 8);
     doc.setTextColor(203, 213, 225);
-    drawWrappedText(doc, `Année Scolaire : ${schoolYear} | ${service}`, margin + (isA5 ? 22 : 28), isA5 ? 18 : 22, W - 2 * margin - 35, "left");
+    drawWrappedText(doc, `${isHigherEd ? 'Année Académique' : 'Année Scolaire'} : ${schoolYear} | ${service}`, margin + (isA5 ? 22 : 28), isA5 ? 18 : 22, W - 2 * margin - 35, "left");
     drawWrappedText(doc, `${address} ${phone ? '| Tél: ' + phone : ''}`, margin + (isA5 ? 22 : 28), isA5 ? 22.5 : 27, W - 2 * margin - 35, "left");
     
     doc.setTextColor(15, 23, 42);
@@ -176,9 +197,9 @@ function drawPDFHeader(
 
     const rightLines = [
       headerConfig?.countryAr || "جمهورية النيجر",
-      headerConfig?.ministryAr || "وزارة التربية الوطنية",
+      headerConfig?.ministryAr || defaultMinistryAr,
       headerConfig?.schoolNameAr || schoolName,
-      headerConfig?.serviceAr || "مصلحة الشؤون المالية",
+      headerConfig?.serviceAr || defaultServiceAr,
     ].filter(Boolean);
 
     const colWidth = centerLogo ? (centerX - margin - (isA5 ? 12 : 15)) : (centerX - margin - 4);
@@ -187,15 +208,17 @@ function drawPDFHeader(
     doc.setFont("helvetica", "normal");
     doc.setFontSize(isA5 ? 6 : 7.5);
     doc.setTextColor(15, 23, 42);
+    const stepY = isA5 ? 3.5 : 4.5;
+
     for (const line of leftLines) {
       const height = drawWrappedText(doc, line, margin, leftY, colWidth, "left");
-      leftY += height + 0.5;
+      leftY += height - 4.5 + stepY;
     }
     
     let rightY = isA5 ? 9 : 11;
     for (const line of rightLines) {
       const height = drawWrappedText(doc, line, rightX, rightY, colWidth, "right");
-      rightY += height + 0.5;
+      rightY += height - 4.5 + stepY;
     }
     
     const maxY = Math.max(leftY, rightY);
@@ -228,7 +251,7 @@ function drawPDFHeader(
   const centerLines = [
     schoolName,
     motto ? `« ${motto} »` : "",
-    [registrationNo && `Agrément : ${registrationNo}`, `Année Scolaire : ${schoolYear}`].filter(Boolean).join(" | "),
+    [registrationNo && `Agrément : ${registrationNo}`, `${isHigherEd ? 'Année Académique' : 'Année Scolaire'} : ${schoolYear}`].filter(Boolean).join(" | "),
     [phone && `Tél : ${phone}`, email && `Email : ${email}`].filter(Boolean).join(" | "),
     address ? `Adresse : ${address}` : "",
   ].filter(Boolean);
@@ -270,21 +293,25 @@ function drawPDFHeader(
   return finalY + 2;
 }
 
-export default function FinanceReports({ fees = [], classes = [], classSummary = [], stats, isMounted }: FinanceReportsProps) {
+export default function FinanceReports({ fees = [], classes = [], classSummary = [], stats, isMounted, headerConfig: initialHeaderConfig }: FinanceReportsProps) {
   const [activeReport, setActiveReport] = React.useState("journal");
-  const [headerConfig, setHeaderConfig] = React.useState<any>(null);
+  const [headerConfig, setHeaderConfig] = React.useState<any>(initialHeaderConfig || null);
   const [selectedPaperSize, setSelectedPaperSize] = React.useState<"A4" | "A5">("A4");
 
   React.useEffect(() => {
-    import("@/domains/settings/actions/settings.actions").then(({ getDocumentHeaderConfig }) => {
-      getDocumentHeaderConfig().then((res) => {
-        if (res?.data) {
-          const cfg = (res.data as any).data || res.data;
-          setHeaderConfig(cfg);
-        }
+    if (initialHeaderConfig) {
+      setHeaderConfig(initialHeaderConfig);
+    } else {
+      import("@/domains/settings/actions/settings.actions").then(({ getDocumentHeaderConfig }) => {
+        getDocumentHeaderConfig().then((res) => {
+          if (res?.data) {
+            const cfg = (res.data as any).data || res.data;
+            setHeaderConfig(cfg);
+          }
+        });
       });
-    });
-  }, []);
+    }
+  }, [initialHeaderConfig]);
 
   React.useEffect(() => {
     const styleId = "finance-report-size-print-style";
@@ -355,7 +382,40 @@ export default function FinanceReports({ fees = [], classes = [], classSummary =
   const today = isMounted ? new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" }) : "";
 
   // ── DERIVED DATA ──
-  const uniqueLevels = React.useMemo(() => Array.from(new Set(fees.map((f: any) => f.student?.educationalLevel).filter(Boolean))), [fees]);
+  const uniqueLevels = React.useMemo(() => {
+    const rawLevels = new Set<string>();
+    for (const f of fees) {
+      if (f.student?.educationalLevel) {
+        rawLevels.add(f.student.educationalLevel);
+      } else if (f.student?.classe) {
+        const inf = inferEducationalLevel(f.student.classe);
+        if (inf) rawLevels.add(inf);
+      }
+    }
+    return Array.from(rawLevels);
+  }, [fees]);
+
+  // Derive stage / educational cycle of current active report
+  const activeReportInferredLevel = React.useMemo(() => {
+    if (levelFilter && levelFilter !== "Tous") {
+      return inferEducationalLevel(levelFilter);
+    }
+    if (classFilter && classFilter !== "Tous") {
+      return inferEducationalLevel(classFilter);
+    }
+    return undefined;
+  }, [levelFilter, classFilter]);
+
+  const isHigherEdReport = isHigherEducationLevel(activeReportInferredLevel);
+
+  const effectiveHeaderConfig = React.useMemo(() => {
+    if (!headerConfig) return null;
+    const base = getActiveLevelHeaderConfig(headerConfig, activeReportInferredLevel);
+    return {
+      ...base,
+      _inferredLevel: activeReportInferredLevel,
+    };
+  }, [headerConfig, activeReportInferredLevel]);
   const allPayments = React.useMemo(() => fees.flatMap((fee: any) => (fee.payments || []).map((p: any) => ({
     ...p,
     studentName: fee.student?.nomEtudiant || "Inconnu",
@@ -825,7 +885,7 @@ export default function FinanceReports({ fees = [], classes = [], classSummary =
       ensureAmiriRegistered(doc);
 
       const { title, headers, rows, kpis } = getActiveReportDataset();
-      const startY = drawPDFHeader(doc, headerConfig, title);
+      const startY = drawPDFHeader(doc, effectiveHeaderConfig || headerConfig, title);
 
       const W = doc.internal.pageSize.getWidth();
       const H = doc.internal.pageSize.getHeight();
@@ -842,7 +902,7 @@ export default function FinanceReports({ fees = [], classes = [], classSummary =
 
       const filterParts = [
         `Classe : ${classFilter}`,
-        `Niveau : ${levelFilter}`,
+        `Niveau : ${levelFilter}${activeReportInferredLevel ? ` (${activeReportInferredLevel})` : ''}`,
         `Caissier : ${cashierFilter}`,
         `Mode : ${modeFilter}`,
         `Édité le : ${today}`
@@ -1211,9 +1271,9 @@ export default function FinanceReports({ fees = [], classes = [], classSummary =
           
           {/* Printable Official Institutional Header */}
           <div className="hidden print:block mb-6">
-            <OfficialDocumentHeader config={headerConfig} title={ACCOUNTING_REPORTS.find(r => r.id === activeReport)?.label || "Rapport Financier"} />
+            <OfficialDocumentHeader config={effectiveHeaderConfig || headerConfig} title={ACCOUNTING_REPORTS.find(r => r.id === activeReport)?.label || "Rapport Financier"} />
             <div className="flex justify-between items-center text-[10px] text-slate-500 font-bold border-b border-slate-200 pb-2 mb-4">
-              <span>Classe : {classFilter} | Niveau : {levelFilter} | Caissier : {cashierFilter}</span>
+              <span>Classe : {classFilter} | Niveau : {levelFilter}{activeReportInferredLevel ? ` (${activeReportInferredLevel})` : ''} | Caissier : {cashierFilter}</span>
               <span>Date d'édition : {today}</span>
             </div>
           </div>

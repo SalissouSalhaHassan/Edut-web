@@ -1090,6 +1090,7 @@ export default function FinanceClient({
             revenueYear: 0,
           }}
           isMounted={isMounted}
+          headerConfig={headerConfig}
         />
       )}
 

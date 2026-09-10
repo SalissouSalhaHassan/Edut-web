@@ -5,6 +5,7 @@
  */
 
 import QRCode from "qrcode";
+import { inferEducationalLevel, isHigherEducationLevel } from "@/domains/printing/document-header";
 
 export interface ScholarshipAttestationParams {
   student: {
@@ -136,11 +137,15 @@ export async function generateAttestationBoursePDF(data: ScholarshipAttestationP
   doc.setLineWidth(0.4);
   doc.rect(9.5, 9.5, pageWidth - 19, pageHeight - 19, "S");
 
-  // En-tête Républicain et Universitaire
+  // En-tête Républicain et Institutionnel
+  const inferredLevel = inferEducationalLevel(data.student.classe || data.student.filiere || "");
+  const isHigherEd = isHigherEducationLevel(inferredLevel);
   const country = (data.institution?.countryName || "RÉPUBLIQUE DU NIGER").toUpperCase();
-  const ministry = data.institution?.ministryName || "MINISTÈRE DE L'ENSEIGNEMENT SUPÉRIEUR ET DE LA RECHERCHE";
-  const school = (data.institution?.name || "UNIVERSITÉ DES SCIENCES & TECHNOLOGIES").toUpperCase();
-  const faculty = (data.institution?.facultyName || "DIRECTION DES AFFAIRES FINANCIÈRES & DES BOURSES").toUpperCase();
+  const ministry = data.institution?.ministryName || (isHigherEd 
+    ? "MINISTÈRE DE L'ENSEIGNEMENT SUPÉRIEUR ET DE LA RECHERCHE" 
+    : "MINISTÈRE DE L'ÉDUCATION NATIONALE");
+  const school = (data.institution?.name || (isHigherEd ? "UNIVERSITÉ DES SCIENCES & TECHNOLOGIES" : "ÉTABLISSEMENT SCOLAIRE EXCELLENCE")).toUpperCase();
+  const faculty = (data.institution?.facultyName || (isHigherEd ? "DIRECTION DES AFFAIRES FINANCIÈRES & DES BOURSES" : "SERVICE DE L'INTENDANCE & DE LA SCOLARITÉ")).toUpperCase();
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8.5);
@@ -386,8 +391,10 @@ export async function generateEcheancierPaiementPDF(data: PaymentSchedulePDFPara
   doc.rect(9.5, 9.5, pageWidth - 19, pageHeight - 19, "S");
 
   // Headings
+  const inferredLevel = inferEducationalLevel(data.student.classe || "");
+  const isHigherEd = isHigherEducationLevel(inferredLevel);
   const country = (data.institution?.countryName || "RÉPUBLIQUE DU NIGER").toUpperCase();
-  const school = (data.institution?.name || "UNIVERSITÉ DES SCIENCES & TECHNOLOGIES").toUpperCase();
+  const school = (data.institution?.name || (isHigherEd ? "UNIVERSITÉ DES SCIENCES & TECHNOLOGIES" : "ÉTABLISSEMENT SCOLAIRE EXCELLENCE")).toUpperCase();
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8.5);
@@ -555,9 +562,11 @@ export async function generateLettreRelancePDF(data: OverdueNoticePDFParams): Pr
   doc.rect(9.5, 9.5, pageWidth - 19, pageHeight - 19, "S");
 
   // Headings
+  const inferredLevel = inferEducationalLevel(data.student.classe || "");
+  const isHigherEd = isHigherEducationLevel(inferredLevel);
   const country = (data.institution?.countryName || "RÉPUBLIQUE DU NIGER").toUpperCase();
-  const school = (data.institution?.name || "UNIVERSITÉ DES SCIENCES & TECHNOLOGIES").toUpperCase();
-  const faculty = (data.institution?.facultyName || "DIRECTION DU RECOUVREMENT & DE LA SCOLARITÉ").toUpperCase();
+  const school = (data.institution?.name || (isHigherEd ? "UNIVERSITÉ DES SCIENCES & TECHNOLOGIES" : "ÉTABLISSEMENT SCOLAIRE EXCELLENCE")).toUpperCase();
+  const faculty = (data.institution?.facultyName || (isHigherEd ? "DIRECTION DU RECOUVREMENT & DE LA SCOLARITÉ" : "SERVICE DE L'INTENDANCE & DE LA COMPTABILITÉ")).toUpperCase();
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8.5);
