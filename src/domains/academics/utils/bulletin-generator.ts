@@ -169,14 +169,24 @@ async function fetchTransparentLogoBase64(url: string, opacity: number = 0.08): 
     img.crossOrigin = 'Anonymous';
     img.src = url;
     img.onload = () => {
+      // Ensure high DPI / high resolution for crisp print quality
+      const naturalW = img.naturalWidth || img.width || 800;
+      const naturalH = img.naturalHeight || img.height || 800;
+      const targetMax = Math.max(naturalW, naturalH, 1200);
+      const scale = targetMax / Math.max(naturalW, naturalH, 1);
+      const targetW = Math.round(naturalW * scale);
+      const targetH = Math.round(naturalH * scale);
+
       const canvas = document.createElement('canvas');
-      canvas.width = img.width;
-      canvas.height = img.height;
+      canvas.width = targetW;
+      canvas.height = targetH;
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.clearRect(0, 0, targetW, targetH);
         ctx.globalAlpha = opacity;
-        ctx.drawImage(img, 0, 0);
+        ctx.drawImage(img, 0, 0, targetW, targetH);
       }
       const dataUrl = canvas.toDataURL('image/png');
       resolve(dataUrl);
@@ -1792,13 +1802,14 @@ export async function buildReleveNotesDoc(data: any): Promise<jsPDF> {
   const headerEndY = drawPDFHeader(doc, headerConfig, branchInfo, "Université", session);
 
   // --- 2. TITLE BAR ---
-  // Background logo watermark - Expanded to cover page center behind tables
+  // Background logo watermark - Perfectly centered on A4 page with high fidelity
   const logoUrl = headerConfig?.centerLogo || headerConfig?.leftLogo || headerConfig?.rightLogo || branchInfo?.logoPath;
   if (logoUrl) {
     try {
-      const logoWatermark = await fetchTransparentLogoBase64(logoUrl, 0.10);
+      const logoWatermark = await fetchTransparentLogoBase64(logoUrl, 0.12);
       if (logoWatermark) {
-        doc.addImage(logoWatermark, 'PNG', 30, 70, 150, 150);
+        // Centered horizontally (210 - 140) / 2 = 35, and vertically across both semester tables Y = 75 to 215
+        doc.addImage(logoWatermark, 'PNG', 35, 75, 140, 140);
       }
     } catch (e) {
       console.warn("Failed to load watermark for releve:", e);
@@ -1985,6 +1996,8 @@ export async function buildReleveNotesDoc(data: any): Promise<jsPDF> {
     headStyles: { fillColor: [210, 230, 210], textColor: [0, 50, 0], fontStyle: "bold", halign: "center", lineWidth: 0.2, lineColor: [150, 180, 150] },
     footStyles: { fillColor: [210, 230, 210], textColor: [0, 50, 0], fontStyle: "bold", lineWidth: 0.2, lineColor: [150, 180, 150] },
     styles: { fontSize: 8, cellPadding: 1.2, lineColor: [180, 180, 180], lineWidth: 0.1 },
+    bodyStyles: { fillColor: false as any },
+    alternateRowStyles: { fillColor: false as any },
     columnStyles: {
       0: { halign: "center", fontStyle: "bold", cellWidth: 25 },
       1: { halign: "left" },
@@ -1993,6 +2006,9 @@ export async function buildReleveNotesDoc(data: any): Promise<jsPDF> {
       4: { halign: "center", cellWidth: 35 },
     },
     didParseCell: (data: any) => {
+      if (data.section === 'body') {
+        data.cell.styles.fillColor = false;
+      }
       if (data.section === 'body' && data.column.index === 3) {
         const val = parseFloat(data.cell.raw as string);
         if (!isNaN(val)) {
@@ -2049,6 +2065,8 @@ export async function buildReleveNotesDoc(data: any): Promise<jsPDF> {
     headStyles: { fillColor: [210, 230, 210], textColor: [0, 50, 0], fontStyle: "bold", halign: "center", lineWidth: 0.2, lineColor: [150, 180, 150] },
     footStyles: { fillColor: [210, 230, 210], textColor: [0, 50, 0], fontStyle: "bold", lineWidth: 0.2, lineColor: [150, 180, 150] },
     styles: { fontSize: 8, cellPadding: 1.2, lineColor: [180, 180, 180], lineWidth: 0.1 },
+    bodyStyles: { fillColor: false as any },
+    alternateRowStyles: { fillColor: false as any },
     columnStyles: {
       0: { halign: "center", fontStyle: "bold", cellWidth: 25 },
       1: { halign: "left" },
@@ -2057,6 +2075,9 @@ export async function buildReleveNotesDoc(data: any): Promise<jsPDF> {
       4: { halign: "center", cellWidth: 35 },
     },
     didParseCell: (data: any) => {
+      if (data.section === 'body') {
+        data.cell.styles.fillColor = false;
+      }
       if (data.section === 'body' && data.column.index === 3) {
         const val = parseFloat(data.cell.raw as string);
         if (!isNaN(val)) {
