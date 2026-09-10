@@ -1992,7 +1992,7 @@ export async function buildReleveNotesDoc(data: any): Promise<jsPDF> {
       3: { halign: "center", cellWidth: 25 },
       4: { halign: "center", cellWidth: 35 },
     },
-    didParseCell: (data) => {
+    didParseCell: (data: any) => {
       if (data.section === 'body' && data.column.index === 3) {
         const val = parseFloat(data.cell.raw as string);
         if (!isNaN(val)) {
@@ -2056,7 +2056,7 @@ export async function buildReleveNotesDoc(data: any): Promise<jsPDF> {
       3: { halign: "center", cellWidth: 25 },
       4: { halign: "center", cellWidth: 35 },
     },
-    didParseCell: (data) => {
+    didParseCell: (data: any) => {
       if (data.section === 'body' && data.column.index === 3) {
         const val = parseFloat(data.cell.raw as string);
         if (!isNaN(val)) {
