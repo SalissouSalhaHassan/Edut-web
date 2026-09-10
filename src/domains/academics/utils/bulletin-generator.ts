@@ -429,7 +429,7 @@ function drawPDFHeader(
   return finalY + 1;
 }
 
-export async function generateBulletinPDF(data: any) {
+export async function generateBulletinPDF(data: any): Promise<void> {
   const { student, session, term, results, summary, summaryS1, summaryS2, totalStudents, branchInfo, headerConfig } = data;
 
   const eduLevel = inferEducationalLevel({
@@ -2106,7 +2106,7 @@ export async function buildReleveNotesDoc(data: any): Promise<jsPDF> {
   return doc;
 }
 
-export async function generateReleveNotesPDF(data: any) {
+export async function generateReleveNotesPDF(data: any): Promise<void> {
   const eduLevel = inferEducationalLevel({
     educationalLevel: data.student?.educationalLevel,
     className: data.student?.classe || data.student?.className,
