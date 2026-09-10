@@ -739,7 +739,8 @@ export default function DashboardSidebar({
               })}
             </div>
           </div>
-        ))}
+        );
+      })}
       </nav>
 
       {/* PWA Install Action */}
