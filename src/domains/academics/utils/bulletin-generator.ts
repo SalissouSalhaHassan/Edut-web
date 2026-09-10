@@ -1760,6 +1760,20 @@ export async function generateResultsPedagogicalReportPDF(payload: any) {
     doc.roundedRect(93, pageHeight - 28, 112, 7, 1.5, 1.5, "F");
     doc.text("DOCUMENT GENERE HORS LIGNE - SYNCHRONISATION EN ATTENTE", 149, pageHeight - 23.2, { align: "center" });
     drawOfflineWatermark(doc, "BULLETIN PROVISOIRE");
+  }
+
+  const pageCount = (doc as any).internal.getNumberOfPages?.() || 1;
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFontSize(7);
+    doc.setTextColor(100, 116, 139);
+    doc.text(`Page ${i}/${pageCount}`, 285, 204, { align: "right" });
+  }
+
+  const filterClassName = (filters?.className || "Classe").replace(/\s+/g, "_");
+  doc.save(`Rapport_Pedagogique_${filterClassName}_${Date.now()}.pdf`);
+}
+
 export async function buildReleveNotesDoc(data: any): Promise<jsPDF> {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const { student, session, term, results, summary, resultsS1, resultsS2, resultsS3, resultsS4, resultsS5, resultsS6, summaryS1, summaryS2, summaryS3, summaryS4, summaryS5, summaryS6, branchInfo, headerConfig } = data;
