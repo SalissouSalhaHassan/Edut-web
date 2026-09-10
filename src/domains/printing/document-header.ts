@@ -172,15 +172,18 @@ const LEVEL_GROUPS: Record<string, string[]> = {
  * Robustly infers canonical educational level from any combination of
  * student educationalLevel, class name, and section name.
  */
-export function inferEducationalLevel(hints?: {
+export function inferEducationalLevel(hints?: string | {
   educationalLevel?: string | null;
   className?: string | null;
   sectionName?: string | null;
   defaultLevel?: string;
 }): CanonicalLevel {
-  const normLvl = normalizeLevel(hints?.educationalLevel || "");
-  const normCls = normalizeLevel(hints?.className || "");
-  const normSec = normalizeLevel(hints?.sectionName || "");
+  const hintsObj = typeof hints === "string"
+    ? { educationalLevel: hints, className: hints }
+    : hints;
+  const normLvl = normalizeLevel(hintsObj?.educationalLevel || "");
+  const normCls = normalizeLevel(hintsObj?.className || "");
+  const normSec = normalizeLevel(hintsObj?.sectionName || "");
   const fullText = `${normLvl} ${normCls} ${normSec}`.trim();
 
   // 1. University / Supérieur / LMD check
