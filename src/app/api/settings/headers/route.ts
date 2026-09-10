@@ -48,6 +48,13 @@ export async function POST(request: NextRequest) {
       await redisCache.del(`edut:header_config:${schoolId}`);
     } catch (_) {}
 
+    try {
+      const { revalidatePath } = await import("next/cache");
+      revalidatePath("/dashboard/settings/headers");
+      revalidatePath("/dashboard/campus-setup");
+      revalidatePath("/dashboard/settings");
+    } catch (_) {}
+
     return NextResponse.json({ success: true, data: cleanConfig });
   } catch (error: any) {
     console.error("[API /api/settings/headers] Error saving config:", error);

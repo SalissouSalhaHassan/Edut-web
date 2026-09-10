@@ -17,7 +17,7 @@ import {
   type EducationalLevelKey,
 } from "@/domains/printing/document-header";
 import dynamic from "next/dynamic";
-import { saveDocumentHeaderConfig, getBranches } from "@/domains/settings/actions/settings.actions";
+import { saveDocumentHeaderConfig, getBranches, syncHeaderProfileToBranch, syncAllBranchesToHeaders } from "@/domains/settings/actions/settings.actions";
 import { LayoutGrid } from "lucide-react";
 
 const TemplateDesigner = dynamic(() => import("@/domains/settings/components/designer/TemplateDesigner"), {
@@ -42,23 +42,94 @@ const PRESET_LEVELS: { key: EducationalLevelKey; label: string; icon: string; de
   { key: "Autre", label: "Formation Pro / Autre", icon: "✨", defaultMinistry: "Ministère de la Formation Professionnelle", defaultInspection: "Direction de la Pédagogie" },
 ];
 
+const HEADER_NATIONAL_PRESETS = [
+  {
+    country: "Niger",
+    flag: "🇳🇪",
+    countryFr: "RÉPUBLIQUE DU NIGER",
+    countryAr: "جمهورية النيجر",
+    mottoFr: "Fraternité - Travail - Progrès",
+    mottoAr: "إخاء - عمل - تقدم",
+    ministryFr: "Ministère de l'Éducation Nationale, de l'Alphabétisation et de la Promotion des Langues Nationales",
+    ministryAr: "وزارة التربية الوطنية ومحو الأمية والنهوض باللغات الوطنية",
+    regionalFr: "Direction Régionale de l'Éducation Nationale (DREN)",
+    regionalAr: "المديرية الجهوية للتربية الوطنية",
+    departmentalFr: "Direction Départementale de l'Éducation Nationale (DDEN)",
+    departmentalAr: "المديرية الإقليمية للتربية الوطنية",
+    inspectionFr: "Inspection de l'Enseignement Secondaire",
+    inspectionAr: "مفتشية التعليم الثانوي",
+  },
+  {
+    country: "Sénégal",
+    flag: "🇸🇳",
+    countryFr: "RÉPUBLIQUE DU SÉNÉGAL",
+    countryAr: "جمهورية السنغال",
+    mottoFr: "Un Peuple - Un But - Une Foi",
+    mottoAr: "شعب واحد - هدف واحد - إيمان واحد",
+    ministryFr: "Ministère de l'Éducation Nationale",
+    ministryAr: "وزارة التربية الوطنية",
+    regionalFr: "Inspection d'Académie (IA) de Dakar",
+    regionalAr: "مفتشية الأكاديمية",
+    departmentalFr: "Inspection de l'Éducation et de la Formation (IEF)",
+    departmentalAr: "مفتشية التربية والتكوين",
+    inspectionFr: "Inspection de l'Enseignement Elémentaire et Moyen",
+    inspectionAr: "مفتشية التعليم الابتدائي والمتوسط",
+  },
+  {
+    country: "Côte d'Ivoire",
+    flag: "🇨🇮",
+    countryFr: "RÉPUBLIQUE DE CÔTE D'IVOIRE",
+    countryAr: "جمهورية كوت ديفوار",
+    mottoFr: "Union - Discipline - Travail",
+    mottoAr: "اتحاد - انضباط - عمل",
+    ministryFr: "Ministère de l'Éducation Nationale et de l'Alphabétisation (MENA)",
+    ministryAr: "وزارة التربية الوطنية ومحو الأمية",
+    regionalFr: "Direction Régionale de l'Éducation Nationale (DRENA)",
+    regionalAr: "المديرية الجهوية للتربية الوطنية",
+    departmentalFr: "Direction Départementale de l'Éducation Nationale (DDENA)",
+    departmentalAr: "المديرية الإقليمية للتربية الوطنية",
+    inspectionFr: "Inspection de l'Enseignement Préscolaire et Primaire (IEPP)",
+    inspectionAr: "مفتشية التعليم الأولي والابتدائي",
+  },
+  {
+    country: "Mali",
+    flag: "🇲🇱",
+    countryFr: "RÉPUBLIQUE DU MALI",
+    countryAr: "جمهورية مالي",
+    mottoFr: "Un Peuple - Un But - Une Foi",
+    mottoAr: "شعب واحد - هدف واحد - إيمان واحد",
+    ministryFr: "Ministère de l'Éducation Nationale",
+    ministryAr: "وزارة التربية الوطنية",
+    regionalFr: "Académie d'Enseignement (AE)",
+    regionalAr: "أكاديمية التعليم",
+    departmentalFr: "Centre d'Animation Pédagogique (CAP)",
+    departmentalAr: "مركز التنشيط التربوي",
+    inspectionFr: "Inspection Pédagogique Régionale",
+    inspectionAr: "المفتشية التربوية الجهوية",
+  },
+];
+
 const fieldClass = "h-11 rounded-xl border-slate-200 bg-white text-sm font-bold dark:border-slate-800 dark:bg-slate-900 dark:text-white";
 
 export default function DocumentHeaderManager({ 
   initialConfig,
   branches: initialBranches,
+  targetBranchId,
+  targetProfileId,
 }: { 
   initialConfig?: Partial<DocumentHeaderConfig> | null;
   branches?: any[];
+  targetBranchId?: string;
+  targetProfileId?: string;
 }) {
   const [activeTab, setActiveTab] = useState<"designer" | "preset">("preset");
   const [isPending, startTransition] = useTransition();
   const [config, setConfig] = useState<DocumentHeaderConfig>(() => mergeDocumentHeaderConfig(initialConfig));
   const [branches, setBranches] = useState<any[]>(initialBranches || []);
-  const [selectedCampusFilter, setSelectedCampusFilter] = useState<string>("all");
+  const [selectedCampusFilter, setSelectedCampusFilter] = useState<string>(targetBranchId ? String(targetBranchId) : "all");
   
   // Selected level/profile ID ('global' for base, or profile id)
-  const [selectedProfileId, setSelectedProfileId] = useState<string>("global");
+  const [selectedProfileId, setSelectedProfileId] = useState<string>(targetProfileId || "global");
 
   // Fallback fetch branches if empty
   useEffect(() => {
@@ -71,6 +142,21 @@ export default function DocumentHeaderManager({
       }).catch(() => {});
     }
   }, [initialBranches]);
+
+  // Deep-linking: auto-select campus and profile from URL search params
+  useEffect(() => {
+    if (targetProfileId) {
+      setSelectedProfileId(targetProfileId);
+    } else if (targetBranchId) {
+      setSelectedCampusFilter(String(targetBranchId));
+      const matchedProfile = (config.levelProfiles || []).find(
+        (p) => String(p.branchId) === String(targetBranchId)
+      );
+      if (matchedProfile) {
+        setSelectedProfileId(matchedProfile.id);
+      }
+    }
+  }, [targetBranchId, targetProfileId, config.levelProfiles]);
 
   const previewTitle = useMemo(() => "Exemple de rapport officiel", []);
 
@@ -284,6 +370,8 @@ export default function DocumentHeaderManager({
             address: branch.address || current.headerConfig?.address,
             phone: branch.contactNo || branch.officeNo || current.headerConfig?.phone,
             email: branch.email || current.headerConfig?.email,
+            primaryColor: (branch as any).primaryColor || current.headerConfig?.primaryColor,
+            secondaryColor: (branch as any).secondaryColor || current.headerConfig?.secondaryColor,
             authorizationText: Array.isArray(branch.vuClauses)
               ? branch.vuClauses.join("\n")
               : (branch.vuClauses || current.headerConfig?.authorizationText),
@@ -293,6 +381,40 @@ export default function DocumentHeaderManager({
       return { ...prev, levelProfiles: profiles };
     });
     toast.success(`Données officielles du campus "${branch.branchName}" importées avec succès ! ⚡`);
+  };
+
+  const handleSyncToBranch = (branchId: number) => {
+    startTransition(async () => {
+      toast.loading("Mise à jour des informations du campus...", { id: "sync-branch" });
+      const payload = currentEditingProfile ? (currentEditingProfile.headerConfig || {}) : previewConfig;
+      const res = await syncHeaderProfileToBranch(branchId, {
+        ...payload,
+        leftLogo: currentEditingProfile?.leftLogo || previewConfig.leftLogo,
+        primaryColor: previewConfig.primaryColor,
+        secondaryColor: previewConfig.secondaryColor,
+      });
+      if (res.success) {
+        toast.success("Informations du campus mises à jour avec succès depuis cet en-tête ! ⚡", { id: "sync-branch" });
+      } else {
+        toast.error(res.error || "Erreur lors de la mise à jour du campus", { id: "sync-branch" });
+      }
+    });
+  };
+
+  const applyNationalPresetToHeader = (preset: typeof HEADER_NATIONAL_PRESETS[0]) => {
+    updateField("country", preset.countryFr);
+    updateField("countryAr", preset.countryAr);
+    updateField("motto", preset.mottoFr);
+    updateField("mottoAr", preset.mottoAr);
+    updateField("ministry", preset.ministryFr);
+    updateField("ministryAr", preset.ministryAr);
+    updateField("regionalDirection", preset.regionalFr);
+    updateField("regionalDirectionAr", preset.regionalAr);
+    updateField("departmentalDirection", preset.departmentalFr);
+    updateField("departmentalDirectionAr", preset.departmentalAr);
+    updateField("inspection", preset.inspectionFr);
+    updateField("inspectionAr", preset.inspectionAr);
+    toast.success(`Dénominations officielles de ${preset.country} ${preset.flag} appliquées (FR & AR) ! ✨`);
   };
 
   const reset = () => {
@@ -628,14 +750,26 @@ export default function DocumentHeaderManager({
                     </select>
 
                     {currentEditingProfile.branchId && (
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={() => handleImportBranchData(currentEditingProfile.branchId!)}
-                        className="rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs gap-1.5 shadow-sm cursor-pointer"
-                      >
-                        <Sparkles size={14} /> ⚡ Importer les données de ce Campus
-                      </Button>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => handleImportBranchData(currentEditingProfile.branchId!)}
+                          className="rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs gap-1.5 shadow-sm cursor-pointer"
+                        >
+                          <Sparkles size={14} /> ⚡ Importer données du Campus
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleSyncToBranch(currentEditingProfile.branchId!)}
+                          className="rounded-xl border-indigo-300 text-indigo-700 hover:bg-indigo-50 dark:border-indigo-700 dark:text-indigo-300 dark:hover:bg-indigo-950/60 font-black text-xs gap-1.5 cursor-pointer"
+                          title="Met à jour la fiche de ce campus dans la base de données avec ces données d'en-tête"
+                        >
+                          <Save size={14} /> 🔄 Synchroniser vers le Campus
+                        </Button>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -722,8 +856,28 @@ export default function DocumentHeaderManager({
                 </div>
               </section>
 
-              {/* Text Fields Form */}
+              {/* Text Fields Form with Smart National Preset Assistant */}
               <section className="grid gap-4">
+                <div className="flex items-center justify-between p-3.5 bg-indigo-50/70 dark:bg-indigo-950/30 rounded-2xl border border-indigo-200/80 dark:border-indigo-800/60 flex-wrap gap-2">
+                  <span className="text-[10px] font-black uppercase text-indigo-900 dark:text-indigo-300 tracking-wider flex items-center gap-1.5">
+                    <Sparkles size={14} className="text-indigo-600" />
+                    Auto-remplissage Étatique (FR + AR) :
+                  </span>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {HEADER_NATIONAL_PRESETS.map((p) => (
+                      <button
+                        key={p.country}
+                        type="button"
+                        onClick={() => applyNationalPresetToHeader(p)}
+                        className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900 text-[11px] font-black border border-indigo-200 dark:border-indigo-800 text-slate-700 dark:text-slate-200 hover:border-indigo-500 hover:text-indigo-600 transition flex items-center gap-1 cursor-pointer shadow-sm"
+                      >
+                        <span>{p.flag}</span>
+                        <span>{p.country}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <Field
                   label="Nom établissement"
                   value={previewConfig.schoolName}

@@ -115,6 +115,8 @@ export async function saveBranch(data: any) {
       await db.execute(sql`ALTER TABLE "school_branches" ADD COLUMN IF NOT EXISTS "commune" varchar(100)`);
       await db.execute(sql`ALTER TABLE "school_branches" ADD COLUMN IF NOT EXISTS "school_code" varchar(50)`);
       await db.execute(sql`ALTER TABLE "school_branches" ADD COLUMN IF NOT EXISTS "vu_clauses" text`);
+      await db.execute(sql`ALTER TABLE "school_branches" ADD COLUMN IF NOT EXISTS "primary_color" varchar(30)`);
+      await db.execute(sql`ALTER TABLE "school_branches" ADD COLUMN IF NOT EXISTS "secondary_color" varchar(30)`);
       
       console.log("Database schema altered successfully inside saveBranch action.");
     } catch (err) {
@@ -131,6 +133,8 @@ export async function saveBranch(data: any) {
       rest.vuClauses = JSON.stringify(rest.vuClauses.filter(Boolean));
     }
     
+    let effectiveBranchId = id;
+
     if (id) {
       await db.update(schoolBranches)
         .set(rest)
@@ -139,21 +143,30 @@ export async function saveBranch(data: any) {
           eq(schoolBranches.schoolId, schoolId)
         ));
     } else {
-      await db.insert(schoolBranches).values({
+      const inserted = await db.insert(schoolBranches).values({
         ...rest,
         schoolId: schoolId
-      });
+      }).returning({ id: schoolBranches.id });
+      if (inserted && inserted.length > 0) {
+        effectiveBranchId = inserted[0].id;
+      }
+    }
+
+    // Intelligent Bi-directional Sync: update or auto-create official document header profile for this campus
+    if (effectiveBranchId) {
+      await syncBranchToHeaderConfig(schoolId, rest, effectiveBranchId);
     }
     
     revalidateTag(BRANCHES_TAG);
     revalidateTag(SETTINGS_TAG);
     revalidatePath("/dashboard/settings");
     revalidatePath("/dashboard/campus-setup");
+    revalidatePath("/dashboard/settings/headers");
     revalidatePath("/dashboard/academics/lmd/deliberation");
     try {
       await redisCache.del(`edut:header_config:${schoolId}`);
     } catch (_) {}
-    return { success: true };
+    return { success: true, branchId: effectiveBranchId };
   });
 }
 
@@ -165,11 +178,208 @@ export async function deleteBranch(id: number) {
       eq(schoolBranches.schoolId, schoolId)
     ));
     
+    // Unlink or clean header profile for this deleted branch
+    await removeBranchFromHeaderConfig(schoolId, id);
+
     revalidateTag(BRANCHES_TAG);
+    revalidateTag(SETTINGS_TAG);
     revalidatePath("/dashboard/settings");
+    revalidatePath("/dashboard/campus-setup");
+    revalidatePath("/dashboard/settings/headers");
     return { success: true };
   });
 }
+
+async function syncBranchToHeaderConfig(schoolId: number, branch: any, branchId: number) {
+  try {
+    const existing = await db.query.settings.findFirst({
+      where: and(
+        eq(settings.key, DOCUMENT_HEADER_SETTING_KEY),
+        eq(settings.schoolId, schoolId)
+      )
+    });
+
+    let currentConfig: DocumentHeaderConfig = existing?.value
+      ? mergeDocumentHeaderConfig(JSON.parse(existing.value))
+      : mergeDocumentHeaderConfig();
+
+    const profiles = [...(currentConfig.levelProfiles || [])];
+    const existingIdx = profiles.findIndex((p) => Number(p.branchId) === Number(branchId));
+
+    // Determine applicable levels from instType
+    let applicableLevels: string[] = [];
+    if (branch.instType) {
+      if (branch.instType === "Tous") {
+        applicableLevels = ["Primaire", "College", "Lycée", "University"];
+      } else {
+        applicableLevels = branch.instType.split(",").map((s: string) => s.trim()).filter(Boolean);
+      }
+    }
+    if (applicableLevels.length === 0) {
+      applicableLevels = ["Primaire"];
+    }
+
+    const defaultLevel = applicableLevels[0] || "Primaire";
+    const profileName = `En-tête ${branch.branchName || "Campus"}${applicableLevels.length > 0 ? ` (${applicableLevels.join(" + ")})` : ""}`;
+
+    let parsedVuClauses: string[] | undefined = undefined;
+    if (branch.vuClauses) {
+      if (Array.isArray(branch.vuClauses)) {
+        parsedVuClauses = branch.vuClauses;
+      } else if (typeof branch.vuClauses === "string" && branch.vuClauses.startsWith("[")) {
+        try { parsedVuClauses = JSON.parse(branch.vuClauses); } catch (_) {}
+      } else if (typeof branch.vuClauses === "string") {
+        parsedVuClauses = branch.vuClauses.split("\n").filter(Boolean);
+      }
+    }
+
+    const updatedHeaderConfig: Partial<DocumentHeaderConfig> = {
+      schoolName: branch.branchName || currentConfig.schoolName,
+      campusSubtitle: branch.branchAlias || "",
+      ministry: branch.ministry || currentConfig.ministry,
+      regionalDirection: branch.dren || currentConfig.regionalDirection,
+      departmentalDirection: branch.dden || currentConfig.departmentalDirection,
+      inspection: branch.inspection || currentConfig.inspection,
+      commune: branch.commune || currentConfig.commune,
+      schoolCode: branch.schoolCode || currentConfig.schoolCode,
+      address: branch.address || currentConfig.address,
+      phone: branch.contactNo || branch.officeNo || currentConfig.phone,
+      email: branch.email || currentConfig.email,
+      primaryColor: branch.primaryColor || currentConfig.primaryColor || "#4f46e5",
+      secondaryColor: branch.secondaryColor || currentConfig.secondaryColor || "#10b981",
+      style: defaultLevel === "University" ? "university_formal" : currentConfig.style,
+      authorizationText: parsedVuClauses ? parsedVuClauses.join("\n") : currentConfig.authorizationText,
+      vuClauses: parsedVuClauses || currentConfig.vuClauses,
+    };
+
+    if (existingIdx >= 0) {
+      profiles[existingIdx] = {
+        ...profiles[existingIdx],
+        name: profileName,
+        branchId: Number(branchId),
+        branchName: branch.branchName,
+        applicableLevels,
+        leftLogo: branch.logoPath || profiles[existingIdx].leftLogo || currentConfig.leftLogo,
+        headerConfig: {
+          ...profiles[existingIdx].headerConfig,
+          ...updatedHeaderConfig,
+          leftLogo: branch.logoPath || profiles[existingIdx].headerConfig?.leftLogo || currentConfig.leftLogo,
+        }
+      };
+    } else {
+      const newId = `profile_branch_${branchId}_${Date.now().toString(36)}`;
+      profiles.push({
+        id: newId,
+        name: profileName,
+        branchId: Number(branchId),
+        branchName: branch.branchName,
+        applicableLevels,
+        leftLogo: branch.logoPath || currentConfig.leftLogo,
+        centerLogo: currentConfig.centerLogo,
+        rightLogo: currentConfig.rightLogo,
+        headerConfig: {
+          ...updatedHeaderConfig,
+          leftLogo: branch.logoPath || currentConfig.leftLogo,
+        },
+      });
+    }
+
+    currentConfig.levelProfiles = profiles;
+    const value = JSON.stringify(currentConfig);
+
+    if (existing) {
+      await db.update(settings).set({ value, updatedAt: new Date() }).where(eq(settings.id, existing.id));
+    } else {
+      await db.insert(settings).values({ key: DOCUMENT_HEADER_SETTING_KEY, value, schoolId });
+    }
+
+    try {
+      await redisCache.del(`edut:header_config:${schoolId}`);
+    } catch (_) {}
+  } catch (err) {
+    console.error("Error in syncBranchToHeaderConfig:", err);
+  }
+}
+
+async function removeBranchFromHeaderConfig(schoolId: number, branchId: number) {
+  try {
+    const existing = await db.query.settings.findFirst({
+      where: and(
+        eq(settings.key, DOCUMENT_HEADER_SETTING_KEY),
+        eq(settings.schoolId, schoolId)
+      )
+    });
+    if (existing?.value) {
+      const currentConfig = mergeDocumentHeaderConfig(JSON.parse(existing.value));
+      currentConfig.levelProfiles = (currentConfig.levelProfiles || []).filter(
+        (p) => Number(p.branchId) !== Number(branchId)
+      );
+      await db.update(settings).set({ value: JSON.stringify(currentConfig), updatedAt: new Date() }).where(eq(settings.id, existing.id));
+      await redisCache.del(`edut:header_config:${schoolId}`);
+    }
+  } catch (err) {
+    console.error("Error in removeBranchFromHeaderConfig:", err);
+  }
+}
+
+export async function syncHeaderProfileToBranch(branchId: number, data: Partial<DocumentHeaderConfig>) {
+  return protectedDbAction("Settings", "canEdit", async () => {
+    const schoolId = await getActiveSchoolId();
+    if (!branchId) return { success: false, error: "Branch ID requis" };
+
+    const updatePayload: Record<string, any> = {};
+    if (data.schoolName) updatePayload.branchName = data.schoolName;
+    if (data.campusSubtitle !== undefined) updatePayload.branchAlias = data.campusSubtitle;
+    if (data.ministry !== undefined) updatePayload.ministry = data.ministry;
+    if (data.regionalDirection !== undefined) updatePayload.dren = data.regionalDirection;
+    if (data.departmentalDirection !== undefined) updatePayload.dden = data.departmentalDirection;
+    if (data.inspection !== undefined) updatePayload.inspection = data.inspection;
+    if (data.commune !== undefined) updatePayload.commune = data.commune;
+    if (data.schoolCode !== undefined) updatePayload.schoolCode = data.schoolCode;
+    if (data.address !== undefined) updatePayload.address = data.address;
+    if (data.phone !== undefined) updatePayload.contactNo = data.phone;
+    if (data.email !== undefined) updatePayload.email = data.email;
+    if (data.leftLogo !== undefined) updatePayload.logoPath = data.leftLogo;
+    if (data.primaryColor !== undefined) updatePayload.primaryColor = data.primaryColor;
+    if (data.secondaryColor !== undefined) updatePayload.secondaryColor = data.secondaryColor;
+    if (data.authorizationText !== undefined) {
+      updatePayload.vuClauses = JSON.stringify(data.authorizationText.split("\n").filter(Boolean));
+    }
+
+    if (Object.keys(updatePayload).length > 0) {
+      await db.update(schoolBranches)
+        .set(updatePayload)
+        .where(and(
+          eq(schoolBranches.id, Number(branchId)),
+          eq(schoolBranches.schoolId, schoolId)
+        ));
+    }
+
+    revalidateTag(BRANCHES_TAG);
+    revalidatePath("/dashboard/campus-setup");
+    revalidatePath("/dashboard/settings");
+
+    return { success: true };
+  });
+}
+
+export async function syncAllBranchesToHeaders() {
+  return protectedDbAction("Settings", "canEdit", async () => {
+    const schoolId = await getActiveSchoolId();
+    const branches = await db.query.schoolBranches.findMany({
+      where: eq(schoolBranches.schoolId, schoolId)
+    });
+
+    for (const branch of branches) {
+      await syncBranchToHeaderConfig(schoolId, branch, branch.id);
+    }
+
+    revalidateTag(SETTINGS_TAG);
+    revalidatePath("/dashboard/settings/headers");
+    return { success: true, count: branches.length };
+  });
+}
+
 
 export async function updateSchoolDomain(customDomain: string) {
   return protectedDbAction("Settings", "canEdit", async () => {

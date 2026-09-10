@@ -4,7 +4,12 @@ import { FileText, Sparkles } from "lucide-react";
 
 export const revalidate = 0;
 
-export default async function DocumentHeadersPage() {
+export default async function DocumentHeadersPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ branchId?: string; profileId?: string }>;
+}) {
+  const resolvedParams = searchParams ? await searchParams : {};
   const [headerConfigRes, branchesRes] = await Promise.all([
     getDocumentHeaderConfig().catch(() => null) as any,
     getBranches().catch(() => null) as any,
@@ -24,18 +29,23 @@ export default async function DocumentHeadersPage() {
             <div className="flex items-center gap-3 mb-1">
               <h1 className="text-3xl font-black tracking-tight">En-têtes Officiels & Designer</h1>
               <span className="px-3 py-1 bg-amber-400/20 border border-amber-400/30 text-amber-200 text-xs font-black uppercase tracking-widest rounded-xl flex items-center gap-1.5">
-                <Sparkles size={14} /> WYSIWYG
+                <Sparkles size={14} /> Studio Intelligent
               </span>
             </div>
             <p className="text-indigo-200 text-sm font-medium">
-              تصميم المستندات الإدارية والترويسات الرسمية بالكامل بحسب الفروع والمستويات عبر محرر القوالب التفاعلي السلس.
+              تصميم المستندات الإدارية والترويسات الرسمية بالكامل بحسب الفروع والمستويات مع المزامنة الذكية المباشرة.
             </p>
           </div>
         </div>
       </div>
 
       {/* Main Standalone Template Designer & Manager */}
-      <DocumentHeaderManager initialConfig={initialConfig} branches={branches} />
+      <DocumentHeaderManager 
+        initialConfig={initialConfig} 
+        branches={branches}
+        targetBranchId={resolvedParams?.branchId}
+        targetProfileId={resolvedParams?.profileId}
+      />
     </div>
   );
 }

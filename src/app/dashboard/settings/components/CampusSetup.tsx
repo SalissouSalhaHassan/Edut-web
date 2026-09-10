@@ -20,7 +20,7 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
-import { saveBranch, deleteBranch } from "@/domains/settings/actions/settings.actions";
+import { saveBranch, deleteBranch, syncAllBranchesToHeaders } from "@/domains/settings/actions/settings.actions";
 import { DEFAULT_LMD_VU_CLAUSES } from "@/domains/printing/document-header";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -72,7 +72,76 @@ interface Branch {
   commune?: string;
   schoolCode?: string;
   vuClauses?: string | string[];
+  primaryColor?: string;
+  secondaryColor?: string;
 }
+
+const NATIONAL_PRESETS = [
+  {
+    country: "Niger",
+    flag: "🇳🇪",
+    ministry: "Ministère de l'Éducation Nationale, de l'Alphabétisation et de la Promotion des Langues Nationales",
+    region: "Niamey",
+    dren: "Direction Régionale de l'Éducation Nationale (DREN)",
+    department: "Niamey",
+    dden: "Direction Départementale de l'Éducation Nationale (DDEN)",
+    inspection: "Inspection de l'Enseignement Secondaire",
+    commune: "Commune de Niamey IV",
+    timezone: "GMT+1",
+    vuClauses: DEFAULT_LMD_VU_CLAUSES,
+  },
+  {
+    country: "Sénégal",
+    flag: "🇸🇳",
+    ministry: "Ministère de l'Éducation Nationale",
+    region: "Dakar",
+    dren: "Inspection d'Académie (IA) de Dakar",
+    department: "Dakar",
+    dden: "Inspection de l'Éducation et de la Formation (IEF)",
+    inspection: "Inspection de l'Enseignement Elémentaire et Moyen",
+    commune: "Dakar Plateau",
+    timezone: "GMT",
+    vuClauses: [
+      "Vu la Constitution de la République du Sénégal ;",
+      "Vu la loi d'orientation N° 91-22 du 16 Février 1991 sur l'Éducation Nationale sénégalaise ;",
+      "Vu le décret N° 2012-1276 relatif à l'organisation du Ministère de l'Éducation Nationale ;",
+      "Vu les arrêtés ministériels régissant les examens et diplômes officiels ;"
+    ],
+  },
+  {
+    country: "Côte d'Ivoire",
+    flag: "🇨🇮",
+    ministry: "Ministère de l'Éducation Nationale et de l'Alphabétisation (MENA)",
+    region: "Abidjan",
+    dren: "Direction Régionale de l'Éducation Nationale et de l'Alphabétisation (DRENA Abidjan 1)",
+    department: "Abidjan",
+    dden: "Direction Départementale de l'Éducation Nationale (DDENA)",
+    inspection: "Inspection de l'Enseignement Préscolaire et Primaire (IEPP)",
+    commune: "Cocody",
+    timezone: "GMT",
+    vuClauses: [
+      "Vu la Constitution de la République de Côte d'Ivoire ;",
+      "Vu la loi N° 95-696 du 7 Septembre 1995 relative à l'Enseignement en Côte d'Ivoire ;",
+      "Vu les décrets portant organisation et délivrance des diplômes et attestations ;"
+    ],
+  },
+  {
+    country: "Mali",
+    flag: "🇲🇱",
+    ministry: "Ministère de l'Éducation Nationale",
+    region: "Bamako",
+    dren: "Académie d'Enseignement (AE) de Bamako Rive Droite",
+    department: "Bamako",
+    dden: "Centre d'Animation Pédagogique (CAP)",
+    inspection: "Inspection Pédagogique Régionale",
+    commune: "Commune V",
+    timezone: "GMT",
+    vuClauses: [
+      "Vu la loi d'orientation sur l'éducation au Mali ;",
+      "Vu les textes régissant l'organisation de l'Enseignement fondamental et secondaire ;"
+    ],
+  },
+];
 
 const DEFAULT_BRANCH_STATE: Branch = {
   branchName: "",
@@ -103,6 +172,8 @@ const DEFAULT_BRANCH_STATE: Branch = {
   inspection: "",
   commune: "",
   schoolCode: "",
+  primaryColor: "#6366f1",
+  secondaryColor: "#10b981",
   vuClauses: DEFAULT_LMD_VU_CLAUSES
 };
 
@@ -242,6 +313,8 @@ export function CampusSetup({ initialBranches }: { initialBranches: Branch[] }) 
           inspection: branch.inspection || "",
           commune: branch.commune || "",
           schoolCode: branch.schoolCode || "",
+          primaryColor: (branch as any).primaryColor || "#6366f1",
+          secondaryColor: (branch as any).secondaryColor || "#10b981",
           vuClauses: branch.vuClauses
             ? typeof branch.vuClauses === "string" && branch.vuClauses.startsWith("[")
               ? JSON.parse(branch.vuClauses)
@@ -302,9 +375,8 @@ export function CampusSetup({ initialBranches }: { initialBranches: Branch[] }) 
       console.log("[onSave] Sending data:", formData);
       const res = await saveBranch(formData);
       if (res.success) {
-        toast.success(selectedBranch ? "Branche mise à jour" : "Nouvelle branche créée");
+        toast.success(selectedBranch ? "Branche mise à jour & En-tête officiel synchronisé ! ⚡" : "Nouvelle branche créée & En-tête officiel généré ! ⚡");
         if (!selectedBranch) {
-           // Reset after create to allow adding another one
            setSelectedBranch(null);
            setFormData(DEFAULT_BRANCH_STATE);
         }
@@ -312,6 +384,22 @@ export function CampusSetup({ initialBranches }: { initialBranches: Branch[] }) 
         toast.error(res.error || "Erreur lors de l'enregistrement");
       }
     });
+  };
+
+  const applyNationalPreset = (preset: typeof NATIONAL_PRESETS[0]) => {
+    setFormData(prev => ({
+      ...prev,
+      ministry: preset.ministry,
+      region: preset.region,
+      dren: preset.dren,
+      department: preset.department,
+      dden: preset.dden,
+      inspection: preset.inspection,
+      commune: preset.commune,
+      timezone: preset.timezone,
+      vuClauses: preset.vuClauses,
+    }));
+    toast.success(`Modèle officiel de ${preset.country} ${preset.flag} appliqué avec succès ! ✨`);
   };
 
   const onDelete = (id: number) => {
@@ -350,7 +438,38 @@ export function CampusSetup({ initialBranches }: { initialBranches: Branch[] }) 
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+           {selectedBranch?.id && (
+             <a
+               href={`/dashboard/settings/headers?branchId=${selectedBranch.id}`}
+               className="h-11 px-5 rounded-xl bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800 font-black text-[10px] uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer shadow-sm"
+               title="Personnaliser l'en-tête officiel et les logos pour ce campus"
+             >
+               <Sparkles size={15} /> Studio En-têtes & Logos
+             </a>
+           )}
+
+           <Button
+             type="button"
+             variant="outline"
+             onClick={() => {
+               startTransition(async () => {
+                 toast.loading("Synchronisation de tous les campus...", { id: "sync-all" });
+                 const res = await syncAllBranchesToHeaders();
+                 if (res.success) {
+                   toast.success(`${res.count} campus synchronisés avec succès avec les En-têtes Officiels ! ⚡`, { id: "sync-all" });
+                 } else {
+                   toast.error("Erreur lors de la synchronisation", { id: "sync-all" });
+                 }
+               });
+             }}
+             disabled={isPending}
+             className="h-11 px-4 rounded-xl border-slate-200 text-slate-700 dark:border-slate-800 dark:text-slate-300 font-bold text-[10px] uppercase tracking-wider flex items-center gap-1.5 cursor-pointer"
+             title="Synchronise instantanément tous les campus avec le studio des en-têtes"
+           >
+             <Sparkles size={14} className="text-amber-500" /> Resynchroniser Tout
+           </Button>
+
            {selectedBranch && (
              <>
                <Button 
@@ -373,7 +492,7 @@ export function CampusSetup({ initialBranches }: { initialBranches: Branch[] }) 
            <Button 
              onClick={onSave}
              disabled={isPending}
-             className="h-11 px-8 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-[10px] uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-indigo-100 transition-all"
+             className="h-11 px-8 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-[10px] uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-indigo-100 transition-all cursor-pointer"
            >
              <Save size={16} /> {isPending ? "ENREGISTREMENT..." : "ENREGISTRER"}
            </Button>
@@ -701,12 +820,29 @@ export function CampusSetup({ initialBranches }: { initialBranches: Branch[] }) 
 
            {/* Section 2.5: Structure Administrative & Hiérarchie Éducative */}
            <div className="bg-white p-10 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/60 dark:bg-[#12131C] shadow-sm space-y-8">
-              <h3 className="text-lg font-black text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-3">
-                 <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center">
-                    <Building2 size={20} />
-                 </div>
-                 Structure Administrative & Hiérarchie Éducative
-              </h3>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <h3 className="text-lg font-black text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-3">
+                   <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+                      <Building2 size={20} />
+                   </div>
+                   Structure Administrative & Hiérarchie Éducative
+                </h3>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Modèles d'État :</span>
+                  {NATIONAL_PRESETS.map(preset => (
+                    <button
+                      key={preset.country}
+                      type="button"
+                      onClick={() => applyNationalPreset(preset)}
+                      className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 dark:bg-slate-800 dark:hover:bg-slate-700 text-[11px] font-black flex items-center gap-1.5 transition cursor-pointer"
+                      title={`Remplir automatiquement avec les dénominations officielles de ${preset.country}`}
+                    >
+                      <span>{preset.flag}</span>
+                      <span>{preset.country}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-2">
                   <Label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1">MINISTÈRE DE TUTELLE</Label>
@@ -1050,21 +1186,39 @@ export function CampusSetup({ initialBranches }: { initialBranches: Branch[] }) 
               </div>
 
               <div className="space-y-4 pt-6 border-t border-slate-50 dark:border-slate-800/60">
-                 <Label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1">COULEUR PRINCIPALE</Label>
+                 <div className="flex items-center justify-between">
+                   <Label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1">
+                     COULEUR OFFICIELLE DU CAMPUS
+                   </Label>
+                   <span className="text-[10px] font-mono font-bold text-indigo-600 dark:text-indigo-400">
+                     {formData.primaryColor || "#6366f1"}
+                   </span>
+                 </div>
                  <div className="flex items-center gap-3 flex-wrap">
-                    {["#6366f1", "#3b82f6", "#10b981", "#f59e0b", "#ec4899", "#ef4444"].map((color, i) => (
-                      <button 
-                        key={color} 
-                        className={cn(
-                          "w-8 h-8 rounded-full shadow-sm transition-transform active:scale-90",
-                          i === 0 && "ring-2 ring-indigo-600 ring-offset-2"
-                        )}
-                        style={{ backgroundColor: color }}
+                    {["#6366f1", "#3b82f6", "#10b981", "#f59e0b", "#ec4899", "#ef4444", "#0f172a"].map((color) => {
+                      const isSelected = (formData.primaryColor || "#6366f1").toLowerCase() === color.toLowerCase();
+                      return (
+                        <button 
+                          key={color} 
+                          type="button"
+                          onClick={() => handleInputChange("primaryColor", color)}
+                          className={cn(
+                            "w-8 h-8 rounded-full shadow-sm transition-transform active:scale-90 cursor-pointer",
+                            isSelected && "ring-4 ring-indigo-500/30 ring-offset-2 scale-110"
+                          )}
+                          style={{ backgroundColor: color }}
+                        />
+                      );
+                    })}
+                    <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 cursor-pointer hover:bg-slate-100 text-xs font-bold">
+                      <input
+                        type="color"
+                        value={formData.primaryColor || "#6366f1"}
+                        onChange={(e) => handleInputChange("primaryColor", e.target.value)}
+                        className="w-5 h-5 border-none bg-transparent cursor-pointer"
                       />
-                    ))}
-                    <button className="w-8 h-8 rounded-full border-2 border-dashed border-slate-200 flex items-center justify-center text-slate-300 hover:border-indigo-300 hover:text-indigo-400 transition-all">
-                       <Plus size={14} />
-                    </button>
+                      <span className="text-[10px] uppercase font-black text-slate-500">Personnalisé</span>
+                    </label>
                  </div>
               </div>
 

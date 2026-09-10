@@ -42,6 +42,8 @@ export const schoolBranches = pgTable("school_branches", {
   commune: varchar("commune", { length: 100 }),
   schoolCode: varchar("school_code", { length: 50 }),
   vuClauses: text("vu_clauses"),
+  primaryColor: varchar("primary_color", { length: 30 }),
+  secondaryColor: varchar("secondary_color", { length: 30 }),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
