@@ -110,9 +110,6 @@ export async function GET(request: NextRequest) {
     return mobileJsonError("feeId manquant", 400);
   }
 
-  const schoolId = user.schoolId;
-  const roleType = await getUserRoleType(user);
-
   try {
     const fee = await readDb
       .select({
