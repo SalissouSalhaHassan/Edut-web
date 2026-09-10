@@ -13,6 +13,8 @@ export type EducationalLevelKey =
   | "Autre"
   | string;
 
+export type EducationalLevel = EducationalLevelKey;
+
 export type LevelHeaderProfile = {
   id: string;
   name: string;
