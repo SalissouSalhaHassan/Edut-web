@@ -56,8 +56,61 @@ const EDUCATION_LEVELS = [
   { value: "Primaire",    label: "Primaire",    icon: "📚" },
   { value: "Collège",     label: "Collège",     icon: "📖" },
   { value: "Lycée",       label: "Lycée",       icon: "🎓" },
-  { value: "Université",  label: "Université",  icon: "🏛️" },
 ];
+
+function getLevelFamily(level: string | null | undefined): "primary" | "middle" | "secondary" | "university" | null {
+  if (!level) return null;
+  const norm = level.toLowerCase().trim();
+  if (["tous", "all", "administration", "gestion scolaire", "administration generale", "administration générale", "toutes les étapes", "tous les cycles", "tous les niveaux"].includes(norm)) {
+    return null;
+  }
+  if (norm.includes("universit") || norm.includes("superieur") || norm.includes("licence") || norm.includes("master") || norm.includes("doctorat") || norm.includes("lmd") || norm.includes("جامع")) {
+    return "university";
+  }
+  if (norm.includes("coll") || norm.includes("moyen") || norm.includes("cem") || norm.includes("اعداد") || norm.includes("متوسط")) {
+    return "middle";
+  }
+  if (norm.includes("lyc") || norm.includes("secondaire") || norm.includes("ثانوي")) {
+    return "secondary";
+  }
+  if (norm.includes("prim") || norm.includes("elem") || norm.includes("mat") || norm.includes("creche") || norm.includes("ابتدائ")) {
+    return "primary";
+  }
+  return null;
+}
+
+function getMatchingEducationLevel(family: "primary" | "middle" | "secondary" | "university" | null): string {
+  switch (family) {
+    case "university": return "Université";
+    case "middle": return "Collège";
+    case "secondary": return "Lycée";
+    case "primary": return "Primaire";
+    default: return "Primaire";
+  }
+}
+
+function isRoleAllowedForLevelDirector(roleName: string): boolean {
+  const r = (roleName || "").toLowerCase().trim();
+  if (
+    r.includes("directeur") ||
+    r.includes("dirigeant") ||
+    r.includes("مدير") ||
+    r.includes("admin") ||
+    r.includes("superadmin") ||
+    r.includes("comptable") ||
+    r.includes("caissier") ||
+    r.includes("finance") ||
+    r.includes("financier") ||
+    r.includes("ministere") ||
+    r.includes("ministère") ||
+    r.includes("dren") ||
+    r.includes("dden") ||
+    r.includes("inspection")
+  ) {
+    return false;
+  }
+  return true;
+}
 
 // ─── Chip option ──────────────────────────────────────────────────────────────
 function parseSelectedLevels(value: string) {
@@ -143,12 +196,28 @@ export default function UserDialog({
   );
   const close = useCallback(() => setOpen(false), [setOpen]);
 
+  const userLevelFamily = getLevelFamily(currentUser?.educationalLevel);
+  const isSuperAdmin = !!currentUser?.superAdmin;
+  const isGeneralAdmin = !isSuperAdmin && !userLevelFamily && (
+    !!currentUser?.admin ||
+    currentUser?.roleType === "general_director" ||
+    (currentUser?.role?.roleName || "").toLowerCase().includes("directeur général")
+  );
+  const isLevelDirector = !isSuperAdmin && !isGeneralAdmin && (
+    currentUser?.roleType === "level_director" ||
+    !!userLevelFamily
+  );
+
+  const initialLevelDefault = isLevelDirector && userLevelFamily
+    ? getMatchingEducationLevel(userLevelFamily)
+    : "Primaire";
+
   const { speak } = useSpeech();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     utilisateur: "", nomPrenom: "", motDePasse: "",
     admin: false, superAdmin: false,
-    roleId: "", langue: "FR", educationalLevel: "Primaire",
+    roleId: "", langue: "FR", educationalLevel: initialLevelDefault,
     avatarUrl: "",
     supabaseId: "", schoolId: "",
     studentId: "", employeeId: "",
@@ -191,15 +260,19 @@ export default function UserDialog({
     setRolesList(roles);
     setShowNewRoleInput(false);
     setNewRoleName("");
+    const initialEduLevel = user
+      ? (user?.educationalLevel || user?.educational_level || initialLevelDefault)
+      : initialLevelDefault;
+
     setFormData({
       utilisateur:      user?.utilisateur      || "",
       nomPrenom:        user?.nomPrenom        || user?.nom_prenom || "",
       motDePasse:       "",
-      admin:            user?.admin            || false,
-      superAdmin:       user?.superAdmin       || user?.super_admin || false,
+      admin:            isLevelDirector ? false : (user?.admin || false),
+      superAdmin:       isLevelDirector ? false : (user?.superAdmin || user?.super_admin || false),
       roleId:           (user?.roleId ?? user?.role_id)?.toString()    || "",
       langue:           user?.langue           || "FR",
-      educationalLevel: user?.educationalLevel || user?.educational_level || "Primaire",
+      educationalLevel: initialEduLevel,
       avatarUrl:        user?.avatarUrl        || user?.avatar_url || "",
       supabaseId:       user?.supabaseId       || user?.supabase_id || "",
       schoolId:         (user?.schoolId ?? user?.school_id)?.toString()  || "",
@@ -233,9 +306,13 @@ export default function UserDialog({
     setLoading(true);
     const submissionData = {
       ...formData,
+      admin:            isLevelDirector ? false : formData.admin,
+      superAdmin:       isLevelDirector ? false : formData.superAdmin,
       roleId:           formData.roleId           === "" ? null : formData.roleId,
       langue:           formData.langue           || "FR",
-      educationalLevel: formData.educationalLevel || "Primaire",
+      educationalLevel: isLevelDirector && userLevelFamily
+        ? getMatchingEducationLevel(userLevelFamily)
+        : (formData.educationalLevel || "Primaire"),
       studentId:        formData.studentId  === "" ? null : formData.studentId,
       employeeId:       formData.employeeId === "" ? null : formData.employeeId,
     };
@@ -553,10 +630,16 @@ export default function UserDialog({
                 </ChipOption>
                 {rolesList
                   .filter((role) => {
-                    if (currentUser?.superAdmin) return true;
                     const rName = (role.roleName || "").toLowerCase().trim();
+                    if (currentUser?.superAdmin) return true;
                     const forbidden = ["superadmin", "super admin", "ministere", "ministère", "dren", "dden", "inspection"];
-                    return !forbidden.some((term) => rName.includes(term));
+                    if (forbidden.some((term) => rName.includes(term))) return false;
+
+                    if (isLevelDirector) {
+                      return isRoleAllowedForLevelDirector(role.roleName);
+                    }
+
+                    return true;
                   })
                   .map((role) => (
                   <ChipOption
@@ -576,7 +659,7 @@ export default function UserDialog({
                 ))}
 
                 {/* ── Inline Role Creator ── */}
-                {!showNewRoleInput ? (
+                {!isLevelDirector && (!showNewRoleInput ? (
                   <button
                     type="button"
                     onClick={() => setShowNewRoleInput(true)}
@@ -612,7 +695,7 @@ export default function UserDialog({
                       <X size={12} />
                     </button>
                   </div>
-                )}
+                ))}
               </div>
 
               {selectedRole && (
@@ -704,24 +787,38 @@ export default function UserDialog({
               iconBg="bg-gradient-to-br from-emerald-500 to-teal-600"
             />
             <div className="flex flex-wrap gap-2">
-              <ChipOption
-                selected={hasAllLevels}
-                onClick={() => setFormData({ ...formData, educationalLevel: "Tous" })}
-                color="indigo"
-              >
-                Toutes les étapes
-              </ChipOption>
-              {EDUCATION_LEVELS.map((lvl) => (
+              {!isLevelDirector && (
                 <ChipOption
-                  key={lvl.value}
-                  selected={!hasAllLevels && selectedLevels.includes(lvl.value)}
-                  onClick={() => toggleEducationalLevel(lvl.value)}
-                  color="emerald"
+                  selected={hasAllLevels}
+                  onClick={() => setFormData({ ...formData, educationalLevel: "Tous" })}
+                  color="indigo"
                 >
-                  <span>{lvl.icon}</span>
-                  {lvl.label}
+                  Toutes les étapes
                 </ChipOption>
-              ))}
+              )}
+              {EDUCATION_LEVELS
+                .filter((lvl) => {
+                  if (!isLevelDirector || !userLevelFamily) return true;
+                  return getLevelFamily(lvl.value) === userLevelFamily;
+                })
+                .map((lvl) => {
+                  const isSelected = isLevelDirector ? true : (!hasAllLevels && selectedLevels.includes(lvl.value));
+                  return (
+                    <ChipOption
+                      key={lvl.value}
+                      selected={isSelected}
+                      onClick={() => {
+                        if (!isLevelDirector) {
+                          toggleEducationalLevel(lvl.value);
+                        }
+                      }}
+                      color="emerald"
+                    >
+                      <span>{lvl.icon}</span>
+                      {lvl.label}
+                    </ChipOption>
+                  );
+                })}
             </div>
           </div>
 
@@ -809,23 +906,25 @@ export default function UserDialog({
 
               {/* Checkboxes */}
               <div className="flex flex-col gap-2 justify-center">
-                <label className="flex items-start gap-3 p-3 rounded-xl border border-slate-100 bg-slate-50
-                  cursor-pointer hover:bg-indigo-50 hover:border-indigo-200 transition-colors group">
-                  <Checkbox
-                    id="admin"
-                    checked={formData.admin}
-                    onCheckedChange={(v) => setFormData({ ...formData, admin: !!v })}
-                    className="mt-0.5 rounded-md border-slate-300 data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600"
-                  />
-                  <div>
-                    <div className="text-sm font-black text-slate-700 leading-none group-hover:text-indigo-700">
-                      Administrateur Système
+                {!isLevelDirector && (
+                  <label className="flex items-start gap-3 p-3 rounded-xl border border-slate-100 bg-slate-50
+                    cursor-pointer hover:bg-indigo-50 hover:border-indigo-200 transition-colors group">
+                    <Checkbox
+                      id="admin"
+                      checked={formData.admin}
+                      onCheckedChange={(v) => setFormData({ ...formData, admin: !!v })}
+                      className="mt-0.5 rounded-md border-slate-300 data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600"
+                    />
+                    <div>
+                      <div className="text-sm font-black text-slate-700 leading-none group-hover:text-indigo-700">
+                        Administrateur Système
+                      </div>
+                      <p className="text-[10px] text-slate-400 font-medium mt-1">
+                        Accès complet à tous les paramètres.
+                      </p>
                     </div>
-                    <p className="text-[10px] text-slate-400 font-medium mt-1">
-                      Accès complet à tous les paramètres.
-                    </p>
-                  </div>
-                </label>
+                  </label>
+                )}
 
                 {currentUser?.superAdmin && (
                   <label className="flex items-start gap-3 p-3 rounded-xl border border-rose-100 bg-rose-50/60

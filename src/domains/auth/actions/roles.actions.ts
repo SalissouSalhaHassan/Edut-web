@@ -51,6 +51,13 @@ export const createRoleInline = async (roleName: string) => {
     const user = await getCurrentUser();
     if (!user) return { success: false as const, error: "Non autorisé" };
 
+    const { getUserRoleType, hasAllEducationalLevels } = await import("@/domains/auth/services/rbac");
+    const roleType = await getUserRoleType(user);
+    const hasRestrictedLevel = user.educationalLevel && !hasAllEducationalLevels(user.educationalLevel);
+    if (!user.superAdmin && (roleType === "level_director" || hasRestrictedLevel)) {
+      return { success: false as const, error: "Non autorisé : la création de rôles est réservée à la direction générale." };
+    }
+
     const trimmed = roleName.trim();
     if (!trimmed) return { success: false as const, error: "Nom de rôle requis" };
 

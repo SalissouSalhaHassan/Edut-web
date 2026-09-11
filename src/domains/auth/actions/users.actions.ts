@@ -10,7 +10,7 @@ import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/domains/auth/services/session";
 import bcrypt from "bcryptjs";
 import { getActiveSchoolId } from "@/domains/auth/services/school";
-import { getUserRoleType, getCompatibleLevels, checkEducationalLevelAccess } from "@/domains/auth/services/rbac";
+import { getUserRoleType, getCompatibleLevels, checkEducationalLevelAccess, hasAllEducationalLevels } from "@/domains/auth/services/rbac";
 
 export async function getSessionUserAction() {
   try {
@@ -196,8 +196,8 @@ export async function getUsers() {
         : excludeGlobalAuthoritySql;
     }
 
-    const isGeneralAdminOrDirector = !!user.admin || !!user.superAdmin || roleType === "directeur" || roleType === "general_director";
-    const isLevelScoped = !isGeneralAdminOrDirector && (roleType === "level_director" || roleType === "level_comptable");
+    const hasRestrictedLevel = user.educationalLevel && !hasAllEducationalLevels(user.educationalLevel);
+    const isLevelScoped = !user.superAdmin && (roleType === "level_director" || roleType === "level_comptable" || hasRestrictedLevel);
 
     if (isLevelScoped) {
       let activeLevel: string | null | undefined = user.educationalLevel;
@@ -365,8 +365,22 @@ export async function saveUser(formData: SaveUserFormData, id?: number) {
       employeeId: parseOptionalId(employeeId),
     };
 
-    if (roleType === "level_director") {
+    const hasRestrictedLevel = currentUser.educationalLevel && !hasAllEducationalLevels(currentUser.educationalLevel);
+    const isLevelDirector = !isSuperAdmin && (roleType === "level_director" || hasRestrictedLevel);
+
+    if (isLevelDirector) {
+      data.admin = false;
+      data.superAdmin = undefined;
       data.educationalLevel = currentUser.educationalLevel || "Primaire";
+
+      if (resolvedRole.roleId) {
+        const roleObj = await db.query.roles.findFirst({ where: eq(roles.id, resolvedRole.roleId) });
+        const rName = (roleObj?.roleName || "").toLowerCase().trim();
+        const forbiddenForLevelDirector = ["directeur", "dirigeant", "admin", "superadmin", "comptable", "caissier", "finance", "financier", "ministere", "ministère", "dren", "dden", "inspection"];
+        if (forbiddenForLevelDirector.some((term) => rName.includes(term))) {
+          return { error: `Accès refusé. En tant que directeur de cycle, vous ne pouvez pas attribuer le rôle "${roleObj?.roleName}".`, success: false };
+        }
+      }
     }
 
     if (passwordValue) {

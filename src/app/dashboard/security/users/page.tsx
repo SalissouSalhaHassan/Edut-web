@@ -6,6 +6,7 @@ import { getCurrentUser } from "@/domains/auth/services/session";
 import { getAllSchools } from "@/domains/auth/actions/super-admin.actions";
 import { getStudents } from "@/domains/students/actions/students.actions";
 import { getEmployees } from "@/domains/hr/actions/employees.actions";
+import { getUserRoleType } from "@/domains/auth/services/rbac";
 import UserManager from "./components/UserManager";
 import { Users, ShieldAlert, Bell, ChevronDown, UserPlus, Shield, ShieldCheck } from "lucide-react";
 import Link from "next/link";
@@ -13,6 +14,8 @@ import { Button } from "@/components/ui/button";
 
 export default async function UsersPage() {
   const currentUser = await getCurrentUser();
+  const roleType = currentUser ? await getUserRoleType(currentUser) : null;
+  const enhancedUser = currentUser ? { ...currentUser, roleType } : null;
   
   const [usersRes, rolesRes, schoolsRes, studentsRes, employeesRes] = await Promise.all([
     getUsers(),
@@ -121,7 +124,7 @@ export default async function UsersPage() {
       </div>
 
       {/* User Manager Component */}
-      <UserManager initialUsers={users} roles={roles} currentUser={currentUser} schools={schools} students={students} employees={employees} />
+      <UserManager initialUsers={users} roles={roles} currentUser={enhancedUser} schools={schools} students={students} employees={employees} />
     </div>
   );
 }
