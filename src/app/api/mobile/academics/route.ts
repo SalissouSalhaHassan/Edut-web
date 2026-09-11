@@ -15,7 +15,7 @@ import {
 import { students } from "@/infrastructure/database/schema/students";
 import { employees } from "@/infrastructure/database/schema/hr";
 import { getMobileUser, mobileJsonError } from "../_lib/auth";
-import { getUserRoleType, hasPermission } from "@/domains/auth/services/rbac";
+import { getUserRoleType, hasPermission, hasAllEducationalLevels, isStudentInEducationalLevel } from "@/domains/auth/services/rbac";
 import { resolveStudentsForClass } from "@/domains/academics/actions/academics.actions";
 
 export const dynamic = "force-dynamic";
@@ -245,6 +245,20 @@ export async function GET(request: NextRequest) {
         with: { section: true },
         orderBy: [schoolClasses.className]
       });
+
+      const userLevel = user.educationalLevel;
+      if (userLevel && !hasAllEducationalLevels(userLevel)) {
+        classRows = classRows.filter((cls) =>
+          isStudentInEducationalLevel(
+            {
+              educationalLevel: cls.section?.educationalLevel,
+              classe: cls.className,
+              sectionName: cls.section?.sectionName,
+            },
+            userLevel
+          )
+        );
+      }
 
       if (classRows.length === 0) {
         const studentClassRows = await readDb.execute(sql`

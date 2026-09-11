@@ -12,7 +12,7 @@ import {
 } from "@/infrastructure/database/schema/academics";
 import { students } from "@/infrastructure/database/schema/students";
 import { getMobileUser, mobileJsonError } from "../_lib/auth";
-import { getUserRoleType } from "@/domains/auth/services/rbac";
+import { getUserRoleType, hasAllEducationalLevels, isStudentInEducationalLevel } from "@/domains/auth/services/rbac";
 import { getParentChildrenIds } from "../_lib/family-auth";
 
 export const dynamic = "force-dynamic";
@@ -164,13 +164,31 @@ export async function GET(request: NextRequest) {
       const { classIds } = await buildExamScope(user, roleType);
 
       const classCond = schoolId ? [eq(schoolClasses.schoolId, schoolId)] : [];
-      const classesRows = await readDb.query.schoolClasses.findMany({
+      let classesRows = await readDb.query.schoolClasses.findMany({
         where: and(
           ...classCond,
           classIds ? inArray(schoolClasses.id, classIds) : undefined
         ),
+        with: {
+          section: true,
+        },
         orderBy: [schoolClasses.className],
       });
+
+      // Educational level scoping for Directors / Level Directors
+      const userLevel = user.educationalLevel;
+      if (userLevel && !hasAllEducationalLevels(userLevel)) {
+        classesRows = classesRows.filter((c) =>
+          isStudentInEducationalLevel(
+            {
+              educationalLevel: c.section?.educationalLevel,
+              classe: c.className,
+              sectionName: c.section?.sectionName,
+            },
+            userLevel
+          )
+        );
+      }
 
       const subjectsCond = schoolId ? [eq(schoolSubjects.schoolId, schoolId)] : [];
       const subjectsRows = await readDb.query.schoolSubjects.findMany({
@@ -202,7 +220,12 @@ export async function GET(request: NextRequest) {
 
       return NextResponse.json({
         success: true,
-        classes: classesRows.map((c) => ({ id: c.id, class_name: c.className })),
+        classes: classesRows.map((c) => ({
+          id: c.id,
+          class_name: c.className,
+          educational_level: c.section?.educationalLevel ?? null,
+          section_name: c.section?.sectionName ?? null,
+        })),
         subjects: subjectsRows.map((s) => ({ id: s.id, subject_name: s.subjectName })),
         periods: periodsList.map((p) => ({ id: p.id, name: p.name })),
       });
