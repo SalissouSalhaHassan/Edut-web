@@ -2,7 +2,12 @@ export const dynamic = "force-dynamic";
 
 import { getDocumentHeaderConfig } from "@/domains/settings/actions/settings.actions";
 import { getCurrentUser } from "@/domains/auth/services/session";
-import { getActiveSchoolId } from "@/domains/auth/services/school";
+import { getActiveSchoolId, getActiveBranchData } from "@/domains/auth/services/school";
+import { 
+  getActiveEducationalLevel, 
+  hasAllEducationalLevels, 
+  isStudentInEducationalLevel 
+} from "@/domains/auth/services/rbac";
 import { db, readDb } from "@/infrastructure/database";
 import { students } from "@/infrastructure/database/schema/students";
 import { schoolSessions, schoolClasses } from "@/infrastructure/database/schema/academics";
@@ -114,6 +119,18 @@ export default async function FinancePage({
     }
 
     // 2. IF ADMIN / STAFF: General School Financial Management
+    // 0. Resolve active branch and educational level scope
+    const [{ branchData }, activeEduLevel] = await Promise.all([
+      getActiveBranchData(user).catch(() => ({ branchData: null, allBranches: [] })),
+      getActiveEducationalLevel(user).catch(() => null),
+    ]);
+
+    const activeLevel = activeEduLevel ||
+      (branchData?.instType && !hasAllEducationalLevels(branchData.instType) ? branchData.instType : null) ||
+      (user?.educationalLevel && !hasAllEducationalLevels(user.educationalLevel) ? user.educationalLevel : null);
+
+    const isLevelScoped = Boolean(activeLevel && !hasAllEducationalLevels(activeLevel));
+
     // Fast single-query session lookup prioritizing active session
     let sessionRow = await readDb.query.schoolSessions.findFirst({
       where: or(eq(schoolSessions.schoolId, schoolId), isNull(schoolSessions.schoolId)),
@@ -292,8 +309,22 @@ export default async function FinancePage({
       }
     }
 
-    const fees = Array.from(seenStudents.values());
-    const classes = (classRows || []) as any[];
+    let fees = Array.from(seenStudents.values());
+    let classes = (classRows || []) as any[];
+
+    if (isLevelScoped && activeLevel) {
+      fees = fees.filter(f => isStudentInEducationalLevel(f.student, activeLevel));
+      classes = classes.filter(c => {
+        return isStudentInEducationalLevel(
+          {
+            educationalLevel: c.educationalLevel || c.section?.educationalLevel,
+            classe: c.className,
+          },
+          activeLevel
+        );
+      });
+    }
+
     const headerConfig = (headerConfigRes as any)?.data || null;
 
     // KPI Calculations
@@ -307,7 +338,8 @@ export default async function FinancePage({
     const totalStudents = fees.length;
     const recoveryRate = totalExpected > 0 ? Math.round((totalPaid / totalExpected) * 100) : 0;
 
-    const allPayments = (paymentRows || []) as any[];
+    const allowedFeeIdSet = new Set(fees.map(f => f.id));
+    const allPayments = (paymentRows || []).filter(p => !isLevelScoped || allowedFeeIdSet.has(p.feeId)) as any[];
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
     const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay()).getTime();

@@ -216,6 +216,7 @@ export function inferEducationalLevel(hints?: string | {
   // 4. Primaire (Elementary: CI, CP, CE1, CE2, CM1, CM2, SIL)
   if (
     /\b(ci|cp|cp1|cp2|ce1|ce2|cm1|cm2|sil|cours\s+d'initiation|cours\s+preparatoire|cours\s+elementaire|cours\s+moyen)\b/i.test(normCls) ||
+    /\b(ci|cp|ce1|ce2|cm1|cm2)[a-z0-9]?\b/i.test(normCls) ||
     /\b(ci|cp|cp1|cp2|ce1|ce2|cm1|cm2|sil)\b/i.test(normSec) ||
     normLvl.includes("prim") || normLvl.includes("elem")
   ) {

@@ -120,15 +120,56 @@ const UNIVERSITY_LEVEL_TERMS = [
   "التعليم العالي",
 ];
 
-type EducationalLevelFamily = "primary" | "middle" | "secondary" | "university";
+export type EducationalLevelFamily = "primary" | "middle" | "secondary" | "university";
 
-function getEducationalLevelFamily(level: string | null | undefined): EducationalLevelFamily | null {
+export function getEducationalLevelFamily(level: string | null | undefined): EducationalLevelFamily | null {
   const norm = normalizeLevel(level || "");
-  if (!norm) return null;
-  if (PRIMARY_LEVEL_TERMS.includes(norm)) return "primary";
-  if (MIDDLE_LEVEL_TERMS.includes(norm)) return "middle";
-  if (SECONDARY_LEVEL_TERMS.includes(norm)) return "secondary";
-  if (UNIVERSITY_LEVEL_TERMS.includes(norm)) return "university";
+  if (!norm || GLOBAL_LEVEL_TERMS.includes(norm)) return null;
+
+  if (
+    UNIVERSITY_LEVEL_TERMS.includes(norm) ||
+    norm.includes("universit") ||
+    norm.includes("superieur") ||
+    norm.includes("licence") ||
+    norm.includes("master") ||
+    norm.includes("doctorat") ||
+    norm.includes("جامع") ||
+    norm.includes("التعليم العالي")
+  ) {
+    return "university";
+  }
+
+  if (
+    MIDDLE_LEVEL_TERMS.includes(norm) ||
+    norm.includes("coll") ||
+    norm.includes("moyen") ||
+    norm.includes("cem") ||
+    norm.includes("اعداد") ||
+    norm.includes("متوسط")
+  ) {
+    return "middle";
+  }
+
+  if (
+    SECONDARY_LEVEL_TERMS.includes(norm) ||
+    norm.includes("lyc") ||
+    norm.includes("secondaire") ||
+    norm.includes("ثانوي")
+  ) {
+    return "secondary";
+  }
+
+  if (
+    PRIMARY_LEVEL_TERMS.includes(norm) ||
+    norm.includes("prim") ||
+    norm.includes("elem") ||
+    norm.includes("mat") ||
+    norm.includes("creche") ||
+    norm.includes("ابتدائ")
+  ) {
+    return "primary";
+  }
+
   return null;
 }
 
@@ -762,6 +803,76 @@ export function checkEducationalLevelAccess(user: any, resourceLevel: string | n
     if (secondaryTerms.includes(normUser) && secondaryTerms.includes(normResource)) return true;
     return false;
   });
+}
+
+/**
+ * Robust check if a student or class belongs to the given active educational level.
+ * Checks student.educationalLevel, student.classe, filiere, and sectionName.
+ */
+export function isStudentInEducationalLevel(
+  student: {
+    educationalLevel?: string | null;
+    classe?: string | null;
+    sectionName?: string | null;
+    filiere?: string | null;
+  } | null | undefined,
+  activeLevel: string | null | undefined
+): boolean {
+  if (!activeLevel || hasAllEducationalLevels(activeLevel)) return true;
+  if (!student) return false;
+
+  const targetFamily = getEducationalLevelFamily(activeLevel);
+  if (!targetFamily) return true;
+
+  // 1. Direct match on student.educationalLevel if present and specific
+  if (student.educationalLevel && !hasAllEducationalLevels(student.educationalLevel)) {
+    const studentFamily = getEducationalLevelFamily(student.educationalLevel);
+    if (studentFamily) {
+      return studentFamily === targetFamily;
+    }
+  }
+
+  // 2. Class name / filiere / section inspection
+  const classText = `${student.classe || ""} ${student.filiere || ""} ${student.sectionName || ""}`.trim();
+  if (classText) {
+    const normText = normalizeLevel(classText);
+
+    // University patterns: L1, L2, L3, M1, M2, D1-D3, Licence, Master, Doctorat, BTS, DUT, etc.
+    const isUnivClass = /\b(l[1-3]|m[1-2]|d[1-3]|licence|master|doctorat|bts|dut|deug|faculte|institut|superieur|universite|lmd)\b/i.test(normText) ||
+      normText.includes("universit") || normText.includes("superieur") || normText.includes("licence") || normText.includes("master") || normText.includes("doctorat");
+
+    // Middle school / Collège patterns: 6ème, 5ème, 4ème, 3ème, etc.
+    const isCollegeClass = /\b(6[eè]me?|5[eè]me?|4[eè]me?|3[eè]me?|6e|5e|4e|3e|college|coll[eè]ge|bepc|brevet|cem|moyen)\b/i.test(normText) ||
+      normText.includes("coll") || normText.includes("moyen") || normText.includes("cem");
+
+    // High school / Lycée patterns: 2nde, 1ère, Terminale, etc.
+    const isLyceeClass = /\b(2nde?|seconde|1[eè]re?|premiere|premi[eè]re|tle|terminale|lycee|lyc[eè]e|bac)\b/i.test(normText) ||
+      normText.includes("lyc") || normText.includes("secondaire");
+
+    // Primary / Elementary patterns: CI, CP, CE1, CE2, CM1, CM2, SIL (and CIA, CPB, etc.)
+    const isPrimaryClass = /\b(ci|cp|cp1|cp2|ce1|ce2|cm1|cm2|sil|cours\s+d'initiation|cours\s+preparatoire|cours\s+elementaire|cours\s+moyen)\b/i.test(normText) ||
+      /\b(ci|cp|ce1|ce2|cm1|cm2)[a-z0-9]?\b/i.test(normText) ||
+      normText.includes("prim") || normText.includes("elem");
+
+    // Preschool / Maternelle patterns
+    const isMaternelleClass = /\b(maternelle|creche|prescolaire|garderie|petite\s+section|moyenne\s+section|grande\s+section|ps|ms|gs)\b/i.test(normText) ||
+      normText.includes("mat") || normText.includes("creche");
+
+    if (targetFamily === "university") {
+      return isUnivClass && !isPrimaryClass && !isCollegeClass && !isLyceeClass;
+    }
+    if (targetFamily === "middle") {
+      return isCollegeClass && !isUnivClass && !isPrimaryClass;
+    }
+    if (targetFamily === "secondary") {
+      return isLyceeClass && !isUnivClass && !isCollegeClass;
+    }
+    if (targetFamily === "primary") {
+      return (isPrimaryClass || isMaternelleClass) && !isUnivClass && !isCollegeClass && !isLyceeClass;
+    }
+  }
+
+  return false;
 }
 
 // Get Teacher Employee record matching user's username or email

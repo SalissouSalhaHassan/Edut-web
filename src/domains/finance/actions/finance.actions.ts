@@ -21,7 +21,7 @@ import { users } from "@/infrastructure/database/schema/auth";
 import { auditLogs } from "@/infrastructure/database/schema/audit";
 import { getActiveSchoolId } from "@/domains/auth/services/school";
 import { getCurrentUser } from "@/domains/auth/services/session";
-import { getActiveEducationalLevel, getCompatibleLevels, getUserRoleType, checkEducationalLevelAccess, normalizeLevel } from "@/domains/auth/services/rbac";
+import { getActiveEducationalLevel, getCompatibleLevels, getUserRoleType, checkEducationalLevelAccess, normalizeLevel, hasAllEducationalLevels, isStudentInEducationalLevel } from "@/domains/auth/services/rbac";
 
 export async function getStudentFees(params?: {
   search?: string;
@@ -193,15 +193,15 @@ export async function getStudentFees(params?: {
 
     let filteredData = enrichedData;
 
-    // Apply level isolation for level_director, level_comptable, level_caissier
-    const isLevelScoped = (roleType === "level_director" || roleType === "level_comptable" || roleType === "level_caissier") && !!activeLevel;
-    if (isLevelScoped) {
-      // Use normalizeLevel for accent-insensitive comparison (e.g. 'Collège Général' == 'college general')
-      const compatibleNorms = getCompatibleLevels(activeLevel).map(l => normalizeLevel(l));
-      filteredData = filteredData.filter(item =>
-        item.student && item.student.educationalLevel &&
-        compatibleNorms.includes(normalizeLevel(item.student.educationalLevel))
-      );
+    // Apply level isolation whenever activeLevel is scoped, or for level-specific roles
+    const isLevelScoped = (
+      roleType === "level_director" || 
+      roleType === "level_comptable" || 
+      roleType === "level_caissier" ||
+      Boolean(activeLevel && !hasAllEducationalLevels(activeLevel))
+    );
+    if (isLevelScoped && activeLevel) {
+      filteredData = filteredData.filter(item => isStudentInEducationalLevel(item.student, activeLevel));
     }
 
     function cleanString(val?: string | null): string {
@@ -1102,10 +1102,18 @@ export async function getFinanceStats() {
       })
       .from(studentFees);
 
-    if ((roleType === "level_director" || roleType === "level_comptable" || roleType === "level_caissier") && activeLevel) {
-      const compatibleLevels = getCompatibleLevels(activeLevel);
+    const isLevelScoped = (
+      roleType === "level_director" || 
+      roleType === "level_comptable" || 
+      roleType === "level_caissier" ||
+      Boolean(activeLevel && !hasAllEducationalLevels(activeLevel))
+    );
+    if (isLevelScoped && activeLevel) {
+      const compatibleLevels = getCompatibleLevels(activeLevel).filter(l => l && !hasAllEducationalLevels(l));
       query = query.innerJoin(students, eq(studentFees.studentId, students.id)) as any;
-      whereClause = and(whereClause, inArray(students.educationalLevel, compatibleLevels)) as any;
+      if (compatibleLevels.length > 0) {
+        whereClause = and(whereClause, inArray(students.educationalLevel, compatibleLevels)) as any;
+      }
     }
 
     const stats = await query.where(whereClause);
@@ -1323,11 +1331,14 @@ export async function getAdvancedFinanceStats() {
 
     // Filter by level for level_director, level_comptable, level_caissier
     let fees = allFees;
-    const needsLevelFilter = (roleType === "level_director" || roleType === "level_comptable" || roleType === "level_caissier") && !!activeLevel;
-    if (needsLevelFilter) {
-      // Use normalizeLevel for accent-insensitive comparison
-      const compatibleNorms = getCompatibleLevels(activeLevel).map(l => normalizeLevel(l));
-      fees = fees.filter(f => f.student?.educationalLevel && compatibleNorms.includes(normalizeLevel(f.student.educationalLevel)));
+    const needsLevelFilter = (
+      roleType === "level_director" || 
+      roleType === "level_comptable" || 
+      roleType === "level_caissier" ||
+      Boolean(activeLevel && !hasAllEducationalLevels(activeLevel))
+    );
+    if (needsLevelFilter && activeLevel) {
+      fees = fees.filter(f => isStudentInEducationalLevel(f.student, activeLevel));
     }
 
     // 1. Core financials

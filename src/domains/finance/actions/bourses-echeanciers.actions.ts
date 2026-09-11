@@ -1,8 +1,9 @@
 "use server";
 
 import { db, readDb } from "@/infrastructure/database";
-import { getActiveSchoolId } from "@/domains/auth/services/school";
+import { getActiveSchoolId, getActiveBranchData } from "@/domains/auth/services/school";
 import { getCurrentUser } from "@/domains/auth/services/session";
+import { getActiveEducationalLevel, hasAllEducationalLevels, isStudentInEducationalLevel } from "@/domains/auth/services/rbac";
 import { 
   scholarships, 
   studentScholarships, 
@@ -223,6 +224,18 @@ export async function getBoursesAndEcheanciersDashboardData() {
     const user = await getCurrentUser();
     const schoolId = (await getActiveSchoolId()) || user?.schoolId || 9;
 
+    // Resolve branch and educational level scope
+    const [{ branchData }, activeEduLevel] = await Promise.all([
+      getActiveBranchData(user).catch(() => ({ branchData: null, allBranches: [] })),
+      getActiveEducationalLevel(user).catch(() => null),
+    ]);
+
+    const activeLevel = activeEduLevel ||
+      (branchData?.instType && !hasAllEducationalLevels(branchData.instType) ? branchData.instType : null) ||
+      (user?.educationalLevel && !hasAllEducationalLevels(user.educationalLevel) ? user.educationalLevel : null);
+
+    const isLevelScoped = Boolean(activeLevel && !hasAllEducationalLevels(activeLevel));
+
     // 1. Scholarships Catalog
     let allScholarships = await (readDb || db)
       .select()
@@ -324,23 +337,31 @@ export async function getBoursesAndEcheanciersDashboardData() {
       };
     });
 
+    let finalAllocations = allocations;
+    let finalSchedules = schedules;
+
+    if (isLevelScoped && activeLevel) {
+      finalAllocations = allocations.filter(a => isStudentInEducationalLevel({ classe: a.studentClasse }, activeLevel));
+      finalSchedules = schedules.filter(s => isStudentInEducationalLevel({ classe: s.studentClasse }, activeLevel));
+    }
+
     // 4. Calculate Aggregate KPIs
-    const totalAllocatedBourses = allocations.reduce((acc, curr) => acc + Number(curr.allocatedAmount || 0), 0);
-    const totalGrossSchedules = schedules.reduce((acc, curr) => acc + Number(curr.grossAmount || 0), 0);
-    const totalNetSchedules = schedules.reduce((acc, curr) => acc + Number(curr.netAmount || 0), 0);
-    const totalPaidSchedules = schedules.reduce((acc, curr) => acc + Number(curr.paidAmount || 0), 0);
-    const totalOverdueSchedules = schedules
+    const totalAllocatedBourses = finalAllocations.reduce((acc, curr) => acc + Number(curr.allocatedAmount || 0), 0);
+    const totalGrossSchedules = finalSchedules.reduce((acc, curr) => acc + Number(curr.grossAmount || 0), 0);
+    const totalNetSchedules = finalSchedules.reduce((acc, curr) => acc + Number(curr.netAmount || 0), 0);
+    const totalPaidSchedules = finalSchedules.reduce((acc, curr) => acc + Number(curr.paidAmount || 0), 0);
+    const totalOverdueSchedules = finalSchedules
       .filter((s) => s.status === "En retard" || (s.balance > 0 && new Date(s.dueDate) < now))
       .reduce((acc, curr) => acc + Number(curr.balance || 0), 0);
 
-    const boursiersCount = allocations.filter((a) => a.status === "Actif").length;
+    const boursiersCount = finalAllocations.filter((a) => a.status === "Actif").length;
 
     return {
       success: true,
       data: {
         scholarships: allScholarships,
-        allocations,
-        schedules,
+        allocations: finalAllocations,
+        schedules: finalSchedules,
         metrics: {
           boursiersCount,
           totalAllocatedBourses,
