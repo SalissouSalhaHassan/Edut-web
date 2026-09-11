@@ -8,7 +8,7 @@ import { getAssignments } from "@/domains/lms/actions/lms.actions";
 import { db } from "@/infrastructure/database";
 import DevoirsClient from "./DevoirsClient";
 import { getPedagogieRole } from "@/domains/pedagogie/permissions";
-import { getUserRoleType } from "@/domains/auth/services/rbac";
+import { getUserRoleType, checkEducationalLevelAccess, hasAllEducationalLevels } from "@/domains/auth/services/rbac";
 import StudentHomeworkPortal from "@/app/dashboard/academics/homework/components/StudentHomeworkPortal";
 import { X } from "lucide-react";
 
@@ -48,7 +48,7 @@ export default async function DevoirsPage() {
   }
 
   const [classesRes, subjectsRes, employeesRes, studentsRes, assignmentsRes] = await Promise.all([
-    getClasses(true),
+    getClasses(false),
     getSubjects(),
     getEmployees(),
     getStudents(),
@@ -62,18 +62,26 @@ export default async function DevoirsPage() {
   const assignments = (assignmentsRes as any).data || [];
 
   // Fetch all submissions with relations for easier tabular display
-  const submissions = await db.query.lmsSubmissions.findMany({
+  let submissions = await db.query.lmsSubmissions.findMany({
     with: {
       student: true,
       assignment: {
         with: {
-          class: true,
+          class: {
+            with: { section: true }
+          },
           subject: true,
         }
       }
     },
     orderBy: (t, { desc }) => [desc(t.submittedAt)]
   });
+
+  if (currentUser?.educationalLevel && !hasAllEducationalLevels(currentUser.educationalLevel)) {
+    submissions = submissions.filter(sub => 
+      checkEducationalLevelAccess(currentUser, (sub.assignment?.class as any)?.section?.educationalLevel || sub.student?.educationalLevel)
+    );
+  }
 
   return (
     <DevoirsClient

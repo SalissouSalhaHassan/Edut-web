@@ -12,7 +12,7 @@ import { auditLogs } from "@/infrastructure/database/schema/audit";
 import { eq, and, sql, inArray, desc } from "drizzle-orm";
 import { protectedDbAction } from "@/lib/protected-action";
 import { getActiveSchoolId } from "@/domains/auth/services/school";
-import { getActiveEducationalLevel, getCompatibleLevels, hasAllEducationalLevels } from "@/domains/auth/services/rbac";
+import { getActiveEducationalLevel, getCompatibleLevels, hasAllEducationalLevels, checkEducationalLevelAccess } from "@/domains/auth/services/rbac";
 
 export async function getReportsData() {
   return protectedDbAction("Reports", "canView", async (user) => {
@@ -277,8 +277,11 @@ function getEmptyReportsData() {
 }
 
 export async function getUnifiedReportsData() {
-  return protectedDbAction("Reports", "canView", async () => {
+  return protectedDbAction("Reports", "canView", async (user) => {
     const schoolId = await getActiveSchoolId();
+    const activeLevel = await getActiveEducationalLevel(user);
+    const isLevelScoped = Boolean(activeLevel && !hasAllEducationalLevels(activeLevel));
+    const compatibleLevels = isLevelScoped ? getCompatibleLevels(activeLevel!) : [];
 
     const safeQuery = async <T>(label: string, query: Promise<T[]>): Promise<T[]> => {
       try {
@@ -289,18 +292,30 @@ export async function getUnifiedReportsData() {
       }
     };
 
+    let studentWhere: any = eq(students.schoolId, schoolId);
+    if (isLevelScoped) {
+      studentWhere = and(studentWhere, inArray(students.educationalLevel, compatibleLevels));
+    }
+
     const allStudents = await safeQuery("students", readDb.query.students.findMany({
-      where: eq(students.schoolId, schoolId)
+      where: studentWhere
     }));
     const studentIds = allStudents.map((s: any) => s.id).filter(Boolean);
 
-    const classes = await safeQuery("classes", readDb.query.schoolClasses.findMany({
+    const allClasses = await safeQuery("classes", readDb.query.schoolClasses.findMany({
       where: eq(schoolClasses.schoolId, schoolId),
       with: { section: true }
     }));
+
+    const classes = isLevelScoped
+      ? allClasses.filter((c: any) => {
+          const secLevel = c.section?.educationalLevel;
+          return checkEducationalLevelAccess(user, secLevel);
+        })
+      : allClasses;
     const classIds = classes.map((c: any) => c.id).filter(Boolean);
 
-    const [subjects, sessions, periods, allEmployees, allFeePayments, allExpenses] = await Promise.all([
+    const [subjects, sessions, periods, allEmployees, rawFeePayments, allExpenses] = await Promise.all([
       safeQuery("subjects", readDb.query.schoolSubjects.findMany({ where: eq(schoolSubjects.schoolId, schoolId) })),
       safeQuery("sessions", readDb.query.schoolSessions.findMany({ where: eq(schoolSessions.schoolId, schoolId) })),
       safeQuery("periods", readDb.query.academicPeriods.findMany({ where: eq(academicPeriods.schoolId, schoolId) })),
@@ -309,7 +324,11 @@ export async function getUnifiedReportsData() {
       safeQuery("expenses", readDb.query.expenses.findMany({ where: eq(expenses.schoolId, schoolId) })),
     ]);
 
-    const [attendance, seances, plans, resources, audit, grades] = await Promise.all([
+    const allFeePayments = isLevelScoped
+      ? (studentIds.length > 0 ? rawFeePayments.filter((p: any) => studentIds.includes(p.studentId)) : [])
+      : rawFeePayments;
+
+    const [attendance, rawSeances, rawPlans, resources, audit, grades] = await Promise.all([
       studentIds.length > 0
         ? safeQuery("attendance", readDb.query.studentAttendance.findMany({ where: inArray(studentAttendance.studentId, studentIds) }))
         : Promise.resolve([]),
@@ -325,6 +344,14 @@ export async function getUnifiedReportsData() {
         ? safeQuery("grades", readDb.query.studentResults.findMany({ where: inArray(studentResults.studentId, studentIds) }))
         : Promise.resolve([]),
     ]);
+
+    const seances = isLevelScoped
+      ? rawSeances.filter((s: any) => s.classId && classIds.includes(s.classId))
+      : rawSeances;
+
+    const plans = isLevelScoped
+      ? rawPlans.filter((p: any) => p.classId && classIds.includes(p.classId))
+      : rawPlans;
 
     let courses: any[] = [];
     let lessons: any[] = [];

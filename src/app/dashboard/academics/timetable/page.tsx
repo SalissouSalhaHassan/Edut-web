@@ -21,7 +21,7 @@ export default async function TimetablePage() {
     );
   }
 
-  const classesRes = await getClasses(true);
+  const classesRes = await getClasses(false);
   const sessionsRes = await getSessions();
   const employeesRes = await getEmployees();
   const subjectsRes = await getSubjects();

@@ -7,7 +7,7 @@ import { eq, desc, inArray, and, or, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { homeworkSchema, HomeworkFormData } from "../validators/homework.schema";
 import { protectedDbAction } from "@/lib/protected-action";
-import { getUserRoleType, getTeacherEmployee, getTeacherClassIds, verifyTeacherClassAccess, verifyTeacherClassSubjectAccess } from "@/domains/auth/services/rbac";
+import { getUserRoleType, getTeacherEmployee, getTeacherClassIds, verifyTeacherClassAccess, verifyTeacherClassSubjectAccess, checkEducationalLevelAccess, hasAllEducationalLevels } from "@/domains/auth/services/rbac";
 import { classSubjects, schoolClasses, schoolSubjects } from "@/infrastructure/database/schema/academics";
 import { getActiveSchoolId } from "@/domains/auth/services/school";
 
@@ -99,13 +99,17 @@ export async function getHomeworks() {
       return { data: filtered };
     }
 
-    // 4. Admin/Director sees all homework for their school
+    // 4. Admin/Director sees homework for their school (scoped by level for level directors)
     const data = await db.query.homework.findMany({
-      with: { class: true, subject: true },
+      with: { class: { with: { section: true } }, subject: true },
       orderBy: [desc(homework.dateAssigned)],
     });
 
-    const filtered = data.filter((h) => h.class?.schoolId === schoolId);
+    let filtered = data.filter((h) => h.class?.schoolId === schoolId);
+    const isRestrictedLevel = roleType === "level_director" || (user.educationalLevel && !hasAllEducationalLevels(user.educationalLevel));
+    if (isRestrictedLevel) {
+      filtered = filtered.filter((h) => checkEducationalLevelAccess(user, (h.class as any)?.section?.educationalLevel));
+    }
     return { data: filtered };
   });
 }
@@ -142,10 +146,17 @@ export async function createHomework(formData: HomeworkFormData) {
         where: and(
           eq(schoolClasses.id, validation.data.classId),
           eq(schoolClasses.schoolId, schoolId)
-        )
+        ),
+        with: { section: true }
       });
       if (!targetClass) {
         return { error: "Classe introuvable ou non autorisée." };
+      }
+
+      if (roleType === "level_director" || (user.educationalLevel && !hasAllEducationalLevels(user.educationalLevel))) {
+        if (!checkEducationalLevelAccess(user, targetClass.section?.educationalLevel)) {
+          return { error: "Accès refusé. Cette classe n'appartient pas à votre cycle d'enseignement." };
+        }
       }
 
       const targetSubject = await db.query.schoolSubjects.findFirst({
@@ -240,10 +251,17 @@ export async function updateHomework(id: number, formData: HomeworkFormData) {
         where: and(
           eq(schoolClasses.id, validation.data.classId),
           eq(schoolClasses.schoolId, schoolId)
-        )
+        ),
+        with: { section: true }
       });
       if (!targetClass) {
         return { error: "Classe cible introuvable ou non autorisée." };
+      }
+
+      if (roleType === "level_director" || (user.educationalLevel && !hasAllEducationalLevels(user.educationalLevel))) {
+        if (!checkEducationalLevelAccess(user, targetClass.section?.educationalLevel)) {
+          return { error: "Accès refusé. Cette classe n'appartient pas à votre cycle d'enseignement." };
+        }
       }
 
       const targetSubject = await db.query.schoolSubjects.findFirst({
@@ -280,10 +298,16 @@ export async function deleteHomework(id: number) {
     // Verify existing homework belongs to the active school
     const existing = await db.query.homework.findFirst({
       where: eq(homework.id, id),
-      with: { class: true }
+      with: { class: { with: { section: true } } }
     });
     if (!existing || existing.class?.schoolId !== schoolId) {
       return { error: "Devoir introuvable ou non autorisé." };
+    }
+
+    if (roleType === "level_director" || (user.educationalLevel && !hasAllEducationalLevels(user.educationalLevel))) {
+      if (!checkEducationalLevelAccess(user, (existing.class as any)?.section?.educationalLevel)) {
+        return { error: "Accès refusé. Ce devoir n'appartient pas à votre cycle d'enseignement." };
+      }
     }
 
     // Verify teacher owns the homework's class and subject before deleting

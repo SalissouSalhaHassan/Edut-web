@@ -8,7 +8,7 @@ import { schoolBranches, settings } from "@/infrastructure/database/schema/setti
 import { eq, and, isNull, inArray, sql, or, desc } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { protectedDbAction } from "@/lib/protected-action";
-import { getUserRoleType, getTeacherEmployee, verifyTeacherClassAccess } from "@/domains/auth/services/rbac";
+import { getUserRoleType, getTeacherEmployee, verifyTeacherClassAccess, checkEducationalLevelAccess, hasAllEducationalLevels } from "@/domains/auth/services/rbac";
 import { getActiveSchoolId } from "@/domains/auth/services/school";
 import { getCurrentUser } from "@/domains/auth/services/session";
 
@@ -19,15 +19,27 @@ async function assertTimetableAdminAccess(user: any) {
   }
 }
 
-async function assertClassInActiveSchool(classId: number | null | undefined) {
+async function assertClassInActiveSchool(classId: number | null | undefined, user?: any) {
   if (!classId) throw new Error("Classe invalide.");
   const schoolId = await getActiveSchoolId();
   if (!schoolId) throw new Error("Aucun contexte d'école trouvé.");
 
   const cls = await db.query.schoolClasses.findFirst({
     where: and(eq(schoolClasses.id, classId), eq(schoolClasses.schoolId, schoolId)),
+    with: { section: true }
   });
   if (!cls) throw new Error("Accès refusé pour cette école.");
+
+  if (user) {
+    const roleType = await getUserRoleType(user);
+    if (roleType === "level_director" || (user.educationalLevel && !hasAllEducationalLevels(user.educationalLevel))) {
+      const allowed = checkEducationalLevelAccess(user, cls.section?.educationalLevel);
+      if (!allowed) {
+        throw new Error("Accès refusé. Cette classe n'appartient pas à votre cycle d'enseignement.");
+      }
+    }
+  }
+
   return { schoolId, cls };
 }
 
@@ -56,12 +68,12 @@ async function assertTeacherInActiveSchool(employeeId: number | null | undefined
   return teacher;
 }
 
-async function assertTimetableEntryInActiveSchool(id: number) {
+async function assertTimetableEntryInActiveSchool(id: number, user?: any) {
   const entry = await db.query.timetableEntries.findFirst({
     where: eq(timetableEntries.id, id),
   });
   if (!entry) throw new Error("Séance introuvable.");
-  await assertClassInActiveSchool(entry.classId);
+  await assertClassInActiveSchool(entry.classId, user);
   return entry;
 }
 
@@ -175,7 +187,7 @@ export async function getTimetableEntries(modeOrId: "class" | "teacher" | number
     if (!finalId) return [];
 
     if (finalMode === "class") {
-      await assertClassInActiveSchool(finalId);
+      await assertClassInActiveSchool(finalId, user);
     }
 
     const entries = await db.query.timetableEntries.findMany({
@@ -183,9 +195,16 @@ export async function getTimetableEntries(modeOrId: "class" | "teacher" | number
       with: {
         subject: true,
         teacher: true,
-        class: true
+        class: {
+          with: { section: true }
+        }
       }
     });
+
+    if (roleType === "level_director" || (user.educationalLevel && !hasAllEducationalLevels(user.educationalLevel))) {
+      return entries.filter(e => checkEducationalLevelAccess(user, (e.class as any)?.section?.educationalLevel));
+    }
+
     return entries;
   });
 }
@@ -274,7 +293,7 @@ export async function getGlobalOccupancy() {
 export async function saveTimetableEntry(data: any) {
   return protectedDbAction("Academics", "canEdit", async (user) => {
     await assertTimetableAdminAccess(user);
-    await assertClassInActiveSchool(data.classId);
+    await assertClassInActiveSchool(data.classId, user);
 
     // Check for conflicts: either class is busy OR teacher is busy at the same day/period
     const conflict = await db.query.timetableEntries.findFirst({
@@ -298,7 +317,7 @@ export async function saveTimetableEntry(data: any) {
     }
 
     if (data.id) {
-      await assertTimetableEntryInActiveSchool(data.id);
+      await assertTimetableEntryInActiveSchool(data.id, user);
       await db.update(timetableEntries).set(data).where(eq(timetableEntries.id, data.id));
     } else {
       await db.insert(timetableEntries).values(data);
@@ -312,7 +331,7 @@ export async function saveTimetableEntry(data: any) {
 export async function deleteTimetableEntry(id: number) {
   return protectedDbAction("Academics", "canDelete", async (user) => {
     await assertTimetableAdminAccess(user);
-    await assertTimetableEntryInActiveSchool(id);
+    await assertTimetableEntryInActiveSchool(id, user);
     await db.delete(timetableEntries).where(eq(timetableEntries.id, id));
     revalidatePath("/dashboard/academics/timetable");
     revalidatePath("/dashboard/hr/attendance/qrcodes");
@@ -323,7 +342,7 @@ export async function deleteTimetableEntry(id: number) {
 export async function moveTimetableEntry(id: number, dayName: string, periodNumber: number) {
   return protectedDbAction("Academics", "canEdit", async (user) => {
     await assertTimetableAdminAccess(user);
-    const entry = await assertTimetableEntryInActiveSchool(id);
+    const entry = await assertTimetableEntryInActiveSchool(id, user);
 
     if (!entry) throw new Error("Séance introuvable.");
 
@@ -426,7 +445,7 @@ export async function saveTeacherConstraints(employeeId: number, data: any) {
 
 export async function getClassAssignments(classId: number) {
   return protectedDbAction("Academics", "canView", async (user) => {
-    const { schoolId } = await assertClassInActiveSchool(classId);
+    const { schoolId } = await assertClassInActiveSchool(classId, user);
     const roleType = await getUserRoleType(user);
     if (roleType === "teacher") {
       const hasAccess = await verifyTeacherClassAccess(user, classId);
@@ -457,7 +476,7 @@ export async function saveClassAssignment(id: number | null, data: any) {
 
     const classId = Number(data.classId ?? existing?.classId);
     const subjectId = Number(data.subjectId ?? existing?.subjectId);
-    const { schoolId } = await assertClassInActiveSchool(classId);
+    const { schoolId } = await assertClassInActiveSchool(classId, user);
     await assertSubjectInActiveSchool(subjectId, schoolId);
 
     const employeeId =
@@ -647,7 +666,7 @@ export async function getTeachersByClassLevel(classId: number) {
 export async function aiSyncCursus(classId: number) {
   return protectedDbAction("Academics", "canEdit", async (user) => {
     await assertTimetableAdminAccess(user);
-    const { schoolId } = await assertClassInActiveSchool(classId);
+    const { schoolId } = await assertClassInActiveSchool(classId, user);
     const cls = await db.query.schoolClasses.findFirst({
       where: and(eq(schoolClasses.id, classId), eq(schoolClasses.schoolId, schoolId))
     });
@@ -690,7 +709,7 @@ export async function addSubjectsToClass(classId: number, subjectIds: number[]) 
   if (subjectIds.length === 0) return { success: true };
   return protectedDbAction("Academics", "canEdit", async (user) => {
     await assertTimetableAdminAccess(user);
-    const { schoolId } = await assertClassInActiveSchool(classId);
+    const { schoolId } = await assertClassInActiveSchool(classId, user);
     const cls = await db.query.schoolClasses.findFirst({
       where: and(eq(schoolClasses.id, classId), eq(schoolClasses.schoolId, schoolId)),
     });
@@ -905,17 +924,28 @@ export async function runAISolver(sessionIdOrParams?: number | {
     } = params;
 
     // 1. Fetch Target Classes
+    const roleType = await getUserRoleType(user);
+    const isRestrictedLevel = roleType === "level_director" || (user.educationalLevel && !hasAllEducationalLevels(user.educationalLevel));
+
     let targetClasses: any[] = [];
     if (classId) {
       const cls = await db.query.schoolClasses.findFirst({
         where: and(eq(schoolClasses.id, classId), eq(schoolClasses.schoolId, schoolId)),
+        with: { section: true }
       });
       if (!cls) throw new Error("Classe sélectionnée introuvable.");
+      if (isRestrictedLevel && !checkEducationalLevelAccess(user, cls.section?.educationalLevel)) {
+        throw new Error("Accès refusé. Cette classe n'appartient pas à votre cycle d'enseignement.");
+      }
       targetClasses = [cls];
     } else {
-      targetClasses = await db.query.schoolClasses.findMany({
+      const allClasses = await db.query.schoolClasses.findMany({
         where: eq(schoolClasses.schoolId, schoolId),
+        with: { section: true }
       });
+      targetClasses = isRestrictedLevel
+        ? allClasses.filter(c => checkEducationalLevelAccess(user, c.section?.educationalLevel))
+        : allClasses;
     }
 
     if (targetClasses.length === 0) {

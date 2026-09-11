@@ -198,9 +198,20 @@ function ReportsDashboardContent({ unifiedData: initialData, branding, currentUs
   // Available levels list
   const availableLevels = useMemo(() => {
     const studentLevels = (data.students || []).map((s: any) => s?.educationalLevel).filter(Boolean);
+    const classLevels = (data.classes || []).map((c: any) => c?.section?.educationalLevel).filter(Boolean);
+    const existingLevels = Array.from(new Set([...classLevels, ...studentLevels]));
+
+    const userLevel = currentUser?.educationalLevel;
+    const isRestricted = userLevel && !["tous", "all", "administration", "gestion scolaire", "administration generale", "administration générale"].includes(userLevel.toLowerCase());
+
+    if (isRestricted) {
+      if (existingLevels.length > 0) return existingLevels;
+      return [userLevel];
+    }
+
     const defaults = ["Préscolaire", "Maternelle", "Primaire", "Collège", "Lycée", "Licence", "Master", "Technique", "Supérieur"];
-    return Array.from(new Set([...defaults, ...studentLevels]));
-  }, [data.students]);
+    return Array.from(new Set([...defaults, ...existingLevels]));
+  }, [data.students, data.classes, currentUser]);
 
   // Export History State
   const [exportHistory, setExportHistory] = useState<any[]>([]);
@@ -1095,7 +1106,11 @@ function ReportsDashboardContent({ unifiedData: initialData, branding, currentUs
                   onChange={(e) => { setSelectedLevel(e.target.value); setSelectedClassId("All"); setSelectedStudentId("All"); }}
                   className={fSel}
                 >
-                  <option value="All">Tous les cycles</option>
+                  <option value="All">
+                    {currentUser?.educationalLevel && !["tous", "all", "administration", "gestion scolaire", "administration generale", "administration générale"].includes(currentUser.educationalLevel.toLowerCase())
+                      ? `Cycle ${currentUser.educationalLevel}`
+                      : "Tous les cycles"}
+                  </option>
                   {availableLevels.map(lvl => (
                     <option key={lvl} value={lvl}>{lvl}</option>
                   ))}

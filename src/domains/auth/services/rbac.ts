@@ -1,7 +1,7 @@
 import { db } from "@/infrastructure/database";
 import { rolePermissions, users, roles } from "@/infrastructure/database/schema/auth";
 import { schoolBranches } from "@/infrastructure/database/schema/settings";
-import { classSubjects } from "@/infrastructure/database/schema/academics";
+import { classSubjects, schoolClasses } from "@/infrastructure/database/schema/academics";
 import { employees } from "@/infrastructure/database/schema/hr";
 import { students } from "@/infrastructure/database/schema/students";
 import { eq, sql, or, and } from "drizzle-orm";
@@ -920,15 +920,41 @@ export const getTeacherClassIds = cache(async (employeeId: number): Promise<numb
     .filter((id): id is number => id !== null);
 });
 
-// Verify teacher access to a specific class
+// Verify educational level access to a specific class
+export async function verifyClassEducationalLevelAccess(user: any, classId: number): Promise<boolean> {
+  if (!user) return false;
+  if (user.superAdmin === true || user.superAdmin === 1) return true;
+  const roleType = await getUserRoleType(user);
+  if (roleType !== "level_director" && hasAllEducationalLevels(user.educationalLevel)) return true;
+
+  try {
+    const targetClass = await db.query.schoolClasses.findFirst({
+      where: eq(schoolClasses.id, classId),
+      with: { section: true }
+    });
+    if (!targetClass) return false;
+    const level = targetClass.section?.educationalLevel;
+    return checkEducationalLevelAccess(user, level);
+  } catch (error) {
+    console.error("[verifyClassEducationalLevelAccess] Error:", error);
+    return false;
+  }
+}
+
+// Verify teacher or level director access to a specific class
 export async function verifyTeacherClassAccess(user: any, classId: number): Promise<boolean> {
-  if (user?.admin || user?.superAdmin || user?.role?.isSystemAdmin) return true;
+  if (user?.superAdmin === true || user?.superAdmin === 1) return true;
   const roleType = await getUserRoleType(user);
   if (roleType === "eleve" || roleType === "parent") return false;
+
+  // Level directors are strictly scoped to classes belonging to their educational level
+  if (roleType === "level_director" || (!hasAllEducationalLevels(user?.educationalLevel) && (roleType === "directeur" || roleType === "general_director" || user?.admin === true))) {
+    return await verifyClassEducationalLevelAccess(user, classId);
+  }
+
   if (
     roleType === "directeur" ||
     roleType === "general_director" ||
-    roleType === "level_director" ||
     roleType === "censeur" ||
     roleType === "surveillant" ||
     roleType === "super_admin" ||
@@ -949,15 +975,20 @@ export async function verifyTeacherClassAccess(user: any, classId: number): Prom
   return true;
 }
 
-// Verify teacher access to a specific class and subject
+// Verify teacher or level director access to a specific class and subject
 export async function verifyTeacherClassSubjectAccess(user: any, classId: number, subjectId: number): Promise<boolean> {
-  if (user?.admin || user?.superAdmin || user?.role?.isSystemAdmin) return true;
+  if (user?.superAdmin === true || user?.superAdmin === 1) return true;
   const roleType = await getUserRoleType(user);
   if (roleType === "eleve" || roleType === "parent") return false;
+
+  // Level directors are strictly scoped to classes belonging to their educational level
+  if (roleType === "level_director" || (!hasAllEducationalLevels(user?.educationalLevel) && (roleType === "directeur" || roleType === "general_director" || user?.admin === true))) {
+    return await verifyClassEducationalLevelAccess(user, classId);
+  }
+
   if (
     roleType === "directeur" ||
     roleType === "general_director" ||
-    roleType === "level_director" ||
     roleType === "censeur" ||
     roleType === "surveillant" ||
     roleType === "super_admin" ||

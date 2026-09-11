@@ -4,7 +4,7 @@ import { getAttendanceRecords, getAttendanceStats } from "@/domains/attendance/a
 import { getClasses, getSubjectsForClass } from "@/domains/academics/actions/academics.actions";
 import { getStudentsByClass } from "@/domains/students/actions/students.actions";
 import { getCurrentUser } from "@/domains/auth/services/session";
-import { getUserRoleType } from "@/domains/auth/services/rbac";
+import { getUserRoleType, verifyClassEducationalLevelAccess } from "@/domains/auth/services/rbac";
 import { getClassDisplayName } from "@/domains/academics/utils/class-name";
 import AttendanceClient from "./attendance-client";
 import StudentAttendancePortal from "./components/StudentAttendancePortal";
@@ -24,8 +24,16 @@ export default async function AttendancePage({ searchParams: searchParamsPromise
 
   const searchParams = await searchParamsPromise;
   const date = searchParams.date || new Date().toISOString().split('T')[0];
-  const classId = searchParams.classId ? Number(searchParams.classId) : null;
+  let classId = searchParams.classId ? Number(searchParams.classId) : null;
   const subjectId = searchParams.subjectId ? Number(searchParams.subjectId) : null;
+
+  // Verify class access if classId is provided
+  if (classId) {
+    const hasAccess = await verifyClassEducationalLevelAccess(currentUser, classId);
+    if (!hasAccess) {
+      classId = null;
+    }
+  }
 
   let classes: any[] = [];
   let stats: any = { presents: 0, absents: 0, lates: 0, excused: 0 };
@@ -36,7 +44,7 @@ export default async function AttendancePage({ searchParams: searchParamsPromise
 
   try {
     const [classesRes, statsRes] = await Promise.all([
-      getClasses(true).catch(() => ({ data: [] })),
+      getClasses(false).catch(() => ({ data: [] })),
       getAttendanceStats(date, classId, subjectId).catch(() => ({ data: { data: { presents: 0, absents: 0, lates: 0, excused: 0 } } })),
     ]);
 
