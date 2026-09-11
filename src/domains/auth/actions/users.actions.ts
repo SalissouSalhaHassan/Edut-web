@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/infrastructure/database";
-import { users, loginLogs } from "@/infrastructure/database/schema/auth";
+import { users, roles, loginLogs } from "@/infrastructure/database/schema/auth";
 import { auditLogs } from "@/infrastructure/database/schema/audit";
 import { students } from "@/infrastructure/database/schema/students";
 import { employees } from "@/infrastructure/database/schema/hr";
