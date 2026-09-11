@@ -1816,32 +1816,32 @@ export async function buildReleveNotesDoc(data: any): Promise<jsPDF> {
     }
   }
 
-  const titleBarY = headerEndY + 2;
-  const studentInfoY = titleBarY + 8.5;
-  const s1SectionY = studentInfoY + 12;
-  const s1TitleY = studentInfoY + 15;
-  const table1StartY = studentInfoY + 18;
+  const titleBarY = headerEndY + 3.0;
+  const studentInfoY = titleBarY + 11.0;
+  const s1SectionY = studentInfoY + 16.0;
+  const s1TitleY = s1SectionY + 5.5;
+  const table1StartY = s1TitleY + 3.5;
 
   doc.setFillColor(210, 230, 210);
-  doc.rect(10, titleBarY, 190, 6, "F");
+  doc.rect(10, titleBarY, 190, 6.5, "F");
   doc.setFontSize(10.5);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(0, 50, 0);
-  doc.text("RELEVE DE NOTES", 105, titleBarY + 4.2, { align: "center" });
+  doc.text("RELEVE DE NOTES", 105, titleBarY + 4.5, { align: "center" });
   doc.setTextColor(0, 0, 0);
 
   // --- 3. STUDENT INFO ---
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
   doc.text("Etudiant:", 10, studentInfoY);
-  doc.text("Matricule:", 10, studentInfoY + 4.5);
-  doc.text("Parcours:", 10, studentInfoY + 9);
+  doc.text("Matricule:", 10, studentInfoY + 5.0);
+  doc.text("Parcours:", 10, studentInfoY + 10.0);
   
   const studentNameStr = student?.nomEtudiant || student?.name || "Élève";
   doc.setFont("helvetica", "bold");
   drawTextBilingual(doc, studentNameStr, 30, studentInfoY);
-  drawTextBilingual(doc, student?.numAdmission || student?.matricule || "N/A", 30, studentInfoY + 4.5);
-  drawTextBilingual(doc, student?.classe || student?.className || "Licence", 30, studentInfoY + 9);
+  drawTextBilingual(doc, student?.numAdmission || student?.matricule || "N/A", 30, studentInfoY + 5.0);
+  drawTextBilingual(doc, student?.classe || student?.className || "Licence", 30, studentInfoY + 10.0);
 
   // Date et lieu de naissance (Date & Place of birth) on the student name line
   const rawDob = student?.dateNaissance || student?.dateOfBirth || student?.birthDate || student?.dob;
@@ -2117,9 +2117,9 @@ export async function buildReleveNotesDoc(data: any): Promise<jsPDF> {
     margin: { left: 10, right: 10, top: 2, bottom: 4 }
   });
 
-  const finalY1 = (doc as any).lastAutoTable.finalY + 2;
-  const s2TitleY = finalY1 + 3;
-  const table2StartY = finalY1 + 5;
+  const finalY1 = (doc as any).lastAutoTable.finalY + 3;
+  const s2TitleY = finalY1 + 4;
+  const table2StartY = s2TitleY + 3.5;
 
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
