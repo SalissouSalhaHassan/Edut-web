@@ -6,6 +6,7 @@ import { getActiveBranchData } from "@/domains/auth/services/school";
 import { getUnreadNotificationsCount } from "@/domains/messaging/actions/notifications.actions";
 import { NavigationProgressProvider } from "@/components/providers/navigation-progress";
 import SyncStatus from "@/components/common/SyncStatus";
+import { InactivityLockOverlay } from "@/components/auth/InactivityLockOverlay";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -57,6 +58,7 @@ export default async function DashboardLayout({
         <NavigationProgressProvider>
           <DashboardLoadingBar />
           <SyncStatus />
+          <InactivityLockOverlay user={user} branding={branding} />
 
           <div className="flex h-full max-h-full gap-4 p-4 overflow-hidden">
             <DashboardSidebar 
