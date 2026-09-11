@@ -1816,18 +1816,18 @@ export async function buildReleveNotesDoc(data: any): Promise<jsPDF> {
     }
   }
 
-  const titleBarY = headerEndY + 3.5;
-  const studentInfoY = titleBarY + 11;
-  const s1SectionY = studentInfoY + 15;
-  const s1TitleY = studentInfoY + 19;
-  const table1StartY = studentInfoY + 22;
+  const titleBarY = headerEndY + 2;
+  const studentInfoY = titleBarY + 8.5;
+  const s1SectionY = studentInfoY + 12;
+  const s1TitleY = studentInfoY + 15;
+  const table1StartY = studentInfoY + 18;
 
   doc.setFillColor(210, 230, 210);
-  doc.rect(10, titleBarY, 190, 7, "F");
-  doc.setFontSize(11);
+  doc.rect(10, titleBarY, 190, 6, "F");
+  doc.setFontSize(10.5);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(0, 50, 0);
-  doc.text("RELEVE DE NOTES", 105, titleBarY + 5, { align: "center" });
+  doc.text("RELEVE DE NOTES", 105, titleBarY + 4.2, { align: "center" });
   doc.setTextColor(0, 0, 0);
 
   // --- 3. STUDENT INFO ---
@@ -1871,6 +1871,18 @@ export async function buildReleveNotesDoc(data: any): Promise<jsPDF> {
   doc.text("Né(e) le :", dobLabelX, studentInfoY);
   doc.setFont("helvetica", "bold");
   drawTextBilingual(doc, fullDobPobStr, dobLabelX + 15, studentInfoY);
+
+  // QR Code on Page 1 beside student info
+  try {
+    const studentMatricule = student?.numAdmission || student?.matricule || student?.id;
+    const verifyUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://niger.edut.pro"}/verify/${encodeURIComponent(studentMatricule || "RELEVE")}`;
+    const qrBase64 = await fetchQRCodeBase64(verifyUrl);
+    if (qrBase64) {
+      doc.addImage(qrBase64, 'PNG', 178, studentInfoY - 3, 16, 16);
+    }
+  } catch (e) {
+    console.warn("Failed to load QR code for Releve:", e);
+  }
 
   // --- 4. DETERMINE SEMESTER PAIR ---
   const isDoctorate = student?.educationalLevel?.toLowerCase().includes("doc") || student?.classe?.toLowerCase().includes("doc") || term?.toLowerCase().includes("ann") || term?.toLowerCase().includes("annee");
@@ -1973,6 +1985,28 @@ export async function buildReleveNotesDoc(data: any): Promise<jsPDF> {
     r.mention
   ]);
 
+  const hasRealS2   = activeResults2 && activeResults2.length > 0;
+  const rows2       = hasRealS2 ? buildTableRows(activeResults2, suffix2) : [];
+  const { totalCoef: tc2, totalPoints: tp2, average: avg2 } = computeTotals(rows2);
+  const usedAvg2    = hasRealS2 ? avg2 : (activeSummary2?.average ?? 0);
+  const decision2   = getDecision(usedAvg2, activeSummary2?.decision);
+
+  const bodyData2 = rows2.map(r => [
+    r.code,
+    r.name,
+    r.coef.toString(),
+    r.avg.toFixed(2),
+    r.mention
+  ]);
+
+  // --- ADAPTIVE ROW HEIGHT & SPACING TO GUARANTEE 1 SINGLE PAGE ---
+  const totalSubjectRows = (bodyData1.length || 1) + (bodyData2.length || 1);
+  const isDense = totalSubjectRows > 12;
+  const tableCellPadding = isDense ? 0.9 : 1.3;
+  const tableMinRowH = isDense ? 3.9 : 4.6;
+  const tableHeadMinH = isDense ? 4.6 : 5.4;
+  const tableFontSize = isDense ? 7.5 : 8.0;
+
   autoTable(doc, {
     startY: table1StartY,
     head: [["Code", "Matières", "Crédits", "Notes/20", "Mention"]],
@@ -1993,9 +2027,10 @@ export async function buildReleveNotesDoc(data: any): Promise<jsPDF> {
       ]
     ],
     theme: "grid",
-    headStyles: { fillColor: [210, 230, 210], textColor: [0, 50, 0], fontStyle: "bold", halign: "center", lineWidth: 0.35, lineColor: [100, 140, 100], minCellHeight: 6 },
-    footStyles: { fillColor: [210, 230, 210], textColor: [0, 50, 0], fontStyle: "bold", lineWidth: 0.35, lineColor: [100, 140, 100], minCellHeight: 5.5 },
-    styles: { fontSize: 8.5, cellPadding: 1.8, minCellHeight: 5.5, lineColor: [120, 130, 120], lineWidth: 0.3 },
+    pageBreak: 'avoid',
+    headStyles: { fillColor: [210, 230, 210], textColor: [0, 50, 0], fontStyle: "bold", halign: "center", lineWidth: 0.3, lineColor: [100, 140, 100], minCellHeight: tableHeadMinH, fontSize: tableFontSize },
+    footStyles: { fillColor: [210, 230, 210], textColor: [0, 50, 0], fontStyle: "bold", lineWidth: 0.3, lineColor: [100, 140, 100], minCellHeight: tableMinRowH, fontSize: tableFontSize },
+    styles: { fontSize: tableFontSize, cellPadding: tableCellPadding, minCellHeight: tableMinRowH, lineColor: [120, 130, 120], lineWidth: 0.25 },
     bodyStyles: { fillColor: false as any },
     alternateRowStyles: { fillColor: false as any },
     columnStyles: {
@@ -2017,30 +2052,16 @@ export async function buildReleveNotesDoc(data: any): Promise<jsPDF> {
         }
       }
     },
-    margin: { left: 10, right: 10 }
+    margin: { left: 10, right: 10, top: 2, bottom: 4 }
   });
 
-  const finalY1 = (doc as any).lastAutoTable.finalY + 4;
-  const s2TitleY = finalY1 + 4;
-  const table2StartY = finalY1 + 7;
+  const finalY1 = (doc as any).lastAutoTable.finalY + 2;
+  const s2TitleY = finalY1 + 3;
+  const table2StartY = finalY1 + 5;
 
-  doc.setFontSize(12);
+  doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
   doc.text(secondSemesterName, 105, s2TitleY, { align: "center" });
-
-  const hasRealS2   = activeResults2 && activeResults2.length > 0;
-  const rows2       = hasRealS2 ? buildTableRows(activeResults2, suffix2) : [];
-  const { totalCoef: tc2, totalPoints: tp2, average: avg2 } = computeTotals(rows2);
-  const usedAvg2    = hasRealS2 ? avg2 : (activeSummary2?.average ?? 0);
-  const decision2   = getDecision(usedAvg2, activeSummary2?.decision);
-
-  const bodyData2 = rows2.map(r => [
-    r.code,
-    r.name,
-    r.coef.toString(),
-    r.avg.toFixed(2),
-    r.mention
-  ]);
 
   autoTable(doc, {
     startY: table2StartY,
@@ -2062,9 +2083,10 @@ export async function buildReleveNotesDoc(data: any): Promise<jsPDF> {
       ]
     ],
     theme: "grid",
-    headStyles: { fillColor: [210, 230, 210], textColor: [0, 50, 0], fontStyle: "bold", halign: "center", lineWidth: 0.35, lineColor: [100, 140, 100], minCellHeight: 6 },
-    footStyles: { fillColor: [210, 230, 210], textColor: [0, 50, 0], fontStyle: "bold", lineWidth: 0.35, lineColor: [100, 140, 100], minCellHeight: 5.5 },
-    styles: { fontSize: 8.5, cellPadding: 1.8, minCellHeight: 5.5, lineColor: [120, 130, 120], lineWidth: 0.3 },
+    pageBreak: 'avoid',
+    headStyles: { fillColor: [210, 230, 210], textColor: [0, 50, 0], fontStyle: "bold", halign: "center", lineWidth: 0.3, lineColor: [100, 140, 100], minCellHeight: tableHeadMinH, fontSize: tableFontSize },
+    footStyles: { fillColor: [210, 230, 210], textColor: [0, 50, 0], fontStyle: "bold", lineWidth: 0.3, lineColor: [100, 140, 100], minCellHeight: tableMinRowH, fontSize: tableFontSize },
+    styles: { fontSize: tableFontSize, cellPadding: tableCellPadding, minCellHeight: tableMinRowH, lineColor: [120, 130, 120], lineWidth: 0.25 },
     bodyStyles: { fillColor: false as any },
     alternateRowStyles: { fillColor: false as any },
     columnStyles: {
@@ -2086,29 +2108,18 @@ export async function buildReleveNotesDoc(data: any): Promise<jsPDF> {
         }
       }
     },
-    margin: { left: 10, right: 10 }
+    margin: { left: 10, right: 10, top: 2, bottom: 4 }
   });
 
-  const finalY2 = (doc as any).lastAutoTable.finalY + 8;
-  doc.setFontSize(11);
+  const finalY2 = (doc as any).lastAutoTable.finalY + 4;
+  doc.setFontSize(10.5);
   doc.setFont("helvetica", "bold");
   doc.text("Le Doyen", 105, finalY2, { align: "center" });
 
   const pageHeight = doc.internal.pageSize.getHeight();
   doc.setFont("helvetica", "italic");
   doc.setFontSize(7);
-  doc.text("Il ne sera pas délivré de duplicata de ce relevé. Il vous appartient d'en faire des copies et de les faire certifier conformes.", 105, pageHeight - 5, { align: "center" });
-
-  try {
-    const studentMatricule = student?.numAdmission || student?.matricule || student?.id;
-    const verifyUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://niger.edut.pro"}/verify/${encodeURIComponent(studentMatricule || "RELEVE")}`;
-    const qrBase64 = await fetchQRCodeBase64(verifyUrl);
-    if (qrBase64) {
-      doc.addImage(qrBase64, 'PNG', 175, studentInfoY - 4, 18, 18);
-    }
-  } catch (e) {
-    console.warn("Failed to load QR code for Releve:", e);
-  }
+  doc.text("Il ne sera pas délivré de duplicata de ce relevé. Il vous appartient d'en faire des copies et de les faire certifier conformes.", 105, pageHeight - 4, { align: "center" });
 
   if (data.isOffline || (typeof navigator !== "undefined" && !navigator.onLine)) {
     doc.saveGraphicsState();
