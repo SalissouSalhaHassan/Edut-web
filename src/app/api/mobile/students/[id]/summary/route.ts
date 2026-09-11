@@ -8,7 +8,7 @@ import {
   studentResults
 } from "@/infrastructure/database/schema/academics";
 import { getMobileUser, mobileJsonError } from "../../../_lib/auth";
-import { getUserRoleType } from "@/domains/auth/services/rbac";
+import { getUserRoleType, hasAllEducationalLevels, isStudentInEducationalLevel } from "@/domains/auth/services/rbac";
 
 export const dynamic = "force-dynamic";
 
@@ -27,8 +27,24 @@ export async function GET(request: NextRequest, props: { params: Promise<{ id: s
   const schoolId = user.schoolId;
   const roleType = await getUserRoleType(user);
 
-  // Check general access (staff, director, admin)
-  const hasAccess = ["admin", "super_admin", "director", "directeur", "staff"].includes(roleType);
+  // Check general access (staff, director, level_director, admin)
+  const hasAccess =
+    [
+      "admin",
+      "super_admin",
+      "director",
+      "directeur",
+      "general_director",
+      "level_director",
+      "staff",
+      "censeur",
+      "surveillant",
+    ].includes(roleType) ||
+    Boolean(user.superAdmin || user.admin) ||
+    String(user.role?.roleName || user.role || "").toLowerCase().includes("admin") ||
+    String(user.role?.roleName || user.role || "").toLowerCase().includes("direct") ||
+    String(user.role?.roleName || user.role || "").toLowerCase().includes("staff");
+
   if (!hasAccess) {
     return mobileJsonError("Accès refusé. Privilèges administratifs requis.", 403);
   }
@@ -41,17 +57,45 @@ export async function GET(request: NextRequest, props: { params: Promise<{ id: s
       const sections = await readDb.query.schoolSections.findMany({ where: cond });
       const classes = await readDb.query.schoolClasses.findMany({ where: classCond });
 
-      const levels = Array.from(
+      let filteredSections = sections;
+      let filteredClasses = classes;
+
+      const userLevel = user.educationalLevel;
+      if (userLevel && !hasAllEducationalLevels(userLevel)) {
+        filteredSections = sections.filter((s) =>
+          isStudentInEducationalLevel(
+            { educationalLevel: s.educationalLevel, sectionName: s.sectionName },
+            userLevel
+          )
+        );
+        filteredClasses = classes.filter((c) => {
+          const matchedSection = sections.find((s) => s.id === c.sectionId);
+          return isStudentInEducationalLevel(
+            {
+              educationalLevel: matchedSection?.educationalLevel,
+              classe: c.className,
+              sectionName: matchedSection?.sectionName,
+            },
+            userLevel
+          );
+        });
+      }
+
+      let levels = Array.from(
         new Set(
-          sections
+          filteredSections
             .map((s) => s.educationalLevel)
             .filter(Boolean)
         )
       ).sort();
 
+      if (levels.length === 0 && userLevel && !hasAllEducationalLevels(userLevel)) {
+        levels = [userLevel];
+      }
+
       const sectionNames = Array.from(
         new Set(
-          sections
+          filteredSections
             .map((s) => s.sectionName)
             .filter(Boolean)
         )
@@ -59,7 +103,7 @@ export async function GET(request: NextRequest, props: { params: Promise<{ id: s
 
       const classNames = Array.from(
         new Set(
-          classes
+          filteredClasses
             .map((c) => c.className)
             .filter(Boolean)
         )

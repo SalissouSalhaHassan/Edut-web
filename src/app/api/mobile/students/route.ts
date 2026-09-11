@@ -113,8 +113,24 @@ export async function POST(request: NextRequest) {
   const schoolId = user.schoolId;
   const roleType = await getUserRoleType(user);
 
-  // Restrict writing students to staff/admins/directors
-  const hasAccess = ["admin", "super_admin", "director", "directeur", "staff"].includes(roleType);
+  // Restrict writing students to staff/admins/directors/level_directors
+  const hasAccess =
+    [
+      "admin",
+      "super_admin",
+      "director",
+      "directeur",
+      "general_director",
+      "level_director",
+      "staff",
+      "censeur",
+      "surveillant",
+    ].includes(roleType) ||
+    Boolean(user.superAdmin || user.admin) ||
+    String(user.role?.roleName || user.role || "").toLowerCase().includes("admin") ||
+    String(user.role?.roleName || user.role || "").toLowerCase().includes("direct") ||
+    String(user.role?.roleName || user.role || "").toLowerCase().includes("staff");
+
   if (!hasAccess) {
     return mobileJsonError("Accès refusé. Droits insuffisants.", 403);
   }
@@ -129,6 +145,11 @@ export async function POST(request: NextRequest) {
 
     if (action === "saveStudent") {
       const studentId = payload.id ? Number(payload.id) : null;
+      const userLevel = user.educationalLevel;
+      const resolvedLevel =
+        payload.educational_level ||
+        (userLevel && !hasAllEducationalLevels(userLevel) ? userLevel : null);
+
       const data = {
         schoolId: schoolId || payload.school_id || null,
         numAdmission: String(payload.num_admission),
@@ -141,7 +162,7 @@ export async function POST(request: NextRequest) {
         cnic: payload.cnic || null,
         groupeSanguin: payload.groupe_sanguin || null,
         session: payload.session || null,
-        educationalLevel: payload.educational_level || null,
+        educationalLevel: resolvedLevel,
         classe: payload.classe || null,
         section: payload.section || null,
         categorie: payload.categorie || null,
