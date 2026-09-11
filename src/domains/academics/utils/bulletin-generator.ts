@@ -1872,13 +1872,13 @@ export async function buildReleveNotesDoc(data: any): Promise<jsPDF> {
   doc.setFont("helvetica", "bold");
   drawTextBilingual(doc, fullDobPobStr, dobLabelX + 15, studentInfoY);
 
-  // QR Code on Page 1 beside student info
+  // QR Code on Page 1 beside student info (enlarged to fill the section height)
   try {
     const studentMatricule = student?.numAdmission || student?.matricule || student?.id;
     const verifyUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://niger.edut.pro"}/verify/${encodeURIComponent(studentMatricule || "RELEVE")}`;
     const qrBase64 = await fetchQRCodeBase64(verifyUrl);
     if (qrBase64) {
-      doc.addImage(qrBase64, 'PNG', 178, studentInfoY - 3, 16, 16);
+      doc.addImage(qrBase64, 'PNG', 174, studentInfoY - 1.5, 25.5, 25.5);
     }
   } catch (e) {
     console.warn("Failed to load QR code for Releve:", e);
