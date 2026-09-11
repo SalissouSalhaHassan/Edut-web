@@ -126,26 +126,6 @@ export async function getStudents(params?: {
 
     const data = await db.query.students.findMany({
       where: whereClause,
-      columns: {
-        id: true,
-        schoolId: true,
-        numAdmission: true,
-        nomEtudiant: true,
-        nomArabe: true,
-        classe: true,
-        section: true,
-        statut: true,
-        educationalLevel: true,
-        photoPath: true,
-        sexe: true,
-        dateNaissance: true,
-        lieuNaissance: true,
-        categorie: true,
-        nomPere: true,
-        mobile: true,
-        whatsapp: true,
-        createdAt: true,
-      },
       orderBy: [desc(students.createdAt)],
       limit: limit,
       offset: offset,
@@ -158,6 +138,22 @@ export async function getStudents(params?: {
       limit: limit || data.length,
       totalPages: isPaginated && limit ? Math.ceil(totalCount / limit) : 1
     };
+  });
+}
+
+export async function getStudentById(id: number) {
+  return protectedDbAction("Students", "canView", async (user) => {
+    const schoolId = (await getActiveSchoolId()) || user?.schoolId || 1;
+    const student = await db.query.students.findFirst({
+      where: and(
+        eq(students.id, id),
+        schoolId ? or(eq(students.schoolId, schoolId), isNull(students.schoolId)) : sql`TRUE`
+      )
+    });
+    if (!student) {
+      return { error: "Étudiant introuvable", success: false };
+    }
+    return { success: true, data: student };
   });
 }
 

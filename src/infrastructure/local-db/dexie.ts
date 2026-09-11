@@ -24,9 +24,13 @@ export interface LocalStudent {
   fraisMensuels?: number;
   ancienSolde?: number;
   fraisInscription?: number;
+  fraisCogesCard?: number;
+  fraisTransportInternat?: number;
   statut?: string;
   behaviorScore?: number;
   photoPath?: string | null;
+  activationPin?: string | null;
+  fingerprintHash?: string | null;
   updatedAt?: number;
 }
 

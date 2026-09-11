@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createStudent, updateStudent, getStudentCategories } from "@/domains/students/actions/students.actions";
+import { createStudent, updateStudent, getStudentCategories, getStudentById } from "@/domains/students/actions/students.actions";
 import { createNotification } from "@/domains/messaging/actions/notifications.actions";
 import { StudentFormData } from "../validators/student.schema";
 import { getClasses, getSections, getEducationalLevels, getSessions } from "@/domains/academics/actions/academics.actions";
@@ -14,6 +14,35 @@ import { useRouter } from "next/navigation";
 import { useOfflineMutation } from "@/hooks/use-offline-mutation";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { resolveOnlineOrCached } from "@/infrastructure/local-db/references";
+
+function formatDateForInput(dateVal: any): string {
+  if (!dateVal) return "";
+  const s = String(dateVal).trim();
+  if (!s) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  if (s.includes("T")) return s.split("T")[0];
+  const dmy = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if (dmy) {
+    const day = dmy[1].padStart(2, "0");
+    const month = dmy[2].padStart(2, "0");
+    const year = dmy[3];
+    return `${year}-${month}-${day}`;
+  }
+  try {
+    const d = new Date(s);
+    if (!isNaN(d.getTime())) {
+      return d.toISOString().split("T")[0];
+    }
+  } catch {}
+  return "";
+}
+
+function normalizeGender(val?: string | null): "Garçon" | "Fille" {
+  if (!val) return "Garçon";
+  const low = val.toLowerCase().trim();
+  if (low === "fille" || low === "feminin" || low === "féminin" || low === "f") return "Fille";
+  return "Garçon";
+}
 
 interface StudentDialogProps {
   mode?: "add" | "edit";
@@ -33,6 +62,10 @@ export default function StudentDialog({ mode = "add", initialData, trigger, open
   const [cameraError, setCameraError] = useState("");
   const [step, setStep] = useState(1);
 
+  // Complete student record state (ensures full hydration upon edit)
+  const [currentData, setCurrentData] = useState<any>(initialData);
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
+
   useEffect(() => {
     if (controlledOpen !== undefined) {
       setOpen(controlledOpen);
@@ -42,6 +75,7 @@ export default function StudentDialog({ mode = "add", initialData, trigger, open
   const close = useCallback(() => { 
     setOpen(false); 
     setStep(1); 
+    setIsDataLoaded(false);
     if (onClose) onClose();
     if (mode === "add") {
       setFraisMensuels("");
@@ -99,26 +133,76 @@ export default function StudentDialog({ mode = "add", initialData, trigger, open
   const [classesList,  setClassesList]  = useState<any[]>([]);
   const [sectionsList, setSectionsList] = useState<any[]>([]);
 
+  const populateFromStudent = useCallback((data: any) => {
+    if (!data) return;
+    setSelectedSession(data.session || "");
+    setSelectedLevel(data.educationalLevel || "");
+    setSelectedClasse(data.classe || "");
+    setSelectedSection(data.section || "");
+    setSelectedCategorie(data.categorie || "Général");
+    setBehaviorScoreValue(data.behaviorScore ?? 18);
+
+    setFraisMensuels(data.fraisMensuels ?? "");
+    setFraisInscription(data.fraisInscription ?? "");
+    setFraisCogesCard(data.fraisCogesCard ?? "");
+    setFraisTransportInternat(data.fraisTransportInternat ?? "");
+    setAncienSoldeValue(data.ancienSolde ?? "");
+    setStatutValue(data.statut ?? "Actif");
+    setActivationPin(data.activationPin || "");
+    setFingerprintHash(data.fingerprintHash || "");
+
+    if (data.photoPath?.startsWith("local:photo:")) {
+      import("@/infrastructure/local-db/dexie").then(({ localDb }) => {
+        localDb.studentPhotos.get(data.numAdmission).then(p => {
+          if (p?.photoData) setPreview(p.photoData);
+        });
+      });
+    } else {
+      setPreview(data.photoPath || null);
+    }
+  }, []);
+
   // ── Sync states whenever the dialog opens or initialData changes ───────────
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setIsDataLoaded(false);
+      return;
+    }
 
-    setSelectedSession(initialData?.session || "");
-    setSelectedLevel(initialData?.educationalLevel || "");
-    setSelectedClasse(initialData?.classe || "");
-    setSelectedSection(initialData?.section || "");
-    setSelectedCategorie(initialData?.categorie || "Général");
-    setBehaviorScoreValue(initialData?.behaviorScore ?? 18);
+    setCurrentData(initialData);
+    populateFromStudent(initialData);
 
-    setFraisMensuels(initialData?.fraisMensuels ?? "");
-    setFraisInscription(initialData?.fraisInscription ?? "");
-    setFraisCogesCard(initialData?.fraisCogesCard ?? "");
-    setFraisTransportInternat(initialData?.fraisTransportInternat ?? "");
-    setAncienSoldeValue(initialData?.ancienSolde ?? "");
-    setStatutValue(initialData?.statut ?? "Actif");
-    setActivationPin(initialData?.activationPin || "");
-    setFingerprintHash(initialData?.fingerprintHash || "");
-  }, [open, initialData]);
+    // If in edit mode, fetch the 100% full, fresh student record by ID
+    if (mode === "edit" && initialData?.id) {
+      let isSubscribed = true;
+      getStudentById(initialData.id)
+        .then((res) => {
+          if (!isSubscribed) return;
+          if (res?.success && res?.data) {
+            setCurrentData(res.data);
+            populateFromStudent(res.data);
+            setIsDataLoaded(true);
+          }
+        })
+        .catch(async (err) => {
+          console.warn("[StudentDialog] Error fetching full student, falling back to local DB:", err);
+          try {
+            const { localDb } = await import("@/infrastructure/local-db/dexie");
+            const localStudent = await localDb.students.get(initialData.id);
+            if (isSubscribed && localStudent) {
+              setCurrentData(localStudent);
+              populateFromStudent(localStudent);
+              setIsDataLoaded(true);
+            }
+          } catch {}
+        });
+
+      return () => {
+        isSubscribed = false;
+      };
+    }
+  }, [open, initialData, mode, populateFromStudent]);
+
 
   // ── Load everything once when the dialog opens ────────────────────────────
   useEffect(() => {
@@ -348,7 +432,9 @@ export default function StudentDialog({ mode = "add", initialData, trigger, open
     };
 
     let payload: StudentFormData & { id?: number; originalData?: any } = 
-      mode === "edit" && initialData?.id ? { ...data, id: initialData.id } : data;
+      mode === "edit" && (currentData?.id || initialData?.id)
+        ? { ...data, id: currentData?.id || initialData?.id }
+        : data;
 
     if (!isOnline && preview && preview.startsWith("data:image")) {
       try {
@@ -370,7 +456,7 @@ export default function StudentDialog({ mode = "add", initialData, trigger, open
     if (mode === "edit") {
       payload = {
         ...payload,
-        originalData: initialData
+        originalData: currentData || initialData
       };
     }
 
@@ -514,7 +600,7 @@ export default function StudentDialog({ mode = "add", initialData, trigger, open
             {/* Scrollable Form Body */}
             <div className="overflow-y-auto custom-scrollbar px-8 py-8 min-h-0 bg-white">
               <form 
-                key={`${mode}-${initialData?.id || 'new'}-${open}`}
+                key={`${mode}-${currentData?.id || 'new'}-${isDataLoaded ? 'loaded' : 'initial'}-${open}`}
                 ref={formRef} 
                 className="space-y-8 pb-8"
               >
@@ -533,22 +619,22 @@ export default function StudentDialog({ mode = "add", initialData, trigger, open
                        <div className="grid grid-cols-2 gap-6">
                           <div className="space-y-2">
                             <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">N° Admission / Matricule *</Label>
-                            <Input name="numAdmission" defaultValue={initialData?.numAdmission} required placeholder="Ex: AD-2024-001" className="h-14 rounded-xl border-slate-100 bg-slate-50/50 font-black text-lg text-slate-800" />
+                            <Input name="numAdmission" defaultValue={currentData?.numAdmission || ""} required placeholder="Ex: AD-2024-001" className="h-14 rounded-xl border-slate-100 bg-slate-50/50 font-black text-lg text-slate-800" />
                           </div>
                           <div className="space-y-2">
                             <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Nom complet de l'élève *</Label>
-                            <Input name="nomEtudiant" defaultValue={initialData?.nomEtudiant} required placeholder="Jean Dupont" className="h-14 rounded-xl border-slate-100 bg-slate-50/50 font-black text-lg text-slate-800" />
+                            <Input name="nomEtudiant" defaultValue={currentData?.nomEtudiant || ""} required placeholder="Jean Dupont" className="h-14 rounded-xl border-slate-100 bg-slate-50/50 font-black text-lg text-slate-800" />
                           </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-6">
                           <div className="space-y-2">
                             <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1 font-arabic">الاسم الكامل بالعربية</Label>
-                            <Input name="nomArabe" defaultValue={initialData?.nomArabe} dir="rtl" placeholder="اسم الطالب هنا" className="h-14 rounded-xl border-slate-100 bg-slate-50/50 font-arabic text-xl text-slate-800" />
+                            <Input name="nomArabe" defaultValue={currentData?.nomArabe || ""} dir="rtl" placeholder="اسم الطالب هنا" className="h-14 rounded-xl border-slate-100 bg-slate-50/50 font-arabic text-xl text-slate-800" />
                           </div>
                           <div className="space-y-2">
                             <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Sexe de l'enfant *</Label>
-                            <select name="sexe" defaultValue={initialData?.sexe || "Garçon"} required className="w-full h-14 rounded-xl border border-slate-100 bg-slate-50/50 px-6 font-black text-slate-700 outline-none">
+                            <select name="sexe" defaultValue={normalizeGender(currentData?.sexe)} required className="w-full h-14 rounded-xl border border-slate-100 bg-slate-50/50 px-6 font-black text-slate-700 outline-none">
                               <option value="Garçon">👦 Garçon</option>
                               <option value="Fille">👧 Fille</option>
                             </select>
@@ -557,26 +643,26 @@ export default function StudentDialog({ mode = "add", initialData, trigger, open
                         <div className="grid grid-cols-3 gap-6">
                            <div className="space-y-3">
                               <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Date de Naissance</Label>
-                              <Input name="dateNaissance" type="date" defaultValue={initialData?.dateNaissance} className="h-12 rounded-2xl border-slate-100 bg-slate-50/50 font-bold" />
+                              <Input name="dateNaissance" type="date" defaultValue={formatDateForInput(currentData?.dateNaissance)} className="h-12 rounded-2xl border-slate-100 bg-slate-50/50 font-bold" />
                            </div>
                            <div className="space-y-3">
                               <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Lieu de Naissance</Label>
-                              <Input name="lieuNaissance" defaultValue={initialData?.lieuNaissance} className="h-12 rounded-2xl border-slate-100 bg-slate-50/50 font-bold" />
+                              <Input name="lieuNaissance" defaultValue={currentData?.lieuNaissance || ""} className="h-12 rounded-2xl border-slate-100 bg-slate-50/50 font-bold" />
                            </div>
                            <div className="space-y-3">
                               <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Religion</Label>
-                              <Input name="religion" defaultValue={initialData?.religion} className="h-12 rounded-2xl border-slate-100 bg-slate-50/50 font-bold" />
+                              <Input name="religion" defaultValue={currentData?.religion || ""} className="h-12 rounded-2xl border-slate-100 bg-slate-50/50 font-bold" />
                            </div>
                         </div>
 
                         <div className="grid grid-cols-3 gap-6">
                            <div className="space-y-3">
                               <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">CNIC / Numéro National</Label>
-                              <Input name="cnic" defaultValue={initialData?.cnic} placeholder="Numéro d'identification" className="h-12 rounded-2xl border-slate-100 bg-slate-50/50 font-bold" />
+                              <Input name="cnic" defaultValue={currentData?.cnic || ""} placeholder="Numéro d'identification" className="h-12 rounded-2xl border-slate-100 bg-slate-50/50 font-bold" />
                            </div>
                            <div className="space-y-3">
                               <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Groupe Sanguin</Label>
-                              <select name="groupeSanguin" defaultValue={initialData?.groupeSanguin || ""} className="w-full h-12 rounded-2xl border border-slate-100 bg-slate-50/50 px-4 font-bold text-slate-700 outline-none">
+                              <select name="groupeSanguin" defaultValue={currentData?.groupeSanguin || ""} className="w-full h-12 rounded-2xl border border-slate-100 bg-slate-50/50 px-4 font-bold text-slate-700 outline-none">
                                 <option value="">-- Choisir --</option>
                                 <option value="A+">A+</option>
                                 <option value="A-">A-</option>
@@ -891,11 +977,11 @@ export default function StudentDialog({ mode = "add", initialData, trigger, open
                        <div className="grid grid-cols-2 gap-6">
                           <div className="space-y-2">
                             <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Nom du tuteur légal *</Label>
-                            <Input name="nomPere" defaultValue={initialData?.nomPere} required placeholder="Nom et Prénom" className="h-14 rounded-xl border-slate-100 bg-slate-50/50 font-black text-lg" />
+                            <Input name="nomPere" defaultValue={currentData?.nomPere || ""} required placeholder="Nom et Prénom" className="h-14 rounded-xl border-slate-100 bg-slate-50/50 font-black text-lg" />
                           </div>
                           <div className="space-y-2">
                             <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Mobile (SMS) *</Label>
-                            <Input name="mobile" type="tel" defaultValue={initialData?.mobile} required placeholder="+221 ..." className="h-14 rounded-xl border-slate-100 bg-slate-50/50 font-black text-lg" />
+                            <Input name="mobile" type="tel" defaultValue={currentData?.mobile || ""} required placeholder="+221 ..." className="h-14 rounded-xl border-slate-100 bg-slate-50/50 font-black text-lg" />
                           </div>
                         </div>
                     </section>
@@ -903,11 +989,11 @@ export default function StudentDialog({ mode = "add", initialData, trigger, open
                     <div className="grid grid-cols-3 gap-6">
                        <div className="space-y-2">
                         <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">CNIC / ID</Label>
-                        <Input name="cnicPere" defaultValue={initialData?.cnicPere} className="h-12 rounded-xl border-slate-100 bg-slate-50/50 font-bold" />
+                        <Input name="cnicPere" defaultValue={currentData?.cnicPere || ""} className="h-12 rounded-xl border-slate-100 bg-slate-50/50 font-bold" />
                       </div>
                       <div className="space-y-2">
                         <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">WhatsApp</Label>
-                        <Input name="whatsapp" defaultValue={initialData?.whatsapp} placeholder="Si différent" className="h-12 rounded-xl border-slate-100 bg-slate-50/50 font-bold" />
+                        <Input name="whatsapp" defaultValue={currentData?.whatsapp || ""} placeholder="Si différent" className="h-12 rounded-xl border-slate-100 bg-slate-50/50 font-bold" />
                       </div>
                     </div>
 
