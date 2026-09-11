@@ -2002,10 +2002,83 @@ export async function buildReleveNotesDoc(data: any): Promise<jsPDF> {
   // --- ADAPTIVE ROW HEIGHT & SPACING TO GUARANTEE 1 SINGLE PAGE ---
   const totalSubjectRows = (bodyData1.length || 1) + (bodyData2.length || 1);
   const isDense = totalSubjectRows > 12;
-  const tableCellPadding = isDense ? 0.9 : 1.3;
-  const tableMinRowH = isDense ? 3.9 : 4.6;
-  const tableHeadMinH = isDense ? 4.6 : 5.4;
-  const tableFontSize = isDense ? 7.5 : 8.0;
+  const matieresFontSize = isDense ? 9.0 : 11.0;
+  const tableCellPadding = isDense ? 0.6 : 0.9;
+  const tableMinRowH = isDense ? 4.1 : 4.6;
+  const tableHeadMinH = 4.6;
+
+  const tableCustomDidParseCell = (data: any) => {
+    if (data.section === 'head') {
+      data.cell.styles.fontSize = 7.5;
+      data.cell.styles.fontStyle = 'bold';
+      data.cell.styles.textColor = [0, 50, 0];
+      data.cell.styles.halign = 'center';
+    } else if (data.section === 'body') {
+      data.cell.styles.fillColor = false;
+      if (data.column.index === 0) {
+        // رموز المواد (Code): 7.5 pt, Bold, Center, Dark
+        data.cell.styles.fontSize = 7.5;
+        data.cell.styles.fontStyle = 'bold';
+        data.cell.styles.halign = 'center';
+        data.cell.styles.textColor = [20, 20, 20];
+      } else if (data.column.index === 1) {
+        // أسماء المواد (Matières): 9 pt (أو 11 pt إذا كان عدد المواد قليلاً), Normal, Left, Dark
+        data.cell.styles.fontSize = matieresFontSize;
+        data.cell.styles.fontStyle = 'normal';
+        data.cell.styles.halign = 'left';
+        data.cell.styles.textColor = [20, 20, 20];
+      } else if (data.column.index === 2) {
+        // الأرصدة (Crédits): 10 pt, Normal, Center, Dark
+        data.cell.styles.fontSize = 10.0;
+        data.cell.styles.fontStyle = 'normal';
+        data.cell.styles.halign = 'center';
+        data.cell.styles.textColor = [20, 20, 20];
+      } else if (data.column.index === 3) {
+        // الدرجات (Notes/20): 10 pt, Bold, Center, Colored
+        data.cell.styles.fontSize = 10.0;
+        data.cell.styles.fontStyle = 'bold';
+        data.cell.styles.halign = 'center';
+        const val = parseFloat(data.cell.raw as string);
+        if (!isNaN(val)) {
+          if (val < 10) {
+            data.cell.styles.textColor = [200, 0, 0]; // أحمر للدرجات الرسوب < 10
+          } else if (val >= 14) {
+            data.cell.styles.textColor = [0, 0, 200]; // أزرق داكن للدرجات >= 14
+          } else {
+            data.cell.styles.textColor = [40, 40, 40]; // رمادي/داكن للدرجات العادية
+          }
+        }
+      } else if (data.column.index === 4) {
+        // التقديرات (Mentions): 10 pt, Bold, Center, Dark
+        data.cell.styles.fontSize = 10.0;
+        data.cell.styles.fontStyle = 'bold';
+        data.cell.styles.halign = 'center';
+        data.cell.styles.textColor = [20, 20, 20];
+      }
+    } else if (data.section === 'foot') {
+      if (data.row.index === 0) {
+        // TOTAL
+        data.cell.styles.fontSize = isDense ? 8.5 : 9.0;
+        data.cell.styles.fontStyle = 'bold';
+      } else if (data.row.index === 1) {
+        // المعدل الفصلي (Moyenne): 9 pt - 10.0 pt, Bold
+        data.cell.styles.fontSize = isDense ? 9.5 : 10.0;
+        data.cell.styles.fontStyle = 'bold';
+      } else if (data.row.index === 2) {
+        // قرار اللجنة (Décision du Jury): 9 pt, Bold, Colored
+        data.cell.styles.fontSize = 9.0;
+        data.cell.styles.fontStyle = 'bold';
+        if (data.column.index > 0) {
+          const decText = String(data.cell.raw || "");
+          if (decText.toLowerCase().includes("ajourn")) {
+            data.cell.styles.textColor = [200, 0, 0];
+          } else {
+            data.cell.styles.textColor = [0, 100, 0];
+          }
+        }
+      }
+    }
+  };
 
   autoTable(doc, {
     startY: table1StartY,
@@ -2028,30 +2101,19 @@ export async function buildReleveNotesDoc(data: any): Promise<jsPDF> {
     ],
     theme: "grid",
     pageBreak: 'avoid',
-    headStyles: { fillColor: [210, 230, 210], textColor: [0, 50, 0], fontStyle: "bold", halign: "center", lineWidth: 0.3, lineColor: [100, 140, 100], minCellHeight: tableHeadMinH, fontSize: tableFontSize },
-    footStyles: { fillColor: [210, 230, 210], textColor: [0, 50, 0], fontStyle: "bold", lineWidth: 0.3, lineColor: [100, 140, 100], minCellHeight: tableMinRowH, fontSize: tableFontSize },
-    styles: { fontSize: tableFontSize, cellPadding: tableCellPadding, minCellHeight: tableMinRowH, lineColor: [120, 130, 120], lineWidth: 0.25 },
+    headStyles: { fillColor: [210, 230, 210], textColor: [0, 50, 0], fontStyle: "bold", halign: "center", lineWidth: 0.3, lineColor: [100, 140, 100], minCellHeight: tableHeadMinH, fontSize: 7.5 },
+    footStyles: { fillColor: [210, 230, 210], textColor: [0, 50, 0], fontStyle: "bold", lineWidth: 0.3, lineColor: [100, 140, 100], minCellHeight: tableMinRowH, fontSize: 9.0 },
+    styles: { fontSize: 7.5, cellPadding: tableCellPadding, minCellHeight: tableMinRowH, lineColor: [120, 130, 120], lineWidth: 0.28 },
     bodyStyles: { fillColor: false as any },
     alternateRowStyles: { fillColor: false as any },
     columnStyles: {
-      0: { halign: "center", fontStyle: "bold", cellWidth: 25 },
-      1: { halign: "left" },
-      2: { halign: "center", cellWidth: 20 },
-      3: { halign: "center", cellWidth: 25 },
-      4: { halign: "center", cellWidth: 35 },
+      0: { halign: "center", fontStyle: "bold", fontSize: 7.5, cellWidth: 25 },
+      1: { halign: "left", fontStyle: "normal", fontSize: matieresFontSize },
+      2: { halign: "center", fontStyle: "normal", fontSize: 10.0, cellWidth: 20 },
+      3: { halign: "center", fontStyle: "bold", fontSize: 10.0, cellWidth: 25 },
+      4: { halign: "center", fontStyle: "bold", fontSize: 10.0, cellWidth: 35 },
     },
-    didParseCell: (data: any) => {
-      if (data.section === 'body') {
-        data.cell.styles.fillColor = false;
-      }
-      if (data.section === 'body' && data.column.index === 3) {
-        const val = parseFloat(data.cell.raw as string);
-        if (!isNaN(val)) {
-          if (val < 10) data.cell.styles.textColor = [200, 0, 0];
-          else if (val >= 14) data.cell.styles.textColor = [0, 0, 200];
-        }
-      }
-    },
+    didParseCell: tableCustomDidParseCell,
     margin: { left: 10, right: 10, top: 2, bottom: 4 }
   });
 
@@ -2084,30 +2146,19 @@ export async function buildReleveNotesDoc(data: any): Promise<jsPDF> {
     ],
     theme: "grid",
     pageBreak: 'avoid',
-    headStyles: { fillColor: [210, 230, 210], textColor: [0, 50, 0], fontStyle: "bold", halign: "center", lineWidth: 0.3, lineColor: [100, 140, 100], minCellHeight: tableHeadMinH, fontSize: tableFontSize },
-    footStyles: { fillColor: [210, 230, 210], textColor: [0, 50, 0], fontStyle: "bold", lineWidth: 0.3, lineColor: [100, 140, 100], minCellHeight: tableMinRowH, fontSize: tableFontSize },
-    styles: { fontSize: tableFontSize, cellPadding: tableCellPadding, minCellHeight: tableMinRowH, lineColor: [120, 130, 120], lineWidth: 0.25 },
+    headStyles: { fillColor: [210, 230, 210], textColor: [0, 50, 0], fontStyle: "bold", halign: "center", lineWidth: 0.3, lineColor: [100, 140, 100], minCellHeight: tableHeadMinH, fontSize: 7.5 },
+    footStyles: { fillColor: [210, 230, 210], textColor: [0, 50, 0], fontStyle: "bold", lineWidth: 0.3, lineColor: [100, 140, 100], minCellHeight: tableMinRowH, fontSize: 9.0 },
+    styles: { fontSize: 7.5, cellPadding: tableCellPadding, minCellHeight: tableMinRowH, lineColor: [120, 130, 120], lineWidth: 0.28 },
     bodyStyles: { fillColor: false as any },
     alternateRowStyles: { fillColor: false as any },
     columnStyles: {
-      0: { halign: "center", fontStyle: "bold", cellWidth: 25 },
-      1: { halign: "left" },
-      2: { halign: "center", cellWidth: 20 },
-      3: { halign: "center", cellWidth: 25 },
-      4: { halign: "center", cellWidth: 35 },
+      0: { halign: "center", fontStyle: "bold", fontSize: 7.5, cellWidth: 25 },
+      1: { halign: "left", fontStyle: "normal", fontSize: matieresFontSize },
+      2: { halign: "center", fontStyle: "normal", fontSize: 10.0, cellWidth: 20 },
+      3: { halign: "center", fontStyle: "bold", fontSize: 10.0, cellWidth: 25 },
+      4: { halign: "center", fontStyle: "bold", fontSize: 10.0, cellWidth: 35 },
     },
-    didParseCell: (data: any) => {
-      if (data.section === 'body') {
-        data.cell.styles.fillColor = false;
-      }
-      if (data.section === 'body' && data.column.index === 3) {
-        const val = parseFloat(data.cell.raw as string);
-        if (!isNaN(val)) {
-          if (val < 10) data.cell.styles.textColor = [200, 0, 0];
-          else if (val >= 14) data.cell.styles.textColor = [0, 0, 200];
-        }
-      }
-    },
+    didParseCell: tableCustomDidParseCell,
     margin: { left: 10, right: 10, top: 2, bottom: 4 }
   });
 
