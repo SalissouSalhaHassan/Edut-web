@@ -5,7 +5,7 @@ import { studentFees } from "@/infrastructure/database/schema/finance";
 import { students } from "@/infrastructure/database/schema/students";
 import { schoolSessions } from "@/infrastructure/database/schema/academics";
 import { getMobileUser, mobileJsonError } from "../../_lib/auth";
-import { getUserRoleType, getCompatibleLevels, normalizeLevel } from "@/domains/auth/services/rbac";
+import { getUserRoleType, getCompatibleLevels, normalizeLevel, hasAllEducationalLevels, isStudentInEducationalLevel } from "@/domains/auth/services/rbac";
 
 export const dynamic = "force-dynamic";
 
@@ -56,27 +56,34 @@ export async function GET(request: NextRequest) {
         conditions.push(eq(studentFees.studentId, user.studentId));
       }
 
-      const isLevelScoped =
-        (roleType === "level_director" || roleType === "level_comptable" || roleType === "level_caissier") &&
-        user.educationalLevel;
+      const activeLevel = user.educationalLevel;
+      const isLevelScoped = Boolean(
+        (activeLevel && !hasAllEducationalLevels(activeLevel)) ||
+        roleType === "level_director" ||
+        roleType === "level_comptable" ||
+        roleType === "level_caissier"
+      );
 
       let statsResult: { totalExpected: number; totalCollected: number; totalDebts: number };
 
-      if (isLevelScoped) {
-        const compatibleNorms = getCompatibleLevels(user.educationalLevel!).map((l) => normalizeLevel(l));
+      if (isLevelScoped && activeLevel) {
         const rows = await readDb
           .select({
             totalExpected: studentFees.totalExpected,
             totalPaid: studentFees.totalPaid,
             balance: studentFees.balance,
             educationalLevel: students.educationalLevel,
+            classe: students.classe,
           })
           .from(studentFees)
           .leftJoin(students, eq(students.id, studentFees.studentId))
           .where(and(...conditions));
 
-        const filtered = rows.filter(
-          (r) => r.educationalLevel && compatibleNorms.includes(normalizeLevel(r.educationalLevel))
+        const filtered = rows.filter((r) =>
+          isStudentInEducationalLevel(
+            { educationalLevel: r.educationalLevel, classe: r.classe },
+            activeLevel
+          )
         );
 
         let totalExpected = 0.0;

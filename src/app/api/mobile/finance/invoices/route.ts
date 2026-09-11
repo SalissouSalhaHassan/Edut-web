@@ -4,7 +4,7 @@ import { db, readDb } from "@/infrastructure/database";
 import { studentFees, feePayments } from "@/infrastructure/database/schema/finance";
 import { students } from "@/infrastructure/database/schema/students";
 import { getMobileUser, mobileJsonError } from "../../_lib/auth";
-import { getUserRoleType, getCompatibleLevels, normalizeLevel } from "@/domains/auth/services/rbac";
+import { getUserRoleType, getCompatibleLevels, normalizeLevel, hasAllEducationalLevels, isStudentInEducationalLevel } from "@/domains/auth/services/rbac";
 
 export const dynamic = "force-dynamic";
 
@@ -74,14 +74,20 @@ export async function GET(request: NextRequest) {
     let rows = await query;
 
     // Fast Level Scoping if applicable
-    const isLevelScoped =
-      (roleType === "level_director" || roleType === "level_comptable" || roleType === "level_caissier") &&
-      user.educationalLevel;
+    const activeLevel = user.educationalLevel;
+    const isLevelScoped = Boolean(
+      (activeLevel && !hasAllEducationalLevels(activeLevel)) ||
+      roleType === "level_director" ||
+      roleType === "level_comptable" ||
+      roleType === "level_caissier"
+    );
 
-    if (isLevelScoped) {
-      const compatibleNorms = getCompatibleLevels(user.educationalLevel!).map((l) => normalizeLevel(l));
-      rows = rows.filter(
-        (r) => r.educational_level && compatibleNorms.includes(normalizeLevel(r.educational_level))
+    if (isLevelScoped && activeLevel) {
+      rows = rows.filter((r) =>
+        isStudentInEducationalLevel(
+          { educationalLevel: r.educational_level, classe: r.classe },
+          activeLevel
+        )
       );
     }
 

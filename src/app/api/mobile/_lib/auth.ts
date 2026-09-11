@@ -4,6 +4,7 @@ import { eq, or } from "drizzle-orm";
 
 import { readDb } from "@/infrastructure/database";
 import { users } from "@/infrastructure/database/schema/auth";
+import { schoolBranches } from "@/infrastructure/database/schema/settings";
 import { getUserRoleType, hasPermission, type PermissionAction } from "@/domains/auth/services/rbac";
 
 export function mobileJsonError(message: string, status: number) {
@@ -72,6 +73,20 @@ export async function getMobileUser(request: NextRequest) {
 
   if (!user) {
     return { user: null, response: mobileJsonError("Compte non relie a un profil Edut.", 403) };
+  }
+
+  // Fallback: Resolve educational level from branch if not explicitly set on user
+  if (!user.educationalLevel && user.schoolId) {
+    try {
+      const branch = await readDb.query.schoolBranches.findFirst({
+        where: eq(schoolBranches.schoolId, user.schoolId),
+        columns: { instType: true },
+        orderBy: [schoolBranches.createdAt],
+      });
+      if (branch?.instType) {
+        (user as any).educationalLevel = branch.instType;
+      }
+    } catch (_) {}
   }
 
   return { user, response: null };

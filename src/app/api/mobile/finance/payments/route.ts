@@ -5,7 +5,7 @@ import { db, readDb } from "@/infrastructure/database";
 import { studentFees, feePayments } from "@/infrastructure/database/schema/finance";
 import { students } from "@/infrastructure/database/schema/students";
 import { getMobileUser, mobileJsonError } from "../../_lib/auth";
-import { getUserRoleType } from "@/domains/auth/services/rbac";
+import { getUserRoleType, hasAllEducationalLevels, isStudentInEducationalLevel } from "@/domains/auth/services/rbac";
 
 export const dynamic = "force-dynamic";
 
@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
         conditions.push(eq(studentFees.studentId, user.studentId));
       }
 
-      const payments = await readDb
+      let payments = await readDb
         .select({
           id: feePayments.id,
           school_id: feePayments.schoolId,
@@ -71,6 +71,23 @@ export async function GET(request: NextRequest) {
         .leftJoin(students, eq(students.id, studentFees.studentId))
         .where(and(...conditions))
         .orderBy(desc(feePayments.datePaid), desc(feePayments.id));
+
+      const activeLevel = user.educationalLevel;
+      const isLevelScoped = Boolean(
+        (activeLevel && !hasAllEducationalLevels(activeLevel)) ||
+        roleType === "level_director" ||
+        roleType === "level_comptable" ||
+        roleType === "level_caissier"
+      );
+
+      if (isLevelScoped && activeLevel) {
+        payments = payments.filter((p) =>
+          isStudentInEducationalLevel(
+            { educationalLevel: p.educational_level, classe: p.classe },
+            activeLevel
+          )
+        );
+      }
 
       const list = payments.map((p) => ({
         id: p.id,
