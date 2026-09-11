@@ -57,7 +57,8 @@ export async function verifyUnlockPassword(password: string): Promise<{ success:
     // 2. Check via Supabase Auth
     try {
       const supabase = await createClient();
-      const loginEmail = user.email || user.utilisateur || "";
+      const rawUser = user as Record<string, any>;
+      const loginEmail: string = String(rawUser.email || rawUser.utilisateur || "");
       const formattedEmail = loginEmail.includes("@") ? loginEmail : `${loginEmail}@test.com`;
 
       const { data, error } = await supabase.auth.signInWithPassword({
