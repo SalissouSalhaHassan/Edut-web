@@ -91,7 +91,7 @@ export async function GET(request: NextRequest) {
         FROM student_results r
         LEFT JOIN school_subjects s ON r.subject_id = s.id
         WHERE r.student_id = ${studentId}
-          AND r.session_id = ${sessionId}
+          AND (r.session_id = ${sessionId} OR r.session_id IS NULL)
           AND r.term = ${term}
         ORDER BY r.subject_id
       `);
@@ -103,10 +103,15 @@ export async function GET(request: NextRequest) {
         FROM student_results r
         LEFT JOIN school_subjects s ON r.subject_id = s.id
         WHERE r.student_id = ${studentId}
-          AND r.session_id = ${sessionId}
+          AND (r.session_id = ${sessionId} OR r.session_id IS NULL)
         ORDER BY r.term DESC, r.subject_id
       `);
-    } else {
+    }
+
+    let grades = ((gradesRes as any)?.rows || gradesRes) as any[] || [];
+
+    // Fallback: If no rows found with sessionId, fetch across all sessions
+    if (grades.length === 0) {
       gradesRes = await readDb.execute(sql`
         SELECT r.subject_id, r.total_score, r.class_work_score, r.exam_score, r.moyenne_devoirs,
                r.coefficient, r.weighted_score, r.term, r.session_id,
@@ -116,8 +121,8 @@ export async function GET(request: NextRequest) {
         WHERE r.student_id = ${studentId}
         ORDER BY r.term DESC, r.subject_id
       `);
+      grades = ((gradesRes as any)?.rows || gradesRes) as any[] || [];
     }
-    const grades = ((gradesRes as any).rows || gradesRes) as any[];
 
     // 2. Fetch student attendance
     const attRes = await readDb.execute(sql`
