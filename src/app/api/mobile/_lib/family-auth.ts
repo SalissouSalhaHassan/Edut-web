@@ -37,10 +37,11 @@ export async function getParentChildrenIds(user: any): Promise<number[]> {
     condParent.push(eq(students.mobile, cleanUser));
     condParent.push(eq(students.whatsapp, cleanUser));
     condParent.push(eq(students.cnicPere, cleanUser));
-    condParent.push(eq(students.email, cleanUser));
+    condParent.push(eq(students.phoneFixe, cleanUser));
   }
   if (cleanEmail && cleanEmail !== cleanUser) {
-    condParent.push(eq(students.email, cleanEmail));
+    condParent.push(eq(students.mobile, cleanEmail));
+    condParent.push(eq(students.whatsapp, cleanEmail));
   }
 
   if (condParent.length > 0) {
@@ -87,17 +88,17 @@ export async function verifyParentChildRelationship(user: any, studentId: number
     return false;
   }
 
-  // Check if student matches user's login username, admission number, email, or phone
+  // Check if student matches user's login username, admission number, or phone
   const cleanUser = String(user?.utilisateur || "").trim();
   const cleanEmail = String(user?.email || "").trim();
   const login = cleanUser.includes("@") ? cleanUser.split("@")[0] : cleanUser;
   const emailLogin = cleanEmail.includes("@") ? cleanEmail.split("@")[0] : cleanEmail;
 
   const numAdm = String(targetStudent.numAdmission || "").toLowerCase().trim();
-  const stEmail = String(targetStudent.email || "").toLowerCase().trim();
   const stMobile = String(targetStudent.mobile || "").trim();
   const stWhatsapp = String(targetStudent.whatsapp || "").trim();
   const stCnic = String(targetStudent.cnicPere || "").trim();
+  const stStudentCnic = String(targetStudent.cnic || "").trim();
 
   const cleanUserLower = cleanUser.toLowerCase();
   const cleanEmailLower = cleanEmail.toLowerCase();
@@ -107,10 +108,10 @@ export async function verifyParentChildRelationship(user: any, studentId: number
   const isDirectStudent =
     (cleanUserLower && (numAdm === cleanUserLower || loginLower === numAdm)) ||
     (cleanEmailLower && (numAdm === cleanEmailLower || emailLoginLower === numAdm)) ||
-    (stEmail && (stEmail === cleanUserLower || stEmail === cleanEmailLower)) ||
     (stMobile && (stMobile === cleanUser || stMobile === cleanEmail)) ||
     (stWhatsapp && (stWhatsapp === cleanUser || stWhatsapp === cleanEmail)) ||
-    (stCnic && (stCnic === cleanUser || stCnic === cleanEmail));
+    (stCnic && (stCnic === cleanUser || stCnic === cleanEmail)) ||
+    (stStudentCnic && (stStudentCnic === cleanUser || stStudentCnic === cleanEmail));
 
   if (isDirectStudent) {
     // Auto-heal studentId link in users table if missing
