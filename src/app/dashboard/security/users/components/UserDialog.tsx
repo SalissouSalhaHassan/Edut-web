@@ -56,6 +56,7 @@ const EDUCATION_LEVELS = [
   { value: "Primaire",    label: "Primaire",    icon: "📚" },
   { value: "Collège",     label: "Collège",     icon: "📖" },
   { value: "Lycée",       label: "Lycée",       icon: "🎓" },
+  { value: "Université",  label: "Université",  icon: "🏛️" },
 ];
 
 function getLevelFamily(level: string | null | undefined): "primary" | "middle" | "secondary" | "university" | null {
