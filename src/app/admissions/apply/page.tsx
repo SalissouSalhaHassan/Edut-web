@@ -227,12 +227,26 @@ function ApplyFormContent() {
 
     try {
       setIsSubmitting(true);
-      const res = await submitAdmissionApplicationAction({
+      const payload = {
         ...formData,
         schoolId: schoolInfo.id,
-      });
+      };
 
-      if (res.success && res.applicationNumber) {
+      // 1. Submit via dedicated REST API endpoint with fallback to Server Action
+      let res: any = null;
+      try {
+        const response = await fetch("/api/admissions/apply", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        res = await response.json();
+      } catch (apiErr) {
+        console.warn("API route submission failed, fallback to direct server action:", apiErr);
+        res = await submitAdmissionApplicationAction(payload);
+      }
+
+      if (res && res.success && res.applicationNumber) {
         setSubmittedData({
           applicationNumber: res.applicationNumber,
           studentFirstName: formData.studentFirstName.trim(),
@@ -267,10 +281,11 @@ function ApplyFormContent() {
         toast.success(res.message || "Candidature enregistrée avec succès !");
         window.scrollTo({ top: 0, behavior: "smooth" });
       } else {
-        toast.error(res.error || "Erreur lors de la soumission du dossier.");
+        toast.error(res?.error || "Erreur lors de la soumission du dossier.");
       }
     } catch (err: any) {
-      toast.error("Une erreur inattendue est survenue. Veuillez réessayer.");
+      console.error("Admissions form submission error:", err);
+      toast.error(err?.message || "Une erreur inattendue est survenue. Veuillez réessayer.");
     } finally {
       setIsSubmitting(false);
     }
@@ -1210,6 +1225,63 @@ interface DocumentUploadCardProps {
   onChange: (val: string) => void;
 }
 
+async function compressImageFile(file: File, maxDimension = 1280, quality = 0.75): Promise<{ dataUrl: string; sizeStr: string }> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Erreur de lecture du fichier."));
+    reader.onload = (e) => {
+      const originalDataUrl = e.target?.result as string;
+      if (!file.type.startsWith("image/")) {
+        const sizeInMb = (file.size / (1024 * 1024)).toFixed(2);
+        const sizeStr = file.size > 1024 * 1024 ? `${sizeInMb} Mo` : `${Math.round(file.size / 1024)} Ko`;
+        return resolve({ dataUrl: originalDataUrl, sizeStr });
+      }
+
+      const img = new Image();
+      img.onerror = () => {
+        const sizeInMb = (file.size / (1024 * 1024)).toFixed(2);
+        const sizeStr = file.size > 1024 * 1024 ? `${sizeInMb} Mo` : `${Math.round(file.size / 1024)} Ko`;
+        resolve({ dataUrl: originalDataUrl, sizeStr });
+      };
+      img.onload = () => {
+        try {
+          let { width, height } = img;
+          if (width > maxDimension || height > maxDimension) {
+            if (width > height) {
+              height = Math.round((height * maxDimension) / width);
+              width = maxDimension;
+            } else {
+              width = Math.round((width * maxDimension) / height);
+              height = maxDimension;
+            }
+          }
+
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) {
+            return resolve({ dataUrl: originalDataUrl, sizeStr: `${Math.round(file.size / 1024)} Ko` });
+          }
+
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressedDataUrl = canvas.toDataURL("image/jpeg", quality);
+          const approxBytes = Math.round((compressedDataUrl.length * 3) / 4);
+          const sizeStr = approxBytes > 1024 * 1024 
+            ? `${(approxBytes / (1024 * 1024)).toFixed(1)} Mo`
+            : `${Math.round(approxBytes / 1024)} Ko`;
+
+          resolve({ dataUrl: compressedDataUrl, sizeStr });
+        } catch (_) {
+          resolve({ dataUrl: originalDataUrl, sizeStr: `${Math.round(file.size / 1024)} Ko` });
+        }
+      };
+      img.src = originalDataUrl;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 function DocumentUploadCard({
   label,
   description,
@@ -1224,32 +1296,32 @@ function DocumentUploadCard({
   const [isDragging, setIsDragging] = useState(false);
   const [isReading, setIsReading] = useState(false);
 
-  const handleFile = (file: File) => {
+  const handleFile = async (file: File) => {
     if (!file) return;
 
-    if (file.size > 12 * 1024 * 1024) {
-      toast.error("Le fichier dépasse la taille maximale autorisée de 12 Mo.");
+    if (file.type === "application/pdf" && file.size > 3.5 * 1024 * 1024) {
+      toast.error("Le fichier PDF dépasse 3.5 Mo. Veuillez le compresser avant de l'envoyer.");
+      return;
+    }
+
+    if (file.size > 15 * 1024 * 1024) {
+      toast.error("Le fichier dépasse la taille maximale autorisée de 15 Mo.");
       return;
     }
 
     setFileName(file.name);
-    const sizeInMb = (file.size / (1024 * 1024)).toFixed(2);
-    const sizeStr = file.size > 1024 * 1024 ? `${sizeInMb} Mo` : `${Math.round(file.size / 1024)} Ko`;
-    setFileSize(sizeStr);
-
     setIsReading(true);
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      onChange(result);
+
+    try {
+      const { dataUrl, sizeStr } = await compressImageFile(file);
+      setFileSize(sizeStr);
+      onChange(dataUrl);
       setIsReading(false);
-      toast.success(`Fichier "${file.name}" chargé avec succès !`);
-    };
-    reader.onerror = () => {
+      toast.success(`Fichier "${file.name}" optimisé (${sizeStr}) et chargé avec succès !`);
+    } catch (err: any) {
       setIsReading(false);
       toast.error("Erreur lors de la lecture du fichier.");
-    };
-    reader.readAsDataURL(file);
+    }
   };
 
   const handleDrop = (e: React.DragEvent) => {
