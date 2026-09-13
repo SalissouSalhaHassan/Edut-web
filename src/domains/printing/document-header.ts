@@ -252,6 +252,15 @@ export function isHigherEducationLevel(levelOrClass?: string | null): boolean {
   return inferred === "University";
 }
 
+export function isPrimaryEducationLevel(levelOrClass?: string | null): boolean {
+  if (!levelOrClass) return false;
+  const inferred = inferEducationalLevel({
+    educationalLevel: levelOrClass,
+    className: levelOrClass,
+  });
+  return inferred === "Primaire" || inferred === "Maternelle";
+}
+
 export function isLevelMatching(candidateLevel: string, targetLevel: string): boolean {
   const normCandidate = normalizeLevel(candidateLevel);
   const normTarget = normalizeLevel(targetLevel);

@@ -4,7 +4,7 @@ import { amiriFontBase64 } from "@/domains/printing/utils/amiri-font";
 import { hasArabicCharacters, reshapeArabicText } from "@/domains/printing/utils/arabic-reshaper";
 import * as XLSX from "xlsx";
 import QRCode from "qrcode";
-import { inferEducationalLevel, isHigherEducationLevel } from "@/domains/printing/document-header";
+import { inferEducationalLevel, isHigherEducationLevel, isPrimaryEducationLevel } from "@/domains/printing/document-header";
 
 function ensureAmiriRegistered(doc: jsPDF) {
   try {
@@ -453,6 +453,11 @@ export async function generateBulletinPDF(data: any): Promise<void> {
     return await generateReleveNotesPDF(data);
   }
 
+  // If this is primary education (Primaire / Maternelle), seamlessly redirect to the official Primary School Carnet / Bulletin generator!
+  if (isPrimaryEducationLevel(eduLevel)) {
+    return await generatePrimaireBulletinPDF(data);
+  }
+
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   
   if (amiriFontBase64) {
@@ -863,6 +868,10 @@ export async function generateBulletinBlob(data: any): Promise<Blob> {
 
   if (isHigherEducationLevel(eduLevel)) {
     return await generateReleveNotesBlob(data);
+  }
+
+  if (isPrimaryEducationLevel(eduLevel)) {
+    return await generatePrimaireBulletinBlob(data);
   }
 
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
@@ -2186,7 +2195,685 @@ export async function buildReleveNotesDoc(data: any): Promise<jsPDF> {
     drawOfflineWatermark(doc, "RELEVÉ PROVISOIRE");
   }
 
+// ============================================================================
+// CARNET DE NOTES PRIMAIRE (BILINGUE FRANÇAIS / ARABE - FORMAT PAYSAGE A4)
+// Modèle Officiel Franco-Arabe / Medersa & Écoles Primaires
+// ============================================================================
+
+const PRIMARY_BILINGUAL_SUBJECTS: Record<string, { fr: string; ar: string; category: "arabe" | "francais" }> = {
+  // Enseignement Arabo-Islamique
+  coran: { fr: "AlKour'Ane", ar: "القرآن الكريم", category: "arabe" },
+  sourate: { fr: "AlKour'Ane", ar: "القرآن الكريم", category: "arabe" },
+  kuran: { fr: "AlKour'Ane", ar: "القرآن الكريم", category: "arabe" },
+  hadith: { fr: "AL-Hadith", ar: "الحديث", category: "arabe" },
+  tawhid: { fr: "Attawhide", ar: "التوحيد", category: "arabe" },
+  fikh: { fr: "AL-Fikhou", ar: "الفقه", category: "arabe" },
+  fiqh: { fr: "AL-Fikhou", ar: "الفقه", category: "arabe" },
+  sira: { fr: "Assira", ar: "السيرة", category: "arabe" },
+  nahw: { fr: "Annahwou", ar: "النحو", category: "arabe" },
+  arabe: { fr: "Arabe", ar: "اللغة العربية", category: "arabe" },
+  islam: { fr: "Éducation Islamique", ar: "التربية الإسلامية", category: "arabe" },
+
+  // Matières Générales / Programme Français
+  "etude de texte": { fr: "Etude de texte", ar: "دراسة النص", category: "francais" },
+  texte: { fr: "Etude de texte", ar: "دراسة النص", category: "francais" },
+  math: { fr: "Mathématique", ar: "الحساب/ الرياضيات", category: "francais" },
+  calcul: { fr: "Mathématique", ar: "الحساب", category: "francais" },
+  arithmetique: { fr: "Mathématique", ar: "الحساب", category: "francais" },
+  science: { fr: "Sciences", ar: "العلوم", category: "francais" },
+  eveil: { fr: "Sciences", ar: "العلوم", category: "francais" },
+  lecture: { fr: "Lecture", ar: "القراءة", category: "francais" },
+  langage: { fr: "Langage", ar: "المحادثة", category: "francais" },
+  expression: { fr: "Langage", ar: "المحادثة", category: "francais" },
+  redaction: { fr: "Rédaction", ar: "التعبير", category: "francais" },
+  recitation: { fr: "Récitation/Chant", ar: "المحفوظات/الأناشيد", category: "francais" },
+  chant: { fr: "Récitation/Chant", ar: "المحفوظات/الأناشيد", category: "francais" },
+  dictee: { fr: "Dictée", ar: "الإملاء", category: "francais" },
+  orthographe: { fr: "Dictée", ar: "الإملاء", category: "francais" },
+  histoire: { fr: "Histoire", ar: "التاريخ", category: "francais" },
+  geographie: { fr: "Géographie", ar: "الجغرافية", category: "francais" },
+  ecriture: { fr: "Ecriture", ar: "الخط", category: "francais" },
+  dessin: { fr: "Dessin", ar: "الرسم", category: "francais" },
+  eps: { fr: "EPS", ar: "الرياضة البدنية", category: "francais" },
+  sport: { fr: "EPS", ar: "الرياضة البدنية", category: "francais" },
+  francais: { fr: "Français", ar: "اللغة الفرنسية", category: "francais" },
+  civisme: { fr: "Morale / Civisme", ar: "التربية المدنية", category: "francais" },
+};
+
+const DEFAULT_PRIMARY_SUBJECT_ORDER = [
+  { fr: "AlKour'Ane", ar: "القرآن الكريم", category: "arabe" as const },
+  { fr: "AL-Hadith", ar: "الحديث", category: "arabe" as const },
+  { fr: "Attawhide", ar: "التوحيد", category: "arabe" as const },
+  { fr: "AL-Fikhou", ar: "الفقه", category: "arabe" as const },
+  { fr: "Assira", ar: "السيرة", category: "arabe" as const },
+  { fr: "Annahwou", ar: "النحو", category: "arabe" as const },
+  { fr: "Etude de texte", ar: "دراسة النص", category: "francais" as const },
+  { fr: "Mathématique", ar: "الحساب/ الرياضيات", category: "francais" as const },
+  { fr: "Sciences", ar: "العلوم", category: "francais" as const },
+  { fr: "Lecture", ar: "القراءة", category: "francais" as const },
+  { fr: "Langage", ar: "المحادثة", category: "francais" as const },
+  { fr: "Rédaction", ar: "التعبير", category: "francais" as const },
+  { fr: "Récitation/Chant", ar: "المحفوظات/الأناشيد", category: "francais" as const },
+  { fr: "Dictée", ar: "الإملاء", category: "francais" as const },
+  { fr: "Histoire", ar: "التاريخ", category: "francais" as const },
+  { fr: "Géographie", ar: "الجغرافية", category: "francais" as const },
+  { fr: "Ecriture", ar: "الخط", category: "francais" as const },
+  { fr: "Dessin", ar: "الرسم", category: "francais" as const },
+  { fr: "EPS", ar: "الرياضة البدنية", category: "francais" as const },
+];
+
+function resolvePrimarySubjectDetail(rawName: string): { fr: string; ar: string; category: "arabe" | "francais" } {
+  const norm = (rawName || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+
+  for (const [key, val] of Object.entries(PRIMARY_BILINGUAL_SUBJECTS)) {
+    if (norm.includes(key)) {
+      return val;
+    }
+  }
+
+  if (hasArabicCharacters(rawName)) {
+    return { fr: rawName, ar: rawName, category: "arabe" };
+  }
+
+  return { fr: rawName || "Discipline", ar: rawName || "المادة", category: "francais" };
+}
+
+function computePrimaryNextClass(currentClass?: string): string {
+  if (!currentClass) return "CP";
+  const u = currentClass.toUpperCase().trim();
+  if (u.includes("CI")) return "CP";
+  if (u.includes("CP1")) return "CP2";
+  if (u.includes("CP2") || u.includes("CP")) return "CE1";
+  if (u.includes("CE1")) return "CE2";
+  if (u.includes("CE2")) return "CM1";
+  if (u.includes("CM1")) return "CM2";
+  if (u.includes("CM2")) return "6ème (Collège)";
+  if (u.includes("SIL")) return "CP";
+  return "Classe Supérieure";
+}
+
+export async function buildPrimaireBulletinDoc(data: any): Promise<jsPDF> {
+  const {
+    student,
+    session,
+    term = "1er Trimestre",
+    results = [],
+    summary,
+    summaryS1,
+    summaryS2,
+    totalStudents = 30,
+    branchInfo,
+    headerConfig,
+    isOffline = false
+  } = data;
+
+  const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+  ensureAmiriRegistered(doc);
+
+  const studentName = student?.nomEtudiant || student?.name || student?.studentName || "Élève";
+  const className = student?.classe || student?.className || "CP";
+  const sessionName = session?.sessionName || session || headerConfig?.schoolYear || "2024-2025";
+  const maitre = student?.teacherName || branchInfo?.directorName || headerConfig?.teacherName || "";
+
+  // 1. Draw Top Header
+  doc.setDrawColor(0);
+  doc.setTextColor(0);
+
+  // Top Left: Année scolaire & Nom de l'élève & Cours
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.text("ANNÉE SCOLAIRE :", 8, 12);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(11);
+  doc.text(`${sessionName}`, 52, 12);
+  doc.setLineWidth(0.2);
+  doc.line(50, 13, 115, 13);
+
+  doc.setFont("helvetica", "bold");
+  doc.text("NOM DE L'ÉLÈVE :", 8, 22);
+  doc.setFont("helvetica", "bold");
+  doc.text(`${studentName}`, 48, 22);
+  doc.line(46, 23, 115, 23);
+
+  doc.setFont("helvetica", "bold");
+  doc.text("COURS :", 118, 22);
+  doc.setFont("helvetica", "bold");
+  doc.text(`${className}`, 136, 22);
+  doc.line(134, 23, 154, 23);
+
+  // Center: School Logo or Seal
+  const logoUrl = headerConfig?.centerLogo || headerConfig?.leftLogo || headerConfig?.rightLogo || branchInfo?.logoPath;
+  if (logoUrl) {
+    try {
+      if (logoUrl.startsWith("data:image/")) {
+        doc.addImage(logoUrl, "PNG", 140, 4, 18, 18);
+      } else {
+        const logoWatermark = await fetchTransparentLogoBase64(logoUrl, 1.0);
+        if (logoWatermark) {
+          doc.addImage(logoWatermark, "PNG", 140, 4, 18, 18);
+        }
+      }
+    } catch (e) {
+      console.warn("Could not render logo in primary bulletin:", e);
+    }
+  } else {
+    // School Crest Seal
+    doc.setDrawColor(30, 64, 175);
+    doc.setLineWidth(0.5);
+    doc.circle(148, 13, 9);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(6.5);
+    doc.setTextColor(30, 64, 175);
+    doc.text("ÉCOLE", 148, 12, { align: "center" });
+    doc.text("PRIMAIRE", 148, 15.5, { align: "center" });
+    doc.setTextColor(0, 0, 0);
+  }
+
+  // Top Right: TENU PAR
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.text("TENU PAR :", 166, 12);
+  doc.line(166, 13, 192, 13);
+
+  doc.setFontSize(9.5);
+  doc.text("Mr :", 166, 22);
+  doc.setFont("helvetica", "normal");
+  doc.text(maitre ? `${maitre}` : "........................................", 175, 22);
+
+  doc.setFont("helvetica", "bold");
+  doc.text("ET Mr :", 228, 22);
+  doc.setFont("helvetica", "normal");
+  doc.text("........................................", 243, 22);
+
+  // ==========================================================================
+  // 2. Build Subjects & Compositions (Left Table)
+  // ==========================================================================
+  const termNorm = (term || "").toLowerCase();
+  const currentCompIndex = termNorm.includes("1") || termNorm.includes("premier") ? 1 : (termNorm.includes("2") || termNorm.includes("deux") ? 2 : 3);
+
+  // Build a lookup of student's scores from current results
+  const scoreLookup: Record<string, number> = {};
+  (results || []).forEach((r: any) => {
+    const sName = r.subject?.subjectName || r.subjectName || "";
+    const cw = parseFloat(r.classWorkScore);
+    const ex = parseFloat(r.examScore);
+    const tot = parseFloat(r.totalScore);
+    const avg = parseFloat(r.average);
+
+    let score = 0;
+    if (!isNaN(cw) && !isNaN(ex)) score = (cw + ex) / 2;
+    else if (!isNaN(ex)) score = ex;
+    else if (!isNaN(cw)) score = cw;
+    else if (!isNaN(tot)) score = tot <= 20 ? tot : tot / 2;
+    else if (!isNaN(avg)) score = avg;
+
+    scoreLookup[sName.toLowerCase().trim()] = score;
+  });
+
+  // Extract previous term history if available
+  const historyLookupComp1: Record<string, number> = {};
+  const historyLookupComp2: Record<string, number> = {};
+  if (Array.isArray(student?.history)) {
+    student.history.forEach((h: any) => {
+      const hTerm = String(h.term || "").toLowerCase();
+      if (hTerm.includes("1")) {
+        historyLookupComp1[String(h.subjectName || "").toLowerCase().trim()] = parseFloat(h.average || h.score) || 0;
+      } else if (hTerm.includes("2")) {
+        historyLookupComp2[String(h.subjectName || "").toLowerCase().trim()] = parseFloat(h.average || h.score) || 0;
+      }
+    });
+  }
+
+  // Combine standard subjects with any extra subjects from results
+  const allSubjectRows: Array<{ fr: string; ar: string; category: "arabe" | "francais"; score1?: number; score2?: number; score3?: number }> = [];
+  const processedKeys = new Set<string>();
+
+  DEFAULT_PRIMARY_SUBJECT_ORDER.forEach((def) => {
+    const key = def.fr.toLowerCase();
+    processedKeys.add(key);
+
+    // Look for matching score in results
+    let scoreCurrent: number | undefined = undefined;
+    for (const [sName, sc] of Object.entries(scoreLookup)) {
+      if (sName.includes(key) || key.includes(sName) || (def.ar && sName.includes(def.ar))) {
+        scoreCurrent = sc;
+        break;
+      }
+    }
+
+    let score1: number | undefined = undefined;
+    let score2: number | undefined = undefined;
+    let score3: number | undefined = undefined;
+
+    if (currentCompIndex === 1) score1 = scoreCurrent;
+    else if (currentCompIndex === 2) score2 = scoreCurrent;
+    else if (currentCompIndex === 3) score3 = scoreCurrent;
+
+    // History check for other comps
+    for (const [hName, sc] of Object.entries(historyLookupComp1)) {
+      if (hName.includes(key) || key.includes(hName)) { score1 = sc; break; }
+    }
+    for (const [hName, sc] of Object.entries(historyLookupComp2)) {
+      if (hName.includes(key) || key.includes(hName)) { score2 = sc; break; }
+    }
+
+    allSubjectRows.push({
+      fr: def.fr,
+      ar: def.ar,
+      category: def.category,
+      score1,
+      score2,
+      score3,
+    });
+  });
+
+  // Append any extra subjects present in results
+  (results || []).forEach((r: any) => {
+    const sName = r.subject?.subjectName || r.subjectName || "";
+    const info = resolvePrimarySubjectDetail(sName);
+    const key = info.fr.toLowerCase();
+    if (!processedKeys.has(key)) {
+      processedKeys.add(key);
+      const sc = scoreLookup[sName.toLowerCase().trim()];
+      allSubjectRows.push({
+        fr: info.fr,
+        ar: info.ar,
+        category: info.category,
+        score1: currentCompIndex === 1 ? sc : undefined,
+        score2: currentCompIndex === 2 ? sc : undefined,
+        score3: currentCompIndex === 3 ? sc : undefined,
+      });
+    }
+  });
+
+  // Compute column totals and averages
+  let totalFr1 = 0, countFr1 = 0, totalAr1 = 0, countAr1 = 0;
+  let totalFr2 = 0, countFr2 = 0, totalAr2 = 0, countAr2 = 0;
+  let totalFr3 = 0, countFr3 = 0, totalAr3 = 0, countAr3 = 0;
+
+  const bodyData = allSubjectRows.map((row) => {
+    const isAr = row.category === "arabe";
+
+    // Comp 1
+    let c1Fr = "";
+    let c1Ar = "";
+    if (row.score1 !== undefined && !isNaN(row.score1)) {
+      const valStr = row.score1.toFixed(row.score1 % 1 === 0 ? 0 : 2);
+      if (isAr) { c1Ar = valStr; totalAr1 += row.score1; countAr1++; }
+      else      { c1Fr = valStr; totalFr1 += row.score1; countFr1++; }
+    }
+
+    // Comp 2
+    let c2Fr = "";
+    let c2Ar = "";
+    if (row.score2 !== undefined && !isNaN(row.score2)) {
+      const valStr = row.score2.toFixed(row.score2 % 1 === 0 ? 0 : 2);
+      if (isAr) { c2Ar = valStr; totalAr2 += row.score2; countAr2++; }
+      else      { c2Fr = valStr; totalFr2 += row.score2; countFr2++; }
+    }
+
+    // Comp 3
+    let c3Fr = "";
+    let c3Ar = "";
+    if (row.score3 !== undefined && !isNaN(row.score3)) {
+      const valStr = row.score3.toFixed(row.score3 % 1 === 0 ? 0 : 2);
+      if (isAr) { c3Ar = valStr; totalAr3 += row.score3; countAr3++; }
+      else      { c3Fr = valStr; totalFr3 += row.score3; countFr3++; }
+    }
+
+    return [
+      `${row.fr}  /  ${row.ar}`,
+      "20",
+      c1Fr,
+      c1Ar,
+      c2Fr,
+      c2Ar,
+      c3Fr,
+      c3Ar,
+    ];
+  });
+
+  const moyFr1 = countFr1 > 0 ? (totalFr1 / countFr1).toFixed(2) : "-";
+  const moyAr1 = countAr1 > 0 ? (totalAr1 / countAr1).toFixed(2) : "-";
+  const moyFr2 = countFr2 > 0 ? (totalFr2 / countFr2).toFixed(2) : "-";
+  const moyAr2 = countAr2 > 0 ? (totalAr2 / countAr2).toFixed(2) : "-";
+  const moyFr3 = countFr3 > 0 ? (totalFr3 / countFr3).toFixed(2) : "-";
+  const moyAr3 = countAr3 > 0 ? (totalAr3 / countAr3).toFixed(2) : "-";
+
+  const comp1GenAvg = currentCompIndex === 1 && summary?.average ? summary.average.toFixed(2) : (summaryS1?.average ? summaryS1.average.toFixed(2) : (countFr1 + countAr1 > 0 ? ((totalFr1 + totalAr1) / (countFr1 + countAr1)).toFixed(2) : "-"));
+  const comp2GenAvg = currentCompIndex === 2 && summary?.average ? summary.average.toFixed(2) : (summaryS2?.average ? summaryS2.average.toFixed(2) : (countFr2 + countAr2 > 0 ? ((totalFr2 + totalAr2) / (countFr2 + countAr2)).toFixed(2) : "-"));
+  const comp3GenAvg = currentCompIndex === 3 && summary?.average ? summary.average.toFixed(2) : (countFr3 + countAr3 > 0 ? ((totalFr3 + totalAr3) / (countFr3 + countAr3)).toFixed(2) : "-");
+
+  const comp1GenRank = currentCompIndex === 1 && summary?.rank ? String(summary.rank) : (summaryS1?.rank ? String(summaryS1.rank) : "-");
+  const comp2GenRank = currentCompIndex === 2 && summary?.rank ? String(summary.rank) : (summaryS2?.rank ? String(summaryS2.rank) : "-");
+  const comp3GenRank = currentCompIndex === 3 && summary?.rank ? String(summary.rank) : "-";
+
+  // Foot rows: Total, Moyenne, Rang, Moyenne Générale, Rang Général
+  const footData: any[] = [
+    [
+      { content: "Total    المجموع", colSpan: 2, styles: { fontStyle: "bold", halign: "left" } },
+      totalFr1 > 0 ? totalFr1.toFixed(1) : "-",
+      totalAr1 > 0 ? totalAr1.toFixed(1) : "-",
+      totalFr2 > 0 ? totalFr2.toFixed(1) : "-",
+      totalAr2 > 0 ? totalAr2.toFixed(1) : "-",
+      totalFr3 > 0 ? totalFr3.toFixed(1) : "-",
+      totalAr3 > 0 ? totalAr3.toFixed(1) : "-",
+    ],
+    [
+      { content: "Moyenne    المعدل", colSpan: 2, styles: { fontStyle: "bold", halign: "left" } },
+      moyFr1, moyAr1,
+      moyFr2, moyAr2,
+      moyFr3, moyAr3,
+    ],
+    [
+      { content: "Rang    الترتيب", colSpan: 2, styles: { fontStyle: "bold", halign: "left" } },
+      currentCompIndex === 1 ? (summary?.rank || "-") : "-",
+      currentCompIndex === 1 ? (summary?.rank || "-") : "-",
+      currentCompIndex === 2 ? (summary?.rank || "-") : "-",
+      currentCompIndex === 2 ? (summary?.rank || "-") : "-",
+      currentCompIndex === 3 ? (summary?.rank || "-") : "-",
+      currentCompIndex === 3 ? (summary?.rank || "-") : "-",
+    ],
+    [
+      { content: "Moyenne Générale    معدل عام", colSpan: 2, styles: { fontStyle: "bold", halign: "left" } },
+      { content: comp1GenAvg, colSpan: 2, styles: { halign: "center", fontStyle: "bold" } },
+      { content: comp2GenAvg, colSpan: 2, styles: { halign: "center", fontStyle: "bold" } },
+      { content: comp3GenAvg, colSpan: 2, styles: { halign: "center", fontStyle: "bold" } },
+    ],
+    [
+      { content: "Rang Général    ترتيب عام", colSpan: 2, styles: { fontStyle: "bold", halign: "left" } },
+      { content: comp1GenRank, colSpan: 2, styles: { halign: "center", fontStyle: "bold" } },
+      { content: comp2GenRank, colSpan: 2, styles: { halign: "center", fontStyle: "bold" } },
+      { content: comp3GenRank, colSpan: 2, styles: { halign: "center", fontStyle: "bold" } },
+    ],
+  ];
+
+  autoTable(doc, {
+    startY: 28,
+    margin: { left: 8 },
+    tableWidth: 146,
+    head: [
+      [
+        { content: "Compositions\nالامتحانات", colSpan: 2, styles: { halign: "center", fontStyle: "bold", fontSize: 8.5 } },
+        { content: "Composition N° 1", colSpan: 2, styles: { halign: "center", fontStyle: "bold", fontSize: 8 } },
+        { content: "Composition N° 2", colSpan: 2, styles: { halign: "center", fontStyle: "bold", fontSize: 8 } },
+        { content: "Composition N° 3", colSpan: 2, styles: { halign: "center", fontStyle: "bold", fontSize: 8 } },
+      ],
+      [
+        { content: "Matières  /  المواد", styles: { halign: "left", fontStyle: "bold", fontSize: 8 } },
+        { content: "SUR\nعلى", styles: { halign: "center", fontStyle: "bold", fontSize: 7 } },
+        { content: "FRANÇAIS", styles: { halign: "center", fontStyle: "bold", fontSize: 6.5 } },
+        { content: "العربية", styles: { halign: "center", fontStyle: "bold", fontSize: 7.5 } },
+        { content: "FRANÇAIS", styles: { halign: "center", fontStyle: "bold", fontSize: 6.5 } },
+        { content: "العربية", styles: { halign: "center", fontStyle: "bold", fontSize: 7.5 } },
+        { content: "FRANÇAIS", styles: { halign: "center", fontStyle: "bold", fontSize: 6.5 } },
+        { content: "العربية", styles: { halign: "center", fontStyle: "bold", fontSize: 7.5 } },
+      ]
+    ],
+    body: bodyData,
+    foot: footData,
+    theme: "plain",
+    styles: {
+      lineWidth: 0.25,
+      lineColor: [0, 0, 0],
+      fontSize: 7,
+      textColor: [0, 0, 0],
+      cellPadding: 0.9,
+      valign: "middle",
+    },
+    headStyles: {
+      fontStyle: "bold",
+      fillColor: [255, 255, 255],
+      textColor: [0, 0, 0],
+      lineWidth: 0.35,
+      lineColor: [0, 0, 0],
+    },
+    footStyles: {
+      fontStyle: "bold",
+      fillColor: [255, 255, 255],
+      textColor: [0, 0, 0],
+      lineWidth: 0.35,
+      lineColor: [0, 0, 0],
+      fontSize: 7.5,
+    },
+    columnStyles: {
+      0: { halign: "left", cellWidth: 50 },
+      1: { halign: "center", cellWidth: 12 },
+      2: { halign: "center", cellWidth: 14 },
+      3: { halign: "center", cellWidth: 14 },
+      4: { halign: "center", cellWidth: 14 },
+      5: { halign: "center", cellWidth: 14 },
+      6: { halign: "center", cellWidth: 14 },
+      7: { halign: "center", cellWidth: 14 },
+    },
+    didParseCell: (hookData) => {
+      handleBilingualCell(hookData);
+    }
+  });
+
+  // ==========================================================================
+  // 3. Right Top Table: التقويم والتوقيع (Evaluation & Visas)
+  // ==========================================================================
+  const obs1 = currentCompIndex === 1 ? (summary?.observation || summary?.appreciation || "") : (summaryS1?.observation || "");
+  const obs2 = currentCompIndex === 2 ? (summary?.observation || summary?.appreciation || "") : (summaryS2?.observation || "");
+  const obs3 = currentCompIndex === 3 ? (summary?.observation || summary?.appreciation || "") : "";
+
+  autoTable(doc, {
+    startY: 28,
+    margin: { left: 158 },
+    tableWidth: 131,
+    head: [
+      [
+        { content: "Composition\nالتقويم والتوقيع", styles: { halign: "center", fontStyle: "bold", fontSize: 8 } },
+        { content: "Observation\nDes enseignants", styles: { halign: "center", fontStyle: "bold", fontSize: 8 } },
+        { content: "Visa du\nDirecteur", styles: { halign: "center", fontStyle: "bold", fontSize: 8 } },
+        { content: "Visa du\nParents", styles: { halign: "center", fontStyle: "bold", fontSize: 8 } },
+      ]
+    ],
+    body: [
+      [
+        { content: "Composition N° 1\nالشهر 1", styles: { halign: "center", fontStyle: "bold", minCellHeight: 18 } },
+        { content: obs1 ? `${obs1}` : "\n\n............................", styles: { halign: "left", fontSize: 7.5 } },
+        { content: "", styles: { halign: "center" } },
+        { content: "", styles: { halign: "center" } },
+      ],
+      [
+        { content: "Composition N° 2\nالشهر 2", styles: { halign: "center", fontStyle: "bold", minCellHeight: 18 } },
+        { content: obs2 ? `${obs2}` : "\n\n............................", styles: { halign: "left", fontSize: 7.5 } },
+        { content: "", styles: { halign: "center" } },
+        { content: "", styles: { halign: "center" } },
+      ],
+      [
+        { content: "Composition N° 3\nالشهر 3", styles: { halign: "center", fontStyle: "bold", minCellHeight: 18 } },
+        { content: obs3 ? `${obs3}` : "\n\n............................", styles: { halign: "left", fontSize: 7.5 } },
+        { content: "", styles: { halign: "center" } },
+        { content: "", styles: { halign: "center" } },
+      ],
+    ],
+    theme: "plain",
+    styles: {
+      lineWidth: 0.25,
+      lineColor: [0, 0, 0],
+      fontSize: 8,
+      textColor: [0, 0, 0],
+      cellPadding: 1.5,
+      valign: "middle",
+    },
+    headStyles: {
+      fontStyle: "bold",
+      fillColor: [255, 255, 255],
+      textColor: [0, 0, 0],
+      lineWidth: 0.35,
+      lineColor: [0, 0, 0],
+    },
+    columnStyles: {
+      0: { halign: "center", cellWidth: 31 },
+      1: { halign: "left", cellWidth: 44 },
+      2: { halign: "center", cellWidth: 28 },
+      3: { halign: "center", cellWidth: 28 },
+    },
+    didParseCell: (hookData) => {
+      handleBilingualCell(hookData);
+    }
+  });
+
+  // ==========================================================================
+  // 4. Right Bottom Box: RESULTAT DE FIN D'ANNÉE / نتيجة نهاية السنة
+  // ==========================================================================
+  const boxX = 158;
+  const boxY = 100;
+  const boxW = 131;
+  const boxH = 98;
+
+  doc.setDrawColor(0);
+  doc.setLineWidth(0.6);
+  doc.rect(boxX, boxY, boxW, boxH);
+
+  // Box Title
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.text("RESULTAT DE FIN D'ANNÉE", boxX + 6, boxY + 9);
+  doc.setLineWidth(0.3);
+  doc.line(boxX + 6, boxY + 10.5, boxX + 65, boxY + 10.5);
+
+  doc.setFont("Amiri", "normal");
+  doc.setFontSize(13);
+  doc.text(reshapeArabicText("نتيجة نهاية السنة"), boxX + boxW - 6, boxY + 9.5, { align: "right" });
+  doc.line(boxX + boxW - 40, boxY + 10.5, boxX + boxW - 6, boxY + 10.5);
+
+  // Dividing header line
+  doc.setLineWidth(0.2);
+  doc.line(boxX + 4, boxY + 14, boxX + boxW - 4, boxY + 14);
+
+  // Compute Smart Progression & Annual Decision
+  const annAvg = typeof summary?.annualAverage === "number" ? summary.annualAverage : (typeof summary?.average === "number" ? summary.average : 0);
+  const annRank = summary?.annualRank || summary?.rank || "-";
+  const totCount = totalStudents || 30;
+
+  const isAdmis = annAvg >= 10;
+  const isRedouble = annAvg >= 8 && annAvg < 10;
+  const isExclu = annAvg > 0 && annAvg < 8;
+
+  const currentClass = student?.classe || student?.className || "CP";
+  const nextClass = computePrimaryNextClass(currentClass);
+  const nextYear = sessionName.includes("-") ? `${parseInt(sessionName.split("-")[1]) || 2025}` : "2025";
+
+  // Line 1: Moyenne Annuelle & Rang
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.text(`Moyenne Annuelle :`, boxX + 5, boxY + 22);
+  doc.setFont("helvetica", "normal");
+  doc.text(annAvg > 0 ? `${annAvg.toFixed(2)}` : ".......", boxX + 38, boxY + 22);
+
+  doc.setFont("helvetica", "bold");
+  doc.text(`Rang :`, boxX + 53, boxY + 22);
+  doc.setFont("helvetica", "normal");
+  doc.text(`${annRank}`, boxX + 65, boxY + 22);
+
+  doc.setFont("helvetica", "bold");
+  doc.text(`Sur :`, boxX + 78, boxY + 22);
+  doc.setFont("helvetica", "normal");
+  doc.text(`${totCount}`, boxX + 86, boxY + 22);
+
+  doc.setFont("Amiri", "normal");
+  doc.setFontSize(10);
+  const arStatsLine = `${reshapeArabicText("على")} : ${totCount}    ${reshapeArabicText("الترتيب")} : ${annRank}    ${reshapeArabicText("معدل سنوي")} : ${annAvg > 0 ? annAvg.toFixed(2) : "......."}`;
+  doc.text(arStatsLine, boxX + boxW - 5, boxY + 22, { align: "right" });
+
+  doc.setDrawColor(200, 200, 200);
+  doc.line(boxX + 5, boxY + 26, boxX + boxW - 5, boxY + 26);
+  doc.setDrawColor(0);
+
+  // Line 2: Admis au ...
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  const checkAdmis = isAdmis ? "☒" : "☐";
+  doc.text(`${checkAdmis} Admis au`, boxX + 5, boxY + 36);
+  doc.setFont("helvetica", "bold");
+  doc.text(isAdmis ? `${nextClass}` : ".......", boxX + 27, boxY + 36);
+  doc.setFont("helvetica", "normal");
+  doc.text(`à la rentrée de l'année ${nextYear}`, boxX + 44, boxY + 36);
+
+  doc.setFont("Amiri", "normal");
+  doc.setFontSize(10);
+  doc.text(`${reshapeArabicText("نجح إلى")} : ${isAdmis ? reshapeArabicText(nextClass) : "......."}`, boxX + boxW - 5, boxY + 36, { align: "right" });
+
+  doc.setDrawColor(220, 220, 220);
+  doc.line(boxX + 5, boxY + 44, boxX + boxW - 5, boxY + 44);
+  doc.setDrawColor(0);
+
+  // Line 3: Redouble La classe de:
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  const checkRedouble = isRedouble ? "☒" : "☐";
+  doc.text(`${checkRedouble} Redouble La classe de :`, boxX + 5, boxY + 54);
+  doc.setFont("helvetica", "bold");
+  doc.text(isRedouble ? `${currentClass}` : ".......", boxX + 53, boxY + 54);
+
+  doc.setFont("Amiri", "normal");
+  doc.setFontSize(10);
+  doc.text(`${reshapeArabicText("راسب في فصل")} : ${isRedouble ? reshapeArabicText(currentClass) : "......."}`, boxX + boxW - 5, boxY + 54, { align: "right" });
+
+  doc.setDrawColor(220, 220, 220);
+  doc.line(boxX + 5, boxY + 62, boxX + boxW - 5, boxY + 62);
+  doc.setDrawColor(0);
+
+  // Line 4: Exclu de l'école pour:
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  const checkExclu = isExclu ? "☒" : "☐";
+  doc.text(`${checkExclu} Exclu de l'école pour :`, boxX + 5, boxY + 72);
+  doc.setFont("helvetica", "normal");
+  doc.text(isExclu ? "Insuffisance de travail" : "........................................", boxX + 48, boxY + 72);
+
+  doc.setFont("Amiri", "normal");
+  doc.setFontSize(10);
+  doc.text(`${reshapeArabicText("طُرد من المدرسة من أجل")} : ....................`, boxX + boxW - 5, boxY + 72, { align: "right" });
+
+  doc.setDrawColor(180, 180, 180);
+  doc.line(boxX + 5, boxY + 79, boxX + boxW - 5, boxY + 79);
+  doc.setDrawColor(0);
+
+  // Line 5: Signatures and Stamp area
+  doc.setFont("helvetica", "italic");
+  doc.setFontSize(8.5);
+  doc.text("Fait à ................................., le ....................", boxX + 6, boxY + 88);
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.text("Visa & Cachet du Directeur", boxX + boxW - 6, boxY + 88, { align: "right" });
+
+  if (isOffline) {
+    doc.saveGraphicsState();
+    doc.setGState(new (doc as any).GState({ opacity: 0.7 }));
+    doc.setFillColor(254, 243, 199);
+    doc.setDrawColor(217, 119, 6);
+    doc.roundedRect(8, doc.internal.pageSize.getHeight() - 10, doc.internal.pageSize.getWidth() - 16, 7, 1, 1, "FD");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setTextColor(180, 83, 9);
+    doc.text("⚠️ CARNET DE NOTES GÉNÉRÉ HORS LIGNE - EN ATTENTE DE SYNCHRONISATION", 148, doc.internal.pageSize.getHeight() - 5.5, { align: "center" });
+    doc.restoreGraphicsState();
+  }
+
   return doc;
+}
+
+export async function generatePrimaireBulletinPDF(data: any): Promise<void> {
+  const doc = await buildPrimaireBulletinDoc(data);
+  const student = data.student;
+  const studentName = (student?.nomEtudiant || student?.name || "Eleve").replace(/\s+/g, "_");
+  const safeTerm = (data.term || "Trimestre").replace(/\s+/g, "_");
+  doc.save(`Carnet_Notes_Primaire_${studentName}_${safeTerm}.pdf`);
+}
+
+export async function generatePrimaireBulletinBlob(data: any): Promise<Blob> {
+  const doc = await buildPrimaireBulletinDoc(data);
+  return doc.output("blob");
 }
 
 export async function generateReleveNotesPDF(data: any): Promise<void> {
