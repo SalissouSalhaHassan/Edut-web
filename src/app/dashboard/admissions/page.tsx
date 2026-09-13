@@ -39,6 +39,7 @@ import {
   Layers,
   HelpCircle,
   FileCheck,
+  Camera,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import {
@@ -53,6 +54,7 @@ import {
 import { UNIVERSITY_FACULTIES } from "@/domains/admissions/constants/admissions.constants";
 import { getDocumentHeaderConfig } from "@/domains/settings/actions/settings.actions";
 import AdmissionsPrintModal, { AdmissionsDocType } from "@/domains/admissions/components/AdmissionsPrintModal";
+import AdmissionDocumentViewerModal from "@/domains/admissions/components/AdmissionDocumentViewerModal";
 
 export default function AdmissionsPage() {
   const [isLoading, setIsLoading] = useState(true);
@@ -95,6 +97,11 @@ export default function AdmissionsPage() {
   const [admissionScore, setAdmissionScore] = useState<number | undefined>(undefined);
   const [interviewScore, setInterviewScore] = useState<number | undefined>(undefined);
   const [juryDecision, setJuryDecision] = useState<string>("Admis / Accepté");
+
+  // Document Viewer Modal States
+  const [isDocViewerOpen, setIsDocViewerOpen] = useState(false);
+  const [activeDocKey, setActiveDocKey] = useState<string>("bacTranscriptUrl");
+  const [docViewerApp, setDocViewerApp] = useState<any | null>(null);
 
   // Share & QR Modal
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
@@ -547,10 +554,42 @@ export default function AdmissionsPage() {
                         <span className="font-mono font-black text-emerald-600 dark:text-emerald-400 block">
                           {app.applicationNumber}
                         </span>
-                        <span className="text-[10px] text-slate-400">
+                        <span className="text-[10px] text-slate-400 block">
                           {app.createdAt ? new Date(app.createdAt).toLocaleDateString("fr-FR") : "—"}
                         </span>
+                        {/* Attached Docs Badge */}
+                        {(() => {
+                          const docCount = [
+                            app.bacTranscriptUrl,
+                            app.bacCertificateUrl,
+                            app.idCardPassportUrl,
+                            app.birthCertificateUrl,
+                            app.cvUrl,
+                            app.higherEdTranscriptUrl,
+                            app.photoUrl,
+                            app.reportCardUrl,
+                            app.coverLetter,
+                          ].filter(Boolean).length;
+
+                          if (docCount === 0) return null;
+                          return (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDocViewerApp(app);
+                                setActiveDocKey("bacTranscriptUrl");
+                                setIsDocViewerOpen(true);
+                              }}
+                              className="inline-flex items-center gap-1 mt-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 px-2 py-0.5 rounded-md border border-emerald-200/50 dark:border-emerald-900 transition"
+                              title="Voir les pièces numérisées"
+                            >
+                              <FileCheck className="size-3" />
+                              <span>{docCount} pièce(s)</span>
+                            </button>
+                          );
+                        })()}
                       </td>
+
 
                       {/* 2. Candidate & Identity */}
                       <td className="px-5 py-4">
@@ -665,6 +704,18 @@ export default function AdmissionsPage() {
 
                           <button
                             onClick={() => {
+                              setDocViewerApp(app);
+                              setActiveDocKey("bacTranscriptUrl");
+                              setIsDocViewerOpen(true);
+                            }}
+                            className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-emerald-600 dark:text-emerald-400 transition"
+                            title="Consulter les Pièces Justificatives Numérisées"
+                          >
+                            <FileCheck className="size-4" />
+                          </button>
+
+                          <button
+                            onClick={() => {
                               setPrintSelectedApp(app);
                               setPrintDocType("letter");
                               setIsPrintModalOpen(true);
@@ -694,6 +745,7 @@ export default function AdmissionsPage() {
       </div>
 
       {/* ─── REVIEW & JURY DELIBERATION MODAL ──────────────────────────────── */}
+
       {isReviewModalOpen && selectedApp && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
           <div className="max-w-3xl w-full bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6 animate-in fade-in zoom-in-95 duration-200 my-8">
@@ -743,29 +795,191 @@ export default function AdmissionsPage() {
               </div>
             </div>
 
-            {/* Document Links */}
-            {(selectedApp.bacTranscriptUrl || selectedApp.cvUrl || selectedApp.idCardPassportUrl || selectedApp.coverLetter) && (
-              <div className="space-y-2">
-                <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Pièces Justificatives Numérisées :</span>
-                <div className="flex flex-wrap gap-2">
-                  {selectedApp.bacTranscriptUrl && (
-                    <a href={selectedApp.bacTranscriptUrl} target="_blank" rel="noreferrer" className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold text-blue-500 hover:underline flex items-center gap-1.5">
-                      <FileText className="size-3.5" /> Relevé Bac
-                    </a>
-                  )}
-                  {selectedApp.cvUrl && (
-                    <a href={selectedApp.cvUrl} target="_blank" rel="noreferrer" className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold text-blue-500 hover:underline flex items-center gap-1.5">
-                      <FileText className="size-3.5" /> CV Candidat
-                    </a>
-                  )}
-                  {selectedApp.idCardPassportUrl && (
-                    <a href={selectedApp.idCardPassportUrl} target="_blank" rel="noreferrer" className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold text-blue-500 hover:underline flex items-center gap-1.5">
-                      <FileText className="size-3.5" /> Pièce d&apos;Identité
-                    </a>
-                  )}
+            {/* Pièces Justificatives Numérisées */}
+            <div className="space-y-2.5 p-4 bg-slate-50 dark:bg-slate-950/70 border border-slate-200/80 dark:border-slate-800 rounded-2xl">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <FileCheck className="size-4 text-emerald-500" />
+                  <span className="text-xs font-black text-slate-800 dark:text-slate-200">
+                    Pièces Justificatives Numérisées :
+                  </span>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDocViewerApp(selectedApp);
+                    setActiveDocKey("bacTranscriptUrl");
+                    setIsDocViewerOpen(true);
+                  }}
+                  className="text-[11px] font-bold text-emerald-600 hover:text-emerald-500 dark:text-emerald-400 flex items-center gap-1 transition"
+                >
+                  <Eye className="size-3.5" />
+                  Ouvrir la Visionneuse
+                </button>
               </div>
-            )}
+
+              {/* Document Action Chips */}
+              <div className="flex flex-wrap gap-2">
+                {selectedApp.bacTranscriptUrl && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDocViewerApp(selectedApp);
+                      setActiveDocKey("bacTranscriptUrl");
+                      setIsDocViewerOpen(true);
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/60 text-xs font-bold text-blue-600 dark:text-blue-300 flex items-center gap-1.5 border border-blue-200/60 dark:border-blue-800 transition shadow-sm group"
+                  >
+                    <Award className="size-3.5 group-hover:scale-110 transition-transform" />
+                    <span>Relevé Bac</span>
+                    <span className="size-1.5 rounded-full bg-blue-500" />
+                  </button>
+                )}
+
+                {selectedApp.bacCertificateUrl && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDocViewerApp(selectedApp);
+                      setActiveDocKey("bacCertificateUrl");
+                      setIsDocViewerOpen(true);
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/60 dark:hover:bg-purple-900/60 text-xs font-bold text-purple-600 dark:text-purple-300 flex items-center gap-1.5 border border-purple-200/60 dark:border-purple-800 transition shadow-sm group"
+                  >
+                    <GraduationCap className="size-3.5 group-hover:scale-110 transition-transform" />
+                    <span>Diplôme Bac</span>
+                    <span className="size-1.5 rounded-full bg-purple-500" />
+                  </button>
+                )}
+
+                {selectedApp.idCardPassportUrl && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDocViewerApp(selectedApp);
+                      setActiveDocKey("idCardPassportUrl");
+                      setIsDocViewerOpen(true);
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-teal-50 hover:bg-teal-100 dark:bg-teal-950/60 dark:hover:bg-teal-900/60 text-xs font-bold text-teal-600 dark:text-teal-300 flex items-center gap-1.5 border border-teal-200/60 dark:border-teal-800 transition shadow-sm group"
+                  >
+                    <FileText className="size-3.5 group-hover:scale-110 transition-transform" />
+                    <span>Pièce d&apos;Identité</span>
+                    <span className="size-1.5 rounded-full bg-teal-500" />
+                  </button>
+                )}
+
+                {selectedApp.birthCertificateUrl && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDocViewerApp(selectedApp);
+                      setActiveDocKey("birthCertificateUrl");
+                      setIsDocViewerOpen(true);
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-cyan-50 hover:bg-cyan-100 dark:bg-cyan-950/60 dark:hover:bg-cyan-900/60 text-xs font-bold text-cyan-600 dark:text-cyan-300 flex items-center gap-1.5 border border-cyan-200/60 dark:border-cyan-800 transition shadow-sm group"
+                  >
+                    <Calendar className="size-3.5 group-hover:scale-110 transition-transform" />
+                    <span>Acte de Naissance</span>
+                    <span className="size-1.5 rounded-full bg-cyan-500" />
+                  </button>
+                )}
+
+                {selectedApp.cvUrl && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDocViewerApp(selectedApp);
+                      setActiveDocKey("cvUrl");
+                      setIsDocViewerOpen(true);
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:hover:bg-indigo-900/60 text-xs font-bold text-indigo-600 dark:text-indigo-300 flex items-center gap-1.5 border border-indigo-200/60 dark:border-indigo-800 transition shadow-sm group"
+                  >
+                    <Briefcase className="size-3.5 group-hover:scale-110 transition-transform" />
+                    <span>CV Candidat</span>
+                    <span className="size-1.5 rounded-full bg-indigo-500" />
+                  </button>
+                )}
+
+                {selectedApp.higherEdTranscriptUrl && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDocViewerApp(selectedApp);
+                      setActiveDocKey("higherEdTranscriptUrl");
+                      setIsDocViewerOpen(true);
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:hover:bg-emerald-900/60 text-xs font-bold text-emerald-600 dark:text-emerald-300 flex items-center gap-1.5 border border-emerald-200/60 dark:border-emerald-800 transition shadow-sm group"
+                  >
+                    <Layers className="size-3.5 group-hover:scale-110 transition-transform" />
+                    <span>Relevés Supérieur</span>
+                    <span className="size-1.5 rounded-full bg-emerald-500" />
+                  </button>
+                )}
+
+                {selectedApp.photoUrl && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDocViewerApp(selectedApp);
+                      setActiveDocKey("photoUrl");
+                      setIsDocViewerOpen(true);
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-pink-50 hover:bg-pink-100 dark:bg-pink-950/60 dark:hover:bg-pink-900/60 text-xs font-bold text-pink-600 dark:text-pink-300 flex items-center gap-1.5 border border-pink-200/60 dark:border-pink-800 transition shadow-sm group"
+                  >
+                    <Camera className="size-3.5 group-hover:scale-110 transition-transform" />
+                    <span>Photo d&apos;Identité</span>
+                    <span className="size-1.5 rounded-full bg-pink-500" />
+                  </button>
+                )}
+
+                {selectedApp.reportCardUrl && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDocViewerApp(selectedApp);
+                      setActiveDocKey("reportCardUrl");
+                      setIsDocViewerOpen(true);
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/60 dark:hover:bg-amber-900/60 text-xs font-bold text-amber-600 dark:text-amber-300 flex items-center gap-1.5 border border-amber-200/60 dark:border-amber-800 transition shadow-sm group"
+                  >
+                    <FileCheck className="size-3.5 group-hover:scale-110 transition-transform" />
+                    <span>Bulletins</span>
+                    <span className="size-1.5 rounded-full bg-amber-500" />
+                  </button>
+                )}
+
+                {selectedApp.coverLetter && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDocViewerApp(selectedApp);
+                      setActiveDocKey("coverLetter");
+                      setIsDocViewerOpen(true);
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 border border-slate-300 dark:border-slate-700 transition shadow-sm group"
+                  >
+                    <FileText className="size-3.5 group-hover:scale-110 transition-transform" />
+                    <span>Lettre Motivation</span>
+                    <span className="size-1.5 rounded-full bg-slate-500" />
+                  </button>
+                )}
+
+                {/* Add / Scan New Piece Button */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDocViewerApp(selectedApp);
+                    setActiveDocKey("bacTranscriptUrl");
+                    setIsDocViewerOpen(true);
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-xs font-black text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5 border border-dashed border-emerald-500/40 transition shadow-sm"
+                >
+                  <Plus className="size-3.5" />
+                  <span>Joindre / Numériser</span>
+                </button>
+              </div>
+            </div>
+
 
             {/* Deliberation Inputs */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -898,6 +1112,26 @@ export default function AdmissionsPage() {
         />
       )}
 
+      {/* ─── DOCUMENT VIEWER & MANAGEMENT MODAL ────────────────────────── */}
+      {isDocViewerOpen && docViewerApp && (
+        <AdmissionDocumentViewerModal
+          isOpen={isDocViewerOpen}
+          onClose={() => setIsDocViewerOpen(false)}
+          application={docViewerApp}
+          initialDocKey={activeDocKey}
+          onDocumentsUpdated={(updatedApp) => {
+            setDocViewerApp(updatedApp);
+            setApplications((prev) =>
+              prev.map((a) => (a.id === updatedApp.id ? updatedApp : a))
+            );
+            if (selectedApp?.id === updatedApp.id) {
+              setSelectedApp(updatedApp);
+            }
+          }}
+        />
+      )}
+
     </div>
   );
 }
+

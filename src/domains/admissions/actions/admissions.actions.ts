@@ -691,3 +691,50 @@ export async function deleteAdmissionApplicationAction(id: number) {
     return { success: true, message: "Dossier de candidature supprimé." };
   });
 }
+
+// ─── 9. Update / Attach Admission Application Documents ───────────────────────
+
+export async function updateAdmissionApplicationDocumentsAction(data: {
+  applicationId: number;
+  documents: {
+    photoUrl?: string | null;
+    birthCertificateUrl?: string | null;
+    idCardPassportUrl?: string | null;
+    bacTranscriptUrl?: string | null;
+    bacCertificateUrl?: string | null;
+    higherEdTranscriptUrl?: string | null;
+    cvUrl?: string | null;
+    coverLetter?: string | null;
+    reportCardUrl?: string | null;
+  };
+}) {
+  return protectedDbAction("Students", "canEdit", async () => {
+    const schoolId = await getActiveSchoolId();
+    if (!schoolId) return { error: "Non autorisé." };
+
+    const updatePayload: Record<string, any> = {};
+    if (data.documents.photoUrl !== undefined) updatePayload.photoUrl = data.documents.photoUrl;
+    if (data.documents.birthCertificateUrl !== undefined) updatePayload.birthCertificateUrl = data.documents.birthCertificateUrl;
+    if (data.documents.idCardPassportUrl !== undefined) updatePayload.idCardPassportUrl = data.documents.idCardPassportUrl;
+    if (data.documents.bacTranscriptUrl !== undefined) updatePayload.bacTranscriptUrl = data.documents.bacTranscriptUrl;
+    if (data.documents.bacCertificateUrl !== undefined) updatePayload.bacCertificateUrl = data.documents.bacCertificateUrl;
+    if (data.documents.higherEdTranscriptUrl !== undefined) updatePayload.higherEdTranscriptUrl = data.documents.higherEdTranscriptUrl;
+    if (data.documents.cvUrl !== undefined) updatePayload.cvUrl = data.documents.cvUrl;
+    if (data.documents.coverLetter !== undefined) updatePayload.coverLetter = data.documents.coverLetter;
+    if (data.documents.reportCardUrl !== undefined) updatePayload.reportCardUrl = data.documents.reportCardUrl;
+
+    await db
+      .update(admissionApplications)
+      .set(updatePayload)
+      .where(
+        and(
+          eq(admissionApplications.id, data.applicationId),
+          eq(admissionApplications.schoolId, schoolId)
+        )
+      );
+
+    revalidatePath("/dashboard/admissions");
+    return { success: true, message: "Pièces justificatives mises à jour avec succès." };
+  });
+}
+
