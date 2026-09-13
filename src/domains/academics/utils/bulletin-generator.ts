@@ -2195,6 +2195,9 @@ export async function buildReleveNotesDoc(data: any): Promise<jsPDF> {
     drawOfflineWatermark(doc, "RELEVÉ PROVISOIRE");
   }
 
+  return doc;
+}
+
 // ============================================================================
 // CARNET DE NOTES PRIMAIRE (BILINGUE FRANÇAIS / ARABE - FORMAT PAYSAGE A4)
 // Modèle Officiel Franco-Arabe / Medersa & Écoles Primaires
