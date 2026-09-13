@@ -2265,6 +2265,60 @@ const DEFAULT_PRIMARY_SUBJECT_ORDER = [
   { fr: "EPS", ar: "الرياضة البدنية", category: "francais" as const },
 ];
 
+export const DEFAULT_PRIMARY_GENERAL_SUBJECT_ORDER = [
+  { fr: "Étude de texte", ar: "دراسة النص", sur: 20, keys: ["etude de texte", "texte", "comprehension"] },
+  { fr: "Lecture", ar: "القراءة", sur: 20, keys: ["lecture"] },
+  { fr: "Expression écrite / Rédaction", ar: "التعبير والإنشاء", sur: 20, keys: ["redaction", "rédaction", "expression", "production"] },
+  { fr: "Vocabulaire", ar: "المفردات", sur: 10, keys: ["vocabulaire", "lexique"] },
+  { fr: "Grammaire / Conjugaison", ar: "القواعد والصرف", sur: 20, keys: ["grammaire", "conjugaison"] },
+  { fr: "Dictée & Orthographe", ar: "الإملاء", sur: 20, keys: ["dictee", "dictée", "orthographe"] },
+  { fr: "Écriture", ar: "الخط", sur: 10, keys: ["ecriture", "écriture", "graphisme"] },
+  { fr: "Poésie & Récitation", ar: "المحفوظات", sur: 10, keys: ["poesie", "poésie", "recitation", "récitation"] },
+  { fr: "Calcul & Opérations", ar: "الحساب والعمليات", sur: 30, keys: ["calcul", "arithmetique", "arithmétique", "math"] },
+  { fr: "Problèmes", ar: "المسائل", sur: 20, keys: ["probleme", "problème", "resolution"] },
+  { fr: "Géométrie & Mesures", ar: "الهندسة والقياس", sur: 10, keys: ["geometrie", "géométrie", "mesure"] },
+  { fr: "Sciences d'observation", ar: "العلوم والملاحظة", sur: 20, keys: ["science", "eveil", "éveil", "observation"] },
+  { fr: "Hygiène & Environnement", ar: "الصحة والبيئة", sur: 10, keys: ["hygiene", "hygiène", "environnement", "sante", "santé"] },
+  { fr: "Histoire", ar: "التاريخ", sur: 10, keys: ["histoire"] },
+  { fr: "Géographie", ar: "الجغرافية", sur: 10, keys: ["geographie", "géographie"] },
+  { fr: "Éducation civique / Morale", ar: "التربية المدنية", sur: 10, keys: ["civique", "morale", "ecm", "civisme"] },
+  { fr: "Dessin & Travaux manuels", ar: "الرسم والأشغال", sur: 10, keys: ["dessin", "arts", "manuelle", "bricolage"] },
+  { fr: "EPS / Sport", ar: "الرياضة البدنية", sur: 10, keys: ["eps", "sport", "physique"] },
+];
+
+export type PrimaryTrack = "franco_arabe" | "general";
+
+export function inferPrimaryTrack(data: any): PrimaryTrack {
+  const explicit = data?.primaryTrack || data?.track || data?.student?.primaryTrack || data?.filters?.primaryTrack || data?.headerConfig?.primaryTrack;
+  if (explicit) {
+    const expLower = String(explicit).toLowerCase();
+    if (expLower.includes("fa") || expLower.includes("arabe")) return "franco_arabe";
+    if (expLower.includes("gen") || expLower.includes("fran")) return "general";
+  }
+
+  const text = `${data?.student?.section || ""} ${data?.student?.sectionName || ""} ${data?.student?.filiere || ""} ${data?.student?.classe || ""} ${data?.student?.className || ""} ${data?.student?.educationalLevel || ""}`.toLowerCase();
+  
+  if (/\bfa\b|franco[-_ ]?arabe|medersa|islamique/i.test(text)) {
+    return "franco_arabe";
+  }
+  if (/\bgen\b|g[eé]n[eé]ral|classique|fran[cç]ais[e]?\s*g[eé]n[eé]ral/i.test(text)) {
+    return "general";
+  }
+
+  // Check if any Islamic/Arabic subjects exist in results
+  if (Array.isArray(data?.results)) {
+    const hasIslamic = data.results.some((r: any) => {
+      const name = String(r.subject?.subjectName || r.subjectName || r.name || "").toLowerCase();
+      return /coran|quran|kouran|hadith|hadit|tawhid|fikh|fiqh|sira|nahw/i.test(name);
+    });
+    if (hasIslamic) return "franco_arabe";
+  }
+
+  if (text.includes("arabe")) return "franco_arabe";
+
+  return "general";
+}
+
 function resolvePrimarySubjectDetail(rawName: string): { fr: string; ar: string; category: "arabe" | "francais" } {
   const norm = (rawName || "")
     .toLowerCase()
@@ -2317,6 +2371,9 @@ export async function buildPrimaireBulletinDoc(data: any): Promise<jsPDF> {
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
   ensureAmiriRegistered(doc);
 
+  const primaryTrack = inferPrimaryTrack(data);
+  const isFrancoArabe = primaryTrack === "franco_arabe";
+
   const studentName = student?.nomEtudiant || student?.name || student?.studentName || "Élève";
   const className = student?.classe || student?.className || "CP";
   const sessionName = session?.sessionName || session || headerConfig?.schoolYear || "2024-2025";
@@ -2328,25 +2385,36 @@ export async function buildPrimaireBulletinDoc(data: any): Promise<jsPDF> {
 
   // Top Left: Année scolaire & Nom de l'élève & Cours
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
+  doc.setFontSize(10.5);
   doc.text("ANNÉE SCOLAIRE :", 8, 12);
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(11);
-  doc.text(`${sessionName}`, 52, 12);
+  doc.setFontSize(10.5);
+  doc.text(`${sessionName}`, 50, 12);
   doc.setLineWidth(0.2);
-  doc.line(50, 13, 115, 13);
+  doc.line(48, 13, 115, 13);
 
   doc.setFont("helvetica", "bold");
-  doc.text("NOM DE L'ÉLÈVE :", 8, 22);
+  doc.text("NOM DE L'ÉLÈVE :", 8, 20);
   doc.setFont("helvetica", "bold");
-  doc.text(`${studentName}`, 48, 22);
-  doc.line(46, 23, 115, 23);
+  doc.text(`${studentName}`, 46, 20);
+  doc.line(44, 21, 115, 21);
 
   doc.setFont("helvetica", "bold");
-  doc.text("COURS :", 118, 22);
+  doc.text("COURS :", 118, 20);
   doc.setFont("helvetica", "bold");
-  doc.text(`${className}`, 136, 22);
-  doc.line(134, 23, 154, 23);
+  doc.text(`${className}`, 136, 20);
+  doc.line(134, 21, 154, 21);
+
+  // Subtitle indicating curriculum track
+  doc.setFont("helvetica", "italic");
+  doc.setFontSize(7.5);
+  doc.setTextColor(70, 70, 70);
+  if (isFrancoArabe) {
+    doc.text(`ENSEIGNEMENT PRIMAIRE FRANCO-ARABE (F.A)`, 8, 25.5);
+  } else {
+    doc.text(`ENSEIGNEMENT PRIMAIRE GÉNÉRAL (FRANÇAIS)`, 8, 25.5);
+  }
+  doc.setTextColor(0, 0, 0);
 
   // Center: School Logo or Seal
   const logoUrl = headerConfig?.centerLogo || headerConfig?.leftLogo || headerConfig?.rightLogo || branchInfo?.logoPath;
@@ -2378,19 +2446,19 @@ export async function buildPrimaireBulletinDoc(data: any): Promise<jsPDF> {
 
   // Top Right: TENU PAR
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
+  doc.setFontSize(10.5);
   doc.text("TENU PAR :", 166, 12);
   doc.line(166, 13, 192, 13);
 
-  doc.setFontSize(9.5);
-  doc.text("Mr :", 166, 22);
+  doc.setFontSize(9);
+  doc.text("Mr :", 166, 20);
   doc.setFont("helvetica", "normal");
-  doc.text(maitre ? `${maitre}` : "........................................", 175, 22);
+  doc.text(maitre ? `${maitre}` : "........................................", 175, 20);
 
   doc.setFont("helvetica", "bold");
-  doc.text("ET Mr :", 228, 22);
+  doc.text("ET Mr :", 228, 20);
   doc.setFont("helvetica", "normal");
-  doc.text("........................................", 243, 22);
+  doc.text("........................................", 243, 20);
 
   // ==========================================================================
   // 2. Build Subjects & Compositions (Left Table)
@@ -2398,8 +2466,13 @@ export async function buildPrimaireBulletinDoc(data: any): Promise<jsPDF> {
   const termNorm = (term || "").toLowerCase();
   const currentCompIndex = termNorm.includes("1") || termNorm.includes("premier") ? 1 : (termNorm.includes("2") || termNorm.includes("deux") ? 2 : 3);
 
-  // Build a lookup of student's scores from current results
-  const scoreLookup: Record<string, number> = {};
+  // Detailed subject scores lookup (cw = devoir, ex = exam, tot = total, avg = average)
+  interface ScoreDetail {
+    score: number;
+    cw?: number;
+    ex?: number;
+  }
+  const scoreLookup: Record<string, ScoreDetail> = {};
   (results || []).forEach((r: any) => {
     const sName = r.subject?.subjectName || r.subjectName || "";
     const cw = parseFloat(r.classWorkScore);
@@ -2414,7 +2487,11 @@ export async function buildPrimaireBulletinDoc(data: any): Promise<jsPDF> {
     else if (!isNaN(tot)) score = tot <= 20 ? tot : tot / 2;
     else if (!isNaN(avg)) score = avg;
 
-    scoreLookup[sName.toLowerCase().trim()] = score;
+    scoreLookup[sName.toLowerCase().trim()] = {
+      score,
+      cw: !isNaN(cw) ? cw : undefined,
+      ex: !isNaN(ex) ? ex : undefined,
+    };
   });
 
   // Extract previous term history if available
@@ -2431,175 +2508,116 @@ export async function buildPrimaireBulletinDoc(data: any): Promise<jsPDF> {
     });
   }
 
-  // Combine standard subjects with any extra subjects from results
-  const allSubjectRows: Array<{ fr: string; ar: string; category: "arabe" | "francais"; score1?: number; score2?: number; score3?: number }> = [];
-  const processedKeys = new Set<string>();
-
-  DEFAULT_PRIMARY_SUBJECT_ORDER.forEach((def) => {
-    const key = def.fr.toLowerCase();
-    processedKeys.add(key);
-
-    // Look for matching score in results
-    let scoreCurrent: number | undefined = undefined;
-    for (const [sName, sc] of Object.entries(scoreLookup)) {
-      if (sName.includes(key) || key.includes(sName) || (def.ar && sName.includes(def.ar))) {
-        scoreCurrent = sc;
-        break;
-      }
-    }
-
-    let score1: number | undefined = undefined;
-    let score2: number | undefined = undefined;
-    let score3: number | undefined = undefined;
-
-    if (currentCompIndex === 1) score1 = scoreCurrent;
-    else if (currentCompIndex === 2) score2 = scoreCurrent;
-    else if (currentCompIndex === 3) score3 = scoreCurrent;
-
-    // History check for other comps
-    for (const [hName, sc] of Object.entries(historyLookupComp1)) {
-      if (hName.includes(key) || key.includes(hName)) { score1 = sc; break; }
-    }
-    for (const [hName, sc] of Object.entries(historyLookupComp2)) {
-      if (hName.includes(key) || key.includes(hName)) { score2 = sc; break; }
-    }
-
-    allSubjectRows.push({
-      fr: def.fr,
-      ar: def.ar,
-      category: def.category,
-      score1,
-      score2,
-      score3,
-    });
-  });
-
-  // Append any extra subjects present in results
-  (results || []).forEach((r: any) => {
-    const sName = r.subject?.subjectName || r.subjectName || "";
-    const info = resolvePrimarySubjectDetail(sName);
-    const key = info.fr.toLowerCase();
-    if (!processedKeys.has(key)) {
-      processedKeys.add(key);
-      const sc = scoreLookup[sName.toLowerCase().trim()];
-      allSubjectRows.push({
-        fr: info.fr,
-        ar: info.ar,
-        category: info.category,
-        score1: currentCompIndex === 1 ? sc : undefined,
-        score2: currentCompIndex === 2 ? sc : undefined,
-        score3: currentCompIndex === 3 ? sc : undefined,
-      });
-    }
-  });
-
-  // Compute column totals and averages
+  // Build rows based on track
+  let bodyData: any[] = [];
   let totalFr1 = 0, countFr1 = 0, totalAr1 = 0, countAr1 = 0;
   let totalFr2 = 0, countFr2 = 0, totalAr2 = 0, countAr2 = 0;
   let totalFr3 = 0, countFr3 = 0, totalAr3 = 0, countAr3 = 0;
 
-  const bodyData = allSubjectRows.map((row) => {
-    const isAr = row.category === "arabe";
+  let headConfig: any[] = [];
+  let footData: any[] = [];
 
-    // Comp 1
-    let c1Fr = "";
-    let c1Ar = "";
-    if (row.score1 !== undefined && !isNaN(row.score1)) {
-      const valStr = row.score1.toFixed(row.score1 % 1 === 0 ? 0 : 2);
-      if (isAr) { c1Ar = valStr; totalAr1 += row.score1; countAr1++; }
-      else      { c1Fr = valStr; totalFr1 += row.score1; countFr1++; }
-    }
+  const getQualitativeMention = (sc: number): string => {
+    if (sc >= 16) return "Très Bien";
+    if (sc >= 14) return "Bien";
+    if (sc >= 12) return "A.Bien";
+    if (sc >= 10) return "Passable";
+    return "Insuffisant";
+  };
 
-    // Comp 2
-    let c2Fr = "";
-    let c2Ar = "";
-    if (row.score2 !== undefined && !isNaN(row.score2)) {
-      const valStr = row.score2.toFixed(row.score2 % 1 === 0 ? 0 : 2);
-      if (isAr) { c2Ar = valStr; totalAr2 += row.score2; countAr2++; }
-      else      { c2Fr = valStr; totalFr2 += row.score2; countFr2++; }
-    }
+  if (isFrancoArabe) {
+    // ------------------------------------------------------------------------
+    // TRACK A: FRANCO-ARABE (FA)
+    // ------------------------------------------------------------------------
+    const allSubjectRows: Array<{ fr: string; ar: string; category: "arabe" | "francais"; score1?: number; score2?: number; score3?: number }> = [];
+    const processedKeys = new Set<string>();
 
-    // Comp 3
-    let c3Fr = "";
-    let c3Ar = "";
-    if (row.score3 !== undefined && !isNaN(row.score3)) {
-      const valStr = row.score3.toFixed(row.score3 % 1 === 0 ? 0 : 2);
-      if (isAr) { c3Ar = valStr; totalAr3 += row.score3; countAr3++; }
-      else      { c3Fr = valStr; totalFr3 += row.score3; countFr3++; }
-    }
+    DEFAULT_PRIMARY_SUBJECT_ORDER.forEach((def) => {
+      const key = def.fr.toLowerCase();
+      processedKeys.add(key);
 
-    return [
-      `${row.fr}  /  ${row.ar}`,
-      "20",
-      c1Fr,
-      c1Ar,
-      c2Fr,
-      c2Ar,
-      c3Fr,
-      c3Ar,
-    ];
-  });
+      let scoreCurrent: number | undefined = undefined;
+      for (const [sName, scObj] of Object.entries(scoreLookup)) {
+        if (sName.includes(key) || key.includes(sName) || (def.ar && sName.includes(def.ar))) {
+          scoreCurrent = scObj.score;
+          break;
+        }
+      }
 
-  const moyFr1 = countFr1 > 0 ? (totalFr1 / countFr1).toFixed(2) : "-";
-  const moyAr1 = countAr1 > 0 ? (totalAr1 / countAr1).toFixed(2) : "-";
-  const moyFr2 = countFr2 > 0 ? (totalFr2 / countFr2).toFixed(2) : "-";
-  const moyAr2 = countAr2 > 0 ? (totalAr2 / countAr2).toFixed(2) : "-";
-  const moyFr3 = countFr3 > 0 ? (totalFr3 / countFr3).toFixed(2) : "-";
-  const moyAr3 = countAr3 > 0 ? (totalAr3 / countAr3).toFixed(2) : "-";
+      let score1: number | undefined = currentCompIndex === 1 ? scoreCurrent : undefined;
+      let score2: number | undefined = currentCompIndex === 2 ? scoreCurrent : undefined;
+      let score3: number | undefined = currentCompIndex === 3 ? scoreCurrent : undefined;
 
-  const comp1GenAvg = currentCompIndex === 1 && summary?.average ? summary.average.toFixed(2) : (summaryS1?.average ? summaryS1.average.toFixed(2) : (countFr1 + countAr1 > 0 ? ((totalFr1 + totalAr1) / (countFr1 + countAr1)).toFixed(2) : "-"));
-  const comp2GenAvg = currentCompIndex === 2 && summary?.average ? summary.average.toFixed(2) : (summaryS2?.average ? summaryS2.average.toFixed(2) : (countFr2 + countAr2 > 0 ? ((totalFr2 + totalAr2) / (countFr2 + countAr2)).toFixed(2) : "-"));
-  const comp3GenAvg = currentCompIndex === 3 && summary?.average ? summary.average.toFixed(2) : (countFr3 + countAr3 > 0 ? ((totalFr3 + totalAr3) / (countFr3 + countAr3)).toFixed(2) : "-");
+      for (const [hName, sc] of Object.entries(historyLookupComp1)) {
+        if (hName.includes(key) || key.includes(hName)) { score1 = sc; break; }
+      }
+      for (const [hName, sc] of Object.entries(historyLookupComp2)) {
+        if (hName.includes(key) || key.includes(hName)) { score2 = sc; break; }
+      }
 
-  const comp1GenRank = currentCompIndex === 1 && summary?.rank ? String(summary.rank) : (summaryS1?.rank ? String(summaryS1.rank) : "-");
-  const comp2GenRank = currentCompIndex === 2 && summary?.rank ? String(summary.rank) : (summaryS2?.rank ? String(summaryS2.rank) : "-");
-  const comp3GenRank = currentCompIndex === 3 && summary?.rank ? String(summary.rank) : "-";
+      allSubjectRows.push({
+        fr: def.fr,
+        ar: def.ar,
+        category: def.category,
+        score1,
+        score2,
+        score3,
+      });
+    });
 
-  // Foot rows: Total, Moyenne, Rang, Moyenne Générale, Rang Général
-  const footData: any[] = [
-    [
-      { content: "Total    المجموع", colSpan: 2, styles: { fontStyle: "bold", halign: "left" } },
-      totalFr1 > 0 ? totalFr1.toFixed(1) : "-",
-      totalAr1 > 0 ? totalAr1.toFixed(1) : "-",
-      totalFr2 > 0 ? totalFr2.toFixed(1) : "-",
-      totalAr2 > 0 ? totalAr2.toFixed(1) : "-",
-      totalFr3 > 0 ? totalFr3.toFixed(1) : "-",
-      totalAr3 > 0 ? totalAr3.toFixed(1) : "-",
-    ],
-    [
-      { content: "Moyenne    المعدل", colSpan: 2, styles: { fontStyle: "bold", halign: "left" } },
-      moyFr1, moyAr1,
-      moyFr2, moyAr2,
-      moyFr3, moyAr3,
-    ],
-    [
-      { content: "Rang    الترتيب", colSpan: 2, styles: { fontStyle: "bold", halign: "left" } },
-      currentCompIndex === 1 ? (summary?.rank || "-") : "-",
-      currentCompIndex === 1 ? (summary?.rank || "-") : "-",
-      currentCompIndex === 2 ? (summary?.rank || "-") : "-",
-      currentCompIndex === 2 ? (summary?.rank || "-") : "-",
-      currentCompIndex === 3 ? (summary?.rank || "-") : "-",
-      currentCompIndex === 3 ? (summary?.rank || "-") : "-",
-    ],
-    [
-      { content: "Moyenne Générale    معدل عام", colSpan: 2, styles: { fontStyle: "bold", halign: "left" } },
-      { content: comp1GenAvg, colSpan: 2, styles: { halign: "center", fontStyle: "bold" } },
-      { content: comp2GenAvg, colSpan: 2, styles: { halign: "center", fontStyle: "bold" } },
-      { content: comp3GenAvg, colSpan: 2, styles: { halign: "center", fontStyle: "bold" } },
-    ],
-    [
-      { content: "Rang Général    ترتيب عام", colSpan: 2, styles: { fontStyle: "bold", halign: "left" } },
-      { content: comp1GenRank, colSpan: 2, styles: { halign: "center", fontStyle: "bold" } },
-      { content: comp2GenRank, colSpan: 2, styles: { halign: "center", fontStyle: "bold" } },
-      { content: comp3GenRank, colSpan: 2, styles: { halign: "center", fontStyle: "bold" } },
-    ],
-  ];
+    (results || []).forEach((r: any) => {
+      const sName = r.subject?.subjectName || r.subjectName || "";
+      const info = resolvePrimarySubjectDetail(sName);
+      const key = info.fr.toLowerCase();
+      if (!processedKeys.has(key)) {
+        processedKeys.add(key);
+        const scObj = scoreLookup[sName.toLowerCase().trim()];
+        const sc = scObj ? scObj.score : undefined;
+        allSubjectRows.push({
+          fr: info.fr,
+          ar: info.ar,
+          category: info.category,
+          score1: currentCompIndex === 1 ? sc : undefined,
+          score2: currentCompIndex === 2 ? sc : undefined,
+          score3: currentCompIndex === 3 ? sc : undefined,
+        });
+      }
+    });
 
-  autoTable(doc, {
-    startY: 28,
-    margin: { left: 8 },
-    tableWidth: 146,
-    head: [
+    bodyData = allSubjectRows.map((row) => {
+      const isAr = row.category === "arabe";
+
+      let c1Fr = "", c1Ar = "";
+      if (row.score1 !== undefined && !isNaN(row.score1)) {
+        const valStr = row.score1.toFixed(row.score1 % 1 === 0 ? 0 : 2);
+        if (isAr) { c1Ar = valStr; totalAr1 += row.score1; countAr1++; }
+        else      { c1Fr = valStr; totalFr1 += row.score1; countFr1++; }
+      }
+
+      let c2Fr = "", c2Ar = "";
+      if (row.score2 !== undefined && !isNaN(row.score2)) {
+        const valStr = row.score2.toFixed(row.score2 % 1 === 0 ? 0 : 2);
+        if (isAr) { c2Ar = valStr; totalAr2 += row.score2; countAr2++; }
+        else      { c2Fr = valStr; totalFr2 += row.score2; countFr2++; }
+      }
+
+      let c3Fr = "", c3Ar = "";
+      if (row.score3 !== undefined && !isNaN(row.score3)) {
+        const valStr = row.score3.toFixed(row.score3 % 1 === 0 ? 0 : 2);
+        if (isAr) { c3Ar = valStr; totalAr3 += row.score3; countAr3++; }
+        else      { c3Fr = valStr; totalFr3 += row.score3; countFr3++; }
+      }
+
+      return [
+        `${row.fr}  /  ${row.ar}`,
+        "20",
+        c1Fr, c1Ar,
+        c2Fr, c2Ar,
+        c3Fr, c3Ar,
+      ];
+    });
+
+    headConfig = [
       [
         { content: "Compositions\nالامتحانات", colSpan: 2, styles: { halign: "center", fontStyle: "bold", fontSize: 8.5 } },
         { content: "Composition N° 1", colSpan: 2, styles: { halign: "center", fontStyle: "bold", fontSize: 8 } },
@@ -2616,7 +2634,239 @@ export async function buildPrimaireBulletinDoc(data: any): Promise<jsPDF> {
         { content: "FRANÇAIS", styles: { halign: "center", fontStyle: "bold", fontSize: 6.5 } },
         { content: "العربية", styles: { halign: "center", fontStyle: "bold", fontSize: 7.5 } },
       ]
-    ],
+    ];
+  } else {
+    // ------------------------------------------------------------------------
+    // TRACK B: PRIMAIRE GÉNÉRAL / FRANÇAIS GÉNÉRAL
+    // ------------------------------------------------------------------------
+    const genRows: Array<{ fr: string; ar: string; sur: number; c1Col1: string; c1Col2: string; c2Col1: string; c2Col2: string; c3Col1: string; c3Col2: string }> = [];
+    const processedKeys = new Set<string>();
+
+    DEFAULT_PRIMARY_GENERAL_SUBJECT_ORDER.forEach((def) => {
+      const mainKey = def.fr.toLowerCase();
+      processedKeys.add(mainKey);
+
+      let matchedScore: ScoreDetail | undefined = undefined;
+      for (const [sName, scObj] of Object.entries(scoreLookup)) {
+        if (def.keys.some(k => sName.includes(k)) || sName.includes(mainKey) || (def.ar && sName.includes(def.ar))) {
+          matchedScore = scObj;
+          break;
+        }
+      }
+
+      let c1Col1 = "", c1Col2 = "";
+      if (currentCompIndex === 1 && matchedScore) {
+        if (matchedScore.cw !== undefined && matchedScore.ex !== undefined) {
+          c1Col1 = matchedScore.cw.toFixed(1);
+          c1Col2 = matchedScore.ex.toFixed(1);
+        } else {
+          c1Col1 = matchedScore.score.toFixed(1);
+          c1Col2 = getQualitativeMention(matchedScore.score);
+        }
+        totalFr1 += matchedScore.score;
+        countFr1++;
+      }
+
+      let c2Col1 = "", c2Col2 = "";
+      if (currentCompIndex === 2 && matchedScore) {
+        if (matchedScore.cw !== undefined && matchedScore.ex !== undefined) {
+          c2Col1 = matchedScore.cw.toFixed(1);
+          c2Col2 = matchedScore.ex.toFixed(1);
+        } else {
+          c2Col1 = matchedScore.score.toFixed(1);
+          c2Col2 = getQualitativeMention(matchedScore.score);
+        }
+        totalFr2 += matchedScore.score;
+        countFr2++;
+      }
+
+      let c3Col1 = "", c3Col2 = "";
+      if (currentCompIndex === 3 && matchedScore) {
+        if (matchedScore.cw !== undefined && matchedScore.ex !== undefined) {
+          c3Col1 = matchedScore.cw.toFixed(1);
+          c3Col2 = matchedScore.ex.toFixed(1);
+        } else {
+          c3Col1 = matchedScore.score.toFixed(1);
+          c3Col2 = getQualitativeMention(matchedScore.score);
+        }
+        totalFr3 += matchedScore.score;
+        countFr3++;
+      }
+
+      // Check history
+      for (const [hName, sc] of Object.entries(historyLookupComp1)) {
+        if (def.keys.some(k => hName.includes(k)) || hName.includes(mainKey)) {
+          c1Col1 = sc.toFixed(1);
+          c1Col2 = getQualitativeMention(sc);
+          break;
+        }
+      }
+      for (const [hName, sc] of Object.entries(historyLookupComp2)) {
+        if (def.keys.some(k => hName.includes(k)) || hName.includes(mainKey)) {
+          c2Col1 = sc.toFixed(1);
+          c2Col2 = getQualitativeMention(sc);
+          break;
+        }
+      }
+
+      genRows.push({
+        fr: def.fr,
+        ar: def.ar,
+        sur: def.sur,
+        c1Col1, c1Col2,
+        c2Col1, c2Col2,
+        c3Col1, c3Col2,
+      });
+    });
+
+    // Append extra custom subjects
+    (results || []).forEach((r: any) => {
+      const sName = r.subject?.subjectName || r.subjectName || "";
+      const sNameLow = sName.toLowerCase().trim();
+      const already = Array.from(processedKeys).some(k => sNameLow.includes(k) || k.includes(sNameLow));
+      if (!already) {
+        processedKeys.add(sNameLow);
+        const scObj = scoreLookup[sNameLow];
+        let c1Col1 = "", c1Col2 = "";
+        if (currentCompIndex === 1 && scObj) {
+          c1Col1 = scObj.score.toFixed(1);
+          c1Col2 = getQualitativeMention(scObj.score);
+          totalFr1 += scObj.score;
+          countFr1++;
+        }
+        genRows.push({
+          fr: sName,
+          ar: resolvePrimarySubjectDetail(sName).ar,
+          sur: 20,
+          c1Col1, c1Col2,
+          c2Col1: "", c2Col2: "",
+          c3Col1: "", c3Col2: "",
+        });
+      }
+    });
+
+    bodyData = genRows.map(r => [
+      `${r.fr}  /  ${r.ar}`,
+      String(r.sur),
+      r.c1Col1, r.c1Col2,
+      r.c2Col1, r.c2Col2,
+      r.c3Col1, r.c3Col2,
+    ]);
+
+    headConfig = [
+      [
+        { content: "Compositions\nالامتحانات", colSpan: 2, styles: { halign: "center", fontStyle: "bold", fontSize: 8.5 } },
+        { content: "Composition N° 1", colSpan: 2, styles: { halign: "center", fontStyle: "bold", fontSize: 8 } },
+        { content: "Composition N° 2", colSpan: 2, styles: { halign: "center", fontStyle: "bold", fontSize: 8 } },
+        { content: "Composition N° 3", colSpan: 2, styles: { halign: "center", fontStyle: "bold", fontSize: 8 } },
+      ],
+      [
+        { content: "Matières  /  المواد", styles: { halign: "left", fontStyle: "bold", fontSize: 8 } },
+        { content: "SUR\nعلى", styles: { halign: "center", fontStyle: "bold", fontSize: 7 } },
+        { content: "Devoir / أعمال", styles: { halign: "center", fontStyle: "bold", fontSize: 6.5 } },
+        { content: "Compo / اختبار", styles: { halign: "center", fontStyle: "bold", fontSize: 6.5 } },
+        { content: "Devoir / أعمال", styles: { halign: "center", fontStyle: "bold", fontSize: 6.5 } },
+        { content: "Compo / اختبار", styles: { halign: "center", fontStyle: "bold", fontSize: 6.5 } },
+        { content: "Devoir / أعمال", styles: { halign: "center", fontStyle: "bold", fontSize: 6.5 } },
+        { content: "Compo / اختبار", styles: { halign: "center", fontStyle: "bold", fontSize: 6.5 } },
+      ]
+    ];
+  }
+
+  const moyFr1 = countFr1 > 0 ? (totalFr1 / countFr1).toFixed(2) : "-";
+  const moyAr1 = countAr1 > 0 ? (totalAr1 / countAr1).toFixed(2) : "-";
+  const moyFr2 = countFr2 > 0 ? (totalFr2 / countFr2).toFixed(2) : "-";
+  const moyAr2 = countAr2 > 0 ? (totalAr2 / countAr2).toFixed(2) : "-";
+  const moyFr3 = countFr3 > 0 ? (totalFr3 / countFr3).toFixed(2) : "-";
+  const moyAr3 = countAr3 > 0 ? (totalAr3 / countAr3).toFixed(2) : "-";
+
+  const comp1GenAvg = currentCompIndex === 1 && summary?.average ? summary.average.toFixed(2) : (summaryS1?.average ? summaryS1.average.toFixed(2) : (countFr1 + countAr1 > 0 ? ((totalFr1 + totalAr1) / (countFr1 + countAr1)).toFixed(2) : "-"));
+  const comp2GenAvg = currentCompIndex === 2 && summary?.average ? summary.average.toFixed(2) : (summaryS2?.average ? summaryS2.average.toFixed(2) : (countFr2 + countAr2 > 0 ? ((totalFr2 + totalAr2) / (countFr2 + countAr2)).toFixed(2) : "-"));
+  const comp3GenAvg = currentCompIndex === 3 && summary?.average ? summary.average.toFixed(2) : (countFr3 + countAr3 > 0 ? ((totalFr3 + totalAr3) / (countFr3 + countAr3)).toFixed(2) : "-");
+
+  const comp1GenRank = currentCompIndex === 1 && summary?.rank ? String(summary.rank) : (summaryS1?.rank ? String(summaryS1.rank) : "-");
+  const comp2GenRank = currentCompIndex === 2 && summary?.rank ? String(summary.rank) : (summaryS2?.rank ? String(summaryS2.rank) : "-");
+  const comp3GenRank = currentCompIndex === 3 && summary?.rank ? String(summary.rank) : "-";
+
+  if (isFrancoArabe) {
+    footData = [
+      [
+        { content: "Total    المجموع", colSpan: 2, styles: { fontStyle: "bold", halign: "left" } },
+        totalFr1 > 0 ? totalFr1.toFixed(1) : "-",
+        totalAr1 > 0 ? totalAr1.toFixed(1) : "-",
+        totalFr2 > 0 ? totalFr2.toFixed(1) : "-",
+        totalAr2 > 0 ? totalAr2.toFixed(1) : "-",
+        totalFr3 > 0 ? totalFr3.toFixed(1) : "-",
+        totalAr3 > 0 ? totalAr3.toFixed(1) : "-",
+      ],
+      [
+        { content: "Moyenne    المعدل", colSpan: 2, styles: { fontStyle: "bold", halign: "left" } },
+        moyFr1, moyAr1,
+        moyFr2, moyAr2,
+        moyFr3, moyAr3,
+      ],
+      [
+        { content: "Rang    الترتيب", colSpan: 2, styles: { fontStyle: "bold", halign: "left" } },
+        currentCompIndex === 1 ? (summary?.rank || "-") : "-",
+        currentCompIndex === 1 ? (summary?.rank || "-") : "-",
+        currentCompIndex === 2 ? (summary?.rank || "-") : "-",
+        currentCompIndex === 2 ? (summary?.rank || "-") : "-",
+        currentCompIndex === 3 ? (summary?.rank || "-") : "-",
+        currentCompIndex === 3 ? (summary?.rank || "-") : "-",
+      ],
+      [
+        { content: "Moyenne Générale    معدل عام", colSpan: 2, styles: { fontStyle: "bold", halign: "left" } },
+        { content: comp1GenAvg, colSpan: 2, styles: { halign: "center", fontStyle: "bold" } },
+        { content: comp2GenAvg, colSpan: 2, styles: { halign: "center", fontStyle: "bold" } },
+        { content: comp3GenAvg, colSpan: 2, styles: { halign: "center", fontStyle: "bold" } },
+      ],
+      [
+        { content: "Rang Général    ترتيب عام", colSpan: 2, styles: { fontStyle: "bold", halign: "left" } },
+        { content: comp1GenRank, colSpan: 2, styles: { halign: "center", fontStyle: "bold" } },
+        { content: comp2GenRank, colSpan: 2, styles: { halign: "center", fontStyle: "bold" } },
+        { content: comp3GenRank, colSpan: 2, styles: { halign: "center", fontStyle: "bold" } },
+      ],
+    ];
+  } else {
+    footData = [
+      [
+        { content: "Total des Points    مجموع النقاط", colSpan: 2, styles: { fontStyle: "bold", halign: "left" } },
+        totalFr1 > 0 ? { content: totalFr1.toFixed(1), colSpan: 2, styles: { halign: "center", fontStyle: "bold" } } : { content: "-", colSpan: 2, styles: { halign: "center" } },
+        totalFr2 > 0 ? { content: totalFr2.toFixed(1), colSpan: 2, styles: { halign: "center", fontStyle: "bold" } } : { content: "-", colSpan: 2, styles: { halign: "center" } },
+        totalFr3 > 0 ? { content: totalFr3.toFixed(1), colSpan: 2, styles: { halign: "center", fontStyle: "bold" } } : { content: "-", colSpan: 2, styles: { halign: "center" } },
+      ],
+      [
+        { content: "Moyenne / 20    المعدل", colSpan: 2, styles: { fontStyle: "bold", halign: "left" } },
+        { content: moyFr1 !== "-" ? moyFr1 : comp1GenAvg, colSpan: 2, styles: { halign: "center", fontStyle: "bold" } },
+        { content: moyFr2 !== "-" ? moyFr2 : comp2GenAvg, colSpan: 2, styles: { halign: "center", fontStyle: "bold" } },
+        { content: moyFr3 !== "-" ? moyFr3 : comp3GenAvg, colSpan: 2, styles: { halign: "center", fontStyle: "bold" } },
+      ],
+      [
+        { content: "Rang    الترتيب", colSpan: 2, styles: { fontStyle: "bold", halign: "left" } },
+        { content: currentCompIndex === 1 ? (summary?.rank || "-") : "-", colSpan: 2, styles: { halign: "center", fontStyle: "bold" } },
+        { content: currentCompIndex === 2 ? (summary?.rank || "-") : "-", colSpan: 2, styles: { halign: "center", fontStyle: "bold" } },
+        { content: currentCompIndex === 3 ? (summary?.rank || "-") : "-", colSpan: 2, styles: { halign: "center", fontStyle: "bold" } },
+      ],
+      [
+        { content: "Moyenne Générale    معدل عام", colSpan: 2, styles: { fontStyle: "bold", halign: "left" } },
+        { content: comp1GenAvg, colSpan: 2, styles: { halign: "center", fontStyle: "bold" } },
+        { content: comp2GenAvg, colSpan: 2, styles: { halign: "center", fontStyle: "bold" } },
+        { content: comp3GenAvg, colSpan: 2, styles: { halign: "center", fontStyle: "bold" } },
+      ],
+      [
+        { content: "Rang Général    ترتيب عام", colSpan: 2, styles: { fontStyle: "bold", halign: "left" } },
+        { content: comp1GenRank, colSpan: 2, styles: { halign: "center", fontStyle: "bold" } },
+        { content: comp2GenRank, colSpan: 2, styles: { halign: "center", fontStyle: "bold" } },
+        { content: comp3GenRank, colSpan: 2, styles: { halign: "center", fontStyle: "bold" } },
+      ],
+    ];
+  }
+
+  autoTable(doc, {
+    startY: 28,
+    margin: { left: 8 },
+    tableWidth: 146,
+    head: headConfig,
     body: bodyData,
     foot: footData,
     theme: "plain",
