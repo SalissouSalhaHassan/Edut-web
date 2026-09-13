@@ -2653,7 +2653,7 @@ export async function buildPrimaireBulletinDoc(data: any): Promise<jsPDF> {
       6: { halign: "center", cellWidth: 14 },
       7: { halign: "center", cellWidth: 14 },
     },
-    didParseCell: (hookData) => {
+    didParseCell: (hookData: any) => {
       handleBilingualCell(hookData);
     }
   });
@@ -2719,7 +2719,7 @@ export async function buildPrimaireBulletinDoc(data: any): Promise<jsPDF> {
       2: { halign: "center", cellWidth: 28 },
       3: { halign: "center", cellWidth: 28 },
     },
-    didParseCell: (hookData) => {
+    didParseCell: (hookData: any) => {
       handleBilingualCell(hookData);
     }
   });
