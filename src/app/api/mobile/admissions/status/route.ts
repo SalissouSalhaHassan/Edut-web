@@ -18,16 +18,24 @@ export async function GET(request: NextRequest) {
   try {
     const conditions = [];
     if (appNumber) {
-      conditions.push(eq(admissionApplications.applicationNumber, appNumber.trim()));
+      conditions.push(eq(admissionApplications.applicationNumber, appNumber.trim().toUpperCase()));
     }
     if (phone) {
-      conditions.push(eq(admissionApplications.parentPhone, phone.trim()));
+      const cleanPhone = phone.trim();
+      conditions.push(
+        or(
+          eq(admissionApplications.parentPhone, cleanPhone),
+          eq(admissionApplications.candidatePhone, cleanPhone),
+          eq(admissionApplications.parentWhatsapp, cleanPhone),
+          eq(admissionApplications.candidateWhatsapp, cleanPhone)
+        )
+      );
     }
 
     const applications = await readDb.query.admissionApplications.findMany({
       where: or(...conditions),
       orderBy: [desc(admissionApplications.createdAt)],
-      limit: 10,
+      limit: 20,
     });
 
     return NextResponse.json({
@@ -39,3 +47,4 @@ export async function GET(request: NextRequest) {
     return mobileJsonError(error?.message || "Erreur lors de la recherche des dossiers", 500);
   }
 }
+

@@ -11,57 +11,38 @@ export async function POST(request: NextRequest) {
       studentFirstName,
       studentLastName,
       dateOfBirth,
-      gender,
-      placeOfBirth,
-      nationality,
       targetClass,
-      previousSchool,
-      previousGradeAvg,
+      degreeProgram,
       parentName,
-      parentRelation,
       parentPhone,
-      parentWhatsapp,
-      parentEmail,
-      parentProfession,
-      address,
-      city,
-      birthCertificateUrl,
-      photoUrl,
-      reportCardUrl,
-      medicalNotes,
-      schoolId,
+      candidatePhone,
     } = body;
 
-    if (!studentFirstName || !studentLastName || !dateOfBirth || !targetClass || !parentName || !parentPhone) {
+    if (!studentFirstName?.trim() || !studentLastName?.trim() || !dateOfBirth?.trim()) {
       return mobileJsonError(
-        "Champs requis manquants (Prénom, Nom, Date de naissance, Classe, Parent, Téléphone).",
+        "Champs requis manquants de l'élève (Prénom, Nom, Date de naissance).",
+        400
+      );
+    }
+
+    const effectiveClass = targetClass?.trim() || degreeProgram?.trim();
+    if (!effectiveClass) {
+      return mobileJsonError("Veuillez sélectionner une classe ou une filière d'admission.", 400);
+    }
+
+    const effectivePhone = parentPhone?.trim() || candidatePhone?.trim();
+    if (!parentName?.trim() || !effectivePhone) {
+      return mobileJsonError(
+        "Veuillez renseigner le nom du responsable et au moins un numéro de contact (*).",
         400
       );
     }
 
     const res = await submitAdmissionApplicationAction({
-      schoolId: schoolId ? Number(schoolId) : 1,
-      studentFirstName,
-      studentLastName,
-      dateOfBirth,
-      gender: gender || "M",
-      placeOfBirth,
-      nationality,
-      targetClass,
-      previousSchool,
-      previousGradeAvg,
-      parentName,
-      parentRelation,
-      parentPhone,
-      parentWhatsapp,
-      parentEmail,
-      parentProfession,
-      address,
-      city,
-      birthCertificateUrl,
-      photoUrl,
-      reportCardUrl,
-      medicalNotes,
+      ...body,
+      schoolId: body.schoolId ? Number(body.schoolId) : 1,
+      targetClass: effectiveClass,
+      parentPhone: parentPhone?.trim() || effectivePhone,
     });
 
     if (res.error) {
@@ -74,3 +55,4 @@ export async function POST(request: NextRequest) {
     return mobileJsonError(error?.message || "Erreur serveur lors de la soumission", 500);
   }
 }
+
