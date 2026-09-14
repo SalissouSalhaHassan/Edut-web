@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
       hasAttended: attendedIds.has(v.id),
       className: v.class?.className || "Toutes les classes",
       subjectName: v.subject?.subjectName || "Général",
-      teacherName: v.teacher?.nomPrenom || "Enseignant",
+      teacherName: v.teacher?.nom || "Enseignant",
     }));
 
     return NextResponse.json({
