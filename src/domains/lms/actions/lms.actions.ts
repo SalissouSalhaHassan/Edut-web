@@ -896,7 +896,7 @@ export async function getLmsReportsData() {
 // ─── Sample Data Seeding ──────────────────────────────────────────────────────
 
 export async function seedSampleLmsData() {
-  return protectedDbAction("LMS", "canManage", async (user) => {
+  return protectedDbAction("LMS", "canEdit", async (user) => {
     await initLmsDatabaseTables();
     const schoolId = await getActiveSchoolId();
     if (!schoolId) throw new Error("Aucun contexte d'école actif trouvé.");
