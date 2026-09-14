@@ -2841,6 +2841,8 @@ export default function LmsDashboardClient({
           </div>
         </div>
       )}
+
+      </div>
     </div>
   );
 }
