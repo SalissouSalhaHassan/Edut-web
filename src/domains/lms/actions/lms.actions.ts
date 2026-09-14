@@ -948,7 +948,7 @@ export async function seedSampleLmsData() {
     });
 
     // 5. Courses definitions
-    const sampleCoursesDefs = [
+    const sampleCoursesDefs: any[] = [
       {
         courseCode: "MATH-601",
         title: "Algèbre Fondamentale & Géométrie dans l'Espace",
@@ -1284,7 +1284,7 @@ export async function seedSampleLmsData() {
             subjectId: targetSubject?.id || null,
             title: lDef.title,
             content: lDef.content,
-            videoUrl: lDef.videoUrl || null,
+            videoUrl: (lDef as any).videoUrl || null,
             duration: lDef.duration || 20,
             contentType: lDef.contentType || "Text",
             displayOrder: lIdx + 1,
