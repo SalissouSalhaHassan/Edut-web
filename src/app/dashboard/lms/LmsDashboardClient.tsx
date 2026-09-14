@@ -1605,7 +1605,6 @@ export default function LmsDashboardClient({
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <a 
                         <button 
                           onClick={() => setActiveMeeting(v)}
                           className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase tracking-widest px-3 py-2 rounded-xl flex items-center gap-1.5 shadow-sm cursor-pointer"
@@ -1613,6 +1612,7 @@ export default function LmsDashboardClient({
                         >
                           <MonitorPlay size={12} /> Salle Interactive
                         </button>
+                        <a 
                           href={v.meetingUrl} 
                           target="_blank" 
                           rel="noopener noreferrer"
