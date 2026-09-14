@@ -945,10 +945,10 @@ export default function LmsDashboardClient({
                   Initialisation Rapide LMS
                 </div>
                 <h2 className="text-2xl md:text-3xl font-black tracking-tight leading-tight">
-                  Plateforme E-Learning pr\u00eate : activez 6 cours mod\u00e8les avec vid\u00e9os, quiz et devoirs !
+                  Plateforme E-Learning prête : activez 6 cours modèles avec vidéos, quiz et devoirs !
                 </h2>
                 <p className="text-indigo-100 text-sm md:text-base leading-relaxed font-medium">
-                  Remplissez instantan\u00e9ment la plateforme avec un \u00e9cosyst\u00e8me \u00e9ducatif complet : Alg\u00e8bre & G\u00e9om\u00e9trie, Physique-Chimie, Algorithmique Python, Fran\u00e7ais, Anglais et Histoire avec syllabus, le\u00e7ons vid\u00e9o, classes virtuelles en direct et \u00e9valuations interactives.
+                  Remplissez instantanément la plateforme avec un écosystème éducatif complet : Algèbre & Géométrie, Physique-Chimie, Algorithmique Python, Français, Anglais et Histoire avec syllabus, leçons vidéo, classes virtuelles en direct et évaluations interactives.
                 </p>
                 <div className="pt-2 flex flex-wrap items-center gap-4">
                   <button
@@ -957,13 +957,13 @@ export default function LmsDashboardClient({
                     className="bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-sm px-6 py-3.5 rounded-2xl transition-all shadow-lg flex items-center gap-2 disabled:opacity-50 cursor-pointer"
                   >
                     {isSeeding ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
-                    {isSeeding ? "Cr\u00e9ation des donn\u00e9es en cours..." : "\u26a1 Charger la d\u00e9mo compl\u00e8te (1-clic)"}
+                    {isSeeding ? "Création des données en cours..." : "⚡ Charger la démo complète (1-clic)"}
                   </button>
                   <button
                     onClick={() => { setEditingCourse(null); setCourseFormOpen(true); }}
                     className="bg-white/15 hover:bg-white/25 text-white font-bold text-sm px-5 py-3.5 rounded-2xl transition-all backdrop-blur-sm flex items-center gap-2 cursor-pointer"
                   >
-                    <Plus size={16} /> Cr\u00e9er un cours manuellement
+                    <Plus size={16} /> Créer un cours manuellement
                   </button>
                 </div>
               </div>

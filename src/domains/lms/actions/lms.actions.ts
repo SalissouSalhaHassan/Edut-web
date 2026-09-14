@@ -142,9 +142,17 @@ export async function initLmsDatabaseTables() {
     const alterLessons = [
       "ALTER TABLE lms_lessons ADD COLUMN IF NOT EXISTS module_id INTEGER",
       "ALTER TABLE lms_lessons ADD COLUMN IF NOT EXISTS course_id INTEGER",
+      "ALTER TABLE lms_lessons ADD COLUMN IF NOT EXISTS class_id INTEGER",
+      "ALTER TABLE lms_lessons ADD COLUMN IF NOT EXISTS subject_id INTEGER",
       "ALTER TABLE lms_lessons ADD COLUMN IF NOT EXISTS content_type VARCHAR(50) DEFAULT 'Text'",
       "ALTER TABLE lms_lessons ADD COLUMN IF NOT EXISTS duration INTEGER DEFAULT 15",
-      "ALTER TABLE lms_lessons ADD COLUMN IF NOT EXISTS display_order INTEGER DEFAULT 0"
+      "ALTER TABLE lms_lessons ADD COLUMN IF NOT EXISTS display_order INTEGER DEFAULT 0",
+      "ALTER TABLE lms_lessons ADD COLUMN IF NOT EXISTS video_url TEXT",
+      "ALTER TABLE lms_lessons ADD COLUMN IF NOT EXISTS file_path TEXT",
+      "ALTER TABLE lms_lessons ADD COLUMN IF NOT EXISTS content TEXT",
+      "ALTER TABLE lms_lessons ADD COLUMN IF NOT EXISTS recorded_by VARCHAR(100)",
+      "ALTER TABLE lms_lessons DROP CONSTRAINT IF EXISTS lms_lessons_class_id_school_classes_id_fk",
+      "ALTER TABLE lms_lessons DROP CONSTRAINT IF EXISTS lms_lessons_subject_id_school_subjects_id_fk"
     ];
     for (const q of alterLessons) {
       try { await db.execute(sql.raw(q)); } catch(e){}
@@ -206,7 +214,9 @@ export async function initLmsDatabaseTables() {
     const alterVirtual = [
       "ALTER TABLE lms_virtual_classes ADD COLUMN IF NOT EXISTS platform VARCHAR(50) DEFAULT 'Google Meet'",
       "ALTER TABLE lms_virtual_classes ADD COLUMN IF NOT EXISTS recording_url TEXT",
-      "ALTER TABLE lms_virtual_classes ADD COLUMN IF NOT EXISTS teacher_id INTEGER"
+      "ALTER TABLE lms_virtual_classes ADD COLUMN IF NOT EXISTS teacher_id INTEGER",
+      "ALTER TABLE lms_virtual_classes DROP CONSTRAINT IF EXISTS lms_virtual_classes_class_id_school_classes_id_fk",
+      "ALTER TABLE lms_virtual_classes DROP CONSTRAINT IF EXISTS lms_virtual_classes_subject_id_school_subjects_id_fk"
     ];
     for (const q of alterVirtual) {
       try { await db.execute(sql.raw(q)); } catch(e){}
@@ -1277,32 +1287,55 @@ export async function seedSampleLmsData() {
 
         for (let lIdx = 0; lIdx < mDef.lessons.length; lIdx++) {
           const lDef = mDef.lessons[lIdx];
-          const [newLesson] = await db.insert(lmsLessons).values({
-            courseId: newCourse.id,
-            moduleId: newModule.id,
-            classId: targetClass?.id || null,
-            subjectId: targetSubject?.id || null,
-            title: lDef.title,
-            content: lDef.content,
-            videoUrl: (lDef as any).videoUrl || null,
-            duration: lDef.duration || 20,
-            contentType: lDef.contentType || "Text",
-            displayOrder: lIdx + 1,
-          }).returning();
+          let newLesson: any = null;
+          try {
+            const [inserted] = await db.insert(lmsLessons).values({
+              courseId: newCourse.id,
+              moduleId: newModule.id,
+              classId: targetClass?.id || null,
+              subjectId: targetSubject?.id || null,
+              title: lDef.title,
+              content: lDef.content,
+              videoUrl: (lDef as any).videoUrl || null,
+              duration: lDef.duration || 20,
+              contentType: lDef.contentType || "Text",
+              displayOrder: lIdx + 1,
+            }).returning();
+            newLesson = inserted;
+          } catch (eLesson) {
+            console.warn("Retrying lesson insert with basic fields:", eLesson);
+            try {
+              const [insertedFallback] = await db.insert(lmsLessons).values({
+                courseId: newCourse.id,
+                moduleId: newModule.id,
+                title: lDef.title,
+                content: lDef.content,
+                videoUrl: (lDef as any).videoUrl || null,
+                duration: lDef.duration || 20,
+                contentType: lDef.contentType || "Text",
+                displayOrder: lIdx + 1,
+              }).returning();
+              newLesson = insertedFallback;
+            } catch (errFallback) {
+              console.error("Lesson fallback insert failed:", errFallback);
+            }
+          }
 
           // Add progress for students
-          for (let sIdx = 0; sIdx < schoolStudents.slice(0, 6).length; sIdx++) {
-            const student = schoolStudents[sIdx];
-            const isDone = sIdx < 3; // First 3 students completed all lessons
-            try {
-              await db.insert(lmsProgress).values({
-                studentId: student.id,
-                lessonId: newLesson.id,
-                isCompleted: isDone,
-                completedAt: isDone ? new Date() : null,
-                lastPosition: isDone ? 100 : 30,
-              });
-            } catch (_) {}
+          if (newLesson?.id) {
+            for (let sIdx = 0; sIdx < schoolStudents.slice(0, 6).length; sIdx++) {
+              const student = schoolStudents[sIdx];
+              const isDone = sIdx < 3; // First 3 students completed all lessons
+              try {
+                await db.insert(lmsProgress).values({
+                  studentId: student.id,
+                  lessonId: newLesson.id,
+                  isCompleted: isDone,
+                  completedAt: isDone ? new Date() : null,
+                  lastPosition: isDone ? 100 : 30,
+                });
+              } catch (_) {}
+            }
           }
         }
       }
