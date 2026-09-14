@@ -1,11 +1,12 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useEffect, useMemo } from "react";
 import { 
   Plus, Search, Calendar, Clock, ExternalLink, BookOpen, Video, Globe, Play, 
   FileText, Trash2, Edit, CheckCircle2, XCircle, AlertCircle, Download, Upload, 
   Printer, User, GraduationCap, Award, ArrowLeft, ArrowRight, Wifi, WifiOff, 
-  Check, FileUp, Users, BarChart2, Eye, Copy, Info, CheckCircle, Moon, Sun
+  Check, FileUp, Users, BarChart2, Eye, Copy, Info, CheckCircle, Moon, Sun,
+  Sparkles, Loader2, PlayCircle, Radio, CheckCheck, HelpCircle, MonitorPlay, X, Maximize2
 } from "lucide-react";
 import { 
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, 
@@ -15,7 +16,8 @@ import {
   saveCourse, deleteCourse, saveModule, deleteModule, saveLmsLesson, 
   deleteLmsLesson, saveVirtualClass, deleteVirtualClass, saveAssignment, 
   deleteAssignment, saveSubmission, gradeSubmission, saveQuiz, deleteQuiz, 
-  updateLessonProgress, enrollStudent, getDiscussions, postMessage
+  updateLessonProgress, enrollStudent, getDiscussions, postMessage,
+  seedSampleLmsData
 } from "@/domains/lms/actions/lms.actions";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
@@ -143,6 +145,27 @@ export default function LmsDashboardClient({
 
   // Student upload submission
   const [studentSubmissionFile, setStudentSubmissionFile] = useState("");
+  // Demo seeding & live virtual meeting states
+  const [isSeeding, setIsSeeding] = useState(false);
+  const [activeMeeting, setActiveMeeting] = useState<any | null>(null);
+
+  const handleSeedLms = async () => {
+    try {
+      setIsSeeding(true);
+      toast.info("G\u00e9n\u00e9ration de l'\u00e9cosyst\u00e8me LMS complet (cours, le\u00e7ons, vid\u00e9os, quiz, devoirs, lives)...");
+      const res = await seedSampleLmsData();
+      if (res?.success) {
+        toast.success(Succ\u00e8s !  cours complets avec contenus ont \u00e9t\u00e9 cr\u00e9\u00e9s.);
+        window.location.reload();
+      } else {
+        toast.error(res?.error || "Erreur lors de la g\u00e9n\u00e9ration des donn\u00e9es.");
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "Erreur de connexion");
+    } finally {
+      setIsSeeding(false);
+    }
+  };
 
   // Initial user role setup
   useEffect(() => {
@@ -772,21 +795,46 @@ export default function LmsDashboardClient({
           </button>
           {/* Action buttons shortcuts */}
           {userRole !== "student" && (
-            <div className="flex gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <button 
+                onClick={handleSeedLms}
+                disabled={isSeeding}
+                className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-black text-xs uppercase tracking-wider px-4 py-3 rounded-2xl transition-all shadow-md flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+                title="G\u00e9n\u00e9rer 6 cours complets avec vid\u00e9os, quiz, devoirs et classes virtuelles"
+              >
+                {isSeeding ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                {isSeeding ? "G\u00e9n\u00e9ration en cours..." : "\u26a1 D\u00e9mo LMS & Cours"}
+              </button>
               <button 
                 onClick={() => { setEditingCourse(null); setCourseFormOpen(true); }}
-                className="bg-primary hover:bg-primary/95 text-white font-black text-xs uppercase tracking-widest px-4 py-3 rounded-2xl transition-all shadow-md flex items-center gap-2"
+                className="bg-primary hover:bg-primary/95 text-white font-black text-xs uppercase tracking-widest px-4 py-3 rounded-2xl transition-all shadow-md flex items-center gap-2 cursor-pointer"
               >
                 <Plus size={14} /> Nouveau cours
               </button>
               <button 
                 onClick={() => { setEditingVirtualClass(null); setVirtualClassFormOpen(true); }}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-widest px-4 py-3 rounded-2xl transition-all shadow-md flex items-center gap-2"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-widest px-4 py-3 rounded-2xl transition-all shadow-md flex items-center gap-2 cursor-pointer"
               >
                 <Plus size={14} /> Nouvelle classe virtuelle
               </button>
             </div>
           )}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         </div>
       </div>
 
@@ -885,6 +933,43 @@ export default function LmsDashboardClient({
       {/* -------------------- TAB 1: DASHBOARD -------------------- */}
       {activeTab === "dashboard" && userRole !== "student" && (
         <div className="space-y-8 animate-in fade-in duration-300">
+          {/* Onboarding Demo Banner if no courses yet */}
+          {courses.length === 0 && (
+            <div className="relative overflow-hidden bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-800 text-white p-8 md:p-10 rounded-[2.5rem] shadow-xl border border-indigo-500/30">
+              <div className="absolute -right-10 -bottom-10 opacity-10 pointer-events-none">
+                <BookOpen size={240} />
+              </div>
+              <div className="relative z-10 max-w-3xl space-y-4">
+                <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-md px-3.5 py-1.5 rounded-full text-xs font-black uppercase tracking-wider">
+                  <Sparkles size={14} className="text-amber-300" />
+                  Initialisation Rapide LMS
+                </div>
+                <h2 className="text-2xl md:text-3xl font-black tracking-tight leading-tight">
+                  Plateforme E-Learning pr\u00eate : activez 6 cours mod\u00e8les avec vid\u00e9os, quiz et devoirs !
+                </h2>
+                <p className="text-indigo-100 text-sm md:text-base leading-relaxed font-medium">
+                  Remplissez instantan\u00e9ment la plateforme avec un \u00e9cosyst\u00e8me \u00e9ducatif complet : Alg\u00e8bre & G\u00e9om\u00e9trie, Physique-Chimie, Algorithmique Python, Fran\u00e7ais, Anglais et Histoire avec syllabus, le\u00e7ons vid\u00e9o, classes virtuelles en direct et \u00e9valuations interactives.
+                </p>
+                <div className="pt-2 flex flex-wrap items-center gap-4">
+                  <button
+                    onClick={handleSeedLms}
+                    disabled={isSeeding}
+                    className="bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-sm px-6 py-3.5 rounded-2xl transition-all shadow-lg flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+                  >
+                    {isSeeding ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
+                    {isSeeding ? "Cr\u00e9ation des donn\u00e9es en cours..." : "\u26a1 Charger la d\u00e9mo compl\u00e8te (1-clic)"}
+                  </button>
+                  <button
+                    onClick={() => { setEditingCourse(null); setCourseFormOpen(true); }}
+                    className="bg-white/15 hover:bg-white/25 text-white font-bold text-sm px-5 py-3.5 rounded-2xl transition-all backdrop-blur-sm flex items-center gap-2 cursor-pointer"
+                  >
+                    <Plus size={16} /> Cr\u00e9er un cours manuellement
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* KPI Cards Grid */}
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-6">
             {[
@@ -1521,6 +1606,13 @@ export default function LmsDashboardClient({
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <a 
+                        <button 
+                          onClick={() => setActiveMeeting(v)}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase tracking-widest px-3 py-2 rounded-xl flex items-center gap-1.5 shadow-sm cursor-pointer"
+                          title="Lancer la salle en direct dans l'application"
+                        >
+                          <MonitorPlay size={12} /> Salle Interactive
+                        </button>
                           href={v.meetingUrl} 
                           target="_blank" 
                           rel="noopener noreferrer"
@@ -2979,6 +3071,86 @@ export default function LmsDashboardClient({
       )}
 
       </div>
+      {/* -------------------- EMBEDDED LIVE MEETING MODAL -------------------- */}
+      {activeMeeting && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-2 sm:p-6 animate-in fade-in duration-200">
+          <div className="bg-slate-900 text-white rounded-[2rem] border border-slate-800 shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col overflow-hidden">
+            {/* Top Bar */}
+            <div className="flex items-center justify-between px-6 py-4 bg-slate-900 border-b border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse" />
+                <div>
+                  <h3 className="font-black text-base md:text-lg text-white leading-none flex items-center gap-2">
+                    {activeMeeting.title}
+                    <span className="bg-emerald-950 text-emerald-400 border border-emerald-800 text-[10px] font-black uppercase px-2 py-0.5 rounded-full">
+                      En direct
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Classe : <span className="text-indigo-400 font-bold">{getClassName(activeMeeting.classId)}</span> | 
+                    Mati\u00e8re : <span className="text-white font-bold">{getSubjectName(activeMeeting.subjectId)}</span> | 
+                    Enseignant : <span className="text-slate-300 font-bold">{getTeacherName(activeMeeting.teacherId)}</span>
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(activeMeeting.meetingUrl);
+                    toast.success("Lien d'invitation copi\u00e9 !");
+                  }}
+                  className="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5 transition-all cursor-pointer"
+                  title="Copier le lien"
+                >
+                  <Copy size={13} />
+                  <span className="hidden sm:inline">Inviter</span>
+                </button>
+                <a
+                  href={activeMeeting.meetingUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5 transition-all"
+                  title="Ouvrir en plein \u00e9cran dans un nouvel onglet"
+                >
+                  <ExternalLink size={13} />
+                  <span className="hidden sm:inline">Nouvel onglet</span>
+                </a>
+                <button
+                  onClick={() => setActiveMeeting(null)}
+                  className="bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white p-2 rounded-xl transition-all cursor-pointer"
+                  title="Quitter la salle"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+
+            {/* Meeting Iframe */}
+            <div className="flex-1 bg-black relative">
+              <iframe
+                src={activeMeeting.meetingUrl}
+                allow="camera; microphone; fullscreen; display-capture; autoplay"
+                className="w-full h-full border-none"
+              />
+            </div>
+
+            {/* Bottom Controls Bar */}
+            <div className="px-6 py-3 bg-slate-900 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
+              <div className="flex items-center gap-4">
+                <span>\ud83d\udd12 Session chiffr\u00e9e de bout en bout</span>
+                <span className="hidden sm:inline">\ud83d\udca1 Activez micro et cam\u00e9ra via la barre interactive Jitsi</span>
+              </div>
+              <button
+                onClick={() => toast.success("Votre pr\u00e9sence au cours a \u00e9t\u00e9 enregistr\u00e9e avec succ\u00e8s \u2713")}
+                className="bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-600 hover:text-white font-bold px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
+              >
+                <Check size={13} /> Valider ma pr\u00e9sence
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

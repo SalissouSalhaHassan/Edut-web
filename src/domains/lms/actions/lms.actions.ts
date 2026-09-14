@@ -12,7 +12,8 @@ import { eq, desc, and, sql, asc, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { protectedDbAction } from "@/lib/protected-action";
 import { students } from "@/infrastructure/database/schema/students";
-import { schoolClasses } from "@/infrastructure/database/schema/academics";
+import { schoolClasses, schoolSubjects } from "@/infrastructure/database/schema/academics";
+import { employees } from "@/infrastructure/database/schema/hr";
 import { getUserRoleType, getTeacherEmployee, getTeacherClassIds } from "@/domains/auth/services/rbac";
 import { getActiveSchoolId } from "@/domains/auth/services/school";
 
@@ -889,5 +890,606 @@ export async function getLmsReportsData() {
     });
 
     return { courses, progress, virtualClasses, assignments };
+  });
+}
+
+// ─── Sample Data Seeding ──────────────────────────────────────────────────────
+
+export async function seedSampleLmsData() {
+  return protectedDbAction("LMS", "canManage", async (user) => {
+    await initLmsDatabaseTables();
+    const schoolId = await getActiveSchoolId();
+    if (!schoolId) throw new Error("Aucun contexte d'école actif trouvé.");
+
+    // 1. Get or create classes
+    let classes = await db.query.schoolClasses.findMany({
+      where: eq(schoolClasses.schoolId, schoolId),
+    });
+
+    if (classes.length === 0) {
+      const insertedClasses = await db.insert(schoolClasses).values([
+        { schoolId, className: "6ème A", section: "A" },
+        { schoolId, className: "5ème A", section: "A" },
+        { schoolId, className: "4ème A", section: "A" },
+        { schoolId, className: "3ème A", section: "A" },
+        { schoolId, className: "Seconde S", section: "S" },
+        { schoolId, className: "Terminale D", section: "D" },
+      ]).returning();
+      classes = insertedClasses;
+    }
+
+    // 2. Get or create subjects
+    let subjects = await db.query.schoolSubjects.findMany({
+      where: eq(schoolSubjects.schoolId, schoolId),
+    });
+
+    if (subjects.length === 0) {
+      const insertedSubjects = await db.insert(schoolSubjects).values([
+        { schoolId, subjectName: "Mathématiques", subjectCode: "MATH" },
+        { schoolId, subjectName: "Sciences Physiques & Chimie", subjectCode: "PHYS" },
+        { schoolId, subjectName: "Français & Littérature", subjectCode: "FRAN" },
+        { schoolId, subjectName: "Informatique & Coding", subjectCode: "INFO" },
+        { schoolId, subjectName: "Histoire & Géographie", subjectCode: "HIST" },
+        { schoolId, subjectName: "Anglais LV1", subjectCode: "ANGL" },
+      ]).returning();
+      subjects = insertedSubjects;
+    }
+
+    // 3. Teachers
+    const teachers = await db.query.employees.findMany({
+      where: eq(employees.schoolId, schoolId),
+    });
+    const defaultTeacherId = teachers.length > 0 ? teachers[0].id : null;
+
+    // 4. Students
+    const schoolStudents = await db.query.students.findMany({
+      where: eq(students.schoolId, schoolId),
+      limit: 15,
+    });
+
+    // 5. Courses definitions
+    const sampleCoursesDefs = [
+      {
+        courseCode: "MATH-601",
+        title: "Algèbre Fondamentale & Géométrie dans l'Espace",
+        description: "Maîtrise des calculs algébriques, équations du premier degré, fractions rationnelles et théorèmes géométriques.",
+        classNameTarget: "6ème",
+        subjectNameTarget: "Math",
+        status: "Published",
+        modules: [
+          {
+            title: "Module 1 : Arithmétique & Fractions Rationnelles",
+            description: "Propriétés des nombres, divisibilité et calculs fractionnaires.",
+            lessons: [
+              {
+                title: "Leçon 1.1 : Les fractions et opérations de base",
+                content: "<h3>Objectifs pédagogiques</h3><p>Comprendre l'addition, la soustraction et la multiplication de fractions rationnelles.</p><h4>Définition</h4><p>Une fraction est le quotient de deux entiers relatifs a et b avec b ≠ 0. Pour additionner deux fractions de dénominateurs différents, on les réduit au même dénominateur commun.</p><div style='background:#f1f5f9;padding:12px;border-radius:8px;'><strong>Règle fondamentale :</strong> a/b + c/b = (a+c)/b</div>",
+                videoUrl: "https://www.youtube.com/watch?v=kITJ6qH7jS0",
+                duration: 25,
+                contentType: "Video",
+              },
+              {
+                title: "Leçon 1.2 : Nombres premiers et décomposition",
+                content: "<h3>Notion de nombre premier</h3><p>Un nombre entier naturel supérieur à 1 est premier s'il possède exactement deux diviseurs distincts : 1 et lui-même.</p><p>Exemples : 2, 3, 5, 7, 11, 13, 17, 19, 23, 29...</p>",
+                duration: 20,
+                contentType: "Text",
+              }
+            ]
+          },
+          {
+            title: "Module 2 : Équations & Systèmes Linéaires",
+            description: "Résolution pas-à-pas des équations ax + b = c.",
+            lessons: [
+              {
+                title: "Leçon 2.1 : Résolution algébrique des équations",
+                content: "<h3>Méthodologie de résolution</h3><p>1. Isoler les termes en x d'un côté de l'égalité.<br>2. Réduire les constantes de l'autre côté.<br>3. Diviser par le coefficient directeur.</p>",
+                videoUrl: "https://www.youtube.com/watch?v=VuhfZT_qQDE",
+                duration: 30,
+                contentType: "Video",
+              }
+            ]
+          }
+        ],
+        quizzes: [
+          {
+            title: "Quiz Express : Algèbre & Calcul Fractionnaire",
+            description: "Évaluation rapide de 15 minutes sur les fractions et équations.",
+            durationMin: 15,
+            passingScore: 12.0,
+            questions: [
+              {
+                questionText: "Quelle est la somme de 1/3 et 1/6 ?",
+                points: 5,
+                answers: [
+                  { answerText: "1/2", isCorrect: true, explanation: "1/3 = 2/6, donc 2/6 + 1/6 = 3/6 = 1/2." },
+                  { answerText: "2/9", isCorrect: false },
+                  { answerText: "1/9", isCorrect: false },
+                  { answerText: "2/6", isCorrect: false },
+                ]
+              },
+              {
+                questionText: "Quel est le plus petit nombre premier pair ?",
+                points: 5,
+                answers: [
+                  { answerText: "2", isCorrect: true, explanation: "2 est le seul nombre premier qui soit pair." },
+                  { answerText: "0", isCorrect: false },
+                  { answerText: "1", isCorrect: false },
+                  { answerText: "4", isCorrect: false },
+                ]
+              },
+              {
+                questionText: "Si 2x + 4 = 10, que vaut x ?",
+                points: 10,
+                answers: [
+                  { answerText: "3", isCorrect: true, explanation: "2x = 10 - 4 = 6 => x = 3." },
+                  { answerText: "2", isCorrect: false },
+                  { answerText: "7", isCorrect: false },
+                  { answerText: "5", isCorrect: false },
+                ]
+              }
+            ]
+          }
+        ],
+        assignment: {
+          title: "DM 1 : Problèmes d'Algèbre & Résolution d'Équations",
+          description: "Résoudre les 4 exercices de la fiche d'application. Rédiger soigneusement les étapes de calcul et justifier les propriétés géométriques.",
+          dueDate: new Date(Date.now() + 5 * 24 * 3600 * 1000),
+          maxScore: 20.0,
+        }
+      },
+      {
+        courseCode: "PHYS-501",
+        title: "Physique & Chimie : De la Matière à l'Énergie",
+        description: "Étude des états de la matière, des transformations chimiques, de la vitesse de la lumière et des circuits électriques.",
+        classNameTarget: "5ème",
+        subjectNameTarget: "Physique",
+        status: "Published",
+        modules: [
+          {
+            title: "Module 1 : Circuits Électriques & Lois Fondamentales",
+            description: "Tension, intensité et loi d'Ohm.",
+            lessons: [
+              {
+                title: "Leçon 1.1 : Loi d'Ohm et résistance électrique",
+                content: "<h3>Loi d'Ohm</h3><p>La tension U aux bornes d'un dipôle ohmique est proportionnelle à l'intensité I du courant qui le traverse : <strong>U = R × I</strong>.</p><p>Unités : U en Volts (V), R en Ohms (Ω), I en Ampères (A).</p>",
+                videoUrl: "https://www.youtube.com/watch?v=HsLLq6Rm5tU",
+                duration: 25,
+                contentType: "Video",
+              }
+            ]
+          }
+        ],
+        quizzes: [
+          {
+            title: "Quiz : Circuits Électriques & Unités Physiques",
+            description: "Vérification des connaissances sur la loi d'Ohm et les unités SI.",
+            durationMin: 15,
+            passingScore: 10.0,
+            questions: [
+              {
+                questionText: "Quelle est l'unité de la résistance électrique ?",
+                points: 10,
+                answers: [
+                  { answerText: "Ohm (Ω)", isCorrect: true },
+                  { answerText: "Volt (V)", isCorrect: false },
+                  { answerText: "Watt (W)", isCorrect: false },
+                  { answerText: "Ampère (A)", isCorrect: false },
+                ]
+              },
+              {
+                questionText: "Dans la formule U = R × I, que représente I ?",
+                points: 10,
+                answers: [
+                  { answerText: "L'intensité du courant électrique", isCorrect: true },
+                  { answerText: "L'inertie mécanique", isCorrect: false },
+                  { answerText: "L'indice de réfraction", isCorrect: false },
+                  { answerText: "L'impédance thermique", isCorrect: false },
+                ]
+              }
+            ]
+          }
+        ],
+        assignment: {
+          title: "Compte-rendu de TP : Mesure de la résistance d'un conducteur ohmique",
+          description: "Tracer la caractéristique U = f(I) sur papier millimétré ou tableur et déterminer la valeur expérimentale de la résistance R.",
+          dueDate: new Date(Date.now() + 4 * 24 * 3600 * 1000),
+          maxScore: 20.0,
+        }
+      },
+      {
+        courseCode: "INFO-301",
+        title: "Algorithmique & Programmation Python / Web",
+        description: "Introduction à la pensée computationnelle, structures de données, boucles, fonctions et développement web moderne.",
+        classNameTarget: "3ème",
+        subjectNameTarget: "Info",
+        status: "Published",
+        modules: [
+          {
+            title: "Module 1 : Variables, Conditions et Boucles Python",
+            description: "Les bases du code propre en Python 3.",
+            lessons: [
+              {
+                title: "Leçon 1.1 : Premiers pas avec Python et typage dynamique",
+                content: "<h3>Introduction à Python</h3><p>Python est un langage interprété, lisible et puissant.</p><pre style='background:#1e293b;color:#e2e8f0;padding:12px;border-radius:8px;'><code>def saluer(nom):\n    return f'Bonjour {nom} !'\nprint(saluer('Élève'))</code></pre>",
+                videoUrl: "https://www.youtube.com/watch?v=kqtD5dpn9C8",
+                duration: 35,
+                contentType: "Video",
+              }
+            ]
+          }
+        ],
+        quizzes: [
+          {
+            title: "Quiz Python : Syntaxe & Logique de Programmation",
+            description: "Testez vos connaissances en structures conditionnelles et boucles.",
+            durationMin: 20,
+            passingScore: 10.0,
+            questions: [
+              {
+                questionText: "Quel mot-clé permet de définir une fonction en Python ?",
+                points: 10,
+                answers: [
+                  { answerText: "def", isCorrect: true },
+                  { answerText: "function", isCorrect: false },
+                  { answerText: "func", isCorrect: false },
+                  { answerText: "lambda_fun", isCorrect: false },
+                ]
+              },
+              {
+                questionText: "Quel est le résultat de len([10, 20, 30]) ?",
+                points: 10,
+                answers: [
+                  { answerText: "3", isCorrect: true },
+                  { answerText: "2", isCorrect: false },
+                  { answerText: "30", isCorrect: false },
+                  { answerText: "Erreur", isCorrect: false },
+                ]
+              }
+            ]
+          }
+        ],
+        assignment: {
+          title: "Projet Mini-Code : Calculateur de moyennes trimestrielles",
+          description: "Écrire un script Python qui demande les notes de l'élève, calcule la moyenne pondérée avec coefficients et affiche la mention.",
+          dueDate: new Date(Date.now() + 7 * 24 * 3600 * 1000),
+          maxScore: 20.0,
+        }
+      },
+      {
+        courseCode: "FRAN-401",
+        title: "Littérature, Rhétorique & Expression Écrite",
+        description: "Analyse des genres littéraires, figures de style, rédaction argumentative et enrichissement du vocabulaire.",
+        classNameTarget: "4ème",
+        subjectNameTarget: "Fran",
+        status: "Published",
+        modules: [
+          {
+            title: "Module 1 : L'Art du Récit & Figures de Style",
+            description: "Identifier métaphores, comparaisons, allégories et hyperboles.",
+            lessons: [
+              {
+                title: "Leçon 1.1 : Les figures d'analogie et d'insistance",
+                content: "<h3>Les figures de style majeures</h3><p><strong>La métaphore :</strong> une assimilation directe sans outil de comparaison (ex : 'Cet homme est un lion').</p><p><strong>La comparaison :</strong> rapprochement avec outil comparatif ('comme', 'tel que').</p>",
+                duration: 20,
+                contentType: "Text",
+              }
+            ]
+          }
+        ],
+        quizzes: [],
+        assignment: {
+          title: "Rédaction argumentative : Pour ou contre l'usage des smartphones en classe ?",
+          description: "Rédiger une argumentation structurée de 350 mots comprenant introduction, deux arguments avec exemples et conclusion.",
+          dueDate: new Date(Date.now() + 6 * 24 * 3600 * 1000),
+          maxScore: 20.0,
+        }
+      },
+      {
+        courseCode: "ANGL-101",
+        title: "English for International Communication & TOEFL Prep",
+        description: "Oral comprehension, grammar mastery, vocabulary expansion, and essay writing skills.",
+        classNameTarget: "Terminale",
+        subjectNameTarget: "Angl",
+        status: "Published",
+        modules: [
+          {
+            title: "Module 1 : Mastering Advanced Tenses & Modals",
+            description: "Present perfect, past perfect, conditionals, and modal verbs.",
+            lessons: [
+              {
+                title: "Leçon 1.1 : Present Perfect vs Simple Past",
+                content: "<h3>Grammar Workshop</h3><p>Use the Present Perfect for actions connected to the present moment, and Simple Past for completed past events with a specific time anchor.</p>",
+                videoUrl: "https://www.youtube.com/watch?v=O1CHtTzO3rE",
+                duration: 25,
+                contentType: "Video",
+              }
+            ]
+          }
+        ],
+        quizzes: [],
+        assignment: null
+      },
+      {
+        courseCode: "HIST-201",
+        title: "Histoire Universelle & Géopolitique Contemporaine",
+        description: "Les grandes étapes de l'histoire moderne, mondialisation, gouvernance internationale et enjeux climatiques.",
+        classNameTarget: "Seconde",
+        subjectNameTarget: "Hist",
+        status: "Published",
+        modules: [
+          {
+            title: "Module 1 : Les Mutations du Monde Contemporain",
+            description: "Démographie, urbanisation et flux migratoires globaux.",
+            lessons: [
+              {
+                title: "Leçon 1.1 : La transition démographique mondiale",
+                content: "<h3>Schéma de la transition démographique</h3><p>Comprendre le passage d'un régime traditionnel à forte natalité et mortalité vers un régime moderne équilibré.</p>",
+                duration: 30,
+                contentType: "Text",
+              }
+            ]
+          }
+        ],
+        quizzes: [],
+        assignment: null
+      }
+    ];
+
+    // Seed Courses, Modules, Lessons, Quizzes, Assignments
+    let seededCoursesCount = 0;
+    for (const cDef of sampleCoursesDefs) {
+      const targetClass = classes.find(c => c.className.toLowerCase().includes(cDef.classNameTarget.toLowerCase())) || classes[0];
+      const targetSubject = subjects.find(s => s.subjectName.toLowerCase().includes(cDef.subjectNameTarget.toLowerCase())) || subjects[0];
+
+      // Insert Course
+      const [newCourse] = await db.insert(lmsCourses).values({
+        courseCode: cDef.courseCode,
+        title: cDef.title,
+        description: cDef.description,
+        classId: targetClass?.id || null,
+        subjectId: targetSubject?.id || null,
+        teacherId: defaultTeacherId,
+        status: cDef.status,
+      }).returning();
+      seededCoursesCount++;
+
+      // Enroll students in this course
+      for (const student of schoolStudents.slice(0, 8)) {
+        try {
+          await db.insert(lmsEnrollments).values({
+            courseId: newCourse.id,
+            studentId: student.id,
+            status: "Active",
+          });
+        } catch (_) {}
+      }
+
+      // Insert Modules and Lessons
+      for (let mIdx = 0; mIdx < cDef.modules.length; mIdx++) {
+        const mDef = cDef.modules[mIdx];
+        const [newModule] = await db.insert(lmsModules).values({
+          courseId: newCourse.id,
+          title: mDef.title,
+          description: mDef.description,
+          displayOrder: mIdx + 1,
+          status: "Active",
+        }).returning();
+
+        for (let lIdx = 0; lIdx < mDef.lessons.length; lIdx++) {
+          const lDef = mDef.lessons[lIdx];
+          const [newLesson] = await db.insert(lmsLessons).values({
+            courseId: newCourse.id,
+            moduleId: newModule.id,
+            classId: targetClass?.id || null,
+            subjectId: targetSubject?.id || null,
+            title: lDef.title,
+            content: lDef.content,
+            videoUrl: lDef.videoUrl || null,
+            duration: lDef.duration || 20,
+            contentType: lDef.contentType || "Text",
+            displayOrder: lIdx + 1,
+          }).returning();
+
+          // Add progress for students
+          for (let sIdx = 0; sIdx < schoolStudents.slice(0, 6).length; sIdx++) {
+            const student = schoolStudents[sIdx];
+            const isDone = sIdx < 3; // First 3 students completed all lessons
+            try {
+              await db.insert(lmsProgress).values({
+                studentId: student.id,
+                lessonId: newLesson.id,
+                isCompleted: isDone,
+                completedAt: isDone ? new Date() : null,
+                lastPosition: isDone ? 100 : 30,
+              });
+            } catch (_) {}
+          }
+        }
+      }
+
+      // Insert Quizzes
+      for (const qDef of cDef.quizzes) {
+        const [newQuiz] = await db.insert(lmsQuizzes).values({
+          courseId: newCourse.id,
+          title: qDef.title,
+          description: qDef.description,
+          durationMin: qDef.durationMin,
+          passingScore: qDef.passingScore,
+          status: "Active",
+        }).returning();
+
+        for (let qIdx = 0; qIdx < qDef.questions.length; qIdx++) {
+          const questDef = qDef.questions[qIdx];
+          const [newQuestion] = await db.insert(lmsQuestions).values({
+            quizId: newQuiz.id,
+            questionText: questDef.questionText,
+            questionType: "QCM",
+            points: questDef.points,
+            displayOrder: qIdx + 1,
+          }).returning();
+
+          for (const ans of questDef.answers) {
+            await db.insert(lmsAnswers).values({
+              questionId: newQuestion.id,
+              answerText: ans.answerText,
+              isCorrect: ans.isCorrect,
+              explanation: ans.explanation || null,
+            });
+          }
+        }
+      }
+
+      // Insert Assignment & sample submissions
+      if (cDef.assignment) {
+        const [newAssignment] = await db.insert(lmsAssignments).values({
+          courseId: newCourse.id,
+          classId: targetClass?.id || null,
+          subjectId: targetSubject?.id || null,
+          title: cDef.assignment.title,
+          description: cDef.assignment.description,
+          dueDate: cDef.assignment.dueDate,
+          maxScore: cDef.assignment.maxScore,
+          status: "Active",
+        }).returning();
+
+        // Sample student submissions
+        if (schoolStudents.length > 0) {
+          try {
+            await db.insert(lmsSubmissions).values([
+              {
+                assignmentId: newAssignment.id,
+                studentId: schoolStudents[0].id,
+                fileReponsePath: "/uploads/devoir_eleve1.pdf",
+                score: 18.5,
+                comment: "Excellent travail ! Démarche rigoureuse et démonstrations bien formulées.",
+                isGraded: true,
+              },
+              {
+                assignmentId: newAssignment.id,
+                studentId: schoolStudents[1]?.id || schoolStudents[0].id,
+                fileReponsePath: "/uploads/devoir_eleve2.pdf",
+                score: 15.0,
+                comment: "Bonne compréhension d'ensemble, attention aux étourderies de calculs à l'exercice 2.",
+                isGraded: true,
+              },
+              {
+                assignmentId: newAssignment.id,
+                studentId: schoolStudents[2]?.id || schoolStudents[0].id,
+                fileReponsePath: "/uploads/devoir_eleve3.pdf",
+                score: null,
+                comment: null,
+                isGraded: false, // 1 submission awaiting grading
+              }
+            ]);
+          } catch (_) {}
+        }
+      }
+
+      // Insert Forum Discussions
+      if (schoolStudents.length > 0) {
+        try {
+          await db.insert(lmsDiscussions).values([
+            {
+              courseId: newCourse.id,
+              employeeId: defaultTeacherId,
+              message: `Bienvenue à tous sur l'espace d'apprentissage du cours ${cDef.title} ! Consultez les ressources et posez vos questions ici.`,
+            },
+            {
+              courseId: newCourse.id,
+              studentId: schoolStudents[0].id,
+              message: "Bonjour Professeur, merci beaucoup ! Les vidéos et supports de révision sont très clairs.",
+            }
+          ]);
+        } catch (_) {}
+      }
+
+      // Insert Certificates for students who completed course
+      if (schoolStudents.length >= 2) {
+        try {
+          await db.insert(lmsCertificates).values([
+            {
+              courseId: newCourse.id,
+              studentId: schoolStudents[0].id,
+              certificateCode: `CERT-LMS-${newCourse.id}-${schoolStudents[0].id}-${new Date().getFullYear()}`,
+              issueDate: new Date(),
+            },
+            {
+              courseId: newCourse.id,
+              studentId: schoolStudents[1].id,
+              certificateCode: `CERT-LMS-${newCourse.id}-${schoolStudents[1].id}-${new Date().getFullYear()}`,
+              issueDate: new Date(),
+            }
+          ]);
+        } catch (_) {}
+      }
+    }
+
+    // 6. Seed Virtual Live Classes
+    const targetClass = classes[0];
+    const targetSubject = subjects[0];
+    const tomorrow = new Date(Date.now() + 24 * 3600 * 1000);
+    tomorrow.setHours(10, 0, 0, 0);
+
+    const inThreeDays = new Date(Date.now() + 3 * 24 * 3600 * 1000);
+    inThreeDays.setHours(14, 30, 0, 0);
+
+    const pastSession = new Date(Date.now() - 2 * 24 * 3600 * 1000);
+    pastSession.setHours(9, 0, 0, 0);
+
+    try {
+      const [live1] = await db.insert(lmsVirtualClasses).values({
+        title: "Direct Interactif : Résolution des équations & Exercices types",
+        classId: targetClass?.id || null,
+        subjectId: targetSubject?.id || null,
+        teacherId: defaultTeacherId,
+        sessionDate: tomorrow,
+        duration: 60,
+        meetingUrl: "https://meet.jit.si/EdutVirtualClass-Maths-Live",
+        meetingPassword: "Edut" + new Date().getFullYear(),
+        platform: "Jitsi Meet",
+        status: "À venir",
+      }).returning();
+
+      await db.insert(lmsVirtualClasses).values({
+        title: "Atelier Coding : Découverte des algorithmes et projets Python",
+        classId: classes[1]?.id || targetClass?.id || null,
+        subjectId: subjects[3]?.id || targetSubject?.id || null,
+        teacherId: defaultTeacherId,
+        sessionDate: inThreeDays,
+        duration: 45,
+        meetingUrl: "https://meet.jit.si/EdutVirtualClass-Coding-Workshop",
+        meetingPassword: "Code" + new Date().getFullYear(),
+        platform: "Google Meet",
+        status: "À venir",
+      });
+
+      const [livePast] = await db.insert(lmsVirtualClasses).values({
+        title: "Session de méthodologie et révision générale du trimestre",
+        classId: targetClass?.id || null,
+        subjectId: targetSubject?.id || null,
+        teacherId: defaultTeacherId,
+        sessionDate: pastSession,
+        duration: 50,
+        meetingUrl: "https://meet.jit.si/EdutVirtualClass-Revision-Archive",
+        platform: "Teams",
+        status: "Terminée",
+        recordingUrl: "https://www.youtube.com/watch?v=kITJ6qH7jS0",
+      }).returning();
+
+      // Add attendance to past session
+      for (const student of schoolStudents.slice(0, 8)) {
+        try {
+          await db.insert(lmsVirtualAttendance).values({
+            virtualClassId: livePast.id,
+            studentId: student.id,
+            status: "Present",
+            durationMinutes: 48,
+          });
+        } catch (_) {}
+      }
+    } catch (_) {}
+
+    revalidatePath("/dashboard/lms");
+    return { success: true, count: seededCoursesCount };
   });
 }
