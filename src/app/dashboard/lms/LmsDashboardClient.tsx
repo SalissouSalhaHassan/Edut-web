@@ -2442,88 +2442,112 @@ export default function LmsDashboardClient({
 
       {/* 1. Course Modal */}
       {courseFormOpen && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <form onSubmit={handleSaveCourse} className="bg-white p-8 rounded-[2.5rem] border shadow-2xl max-w-lg w-full space-y-6 animate-in zoom-in duration-300">
-            <h3 className="text-xl font-black text-slate-900 dark:text-white">{editingCourse ? "Modifier le cours" : "Nouveau cours"}</h3>
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <form onSubmit={handleSaveCourse} className="bg-white dark:bg-[#151928] text-slate-900 dark:text-white p-7 sm:p-8 rounded-[2.5rem] border border-slate-200/80 dark:border-slate-800 shadow-2xl max-w-lg w-full space-y-6 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800/80">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
+                  <BookOpen size={20} />
+                </div>
+                <div>
+                  <h3 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white leading-tight">
+                    {editingCourse ? "Modifier le cours" : "Nouveau cours"}
+                  </h3>
+                  <p className="text-[11px] font-bold text-slate-400">
+                    {editingCourse ? "Mettre à jour les informations du cours" : "Créer et configurer un nouveau cours"}
+                  </p>
+                </div>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setCourseFormOpen(false)}
+                className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60 rounded-xl transition"
+              >
+                <X size={18} />
+              </button>
+            </div>
             
             <div className="grid grid-cols-1 gap-4">
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Titre du cours *</label>
+                <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Titre du cours *</label>
                 <input 
                   type="text" 
                   name="title" 
                   defaultValue={editingCourse?.title || ""} 
                   required 
-                  className="w-full bg-slate-50 border p-3 rounded-2xl text-xs font-bold outline-none"
+                  placeholder="Ex: Mathématiques Générales"
+                  className="w-full bg-slate-50 dark:bg-[#0e111d] border border-slate-200 dark:border-slate-700/80 text-slate-900 dark:text-white p-3 rounded-2xl text-xs font-bold outline-none focus:border-indigo-500 dark:focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition placeholder:text-slate-400 dark:placeholder:text-slate-500"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Code cours</label>
+                <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Code cours</label>
                 <input 
                   type="text" 
                   name="courseCode" 
                   defaultValue={editingCourse?.courseCode || ""} 
-                  className="w-full bg-slate-50 border p-3 rounded-2xl text-xs font-bold outline-none font-mono"
+                  placeholder="Ex: MATH-101"
+                  className="w-full bg-slate-50 dark:bg-[#0e111d] border border-slate-200 dark:border-slate-700/80 text-slate-900 dark:text-white p-3 rounded-2xl text-xs font-bold outline-none font-mono focus:border-indigo-500 dark:focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition placeholder:text-slate-400 dark:placeholder:text-slate-500"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Classe *</label>
-                  <select name="classId" defaultValue={editingCourse?.classId || ""} required className="w-full bg-slate-50 border p-3 rounded-2xl text-xs font-bold cursor-pointer">
-                    <option value="">-- Choisir --</option>
-                    {classes.map(c => <option key={c.id} value={c.id}>{c.className}</option>)}
+                  <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Classe *</label>
+                  <select name="classId" defaultValue={editingCourse?.classId || ""} required className="w-full bg-slate-50 dark:bg-[#0e111d] border border-slate-200 dark:border-slate-700/80 text-slate-900 dark:text-white p-3 rounded-2xl text-xs font-bold cursor-pointer outline-none focus:border-indigo-500 transition">
+                    <option value="" className="bg-white dark:bg-[#151928] text-slate-900 dark:text-white">-- Choisir --</option>
+                    {classes.map(c => <option key={c.id} value={c.id} className="bg-white dark:bg-[#151928] text-slate-900 dark:text-white">{c.className}</option>)}
                   </select>
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Matière *</label>
-                  <select name="subjectId" defaultValue={editingCourse?.subjectId || ""} required className="w-full bg-slate-50 border p-3 rounded-2xl text-xs font-bold cursor-pointer">
-                    <option value="">-- Choisir --</option>
-                    {subjects.map(s => <option key={s.id} value={s.id}>{s.subjectName}</option>)}
+                  <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Matière *</label>
+                  <select name="subjectId" defaultValue={editingCourse?.subjectId || ""} required className="w-full bg-slate-50 dark:bg-[#0e111d] border border-slate-200 dark:border-slate-700/80 text-slate-900 dark:text-white p-3 rounded-2xl text-xs font-bold cursor-pointer outline-none focus:border-indigo-500 transition">
+                    <option value="" className="bg-white dark:bg-[#151928] text-slate-900 dark:text-white">-- Choisir --</option>
+                    {subjects.map(s => <option key={s.id} value={s.id} className="bg-white dark:bg-[#151928] text-slate-900 dark:text-white">{s.subjectName}</option>)}
                   </select>
                 </div>
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Enseignant *</label>
-                <select name="teacherId" defaultValue={editingCourse?.teacherId || ""} required className="w-full bg-slate-50 border p-3 rounded-2xl text-xs font-bold cursor-pointer">
-                  <option value="">-- Choisir --</option>
-                  {employees.map(e => <option key={e.id} value={e.id}>{e.nomPrenom}</option>)}
+                <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Enseignant *</label>
+                <select name="teacherId" defaultValue={editingCourse?.teacherId || ""} required className="w-full bg-slate-50 dark:bg-[#0e111d] border border-slate-200 dark:border-slate-700/80 text-slate-900 dark:text-white p-3 rounded-2xl text-xs font-bold cursor-pointer outline-none focus:border-indigo-500 transition">
+                  <option value="" className="bg-white dark:bg-[#151928] text-slate-900 dark:text-white">-- Choisir --</option>
+                  {employees.map(e => <option key={e.id} value={e.id} className="bg-white dark:bg-[#151928] text-slate-900 dark:text-white">{e.nomPrenom}</option>)}
                 </select>
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Description</label>
+                <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Description</label>
                 <textarea 
                   name="description" 
                   defaultValue={editingCourse?.description || ""} 
-                  className="w-full bg-slate-50 border p-3 rounded-2xl text-xs font-bold h-24 outline-none"
+                  placeholder="Objectifs d'apprentissage, programme..."
+                  className="w-full bg-slate-50 dark:bg-[#0e111d] border border-slate-200 dark:border-slate-700/80 text-slate-900 dark:text-white p-3 rounded-2xl text-xs font-bold h-24 outline-none focus:border-indigo-500 dark:focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition placeholder:text-slate-400 dark:placeholder:text-slate-500 resize-none"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Statut</label>
-                <select name="status" defaultValue={editingCourse?.status || "Draft"} className="w-full bg-slate-50 border p-3 rounded-2xl text-xs font-bold cursor-pointer">
-                  <option value="Draft">Brouillon</option>
-                  <option value="Published">Publié</option>
-                  <option value="Archived">Archivé</option>
+                <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Statut</label>
+                <select name="status" defaultValue={editingCourse?.status || "Draft"} className="w-full bg-slate-50 dark:bg-[#0e111d] border border-slate-200 dark:border-slate-700/80 text-slate-900 dark:text-white p-3 rounded-2xl text-xs font-bold cursor-pointer outline-none focus:border-indigo-500 transition">
+                  <option value="Draft" className="bg-white dark:bg-[#151928] text-slate-900 dark:text-white">Brouillon</option>
+                  <option value="Published" className="bg-white dark:bg-[#151928] text-slate-900 dark:text-white">Publié</option>
+                  <option value="Archived" className="bg-white dark:bg-[#151928] text-slate-900 dark:text-white">Archivé</option>
                 </select>
               </div>
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex gap-3 pt-2">
               <button 
                 type="button" 
                 onClick={() => setCourseFormOpen(false)}
-                className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black text-xs uppercase tracking-widest py-3.5 rounded-2xl"
+                className="flex-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-black text-xs uppercase tracking-widest py-3.5 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 transition"
               >
                 Annuler
               </button>
               <button 
                 type="submit" 
-                className="flex-1 bg-primary hover:bg-primary/95 text-white font-black text-xs uppercase tracking-widest py-3.5 rounded-2xl shadow-md"
+                className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs uppercase tracking-widest py-3.5 rounded-2xl shadow-lg shadow-indigo-600/25 transition"
               >
                 Sauvegarder
               </button>
@@ -2534,53 +2558,76 @@ export default function LmsDashboardClient({
 
       {/* 2. Module Modal */}
       {moduleFormOpen && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <form onSubmit={handleSaveModule} className="bg-white p-8 rounded-[2.5rem] border shadow-2xl max-w-md w-full space-y-6 animate-in zoom-in duration-300">
-            <h3 className="text-xl font-black text-slate-900 dark:text-white">{editingModule ? "Modifier le module" : "Nouveau module"}</h3>
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <form onSubmit={handleSaveModule} className="bg-white dark:bg-[#151928] text-slate-900 dark:text-white p-7 sm:p-8 rounded-[2.5rem] border border-slate-200/80 dark:border-slate-800 shadow-2xl max-w-md w-full space-y-6 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800/80">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
+                  <BookOpen size={20} />
+                </div>
+                <div>
+                  <h3 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white leading-tight">
+                    {editingModule ? "Modifier le module" : "Nouveau module"}
+                  </h3>
+                  <p className="text-[11px] font-bold text-slate-400">
+                    {editingModule ? "Mettre à jour la section de cours" : "Structurer le cours en modules d'apprentissage"}
+                  </p>
+                </div>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setModuleFormOpen(false)}
+                className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60 rounded-xl transition"
+              >
+                <X size={18} />
+              </button>
+            </div>
             
             <div className="grid grid-cols-1 gap-4">
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Titre du module *</label>
+                <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Titre du module *</label>
                 <input 
                   type="text" 
                   name="title" 
                   defaultValue={editingModule?.title || ""} 
                   required 
-                  className="w-full bg-slate-50 border p-3 rounded-2xl text-xs font-bold outline-none"
+                  placeholder="Ex: Chapitre 1 - Fondations"
+                  className="w-full bg-slate-50 dark:bg-[#0e111d] border border-slate-200 dark:border-slate-700/80 text-slate-900 dark:text-white p-3 rounded-2xl text-xs font-bold outline-none focus:border-indigo-500 dark:focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition placeholder:text-slate-400 dark:placeholder:text-slate-500"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ordre d'affichage</label>
+                <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Ordre d'affichage</label>
                 <input 
                   type="number" 
                   name="displayOrder" 
                   defaultValue={editingModule?.displayOrder || 0} 
-                  className="w-full bg-slate-50 border p-3 rounded-2xl text-xs font-bold outline-none"
+                  className="w-full bg-slate-50 dark:bg-[#0e111d] border border-slate-200 dark:border-slate-700/80 text-slate-900 dark:text-white p-3 rounded-2xl text-xs font-bold outline-none focus:border-indigo-500 dark:focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Description</label>
+                <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Description</label>
                 <textarea 
                   name="description" 
                   defaultValue={editingModule?.description || ""} 
-                  className="w-full bg-slate-50 border p-3 rounded-2xl text-xs font-bold h-20 outline-none"
+                  placeholder="Contenu synthétique du module..."
+                  className="w-full bg-slate-50 dark:bg-[#0e111d] border border-slate-200 dark:border-slate-700/80 text-slate-900 dark:text-white p-3 rounded-2xl text-xs font-bold h-20 outline-none focus:border-indigo-500 dark:focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition placeholder:text-slate-400 dark:placeholder:text-slate-500 resize-none"
                 />
               </div>
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex gap-3 pt-2">
               <button 
                 type="button" 
                 onClick={() => setModuleFormOpen(false)}
-                className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black text-xs uppercase tracking-widest py-3.5 rounded-2xl"
+                className="flex-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-black text-xs uppercase tracking-widest py-3.5 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 transition"
               >
                 Annuler
               </button>
               <button 
                 type="submit" 
-                className="flex-1 bg-primary hover:bg-primary/95 text-white font-black text-xs uppercase tracking-widest py-3.5 rounded-2xl"
+                className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs uppercase tracking-widest py-3.5 rounded-2xl shadow-lg shadow-indigo-600/25 transition"
               >
                 Enregistrer
               </button>
@@ -2591,484 +2638,125 @@ export default function LmsDashboardClient({
 
       {/* 3. Lesson Modal */}
       {lessonFormOpen && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <form onSubmit={handleSaveLesson} className="bg-white p-8 rounded-[2.5rem] border shadow-2xl max-w-lg w-full space-y-6 overflow-y-auto max-h-[90vh] animate-in zoom-in duration-300">
-            <h3 className="text-xl font-black text-slate-900 dark:text-white">{editingLesson ? "Modifier la leçon" : "Nouvelle leçon"}</h3>
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <form onSubmit={handleSaveLesson} className="bg-white dark:bg-[#151928] text-slate-900 dark:text-white p-7 sm:p-8 rounded-[2.5rem] border border-slate-200/80 dark:border-slate-800 shadow-2xl max-w-lg w-full space-y-6 overflow-y-auto max-h-[90vh] animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800/80">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
+                  <FileText size={20} />
+                </div>
+                <div>
+                  <h3 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white leading-tight">
+                    {editingLesson ? "Modifier la leçon" : "Nouvelle leçon"}
+                  </h3>
+                  <p className="text-[11px] font-bold text-slate-400">
+                    {editingLesson ? "Mettre à jour le support pédagogique" : "Ajouter une leçon interactive ou document"}
+                  </p>
+                </div>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setLessonFormOpen(false)}
+                className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60 rounded-xl transition"
+              >
+                <X size={18} />
+              </button>
+            </div>
             
             <div className="grid grid-cols-1 gap-4">
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Titre de la leçon *</label>
+                <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Titre de la leçon *</label>
                 <input 
                   type="text" 
                   name="title" 
                   defaultValue={editingLesson?.title || ""} 
                   required 
-                  className="w-full bg-slate-50 border p-3 rounded-2xl text-xs font-bold outline-none"
+                  placeholder="Ex: Introduction aux équations"
+                  className="w-full bg-slate-50 dark:bg-[#0e111d] border border-slate-200 dark:border-slate-700/80 text-slate-900 dark:text-white p-3 rounded-2xl text-xs font-bold outline-none focus:border-indigo-500 dark:focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition placeholder:text-slate-400 dark:placeholder:text-slate-500"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Type de contenu *</label>
-                  <select name="contentType" defaultValue={editingLesson?.contentType || "Text"} className="w-full bg-slate-50 border p-3 rounded-2xl text-xs font-bold cursor-pointer">
-                    <option value="Text">Texte</option>
-                    <option value="PDF">PDF</option>
-                    <option value="Video">Vidéo</option>
-                    <option value="Audio">Audio</option>
-                    <option value="Quiz">Quiz</option>
+                  <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Type de contenu *</label>
+                  <select name="contentType" defaultValue={editingLesson?.contentType || "Text"} className="w-full bg-slate-50 dark:bg-[#0e111d] border border-slate-200 dark:border-slate-700/80 text-slate-900 dark:text-white p-3 rounded-2xl text-xs font-bold cursor-pointer outline-none focus:border-indigo-500 transition">
+                    <option value="Text" className="bg-white dark:bg-[#151928] text-slate-900 dark:text-white">Texte</option>
+                    <option value="PDF" className="bg-white dark:bg-[#151928] text-slate-900 dark:text-white">PDF</option>
+                    <option value="Video" className="bg-white dark:bg-[#151928] text-slate-900 dark:text-white">Vidéo</option>
+                    <option value="Audio" className="bg-white dark:bg-[#151928] text-slate-900 dark:text-white">Audio</option>
+                    <option value="Quiz" className="bg-white dark:bg-[#151928] text-slate-900 dark:text-white">Quiz</option>
                   </select>
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Durée estimée (min)</label>
+                  <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Durée estimée (min)</label>
                   <input 
                     type="number" 
                     name="duration" 
                     defaultValue={editingLesson?.duration || 15} 
-                    className="w-full bg-slate-50 border p-3 rounded-2xl text-xs font-bold outline-none"
+                    className="w-full bg-slate-50 dark:bg-[#0e111d] border border-slate-200 dark:border-slate-700/80 text-slate-900 dark:text-white p-3 rounded-2xl text-xs font-bold outline-none focus:border-indigo-500 dark:focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
                   />
                 </div>
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">URL Vidéo</label>
+                <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">URL Vidéo</label>
                 <input 
                   type="text" 
                   name="videoUrl" 
                   defaultValue={editingLesson?.videoUrl || ""} 
                   placeholder="https://youtube.com/..." 
-                  className="w-full bg-slate-50 border p-3 rounded-2xl text-xs font-bold outline-none font-mono"
+                  className="w-full bg-slate-50 dark:bg-[#0e111d] border border-slate-200 dark:border-slate-700/80 text-slate-900 dark:text-white p-3 rounded-2xl text-xs font-bold outline-none font-mono focus:border-indigo-500 dark:focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition placeholder:text-slate-400 dark:placeholder:text-slate-500"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Lien Document / Fichier PDF</label>
+                <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Lien Document / Fichier PDF</label>
                 <input 
                   type="text" 
                   name="filePath" 
                   defaultValue={editingLesson?.filePath || ""} 
                   placeholder="/uploads/..." 
-                  className="w-full bg-slate-50 border p-3 rounded-2xl text-xs font-bold outline-none font-mono"
+                  className="w-full bg-slate-50 dark:bg-[#0e111d] border border-slate-200 dark:border-slate-700/80 text-slate-900 dark:text-white p-3 rounded-2xl text-xs font-bold outline-none font-mono focus:border-indigo-500 dark:focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition placeholder:text-slate-400 dark:placeholder:text-slate-500"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ordre d'affichage</label>
+                <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Ordre d'affichage</label>
                 <input 
                   type="number" 
                   name="displayOrder" 
                   defaultValue={editingLesson?.displayOrder || 0} 
-                  className="w-full bg-slate-50 border p-3 rounded-2xl text-xs font-bold outline-none"
+                  className="w-full bg-slate-50 dark:bg-[#0e111d] border border-slate-200 dark:border-slate-700/80 text-slate-900 dark:text-white p-3 rounded-2xl text-xs font-bold outline-none focus:border-indigo-500 dark:focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Contenu textuel / Résumé</label>
+                <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Contenu textuel / Résumé</label>
                 <textarea 
                   name="content" 
                   defaultValue={editingLesson?.content || ""} 
-                  className="w-full bg-slate-50 border p-3 rounded-2xl text-xs font-bold h-24 outline-none"
+                placeholder="Notes de cours, texte explicatif..."
+                  className="w-full bg-slate-50 dark:bg-[#0e111d] border border-slate-200 dark:border-slate-700/80 text-slate-900 dark:text-white p-3 rounded-2xl text-xs font-bold h-24 outline-none focus:border-indigo-500 dark:focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition placeholder:text-slate-400 dark:placeholder:text-slate-500 resize-none"
                 />
               </div>
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex gap-3 pt-2">
               <button 
                 type="button" 
                 onClick={() => setLessonFormOpen(false)}
-                className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black text-xs uppercase tracking-widest py-3.5 rounded-2xl"
+                className="flex-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-black text-xs uppercase tracking-widest py-3.5 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 transition"
               >
                 Annuler
               </button>
               <button 
                 type="submit" 
-                className="flex-1 bg-primary hover:bg-primary/95 text-white font-black text-xs uppercase tracking-widest py-3.5 rounded-2xl"
+                className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs uppercase tracking-widest py-3.5 rounded-2xl shadow-lg shadow-indigo-600/25 transition"
               >
                 Enregistrer
               </button>
             </div>
-          </form>
-        </div>
-      )}
-
-      {/* 4. Virtual Class Modal */}
-      {virtualClassFormOpen && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <form onSubmit={handleSaveVirtualClass} className="bg-white p-8 rounded-[2.5rem] border shadow-2xl max-w-lg w-full space-y-6 animate-in zoom-in duration-300">
-            <h3 className="text-xl font-black text-slate-900 dark:text-white">{editingVirtualClass ? "Modifier la séance" : "Nouvelle séance en direct"}</h3>
-            
-            <div className="grid grid-cols-1 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Titre de la réunion *</label>
-                <input 
-                  type="text" 
-                  name="title" 
-                  defaultValue={editingVirtualClass?.title || ""} 
-                  required 
-                  className="w-full bg-slate-50 border p-3 rounded-2xl text-xs font-bold outline-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Classe *</label>
-                  <select name="classId" defaultValue={editingVirtualClass?.classId || ""} required className="w-full bg-slate-50 border p-3 rounded-2xl text-xs font-bold cursor-pointer">
-                    <option value="">-- Choisir --</option>
-                    {classes.map(c => <option key={c.id} value={c.id}>{c.className}</option>)}
-                  </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Matière *</label>
-                  <select name="subjectId" defaultValue={editingVirtualClass?.subjectId || ""} required className="w-full bg-slate-50 border p-3 rounded-2xl text-xs font-bold cursor-pointer">
-                    <option value="">-- Choisir --</option>
-                    {subjects.map(s => <option key={s.id} value={s.id}>{s.subjectName}</option>)}
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Date & Heure *</label>
-                  <input 
-                    type="datetime-local" 
-                    name="sessionDate" 
-                    defaultValue={editingVirtualClass?.sessionDate ? new Date(editingVirtualClass.sessionDate).toISOString().slice(0, 16) : ""}
-                    required
-                    className="w-full bg-slate-50 border p-3 rounded-2xl text-xs font-bold cursor-pointer outline-none"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Durée (minutes)</label>
-                  <input 
-                    type="number" 
-                    name="duration" 
-                    defaultValue={editingVirtualClass?.duration || 45} 
-                    className="w-full bg-slate-50 border p-3 rounded-2xl text-xs font-bold outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Plateforme</label>
-                  <select name="platform" defaultValue={editingVirtualClass?.platform || "Google Meet"} className="w-full bg-slate-50 border p-3 rounded-2xl text-xs font-bold cursor-pointer">
-                    <option value="Google Meet">Google Meet</option>
-                    <option value="Zoom">Zoom</option>
-                    <option value="Microsoft Teams">Microsoft Teams</option>
-                    <option value="Custom">Custom Link</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Mot de passe de la réunion</label>
-                  <input 
-                    type="text" 
-                    name="meetingPassword" 
-                    defaultValue={editingVirtualClass?.meetingPassword || ""} 
-                    className="w-full bg-slate-50 border p-3 rounded-2xl text-xs font-bold outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Lien de la réunion *</label>
-                <input 
-                  type="text" 
-                  name="meetingUrl" 
-                  defaultValue={editingVirtualClass?.meetingUrl || ""} 
-                  placeholder="https://..." 
-                  required
-                  className="w-full bg-slate-50 border p-3 rounded-2xl text-xs font-bold outline-none font-mono"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Enseignant *</label>
-                  <select name="teacherId" defaultValue={editingVirtualClass?.teacherId || ""} required className="w-full bg-slate-50 border p-3 rounded-2xl text-xs font-bold cursor-pointer">
-                    <option value="">-- Choisir --</option>
-                    {employees.map(e => <option key={e.id} value={e.id}>{e.nomPrenom}</option>)}
-                  </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Statut</label>
-                  <select name="status" defaultValue={editingVirtualClass?.status || "À venir"} className="w-full bg-slate-50 border p-3 rounded-2xl text-xs font-bold cursor-pointer">
-                    <option value="À venir">À venir</option>
-                    <option value="Terminée">Terminée</option>
-                    <option value="Annulée">Annulée</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-2">
-              <button 
-                type="button" 
-                onClick={() => setVirtualClassFormOpen(false)}
-                className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black text-xs uppercase tracking-widest py-3.5 rounded-2xl"
-              >
-                Annuler
-              </button>
-              <button 
-                type="submit" 
-                className="flex-1 bg-primary hover:bg-primary/95 text-white font-black text-xs uppercase tracking-widest py-3.5 rounded-2xl"
-              >
-                Sauvegarder
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* 5. Assignment Modal */}
-      {assignmentFormOpen && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <form onSubmit={handleSaveAssignment} className="bg-white p-8 rounded-[2.5rem] border shadow-2xl max-w-lg w-full space-y-6 animate-in zoom-in duration-300">
-            <h3 className="text-xl font-black text-slate-900 dark:text-white">{editingAssignment ? "Modifier le devoir" : "Nouveau Devoir"}</h3>
-            
-            <div className="grid grid-cols-1 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Titre du devoir *</label>
-                <input 
-                  type="text" 
-                  name="title" 
-                  defaultValue={editingAssignment?.title || ""} 
-                  required 
-                  className="w-full bg-slate-50 border p-3 rounded-2xl text-xs font-bold outline-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Cours lié *</label>
-                  <select name="courseId" defaultValue={editingAssignment?.courseId || ""} required className="w-full bg-slate-50 border p-3 rounded-2xl text-xs font-bold cursor-pointer">
-                    <option value="">-- Choisir --</option>
-                    {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
-                  </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Classe *</label>
-                  <select name="classId" defaultValue={editingAssignment?.classId || ""} required className="w-full bg-slate-50 border p-3 rounded-2xl text-xs font-bold cursor-pointer">
-                    <option value="">-- Choisir --</option>
-                    {classes.map(c => <option key={c.id} value={c.id}>{c.className}</option>)}
-                  </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Matière *</label>
-                  <select name="subjectId" defaultValue={editingAssignment?.subjectId || ""} required className="w-full bg-slate-50 border p-3 rounded-2xl text-xs font-bold cursor-pointer">
-                    <option value="">-- Choisir --</option>
-                    {subjects.map(s => <option key={s.id} value={s.id}>{s.subjectName}</option>)}
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Date limite de rendu *</label>
-                  <input 
-                    type="datetime-local" 
-                    name="dueDate" 
-                    defaultValue={editingAssignment?.dueDate ? new Date(editingAssignment.dueDate).toISOString().slice(0, 16) : ""}
-                    required
-                    className="w-full bg-slate-50 border p-3 rounded-2xl text-xs font-bold outline-none"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Barème maximum (ex: 20)</label>
-                  <input 
-                    type="number" 
-                    step="0.5" 
-                    name="maxScore" 
-                    defaultValue={editingAssignment?.maxScore || 20} 
-                    className="w-full bg-slate-50 border p-3 rounded-2xl text-xs font-bold outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Lien du document de sujet</label>
-                <input 
-                  type="text" 
-                  name="fileSujetPath" 
-                  defaultValue={editingAssignment?.fileSujetPath || ""} 
-                  placeholder="/uploads/sujet..." 
-                  className="w-full bg-slate-50 border p-3 rounded-2xl text-xs font-bold outline-none font-mono"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Description / Renseignements</label>
-                <textarea 
-                  name="description" 
-                  defaultValue={editingAssignment?.description || ""} 
-                  className="w-full bg-slate-50 border p-3 rounded-2xl text-xs font-bold h-20 outline-none"
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-2">
-              <button 
-                type="button" 
-                onClick={() => setAssignmentFormOpen(false)}
-                className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black text-xs uppercase tracking-widest py-3.5 rounded-2xl"
-              >
-                Annuler
-              </button>
-              <button 
-                type="submit" 
-                className="flex-1 bg-primary hover:bg-primary/95 text-white font-black text-xs uppercase tracking-widest py-3.5 rounded-2xl"
-              >
-                Sauvegarder
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* 6. Submission Grading Modal */}
-      {gradingSubmission && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <form onSubmit={handleGradeSubmissionSubmit} className="bg-white p-8 rounded-[2.5rem] border shadow-2xl max-w-md w-full space-y-6 animate-in zoom-in duration-300">
-            <h3 className="text-xl font-black text-slate-900 dark:text-white">Noter la copie</h3>
-            
-            <div className="grid grid-cols-1 gap-4">
-              <p className="text-xs text-slate-500 font-bold">Élève : {getStudentName(gradingSubmission.studentId)}</p>
-
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Note accordée</label>
-                <input 
-                  type="number" 
-                  step="0.25" 
-                  required
-                  value={gradeScore}
-                  onChange={(e) => setGradeScore(e.target.value)}
-                  placeholder="Ex : 15.5" 
-                  className="w-full bg-slate-50 border p-3 rounded-2xl text-xs font-bold outline-none"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Commentaires et Remarques</label>
-                <textarea 
-                  value={gradeComment}
-                  onChange={(e) => setGradeComment(e.target.value)}
-                  placeholder="Excellent travail..." 
-                  className="w-full bg-slate-50 border p-3 rounded-2xl text-xs font-bold h-24 outline-none"
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-2">
-              <button 
-                type="button" 
-                onClick={() => setGradingSubmission(null)}
-                className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black text-xs uppercase tracking-widest py-3.5 rounded-2xl"
-              >
-                Fermer
-              </button>
-              <button 
-                type="submit" 
-                className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs uppercase tracking-widest py-3.5 rounded-2xl"
-              >
-                Valider
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* 7. Quiz Modal */}
-      {quizFormOpen && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <form onSubmit={handleSaveQuiz} className="bg-white p-8 rounded-[2.5rem] border shadow-2xl max-w-md w-full space-y-6 animate-in zoom-in duration-300">
-            <h3 className="text-xl font-black text-slate-900 dark:text-white">{editingQuiz ? "Modifier le Quiz" : "Nouveau Quiz"}</h3>
-            
-            <div className="grid grid-cols-1 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Titre du Quiz *</label>
-                <input 
-                  type="text" 
-                  name="title" 
-                  defaultValue={editingQuiz?.title || ""} 
-                  required 
-                  className="w-full bg-slate-50 border p-3 rounded-2xl text-xs font-bold outline-none"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Cours lié *</label>
-                <select name="courseId" defaultValue={editingQuiz?.courseId || ""} required className="w-full bg-slate-50 border p-3 rounded-2xl text-xs font-bold cursor-pointer">
-                  <option value="">-- Choisir --</option>
-                  {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Durée (minutes)</label>
-                  <input 
-                    type="number" 
-                    name="durationMin" 
-                    defaultValue={editingQuiz?.durationMin || 20} 
-                    className="w-full bg-slate-50 border p-3 rounded-2xl text-xs font-bold outline-none"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Moyenne de réussite</label>
-                  <input 
-                    type="number" 
-                    step="0.5" 
-                    name="passingScore" 
-                    defaultValue={editingQuiz?.passingScore || 10.0} 
-                    className="w-full bg-slate-50 border p-3 rounded-2xl text-xs font-bold outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Description</label>
-                <textarea 
-                  name="description" 
-                  defaultValue={editingQuiz?.description || ""} 
-                  className="w-full bg-slate-50 border p-3 rounded-2xl text-xs font-bold h-20 outline-none"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Statut</label>
-                <select name="status" defaultValue={editingQuiz?.status || "Draft"} className="w-full bg-slate-50 border p-3 rounded-2xl text-xs font-bold cursor-pointer">
-                  <option value="Draft">Brouillon</option>
-                  <option value="Active">Actif</option>
-                  <option value="Closed">Fermé</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="flex gap-2">
-              <button 
-                type="button" 
-                onClick={() => setQuizFormOpen(false)}
-                className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black text-xs uppercase tracking-widest py-3.5 rounded-2xl"
-              >
-                Annuler
-              </button>
-              <button 
-                type="submit" 
-                className="flex-1 bg-primary hover:bg-primary/95 text-white font-black text-xs uppercase tracking-widest py-3.5 rounded-2xl"
-              >
-                Créer
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
 
       </div>
       {/* -------------------- EMBEDDED LIVE MEETING MODAL -------------------- */}
