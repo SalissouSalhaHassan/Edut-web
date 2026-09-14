@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useEffect, useMemo } from "react";
 import { 
@@ -155,7 +155,7 @@ export default function LmsDashboardClient({
       toast.info("G\u00e9n\u00e9ration de l'\u00e9cosyst\u00e8me LMS complet (cours, le\u00e7ons, vid\u00e9os, quiz, devoirs, lives)...");
       const res = await seedSampleLmsData();
       if (res?.success) {
-        toast.success(Succ\u00e8s !  cours complets avec contenus ont \u00e9t\u00e9 cr\u00e9\u00e9s.);
+        toast.success("Succès ! cours complets avec contenus ont été créés.");
         window.location.reload();
       } else {
         toast.error(res?.error || "Erreur lors de la g\u00e9n\u00e9ration des donn\u00e9es.");
