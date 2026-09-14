@@ -908,12 +908,12 @@ export async function seedSampleLmsData() {
 
     if (classes.length === 0) {
       const insertedClasses = await db.insert(schoolClasses).values([
-        { schoolId, className: "6ème A", section: "A" },
-        { schoolId, className: "5ème A", section: "A" },
-        { schoolId, className: "4ème A", section: "A" },
-        { schoolId, className: "3ème A", section: "A" },
-        { schoolId, className: "Seconde S", section: "S" },
-        { schoolId, className: "Terminale D", section: "D" },
+        { schoolId, className: "6ème A" },
+        { schoolId, className: "5ème A" },
+        { schoolId, className: "4ème A" },
+        { schoolId, className: "3ème A" },
+        { schoolId, className: "Seconde S" },
+        { schoolId, className: "Terminale D" },
       ]).returning();
       classes = insertedClasses;
     }
