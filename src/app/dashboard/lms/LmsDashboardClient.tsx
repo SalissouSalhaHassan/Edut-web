@@ -2757,8 +2757,10 @@ export default function LmsDashboardClient({
                 Enregistrer
               </button>
             </div>
+          </form>
+        </div>
+      )}
 
-      </div>
       {/* -------------------- EMBEDDED LIVE MEETING MODAL -------------------- */}
       {activeMeeting && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-2 sm:p-6 animate-in fade-in duration-200">
