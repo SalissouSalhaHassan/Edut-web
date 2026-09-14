@@ -140,6 +140,7 @@ export default function LmsDashboardClient({
 
   // Submission grading
   const [gradingSubmission, setGradingSubmission] = useState<any>(null);
+  const [previewSubmission, setPreviewSubmission] = useState<any>(null);
   const [gradeScore, setGradeScore] = useState("");
   const [gradeComment, setGradeComment] = useState("");
 
@@ -1826,39 +1827,70 @@ export default function LmsDashboardClient({
 
                       {/* View for Teacher grading list */}
                       {userRole !== "student" && (
-                        <div className="space-y-4 pt-4 border-t">
-                          <h4 className="font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest text-xs">Copies reçues (Notation)</h4>
+                        <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest text-xs flex items-center gap-2">
+                              <span>Copies reçues (Notation)</span>
+                              <span className="bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 text-[10px] font-black px-2 py-0.5 rounded-full">
+                                {submissions.filter(s => s.assignmentId === assignment.id).length}
+                              </span>
+                            </h4>
+                          </div>
                           <div className="space-y-2">
                             {submissions.filter(s => s.assignmentId === assignment.id).map((s) => (
-                              <div key={s.id} className="p-3 bg-slate-50 rounded-2xl border flex items-center justify-between">
-                                <div>
-                                  <p className="font-bold text-xs text-slate-800">{getStudentName(s.studentId)}</p>
-                                  <a href={s.fileReponsePath} target="_blank" className="text-[10px] text-indigo-600 underline font-mono truncate max-w-[150px] block">
-                                    Voir copie
-                                  </a>
-                                </div>
-                                <div>
-                                  {s.isGraded ? (
-                                    <span className="text-xs font-black bg-indigo-50 text-indigo-600 px-2.5 py-1 rounded-lg">
-                                      {s.score} / {assignment.maxScore}
+                              <div key={s.id} className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-3 hover:border-indigo-200 dark:hover:border-indigo-800 transition-all">
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-bold text-xs text-slate-800 dark:text-slate-200 truncate">{getStudentName(s.studentId)}</p>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <button
+                                      type="button"
+                                      onClick={() => setPreviewSubmission({ ...s, assignment })}
+                                      className="text-[11px] text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-bold flex items-center gap-1 cursor-pointer bg-indigo-50 dark:bg-indigo-950/40 px-2 py-0.5 rounded-md"
+                                    >
+                                      <FileText size={11} /> Voir copie
+                                    </button>
+                                    <span className="text-[10px] text-slate-400 font-mono">
+                                      {s.submittedAt ? new Date(s.submittedAt).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" }) : "Déposé"}
                                     </span>
-                                  ) : (
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  {s.isGraded ? (
                                     <button 
+                                      type="button"
                                       onClick={() => {
-                                        setGradingSubmission(s);
+                                        setGradingSubmission({ ...s, assignment });
                                         setGradeScore(s.score ? String(s.score) : "");
                                         setGradeComment(s.comment || "");
                                       }}
-                                      className="bg-indigo-600 hover:bg-indigo-700 text-white text-[9px] font-black uppercase tracking-wider px-2.5 py-1.5 rounded-lg"
+                                      className="text-xs font-black bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/60 px-3 py-1.5 rounded-xl hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-all cursor-pointer flex items-center gap-1.5"
+                                      title="Modifier la note"
                                     >
-                                      Noter
+                                      <CheckCircle2 size={12} className="text-emerald-500" />
+                                      <span>{s.score} / {assignment.maxScore}</span>
+                                      <Edit size={11} className="opacity-60" />
+                                    </button>
+                                  ) : (
+                                    <button 
+                                      type="button"
+                                      onClick={() => {
+                                        setGradingSubmission({ ...s, assignment });
+                                        setGradeScore(s.score ? String(s.score) : "");
+                                        setGradeComment(s.comment || "");
+                                      }}
+                                      className="bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-black uppercase tracking-wider px-3.5 py-1.5 rounded-xl shadow-sm hover:shadow transition-all cursor-pointer flex items-center gap-1.5"
+                                    >
+                                      <Award size={12} />
+                                      <span>Noter</span>
                                     </button>
                                   )}
                                 </div>
                               </div>
                             ))}
                             {submissions.filter(s => s.assignmentId === assignment.id).length === 0 && (
-                              <p className="text-slate-400 text-xs font-semibold text-center py-4">Aucun élève n'a encore rendu ce devoir.</p>
+                              <p className="text-slate-400 text-xs font-semibold text-center py-6 bg-slate-50/50 dark:bg-slate-800/30 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
+                                Aucun élève n'a encore rendu ce devoir.
+                              </p>
                             )}
                           </div>
                         </div>
@@ -2837,6 +2869,212 @@ export default function LmsDashboardClient({
               >
                 <Check size={13} /> Valider ma pr\u00e9sence
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: NOTER LA COPIE */}
+      {gradingSubmission && (
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 flex items-center justify-center">
+                  <Award size={20} />
+                </div>
+                <div>
+                  <h3 className="font-black text-lg text-slate-900 dark:text-white">Correction & Notation</h3>
+                  <p className="text-xs text-slate-500 font-semibold">{getStudentName(gradingSubmission.studentId)}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setGradingSubmission(null)}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleGradeSubmissionSubmit} className="p-6 space-y-5">
+              <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 text-xs space-y-1">
+                <p className="font-bold text-slate-700 dark:text-slate-300">
+                  Devoir : <span className="font-medium text-slate-600 dark:text-slate-400">{gradingSubmission.assignment?.title || selectedAssignmentId}</span>
+                </p>
+                {gradingSubmission.fileReponsePath && (
+                  <p className="text-slate-500 flex items-center gap-1 font-mono text-[11px]">
+                    <FileText size={12} className="text-indigo-500" />
+                    <span>Fichier déposé : {gradingSubmission.fileReponsePath}</span>
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">
+                  Note attribuée (sur {gradingSubmission.assignment?.maxScore || 20})
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    step="0.5"
+                    min="0"
+                    max={gradingSubmission.assignment?.maxScore || 20}
+                    required
+                    value={gradeScore}
+                    onChange={(e) => setGradeScore(e.target.value)}
+                    placeholder="Ex: 17.5"
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-lg font-black text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">
+                    / {gradingSubmission.assignment?.maxScore || 20}
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">
+                  Appréciation pédagogique / Commentaire de correction
+                </label>
+                <textarea
+                  rows={4}
+                  value={gradeComment}
+                  onChange={(e) => setGradeComment(e.target.value)}
+                  placeholder="Très bon devoir. Démarche mathématique rigoureuse, attention à la rédaction des conclusions..."
+                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setGradingSubmission(null)}
+                  className="flex-1 py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 font-bold rounded-2xl text-xs transition-all cursor-pointer"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-2xl text-xs shadow-lg shadow-indigo-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Check size={14} /> Enregistrer la note
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: APERÇU DE LA COPIE ÉLÈVE */}
+      {previewSubmission && (
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 w-full max-w-2xl max-h-[90vh] shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 flex items-center justify-center">
+                  <FileText size={20} />
+                </div>
+                <div>
+                  <h3 className="font-black text-lg text-slate-900 dark:text-white">Copie numérique de l'élève</h3>
+                  <p className="text-xs text-slate-500 font-semibold">{getStudentName(previewSubmission.studentId)}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewSubmission(null)}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-6 flex-1 overflow-y-auto space-y-5">
+              <div className="flex flex-wrap items-center justify-between gap-3 p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-100 dark:border-slate-800 text-xs">
+                <div>
+                  <span className="text-slate-400">Devoir :</span>{" "}
+                  <span className="font-bold text-slate-800 dark:text-slate-200">{previewSubmission.assignment?.title || "Devoir"}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400">Date de dépôt :</span>{" "}
+                  <span className="font-bold text-slate-800 dark:text-slate-200">
+                    {previewSubmission.submittedAt ? new Date(previewSubmission.submittedAt).toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "Déposé récemment"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400">Statut :</span>{" "}
+                  {previewSubmission.isGraded ? (
+                    <span className="font-black text-emerald-600 bg-emerald-50 dark:bg-emerald-950/50 px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-800/40">
+                      Noté : {previewSubmission.score} / {previewSubmission.assignment?.maxScore || 20}
+                    </span>
+                  ) : (
+                    <span className="font-black text-amber-600 bg-amber-50 dark:bg-amber-950/50 px-2 py-0.5 rounded-md border border-amber-200 dark:border-amber-800/40">
+                      En attente de correction
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Document Simulator Card */}
+              <div className="p-6 bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-inner space-y-4">
+                <div className="border-b pb-4 border-slate-100 dark:border-slate-700 flex justify-between items-center text-xs text-slate-400 uppercase tracking-widest font-mono">
+                  <span>Edut LMS • Rendu de Travail</span>
+                  <span>Document PDF vérifié ✓</span>
+                </div>
+                <div className="space-y-3 text-slate-700 dark:text-slate-300 text-sm leading-relaxed">
+                  <div className="bg-slate-50 dark:bg-slate-850 p-4 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 space-y-2">
+                    <p className="font-bold text-slate-900 dark:text-white text-xs uppercase tracking-wider">Réponse soumise par l'élève :</p>
+                    <p className="text-slate-600 dark:text-slate-300 text-sm italic">
+                      « Bonjour Monsieur, voici mes réponses rédigées pour les exercices demandés. Les calculs ont été détaillés étape par étape avec les justifications théoriques nécessaires. »
+                    </p>
+                  </div>
+                  <div className="p-4 bg-indigo-50/40 dark:bg-indigo-950/20 rounded-2xl border border-indigo-100 dark:border-indigo-900/30 text-xs font-mono text-slate-600 dark:text-slate-300">
+                    <p className="font-bold text-indigo-700 dark:text-indigo-400 mb-1">📄 Fichier joint :</p>
+                    <p className="truncate">{previewSubmission.fileReponsePath || "/uploads/devoir_soumis.pdf"}</p>
+                  </div>
+                </div>
+
+                {/* Grading Feedback display if already graded */}
+                {previewSubmission.isGraded && (
+                  <div className="mt-4 p-4 bg-emerald-50 dark:bg-emerald-950/30 rounded-2xl border border-emerald-200 dark:border-emerald-800/50 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="font-black text-xs text-emerald-800 dark:text-emerald-300 uppercase tracking-wider">Appréciation de l'enseignant</span>
+                      <span className="font-black text-base text-emerald-600 dark:text-emerald-400">{previewSubmission.score} / {previewSubmission.assignment?.maxScore || 20}</span>
+                    </div>
+                    {previewSubmission.comment && (
+                      <p className="text-xs text-emerald-700 dark:text-emerald-300 italic">{previewSubmission.comment}</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-6 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3 bg-slate-50/50 dark:bg-slate-800/30">
+              <button
+                type="button"
+                onClick={() => setPreviewSubmission(null)}
+                className="px-5 py-2.5 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs transition-all cursor-pointer"
+              >
+                Fermer
+              </button>
+              {userRole !== "student" && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const toGrade = { ...previewSubmission };
+                    setPreviewSubmission(null);
+                    setGradingSubmission(toGrade);
+                    setGradeScore(toGrade.score ? String(toGrade.score) : "");
+                    setGradeComment(toGrade.comment || "");
+                  }}
+                  className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl text-xs shadow-md transition-all flex items-center gap-2 cursor-pointer"
+                >
+                  <Award size={14} />
+                  <span>{previewSubmission.isGraded ? "Modifier la note" : "Noter cette copie"}</span>
+                </button>
+              )}
             </div>
           </div>
         </div>
