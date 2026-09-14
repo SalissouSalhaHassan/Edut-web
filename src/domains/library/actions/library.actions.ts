@@ -166,3 +166,97 @@ export async function returnLibraryBook(issueId: number, fineAmount: number = 0)
     return { success: true };
   });
 }
+
+export async function seedSampleLibraryResources() {
+  return protectedDbAction("Library", "canEdit", async () => {
+    const schoolId = await getActiveSchoolId();
+    if (!schoolId) return { error: "Aucun contexte d'école trouvé." };
+
+    const samples = [
+      {
+        title: "Droit Constitutionnel & Institutions Politiques",
+        author: "Pr. Mamadou Traoré",
+        isbn: "978-2-8418-0112-4",
+        category: "Sciences Juridiques & Politiques",
+        totalQuantity: 9999,
+        shelfLocation: "Biblio-Num / Cloud",
+        fileUrl: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+        fileType: "PDF",
+        isDigital: "true",
+        description: "Manuel de référence traitant des régimes politiques, du contrôle de constitutionnalité et de l'histoire des institutions en Afrique de l'Ouest.",
+      },
+      {
+        title: "Algorithmique, Structures de Données & Python Avancé",
+        author: "Dr. Ousmane Bello",
+        isbn: "978-2-1007-8891-2",
+        category: "Informatique & IA",
+        totalQuantity: 9999,
+        shelfLocation: "Biblio-Num / Informatique",
+        fileUrl: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+        fileType: "PDF",
+        isDigital: "true",
+        description: "Concepts fondamentaux de complexité algorithmique, POO, arbres binaires, graphes et introduction au Machine Learning.",
+      },
+      {
+        title: "Mathématiques Générales : Analyse & Algèbre Linéaire",
+        author: "Pr. Idrissa Diallo",
+        isbn: "978-2-7298-5431-8",
+        category: "Mathématiques",
+        totalQuantity: 8,
+        shelfLocation: "Rayon B2 - Étagère 4",
+        fileUrl: null,
+        fileType: "PDF",
+        isDigital: "false",
+        description: "Cours complet avec 150 exercices corrigés. Espaces vectoriels, calcul matriciel, intégrales multiples et séries entières.",
+      },
+      {
+        title: "Histoire Générale de l'Afrique : Des Origines aux Indépendances",
+        author: "Comité Scientifique UNESCO",
+        isbn: "978-9-2320-1708-6",
+        category: "Histoire & Sociologie",
+        totalQuantity: 9999,
+        shelfLocation: "Biblio-Num / Archives",
+        fileUrl: "https://unesdoc.unesco.org/ark:/48223/pf0000042698",
+        fileType: "PDF",
+        isDigital: "true",
+        description: "Ouvrage de référence sur les civilisations sahélo-sahariennes, le commerce transsaharien et l'émancipation des peuples africains.",
+      },
+      {
+        title: "Économie du Développement & Finances Publiques",
+        author: "Dr. Aminata Touré",
+        isbn: "978-2-3431-2900-5",
+        category: "Économie & Gestion",
+        totalQuantity: 5,
+        shelfLocation: "Rayon C1 - Étagère 2",
+        fileUrl: null,
+        fileType: "PDF",
+        isDigital: "false",
+        description: "Politiques macroéconomiques, gestion budgétaire axée sur les résultats, fiscalité et convergence monétaire dans l'espace UEMOA.",
+      },
+      {
+        title: "Anatomie & Physiologie Humaine Fondamentale",
+        author: "Pr. K. Assane & Collège Médical",
+        isbn: "978-2-2947-6540-1",
+        category: "Médecine & Santé",
+        totalQuantity: 9999,
+        shelfLocation: "Biblio-Num / Santé",
+        fileUrl: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+        fileType: "PDF",
+        isDigital: "true",
+        description: "Manuel illustré destiné aux étudiants en médecine, pharmacie et soins infirmiers. Systèmes circulatoire, respiratoire et immunitaire.",
+      },
+    ];
+
+    for (const sample of samples) {
+      await db.insert(libraryBooks).values({
+        ...sample,
+        schoolId,
+        availableQuantity: sample.totalQuantity,
+      });
+    }
+
+    revalidatePath("/dashboard/library");
+    return { success: true, count: samples.length };
+  });
+}
+
