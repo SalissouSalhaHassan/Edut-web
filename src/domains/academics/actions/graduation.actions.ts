@@ -472,18 +472,6 @@ export async function getDigitalLibrary(search?: string, department?: string) {
         archive: true,
       },
       orderBy: desc(graduationProjects.id),
-        search ? or(
-          ilike(graduationProjects.title, `%${search}%`),
-          ilike(graduationProjects.keywords, `%${search}%`)
-        ) : undefined,
-        department ? eq(graduationProjects.department, department) : undefined,
-      ),
-      with: {
-        student: true,
-        supervisor: true,
-        archive: true,
-      },
-      orderBy: desc(graduationProjects.id),
     });
     return { data };
   });
