@@ -472,6 +472,18 @@ export async function getDigitalLibrary(search?: string, department?: string) {
         archive: true,
       },
       orderBy: desc(graduationProjects.id),
+        search ? or(
+          ilike(graduationProjects.title, `%${search}%`),
+          ilike(graduationProjects.keywords, `%${search}%`)
+        ) : undefined,
+        department ? eq(graduationProjects.department, department) : undefined,
+      ),
+      with: {
+        student: true,
+        supervisor: true,
+        archive: true,
+      },
+      orderBy: desc(graduationProjects.id),
     });
     return { data };
   });
@@ -494,5 +506,297 @@ export async function searchStudentsForGraduation(query: string) {
       limit: 10
     });
     return { data };
+  });
+}
+
+// ─── Seed Sample Graduation & Research Projects ───────────────────────────────
+
+export async function seedSampleGraduationData() {
+  return protectedDbAction("Academics", "canEdit", async () => {
+    await ensureMigrations();
+    const schoolId = await getActiveSchoolId();
+    if (!schoolId) return { error: "Aucun contexte d'école trouvé." };
+
+    // 1. Seed Defense Rooms if none exist
+    const existingRooms = await db.query.graduationDefenseRooms.findMany({
+      where: eq(graduationDefenseRooms.schoolId, schoolId),
+    });
+
+    let roomAlKindi = "Salle des Thèses Al-Kindi (B1)";
+    let roomAmphi = "Amphithéâtre A - Délibérations & Thèses";
+    let roomLab = "Laboratoire Multimédia & Recherche IA";
+
+    if (existingRooms.length === 0) {
+      await db.insert(graduationDefenseRooms).values([
+        {
+          schoolId,
+          roomName: roomAmphi,
+          capacity: 90,
+          location: "Bâtiment Central, 1er Étage",
+          equipment: "Vidéoprojecteur Laser 4K, 4 Micros sans fil, Enregistrement audio HD, Climatisation, Visioconférence Zoom/Teams",
+          isAvailable: true,
+        },
+        {
+          schoolId,
+          roomName: roomAlKindi,
+          capacity: 40,
+          location: "Pavillon Master & Recherche, RDC",
+          equipment: "Écran interactif tactile 75\", Système audio délibération confidentielle, Climatisation, Caméra PTZ HD",
+          isAvailable: true,
+        },
+        {
+          schoolId,
+          roomName: roomLab,
+          capacity: 30,
+          location: "Faculté d'Informatique, Aile Ouest",
+          equipment: "Serveurs GPU, 2 Écrans muraux de projection, Réseau dédié 1Gbps, Pupitre orateur multimédia",
+          isAvailable: true,
+        },
+      ]);
+    } else {
+      roomAmphi = existingRooms[0]?.roomName || roomAmphi;
+      roomAlKindi = existingRooms[1]?.roomName || existingRooms[0]?.roomName || roomAlKindi;
+      roomLab = existingRooms[2]?.roomName || roomAlKindi;
+    }
+
+    // 2. Fetch available students and employees
+    const availableStudents = await db.query.students.findMany({
+      where: eq(students.schoolId, schoolId),
+      limit: 10,
+    });
+    const availableTeachers = await db.query.employees.findMany({
+      where: eq(employees.schoolId, schoolId),
+      limit: 10,
+    });
+
+    const sId = (idx: number) => availableStudents[idx]?.id || null;
+    const tId = (idx: number) => availableTeachers[idx]?.id || null;
+
+    const now = new Date();
+    const defenseDate1 = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+    defenseDate1.setHours(10, 0, 0, 0);
+
+    const defenseDate2 = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000);
+    defenseDate2.setHours(14, 30, 0, 0);
+
+    const defenseDatePast = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    defenseDatePast.setHours(9, 30, 0, 0);
+
+    // 3. Sample Projects to insert
+    const sampleProjects = [
+      {
+        projectCode: "PFE-2026-001",
+        title: "Système Embarqué IoT et Intelligence Artificielle pour la Gestion Hydrique Sahélienne",
+        summary: "Développement d'un réseau de capteurs IoT à basse consommation avec modèle d'inférence TinyML pour la gestion hydrique automatisée des cultures maraîchères au Niger.",
+        keywords: "IoT, TinyML, Irrigation Intelligente, Agriculture Sahélienne, Énergie Solaire",
+        department: "Informatique",
+        filiere: "Génie Logiciel & Systèmes Embarqués",
+        niveau: "Master",
+        language: "Français",
+        academicYear: "2025-2026",
+        studentId: sId(0),
+        supervisorId: tId(0),
+        status: "Proposition",
+        progressPercent: 25,
+      },
+      {
+        projectCode: "PFE-2026-002",
+        title: "Analyse Économétrique de l'Impact de la Digitalisation Fiscale sur les Recettes Publiques",
+        summary: "Évaluation empirique des effets de la facture électronique et du paiement mobile sur l'assiette fiscale et le secteur informel dans l'espace UEMOA.",
+        keywords: "Fiscalité Numérique, Économétrie, Recettes Publiques, Mobile Money, UEMOA",
+        department: "Économie",
+        filiere: "Économie du Développement",
+        niveau: "Master",
+        language: "Français",
+        academicYear: "2025-2026",
+        studentId: sId(1),
+        supervisorId: tId(1),
+        status: "Encadrement",
+        progressPercent: 65,
+      },
+      {
+        projectCode: "PFE-2026-003",
+        title: "Conception et Dimensionnement d'un Micro-Réseau Hybride Photovoltaïque / Biomasse",
+        summary: "Modélisation technico-économique sous HOMER Pro d'une mini-centrale autonome pour l'électrification rurale de la région de Dosso.",
+        keywords: "Énergies Renouvelables, Photovoltaïque, Micro-réseau, HOMER Pro, Électrification Rurale",
+        department: "Physique",
+        filiere: "Génie Énergétique",
+        niveau: "Licence",
+        language: "Français",
+        academicYear: "2025-2026",
+        studentId: sId(2),
+        supervisorId: tId(2),
+        status: "Pré-soutenance",
+        progressPercent: 85,
+      },
+      {
+        projectCode: "PFE-2026-004",
+        title: "Architecture de Sécurité Zero Trust et Détection d'Intrusions par Graph Neural Networks",
+        summary: "Implémentation d'un système de surveillance réseau basé sur les graphes et modèles d'attention pour la détection proactive des menaces persistantes avancées (APT).",
+        keywords: "Cybersécurité, Zero Trust, Graph Neural Networks, Détection d'Intrusions, SIEM",
+        department: "Informatique",
+        filiere: "Cybersécurité & Réseaux",
+        niveau: "Master",
+        language: "Français",
+        academicYear: "2025-2026",
+        studentId: sId(3),
+        supervisorId: tId(0),
+        presidentId: tId(1),
+        rapporteurId: tId(2),
+        examinerId: tId(3),
+        defenseDate: defenseDate1,
+        roomName: roomAlKindi,
+        defenseDurationMins: 60,
+        status: "Soutenance",
+        progressPercent: 95,
+      },
+      {
+        projectCode: "PFE-2026-005",
+        title: "Le Contrôle de Constitutionnalité en Période d'Exception : Étude Comparée en Afrique de l'Ouest",
+        summary: "Analyse jurisprudentielle des cours constitutionnelles face aux états d'urgence et aux transitions politiques en zone CEDEAO.",
+        keywords: "Droit Constitutionnel, État de Droit, CEDEAO, Droits Fondamentaux, Transition Politique",
+        department: "Droit",
+        filiere: "Droit Public Fondamental",
+        niveau: "Licence",
+        language: "Français",
+        academicYear: "2025-2026",
+        studentId: sId(4),
+        supervisorId: tId(3),
+        presidentId: tId(0),
+        rapporteurId: tId(1),
+        examinerId: tId(2),
+        defenseDate: defenseDate2,
+        roomName: roomAmphi,
+        defenseDurationMins: 75,
+        status: "Soutenance",
+        progressPercent: 90,
+      },
+      {
+        projectCode: "PFE-2026-006",
+        title: "Modélisation Stochastique de la Dynamique de Transmission du Paludisme en Climat Sahélien",
+        summary: "Formulation d'équations différentielles stochastiques intégrant les variations pluviométriques et simulation de scénarios d'intervention vaccinale.",
+        keywords: "Biomathématiques, Équations Stochastiques, Modélisation Épidémiologique, Paludisme",
+        department: "Mathématiques",
+        filiere: "Mathématiques Appliquées",
+        niveau: "Master",
+        language: "Français",
+        academicYear: "2025-2026",
+        studentId: sId(5),
+        supervisorId: tId(1),
+        presidentId: tId(2),
+        rapporteurId: tId(0),
+        examinerId: tId(3),
+        defenseDate: defenseDatePast,
+        roomName: roomLab,
+        defenseDurationMins: 60,
+        status: "Délibération",
+        progressPercent: 100,
+        grade: 16.5,
+        mention: "Très Bien",
+        decision: "Validé",
+      },
+      {
+        projectCode: "PFE-2026-007",
+        title: "Profil Épidémiologique et Marqueurs Moléculaires de Résistance aux Antipaludiques au Sahel",
+        summary: "Étude transversale sur 450 échantillons cliniques mettant en évidence les mutations génétiques k13 et pfcrt associées à la tolérance aux dérivés d'artémisinine.",
+        keywords: "Biologie Moléculaire, Paludisme, Pharmacorésistance, Séquençage ADN, Santé Publique",
+        department: "Médecine",
+        filiere: "Sciences Biomédicales",
+        niveau: "Doctorat",
+        language: "Français",
+        academicYear: "2024-2025",
+        studentId: sId(6),
+        supervisorId: tId(2),
+        presidentId: tId(0),
+        rapporteurId: tId(1),
+        examinerId: tId(3),
+        defenseDate: defenseDatePast,
+        roomName: roomAmphi,
+        defenseDurationMins: 90,
+        status: "Archivage",
+        progressPercent: 100,
+        grade: 18.0,
+        mention: "Très Bien",
+        decision: "Validé avec Félicitations du Jury",
+        isDistinguished: true,
+        isPublished: true,
+        archiveRef: "ARCH-2026-0001",
+        archiveUrl: "/library/ARCH-2026-0001",
+      },
+    ];
+
+    for (const proj of sampleProjects) {
+      const inserted = await db.insert(graduationProjects).values({
+        ...proj,
+        schoolId,
+      }).returning({ id: graduationProjects.id });
+
+      const newProjId = inserted[0]?.id;
+      if (!newProjId) continue;
+
+      // Add sample documents
+      await db.insert(graduationDocuments).values([
+        {
+          projectId: newProjId,
+          schoolId,
+          docType: "Proposition",
+          title: "Note de Cadrage & Cahier des Charges Initial",
+          fileUrl: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+          version: "v1.0",
+          notes: "Validé par la commission pédagogique",
+        },
+        {
+          projectId: newProjId,
+          schoolId,
+          docType: "Rapport PDF",
+          title: `Mémoire Final — ${proj.title}`,
+          fileUrl: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+          version: "v2.1 Final",
+          notes: "Rapport complet avec annexes et références bibliographiques",
+        },
+        {
+          projectId: newProjId,
+          schoolId,
+          docType: "Présentation PPT",
+          title: "Support Diapositives de Soutenance",
+          fileUrl: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+          version: "v1.0",
+          notes: "Diaporama officiel pour les 20 minutes d'exposé oral",
+        },
+      ]);
+
+      // If project has grade (P6 or P7), add jury evaluation
+      if (proj.grade) {
+        await db.insert(graduationJuryEvaluations).values({
+          projectId: newProjId,
+          schoolId,
+          scienceQuality: proj.grade >= 17 ? 18.0 : 16.5,
+          methodology: proj.grade >= 17 ? 17.5 : 16.0,
+          presentation: proj.grade >= 17 ? 18.5 : 17.0,
+          innovation: proj.grade >= 17 ? 18.0 : 16.0,
+          questions: proj.grade >= 17 ? 18.0 : 17.0,
+          average: proj.grade,
+          mention: proj.mention,
+          decision: proj.decision,
+          juryComments: proj.grade >= 17
+            ? "Travail d'une qualité scientifique exceptionnelle, rigueur méthodologique irréprochable et maîtrise parfaite du sujet par le candidat."
+            : "Très bon travail de recherche, démarche rigoureuse et excellente soutenance orale.",
+        });
+      }
+
+      // If archived project, add archive entry
+      if (proj.status === "Archivage" && proj.archiveRef) {
+        await db.insert(graduationArchives).values({
+          projectId: newProjId,
+          schoolId,
+          archiveRef: proj.archiveRef,
+          permanentLink: proj.archiveUrl,
+          qrCodeUrl: `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(proj.archiveUrl || "")}`,
+        });
+      }
+    }
+
+    revalidatePath("/dashboard/academics/research-graduation");
+    return { success: true, count: sampleProjects.length };
   });
 }
