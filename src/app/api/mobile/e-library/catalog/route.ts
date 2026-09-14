@@ -160,9 +160,9 @@ export async function GET(request: NextRequest) {
     // Filter by format if requested
     let filteredBooks = books;
     if (format === "digital") {
-      filteredBooks = filteredBooks.filter((b) => b.isDigital === "true" || b.isDigital === true || b.fileUrl != null);
+      filteredBooks = filteredBooks.filter((b) => b.isDigital === "true" || b.fileUrl != null);
     } else if (format === "physical") {
-      filteredBooks = filteredBooks.filter((b) => b.isDigital === "false" || b.isDigital === false || b.isDigital == null || !b.fileUrl);
+      filteredBooks = filteredBooks.filter((b) => b.isDigital === "false" || b.isDigital == null || !b.fileUrl);
     }
 
     // Filter by category if requested
