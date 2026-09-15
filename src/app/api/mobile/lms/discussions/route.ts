@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
     const enriched = messages.map((m) => {
       const isTeacher = !!m.employeeId;
       const authorName = isTeacher
-        ? `Prof. ${m.employee?.prenom || ""} ${m.employee?.nom || ""}`.trim()
+        ? (m.employee?.nom ? `Prof. ${m.employee.nom}` : "Enseignant")
         : m.student?.nomEtudiant || "Utilisateur";
 
       return {
