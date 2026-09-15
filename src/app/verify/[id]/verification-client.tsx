@@ -645,30 +645,32 @@ interface PhaseText {
         </header>
 
         {/* ─── INVALID / NOT FOUND RECORD ─── */}
-        {!data && (
+        {(!data || !data.isValid) && (
           <div className="text-center py-20 px-6 rounded-3xl bg-slate-900/60 border border-rose-500/30 shadow-2xl space-y-5 animate-in fade-in zoom-in-95">
             <div className="h-16 w-16 mx-auto rounded-2xl bg-rose-500/10 text-rose-400 border border-rose-500/20 flex items-center justify-center">
               <BadgeAlert className="h-8 w-8" />
             </div>
             <h2 className="text-2xl font-black text-white">
-              {lang === "ar" ? "لم يتم العثور على الوثيقة أو المعاملة" : "Document / Transaction Non Trouvé(e)"}
+              {lang === "ar" ? "لم يتم العثور على الوثيقة أو المعاملة" : lang === "en" ? "Document / Transaction Not Found" : "Document / Transaction Non Trouvé(e)"}
             </h2>
-            <p className="text-sm text-slate-400 max-w-md mx-auto">
+            <p className="text-sm text-slate-400 max-w-md mx-auto leading-relaxed">
               {lang === "ar" 
                 ? `المعرف "${rawId}" غير مسجل في قاعدة البيانات المركزية. يرجى التحقق من الرقم أو مسح الرمز مجدداً.`
+                : lang === "en"
+                ? `The identifier "${rawId}" does not match any official document or financial transaction in our central ledger.`
                 : `L'identifiant "${rawId}" ne correspond à aucun document ou versement officiel dans notre registre central.`
               }
             </p>
             <Link href="/verify">
               <Button className="mt-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs">
-                {lang === "ar" ? "البحث برقم آخر" : "Effectuer une autre recherche"}
+                {lang === "ar" ? "البحث برقم آخر" : lang === "en" ? "Search Another Identifier" : "Effectuer une autre recherche"}
               </Button>
             </Link>
           </div>
         )}
 
         {/* ─── VALID DOCUMENT / TRANSACTION ─── */}
-        {data && (
+        {data && data.isValid && (
           <div className="space-y-8 animate-in fade-in duration-500">
             
             {/* ─── HERO VERIFICATION BANNER (PHASE-AWARE) ─── */}

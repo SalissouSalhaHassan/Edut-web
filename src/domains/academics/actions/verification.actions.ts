@@ -243,89 +243,210 @@ export async function getAcademicVerificationData(identifier: string): Promise<V
 
     const numId = !isNaN(Number(rawId)) ? Number(rawId) : 0;
 
-    // ──────────────────────────────────────────────────────────────────────────
-    // 1. FINANCIAL DOCUMENT VERIFICATION (Reçus de Caisse, Mobile Money, COGES)
-    // ──────────────────────────────────────────────────────────────────────────
-    if (isFinancialLookup) {
-      let paymentRecord: any = null;
-      let studentRecord: any = null;
+    // Helper to find genuine payment in feePayments, onlineTransactions, or cogesPayments
+    async function findPaymentRecord(cleanId: string) {
+      const searchNumId = !isNaN(Number(cleanId)) ? Number(cleanId) : 0;
+      const cleanRecId = Number(cleanId.replace(/^rec[-_]/i, ""));
+      const cleanCogesId = Number(cleanId.replace(/^coges[-_]/i, ""));
 
+      // 1. feePayments
       try {
-        const foundPayments = await (readDb || db)
+        const feeConds = [
+          eq(feePayments.reference, cleanId),
+          eq(feePayments.receiptToken, cleanId),
+          eq(feePayments.reference, cleanId.toUpperCase()),
+          eq(feePayments.reference, cleanId.toLowerCase()),
+        ];
+        if (searchNumId > 0) feeConds.push(eq(feePayments.id, searchNumId));
+        if (!isNaN(cleanRecId) && cleanRecId > 0 && cleanRecId !== searchNumId) {
+          feeConds.push(eq(feePayments.id, cleanRecId));
+        }
+
+        const found = await (readDb || db)
           .select()
           .from(feePayments)
-          .where(
-            or(
-              eq(feePayments.reference, rawId),
-              eq(feePayments.receiptToken, rawId)
-            )
-          )
+          .where(or(...feeConds))
           .limit(1);
-        paymentRecord = foundPayments[0];
 
-        if (paymentRecord && paymentRecord.feeId) {
-          const foundFees = await (readDb || db)
-            .select()
-            .from(studentFees)
-            .where(eq(studentFees.id, paymentRecord.feeId))
-            .limit(1);
-          if (foundFees[0] && foundFees[0].studentId) {
-            const foundStu = await (readDb || db)
-              .select()
-              .from(students)
-              .where(eq(students.id, foundFees[0].studentId))
-              .limit(1);
-            studentRecord = foundStu[0];
+        if (found && found.length > 0) {
+          const p = found[0];
+          let student = null;
+          let fee = null;
+          if (p.feeId) {
+            const fees = await (readDb || db).select().from(studentFees).where(eq(studentFees.id, p.feeId)).limit(1);
+            if (fees[0]) {
+              fee = fees[0];
+              if (fee.studentId) {
+                const stus = await (readDb || db).select().from(students).where(eq(students.id, fee.studentId)).limit(1);
+                if (stus[0]) student = stus[0];
+              }
+            }
           }
+          return {
+            payment: p,
+            student,
+            fee,
+            amount: Number(p.amount || 0),
+            reference: p.reference || p.receiptToken || `REC-${p.id}`,
+            paymentMode: p.paymentMode || "Caisse Centrale / Mobile Money",
+            datePaid: p.datePaid,
+            recordedBy: p.recordedBy || "Comptabilité Centrale EDUT",
+            schoolId: p.schoolId,
+            purpose: p.monthConcerned ? `Frais de Scolarité (${p.monthConcerned})` : "Frais de Scolarité & Droits Académiques",
+          };
         }
       } catch (err) {
-        console.warn("DB fee payment search warning:", err);
+        console.warn("Fee payment search error:", err);
       }
 
-      const amount = paymentRecord ? Number(paymentRecord.amount) : 150000;
-      const refCode = paymentRecord ? paymentRecord.reference || rawId : rawId;
-      const studentNom = studentRecord ? studentRecord.nomEtudiant : "MALAM LAOUALI HABSATOU";
-      const studentMatricule = studentRecord ? (studentRecord.numAdmission || `EDUT-${studentRecord.id}`) : "EDUT-2024-000345";
-      const studentId = studentRecord ? studentRecord.id : 345;
+      // 2. onlineTransactions
+      try {
+        const foundOnline = await (readDb || db)
+          .select()
+          .from(onlineTransactions)
+          .where(
+            or(
+              eq(onlineTransactions.transactionReference, cleanId),
+              eq(onlineTransactions.transactionReference, cleanId.toUpperCase()),
+              searchNumId > 0 ? eq(onlineTransactions.id, searchNumId) : undefined
+            ).filter(Boolean) as any[]
+          )
+          .limit(1);
 
-      const hexHash = Buffer.from(`${refCode}-${amount}-FINANCE-CAMES-2026`).toString("hex").toUpperCase();
+        if (foundOnline && foundOnline.length > 0) {
+          const txn = foundOnline[0];
+          let student = null;
+          if (txn.studentId) {
+            const stus = await (readDb || db).select().from(students).where(eq(students.id, txn.studentId)).limit(1);
+            if (stus[0]) student = stus[0];
+          }
+          return {
+            payment: txn,
+            student,
+            fee: null,
+            amount: Number(txn.amount || 0),
+            reference: txn.transactionReference,
+            paymentMode: txn.provider || "Passerelle En Ligne",
+            datePaid: txn.createdAt,
+            recordedBy: "Passerelle de Paiement En Ligne",
+            schoolId: txn.schoolId,
+            purpose: txn.purpose || "Paiement en Ligne Sécurisé",
+          };
+        }
+      } catch (err) {
+        console.warn("Online transaction search error:", err);
+      }
+
+      // 3. cogesPayments
+      try {
+        const cogesConds = [
+          eq(cogesPayments.receiptNumber, cleanId),
+          eq(cogesPayments.receiptNumber, cleanId.toUpperCase()),
+        ];
+        if (searchNumId > 0) cogesConds.push(eq(cogesPayments.id, searchNumId));
+        if (!isNaN(cleanCogesId) && cleanCogesId > 0 && cleanCogesId !== searchNumId) {
+          cogesConds.push(eq(cogesPayments.id, cleanCogesId));
+        }
+
+        const foundCoges = await (readDb || db)
+          .select()
+          .from(cogesPayments)
+          .where(or(...cogesConds))
+          .limit(1);
+
+        if (foundCoges && foundCoges.length > 0) {
+          const c = foundCoges[0];
+          let student = null;
+          if (c.studentId) {
+            const stus = await (readDb || db).select().from(students).where(eq(students.id, c.studentId)).limit(1);
+            if (stus[0]) student = stus[0];
+          }
+          return {
+            payment: c,
+            student,
+            fee: null,
+            amount: Number(c.amount || 0),
+            reference: c.receiptNumber || `COGES-${c.id}`,
+            paymentMode: "Caisse COGES",
+            datePaid: c.datePaid || c.createdAt,
+            recordedBy: c.recordedBy || "Comité de Gestion COGES",
+            schoolId: c.schoolId,
+            purpose: c.purpose || "Contribution Scolaire COGES",
+            payerName: c.receivedFrom,
+          };
+        }
+      } catch (err) {
+        console.warn("COGES payment search error:", err);
+      }
+
+      return null;
+    }
+
+    async function buildFinancialVerificationResult(info: any): Promise<VerificationResult> {
+      const { payment, student, fee, amount, reference, paymentMode, datePaid, recordedBy, schoolId, purpose, payerName } = info;
+
+      let realSchool: any = null;
+      let realBranch: any = null;
+
+      const targetSchoolId = schoolId || student?.schoolId;
+      if (targetSchoolId) {
+        try {
+          const sList = await (readDb || db).select().from(schools).where(eq(schools.id, targetSchoolId)).limit(1);
+          if (sList[0]) realSchool = sList[0];
+          const bList = await (readDb || db).select().from(schoolBranches).where(eq(schoolBranches.schoolId, targetSchoolId)).limit(1);
+          if (bList[0]) realBranch = bList[0];
+        } catch (_) {}
+      }
+
+      const studentNom = student ? student.nomEtudiant : (payerName || "Bénéficiaire Encaissé");
+      const studentMatricule = student ? (student.numAdmission || `EDUT-${student.id}`) : `REF-${payment.id}`;
+      const studentId = student ? student.id : payment.id;
+
+      const hexHash = Buffer.from(`${reference}-${amount}-FINANCE-${payment.id}`).toString("hex").toUpperCase();
       const finHash = `SHA256:FIN-${hexHash.slice(0, 16)}-${hexHash.slice(16, 32)}`;
       const merkleProof = `urn:uuid:w3c-fin-edut-${hexHash.slice(0, 8)}-${hexHash.slice(8, 12)}`;
 
-      const paymentDateFormatted = paymentRecord?.datePaid 
-        ? new Date(paymentRecord.datePaid).toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" })
+      const paymentDateFormatted = datePaid 
+        ? new Date(datePaid).toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" })
         : new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
 
-      const paymentTimeFormatted = paymentRecord?.datePaid 
-        ? new Date(paymentRecord.datePaid).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
-        : "14:32:15 GMT+1";
+      const paymentTimeFormatted = datePaid 
+        ? new Date(datePaid).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
+        : "14:30:00 GMT+1";
+
+      const totalDue = fee ? Number(fee.totalExpected || amount) : amount;
+      const totalPaid = fee ? Number(fee.totalPaid || amount) : amount;
+      const remaining = fee ? Number(fee.balance || 0) : 0;
 
       const financialData: FinancialVerificationData = {
-        receiptNumber: refCode,
+        receiptNumber: reference,
         transactionReference: `TXN-SYSCOHADA-${studentId}-${new Date().getFullYear()}`,
         amount: amount,
         currency: "FCFA (XOF)",
         amountInWords: `${amount.toLocaleString("fr-FR")} Francs CFA`,
-        paymentMethod: paymentRecord?.paymentMode || "Airtel Money / Caisse Centrale",
-        paymentMethodEn: "Airtel Money / Central Cashier",
-        paymentMethodAr: "إيرتل موني / الخزينة المركزية",
+        paymentMethod: paymentMode,
+        paymentMethodEn: paymentMode,
+        paymentMethodAr: paymentMode === "Espèces" ? "نقداً" : paymentMode,
         paymentDate: paymentDateFormatted,
         paymentTime: paymentTimeFormatted,
-        status: "ACQUITTÉ & ENCAISSÉ (Payé en Totalité)",
-        statusEn: "OFFICIALLY SETTLED & RECEIVED (Fully Paid)",
-        statusAr: "تم السداد والتحصيل بنجاح (مدفوع بالكامل)",
-        feeType: "Frais de Scolarité & Droits Universitaires (Tranche 1)",
-        feeTypeEn: "Tuition & Academic Fees (Installment 1)",
-        feeTypeAr: "الرسوم الدراسية والجامعية (القسط الأول)",
+        status: remaining <= 0 ? "ACQUITTÉ & ENCAISSÉ (Soldé en Totalité)" : "ENCAISSÉ (Paiement Partiel Validé)",
+        statusEn: remaining <= 0 ? "OFFICIALLY SETTLED & RECEIVED (Fully Settled)" : "RECEIVED (Partial Payment Validated)",
+        statusAr: remaining <= 0 ? "تم السداد والتحصيل بنجاح (مسدد بالكامل)" : "تم التحصيل بنجاح (سداد جزئي معتمد)",
+        feeType: purpose,
+        feeTypeEn: purpose,
+        feeTypeAr: "الرسوم والمستحقات الدراسية",
         payerName: studentNom,
-        payerPhone: "+227 90 12 34 56",
-        cashierName: paymentRecord?.recordedBy || "Comptabilité Centrale EDUT",
-        totalDue: 350000,
-        totalPaidSoFar: amount,
-        remainingBalance: Math.max(0, 350000 - amount),
+        payerPhone: student?.telephone || "+227 -- -- -- --",
+        cashierName: recordedBy,
+        totalDue: totalDue,
+        totalPaidSoFar: totalPaid,
+        remainingBalance: Math.max(0, remaining),
         financialSecurityHash: finHash,
-        academicYear: "2025–2026",
+        academicYear: student?.anneeScolaire || "2025–2026",
       };
+
+      const schoolName = realBranch?.branchName || realSchool?.name || "ÉCOLE & COMPLEXE SCOLAIRE EDUT";
+      const schoolNameAr = realBranch?.branchAlias || "المجمع المدرسي والجامعي إيدوت";
 
       return {
         isValid: true,
@@ -338,71 +459,83 @@ export async function getAcademicVerificationData(identifier: string): Promise<V
         student: {
           id: studentId,
           nom: studentNom,
-          nomArabe: studentRecord?.nomArabe,
+          nomArabe: student?.nomArabe,
           matricule: studentMatricule,
-          dateNaissance: studentRecord?.dateNaissance ? String(studentRecord.dateNaissance) : "30/12/1971",
-          lieuNaissance: studentRecord?.lieuNaissance || "Dan-Kalgo (Aguié)",
+          dateNaissance: student?.dateNaissance ? String(student.dateNaissance) : "",
+          lieuNaissance: student?.lieuNaissance || "",
           nationalite: "Nigérienne",
-          sexe: studentRecord?.sexe || "F",
-          classe: studentRecord?.classe || "Licence 3 — Génie Logiciel",
-          filiere: "Informatique & Systèmes d'Information",
-          educationalLevel: studentRecord?.educationalLevel || "Supérieur",
+          sexe: student?.sexe || "M",
+          classe: student?.classe || "Section Financière",
+          filiere: student?.filiere || "Comptabilité & Gestion",
+          educationalLevel: student?.educationalLevel || "Finance",
         },
         degree: {
-          title: "LICENCE PROFESSIONNELLE LMD (Grade Bac + 3)",
-          titleEn: "PROFESSIONAL BACHELOR'S DEGREE (LMD System)",
-          titleAr: "الإجازة المهنية في نظام (LMD)",
-          field: "Sciences & Technologies",
-          fieldEn: "Science & Technology",
-          fieldAr: "العلوم والتكنولوجيا",
-          mention: "Génie Logiciel & Systèmes d'Information",
-          mentionEn: "Software Engineering & Information Systems",
-          mentionAr: "هندسة البرمجيات ونظم المعلومات",
+          title: "ATTESTATION DE RÈGLEMENT FINANCIER & QUITTANCE DE CAISSE",
+          titleEn: "CERTIFICATE OF FINANCIAL SETTLEMENT & OFFICIAL RECEIPT",
+          titleAr: "إشعار وبراءة ذمة مالية معتمدة ووصل استلام",
+          field: "Gestion Financière & Scolarité",
+          fieldEn: "Financial Management & Tuition",
+          fieldAr: "الإدارة المالية والتمدرس",
+          mention: "En Règle / Quittance Conforme",
+          mentionEn: "In Good Standing / Valid Receipt",
+          mentionAr: "مسوى وقانوني / إيصال مطابق",
           status: "SITUATION FINANCIÈRE EN RÈGLE (Solvabilité Certifiée)",
           statusEn: "FINANCIAL RECORD IN GOOD STANDING (Certified Solvency)",
           statusAr: "الوضعية المالية مسواة وقانونية (ملاءة معتمدة)",
-          ectsCredits: 180,
-          totalRequiredEcts: 180,
-          gpa: "3.85 / 4.00",
-          gpaLetter: "Grade A",
+          ectsCredits: 0,
+          totalRequiredEcts: 0,
+          gpa: "Solvable",
+          gpaLetter: "A",
           graduationYear: "2025–2026",
           deliberationDate: paymentDateFormatted,
           verificationHash: finHash,
           merkleProof: merkleProof,
-          digitalSignature: "SYSCOHADA-Secp256k1 • Trésorerie Générale EDUT",
-          certificateNumber: `REC-FIN-${new Date().getFullYear()}-${String(studentId).padStart(6, "0")}`,
+          digitalSignature: "SYSCOHADA-Secp256k1 • Trésorerie Centrale EDUT",
+          certificateNumber: reference,
         },
         financial: financialData,
         standards: {
-          unescoIsced: "CITE / ISCED 2011 Niveau 6 (Enseignement Supérieur)",
-          unescoIscedEn: "UNESCO ISCED 2011 Level 6",
-          unescoIscedAr: "تصنيف اليونسكو CITE/ISCED 2011 المستوى 6",
-          eqfLevel: "Cadre Européen des Certifications (EQF Level 6)",
-          bolognaCycle: "Espace Européen de l'Enseignement Supérieur (Processus de Bologne)",
-          wesEquivalency: "Équivalence WES / NACES Ready",
-          apostilleRef: `FIN-RECEIPT-HAGUE-${studentId}-2026`,
+          unescoIsced: "Norme Comptable SYSCOHADA / Règlements UEMOA",
+          unescoIscedEn: "SYSCOHADA Accounting Standard / WAEMU Regulations",
+          unescoIscedAr: "المعايير المحاسبية الرسمية SYSCOHADA / UEMOA",
+          eqfLevel: "Certification Financière Niveau 3",
+          bolognaCycle: "Traçabilité Bancaire & Monétique",
+          wesEquivalency: "Receipt Verification Certified",
+          apostilleRef: `FIN-RECEIPT-${payment.id}-2026`,
           securityLevel: "Niveau 3 - Horodatage Cryptographique & Traçabilité SYSCOHADA / BCEAO",
         },
         institution: {
-          name: "UNIVERSITÉ DES SCIENCES & TECHNOLOGIES",
-          nameEn: "UNIVERSITY OF SCIENCES & TECHNOLOGY",
-          nameAr: "جامعة العلوم والتكنولوجيا",
-          country: "RÉPUBLIQUE DU NIGER",
+          name: schoolName,
+          nameEn: schoolName,
+          nameAr: schoolNameAr,
+          country: (realSchool as any)?.country || "RÉPUBLIQUE DU NIGER",
           countryEn: "REPUBLIC OF NIGER",
           countryAr: "جمهورية النيجر",
-          ministry: "MINISTÈRE DE L'ENSEIGNEMENT SUPÉRIEUR ET DE LA RECHERCHE",
-          ministryEn: "MINISTRY OF HIGHER EDUCATION AND RESEARCH",
-          ministryAr: "وزارة التعليم العالي والبحث العلمي",
-          accreditation: "Accrédité CAMES / REESAO / ANAQ-Sup",
-          accreditationEn: "Accredited by CAMES / REESAO / ANAQ-Sup",
-          accreditationAr: "معتمد رسمياً من CAMES / REESAO / ANAQ-Sup",
-          status: "Établissement d'Enseignement Supérieur Agréé & Reconnu",
+          ministry: realBranch?.ministry || "MINISTÈRE DES FINANCES ET DE L'ÉDUCATION",
+          ministryEn: "MINISTRY OF FINANCE AND EDUCATION",
+          ministryAr: "وزارة المالية والتربية الوطنية",
+          accreditation: "Accrédité & Conforme SYSCOHADA",
+          accreditationEn: "Accredited SYSCOHADA Standard",
+          accreditationAr: "معتمد ومطابق لنظام SYSCOHADA",
+          status: "Établissement Enregistré & Conforme",
           rectorat: "Direction des Affaires Financières & Agence Comptable",
-          city: "Niamey",
-          website: "https://niger.edut.pro",
+          city: (realSchool as any)?.city || "Niamey",
+          website: (realSchool as any)?.website || "https://niger.edut.pro",
         },
         curriculum: [],
       };
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // 1. FINANCIAL DOCUMENT VERIFICATION (Reçus de Caisse, Mobile Money, COGES)
+    // ──────────────────────────────────────────────────────────────────────────
+    if (isFinancialLookup) {
+      const paymentInfo = await findPaymentRecord(rawId);
+      if (!paymentInfo) {
+        // If the financial reference does not exist in DB: REJECT!
+        return null;
+      }
+      return buildFinancialVerificationResult(paymentInfo);
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -413,8 +546,15 @@ export async function getAcademicVerificationData(identifier: string): Promise<V
     try {
       const searchConditions = [
         eq(students.numAdmission, rawId),
+        eq(students.numAdmission, rawId.toUpperCase()),
+        eq(students.numAdmission, rawId.toLowerCase()),
         numId > 0 ? eq(students.id, numId) : undefined
       ].filter(Boolean) as any[];
+
+      const trailingNumber = Number(rawId.replace(/^.*[-_]0*/, ''));
+      if (!isNaN(trailingNumber) && trailingNumber > 0 && trailingNumber !== numId) {
+        searchConditions.push(eq(students.id, trailingNumber));
+      }
 
       const foundList = await (readDb || db)
         .select()
@@ -429,15 +569,46 @@ export async function getAcademicVerificationData(identifier: string): Promise<V
       console.warn("DB search error:", e);
     }
 
-    // Fallback info if matching by matricule or generic
-    const studentNom = foundStudent ? foundStudent.nomEtudiant : (rawId.includes("000091") ? "Ayouba Rabi Abdou" : "MALAM LAOUALI HABSATOU");
+    // If student not found, check if rawId or numId matches a payment reference/ID entered without prefix
+    if (!foundStudent) {
+      const paymentInfo = await findPaymentRecord(rawId);
+      if (paymentInfo) {
+        return buildFinancialVerificationResult(paymentInfo);
+      }
+    }
+
+    // If still not found, check if it's an LMS certificate
+    if (!foundStudent) {
+      try {
+        const { lmsCertificates } = await import("@/infrastructure/database/schema/lms");
+        const foundCert = await (readDb || db)
+          .select()
+          .from(lmsCertificates)
+          .where(eq(lmsCertificates.certificateCode, rawId))
+          .limit(1);
+
+        if (foundCert && foundCert.length > 0 && foundCert[0].studentId) {
+          const stus = await (readDb || db).select().from(students).where(eq(students.id, foundCert[0].studentId)).limit(1);
+          if (stus[0]) {
+            foundStudent = stus[0];
+          }
+        }
+      } catch (_) {}
+    }
+
+    // CRITICAL REJECTION: If no student, payment, or certificate exists in database, REJECT!
+    if (!foundStudent) {
+      return null;
+    }
+
+    const studentNom = foundStudent.nomEtudiant || `${foundStudent.firstName || ''} ${foundStudent.lastName || ''}`.trim() || "Étudiant";
     const studentNomArabe = foundStudent?.nomArabe;
     const studentMatricule = foundStudent ? (foundStudent.numAdmission || `EDUT-${foundStudent.id}`) : rawId;
-    const studentDateNais = foundStudent?.dateNaissance ? String(foundStudent.dateNaissance) : "14/05/2011";
-    const studentLieuNais = foundStudent?.lieuNaissance || "Niamey (Commune 1)";
-    const studentSexe = foundStudent?.sexe || "F";
-    const studentId = foundStudent?.id || 91;
-    const studentClasse = foundStudent?.classe || (rawId.includes("000091") ? "6ème A" : "Licence 3 — Informatique");
+    const studentDateNais = foundStudent?.dateNaissance ? String(foundStudent.dateNaissance) : "Non renseigné";
+    const studentLieuNais = foundStudent?.lieuNaissance || "Non renseigné";
+    const studentSexe = foundStudent?.sexe || "M";
+    const studentId = foundStudent.id;
+    const studentClasse = foundStudent?.classe || "Non assigné";
     const studentLevel = foundStudent?.educationalLevel || (studentClasse.includes("6ème") || studentClasse.includes("5ème") || studentClasse.includes("4ème") || studentClasse.includes("3ème") || studentClasse.includes("2nde") || studentClasse.includes("1ère") || studentClasse.includes("Tle") ? "Secondaire" : studentClasse.includes("CI") || studentClasse.includes("CP") || studentClasse.includes("CE") || studentClasse.includes("CM") ? "Primaire" : "Supérieur");
 
     // ──────────────────────────────────────────────────────────────────────────

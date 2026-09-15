@@ -4,7 +4,7 @@ import { students } from "@/infrastructure/database/schema/students";
 import { schools } from "@/infrastructure/database/schema/auth";
 import { schoolClasses } from "@/infrastructure/database/schema/academics";
 import { eq, or } from "drizzle-orm";
-import { CheckCircle2, ShieldCheck, Printer, Download, Building2, User, Calendar, CreditCard } from "lucide-react";
+import { CheckCircle2, ShieldCheck, ShieldAlert, Printer, Download, Building2, User, Calendar, CreditCard } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -42,24 +42,31 @@ export default async function ReceiptVerifyPage({ params }: ReceiptVerifyPagePro
     where: eq(schools.id, payment?.schoolId || 1),
   });
 
-  // Fallback demo data if token is not found in database for preview
-  const paymentData = payment || {
-    id: 1042,
-    amount: 35000,
-    paymentMode: "Airtel Money",
-    reference: token || "PAY-2026-8841",
-    datePaid: new Date(),
-    monthConcerned: "Octobre 2026",
-    recordedBy: "Comptabilité Centrale",
-    fee: {
-      student: {
-        firstName: "Ibrahim",
-        lastName: "Moussa",
-        admissionNumber: "MAT-2026-091",
-        class: { className: "Terminale D" },
-      },
-    },
-  };
+  if (!payment) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-6 font-sans">
+        <div className="max-w-md w-full bg-slate-900/90 border border-rose-500/30 rounded-3xl p-8 shadow-2xl text-center space-y-5 animate-in fade-in zoom-in-95">
+          <div className="size-16 mx-auto rounded-2xl bg-rose-500/10 text-rose-400 border border-rose-500/20 flex items-center justify-center">
+            <ShieldAlert size={36} />
+          </div>
+          <h1 className="text-2xl font-black text-white">Reçu Introuvable / Non Reconnu</h1>
+          <p className="text-sm text-slate-400 leading-relaxed">
+            La référence ou le token <strong className="text-rose-300 font-mono">{token}</strong> ne correspond à aucun encaissement financier officiel enregistré dans notre registre central.
+          </p>
+          <div className="pt-2">
+            <Link
+              href="/verify"
+              className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs uppercase tracking-wider transition-all"
+            >
+              Effectuer une autre vérification
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const paymentData = payment;
 
   const student = paymentData.fee?.student;
   const dateFormatted = new Date(paymentData.datePaid || new Date()).toLocaleDateString("fr-FR", {
