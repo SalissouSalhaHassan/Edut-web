@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
       const isTeacher = !!m.employeeId;
       const authorName = isTeacher
         ? `Prof. ${m.employee?.prenom || ""} ${m.employee?.nom || ""}`.trim()
-        : `${m.student?.prenom || ""} ${m.student?.nomEtudiant || ""}`.trim() || "Utilisateur";
+        : m.student?.nomEtudiant || "Utilisateur";
 
       return {
         id: m.id,
