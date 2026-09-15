@@ -28,11 +28,7 @@ export default async function ReceiptVerifyPage({ params }: ReceiptVerifyPagePro
     with: {
       fee: {
         with: {
-          student: {
-            with: {
-              class: true,
-            },
-          },
+          student: true,
         },
       },
     },
@@ -131,15 +127,15 @@ export default async function ReceiptVerifyPage({ params }: ReceiptVerifyPagePro
               <span className="text-xs text-slate-400 font-semibold flex items-center gap-1.5">
                 <User size={14} className="text-indigo-500" /> Élève Bénéficiaire
               </span>
-              <p className="font-bold text-slate-800 text-base">{student ? ((student as any).nomEtudiant || `${(student as any).firstName || ''} ${(student as any).lastName || ''}`.trim() || "Élève") : "Élève"}</p>
-              <p className="text-xs text-slate-500">Matricule : {(student as any)?.numAdmission || (student as any)?.admissionNumber || "MAT-2026"}</p>
+              <p className="font-bold text-slate-800 text-base">{student?.nomEtudiant || "Élève"}</p>
+              <p className="text-xs text-slate-500">Matricule : {student?.numAdmission || "MAT-OFFICIEL"}</p>
             </div>
 
             <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-1">
               <span className="text-xs text-slate-400 font-semibold flex items-center gap-1.5">
                 <Building2 size={14} className="text-indigo-500" /> Classe / Niveau
               </span>
-              <p className="font-bold text-slate-800 text-base">{student?.class?.className || "Terminale"}</p>
+              <p className="font-bold text-slate-800 text-base">{student?.classe || "Classe non assignée"}</p>
               <p className="text-xs text-slate-500">Motif : Scolarité ({paymentData.monthConcerned || "Mensuel"})</p>
             </div>
 
