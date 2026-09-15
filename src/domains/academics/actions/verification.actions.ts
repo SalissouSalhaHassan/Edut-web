@@ -301,16 +301,16 @@ export async function getAcademicVerificationData(identifier: string): Promise<V
 
       // 2. onlineTransactions
       try {
+        const onlineConds = [
+          eq(onlineTransactions.transactionReference, cleanId),
+          eq(onlineTransactions.transactionReference, cleanId.toUpperCase()),
+        ];
+        if (searchNumId > 0) onlineConds.push(eq(onlineTransactions.id, searchNumId));
+
         const foundOnline = await (readDb || db)
           .select()
           .from(onlineTransactions)
-          .where(
-            or(
-              eq(onlineTransactions.transactionReference, cleanId),
-              eq(onlineTransactions.transactionReference, cleanId.toUpperCase()),
-              searchNumId > 0 ? eq(onlineTransactions.id, searchNumId) : undefined
-            ).filter(Boolean) as any[]
-          )
+          .where(or(...onlineConds))
           .limit(1);
 
         if (foundOnline && foundOnline.length > 0) {
