@@ -8,11 +8,34 @@ import { libraryBookSchema, libraryIssueSchema, LibraryBookFormData, LibraryIssu
 import { protectedDbAction } from "@/lib/protected-action";
 import { getActiveSchoolId } from "@/domains/auth/services/school";
 
+// --- Self-healing Schema Migration for Library Books ---
+let librarySchemaEnsured = false;
+export async function ensureLibrarySchema() {
+  if (librarySchemaEnsured) return;
+  try {
+    const alterStatements = [
+      "ALTER TABLE library_books ADD COLUMN IF NOT EXISTS school_id INTEGER",
+      "ALTER TABLE library_books ADD COLUMN IF NOT EXISTS file_url VARCHAR(500)",
+      "ALTER TABLE library_books ADD COLUMN IF NOT EXISTS file_type VARCHAR(50) DEFAULT 'PDF'",
+      "ALTER TABLE library_books ADD COLUMN IF NOT EXISTS is_digital TEXT DEFAULT 'false'",
+      "ALTER TABLE library_books ADD COLUMN IF NOT EXISTS description TEXT",
+      "ALTER TABLE library_issues ADD COLUMN IF NOT EXISTS school_id INTEGER",
+    ];
+    for (const q of alterStatements) {
+      try {
+        await db.execute(sql.raw(q));
+      } catch (_) {}
+    }
+    librarySchemaEnsured = true;
+  } catch (_) {}
+}
+
 // --- Books ---
 export async function getLibraryBooks() {
   return protectedDbAction("Library", "canView", async () => {
     const schoolId = await getActiveSchoolId();
     if (!schoolId) return { data: [] };
+    await ensureLibrarySchema();
     const data = await db.query.libraryBooks.findMany({
       where: eq(libraryBooks.schoolId, schoolId),
       orderBy: [desc(libraryBooks.createdAt)],
@@ -30,11 +53,38 @@ export async function createLibraryBook(formData: LibraryBookFormData) {
   return protectedDbAction("Library", "canEdit", async () => {
     const schoolId = await getActiveSchoolId();
     if (!schoolId) return { error: "Aucun contexte d'école trouvé." };
-    await db.insert(libraryBooks).values({
-      ...validation.data,
-      schoolId,
-      availableQuantity: validation.data.totalQuantity,
-    });
+    await ensureLibrarySchema();
+
+    try {
+      await db.insert(libraryBooks).values({
+        ...validation.data,
+        schoolId,
+        availableQuantity: validation.data.totalQuantity,
+      });
+    } catch (err: any) {
+      // Direct SQL fallback if schema was just updated
+      librarySchemaEnsured = false;
+      await ensureLibrarySchema();
+      await db.execute(sql`
+        INSERT INTO library_books (
+          school_id, title, author, isbn, category, total_quantity, available_quantity, shelf_location, file_url, file_type, is_digital, description
+        ) VALUES (
+          ${schoolId},
+          ${validation.data.title},
+          ${validation.data.author || null},
+          ${validation.data.isbn || null},
+          ${validation.data.category || null},
+          ${validation.data.totalQuantity || 1},
+          ${validation.data.totalQuantity || 1},
+          ${validation.data.shelfLocation || null},
+          ${validation.data.fileUrl || null},
+          ${validation.data.fileType || 'PDF'},
+          ${validation.data.isDigital || 'false'},
+          ${validation.data.description || null}
+        )
+      `);
+    }
+
     revalidatePath("/dashboard/library");
     return { success: true };
   });
@@ -49,6 +99,7 @@ export async function updateLibraryBook(id: number, formData: LibraryBookFormDat
   return protectedDbAction("Library", "canEdit", async () => {
     const schoolId = await getActiveSchoolId();
     if (!schoolId) return { error: "Aucun contexte d'école trouvé." };
+    await ensureLibrarySchema();
     const book = await db.query.libraryBooks.findFirst({ where: and(eq(libraryBooks.id, id), eq(libraryBooks.schoolId, schoolId)) });
     if (!book) throw new Error("Livre non trouvé");
 
@@ -171,6 +222,7 @@ export async function seedSampleLibraryResources() {
   return protectedDbAction("Library", "canEdit", async () => {
     const schoolId = await getActiveSchoolId();
     if (!schoolId) return { error: "Aucun contexte d'école trouvé." };
+    await ensureLibrarySchema();
 
     const samples = [
       {
