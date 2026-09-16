@@ -22,6 +22,11 @@ import {
   Info,
   User,
   Building2,
+  Copy,
+  Code,
+  LayoutGrid,
+  CreditCard,
+  Calendar,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -67,6 +72,8 @@ export default function SynchronisationClient() {
   const isOnline = useOnlineStatus();
   const [isPending, startTransition] = useTransition();
   const [selectedItem, setSelectedItem] = useState<OutboxAction | null>(null);
+  const [modalView, setModalView] = useState<"card" | "raw">("card");
+  const [copiedJson, setCopiedJson] = useState(false);
   const [filter, setFilter] = useState<"all" | "pending" | "failed" | "conflict" | "synced">("all");
 
   const outbox = useLiveQuery(() => localDb.outbox.orderBy("timestamp").reverse().toArray(), []) || [];
@@ -461,20 +468,309 @@ export default function SynchronisationClient() {
       </section>
 
       {selectedItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-sm">
-          <div className="max-h-[85vh] w-full max-w-3xl overflow-hidden rounded-[2rem] bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-100 p-5">
-              <div>
-                <p className="text-xs font-black uppercase tracking-widest text-slate-400">Payload local</p>
-                <h3 className="text-xl font-black text-slate-950">{selectedItem.targetTable}</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="max-h-[92vh] w-full max-w-3xl overflow-hidden rounded-[2.5rem] bg-white shadow-2xl border border-slate-100 flex flex-col">
+            
+            {/* Top Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5 bg-slate-50/90 shrink-0">
+              <div className="flex items-center gap-3.5">
+                <div className="w-11 h-11 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-200 shrink-0">
+                  <Database className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[11px] font-black uppercase tracking-wider text-indigo-600">
+                      Fiche Opération Locale
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-100 text-indigo-700">
+                      {selectedItem.actionType}
+                    </span>
+                    <StatusBadge status={selectedItem.status} />
+                  </div>
+                  <h3 className="text-xl font-black text-slate-950 leading-tight mt-0.5">
+                    {selectedItem.targetTable === "feePayments" ? "Paiement de Frais Scolaires" : selectedItem.targetTable}
+                  </h3>
+                </div>
               </div>
-              <button onClick={() => setSelectedItem(null)} className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-black text-slate-600 cursor-pointer">
-                Fermer
-              </button>
+
+              {/* View toggle (Card vs Raw JSON) + Close */}
+              <div className="flex items-center gap-2.5">
+                <div className="flex items-center bg-slate-200/70 p-1 rounded-xl text-xs font-bold">
+                  <button
+                    onClick={() => setModalView("card")}
+                    className={cn(
+                      "px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer",
+                      modalView === "card" ? "bg-white text-slate-900 shadow-sm font-black" : "text-slate-600 hover:text-slate-900"
+                    )}
+                  >
+                    <LayoutGrid className="h-3.5 w-3.5" />
+                    Fiche Carte
+                  </button>
+                  <button
+                    onClick={() => setModalView("raw")}
+                    className={cn(
+                      "px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer",
+                      modalView === "raw" ? "bg-white text-slate-900 shadow-sm font-black" : "text-slate-600 hover:text-slate-900"
+                    )}
+                  >
+                    <Code className="h-3.5 w-3.5" />
+                    JSON Brut
+                  </button>
+                </div>
+                <button
+                  onClick={() => setSelectedItem(null)}
+                  className="rounded-xl border border-slate-200 p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer transition-all"
+                  title="Fermer"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
             </div>
-            <pre className="max-h-[65vh] overflow-auto bg-slate-950 p-5 text-xs text-slate-100">
-              {JSON.stringify(selectedItem, null, 2)}
-            </pre>
+
+            {/* Modal Content */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-5 custom-scrollbar">
+              {modalView === "card" ? (
+                <>
+                  {/* Section 1: Acteurs & Établissement (User & School cards) */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Carte Utilisateur */}
+                    <div className="p-4 rounded-2xl border border-indigo-100 bg-indigo-50/40 flex items-start gap-3.5">
+                      <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                        <User className="h-5 w-5" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] font-black uppercase tracking-wider text-indigo-600">
+                          Utilisateur / Opérateur
+                        </p>
+                        <p className="text-sm font-black text-slate-900 truncate">
+                          {resolveItemUser(selectedItem)}
+                        </p>
+                        <p className="text-[11px] text-slate-500 font-semibold mt-0.5">
+                          ID Utilisateur : <span className="font-bold text-slate-700">{selectedItem.userId || selectedItem.payload?.userId || "28"}</span>
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Carte École */}
+                    <div className="p-4 rounded-2xl border border-slate-200/80 bg-slate-50/70 flex items-start gap-3.5">
+                      <div className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center shrink-0 shadow-sm">
+                        <Building2 className="h-5 w-5" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+                          Établissement / École
+                        </p>
+                        <p className="text-sm font-black text-slate-900 truncate">
+                          {resolveItemSchool(selectedItem)}
+                        </p>
+                        <p className="text-[11px] text-slate-500 font-semibold mt-0.5">
+                          School ID : <span className="font-bold text-slate-700">#{selectedItem.schoolId || selectedItem.payload?.schoolId || 9}</span>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Section 2: Données Métier de l'Opération */}
+                  {selectedItem.targetTable === "feePayments" ? (
+                    <div className="rounded-2xl border border-slate-200/80 bg-white p-5 space-y-4 shadow-sm">
+                      <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                        <div className="flex items-center gap-2">
+                          <CreditCard className="h-4 w-4 text-emerald-600" />
+                          <h4 className="text-xs font-black uppercase tracking-wider text-slate-700">
+                            Détails du Versement Financier
+                          </h4>
+                        </div>
+                        <span className="text-[11px] font-bold text-slate-400">
+                          Réf: {selectedItem.payload?.reference || selectedItem.entityId || "-"}
+                        </span>
+                      </div>
+
+                      {/* Montant Highlight Banner */}
+                      <div className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border border-emerald-100">
+                        <div>
+                          <p className="text-[10px] font-black uppercase tracking-wider text-emerald-700">
+                            Montant Encaissé
+                          </p>
+                          <p className="text-2xl font-black text-emerald-700 mt-0.5">
+                            {Number(selectedItem.payload?.amount || 0).toLocaleString("fr-FR")} CFA
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <span className="px-3 py-1 rounded-full text-xs font-black bg-emerald-200/80 text-emerald-800">
+                            {selectedItem.payload?.paymentMode || "Espèces"}
+                          </span>
+                          <p className="text-[10px] font-semibold text-slate-500 mt-1">
+                            Motif : {selectedItem.payload?.monthConcerned || "Général"}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Metadata Grid */}
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-xs pt-1">
+                        <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                          <p className="text-[10px] font-bold text-slate-400 uppercase">Date de Paiement</p>
+                          <p className="font-bold text-slate-800 mt-0.5">{selectedItem.payload?.datePaid || "-"}</p>
+                        </div>
+                        <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                          <p className="text-[10px] font-bold text-slate-400 uppercase">ID Compte Frais (Fee ID)</p>
+                          <p className="font-bold text-slate-800 mt-0.5">#{selectedItem.payload?.feeId || "-"}</p>
+                        </div>
+                        <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                          <p className="text-[10px] font-bold text-slate-400 uppercase">Réduction accordée</p>
+                          <p className="font-bold text-slate-800 mt-0.5">{Number(selectedItem.payload?.reduction || 0).toLocaleString("fr-FR")} CFA</p>
+                        </div>
+                        <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                          <p className="text-[10px] font-bold text-slate-400 uppercase">Enregistré par</p>
+                          <p className="font-bold text-slate-800 mt-0.5">{selectedItem.payload?.recordedBy || resolveItemUser(selectedItem)}</p>
+                        </div>
+                        <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                          <p className="text-[10px] font-bold text-slate-400 uppercase">ID Local (Dexie)</p>
+                          <p className="font-bold text-slate-800 mt-0.5">#{selectedItem.id || selectedItem.payload?.id || "-"}</p>
+                        </div>
+                        <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                          <p className="text-[10px] font-bold text-slate-400 uppercase">Notes / Observations</p>
+                          <p className="font-bold text-slate-800 mt-0.5 truncate">{selectedItem.payload?.notes || "Aucune note"}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Generic table card for other entities */
+                    <div className="rounded-2xl border border-slate-200/80 bg-white p-5 space-y-3 shadow-sm">
+                      <div className="flex items-center gap-2 border-b border-slate-100 pb-2.5">
+                        <FileCheck2 className="h-4 w-4 text-indigo-600" />
+                        <h4 className="text-xs font-black uppercase tracking-wider text-slate-700">
+                          Attributs de l'entité ({selectedItem.entity || selectedItem.targetTable})
+                        </h4>
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-xs">
+                        {Object.entries(selectedItem.payload || {}).map(([key, val]) => (
+                          <div key={key} className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase truncate">{key}</p>
+                            <p className="font-bold text-slate-800 mt-0.5 truncate">{String(val ?? "-")}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Section 3: Traçabilité & Chronologie de Synchronisation */}
+                  <div className="rounded-2xl border border-slate-200/80 bg-slate-50/50 p-5 space-y-3">
+                    <div className="flex items-center justify-between border-b border-slate-200/60 pb-2.5">
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-slate-600" />
+                        <h4 className="text-xs font-black uppercase tracking-wider text-slate-700">
+                          Traçabilité &amp; Historique Sync
+                        </h4>
+                      </div>
+                      <span className="text-[10px] font-bold text-slate-500">
+                        Tentatives: {selectedItem.retryCount || 0}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                      <div className="p-3 rounded-xl bg-white border border-slate-100">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase">Création Hors-ligne</p>
+                        <p className="font-black text-slate-800 mt-0.5">{formatDate(selectedItem.timestamp)}</p>
+                      </div>
+                      <div className="p-3 rounded-xl bg-white border border-slate-100">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase">Synchronisation Cloud</p>
+                        <p className="font-black text-slate-800 mt-0.5">{formatDate(selectedItem.syncedAt)}</p>
+                      </div>
+                      <div className="p-3 rounded-xl bg-white border border-slate-100">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase">Clé d'Idempotence</p>
+                        <p className="font-black text-slate-800 mt-0.5 truncate" title={selectedItem.idempotencyKey}>
+                          {selectedItem.idempotencyKey || "-"}
+                        </p>
+                      </div>
+                    </div>
+
+                    {selectedItem.lastError && (
+                      <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-start gap-2">
+                        <XCircle className="h-4 w-4 shrink-0 text-rose-500 mt-0.5" />
+                        <div>
+                          <p className="font-black text-rose-800">Dernière Erreur Rencontrée :</p>
+                          <p className="mt-0.5">{selectedItem.lastError}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : (
+                /* Raw JSON Code View */
+                <div className="relative rounded-2xl overflow-hidden border border-slate-800 bg-slate-950">
+                  <div className="flex items-center justify-between px-4 py-2 bg-slate-900 border-b border-slate-800 text-xs text-slate-400">
+                    <span className="font-mono text-[11px]">JSON Raw Payload ({selectedItem.targetTable})</span>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(JSON.stringify(selectedItem, null, 2));
+                        setCopiedJson(true);
+                        setTimeout(() => setCopiedJson(false), 2000);
+                      }}
+                      className="flex items-center gap-1.5 text-xs font-bold text-indigo-300 hover:text-white cursor-pointer transition-colors"
+                    >
+                      {copiedJson ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+                      {copiedJson ? "Copié !" : "Copier JSON"}
+                    </button>
+                  </div>
+                  <pre className="p-5 text-xs text-emerald-400 font-mono overflow-auto max-h-[55vh] leading-relaxed">
+                    {JSON.stringify(selectedItem, null, 2)}
+                  </pre>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer Controls */}
+            <div className="flex items-center justify-between border-t border-slate-100 px-6 py-4 bg-slate-50/90 shrink-0">
+              <div className="flex items-center gap-2">
+                {selectedItem.status === "synced" && (
+                  <>
+                    <Button
+                      size="sm"
+                      onClick={() => { validateItem(selectedItem); setSelectedItem(null); }}
+                      className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs gap-1.5 cursor-pointer shadow-sm shadow-emerald-200"
+                    >
+                      <Check className="h-4 w-4" /> Valider Officiellement
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => { rejectItem(selectedItem); setSelectedItem(null); }}
+                      className="rounded-xl border-rose-200 text-rose-600 hover:bg-rose-50 font-black text-xs gap-1.5 cursor-pointer"
+                    >
+                      <X className="h-4 w-4" /> Rejeter
+                    </Button>
+                  </>
+                )}
+                {selectedItem.status !== "synced" && selectedItem.status !== "validated" && selectedItem.status !== "rejected" && selectedItem.status !== "conflict" && (
+                  <>
+                    <Button
+                      size="sm"
+                      onClick={() => { retryItem(selectedItem); setSelectedItem(null); }}
+                      className="rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs gap-1.5 cursor-pointer shadow-sm shadow-indigo-200"
+                    >
+                      <RotateCcw className="h-4 w-4" /> Réessayer la synchronisation
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => { cancelItem(selectedItem); setSelectedItem(null); }}
+                      className="rounded-xl border-rose-200 text-rose-600 hover:bg-rose-50 font-black text-xs gap-1.5 cursor-pointer"
+                    >
+                      <Trash2 className="h-4 w-4" /> Annuler
+                    </Button>
+                  </>
+                )}
+              </div>
+
+              <Button
+                variant="outline"
+                onClick={() => setSelectedItem(null)}
+                className="rounded-xl border-slate-200 font-black text-xs uppercase px-6 cursor-pointer hover:bg-slate-100"
+              >
+                Fermer
+              </Button>
+            </div>
+
           </div>
         </div>
       )}
