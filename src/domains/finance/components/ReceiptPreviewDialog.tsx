@@ -140,6 +140,7 @@ interface ReceiptPreviewDialogProps {
   headerConfig?: any | null;
   canDelete?: boolean;
   onPaymentCancelled?: (paymentId: number) => void;
+  currentUser?: any;
 }
 
 const fmt = (val: number) => `${val.toLocaleString("fr-FR")} F CFA`;
@@ -194,6 +195,7 @@ export default function ReceiptPreviewDialog({
   headerConfig,
   canDelete = true,
   onPaymentCancelled,
+  currentUser,
 }: ReceiptPreviewDialogProps) {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [phoneError, setPhoneError] = useState("");
@@ -503,6 +505,42 @@ export default function ReceiptPreviewDialog({
         month: "long",
         year: "numeric",
       });
+
+  const resolvedCashier = useMemo(() => {
+    // 1. Direct payment record info
+    if (lastPayment?.recordedBy && lastPayment.recordedBy !== "Admin Scolarité") {
+      return lastPayment.recordedBy;
+    }
+    if (feeData?.payment?.recordedBy && feeData.payment.recordedBy !== "Admin Scolarité") {
+      return feeData.payment.recordedBy;
+    }
+    // 2. From currentUser prop
+    if (currentUser?.nomPrenom) return currentUser.nomPrenom;
+    if (currentUser?.prenom || currentUser?.nom) {
+      return `${currentUser.prenom || ""} ${currentUser.nom || ""}`.trim();
+    }
+    if (currentUser?.utilisateur) return currentUser.utilisateur;
+    if (currentUser?.name) return currentUser.name;
+
+    // 3. From localStorage cached user session (offline mode)
+    if (typeof window !== "undefined") {
+      try {
+        const cachedSessionStr = localStorage.getItem("edut_user_session") || localStorage.getItem("edut_session_user");
+        if (cachedSessionStr) {
+          const cachedUser = JSON.parse(cachedSessionStr);
+          if (cachedUser?.nomPrenom) return cachedUser.nomPrenom;
+          if (cachedUser?.prenom || cachedUser?.nom) {
+            return `${cachedUser.prenom || ""} ${cachedUser.nom || ""}`.trim();
+          }
+          if (cachedUser?.utilisateur) return cachedUser.utilisateur;
+          if (cachedUser?.name) return cachedUser.name;
+          if (cachedUser?.email) return cachedUser.email.split("@")[0];
+        }
+      } catch (_) {}
+    }
+
+    return lastPayment?.recordedBy || feeData?.payment?.recordedBy || "Admin GROUP AIIU-NIGER";
+  }, [lastPayment, feeData, currentUser]);
 
   const targetHeader = effectiveHeaderConfig || activeHeaderConfig;
   const schoolName = targetHeader?.schoolName || branchInfo?.branchName || (isHigherEd ? "UNIVERSITÉ INTERNATIONALE" : "GROUPE SCOLAIRE");
@@ -878,7 +916,7 @@ export default function ReceiptPreviewDialog({
       doc.setFontSize(isA5 ? 5.5 : 6.5);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(180, 83, 9);
-      doc.text("Document généré hors ligne - en attente de synchronisation", W / 2, provY + (isA5 ? 2.2 : 3), { align: "center" });
+      doc.text(`Document généré hors ligne (${resolvedCashier}) - en attente de synchronisation`, W / 2, provY + (isA5 ? 2.2 : 3), { align: "center" });
       provY += isA5 ? 4.5 : 6;
     }
 
@@ -931,24 +969,25 @@ export default function ReceiptPreviewDialog({
     doc.setTextColor(15, 23, 42);
     doc.text(receiptDate, rx, infoBoxY + (isA5 ? 9.5 : 12.5));
 
-    const rightLabels = ["Total Attendu (Frais annuels)", "Total Déjà Payé"];
+    const rightLabels = ["Total Attendu (Frais annuels)", "Total Déjà Payé", "Caissier / Agent"];
     const rightVals = [
       formatCfaAmount(totalExpected),
       formatCfaAmount(totalPaid),
+      resolvedCashier,
     ];
 
-    doc.setFontSize(isA5 ? 6 : 8);
+    doc.setFontSize(isA5 ? 5.8 : 7.5);
     rightLabels.forEach((lbl, i) => {
       doc.setFont("helvetica", "normal");
       doc.setTextColor(120, 130, 150);
-      doc.text(lbl, rx, infoBoxY + (isA5 ? 14 : 18) + i * (isA5 ? 3.5 : 4.5));
+      doc.text(lbl, rx, infoBoxY + (isA5 ? 13.5 : 17.5) + i * (isA5 ? 3.2 : 4.2));
       doc.setFont("helvetica", "bold");
       doc.setTextColor(30, 35, 50);
-      doc.text(`: ${rightVals[i]}`, rx + (isA5 ? 34 : 44), infoBoxY + (isA5 ? 14 : 18) + i * (isA5 ? 3.5 : 4.5));
+      doc.text(`: ${rightVals[i]}`, rx + (isA5 ? 34 : 44), infoBoxY + (isA5 ? 13.5 : 17.5) + i * (isA5 ? 3.2 : 4.2));
     });
 
     // Solde restant pill banner in the right card
-    const soldePillY = infoBoxY + (isA5 ? 21.5 : 27.5);
+    const soldePillY = infoBoxY + (isA5 ? 22 : 28);
     doc.setFillColor(79, 70, 229);
     doc.roundedRect(rx, soldePillY, (W / 2) - margin - (isA5 ? 8 : 10), isA5 ? 4.5 : 6, isA5 ? 1 : 1.5, isA5 ? 1 : 1.5, "F");
     doc.setFontSize(isA5 ? 5.5 : 7.5);
@@ -965,7 +1004,7 @@ export default function ReceiptPreviewDialog({
         paymentMode: feeData.payment?.paymentMode || "Espèces",
         monthConcerned: feeData.payment?.monthConcerned || "Frais de scolarité",
         amount: totalPaid,
-        recordedBy: feeData.payment?.recordedBy || "Admin Scolarité",
+        recordedBy: feeData.payment?.recordedBy || resolvedCashier,
       }
     ]).map((p: any, idx: number) => {
       const numStr = String(idx + 1);
@@ -981,7 +1020,7 @@ export default function ReceiptPreviewDialog({
       const refPStr = `PAY-${String(p.id || (idx + 1)).padStart(6, '0')}`;
       const modeStr = p.paymentMode || "Espèces";
       const amtStr = formatCfaAmount(p.amount || 0).replace(" CFA", "");
-      const recByStr = p.recordedBy || "Admin Scolarité";
+      const recByStr = p.recordedBy || resolvedCashier;
       return [numStr, dStr, refPStr, modeStr, amtStr, recByStr];
     });
 
@@ -1054,11 +1093,17 @@ export default function ReceiptPreviewDialog({
     doc.text("indiqué ci-dessus a été reçu", margin + 3, bottomCardsY + (isA5 ? 11 : 15));
     doc.text("de l'élève mentionné.", margin + 3, bottomCardsY + (isA5 ? 14 : 19));
 
+    doc.setFontSize(isA5 ? 4.2 : 5.5);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(30, 41, 59);
+    doc.text(`Agent : ${resolvedCashier}`, margin + certWidth / 2, bottomCardsY + bottomCardHeight - (isA5 ? 7 : 9.5), { align: "center" });
+
     doc.setDrawColor(203, 213, 225);
-    doc.line(margin + 3, bottomCardsY + bottomCardHeight - (isA5 ? 5 : 7), margin + certWidth - 3, bottomCardsY + bottomCardHeight - (isA5 ? 5 : 7));
-    doc.setFontSize(isA5 ? 4.5 : 5.5);
+    doc.line(margin + 3, bottomCardsY + bottomCardHeight - (isA5 ? 4.5 : 6), margin + certWidth - 3, bottomCardsY + bottomCardHeight - (isA5 ? 4.5 : 6));
+    doc.setFontSize(isA5 ? 3.8 : 5);
+    doc.setFont("helvetica", "normal");
     doc.setTextColor(148, 163, 184);
-    doc.text("Signature & Cachet", margin + certWidth / 2, bottomCardsY + bottomCardHeight - (isA5 ? 2 : 2.5), { align: "center" });
+    doc.text("Signature & Cachet", margin + certWidth / 2, bottomCardsY + bottomCardHeight - (isA5 ? 1.5 : 2), { align: "center" });
 
     // Center: Circular School Stamp
     const stampX = W / 2;
@@ -1110,7 +1155,7 @@ export default function ReceiptPreviewDialog({
     doc.setFontSize(isA5 ? 4.5 : 6);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(148, 163, 184);
-    doc.text(`Émis le : ${receiptDate}`, margin, footerY);
+    doc.text(`Émis le : ${receiptDate} (par ${resolvedCashier})`, margin, footerY);
     doc.text("Ce reçu est généré électroniquement et ne nécessite pas de signature manuscrite.", W / 2, footerY, { align: "center" });
     doc.text(`Merci pour votre confiance. ${schoolName}`, W - margin, footerY, { align: "right" });
 
@@ -1145,6 +1190,7 @@ export default function ReceiptPreviewDialog({
       `💰 Total attendu : ${fmt(totalExpected)}\n` +
       `✅ Total versé : ${fmt(totalPaid)}\n` +
       `📊 Solde restant : *${fmt(balance)}*\n\n` +
+      `👤 Agent / Caissier : *${resolvedCashier}*\n` +
       `📅 Date : ${receiptDate}\n🔖 Réf : ${refNumber}\n\n` +
       `_Merci de votre confiance — ${schoolName}_`;
     window.open(`https://wa.me/${cleaned}?text=${encodeURIComponent(text)}`, "_blank");
@@ -1246,7 +1292,9 @@ export default function ReceiptPreviewDialog({
                       <AlertCircle size={20} className="text-amber-500 shrink-0" />
                       <div>
                         <p className="text-xs font-black uppercase tracking-wider">Reçu provisoire - Non synchronisé</p>
-                        <p className="text-[10px] font-semibold mt-0.5">Ce versement a été enregistré localement et sera synchronisé dès le retour de la connexion.</p>
+                        <p className="text-[10px] font-semibold mt-0.5">
+                          Enregistré hors ligne par <span className="font-bold text-amber-800">{resolvedCashier}</span>. Synchronisation dès le retour de la connexion.
+                        </p>
                       </div>
                     </div>
                     <span className="px-3 py-1 bg-amber-500/20 text-amber-600 rounded-xl text-[10px] font-black uppercase shrink-0">PROVISOIRE</span>
@@ -1337,6 +1385,10 @@ export default function ReceiptPreviewDialog({
                             <span className="text-slate-500 font-medium">Total Déjà Payé</span>
                             <span className="font-bold text-slate-800">{formatCfaAmount(totalPaid)}</span>
                           </div>
+                          <div className="flex items-center justify-between pt-1 border-t border-slate-200/60">
+                            <span className="text-slate-500 font-medium">Caissier / Agent</span>
+                            <span className="font-black text-indigo-600">{resolvedCashier}</span>
+                          </div>
                         </div>
                       </div>
 
@@ -1378,7 +1430,7 @@ export default function ReceiptPreviewDialog({
                         paymentMode: feeData.payment?.paymentMode || "Espèces",
                         monthConcerned: feeData.payment?.monthConcerned || "Frais de scolarité",
                         amount: totalPaid,
-                        recordedBy: feeData.payment?.recordedBy || "Admin Scolarité",
+                        recordedBy: feeData.payment?.recordedBy || resolvedCashier,
                       }
                     ]).map((p: any, idx: number) => {
                       let dStr = p.datePaid;
@@ -1401,7 +1453,7 @@ export default function ReceiptPreviewDialog({
                           <p className="text-slate-600 text-center font-medium">{refPStr}</p>
                           <p className="text-slate-600 text-center font-medium">{p.paymentMode || "Espèces"}</p>
                           <p className="font-black text-slate-800 text-right">{formatCfaAmount(p.amount || 0).replace(" CFA", "")}</p>
-                          <p className="text-slate-600 text-center text-[11px]">{p.recordedBy || "Admin Scolarité"}</p>
+                          <p className="text-slate-700 font-semibold text-center text-[11px]">{p.recordedBy || resolvedCashier}</p>
                         </div>
                       );
                     })}
@@ -1431,8 +1483,11 @@ export default function ReceiptPreviewDialog({
                           Nous certifions que le montant indiqué ci-dessus a été reçu de l'élève mentionné.
                         </p>
                       </div>
-                      <div className="pt-4 text-center">
-                        <svg width="100" height="24" viewBox="0 0 120 38" className="text-slate-400 mx-auto">
+                      <div className="pt-3 text-center">
+                        <p className="text-[10px] font-bold text-slate-700">
+                          Agent : <span className="text-indigo-600 font-extrabold">{resolvedCashier}</span>
+                        </p>
+                        <svg width="100" height="24" viewBox="0 0 120 38" className="text-slate-400 mx-auto my-0.5">
                           <path
                             d="M8,28 C16,10 24,32 34,20 C44,8 52,30 62,22 C72,14 80,26 90,18 C98,12 108,20 114,16"
                             fill="none"
@@ -1440,7 +1495,7 @@ export default function ReceiptPreviewDialog({
                             strokeWidth="1.5"
                           />
                         </svg>
-                        <p className="text-[9px] font-bold text-slate-400 mt-1">Signature &amp; Cachet</p>
+                        <p className="text-[9px] font-bold text-slate-400">Signature &amp; Cachet</p>
                       </div>
                     </div>
 
@@ -1477,7 +1532,7 @@ export default function ReceiptPreviewDialog({
                 <div className="px-8 pb-5 pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400 font-medium relative z-10">
                   <div className="flex items-center gap-1.5">
                     <Calendar size={12} className="text-slate-400 shrink-0" />
-                    <span>Émis le : {receiptDate}</span>
+                    <span>Émis le : {receiptDate} (par {resolvedCashier})</span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <CheckCircle2 size={12} className="text-slate-400 shrink-0" />

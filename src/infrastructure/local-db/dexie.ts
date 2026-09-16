@@ -130,6 +130,8 @@ export interface OutboxAction {
   idempotencyKey?: string;
   userId?: number | string | null;
   schoolId?: number | string | null;
+  userName?: string | null;
+  schoolName?: string | null;
   conflict?: any;
 }
 

@@ -19,7 +19,9 @@ import {
   Check,
   X,
   FileCheck2,
-  Info
+  Info,
+  User,
+  Building2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -68,6 +70,83 @@ export default function SynchronisationClient() {
   const [filter, setFilter] = useState<"all" | "pending" | "failed" | "conflict" | "synced">("all");
 
   const outbox = useLiveQuery(() => localDb.outbox.orderBy("timestamp").reverse().toArray(), []) || [];
+
+  // Query local session reference
+  const sessionRef = useLiveQuery(() => localDb.references.where("type").equals("session" as any).first(), []);
+
+  // Retrieve cached session user from localStorage
+  const cachedUser = useMemo(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const s = localStorage.getItem("edut_user_session") || localStorage.getItem("edut_session_user");
+      if (s) return JSON.parse(s);
+    } catch (_) {}
+    return null;
+  }, []);
+
+  const resolveItemUser = (item: OutboxAction) => {
+    // 1. Explicit userName recorded on outbox action
+    if (item.userName && item.userName !== "Admin") return item.userName;
+    if (item.payload?.userName && item.payload.userName !== "Admin") return item.payload.userName;
+
+    // 2. Explicit recordedBy
+    const recBy = item.payload?.recordedBy;
+    if (recBy && recBy !== "Admin" && !recBy.startsWith("User:") && !recBy.startsWith("user-")) {
+      return recBy;
+    }
+
+    // 3. Match from active/cached user
+    const currentName = cachedUser?.nomPrenom || sessionRef?.payload?.nomPrenom;
+    const currentLogin = cachedUser?.utilisateur || sessionRef?.payload?.utilisateur;
+    const currentId = cachedUser?.id || sessionRef?.payload?.id;
+
+    if (item.userId && currentId && String(item.userId) === String(currentId)) {
+      return currentName || currentLogin || "Admin";
+    }
+
+    // 4. Known user ID 28 is the default admin for School 9 (GROUP AIIU-NIGER)
+    if (String(item.userId) === "28" || String(item.payload?.userId) === "28") {
+      return currentName || "Admin GROUP AIIU-NIGER";
+    }
+
+    if (recBy) return recBy;
+    if (item.userName) return item.userName;
+
+    if (item.userId) {
+      if (String(item.userId).includes("-")) {
+        return `User: ${String(item.userId).slice(0, 8)}`;
+      }
+      return `User #${item.userId}`;
+    }
+
+    return currentName || "Admin";
+  };
+
+  const resolveItemSchool = (item: OutboxAction) => {
+    // 1. Explicit schoolName recorded on outbox action
+    if (item.schoolName) return item.schoolName;
+    if (item.payload?.schoolName) return item.payload.schoolName;
+
+    // 2. School 9 is GROUP AIIU-NIGER
+    const sId = item.schoolId || item.payload?.schoolId;
+    if (sId === 9 || String(sId) === "9" || !sId) {
+      return cachedUser?.school?.name || sessionRef?.payload?.school?.name || "GROUP AIIU-NIGER";
+    }
+
+    // 3. Match from cached user school
+    const currentSchool = cachedUser?.school?.name || cachedUser?.schoolName || sessionRef?.payload?.school?.name;
+    const currentSchoolId = cachedUser?.schoolId || cachedUser?.school?.id || sessionRef?.payload?.schoolId;
+    if (sId && currentSchoolId && String(sId) === String(currentSchoolId) && currentSchool) {
+      return currentSchool;
+    }
+
+    if (typeof window !== "undefined") {
+      const activeSchool = localStorage.getItem("active_school_name") || localStorage.getItem("edut_school_name");
+      if (activeSchool) return activeSchool;
+    }
+
+    return `École #${sId}`;
+  };
 
   const filteredOutbox = useMemo(() => {
     if (filter === "all") return outbox;
@@ -298,21 +377,19 @@ export default function SynchronisationClient() {
                   <td className="px-5 py-4 text-slate-600">{item.entity || item.targetTable}</td>
                   <td className="px-5 py-4 font-black text-indigo-600">{item.actionType}</td>
                   <td className="px-5 py-4 text-[11px] text-slate-600">
-                    <div className="flex flex-col gap-0.5">
-                      <span className="font-semibold text-slate-800">
-                        {item.userId 
-                          ? (String(item.userId).includes("-") ? `User: ${String(item.userId).slice(0, 8)}` : `User: ${item.userId}`)
-                          : item.payload?.recordedBy 
-                            ? `User: ${item.payload.recordedBy}` 
-                            : "User: Admin"}
-                      </span>
-                      <span className="text-[10px] text-slate-400 font-medium">
-                        {item.schoolId 
-                          ? `École #${item.schoolId}` 
-                          : item.payload?.schoolId 
-                            ? `École #${item.payload.schoolId}` 
-                            : "École #9"}
-                      </span>
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center gap-1.5 font-bold text-slate-900">
+                        <User className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
+                        <span className="truncate max-w-[170px]" title={resolveItemUser(item)}>
+                          {resolveItemUser(item)}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-[10px] text-indigo-600 font-semibold">
+                        <Building2 className="h-3 w-3 text-slate-400 shrink-0" />
+                        <span className="truncate max-w-[170px]" title={resolveItemSchool(item)}>
+                          {resolveItemSchool(item)}
+                        </span>
+                      </div>
                     </div>
                   </td>
                   <td className="px-5 py-4"><StatusBadge status={item.status} /></td>

@@ -1151,6 +1151,7 @@ export default function FinanceClient({
         onOpenChange={(open) => !open && setPreviewFee(null)} 
         feeData={previewFee} 
         headerConfig={headerConfig}
+        currentUser={currentUser}
         canDelete={canDelete ?? true}
         onPaymentCancelled={() => {
           router.refresh();

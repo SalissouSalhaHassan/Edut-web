@@ -22,6 +22,8 @@ interface MutationOptions<T> {
   idempotencyKey?: string;
   userId?: string | number | null;
   schoolId?: string | number | null;
+  userName?: string | null;
+  schoolName?: string | null;
 }
 
 const SYNC_SUPPORTED_TABLES = new Set<OfflineTable>([
@@ -87,33 +89,43 @@ export function useOfflineMutation<T>() {
         return { success: false, error: message };
       }
 
-      // 1. Resolve userId and schoolId with multi-tier offline-first fallbacks
+      // 1. Resolve userId, schoolId, userName, and schoolName with multi-tier offline-first fallbacks
       let userId: string | number | null = options.userId || (payload as any)?.userId || null;
       let schoolId: string | number | null = options.schoolId || (payload as any)?.schoolId || null;
+      let userName: string | null = options.userName || (payload as any)?.recordedBy || (payload as any)?.userName || null;
+      let schoolName: string | null = options.schoolName || (payload as any)?.schoolName || null;
 
       // Tier 1: Check localStorage for cached user session or active school
-      if (typeof window !== "undefined" && (!userId || !schoolId)) {
+      if (typeof window !== "undefined" && (!userId || !schoolId || !userName || !schoolName)) {
         try {
           const cachedSessionStr = localStorage.getItem("edut_user_session") || localStorage.getItem("edut_session_user");
           if (cachedSessionStr) {
             const cachedUser = JSON.parse(cachedSessionStr);
             if (!userId) userId = cachedUser.id || cachedUser.utilisateur || null;
+            if (!userName) userName = cachedUser.nomPrenom || (cachedUser.prenom || cachedUser.nom ? `${cachedUser.prenom || ""} ${cachedUser.nom || ""}`.trim() : cachedUser.utilisateur || cachedUser.name || null);
             if (!schoolId) schoolId = cachedUser.schoolId || cachedUser.school?.id || null;
+            if (!schoolName) schoolName = cachedUser.school?.name || cachedUser.schoolName || null;
           }
           if (!schoolId) {
             const cachedSchoolId = localStorage.getItem("active_school_id") || localStorage.getItem("edut_school_id");
             if (cachedSchoolId) schoolId = Number(cachedSchoolId) || null;
           }
+          if (!schoolName) {
+            const cachedSchoolName = localStorage.getItem("active_school_name") || localStorage.getItem("edut_school_name");
+            if (cachedSchoolName) schoolName = cachedSchoolName;
+          }
         } catch (_) {}
       }
 
       // Tier 2: Check IndexedDB localDb.references for cached session
-      if (!userId || !schoolId) {
+      if (!userId || !schoolId || !userName || !schoolName) {
         try {
           const sessionRef = await localDb.references.where("type").equals("session" as any).first();
           if (sessionRef?.payload) {
             if (!userId) userId = sessionRef.payload.id || sessionRef.payload.utilisateur || null;
+            if (!userName) userName = sessionRef.payload.nomPrenom || sessionRef.payload.utilisateur || null;
             if (!schoolId) schoolId = sessionRef.payload.schoolId || null;
+            if (!schoolName) schoolName = sessionRef.payload.school?.name || sessionRef.payload.schoolName || null;
           }
         } catch (_) {}
       }
@@ -130,13 +142,14 @@ export function useOfflineMutation<T>() {
       }
 
       // Tier 4: Fallback to Supabase auth session if available
-      if (!userId || !schoolId) {
+      if (!userId || !schoolId || !userName) {
         try {
           const { createClient } = await import("@/shared/utils/supabase/client");
           const supabase = createClient();
           const { data: { session } } = await supabase.auth.getSession();
           if (session?.user) {
             if (!userId) userId = session.user.id;
+            if (!userName) userName = (session.user.user_metadata as any)?.full_name || (session.user.user_metadata as any)?.name || session.user.email?.split("@")[0] || null;
             if (!schoolId) {
               schoolId = session.user.user_metadata?.schoolId || session.user.user_metadata?.school_id || null;
             }
@@ -150,10 +163,15 @@ export function useOfflineMutation<T>() {
       if (!schoolId) {
         schoolId = 9; // Default school GROUP AIIU-NIGER
       }
+      if (!schoolName) {
+        schoolName = "GROUP AIIU-NIGER";
+      }
       if (!userId) {
         userId = (payload as any)?.recordedBy || "Admin";
       }
-
+      if (!userName) {
+        userName = (payload as any)?.recordedBy || (String(userId) === "28" ? "Admin GROUP AIIU-NIGER" : "Admin");
+      }
 
       const now = Date.now();
       const idempotencyKey =
@@ -190,6 +208,8 @@ export function useOfflineMutation<T>() {
           lastError: null,
           userId,
           schoolId,
+          userName,
+          schoolName,
         });
       } else {
         await localDb.outbox.add({
@@ -210,6 +230,8 @@ export function useOfflineMutation<T>() {
           lastError: null,
           userId,
           schoolId,
+          userName,
+          schoolName,
         });
       }
 

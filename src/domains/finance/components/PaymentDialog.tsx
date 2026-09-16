@@ -113,9 +113,30 @@ export default function PaymentDialog({
     const form = new FormData(e.currentTarget);
     const reference = (form.get("reference") as string)?.trim() || `REC-${Date.now().toString().slice(-8)}`;
 
-    const resolvedSchoolId = currentSchoolId || currentFee?.schoolId || currentFee?.student?.schoolId || currentUser?.schoolId || 9;
-    const resolvedUserId = currentUser?.id || currentUser?.utilisateur || "Admin";
-    const resolvedCashier = currentUser?.nomPrenom || currentUser?.utilisateur || "Admin";
+    let resolvedCashier = currentUser?.nomPrenom || (currentUser?.prenom || currentUser?.nom ? `${currentUser.prenom || ""} ${currentUser.nom || ""}`.trim() : currentUser?.utilisateur || currentUser?.name);
+    let resolvedUserId = currentUser?.id || currentUser?.utilisateur;
+    let resolvedSchoolId = currentSchoolId || currentFee?.schoolId || currentFee?.student?.schoolId || currentUser?.schoolId;
+    let resolvedSchoolName = currentUser?.school?.name || currentUser?.schoolName || headerConfig?.schoolName;
+
+    if (typeof window !== "undefined" && (!resolvedCashier || !resolvedSchoolId || !resolvedSchoolName)) {
+      try {
+        const cachedSessionStr = localStorage.getItem("edut_user_session") || localStorage.getItem("edut_session_user");
+        if (cachedSessionStr) {
+          const cachedUser = JSON.parse(cachedSessionStr);
+          if (!resolvedCashier) {
+            resolvedCashier = cachedUser.nomPrenom || (cachedUser.prenom || cachedUser.nom ? `${cachedUser.prenom || ""} ${cachedUser.nom || ""}`.trim() : cachedUser.utilisateur || cachedUser.name || cachedUser.email?.split("@")[0]);
+          }
+          if (!resolvedUserId) resolvedUserId = cachedUser.id || cachedUser.utilisateur;
+          if (!resolvedSchoolId) resolvedSchoolId = cachedUser.schoolId || cachedUser.school?.id;
+          if (!resolvedSchoolName) resolvedSchoolName = cachedUser.school?.name || cachedUser.schoolName;
+        }
+      } catch (_) {}
+    }
+
+    resolvedCashier = resolvedCashier || "Admin";
+    resolvedUserId = resolvedUserId || "Admin";
+    resolvedSchoolId = resolvedSchoolId || 9;
+    resolvedSchoolName = resolvedSchoolName || "GROUP AIIU-NIGER";
 
     const data: PaymentFormData & { schoolId?: number; recordedBy?: string } = {
       feeId: currentFee.id,
@@ -151,6 +172,8 @@ export default function PaymentDialog({
       idempotencyKey: reference,
       userId: resolvedUserId,
       schoolId: resolvedSchoolId,
+      userName: resolvedCashier,
+      schoolName: resolvedSchoolName,
       onSuccess: () => setOpen(false),
     });
     setLoading(false);
@@ -428,6 +451,7 @@ export default function PaymentDialog({
         onOpenChange={setShowReceipt}
         feeData={receiptFee}
         headerConfig={headerConfig}
+        currentUser={currentUser}
       />
     )}
     </>
