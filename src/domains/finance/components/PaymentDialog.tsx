@@ -11,6 +11,7 @@ import { PaymentFormData } from "../validators/finance.schema";
 import { CreditCard, Banknote, TrendingUp, TrendingDown, Info, AlertCircle, CheckCircle2, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useOfflineMutation } from "@/hooks/use-offline-mutation";
+import { toast } from "sonner";
 import ReceiptPreviewDialog from "./ReceiptPreviewDialog";
 
 interface PaymentDialogProps {
