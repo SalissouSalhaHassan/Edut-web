@@ -297,8 +297,23 @@ export default function SynchronisationClient() {
                   <td className="px-5 py-4 font-black text-slate-900">{item.targetTable}</td>
                   <td className="px-5 py-4 text-slate-600">{item.entity || item.targetTable}</td>
                   <td className="px-5 py-4 font-black text-indigo-600">{item.actionType}</td>
-                  <td className="px-5 py-4 text-[11px] text-slate-500">
-                    {item.userId ? `User: ${String(item.userId).slice(0, 8)}` : "-"} / {item.schoolId ? `School: ${item.schoolId}` : "-"}
+                  <td className="px-5 py-4 text-[11px] text-slate-600">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-semibold text-slate-800">
+                        {item.userId 
+                          ? (String(item.userId).includes("-") ? `User: ${String(item.userId).slice(0, 8)}` : `User: ${item.userId}`)
+                          : item.payload?.recordedBy 
+                            ? `User: ${item.payload.recordedBy}` 
+                            : "User: Admin"}
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-medium">
+                        {item.schoolId 
+                          ? `École #${item.schoolId}` 
+                          : item.payload?.schoolId 
+                            ? `École #${item.payload.schoolId}` 
+                            : "École #9"}
+                      </span>
+                    </div>
                   </td>
                   <td className="px-5 py-4"><StatusBadge status={item.status} /></td>
                   <td className="px-5 py-4 text-slate-500">{formatDate(item.timestamp)}</td>

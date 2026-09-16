@@ -206,6 +206,7 @@ export async function POST(request: NextRequest) {
     const response = NextResponse.json({
       success: true,
       redirectUrl: "/dashboard",
+      user: sessionPayload,
     });
 
     response.cookies.set("edut_session_user", JSON.stringify(sessionPayload), {

@@ -58,6 +58,8 @@ interface FinanceClientProps {
   canDelete?: boolean;
   activeSessionName?: string;
   schoolName?: string;
+  currentUser?: any;
+  currentSchoolId?: number | null;
 }
 
 type TabId = "dashboard" | "payments" | "reports" | "alerts";
@@ -113,6 +115,8 @@ export default function FinanceClient({
   canDelete = true,
   activeSessionName,
   schoolName,
+  currentUser,
+  currentSchoolId,
 }: FinanceClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -607,6 +611,8 @@ export default function FinanceClient({
               allFees={localFees}
               headerConfig={headerConfig}
               onPaymentSuccess={handlePaymentSuccess}
+              currentUser={currentUser}
+              currentSchoolId={currentSchoolId}
               trigger={
                 <Button className="h-12 px-6 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-indigo-100 dark:shadow-none transition-all cursor-pointer">
                   <Plus size={18} /> Ajouter un paiement
@@ -972,6 +978,8 @@ export default function FinanceClient({
                                 allFees={localFees}
                                 headerConfig={headerConfig}
                                 onPaymentSuccess={handlePaymentSuccess}
+                                currentUser={currentUser}
+                                currentSchoolId={currentSchoolId}
                                 trigger={
                                   <div className="p-2.5 text-amber-400 hover:text-amber-600 dark:hover:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/50 rounded-xl transition-all cursor-pointer">
                                     <Edit size={17} />

@@ -57,7 +57,7 @@ export default async function DashboardLayout({
       <React.Suspense fallback={null}>
         <NavigationProgressProvider>
           <DashboardLoadingBar />
-          <SyncStatus />
+          <SyncStatus user={user} />
           <InactivityLockOverlay user={user} branding={branding} />
 
           <div className="flex h-full max-h-full gap-4 p-4 overflow-hidden">

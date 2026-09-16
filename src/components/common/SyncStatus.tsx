@@ -8,11 +8,42 @@ import { useOnlineStatus } from "@/hooks/use-online-status";
 import { localDb } from "@/infrastructure/local-db/dexie";
 import { syncOutbox } from "@/infrastructure/local-db/sync";
 
-export default function SyncStatus() {
+interface SyncStatusProps {
+  user?: any;
+}
+
+export default function SyncStatus({ user }: SyncStatusProps = {}) {
   const isOnline = useOnlineStatus();
   const [isPending, startTransition] = useTransition();
   const [showStatus, setShowStatus] = useState(true);
   const wasOnline = useRef(isOnline);
+
+  // Cache user and school context for offline operations
+  useEffect(() => {
+    if (user && typeof window !== "undefined") {
+      try {
+        const sessionPayload = {
+          id: user.id,
+          utilisateur: user.utilisateur,
+          nomPrenom: user.nomPrenom,
+          schoolId: user.schoolId || user.school?.id || 9,
+          role: user.role?.roleName || "Administrateur",
+        };
+        localStorage.setItem("edut_user_session", JSON.stringify(sessionPayload));
+        if (sessionPayload.schoolId) {
+          localStorage.setItem("active_school_id", String(sessionPayload.schoolId));
+        }
+
+        localDb.references.put({
+          type: "session" as any,
+          remoteId: user.id,
+          label: "currentUser",
+          payload: sessionPayload,
+          updatedAt: Date.now(),
+        }).catch(() => {});
+      } catch (_) {}
+    }
+  }, [user]);
 
   const outboxCount = useLiveQuery(async () => {
     const items = await localDb.outbox.toArray();

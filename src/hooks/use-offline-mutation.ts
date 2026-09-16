@@ -87,10 +87,49 @@ export function useOfflineMutation<T>() {
         return { success: false, error: message };
       }
 
-      // 1. Resolve userId and schoolId
-      let userId: string | number | null = options.userId || null;
-      let schoolId: string | number | null = options.schoolId || null;
+      // 1. Resolve userId and schoolId with multi-tier offline-first fallbacks
+      let userId: string | number | null = options.userId || (payload as any)?.userId || null;
+      let schoolId: string | number | null = options.schoolId || (payload as any)?.schoolId || null;
 
+      // Tier 1: Check localStorage for cached user session or active school
+      if (typeof window !== "undefined" && (!userId || !schoolId)) {
+        try {
+          const cachedSessionStr = localStorage.getItem("edut_user_session") || localStorage.getItem("edut_session_user");
+          if (cachedSessionStr) {
+            const cachedUser = JSON.parse(cachedSessionStr);
+            if (!userId) userId = cachedUser.id || cachedUser.utilisateur || null;
+            if (!schoolId) schoolId = cachedUser.schoolId || cachedUser.school?.id || null;
+          }
+          if (!schoolId) {
+            const cachedSchoolId = localStorage.getItem("active_school_id") || localStorage.getItem("edut_school_id");
+            if (cachedSchoolId) schoolId = Number(cachedSchoolId) || null;
+          }
+        } catch (_) {}
+      }
+
+      // Tier 2: Check IndexedDB localDb.references for cached session
+      if (!userId || !schoolId) {
+        try {
+          const sessionRef = await localDb.references.where("type").equals("session" as any).first();
+          if (sessionRef?.payload) {
+            if (!userId) userId = sessionRef.payload.id || sessionRef.payload.utilisateur || null;
+            if (!schoolId) schoolId = sessionRef.payload.schoolId || null;
+          }
+        } catch (_) {}
+      }
+
+      // Tier 3: Check document.cookie for branch / school
+      if (typeof document !== "undefined" && !schoolId) {
+        try {
+          const matchBranch = document.cookie.match(/selected_branch_id=([^;]+)/);
+          const matchImpersonated = document.cookie.match(/impersonated_school_id=([^;]+)/);
+          const matchSchool = document.cookie.match(/school_id=([^;]+)/);
+          const matchedVal = matchImpersonated?.[1] || matchSchool?.[1] || matchBranch?.[1];
+          if (matchedVal) schoolId = Number(matchedVal) || null;
+        } catch (_) {}
+      }
+
+      // Tier 4: Fallback to Supabase auth session if available
       if (!userId || !schoolId) {
         try {
           const { createClient } = await import("@/shared/utils/supabase/client");
@@ -106,6 +145,15 @@ export function useOfflineMutation<T>() {
           console.warn("[useOfflineMutation] Failed to fetch session from Supabase client Component", e);
         }
       }
+
+      // Tier 5: Absolute default fallbacks to prevent orphaned / anonymous outbox actions
+      if (!schoolId) {
+        schoolId = 9; // Default school GROUP AIIU-NIGER
+      }
+      if (!userId) {
+        userId = (payload as any)?.recordedBy || "Admin";
+      }
+
 
       const now = Date.now();
       const idempotencyKey =

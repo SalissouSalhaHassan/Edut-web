@@ -19,6 +19,8 @@ interface PaymentDialogProps {
   headerConfig?: any | null;
   trigger?: React.ReactNode;
   onPaymentSuccess?: (updatedFeeData: any) => void;
+  currentUser?: any;
+  currentSchoolId?: number | null;
 }
 
 const months = ["Septembre", "Octobre", "Novembre", "Décembre", "Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août"];
@@ -28,9 +30,11 @@ export default function PaymentDialog({
   allFees, 
   headerConfig, 
   trigger, 
-  onPaymentSuccess 
+  onPaymentSuccess,
+  currentUser,
+  currentSchoolId
 }: PaymentDialogProps) {
-  const { mutate, isOnline } = useOfflineMutation<PaymentFormData>();
+  const { mutate, isOnline } = useOfflineMutation<PaymentFormData & { schoolId?: number; recordedBy?: string }>();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -107,7 +111,12 @@ export default function PaymentDialog({
 
     const form = new FormData(e.currentTarget);
     const reference = (form.get("reference") as string)?.trim() || `REC-${Date.now().toString().slice(-8)}`;
-    const data: PaymentFormData = {
+
+    const resolvedSchoolId = currentSchoolId || currentFee?.schoolId || currentFee?.student?.schoolId || currentUser?.schoolId || 9;
+    const resolvedUserId = currentUser?.id || currentUser?.utilisateur || "Admin";
+    const resolvedCashier = currentUser?.nomPrenom || currentUser?.utilisateur || "Admin";
+
+    const data: PaymentFormData & { schoolId?: number; recordedBy?: string } = {
       feeId: currentFee.id,
       amount: Number(form.get("amount")),
       reduction: Number(form.get("reduction")) || 0,
@@ -116,6 +125,8 @@ export default function PaymentDialog({
       reference: reference,
       notes: form.get("notes") as string,
       datePaid: form.get("datePaid") as string,
+      schoolId: resolvedSchoolId,
+      recordedBy: resolvedCashier,
     };
 
     // Client-side double payment check
@@ -137,6 +148,8 @@ export default function PaymentDialog({
       entity: "payment",
       entityId: reference,
       idempotencyKey: reference,
+      userId: resolvedUserId,
+      schoolId: resolvedSchoolId,
       onSuccess: () => setOpen(false),
     });
     setLoading(false);
@@ -157,7 +170,8 @@ export default function PaymentDialog({
         monthConcerned: data.monthConcerned,
         notes: data.notes,
         datePaid: data.datePaid ? new Date(data.datePaid).toISOString() : new Date().toISOString(),
-        recordedBy: "Admin",
+        recordedBy: resolvedCashier,
+        isProvisoire: !isOnline,
       };
 
       const updatedFee = {
@@ -171,6 +185,10 @@ export default function PaymentDialog({
       };
 
       setOpen(false);
+
+      if (!isOnline) {
+        toast.warning("Paiement enregistré localement (PROVISOIRE - HORS LIGNE). Il sera synchronisé dès le retour de la connexion.");
+      }
 
       if (onPaymentSuccess) {
         onPaymentSuccess(updatedFee);

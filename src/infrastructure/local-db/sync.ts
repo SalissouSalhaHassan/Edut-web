@@ -163,7 +163,13 @@ export async function syncOutbox() {
           }
         } else if (item.targetTable === "feePayments") {
           const { recordPayment } = await import("@/domains/finance/actions/finance.actions");
-          const { id: _localId, updatedAt: _updatedAt, ...paymentPayload } = item.payload;
+          const { id: _localId, updatedAt: _updatedAt, idempotencyKey: _idemp, ...paymentPayload } = item.payload;
+          if (!paymentPayload.schoolId && item.schoolId) {
+            paymentPayload.schoolId = Number(item.schoolId);
+          }
+          if (!paymentPayload.recordedBy && item.userId) {
+            paymentPayload.recordedBy = String(item.userId);
+          }
           const res = (await recordPayment(paymentPayload)) as any;
           success = !!res?.success;
           error = res?.error || "Unknown error";

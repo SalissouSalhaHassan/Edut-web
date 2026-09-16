@@ -85,7 +85,13 @@ export const getCurrentUser = cache(async (): Promise<SessionUserRecord | null> 
     const cookieStore = await cookies();
     const customSession = cookieStore.get("edut_session_user")?.value;
     if (customSession) {
-      const parsed = JSON.parse(customSession);
+      let raw = customSession;
+      try {
+        if (raw.startsWith("%7B") || raw.includes("%22") || raw.startsWith("%")) {
+          raw = decodeURIComponent(raw);
+        }
+      } catch (_) {}
+      const parsed = JSON.parse(raw);
       if (parsed && (parsed.id || parsed.utilisateur)) {
         return parsed as SessionUserRecord;
       }

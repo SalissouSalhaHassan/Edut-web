@@ -311,7 +311,7 @@ export async function recordPayment(formData: PaymentFormData) {
   return protectedDbAction("Finance", "canEdit", async (user) => {
     const roleType = await getUserRoleType(user);
     const { feeId, amount, reduction, paymentMode, reference, monthConcerned, notes, datePaid } = validation.data;
-    const schoolId = await getActiveSchoolId();
+    const schoolId = (formData as any).schoolId || (await getActiveSchoolId()) || user?.schoolId || 9;
 
     if (reference) {
       const existingPayment = await db.query.feePayments.findFirst({
@@ -356,7 +356,7 @@ export async function recordPayment(formData: PaymentFormData) {
       reference,
       monthConcerned,
       datePaid: datePaid ? new Date(datePaid) : new Date(),
-      recordedBy: user.nomPrenom || user.utilisateur || "Admin",
+      recordedBy: (formData as any).recordedBy || user.nomPrenom || user.utilisateur || "Admin",
     }).returning({ id: feePayments.id });
 
     // 3. Update the student fee totals

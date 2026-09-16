@@ -452,6 +452,8 @@ export default async function FinancePage({
         headerConfig={headerConfig}
         activeSessionName={activeSessionName}
         schoolName={schoolName}
+        currentUser={user}
+        currentSchoolId={schoolId}
       />
     );
   } catch (error) {
@@ -465,6 +467,8 @@ export default async function FinancePage({
         headerConfig={null}
         activeSessionName="2025–2026"
         schoolName="GROUP AIIU-NIGER"
+        currentUser={null}
+        currentSchoolId={9}
       />
     );
   }
