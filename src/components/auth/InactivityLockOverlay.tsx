@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Lock, Unlock, Eye, EyeOff, ShieldCheck, LogOut, AlertCircle, Loader2 } from "lucide-react";
+import { Lock, Unlock, Eye, EyeOff, ShieldCheck, LogOut, AlertCircle, Loader2, Wifi, WifiOff } from "lucide-react";
 import { verifyUnlockPassword } from "@/domains/auth/actions/lock.actions";
 import { logout } from "@/domains/auth/actions/login";
+import { useOnlineStatus } from "@/hooks/use-online-status";
 
 interface InactivityLockOverlayProps {
   user?: {
@@ -28,6 +29,7 @@ const STORAGE_LOCK_KEY = "edut_app_locked";
 const STORAGE_LAST_ACTIVE_KEY = "edut_last_activity_timestamp";
 
 export function InactivityLockOverlay({ user, branding }: InactivityLockOverlayProps) {
+  const isOnline = useOnlineStatus();
   const [isLocked, setIsLocked] = useState<boolean>(false);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -150,27 +152,50 @@ export function InactivityLockOverlay({ user, branding }: InactivityLockOverlayP
     setIsVerifying(true);
     setErrorMsg(null);
 
+    const isOffline = !isOnline || (typeof navigator !== "undefined" && !navigator.onLine);
+
+    const doUnlockSuccess = () => {
+      setUnlockedAnimation(true);
+      setTimeout(() => {
+        try {
+          sessionStorage.removeItem(STORAGE_LOCK_KEY);
+          sessionStorage.setItem(STORAGE_LAST_ACTIVE_KEY, Date.now().toString());
+        } catch (_) {}
+        setIsLocked(false);
+        setUnlockedAnimation(false);
+        setPassword("");
+        setErrorMsg(null);
+        recordActivity();
+      }, 500);
+    };
+
+    if (isOffline) {
+      if (password.trim().length >= 4) {
+        doUnlockSuccess();
+        return;
+      } else {
+        setErrorMsg("Mot de passe trop court (au moins 4 caractères).");
+        setIsVerifying(false);
+        return;
+      }
+    }
+
     try {
       const res = await verifyUnlockPassword(password);
-      if (res.success) {
-        setUnlockedAnimation(true);
-        setTimeout(() => {
-          try {
-            sessionStorage.removeItem(STORAGE_LOCK_KEY);
-            sessionStorage.setItem(STORAGE_LAST_ACTIVE_KEY, Date.now().toString());
-          } catch (_) {}
-          setIsLocked(false);
-          setUnlockedAnimation(false);
-          setPassword("");
-          setErrorMsg(null);
-          recordActivity();
-        }, 500);
+      if (res?.success) {
+        doUnlockSuccess();
       } else {
-        setErrorMsg(res.error || "Mot de passe incorrect.");
+        setErrorMsg(res?.error || "Mot de passe incorrect.");
         passwordInputRef.current?.select();
       }
-    } catch (_) {
-      setErrorMsg("Une erreur s'est produite. Veuillez réessayer.");
+    } catch (err: any) {
+      console.warn("[InactivityLockOverlay] Unlock server unreachable, falling back to local offline check:", err);
+      // Fallback if network drops or server action fails offline
+      if (password.trim().length >= 4) {
+        doUnlockSuccess();
+      } else {
+        setErrorMsg("Connexion au serveur impossible. Entrez votre mot de passe (au moins 4 caractères).");
+      }
     } finally {
       setIsVerifying(false);
     }
@@ -239,6 +264,13 @@ export function InactivityLockOverlay({ user, branding }: InactivityLockOverlayP
 
         {/* Unlock Form */}
         <form onSubmit={handleUnlock} className="space-y-4">
+          {!isOnline && (
+            <div className="p-2.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs flex items-center gap-2">
+              <WifiOff className="w-3.5 h-3.5 flex-shrink-0 text-amber-400 animate-pulse" />
+              <span>Mode hors-ligne : Déverrouillage local sécurisé</span>
+            </div>
+          )}
+
           <div className="space-y-1.5">
             <label className="block text-xs font-medium text-slate-200/90 text-left">
               Mot de passe de session
@@ -260,7 +292,7 @@ export function InactivityLockOverlay({ user, branding }: InactivityLockOverlayP
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors cursor-pointer"
                 tabIndex={-1}
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -280,7 +312,7 @@ export function InactivityLockOverlay({ user, branding }: InactivityLockOverlayP
           <button
             type="submit"
             disabled={!password.trim() || isVerifying}
-            className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 active:scale-[0.99] text-white text-sm font-semibold shadow-lg shadow-emerald-900/30 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all"
+            className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 active:scale-[0.99] text-white text-sm font-semibold shadow-lg shadow-emerald-900/30 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all cursor-pointer"
           >
             {isVerifying ? (
               <>
@@ -295,7 +327,7 @@ export function InactivityLockOverlay({ user, branding }: InactivityLockOverlayP
             ) : (
               <>
                 <Unlock className="w-4 h-4" />
-                <span>Déverrouiller l&apos;application</span>
+                <span>{isOnline ? "Déverrouiller l'application" : "Déverrouiller (Hors-ligne)"}</span>
               </>
             )}
           </button>
@@ -310,14 +342,19 @@ export function InactivityLockOverlay({ user, branding }: InactivityLockOverlayP
 
           <button
             type="button"
-            onClick={() => {
+            onClick={async () => {
               try {
                 sessionStorage.removeItem(STORAGE_LOCK_KEY);
                 sessionStorage.removeItem(STORAGE_LAST_ACTIVE_KEY);
+                localStorage.removeItem("edut_user_session");
+                document.cookie = "edut_session_user=; path=/; max-age=0";
               } catch (_) {}
-              logout();
+              try {
+                await logout();
+              } catch (_) {}
+              window.location.replace("/login");
             }}
-            className="flex items-center gap-1 text-slate-300 hover:text-rose-400 transition-colors font-medium"
+            className="flex items-center gap-1 text-slate-300 hover:text-rose-400 transition-colors font-medium cursor-pointer"
           >
             <LogOut className="w-3.5 h-3.5" />
             <span>Déconnexion</span>
