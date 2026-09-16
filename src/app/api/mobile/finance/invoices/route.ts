@@ -223,7 +223,62 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ success: true, message: "Synchronisation terminée avec succès." });
+    // Reconcile and recalculate actual totalPaid and balance from feePayments
+    const sessionFees = await readDb
+      .select({ id: studentFees.id, totalExpected: studentFees.totalExpected, totalPaid: studentFees.totalPaid })
+      .from(studentFees)
+      .where(and(eq(studentFees.schoolId, targetSchoolId), eq(studentFees.sessionId, sessionId)));
+
+    const feeIds = sessionFees.map((f) => f.id);
+    let updatedCount = 0;
+
+    if (feeIds.length > 0) {
+      // Process in chunks of 200 for inArray safety
+      for (let i = 0; i < feeIds.length; i += 200) {
+        const chunkIds = feeIds.slice(i, i + 200);
+        const paymentSums = await readDb
+          .select({
+            feeId: feePayments.feeId,
+            totalPaid: sql<number>`COALESCE(SUM(${feePayments.amount}), 0)`,
+            totalReduction: sql<number>`COALESCE(SUM(${feePayments.reduction}), 0)`,
+          })
+          .from(feePayments)
+          .where(inArray(feePayments.feeId, chunkIds))
+          .groupBy(feePayments.feeId);
+
+        const paymentMap = new Map(paymentSums.map((p) => [p.feeId, p]));
+
+        for (const fId of chunkIds) {
+          const fee = sessionFees.find((sf) => sf.id === fId);
+          if (!fee) continue;
+          const pInfo = paymentMap.get(fee.id);
+          const actualPaid = Number(pInfo?.totalPaid || 0);
+          const actualReduction = Number(pInfo?.totalReduction || 0);
+          const expected = Number(fee.totalExpected || 0);
+          const balance = Math.max(0, expected - actualPaid - actualReduction);
+          const status = balance <= 0 && expected > 0 ? "Soldé" : actualPaid > 0 ? "Partiel" : "Impayé";
+
+          if (Number(fee.totalPaid || 0) !== actualPaid) {
+            await db
+              .update(studentFees)
+              .set({
+                totalPaid: actualPaid,
+                totalReduction: actualReduction,
+                balance,
+                status,
+              })
+              .where(eq(studentFees.id, fee.id));
+            updatedCount++;
+          }
+        }
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      updated: updatedCount,
+      message: `Synchronisation terminée avec succès (${updatedCount} dossier(s) synchronisé(s)).`,
+    });
   } catch (err: any) {
     console.error("[Invoices POST Error]:", err);
     return mobileJsonError(`Erreur: ${err.message || err}`, 500);

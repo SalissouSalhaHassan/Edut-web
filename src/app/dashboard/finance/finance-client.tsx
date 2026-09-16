@@ -351,15 +351,20 @@ export default function FinanceClient({
       let baseFees = fees || [];
       let isUsingLocal = false;
 
-      // 2. ONLY fall back to local Dexie cache if the browser is TRULY offline
+      // 2. Fall back to local Dexie cache if the browser is TRULY offline OR if server returned empty/0 fees
       const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
-      if (isOffline) {
+      const isFeesEmptyOrZero = !fees || fees.length === 0 || fees.every((f: any) => (f.totalPaid || 0) === 0);
+
+      if (isOffline || isFeesEmptyOrZero) {
         try {
           const { getCachedStudentFees } = await import("@/infrastructure/local-db/cache");
           const cached = await getCachedStudentFees();
           if (cached && cached.length > 0) {
-            baseFees = cached;
-            isUsingLocal = true;
+            const hasPaymentsInCache = cached.some((f: any) => (f.totalPaid || 0) > 0);
+            if (isOffline || hasPaymentsInCache) {
+              baseFees = cached;
+              isUsingLocal = true;
+            }
           }
         } catch (e) {
           console.warn("Failed to read cached studentFees:", e);
@@ -493,9 +498,16 @@ export default function FinanceClient({
     // 1. Instantly update in-memory localFees so the table updates without page reloads
     setLocalFees((prevFees) => {
       const idx = prevFees.findIndex((f) => f.id === updatedFee.id);
-      if (idx === -1) return [updatedFee, ...prevFees];
-      const copy = [...prevFees];
-      copy[idx] = { ...copy[idx], ...updatedFee };
+      const copy = idx === -1 ? [updatedFee, ...prevFees] : [...prevFees];
+      if (idx !== -1) {
+        copy[idx] = { ...copy[idx], ...updatedFee };
+      }
+
+      // 1.1 Asynchronously persist updated fees into Dexie cache
+      import("@/infrastructure/local-db/cache").then(({ cacheStudentFees }) => {
+        cacheStudentFees(copy).catch(() => {});
+      }).catch(() => {});
+
       return copy;
     });
 
@@ -504,10 +516,31 @@ export default function FinanceClient({
     toast.success("Paiement enregistré avec succès ! Reçu de paiement prêt pour l'impression.");
   };
 
-  // Unpaid badge count
-  const alertCount = advancedStats
-    ? (advancedStats.countUnpaid || 0) + (advancedStats.countPartial || 0)
-    : 0;
+  // Dynamic metrics when offline or when payments change locally
+  const dynamicTotalExpected = React.useMemo(() => {
+    return localFees.reduce((sum, f) => sum + (Number(f.totalExpected) || 0), 0);
+  }, [localFees]);
+
+  const dynamicTotalPaid = React.useMemo(() => {
+    return localFees.reduce((sum, f) => sum + (Number(f.totalPaid) || 0), 0);
+  }, [localFees]);
+
+  const dynamicRecoveryRate = React.useMemo(() => {
+    if (dynamicTotalExpected <= 0) return advancedStats?.recoveryRate || 0;
+    return Math.round((dynamicTotalPaid / dynamicTotalExpected) * 100);
+  }, [dynamicTotalExpected, dynamicTotalPaid, advancedStats?.recoveryRate]);
+
+  const dynamicAlertCount = React.useMemo(() => {
+    return localFees.filter((f) => f.status === "Impayé" || f.status === "En retard" || f.status === "Partiel").length;
+  }, [localFees]);
+
+  const alertCount = isLocal
+    ? dynamicAlertCount
+    : (advancedStats ? ((advancedStats.countUnpaid || 0) + (advancedStats.countPartial || 0)) : dynamicAlertCount);
+
+  const recoveryRate = isLocal
+    ? dynamicRecoveryRate
+    : (advancedStats?.recoveryRate ?? dynamicRecoveryRate);
 
   const sideItems = [
     { label: "Tableau de bord", tab: "dashboard" as TabId, icon: LayoutDashboard },
@@ -535,14 +568,14 @@ export default function FinanceClient({
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-widest">
-            <span className="rounded-lg bg-slate-100 dark:bg-slate-800 px-3 py-1.5 text-slate-600 dark:text-slate-300">Total élèves: {advancedStats?.totalStudents || localFees.length}</span>
-            <span className="rounded-lg bg-emerald-50 dark:bg-emerald-950/40 px-3 py-1.5 text-emerald-700 dark:text-emerald-300">Recouvrement: {advancedStats?.recoveryRate || 0}%</span>
+            <span className="rounded-lg bg-slate-100 dark:bg-slate-800 px-3 py-1.5 text-slate-600 dark:text-slate-300">Total élèves: {localFees.length || advancedStats?.totalStudents || 0}</span>
+            <span className="rounded-lg bg-emerald-50 dark:bg-emerald-950/40 px-3 py-1.5 text-emerald-700 dark:text-emerald-300">Recouvrement: {recoveryRate}%</span>
             <span className="rounded-lg bg-rose-50 dark:bg-rose-950/40 px-3 py-1.5 text-rose-600 dark:text-rose-400">Alertes: {alertCount}</span>
             <div className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-white">
               <div className="h-1 w-16 overflow-hidden rounded-full bg-white/30">
-                <div className="h-full rounded-full bg-white transition-all" style={{ width: `${Math.min(100, advancedStats?.recoveryRate || 0)}%` }} />
+                <div className="h-full rounded-full bg-white transition-all" style={{ width: `${Math.min(100, recoveryRate)}%` }} />
               </div>
-              <span>{advancedStats?.recoveryRate || 0}%</span>
+              <span>{recoveryRate}%</span>
             </div>
           </div>
         </div>
