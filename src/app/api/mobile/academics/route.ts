@@ -30,6 +30,10 @@ async function checkPeriodLock(
     roleType === "admin" ||
     roleType === "super_admin" ||
     roleType === "director" ||
+    roleType === "directeur" ||
+    roleType === "general_director" ||
+    roleType === "level_director" ||
+    roleType === "ministere" ||
     roleType === "owner";
   if (isAdmin) return { isLocked: false };
 
@@ -719,7 +723,21 @@ export async function POST(request: NextRequest) {
       const sessionId = Number(first.session_id);
       const term = String(first.term);
 
-      const canEditSaisie = await hasPermission(user.id, "Academics", "canEdit", "saisieNotes");
+      const isAllowedRole = [
+        "super_admin",
+        "admin",
+        "owner",
+        "ministere",
+        "directeur",
+        "general_director",
+        "level_director",
+        "censeur",
+        "surveillant",
+        "teacher",
+        "enseignant",
+      ].includes(roleType) || Boolean(user.employeeId);
+
+      const canEditSaisie = isAllowedRole || await hasPermission(user.id, "Academics", "canEdit", "saisieNotes");
       if (!canEditSaisie) {
         return mobileJsonError("Accès refusé. La modification de la Saisie des Notes n'est pas autorisée pour votre rôle.", 403);
       }
@@ -733,8 +751,32 @@ export async function POST(request: NextRequest) {
       const cls = await readDb.query.schoolClasses.findFirst({
         where: eq(schoolClasses.id, classId)
       });
-      if (!cls || (schoolId && cls.schoolId !== schoolId)) {
-        return mobileJsonError("Accès refusé.", 403);
+      if (!cls) {
+        return mobileJsonError("Classe introuvable.", 404);
+      }
+
+      const isAdminOrDirector = [
+        "super_admin",
+        "admin",
+        "owner",
+        "ministere",
+        "directeur",
+        "general_director",
+        "level_director"
+      ].includes(roleType);
+
+      if (!isAdminOrDirector && schoolId && cls.schoolId && cls.schoolId !== schoolId) {
+        const isAssignedTeacher = user.employeeId ? await readDb.query.classSubjects.findFirst({
+          where: and(
+            eq(classSubjects.classId, classId),
+            eq(classSubjects.subjectId, subjectId),
+            eq(classSubjects.employeeId, user.employeeId)
+          )
+        }) : null;
+
+        if (!isAssignedTeacher) {
+          return mobileJsonError("Accès refusé. Cette classe n'appartient pas à votre établissement.", 403);
+        }
       }
 
       // Existing results map
@@ -760,11 +802,11 @@ export async function POST(request: NextRequest) {
             classId,
             sessionId,
             term,
-            classWorkScore: grade.class_work_score !== null ? Number(grade.class_work_score) : null,
-            examScore: grade.exam_score !== null ? Number(grade.exam_score) : null,
-            totalScore: grade.total_score !== null ? Number(grade.total_score) : null,
-            coefficient: grade.coefficient !== null ? Number(grade.coefficient) : 1,
-            weightedScore: grade.weighted_score !== null ? Number(grade.weighted_score) : null,
+            classWorkScore: grade.class_work_score !== null && grade.class_work_score !== undefined && grade.class_work_score !== "" ? Number(grade.class_work_score) : null,
+            examScore: grade.exam_score !== null && grade.exam_score !== undefined && grade.exam_score !== "" ? Number(grade.exam_score) : null,
+            totalScore: grade.total_score !== null && grade.total_score !== undefined && grade.total_score !== "" ? Number(grade.total_score) : null,
+            coefficient: grade.coefficient !== null && grade.coefficient !== undefined ? Math.round(Number(grade.coefficient)) : 1,
+            weightedScore: grade.weighted_score !== null && grade.weighted_score !== undefined && grade.weighted_score !== "" ? Number(grade.weighted_score) : null,
             absences: grade.absences ? Number(grade.absences) : 0,
             observation: grade.observation ? String(grade.observation) : null,
             appreciation: grade.appreciation ? String(grade.appreciation) : null,
@@ -797,7 +839,21 @@ export async function POST(request: NextRequest) {
       const sessionId = Number(first.session_id);
       const term = String(first.term);
 
-      const canEditDevoirs = await hasPermission(user.id, "Academics", "canEdit", "gestionDevoirs");
+      const isAllowedRole = [
+        "super_admin",
+        "admin",
+        "owner",
+        "ministere",
+        "directeur",
+        "general_director",
+        "level_director",
+        "censeur",
+        "surveillant",
+        "teacher",
+        "enseignant",
+      ].includes(roleType) || Boolean(user.employeeId);
+
+      const canEditDevoirs = isAllowedRole || await hasPermission(user.id, "Academics", "canEdit", "gestionDevoirs");
       if (!canEditDevoirs) {
         return mobileJsonError("Accès refusé. La modification de la Gestion des Devoirs n'est pas autorisée pour votre rôle.", 403);
       }
@@ -810,8 +866,32 @@ export async function POST(request: NextRequest) {
       const cls = await readDb.query.schoolClasses.findFirst({
         where: eq(schoolClasses.id, classId)
       });
-      if (!cls || (schoolId && cls.schoolId !== schoolId)) {
-        return mobileJsonError("Accès refusé.", 403);
+      if (!cls) {
+        return mobileJsonError("Classe introuvable.", 404);
+      }
+
+      const isAdminOrDirector = [
+        "super_admin",
+        "admin",
+        "owner",
+        "ministere",
+        "directeur",
+        "general_director",
+        "level_director"
+      ].includes(roleType);
+
+      if (!isAdminOrDirector && schoolId && cls.schoolId && cls.schoolId !== schoolId) {
+        const isAssignedTeacher = user.employeeId ? await readDb.query.classSubjects.findFirst({
+          where: and(
+            eq(classSubjects.classId, classId),
+            eq(classSubjects.subjectId, subjectId),
+            eq(classSubjects.employeeId, user.employeeId)
+          )
+        }) : null;
+
+        if (!isAssignedTeacher) {
+          return mobileJsonError("Accès refusé. Cette classe n'appartient pas à votre établissement.", 403);
+        }
       }
       const allExisting = await readDb.query.studentResults.findMany({
         where: and(
