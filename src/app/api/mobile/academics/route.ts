@@ -34,7 +34,11 @@ async function checkPeriodLock(
     roleType === "general_director" ||
     roleType === "level_director" ||
     roleType === "ministere" ||
-    roleType === "owner";
+    roleType === "owner" ||
+    roleType === "censeur" ||
+    roleType === "proviseur" ||
+    roleType === "fondateur" ||
+    roleType === "promoteur";
   if (isAdmin) return { isLocked: false };
 
   try {
@@ -993,24 +997,41 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === "updateWorkflowStatus") {
-      const { sessionId, period, classId, subjectId, targetAction, observation } = payload;
+      const { sessionId, period, classId, subjectId, targetAction, observation, schoolId: payloadSchoolId } = payload;
       if (!sessionId || !period || !classId || !targetAction) {
         return mobileJsonError("Paramètres workflow manquants", 400);
       }
 
-      const targetSchoolId = schoolId || 1;
+      // Safe School Resolution: payload -> user.schoolId -> class record -> fallback
+      let targetSchoolId = payloadSchoolId ? Number(payloadSchoolId) : (schoolId ? Number(schoolId) : null);
+      if (!targetSchoolId) {
+        const cls = await readDb.query.schoolClasses.findFirst({
+          where: eq(schoolClasses.id, Number(classId)),
+          columns: { schoolId: true },
+        });
+        targetSchoolId = cls?.schoolId || null;
+      }
+
       const conds = [
         eq(resultsWorkflows.sessionId, Number(sessionId)),
-        eq(resultsWorkflows.period, String(period)),
         eq(resultsWorkflows.classId, Number(classId)),
       ];
       if (subjectId) {
         conds.push(eq(resultsWorkflows.subjectId, Number(subjectId)));
       }
 
-      const existing = await readDb.query.resultsWorkflows.findFirst({
+      const allExisting = await readDb.query.resultsWorkflows.findMany({
         where: and(...conds),
       });
+
+      const existing = allExisting.find((r) => matchTerm(r.period, period)) || allExisting[0];
+
+      if (!targetSchoolId && existing?.schoolId) {
+        targetSchoolId = existing.schoolId;
+      }
+      if (!targetSchoolId) {
+        targetSchoolId = 9;
+      }
 
       let nextStatus = "BROUILLON";
       const updateFields: any = {
@@ -1020,15 +1041,18 @@ export async function POST(request: NextRequest) {
       if (targetAction === "submit") {
         nextStatus = "SAISIE_TERMINEE";
         updateFields.submittedAt = new Date();
+        if (user.employeeId) updateFields.submittedBy = Number(user.employeeId);
       } else if (targetAction === "request_correction") {
         nextStatus = "CORRECTION_DEMANDEE";
         updateFields.observation = observation || "Correction demandée par la direction.";
       } else if (targetAction === "validate_control") {
         nextStatus = "CONTROLE_PEDAGOGIQUE";
         updateFields.controlledAt = new Date();
+        if (user.employeeId) updateFields.controlledBy = Number(user.employeeId);
       } else if (targetAction === "lock") {
         nextStatus = "VERROUILLE";
         updateFields.lockedAt = new Date();
+        if (user.employeeId) updateFields.lockedBy = Number(user.employeeId);
       } else if (targetAction === "unlock") {
         nextStatus = "BROUILLON";
         updateFields.observation = observation || "Déverrouillage exceptionnel";
@@ -1037,9 +1061,9 @@ export async function POST(request: NextRequest) {
       }
 
       const dbValues = {
-        schoolId: targetSchoolId,
+        schoolId: existing?.schoolId || targetSchoolId,
         sessionId: Number(sessionId),
-        period: String(period),
+        period: existing?.period || String(period),
         classId: Number(classId),
         subjectId: subjectId ? Number(subjectId) : null,
         status: nextStatus,
@@ -1052,6 +1076,11 @@ export async function POST(request: NextRequest) {
       } else {
         await db.insert(resultsWorkflows).values(dbValues);
       }
+
+      try {
+        revalidatePath("/dashboard/academics");
+        revalidatePath("/dashboard/academics/grades");
+      } catch (_) {}
 
       return NextResponse.json({
         success: true,
