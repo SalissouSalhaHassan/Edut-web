@@ -14,11 +14,14 @@ import { toast } from "sonner";
 const AcademicFilters = dynamic(() => import("@/domains/academics/components/AcademicFilters"), { ssr: false });
 const DevoirEntryGrid = dynamic(() => import("@/domains/academics/components/DevoirEntryGrid"), { ssr: false });
 import { getDevoirGrid, saveDevoirGrades } from "@/domains/academics/actions/academics.actions";
+import { useOfflineMutation } from "@/hooks/use-offline-mutation";
+import { cacheDevoirGrid, getCachedDevoirGrid } from "@/infrastructure/local-db/cache";
 
 import { Sparkles, BrainCircuit, Wand2 } from "lucide-react";
 import AITeacherAssistantModal from "@/domains/ai/components/AITeacherAssistantModal";
 
 export default function DevoirEntryPage() {
+  const { mutate, isOnline } = useOfflineMutation<{ devoirsList: any[] }>();
   const [loading, setLoading] = useState(false);
   const [students, setStudents] = useState<any[]>([]);
   const [activeFilters, setActiveFilters] = useState<any>(null);
@@ -29,6 +32,7 @@ export default function DevoirEntryPage() {
     educationalLevel?: string;
   }>({});
   const [showAIModal, setShowAIModal] = useState(false);
+  const [isLocal, setIsLocal] = useState(false);
 
   const handleLoad = async (filters: any) => {
     console.log("[DevoirEntry] Loading with filters:", filters);
@@ -45,6 +49,7 @@ export default function DevoirEntryPage() {
       
       if (result?.data) {
         setStudents(result.data);
+        setIsLocal(false);
         setGridMeta({
           coefficient: result.coefficient,
           subjectName: result.subjectName,
@@ -52,12 +57,50 @@ export default function DevoirEntryPage() {
           educationalLevel: result.educationalLevel
         });
         toast.success("Grille des devoirs (DS) chargée avec succès.");
+
+        // Cache locally for offline availability
+        try {
+          await cacheDevoirGrid(
+            Number(filters.classId),
+            Number(filters.subjectId),
+            Number(filters.sessionId),
+            filters.period,
+            result
+          );
+        } catch (e) {
+          console.warn("Failed to cache devoirs locally:", e);
+        }
       } else if (result?.error) {
-        toast.error("Erreur de chargement", { description: result.error });
+        // Try offline fallback
+        const cached = await getCachedDevoirGrid(
+          Number(filters.classId),
+          Number(filters.subjectId),
+          Number(filters.sessionId),
+          filters.period
+        );
+        if (cached && cached.data?.length > 0) {
+          setStudents(cached.data);
+          setIsLocal(true);
+          toast.info("Affichage des devoirs en cache local (hors-ligne).");
+        } else {
+          toast.error("Erreur de chargement", { description: result.error });
+        }
       }
     } catch (err) {
-      console.error(err);
-      toast.error("Erreur de chargement de la grille.");
+      console.warn("Failed to load online devoirs grid, falling back to local cache:", err);
+      const cached = await getCachedDevoirGrid(
+        Number(filters.classId),
+        Number(filters.subjectId),
+        Number(filters.sessionId),
+        filters.period
+      );
+      if (cached && cached.data?.length > 0) {
+        setStudents(cached.data);
+        setIsLocal(true);
+        toast.info("Affichage des devoirs en cache local (hors-ligne).");
+      } else {
+        toast.error("Pas de connexion internet et aucune donnée en cache local.");
+      }
     } finally {
       setLoading(false);
     }
@@ -71,22 +114,56 @@ export default function DevoirEntryPage() {
 
     try {
       const payload = data.map(row => ({
-        studentId: row.studentId,
-        subjectId: activeFilters.subjectId,
-        classId: activeFilters.classId,
-        sessionId: activeFilters.sessionId,
+        studentId: Number(row.studentId),
+        subjectId: Number(activeFilters.subjectId),
+        classId: Number(activeFilters.classId),
+        sessionId: Number(activeFilters.sessionId),
         term: activeFilters.period,
-        devoirs: row.devoirs.map((v: string) => v === "" ? null : parseFloat(v)),
+        devoirs: row.devoirs.map((v: string) => v === "" || v === null ? null : parseFloat(v)),
         moyenneDevoirs: row.moyenneDevoirs
       }));
 
-      const result = await saveDevoirGrades(payload);
+      // Cache locally immediately
+      try {
+        await cacheDevoirGrid(
+          Number(activeFilters.classId),
+          Number(activeFilters.subjectId),
+          Number(activeFilters.sessionId),
+          activeFilters.period,
+          { data }
+        );
+      } catch (e) {
+        console.warn("Failed to cache devoirs during save:", e);
+      }
+
+      const idempotencyKey = `devoirs:${activeFilters.classId}_${activeFilters.subjectId}_${activeFilters.sessionId}_${activeFilters.period}`;
+      const result = await mutate(
+        { devoirsList: payload },
+        {
+          targetTable: "devoirs",
+          onlineAction: async (p) => saveDevoirGrades(p.devoirsList),
+          entity: "devoirs",
+          entityId: `${activeFilters.classId}_${activeFilters.subjectId}_${activeFilters.period}`,
+          idempotencyKey,
+        }
+      );
+
       if (result?.success) {
-        toast.success("Succès de l'enregistrement !", {
-          id: toastId,
-          description: "Les devoirs (DS), moyennes de matière et bulletins ont été synchronisés avec succès.",
-          duration: 5000
-        });
+        if (result.fromCloud) {
+          setIsLocal(false);
+          toast.success("Succès de l'enregistrement !", {
+            id: toastId,
+            description: "Les devoirs (DS) ont été synchronisés avec succès sur le serveur.",
+            duration: 5000
+          });
+        } else {
+          setIsLocal(true);
+          toast.warning("Devoirs enregistrés localement (Mode Hors-Ligne)", {
+            id: toastId,
+            description: "Modifications sauvegardées sur cet appareil. Elles seront synchronisées dès que la connexion sera rétablie 📶.",
+            duration: 6000
+          });
+        }
       } else {
         toast.error("Erreur d'enregistrement", {
           id: toastId,
@@ -96,7 +173,7 @@ export default function DevoirEntryPage() {
       }
     } catch (err: any) {
       console.error(err);
-      toast.error("Erreur critique de synchronisation", {
+      toast.error("Erreur critique d'enregistrement", {
         id: toastId,
         description: err?.message || "Impossible de joindre le serveur.",
         duration: 5000

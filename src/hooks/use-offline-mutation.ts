@@ -6,6 +6,8 @@ type OfflineTable =
   | "students" 
   | "exams" 
   | "examResults" 
+  | "studentResults"
+  | "devoirs"
   | "subjects" 
   | "feePayments" 
   | "attendanceBatches"
@@ -20,6 +22,7 @@ interface MutationOptions<T> {
   entity?: string;
   entityId?: string | number | null;
   idempotencyKey?: string;
+  priority?: number;
   userId?: string | number | null;
   schoolId?: string | number | null;
   userName?: string | null;
@@ -30,6 +33,8 @@ const SYNC_SUPPORTED_TABLES = new Set<OfflineTable>([
   "students", 
   "exams", 
   "examResults", 
+  "studentResults",
+  "devoirs",
   "feePayments", 
   "attendanceBatches",
   "documents",
@@ -191,6 +196,13 @@ export function useOfflineMutation<T>() {
         await (localDb as any)[targetTable].put(localPayload as any);
       }
 
+      const priority = options.priority || (
+        targetTable === "students" ? 1 :
+        targetTable === "feePayments" ? 2 :
+        (targetTable === "studentResults" || targetTable === "devoirs" || targetTable === "examResults" || targetTable === "exams") ? 3 :
+        targetTable === "attendanceBatches" ? 4 : 5
+      );
+
       const existingQueued = await localDb.outbox
         .where("idempotencyKey")
         .equals(idempotencyKey)
@@ -204,6 +216,7 @@ export function useOfflineMutation<T>() {
             idempotencyKey,
           },
           status: "pending sync",
+          priority,
           updatedAt: now,
           lastError: null,
           userId,
@@ -223,6 +236,7 @@ export function useOfflineMutation<T>() {
             idempotencyKey,
           },
           status: "pending sync",
+          priority,
           timestamp: now,
           updatedAt: now,
           retryCount: 0,

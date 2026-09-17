@@ -994,31 +994,52 @@ export async function saveStudentGrades(resultsData: any[]) {
       )
     });
 
-    const existingMap = new Map(existing.map(r => [r.studentId, r.id]));
+    const existingMap = new Map(existing.map(r => [r.studentId, r]));
 
     await Promise.all(resultsData.map(async (row) => {
       const { studentId, subjectId, classId, sessionId, term, ...scores } = row;
+      const exist = existingMap.get(studentId);
+
+      const resolvedClassWork = scores.classWorkScore !== undefined ? scores.classWorkScore : exist?.classWorkScore;
+      const resolvedExam = scores.examScore !== undefined ? scores.examScore : exist?.examScore;
+      const resolvedCoeff = scores.coefficient !== undefined ? scores.coefficient : (exist?.coefficient || 1);
       
+      let resolvedTotal = scores.totalScore;
+      if (resolvedTotal === undefined) {
+        if (resolvedClassWork !== null && resolvedClassWork !== undefined && resolvedExam !== null && resolvedExam !== undefined) {
+          resolvedTotal = Number(((Number(resolvedClassWork) + Number(resolvedExam)) / 2).toFixed(2));
+        } else if (resolvedClassWork !== null && resolvedClassWork !== undefined) {
+          resolvedTotal = Number(Number(resolvedClassWork).toFixed(2));
+        } else if (resolvedExam !== null && resolvedExam !== undefined) {
+          resolvedTotal = Number(Number(resolvedExam).toFixed(2));
+        } else {
+          resolvedTotal = exist?.totalScore ?? null;
+        }
+      }
+
+      const resolvedWeighted = (resolvedTotal !== null && resolvedTotal !== undefined)
+        ? Number((Number(resolvedTotal) * Number(resolvedCoeff)).toFixed(2))
+        : (scores.weightedScore !== undefined ? scores.weightedScore : exist?.weightedScore);
+
       const dbValues = {
         studentId,
         subjectId,
         classId,
         sessionId,
         term,
-        classWorkScore: scores.classWorkScore,
-        examScore: scores.examScore,
-        totalScore: scores.totalScore,
-        coefficient: scores.coefficient,
-        weightedScore: scores.weightedScore,
-        absences: scores.absences || 0,
-        observation: scores.observation,
-        appreciation: scores.appreciation,
-        rank: scores.rank,
+        classWorkScore: resolvedClassWork,
+        examScore: resolvedExam,
+        totalScore: resolvedTotal,
+        coefficient: resolvedCoeff,
+        weightedScore: resolvedWeighted,
+        absences: scores.absences !== undefined ? (scores.absences || 0) : (exist?.absences || 0),
+        observation: scores.observation !== undefined ? scores.observation : exist?.observation,
+        appreciation: scores.appreciation !== undefined ? scores.appreciation : exist?.appreciation,
+        rank: scores.rank !== undefined ? scores.rank : exist?.rank,
       };
 
-      const existingId = existingMap.get(studentId);
-      if (existingId) {
-        await db.update(studentResults).set(dbValues).where(eq(studentResults.id, existingId));
+      if (exist?.id) {
+        await db.update(studentResults).set(dbValues).where(eq(studentResults.id, exist.id));
       } else {
         await db.insert(studentResults).values(dbValues);
       }

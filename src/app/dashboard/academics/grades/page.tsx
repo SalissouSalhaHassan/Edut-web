@@ -42,8 +42,11 @@ import { getCurrentUserAction } from "@/domains/auth/actions/session.actions";
 import { GradeApprovalWorkflowBar, WorkflowStatus } from "@/domains/academics/components/GradeApprovalWorkflowBar";
 import StudentGradesView from "./components/StudentGradesView";
 import OfficialDocumentHeader from "@/domains/printing/components/OfficialDocumentHeader";
+import { useOfflineMutation } from "@/hooks/use-offline-mutation";
+import { cacheGradingGrid, getCachedGradingGrid } from "@/infrastructure/local-db/cache";
 
 export default function AcademicResultsPage() {
+  const { mutate, isOnline: isOnlineMutation } = useOfflineMutation<{ grades: any[] }>();
   const [loading, setLoading] = useState(false);
   const [view, setView] = useState("entry"); // "entry", "matrix" or "reports"
   const [students, setStudents] = useState<any[]>([]);
@@ -223,6 +226,11 @@ export default function AcademicResultsPage() {
           }
           
           try {
+            await cacheGradingGrid(Number(filters.classId), Number(filters.subjectId), Number(filters.sessionId), filters.period, {
+              data: studentData,
+              level: resObj.level,
+              coefficient: resObj.activeCoefficient,
+            });
             const { cacheReferenceItems } = await import("@/infrastructure/local-db/references");
             await cacheReferenceItems("examResults" as any, [{ key: cacheKey, data: studentData, level: resObj.level, activeCoef: resObj.activeCoefficient }], "key");
           } catch (e) {
@@ -231,17 +239,26 @@ export default function AcademicResultsPage() {
         }
       } else {
         try {
-          const { getCachedReferenceItems } = await import("@/infrastructure/local-db/references");
-          const cachedList = await getCachedReferenceItems<any>("examResults" as any);
-          const match = cachedList.find((c: any) => c.key === cacheKey);
-          if (match) {
-            setStudents(match.data);
-            setLevel(match.level || filters.level);
-            setActiveCoef(match.activeCoef || 1);
+          const cachedGrid = await getCachedGradingGrid(Number(filters.classId), Number(filters.subjectId), Number(filters.sessionId), filters.period);
+          if (cachedGrid && cachedGrid.data?.length > 0) {
+            setStudents(cachedGrid.data);
+            setLevel(cachedGrid.level || filters.level);
+            setActiveCoef(cachedGrid.coefficient || 1);
             setIsLocal(true);
             toast.info("Affichage des notes locales (hors-ligne).");
           } else {
-            toast.warning("Aucune donnée locale en cache pour cette sélection.");
+            const { getCachedReferenceItems } = await import("@/infrastructure/local-db/references");
+            const cachedList = await getCachedReferenceItems<any>("examResults" as any);
+            const match = cachedList.find((c: any) => c.key === cacheKey);
+            if (match) {
+              setStudents(match.data);
+              setLevel(match.level || filters.level);
+              setActiveCoef(match.activeCoef || 1);
+              setIsLocal(true);
+              toast.info("Affichage des notes locales (hors-ligne).");
+            } else {
+              toast.warning("Aucune donnée locale en cache pour cette sélection.");
+            }
           }
         } catch (e) {
           console.warn("Failed to load cached grading grid:", e);
@@ -344,44 +361,78 @@ export default function AcademicResultsPage() {
       return;
     }
     setLoading(true);
-    const toastId = toast.loading("Enregistrement et ترحيل البيانات en cours... Veuillez patienter.");
+    const toastId = toast.loading("Enregistrement des notes en cours... Veuillez patienter.");
 
     const resultsToSave = data.map((r: any) => ({
-      studentId: r.studentId,
-      subjectId: activeFilters.subjectId,
-      classId: activeFilters.classId,
-      sessionId: activeFilters.sessionId,
+      studentId: Number(r.studentId),
+      subjectId: Number(activeFilters.subjectId),
+      classId: Number(activeFilters.classId),
+      sessionId: Number(activeFilters.sessionId),
       term: activeFilters.period,
       classWorkScore: parseFloat(r.classWork) || 0,
       examScore: parseFloat(r.examNote) || 0,
       totalScore: r.total,
       coefficient: activeCoef,
       weightedScore: r.weighted,
-      absences: r.absents,
-      observation: r.observation,
-      appreciation: r.appreciation,
-      rank: r.rank
+      absences: r.absents || 0,
+      observation: r.observation || "",
+      appreciation: r.appreciation || "",
+      rank: r.rank || "-"
     }));
 
+    // Immediately cache locally so offline state is 100% updated in browser
     try {
-      const res = await saveStudentGrades(resultsToSave);
-      if (res.success) {
-        toast.success("Succès du ترحيل !", {
-          id: toastId,
-          description: "La grille de notes a été enregistrée et transférée avec succès dans les bulletins.",
-          duration: 5000
-        });
+      await cacheGradingGrid(
+        Number(activeFilters.classId),
+        Number(activeFilters.subjectId),
+        Number(activeFilters.sessionId),
+        activeFilters.period,
+        { data, level, coefficient: activeCoef }
+      );
+    } catch (e) {
+      console.warn("Failed to update local cache during save:", e);
+    }
+
+    try {
+      const idempotencyKey = `studentResults:${activeFilters.classId}_${activeFilters.subjectId}_${activeFilters.sessionId}_${activeFilters.period}`;
+      const result = await mutate(
+        { grades: resultsToSave },
+        {
+          targetTable: "studentResults",
+          onlineAction: async (p) => saveStudentGrades(p.grades),
+          entity: "studentResults",
+          entityId: `${activeFilters.classId}_${activeFilters.subjectId}_${activeFilters.period}`,
+          idempotencyKey,
+        }
+      );
+
+      if (result.success) {
+        if (result.fromCloud) {
+          setIsLocal(false);
+          toast.success("Succès du ترحيل !", {
+            id: toastId,
+            description: "La grille de notes a été enregistrée et synchronisée avec le serveur cloud.",
+            duration: 5000
+          });
+        } else {
+          setIsLocal(true);
+          toast.warning("Notes enregistrées localement (Mode Hors-Ligne)", {
+            id: toastId,
+            description: "Vos notes sont sauvegardées en sécurité sur cet appareil. Elles seront synchronisées dès que la connexion sera rétablie 📶.",
+            duration: 6000
+          });
+        }
       } else {
         toast.error("Erreur lors de l'enregistrement", {
           id: toastId,
-          description: res.error || "Une erreur est survenue lors de la communication avec le serveur.",
+          description: result.error || "Une erreur est survenue lors de la communication avec le serveur.",
           duration: 5000
         });
       }
     } catch (err: any) {
-      toast.error("Erreur critique de ترحيل", {
+      toast.error("Erreur critique d'enregistrement", {
         id: toastId,
-        description: err?.message || "Impossible de joindre le serveur pour sauvegarder les données.",
+        description: err?.message || "Impossible d'enregistrer les notes.",
         duration: 5000
       });
     } finally {

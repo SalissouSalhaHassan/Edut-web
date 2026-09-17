@@ -62,9 +62,40 @@ export interface LocalSubject {
   updatedAt?: number;
 }
 
+export interface LocalStudentResult {
+  id?: number;
+  classId: number;
+  subjectId: number;
+  sessionId: number;
+  term: string;
+  studentId: number;
+  classWorkScore?: number | null;
+  examScore?: number | null;
+  totalScore?: number | null;
+  coefficient?: number;
+  weightedScore?: number | null;
+  absences?: number;
+  observation?: string | null;
+  appreciation?: string | null;
+  rank?: string | null;
+  updatedAt?: number;
+}
+
+export interface LocalDevoirGrade {
+  id?: number;
+  classId: number;
+  subjectId: number;
+  sessionId: number;
+  term: string;
+  studentId: number;
+  devoirs: (number | null)[];
+  moyenneDevoirs?: number | null;
+  updatedAt?: number;
+}
+
 export interface LocalReferenceItem {
   id?: number;
-  type: "class" | "subject" | "session" | "period" | "section" | "level" | "studentCategory" | "studentFees" | "attendance" | "exams" | "examResults" | "lmsCache";
+  type: "class" | "subject" | "session" | "period" | "section" | "level" | "studentCategory" | "studentFees" | "attendance" | "exams" | "examResults" | "studentResults" | "gradingGrid" | "lmsCache";
   remoteId?: number | string | null;
   label: string;
   payload: any;
@@ -122,6 +153,7 @@ export interface OutboxAction {
   entityId?: string | number | null;
   payload: any;
   status?: "pending" | "syncing" | "synced" | "failed" | "conflict" | "cancelled" | "local draft" | "pending sync" | "validated" | "rejected";
+  priority?: number; // 1 = Critical/Students, 2 = Financials, 3 = Academics, 4 = Attendance, 5 = Others
   timestamp: number;
   updatedAt?: number;
   syncedAt?: number | null;
@@ -139,6 +171,8 @@ class EdutLocalDatabase extends Dexie {
   students!: Table<LocalStudent>;
   exams!: Table<LocalExam>;
   examResults!: Table<LocalExamResult>;
+  studentResults!: Table<LocalStudentResult>;
+  devoirGrades!: Table<LocalDevoirGrade>;
   subjects!: Table<LocalSubject>;
   references!: Table<LocalReferenceItem>;
   feePayments!: Table<LocalFeePayment>;
@@ -221,6 +255,21 @@ class EdutLocalDatabase extends Dexie {
       studentPhotos: 'numAdmission, updatedAt',
       studentAttendance: '++id, classId, subjectId, date, studentId, updatedAt',
       outbox: '++id, actionType, targetTable, status, timestamp, updatedAt, syncedAt, retryCount, idempotencyKey, userId, schoolId',
+    });
+
+    this.version(8).stores({
+      students: '++id, schoolId, [schoolId+numAdmission], numAdmission, nomEtudiant, classe, statut, updatedAt',
+      exams: '++id, examName, classId, subjectId, updatedAt',
+      examResults: '++id, examId, studentId, updatedAt',
+      studentResults: '++id, [classId+subjectId+sessionId+term], classId, subjectId, sessionId, term, studentId, updatedAt',
+      devoirGrades: '++id, [classId+subjectId+sessionId+term], classId, subjectId, sessionId, term, studentId, updatedAt',
+      subjects: '++id, subjectName, updatedAt',
+      references: '++id, type, remoteId, label, updatedAt',
+      feePayments: '++id, feeId, reference, datePaid, updatedAt',
+      attendanceBatches: '++id, classId, subjectId, date, updatedAt',
+      studentPhotos: 'numAdmission, updatedAt',
+      studentAttendance: '++id, classId, subjectId, date, studentId, updatedAt',
+      outbox: '++id, actionType, targetTable, status, priority, timestamp, updatedAt, syncedAt, retryCount, idempotencyKey, userId, schoolId',
     });
   }
 }

@@ -793,12 +793,44 @@ export async function POST(request: NextRequest) {
       });
 
       const existing = allExisting.filter(r => matchTerm(r.term, term));
-      const existingMap = new Map(existing.map((r) => [r.studentId, r.id]));
+      const existingMap = new Map(existing.map((r) => [r.studentId, r]));
 
       await Promise.all(
         grades.map(async (grade: any) => {
           const studentId = Number(grade.student_id);
-          const existingId = existingMap.get(studentId);
+          const exist = existingMap.get(studentId);
+
+          const rawClassWork = grade.class_work_score !== null && grade.class_work_score !== undefined && grade.class_work_score !== ""
+            ? Number(grade.class_work_score)
+            : null;
+          const rawExam = grade.exam_score !== null && grade.exam_score !== undefined && grade.exam_score !== ""
+            ? Number(grade.exam_score)
+            : null;
+
+          const resolvedClassWork = rawClassWork !== null ? rawClassWork : (exist?.classWorkScore ?? null);
+          const resolvedExam = rawExam !== null ? rawExam : (exist?.examScore ?? null);
+          const resolvedCoeff = grade.coefficient !== null && grade.coefficient !== undefined
+            ? Math.round(Number(grade.coefficient))
+            : (exist?.coefficient || 1);
+
+          let resolvedTotal: number | null = null;
+          if (grade.total_score !== null && grade.total_score !== undefined && grade.total_score !== "") {
+            resolvedTotal = Number(grade.total_score);
+          } else if (resolvedClassWork !== null && resolvedExam !== null) {
+            resolvedTotal = Number(((resolvedClassWork + resolvedExam) / 2).toFixed(2));
+          } else if (resolvedClassWork !== null) {
+            resolvedTotal = Number(resolvedClassWork.toFixed(2));
+          } else if (resolvedExam !== null) {
+            resolvedTotal = Number(resolvedExam.toFixed(2));
+          } else {
+            resolvedTotal = exist?.totalScore ?? null;
+          }
+
+          const resolvedWeighted = resolvedTotal !== null
+            ? Number((resolvedTotal * resolvedCoeff).toFixed(2))
+            : (grade.weighted_score !== null && grade.weighted_score !== undefined && grade.weighted_score !== ""
+                ? Number(grade.weighted_score)
+                : (exist?.weightedScore ?? null));
 
           const dbValues = {
             studentId,
@@ -806,22 +838,22 @@ export async function POST(request: NextRequest) {
             classId,
             sessionId,
             term,
-            classWorkScore: grade.class_work_score !== null && grade.class_work_score !== undefined && grade.class_work_score !== "" ? Number(grade.class_work_score) : null,
-            examScore: grade.exam_score !== null && grade.exam_score !== undefined && grade.exam_score !== "" ? Number(grade.exam_score) : null,
-            totalScore: grade.total_score !== null && grade.total_score !== undefined && grade.total_score !== "" ? Number(grade.total_score) : null,
-            coefficient: grade.coefficient !== null && grade.coefficient !== undefined ? Math.round(Number(grade.coefficient)) : 1,
-            weightedScore: grade.weighted_score !== null && grade.weighted_score !== undefined && grade.weighted_score !== "" ? Number(grade.weighted_score) : null,
-            absences: grade.absences ? Number(grade.absences) : 0,
-            observation: grade.observation ? String(grade.observation) : null,
-            appreciation: grade.appreciation ? String(grade.appreciation) : null,
-            rank: grade.rank ? String(grade.rank) : null,
+            classWorkScore: resolvedClassWork,
+            examScore: resolvedExam,
+            totalScore: resolvedTotal,
+            coefficient: resolvedCoeff,
+            weightedScore: resolvedWeighted,
+            absences: grade.absences ? Number(grade.absences) : (exist?.absences || 0),
+            observation: grade.observation ? String(grade.observation) : (exist?.observation ?? null),
+            appreciation: grade.appreciation ? String(grade.appreciation) : (exist?.appreciation ?? null),
+            rank: grade.rank ? String(grade.rank) : (exist?.rank ?? null),
           };
 
-          if (existingId) {
+          if (exist?.id) {
             await db
               .update(studentResults)
               .set(dbValues)
-              .where(eq(studentResults.id, existingId));
+              .where(eq(studentResults.id, exist.id));
           } else {
             await db.insert(studentResults).values(dbValues);
           }

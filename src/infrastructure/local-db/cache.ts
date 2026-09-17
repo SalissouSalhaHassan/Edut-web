@@ -189,3 +189,168 @@ export async function getCachedAttendance(classId: number, date: string, subject
   const match = list.find(item => item.date === date && item.subjectId === (subjectId || 0));
   return match ? match.records : [];
 }
+
+// 5. Grading Grid & Notes Caching
+export async function cacheGradingGrid(
+  classId: number,
+  subjectId: number,
+  sessionId: number,
+  term: string,
+  data: any
+) {
+  const key = `grading_grid_${classId}_${subjectId}_${sessionId}_${term}`;
+  await cacheReferenceItems("gradingGrid" as any, [{ key, data, updatedAt: Date.now() }], "key");
+
+  // Also cache individual student results rows in localDb.studentResults
+  try {
+    const rawRows = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
+    if (rawRows.length > 0) {
+      const recordsToPut = rawRows.map((r: any) => ({
+        classId,
+        subjectId,
+        sessionId,
+        term,
+        studentId: Number(r.studentId || r.student_id),
+        classWorkScore: r.classWorkScore ?? r.classWork ?? r.class_work_score ?? null,
+        examScore: r.examScore ?? r.examNote ?? r.exam_score ?? null,
+        totalScore: r.totalScore ?? r.total ?? r.total_score ?? null,
+        coefficient: r.coefficient ?? data?.coefficient ?? 1,
+        weightedScore: r.weightedScore ?? r.weighted ?? r.weighted_score ?? null,
+        absences: r.absences ?? r.absents ?? 0,
+        observation: r.observation ?? null,
+        appreciation: r.appreciation ?? null,
+        rank: r.rank ?? null,
+        updatedAt: Date.now(),
+      }));
+
+      // Delete existing for this specific grid
+      const existing = await localDb.studentResults
+        .where("[classId+subjectId+sessionId+term]")
+        .equals([classId, subjectId, sessionId, term])
+        .toArray();
+      if (existing.length > 0) {
+        await localDb.studentResults.bulkDelete(existing.map((e) => e.id!).filter(Boolean));
+      }
+      await localDb.studentResults.bulkPut(recordsToPut);
+    }
+  } catch (e) {
+    console.warn("Failed to put studentResults in localDb:", e);
+  }
+}
+
+export async function getCachedGradingGrid(
+  classId: number,
+  subjectId: number,
+  sessionId: number,
+  term: string
+): Promise<any | null> {
+  const key = `grading_grid_${classId}_${subjectId}_${sessionId}_${term}`;
+  const cachedList = await getCachedReferenceItems<any>("gradingGrid" as any);
+  const match = cachedList.find((c: any) => c.key === key);
+  if (match?.data) return match.data;
+
+  // Fallback: reconstruct from localDb.studentResults
+  try {
+    const rows = await localDb.studentResults
+      .where("[classId+subjectId+sessionId+term]")
+      .equals([classId, subjectId, sessionId, term])
+      .toArray();
+    if (rows.length > 0) {
+      return {
+        success: true,
+        data: rows.map((r) => ({
+          studentId: r.studentId,
+          classWork: r.classWorkScore?.toString() || "",
+          examNote: r.examScore?.toString() || "",
+          classWorkScore: r.classWorkScore,
+          examScore: r.examScore,
+          totalScore: r.totalScore,
+          total: r.totalScore,
+          coefficient: r.coefficient,
+          weightedScore: r.weightedScore,
+          weighted: r.weightedScore,
+          absents: r.absences || 0,
+          absences: r.absences || 0,
+          observation: r.observation || "",
+          appreciation: r.appreciation || "",
+          rank: r.rank || "-",
+        })),
+        isLocal: true,
+      };
+    }
+  } catch (_) {}
+
+  return null;
+}
+
+// 6. Devoirs Grid Caching
+export async function cacheDevoirGrid(
+  classId: number,
+  subjectId: number,
+  sessionId: number,
+  term: string,
+  data: any
+) {
+  const key = `devoir_grid_${classId}_${subjectId}_${sessionId}_${term}`;
+  await cacheReferenceItems("gradingGrid" as any, [{ key, data, updatedAt: Date.now() }], "key");
+
+  try {
+    const rows = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
+    if (rows.length > 0) {
+      const recordsToPut = rows.map((r: any) => ({
+        classId,
+        subjectId,
+        sessionId,
+        term,
+        studentId: Number(r.studentId || r.student_id),
+        devoirs: Array.isArray(r.devoirs) ? r.devoirs : [],
+        moyenneDevoirs: r.moyenneDevoirs ?? r.moyenne_devoirs ?? null,
+        updatedAt: Date.now(),
+      }));
+
+      const existing = await localDb.devoirGrades
+        .where("[classId+subjectId+sessionId+term]")
+        .equals([classId, subjectId, sessionId, term])
+        .toArray();
+      if (existing.length > 0) {
+        await localDb.devoirGrades.bulkDelete(existing.map((e) => e.id!).filter(Boolean));
+      }
+      await localDb.devoirGrades.bulkPut(recordsToPut);
+    }
+  } catch (e) {
+    console.warn("Failed to put devoirGrades in localDb:", e);
+  }
+}
+
+export async function getCachedDevoirGrid(
+  classId: number,
+  subjectId: number,
+  sessionId: number,
+  term: string
+): Promise<any | null> {
+  const key = `devoir_grid_${classId}_${subjectId}_${sessionId}_${term}`;
+  const cachedList = await getCachedReferenceItems<any>("gradingGrid" as any);
+  const match = cachedList.find((c: any) => c.key === key);
+  if (match?.data) return match.data;
+
+  try {
+    const rows = await localDb.devoirGrades
+      .where("[classId+subjectId+sessionId+term]")
+      .equals([classId, subjectId, sessionId, term])
+      .toArray();
+    if (rows.length > 0) {
+      return {
+        success: true,
+        data: rows.map((r) => ({
+          studentId: r.studentId,
+          devoirs: r.devoirs,
+          moyenneDevoirs: r.moyenneDevoirs,
+        })),
+        isLocal: true,
+      };
+    }
+  } catch (_) {}
+
+  return null;
+}
+

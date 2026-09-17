@@ -8,11 +8,14 @@ export async function syncOutbox() {
   syncInProgress = true;
 
   try {
-    const items = (await localDb.outbox.orderBy("timestamp").toArray())
-      .filter((item) => !item.status || item.status === "pending" || item.status === "pending sync" || item.status === "failed");
+    const rawItems = await localDb.outbox.toArray();
+    const items = rawItems
+      .filter((item) => !item.status || item.status === "pending" || item.status === "pending sync" || item.status === "failed")
+      .sort((a, b) => (a.priority || 5) - (b.priority || 5) || a.timestamp - b.timestamp);
+
     if (items.length === 0) return false;
 
-    console.log(`[Sync] Starting sync for ${items.length} outbox items.`);
+    console.log(`[Sync] Starting prioritized smart sync for ${items.length} outbox items.`);
 
     let processedCount = 0;
 
@@ -79,6 +82,13 @@ export async function syncOutbox() {
                     }
                     if (pending.targetTable === "examResults" && payload.studentId === localId) {
                       payload.studentId = targetId;
+                      updated = true;
+                    }
+                    if (pending.targetTable === "studentResults" && Array.isArray(payload.grades)) {
+                      payload.grades = payload.grades.map((g: any) => {
+                        if (g.studentId === localId) return { ...g, studentId: targetId };
+                        return g;
+                      });
                       updated = true;
                     }
                     if (pending.targetTable === "examResults" && Array.isArray(payload.results)) {
@@ -161,6 +171,32 @@ export async function syncOutbox() {
           if (res?.conflict) {
             error = "conflict: " + error;
           }
+        } else if (item.targetTable === "studentResults") {
+          const { saveStudentGrades } = await import("@/domains/academics/actions/academics.actions");
+          const resultsData = Array.isArray(item.payload.grades)
+            ? item.payload.grades
+            : Array.isArray(item.payload)
+              ? item.payload
+              : [item.payload];
+          const res = (await saveStudentGrades(resultsData)) as any;
+          success = !!res?.success;
+          error = res?.error || "Unknown error";
+          if (res?.conflict || (error && (error.includes("verrouill") || error.includes("lock") || error.includes("délai")))) {
+            error = "conflict: " + error;
+          }
+        } else if (item.targetTable === "devoirs" || item.targetTable === "devoirGrades") {
+          const { saveDevoirGrades } = await import("@/domains/academics/actions/academics.actions");
+          const devoirsList = Array.isArray(item.payload.devoirsList)
+            ? item.payload.devoirsList
+            : Array.isArray(item.payload)
+              ? item.payload
+              : [item.payload];
+          const res = (await saveDevoirGrades(devoirsList)) as any;
+          success = !!res?.success;
+          error = res?.error || "Unknown error";
+          if (res?.conflict || (error && (error.includes("verrouill") || error.includes("lock")))) {
+            error = "conflict: " + error;
+          }
         } else if (item.targetTable === "feePayments") {
           const { recordPayment } = await import("@/domains/finance/actions/finance.actions");
           const { id: _localId, updatedAt: _updatedAt, idempotencyKey: _idemp, ...paymentPayload } = item.payload;
@@ -171,8 +207,14 @@ export async function syncOutbox() {
             paymentPayload.recordedBy = String(item.userId);
           }
           const res = (await recordPayment(paymentPayload)) as any;
-          success = !!res?.success;
-          error = res?.error || "Unknown error";
+          // Recognize idempotent duplicate as success
+          if (res?.action === "duplicate_ignored" || res?.alreadyRecorded) {
+            success = true;
+            error = "";
+          } else {
+            success = !!res?.success;
+            error = res?.error || "Unknown error";
+          }
           if (success && res?.id) {
             // Bind the local payment to the real server-returned ID
             try {
@@ -269,7 +311,18 @@ export async function syncOutbox() {
                              errLower.includes("conflit") ||
                              errLower.includes("conflict") ||
                              errLower.includes("double") ||
+                             errLower.includes("verrouill") ||
+                             errLower.includes("lock") ||
+                             errLower.includes("délai") ||
+                             errLower.includes("autoris") ||
                              errLower.includes("insuffisant");
+
+          const isNetworkError = !navigator.onLine ||
+                                 errLower.includes("fetch") ||
+                                 errLower.includes("connexion") ||
+                                 errLower.includes("network") ||
+                                 errLower.includes("econnrefused") ||
+                                 errLower.includes("timed out");
 
           await localDb.outbox.update(item.id!, {
             status: isConflict ? "conflict" : "failed",
@@ -278,13 +331,14 @@ export async function syncOutbox() {
             lastError: error,
           });
 
-          console.error(`[Sync] Error syncing item ${item.id}: ${error}`);
-          toast.error(`Erreur de synchronisation : ${error}`);
+          console.error(`[Sync] Error syncing item ${item.id} (${item.targetTable}): ${error}`);
+          toast.error(`Erreur de synchronisation (${item.targetTable}) : ${error}`);
           
-          if (!isConflict) {
-            // Terminate loop on connection/server crash, but CONTINUE on user conflicts!
+          if (isNetworkError) {
+            // Terminate loop on real connection loss
             break;
           }
+          // On logical conflicts or validation errors, continue processing the rest of the queue!
         }
       } catch (error: any) {
         await localDb.outbox.update(item.id!, {
@@ -295,7 +349,7 @@ export async function syncOutbox() {
         });
         console.error("[Sync] System exception during sync:", error);
         toast.error("Erreur de connexion au serveur.");
-        break;
+        if (!navigator.onLine) break;
       }
     }
 
