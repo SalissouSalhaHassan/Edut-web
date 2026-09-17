@@ -323,32 +323,47 @@ export async function recordPayment(formData: PaymentFormData) {
       }
     }
 
-    // 1. Get current fee state
-    const fee = await db.query.studentFees.findFirst({
-      where: and(eq(studentFees.id, feeId), eq(studentFees.schoolId, schoolId)),
+    // 1. Get current fee state with robust school fallback
+    let fee = await db.query.studentFees.findFirst({
+      where: and(
+        eq(studentFees.id, feeId),
+        schoolId ? or(eq(studentFees.schoolId, schoolId), isNull(studentFees.schoolId)) : undefined
+      ),
       with: { student: true }
     });
 
-    if (!fee) throw new Error("Dossier financier introuvable.");
+    if (!fee) {
+      fee = await db.query.studentFees.findFirst({
+        where: eq(studentFees.id, feeId),
+        with: { student: true }
+      });
+    }
+
+    if (!fee) {
+      return { error: "Dossier financier introuvable.", success: false };
+    }
 
     // Enforce level isolation for level_director, level_comptable, level_caissier
     const isLevelScoped = roleType === "level_director" || roleType === "level_comptable" || roleType === "level_caissier";
     if (isLevelScoped) {
       if (!fee.student || !checkEducationalLevelAccess(user, fee.student.educationalLevel)) {
-        return { error: "Accès refusé. Cet élève appartient à un autre secteur." };
+        return { error: "Accès refusé. Cet élève appartient à un autre secteur.", success: false };
       }
     }
 
-    // Validation: prevent paying more than expected
+    // Validation: prevent paying more than expected (if expected is configured)
     const currentPaid = (fee.totalPaid || 0);
     const currentReduc = (fee.totalReduction || 0);
-    if (currentPaid + currentReduc + amount + reduction > fee.totalExpected) {
-      throw new Error(`Le montant total (${amount + reduction}) dépasse le solde restant (${fee.balance}).`);
+    if (fee.totalExpected > 0 && currentPaid + currentReduc + amount + reduction > fee.totalExpected) {
+      return {
+        error: `Le montant total (${amount + reduction}) dépasse le solde restant (${fee.balance}).`,
+        success: false
+      };
     }
 
     // 2. Record the payment
     const [payment] = await db.insert(feePayments).values({
-      schoolId,
+      schoolId: fee.schoolId || schoolId,
       feeId,
       amount,
       reduction,
@@ -362,7 +377,7 @@ export async function recordPayment(formData: PaymentFormData) {
     // 3. Update the student fee totals
     const newPaid = currentPaid + amount;
     const newReduction = currentReduc + reduction;
-    const newBalance = fee.totalExpected - newPaid - newReduction;
+    const newBalance = Math.max(0, fee.totalExpected - newPaid - newReduction);
     const newStatus = newBalance <= 0 ? "Soldé" : newPaid > 0 ? "Partiel" : "Impayé";
 
     await db.update(studentFees)
@@ -376,7 +391,11 @@ export async function recordPayment(formData: PaymentFormData) {
 
     // 3.5 Auto-reconcile with payment schedule (Échéanciers & Mensualités)
     if (fee.studentId) {
-      await reconcileStudentSchedules(fee.studentId);
+      try {
+        await reconcileStudentSchedules(fee.studentId);
+      } catch (schedErr) {
+        console.warn("reconcileStudentSchedules warning:", schedErr);
+      }
     }
 
     // 4. Create in-app notification for student & parents
@@ -408,7 +427,12 @@ export async function recordPayment(formData: PaymentFormData) {
       console.warn("Payment notification error:", e);
     }
 
-    revalidatePath("/dashboard/finance");
+    try {
+      revalidatePath("/dashboard/finance");
+    } catch (revErr) {
+      console.warn("revalidatePath warning:", revErr);
+    }
+
     return { success: true, id: payment?.id };
   });
 }

@@ -100,128 +100,138 @@ export default function PaymentDialog({
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setLoading(true);
-    setError("");
+    e.stopPropagation();
 
-    const currentFee = selectedFee || feeData;
-    if (!currentFee?.id) {
-      setError("Veuillez sélectionner un élève valide.");
-      setLoading(false);
-      return;
-    }
+    try {
+      setLoading(true);
+      setError("");
 
-    const form = new FormData(e.currentTarget);
-    const reference = (form.get("reference") as string)?.trim() || `REC-${Date.now().toString().slice(-8)}`;
+      const currentFee = selectedFee || feeData;
+      if (!currentFee?.id) {
+        setError("Veuillez sélectionner un élève valide.");
+        setLoading(false);
+        return;
+      }
 
-    let resolvedCashier = currentUser?.nomPrenom || (currentUser?.prenom || currentUser?.nom ? `${currentUser.prenom || ""} ${currentUser.nom || ""}`.trim() : currentUser?.utilisateur || currentUser?.name);
-    let resolvedUserId = currentUser?.id || currentUser?.utilisateur;
-    let resolvedSchoolId = currentSchoolId || currentFee?.schoolId || currentFee?.student?.schoolId || currentUser?.schoolId;
-    let resolvedSchoolName = currentUser?.school?.name || currentUser?.schoolName || headerConfig?.schoolName;
+      const form = new FormData(e.currentTarget);
+      const reference = (form.get("reference") as string)?.trim() || `REC-${Date.now().toString().slice(-8)}`;
 
-    if (typeof window !== "undefined" && (!resolvedCashier || !resolvedSchoolId || !resolvedSchoolName)) {
-      try {
-        const cachedSessionStr = localStorage.getItem("edut_user_session") || localStorage.getItem("edut_session_user");
-        if (cachedSessionStr) {
-          const cachedUser = JSON.parse(cachedSessionStr);
-          if (!resolvedCashier) {
-            resolvedCashier = cachedUser.nomPrenom || (cachedUser.prenom || cachedUser.nom ? `${cachedUser.prenom || ""} ${cachedUser.nom || ""}`.trim() : cachedUser.utilisateur || cachedUser.name || cachedUser.email?.split("@")[0]);
+      let resolvedCashier = currentUser?.nomPrenom || (currentUser?.prenom || currentUser?.nom ? `${currentUser.prenom || ""} ${currentUser.nom || ""}`.trim() : currentUser?.utilisateur || currentUser?.name);
+      let resolvedUserId = currentUser?.id || currentUser?.utilisateur;
+      let resolvedSchoolId = currentSchoolId || currentFee?.schoolId || currentFee?.student?.schoolId || currentUser?.schoolId;
+      let resolvedSchoolName = currentUser?.school?.name || currentUser?.schoolName || headerConfig?.schoolName;
+
+      if (typeof window !== "undefined" && (!resolvedCashier || !resolvedSchoolId || !resolvedSchoolName)) {
+        try {
+          const cachedSessionStr = localStorage.getItem("edut_user_session") || localStorage.getItem("edut_session_user");
+          if (cachedSessionStr) {
+            const cachedUser = JSON.parse(cachedSessionStr);
+            if (!resolvedCashier) {
+              resolvedCashier = cachedUser.nomPrenom || (cachedUser.prenom || cachedUser.nom ? `${cachedUser.prenom || ""} ${cachedUser.nom || ""}`.trim() : cachedUser.utilisateur || cachedUser.name || cachedUser.email?.split("@")[0]);
+            }
+            if (!resolvedUserId) resolvedUserId = cachedUser.id || cachedUser.utilisateur;
+            if (!resolvedSchoolId) resolvedSchoolId = cachedUser.schoolId || cachedUser.school?.id;
+            if (!resolvedSchoolName) resolvedSchoolName = cachedUser.school?.name || cachedUser.schoolName;
           }
-          if (!resolvedUserId) resolvedUserId = cachedUser.id || cachedUser.utilisateur;
-          if (!resolvedSchoolId) resolvedSchoolId = cachedUser.schoolId || cachedUser.school?.id;
-          if (!resolvedSchoolName) resolvedSchoolName = cachedUser.school?.name || cachedUser.schoolName;
-        }
-      } catch (_) {}
-    }
+        } catch (_) {}
+      }
 
-    resolvedCashier = resolvedCashier || "Admin";
-    resolvedUserId = resolvedUserId || "Admin";
-    resolvedSchoolId = resolvedSchoolId || 9;
-    resolvedSchoolName = resolvedSchoolName || "GROUP AIIU-NIGER";
+      resolvedCashier = resolvedCashier || "Admin";
+      resolvedUserId = resolvedUserId || "Admin";
+      resolvedSchoolId = resolvedSchoolId || 9;
+      resolvedSchoolName = resolvedSchoolName || "GROUP AIIU-NIGER";
 
-    const data: PaymentFormData & { schoolId?: number; recordedBy?: string } = {
-      feeId: currentFee.id,
-      amount: Number(form.get("amount")),
-      reduction: Number(form.get("reduction")) || 0,
-      paymentMode: form.get("paymentMode") as string,
-      monthConcerned: form.get("monthConcerned") as string,
-      reference: reference,
-      notes: form.get("notes") as string,
-      datePaid: form.get("datePaid") as string,
-      schoolId: resolvedSchoolId,
-      recordedBy: resolvedCashier,
-    };
-
-    // Client-side double payment check
-    const hasDuplicate = currentFee.payments?.some((p: any) => {
-      const sameRef = reference && p.reference && p.reference.toLowerCase() === reference.toLowerCase();
-      const sameAmountAndDate = p.amount === data.amount && p.datePaid && new Date(p.datePaid).toDateString() === new Date(data.datePaid || new Date()).toDateString();
-      return sameRef || sameAmountAndDate;
-    });
-
-    if (hasDuplicate) {
-      setError("Attention : Un paiement avec la même référence ou le même montant pour cette date existe déjà (protection double paiement).");
-      setLoading(false);
-      return;
-    }
-
-    const result = await mutate(data, {
-      targetTable: "feePayments",
-      onlineAction: recordPayment,
-      entity: "payment",
-      entityId: reference,
-      idempotencyKey: reference,
-      userId: resolvedUserId,
-      schoolId: resolvedSchoolId,
-      userName: resolvedCashier,
-      schoolName: resolvedSchoolName,
-      onSuccess: () => setOpen(false),
-    });
-    setLoading(false);
-
-    if (result.success) {
-      const newPaid = (currentFee.totalPaid || 0) + data.amount;
-      const newReduc = (currentFee.totalReduction || 0) + data.reduction;
-      const newBalance = Math.max(0, (currentFee.totalExpected || 0) - newPaid - newReduc);
-      const newStatus = newBalance <= 0 ? "Soldé" : newPaid > 0 ? "Partiel" : "Impayé";
-
-      const newPaymentRecord = {
-        id: (result as any)?.id || Date.now(),
+      const data: PaymentFormData & { schoolId?: number; recordedBy?: string } = {
         feeId: currentFee.id,
-        amount: data.amount,
-        reduction: data.reduction,
-        paymentMode: data.paymentMode,
-        reference: data.reference,
-        monthConcerned: data.monthConcerned,
-        notes: data.notes,
-        datePaid: data.datePaid ? new Date(data.datePaid).toISOString() : new Date().toISOString(),
+        amount: Number(form.get("amount")),
+        reduction: Number(form.get("reduction")) || 0,
+        paymentMode: form.get("paymentMode") as string,
+        monthConcerned: form.get("monthConcerned") as string,
+        reference: reference,
+        notes: form.get("notes") as string,
+        datePaid: form.get("datePaid") as string,
+        schoolId: resolvedSchoolId,
         recordedBy: resolvedCashier,
-        isProvisoire: !isOnline,
       };
 
-      const updatedFee = {
-        ...currentFee,
-        totalPaid: newPaid,
-        totalReduction: newReduc,
-        balance: newBalance,
-        status: newStatus,
-        payments: [newPaymentRecord, ...(currentFee.payments || [])],
-        payment: newPaymentRecord,
-      };
+      // Client-side double payment check
+      const hasDuplicate = currentFee.payments?.some((p: any) => {
+        const sameRef = reference && p.reference && p.reference.toLowerCase() === reference.toLowerCase();
+        const sameAmountAndDate = p.amount === data.amount && p.datePaid && new Date(p.datePaid).toDateString() === new Date(data.datePaid || new Date()).toDateString();
+        return sameRef || sameAmountAndDate;
+      });
 
-      setOpen(false);
-
-      if (!isOnline) {
-        toast.warning("Paiement enregistré localement (PROVISOIRE - HORS LIGNE). Il sera synchronisé dès le retour de la connexion.");
+      if (hasDuplicate) {
+        setError("Attention : Un paiement avec la même référence ou le même montant pour cette date existe déjà (protection double paiement).");
+        setLoading(false);
+        return;
       }
 
-      if (onPaymentSuccess) {
-        onPaymentSuccess(updatedFee);
-      } else {
-        setReceiptFee(updatedFee);
-        setShowReceipt(true);
+      const result = await mutate(data, {
+        targetTable: "feePayments",
+        onlineAction: recordPayment,
+        entity: "payment",
+        entityId: reference,
+        idempotencyKey: reference,
+        userId: resolvedUserId,
+        schoolId: resolvedSchoolId,
+        userName: resolvedCashier,
+        schoolName: resolvedSchoolName,
+        onSuccess: () => setOpen(false),
+      });
+      setLoading(false);
+
+      if (result.success) {
+        const newPaid = (currentFee.totalPaid || 0) + data.amount;
+        const newReduc = (currentFee.totalReduction || 0) + data.reduction;
+        const newBalance = Math.max(0, (currentFee.totalExpected || 0) - newPaid - newReduc);
+        const newStatus = newBalance <= 0 ? "Soldé" : newPaid > 0 ? "Partiel" : "Impayé";
+
+        const newPaymentRecord = {
+          id: (result as any)?.id || Date.now(),
+          feeId: currentFee.id,
+          amount: data.amount,
+          reduction: data.reduction,
+          paymentMode: data.paymentMode,
+          reference: data.reference,
+          monthConcerned: data.monthConcerned,
+          notes: data.notes,
+          datePaid: data.datePaid ? new Date(data.datePaid).toISOString() : new Date().toISOString(),
+          recordedBy: resolvedCashier,
+          isProvisoire: !isOnline,
+        };
+
+        const updatedFee = {
+          ...currentFee,
+          totalPaid: newPaid,
+          totalReduction: newReduc,
+          balance: newBalance,
+          status: newStatus,
+          payments: [newPaymentRecord, ...(currentFee.payments || [])],
+          payment: newPaymentRecord,
+        };
+
+        setOpen(false);
+
+        if (!isOnline) {
+          toast.warning("Paiement enregistré localement (PROVISOIRE - HORS LIGNE). Il sera synchronisé dès le retour de la connexion.");
+        }
+
+        setTimeout(() => {
+          if (onPaymentSuccess) {
+            onPaymentSuccess(updatedFee);
+          } else {
+            setReceiptFee(updatedFee);
+            setShowReceipt(true);
+          }
+        }, 120);
+      } else if (result.error) {
+        setError(result.error);
       }
-    } else if (result.error) {
-      setError(result.error);
+    } catch (err: any) {
+      console.error("[PaymentDialog] Unhandled submission error:", err);
+      setError(err?.message || "Une erreur inattendue est survenue.");
+      setLoading(false);
     }
   }
 

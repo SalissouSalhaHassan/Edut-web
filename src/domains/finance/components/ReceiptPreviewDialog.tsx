@@ -49,8 +49,9 @@ import {
 import { amiriFontBase64 } from "@/domains/printing/utils/amiri-font";
 import { hasArabicCharacters, reshapeArabicText } from "@/domains/printing/utils/arabic-reshaper";
 
-const formatCfaAmount = (amount: number) => {
-  return amount.toLocaleString("fr-FR").replace(/[\u00A0\u202F\u2007\u200B]/g, " ") + " CFA";
+const formatCfaAmount = (amount?: number | null) => {
+  const num = Number(amount) || 0;
+  return num.toLocaleString("fr-FR").replace(/[\u00A0\u202F\u2007\u200B]/g, " ") + " CFA";
 };
 
 function drawTextBilingual(doc: jsPDF, text: string, x: number, y: number, options?: any) {
@@ -143,7 +144,7 @@ interface ReceiptPreviewDialogProps {
   currentUser?: any;
 }
 
-const fmt = (val: number) => `${val.toLocaleString("fr-FR")} F CFA`;
+const fmt = (val?: number | null) => `${(Number(val) || 0).toLocaleString("fr-FR")} F CFA`;
 
 function numberToWords(n: number): string {
   if (n === 0) return "Zéro franc CFA";
