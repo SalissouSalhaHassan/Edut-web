@@ -479,21 +479,19 @@ export default function ReceiptPreviewDialog({
     `;
   }, [selectedPaperSize]);
 
-  if (!feeData) return null;
-
-  const totalExpected = feeData.totalExpected || 0;
+  const totalExpected = feeData?.totalExpected || 0;
   const totalPaid = currentTotalPaid;
-  const totalReduction = feeData.totalReduction || 0;
+  const totalReduction = feeData?.totalReduction || 0;
   const balance = currentBalance;
-  const lastPayment = currentPayments[0] || feeData.payments?.[0];
+  const lastPayment = currentPayments[0] || feeData?.payments?.[0];
   const allPayments = currentPayments;
-  const isDataComplete = !!feeData.student && totalExpected > 0;
+  const isDataComplete = !!feeData?.student && totalExpected > 0;
   const isSolde = balance <= 0;
   const isProvisoire = !!lastPayment?.isProvisoire;
 
   const refNumber =
     lastPayment?.reference ||
-    `REF-${String(feeData.id).padStart(2, "0")}-${new Date().getFullYear()}`;
+    `REF-${String(feeData?.id || 1).padStart(2, "0")}-${new Date().getFullYear()}`;
 
   const receiptDate = lastPayment?.datePaid
     ? new Date(lastPayment.datePaid).toLocaleDateString("fr-FR", {
@@ -1196,6 +1194,8 @@ export default function ReceiptPreviewDialog({
       `_Merci de votre confiance — ${schoolName}_`;
     window.open(`https://wa.me/${cleaned}?text=${encodeURIComponent(text)}`, "_blank");
   };
+
+  if (!open || !feeData) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

@@ -1146,17 +1146,19 @@ export default function FinanceClient({
       )}
 
       {/* Receipt Preview Dialog */}
-      <ReceiptPreviewDialog 
-        open={!!previewFee} 
-        onOpenChange={(open) => !open && setPreviewFee(null)} 
-        feeData={previewFee} 
-        headerConfig={headerConfig}
-        currentUser={currentUser}
-        canDelete={canDelete ?? true}
-        onPaymentCancelled={() => {
-          router.refresh();
-        }}
-      />
+      {Boolean(previewFee) && (
+        <ReceiptPreviewDialog 
+          open={!!previewFee} 
+          onOpenChange={(open) => !open && setPreviewFee(null)} 
+          feeData={previewFee} 
+          headerConfig={headerConfig}
+          currentUser={currentUser}
+          canDelete={canDelete ?? true}
+          onPaymentCancelled={() => {
+            router.refresh();
+          }}
+        />
+      )}
       </div>{/* end space-y-6 content wrapper */}
       </main>
     </div>
