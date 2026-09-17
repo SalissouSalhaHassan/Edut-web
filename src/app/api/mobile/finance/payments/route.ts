@@ -193,11 +193,15 @@ export async function POST(request: NextRequest) {
   const schoolId = user.schoolId;
   const roleType = await getUserRoleType(user);
 
-  // Allow all administrative and financial roles
+  // Allow all administrative, owner, and financial roles
   const userAny = user as any;
   const hasAccess = [
     "admin",
     "super_admin",
+    "owner",
+    "promoteur",
+    "fondateur",
+    "ministere",
     "director",
     "directeur",
     "general_director",
@@ -208,8 +212,8 @@ export async function POST(request: NextRequest) {
     "caissier",
     "staff",
   ].includes(roleType) ||
-    userAny.permissions?.includes("finance.collect") ||
-    userAny.permissions?.includes("finance.view");
+    Boolean(userAny.permissions?.includes("finance.collect")) ||
+    Boolean(userAny.permissions?.includes("finance.view"));
 
   if (!hasAccess) {
     return mobileJsonError("Accès refusé. Seuls les administrateurs et comptables peuvent enregistrer des paiements.", 403);
@@ -241,16 +245,56 @@ export async function POST(request: NextRequest) {
       return mobileJsonError("Paramètres manquants dans le payload", 400);
     }
 
-    if (schoolId && schoolId !== targetSchoolId) {
-      return mobileJsonError("Accès refusé", 403);
+    const isSuperOrOwner = ["super_admin", "owner", "promoteur", "fondateur", "ministere"].includes(roleType);
+    if (!isSuperOrOwner && schoolId && targetSchoolId && Number(schoolId) !== Number(targetSchoolId)) {
+      return mobileJsonError("Accès refusé. Vous n'avez pas accès à cet établissement.", 403);
     }
+
+    const cleanRef = reference ? String(reference).trim() : null;
+
+    // Idempotency: if payment with this reference was already recorded, return success cleanly
+    if (cleanRef) {
+      const existingPayment = await readDb.query.feePayments.findFirst({
+        where: and(
+          eq(feePayments.feeId, Number(feeId)),
+          eq(feePayments.reference, cleanRef)
+        )
+      });
+      if (existingPayment) {
+        return NextResponse.json({
+          success: true,
+          payment: {
+            id: existingPayment.id,
+            school_id: existingPayment.schoolId,
+            fee_id: existingPayment.feeId,
+            amount: existingPayment.amount,
+            reduction: existingPayment.reduction,
+            date_paid: existingPayment.datePaid?.toISOString() || null,
+            month_concerned: existingPayment.monthConcerned,
+            payment_mode: existingPayment.paymentMode,
+            reference: existingPayment.reference,
+            recorded_by: existingPayment.recordedBy,
+          },
+          alreadyRecorded: true,
+        });
+      }
+    }
+
+    // Query current fee from DB to accurately accumulate multiple payments in a batch
+    const currentFee = await readDb.query.studentFees.findFirst({
+      where: eq(studentFees.id, Number(feeId))
+    });
 
     const doubleAmount = Number(amount || 0);
     const doubleReduction = Number(reduction || 0);
 
-    const newPaid = Number(currentPaid || 0) + doubleAmount;
-    const newReduction = Number(currentReduction || 0) + doubleReduction;
-    const newBalance = Number(totalExpected || 0) - newPaid - newReduction;
+    const feePaid = currentFee ? Number(currentFee.totalPaid || 0) : Number(currentPaid || 0);
+    const feeReduction = currentFee ? Number(currentFee.totalReduction || 0) : Number(currentReduction || 0);
+    const feeExpected = currentFee ? Number(currentFee.totalExpected || 0) : Number(totalExpected || 0);
+
+    const newPaid = feePaid + doubleAmount;
+    const newReduction = feeReduction + doubleReduction;
+    const newBalance = feeExpected - newPaid - newReduction;
 
     let newStatus = "Impayé";
     if (newBalance <= 0) {
@@ -261,12 +305,12 @@ export async function POST(request: NextRequest) {
 
     // Insert payment
     const paymentValues = {
-      schoolId: targetSchoolId,
+      schoolId: Number(targetSchoolId),
       feeId: Number(feeId),
       amount: doubleAmount,
       reduction: doubleReduction,
       paymentMode: paymentMode || "Espèces",
-      reference: reference || null,
+      reference: cleanRef,
       monthConcerned: monthConcerned || null,
       recordedBy: recordedBy || user.utilisateur || "Mobile App",
       datePaid: new Date(),
