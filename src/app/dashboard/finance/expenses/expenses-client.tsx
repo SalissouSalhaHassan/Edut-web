@@ -197,13 +197,23 @@ export default function ExpensesClient({ initialExpenses, categories }: Expenses
           </div>
         </div>
 
-        <Button
-          onClick={() => setShowModal(true)}
-          className="bg-rose-600 hover:bg-rose-700 text-white font-bold px-5 py-3 rounded-2xl shadow-lg shadow-rose-200 dark:shadow-none transition-all hover:scale-[1.02] flex items-center gap-2"
-        >
-          <Plus size={18} />
-          Nouvelle Dépense
-        </Button>
+        <div className="flex items-center gap-3">
+          <a
+            href="/dashboard/finance"
+            className="inline-flex items-center gap-2 h-11 px-4 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 text-xs font-bold hover:bg-indigo-100 transition-all cursor-pointer"
+          >
+            <Scale size={16} />
+            Bilan Financier Unifié (Recettes vs Dépenses)
+          </a>
+
+          <Button
+            onClick={() => setShowModal(true)}
+            className="bg-rose-600 hover:bg-rose-700 text-white font-bold px-5 py-3 rounded-2xl shadow-lg shadow-rose-200 dark:shadow-none transition-all hover:scale-[1.02] flex items-center gap-2"
+          >
+            <Plus size={18} />
+            Nouvelle Dépense
+          </Button>
+        </div>
       </div>
 
       {/* Analytics KPI Cards */}

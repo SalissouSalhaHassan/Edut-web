@@ -62,7 +62,9 @@ interface FinanceClientProps {
   currentSchoolId?: number | null;
 }
 
-type TabId = "dashboard" | "payments" | "reports" | "alerts";
+type TabId = "dashboard" | "payments" | "reports" | "unified-balance" | "alerts";
+import { UnifiedFinancialReportView } from "@/domains/finance/components/UnifiedFinancialReportView";
+import { Scale, TrendingDown } from "lucide-react";
 
 
 const getModeIcon = (mode: string) => {
@@ -545,6 +547,7 @@ export default function FinanceClient({
   const sideItems = [
     { label: "Tableau de bord", tab: "dashboard" as TabId, icon: LayoutDashboard },
     { label: "Paiements", tab: "payments" as TabId, icon: CardIcon },
+    { label: "Bilan Recettes vs Dépenses (Unifié)", tab: "unified-balance" as TabId, icon: Scale },
     { label: "Rapports avancés", tab: "reports" as TabId, icon: BarChart3 },
     { label: "Alertes & Notifications", tab: "alerts" as TabId, icon: AlertTriangle, badge: alertCount },
   ];
@@ -633,6 +636,11 @@ export default function FinanceClient({
         </div>
         
         <div className="flex items-center gap-3 flex-wrap">
+          <Link href="/dashboard/finance/expenses">
+            <Button className="h-12 px-5 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-rose-500/20 cursor-pointer transition-all">
+              <TrendingDown size={18} /> Gestion des Dépenses
+            </Button>
+          </Link>
           <Link href="/dashboard/finance/bourses-echeanciers">
             <Button className="h-12 px-5 rounded-2xl bg-amber-600 hover:bg-amber-700 text-white font-black text-xs uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-amber-500/20 cursor-pointer transition-all">
               <Award size={18} /> Bourses &amp; Échéanciers
@@ -1110,6 +1118,14 @@ export default function FinanceClient({
             </div>
           </div>
         </div>
+      )}
+
+      {/* UNIFIED FINANCIAL REPORT (RECETTES VS DÉPENSES & RESTE À PAYER) */}
+      {activeTab === "unified-balance" && (
+        <UnifiedFinancialReportView
+          schoolName={schoolName || headerConfig?.schoolName}
+          activeSessionName={activeSessionName}
+        />
       )}
 
       {/* REPORTS TAB */}

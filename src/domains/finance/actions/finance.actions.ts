@@ -1506,3 +1506,158 @@ export async function getAdvancedFinanceStats() {
     };
   });
 }
+
+/**
+ * Rapport Financier Global Unifié (Gestion Financière + Gestion des Dépenses)
+ * Filtre par période : Jour, Mois, Année ou Plage personnalisée.
+ * Calcule : Recettes perçues (Payé), Dépenses engagées (Consommé), et Solde net / Reste à recouvrer.
+ */
+export async function getUnifiedFinancialReport(params?: {
+  period?: "daily" | "monthly" | "yearly" | "all";
+  selectedDate?: string; // YYYY-MM-DD or YYYY-MM or YYYY
+  educationalLevel?: string;
+}) {
+  return protectedDbAction("Finance", "canView", async (user) => {
+    const schoolId = (await getActiveSchoolId()) || user?.schoolId || 9;
+    const period = params?.period || "monthly";
+    const selectedDateStr = params?.selectedDate || new Date().toISOString().split("T")[0];
+
+    // Calcul de la plage de dates selon la période
+    let startDate: Date;
+    let endDate: Date;
+
+    const baseDate = new Date(selectedDateStr);
+
+    if (period === "daily") {
+      startDate = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate(), 0, 0, 0);
+      endDate = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate(), 23, 59, 59, 999);
+    } else if (period === "monthly") {
+      startDate = new Date(baseDate.getFullYear(), baseDate.getMonth(), 1, 0, 0, 0);
+      endDate = new Date(baseDate.getFullYear(), baseDate.getMonth() + 1, 0, 23, 59, 59, 999);
+    } else if (period === "yearly") {
+      startDate = new Date(baseDate.getFullYear(), 0, 1, 0, 0, 0);
+      endDate = new Date(baseDate.getFullYear(), 11, 31, 23, 59, 59, 999);
+    } else {
+      // All time
+      startDate = new Date(2000, 0, 1);
+      endDate = new Date(2100, 11, 31);
+    }
+
+    // 1. Récupérer tous les paiements de scolarité (Recettes / Encaissements)
+    const paymentsList = await db.query.feePayments.findMany({
+      where: (p, { and, eq, gte, lte, isNull, or }) =>
+        and(
+          schoolId ? or(eq(p.schoolId, schoolId), isNull(p.schoolId)) : undefined,
+          gte(p.datePaid, startDate),
+          lte(p.datePaid, endDate),
+          isNull(p.deletedAt)
+        ),
+      with: {
+        fee: {
+          with: {
+            student: true,
+          },
+        },
+      },
+      orderBy: [desc(feePayments.datePaid)],
+    });
+
+    // 2. Récupérer toutes les dépenses (Dépenses / Décaissements / Consommation)
+    const expensesList = await db.query.expenses.findMany({
+      where: (e, { and, eq, gte, lte, isNull, or }) =>
+        and(
+          schoolId ? or(eq(e.schoolId, schoolId), isNull(e.schoolId)) : undefined,
+          gte(e.dateExpense, startDate),
+          lte(e.dateExpense, endDate)
+        ),
+      with: {
+        category: true,
+      },
+      orderBy: [desc(expenses.dateExpense)],
+    });
+
+    // 3. Récupérer les frais scolaires pour calculer le reste à recouvrer (Créances élèves)
+    const allStudentFees = await db.query.studentFees.findMany({
+      where: (f, { and, eq, or, isNull }) =>
+        and(
+          schoolId ? or(eq(f.schoolId, schoolId), isNull(f.schoolId)) : undefined
+        ),
+      with: {
+        student: true,
+      },
+    });
+
+    // Totaux clés
+    const totalRevenueCollected = paymentsList.reduce((acc, p) => acc + (p.amount || 0), 0);
+    const totalExpensesSpent = expensesList.reduce((acc, e) => acc + (e.amount || 0), 0);
+    const totalExpectedGlobal = allStudentFees.reduce((acc, f) => acc + (f.totalExpected || 0), 0);
+    const totalPaidGlobal = allStudentFees.reduce((acc, f) => acc + (f.totalPaid || 0), 0);
+    const totalRemainingDebts = allStudentFees.reduce((acc, f) => acc + (f.balance || 0), 0);
+
+    // Solde Net de la période (Cash Flow / Bénéfice d'exploitation)
+    const netCashFlow = totalRevenueCollected - totalExpensesSpent;
+
+    // Regroupement des dépenses par catégorie
+    const expensesByCategory: Record<string, number> = {};
+    expensesList.forEach((e) => {
+      const cat = e.category?.name || "Autres Dépenses";
+      expensesByCategory[cat] = (expensesByCategory[cat] || 0) + (e.amount || 0);
+    });
+
+    // Regroupement des recettes par mode de paiement
+    const paymentsByMode: Record<string, number> = {};
+    paymentsList.forEach((p) => {
+      const mode = p.paymentMode || "Espèces";
+      paymentsByMode[mode] = (paymentsByMode[mode] || 0) + (p.amount || 0);
+    });
+
+    return {
+      success: true,
+      data: {
+        period,
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+        summary: {
+          totalRevenueCollected, // مدفوع ومحصل
+          totalExpensesSpent,    // مصروف ومستهلك
+          netCashFlow,           // الصافي في الخزينة (فائض / عجز)
+          totalExpectedGlobal,   // إجمالي المستحق
+          totalRemainingDebts,   // متبقيات ديون الطلاب
+          expenseRatio: totalRevenueCollected > 0 
+            ? Math.round((totalExpensesSpent / totalRevenueCollected) * 100) 
+            : 0,
+        },
+        breakdowns: {
+          expensesByCategory: Object.entries(expensesByCategory).map(([category, amount]) => ({
+            category,
+            amount,
+          })),
+          paymentsByMode: Object.entries(paymentsByMode).map(([mode, amount]) => ({
+            mode,
+            amount,
+          })),
+        },
+        transactions: {
+          recentPayments: paymentsList.slice(0, 15).map((p) => ({
+            id: p.id,
+            date: p.datePaid,
+            amount: p.amount,
+            mode: p.paymentMode,
+            reference: p.reference,
+            studentName: (p.fee as any)?.student?.nomEtudiant || "Élève",
+            classe: (p.fee as any)?.student?.classe || "-",
+          })),
+          recentExpenses: expensesList.slice(0, 15).map((e) => ({
+            id: e.id,
+            date: e.dateExpense,
+            amount: e.amount,
+            category: e.category?.name || "Général",
+            reference: e.reference,
+            status: e.status,
+            description: e.description,
+          })),
+        },
+      },
+    };
+  });
+}
