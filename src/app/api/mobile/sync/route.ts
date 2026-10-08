@@ -5,7 +5,9 @@ import { getMobileUser, mobileJsonError, canUseMobileModule } from "../_lib/auth
 import { studentAttendance } from "@/infrastructure/database/schema/attendance";
 import { cahierTextes } from "@/infrastructure/database/schema/pedagogie";
 import { studentResults } from "@/infrastructure/database/schema/academics";
-import { feePayments } from "@/infrastructure/database/schema/finance";
+import { feePayments, studentFees } from "@/infrastructure/database/schema/finance";
+import { students } from "@/infrastructure/database/schema/students";
+import { idempotencyLogs, syncConflicts } from "@/infrastructure/database/schema/audit";
 
 export const dynamic = "force-dynamic";
 
@@ -40,10 +42,29 @@ export async function POST(request: NextRequest) {
       return mobileJsonError("Aucune opération de synchronisation fournie.", 400);
     }
 
-    const results: Array<{ id?: string; success: boolean; error?: string; data?: any }> = [];
+    const results: Array<{ id?: string; success: boolean; error?: string; data?: any; localId?: string; realId?: number }> = [];
 
     for (const op of operations) {
-      const { id, table, action, data } = op;
+      const { id, table, action, data, idempotencyKey } = op;
+
+      // 🛡️ 1. Idempotency Check: prevent duplicate billing or re-execution
+      if (idempotencyKey) {
+        const existingLog = await db.query.idempotencyLogs.findFirst({
+          where: and(
+            eq(idempotencyLogs.schoolId, schoolId),
+            eq(idempotencyLogs.idempotencyKey, idempotencyKey)
+          ),
+        });
+
+        if (existingLog) {
+          results.push({
+            id,
+            success: true,
+            data: existingLog.responseData || { cached: true },
+          });
+          continue;
+        }
+      }
 
       try {
         // 1. Student Attendance Sync
@@ -194,13 +215,30 @@ export async function POST(request: NextRequest) {
                 });
 
                 if (existing) {
-                  await tx
-                    .update(studentResults)
-                    .set({
-                      examScore: mark,
-                      observation: g.comment || g.observation || null,
-                    })
-                    .where(eq(studentResults.id, existing.id));
+                  // Conflict Detection: check if server value has changed since client operation
+                  const serverMark = Number(existing.examScore || 0);
+                  const isConflicting = serverMark !== mark && op.timestamp && existing.updatedAt && new Date(existing.updatedAt) > new Date(op.timestamp);
+
+                  if (isConflicting) {
+                    await tx.insert(syncConflicts).values({
+                      schoolId,
+                      tableName: "student_results",
+                      recordId: String(existing.id),
+                      fieldName: "examScore",
+                      serverValue: { examScore: serverMark, term },
+                      clientValue: { examScore: mark, term, comment: g.comment },
+                      status: "pending",
+                    }).catch(() => {});
+                  } else {
+                    await tx
+                      .update(studentResults)
+                      .set({
+                        examScore: mark,
+                        observation: g.comment || g.observation || null,
+                        updatedAt: new Date(),
+                      })
+                      .where(eq(studentResults.id, existing.id));
+                  }
                 } else {
                   await tx.insert(studentResults).values({
                     studentId,
@@ -253,9 +291,99 @@ export async function POST(request: NextRequest) {
               })
               .returning();
 
-            results.push({ id, success: true, data: { id: created?.id } });
+            if (idempotencyKey) {
+              await db.insert(idempotencyLogs).values({
+                schoolId,
+                idempotencyKey,
+                endpoint: "/api/mobile/sync:fee_payments",
+                responseStatus: 200,
+                responseData: { id: created?.id, reference: created?.reference },
+              }).catch(() => {});
+            }
+
+            results.push({ id, success: true, data: { id: created?.id, reference: created?.reference } });
           } else {
             results.push({ id, success: false, error: "Action financière non supportée." });
+          }
+        } 
+        
+        // 5. Offline Students Registration Sync (Parent-Child Cascade)
+        else if (table === "students" || table === "student_admission") {
+          const permitted = await canUseMobileModule(user, "admissions", "canEdit");
+          if (!permitted) {
+            results.push({ id, success: false, error: "Permission insuffisante pour l'inscription d'élèves." });
+            continue;
+          }
+
+          if (action === "create_student" || action === "register_student") {
+            const numAdmission = data.numAdmission || `ADM-${Date.now().toString().slice(-6)}`;
+            const nomEtudiant = String(data.nomEtudiant || data.fullName || "Nouvel Élève");
+            const localId = data.localId || op.id;
+
+            const [created] = await db
+              .insert(students)
+              .values({
+                schoolId,
+                numAdmission,
+                nomEtudiant,
+                nomArabe: data.nomArabe || null,
+                sexe: data.sexe || "Masculin",
+                classe: data.classe || null,
+                classId: data.classId ? Number(data.classId) : null,
+                section: data.section || null,
+                educationalLevel: data.educationalLevel || null,
+                session: data.session || null,
+                dateNaissance: data.dateNaissance || null,
+                lieuNaissance: data.lieuNaissance || null,
+                nomPere: data.nomPere || null,
+                mobile: data.mobile || null,
+                whatsapp: data.whatsapp || null,
+                fraisInscription: Number(data.fraisInscription || 0),
+                fraisMensuels: Number(data.fraisMensuels || 0),
+                photoPath: data.photoPath || null,
+                statut: "Actif",
+              })
+              .returning();
+
+            // Also initialize or fetch fee account if fees specified
+            let studentFeeAccount: any = null;
+            if (created && (Number(data.fraisInscription || 0) > 0 || Number(data.fraisMensuels || 0) > 0)) {
+              const totalExpected = Number(data.fraisInscription || 0) + Number(data.fraisMensuels || 0) * 9;
+              [studentFeeAccount] = await db
+                .insert(studentFees)
+                .values({
+                  schoolId,
+                  studentId: created.id,
+                  totalExpected,
+                  totalPaid: 0,
+                  balance: totalExpected,
+                  status: "Impayé",
+                })
+                .returning();
+            }
+
+            if (idempotencyKey) {
+              await db.insert(idempotencyLogs).values({
+                schoolId,
+                idempotencyKey,
+                endpoint: "/api/mobile/sync:students",
+                responseStatus: 200,
+                responseData: { realId: created?.id, localId, feeId: studentFeeAccount?.id },
+              }).catch(() => {});
+            }
+
+            results.push({
+              id,
+              success: true,
+              localId,
+              realId: created?.id,
+              data: {
+                student: created,
+                feeAccount: studentFeeAccount,
+              },
+            });
+          } else {
+            results.push({ id, success: false, error: "Action sur étudiant non supportée." });
           }
         } else {
           results.push({

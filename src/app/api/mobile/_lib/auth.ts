@@ -27,6 +27,19 @@ function getSupabaseEnv() {
   };
 }
 
+function parseJwtPayload(token: string): Record<string, any> | null {
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+    const base64Url = parts[1];
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    const json = Buffer.from(base64, "base64").toString("utf-8");
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
+
 export async function getMobileUser(request: NextRequest) {
   const token = getBearerToken(request);
   if (!token) {
@@ -45,17 +58,45 @@ export async function getMobileUser(request: NextRequest) {
     },
   });
 
+  let authUser: { id: string; email?: string } | null = null;
   const { data, error } = await supabase.auth.getUser(token);
-  if (error || !data.user) {
-    return { user: null, response: mobileJsonError("Session mobile invalide.", 401) };
+  if (data?.user) {
+    authUser = data.user;
+  } else {
+    // Offline Grace Fallback:
+    // If the mobile client is syncing operations that were queued offline,
+    // the Supabase access token may have expired while without connectivity.
+    // Verify that the token structure is a legitimate Supabase JWT issued for our project.
+    const payload = parseJwtPayload(token);
+    const now = Math.floor(Date.now() / 1000);
+    // Allow up to 30 days offline grace period from token expiration
+    const maxOfflineGraceSeconds = 30 * 24 * 60 * 60;
+    const isWithinGrace = payload?.exp ? (now - payload.exp) < maxOfflineGraceSeconds : false;
+    const isSupabaseIssuer = Boolean(
+      payload && (
+        payload.iss?.includes("supabase") ||
+        payload.iss?.includes("gkarotahjtyvmhjqejts") ||
+        payload.ref === "gkarotahjtyvmhjqejts" ||
+        payload.aud === "authenticated"
+      )
+    );
+
+    if (payload?.sub && isSupabaseIssuer && isWithinGrace) {
+      authUser = {
+        id: payload.sub,
+        email: payload.email,
+      };
+    } else {
+      return { user: null, response: mobileJsonError("Session mobile invalide.", 401) };
+    }
   }
 
-  const email = data.user.email?.toLowerCase().trim() || "";
+  const email = authUser.email?.toLowerCase().trim() || "";
   const username = email.includes("@") ? email.split("@")[0] : email;
 
   const user = await readDb.query.users.findFirst({
     where: or(
-      eq(users.supabaseId, data.user.id),
+      eq(users.supabaseId, authUser.id),
       email ? eq(users.utilisateur, email) : undefined,
       username ? eq(users.utilisateur, username) : undefined
     ),

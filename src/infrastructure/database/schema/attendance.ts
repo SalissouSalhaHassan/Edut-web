@@ -16,6 +16,9 @@ export const studentAttendance = pgTable("student_attendance", {
   status: varchar("status", { length: 50 }).notNull().default("Présent"), // Présent, Absent, En Retard, Excusé
   remark: text("remark"),
   recordedBy: varchar("recorded_by", { length: 255 }).default("Admin"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  deletedAt: timestamp("deleted_at"),
 }, (table) => {
   return {
     schoolIdx: index("attendance_school_idx").on(table.schoolId),
@@ -23,6 +26,7 @@ export const studentAttendance = pgTable("student_attendance", {
     classIdx: index("attendance_class_idx").on(table.classId),
     dateIdx: index("attendance_date_idx").on(table.date),
     subjectIdx: index("attendance_subject_idx").on(table.subjectId),
+    updatedIdx: index("attendance_updated_idx").on(table.schoolId, table.updatedAt),
   };
 });
 

@@ -317,6 +317,8 @@ export const studentResults = pgTable("student_results", {
   rank: varchar("rank", { length: 20 }),
   
   createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  deletedAt: timestamp("deleted_at"),
 });
 
 export const studentTermSummaries = pgTable("student_term_summaries", {

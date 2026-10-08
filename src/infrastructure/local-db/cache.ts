@@ -354,3 +354,44 @@ export async function getCachedDevoirGrid(
   return null;
 }
 
+// 7. Storage Quota & Eviction Policy
+export async function enforceStorageQuotaAndEviction(): Promise<{
+  usageMb: number;
+  quotaMb: number;
+  evictedCount: number;
+}> {
+  let usageMb = 0;
+  let quotaMb = 0;
+  let evictedCount = 0;
+
+  try {
+    if (typeof navigator !== "undefined" && navigator.storage && navigator.storage.estimate) {
+      const estimate = await navigator.storage.estimate();
+      usageMb = Math.round((estimate.usage || 0) / (1024 * 1024));
+      quotaMb = Math.round((estimate.quota || 0) / (1024 * 1024));
+    }
+
+    // Evict synced actions older than 14 days
+    const fourteenDaysAgo = Date.now() - 14 * 24 * 60 * 60 * 1000;
+    const syncedActions = await localDb.outbox
+      .where("status")
+      .equals("synced")
+      .toArray();
+
+    const oldActions = syncedActions.filter(
+      (a) => (a.syncedAt || a.timestamp) < fourteenDaysAgo
+    );
+
+    if (oldActions.length > 0) {
+      const idsToDelete = oldActions.map((a) => a.id!).filter(Boolean);
+      await localDb.outbox.bulkDelete(idsToDelete);
+      evictedCount = idsToDelete.length;
+      console.log(`🧹 Evicted ${evictedCount} synced outbox actions older than 14 days.`);
+    }
+  } catch (err) {
+    console.warn("Storage eviction warning:", err);
+  }
+
+  return { usageMb, quotaMb, evictedCount };
+}
+

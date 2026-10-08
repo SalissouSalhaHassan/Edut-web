@@ -47,11 +47,14 @@ export const students = pgTable("students", {
   redoublementCount: integer("redoublement_count").default(0),
   
   createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  deletedAt: timestamp("deleted_at"),
 }, (table) => ({
   schoolIdIdx: index("students_school_id_idx").on(table.schoolId),
   schoolLevelIdx: index("students_school_level_idx").on(table.schoolId, table.educationalLevel),
   schoolClassIdx: index("students_school_class_idx").on(table.schoolId, table.classe),
   schoolStatusIdx: index("students_school_status_idx").on(table.schoolId, table.statut),
   schoolCreatedIdx: index("students_school_created_idx").on(table.schoolId, table.createdAt),
+  schoolUpdatedIdx: index("students_school_updated_idx").on(table.schoolId, table.updatedAt),
   unqNumAdmission: unique().on(table.schoolId, table.numAdmission),
 }));

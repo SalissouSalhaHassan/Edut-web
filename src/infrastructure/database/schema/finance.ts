@@ -101,11 +101,15 @@ export const feePayments = pgTable("fee_payments", {
   reference: varchar("reference", { length: 100 }),
   receiptToken: varchar("receipt_token", { length: 100 }).unique(),
   recordedBy: varchar("recorded_by", { length: 100 }),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  deletedAt: timestamp("deleted_at"),
 }, (table) => ({
   schoolIdIdx: index("fee_payments_school_id_idx").on(table.schoolId),
   feeIdIdx: index("fee_payments_fee_id_idx").on(table.feeId),
   receiptTokenIdx: index("fee_payments_receipt_token_idx").on(table.receiptToken),
   schoolDatePaidIdx: index("fee_payments_school_date_idx").on(table.schoolId, table.datePaid),
+  schoolUpdatedIdx: index("fee_payments_school_updated_idx").on(table.schoolId, table.updatedAt),
 }));
 
 export const feeTransactions = feePayments;
