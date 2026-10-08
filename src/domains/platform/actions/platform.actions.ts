@@ -401,4 +401,133 @@ export async function generateAndAssignSchoolLicense(
   });
 }
 
+/**
+ * Detailed Usage Summary per School to monitor and enforce Supabase Free Plan limits
+ */
+export async function getSchoolUsageSummary() {
+  return superAdminAction(async () => {
+    // 1. Fetch all schools
+    const allSchools = await readDb.select().from(schools).orderBy(desc(schools.createdAt));
+
+    // 2. Fetch student count grouped by schoolId
+    const studentCounts = await readDb
+      .select({
+        schoolId: students.schoolId,
+        count: count(),
+      })
+      .from(students)
+      .groupBy(students.schoolId);
+
+    // 3. Fetch user count grouped by schoolId
+    const userCounts = await readDb
+      .select({
+        schoolId: users.schoolId,
+        count: count(),
+      })
+      .from(users)
+      .groupBy(users.schoolId);
+
+    // 4. Fetch sync audit logs / operations count grouped by schoolId
+    const syncOpCounts = await readDb
+      .select({
+        schoolId: auditLogs.schoolId,
+        count: count(),
+      })
+      .from(auditLogs)
+      .groupBy(auditLogs.schoolId);
+
+    const studentMap = new Map(studentCounts.map((s) => [s.schoolId, Number(s.count)]));
+    const userMap = new Map(userCounts.map((u) => [u.schoolId, Number(u.count)]));
+    const syncMap = new Map(syncOpCounts.map((s) => [s.schoolId, Number(s.count)]));
+
+    const totalStudents = studentCounts.reduce((acc, curr) => acc + Number(curr.count), 0);
+    const totalUsers = userCounts.reduce((acc, curr) => acc + Number(curr.count), 0);
+    const totalSyncs = syncOpCounts.reduce((acc, curr) => acc + Number(curr.count), 0);
+
+    const schoolsUsage = allSchools.map((s) => {
+      const studentsCount = studentMap.get(s.id) || 0;
+      const usersCount = userMap.get(s.id) || 0;
+      const syncOpsCount = syncMap.get(s.id) || 0;
+
+      // Estimated DB usage: ~1.5 KB per student, ~2 KB per user, ~0.5 KB per audit record
+      const estimatedDbMb = Number(
+        (((studentsCount * 1.5 + usersCount * 2 + syncOpsCount * 0.5) / 1024) + 0.05).toFixed(2)
+      );
+
+      const maxStudents = s.maxStudents || 500;
+      const maxStorageMb = s.maxStorageMb || 100;
+      const maxMonthlySyncOps = s.maxMonthlySyncOps || 5000;
+
+      const studentUsagePercent = Math.min(100, Math.round((studentsCount / maxStudents) * 100));
+      const storageUsagePercent = Math.min(100, Math.round((estimatedDbMb / maxStorageMb) * 100));
+      const syncUsagePercent = Math.min(100, Math.round((syncOpsCount / maxMonthlySyncOps) * 100));
+
+      const isQuotaExceeded =
+        studentsCount > maxStudents ||
+        estimatedDbMb > maxStorageMb ||
+        syncOpsCount > maxMonthlySyncOps;
+
+      return {
+        id: s.id,
+        name: s.name,
+        slug: s.slug,
+        plan: s.plan || "basic",
+        status: s.status || "active",
+        studentsCount,
+        maxStudents,
+        studentUsagePercent,
+        usersCount,
+        syncOpsCount,
+        maxMonthlySyncOps,
+        syncUsagePercent,
+        estimatedDbMb,
+        maxStorageMb,
+        storageUsagePercent,
+        isQuotaExceeded,
+      };
+    });
+
+    return {
+      global: {
+        totalSchools: allSchools.length,
+        totalStudents,
+        totalUsers,
+        totalSyncs,
+        // Supabase Free Tier Max Limits:
+        supabaseDbMaxMb: 500, // 0.5 GB
+        supabaseStorageMaxMb: 1000, // 1 GB
+        supabaseEgressMaxGb: 5, // 5 GB
+        supabaseMauMax: 50000,
+      },
+      schoolsUsage,
+    };
+  });
+}
+
+/**
+ * Update Quota Limits for a specific school
+ */
+export async function updateSchoolQuotas(
+  schoolId: number,
+  quotas: {
+    maxStudents?: number;
+    maxStorageMb?: number;
+    maxMonthlySyncOps?: number;
+  }
+) {
+  return superAdminAction(async () => {
+    await db
+      .update(schools)
+      .set({
+        maxStudents: quotas.maxStudents,
+        maxStorageMb: quotas.maxStorageMb,
+        maxMonthlySyncOps: quotas.maxMonthlySyncOps,
+      })
+      .where(eq(schools.id, schoolId));
+
+    revalidatePath("/platform-admin");
+    return { success: true };
+  });
+}
+
 

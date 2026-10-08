@@ -30,6 +30,11 @@ export const schools = pgTable("schools", {
   licenseKey: varchar("license_key", { length: 255 }),
   billingCycle: varchar("billing_cycle", { length: 20 }).default("monthly"), // monthly, annual
   autoRenew: boolean("auto_renew").default(true),
+  // Quotas & Usage Limits (قيود الاستهلاك لكل مدرسة لحماية خطة Supabase المجانية)
+  maxStudents: integer("max_students").default(500), // الحد الأقصى للطلاب
+  maxStorageMb: integer("max_storage_mb").default(100), // الحد الأقصى للملفات والتخزين بالميغابايت (ضمن 1GB Supabase)
+  currentStorageMb: integer("current_storage_mb").default(0), // الاستهلاك الحالي بالميغابايت
+  maxMonthlySyncOps: integer("max_monthly_sync_ops").default(5000), // حد عمليات المزامنة الشهرية
   createdAt: timestamp("created_at").defaultNow(),
 });
 

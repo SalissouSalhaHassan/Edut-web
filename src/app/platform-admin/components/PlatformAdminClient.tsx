@@ -44,6 +44,9 @@ function formatCfa(amount: number) {
   return `${Math.round(amount).toLocaleString("fr-FR")} CFA`;
 }
 
+import { PlatformUsageSummary } from "./PlatformUsageSummary";
+import { Gauge } from "lucide-react";
+
 interface PlatformAdminClientProps {
   stats: {
     schools: number;
@@ -53,6 +56,7 @@ interface PlatformAdminClientProps {
   };
   schoolsList: any[];
   logs: any[];
+  usageData?: any;
   userName: string;
 }
 
@@ -60,10 +64,11 @@ export function PlatformAdminClient({
   stats,
   schoolsList,
   logs,
+  usageData,
   userName,
 }: PlatformAdminClientProps) {
   const { isDark, toggleTheme, isMounted } = useTheme();
-  const [activeTab, setActiveTab] = useState<"overview" | "schools" | "addons">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "schools" | "usage" | "addons">("overview");
 
   // SaaS Add-ons State
   const [addonsList, setAddonsList] = useState([
@@ -220,6 +225,17 @@ export function PlatformAdminClient({
               Établissements ({schoolsList.length})
             </button>
             <button
+              onClick={() => setActiveTab("usage")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                activeTab === "usage"
+                  ? "bg-emerald-600 text-white shadow-sm shadow-emerald-600/20"
+                  : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+              }`}
+            >
+              <Gauge size={15} />
+              Usage & Quotas (الاستهلاك)
+            </button>
+            <button
               onClick={() => setActiveTab("addons")}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
                 activeTab === "addons"
@@ -284,6 +300,15 @@ export function PlatformAdminClient({
         >
           <Building2 size={14} />
           Établissements
+        </button>
+        <button
+          onClick={() => setActiveTab("usage")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap ${
+            activeTab === "usage" ? "bg-emerald-600 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
+          }`}
+        >
+          <Gauge size={14} />
+          Usage & Quotas
         </button>
         <button
           onClick={() => setActiveTab("addons")}
@@ -467,6 +492,11 @@ export function PlatformAdminClient({
             </div>
             <SchoolManagerNew schools={schoolsList} />
           </div>
+        )}
+
+        {/* TAB: USAGE & QUOTAS (الاستهلاك والقيود) */}
+        {activeTab === "usage" && usageData && (
+          <PlatformUsageSummary usageData={usageData} />
         )}
 
         {/* TAB 3: EXTENSIONS & ADD-ONS (إضافات) */}
