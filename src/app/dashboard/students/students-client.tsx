@@ -151,32 +151,31 @@ export default function StudentsClient({ initialStudents, currentUser, activeSch
 
   useEffect(() => {
     async function loadData() {
-      if (navigator.onLine && schoolId) {
-        // Online: server has already filtered students by level.
-        // Write the server-filtered list to local cache to overwrite stale cross-level data.
-        try {
-          const { cacheStudents } = await import("@/infrastructure/local-db/cache");
-          await cacheStudents(initialStudents || [], schoolId);
-        } catch (e) {
-          console.warn("Failed to update student local cache:", e);
-        }
-
-        // When online, always use the server-filtered initialStudents.
-        // Don't read from IndexedDB since it may contain students from other levels.
-        try {
-          const { localDb } = await import("@/infrastructure/local-db/dexie");
-          const outboxItems = await localDb.outbox
-            .where("targetTable")
-            .equals("students")
-            .toArray();
-          const unsynced = outboxItems.filter(item =>
-            item.status !== "synced" &&
-            item.status !== "cancelled" &&
-            Number(item.schoolId || item.payload?.schoolId) === Number(schoolId)
-          );
-          setUnsyncedAdmissions(new Set(unsynced.map(item => item.payload.numAdmission)));
-        } catch (e) {
-          console.warn("Failed to read outbox:", e);
+        // When online, if server returns students, cache them and use them.
+        // If server returns empty (e.g. domain switch/misconfiguration), fall back to local cached students to maintain Offline-First availability.
+        if (initialStudents && initialStudents.length > 0) {
+          try {
+            const { cacheStudents } = await import("@/infrastructure/local-db/cache");
+            await cacheStudents(initialStudents, schoolId);
+          } catch (e) {
+            console.warn("Failed to update student local cache:", e);
+          }
+          setAllStudents(initialStudents);
+          setIsLocal(false);
+          return;
+        } else {
+          // Attempt fallback to local storage before assuming zero students
+          try {
+            const { getCachedStudents } = await import("@/infrastructure/local-db/cache");
+            const cached = await getCachedStudents(schoolId);
+            if (cached && cached.length > 0) {
+              setAllStudents(cached);
+              setIsLocal(true);
+              return;
+            }
+          } catch (e) {
+            console.warn("Local fallback failed:", e);
+          }
         }
 
         setAllStudents(initialStudents || []);

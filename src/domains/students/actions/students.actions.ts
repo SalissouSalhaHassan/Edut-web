@@ -23,7 +23,10 @@ export async function getStudents(params?: {
   educationalLevel?: string;
 }) {
   return protectedDbAction("Students", "canView", async (user) => {
-    const schoolId = (await getActiveSchoolId()) || user?.schoolId || 1;
+    // If the logged-in user belongs to a specific school, prioritize their schoolId
+    // to prevent falling back to generic default school on external hostings (like netlify.app)
+    const activeId = await getActiveSchoolId();
+    const schoolId = user?.schoolId || activeId || 1;
     const roleType = await getUserRoleType(user);
     const roleNameLower = (user.role?.roleName || "").toLowerCase().trim();
     
