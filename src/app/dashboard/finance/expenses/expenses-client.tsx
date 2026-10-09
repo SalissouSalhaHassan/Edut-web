@@ -17,7 +17,8 @@ import {
   Loader2,
   DollarSign,
   ArrowUpRight,
-  PieChart
+  PieChart,
+  Scale
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
