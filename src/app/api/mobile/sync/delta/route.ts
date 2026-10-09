@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { eq, and, gt, inArray, isNotNull, or } from "drizzle-orm";
 import { readDb } from "@/infrastructure/database";
-import { getMobileUser, mobileJsonError } from "../_lib/auth";
+import { getMobileUser, mobileJsonError } from "../../_lib/auth";
 import { students } from "@/infrastructure/database/schema/students";
 import { studentAttendance } from "@/infrastructure/database/schema/attendance";
 import { studentResults } from "@/infrastructure/database/schema/academics";

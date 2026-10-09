@@ -64,7 +64,7 @@ interface FinanceClientProps {
 
 type TabId = "dashboard" | "payments" | "reports" | "unified-balance" | "alerts";
 import { UnifiedFinancialReportView } from "@/domains/finance/components/UnifiedFinancialReportView";
-import { Scale, TrendingDown } from "lucide-react";
+import { Scale } from "lucide-react";
 
 
 const getModeIcon = (mode: string) => {
