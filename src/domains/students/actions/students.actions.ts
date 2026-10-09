@@ -436,7 +436,17 @@ export async function getStudentsByClass(className: string) {
 
 export async function fixStudentLevels() {
   return protectedDbAction("Students", "canEdit", async (user) => {
-    const schoolId = await getActiveSchoolId();
+    // 1. First ensure deleted_at exists in DB so students query doesn't crash
+    try {
+      await db.execute(sql`ALTER TABLE "students" ADD COLUMN IF NOT EXISTS "deleted_at" timestamp`);
+      await db.execute(sql`ALTER TABLE "student_attendance" ADD COLUMN IF NOT EXISTS "deleted_at" timestamp`);
+      await db.execute(sql`ALTER TABLE "student_results" ADD COLUMN IF NOT EXISTS "deleted_at" timestamp`);
+      await db.execute(sql`ALTER TABLE "fee_payments" ADD COLUMN IF NOT EXISTS "deleted_at" timestamp`);
+    } catch (e) {
+      console.warn("Migration warning:", e);
+    }
+
+    const schoolId = user?.schoolId || (await getActiveSchoolId());
     if (!schoolId) {
       return { error: "Aucun contexte d'école trouvé." };
     }
