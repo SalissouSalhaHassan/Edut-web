@@ -88,6 +88,7 @@ interface StudentsClientProps {
   activeSchoolId?: number | null;
   canEdit: boolean;
   canDelete: boolean;
+  debugInfo?: any;
 }
 
 function normalizeEducationalLevel(level: string): string {
@@ -128,7 +129,7 @@ function getCompatibleEducationalLevels(level: string): string[] {
   return [level, level.toLowerCase(), level.toUpperCase(), level.charAt(0).toUpperCase() + level.slice(1).toLowerCase()];
 }
 
-export default function StudentsClient({ initialStudents, currentUser, activeSchoolId, canEdit, canDelete }: StudentsClientProps) {
+export default function StudentsClient({ initialStudents, currentUser, activeSchoolId, canEdit, canDelete, debugInfo }: StudentsClientProps) {
   const [allStudents, setAllStudents] = useState<any[]>(initialStudents);
   const [isLocal, setIsLocal] = useState(false);
   const [unsyncedAdmissions, setUnsyncedAdmissions] = useState<Set<string>>(new Set());
@@ -381,6 +382,16 @@ export default function StudentsClient({ initialStudents, currentUser, activeSch
               )}
             </div>
             <p className="text-slate-500 dark:text-slate-400 font-medium text-sm mt-2">Consultez, gérez et suivez les informations des étudiants.</p>
+            {debugInfo && (
+              <div className="mt-2 text-xs font-mono bg-slate-900/80 border border-slate-700 text-emerald-400 p-2 rounded-xl flex flex-wrap gap-4 items-center">
+                <span>Total DB: <b>{debugInfo.totalInDb ?? 'N/A'}</b></span>
+                <span>User SchoolId: <b>{debugInfo.userSchoolId ?? 'null'}</b></span>
+                <span>Active SchoolId: <b>{debugInfo.activeSchoolId ?? 'null'}</b></span>
+                <span>Loaded Students: <b>{debugInfo.initialCount ?? 0}</b></span>
+                <span>Schools in DB: <b>{JSON.stringify(debugInfo.bySchool)}</b></span>
+                {debugInfo.error && <span className="text-rose-400">Err: {debugInfo.error}</span>}
+              </div>
+            )}
           </div>
         </div>
         

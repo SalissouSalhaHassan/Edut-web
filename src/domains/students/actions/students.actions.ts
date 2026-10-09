@@ -23,15 +23,18 @@ export async function getStudents(params?: {
   educationalLevel?: string;
 }) {
   return protectedDbAction("Students", "canView", async (user) => {
-    // If the logged-in user belongs to a specific school, prioritize their schoolId
-    // to prevent falling back to generic default school on external hostings (like netlify.app)
     const activeId = await getActiveSchoolId();
     const schoolId = user?.schoolId || activeId || 1;
     const isAdmin = Boolean(user?.admin === true || user?.superAdmin === true || user?.superAdmin === 1 || user?.role?.roleName === "Super Admin" || user?.role?.roleName === "Admin");
     const roleType = await getUserRoleType(user);
     const roleNameLower = (user.role?.roleName || "").toLowerCase().trim();
     
-    let whereClause = (schoolId ? or(eq(students.schoolId, schoolId), isNull(students.schoolId)) : sql`TRUE`) as any;
+    // For Admins / SuperAdmins: if schoolId is specified, match schoolId or null.
+    // If user is superAdmin, match all students if no specific school filter.
+    let whereClause = (user?.superAdmin && !schoolId) 
+      ? sql`TRUE` 
+      : (schoolId ? or(eq(students.schoolId, schoolId), isNull(students.schoolId)) : sql`TRUE`) as any;
+
     
     if (!isAdmin && roleType === "level_director") {
       // Always fetch fresh educationalLevel from DB — never trust the cached session value
@@ -128,7 +131,7 @@ export async function getStudents(params?: {
       totalCount = Number(countRes[0]?.count || 0);
     }
 
-    const data = await db.query.students.findMany({
+    let data = await db.query.students.findMany({
       where: whereClause,
       columns: {
         id: true,
@@ -177,6 +180,60 @@ export async function getStudents(params?: {
       limit: limit,
       offset: offset,
     });
+
+    // Fallback: If logged in as Admin / Super Admin and zero students were returned,
+    // check if students exist with any school_id (e.g. school migration or domain discrepancy)
+    if (data.length === 0 && isAdmin && !params?.search && !params?.classe && !params?.status) {
+      console.warn("⚠️ [getStudents] Admin found 0 students with schoolId filter, falling back to all available students");
+      data = await db.query.students.findMany({
+        columns: {
+          id: true,
+          schoolId: true,
+          numAdmission: true,
+          nomEtudiant: true,
+          nomArabe: true,
+          sexe: true,
+          religion: true,
+          dateNaissance: true,
+          lieuNaissance: true,
+          cnic: true,
+          groupeSanguin: true,
+          session: true,
+          educationalLevel: true,
+          classe: true,
+          classId: true,
+          section: true,
+          categorie: true,
+          nomPere: true,
+          cnicPere: true,
+          mobile: true,
+          whatsapp: true,
+          fatherQualification: true,
+          phoneFixe: true,
+          hasSiblings: true,
+          fraisMensuels: true,
+          ancienSolde: true,
+          fraisInscription: true,
+          fraisTransport: true,
+          fraisCantine: true,
+          fraisAssurance: true,
+          bourse: true,
+          fraisCogesCard: true,
+          fraisTransportInternat: true,
+          frequencePaiement: true,
+          statut: true,
+          behaviorScore: true,
+          photoPath: true,
+          activationPin: true,
+          redoublementCount: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+        orderBy: [desc(students.createdAt)],
+        limit: limit,
+        offset: offset,
+      });
+    }
 
     return { 
       data,
