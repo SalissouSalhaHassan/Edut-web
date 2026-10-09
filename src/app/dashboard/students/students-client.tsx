@@ -240,7 +240,7 @@ export default function StudentsClient({ initialStudents, currentUser, activeSch
   const userLevel = currentUser?.educationalLevel;
   const isRestricted = useMemo(() => {
     // Super admins and global admins should never be restricted by educational level
-    if (currentUser?.superAdmin === true || currentUser?.superAdmin === 1 || currentUser?.role?.roleName === "Super Admin") {
+    if (currentUser?.admin || currentUser?.superAdmin === true || currentUser?.superAdmin === 1 || currentUser?.role?.roleName === "Super Admin" || currentUser?.role?.roleName === "Admin") {
       return false;
     }
     if (!userLevel) return false;

@@ -27,12 +27,13 @@ export async function getStudents(params?: {
     // to prevent falling back to generic default school on external hostings (like netlify.app)
     const activeId = await getActiveSchoolId();
     const schoolId = user?.schoolId || activeId || 1;
+    const isAdmin = Boolean(user?.admin === true || user?.superAdmin === true || user?.superAdmin === 1 || user?.role?.roleName === "Super Admin" || user?.role?.roleName === "Admin");
     const roleType = await getUserRoleType(user);
     const roleNameLower = (user.role?.roleName || "").toLowerCase().trim();
     
     let whereClause = (schoolId ? or(eq(students.schoolId, schoolId), isNull(students.schoolId)) : sql`TRUE`) as any;
     
-    if (roleType === "level_director") {
+    if (!isAdmin && roleType === "level_director") {
       // Always fetch fresh educationalLevel from DB — never trust the cached session value
       // because Redis may return stale data (e.g., right after account creation).
       let activeLevel: string | null | undefined = user.educationalLevel;
@@ -51,7 +52,7 @@ export async function getStudents(params?: {
         // Safety: level_director without an assigned level sees nothing
         whereClause = and(whereClause, sql`FALSE`) as any;
       }
-    } else if (roleType === "teacher") {
+    } else if (!isAdmin && roleType === "teacher") {
       const emp = await getTeacherEmployee(user);
       if (emp) {
         const classIds = await getTeacherClassIds(emp.id);
