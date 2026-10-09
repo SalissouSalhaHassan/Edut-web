@@ -151,6 +151,7 @@ export default function StudentsClient({ initialStudents, currentUser, activeSch
 
   useEffect(() => {
     async function loadData() {
+      if (navigator.onLine && schoolId) {
         // When online, if server returns students, cache them and use them.
         // If server returns empty (e.g. domain switch/misconfiguration), fall back to local cached students to maintain Offline-First availability.
         if (initialStudents && initialStudents.length > 0) {
@@ -206,7 +207,7 @@ export default function StudentsClient({ initialStudents, currentUser, activeSch
           let filteredCached = cached;
           if (userLvl) {
             const lvlNorm = normalizeEducationalLevel(userLvl);
-            const globalLevels = ["tous", "all", "tous les niveaux", "\u0627\u0644\u0643\u0644", "\u0643\u0644", "\u062c\u0645\u064a\u0639", "\u062c\u0645\u064a\u0639 \u0627\u0644\u0645\u0633\u062a\u0648\u064a\u0627\u062a", ""];
+            const globalLevels = ["tous", "all", "tous les niveaux", "الكل", "كل", "جميع", "جميع المستويات", ""];
             if (!globalLevels.includes(lvlNorm)) {
               const compatibles = getCompatibleEducationalLevels(userLvl).map(normalizeEducationalLevel);
               filteredCached = cached.filter((s: any) => {
