@@ -33,6 +33,12 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { getUnifiedFinancialReport } from "@/domains/finance/actions/finance.actions";
 import OfficialDocumentHeader from "@/domains/printing/components/OfficialDocumentHeader";
+import { 
+  getActiveLevelHeaderConfig, 
+  isHigherEducationLevel,
+  inferEducationalLevel,
+  type DocumentHeaderConfig 
+} from "@/domains/printing/document-header";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import QRCode from "qrcode";
@@ -54,9 +60,47 @@ export function UnifiedFinancialReportView({
   const [selectedDate, setSelectedDate] = useState<string>(
     new Date().toISOString().split("T")[0]
   );
+  const [selectedLevel, setSelectedLevel] = useState<string>("Tous");
   const [loading, setLoading] = useState(true);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [reportData, setReportData] = useState<any>(null);
+
+  // Available educational levels from headerProfiles and standards
+  const availableLevels = React.useMemo(() => {
+    const list = ["Tous", "Maternelle", "Primaire", "Collège", "Lycée", "Université"];
+    if (headerConfig?.levelProfiles && Array.isArray(headerConfig.levelProfiles)) {
+      headerConfig.levelProfiles.forEach((p: any) => {
+        if (p?.name && !list.includes(p.name)) list.push(p.name);
+        if (Array.isArray(p?.applicableLevels)) {
+          p.applicableLevels.forEach((al: string) => {
+            if (al && !list.includes(al)) list.push(al);
+          });
+        }
+      });
+    }
+    return list;
+  }, [headerConfig]);
+
+  // Determine effective target level: if selectedLevel is specific, or infer from recent transactions
+  const effectiveLevel = React.useMemo(() => {
+    if (selectedLevel !== "Tous") return selectedLevel;
+    const payments = reportData?.transactions?.recentPayments || [];
+    for (const p of payments) {
+      if (p.educationalLevel && p.educationalLevel !== "Tous") return p.educationalLevel;
+      if (p.classe && p.classe !== "-") {
+        const inferred = inferEducationalLevel(p.classe);
+        if (inferred) return inferred;
+      }
+    }
+    return null;
+  }, [selectedLevel, reportData]);
+
+  // Dynamically resolved official document header based on educational level
+  const resolvedHeader = React.useMemo(() => {
+    return getActiveLevelHeaderConfig(headerConfig || { schoolName }, effectiveLevel);
+  }, [headerConfig, schoolName, effectiveLevel]);
+
+  const isHigherEd = isHigherEducationLevel(effectiveLevel || "");
 
   const fetchReport = async () => {
     setLoading(true);
@@ -64,6 +108,7 @@ export function UnifiedFinancialReportView({
       const res = await getUnifiedFinancialReport({
         period,
         selectedDate,
+        educationalLevel: selectedLevel !== "Tous" ? selectedLevel : undefined,
       });
       if (res.success && res.data) {
         setReportData(res.data);
@@ -95,6 +140,7 @@ export function UnifiedFinancialReportView({
                   reference: p.reference,
                   studentName: f.student?.nomEtudiant || "Élève",
                   classe: f.student?.classe || "-",
+                  educationalLevel: f.student?.educationalLevel,
                 });
               });
             }
@@ -138,7 +184,7 @@ export function UnifiedFinancialReportView({
 
   useEffect(() => {
     fetchReport();
-  }, [period, selectedDate]);
+  }, [period, selectedDate, selectedLevel]);
 
   const summary = reportData?.summary || {
     totalRevenueCollected: 0,
@@ -222,19 +268,19 @@ export function UnifiedFinancialReportView({
         }
       }
 
-      // Institutional Header & Logo
-      const activeSchool = headerConfig?.schoolName || schoolName || "GROUPE SCOLAIRE";
-      const activeSchoolAr = headerConfig?.schoolNameAr || "المؤسسة التعليمية";
-      const activeAddress = headerConfig?.address || "Niamey, Niger";
-      const activePhone = headerConfig?.phone || "+227 90 00 00 00";
-      const activeEmail = headerConfig?.email || "contact@edut.pro";
-      const activeCountry = headerConfig?.country || "RÉPUBLIQUE DU NIGER";
-      const activeCountryAr = headerConfig?.countryAr || "جمهورية النيجر";
-      const activeMinistry = headerConfig?.ministry || "Ministère de l'Éducation Nationale";
-      const activeMinistryAr = headerConfig?.ministryAr || "وزارة التربية الوطنية";
-      const activeService = headerConfig?.service || "Service de l'Intendance & Comptabilité";
-      const activeServiceAr = headerConfig?.serviceAr || "مصلحة الشؤون المالية والمحاسبة";
-      const activeLogo = headerConfig?.centerLogo || headerConfig?.leftLogo || headerConfig?.rightLogo || "";
+      // Institutional Header & Logo from dynamically resolved level profile
+      const activeSchool = resolvedHeader?.schoolName || headerConfig?.schoolName || schoolName || "GROUPE SCOLAIRE";
+      const activeSchoolAr = resolvedHeader?.schoolNameAr || headerConfig?.schoolNameAr || (isHigherEd ? "جامعة التميز" : "المؤسسة التعليمية");
+      const activeAddress = resolvedHeader?.address || headerConfig?.address || "Niamey, Niger";
+      const activePhone = resolvedHeader?.phone || headerConfig?.phone || "+227 90 00 00 00";
+      const activeEmail = resolvedHeader?.email || headerConfig?.email || "contact@edut.pro";
+      const activeCountry = resolvedHeader?.country || headerConfig?.country || "RÉPUBLIQUE DU NIGER";
+      const activeCountryAr = resolvedHeader?.countryAr || headerConfig?.countryAr || "جمهورية النيجر";
+      const activeMinistry = resolvedHeader?.ministry || headerConfig?.ministry || (isHigherEd ? "MINISTÈRE DE L'ENSEIGNEMENT SUPÉRIEUR ET DE LA RECHERCHE" : "Ministère de l'Éducation Nationale");
+      const activeMinistryAr = resolvedHeader?.ministryAr || headerConfig?.ministryAr || (isHigherEd ? "وزارة التعليم العالي والبحث العلمي" : "وزارة التربية الوطنية");
+      const activeService = resolvedHeader?.service || headerConfig?.service || (isHigherEd ? "Agence Comptable Universitaire" : "Service de l'Intendance & Comptabilité");
+      const activeServiceAr = resolvedHeader?.serviceAr || headerConfig?.serviceAr || (isHigherEd ? "الوكالة المحاسبية الجامعية" : "مصلحة الشؤون المالية والمحاسبة");
+      const activeLogo = resolvedHeader?.centerLogo || resolvedHeader?.leftLogo || resolvedHeader?.customLogo || resolvedHeader?.rightLogo || headerConfig?.centerLogo || headerConfig?.leftLogo || "";
 
       // Top colored accent bar
       doc.setFillColor(15, 23, 42); // Slate 900
@@ -451,12 +497,14 @@ export function UnifiedFinancialReportView({
 
       // ── SECTION: RECENT TRANSACTIONS JOURNAL TABLE ──
       const payList = reportData?.transactions?.recentPayments || [];
+      const studentLabel = isHigherEd ? "Étudiant" : "Élève";
+      const classLabel = isHigherEd ? "Filière" : "Classe";
       const paymentRows = payList.length > 0
         ? payList.slice(0, 25).map((p: any, idx: number) => [
             String(idx + 1),
             formatDateDisplay(p.date),
             p.reference || "-",
-            p.studentName || "Élève",
+            p.studentName || studentLabel,
             p.classe || "-",
             p.mode || "Espèces",
             `+${formatCfa(p.amount || 0)}`,
@@ -470,7 +518,7 @@ export function UnifiedFinancialReportView({
 
       autoTable(doc, {
         startY: nextY + 3,
-        head: [["N°", "Date", "Référence", "Élève", "Classe", "Mode", "Montant Encaissé"]],
+        head: [["N°", "Date", "Référence", studentLabel, classLabel, "Mode", "Montant Encaissé"]],
         body: paymentRows,
         margin: { left: margin, right: margin },
         styles: { fontSize: 7, cellPadding: 2.2 },
@@ -497,8 +545,10 @@ export function UnifiedFinancialReportView({
       doc.setFontSize(7);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(71, 85, 105);
-      doc.text("Le Chef d'Établissement / Comptable", margin + 15, signY + 6);
-      doc.text("L'Agent de Recouvrement / Caissier", W - margin - 55, signY + 6);
+      const signLeftTitle = isHigherEd ? "L'Agent Comptable / Trésorier" : "L'Intendant / Caissier";
+      const signRightTitle = isHigherEd ? "Le Directeur Général / Recteur" : "Le Chef d'Établissement";
+      doc.text(signLeftTitle, margin + 15, signY + 6);
+      doc.text(signRightTitle, W - margin - 55, signY + 6);
 
       doc.setFontSize(5.5);
       doc.setFont("helvetica", "normal");
@@ -635,12 +685,38 @@ export function UnifiedFinancialReportView({
             </Button>
           </div>
         </div>
+
+        {/* ── EDUCATIONAL LEVEL / CYCLE SELECTOR ── */}
+        {availableLevels.length > 1 && (
+          <div className="w-full flex items-center gap-1.5 pt-3 border-t border-slate-100 dark:border-slate-800 overflow-x-auto pb-1">
+            <span className="text-xs font-bold text-slate-400 dark:text-slate-500 mr-2 flex items-center gap-1">
+              <Building2 className="w-3.5 h-3.5 text-indigo-500" />
+              Cycle / Niveau :
+            </span>
+            {availableLevels.map((lvl) => {
+              const isSelected = selectedLevel === lvl;
+              return (
+                <button
+                  key={lvl}
+                  onClick={() => setSelectedLevel(lvl)}
+                  className={`px-3 py-1 rounded-xl text-xs font-bold transition-all shrink-0 ${
+                    isSelected
+                      ? "bg-indigo-600 text-white shadow-sm shadow-indigo-200 dark:shadow-none"
+                      : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
+                  }`}
+                >
+                  {lvl}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* ── PRINT-ONLY OFFICIAL HEADER (SHOWN ONLY WHEN PRINTING) ── */}
       <div className="hidden print:block bg-white text-black p-4 border-b-2 border-slate-900 mb-6">
         <OfficialDocumentHeader
-          config={headerConfig || { schoolName }}
+          config={resolvedHeader}
           title="RAPPORT FINANCIER UNIFIÉ (RECETTES VS DÉPENSES)"
         />
         <div className="flex justify-between items-center text-xs font-bold border-t border-slate-300 pt-2 mt-2">

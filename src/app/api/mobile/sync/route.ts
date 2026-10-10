@@ -5,7 +5,7 @@ import { getMobileUser, mobileJsonError, canUseMobileModule } from "../_lib/auth
 import { studentAttendance } from "@/infrastructure/database/schema/attendance";
 import { cahierTextes } from "@/infrastructure/database/schema/pedagogie";
 import { studentResults } from "@/infrastructure/database/schema/academics";
-import { feePayments, studentFees } from "@/infrastructure/database/schema/finance";
+import { feePayments, studentFees, expenses, expenseCategories } from "@/infrastructure/database/schema/finance";
 import { students } from "@/infrastructure/database/schema/students";
 import { idempotencyLogs, syncConflicts } from "@/infrastructure/database/schema/audit";
 
@@ -384,6 +384,80 @@ export async function POST(request: NextRequest) {
             });
           } else {
             results.push({ id, success: false, error: "Action sur étudiant non supportée." });
+          }
+        } 
+        
+        // 6. Expenses Sync
+        else if (table === "expenses") {
+          const permitted = await canUseMobileModule(user, "finance", "canEdit");
+          if (!permitted) {
+            results.push({ id, success: false, error: "Permission insuffisante pour enregistrer des dépenses." });
+            continue;
+          }
+
+          if (action === "insert" || action === "create_expense") {
+            const amount = Number(data.amount || 0);
+            const description = String(data.description || "").trim();
+            const categoryName = String(data.category || data.categoryName || "Général").trim();
+            const paymentMode = String(data.payment_mode || data.paymentMode || "Espèces").trim();
+            const dateExpense = data.date_expense || data.dateExpense ? new Date(data.date_expense || data.dateExpense) : new Date();
+
+            let category = await db.query.expenseCategories.findFirst({
+              where: and(
+                eq(expenseCategories.schoolId, schoolId),
+                eq(expenseCategories.name, categoryName)
+              ),
+            });
+
+            if (!category) {
+              try {
+                const [insertedCat] = await db
+                  .insert(expenseCategories)
+                  .values({ schoolId, name: categoryName, description: categoryName })
+                  .returning();
+                category = insertedCat;
+              } catch (_) {
+                category = await db.query.expenseCategories.findFirst({
+                  where: eq(expenseCategories.schoolId, schoolId),
+                });
+              }
+            }
+
+            const reference = data.reference || `DEP-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+            const [created] = await db
+              .insert(expenses)
+              .values({
+                schoolId,
+                reference,
+                categoryId: category?.id || null,
+                amount,
+                description,
+                dateExpense,
+                paymentMode,
+                status: data.status || "Payé",
+                recordedBy: user.nomComplet || user.email || "Mobile App",
+                educationalLevel: user.educationalLevel || null,
+              })
+              .returning();
+
+            if (idempotencyKey) {
+              await db.insert(idempotencyLogs).values({
+                schoolId,
+                idempotencyKey,
+                endpoint: "/api/mobile/sync:expenses",
+                responseStatus: 200,
+                responseData: { id: created?.id, reference: created?.reference },
+              }).catch(() => {});
+            }
+
+            results.push({
+              id,
+              success: true,
+              data: { id: created?.id, reference: created?.reference },
+            });
+          } else {
+            results.push({ id, success: false, error: "Action sur dépense non supportée." });
           }
         } else {
           results.push({

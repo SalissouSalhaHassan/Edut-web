@@ -1521,6 +1521,10 @@ export async function getUnifiedFinancialReport(params?: {
     const schoolId = (await getActiveSchoolId()) || user?.schoolId || 9;
     const period = params?.period || "monthly";
     const selectedDateStr = params?.selectedDate || new Date().toISOString().split("T")[0];
+    const userRoleType = await getUserRoleType(user);
+    const userEducationalLevel = await getActiveEducationalLevel(user);
+    const targetLevel = params?.educationalLevel || userEducationalLevel || undefined;
+    const isLevelFiltered = targetLevel && !hasAllEducationalLevels(targetLevel);
 
     // Calcul de la plage de dates selon la période
     let startDate: Date;
@@ -1544,9 +1548,9 @@ export async function getUnifiedFinancialReport(params?: {
     }
 
     // 1. Récupérer tous les paiements de scolarité (Recettes / Encaissements)
-    let paymentsList: any[] = [];
+    let rawPaymentsList: any[] = [];
     try {
-      paymentsList = await (readDb || db)
+      rawPaymentsList = await (readDb || db)
         .select({
           id: feePayments.id,
           feeId: feePayments.feeId,
@@ -1556,6 +1560,9 @@ export async function getUnifiedFinancialReport(params?: {
           reference: feePayments.reference,
           studentName: students.nomEtudiant,
           classe: students.classe,
+          educationalLevel: students.educationalLevel,
+          sectionName: students.section,
+          filiere: students.filiere,
         })
         .from(feePayments)
         .leftJoin(studentFees, eq(feePayments.feeId, studentFees.id))
@@ -1573,6 +1580,21 @@ export async function getUnifiedFinancialReport(params?: {
     } catch (payErr) {
       console.warn("[getUnifiedFinancialReport] paymentsList query fallback:", payErr);
     }
+
+    // Filtrer par niveau si spécifié
+    const paymentsList = isLevelFiltered
+      ? rawPaymentsList.filter((p) =>
+          isStudentInEducationalLevel(
+            {
+              educationalLevel: p.educationalLevel,
+              classe: p.classe,
+              sectionName: p.sectionName,
+              filiere: p.filiere,
+            },
+            targetLevel
+          )
+        )
+      : rawPaymentsList;
 
     // 2. Récupérer toutes les dépenses (Dépenses / Décaissements / Consommation)
     let expensesList: any[] = [];
@@ -1607,20 +1629,55 @@ export async function getUnifiedFinancialReport(params?: {
     let totalPaidGlobal = 0;
     let totalRemainingDebts = 0;
     try {
-      const feeTotals = await (readDb || db)
-        .select({
-          totalExpected: sql`COALESCE(SUM(${studentFees.totalExpected}), 0)::float`,
-          totalPaid: sql`COALESCE(SUM(${studentFees.totalPaid}), 0)::float`,
-          totalBalance: sql`COALESCE(SUM(${studentFees.balance}), 0)::float`,
-        })
-        .from(studentFees)
-        .where(schoolId ? or(eq(studentFees.schoolId, schoolId), isNull(studentFees.schoolId)) : undefined)
-        .catch(() => []);
+      if (isLevelFiltered) {
+        const feesWithStudents = await (readDb || db)
+          .select({
+            totalExpected: studentFees.totalExpected,
+            totalPaid: studentFees.totalPaid,
+            balance: studentFees.balance,
+            educationalLevel: students.educationalLevel,
+            classe: students.classe,
+            sectionName: students.section,
+            filiere: students.filiere,
+          })
+          .from(studentFees)
+          .leftJoin(students, eq(studentFees.studentId, students.id))
+          .where(schoolId ? or(eq(studentFees.schoolId, schoolId), isNull(studentFees.schoolId)) : undefined)
+          .catch(() => []);
 
-      if (feeTotals && feeTotals[0]) {
-        totalExpectedGlobal = Number(feeTotals[0].totalExpected || 0);
-        totalPaidGlobal = Number(feeTotals[0].totalPaid || 0);
-        totalRemainingDebts = Number(feeTotals[0].totalBalance || 0);
+        feesWithStudents.forEach((f) => {
+          if (
+            isStudentInEducationalLevel(
+              {
+                educationalLevel: f.educationalLevel,
+                classe: f.classe,
+                sectionName: f.sectionName,
+                filiere: f.filiere,
+              },
+              targetLevel
+            )
+          ) {
+            totalExpectedGlobal += Number(f.totalExpected || 0);
+            totalPaidGlobal += Number(f.totalPaid || 0);
+            totalRemainingDebts += Math.max(0, Number(f.balance || 0));
+          }
+        });
+      } else {
+        const feeTotals = await (readDb || db)
+          .select({
+            totalExpected: sql`COALESCE(SUM(${studentFees.totalExpected}), 0)::float`,
+            totalPaid: sql`COALESCE(SUM(${studentFees.totalPaid}), 0)::float`,
+            totalBalance: sql`COALESCE(SUM(${studentFees.balance}), 0)::float`,
+          })
+          .from(studentFees)
+          .where(schoolId ? or(eq(studentFees.schoolId, schoolId), isNull(studentFees.schoolId)) : undefined)
+          .catch(() => []);
+
+        if (feeTotals && feeTotals[0]) {
+          totalExpectedGlobal = Number(feeTotals[0].totalExpected || 0);
+          totalPaidGlobal = Number(feeTotals[0].totalPaid || 0);
+          totalRemainingDebts = Number(feeTotals[0].totalBalance || 0);
+        }
       }
     } catch (feeErr) {
       console.warn("[getUnifiedFinancialReport] feeTotals aggregation fallback:", feeErr);
@@ -1682,6 +1739,7 @@ export async function getUnifiedFinancialReport(params?: {
             reference: p.reference,
             studentName: p.studentName || "Élève",
             classe: p.classe || "-",
+            educationalLevel: p.educationalLevel,
           })),
           recentExpenses: expensesList.slice(0, 50).map((e) => ({
             id: e.id,

@@ -5,7 +5,7 @@ import { getMobileUser, mobileJsonError } from "../../_lib/auth";
 import { students } from "@/infrastructure/database/schema/students";
 import { studentAttendance } from "@/infrastructure/database/schema/attendance";
 import { studentResults } from "@/infrastructure/database/schema/academics";
-import { feePayments } from "@/infrastructure/database/schema/finance";
+import { feePayments, expenses } from "@/infrastructure/database/schema/finance";
 
 export const dynamic = "force-dynamic";
 
@@ -192,6 +192,38 @@ export async function POST(request: NextRequest) {
 
       changes["fee_payments"] = activePayments;
       deletedIds["fee_payments"] = deletedPaymentIds;
+    }
+
+    // 5. Expenses Delta
+    if (requestedEntities.includes("expenses")) {
+      const expCond = [eq(expenses.schoolId, schoolId)];
+      if (lastSyncDate && !isNaN(lastSyncDate.getTime())) {
+        expCond.push(gt(expenses.createdAt, lastSyncDate));
+      }
+
+      const updatedExpenses = await readDb.query.expenses.findMany({
+        where: and(...expCond),
+        with: {
+          category: true,
+        },
+        orderBy: [expenses.dateExpense],
+      });
+
+      const activeExpenses: any[] = updatedExpenses.map((e) => ({
+        id: e.id,
+        school_id: e.schoolId,
+        reference: e.reference,
+        category: e.category?.name || "Général",
+        description: e.description || e.category?.name || "Dépense",
+        amount: Number(e.amount) || 0,
+        date_expense: e.dateExpense ? new Date(e.dateExpense).toISOString() : new Date().toISOString(),
+        payment_mode: e.paymentMode || "Espèces",
+        status: e.status || "Payé",
+        recorded_by: e.recordedBy || "Admin",
+      }));
+
+      changes["expenses"] = activeExpenses;
+      deletedIds["expenses"] = [];
     }
 
     return NextResponse.json({
