@@ -152,40 +152,20 @@ export default function StudentsClient({ initialStudents, currentUser, activeSch
 
   useEffect(() => {
     async function loadData() {
-      if (navigator.onLine && schoolId) {
-        // When online, if server returns students, cache them and use them.
-        // If server returns empty (e.g. domain switch/misconfiguration), fall back to local cached students to maintain Offline-First availability.
-        if (initialStudents && initialStudents.length > 0) {
-          try {
-            const { cacheStudents } = await import("@/infrastructure/local-db/cache");
-            await cacheStudents(initialStudents, schoolId);
-          } catch (e) {
-            console.warn("Failed to update student local cache:", e);
-          }
-          setAllStudents(initialStudents);
-          setIsLocal(false);
-          return;
-        } else {
-          // Attempt fallback to local storage before assuming zero students
-          try {
-            const { getCachedStudents } = await import("@/infrastructure/local-db/cache");
-            const cached = await getCachedStudents(schoolId);
-            if (cached && cached.length > 0) {
-              setAllStudents(cached);
-              setIsLocal(true);
-              return;
-            }
-          } catch (e) {
-            console.warn("Local fallback failed:", e);
-          }
+      // 1. If currently online and we have fresh server initialStudents, cache them and show
+      if (typeof navigator !== "undefined" && navigator.onLine && schoolId && initialStudents && initialStudents.length > 0) {
+        try {
+          const { cacheStudents } = await import("@/infrastructure/local-db/cache");
+          await cacheStudents(initialStudents, schoolId);
+        } catch (e) {
+          console.warn("Failed to update student local cache:", e);
         }
-
-        setAllStudents(initialStudents || []);
+        setAllStudents(initialStudents);
         setIsLocal(false);
         return;
       }
 
-      // Offline: read from IndexedDB and apply level filter to prevent cross-level data leaks
+      // 2. Offline OR server returned empty: Read from local IndexedDB
       try {
         const { getCachedStudents } = await import("@/infrastructure/local-db/cache");
         const cached = await getCachedStudents(schoolId);
@@ -198,12 +178,12 @@ export default function StudentsClient({ initialStudents, currentUser, activeSch
         const unsynced = outboxItems.filter(item =>
           item.status !== "synced" &&
           item.status !== "cancelled" &&
-          Number(item.schoolId || item.payload?.schoolId) === Number(schoolId)
+          (!schoolId || Number(item.schoolId || item.payload?.schoolId) === Number(schoolId) || !item.schoolId)
         );
-        setUnsyncedAdmissions(new Set(unsynced.map(item => item.payload.numAdmission)));
+        setUnsyncedAdmissions(new Set(unsynced.map(item => item.payload?.numAdmission).filter(Boolean)));
 
         if (cached && cached.length > 0) {
-          // Apply level filter on cached data when offline
+          // Apply level filter on cached data
           const userLvl = currentUser?.educationalLevel;
           let filteredCached = cached;
           if (userLvl) {
@@ -229,7 +209,26 @@ export default function StudentsClient({ initialStudents, currentUser, activeSch
         setIsLocal(false);
       }
     }
+
     loadData();
+
+    // Listen for local table mutations (add/edit in offline or online mode)
+    const handleTableUpdate = (e: any) => {
+      if (e?.detail?.targetTable === "students") {
+        loadData();
+      }
+    };
+    const handleOnlineStatus = () => loadData();
+
+    window.addEventListener("edut:table-updated", handleTableUpdate);
+    window.addEventListener("online", handleOnlineStatus);
+    window.addEventListener("offline", handleOnlineStatus);
+
+    return () => {
+      window.removeEventListener("edut:table-updated", handleTableUpdate);
+      window.removeEventListener("online", handleOnlineStatus);
+      window.removeEventListener("offline", handleOnlineStatus);
+    };
   }, [initialStudents, schoolId, currentUser?.educationalLevel]);
 
 
@@ -421,7 +420,16 @@ export default function StudentsClient({ initialStudents, currentUser, activeSch
                 <button className="h-11 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold flex items-center gap-2 shadow-lg shadow-indigo-100 transition-all cursor-pointer">
                   <Plus size={18} /> Ajouter un étudiant
                 </button>
-              } 
+              }
+              onSuccess={(newStd) => {
+                setAllStudents(prev => {
+                  const exists = prev.some(s => s.numAdmission === newStd.numAdmission);
+                  if (exists) {
+                    return prev.map(s => s.numAdmission === newStd.numAdmission ? { ...s, ...newStd } : s);
+                  }
+                  return [newStd, ...prev];
+                });
+              }}
             />
           )}
         </div>
@@ -654,6 +662,11 @@ export default function StudentsClient({ initialStudents, currentUser, activeSch
           initialData={editingStudent}
           open={!!editingStudent}
           onClose={() => setEditingStudent(null)}
+          onSuccess={(updatedStd) => {
+            setAllStudents(prev => 
+              prev.map(s => (s.id === updatedStd.id || s.numAdmission === updatedStd.numAdmission) ? { ...s, ...updatedStd } : s)
+            );
+          }}
         />
       )}
     </div>

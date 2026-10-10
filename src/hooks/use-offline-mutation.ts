@@ -69,6 +69,12 @@ export function useOfflineMutation<T>() {
             await (localDb as any)[targetTable].put(localPayload as any);
           }
 
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(new CustomEvent("edut:table-updated", {
+              detail: { targetTable, action: (payload as any).id ? "update" : "insert", item: localPayload }
+            }));
+          }
+
           onSuccess?.({ success: true, action: res.action, id: res.id });
           return { success: true, fromCloud: true };
         }
@@ -103,6 +109,12 @@ export function useOfflineMutation<T>() {
       // Tier 1: Check localStorage for cached user session or active school
       if (typeof window !== "undefined" && (!userId || !schoolId || !userName || !schoolName)) {
         try {
+          const cachedSchoolId = localStorage.getItem("active_school_id") || localStorage.getItem("edut_school_id");
+          if (cachedSchoolId && !schoolId) schoolId = Number(cachedSchoolId) || null;
+
+          const cachedSchoolName = localStorage.getItem("active_school_name") || localStorage.getItem("edut_school_name");
+          if (cachedSchoolName && !schoolName) schoolName = cachedSchoolName;
+
           const cachedSessionStr = localStorage.getItem("edut_user_session") || localStorage.getItem("edut_session_user");
           if (cachedSessionStr) {
             const cachedUser = JSON.parse(cachedSessionStr);
@@ -110,14 +122,6 @@ export function useOfflineMutation<T>() {
             if (!userName) userName = cachedUser.nomPrenom || (cachedUser.prenom || cachedUser.nom ? `${cachedUser.prenom || ""} ${cachedUser.nom || ""}`.trim() : cachedUser.utilisateur || cachedUser.name || null);
             if (!schoolId) schoolId = cachedUser.schoolId || cachedUser.school?.id || null;
             if (!schoolName) schoolName = cachedUser.school?.name || cachedUser.schoolName || null;
-          }
-          if (!schoolId) {
-            const cachedSchoolId = localStorage.getItem("active_school_id") || localStorage.getItem("edut_school_id");
-            if (cachedSchoolId) schoolId = Number(cachedSchoolId) || null;
-          }
-          if (!schoolName) {
-            const cachedSchoolName = localStorage.getItem("active_school_name") || localStorage.getItem("edut_school_name");
-            if (cachedSchoolName) schoolName = cachedSchoolName;
           }
         } catch (_) {}
       }
@@ -166,10 +170,10 @@ export function useOfflineMutation<T>() {
 
       // Tier 5: Absolute default fallbacks to prevent orphaned / anonymous outbox actions
       if (!schoolId) {
-        schoolId = 9; // Default school GROUP AIIU-NIGER
+        schoolId = 11;
       }
       if (!schoolName) {
-        schoolName = "GROUP AIIU-NIGER";
+        schoolName = "Établissement Scolaire";
       }
       if (!userId) {
         userId = (payload as any)?.recordedBy || "Admin";
@@ -188,6 +192,7 @@ export function useOfflineMutation<T>() {
       const localPayload = {
         ...payload,
         id: localId,
+        schoolId: (payload as any)?.schoolId || schoolId,
         idempotencyKey,
         updatedAt: now,
       };
@@ -213,6 +218,7 @@ export function useOfflineMutation<T>() {
           payload: {
             ...payload,
             id: localId,
+            schoolId: (payload as any)?.schoolId || schoolId,
             idempotencyKey,
           },
           status: "pending sync",
@@ -233,6 +239,7 @@ export function useOfflineMutation<T>() {
           payload: {
             ...payload,
             id: localId,
+            schoolId: (payload as any)?.schoolId || schoolId,
             idempotencyKey,
           },
           status: "pending sync",
@@ -249,7 +256,13 @@ export function useOfflineMutation<T>() {
         });
       }
 
-      toast.warning("Modifications enregistrees localement (hors-ligne).");
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("edut:table-updated", {
+          detail: { targetTable, action: (payload as any).id ? "update" : "insert", item: localPayload }
+        }));
+      }
+
+      toast.warning("Modifications enregistrées localement (hors-ligne).");
 
       const res = { success: true, action: (payload as any).id ? "update" : "insert", id: localId };
       onSuccess?.(res);

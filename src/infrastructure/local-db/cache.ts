@@ -40,8 +40,16 @@ export async function cacheStudents(items: any[], schoolId?: number | null) {
 }
 
 export async function getCachedStudents(schoolId?: number | null) {
-  if (!schoolId) return [];
-  return localDb.students.where("schoolId").equals(schoolId).toArray();
+  if (schoolId) {
+    const bySchool = await localDb.students.where("schoolId").equals(schoolId).toArray();
+    if (bySchool.length > 0) return bySchool;
+    // Fallback: check if students are stored with null or another schoolId (e.g. offline created)
+    const all = await localDb.students.toArray();
+    const matching = all.filter(s => !s.schoolId || Number(s.schoolId) === Number(schoolId));
+    if (matching.length > 0) return matching;
+    return all;
+  }
+  return localDb.students.toArray();
 }
 
 // 2. Student Fees Caching

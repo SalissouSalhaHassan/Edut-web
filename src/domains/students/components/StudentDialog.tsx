@@ -50,9 +50,10 @@ interface StudentDialogProps {
   trigger?: React.ReactNode;
   open?: boolean;
   onClose?: () => void;
+  onSuccess?: (student: any) => void;
 }
 
-export default function StudentDialog({ mode = "add", initialData, trigger, open: controlledOpen, onClose }: StudentDialogProps) {
+export default function StudentDialog({ mode = "add", initialData, trigger, open: controlledOpen, onClose, onSuccess }: StudentDialogProps) {
   const router = useRouter();
   const isOnline = useOnlineStatus();
   const { mutate } = useOfflineMutation<StudentFormData & { id?: number; originalData?: any }>();
@@ -498,6 +499,7 @@ export default function StudentDialog({ mode = "add", initialData, trigger, open
 
       setOpen(false);
       setStep(1);
+      onSuccess?.(payload);
       router.refresh(); // Ensure the page data is re-fetched
     } else if (result.error) {
       setError(result.error);
