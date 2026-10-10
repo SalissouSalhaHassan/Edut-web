@@ -1125,6 +1125,7 @@ export default function FinanceClient({
         <UnifiedFinancialReportView
           schoolName={schoolName || headerConfig?.schoolName}
           activeSessionName={activeSessionName}
+          headerConfig={headerConfig}
         />
       )}
 

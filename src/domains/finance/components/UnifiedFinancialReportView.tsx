@@ -23,26 +23,39 @@ import {
   Smartphone,
   Layers,
   Sparkles,
+  Printer,
+  FileText,
+  Loader2,
+  Share2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { getUnifiedFinancialReport } from "@/domains/finance/actions/finance.actions";
+import OfficialDocumentHeader from "@/domains/printing/components/OfficialDocumentHeader";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
+import QRCode from "qrcode";
+import { amiriFontBase64 } from "@/domains/printing/utils/amiri-font";
+import { hasArabicCharacters, reshapeArabicText } from "@/domains/printing/utils/arabic-reshaper";
 
 interface UnifiedReportProps {
   schoolName?: string;
   activeSessionName?: string;
+  headerConfig?: any | null;
 }
 
 export function UnifiedFinancialReportView({
   schoolName = "Établissement",
   activeSessionName = "2025–2026",
+  headerConfig = null,
 }: UnifiedReportProps) {
   const [period, setPeriod] = useState<"daily" | "monthly" | "yearly" | "all">("monthly");
   const [selectedDate, setSelectedDate] = useState<string>(
     new Date().toISOString().split("T")[0]
   );
   const [loading, setLoading] = useState(true);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [reportData, setReportData] = useState<any>(null);
 
   const fetchReport = async () => {
@@ -104,8 +117,10 @@ export function UnifiedFinancialReportView({
               paymentsByMode: [{ mode: "Données Locales", amount: totalRevenue }],
             },
             transactions: {
-              recentPayments: localAllPayments.slice(0, 15),
+              recentPayments: localAllPayments.slice(0, 50),
               recentExpenses: [],
+              allPaymentsCount: localAllPayments.length,
+              allExpensesCount: 0,
             },
           });
           toast.info("Rapport généré depuis les données locales (Mode Hors-ligne).");
@@ -156,15 +171,305 @@ export function UnifiedFinancialReportView({
     }
   };
 
-  // Export to Print / PDF
+  const getPeriodLabel = () => {
+    if (period === "daily") {
+      return `Bilan Journalier du ${formatDateDisplay(selectedDate)}`;
+    }
+    if (period === "monthly") {
+      try {
+        const d = new Date(selectedDate);
+        const monthName = d.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+        return `Bilan Mensuel — ${monthName.charAt(0).toUpperCase() + monthName.slice(1)}`;
+      } catch {
+        return `Bilan Mensuel (${selectedDate.slice(0, 7)})`;
+      }
+    }
+    if (period === "yearly") {
+      return `Bilan Annuel (${selectedDate.slice(0, 4)})`;
+    }
+    return "Bilan Global Consolidé (Toutes périodes)";
+  };
+
+  // Direct Browser Print
   const handlePrint = () => {
     window.print();
   };
 
+  // Dedicated Vector PDF Export with jsPDF + autoTable
+  const handleExportPDF = async () => {
+    try {
+      setIsExportingPdf(true);
+      toast.loading("Génération du rapport PDF officiel...", { id: "pdf-export" });
+
+      const doc = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4",
+      });
+
+      const W = 210;
+      const H = 297;
+      const margin = 14;
+
+      // Arabic font support if available
+      if (amiriFontBase64) {
+        try {
+          doc.addFileToVFS("Amiri-Regular.ttf", amiriFontBase64);
+          doc.addFont("Amiri-Regular.ttf", "Amiri", "normal", "Identity-H");
+        } catch (e) {
+          console.warn("[UnifiedReport] Font registration warning:", e);
+        }
+      }
+
+      // Institutional Header
+      const activeSchool = headerConfig?.schoolName || schoolName || "ÉTABLISSEMENT SCOLAIRE";
+      const activeAddress = headerConfig?.address || "Niamey, Niger";
+      const activePhone = headerConfig?.phone || "+227 90 00 00 00";
+      const activeEmail = headerConfig?.email || "contact@edut.pro";
+      const activeCountry = headerConfig?.country || "RÉPUBLIQUE DU NIGER";
+      const activeMinistry = headerConfig?.ministry || "Ministère de l'Éducation Nationale";
+
+      doc.setFillColor(15, 23, 42); // Slate 900
+      doc.rect(0, 0, W, 2.5, "F");
+
+      // Draw Top Meta Bar
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(71, 85, 105);
+      doc.text(activeCountry.toUpperCase(), margin, 9);
+      doc.text(`SESSION : ${activeSessionName}`, W - margin, 9, { align: "right" });
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7.5);
+      doc.text(activeMinistry, margin, 13);
+      doc.text(`Édité le : ${new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}`, W - margin, 13, { align: "right" });
+
+      // School Main Title
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      doc.setTextColor(15, 23, 42);
+      doc.text(activeSchool.toUpperCase(), margin, 20);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7.5);
+      doc.setTextColor(100, 116, 139);
+      doc.text(`${activeAddress} | Tél: ${activePhone} | Email: ${activeEmail}`, margin, 24.5);
+
+      // Divider
+      doc.setDrawColor(226, 232, 240);
+      doc.setLineWidth(0.4);
+      doc.line(margin, 27, W - margin, 27);
+
+      // Report Banner
+      doc.setFillColor(79, 70, 229); // Indigo 600
+      doc.roundedRect(margin, 30, W - 2 * margin, 12, 1.5, 1.5, "F");
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(255, 255, 255);
+      doc.text("RAPPORT FINANCIER UNIFIÉ (RECETTES VS DÉPENSES)", margin + 6, 36.5);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7.5);
+      doc.setTextColor(224, 231, 255);
+      doc.text(getPeriodLabel().toUpperCase(), margin + 6, 40);
+
+      // 4 Main KPI Cards
+      const cardY = 46;
+      const cardWidth = (W - 2 * margin - 9) / 4;
+      const cardHeight = 19;
+
+      // Card 1: Recettes
+      doc.setFillColor(240, 253, 244); // emerald-50
+      doc.setDrawColor(187, 247, 208);
+      doc.roundedRect(margin, cardY, cardWidth, cardHeight, 1.5, 1.5, "FD");
+      doc.setFontSize(6.5);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(22, 101, 52);
+      doc.text("RECETTES ENCAISSÉES", margin + 3, cardY + 5);
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.text(`${Math.round(summary.totalRevenueCollected).toLocaleString("fr-FR")} CFA`, margin + 3, cardY + 12);
+      doc.setFontSize(5.5);
+      doc.setFont("helvetica", "normal");
+      doc.text("Frais de scolarité perçus", margin + 3, cardY + 16);
+
+      // Card 2: Dépenses
+      const c2X = margin + cardWidth + 3;
+      doc.setFillColor(255, 241, 242); // rose-50
+      doc.setDrawColor(254, 205, 211);
+      doc.roundedRect(c2X, cardY, cardWidth, cardHeight, 1.5, 1.5, "FD");
+      doc.setFontSize(6.5);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(159, 18, 57);
+      doc.text("CHARGES & DÉPENSES", c2X + 3, cardY + 5);
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.text(`${Math.round(summary.totalExpensesSpent).toLocaleString("fr-FR")} CFA`, c2X + 3, cardY + 12);
+      doc.setFontSize(5.5);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Taux absorption : ${summary.expenseRatio}%`, c2X + 3, cardY + 16);
+
+      // Card 3: Solde Net (Trésorerie)
+      const c3X = c2X + cardWidth + 3;
+      const isPositive = summary.netCashFlow >= 0;
+      doc.setFillColor(isPositive ? 238 : 254, isPositive ? 242 : 243, isPositive ? 255 : 199);
+      doc.setDrawColor(isPositive ? 199 : 253, isPositive ? 210 : 230, isPositive ? 254 : 138);
+      doc.roundedRect(c3X, cardY, cardWidth, cardHeight, 1.5, 1.5, "FD");
+      doc.setFontSize(6.5);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(isPositive ? 67 : 180, isPositive ? 56 : 83, isPositive ? 202 : 9);
+      doc.text("SOLDE NET TRÉSORERIE", c3X + 3, cardY + 5);
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.text(`${Math.round(summary.netCashFlow).toLocaleString("fr-FR")} CFA`, c3X + 3, cardY + 12);
+      doc.setFontSize(5.5);
+      doc.setFont("helvetica", "normal");
+      doc.text(isPositive ? "Excédent disponible" : "Déficit d'exploitation", c3X + 3, cardY + 16);
+
+      // Card 4: Reste à Recouvrer (Créances)
+      const c4X = c3X + cardWidth + 3;
+      doc.setFillColor(254, 243, 199); // amber-50
+      doc.setDrawColor(253, 230, 138);
+      doc.roundedRect(c4X, cardY, cardWidth, cardHeight, 1.5, 1.5, "FD");
+      doc.setFontSize(6.5);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(180, 83, 9);
+      doc.text("CRÉANCES / IMPAYÉS", c4X + 3, cardY + 5);
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.text(`${Math.round(summary.totalRemainingDebts).toLocaleString("fr-FR")} CFA`, c4X + 3, cardY + 12);
+      doc.setFontSize(5.5);
+      doc.setFont("helvetica", "normal");
+      doc.text("Reste à recouvrer élèves", c4X + 3, cardY + 16);
+
+      // ── SECTION: REPARTITION TABLES (SIDE BY SIDE IN AUTOTABLE) ──
+      const breakdownY = cardY + cardHeight + 6;
+
+      // Table 1: Dépenses par catégorie
+      const catRows = breakdowns.expensesByCategory.length > 0 
+        ? breakdowns.expensesByCategory.map((c: any) => [
+            c.category,
+            `${Math.round(c.amount).toLocaleString("fr-FR")} CFA`,
+            summary.totalExpensesSpent > 0 ? `${Math.round((c.amount / summary.totalExpensesSpent) * 100)}%` : "0%"
+          ])
+        : [["Aucune dépense", "0 CFA", "0%"]];
+
+      autoTable(doc, {
+        startY: breakdownY,
+        head: [["Catégorie de Dépense", "Montant", "Part"]],
+        body: catRows,
+        margin: { left: margin, right: W / 2 + 3 },
+        styles: { fontSize: 7, cellPadding: 2 },
+        headStyles: { fillColor: [159, 18, 57], textColor: 255, fontStyle: "bold" },
+        alternateRowStyles: { fillColor: [255, 241, 242] },
+      });
+
+      const catTableBottom = (doc as any).lastAutoTable.finalY;
+
+      // Table 2: Recettes par mode de paiement
+      const modeRows = breakdowns.paymentsByMode.length > 0
+        ? breakdowns.paymentsByMode.map((m: any) => [
+            m.mode,
+            `${Math.round(m.amount).toLocaleString("fr-FR")} CFA`,
+            summary.totalRevenueCollected > 0 ? `${Math.round((m.amount / summary.totalRevenueCollected) * 100)}%` : "0%"
+          ])
+        : [["Aucun encaissement", "0 CFA", "0%"]];
+
+      autoTable(doc, {
+        startY: breakdownY,
+        head: [["Canal d'Encaissement", "Montant", "Part"]],
+        body: modeRows,
+        margin: { left: W / 2 + 3, right: margin },
+        styles: { fontSize: 7, cellPadding: 2 },
+        headStyles: { fillColor: [22, 101, 52], textColor: 255, fontStyle: "bold" },
+        alternateRowStyles: { fillColor: [240, 253, 244] },
+      });
+
+      const modeTableBottom = (doc as any).lastAutoTable.finalY;
+      const nextY = Math.max(catTableBottom, modeTableBottom) + 6;
+
+      // ── SECTION: RECENT TRANSACTIONS JOURNAL TABLE ──
+      const payList = reportData?.transactions?.recentPayments || [];
+      const paymentRows = payList.length > 0
+        ? payList.slice(0, 25).map((p: any, idx: number) => [
+            String(idx + 1),
+            formatDateDisplay(p.date),
+            p.reference || "-",
+            p.studentName || "Élève",
+            p.classe || "-",
+            p.mode || "Espèces",
+            `+${Math.round(p.amount || 0).toLocaleString("fr-FR")} CFA`,
+          ])
+        : [["-", "-", "-", "Aucune transaction enregistrée", "-", "-", "0 CFA"]];
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8.5);
+      doc.setTextColor(15, 23, 42);
+      doc.text("EXTRAIT DU JOURNAL DES RECETTES (DERNIERS ENCAISSEMENTS)", margin, nextY);
+
+      autoTable(doc, {
+        startY: nextY + 2.5,
+        head: [["N°", "Date", "Référence", "Élève", "Classe", "Mode", "Montant Encaissé"]],
+        body: paymentRows,
+        margin: { left: margin, right: margin },
+        styles: { fontSize: 6.5, cellPadding: 1.8 },
+        headStyles: { fillColor: [15, 23, 42], textColor: 255, fontStyle: "bold" },
+        columnStyles: {
+          0: { cellWidth: 8, halign: "center" },
+          1: { cellWidth: 20 },
+          2: { cellWidth: 24, font: "courier" },
+          3: { cellWidth: 55, fontStyle: "bold" },
+          4: { cellWidth: 16 },
+          5: { cellWidth: 20 },
+          6: { cellWidth: 35, halign: "right", fontStyle: "bold", textColor: [22, 101, 52] },
+        },
+      });
+
+      // Signatures & Official Stamp Footer
+      const finalTableY = (doc as any).lastAutoTable.finalY;
+      const signY = Math.min(finalTableY + 8, H - 35);
+
+      doc.setDrawColor(226, 232, 240);
+      doc.setLineWidth(0.3);
+      doc.line(margin, signY, W - margin, signY);
+
+      doc.setFontSize(7);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(71, 85, 105);
+      doc.text("Le Chef d'Établissement / Comptable", margin + 15, signY + 6);
+      doc.text("L'Agent de Recouvrement / Caissier", W - margin - 55, signY + 6);
+
+      doc.setFontSize(5.5);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(148, 163, 184);
+      doc.text("(Cachet et Signature)", margin + 22, signY + 18);
+      doc.text("(Signature)", W - margin - 45, signY + 18);
+
+      // Bottom Security String
+      doc.setFontSize(6);
+      doc.setTextColor(148, 163, 184);
+      doc.text(`Document officiel généré par Edut Pro — Système de gestion scolaire unifiée`, margin, H - 7);
+      doc.text(`Page 1 / 1`, W - margin, H - 7, { align: "right" });
+
+      const safePeriodName = period === "daily" ? `Jour_${selectedDate}` : period === "monthly" ? `Mois_${selectedDate.slice(0, 7)}` : period;
+      doc.save(`Rapport_Financier_Unifie_${safePeriodName}_${Date.now()}.pdf`);
+
+      toast.dismiss("pdf-export");
+      toast.success("Rapport financier PDF exporté avec succès !");
+    } catch (err: any) {
+      console.error("[UnifiedReport] PDF export error:", err);
+      toast.dismiss("pdf-export");
+      toast.error(err?.message || "Erreur lors de la génération du PDF.");
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
-      {/* ── HEADER & PERIOD SELECTOR ── */}
-      <div className="bg-white dark:bg-[#111827] rounded-3xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+      {/* ── HEADER & PERIOD SELECTOR (SCREEN & PRINT CONTROLS) ── */}
+      <div className="bg-white dark:bg-[#111827] rounded-3xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-6 print:hidden">
         <div>
           <div className="flex items-center gap-3 mb-1">
             <span className="p-2.5 rounded-2xl bg-indigo-600 text-white shadow-md shadow-indigo-200 dark:shadow-none">
@@ -179,7 +484,7 @@ export function UnifiedFinancialReportView({
           </p>
         </div>
 
-        {/* PERIOD TOGGLES */}
+        {/* PERIOD TOGGLES & ACTIONS */}
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl border border-slate-200 dark:border-slate-700">
             <button
@@ -243,64 +548,93 @@ export function UnifiedFinancialReportView({
               className="px-3 py-2 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
 
+            {/* Direct Window Print */}
             <Button
               onClick={handlePrint}
               variant="outline"
               className="h-9 px-3 rounded-xl border-slate-200 dark:border-slate-700 text-xs font-bold gap-1.5 hover:bg-slate-100 dark:hover:bg-slate-800"
+              title="Imprimer directement via le navigateur"
             >
-              <Download className="w-3.5 h-3.5" />
-              Imprimer / PDF
+              <Printer className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" />
+              Imprimer
+            </Button>
+
+            {/* Vector PDF Export */}
+            <Button
+              onClick={handleExportPDF}
+              disabled={isExportingPdf || loading}
+              className="h-9 px-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold gap-1.5 shadow-sm shadow-indigo-200 dark:shadow-none"
+              title="Télécharger le fichier PDF officiel"
+            >
+              {isExportingPdf ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <FileText className="w-3.5 h-3.5" />
+              )}
+              Exporter PDF
             </Button>
           </div>
         </div>
       </div>
 
+      {/* ── PRINT-ONLY OFFICIAL HEADER (SHOWN ONLY WHEN PRINTING) ── */}
+      <div className="hidden print:block bg-white text-black p-4 border-b-2 border-slate-900 mb-6">
+        <OfficialDocumentHeader
+          config={headerConfig || { schoolName }}
+          title="RAPPORT FINANCIER UNIFIÉ (RECETTES VS DÉPENSES)"
+        />
+        <div className="flex justify-between items-center text-xs font-bold border-t border-slate-300 pt-2 mt-2">
+          <span>Période : {getPeriodLabel()}</span>
+          <span>Session : {activeSessionName} | Édité le : {new Date().toLocaleDateString("fr-FR")}</span>
+        </div>
+      </div>
+
       {/* ── 3 PILLARS KPI CARDS: PAYÉ vs CONSOMMÉ vs SOLDE & DETTES ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 print:grid-cols-4 print:gap-2">
         {/* Recettes Collectées (Payé) */}
-        <div className="bg-white dark:bg-[#111827] rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm relative overflow-hidden">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">
+        <div className="bg-white dark:bg-[#111827] rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm relative overflow-hidden print:border-slate-300 print:p-3">
+          <div className="flex items-center justify-between mb-3 print:mb-1">
+            <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 print:text-slate-600">
               Recettes Encaissées (المدفوع)
             </span>
-            <div className="w-9 h-9 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold">
+            <div className="w-9 h-9 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold print:hidden">
               <ArrowDownRight size={20} />
             </div>
           </div>
-          <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400 tracking-tight font-mono">
+          <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400 tracking-tight font-mono print:text-lg">
             {formatCfa(summary.totalRevenueCollected)}
           </div>
-          <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500 mt-1">
+          <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500 mt-1 print:text-[9px]">
             Frais scolaires perçus sur la période
           </p>
         </div>
 
         {/* Dépenses Consommées (المصروف والمستهلك) */}
-        <div className="bg-white dark:bg-[#111827] rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm relative overflow-hidden">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">
+        <div className="bg-white dark:bg-[#111827] rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm relative overflow-hidden print:border-slate-300 print:p-3">
+          <div className="flex items-center justify-between mb-3 print:mb-1">
+            <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 print:text-slate-600">
               Charges & Dépenses (المستهلك)
             </span>
-            <div className="w-9 h-9 rounded-2xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 flex items-center justify-center font-bold">
+            <div className="w-9 h-9 rounded-2xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 flex items-center justify-center font-bold print:hidden">
               <ArrowUpRight size={20} />
             </div>
           </div>
-          <div className="text-2xl font-black text-rose-600 dark:text-rose-400 tracking-tight font-mono">
+          <div className="text-2xl font-black text-rose-600 dark:text-rose-400 tracking-tight font-mono print:text-lg">
             {formatCfa(summary.totalExpensesSpent)}
           </div>
-          <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500 mt-1">
+          <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500 mt-1 print:text-[9px]">
             Ratio d'absorption : {summary.expenseRatio}% des recettes
           </p>
         </div>
 
         {/* Solde Net Disponible (فائض أو عجز الخزينة) */}
-        <div className="bg-white dark:bg-[#111827] rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm relative overflow-hidden">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">
+        <div className="bg-white dark:bg-[#111827] rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm relative overflow-hidden print:border-slate-300 print:p-3">
+          <div className="flex items-center justify-between mb-3 print:mb-1">
+            <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 print:text-slate-600">
               Solde Net / Trésorerie (الصافي)
             </span>
             <div
-              className={`w-9 h-9 rounded-2xl flex items-center justify-center font-bold ${
+              className={`w-9 h-9 rounded-2xl flex items-center justify-center font-bold print:hidden ${
                 summary.netCashFlow >= 0
                   ? "bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400"
                   : "bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400"
@@ -310,48 +644,48 @@ export function UnifiedFinancialReportView({
             </div>
           </div>
           <div
-            className={`text-2xl font-black tracking-tight font-mono ${
+            className={`text-2xl font-black tracking-tight font-mono print:text-lg ${
               summary.netCashFlow >= 0 ? "text-indigo-600 dark:text-indigo-400" : "text-amber-600"
             }`}
           >
             {formatCfa(summary.netCashFlow)}
           </div>
-          <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500 mt-1">
+          <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500 mt-1 print:text-[9px]">
             {summary.netCashFlow >= 0 ? "Excédent de trésorerie net" : "Déficit budgétaire"}
           </p>
         </div>
 
         {/* Reste à Recouvrer / Créances élèves (المتبقيات) */}
-        <div className="bg-white dark:bg-[#111827] rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm relative overflow-hidden">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">
+        <div className="bg-white dark:bg-[#111827] rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm relative overflow-hidden print:border-slate-300 print:p-3">
+          <div className="flex items-center justify-between mb-3 print:mb-1">
+            <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 print:text-slate-600">
               Créances & Reste à Payer (المتبقيات)
             </span>
-            <div className="w-9 h-9 rounded-2xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold">
+            <div className="w-9 h-9 rounded-2xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold print:hidden">
               <Receipt size={20} />
             </div>
           </div>
-          <div className="text-2xl font-black text-amber-600 dark:text-amber-400 tracking-tight font-mono">
+          <div className="text-2xl font-black text-amber-600 dark:text-amber-400 tracking-tight font-mono print:text-lg">
             {formatCfa(summary.totalRemainingDebts)}
           </div>
-          <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500 mt-1">
+          <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500 mt-1 print:text-[9px]">
             Total des impayés élèves en attente
           </p>
         </div>
       </div>
 
       {/* ── SECTION 2: BREAKDOWNS (PAR CATÉGORIE ET MODE DE PAIEMENT) ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 print:grid-cols-2 print:gap-4">
         {/* Dépenses par Catégorie */}
-        <div className="bg-white dark:bg-[#111827] rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
-          <h3 className="text-base font-black text-slate-900 dark:text-white mb-4 flex items-center gap-2">
-            <PieChartIcon className="w-4 h-4 text-rose-500" />
+        <div className="bg-white dark:bg-[#111827] rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm print:border-slate-300 print:p-4">
+          <h3 className="text-base font-black text-slate-900 dark:text-white mb-4 flex items-center gap-2 print:text-xs print:mb-2">
+            <PieChartIcon className="w-4 h-4 text-rose-500 print:w-3 print:h-3" />
             Répartition des Dépenses par Catégorie
           </h3>
 
-          <div className="space-y-3">
+          <div className="space-y-3 print:space-y-1.5">
             {breakdowns.expensesByCategory.length === 0 ? (
-              <p className="text-xs text-slate-400 text-center py-6">Aucune dépense sur cette période.</p>
+              <p className="text-xs text-slate-400 text-center py-6 print:py-2">Aucune dépense sur cette période.</p>
             ) : (
               breakdowns.expensesByCategory.map((cat: any) => {
                 const percent =
@@ -360,13 +694,13 @@ export function UnifiedFinancialReportView({
                     : 0;
                 return (
                   <div key={cat.category} className="space-y-1">
-                    <div className="flex items-center justify-between text-xs">
+                    <div className="flex items-center justify-between text-xs print:text-[10px]">
                       <span className="font-bold text-slate-700 dark:text-slate-300">{cat.category}</span>
                       <span className="font-mono font-bold text-slate-900 dark:text-white">
                         {formatCfa(cat.amount)} ({percent}%)
                       </span>
                     </div>
-                    <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                    <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden print:h-1.5">
                       <div className="h-full bg-rose-500 rounded-full" style={{ width: `${percent}%` }} />
                     </div>
                   </div>
@@ -377,15 +711,15 @@ export function UnifiedFinancialReportView({
         </div>
 
         {/* Recettes par Mode de Paiement */}
-        <div className="bg-white dark:bg-[#111827] rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
-          <h3 className="text-base font-black text-slate-900 dark:text-white mb-4 flex items-center gap-2">
-            <BarChart3 className="w-4 h-4 text-emerald-500" />
+        <div className="bg-white dark:bg-[#111827] rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm print:border-slate-300 print:p-4">
+          <h3 className="text-base font-black text-slate-900 dark:text-white mb-4 flex items-center gap-2 print:text-xs print:mb-2">
+            <BarChart3 className="w-4 h-4 text-emerald-500 print:w-3 print:h-3" />
             Canaux d'Encaissement des Recettes
           </h3>
 
-          <div className="space-y-3">
+          <div className="space-y-3 print:space-y-1.5">
             {breakdowns.paymentsByMode.length === 0 ? (
-              <p className="text-xs text-slate-400 text-center py-6">Aucun encaissement sur cette période.</p>
+              <p className="text-xs text-slate-400 text-center py-6 print:py-2">Aucun encaissement sur cette période.</p>
             ) : (
               breakdowns.paymentsByMode.map((m: any) => {
                 const percent =
@@ -394,13 +728,13 @@ export function UnifiedFinancialReportView({
                     : 0;
                 return (
                   <div key={m.mode} className="space-y-1">
-                    <div className="flex items-center justify-between text-xs">
+                    <div className="flex items-center justify-between text-xs print:text-[10px]">
                       <span className="font-bold text-slate-700 dark:text-slate-300">{m.mode}</span>
                       <span className="font-mono font-bold text-slate-900 dark:text-white">
                         {formatCfa(m.amount)} ({percent}%)
                       </span>
                     </div>
-                    <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                    <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden print:h-1.5">
                       <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${percent}%` }} />
                     </div>
                   </div>
@@ -412,27 +746,27 @@ export function UnifiedFinancialReportView({
       </div>
 
       {/* ── SECTION 3: RECENT FLUX JOURNAL (RECETTES ET CHARGES RÉCENTES) ── */}
-      <div className="bg-white dark:bg-[#111827] rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
-        <h3 className="text-base font-black text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+      <div className="bg-white dark:bg-[#111827] rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm print:border-slate-300 print:p-4">
+        <h3 className="text-base font-black text-slate-900 dark:text-white mb-4 flex items-center gap-2 print:text-xs">
           <Layers className="w-4 h-4 text-indigo-500" />
-          Journal d'Activité Récent (Flux Financiers)
+          Journal d'Activité (Derniers Flux Financiers)
         </h3>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 print:grid-cols-2 print:gap-4">
           {/* Derniers Encaissements */}
           <div>
-            <h4 className="text-xs font-black uppercase text-emerald-600 dark:text-emerald-400 mb-2">
+            <h4 className="text-xs font-black uppercase text-emerald-600 dark:text-emerald-400 mb-2 print:text-[10px]">
               Dernières Recettes Perçues
             </h4>
-            <div className="divide-y divide-slate-100 dark:divide-slate-800/60 border border-slate-200/80 dark:border-slate-800 rounded-2xl overflow-hidden">
+            <div className="divide-y divide-slate-100 dark:divide-slate-800/60 border border-slate-200/80 dark:border-slate-800 rounded-2xl overflow-hidden print:border-slate-300">
               {(reportData?.transactions?.recentPayments || []).length === 0 ? (
                 <p className="text-xs text-slate-400 p-4">Aucune recette enregistrée.</p>
               ) : (
-                reportData?.transactions?.recentPayments.map((p: any) => (
-                  <div key={p.id} className="p-3 flex items-center justify-between text-xs hover:bg-slate-50/60 dark:hover:bg-slate-900/30">
+                reportData?.transactions?.recentPayments.slice(0, 20).map((p: any) => (
+                  <div key={p.id} className="p-3 flex items-center justify-between text-xs hover:bg-slate-50/60 dark:hover:bg-slate-900/30 print:p-1.5 print:text-[10px]">
                     <div>
                       <div className="font-bold text-slate-800 dark:text-slate-200">{p.studentName}</div>
-                      <div className="text-[10px] text-slate-400">
+                      <div className="text-[10px] text-slate-400 print:text-[8px]">
                         {p.classe} • {p.mode} • {formatDateDisplay(p.date)}
                       </div>
                     </div>
@@ -447,18 +781,18 @@ export function UnifiedFinancialReportView({
 
           {/* Dernières Dépenses */}
           <div>
-            <h4 className="text-xs font-black uppercase text-rose-600 dark:text-rose-400 mb-2">
+            <h4 className="text-xs font-black uppercase text-rose-600 dark:text-rose-400 mb-2 print:text-[10px]">
               Dernières Dépenses Consommées
             </h4>
-            <div className="divide-y divide-slate-100 dark:divide-slate-800/60 border border-slate-200/80 dark:border-slate-800 rounded-2xl overflow-hidden">
+            <div className="divide-y divide-slate-100 dark:divide-slate-800/60 border border-slate-200/80 dark:border-slate-800 rounded-2xl overflow-hidden print:border-slate-300">
               {(reportData?.transactions?.recentExpenses || []).length === 0 ? (
                 <p className="text-xs text-slate-400 p-4">Aucune dépense enregistrée.</p>
               ) : (
-                reportData?.transactions?.recentExpenses.map((e: any) => (
-                  <div key={e.id} className="p-3 flex items-center justify-between text-xs hover:bg-slate-50/60 dark:hover:bg-slate-900/30">
+                reportData?.transactions?.recentExpenses.slice(0, 20).map((e: any) => (
+                  <div key={e.id} className="p-3 flex items-center justify-between text-xs hover:bg-slate-50/60 dark:hover:bg-slate-900/30 print:p-1.5 print:text-[10px]">
                     <div>
                       <div className="font-bold text-slate-800 dark:text-slate-200">{e.category}</div>
-                      <div className="text-[10px] text-slate-400 truncate max-w-[200px]">
+                      <div className="text-[10px] text-slate-400 truncate max-w-[200px] print:text-[8px]">
                         {e.description || e.reference} • {formatDateDisplay(e.date)}
                       </div>
                     </div>
@@ -469,6 +803,20 @@ export function UnifiedFinancialReportView({
                 ))
               )}
             </div>
+          </div>
+        </div>
+
+        {/* Official Signatures Container (visible on print) */}
+        <div className="hidden print:grid grid-cols-2 gap-8 pt-8 mt-8 border-t border-slate-300">
+          <div className="text-center">
+            <p className="text-xs font-bold text-slate-700">Le Chef d'Établissement / Comptable</p>
+            <div className="h-16"></div>
+            <p className="text-[9px] text-slate-400">(Cachet et Signature)</p>
+          </div>
+          <div className="text-center">
+            <p className="text-xs font-bold text-slate-700">L'Agent de Recouvrement / Caissier</p>
+            <div className="h-16"></div>
+            <p className="text-[9px] text-slate-400">(Signature)</p>
           </div>
         </div>
       </div>

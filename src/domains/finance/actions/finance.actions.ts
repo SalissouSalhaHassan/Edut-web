@@ -1674,7 +1674,7 @@ export async function getUnifiedFinancialReport(params?: {
           })),
         },
         transactions: {
-          recentPayments: paymentsList.slice(0, 15).map((p) => ({
+          recentPayments: paymentsList.slice(0, 50).map((p) => ({
             id: p.id,
             date: p.datePaid,
             amount: p.amount,
@@ -1683,7 +1683,7 @@ export async function getUnifiedFinancialReport(params?: {
             studentName: p.studentName || "Élève",
             classe: p.classe || "-",
           })),
-          recentExpenses: expensesList.slice(0, 15).map((e) => ({
+          recentExpenses: expensesList.slice(0, 50).map((e) => ({
             id: e.id,
             date: e.dateExpense,
             amount: e.amount,
@@ -1692,6 +1692,8 @@ export async function getUnifiedFinancialReport(params?: {
             status: e.status,
             description: e.description,
           })),
+          allPaymentsCount: paymentsList.length,
+          allExpensesCount: expensesList.length,
         },
       },
     };
