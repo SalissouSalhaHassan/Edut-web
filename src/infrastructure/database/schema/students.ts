@@ -48,7 +48,6 @@ export const students = pgTable("students", {
   
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-  deletedAt: timestamp("deleted_at"),
 }, (table) => ({
   schoolIdIdx: index("students_school_id_idx").on(table.schoolId),
   schoolLevelIdx: index("students_school_level_idx").on(table.schoolId, table.educationalLevel),

@@ -63,23 +63,14 @@ export async function POST(request: NextRequest) {
           nomPere: true,
           fraisMensuels: true,
           fraisInscription: true,
-          deletedAt: true,
           updatedAt: true,
           createdAt: true,
         },
         orderBy: [students.nomEtudiant],
       });
 
-      const activeStudents: any[] = [];
+      const activeStudents: any[] = updatedStudents;
       const deletedStudentIds: number[] = [];
-
-      for (const s of updatedStudents) {
-        if (s.deletedAt) {
-          deletedStudentIds.push(s.id);
-        } else {
-          activeStudents.push(s);
-        }
-      }
 
       changes["students"] = activeStudents;
       deletedIds["students"] = deletedStudentIds;

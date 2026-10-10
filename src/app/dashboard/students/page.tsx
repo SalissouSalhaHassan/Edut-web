@@ -58,27 +58,21 @@ export default async function StudentsPage() {
         educationalLevel: students.educationalLevel,
         statut: students.statut,
         fraisMensuels: students.fraisMensuels,
+        fraisInscription: students.fraisInscription,
+        fraisCogesCard: students.fraisCogesCard,
+        fraisTransportInternat: students.fraisTransportInternat,
+        ancienSolde: students.ancienSolde,
         createdAt: students.createdAt,
       })
       .from(students)
-      .where(targetSchoolId ? or(eq(students.schoolId, targetSchoolId), isNull(students.schoolId)) : sql`TRUE`)
-      .limit(100);
+      .where(targetSchoolId ? or(eq(students.schoolId, targetSchoolId), isNull(students.schoolId)) : sql`TRUE`);
 
       if (directRows && directRows.length > 0) {
         initialStudents = directRows as any;
       }
     }
-
-    debugInfo = {
-      totalInDb,
-      bySchool: (bySchool as any) || [],
-      userSchoolId: currentUser?.schoolId,
-      activeSchoolId,
-      initialCount: initialStudents?.length ?? 0,
-      actionError: getStudentsError,
-    };
   } catch (e: any) {
-    debugInfo = { error: e.message, actionError: getStudentsError };
+    console.error("[StudentsPage] direct DB fetch error:", e);
   }
 
   return (
@@ -88,8 +82,8 @@ export default async function StudentsPage() {
       activeSchoolId={activeSchoolId}
       canEdit={canEdit}
       canDelete={canDelete}
-      debugInfo={debugInfo}
     />
   );
 }
+
 
