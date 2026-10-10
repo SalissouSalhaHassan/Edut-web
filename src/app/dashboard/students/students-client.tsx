@@ -389,6 +389,7 @@ export default function StudentsClient({ initialStudents, currentUser, activeSch
                 <span>Active SchoolId: <b>{debugInfo.activeSchoolId ?? 'null'}</b></span>
                 <span>Loaded Students: <b>{debugInfo.initialCount ?? 0}</b></span>
                 <span>Schools in DB: <b>{JSON.stringify(debugInfo.bySchool)}</b></span>
+                {debugInfo.actionError && <span className="text-rose-400 font-bold">Action Err: {debugInfo.actionError}</span>}
                 {debugInfo.error && <span className="text-rose-400">Err: {debugInfo.error}</span>}
               </div>
             )}
