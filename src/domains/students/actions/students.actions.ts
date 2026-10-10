@@ -305,14 +305,16 @@ export async function createStudent(formData: StudentFormData) {
       where: and(
         eq(students.schoolId, schoolId),
         eq(students.numAdmission, validation.data.numAdmission)
-      )
+      ),
+      columns: { id: true, numAdmission: true }
     });
     if (existing) {
       return { error: "Ce numéro d'admission existe déjà pour cette école." };
     }
 
+    const { fingerprintHash: _fh, ...dbFields } = validation.data as any;
     const studentData = { 
-      ...validation.data,
+      ...dbFields,
       schoolId: schoolId 
     };
     
@@ -342,7 +344,8 @@ export async function deleteStudent(id: number) {
       where: and(
         eq(schoolSessions.schoolId, schoolId),
         eq(schoolSessions.isActive, true)
-      )
+      ),
+      columns: { id: true, status: true, isActive: true }
     });
     if (activeSession && (activeSession.status === "Clôturé" || activeSession.status === "Verrouillé")) {
       return { error: "Action impossible : l'année scolaire est verrouillée." };
@@ -356,7 +359,8 @@ export async function deleteStudent(id: number) {
 
     if (roleType === "level_director") {
       const student = await db.query.students.findFirst({
-        where: and(eq(students.id, id), eq(students.schoolId, schoolId))
+        where: and(eq(students.id, id), eq(students.schoolId, schoolId)),
+        columns: { id: true, educationalLevel: true }
       });
       if (!student || !checkEducationalLevelAccess(user, student.educationalLevel)) {
         return { error: "Accès refusé. Cet élève appartient à un autre secteur." };
@@ -386,7 +390,8 @@ export async function updateStudent(id: number, formData: StudentFormData, origi
       where: and(
         eq(schoolSessions.schoolId, schoolId),
         eq(schoolSessions.isActive, true)
-      )
+      ),
+      columns: { id: true, status: true, isActive: true }
     });
     if (activeSession && (activeSession.status === "Clôturé" || activeSession.status === "Verrouillé")) {
       return { error: "Action impossible : l'année scolaire est verrouillée." };
@@ -400,7 +405,16 @@ export async function updateStudent(id: number, formData: StudentFormData, origi
 
     if (originalData) {
       const current = await db.query.students.findFirst({
-        where: and(eq(students.id, id), eq(students.schoolId, schoolId))
+        where: and(eq(students.id, id), eq(students.schoolId, schoolId)),
+        columns: {
+          id: true,
+          nomEtudiant: true,
+          classe: true,
+          statut: true,
+          numAdmission: true,
+          educationalLevel: true,
+          section: true
+        }
       });
       if (!current) {
         return { error: "Étudiant introuvable sur le serveur." };
@@ -426,7 +440,8 @@ export async function updateStudent(id: number, formData: StudentFormData, origi
       where: and(
         eq(students.schoolId, schoolId),
         eq(students.numAdmission, validation.data.numAdmission)
-      )
+      ),
+      columns: { id: true, numAdmission: true }
     });
     
     if (existing && existing.id !== id) {
@@ -435,15 +450,20 @@ export async function updateStudent(id: number, formData: StudentFormData, origi
 
     if (roleType === "level_director") {
       const student = await db.query.students.findFirst({
-        where: and(eq(students.id, id), eq(students.schoolId, schoolId))
+        where: and(eq(students.id, id), eq(students.schoolId, schoolId)),
+        columns: { id: true, educationalLevel: true }
       });
       if (!student || !checkEducationalLevelAccess(user, student.educationalLevel)) {
         return { error: "Accès refusé. Cet élève appartient à un autre secteur." };
       }
     }
     
+    const { fingerprintHash: _fh, ...updateFields } = validation.data as any;
     await db.update(students)
-      .set(validation.data)
+      .set({
+        ...updateFields,
+        updatedAt: new Date()
+      })
       .where(
         and(
           eq(students.id, id),

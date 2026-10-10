@@ -176,12 +176,23 @@ export default function StudentDialog({ mode = "add", initialData, trigger, open
     if (mode === "edit" && initialData?.id) {
       let isSubscribed = true;
       getStudentById(initialData.id)
-        .then((res) => {
+        .then(async (res) => {
           if (!isSubscribed) return;
           if (res?.success && res?.data) {
             setCurrentData(res.data);
             populateFromStudent(res.data);
             setIsDataLoaded(true);
+          } else {
+            // Server returned error (e.g. offline or school filter mismatch) -> fallback to local DB
+            try {
+              const { localDb } = await import("@/infrastructure/local-db/dexie");
+              const localStudent = await localDb.students.get(initialData.id);
+              if (isSubscribed && localStudent) {
+                setCurrentData(localStudent);
+                populateFromStudent(localStudent);
+                setIsDataLoaded(true);
+              }
+            } catch {}
           }
         })
         .catch(async (err) => {
