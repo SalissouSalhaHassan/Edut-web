@@ -3,7 +3,7 @@ import { and, eq, sql, desc, inArray, or, ilike, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db, readDb } from "@/infrastructure/database";
 import { expenses, expenseCategories } from "@/infrastructure/database/schema/finance";
-import { getMobileUser, mobileJsonError } from "../_lib/auth";
+import { getMobileUser, mobileJsonError } from "../../_lib/auth";
 import { getUserRoleType, getCompatibleLevels } from "@/domains/auth/services/rbac";
 
 export const dynamic = "force-dynamic";
