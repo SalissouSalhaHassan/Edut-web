@@ -280,7 +280,7 @@ export function UnifiedFinancialReportView({
       const activeMinistryAr = resolvedHeader?.ministryAr || headerConfig?.ministryAr || (isHigherEd ? "وزارة التعليم العالي والبحث العلمي" : "وزارة التربية الوطنية");
       const activeService = resolvedHeader?.service || headerConfig?.service || (isHigherEd ? "Agence Comptable Universitaire" : "Service de l'Intendance & Comptabilité");
       const activeServiceAr = resolvedHeader?.serviceAr || headerConfig?.serviceAr || (isHigherEd ? "الوكالة المحاسبية الجامعية" : "مصلحة الشؤون المالية والمحاسبة");
-      const activeLogo = resolvedHeader?.centerLogo || resolvedHeader?.leftLogo || resolvedHeader?.customLogo || resolvedHeader?.rightLogo || headerConfig?.centerLogo || headerConfig?.leftLogo || "";
+      const activeLogo = resolvedHeader?.centerLogo || resolvedHeader?.leftLogo || resolvedHeader?.rightLogo || headerConfig?.centerLogo || headerConfig?.leftLogo || "";
 
       // Top colored accent bar
       doc.setFillColor(15, 23, 42); // Slate 900
