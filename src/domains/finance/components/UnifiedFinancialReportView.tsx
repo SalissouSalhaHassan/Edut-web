@@ -155,7 +155,8 @@ export function UnifiedFinancialReportView({
   };
 
   const formatCfa = (amount: number) => {
-    return `${Math.round(amount || 0).toLocaleString("fr-FR")} CFA`;
+    const rounded = Math.round(Number(amount) || 0);
+    return `${rounded.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".")} CFA`;
   };
 
   const formatDateDisplay = (dateStr: string) => {
@@ -277,7 +278,7 @@ export function UnifiedFinancialReportView({
       // 4 Main KPI Cards
       const cardY = 46;
       const cardWidth = (W - 2 * margin - 9) / 4;
-      const cardHeight = 19;
+      const cardHeight = 21;
 
       // Card 1: Recettes
       doc.setFillColor(240, 253, 244); // emerald-50
@@ -286,13 +287,13 @@ export function UnifiedFinancialReportView({
       doc.setFontSize(6.5);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(22, 101, 52);
-      doc.text("RECETTES ENCAISSÉES", margin + 3, cardY + 5);
-      doc.setFontSize(10);
+      doc.text("RECETTES ENCAISSÉES", margin + 3.5, cardY + 5.5);
+      doc.setFontSize(9);
       doc.setFont("helvetica", "bold");
-      doc.text(`${Math.round(summary.totalRevenueCollected).toLocaleString("fr-FR")} CFA`, margin + 3, cardY + 12);
+      doc.text(formatCfa(summary.totalRevenueCollected), margin + 3.5, cardY + 12.5);
       doc.setFontSize(5.5);
       doc.setFont("helvetica", "normal");
-      doc.text("Frais de scolarité perçus", margin + 3, cardY + 16);
+      doc.text("Frais de scolarité perçus", margin + 3.5, cardY + 17.5);
 
       // Card 2: Dépenses
       const c2X = margin + cardWidth + 3;
@@ -302,13 +303,13 @@ export function UnifiedFinancialReportView({
       doc.setFontSize(6.5);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(159, 18, 57);
-      doc.text("CHARGES & DÉPENSES", c2X + 3, cardY + 5);
-      doc.setFontSize(10);
+      doc.text("CHARGES & DÉPENSES", c2X + 3.5, cardY + 5.5);
+      doc.setFontSize(9);
       doc.setFont("helvetica", "bold");
-      doc.text(`${Math.round(summary.totalExpensesSpent).toLocaleString("fr-FR")} CFA`, c2X + 3, cardY + 12);
+      doc.text(formatCfa(summary.totalExpensesSpent), c2X + 3.5, cardY + 12.5);
       doc.setFontSize(5.5);
       doc.setFont("helvetica", "normal");
-      doc.text(`Taux absorption : ${summary.expenseRatio}%`, c2X + 3, cardY + 16);
+      doc.text(`Taux absorption : ${summary.expenseRatio}%`, c2X + 3.5, cardY + 17.5);
 
       // Card 3: Solde Net (Trésorerie)
       const c3X = c2X + cardWidth + 3;
@@ -319,13 +320,13 @@ export function UnifiedFinancialReportView({
       doc.setFontSize(6.5);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(isPositive ? 67 : 180, isPositive ? 56 : 83, isPositive ? 202 : 9);
-      doc.text("SOLDE NET TRÉSORERIE", c3X + 3, cardY + 5);
-      doc.setFontSize(10);
+      doc.text("SOLDE NET TRÉSORERIE", c3X + 3.5, cardY + 5.5);
+      doc.setFontSize(9);
       doc.setFont("helvetica", "bold");
-      doc.text(`${Math.round(summary.netCashFlow).toLocaleString("fr-FR")} CFA`, c3X + 3, cardY + 12);
+      doc.text(formatCfa(summary.netCashFlow), c3X + 3.5, cardY + 12.5);
       doc.setFontSize(5.5);
       doc.setFont("helvetica", "normal");
-      doc.text(isPositive ? "Excédent disponible" : "Déficit d'exploitation", c3X + 3, cardY + 16);
+      doc.text(isPositive ? "Excédent disponible" : "Déficit d'exploitation", c3X + 3.5, cardY + 17.5);
 
       // Card 4: Reste à Recouvrer (Créances)
       const c4X = c3X + cardWidth + 3;
@@ -335,13 +336,13 @@ export function UnifiedFinancialReportView({
       doc.setFontSize(6.5);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(180, 83, 9);
-      doc.text("CRÉANCES / IMPAYÉS", c4X + 3, cardY + 5);
-      doc.setFontSize(10);
+      doc.text("CRÉANCES / IMPAYÉS", c4X + 3.5, cardY + 5.5);
+      doc.setFontSize(9);
       doc.setFont("helvetica", "bold");
-      doc.text(`${Math.round(summary.totalRemainingDebts).toLocaleString("fr-FR")} CFA`, c4X + 3, cardY + 12);
+      doc.text(formatCfa(summary.totalRemainingDebts), c4X + 3.5, cardY + 12.5);
       doc.setFontSize(5.5);
       doc.setFont("helvetica", "normal");
-      doc.text("Reste à recouvrer élèves", c4X + 3, cardY + 16);
+      doc.text("Reste à recouvrer élèves", c4X + 3.5, cardY + 17.5);
 
       // ── SECTION: REPARTITION TABLES (SIDE BY SIDE IN AUTOTABLE) ──
       const breakdownY = cardY + cardHeight + 6;
@@ -350,7 +351,7 @@ export function UnifiedFinancialReportView({
       const catRows = breakdowns.expensesByCategory.length > 0 
         ? breakdowns.expensesByCategory.map((c: any) => [
             c.category,
-            `${Math.round(c.amount).toLocaleString("fr-FR")} CFA`,
+            formatCfa(c.amount),
             summary.totalExpensesSpent > 0 ? `${Math.round((c.amount / summary.totalExpensesSpent) * 100)}%` : "0%"
           ])
         : [["Aucune dépense", "0 CFA", "0%"]];
@@ -360,8 +361,13 @@ export function UnifiedFinancialReportView({
         head: [["Catégorie de Dépense", "Montant", "Part"]],
         body: catRows,
         margin: { left: margin, right: W / 2 + 3 },
-        styles: { fontSize: 7, cellPadding: 2 },
+        styles: { fontSize: 7, cellPadding: 2.2 },
         headStyles: { fillColor: [159, 18, 57], textColor: 255, fontStyle: "bold" },
+        columnStyles: {
+          0: { cellWidth: 42 },
+          1: { cellWidth: 32, halign: "right", fontStyle: "bold" },
+          2: { cellWidth: 14, halign: "center" },
+        },
         alternateRowStyles: { fillColor: [255, 241, 242] },
       });
 
@@ -371,7 +377,7 @@ export function UnifiedFinancialReportView({
       const modeRows = breakdowns.paymentsByMode.length > 0
         ? breakdowns.paymentsByMode.map((m: any) => [
             m.mode,
-            `${Math.round(m.amount).toLocaleString("fr-FR")} CFA`,
+            formatCfa(m.amount),
             summary.totalRevenueCollected > 0 ? `${Math.round((m.amount / summary.totalRevenueCollected) * 100)}%` : "0%"
           ])
         : [["Aucun encaissement", "0 CFA", "0%"]];
@@ -381,13 +387,18 @@ export function UnifiedFinancialReportView({
         head: [["Canal d'Encaissement", "Montant", "Part"]],
         body: modeRows,
         margin: { left: W / 2 + 3, right: margin },
-        styles: { fontSize: 7, cellPadding: 2 },
+        styles: { fontSize: 7, cellPadding: 2.2 },
         headStyles: { fillColor: [22, 101, 52], textColor: 255, fontStyle: "bold" },
+        columnStyles: {
+          0: { cellWidth: 42 },
+          1: { cellWidth: 32, halign: "right", fontStyle: "bold" },
+          2: { cellWidth: 14, halign: "center" },
+        },
         alternateRowStyles: { fillColor: [240, 253, 244] },
       });
 
       const modeTableBottom = (doc as any).lastAutoTable.finalY;
-      const nextY = Math.max(catTableBottom, modeTableBottom) + 6;
+      const nextY = Math.max(catTableBottom, modeTableBottom) + 7;
 
       // ── SECTION: RECENT TRANSACTIONS JOURNAL TABLE ──
       const payList = reportData?.transactions?.recentPayments || [];
@@ -399,7 +410,7 @@ export function UnifiedFinancialReportView({
             p.studentName || "Élève",
             p.classe || "-",
             p.mode || "Espèces",
-            `+${Math.round(p.amount || 0).toLocaleString("fr-FR")} CFA`,
+            `+${formatCfa(p.amount || 0)}`,
           ])
         : [["-", "-", "-", "Aucune transaction enregistrée", "-", "-", "0 CFA"]];
 
@@ -409,20 +420,20 @@ export function UnifiedFinancialReportView({
       doc.text("EXTRAIT DU JOURNAL DES RECETTES (DERNIERS ENCAISSEMENTS)", margin, nextY);
 
       autoTable(doc, {
-        startY: nextY + 2.5,
+        startY: nextY + 3,
         head: [["N°", "Date", "Référence", "Élève", "Classe", "Mode", "Montant Encaissé"]],
         body: paymentRows,
         margin: { left: margin, right: margin },
-        styles: { fontSize: 6.5, cellPadding: 1.8 },
+        styles: { fontSize: 7, cellPadding: 2.2 },
         headStyles: { fillColor: [15, 23, 42], textColor: 255, fontStyle: "bold" },
         columnStyles: {
           0: { cellWidth: 8, halign: "center" },
-          1: { cellWidth: 20 },
-          2: { cellWidth: 24, font: "courier" },
-          3: { cellWidth: 55, fontStyle: "bold" },
-          4: { cellWidth: 16 },
-          5: { cellWidth: 20 },
-          6: { cellWidth: 35, halign: "right", fontStyle: "bold", textColor: [22, 101, 52] },
+          1: { cellWidth: 24, halign: "center" },
+          2: { cellWidth: 28, font: "courier", halign: "center" },
+          3: { cellWidth: 44, fontStyle: "bold" },
+          4: { cellWidth: 26 },
+          5: { cellWidth: 20, halign: "center" },
+          6: { cellWidth: 32, halign: "right", fontStyle: "bold", textColor: [22, 101, 52] },
         },
       });
 
