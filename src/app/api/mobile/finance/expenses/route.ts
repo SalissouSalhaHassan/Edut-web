@@ -147,7 +147,7 @@ export async function POST(request: NextRequest) {
         dateExpense,
         paymentMode,
         status: body.status || "Payé",
-        recordedBy: user.employee?.nomComplet || user.utilisateur || "Mobile App",
+        recordedBy: user.employee?.nom || user.utilisateur || "Mobile App",
         educationalLevel: user.educationalLevel || null,
       })
       .returning();
