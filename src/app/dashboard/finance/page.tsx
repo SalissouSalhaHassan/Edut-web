@@ -179,12 +179,12 @@ export default async function FinancePage({
 
         const idsToHeal = Array.from(new Set([...missingStudentIds, ...zeroExpectedStudentIds]));
         if (idsToHeal.length > 0) {
-          console.log(`[FinancePage] Auto-healing ${idsToHeal.length} student(s) (missing or zero expected)...`);
-          for (const id of idsToHeal) {
-            await ensureStudentFeeRecord(id, schoolId).catch(() => null);
-          }
+          console.log(`[FinancePage] Found ${idsToHeal.length} student(s) to heal (capping initial batch to 10)...`);
+          // Heal at most 10 synchronously so serverless requests do not timeout or exhaust connections
+          const syncBatch = idsToHeal.slice(0, 10);
+          await Promise.all(syncBatch.map((id) => ensureStudentFeeRecord(id, schoolId).catch(() => null)));
 
-          // Refresh feeRows so the current render displays the fully healed and synchronized data
+          // Refresh feeRows so the current render displays the healed data
           feeRows = await readDb.select().from(studentFees)
             .where(
               and(
