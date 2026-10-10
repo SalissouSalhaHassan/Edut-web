@@ -436,7 +436,7 @@ export async function POST(request: NextRequest) {
                 dateExpense,
                 paymentMode,
                 status: data.status || "Payé",
-                recordedBy: user.nomComplet || user.email || "Mobile App",
+                recordedBy: user.employee?.nom || user.utilisateur || "Mobile App",
                 educationalLevel: user.educationalLevel || null,
               })
               .returning();
