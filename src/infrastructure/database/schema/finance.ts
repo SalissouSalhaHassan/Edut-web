@@ -122,11 +122,19 @@ export const expensesRelations = relations(expenses, ({ one }) => ({
   }),
 }));
 
+export const expenseCategoriesRelations = relations(expenseCategories, ({ many }) => ({
+  expenses: many(expenses),
+}));
+
 export const revenuesRelations = relations(revenues, ({ one }) => ({
   category: one(revenueCategories, {
     fields: [revenues.categoryId],
     references: [revenueCategories.id],
   }),
+}));
+
+export const revenueCategoriesRelations = relations(revenueCategories, ({ many }) => ({
+  revenues: many(revenues),
 }));
 
 export const studentFeesRelations = relations(studentFees, ({ one, many }) => ({

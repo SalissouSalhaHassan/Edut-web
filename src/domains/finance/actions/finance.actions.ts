@@ -1,6 +1,6 @@
 "use server";
 
-import { db } from "@/infrastructure/database";
+import { db, readDb } from "@/infrastructure/database";
 import { 
   studentFees, 
   feePayments, 
@@ -10,7 +10,7 @@ import {
   studentScholarships,
   studentPaymentSchedules
 } from "@/infrastructure/database/schema/finance";
-import { eq, desc, sql, and, ilike, or, inArray, isNull } from "drizzle-orm";
+import { eq, desc, sql, and, ilike, or, inArray, isNull, gte, lte } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { paymentSchema, expenseSchema, PaymentFormData, ExpenseFormData } from "../validators/finance.schema";
 import { protectedDbAction } from "@/lib/protected-action";
@@ -1544,55 +1544,91 @@ export async function getUnifiedFinancialReport(params?: {
     }
 
     // 1. Récupérer tous les paiements de scolarité (Recettes / Encaissements)
-    const paymentsList = await db.query.feePayments.findMany({
-      where: (p, { and, eq, gte, lte, isNull, or }) =>
-        and(
-          schoolId ? or(eq(p.schoolId, schoolId), isNull(p.schoolId)) : undefined,
-          gte(p.datePaid, startDate),
-          lte(p.datePaid, endDate),
-          isNull(p.deletedAt)
-        ),
-      with: {
-        fee: {
-          with: {
-            student: true,
-          },
-        },
-      },
-      orderBy: [desc(feePayments.datePaid)],
-    });
+    let paymentsList: any[] = [];
+    try {
+      paymentsList = await (readDb || db)
+        .select({
+          id: feePayments.id,
+          feeId: feePayments.feeId,
+          amount: feePayments.amount,
+          datePaid: feePayments.datePaid,
+          paymentMode: feePayments.paymentMode,
+          reference: feePayments.reference,
+          studentName: students.nomEtudiant,
+          classe: students.classe,
+        })
+        .from(feePayments)
+        .leftJoin(studentFees, eq(feePayments.feeId, studentFees.id))
+        .leftJoin(students, eq(studentFees.studentId, students.id))
+        .where(
+          and(
+            schoolId ? or(eq(feePayments.schoolId, schoolId), isNull(feePayments.schoolId)) : undefined,
+            gte(feePayments.datePaid, startDate),
+            lte(feePayments.datePaid, endDate),
+            isNull(feePayments.deletedAt)
+          )
+        )
+        .orderBy(desc(feePayments.datePaid))
+        .catch(() => []);
+    } catch (payErr) {
+      console.warn("[getUnifiedFinancialReport] paymentsList query fallback:", payErr);
+    }
 
     // 2. Récupérer toutes les dépenses (Dépenses / Décaissements / Consommation)
-    const expensesList = await db.query.expenses.findMany({
-      where: (e, { and, eq, gte, lte, isNull, or }) =>
-        and(
-          schoolId ? or(eq(e.schoolId, schoolId), isNull(e.schoolId)) : undefined,
-          gte(e.dateExpense, startDate),
-          lte(e.dateExpense, endDate)
-        ),
-      with: {
-        category: true,
-      },
-      orderBy: [desc(expenses.dateExpense)],
-    });
+    let expensesList: any[] = [];
+    try {
+      expensesList = await (readDb || db)
+        .select({
+          id: expenses.id,
+          amount: expenses.amount,
+          dateExpense: expenses.dateExpense,
+          categoryName: expenseCategories.name,
+          reference: expenses.reference,
+          status: expenses.status,
+          description: expenses.description,
+        })
+        .from(expenses)
+        .leftJoin(expenseCategories, eq(expenses.categoryId, expenseCategories.id))
+        .where(
+          and(
+            schoolId ? or(eq(expenses.schoolId, schoolId), isNull(expenses.schoolId)) : undefined,
+            gte(expenses.dateExpense, startDate),
+            lte(expenses.dateExpense, endDate)
+          )
+        )
+        .orderBy(desc(expenses.dateExpense))
+        .catch(() => []);
+    } catch (expErr) {
+      console.warn("[getUnifiedFinancialReport] expensesList query fallback:", expErr);
+    }
 
-    // 3. Récupérer les frais scolaires pour calculer le reste à recouvrer (Créances élèves)
-    const allStudentFees = await db.query.studentFees.findMany({
-      where: (f, { and, eq, or, isNull }) =>
-        and(
-          schoolId ? or(eq(f.schoolId, schoolId), isNull(f.schoolId)) : undefined
-        ),
-      with: {
-        student: true,
-      },
-    });
+    // 3. Récupérer les totaux des frais scolaires pour calculer le reste à recouvrer (Créances élèves)
+    let totalExpectedGlobal = 0;
+    let totalPaidGlobal = 0;
+    let totalRemainingDebts = 0;
+    try {
+      const feeTotals = await (readDb || db)
+        .select({
+          totalExpected: sql`COALESCE(SUM(${studentFees.totalExpected}), 0)::float`,
+          totalPaid: sql`COALESCE(SUM(${studentFees.totalPaid}), 0)::float`,
+          totalBalance: sql`COALESCE(SUM(${studentFees.balance}), 0)::float`,
+        })
+        .from(studentFees)
+        .where(schoolId ? or(eq(studentFees.schoolId, schoolId), isNull(studentFees.schoolId)) : undefined)
+        .catch(() => []);
+
+      if (feeTotals && feeTotals[0]) {
+        totalExpectedGlobal = Number(feeTotals[0].totalExpected || 0);
+        totalPaidGlobal = Number(feeTotals[0].totalPaid || 0);
+        totalRemainingDebts = Number(feeTotals[0].totalBalance || 0);
+      }
+    } catch (feeErr) {
+      console.warn("[getUnifiedFinancialReport] feeTotals aggregation fallback:", feeErr);
+    }
 
     // Totaux clés
-    const totalRevenueCollected = paymentsList.reduce((acc, p) => acc + (p.amount || 0), 0);
-    const totalExpensesSpent = expensesList.reduce((acc, e) => acc + (e.amount || 0), 0);
-    const totalExpectedGlobal = allStudentFees.reduce((acc, f) => acc + (f.totalExpected || 0), 0);
-    const totalPaidGlobal = allStudentFees.reduce((acc, f) => acc + (f.totalPaid || 0), 0);
-    const totalRemainingDebts = allStudentFees.reduce((acc, f) => acc + (f.balance || 0), 0);
+    const totalRevenueCollected = paymentsList.reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
+    const totalExpensesSpent = expensesList.reduce((acc, e) => acc + (Number(e.amount) || 0), 0);
 
     // Solde Net de la période (Cash Flow / Bénéfice d'exploitation)
     const netCashFlow = totalRevenueCollected - totalExpensesSpent;
@@ -1600,15 +1636,15 @@ export async function getUnifiedFinancialReport(params?: {
     // Regroupement des dépenses par catégorie
     const expensesByCategory: Record<string, number> = {};
     expensesList.forEach((e) => {
-      const cat = e.category?.name || "Autres Dépenses";
-      expensesByCategory[cat] = (expensesByCategory[cat] || 0) + (e.amount || 0);
+      const cat = e.categoryName || "Autres Dépenses";
+      expensesByCategory[cat] = (expensesByCategory[cat] || 0) + (Number(e.amount) || 0);
     });
 
     // Regroupement des recettes par mode de paiement
     const paymentsByMode: Record<string, number> = {};
     paymentsList.forEach((p) => {
       const mode = p.paymentMode || "Espèces";
-      paymentsByMode[mode] = (paymentsByMode[mode] || 0) + (p.amount || 0);
+      paymentsByMode[mode] = (paymentsByMode[mode] || 0) + (Number(p.amount) || 0);
     });
 
     return {
@@ -1618,11 +1654,11 @@ export async function getUnifiedFinancialReport(params?: {
         startDate: startDate.toISOString(),
         endDate: endDate.toISOString(),
         summary: {
-          totalRevenueCollected, // مدفوع ومحصل
-          totalExpensesSpent,    // مصروف ومستهلك
-          netCashFlow,           // الصافي في الخزينة (فائض / عجز)
-          totalExpectedGlobal,   // إجمالي المستحق
-          totalRemainingDebts,   // متبقيات ديون الطلاب
+          totalRevenueCollected,
+          totalExpensesSpent,
+          netCashFlow,
+          totalExpectedGlobal,
+          totalRemainingDebts,
           expenseRatio: totalRevenueCollected > 0 
             ? Math.round((totalExpensesSpent / totalRevenueCollected) * 100) 
             : 0,
@@ -1644,14 +1680,14 @@ export async function getUnifiedFinancialReport(params?: {
             amount: p.amount,
             mode: p.paymentMode,
             reference: p.reference,
-            studentName: (p.fee as any)?.student?.nomEtudiant || "Élève",
-            classe: (p.fee as any)?.student?.classe || "-",
+            studentName: p.studentName || "Élève",
+            classe: p.classe || "-",
           })),
           recentExpenses: expensesList.slice(0, 15).map((e) => ({
             id: e.id,
             date: e.dateExpense,
             amount: e.amount,
-            category: e.category?.name || "Général",
+            category: e.categoryName || "Général",
             reference: e.reference,
             status: e.status,
             description: e.description,

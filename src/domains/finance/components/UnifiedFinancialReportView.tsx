@@ -54,9 +54,68 @@ export function UnifiedFinancialReportView({
       });
       if (res.success && res.data) {
         setReportData(res.data);
+        return;
+      }
+      if (res.error) {
+        throw new Error(res.error);
       }
     } catch (err: any) {
-      toast.error("Erreur lors de la génération du rapport financier unifié.");
+      console.warn("[UnifiedReport] Remote fetch failed, computing from local IndexedDB cache:", err);
+      // Local IndexedDB offline fallback
+      try {
+        const { getCachedStudentFees } = await import("@/infrastructure/local-db/cache");
+        const cached = await getCachedStudentFees();
+        if (cached && cached.length > 0) {
+          const totalRevenue = cached.reduce((sum: number, f: any) => sum + (Number(f.totalPaid) || 0), 0);
+          const totalExpected = cached.reduce((sum: number, f: any) => sum + (Number(f.totalExpected) || 0), 0);
+          const totalDebts = cached.reduce((sum: number, f: any) => sum + Math.max(0, Number(f.balance) || 0), 0);
+
+          const localAllPayments: any[] = [];
+          cached.forEach((f: any) => {
+            if (Array.isArray(f.payments)) {
+              f.payments.forEach((p: any) => {
+                localAllPayments.push({
+                  id: p.id,
+                  date: p.datePaid,
+                  amount: p.amount,
+                  mode: p.paymentMode || "Espèces",
+                  reference: p.reference,
+                  studentName: f.student?.nomEtudiant || "Élève",
+                  classe: f.student?.classe || "-",
+                });
+              });
+            }
+          });
+
+          setReportData({
+            period,
+            startDate: new Date().toISOString(),
+            endDate: new Date().toISOString(),
+            summary: {
+              totalRevenueCollected: totalRevenue,
+              totalExpensesSpent: 0,
+              netCashFlow: totalRevenue,
+              totalExpectedGlobal: totalExpected,
+              totalRemainingDebts: totalDebts,
+              expenseRatio: 0,
+            },
+            breakdowns: {
+              expensesByCategory: [],
+              paymentsByMode: [{ mode: "Données Locales", amount: totalRevenue }],
+            },
+            transactions: {
+              recentPayments: localAllPayments.slice(0, 15),
+              recentExpenses: [],
+            },
+          });
+          toast.info("Rapport généré depuis les données locales (Mode Hors-ligne).");
+          return;
+        }
+      } catch (cacheErr) {
+        console.warn("[UnifiedReport] Local cache fallback error:", cacheErr);
+      }
+
+      toast.error(err?.message || "Erreur lors de la génération du rapport financier unifié.");
     } finally {
       setLoading(false);
     }
