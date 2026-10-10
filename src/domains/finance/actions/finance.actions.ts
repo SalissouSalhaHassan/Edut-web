@@ -1562,7 +1562,6 @@ export async function getUnifiedFinancialReport(params?: {
           classe: students.classe,
           educationalLevel: students.educationalLevel,
           sectionName: students.section,
-          filiere: students.filiere,
         })
         .from(feePayments)
         .leftJoin(studentFees, eq(feePayments.feeId, studentFees.id))
@@ -1589,7 +1588,6 @@ export async function getUnifiedFinancialReport(params?: {
               educationalLevel: p.educationalLevel,
               classe: p.classe,
               sectionName: p.sectionName,
-              filiere: p.filiere,
             },
             targetLevel
           )
@@ -1638,7 +1636,6 @@ export async function getUnifiedFinancialReport(params?: {
             educationalLevel: students.educationalLevel,
             classe: students.classe,
             sectionName: students.section,
-            filiere: students.filiere,
           })
           .from(studentFees)
           .leftJoin(students, eq(studentFees.studentId, students.id))
@@ -1652,7 +1649,6 @@ export async function getUnifiedFinancialReport(params?: {
                 educationalLevel: f.educationalLevel,
                 classe: f.classe,
                 sectionName: f.sectionName,
-                filiere: f.filiere,
               },
               targetLevel
             )
