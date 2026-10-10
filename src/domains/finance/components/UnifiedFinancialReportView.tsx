@@ -222,61 +222,110 @@ export function UnifiedFinancialReportView({
         }
       }
 
-      // Institutional Header
-      const activeSchool = headerConfig?.schoolName || schoolName || "ÉTABLISSEMENT SCOLAIRE";
+      // Institutional Header & Logo
+      const activeSchool = headerConfig?.schoolName || schoolName || "GROUPE SCOLAIRE";
+      const activeSchoolAr = headerConfig?.schoolNameAr || "المؤسسة التعليمية";
       const activeAddress = headerConfig?.address || "Niamey, Niger";
       const activePhone = headerConfig?.phone || "+227 90 00 00 00";
       const activeEmail = headerConfig?.email || "contact@edut.pro";
       const activeCountry = headerConfig?.country || "RÉPUBLIQUE DU NIGER";
+      const activeCountryAr = headerConfig?.countryAr || "جمهورية النيجر";
       const activeMinistry = headerConfig?.ministry || "Ministère de l'Éducation Nationale";
+      const activeMinistryAr = headerConfig?.ministryAr || "وزارة التربية الوطنية";
+      const activeService = headerConfig?.service || "Service de l'Intendance & Comptabilité";
+      const activeServiceAr = headerConfig?.serviceAr || "مصلحة الشؤون المالية والمحاسبة";
+      const activeLogo = headerConfig?.centerLogo || headerConfig?.leftLogo || headerConfig?.rightLogo || "";
 
+      // Top colored accent bar
       doc.setFillColor(15, 23, 42); // Slate 900
       doc.rect(0, 0, W, 2.5, "F");
 
-      // Draw Top Meta Bar
+      // Draw Institutional Header (Bilingual Left/Right with Logo in Center or Left)
+      let headerEndY = 28;
+      const logoSize = 18;
+      const logoTop = 6;
+
+      if (activeLogo) {
+        try {
+          doc.addImage(activeLogo, "PNG", W / 2 - logoSize / 2, logoTop, logoSize, logoSize);
+        } catch (_) {}
+      }
+
+      // Left Column (French)
+      const leftColWidth = activeLogo ? 62 : 85;
+      doc.setFont("helvetica", "bold");
       doc.setFontSize(8);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(71, 85, 105);
-      doc.text(activeCountry.toUpperCase(), margin, 9);
-      doc.text(`SESSION : ${activeSessionName}`, W - margin, 9, { align: "right" });
-
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(7.5);
-      doc.text(activeMinistry, margin, 13);
-      doc.text(`Édité le : ${new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}`, W - margin, 13, { align: "right" });
-
-      // School Main Title
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(14);
       doc.setTextColor(15, 23, 42);
-      doc.text(activeSchool.toUpperCase(), margin, 20);
+      doc.text(activeCountry.toUpperCase(), margin, 9);
 
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(7.5);
-      doc.setTextColor(100, 116, 139);
-      doc.text(`${activeAddress} | Tél: ${activePhone} | Email: ${activeEmail}`, margin, 24.5);
+      doc.setFontSize(6.8);
+      doc.setTextColor(71, 85, 105);
+      doc.text(activeMinistry, margin, 13);
 
-      // Divider
-      doc.setDrawColor(226, 232, 240);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10.5);
+      doc.setTextColor(15, 23, 42);
+      doc.text(activeSchool.toUpperCase(), margin, 18.5);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(6.5);
+      doc.setTextColor(100, 116, 139);
+      doc.text(activeService, margin, 22.5);
+      doc.text(`${activeAddress} | Tél: ${activePhone}`, margin, 26);
+
+      // Right Column (Arabic & Session Meta)
+      const rightColX = W - margin;
+      if (amiriFontBase64) {
+        try {
+          doc.setFont("Amiri", "normal");
+          doc.setFontSize(8.5);
+          doc.setTextColor(15, 23, 42);
+          doc.text(reshapeArabicText(activeCountryAr), rightColX, 9, { align: "right" });
+
+          doc.setFontSize(7.5);
+          doc.setTextColor(71, 85, 105);
+          doc.text(reshapeArabicText(activeMinistryAr), rightColX, 13, { align: "right" });
+
+          doc.setFontSize(11);
+          doc.setTextColor(15, 23, 42);
+          doc.text(reshapeArabicText(activeSchoolAr), rightColX, 18.5, { align: "right" });
+
+          doc.setFontSize(7);
+          doc.setTextColor(100, 116, 139);
+          doc.text(reshapeArabicText(activeServiceAr), rightColX, 22.5, { align: "right" });
+        } catch (_) {}
+      }
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(6.8);
+      doc.setTextColor(79, 70, 229);
+      doc.text(`SESSION : ${activeSessionName}  |  Édité le : ${new Date().toLocaleDateString("fr-FR")}`, rightColX, 26, { align: "right" });
+
+      headerEndY = 29;
+
+      // Divider Line below Header
+      doc.setDrawColor(203, 213, 225);
       doc.setLineWidth(0.4);
-      doc.line(margin, 27, W - margin, 27);
+      doc.line(margin, headerEndY, W - margin, headerEndY);
 
       // Report Banner
+      const bannerY = headerEndY + 3;
       doc.setFillColor(79, 70, 229); // Indigo 600
-      doc.roundedRect(margin, 30, W - 2 * margin, 12, 1.5, 1.5, "F");
+      doc.roundedRect(margin, bannerY, W - 2 * margin, 12, 1.5, 1.5, "F");
 
       doc.setFont("helvetica", "bold");
       doc.setFontSize(11);
       doc.setTextColor(255, 255, 255);
-      doc.text("RAPPORT FINANCIER UNIFIÉ (RECETTES VS DÉPENSES)", margin + 6, 36.5);
+      doc.text("RAPPORT FINANCIER UNIFIÉ (RECETTES VS DÉPENSES)", margin + 6, bannerY + 6.5);
 
       doc.setFont("helvetica", "normal");
       doc.setFontSize(7.5);
       doc.setTextColor(224, 231, 255);
-      doc.text(getPeriodLabel().toUpperCase(), margin + 6, 40);
+      doc.text(getPeriodLabel().toUpperCase(), margin + 6, bannerY + 10);
 
       // 4 Main KPI Cards
-      const cardY = 46;
+      const cardY = bannerY + 15;
       const cardWidth = (W - 2 * margin - 9) / 4;
       const cardHeight = 21;
 
