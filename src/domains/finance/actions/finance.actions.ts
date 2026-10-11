@@ -1628,6 +1628,25 @@ export async function getUnifiedFinancialReport(params?: {
     let totalPaidGlobal = 0;
     let totalRemainingDebts = 0;
     try {
+      // Récupérer la session scolaire active de l'établissement
+      const activeSession = await (readDb || db).query.schoolSessions.findFirst({
+        where: (s, { eq, or, and, isNull }) => and(
+          schoolId ? or(eq(s.schoolId, schoolId), isNull(s.schoolId)) : undefined,
+          or(eq(s.isActive, true), eq(s.status, "Actif"))
+        ),
+        orderBy: [desc(schoolSessions.id)]
+      });
+
+      const session = activeSession || await (readDb || db).query.schoolSessions.findFirst({
+        where: (s, { eq, or, and, isNull }) => schoolId ? or(eq(s.schoolId, schoolId), isNull(s.schoolId)) : undefined,
+        orderBy: [desc(schoolSessions.id)]
+      });
+
+      const feeConditions = [
+        schoolId ? or(eq(studentFees.schoolId, schoolId), isNull(studentFees.schoolId)) : undefined,
+        session?.id ? eq(studentFees.sessionId, session.id) : undefined,
+      ].filter(Boolean);
+
       if (isLevelFiltered) {
         const feesWithStudents = await (readDb || db)
           .select({
@@ -1640,7 +1659,7 @@ export async function getUnifiedFinancialReport(params?: {
           })
           .from(studentFees)
           .leftJoin(students, eq(studentFees.studentId, students.id))
-          .where(schoolId ? or(eq(studentFees.schoolId, schoolId), isNull(studentFees.schoolId)) : undefined)
+          .where(and(...(feeConditions as any[])))
           .catch(() => []);
 
         feesWithStudents.forEach((f) => {
@@ -1667,7 +1686,7 @@ export async function getUnifiedFinancialReport(params?: {
             totalBalance: sql`COALESCE(SUM(${studentFees.balance}), 0)::float`,
           })
           .from(studentFees)
-          .where(schoolId ? or(eq(studentFees.schoolId, schoolId), isNull(studentFees.schoolId)) : undefined)
+          .where(and(...(feeConditions as any[])))
           .catch(() => []);
 
         if (feeTotals && feeTotals[0]) {
