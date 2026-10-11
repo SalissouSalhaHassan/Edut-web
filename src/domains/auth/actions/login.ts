@@ -43,6 +43,7 @@ export async function login(formData: LoginFormData) {
     loginEmail = `${loginEmail}@test.com`;
   }
 
+  const cookieStore = await cookies();
   let authenticatedUser: any = null;
 
   // Step 1: Look up user in PostgreSQL users table
