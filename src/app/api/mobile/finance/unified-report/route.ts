@@ -12,12 +12,15 @@ export async function GET(request: NextRequest) {
   const period = (searchParams.get("period") || "monthly") as "daily" | "monthly" | "yearly" | "all";
   const selectedDate = searchParams.get("selectedDate") || new Date().toISOString().split("T")[0];
   const level = searchParams.get("level") || undefined;
+  const schoolIdParam = searchParams.get("schoolId");
+  const schoolId = schoolIdParam ? parseInt(schoolIdParam, 10) : (user.schoolId || 9);
 
   try {
     const reportResult = await getUnifiedFinancialReport({
       period,
       selectedDate,
       educationalLevel: level && level !== "Tous" ? level : undefined,
+      schoolId: isNaN(schoolId) ? (user.schoolId || 9) : schoolId,
     });
 
     if (reportResult && reportResult.success) {

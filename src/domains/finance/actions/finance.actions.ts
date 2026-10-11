@@ -1516,9 +1516,10 @@ export async function getUnifiedFinancialReport(params?: {
   period?: "daily" | "monthly" | "yearly" | "all";
   selectedDate?: string; // YYYY-MM-DD or YYYY-MM or YYYY
   educationalLevel?: string;
+  schoolId?: number;
 }) {
   return protectedDbAction("Finance", "canView", async (user) => {
-    const schoolId = (await getActiveSchoolId()) || user?.schoolId || 9;
+    const schoolId = params?.schoolId || (await getActiveSchoolId()) || user?.schoolId || 9;
     const period = params?.period || "monthly";
     const selectedDateStr = params?.selectedDate || new Date().toISOString().split("T")[0];
     const userRoleType = await getUserRoleType(user);
