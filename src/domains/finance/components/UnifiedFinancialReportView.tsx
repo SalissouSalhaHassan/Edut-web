@@ -731,7 +731,7 @@ export function UnifiedFinancialReportView({
         <div className="bg-white dark:bg-[#111827] rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm relative overflow-hidden print:border-slate-300 print:p-3">
           <div className="flex items-center justify-between mb-3 print:mb-1">
             <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 print:text-slate-600">
-              Recettes Encaissées (المدفوع)
+              Recettes Encaissées
             </span>
             <div className="w-9 h-9 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold print:hidden">
               <ArrowDownRight size={20} />
@@ -745,11 +745,11 @@ export function UnifiedFinancialReportView({
           </p>
         </div>
 
-        {/* Dépenses Consommées (المصروف والمستهلك) */}
+        {/* Dépenses Consommées */}
         <div className="bg-white dark:bg-[#111827] rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm relative overflow-hidden print:border-slate-300 print:p-3">
           <div className="flex items-center justify-between mb-3 print:mb-1">
             <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 print:text-slate-600">
-              Charges & Dépenses (المستهلك)
+              Charges & Dépenses
             </span>
             <div className="w-9 h-9 rounded-2xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 flex items-center justify-center font-bold print:hidden">
               <ArrowUpRight size={20} />
@@ -763,11 +763,11 @@ export function UnifiedFinancialReportView({
           </p>
         </div>
 
-        {/* Solde Net Disponible (فائض أو عجز الخزينة) */}
+        {/* Solde Net Disponible */}
         <div className="bg-white dark:bg-[#111827] rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm relative overflow-hidden print:border-slate-300 print:p-3">
           <div className="flex items-center justify-between mb-3 print:mb-1">
             <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 print:text-slate-600">
-              Solde Net / Trésorerie (الصافي)
+              Solde Net Trésorerie
             </span>
             <div
               className={`w-9 h-9 rounded-2xl flex items-center justify-center font-bold print:hidden ${
@@ -791,11 +791,11 @@ export function UnifiedFinancialReportView({
           </p>
         </div>
 
-        {/* Reste à Recouvrer / Créances élèves (المتبقيات) */}
+        {/* Reste à Recouvrer / Créances élèves */}
         <div className="bg-white dark:bg-[#111827] rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm relative overflow-hidden print:border-slate-300 print:p-3">
           <div className="flex items-center justify-between mb-3 print:mb-1">
             <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 print:text-slate-600">
-              Créances & Reste à Payer (المتبقيات)
+              Créances & Impayés
             </span>
             <div className="w-9 h-9 rounded-2xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold print:hidden">
               <Receipt size={20} />
