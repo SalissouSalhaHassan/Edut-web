@@ -37,18 +37,14 @@ function normalizeDatabaseUrl(value: string | undefined) {
   return url || undefined;
 }
 
+const DEFAULT_PROD_DB_URL = "postgresql://postgres.ntlncvstzmfqbqystpwi:salissou1994S@aws-0-us-west-1.pooler.supabase.com:6543/postgres";
+
 const rawConnectionString = 
   normalizeDatabaseUrl(process.env.REMOTE_DATABASE_URL) || 
-  normalizeDatabaseUrl(process.env.DATABASE_URL);
+  normalizeDatabaseUrl(process.env.DATABASE_URL) ||
+  DEFAULT_PROD_DB_URL;
 
-if (!rawConnectionString) {
-  console.warn(
-    "⚠️ [DB] No database connection string found in environment variables. " +
-    "Using build-time fallback. Ensure DATABASE_URL is configured in your Vercel/production environment."
-  );
-}
-
-const connectionString = rawConnectionString || "postgres://postgres:postgres@127.0.0.1:5432/edut_placeholder";
+const connectionString = rawConnectionString;
 const readReplicaUrl = normalizeDatabaseUrl(process.env.READ_REPLICA_URL);
 
 // Log connection target for debugging (masking password)
