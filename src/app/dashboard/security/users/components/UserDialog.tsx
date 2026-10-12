@@ -199,15 +199,12 @@ export default function UserDialog({
 
   const userLevelFamily = getLevelFamily(currentUser?.educationalLevel);
   const isSuperAdmin = !!currentUser?.superAdmin;
-  const isGeneralAdmin = !isSuperAdmin && !userLevelFamily && (
-    !!currentUser?.admin ||
+  const isGeneralAdmin = isSuperAdmin || !!currentUser?.admin || (
     currentUser?.roleType === "general_director" ||
-    (currentUser?.role?.roleName || "").toLowerCase().includes("directeur général")
+    (currentUser?.role?.roleName || "").toLowerCase().includes("directeur général") ||
+    (currentUser?.role?.roleName || "").toLowerCase().includes("directeur")
   );
-  const isLevelDirector = !isSuperAdmin && !isGeneralAdmin && (
-    currentUser?.roleType === "level_director" ||
-    !!userLevelFamily
-  );
+  const isLevelDirector = !isSuperAdmin && !isGeneralAdmin && currentUser?.roleType === "level_director";
 
   const initialLevelDefault = isLevelDirector && userLevelFamily
     ? getMatchingEducationLevel(userLevelFamily)
@@ -632,7 +629,7 @@ export default function UserDialog({
                 {rolesList
                   .filter((role) => {
                     const rName = (role.roleName || "").toLowerCase().trim();
-                    if (currentUser?.superAdmin) return true;
+                    if (currentUser?.superAdmin || isGeneralAdmin || !!currentUser?.admin) return true;
                     const forbidden = ["superadmin", "super admin", "ministere", "ministère", "dren", "dden", "inspection"];
                     if (forbidden.some((term) => rName.includes(term))) return false;
 
