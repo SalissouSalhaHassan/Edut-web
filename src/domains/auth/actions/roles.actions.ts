@@ -61,6 +61,15 @@ export const createRoleInline = async (roleName: string) => {
     const trimmed = roleName.trim();
     if (!trimmed) return { success: false as const, error: "Nom de rôle requis" };
 
+    // Check if role already exists first
+    const existing = await db.query.roles.findFirst({
+      where: ilike(roles.roleName, trimmed),
+    });
+
+    if (existing) {
+      return { success: true as const, data: { id: Number(existing.id), roleName: String(existing.roleName) } };
+    }
+
     const [newRole] = await db.execute(sql`
       INSERT INTO "roles" ("role_name")
       VALUES (${trimmed})
@@ -74,6 +83,16 @@ export const createRoleInline = async (roleName: string) => {
     return { success: true as const, data: { id: Number(role.id), roleName: String(role.roleName) } };
   } catch (error: any) {
     const msg: string = error?.message || "Erreur lors de la création du rôle";
+    // If it was already there or duplicate constraint triggered, fetch and return it gracefully
+    try {
+      const existing = await db.query.roles.findFirst({
+        where: ilike(roles.roleName, roleName.trim()),
+      });
+      if (existing) {
+        return { success: true as const, data: { id: Number(existing.id), roleName: String(existing.roleName) } };
+      }
+    } catch (_) {}
+
     if (msg.includes("unique") || msg.includes("duplicate")) {
       return { success: false as const, error: "Ce nom de rôle existe déjà" };
     }
