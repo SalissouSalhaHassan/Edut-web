@@ -2,7 +2,7 @@
 
 import { db } from "@/infrastructure/database";
 import { roles, rolePermissions, users } from "@/infrastructure/database/schema/auth";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, ilike } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { protectedDbAction } from "@/lib/protected-action";
 
