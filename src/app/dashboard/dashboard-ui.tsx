@@ -41,7 +41,9 @@ import {
   BookOpen,
   Award,
   CheckCircle,
+  LogOut,
 } from "lucide-react";
+import { logout } from "@/domains/auth/actions/login";
 
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/hooks/use-theme";
@@ -479,23 +481,40 @@ export default function DashboardUI(props: DashboardUIProps) {
             ) : null}
           </Link>
 
-          <button
-            type="button"
-            className="h-12 px-4 rounded-2xl bg-white/85 dark:bg-[#181a24]/90 backdrop-blur-sm border border-white/40 dark:border-slate-800/80 shadow-sm flex items-center gap-3"
-          >
-            <div className="size-9 rounded-full bg-indigo-600 text-white grid place-items-center font-black text-xs shadow-md shadow-indigo-100 dark:shadow-none">
-              {props.user?.nomPrenom?.charAt(0) || props.user?.utilisateur?.charAt(0) || "A"}
-            </div>
-            <div className="text-left leading-tight">
-              <p className="text-sm font-black text-slate-900 dark:text-white">
-                {props.user?.nomPrenom || props.user?.utilisateur || "Admin GROUP AIIU-NIGER"}
-              </p>
-              <p className="text-xs font-bold text-slate-400 dark:text-slate-400">
-                {props.user?.admin || !props.user?.role ? "Administrateur" : props.user?.role?.roleName || "Administrateur"}
-              </p>
-            </div>
-            <ChevronDown className="size-4 text-slate-400 ml-2" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className="h-12 px-4 rounded-2xl bg-white/85 dark:bg-[#181a24]/90 backdrop-blur-sm border border-white/40 dark:border-slate-800/80 shadow-sm flex items-center gap-3 text-left"
+            >
+              <div className="size-9 rounded-full bg-indigo-600 text-white grid place-items-center font-black text-xs shadow-md shadow-indigo-100 dark:shadow-none">
+                {props.user?.nomPrenom?.charAt(0) || props.user?.utilisateur?.charAt(0) || "A"}
+              </div>
+              <div className="leading-tight">
+                <p className="text-sm font-black text-slate-900 dark:text-white">
+                  {props.user?.nomPrenom || props.user?.utilisateur || "Admin GROUP AIIU-NIGER"}
+                </p>
+                <p className="text-xs font-bold text-slate-400 dark:text-slate-400">
+                  {props.user?.admin || !props.user?.role ? "Administrateur" : props.user?.role?.roleName || "Administrateur"}
+                </p>
+              </div>
+            </button>
+            <button
+              type="button"
+              title="Déconnexion"
+              onClick={async () => {
+                try {
+                  localStorage.removeItem("edut_user_session");
+                  localStorage.removeItem("edut_last_session_user");
+                  localStorage.removeItem("edut_offline_mode");
+                  document.cookie = "edut_session_user=; path=/; max-age=0";
+                } catch (_) {}
+                await logout();
+              }}
+              className="h-12 w-12 rounded-2xl bg-white/85 dark:bg-[#181a24]/90 backdrop-blur-sm border border-white/40 dark:border-slate-800/80 shadow-sm grid place-items-center text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition-colors cursor-pointer"
+            >
+              <LogOut className="size-5" />
+            </button>
+          </div>
         </div>
       </div>
 

@@ -37,6 +37,17 @@ export default function LoginPage() {
   const [forgotResult, setForgotResult] = useState<any>(null);
 
   useEffect(() => {
+    // When visiting the login page explicitly, clear any stale offline/fallback session
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.removeItem("edut_user_session");
+        localStorage.removeItem("edut_last_session_user");
+        localStorage.removeItem("edut_offline_mode");
+        // Clear session cookies so Ctrl+F5 on login doesn't auto-redirect to dashboard
+        document.cookie = "edut_session_user=; path=/; max-age=0; SameSite=Lax";
+      } catch (_) {}
+    }
+
     async function fetchBranding() {
       try {
         const branding = await getSchoolBranding();

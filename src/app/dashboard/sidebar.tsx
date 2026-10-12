@@ -750,34 +750,44 @@ export default function DashboardSidebar({
 
       {/* FOOTER (Profile & Logout) */}
       <div className="p-4 mt-auto shrink-0 border-t border-slate-50/50 dark:border-slate-800/60">
-        <button
-          onClick={() => logout()}
-          className="w-full text-left"
-        >
-          <div className="rounded-[24px] bg-indigo-50/50 dark:bg-[#181a24]/90 hover:bg-indigo-50 dark:hover:bg-[#1f2230] border border-indigo-100/30 dark:border-slate-800 p-2.5 flex items-center justify-between transition-colors cursor-pointer group">
-            <div className="flex items-center gap-3">
-              <div className="relative shrink-0">
-                <div className="w-10 h-10 rounded-[14px] bg-indigo-600 text-white flex items-center justify-center font-bold text-lg shadow-md shadow-indigo-200/50 dark:shadow-none overflow-hidden">
-                  {user?.avatarUrl ? (
-                    <img src={user.avatarUrl} alt={user.nomPrenom || "User"} className="w-full h-full object-cover" />
-                  ) : (
-                    user?.nomPrenom?.charAt(0) || user?.utilisateur?.charAt(0) || "A"
-                  )}
-                </div>
-                <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-400 border-2 border-white dark:border-[#181a24] shadow-sm" />
+        <div className="rounded-[24px] bg-indigo-50/50 dark:bg-[#181a24]/90 hover:bg-indigo-50 dark:hover:bg-[#1f2230] border border-indigo-100/30 dark:border-slate-800 p-2.5 flex items-center justify-between transition-colors group">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="relative shrink-0">
+              <div className="w-10 h-10 rounded-[14px] bg-indigo-600 text-white flex items-center justify-center font-bold text-lg shadow-md shadow-indigo-200/50 dark:shadow-none overflow-hidden">
+                {user?.avatarUrl ? (
+                  <img src={user.avatarUrl} alt={user.nomPrenom || "User"} className="w-full h-full object-cover" />
+                ) : (
+                  user?.nomPrenom?.charAt(0) || user?.utilisateur?.charAt(0) || "A"
+                )}
               </div>
-              <div className="min-w-0">
-                <p className="text-[13px] font-bold text-slate-900 dark:text-white truncate">
-                  {user?.nomPrenom || user?.utilisateur || "Admin GROUP AIIU-NIGER"}
-                </p>
-                <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 truncate">
-                  {user?.admin || !user?.role ? "Administrateur" : user?.role?.roleName || "Administrateur"}
-                </p>
-              </div>
+              <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-400 border-2 border-white dark:border-[#181a24] shadow-sm" />
             </div>
-            <ChevronDown className="size-[15px] text-slate-400 dark:text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200 mr-2 shrink-0 transition-colors" />
+            <div className="min-w-0">
+              <p className="text-[13px] font-bold text-slate-900 dark:text-white truncate">
+                {user?.nomPrenom || user?.utilisateur || "Admin GROUP AIIU-NIGER"}
+              </p>
+              <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 truncate">
+                {user?.admin || !user?.role ? "Administrateur" : user?.role?.roleName || "Administrateur"}
+              </p>
+            </div>
           </div>
-        </button>
+          <button
+            type="button"
+            title="Déconnexion"
+            onClick={async () => {
+              try {
+                localStorage.removeItem("edut_user_session");
+                localStorage.removeItem("edut_last_session_user");
+                localStorage.removeItem("edut_offline_mode");
+                document.cookie = "edut_session_user=; path=/; max-age=0";
+              } catch (_) {}
+              await logout();
+            }}
+            className="p-2 rounded-xl text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition-colors ml-2 shrink-0 cursor-pointer"
+          >
+            <LogOut className="size-4" />
+          </button>
+        </div>
       </div>
     </aside>
   );
