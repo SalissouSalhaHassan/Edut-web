@@ -61,38 +61,48 @@ export const createRoleInline = async (roleName: string) => {
     const trimmed = roleName.trim();
     if (!trimmed) return { success: false as const, error: "Nom de rôle requis" };
 
-    // Check if role already exists first
-    const existing = await db.query.roles.findFirst({
-      where: ilike(roles.roleName, trimmed),
-    });
+    // 1. Direct SQL check if role already exists
+    const existing = await db.execute(sql`
+      SELECT "id", "role_name" AS "roleName" 
+      FROM "roles" 
+      WHERE LOWER(TRIM("role_name")) = LOWER(TRIM(${trimmed}))
+      LIMIT 1
+    `) as any;
 
-    if (existing) {
-      return { success: true as const, data: { id: Number(existing.id), roleName: String(existing.roleName) } };
+    const existingRow = Array.isArray(existing) ? (Array.isArray(existing[0]) ? existing[0][0] : existing[0]) : existing;
+    if (existingRow && existingRow.id) {
+      return { success: true as const, data: { id: Number(existingRow.id), roleName: String(existingRow.roleName || trimmed) } };
     }
 
-    const [newRole] = await db.execute(sql`
+    // 2. Direct atomic insert with conflict resolution
+    const inserted = await db.execute(sql`
       INSERT INTO "roles" ("role_name")
       VALUES (${trimmed})
       ON CONFLICT ("role_name") DO UPDATE SET "role_name" = EXCLUDED."role_name"
       RETURNING "id", "role_name" AS "roleName"
     `) as any;
 
-    const role = Array.isArray(newRole) ? newRole[0] : newRole;
+    const row = Array.isArray(inserted) ? (Array.isArray(inserted[0]) ? inserted[0][0] : inserted[0]) : inserted;
     revalidatePath("/dashboard/security");
     revalidatePath("/dashboard/security/users");
-    return { success: true as const, data: { id: Number(role.id), roleName: String(role.roleName) } };
+    return { success: true as const, data: { id: Number(row.id), roleName: String(row.roleName || trimmed) } };
   } catch (error: any) {
-    const msg: string = error?.message || "Erreur lors de la création du rôle";
-    // If it was already there or duplicate constraint triggered, fetch and return it gracefully
+    console.error("[createRole] Error:", error);
+    // Ultimate fallback: direct fetch by name
     try {
-      const existing = await db.query.roles.findFirst({
-        where: ilike(roles.roleName, roleName.trim()),
-      });
-      if (existing) {
-        return { success: true as const, data: { id: Number(existing.id), roleName: String(existing.roleName) } };
+      const fallback = await db.execute(sql`
+        SELECT "id", "role_name" AS "roleName" 
+        FROM "roles" 
+        WHERE LOWER(TRIM("role_name")) = LOWER(TRIM(${roleName.trim()}))
+        LIMIT 1
+      `) as any;
+      const fRow = Array.isArray(fallback) ? (Array.isArray(fallback[0]) ? fallback[0][0] : fallback[0]) : fallback;
+      if (fRow && fRow.id) {
+        return { success: true as const, data: { id: Number(fRow.id), roleName: String(fRow.roleName || roleName.trim()) } };
       }
     } catch (_) {}
 
+    const msg: string = error?.message || "Erreur lors de la création du rôle";
     if (msg.includes("unique") || msg.includes("duplicate")) {
       return { success: false as const, error: "Ce nom de rôle existe déjà" };
     }
