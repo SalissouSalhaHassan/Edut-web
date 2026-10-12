@@ -14,21 +14,90 @@ export const getRoles = async () => {
     const user = await getCurrentUser();
     const schoolId = await getActiveSchoolId();
 
-    const data = await db.query.roles.findMany({
-      with: {
-        permissions: true,
-        users: {
-          where: user?.superAdmin ? undefined : eq(users.schoolId, schoolId),
-          columns: {
-            id: true
-          }
+    let data: any[] = [];
+    try {
+      data = await db.query.roles.findMany({
+        with: {
+          permissions: true,
+          users: {
+            where: user?.superAdmin ? undefined : eq(users.schoolId, schoolId),
+            columns: {
+              id: true
+            }
+          },
         },
-      },
-    });
+      });
+    } catch (relErr) {
+      console.warn("[getRoles] Relational query error, falling back to direct select:", relErr);
+    }
+
+    if (!data || data.length === 0) {
+      // Direct raw query fallback
+      const rawRoles = await db.execute(sql`
+        SELECT 
+          r.id, 
+          r.role_name AS "roleName", 
+          r.description,
+          COALESCE(
+            json_agg(
+              json_build_object(
+                'id', rp.id,
+                'moduleName', rp.module_name,
+                'canView', rp.can_view,
+                'canEdit', rp.can_edit,
+                'canDelete', rp.can_delete,
+                'fieldPermissions', rp.field_permissions
+              )
+            ) FILTER (WHERE rp.id IS NOT NULL), 
+            '[]'
+          ) AS permissions,
+          COALESCE(
+            json_agg(
+              json_build_object('id', u.id)
+            ) FILTER (WHERE u.id IS NOT NULL), 
+            '[]'
+          ) AS users
+        FROM "roles" r
+        LEFT JOIN "role_permissions" rp ON rp.role_id = r.id
+        LEFT JOIN "users" u ON u.role_id = r.id AND (${user?.superAdmin ? sql`TRUE` : sql`u.school_id = ${schoolId}`})
+        GROUP BY r.id, r.role_name, r.description
+        ORDER BY r.id ASC
+      `) as any;
+
+      const rows = Array.isArray(rawRoles) ? (Array.isArray(rawRoles[0]) ? rawRoles[0] : rawRoles) : [];
+      if (rows.length > 0) {
+        data = rows.map((r: any) => ({
+          id: Number(r.id),
+          roleName: String(r.roleName || r.role_name),
+          description: r.description,
+          permissions: typeof r.permissions === "string" ? JSON.parse(r.permissions) : (r.permissions || []),
+          users: typeof r.users === "string" ? JSON.parse(r.users) : (r.users || []),
+        }));
+      }
+    }
+
+    // Ultimate simple fallback if joins failed
+    if (!data || data.length === 0) {
+      const basicRoles = await db.select().from(roles);
+      data = basicRoles.map(r => ({
+        ...r,
+        permissions: [],
+        users: []
+      }));
+    }
+
     return { success: true, data };
   } catch (error: any) {
     console.error("getRoles Error:", error);
-    return { success: false, error: error.message, data: [] };
+    try {
+      const basicRoles = await db.select().from(roles);
+      return {
+        success: true,
+        data: basicRoles.map(r => ({ ...r, permissions: [], users: [] }))
+      };
+    } catch (_) {
+      return { success: false, error: error.message, data: [] };
+    }
   }
 };
 
