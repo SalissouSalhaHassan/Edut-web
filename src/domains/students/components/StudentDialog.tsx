@@ -1034,7 +1034,21 @@ export default function StudentDialog({ mode = "add", initialData, trigger, open
                       <div className="space-y-2">
                         <Label className="text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-300 ml-1">Numéro WhatsApp</Label>
                         <Input name="whatsapp" defaultValue={currentData?.whatsapp || ""} placeholder="Si différent du mobile SMS" className="h-12 rounded-2xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900/90 font-bold text-slate-800 dark:text-white placeholder:text-slate-400 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-xs transition-all" />
-                      </di                <div className={step !== 3 ? "hidden" : "space-y-8 animate-in fade-in slide-in-from-right-8 duration-500"}>
+                      </div>
+                    </div>
+
+                    <div className="p-6 rounded-[2rem] bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-800/60 flex items-start gap-4 shadow-xs">
+                       <div className="h-11 w-11 rounded-2xl bg-indigo-600 dark:bg-indigo-500 flex items-center justify-center shrink-0 shadow-lg shadow-indigo-600/30 text-white">
+                          <Zap size={20} />
+                       </div>
+                       <div>
+                          <h4 className="text-indigo-950 dark:text-indigo-200 font-black tracking-tight text-base">Notification Automatique & Espace Parents</h4>
+                          <p className="text-indigo-700/80 dark:text-indigo-300/80 text-xs font-medium mt-1">Le système enverra automatiquement un message de bienvenue et les accès mobiles dès validation du dossier.</p>
+                       </div>
+                    </div>
+                  </div>
+
+                <div className={step !== 3 ? "hidden" : "space-y-8 animate-in fade-in slide-in-from-right-8 duration-500"}>
                     <section className="space-y-6">
                        <div className="flex items-center gap-2 pb-2 border-b border-emerald-100 dark:border-emerald-950/60">
                          <span className="w-1.5 h-4 rounded-full bg-emerald-600 dark:bg-emerald-400" />
