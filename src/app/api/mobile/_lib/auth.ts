@@ -72,11 +72,19 @@ export async function getMobileUser(request: NextRequest) {
     // Allow up to 30 days offline grace period from token expiration
     const maxOfflineGraceSeconds = 30 * 24 * 60 * 60;
     const isWithinGrace = payload?.exp ? (now - payload.exp) < maxOfflineGraceSeconds : false;
+    
+    // Extract current Supabase project ref if available
+    const configuredRefMatch = url.match(/https:\/\/([^.]+)\.supabase\.co/);
+    const configuredRef = configuredRefMatch?.[1];
+
     const isSupabaseIssuer = Boolean(
       payload && (
         payload.iss?.includes("supabase") ||
+        (configuredRef && (payload.iss?.includes(configuredRef) || payload.ref === configuredRef)) ||
         payload.iss?.includes("gkarotahjtyvmhjqejts") ||
+        payload.iss?.includes("ntlncvstzmfqbqystpwi") ||
         payload.ref === "gkarotahjtyvmhjqejts" ||
+        payload.ref === "ntlncvstzmfqbqystpwi" ||
         payload.aud === "authenticated"
       )
     );
