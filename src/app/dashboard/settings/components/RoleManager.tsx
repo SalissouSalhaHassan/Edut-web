@@ -103,6 +103,7 @@ export default function RoleManager({ roles: initialRoles }: RoleManagerProps) {
   const [editPermissions, setEditPermissions] = useState<Record<string, { canView: boolean; canEdit: boolean; canDelete: boolean; fieldPermissions?: any }>>({});
   const [isPending, startTransition] = useTransition();
   const [newRoleName, setNewRoleName] = useState("");
+  const [showAddInput, setShowAddInput] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedModule, setExpandedModule] = useState<string | null>(null);
 
@@ -140,14 +141,20 @@ export default function RoleManager({ roles: initialRoles }: RoleManagerProps) {
   const handleCreateRole = () => {
     if (!newRoleName.trim()) return;
     startTransition(async () => {
-      const res = await createRole(newRoleName.trim()) as any;
-      if (res?.id || res.data?.id) {
-        toast.success(`Rôle "${newRoleName}" créé avec succès`);
-        const newRole = res.data || res;
-        setRoles(prev => [...prev, { ...newRole, permissions: [], users: [] }]);
-        setNewRoleName("");
-      } else {
-        toast.error("Erreur lors de la création du rôle");
+      try {
+        const res = await createRole(newRoleName.trim()) as any;
+        const newRole = res?.data || (res?.id ? res : null);
+        if (newRole && (newRole.id || newRole.roleName)) {
+          toast.success(`Rôle "${newRoleName}" créé avec succès`);
+          setRoles(prev => [...prev, { ...newRole, permissions: [], users: [] }]);
+          setNewRoleName("");
+          setShowAddInput(false);
+          selectRole(newRole.id);
+        } else {
+          toast.error(res?.error || "Erreur lors de la création du rôle");
+        }
+      } catch (err: any) {
+        toast.error(err?.message || "Erreur réseau lors de la création du rôle");
       }
     });
   };
@@ -209,17 +216,21 @@ export default function RoleManager({ roles: initialRoles }: RoleManagerProps) {
       ...perms,
     }));
     startTransition(async () => {
-      const res = await updateRolePermissions(selectedRoleId, permArray);
-      if (res?.success) {
-        toast.success("Permissions enregistrées avec succès");
-        // Update local roles state
-        setRoles(prev => prev.map(r => 
-          r.id === selectedRoleId 
-            ? { ...r, permissions: permArray.filter(p => p.canView || p.canEdit || p.canDelete || (p.fieldPermissions && Object.keys(p.fieldPermissions).length > 0)) }
-            : r
-        ));
-      } else {
-        toast.error("Erreur lors de la sauvegarde");
+      try {
+        const res = await updateRolePermissions(selectedRoleId, permArray) as any;
+        if (res?.success || res?.data?.success || (!res?.error && res?.data)) {
+          toast.success("Permissions enregistrées avec succès");
+          // Update local roles state
+          setRoles(prev => prev.map(r => 
+            r.id === selectedRoleId 
+              ? { ...r, permissions: permArray.filter(p => p.canView || p.canEdit || p.canDelete || (p.fieldPermissions && Object.keys(p.fieldPermissions).length > 0)) }
+              : r
+          ));
+        } else {
+          toast.error(res?.error || "Erreur lors de la sauvegarde");
+        }
+      } catch (err: any) {
+        toast.error(err?.message || "Erreur réseau lors de la sauvegarde");
       }
     });
   };
@@ -252,32 +263,50 @@ export default function RoleManager({ roles: initialRoles }: RoleManagerProps) {
                 className="pl-9 h-10 rounded-xl border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 text-sm"
               />
             </div>
-            <div className="flex gap-1.5">
-              {newRoleName && (
-                <Input
-                  placeholder="Nom..."
-                  value={newRoleName}
-                  onChange={(e) => setNewRoleName(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleCreateRole()}
-                  className="h-10 w-32 rounded-xl border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-sm"
-                  autoFocus
-                />
+            <div className="flex gap-1.5 items-center">
+              {showAddInput ? (
+                <div className="flex items-center gap-1.5">
+                  <Input
+                    placeholder="Nom du rôle..."
+                    value={newRoleName}
+                    onChange={(e) => setNewRoleName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleCreateRole();
+                      if (e.key === 'Escape') {
+                        setShowAddInput(false);
+                        setNewRoleName("");
+                      }
+                    }}
+                    className="h-10 w-36 rounded-xl border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm"
+                    autoFocus
+                  />
+                  <button
+                    onClick={handleCreateRole}
+                    disabled={isPending || !newRoleName.trim()}
+                    className="h-10 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shrink-0 transition-colors disabled:opacity-50"
+                  >
+                    OK
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowAddInput(false);
+                      setNewRoleName("");
+                    }}
+                    className="h-10 px-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs shrink-0 transition-colors"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowAddInput(true)}
+                  disabled={isPending}
+                  title="Créer un nouveau rôle"
+                  className="h-10 w-10 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center shrink-0 transition-colors shadow-sm shadow-indigo-200 dark:shadow-none"
+                >
+                  <Plus size={18} strokeWidth={2.5} />
+                </button>
               )}
-              <button
-                onClick={() => {
-                  if (newRoleName.trim()) {
-                    handleCreateRole();
-                  } else {
-                    setNewRoleName(" ");
-                    setTimeout(() => setNewRoleName(""), 0);
-                    setNewRoleName("");
-                  }
-                }}
-                disabled={isPending}
-                className="h-10 w-10 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center shrink-0 transition-colors disabled:opacity-50"
-              >
-                <Plus size={18} strokeWidth={2.5} />
-              </button>
             </div>
           </div>
 

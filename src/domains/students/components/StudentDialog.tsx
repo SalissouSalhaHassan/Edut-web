@@ -518,41 +518,45 @@ export default function StudentDialog({ mode = "add", initialData, trigger, open
   const modal = open ? (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" aria-modal="true" role="dialog">
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={close} aria-hidden="true" />
+      <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md" onClick={close} aria-hidden="true" />
 
       {/* Panel */}
       <div
-        className="relative w-full max-w-5xl bg-white rounded-[2.5rem] shadow-2xl flex overflow-hidden animate-in zoom-in-95 fade-in duration-200"
+        className="relative w-full max-w-5xl bg-white dark:bg-[#0c0e17] rounded-[2.5rem] shadow-2xl shadow-indigo-950/40 border border-slate-200/80 dark:border-slate-800/80 flex overflow-hidden animate-in zoom-in-95 fade-in duration-200"
         style={{ height: "90vh", maxHeight: "90vh" }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* ── Sidebar ─────────────────────────────────────────────────── */}
-        <div className="w-64 bg-slate-900 flex flex-col justify-between shrink-0 hidden md:flex">
+        <div className="w-64 bg-gradient-to-b from-slate-950 via-[#0f121d] to-slate-950 border-r border-slate-800/60 flex flex-col justify-between shrink-0 hidden md:flex">
           {/* Top branding */}
           <div className="p-8 space-y-10">
             <div>
-              <h2 className="text-white text-3xl font-black tracking-tighter leading-tight italic">
-                GS PRO<br /><span className="text-indigo-400 not-italic">STUDENT</span>
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[10px] font-black uppercase tracking-widest mb-3">
+                <Sparkles size={11} className="text-amber-400" />
+                Plateforme GS
+              </div>
+              <h2 className="text-white text-3xl font-black tracking-tight leading-none">
+                GS PRO<br /><span className="bg-gradient-to-r from-indigo-400 via-violet-400 to-indigo-300 bg-clip-text text-transparent not-italic font-black text-2xl tracking-widest">STUDENT</span>
               </h2>
-              <div className="h-1.5 w-12 bg-indigo-500 mt-4 rounded-full" />
+              <div className="h-1 w-12 bg-gradient-to-r from-indigo-500 to-violet-500 mt-4 rounded-full" />
             </div>
 
             {/* Step navigation */}
-            <nav className="space-y-5">
+            <nav className="space-y-4">
               {STEPS.map((s) => {
                 const done = step > s.n;
                 const active = step === s.n;
                 return (
-                  <div key={s.n} className={`flex items-center gap-4 transition-all duration-300 ${active ? "translate-x-2" : "opacity-40 hover:opacity-60"}`}>
+                  <div key={s.n} className={`flex items-center gap-4 transition-all duration-300 ${active ? "translate-x-2" : "opacity-50 hover:opacity-80"}`}>
                     <div className={`h-11 w-11 rounded-2xl flex items-center justify-center font-black text-sm transition-all
-                      ${active ? `${s.color} text-white shadow-lg ${s.ring} ring-4 ring-offset-slate-900 ring-offset-2 rotate-6`
-                        : done  ? "bg-emerald-500 text-white"
-                        : "bg-slate-800 text-slate-500"}`}>
-                      {done ? <Check size={16} /> : s.n}
+                      ${active ? `${s.color} text-white shadow-xl shadow-indigo-500/30 ${s.ring} ring-4 ring-offset-slate-950 ring-offset-2 scale-105`
+                        : done  ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/20"
+                        : "bg-slate-800/80 text-slate-400 border border-slate-700/50"}`}>
+                      {done ? <Check size={18} strokeWidth={3} /> : s.n}
                     </div>
                     <div>
-                      <p className="text-white font-bold text-sm leading-tight">{s.t}</p>
-                      <p className="text-[9px] uppercase font-black tracking-widest text-slate-500 mt-0.5">{s.d}</p>
+                      <p className={`font-black text-sm leading-tight transition-colors ${active ? "text-white" : "text-slate-300"}`}>{s.t}</p>
+                      <p className="text-[10px] uppercase font-bold tracking-widest text-slate-400 mt-0.5">{s.d}</p>
                     </div>
                   </div>
                 );
@@ -562,120 +566,133 @@ export default function StudentDialog({ mode = "add", initialData, trigger, open
 
           {/* Bottom status */}
           <div className="p-6">
-            <div className="p-5 bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl border border-slate-700/50">
-              <div className="flex items-center gap-2 mb-1.5">
-                <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                <p className="text-[9px] text-slate-300 font-black uppercase tracking-widest">Connecté</p>
+            <div className="p-4 bg-slate-900/90 rounded-2xl border border-slate-800/80 shadow-inner">
+              <div className="flex items-center gap-2 mb-1">
+                <div className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse shadow-sm shadow-emerald-400" />
+                <p className="text-[10px] text-emerald-400 font-black uppercase tracking-widest">Système Actif</p>
               </div>
-              <p className="text-[10px] text-slate-500 font-bold">Admin v2.4.0</p>
+              <p className="text-[11px] text-slate-400 font-bold">Admin v2.4.0 • Sécurisé</p>
             </div>
           </div>
         </div>
 
         {/* ── Main content ────────────────────────────────────────────── */}
-        <div className="flex-1 grid grid-rows-[auto_1fr_auto] overflow-hidden min-w-0">
+        <div className="flex-1 grid grid-rows-[auto_1fr_auto] overflow-hidden min-w-0 bg-slate-50/60 dark:bg-[#0c0e17]">
 
           {/* Header */}
-          <div className="shrink-0">
+          <div className="shrink-0 bg-white dark:bg-[#111422] border-b border-slate-200/80 dark:border-slate-800/80 shadow-sm">
             {/* Coloured progress bar */}
-            <div className="h-1.5 w-full bg-slate-100">
+            <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800">
               <div
-                className="h-full bg-gradient-to-r from-indigo-500 via-violet-500 to-emerald-500 transition-all duration-500"
+                className="h-full bg-gradient-to-r from-indigo-500 via-violet-500 to-emerald-500 transition-all duration-500 shadow-sm shadow-indigo-500/30"
                 style={{ width: `${(step / 3) * 100}%` }}
               />
             </div>
-            <div className="px-8 pt-6 pb-5 border-b border-slate-100 flex justify-between items-end">
+            <div className="px-8 pt-5 pb-5 flex justify-between items-center">
               <div>
-                <p className="text-indigo-500 font-black text-[10px] uppercase tracking-[0.3em] mb-1">Administration Scolaire</p>
-                <h2 className="text-4xl font-black text-slate-900 tracking-tighter leading-none italic">
-                  {mode === "edit" ? "MODIFICATION" : "INSCRIPTION"}
-                </h2>
-                <p className="text-indigo-600 font-black uppercase tracking-widest text-sm mt-1">Dossier Élève</p>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="w-2 h-2 rounded-full bg-indigo-600 dark:bg-indigo-400" />
+                  <p className="text-indigo-600 dark:text-indigo-400 font-black text-[11px] uppercase tracking-[0.25em]">Administration Scolaire</p>
+                </div>
+                <div className="flex items-baseline gap-3">
+                  <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight leading-none">
+                    {mode === "edit" ? "MODIFICATION DU DOSSIER" : "NOUVELLE INSCRIPTION"}
+                  </h2>
+                  <span className="px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800/50 text-indigo-700 dark:text-indigo-300 font-black uppercase tracking-widest text-[11px]">
+                    Dossier Élève
+                  </span>
+                </div>
               </div>
-              <div className="flex items-end gap-4">
-                <div className="text-right">
-                  <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Étape</span>
-                  <div className="text-5xl font-black text-slate-100 italic leading-none">{step}/3</div>
+              <div className="flex items-center gap-5">
+                <div className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/60">
+                  <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Étape</span>
+                  <span className="text-2xl font-black text-indigo-600 dark:text-indigo-400 leading-none">{step}</span>
+                  <span className="text-sm font-bold text-slate-400">/ 3</span>
                 </div>
                 {/* Close X */}
                 <button
                   type="button"
                   onClick={close}
                   aria-label="Fermer"
-                  className="mb-1 w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+                  className="w-10 h-10 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-center text-slate-500 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-all shadow-sm"
                 >
-                  <X size={18} />
+                  <X size={18} strokeWidth={2.5} />
                 </button>
               </div>
             </div>
           </div>
 
             {/* Scrollable Form Body */}
-            <div className="overflow-y-auto custom-scrollbar px-8 py-8 min-h-0 bg-white">
+            <div className="overflow-y-auto custom-scrollbar px-8 py-8 min-h-0 bg-slate-50/50 dark:bg-[#0c0e17]">
               <form 
                 key={`${mode}-${currentData?.id || 'new'}-${isDataLoaded ? 'loaded' : 'initial'}-${open}`}
                 ref={formRef} 
                 className="space-y-8 pb-8"
               >
                 {error && (
-                  <div className="bg-rose-50 border-l-4 border-rose-500 text-rose-700 px-8 py-5 rounded-2xl text-sm font-bold animate-shake flex items-center gap-4 shadow-sm">
-                    <div className="h-8 w-8 rounded-full bg-rose-100 flex items-center justify-center shrink-0">
+                  <div className="bg-rose-50 dark:bg-rose-950/40 border-l-4 border-rose-500 text-rose-700 dark:text-rose-300 px-6 py-4 rounded-2xl text-sm font-bold animate-shake flex items-center gap-4 shadow-sm border border-rose-200 dark:border-rose-900/50">
+                    <div className="h-8 w-8 rounded-full bg-rose-100 dark:bg-rose-900/60 flex items-center justify-center shrink-0 text-rose-600 dark:text-rose-300">
                       <X size={16} />
                     </div>
                     {error}
                   </div>
                 )}
 
-                <div className={step !== 1 ? "hidden" : "space-y-8 animate-in fade-in slide-in-from-right-8 duration-700"}>
+                <div className={step !== 1 ? "hidden" : "space-y-8 animate-in fade-in slide-in-from-right-8 duration-500"}>
                     <section className="space-y-6">
-                       <h4 className="text-xs font-black uppercase tracking-widest text-indigo-500/60 border-b border-indigo-50 pb-2">Informations d'identité</h4>
+                       <div className="flex items-center gap-2 pb-2 border-b border-indigo-100 dark:border-indigo-950/60">
+                         <span className="w-1.5 h-4 rounded-full bg-indigo-600 dark:bg-indigo-400" />
+                         <h4 className="text-xs font-black uppercase tracking-wider text-indigo-700 dark:text-indigo-400">
+                           Informations d'identité
+                         </h4>
+                       </div>
                        <div className="grid grid-cols-2 gap-6">
                           <div className="space-y-2">
-                            <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">N° Admission / Matricule *</Label>
-                            <Input name="numAdmission" defaultValue={currentData?.numAdmission || ""} required placeholder="Ex: AD-2024-001" className="h-14 rounded-xl border-slate-100 bg-slate-50/50 font-black text-lg text-slate-800" />
+                            <Label className="text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-300 ml-1">N° Admission / Matricule *</Label>
+                            <Input name="numAdmission" defaultValue={currentData?.numAdmission || ""} required placeholder="Ex: AD-2024-001" className="h-14 rounded-2xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900/90 font-black text-lg text-slate-800 dark:text-white placeholder:text-slate-400 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-xs transition-all" />
                           </div>
                           <div className="space-y-2">
-                            <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Nom complet de l'élève *</Label>
-                            <Input name="nomEtudiant" defaultValue={currentData?.nomEtudiant || ""} required placeholder="Jean Dupont" className="h-14 rounded-xl border-slate-100 bg-slate-50/50 font-black text-lg text-slate-800" />
+                            <Label className="text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-300 ml-1">Nom complet de l'élève *</Label>
+                            <Input name="nomEtudiant" defaultValue={currentData?.nomEtudiant || ""} required placeholder="Jean Dupont" className="h-14 rounded-2xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900/90 font-black text-lg text-slate-800 dark:text-white placeholder:text-slate-400 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-xs transition-all" />
                           </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-6">
                           <div className="space-y-2">
-                            <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1 font-arabic">الاسم الكامل بالعربية</Label>
-                            <Input name="nomArabe" defaultValue={currentData?.nomArabe || ""} dir="rtl" placeholder="اسم الطالب هنا" className="h-14 rounded-xl border-slate-100 bg-slate-50/50 font-arabic text-xl text-slate-800" />
+                            <Label className="text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-300 ml-1 font-arabic">الاسم الكامل بالعربية</Label>
+                            <Input name="nomArabe" defaultValue={currentData?.nomArabe || ""} dir="rtl" placeholder="اسم الطالب هنا" className="h-14 rounded-2xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900/90 font-arabic text-xl text-slate-800 dark:text-white placeholder:text-slate-400 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-xs transition-all" />
                           </div>
                           <div className="space-y-2">
-                            <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Sexe de l'enfant *</Label>
-                            <select name="sexe" defaultValue={normalizeGender(currentData?.sexe)} required className="w-full h-14 rounded-xl border border-slate-100 bg-slate-50/50 px-6 font-black text-slate-700 outline-none">
+                            <Label className="text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-300 ml-1">Sexe de l'enfant *</Label>
+                            <select name="sexe" defaultValue={normalizeGender(currentData?.sexe)} required className="w-full h-14 rounded-2xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900/90 px-6 font-black text-slate-800 dark:text-white outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-xs transition-all cursor-pointer">
                               <option value="Garçon">👦 Garçon</option>
                               <option value="Fille">👧 Fille</option>
                             </select>
                           </div>
                         </div>
                         <div className="grid grid-cols-3 gap-6">
-                           <div className="space-y-3">
-                              <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Date de Naissance</Label>
-                              <Input name="dateNaissance" type="date" defaultValue={formatDateForInput(currentData?.dateNaissance)} className="h-12 rounded-2xl border-slate-100 bg-slate-50/50 font-bold" />
+                           <div className="space-y-2">
+                              <Label className="text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-300 ml-1">Date de Naissance</Label>
+                              <Input name="dateNaissance" type="date" defaultValue={formatDateForInput(currentData?.dateNaissance)} className="h-12 rounded-2xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900/90 font-bold text-slate-800 dark:text-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-xs transition-all" />
                            </div>
-                           <div className="space-y-3">
-                              <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Lieu de Naissance</Label>
-                              <Input name="lieuNaissance" defaultValue={currentData?.lieuNaissance || ""} className="h-12 rounded-2xl border-slate-100 bg-slate-50/50 font-bold" />
+                           <div className="space-y-2">
+                              <Label className="text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-300 ml-1">Lieu de Naissance</Label>
+                              <Input name="lieuNaissance" defaultValue={currentData?.lieuNaissance || ""} placeholder="Ville, Pays" className="h-12 rounded-2xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900/90 font-bold text-slate-800 dark:text-white placeholder:text-slate-400 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-xs transition-all" />
                            </div>
-                           <div className="space-y-3">
-                              <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Religion</Label>
-                              <Input name="religion" defaultValue={currentData?.religion || ""} className="h-12 rounded-2xl border-slate-100 bg-slate-50/50 font-bold" />
+                           <div className="space-y-2">
+                              <Label className="text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-300 ml-1">Religion</Label>
+                              <Input name="religion" defaultValue={currentData?.religion || ""} placeholder="Islam / Christianisme..." className="h-12 rounded-2xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900/90 font-bold text-slate-800 dark:text-white placeholder:text-slate-400 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-xs transition-all" />
                            </div>
                         </div>
 
                         <div className="grid grid-cols-3 gap-6">
-                           <div className="space-y-3">
-                              <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">CNIC / Numéro National</Label>
-                              <Input name="cnic" defaultValue={currentData?.cnic || ""} placeholder="Numéro d'identification" className="h-12 rounded-2xl border-slate-100 bg-slate-50/50 font-bold" />
+                           <div className="space-y-2">
+                              <Label className="text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-300 ml-1">CNIC / Numéro National</Label>
+                              <Input name="cnic" defaultValue={currentData?.cnic || ""} placeholder="Numéro d'identification" className="h-12 rounded-2xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900/90 font-bold text-slate-800 dark:text-white placeholder:text-slate-400 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-xs transition-all" />
                            </div>
-                           <div className="space-y-3">
-                              <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Groupe Sanguin</Label>
-                              <select name="groupeSanguin" defaultValue={currentData?.groupeSanguin || ""} className="w-full h-12 rounded-2xl border border-slate-100 bg-slate-50/50 px-4 font-bold text-slate-700 outline-none">
+                           <div className="space-y-2">
+                              <Label className="text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-300 ml-1">Groupe Sanguin</Label>
+                              <select name="groupeSanguin" defaultValue={currentData?.groupeSanguin || ""} className="w-full h-12 rounded-2xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900/90 px-4 font-bold text-slate-800 dark:text-white outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-xs transition-all cursor-pointer">
                                 <option value="">-- Choisir --</option>
                                 <option value="A+">A+</option>
                                 <option value="A-">A-</option>
@@ -687,10 +704,10 @@ export default function StudentDialog({ mode = "add", initialData, trigger, open
                                 <option value="AB-">AB-</option>
                               </select>
                            </div>
-                           <div className="space-y-3">
+                           <div className="space-y-2">
                               <div className="flex items-center justify-between">
-                                <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Code PIN Accès (4 Chiffres)</Label>
-                                <button type="button" onClick={generateRandomPin} className="text-[10px] text-indigo-600 font-extrabold hover:underline flex items-center gap-1">
+                                <Label className="text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-300 ml-1">Code PIN Accès (4 Chiffres)</Label>
+                                <button type="button" onClick={generateRandomPin} className="text-[11px] text-indigo-600 dark:text-indigo-400 font-extrabold hover:underline flex items-center gap-1 cursor-pointer">
                                   <Sparkles size={11} /> Auto PIN
                                 </button>
                               </div>
@@ -702,12 +719,12 @@ export default function StudentDialog({ mode = "add", initialData, trigger, open
                                   value={activationPin}
                                   onChange={(e) => setActivationPin(e.target.value)}
                                   placeholder="Ex: 1234"
-                                  className="h-12 rounded-2xl border-slate-100 bg-slate-50/50 font-black text-center text-lg tracking-widest text-indigo-600 pr-10"
+                                  className="h-12 rounded-2xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900/90 font-black text-center text-lg tracking-widest text-indigo-600 dark:text-indigo-400 pr-10 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-xs transition-all"
                                 />
                                 <button
                                   type="button"
                                   onClick={() => setShowPin(!showPin)}
-                                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
                                 >
                                   {showPin ? <EyeOff size={16} /> : <Eye size={16} />}
                                 </button>
@@ -820,19 +837,24 @@ export default function StudentDialog({ mode = "add", initialData, trigger, open
                        </div>
                     </section>
 
-                    <section className="space-y-8">
-                       <h4 className="text-xs font-black uppercase tracking-widest text-indigo-500/60 border-b border-indigo-50 pb-2">Détails académiques</h4>
-                       
+                    <section className="space-y-6">
+                       <div className="flex items-center gap-2 pb-2 border-b border-indigo-100 dark:border-indigo-950/60">
+                         <span className="w-1.5 h-4 rounded-full bg-indigo-600 dark:bg-indigo-400" />
+                         <h4 className="text-xs font-black uppercase tracking-wider text-indigo-700 dark:text-indigo-400">
+                           Détails académiques
+                         </h4>
+                       </div>
+                        
                        <div className="grid grid-cols-3 gap-6">
 
                           {/* SESSION — loaded from school_sessions table */}
-                          <div className="space-y-3">
-                            <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Session *</Label>
+                          <div className="space-y-2">
+                            <Label className="text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-300 ml-1">Session *</Label>
                             <select
                               name="session"
                               value={selectedSession}
                               onChange={e => setSelectedSession(e.target.value)}
-                              className="w-full h-12 rounded-2xl border border-slate-100 bg-slate-50/50 px-4 font-bold text-slate-700 outline-none transition-all"
+                              className="w-full h-12 rounded-2xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900/90 px-4 font-bold text-slate-800 dark:text-white outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-xs transition-all cursor-pointer"
                             >
                               <option value="" disabled>-- Choisir la session --</option>
                               {sessionsList.length > 0
@@ -852,8 +874,8 @@ export default function StudentDialog({ mode = "add", initialData, trigger, open
                           </div>
 
                           {/* NIVEAU — ALL levels from Paramètres → Académique */}
-                          <div className="space-y-3">
-                            <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Niveau *</Label>
+                          <div className="space-y-2">
+                            <Label className="text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-300 ml-1">Niveau *</Label>
                             <select
                               name="educationalLevel"
                               value={selectedLevel}
@@ -864,7 +886,7 @@ export default function StudentDialog({ mode = "add", initialData, trigger, open
                                 setSelectedSection("");
                               }}
                               required
-                              className="w-full h-12 rounded-2xl border border-slate-100 bg-slate-50/50 px-4 font-bold text-slate-700 outline-none transition-all"
+                              className="w-full h-12 rounded-2xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900/90 px-4 font-bold text-slate-800 dark:text-white outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-xs transition-all cursor-pointer"
                             >
                               <option value="" disabled>-- Choisir le niveau --</option>
                               {levelsList.map(l => (
@@ -880,8 +902,8 @@ export default function StudentDialog({ mode = "add", initialData, trigger, open
                           </div>
 
                           {/* CLASSE — filtered by selected level with fallback */}
-                          <div className="space-y-3">
-                             <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Classe *</Label>
+                          <div className="space-y-2">
+                             <Label className="text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-300 ml-1">Classe *</Label>
                              <select
                                name="classe"
                                value={selectedClasse}
@@ -909,7 +931,7 @@ export default function StudentDialog({ mode = "add", initialData, trigger, open
                                  }
                                }}
                                required
-                               className="w-full h-12 rounded-2xl border border-slate-100 bg-slate-50/50 px-4 font-bold text-slate-700 outline-none transition-all"
+                               className="w-full h-12 rounded-2xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900/90 px-4 font-bold text-slate-800 dark:text-white outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-xs transition-all cursor-pointer"
                              >
                                <option value="" disabled>-- Choisir une classe --</option>
                                {classesList.map(c => (
@@ -926,13 +948,13 @@ export default function StudentDialog({ mode = "add", initialData, trigger, open
                        <div className="grid grid-cols-3 gap-6">
 
                            {/* SECTION — filtered by selected level with fallback */}
-                           <div className="space-y-3">
-                             <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Section</Label>
+                           <div className="space-y-2">
+                             <Label className="text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-300 ml-1">Section</Label>
                              <select
                                name="section"
                                value={selectedSection}
                                onChange={e => setSelectedSection(e.target.value)}
-                               className="w-full h-12 rounded-2xl border border-slate-100 bg-slate-50/50 px-4 font-bold text-slate-700 outline-none transition-all"
+                               className="w-full h-12 rounded-2xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900/90 px-4 font-bold text-slate-800 dark:text-white outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-xs transition-all cursor-pointer"
                              >
                                <option value="">-- Aucune section --</option>
                                {sectionsList.map(s => (
@@ -945,13 +967,13 @@ export default function StudentDialog({ mode = "add", initialData, trigger, open
                            </div>
 
                            {/* CATÉGORIE — controlled with options */}
-                           <div className="space-y-3">
-                             <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Catégorie</Label>
+                           <div className="space-y-2">
+                             <Label className="text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-300 ml-1">Catégorie</Label>
                              <select
                                name="categorie"
                                value={selectedCategorie}
                                onChange={e => setSelectedCategorie(e.target.value)}
-                               className="w-full h-12 rounded-2xl border border-slate-100 bg-slate-50/50 px-4 font-bold text-slate-700 outline-none transition-all"
+                               className="w-full h-12 rounded-2xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900/90 px-4 font-bold text-slate-800 dark:text-white outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-xs transition-all cursor-pointer"
                              >
                                  <option value="Général">Général</option>
                                  <option value="Boursier">Boursier</option>
@@ -967,10 +989,10 @@ export default function StudentDialog({ mode = "add", initialData, trigger, open
 
                         </div>
 
-                       <div className="space-y-3">
+                       <div className="space-y-2">
                           <div className="flex justify-between items-center">
-                            <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Behavior Score (Conduite) /20</Label>
-                            <span className="text-[10px] font-black text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-full">Automated Ranking</span>
+                            <Label className="text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-300 ml-1">Behavior Score (Conduite) /20</Label>
+                            <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-2.5 py-0.5 rounded-full border border-indigo-200 dark:border-indigo-800/40">Automated Ranking</span>
                           </div>
                           <Input
                             name="behaviorScore"
@@ -978,104 +1000,135 @@ export default function StudentDialog({ mode = "add", initialData, trigger, open
                             step="0.5"
                             value={behaviorScoreValue}
                             onChange={e => setBehaviorScoreValue(e.target.value)}
-                            className="h-11 rounded-xl border-slate-100 bg-slate-50/50 font-bold"
+                            className="h-12 rounded-2xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900/90 font-black text-slate-800 dark:text-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-xs transition-all"
                           />
                        </div>
                     </section>
                 </div>
 
-                <div className={step !== 2 ? "hidden" : "space-y-8 animate-in fade-in slide-in-from-right-8 duration-700"}>
+                <div className={step !== 2 ? "hidden" : "space-y-8 animate-in fade-in slide-in-from-right-8 duration-500"}>
                     <section className="space-y-6">
-                       <h4 className="text-xs font-black uppercase tracking-widest text-indigo-500/60 border-b border-indigo-50 pb-2">Informations du Père / Tuteur</h4>
+                       <div className="flex items-center gap-2 pb-2 border-b border-indigo-100 dark:border-indigo-950/60">
+                         <span className="w-1.5 h-4 rounded-full bg-indigo-600 dark:bg-indigo-400" />
+                         <h4 className="text-xs font-black uppercase tracking-wider text-indigo-700 dark:text-indigo-400">
+                           Informations du Père / Tuteur Légal
+                         </h4>
+                       </div>
                        <div className="grid grid-cols-2 gap-6">
                           <div className="space-y-2">
-                            <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Nom du tuteur légal *</Label>
-                            <Input name="nomPere" defaultValue={currentData?.nomPere || ""} required placeholder="Nom et Prénom" className="h-14 rounded-xl border-slate-100 bg-slate-50/50 font-black text-lg" />
+                            <Label className="text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-300 ml-1">Nom du tuteur légal *</Label>
+                            <Input name="nomPere" defaultValue={currentData?.nomPere || ""} required placeholder="Nom et Prénom du parent" className="h-14 rounded-2xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900/90 font-black text-lg text-slate-800 dark:text-white placeholder:text-slate-400 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-xs transition-all" />
                           </div>
                           <div className="space-y-2">
-                            <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Mobile (SMS) *</Label>
-                            <Input name="mobile" type="tel" defaultValue={currentData?.mobile || ""} required placeholder="+221 ..." className="h-14 rounded-xl border-slate-100 bg-slate-50/50 font-black text-lg" />
+                            <Label className="text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-300 ml-1">Mobile principal (SMS) *</Label>
+                            <Input name="mobile" type="tel" defaultValue={currentData?.mobile || ""} required placeholder="+221 ..." className="h-14 rounded-2xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900/90 font-black text-lg text-slate-800 dark:text-white placeholder:text-slate-400 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-xs transition-all" />
                           </div>
                         </div>
                     </section>
 
-                    <div className="grid grid-cols-3 gap-6">
+                    <div className="grid grid-cols-2 gap-6">
                        <div className="space-y-2">
-                        <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">CNIC / ID</Label>
-                        <Input name="cnicPere" defaultValue={currentData?.cnicPere || ""} className="h-12 rounded-xl border-slate-100 bg-slate-50/50 font-bold" />
+                        <Label className="text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-300 ml-1">CNIC / ID du parent</Label>
+                        <Input name="cnicPere" defaultValue={currentData?.cnicPere || ""} placeholder="Numéro national" className="h-12 rounded-2xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900/90 font-bold text-slate-800 dark:text-white placeholder:text-slate-400 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-xs transition-all" />
                       </div>
                       <div className="space-y-2">
-                        <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">WhatsApp</Label>
-                        <Input name="whatsapp" defaultValue={currentData?.whatsapp || ""} placeholder="Si différent" className="h-12 rounded-xl border-slate-100 bg-slate-50/50 font-bold" />
-                      </div>
-                    </div>
-
-                    <div className="p-6 rounded-[2rem] bg-indigo-50/30 border border-indigo-100/30 flex items-start gap-4">
-                       <div className="h-10 w-10 rounded-xl bg-indigo-500 flex items-center justify-center shrink-0 shadow-lg shadow-indigo-200">
-                          <Zap size={18} className="text-white" />
-                       </div>
-                       <div>
-                          <h4 className="text-indigo-900 font-black tracking-tight text-base italic">Notification Automatique</h4>
-                          <p className="text-indigo-600/70 text-xs font-medium mt-0.5">Le système enverra un message de bienvenue dès validation.</p>
-                       </div>
-                    </div>
-                  </div>
-
-                <div className={step !== 3 ? "hidden" : "space-y-8 animate-in fade-in slide-in-from-right-8 duration-700"}>
+                        <Label className="text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-300 ml-1">Numéro WhatsApp</Label>
+                        <Input name="whatsapp" defaultValue={currentData?.whatsapp || ""} placeholder="Si différent du mobile SMS" className="h-12 rounded-2xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900/90 font-bold text-slate-800 dark:text-white placeholder:text-slate-400 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-xs transition-all" />
+                      </di                <div className={step !== 3 ? "hidden" : "space-y-8 animate-in fade-in slide-in-from-right-8 duration-500"}>
                     <section className="space-y-6">
-                       <h4 className="text-xs font-black uppercase tracking-widest text-emerald-600 border-b border-emerald-50 pb-2">Planification des Frais</h4>
+                       <div className="flex items-center gap-2 pb-2 border-b border-emerald-100 dark:border-emerald-950/60">
+                         <span className="w-1.5 h-4 rounded-full bg-emerald-600 dark:bg-emerald-400" />
+                         <h4 className="text-xs font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                           Planification des Frais & Scolarité
+                         </h4>
+                       </div>
                        
-                       <div className="grid grid-cols-2 gap-8">
-                          <div className="space-y-3">
-                            <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Scolarité Mensuelle</Label>
+                       <div className="grid grid-cols-2 gap-6">
+                          <div className="space-y-2">
+                            <Label className="text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-300 ml-1">Scolarité Mensuelle</Label>
                             <div className="relative group">
-                              <Input name="fraisMensuels" type="number" value={fraisMensuels} onChange={e => setFraisMensuels(e.target.value)} className="h-16 pl-20 rounded-2xl border-slate-100 bg-slate-50/50 font-black text-3xl text-emerald-600" />
-                              <div className="absolute left-4 top-1/2 -translate-y-1/2 h-8 px-2 rounded-lg bg-emerald-100 flex items-center justify-center">
-                                 <span className="font-black text-[10px] text-emerald-700">FCFA</span>
+                              <Input
+                                name="fraisMensuels"
+                                type="number"
+                                value={fraisMensuels}
+                                onChange={e => setFraisMensuels(e.target.value)}
+                                className="h-16 pl-22 pr-4 rounded-2xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900/90 font-black text-2xl text-emerald-600 dark:text-emerald-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 shadow-xs transition-all"
+                              />
+                              <div className="absolute left-3 top-1/2 -translate-y-1/2 h-9 px-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/50 flex items-center justify-center">
+                                 <span className="font-black text-xs text-emerald-700 dark:text-emerald-300">FCFA</span>
                               </div>
                             </div>
                           </div>
-                          <div className="space-y-3">
-                            <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Droits d'inscription</Label>
+                          <div className="space-y-2">
+                            <Label className="text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-300 ml-1">Droits d'inscription</Label>
                             <div className="relative group">
-                              <Input name="fraisInscription" type="number" value={fraisInscription} onChange={e => setFraisInscription(e.target.value)} className="h-16 pl-20 rounded-2xl border-slate-100 bg-slate-50/50 font-black text-3xl text-indigo-600" />
-                              <div className="absolute left-4 top-1/2 -translate-y-1/2 h-8 px-2 rounded-lg bg-indigo-100 flex items-center justify-center">
-                                 <span className="font-black text-[10px] text-indigo-700">FCFA</span>
-                              </div>
-                            </div>
-                          </div>
-                       </div>
-
-                       <div className="grid grid-cols-2 gap-8">
-                          <div className="space-y-3">
-                            <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">COGES & Carte ID</Label>
-                            <div className="relative group">
-                              <Input name="fraisCogesCard" type="number" value={fraisCogesCard} onChange={e => setFraisCogesCard(e.target.value)} className="h-16 pl-20 rounded-2xl border-slate-100 bg-slate-50/50 font-black text-3xl text-amber-600" />
-                              <div className="absolute left-4 top-1/2 -translate-y-1/2 h-8 px-2 rounded-lg bg-amber-100 flex items-center justify-center">
-                                 <span className="font-black text-[10px] text-amber-700">FCFA</span>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="space-y-3">
-                            <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Transport & Internat</Label>
-                            <div className="relative group">
-                              <Input name="fraisTransportInternat" type="number" value={fraisTransportInternat} onChange={e => setFraisTransportInternat(e.target.value)} className="h-16 pl-20 rounded-2xl border-slate-100 bg-slate-50/50 font-black text-3xl text-blue-600" />
-                              <div className="absolute left-4 top-1/2 -translate-y-1/2 h-8 px-2 rounded-lg bg-blue-100 flex items-center justify-center">
-                                 <span className="font-black text-[10px] text-blue-700">FCFA</span>
+                              <Input
+                                name="fraisInscription"
+                                type="number"
+                                value={fraisInscription}
+                                onChange={e => setFraisInscription(e.target.value)}
+                                className="h-16 pl-22 pr-4 rounded-2xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900/90 font-black text-2xl text-indigo-600 dark:text-indigo-400 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-xs transition-all"
+                              />
+                              <div className="absolute left-3 top-1/2 -translate-y-1/2 h-9 px-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800/50 flex items-center justify-center">
+                                 <span className="font-black text-xs text-indigo-700 dark:text-indigo-300">FCFA</span>
                               </div>
                             </div>
                           </div>
                        </div>
 
-                       <div className="grid grid-cols-2 gap-8">
-                          <div className="space-y-3">
-                            <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Ancien Solde</Label>
-                            <Input name="ancienSolde" type="number" value={ancienSoldeValue} onChange={e => setAncienSoldeValue(e.target.value)} className="h-14 rounded-2xl border-slate-100 bg-slate-50/50 font-bold text-xl" />
+                       <div className="grid grid-cols-2 gap-6">
+                          <div className="space-y-2">
+                            <Label className="text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-300 ml-1">COGES & Carte ID</Label>
+                            <div className="relative group">
+                              <Input
+                                name="fraisCogesCard"
+                                type="number"
+                                value={fraisCogesCard}
+                                onChange={e => setFraisCogesCard(e.target.value)}
+                                className="h-16 pl-22 pr-4 rounded-2xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900/90 font-black text-2xl text-amber-600 dark:text-amber-400 focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 shadow-xs transition-all"
+                              />
+                              <div className="absolute left-3 top-1/2 -translate-y-1/2 h-9 px-3 rounded-xl bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800/50 flex items-center justify-center">
+                                 <span className="font-black text-xs text-amber-700 dark:text-amber-300">FCFA</span>
+                              </div>
+                            </div>
                           </div>
-                          <div className="space-y-3">
-                            <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Statut Initial</Label>
-                            <select name="statut" value={statutValue} onChange={e => setStatutValue(e.target.value)} className="w-full h-14 rounded-2xl border border-slate-100 bg-slate-50/50 px-4 font-bold text-slate-700 outline-none">
-                              <option value="Actif">Actif</option>
+                          <div className="space-y-2">
+                            <Label className="text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-300 ml-1">Transport & Internat</Label>
+                            <div className="relative group">
+                              <Input
+                                name="fraisTransportInternat"
+                                type="number"
+                                value={fraisTransportInternat}
+                                onChange={e => setFraisTransportInternat(e.target.value)}
+                                className="h-16 pl-22 pr-4 rounded-2xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900/90 font-black text-2xl text-sky-600 dark:text-sky-400 focus:border-sky-500 focus:ring-4 focus:ring-sky-500/10 shadow-xs transition-all"
+                              />
+                              <div className="absolute left-3 top-1/2 -translate-y-1/2 h-9 px-3 rounded-xl bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-800/50 flex items-center justify-center">
+                                 <span className="font-black text-xs text-sky-700 dark:text-sky-300">FCFA</span>
+                              </div>
+                            </div>
+                          </div>
+                       </div>
+
+                       <div className="grid grid-cols-2 gap-6">
+                          <div className="space-y-2">
+                            <Label className="text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-300 ml-1">Ancien Solde (Report Arriérés)</Label>
+                            <Input
+                              name="ancienSolde"
+                              type="number"
+                              value={ancienSoldeValue}
+                              onChange={e => setAncienSoldeValue(e.target.value)}
+                              className="h-13 rounded-2xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900/90 font-black text-lg text-slate-800 dark:text-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-xs transition-all"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-300 ml-1">Statut Initial du Dossier</Label>
+                            <select
+                              name="statut"
+                              value={statutValue}
+                              onChange={e => setStatutValue(e.target.value)}
+                              className="w-full h-13 rounded-2xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900/90 px-4 font-black text-slate-800 dark:text-white outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-xs transition-all cursor-pointer"
+                            >
+                              <option value="Actif">✅ Actif</option>
                               <option value="Inactif">Inactif</option>
                               <option value="Diplômé">Diplômé</option>
                               <option value="Exclu">Exclu</option>
@@ -1084,29 +1137,29 @@ export default function StudentDialog({ mode = "add", initialData, trigger, open
                        </div>
                     </section>
 
-                    <div className="bg-slate-900 rounded-[2rem] p-8 text-white relative overflow-hidden shadow-2xl mt-4">
+                    <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 rounded-[2rem] p-7 text-white relative overflow-hidden shadow-2xl mt-4 border border-indigo-500/30">
                        <div className="absolute -bottom-10 -right-10 opacity-5 rotate-12">
-                         <Zap size={180} className="text-indigo-500" />
+                          <Zap size={180} className="text-indigo-400" />
                        </div>
-                       <div className="relative z-10 space-y-6">
+                       <div className="relative z-10 space-y-5">
                           <div className="flex justify-between items-start">
                              <div>
-                                <p className="text-[9px] font-black uppercase tracking-[0.4em] text-indigo-400 mb-1">Finalisation Administrative</p>
-                                <h3 className="text-2xl font-black tracking-tight italic">Prêt pour l'admission ?</h3>
+                                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400 mb-1">Finalisation Administrative</p>
+                                <h3 className="text-2xl font-black tracking-tight text-white">Prêt pour l'admission officielle ?</h3>
                              </div>
-                             <div className="h-12 w-12 rounded-2xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center">
-                                <Check size={24} className="text-indigo-400" />
+                             <div className="h-12 w-12 rounded-2xl bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-indigo-300 shadow-lg shadow-indigo-500/20">
+                                <Check size={24} />
                              </div>
                           </div>
                           
                           <div className="grid grid-cols-2 gap-4">
-                             <div className="p-4 rounded-2xl bg-white/5 border border-white/5">
-                                <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Statut Initial</p>
+                             <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Statut Sélectionné</p>
                                 <p className="font-black text-emerald-400 text-base mt-1 tracking-tight">✅ DOSSIER ACTIF</p>
                              </div>
-                             <div className="p-4 rounded-2xl bg-white/5 border border-white/5">
-                                <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Génération</p>
-                                <p className="font-black text-indigo-300 text-base mt-1 tracking-tight">⚙️ AUTO-ALGO</p>
+                             <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Validation Directe</p>
+                                <p className="font-black text-indigo-300 text-base mt-1 tracking-tight">⚡ AUTO-COMPTABILITÉ</p>
                              </div>
                           </div>
                        </div>
@@ -1116,16 +1169,16 @@ export default function StudentDialog({ mode = "add", initialData, trigger, open
             </div>
 
           {/* Footer */}
-          <div className="shrink-0 px-8 py-5 border-t border-slate-100 bg-slate-50/50 flex justify-between items-center">
+          <div className="shrink-0 px-8 py-5 border-t border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-[#111422] flex justify-between items-center shadow-lg">
             <div>
               {step > 1 && (
                 <Button
                   onClick={prevStep}
                   type="button"
                   variant="ghost"
-                  className="h-11 px-6 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-white border border-transparent hover:border-slate-200 flex items-center gap-2"
+                  className="h-11 px-6 rounded-xl font-black uppercase tracking-wider text-xs hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700/80 flex items-center gap-2 cursor-pointer transition-all"
                 >
-                  <ChevronLeft size={14} /> Précédent
+                  <ChevronLeft size={16} /> Précédent
                 </Button>
               )}
             </div>
@@ -1134,7 +1187,7 @@ export default function StudentDialog({ mode = "add", initialData, trigger, open
                 type="button"
                 variant="ghost"
                 onClick={close}
-                className="h-11 px-6 rounded-xl font-black uppercase tracking-widest text-[10px] text-slate-400 hover:text-slate-600"
+                className="h-11 px-6 rounded-xl font-black uppercase tracking-wider text-xs text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-all"
               >
                 Quitter
               </Button>
@@ -1142,15 +1195,15 @@ export default function StudentDialog({ mode = "add", initialData, trigger, open
                 <Button
                   type="button"
                   onClick={nextStep}
-                  className="h-11 px-10 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-black uppercase tracking-widest text-[10px] shadow-lg transition-all hover:scale-105 active:scale-95 group flex items-center gap-2"
+                  className="h-11 px-9 rounded-xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 hover:from-indigo-900 hover:to-indigo-950 text-white font-black uppercase tracking-wider text-xs shadow-lg shadow-indigo-950/30 transition-all hover:scale-105 active:scale-95 group flex items-center gap-2 cursor-pointer border border-indigo-500/20"
                 >
-                  Suivant <Zap size={12} className="text-amber-400 group-hover:rotate-12 transition-transform" />
+                  Suivant <Zap size={14} className="text-amber-400 group-hover:rotate-12 transition-transform" />
                 </Button>
               ) : (
                 <Button
                   onClick={handleFinalSubmit}
                   disabled={loading}
-                  className="h-11 px-10 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-black uppercase tracking-widest text-[10px] shadow-lg shadow-indigo-200 transition-all hover:scale-105 active:scale-95"
+                  className="h-11 px-9 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-black uppercase tracking-wider text-xs shadow-xl shadow-indigo-500/30 transition-all hover:scale-105 active:scale-95 cursor-pointer border border-indigo-400/30"
                 >
                   {loading ? "TRAITEMENT..." : mode === "edit" ? "METTRE À JOUR" : "VALIDER L'INSCRIPTION"}
                 </Button>
