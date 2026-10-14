@@ -147,7 +147,7 @@ export async function POST(request: NextRequest) {
             admin: true,
             superAdmin: cleanUsername.includes("superadmin") || userMeta.role === "super_admin",
             role: { roleName: cleanUsername.includes("superadmin") ? "Super Admin" : "Administrateur" },
-            school: { id: 9, name: "GROUP AIIU-NIGER", slug: "group-aiiu-niger" },
+            school: userMeta.school_id ? { id: userMeta.school_id, name: userMeta.school_name || "École", slug: "ecole" } : null,
           };
         }
       } catch (supaErr) {
