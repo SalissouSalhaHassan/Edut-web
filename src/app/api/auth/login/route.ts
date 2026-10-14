@@ -231,10 +231,29 @@ export async function POST(request: NextRequest) {
       },
     };
 
+    // Background sync to Supabase (and capture session token if available)
+    let supabaseSession: any = null;
+    try {
+      const supabase = await createClient();
+      const userLoginEmail = authenticatedUser.utilisateur.includes("@")
+        ? authenticatedUser.utilisateur
+        : `${authenticatedUser.utilisateur}@test.com`;
+      const { data: supaAuthData } = await supabase.auth.signInWithPassword({
+        email: userLoginEmail,
+        password: rawPassword,
+      });
+      if (supaAuthData?.session) {
+        supabaseSession = supaAuthData.session;
+      }
+    } catch (_) {}
+
     const response = NextResponse.json({
       success: true,
       redirectUrl: "/dashboard",
       user: sessionPayload,
+      token: supabaseSession?.access_token || null,
+      refreshToken: supabaseSession?.refresh_token || null,
+      session: supabaseSession || null,
     });
 
     response.cookies.set("edut_session_user", JSON.stringify(sessionPayload), {
@@ -252,18 +271,6 @@ export async function POST(request: NextRequest) {
         maxAge: 60 * 60 * 24 * 7,
         httpOnly: true,
         sameSite: "lax",
-      });
-    } catch (_) {}
-
-    // Background sync to Supabase (safe & non-blocking)
-    try {
-      const supabase = await createClient();
-      const userLoginEmail = authenticatedUser.utilisateur.includes("@")
-        ? authenticatedUser.utilisateur
-        : `${authenticatedUser.utilisateur}@test.com`;
-      await supabase.auth.signInWithPassword({
-        email: userLoginEmail,
-        password: rawPassword,
       });
     } catch (_) {}
 
