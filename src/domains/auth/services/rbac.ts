@@ -821,14 +821,22 @@ export function isStudentInEducationalLevel(
   if (!activeLevel || hasAllEducationalLevels(activeLevel)) return true;
   if (!student) return false;
 
+  const parts = parseEducationalLevels(activeLevel);
+  if (parts.length > 1) {
+    return parts.some((p) => isStudentInEducationalLevel(student, p));
+  }
+
   const targetFamily = getEducationalLevelFamily(activeLevel);
   if (!targetFamily) return true;
 
   // 1. Direct match on student.educationalLevel if present and specific
   if (student.educationalLevel && !hasAllEducationalLevels(student.educationalLevel)) {
-    const studentFamily = getEducationalLevelFamily(student.educationalLevel);
-    if (studentFamily) {
-      return studentFamily === targetFamily;
+    const studentParts = parseEducationalLevels(student.educationalLevel);
+    for (const sp of studentParts) {
+      const studentFamily = getEducationalLevelFamily(sp);
+      if (studentFamily && studentFamily === targetFamily) {
+        return true;
+      }
     }
   }
 
