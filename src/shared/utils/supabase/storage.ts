@@ -40,33 +40,71 @@ export async function uploadStudentPhoto(
     finalFileName = finalFileName.replace(/\.[^/.]+$/, "") + ".webp";
   }
 
-  // 2. Upload with 1 year immutable cache header
-  const { data, error } = await supabase.storage
-    .from("student-photos")
-    .upload(finalFileName, uploadBlob, {
-      contentType: contentType,
-      cacheControl: "31536000, public, immutable",
-      upsert: true,
+  // 2. Try direct client upload with 1 year immutable cache header
+  try {
+    const { data, error } = await supabase.storage
+      .from("student-photos")
+      .upload(finalFileName, uploadBlob, {
+        contentType: contentType,
+        cacheControl: "31536000, public, immutable",
+        upsert: true,
+      });
+
+    if (!error && data?.path) {
+      const { data: publicUrlData } = supabase.storage
+        .from("student-photos")
+        .getPublicUrl(data.path);
+
+      if (publicUrlData?.publicUrl) {
+        return publicUrlData.publicUrl;
+      }
+    }
+  } catch (clientErr) {
+    console.warn("Direct client storage upload failed, attempting server-side upload fallback:", clientErr);
+  }
+
+  // 3. Fallback: upload via secure server endpoint (/api/students/upload-photo)
+  try {
+    let base64String = "";
+    if (typeof imageData === "string" && imageData.startsWith("data:image")) {
+      base64String = imageData;
+    } else {
+      const reader = new FileReader();
+      base64String = await new Promise((resolve, reject) => {
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(uploadBlob);
+      });
+    }
+
+    const res = await fetch("/api/students/upload-photo", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        imageBase64: base64String,
+        fileName: finalFileName,
+        contentType,
+      }),
     });
 
-  if (error) {
-    console.error("Supabase Storage Upload Error:", error);
-    throw new Error(error.message || "Failed to upload to Supabase Storage");
+    if (res.ok) {
+      const json = await res.json();
+      if (json.publicUrl) {
+        return json.publicUrl;
+      }
+    } else {
+      const json = await res.json().catch(() => ({}));
+      console.warn("Server photo upload returned non-OK:", json);
+    }
+  } catch (serverErr) {
+    console.error("Server upload fallback also failed:", serverErr);
   }
 
-  if (!data) {
-    throw new Error("No data returned from Supabase upload");
+  // If all cloud uploads fail, return original imageData so student registration never breaks
+  if (typeof imageData === "string") {
+    return imageData;
   }
-
-  const { data: publicUrlData } = supabase.storage
-    .from("student-photos")
-    .getPublicUrl(data.path);
-
-  if (!publicUrlData || !publicUrlData.publicUrl) {
-    throw new Error("Failed to generate public URL for uploaded photo");
-  }
-
-  return publicUrlData.publicUrl;
+  return "";
 }
 
 /**

@@ -398,13 +398,13 @@ export default function StudentDialog({ mode = "add", initialData, trigger, open
       try {
         const { uploadStudentPhoto } = await import("@/shared/utils/supabase/storage");
         const fileName = `${numAdmission}_${Date.now()}.jpg`;
-        photoPath = await uploadStudentPhoto(preview, fileName);
+        const uploadedUrl = await uploadStudentPhoto(preview, fileName);
+        if (uploadedUrl) {
+          photoPath = uploadedUrl;
+        }
       } catch (err: any) {
-        console.error("Detailed Upload Error:", err);
-        const errorMsg = err.message || "Erreur inconnue";
-        setError(`Erreur de photo : ${errorMsg}. Vérifiez que le bucket 'student-photos' existe dans Supabase.`);
-        setLoading(false);
-        return;
+        console.warn("Non-fatal photo upload error, keeping local image:", err);
+        // Student creation will still succeed using local image preview
       }
     }
 
