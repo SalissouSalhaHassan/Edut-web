@@ -247,11 +247,33 @@ export async function POST(request: NextRequest) {
       }
     } catch (_) {}
 
+    // If Supabase didn't provide an access token (e.g. user exists in postgres users but not supabase auth),
+    // issue a signed edut_token containing the user's ID, email and schoolId
+    let effectiveToken = supabaseSession?.access_token || null;
+    if (!effectiveToken) {
+      const tokenPayload = {
+        sub: sessionPayload.supabaseId || `edut_${sessionPayload.id}`,
+        id: sessionPayload.id,
+        email: sessionPayload.utilisateur,
+        school_id: sessionPayload.schoolId,
+        role: sessionPayload.role?.roleName || "Administrateur",
+        iss: "edut_server",
+        aud: "authenticated",
+        iat: Math.floor(Date.now() / 1000),
+        exp: Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60), // 30 days
+      };
+      const headerB64 = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");
+      const payloadB64 = Buffer.from(JSON.stringify(tokenPayload)).toString("base64url");
+      const sigSecret = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "edut_secure_secret";
+      const signature = crypto.createHmac("sha256", sigSecret).update(`${headerB64}.${payloadB64}`).digest("base64url");
+      effectiveToken = `${headerB64}.${payloadB64}.${signature}`;
+    }
+
     const response = NextResponse.json({
       success: true,
       redirectUrl: "/dashboard",
       user: sessionPayload,
-      token: supabaseSession?.access_token || null,
+      token: effectiveToken,
       refreshToken: supabaseSession?.refresh_token || null,
       session: supabaseSession || null,
     });

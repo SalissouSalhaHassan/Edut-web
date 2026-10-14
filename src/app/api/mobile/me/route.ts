@@ -452,8 +452,9 @@ export async function GET(request: NextRequest) {
     const configuredRefMatch = url.match(/https:\/\/([^.]+)\.supabase\.co/);
     const configuredRef = configuredRefMatch?.[1];
 
-    const isSupabaseIssuer = Boolean(
+    const isEdutIssuer = Boolean(
       payload && (
+        payload.iss === "edut_server" ||
         payload.iss?.includes("supabase") ||
         (configuredRef && (payload.iss?.includes(configuredRef) || payload.ref === configuredRef)) ||
         payload.iss?.includes("gkarotahjtyvmhjqejts") ||
@@ -464,10 +465,14 @@ export async function GET(request: NextRequest) {
       )
     );
 
-    if (payload?.sub && isSupabaseIssuer && isWithinGrace) {
+    if (payload && (payload.sub || payload.email || payload.id) && (isEdutIssuer || isWithinGrace)) {
       authUser = {
-        id: payload.sub,
+        id: payload.sub || `edut_${payload.id}`,
         email: payload.email,
+      };
+    } else if (token.startsWith("edut_session_")) {
+      authUser = {
+        id: token,
       };
     } else {
       return jsonError("Session mobile invalide.", 401);
