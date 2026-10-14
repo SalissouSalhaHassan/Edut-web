@@ -577,7 +577,7 @@ export async function GET(request: NextRequest) {
     profile: {
       userId: String(dbUser.id),
       activeSession,
-      supabaseId: data.user.id,
+      supabaseId: authUser.id || dbUser.supabaseId || "00000000-0000-0000-0000-000000000000",
       email: dbUser.utilisateur || email,
       name: dbUser.nomPrenom,
       role: mobileRole,

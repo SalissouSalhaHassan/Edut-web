@@ -114,13 +114,13 @@ export async function login(formData: LoginFormData) {
           : null;
 
       const sessionPayload = {
-        id: authenticatedUser.id || 28,
-        schoolId: authenticatedUser.schoolId || 9,
+        id: authenticatedUser.id,
+        schoolId: authenticatedUser.schoolId ?? null,
         utilisateur: authenticatedUser.utilisateur || cleanUsername,
         supabaseId: authenticatedUser.supabaseId || "00000000-0000-0000-0000-000000000000",
-        nomPrenom: authenticatedUser.nomPrenom || "Admin GROUP AIIU-NIGER",
+        nomPrenom: authenticatedUser.nomPrenom || "Utilisateur",
         motDePasse: "SUPABASE_AUTH",
-        admin: Boolean(authenticatedUser.admin ?? true),
+        admin: Boolean(authenticatedUser.admin ?? false),
         superAdmin: Boolean(authenticatedUser.superAdmin ?? false),
         langue: authenticatedUser.langue || "FR",
         roleId: authenticatedUser.roleId || 1,
@@ -132,14 +132,22 @@ export async function login(formData: LoginFormData) {
         studentId: authenticatedUser.studentId || null,
         employeeId: authenticatedUser.employeeId || null,
         role: {
-          roleName: authenticatedUser.role?.roleName || "Administrateur",
+          roleName: authenticatedUser.role?.roleName || (authenticatedUser.superAdmin ? "Super Admin" : "Administrateur"),
           permissions: [],
         },
-        school: {
-          id: authenticatedUser.school?.id || authenticatedUser.schoolId || 9,
-          name: authenticatedUser.school?.name || "GROUP AIIU-NIGER",
-          slug: authenticatedUser.school?.slug || "group-aiiu-niger",
-        },
+        school: authenticatedUser.school
+          ? {
+              id: authenticatedUser.school.id,
+              name: authenticatedUser.school.name,
+              slug: authenticatedUser.school.slug,
+            }
+          : authenticatedUser.schoolId
+          ? {
+              id: authenticatedUser.schoolId,
+              name: "Mon École",
+              slug: "mon-ecole",
+            }
+          : null,
       };
 
       (cookieStore as any).set("edut_session_user", JSON.stringify(sessionPayload), {
