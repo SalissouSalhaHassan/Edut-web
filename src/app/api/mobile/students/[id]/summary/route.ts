@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { and, eq, sql, inArray } from "drizzle-orm";
 import { readDb } from "@/infrastructure/database";
 import {
@@ -127,6 +127,22 @@ export async function GET(request: NextRequest, props: { params: Promise<{ id: s
         )
       ).sort();
 
+      const classesDetails = filteredClasses.map((c) => {
+        const matchedSection = sections.find((s) => s.id === c.sectionId);
+        return {
+          id: c.id,
+          className: c.className,
+          sectionName: matchedSection?.sectionName || "",
+          educationalLevel: matchedSection?.educationalLevel || "",
+          scolariteMensuelle: c.scolariteMensuelle ?? 0,
+          droitsInscription: c.droitsInscription ?? 0,
+          cogesCarteId: c.cogesCarteId ?? 0,
+          transportInternat: c.transportInternat ?? 0,
+          ancienSolde: c.ancienSolde ?? 0,
+          statutInitial: c.statutInitial || "Actif",
+        };
+      });
+
       const sessionNames = Array.from(
         new Set(
           sessionsList
@@ -140,6 +156,7 @@ export async function GET(request: NextRequest, props: { params: Promise<{ id: s
         levels,
         sections: sectionNames,
         classes: classNames,
+        classesDetails,
         sessions: sessionNames.length > 0 ? sessionNames : ["2026-2027"],
       });
     }
