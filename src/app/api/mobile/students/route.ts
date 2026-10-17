@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { db, readDb } from "@/infrastructure/database";
 import { students } from "@/infrastructure/database/schema/students";
+import { studentFees } from "@/infrastructure/database/schema/finance";
 import { classSubjects, schoolClasses, schoolSessions } from "@/infrastructure/database/schema/academics";
 import { getMobileUser, mobileJsonError } from "../_lib/auth";
 import { getUserRoleType, getCompatibleLevels, normalizeLevel, hasAllEducationalLevels, isStudentInEducationalLevel } from "@/domains/auth/services/rbac";
@@ -179,6 +180,9 @@ export async function POST(request: NextRequest) {
         fingerprintHash: payload.fingerprint_hash || payload.fingerprintHash || null,
       };
 
+      let savedStudentId: number | null = studentId;
+      let studentFeeAccount: any = null;
+
       if (studentId) {
         // Verify same school
         const exist = await readDb.query.students.findFirst({
@@ -191,10 +195,59 @@ export async function POST(request: NextRequest) {
 
         await db.update(students).set(data).where(eq(students.id, studentId));
       } else {
-        await db.insert(students).values(data);
+        const [inserted] = await db.insert(students).values(data).returning({ id: students.id });
+        if (inserted) {
+          savedStudentId = inserted.id;
+
+          // Automatically initialize student fee account
+          const regFee = Number(data.fraisInscription || 0);
+          const rawMonthly = Number(data.fraisMensuels || 0);
+          const isPrimaireOrMater = String(data.educationalLevel || "").toLowerCase().includes("prim") ||
+            String(data.educationalLevel || "").toLowerCase().includes("mater") ||
+            String(data.classe || "").toLowerCase().includes("ce") ||
+            String(data.classe || "").toLowerCase().includes("cm") ||
+            String(data.classe || "").toLowerCase().includes("ci") ||
+            String(data.classe || "").toLowerCase().includes("cp");
+
+          let totalExpected: number;
+          if (rawMonthly >= 30000 || (isPrimaireOrMater && rawMonthly >= 20000)) {
+            totalExpected = regFee + rawMonthly;
+          } else if (rawMonthly > 0) {
+            totalExpected = regFee + (rawMonthly * 9);
+          } else {
+            totalExpected = isPrimaireOrMater ? 45000 : 0;
+          }
+
+          if (isPrimaireOrMater && (totalExpected > 75000 || totalExpected <= 0)) {
+            totalExpected = 45000;
+          }
+
+          if (totalExpected > 0) {
+            const [feeRecord] = await db
+              .insert(studentFees)
+              .values({
+                schoolId: data.schoolId,
+                studentId: savedStudentId,
+                totalExpected,
+                totalPaid: 0,
+                balance: totalExpected,
+                status: "Impayé",
+              })
+              .returning();
+            studentFeeAccount = feeRecord;
+          }
+        }
       }
 
-      return NextResponse.json({ success: true });
+      return NextResponse.json({
+        success: true,
+        studentId: savedStudentId,
+        feeId: studentFeeAccount?.id || null,
+        data: {
+          id: savedStudentId,
+          feeId: studentFeeAccount?.id || null,
+        },
+      });
     }
 
     if (action === "promoteStudents") {
