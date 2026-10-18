@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { and, eq, sql, desc, inArray } from "drizzle-orm";
+import { and, eq, sql, desc, inArray, or, isNull } from "drizzle-orm";
 import { db, readDb } from "@/infrastructure/database";
 import { studentFees, feePayments } from "@/infrastructure/database/schema/finance";
 import { students } from "@/infrastructure/database/schema/students";
@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
 
     const conditions: any[] = [
       eq(studentFees.schoolId, targetSchoolId),
-      eq(studentFees.sessionId, sessionId),
+      or(eq(studentFees.sessionId, sessionId), isNull(studentFees.sessionId)),
     ];
 
     if ((roleType === "parent" || roleType === "eleve") && user.studentId) {

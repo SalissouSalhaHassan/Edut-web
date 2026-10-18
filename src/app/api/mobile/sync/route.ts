@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { eq, and } from "drizzle-orm";
-import { db } from "@/infrastructure/database";
+import { db, readDb } from "@/infrastructure/database";
 import { getMobileUser, mobileJsonError, canUseMobileModule } from "../_lib/auth";
 import { studentAttendance } from "@/infrastructure/database/schema/attendance";
 import { cahierTextes } from "@/infrastructure/database/schema/pedagogie";
-import { studentResults } from "@/infrastructure/database/schema/academics";
+import { studentResults, schoolSessions } from "@/infrastructure/database/schema/academics";
 import { feePayments, studentFees, expenses, expenseCategories } from "@/infrastructure/database/schema/finance";
 import { students } from "@/infrastructure/database/schema/students";
 import { idempotencyLogs, syncConflicts } from "@/infrastructure/database/schema/audit";
@@ -367,11 +367,24 @@ export async function POST(request: NextRequest) {
 
               if (totalExpected <= 0) totalExpected = 45000;
 
+              let targetSessionId = data.sessionId ? Number(data.sessionId) : (data.session_id ? Number(data.session_id) : null);
+              if (!targetSessionId && schoolId) {
+                const activeSession = await readDb.query.schoolSessions.findFirst({
+                  where: and(
+                    eq(schoolSessions.schoolId, schoolId),
+                    eq(schoolSessions.status, "Actif")
+                  ),
+                  columns: { id: true }
+                });
+                targetSessionId = activeSession?.id || null;
+              }
+
               [studentFeeAccount] = await db
                 .insert(studentFees)
                 .values({
                   schoolId,
                   studentId: created.id,
+                  sessionId: targetSessionId,
                   totalExpected,
                   totalPaid: 0,
                   balance: totalExpected,

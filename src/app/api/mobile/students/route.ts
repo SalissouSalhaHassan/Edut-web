@@ -223,11 +223,24 @@ export async function POST(request: NextRequest) {
           }
 
           if (totalExpected > 0) {
+            let targetSessionId = payload.session_id ? Number(payload.session_id) : (payload.sessionId ? Number(payload.sessionId) : null);
+            if (!targetSessionId && data.schoolId) {
+              const activeSession = await readDb.query.schoolSessions.findFirst({
+                where: and(
+                  eq(schoolSessions.schoolId, data.schoolId),
+                  eq(schoolSessions.status, "Actif")
+                ),
+                columns: { id: true }
+              });
+              targetSessionId = activeSession?.id || null;
+            }
+
             const [feeRecord] = await db
               .insert(studentFees)
               .values({
                 schoolId: data.schoolId,
                 studentId: savedStudentId,
+                sessionId: targetSessionId,
                 totalExpected,
                 totalPaid: 0,
                 balance: totalExpected,

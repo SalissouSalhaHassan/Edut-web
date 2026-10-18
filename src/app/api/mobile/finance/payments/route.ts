@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { db, readDb } from "@/infrastructure/database";
 import { studentFees, feePayments } from "@/infrastructure/database/schema/finance";
 import { students } from "@/infrastructure/database/schema/students";
+import { schoolSessions } from "@/infrastructure/database/schema/academics";
 import { getMobileUser, mobileJsonError } from "../../_lib/auth";
 import { getUserRoleType, hasAllEducationalLevels, isStudentInEducationalLevel } from "@/domains/auth/services/rbac";
 
@@ -326,12 +327,25 @@ export async function POST(request: NextRequest) {
         });
 
         if (!currentFee) {
+          let paymentSessionId = payload.sessionId ? Number(payload.sessionId) : (payload.session_id ? Number(payload.session_id) : null);
+          if (!paymentSessionId && effSchool) {
+            const activeSession = await readDb.query.schoolSessions.findFirst({
+              where: and(
+                eq(schoolSessions.schoolId, effSchool),
+                eq(schoolSessions.status, "Actif")
+              ),
+              columns: { id: true }
+            });
+            paymentSessionId = activeSession?.id || null;
+          }
+
           const expectedToSet = Number(totalExpected || 45000);
           const [newFeeAccount] = await db
             .insert(studentFees)
             .values({
               schoolId: effSchool,
               studentId: matchedStudent.id,
+              sessionId: paymentSessionId,
               totalExpected: expectedToSet,
               totalPaid: 0,
               totalReduction: 0,
@@ -350,11 +364,24 @@ export async function POST(request: NextRequest) {
     // If still no valid feeId, find or create default fee record for school to prevent sync crash
     if (!resolvedFeeId) {
       const effSchool = Number(targetSchoolId);
+      let paymentSessionId = payload.sessionId ? Number(payload.sessionId) : (payload.session_id ? Number(payload.session_id) : null);
+      if (!paymentSessionId && effSchool) {
+        const activeSession = await readDb.query.schoolSessions.findFirst({
+          where: and(
+            eq(schoolSessions.schoolId, effSchool),
+            eq(schoolSessions.status, "Actif")
+          ),
+          columns: { id: true }
+        });
+        paymentSessionId = activeSession?.id || null;
+      }
+
       const expectedToSet = Number(totalExpected || 45000);
       const [fallbackFee] = await db
         .insert(studentFees)
         .values({
           schoolId: effSchool,
+          sessionId: paymentSessionId,
           totalExpected: expectedToSet,
           totalPaid: 0,
           totalReduction: 0,
