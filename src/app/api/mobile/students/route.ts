@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
     // ── Level scoping for level_director / level_comptable / level_caissier ──
     const activeLevel = user.educationalLevel;
     const isLevelScoped = Boolean(
-      (activeLevel && !hasAllEducationalLevels(activeLevel) && !user.admin && !user.superAdmin && roleType !== "admin" && roleType !== "director" && roleType !== "directeur" && roleType !== "general_director") ||
+      (activeLevel && !hasAllEducationalLevels(activeLevel) && !user.admin && !user.superAdmin && roleType !== "super_admin" && roleType !== "directeur" && roleType !== "general_director") ||
       roleType === "level_director" ||
       roleType === "level_comptable" ||
       roleType === "level_caissier"
