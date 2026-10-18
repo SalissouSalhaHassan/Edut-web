@@ -6,6 +6,7 @@ import { getActiveBranchData } from "@/domains/auth/services/school";
 import { getUnreadNotificationsCount } from "@/domains/messaging/actions/notifications.actions";
 import { NavigationProgressProvider } from "@/components/providers/navigation-progress";
 import SyncStatus from "@/components/common/SyncStatus";
+import OfflineTopBanner from "@/components/common/OfflineTopBanner";
 import { InactivityLockOverlay } from "@/components/auth/InactivityLockOverlay";
 
 export const dynamic = "force-dynamic";
@@ -53,14 +54,15 @@ export default async function DashboardLayout({
   };
 
   return (
-    <div className="h-screen max-h-screen overflow-hidden bg-slate-100 dark:bg-[#08090e] gradient-bg font-sans relative transition-colors duration-300" dir="ltr">
+    <div className="h-screen max-h-screen overflow-hidden bg-slate-100 dark:bg-[#08090e] gradient-bg font-sans relative transition-colors duration-300 flex flex-col" dir="ltr">
+      <OfflineTopBanner />
       <React.Suspense fallback={null}>
         <NavigationProgressProvider>
           <DashboardLoadingBar />
           <SyncStatus user={user} />
           <InactivityLockOverlay user={user} branding={branding} />
 
-          <div className="flex h-full max-h-full gap-4 p-4 overflow-hidden">
+          <div className="flex h-full max-h-full gap-4 p-4 overflow-hidden flex-1">
             <DashboardSidebar 
               user={user} 
               branch={branchData} 

@@ -8,10 +8,16 @@ import { Input } from "@/components/ui/input";
 import { localDb, type OutboxAction } from "@/infrastructure/local-db/dexie";
 import { toast } from "sonner";
 
-export default function ConflitsClient() {
+interface ConflitsClientProps {
+  initialServerConflicts?: any[];
+}
+
+export default function ConflitsClient({ initialServerConflicts = [] }: ConflitsClientProps) {
   const [selectedItem, setSelectedItem] = useState<OutboxAction | null>(null);
   const [isMerging, setIsMerging] = useState(false);
   const [mergeForm, setMergeForm] = useState<Record<string, any>>({});
+  const [activeTab, setActiveTab] = useState<"local" | "server">("local");
+  const [serverList, setServerList] = useState<any[]>(initialServerConflicts);
   
   const conflicts = useLiveQuery(() => localDb.outbox.where("status").equals("conflict").toArray(), []) || [];
 
