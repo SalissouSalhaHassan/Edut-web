@@ -13,7 +13,9 @@ export async function GET(request: NextRequest) {
   const { user, response } = await getMobileUser(request);
   if (response || !user) return response || mobileJsonError("Non autorisé", 401);
 
-  const schoolId = user.schoolId;
+  const url = new URL(request.url);
+  const requestedSchoolId = url.searchParams.get("schoolId");
+  const schoolId = user.schoolId || (requestedSchoolId ? parseInt(requestedSchoolId, 10) : (user.superAdmin ? 9 : null));
   const roleType = await getUserRoleType(user);
 
   try {
@@ -68,7 +70,7 @@ export async function GET(request: NextRequest) {
     // ── Level scoping for level_director / level_comptable / level_caissier ──
     const activeLevel = user.educationalLevel;
     const isLevelScoped = Boolean(
-      (activeLevel && !hasAllEducationalLevels(activeLevel)) ||
+      (activeLevel && !hasAllEducationalLevels(activeLevel) && !user.admin && !user.superAdmin && roleType !== "admin" && roleType !== "director" && roleType !== "directeur" && roleType !== "general_director") ||
       roleType === "level_director" ||
       roleType === "level_comptable" ||
       roleType === "level_caissier"

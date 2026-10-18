@@ -37,7 +37,7 @@ function normalizeDatabaseUrl(value: string | undefined) {
   return url || undefined;
 }
 
-const DEFAULT_PROD_DB_URL = "postgresql://postgres.ntlncvstzmfqbqystpwi:salissou1994S@aws-0-us-west-1.pooler.supabase.com:6543/postgres";
+const DEFAULT_PROD_DB_URL = "postgres://postgres.gkarotahjtyvmhjqejts:salissou1994S@aws-1-eu-central-2.pooler.supabase.com:6543/postgres";
 
 const rawConnectionString = 
   normalizeDatabaseUrl(process.env.REMOTE_DATABASE_URL) || 
