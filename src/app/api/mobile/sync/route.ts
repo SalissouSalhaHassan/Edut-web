@@ -206,49 +206,53 @@ export async function POST(request: NextRequest) {
 
                 if (!studentId || !subjectId) continue;
 
-                const existing = await tx.query.studentResults.findFirst({
-                  where: and(
-                    eq(studentResults.studentId, studentId),
-                    eq(studentResults.subjectId, subjectId),
-                    eq(studentResults.term, term)
-                  ),
-                });
-
-                if (existing) {
-                  // Conflict Detection: check if server value has changed since client operation
-                  const serverMark = Number(existing.examScore || 0);
-                  const isConflicting = serverMark !== mark && op.timestamp && existing.updatedAt && new Date(existing.updatedAt) > new Date(op.timestamp);
-
-                  if (isConflicting) {
-                    await tx.insert(syncConflicts).values({
-                      schoolId,
-                      tableName: "student_results",
-                      recordId: String(existing.id),
-                      fieldName: "examScore",
-                      serverValue: { examScore: serverMark, term },
-                      clientValue: { examScore: mark, term, comment: g.comment },
-                      status: "pending",
-                    }).catch(() => {});
-                  } else {
-                    await tx
-                      .update(studentResults)
-                      .set({
-                        examScore: mark,
-                        observation: g.comment || g.observation || null,
-                        updatedAt: new Date(),
-                      })
-                      .where(eq(studentResults.id, existing.id));
-                  }
-                } else {
-                  await tx.insert(studentResults).values({
-                    studentId,
-                    subjectId,
-                    classId,
-                    sessionId,
-                    term,
-                    examScore: mark,
-                    observation: g.comment || g.observation || null,
+                try {
+                  const existing = await tx.query.studentResults.findFirst({
+                    where: and(
+                      eq(studentResults.studentId, studentId),
+                      eq(studentResults.subjectId, subjectId),
+                      eq(studentResults.term, term)
+                    ),
                   });
+
+                  if (existing) {
+                    // Conflict Detection: check if server value has changed since client operation
+                    const serverMark = Number(existing.examScore || 0);
+                    const isConflicting = serverMark !== mark && op.timestamp && existing.updatedAt && new Date(existing.updatedAt) > new Date(op.timestamp);
+
+                    if (isConflicting) {
+                      await tx.insert(syncConflicts).values({
+                        schoolId,
+                        tableName: "student_results",
+                        recordId: String(existing.id),
+                        fieldName: "examScore",
+                        serverValue: { examScore: serverMark, term },
+                        clientValue: { examScore: mark, term, comment: g.comment },
+                        status: "pending",
+                      }).catch(() => {});
+                    } else {
+                      await tx
+                        .update(studentResults)
+                        .set({
+                          examScore: mark,
+                          observation: g.comment || g.observation || null,
+                          updatedAt: new Date(),
+                        })
+                        .where(eq(studentResults.id, existing.id));
+                    }
+                  } else {
+                    await tx.insert(studentResults).values({
+                      studentId,
+                      subjectId,
+                      classId,
+                      sessionId,
+                      term,
+                      examScore: mark,
+                      observation: g.comment || g.observation || null,
+                    });
+                  }
+                } catch (gErr) {
+                  console.warn(`[sync/save_grades] Handled error for student ${studentId}:`, gErr);
                 }
               }
             });

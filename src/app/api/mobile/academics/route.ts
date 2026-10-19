@@ -850,13 +850,51 @@ export async function POST(request: NextRequest) {
             rank: grade.rank ? String(grade.rank) : (exist?.rank ?? null),
           };
 
-          if (exist?.id) {
-            await db
-              .update(studentResults)
-              .set(dbValues)
-              .where(eq(studentResults.id, exist.id));
-          } else {
-            await db.insert(studentResults).values(dbValues);
+          if (!studentId || isNaN(studentId) || studentId <= 0) {
+            console.warn(`[saveStudentGrades] Skipping invalid studentId: ${grade.student_id}`);
+            return;
+          }
+
+          try {
+            // Fresh verification if record already exists by (studentId, subjectId, classId, term)
+            const freshExist = exist?.id ? exist : await db.query.studentResults.findFirst({
+              where: and(
+                eq(studentResults.studentId, studentId),
+                eq(studentResults.subjectId, subjectId),
+                eq(studentResults.classId, classId),
+                eq(studentResults.term, term)
+              )
+            });
+
+            if (freshExist?.id) {
+              await db
+                .update(studentResults)
+                .set(dbValues)
+                .where(eq(studentResults.id, freshExist.id));
+            } else {
+              await db.insert(studentResults).values(dbValues);
+            }
+          } catch (rowErr: any) {
+            console.error(`[saveStudentGrades] Error saving grade for student ${studentId}:`, rowErr?.message || rowErr);
+            // Fallback attempt: if insert threw (e.g. duplicate key or concurrency), update by unique combination
+            try {
+              const fallbackRecord = await db.query.studentResults.findFirst({
+                where: and(
+                  eq(studentResults.studentId, studentId),
+                  eq(studentResults.subjectId, subjectId),
+                  eq(studentResults.classId, classId),
+                  eq(studentResults.term, term)
+                )
+              });
+              if (fallbackRecord?.id) {
+                await db
+                  .update(studentResults)
+                  .set(dbValues)
+                  .where(eq(studentResults.id, fallbackRecord.id));
+              }
+            } catch (fallbackErr) {
+              console.warn(`[saveStudentGrades] Fallback also failed for student ${studentId}:`, fallbackErr);
+            }
           }
         })
       );
@@ -1003,13 +1041,49 @@ export async function POST(request: NextRequest) {
             weightedScore,
           };
 
-          if (exist?.id) {
-            await db
-              .update(studentResults)
-              .set(dbValues)
-              .where(eq(studentResults.id, exist.id));
-          } else {
-            await db.insert(studentResults).values(dbValues);
+          if (!studentId || isNaN(studentId) || studentId <= 0) {
+            console.warn(`[saveDevoirGrades] Skipping invalid studentId: ${row.student_id}`);
+            return;
+          }
+
+          try {
+            const freshExist = exist?.id ? exist : await db.query.studentResults.findFirst({
+              where: and(
+                eq(studentResults.studentId, studentId),
+                eq(studentResults.subjectId, subjectId),
+                eq(studentResults.classId, classId),
+                eq(studentResults.term, term)
+              )
+            });
+
+            if (freshExist?.id) {
+              await db
+                .update(studentResults)
+                .set(dbValues)
+                .where(eq(studentResults.id, freshExist.id));
+            } else {
+              await db.insert(studentResults).values(dbValues);
+            }
+          } catch (rowErr: any) {
+            console.error(`[saveDevoirGrades] Error saving devoirs for student ${studentId}:`, rowErr?.message || rowErr);
+            try {
+              const fallbackRecord = await db.query.studentResults.findFirst({
+                where: and(
+                  eq(studentResults.studentId, studentId),
+                  eq(studentResults.subjectId, subjectId),
+                  eq(studentResults.classId, classId),
+                  eq(studentResults.term, term)
+                )
+              });
+              if (fallbackRecord?.id) {
+                await db
+                  .update(studentResults)
+                  .set(dbValues)
+                  .where(eq(studentResults.id, fallbackRecord.id));
+              }
+            } catch (fallbackErr) {
+              console.warn(`[saveDevoirGrades] Fallback also failed for student ${studentId}:`, fallbackErr);
+            }
           }
         })
       );
