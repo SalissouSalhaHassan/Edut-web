@@ -808,14 +808,30 @@ export async function POST(request: NextRequest) {
       const dayEnd = new Date(`${cleanDay}T23:59:59.999Z`);
 
       // Fetch existing student attendance records for the target date, class, and subject
-      const existing = await readDb.query.studentAttendance.findMany({
-        where: and(
-          eq(studentAttendance.classId, classId),
-          subjectId ? eq(studentAttendance.subjectId, subjectId) : isNull(studentAttendance.subjectId),
-          gte(studentAttendance.date, dayStart),
-          lte(studentAttendance.date, dayEnd),
-        )
-      });
+      let existing: any[] = [];
+      try {
+        existing = await readDb.query.studentAttendance.findMany({
+          where: and(
+            eq(studentAttendance.classId, classId),
+            subjectId ? eq(studentAttendance.subjectId, subjectId) : isNull(studentAttendance.subjectId),
+            gte(studentAttendance.date, dayStart),
+            lte(studentAttendance.date, dayEnd),
+          )
+        });
+      } catch (findErr) {
+        console.warn("Could not find existing student attendance with date range, falling back:", findErr);
+        try {
+          existing = await readDb.query.studentAttendance.findMany({
+            where: and(
+              eq(studentAttendance.classId, classId),
+              subjectId ? eq(studentAttendance.subjectId, subjectId) : isNull(studentAttendance.subjectId),
+            ),
+            limit: 100,
+          });
+        } catch (_) {
+          existing = [];
+        }
+      }
 
       const existingMap = new Map(existing.map((r) => [r.studentId, r.id]));
 
