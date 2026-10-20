@@ -391,10 +391,14 @@ export async function GET(request: NextRequest) {
         return mobileJsonError("Paramètres manquants", 400);
       }
 
-      const targetDate = new Date(dateStr);
+      const cleanDay = dateStr.includes("T") ? dateStr.split("T")[0] : dateStr.trim();
+      const dayStart = new Date(`${cleanDay}T00:00:00.000Z`);
+      const dayEnd = new Date(`${cleanDay}T23:59:59.999Z`);
+
       const cond = [
         eq(studentAttendance.classId, classId),
-        sql`DATE(${studentAttendance.date}) = DATE(${targetDate.toISOString()})`
+        gte(studentAttendance.date, dayStart),
+        lte(studentAttendance.date, dayEnd),
       ];
 
       if (subjectId) {
@@ -482,6 +486,9 @@ export async function POST(request: NextRequest) {
       }
 
       const targetDate = dateStr ? new Date(dateStr) : new Date();
+      const cleanDay = dateStr ? (dateStr.includes("T") ? dateStr.split("T")[0] : dateStr.trim()) : `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, '0')}-${String(targetDate.getDate()).padStart(2, '0')}`;
+      const dayStart = new Date(`${cleanDay}T00:00:00.000Z`);
+      const dayEnd = new Date(`${cleanDay}T23:59:59.999Z`);
 
       // Check if attendance record exists for today
       const existing = await readDb.query.studentAttendance.findFirst({
@@ -489,7 +496,8 @@ export async function POST(request: NextRequest) {
           eq(studentAttendance.classId, Number(classId)),
           eq(studentAttendance.studentId, Number(studentId)),
           subjectId ? eq(studentAttendance.subjectId, Number(subjectId)) : isNull(studentAttendance.subjectId),
-          sql`DATE(${studentAttendance.date}) = DATE(${targetDate.toISOString()})`
+          gte(studentAttendance.date, dayStart),
+          lte(studentAttendance.date, dayEnd),
         )
       });
 
@@ -795,13 +803,17 @@ export async function POST(request: NextRequest) {
 
       const effectiveSchoolId = cls?.schoolId || schoolId || 1;
       const targetDate = new Date(dateStr);
+      const cleanDay = dateStr.includes("T") ? dateStr.split("T")[0] : dateStr.trim();
+      const dayStart = new Date(`${cleanDay}T00:00:00.000Z`);
+      const dayEnd = new Date(`${cleanDay}T23:59:59.999Z`);
 
       // Fetch existing student attendance records for the target date, class, and subject
       const existing = await readDb.query.studentAttendance.findMany({
         where: and(
           eq(studentAttendance.classId, classId),
           subjectId ? eq(studentAttendance.subjectId, subjectId) : isNull(studentAttendance.subjectId),
-          sql`DATE(${studentAttendance.date}) = DATE(${targetDate.toISOString()})`
+          gte(studentAttendance.date, dayStart),
+          lte(studentAttendance.date, dayEnd),
         )
       });
 
