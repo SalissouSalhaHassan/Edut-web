@@ -6,7 +6,7 @@ import { students } from "@/infrastructure/database/schema/students";
 import { schoolSubjects, schoolClasses, schoolSections, studentResults } from "@/infrastructure/database/schema/academics";
 import { users } from "@/infrastructure/database/schema/auth";
 import { messageLogs } from "@/infrastructure/database/schema/messaging";
-import { eq, and, or, sql, isNull, inArray, desc } from "drizzle-orm";
+import { eq, and, or, sql, isNull, inArray, desc, gte, lte } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { batchAttendanceSchema, BatchAttendanceFormData } from "../validators/attendance.schema";
 // Attendance Security & Student Portal v2.4
@@ -33,11 +33,15 @@ export async function getAttendanceRecords(classId: number, date: string, subjec
       }
     }
 
-    const targetDate = new Date(date);
+    const cleanDay = date.includes("T") ? date.split("T")[0] : date.trim();
+    const dayStart = new Date(`${cleanDay}T00:00:00.000Z`);
+    const dayEnd = new Date(`${cleanDay}T23:59:59.999Z`);
+
     let queryCond = and(
       eq(studentAttendance.classId, classId),
       subjectId ? eq(studentAttendance.subjectId, subjectId) : sql`TRUE`,
-      sql`DATE(${studentAttendance.date}) = DATE(${targetDate.toISOString()})`
+      gte(studentAttendance.date, dayStart),
+      lte(studentAttendance.date, dayEnd)
     );
 
     if (isStudentOrParent) {
@@ -77,13 +81,17 @@ export async function saveBatchAttendance(data: BatchAttendanceFormData) {
     }
 
     const targetDate = new Date(date);
+    const cleanDay = date.includes("T") ? date.split("T")[0] : date.trim();
+    const dayStart = new Date(`${cleanDay}T00:00:00.000Z`);
+    const dayEnd = new Date(`${cleanDay}T23:59:59.999Z`);
 
     // Fetch existing attendance records for the target date, class, and subject
     const existing = await db.query.studentAttendance.findMany({
       where: and(
         eq(studentAttendance.classId, classId),
         subjectId ? eq(studentAttendance.subjectId, subjectId) : isNull(studentAttendance.subjectId),
-        sql`DATE(${studentAttendance.date}) = DATE(${targetDate.toISOString()})`
+        gte(studentAttendance.date, dayStart),
+        lte(studentAttendance.date, dayEnd)
       )
     });
 
@@ -187,7 +195,9 @@ export async function saveBatchAttendance(data: BatchAttendanceFormData) {
 
 export async function getAttendanceStats(date: string, classId?: number | null, subjectId?: number | null) {
   return protectedDbAction("Attendance", "canView", async (user) => {
-    const targetDate = new Date(date);
+    const cleanDay = date.includes("T") ? date.split("T")[0] : date.trim();
+    const dayStart = new Date(`${cleanDay}T00:00:00.000Z`);
+    const dayEnd = new Date(`${cleanDay}T23:59:59.999Z`);
     const roleType = await getUserRoleType(user);
     const roleNameLower = (user.role?.roleName || "").toLowerCase().trim();
     const isStudentOrParent = 
@@ -197,7 +207,10 @@ export async function getAttendanceStats(date: string, classId?: number | null, 
       roleNameLower.includes("parent") || 
       roleNameLower.includes("tuteur");
     
-    let whereClause = sql`DATE(${studentAttendance.date}) = DATE(${targetDate.toISOString()})`;
+    let whereClause = and(
+      gte(studentAttendance.date, dayStart),
+      lte(studentAttendance.date, dayEnd)
+    );
     
     if (isStudentOrParent) {
       if (user.studentId) {
@@ -290,13 +303,17 @@ export async function markAttendanceByAdmission(numAdmission: string, classId: n
     }
 
     const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const dayStart = new Date(`${todayStr}T00:00:00.000Z`);
+    const dayEnd = new Date(`${todayStr}T23:59:59.999Z`);
     
     const existing = await db.query.studentAttendance.findFirst({
       where: and(
         eq(studentAttendance.studentId, student.id),
         eq(studentAttendance.classId, classId),
         subjectId ? eq(studentAttendance.subjectId, subjectId) : isNull(studentAttendance.subjectId),
-        sql`DATE(${studentAttendance.date}) = DATE(${today.toISOString()})`
+        gte(studentAttendance.date, dayStart),
+        lte(studentAttendance.date, dayEnd)
       )
     });
 
