@@ -21,8 +21,9 @@ export async function GET() {
       alterResult = "Column deleted_at added successfully to students table!";
     }
 
-    // 2. Also ensure deleted_at exists in other tables mentioned in Offline-First plan
+    // 2. Also ensure deleted_at and updated_at exist in other tables mentioned in Offline-First plan
     await db.execute(sql`ALTER TABLE "student_attendance" ADD COLUMN IF NOT EXISTS "deleted_at" timestamp`);
+    await db.execute(sql`ALTER TABLE "student_attendance" ADD COLUMN IF NOT EXISTS "updated_at" timestamp DEFAULT now()`);
     await db.execute(sql`ALTER TABLE "student_results" ADD COLUMN IF NOT EXISTS "deleted_at" timestamp`);
     await db.execute(sql`ALTER TABLE "fee_payments" ADD COLUMN IF NOT EXISTS "deleted_at" timestamp`);
 
