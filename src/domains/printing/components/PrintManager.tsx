@@ -3,11 +3,7 @@
 import React, { createContext, useContext, ReactNode, useState } from 'react';
 import { usePrint } from '../hooks/usePrint';
 import { DocumentData, PrintOptions } from '../types';
-import dynamic from 'next/dynamic';
-
-const PrintPreview = dynamic(() => import('./PrintPreview').then(mod => mod.PrintPreview), {
-  ssr: false
-});
+import { PrintPreview } from './PrintPreview';
 
 interface PrintContextType {
   openPrintPreview: (data: DocumentData, options?: Partial<PrintOptions>) => void;

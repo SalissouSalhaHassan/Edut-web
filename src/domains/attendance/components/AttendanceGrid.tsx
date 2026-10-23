@@ -93,7 +93,7 @@ export default function AttendanceGrid({
   const [sendWhatsApp, setSendWhatsApp] = useState(true);
   const [records, setRecords] = useState<Record<number, { status: string; remark: string }>>(
     () => students.reduce((acc, s) => {
-      const existing = initialRecords.find(r => 
+      const existing = initialRecords?.find(r => 
         Number(r.studentId || r.student_id) === Number(s.id) ||
         (r.student?.numAdmission && r.student?.numAdmission === s.numAdmission)
       );
@@ -105,18 +105,28 @@ export default function AttendanceGrid({
     }, {} as any)
   );
 
-  // Sync records when initialRecords prop updates
+  // Sync records whenever students prop or initialRecords updates
   useEffect(() => {
-    if (initialRecords && initialRecords.length > 0) {
-      setRecords(prev => {
-        const next = { ...prev };
-        let hasChanges = false;
-        for (const s of students) {
+    setRecords(prev => {
+      const next = { ...prev };
+      let hasChanges = false;
+      for (const s of students) {
+        if (!next[s.id]) {
+          const match = initialRecords?.find(r => 
+            Number(r.studentId || r.student_id) === Number(s.id) ||
+            (r.student?.numAdmission && r.student?.numAdmission === s.numAdmission)
+          );
+          next[s.id] = {
+            status: match?.status || "Présent",
+            remark: match?.remark || "",
+          };
+          hasChanges = true;
+        } else if (initialRecords && initialRecords.length > 0) {
           const match = initialRecords.find(r => 
             Number(r.studentId || r.student_id) === Number(s.id) ||
             (r.student?.numAdmission && r.student?.numAdmission === s.numAdmission)
           );
-          if (match && match.status) {
+          if (match && match.status && (next[s.id].status !== match.status || next[s.id].remark !== (match.remark || ""))) {
             next[s.id] = {
               status: match.status,
               remark: match.remark || "",
@@ -124,9 +134,9 @@ export default function AttendanceGrid({
             hasChanges = true;
           }
         }
-        return hasChanges ? next : prev;
-      });
-    }
+      }
+      return hasChanges ? next : prev;
+    });
   }, [initialRecords, students]);
 
   useEffect(() => {
@@ -192,14 +202,20 @@ export default function AttendanceGrid({
   const updateStatus = (studentId: number, status: string) => {
     setRecords(prev => ({
       ...prev,
-      [studentId]: { ...prev[studentId], status }
+      [studentId]: {
+        status,
+        remark: prev[studentId]?.remark || "",
+      }
     }));
   };
 
   const updateRemark = (studentId: number, remark: string) => {
     setRecords(prev => ({
       ...prev,
-      [studentId]: { ...prev[studentId], remark }
+      [studentId]: {
+        status: prev[studentId]?.status || "Présent",
+        remark,
+      }
     }));
   };
 
@@ -460,7 +476,9 @@ export default function AttendanceGrid({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50 dark:divide-slate-800/60">
-                  {filteredStudents.map((s) => (
+                  {filteredStudents.map((s) => {
+                    const rec = records[s.id] || { status: "Présent", remark: "" };
+                    return (
                     <tr key={s.id} className="group hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
                       <td className="px-8 py-5">
                         <span className="font-mono font-bold text-primary bg-primary/5 dark:bg-indigo-500/10 dark:text-indigo-400 px-3 py-1 rounded-lg">
@@ -471,7 +489,7 @@ export default function AttendanceGrid({
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="font-bold text-slate-900 dark:text-white">{s.nomEtudiant}</p>
                           <AttendanceStatusBadge status={batchStatus} />
-                          {records[s.id].remark?.includes("Empreinte") && (
+                          {rec.remark?.includes("Empreinte") && (
                             <span className="px-2 py-0.5 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 text-[9px] font-black uppercase tracking-wider rounded-full flex items-center gap-1">
                               <Fingerprint size={11} /> Empreinte Validée
                             </span>
@@ -488,8 +506,8 @@ export default function AttendanceGrid({
                             { val: "Empreinte", label: "Empreinte", icon: Fingerprint, color: "bg-indigo-600", text: "text-indigo-600" },
                           ].map((opt) => {
                             const isSelected = opt.val === "Empreinte"
-                              ? records[s.id].remark?.includes("Empreinte")
-                              : records[s.id].status === opt.val && !records[s.id].remark?.includes("Empreinte");
+                              ? rec.remark?.includes("Empreinte")
+                              : rec.status === opt.val && !rec.remark?.includes("Empreinte");
 
                             return (
                               <button
@@ -504,7 +522,7 @@ export default function AttendanceGrid({
                                     });
                                   } else {
                                     updateStatus(s.id, opt.val);
-                                    if (records[s.id].remark?.includes("Empreinte")) {
+                                    if (rec.remark?.includes("Empreinte")) {
                                       updateRemark(s.id, "");
                                     }
                                   }
@@ -527,14 +545,15 @@ export default function AttendanceGrid({
                       <td className="px-8 py-5">
                         <Input
                           placeholder="..."
-                          value={records[s.id].remark}
+                          value={rec.remark || ""}
                           disabled={!canEdit}
                           onChange={(e) => updateRemark(s.id, e.target.value)}
                           className="rounded-xl border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 h-10 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:ring-primary/20 disabled:bg-slate-50 disabled:dark:bg-slate-950 disabled:text-slate-400 disabled:dark:text-slate-600"
                         />
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
