@@ -23,13 +23,26 @@ export default function GlobalAppError({
         </div>
 
         <div className="space-y-2">
-          <h1 className="text-xl font-black text-white tracking-tight">
-            Une erreur inattendue est survenue
-          </h1>
-          <p className="text-xs font-medium text-slate-400 leading-relaxed">
-            L'application a rencontré un problème temporaire. Cliquez sur Réessayer ou retournez à l'accueil.
-          </p>
-          {error?.message && (
+          {error?.message?.includes("Failed to load chunk") || error?.name === "ChunkLoadError" ? (
+            <>
+              <h1 className="text-xl font-black text-white tracking-tight">
+                Composant non encore initialisé hors-ligne
+              </h1>
+              <p className="text-xs font-medium text-slate-400 leading-relaxed">
+                Cette vue nécessite des modules qui n'ont pas encore été téléchargés dans votre mémoire locale. Veuillez vous connecter brièvement à Internet (quelques secondes) pour synchroniser toutes les vues.
+              </p>
+            </>
+          ) : (
+            <>
+              <h1 className="text-xl font-black text-white tracking-tight">
+                Une erreur inattendue est survenue
+              </h1>
+              <p className="text-xs font-medium text-slate-400 leading-relaxed">
+                L'application a rencontré un problème temporaire. Cliquez sur Réessayer ou retournez à l'accueil.
+              </p>
+            </>
+          )}
+          {error?.message && !error.message.includes("Failed to load chunk") && (
             <div className="mt-3 p-3 bg-slate-900/80 rounded-xl text-left text-[11px] font-mono text-rose-300 overflow-x-auto border border-slate-700">
               {error.message}
             </div>

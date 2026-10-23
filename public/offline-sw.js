@@ -87,15 +87,32 @@ self.addEventListener("fetch", (event) => {
 
   if (isStatic) {
     event.respondWith(
-      caches.match(request).then((cached) => {
+      caches.match(request).then(async (cached) => {
         if (cached) return cached;
-        return fetch(request).then((response) => {
-          if (response.ok) {
-            const copy = response.clone();
-            caches.open(CACHE_VERSION).then((cache) => cache.put(request, copy));
-          }
-          return response;
-        });
+        const pathnameCached = await caches.match(url.pathname);
+        if (pathnameCached) return pathnameCached;
+
+        return fetch(request)
+          .then((response) => {
+            if (response.ok) {
+              const copy = response.clone();
+              caches.open(CACHE_VERSION).then((cache) => {
+                cache.put(request, copy.clone());
+                cache.put(url.pathname, copy);
+              });
+            }
+            return response;
+          })
+          .catch(async () => {
+            // Check other caches as fallback for chunks
+            const keys = await caches.keys();
+            for (const key of keys) {
+              const c = await caches.open(key);
+              const m = (await c.match(request)) || (await c.match(url.pathname));
+              if (m) return m;
+            }
+            return new Response("", { status: 404, statusText: "Offline chunk missing" });
+          });
       })
     );
     return;

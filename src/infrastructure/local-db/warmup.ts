@@ -97,11 +97,33 @@ export async function warmupOfflineReferences() {
             if (!match) {
               const resp = await fetch(pageUrl, { credentials: "same-origin" });
               if (resp && resp.ok) {
-                await cache.put(pageUrl, resp.clone());
-                await cache.put(new Request(pageUrl, { credentials: "same-origin" }), resp);
+                const htmlText = await resp.text();
+                const htmlResp = new Response(htmlText, {
+                  headers: resp.headers,
+                  status: resp.status,
+                  statusText: resp.statusText,
+                });
+                await cache.put(pageUrl, htmlResp.clone());
+                await cache.put(new Request(pageUrl, { credentials: "same-origin" }), htmlResp);
+
+                // Extract and pre-cache all JS/CSS chunks required to render this page offline
+                const chunkMatches = htmlText.match(/\/_next\/static\/[a-zA-Z0-9_\-\.\/]+\.(?:js|css)/g) || [];
+                const uniqueChunks = Array.from(new Set(chunkMatches));
+                for (const chunkUrl of uniqueChunks) {
+                  try {
+                    const chunkMatch = (await cache.match(chunkUrl)) || (await cache.match(new Request(chunkUrl)));
+                    if (!chunkMatch) {
+                      const cResp = await fetch(chunkUrl);
+                      if (cResp && cResp.ok) {
+                        await cache.put(chunkUrl, cResp.clone());
+                        await cache.put(new Request(chunkUrl), cResp);
+                      }
+                    }
+                  } catch (_) {}
+                }
               }
-              // 300ms pause to ensure zero server strain
-              await new Promise((resolve) => setTimeout(resolve, 300));
+              // 200ms pause to keep network gentle
+              await new Promise((resolve) => setTimeout(resolve, 200));
             }
           } catch (_) {}
         }
