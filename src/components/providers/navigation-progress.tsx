@@ -29,10 +29,12 @@ export function NavigationProgressProvider({ children }: { children: React.React
 
   const timerRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
   const finishTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const watchdogTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clearTimers = () => {
     if (timerRef.current) clearInterval(timerRef.current);
     if (finishTimerRef.current) clearTimeout(finishTimerRef.current);
+    if (watchdogTimerRef.current) clearTimeout(watchdogTimerRef.current);
   };
 
   const startNavigation = React.useCallback(() => {
@@ -50,6 +52,13 @@ export function NavigationProgressProvider({ children }: { children: React.React
       }
       setProgress(current);
     }, 120);
+
+    // Safety watchdog: auto-finish if navigation takes longer than 2.5s
+    watchdogTimerRef.current = setTimeout(() => {
+      clearTimers();
+      setIsNavigating(false);
+      setProgress(0);
+    }, 2500);
   }, []);
 
   const finishNavigation = React.useCallback(() => {
@@ -58,7 +67,7 @@ export function NavigationProgressProvider({ children }: { children: React.React
     finishTimerRef.current = setTimeout(() => {
       setIsNavigating(false);
       setProgress(0);
-    }, 400);
+    }, 300);
   }, []);
 
   // Detect route change completion

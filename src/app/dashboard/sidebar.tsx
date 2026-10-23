@@ -335,6 +335,11 @@ export default function DashboardSidebar({
   const [pendingHref, setPendingHref] = React.useState<string | null>(null);
   const { startNavigation } = useNavigationProgress();
 
+  // Reset pending state when pathname changes
+  React.useEffect(() => {
+    setPendingHref(null);
+  }, [pathname]);
+
   const dynamicSections = React.useMemo(() => {
     const isSuperAdmin = Boolean(user?.superAdmin === true || user?.superAdmin === 1);
     const roleNameLower = (user?.role?.roleName || "").toLowerCase();
@@ -693,7 +698,6 @@ export default function DashboardSidebar({
                     key={item.href}
                     href={item.href}
                     scroll={true}
-                    prefetch={false}
                     onClick={(e) => {
                       if (typeof window !== "undefined" && !navigator.onLine) {
                         e.preventDefault();
@@ -703,6 +707,17 @@ export default function DashboardSidebar({
                       }
                       setPendingHref(item.href);
                       startNavigation();
+
+                      // Safety watchdog: if route change stalls (> 2000ms), force hard navigation
+                      // so buttons never freeze and user is guaranteed to land on the page.
+                      const targetHref = item.href;
+                      const currentPath = typeof window !== "undefined" ? window.location.pathname : "";
+                      setTimeout(() => {
+                        setPendingHref(null);
+                        if (typeof window !== "undefined" && window.location.pathname === currentPath && targetHref !== currentPath) {
+                          window.location.href = targetHref;
+                        }
+                      }, 2000);
                     }}
                     className={cn(
                       "group relative flex items-center justify-between gap-3 rounded-2xl px-3 py-3 transition-all duration-300",

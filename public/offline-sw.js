@@ -1,22 +1,5 @@
-const CACHE_VERSION = "edut-offline-v6";
-const APP_SHELL = [
-  "/",
-  "/dashboard",
-  "/dashboard/students",
-  "/dashboard/attendance",
-  "/dashboard/academics",
-  "/dashboard/academics/grades",
-  "/dashboard/academics/exams",
-  "/dashboard/academics/devoirs",
-  "/dashboard/academics/homework",
-  "/dashboard/pedagogie/devoirs",
-  "/dashboard/admin-docs",
-  "/dashboard/admin-docs/admit-cards",
-  "/dashboard/id-cards",
-  "/dashboard/finance",
-  "/dashboard/synchronisation",
-  "/dashboard/synchronisation/diagnostic",
-  "/dashboard/synchronisation/conflits",
+const CACHE_VERSION = "edut-offline-v7";
+const CORE_STATIC_ASSETS = [
   "/manifest.json",
   "/edut-icon.svg"
 ];
@@ -24,31 +7,14 @@ const APP_SHELL = [
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_VERSION).then(async (cache) => {
-      // 1. Pre-cache HTML navigation shells
-      for (const url of APP_SHELL) {
+      // Pre-cache only lightweight static assets. 
+      // All page routes and RSC payloads are cached dynamically on visit (Runtime Caching)
+      // to avoid choking Vercel serverless functions with dozens of concurrent requests.
+      for (const url of CORE_STATIC_ASSETS) {
         try {
           await cache.add(new Request(url, { credentials: "same-origin" }));
         } catch (err) {
           console.warn("[SW] Cache add warning for", url, err);
-        }
-      }
-
-      // 2. Pre-cache Next.js App Router RSC payloads for client-side navigation
-      for (const url of APP_SHELL) {
-        if (url.startsWith("/dashboard")) {
-          try {
-            const rscRequest = new Request(url, {
-              headers: { "RSC": "1" },
-              credentials: "same-origin"
-            });
-            const response = await fetch(rscRequest);
-            if (response && response.ok) {
-              await cache.put(`${url}?__rsc__`, response.clone());
-              await cache.put(rscRequest, response);
-            }
-          } catch (err) {
-            console.warn("[SW] Pre-cache RSC warning for", url, err);
-          }
         }
       }
     })
@@ -105,14 +71,11 @@ self.addEventListener("fetch", (event) => {
           const cleanMatch = await caches.match(`${url.pathname}?__rsc__`);
           if (cleanMatch) return cleanMatch;
 
-          // If no RSC cached, instruct Next.js router to trigger a full document navigation,
-          // which is immediately served by the Service Worker HTML cache!
-          return new Response("", {
-            status: 200,
-            headers: {
-              "x-nextjs-redirect": url.pathname,
-              "content-type": "text/x-component"
-            }
+          // If no RSC cached, return 503 so Next.js client router cleanly triggers
+          // its native document navigation fallback, which is served by our HTML cache.
+          return new Response("Offline", {
+            status: 503,
+            statusText: "Service Unavailable"
           });
         })
     );
