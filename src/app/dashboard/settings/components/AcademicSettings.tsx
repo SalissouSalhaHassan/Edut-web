@@ -291,10 +291,10 @@ export function AcademicSettings({
 
     startTransition(async () => {
       try {
-        const res = await createSession(tempName);
+        const res = (await createSession(tempName)) as any;
         if (res.success) {
           toast.success(`Année scolaire "${tempName}" ajoutée avec succès`);
-          if (res.id) {
+          if (res?.id) {
             setSessionsList((prev: any[]) => prev.map((s: any) => s.id === tempId ? { ...s, id: res.id } : s));
             addOrUpdateCachedReferenceItem("session", { ...newSession, id: res.id }, "sessionName");
           }
@@ -658,7 +658,7 @@ export function AcademicSettings({
 
     startTransition(async () => {
       try {
-        const res = await createClass({ 
+        const res = (await createClass({ 
           className: tempClassObj.className, 
           sectionId: Number(classSectionId),
           roomName: tempClassObj.roomName,
@@ -668,10 +668,10 @@ export function AcademicSettings({
           transportInternat: tempClassObj.transportInternat,
           ancienSolde: tempClassObj.ancienSolde,
           statutInitial: tempClassObj.statutInitial
-        });
+        })) as any;
         if (res.success) {
           toast.success(`Classe "${tempClassObj.className}" créée avec succès`);
-          if (res.id) {
+          if (res?.id) {
             setClassesList((prev: any[]) => prev.map((c: any) => c.id === tempId ? { ...c, id: res.id } : c));
             addOrUpdateCachedReferenceItem("class", { ...tempClassObj, id: res.id }, "className");
           }
@@ -888,10 +888,10 @@ export function AcademicSettings({
 
     startTransition(async () => {
       try {
-        const res = await createSection({ sectionName: tempName, educationalLevel: tempLevel });
+        const res = (await createSection({ sectionName: tempName, educationalLevel: tempLevel })) as any;
         if (res.success) {
           toast.success(`Section "${tempName}" créée avec succès`);
-          if (res.id) {
+          if (res?.id) {
             setSectionsList((prev: any[]) => prev.map((s: any) => s.id === tempId ? { ...s, id: res.id } : s));
             addOrUpdateCachedReferenceItem("section", { ...tempSecObj, id: res.id }, "sectionName");
           }
