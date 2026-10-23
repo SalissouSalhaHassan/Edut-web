@@ -122,7 +122,8 @@ export default function DevoirEntryPage() {
 
           if (matchedStudents.length > 0) {
             const offlineDevoirRows = matchedStudents.map((st) => {
-              const fullName = st.nomEtudiant || `${st.prenom || ""} ${st.nom || ""}`.trim() || `Élève #${st.id}`;
+              const anySt = st as any;
+              const fullName = st.nomEtudiant || (anySt.prenom ? `${anySt.prenom} ${anySt.nom || ""}`.trim() : "") || `Élève #${st.id}`;
               return {
                 id: st.id,
                 studentId: st.id,
@@ -130,7 +131,7 @@ export default function DevoirEntryPage() {
                 name: fullName,
                 numAdmission: st.numAdmission || "",
                 matricule: st.numAdmission || "",
-                gender: st.sexe || st.gender || "M",
+                gender: st.sexe || anySt.gender || "M",
                 classe: st.classe || targetClassName,
                 existingResult: null,
                 devoirs: [null, null, null, null, null],

@@ -354,7 +354,8 @@ export async function getCachedDevoirGrid(
         success: true,
         data: rows.map((r) => {
           const s = studentMap.get(Number(r.studentId));
-          const fullName = s?.nomEtudiant || `${s?.prenom || ""} ${s?.nom || ""}`.trim() || `Élève #${r.studentId}`;
+          const anyS = s as any;
+          const fullName = s?.nomEtudiant || (anyS?.prenom ? `${anyS.prenom} ${anyS.nom || ""}`.trim() : "") || `Élève #${r.studentId}`;
           return {
             id: r.studentId,
             studentId: r.studentId,
