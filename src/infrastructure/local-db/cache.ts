@@ -347,13 +347,25 @@ export async function getCachedDevoirGrid(
       .equals([classId, subjectId, sessionId, term])
       .toArray();
     if (rows.length > 0) {
+      const allStudents = await localDb.students.toArray();
+      const studentMap = new Map(allStudents.map(s => [Number(s.id), s]));
+
       return {
         success: true,
-        data: rows.map((r) => ({
-          studentId: r.studentId,
-          devoirs: r.devoirs,
-          moyenneDevoirs: r.moyenneDevoirs,
-        })),
+        data: rows.map((r) => {
+          const s = studentMap.get(Number(r.studentId));
+          const fullName = s?.nomEtudiant || `${s?.prenom || ""} ${s?.nom || ""}`.trim() || `Élève #${r.studentId}`;
+          return {
+            id: r.studentId,
+            studentId: r.studentId,
+            nomEtudiant: fullName,
+            name: fullName,
+            numAdmission: s?.numAdmission || "N/A",
+            matricule: s?.numAdmission || "N/A",
+            devoirs: r.devoirs,
+            moyenneDevoirs: r.moyenneDevoirs,
+          };
+        }),
         isLocal: true,
       };
     }

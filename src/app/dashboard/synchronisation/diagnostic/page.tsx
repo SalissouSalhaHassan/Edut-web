@@ -1,5 +1,13 @@
+"use client";
+
+import React, { Suspense } from "react";
 import DiagnosticClient from "./diagnostic-client";
 
 export default function DiagnosticPage() {
-  return <DiagnosticClient />;
+  return (
+    <Suspense fallback={null}>
+      <DiagnosticClient />
+    </Suspense>
+  );
 }
+

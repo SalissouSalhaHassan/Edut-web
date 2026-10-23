@@ -11,8 +11,8 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import dynamic from "next/dynamic";
 import { toast } from "sonner";
-const AcademicFilters = dynamic(() => import("@/domains/academics/components/AcademicFilters"), { ssr: false });
-const DevoirEntryGrid = dynamic(() => import("@/domains/academics/components/DevoirEntryGrid"), { ssr: false });
+import AcademicFilters from "@/domains/academics/components/AcademicFilters";
+import DevoirEntryGrid from "@/domains/academics/components/DevoirEntryGrid";
 import { getDevoirGrid, saveDevoirGrades } from "@/domains/academics/actions/academics.actions";
 import { useOfflineMutation } from "@/hooks/use-offline-mutation";
 import { cacheDevoirGrid, getCachedDevoirGrid } from "@/infrastructure/local-db/cache";
@@ -40,14 +40,20 @@ export default function DevoirEntryPage() {
     setActiveFilters(filters);
     
     try {
-      const result: any = await getDevoirGrid({
-        classId: filters.classId,
-        subjectId: filters.subjectId,
-        sessionId: filters.sessionId,
-        term: filters.period,
-      });
+      let result: any = null;
+      if (navigator.onLine) {
+        result = await getDevoirGrid({
+          classId: filters.classId,
+          subjectId: filters.subjectId,
+          sessionId: filters.sessionId,
+          term: filters.period,
+        }).catch(err => {
+          console.warn("Failed to load online devoirs grid:", err);
+          return null;
+        });
+      }
       
-      if (result?.data) {
+      if (result?.data && Array.isArray(result.data) && result.data.length > 0) {
         setStudents(result.data);
         setIsLocal(false);
         setGridMeta({
@@ -70,7 +76,7 @@ export default function DevoirEntryPage() {
         } catch (e) {
           console.warn("Failed to cache devoirs locally:", e);
         }
-      } else if (result?.error) {
+      } else {
         // Try offline fallback
         const cached = await getCachedDevoirGrid(
           Number(filters.classId),
@@ -80,27 +86,73 @@ export default function DevoirEntryPage() {
         );
         if (cached && cached.data?.length > 0) {
           setStudents(cached.data);
+          if (cached.coefficient || cached.subjectName || cached.className) {
+            setGridMeta({
+              coefficient: cached.coefficient,
+              subjectName: cached.subjectName,
+              className: cached.className,
+              educationalLevel: cached.educationalLevel
+            });
+          }
           setIsLocal(true);
           toast.info("Affichage des devoirs en cache local (hors-ligne).");
         } else {
-          toast.error("Erreur de chargement", { description: result.error });
+          // Smart Offline Grid Initializer for Devoirs: Build from localDb.students!
+          const { localDb } = await import("@/infrastructure/local-db/dexie");
+          const { getCachedReferenceItems } = await import("@/infrastructure/local-db/references");
+          const { getClassDisplayName } = await import("@/domains/academics/utils/class-name");
+
+          const cachedClasses = await getCachedReferenceItems<any>("class");
+          const selectedClass = cachedClasses.find((c: any) => Number(c.id) === Number(filters.classId));
+          const targetClassName = selectedClass ? getClassDisplayName(selectedClass, "").toLowerCase().trim() : "";
+
+          const allStudents = await localDb.students.toArray();
+          let matchedStudents: any[] = [];
+
+          if (targetClassName) {
+            matchedStudents = allStudents.filter((s: any) => {
+              const sc = String(s.classe || "").toLowerCase().trim();
+              return sc === targetClassName || targetClassName.includes(sc) || sc.includes(targetClassName);
+            });
+          }
+
+          if (matchedStudents.length === 0 && allStudents.length > 0) {
+            matchedStudents = allStudents;
+          }
+
+          if (matchedStudents.length > 0) {
+            const offlineDevoirRows = matchedStudents.map((st) => {
+              const fullName = st.nomEtudiant || `${st.prenom || ""} ${st.nom || ""}`.trim() || `Élève #${st.id}`;
+              return {
+                id: st.id,
+                studentId: st.id,
+                nomEtudiant: fullName,
+                name: fullName,
+                numAdmission: st.numAdmission || "",
+                matricule: st.numAdmission || "",
+                gender: st.sexe || st.gender || "M",
+                classe: st.classe || targetClassName,
+                existingResult: null,
+                devoirs: [null, null, null, null, null],
+                moyenneDevoirs: 0,
+              };
+            });
+
+            setStudents(offlineDevoirRows);
+            setIsLocal(true);
+            setGridMeta({
+              className: targetClassName || selectedClass?.className || "Classe",
+              subjectName: "Matière",
+            });
+            toast.info(`Filtres hors-ligne : ${offlineDevoirRows.length} élève(s) initialisé(s) pour la saisie.`);
+          } else {
+            toast.error("Pas de connexion internet et aucune donnée en cache local.");
+          }
         }
       }
     } catch (err) {
-      console.warn("Failed to load online devoirs grid, falling back to local cache:", err);
-      const cached = await getCachedDevoirGrid(
-        Number(filters.classId),
-        Number(filters.subjectId),
-        Number(filters.sessionId),
-        filters.period
-      );
-      if (cached && cached.data?.length > 0) {
-        setStudents(cached.data);
-        setIsLocal(true);
-        toast.info("Affichage des devoirs en cache local (hors-ligne).");
-      } else {
-        toast.error("Pas de connexion internet et aucune donnée en cache local.");
-      }
+      console.warn("Failed in handleLoad for devoirs:", err);
+      toast.error("Erreur lors du chargement des devoirs.");
     } finally {
       setLoading(false);
     }

@@ -1,27 +1,38 @@
-import { getCurrentUser } from "@/domains/auth/services/session";
-import { db } from "@/infrastructure/database";
-import { syncConflicts } from "@/infrastructure/database/schema/audit";
-import { eq, desc } from "drizzle-orm";
+"use client";
+
+import React, { Suspense, useEffect, useState } from "react";
 import ConflitsClient from "./conflits-client";
 
-export const dynamic = "force-dynamic";
+function ConflitsPageContent() {
+  const [serverConflicts, setServerConflicts] = useState<any[]>([]);
 
-export default async function ConflitsPage() {
-  const user = await getCurrentUser();
-  let serverConflicts: any[] = [];
-
-  if (user?.schoolId) {
-    try {
-      serverConflicts = await db.query.syncConflicts.findMany({
-        where: eq(syncConflicts.schoolId, user.schoolId),
-        orderBy: [desc(syncConflicts.createdAt)],
-        limit: 50,
-      });
-    } catch (e) {
-      console.warn("Could not load server conflicts:", e);
+  useEffect(() => {
+    if (!navigator.onLine) return;
+    async function loadServerConflicts() {
+      try {
+        const res = await fetch("/api/synchronisation/conflicts").catch(() => null);
+        if (res && res.ok) {
+          const json = await res.json().catch(() => null);
+          if (Array.isArray(json?.data)) {
+            setServerConflicts(json.data);
+          }
+        }
+      } catch (err) {
+        console.warn("Could not fetch server conflicts online:", err);
+      }
     }
-  }
+    loadServerConflicts();
+  }, []);
 
   return <ConflitsClient initialServerConflicts={serverConflicts} />;
 }
+
+export default function ConflitsPage() {
+  return (
+    <Suspense fallback={null}>
+      <ConflitsPageContent />
+    </Suspense>
+  );
+}
+
 

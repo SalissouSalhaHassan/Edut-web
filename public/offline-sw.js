@@ -1,4 +1,4 @@
-const CACHE_VERSION = "edut-offline-v4";
+const CACHE_VERSION = "edut-offline-v5";
 const APP_SHELL = [
   "/",
   "/dashboard",
@@ -7,8 +7,14 @@ const APP_SHELL = [
   "/dashboard/academics",
   "/dashboard/academics/grades",
   "/dashboard/academics/exams",
+  "/dashboard/academics/devoirs",
+  "/dashboard/admin-docs",
+  "/dashboard/admin-docs/admit-cards",
+  "/dashboard/id-cards",
   "/dashboard/finance",
   "/dashboard/synchronisation",
+  "/dashboard/synchronisation/diagnostic",
+  "/dashboard/synchronisation/conflits",
   "/manifest.json",
   "/edut-icon.svg"
 ];
