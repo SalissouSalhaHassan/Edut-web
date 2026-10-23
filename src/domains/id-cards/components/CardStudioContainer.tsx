@@ -157,13 +157,13 @@ export default function CardStudioContainer() {
         const { localDb } = await import("@/infrastructure/local-db/dexie");
         const localStudents = await localDb.students.toArray();
         if (localStudents && localStudents.length > 0) {
-          const mapped = localStudents.map(s => ({
+          const mapped = localStudents.map((s: any) => ({
             id: s.id || Math.floor(Math.random() * 10000),
             nomEtudiant: s.nomEtudiant,
             prenomEtudiant: s.prenomEtudiant || "",
             numAdmission: s.numAdmission,
             classe: s.classe || "Classe N/A",
-            educationalLevel: s.cycle || "Primaire Général",
+            educationalLevel: s.educationalLevel || s.cycle || "Primaire Général",
             sexe: s.sexe || "Garçon",
             dateNaissance: s.dateNaissance || "2015-01-01",
             lieuNaissance: s.lieuNaissance || "Niamey",
