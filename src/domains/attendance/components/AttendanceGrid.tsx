@@ -31,6 +31,8 @@ interface AttendanceGridProps {
   date: string;
   initialRecords?: any[];
   canEdit?: boolean;
+  onStatsChange?: (stats: { presents: number; absents: number; lates: number; excused: number }) => void;
+  onRecordsSaved?: (savedRecords: any[]) => void;
 }
 
 function AttendanceStatusBadge({ status }: { status: "Local" | "Synced" | "Failed" }) {
@@ -43,7 +45,17 @@ function AttendanceStatusBadge({ status }: { status: "Local" | "Synced" | "Faile
   return <span className="ml-2 px-2 py-0.5 bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 text-[9px] font-black uppercase tracking-widest rounded-full">Synced</span>;
 }
 
-export default function AttendanceGrid({ students, classId, subjectId, employeeId, date, initialRecords = [], canEdit = true }: AttendanceGridProps) {
+export default function AttendanceGrid({ 
+  students, 
+  classId, 
+  subjectId, 
+  employeeId, 
+  date, 
+  initialRecords = [], 
+  canEdit = true,
+  onStatsChange,
+  onRecordsSaved,
+}: AttendanceGridProps) {
   const isOnline = useOnlineStatus();
   const { mutate } = useOfflineMutation<any>();
   const [loading, setLoading] = useState(false);
@@ -80,8 +92,11 @@ export default function AttendanceGrid({ students, classId, subjectId, employeeI
   const [sendSMS, setSendSMS] = useState(false);
   const [sendWhatsApp, setSendWhatsApp] = useState(true);
   const [records, setRecords] = useState<Record<number, { status: string; remark: string }>>(
-    students.reduce((acc, s) => {
-      const existing = initialRecords.find(r => r.studentId === s.id);
+    () => students.reduce((acc, s) => {
+      const existing = initialRecords.find(r => 
+        Number(r.studentId || r.student_id) === Number(s.id) ||
+        (r.student?.numAdmission && r.student?.numAdmission === s.numAdmission)
+      );
       acc[s.id] = {
         status: existing?.status || "Présent",
         remark: existing?.remark || "",
@@ -89,6 +104,30 @@ export default function AttendanceGrid({ students, classId, subjectId, employeeI
       return acc;
     }, {} as any)
   );
+
+  // Sync records when initialRecords prop updates
+  useEffect(() => {
+    if (initialRecords && initialRecords.length > 0) {
+      setRecords(prev => {
+        const next = { ...prev };
+        let hasChanges = false;
+        for (const s of students) {
+          const match = initialRecords.find(r => 
+            Number(r.studentId || r.student_id) === Number(s.id) ||
+            (r.student?.numAdmission && r.student?.numAdmission === s.numAdmission)
+          );
+          if (match && match.status) {
+            next[s.id] = {
+              status: match.status,
+              remark: match.remark || "",
+            };
+            hasChanges = true;
+          }
+        }
+        return hasChanges ? next : prev;
+      });
+    }
+  }, [initialRecords, students]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -130,6 +169,18 @@ export default function AttendanceGrid({ students, classId, subjectId, employeeI
     });
     return counts;
   }, [records]);
+
+  // Notify parent component of live stats update without needing page reload
+  useEffect(() => {
+    if (onStatsChange) {
+      onStatsChange({
+        presents: stats.Presents,
+        absents: stats.Absents,
+        lates: stats.Lates,
+        excused: stats.Excused,
+      });
+    }
+  }, [stats, onStatsChange]);
 
   const updateStatus = (studentId: number, status: string) => {
     setRecords(prev => ({
@@ -204,6 +255,9 @@ export default function AttendanceGrid({ students, classId, subjectId, employeeI
         }
       } catch (e) {
         console.warn("Failed to update flat studentAttendance locally:", e);
+      }
+      if (onRecordsSaved) {
+        onRecordsSaved(dedupedRecords);
       }
       toast.success(isOnline ? "Présence enregistrée avec succès !" : "Présence enregistrée localement.");
     } else {

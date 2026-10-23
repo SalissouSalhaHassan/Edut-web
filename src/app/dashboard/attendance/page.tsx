@@ -59,7 +59,8 @@ export default async function AttendancePage({ searchParams: searchParamsPromise
       ]);
 
       subjects = ((subjectsRes as any).data?.data || (subjectsRes as any).data || []) as any[];
-      initialRecords = ((recordsRes as any).data?.data || (recordsRes as any).data || []) as any[];
+      const rawRecords = ((recordsRes as any).data?.data !== undefined ? (recordsRes as any).data?.data : (recordsRes as any).data) || [];
+      initialRecords = Array.isArray(rawRecords) ? rawRecords : [];
 
       const selectedClass = classes.find(c => c.id === classId);
       if (selectedClass) {

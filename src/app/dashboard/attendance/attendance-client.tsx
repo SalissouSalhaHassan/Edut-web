@@ -32,6 +32,15 @@ export default function AttendanceClient({
   const [stats, setStats] = useState<any>(initialStats);
   const [isLocal, setIsLocal] = useState(false);
 
+  // Keep internal state aligned with props changes (e.g. date, classId filter changes)
+  useEffect(() => {
+    setRecords(initialRecords);
+  }, [initialRecords]);
+
+  useEffect(() => {
+    setStats(initialStats);
+  }, [initialStats]);
+
   useEffect(() => {
     async function loadData() {
       if (classId) {
@@ -46,7 +55,7 @@ export default function AttendanceClient({
         }
 
         // Fallback to local cache if offline or empty
-        if (!initialRecords || initialRecords.length === 0 || !navigator.onLine) {
+        if ((!initialRecords || initialRecords.length === 0) || !navigator.onLine) {
           try {
             const { getCachedAttendance } = await import("@/infrastructure/local-db/cache");
             const cached = await getCachedAttendance(classId, date, subjectId || undefined);
@@ -55,10 +64,10 @@ export default function AttendanceClient({
               setIsLocal(true);
 
               // Recalculate local stats for the UI
-              const presents = cached.filter((r: any) => r.status?.toUpperCase() === "PRESENT").length;
-              const absents = cached.filter((r: any) => r.status?.toUpperCase() === "ABSENT").length;
-              const lates = cached.filter((r: any) => r.status?.toUpperCase() === "LATE").length;
-              const excused = cached.filter((r: any) => r.status?.toUpperCase() === "EXCUSED").length;
+              const presents = cached.filter((r: any) => (r.status || "").toLowerCase().includes("présent") || (r.status || "").toLowerCase() === "present").length;
+              const absents = cached.filter((r: any) => (r.status || "").toLowerCase().includes("absent")).length;
+              const lates = cached.filter((r: any) => (r.status || "").toLowerCase().includes("retard") || (r.status || "").toLowerCase() === "late").length;
+              const excused = cached.filter((r: any) => (r.status || "").toLowerCase().includes("excusé") || (r.status || "").toLowerCase() === "excused").length;
               setStats({ presents, absents, lates, excused });
             }
           } catch (e) {
@@ -126,6 +135,12 @@ export default function AttendanceClient({
           date={date} 
           initialRecords={records}
           canEdit={canEdit}
+          onStatsChange={(newStats) => {
+            setStats(newStats);
+          }}
+          onRecordsSaved={(saved) => {
+            setRecords(saved);
+          }}
         />
       ) : (
         <div className="flex flex-col items-center justify-center py-20 bg-slate-50/50 dark:bg-slate-900/40 rounded-[3rem] border-2 border-dashed border-slate-200 dark:border-slate-800">
