@@ -26,8 +26,20 @@ export default function HomeworkDialog({ mode = "add", initialData, trigger }: H
 
   useEffect(() => {
     if (open) {
-      getClasses(false).then((res: any) => { if (res.data) setClasses(res.data || []); });
-      getSubjects().then((res: any) => { if (res.data) setSubjects(res.data || []); });
+      import("@/infrastructure/local-db/references").then(({ getCachedReferenceItems }) => {
+        Promise.all([
+          getCachedReferenceItems("class"),
+          getCachedReferenceItems("subject")
+        ]).then(([cachedClasses, cachedSubjects]) => {
+          if (cachedClasses?.length > 0) setClasses(cachedClasses);
+          if (cachedSubjects?.length > 0) setSubjects(cachedSubjects);
+        }).catch(() => {});
+      }).catch(() => {});
+
+      if (navigator.onLine) {
+        getClasses(false).then((res: any) => { if (res.data) setClasses(res.data || []); });
+        getSubjects().then((res: any) => { if (res.data) setSubjects(res.data || []); });
+      }
     }
   }, [open]);
 

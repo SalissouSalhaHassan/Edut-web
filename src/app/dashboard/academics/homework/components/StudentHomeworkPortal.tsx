@@ -39,18 +39,30 @@ export default function StudentHomeworkPortal({ currentUser }: StudentHomeworkPo
 
   useEffect(() => {
     async function loadHomework() {
-      setLoading(true);
       try {
-        const res: any = await getStudentPersonalHomeworkAction();
-        const payload = res?.data?.data || res?.data;
-        if (res?.success && payload) {
-          setData(payload);
-        } else {
-          toast.error(res?.data?.error || res?.error || "Impossible de charger les devoirs.");
+        const cached = localStorage.getItem("edut_student_homework_cache");
+        if (cached) {
+          setData(JSON.parse(cached));
+          setLoading(false);
         }
-      } catch (err) {
-        toast.error("Erreur de connexion au serveur.");
-      } finally {
+      } catch {}
+
+      if (navigator.onLine) {
+        try {
+          const res: any = await getStudentPersonalHomeworkAction();
+          const payload = res?.data?.data || res?.data;
+          if (res?.success && payload) {
+            setData(payload);
+            try {
+              localStorage.setItem("edut_student_homework_cache", JSON.stringify(payload));
+            } catch {}
+          }
+        } catch (err) {
+          console.warn("Failed to load student personal homework online:", err);
+        } finally {
+          setLoading(false);
+        }
+      } else {
         setLoading(false);
       }
     }

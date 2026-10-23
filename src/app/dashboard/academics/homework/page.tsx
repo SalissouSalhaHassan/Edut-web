@@ -38,18 +38,35 @@ function HomeworkPageContent() {
 
   useEffect(() => {
     async function loadHomeworks() {
-      if (!navigator.onLine) {
-        setLoading(false);
-        return;
-      }
+      // 1. Hydrate from local cache immediately (works 100% offline)
       try {
-        const res = await getHomeworks();
-        const list = ((res as any).data?.data || (res as any).data || []) as any[];
-        setHomeworks(list);
-      } catch (err) {
-        console.warn("Failed to load homeworks online:", err);
+        const cached = localStorage.getItem("edut_homeworks_cache");
+        if (cached) {
+          const list = JSON.parse(cached);
+          if (Array.isArray(list) && list.length > 0) {
+            setHomeworks(list);
+          }
+        }
+      } catch (e) {
+        console.debug("Failed to read homeworks cache:", e);
       } finally {
         setLoading(false);
+      }
+
+      // 2. Refresh with server data if online
+      if (navigator.onLine) {
+        try {
+          const res = await getHomeworks();
+          const list = ((res as any).data?.data || (res as any).data || []) as any[];
+          if (Array.isArray(list)) {
+            setHomeworks(list);
+            try {
+              localStorage.setItem("edut_homeworks_cache", JSON.stringify(list));
+            } catch {}
+          }
+        } catch (err) {
+          console.warn("Failed to load homeworks online:", err);
+        }
       }
     }
     loadHomeworks();

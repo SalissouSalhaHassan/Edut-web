@@ -552,13 +552,25 @@ export default function AdmitCardsPage() {
   }, [selectedPaperSize]);
 
   useEffect(() => {
+    try {
+      const cached = localStorage.getItem("edut_header_config_cache");
+      if (cached) {
+        setActiveHeaderConfig(JSON.parse(cached));
+      }
+    } catch {}
+
     import("@/domains/settings/actions/settings.actions").then(({ getDocumentHeaderConfig }) => {
       getDocumentHeaderConfig().then((res) => {
         if (res?.data) {
           setActiveHeaderConfig(res.data);
+          try {
+            localStorage.setItem("edut_header_config_cache", JSON.stringify(res.data));
+          } catch {}
         }
+      }).catch((e) => {
+        console.debug("Could not fetch header config online:", e);
       });
-    });
+    }).catch(() => {});
   }, []);
 
   // Load students from IndexedDB on mount

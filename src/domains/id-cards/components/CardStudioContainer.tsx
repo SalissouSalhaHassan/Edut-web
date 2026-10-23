@@ -151,39 +151,67 @@ export default function CardStudioContainer() {
   const [uploadingStudentId, setUploadingStudentId] = useState<number | null>(null);
 
   useEffect(() => {
-    Promise.all([getStudents(), getBranches()])
-      .then(([studRes, branchRes]: [any, any]) => {
-        let studData: any[] = [];
-        if (Array.isArray(studRes)) {
-          studData = studRes;
-        } else if (Array.isArray(studRes?.data)) {
-          studData = studRes.data;
-        } else if (Array.isArray(studRes?.data?.data)) {
-          studData = studRes.data.data;
+    async function loadStudioData() {
+      // 1. Try local Dexie DB first for true offline capability
+      try {
+        const { localDb } = await import("@/infrastructure/local-db/dexie");
+        const localStudents = await localDb.students.toArray();
+        if (localStudents && localStudents.length > 0) {
+          const mapped = localStudents.map(s => ({
+            id: s.id || Math.floor(Math.random() * 10000),
+            nomEtudiant: s.nomEtudiant,
+            prenomEtudiant: s.prenomEtudiant || "",
+            numAdmission: s.numAdmission,
+            classe: s.classe || "Classe N/A",
+            educationalLevel: s.cycle || "Primaire Général",
+            sexe: s.sexe || "Garçon",
+            dateNaissance: s.dateNaissance || "2015-01-01",
+            lieuNaissance: s.lieuNaissance || "Niamey",
+            nationalite: s.nationalite || "Nigérienne",
+            photoPath: s.photoPath || null,
+          }));
+          setStudents(mapped);
+          setPreviewStudentId(mapped[0].id);
         }
+      } catch (err) {
+        console.debug("IndexedDB students load notice:", err);
+      }
 
-        if (!Array.isArray(studData) || studData.length === 0) {
-          studData = SAMPLE_STUDENTS;
-        }
+      // 2. Fetch server data if online
+      if (navigator.onLine) {
+        Promise.all([getStudents(), getBranches()])
+          .then(([studRes, branchRes]: [any, any]) => {
+            let studData: any[] = [];
+            if (Array.isArray(studRes)) {
+              studData = studRes;
+            } else if (Array.isArray(studRes?.data)) {
+              studData = studRes.data;
+            } else if (Array.isArray(studRes?.data?.data)) {
+              studData = studRes.data.data;
+            }
 
-        const branchData = branchRes?.data?.data || branchRes?.data || [];
+            if (Array.isArray(studData) && studData.length > 0) {
+              setStudents(studData);
+              setPreviewStudentId(studData[0].id);
+            }
 
-        setStudents(studData);
-        if (studData.length > 0) {
-          setPreviewStudentId(studData[0].id);
-        }
-        if (Array.isArray(branchData)) {
-          setBranches(branchData);
-        }
-      })
-      .catch((err) => {
-        console.error("Error loading studio data:", err);
-        setStudents(SAMPLE_STUDENTS);
-        setPreviewStudentId(SAMPLE_STUDENTS[0].id);
-      })
-      .finally(() => {
+            const branchData = branchRes?.data?.data || branchRes?.data || [];
+            if (Array.isArray(branchData)) {
+              setBranches(branchData);
+            }
+          })
+          .catch((err) => {
+            console.warn("Server data fetch failed:", err);
+            setStudents((prev) => (prev.length > 0 ? prev : SAMPLE_STUDENTS));
+          })
+          .finally(() => {
+            setLoading(false);
+          });
+      } else {
         setLoading(false);
-      });
+      }
+    }
+    loadStudioData();
   }, []);
 
   const handlePhotoUpload = (studentId: number, e: React.ChangeEvent<HTMLInputElement>) => {

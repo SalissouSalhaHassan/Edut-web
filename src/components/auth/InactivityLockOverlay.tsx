@@ -24,7 +24,7 @@ interface InactivityLockOverlayProps {
   } | null;
 }
 
-const INACTIVITY_LIMIT_MS = 3 * 60 * 1000; // 3 minutes
+const INACTIVITY_LIMIT_MS = 30 * 60 * 1000; // 30 minutes
 const STORAGE_LOCK_KEY = "edut_app_locked";
 const STORAGE_LAST_ACTIVE_KEY = "edut_last_activity_timestamp";
 
@@ -242,7 +242,7 @@ export function InactivityLockOverlay({ user, branding }: InactivityLockOverlayP
             Session Verrouillée
           </h2>
           <p className="text-xs sm:text-sm text-slate-300/80 mb-6 leading-relaxed">
-            Inactivité supérieure à 3 minutes. Veuillez saisir votre mot de passe pour reprendre le travail.
+            Inactivité supérieure à 30 minutes. Veuillez saisir votre mot de passe pour reprendre le travail.
           </p>
 
           {/* User & School Badge */}
@@ -337,7 +337,7 @@ export function InactivityLockOverlay({ user, branding }: InactivityLockOverlayP
         <div className="mt-6 pt-4 border-t border-white/10 flex items-center justify-between text-xs text-slate-400">
           <span className="flex items-center gap-1.5 opacity-80">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            Protection automatique (3 min)
+            Protection automatique (30 min)
           </span>
 
           <button

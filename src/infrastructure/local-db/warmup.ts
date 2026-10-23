@@ -73,7 +73,19 @@ export async function warmupOfflineReferences() {
       console.debug("[OfflineWarmup] Header config warmup skipped:", e);
     }
 
-    // 4. Gently Warm Up Core HTML Page Shells into Service Worker Cache (one by one)
+    // 4. Fetch & Cache Homeworks
+    try {
+      const { getHomeworks } = await import("@/domains/academics/actions/homework.actions");
+      const hwRes = await getHomeworks();
+      const hwList = ((hwRes as any)?.data?.data || (hwRes as any)?.data || []) as any[];
+      if (Array.isArray(hwList) && hwList.length > 0) {
+        localStorage.setItem("edut_homeworks_cache", JSON.stringify(hwList));
+      }
+    } catch (e) {
+      console.debug("[OfflineWarmup] Homework warmup skipped:", e);
+    }
+
+    // 5. Gently Warm Up Core HTML Page Shells into Service Worker Cache (one by one)
     if ("caches" in window) {
       const CORE_PAGES = [
         "/dashboard",
@@ -83,8 +95,10 @@ export async function warmupOfflineReferences() {
         "/dashboard/academics/grades",
         "/dashboard/academics/exams",
         "/dashboard/academics/homework",
+        "/dashboard/academics/devoirs",
         "/dashboard/pedagogie/devoirs",
         "/dashboard/admin-docs",
+        "/dashboard/admin-docs/admit-cards",
         "/dashboard/id-cards",
         "/dashboard/synchronisation/diagnostic",
       ];
