@@ -10,27 +10,44 @@ interface AttendanceFiltersProps {
   subjectId: number | null;
   classes: any[];
   subjects: any[];
+  onFilterChange?: (filters: { date?: string; classId?: number | null; subjectId?: number | null }) => void;
 }
 
-export function AttendanceFilters({ date, classId, subjectId, classes, subjects }: AttendanceFiltersProps) {
+export function AttendanceFilters({ date, classId, subjectId, classes, subjects, onFilterChange }: AttendanceFiltersProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
   const updateFilters = (key: string, value: string) => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (value) {
-      params.set(key, value);
-    } else {
-      params.delete(key);
-    }
-    
-    // Si on change la classe, on réinitialise potentiellement la matière
+    let newDate = date;
+    let newClassId = classId;
+    let newSubjectId = subjectId;
+
+    if (key === "date") newDate = value;
     if (key === "classId") {
-       params.delete("subjectId");
+      newClassId = value ? Number(value) : null;
+      newSubjectId = null;
     }
-    
-    router.push(`${pathname}?${params.toString()}`);
+    if (key === "subjectId") {
+      newSubjectId = value ? Number(value) : null;
+    }
+
+    if (onFilterChange) {
+      onFilterChange({ date: newDate, classId: newClassId, subjectId: newSubjectId });
+    }
+
+    const params = new URLSearchParams(searchParams ? searchParams.toString() : "");
+    if (newDate) params.set("date", newDate); else params.delete("date");
+    if (newClassId) params.set("classId", String(newClassId)); else params.delete("classId");
+    if (newSubjectId) params.set("subjectId", String(newSubjectId)); else params.delete("subjectId");
+
+    try {
+      window.history.replaceState(null, "", `${pathname}?${params.toString()}`);
+    } catch {}
+
+    if (navigator.onLine && !onFilterChange) {
+      router.push(`${pathname}?${params.toString()}`);
+    }
   };
 
   return (

@@ -69,9 +69,18 @@ export default function AcademicResultsPage() {
     async function loadUser() {
       try {
         const user = await getCurrentUserAction();
-        setCurrentUser(user);
+        if (user) {
+          setCurrentUser(user);
+          try {
+            localStorage.setItem("edut_session_user", JSON.stringify(user));
+          } catch {}
+        }
       } catch (e) {
         console.warn("Failed to load user in client:", e);
+        try {
+          const cached = localStorage.getItem("edut_session_user") || localStorage.getItem("edut_user_session");
+          if (cached) setCurrentUser(JSON.parse(cached));
+        } catch {}
       }
     }
     loadUser();
@@ -121,18 +130,42 @@ export default function AcademicResultsPage() {
 
   useEffect(() => {
     async function loadScale() {
-      const res = await getGradingAppreciations();
-      const data = ((res as any).data?.data || (res as any).data || []) as any[];
-      if (data) setGradingScale(data);
+      try {
+        const res = await getGradingAppreciations();
+        const data = ((res as any).data?.data || (res as any).data || []) as any[];
+        if (data && data.length > 0) {
+          setGradingScale(data);
+          try {
+            localStorage.setItem("edut_grading_scale_cache", JSON.stringify(data));
+          } catch {}
+        }
+      } catch (e) {
+        console.warn("Failed to load grading scale online, checking local cache:", e);
+        try {
+          const cached = localStorage.getItem("edut_grading_scale_cache");
+          if (cached) setGradingScale(JSON.parse(cached));
+        } catch {}
+      }
     }
     loadScale();
   }, []);
 
   useEffect(() => {
     async function loadHeaderConfig() {
-      const res = await getDocumentHeaderConfig();
-      if (res?.data) {
-        setHeaderConfig(res.data);
+      try {
+        const res = await getDocumentHeaderConfig();
+        if (res?.data) {
+          setHeaderConfig(res.data);
+          try {
+            localStorage.setItem("edut_header_config_cache", JSON.stringify(res.data));
+          } catch {}
+        }
+      } catch (e) {
+        console.warn("Failed to load header config online, checking local cache:", e);
+        try {
+          const cached = localStorage.getItem("edut_header_config_cache");
+          if (cached) setHeaderConfig(JSON.parse(cached));
+        } catch {}
       }
     }
     loadHeaderConfig();

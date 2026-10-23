@@ -130,26 +130,33 @@ export default function AttendanceGrid({
   }, [initialRecords, students]);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined" || !navigator.onLine) return;
 
-    const eventSource = new EventSource("/api/attendance/stream");
-    
-    const handleMessage = (event: MessageEvent) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data.classId === classId && (data.subjectId === subjectId || !subjectId)) {
-           toast.info("Mise à jour en temps réel reçue");
+    try {
+      const eventSource = new EventSource("/api/attendance/stream");
+      
+      const handleMessage = (event: MessageEvent) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.classId === classId && (data.subjectId === subjectId || !subjectId)) {
+             toast.info("Mise à jour en temps réel reçue");
+          }
+        } catch (err) {
+          console.error("Failed to parse event data:", err);
         }
-      } catch (err) {
-        console.error("Failed to parse event data:", err);
-      }
-    };
+      };
 
-    eventSource.onmessage = handleMessage;
-    
-    return () => {
-      eventSource.close();
-    };
+      eventSource.onmessage = handleMessage;
+      eventSource.onerror = () => {
+        eventSource.close();
+      };
+      
+      return () => {
+        eventSource.close();
+      };
+    } catch {
+      // Ignore SSE errors in offline mode
+    }
   }, [classId, subjectId]);
 
   const filteredStudents = useMemo(() => {

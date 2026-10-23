@@ -12,6 +12,15 @@ export function ClientProviders({ children }: { children: React.ReactNode }) {
         (reg) => console.log("Service Worker registered with scope:", reg.scope),
         (err) => console.warn("Service Worker registration failed:", err)
       );
+
+      // Warm up offline references in background when online
+      const timer = setTimeout(() => {
+        import("@/infrastructure/local-db/warmup")
+          .then(({ warmupOfflineReferences }) => warmupOfflineReferences())
+          .catch(() => {});
+      }, 2500);
+
+      return () => clearTimeout(timer);
     }
   }, []);
 

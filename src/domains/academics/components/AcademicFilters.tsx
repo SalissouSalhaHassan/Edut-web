@@ -91,9 +91,23 @@ async function getCachedAcademicFilterOptions(): Promise<AcademicFilterOptions |
   ]);
 
   const filterMeta = meta.find((item: any) => item.id === "academic-filter-options" || item.label === "academic-filter-options") || {};
+  const resolvedSessions = sessions.length > 0 
+    ? sessions 
+    : [{ id: 1, sessionName: "2025-2026", isActive: true }];
+
+  const resolvedPeriods = periods.length > 0 
+    ? periods 
+    : [
+        { id: 1, name: "Trimestre 1" },
+        { id: 2, name: "Trimestre 2" },
+        { id: 3, name: "Trimestre 3" },
+        { id: 4, name: "Semestre 1" },
+        { id: 5, name: "Semestre 2" }
+      ];
+
   const cached = {
-    sessions,
-    periods,
+    sessions: resolvedSessions,
+    periods: resolvedPeriods,
     sections,
     classes,
     subjects,
@@ -102,7 +116,7 @@ async function getCachedAcademicFilterOptions(): Promise<AcademicFilterOptions |
     levels: filterMeta.levels || [],
   };
 
-  const hasCoreData = cached.sessions.length > 0 || cached.sections.length > 0 || cached.classes.length > 0 || cached.subjects.length > 0;
+  const hasCoreData = cached.classes.length > 0 || cached.subjects.length > 0 || cached.sections.length > 0 || sessions.length > 0;
   return hasCoreData ? cached : null;
 }
 
