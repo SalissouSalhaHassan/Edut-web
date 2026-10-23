@@ -72,6 +72,41 @@ export async function warmupOfflineReferences() {
     } catch (e) {
       console.debug("[OfflineWarmup] Header config warmup skipped:", e);
     }
+
+    // 4. Gently Warm Up Core HTML Page Shells into Service Worker Cache (one by one)
+    if ("caches" in window) {
+      const CORE_PAGES = [
+        "/dashboard",
+        "/dashboard/students",
+        "/dashboard/attendance",
+        "/dashboard/academics",
+        "/dashboard/academics/grades",
+        "/dashboard/academics/exams",
+        "/dashboard/academics/homework",
+        "/dashboard/pedagogie/devoirs",
+        "/dashboard/admin-docs",
+        "/dashboard/id-cards",
+        "/dashboard/synchronisation/diagnostic",
+      ];
+
+      try {
+        const cache = await caches.open("edut-offline-v8");
+        for (const pageUrl of CORE_PAGES) {
+          try {
+            const match = await cache.match(pageUrl);
+            if (!match) {
+              const resp = await fetch(pageUrl, { credentials: "same-origin" });
+              if (resp && resp.ok) {
+                await cache.put(pageUrl, resp.clone());
+                await cache.put(new Request(pageUrl, { credentials: "same-origin" }), resp);
+              }
+              // 300ms pause to ensure zero server strain
+              await new Promise((resolve) => setTimeout(resolve, 300));
+            }
+          } catch (_) {}
+        }
+      } catch (_) {}
+    }
   } catch (err) {
     console.debug("[OfflineWarmup] Non-critical background warmup error:", err);
   }

@@ -1,5 +1,6 @@
 const CACHE_VERSION = "edut-offline-v8";
 const CORE_STATIC_ASSETS = [
+  "/offline.html",
   "/manifest.json",
   "/edut-icon.svg"
 ];
@@ -55,11 +56,19 @@ self.addEventListener("fetch", (event) => {
           return response;
         })
         .catch(async () => {
-          return (
+          const cached =
             (await caches.match(request)) ||
             (await caches.match(url.pathname)) ||
             (await caches.match("/dashboard")) ||
-            (await caches.match("/"))
+            (await caches.match("/")) ||
+            (await caches.match("/offline.html"));
+
+          if (cached) return cached;
+
+          // Ultimate safety guarantee: never return undefined to prevent ERR_FAILED
+          return new Response(
+            `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Mode Hors-Ligne</title></head><body style="background:#08090e;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;"><div style="text-align:center;"><h2>Mode Hors-Ligne Actif</h2><p>Page en attente de reconnexion...</p><button onclick="window.history.back()" style="padding:10px 20px;border-radius:10px;background:#6366f1;color:#fff;border:none;cursor:pointer;">← Retour</button></div></body></html>`,
+            { headers: { "Content-Type": "text/html; charset=utf-8" }, status: 200 }
           );
         })
     );
