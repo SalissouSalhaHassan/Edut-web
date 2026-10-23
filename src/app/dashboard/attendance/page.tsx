@@ -1,20 +1,79 @@
-export const dynamic = "force-dynamic";
+"use client";
 
-import { getAttendanceRecords, getAttendanceStats } from "@/domains/attendance/actions/attendance.actions";
-import { getClasses, getSubjectsForClass } from "@/domains/academics/actions/academics.actions";
-import { getStudentsByClass } from "@/domains/students/actions/students.actions";
-import { getCurrentUser } from "@/domains/auth/services/session";
-import { getUserRoleType, verifyClassEducationalLevelAccess } from "@/domains/auth/services/rbac";
-import { getClassDisplayName } from "@/domains/academics/utils/class-name";
+import React, { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import AttendanceClient from "./attendance-client";
 import StudentAttendancePortal from "./components/StudentAttendancePortal";
+import { getCurrentUserAction } from "@/domains/auth/actions/session.actions";
+import { getClasses } from "@/domains/academics/actions/academics.actions";
+import { getAttendanceStats, getAttendanceRecords } from "@/domains/attendance/actions/attendance.actions";
 
-export default async function AttendancePage({ searchParams: searchParamsPromise }: { searchParams: Promise<{ classId?: string, subjectId?: string, date?: string }> }) {
-  const currentUser = await getCurrentUser();
-  const roleType = currentUser ? await getUserRoleType(currentUser) : null;
-  const isStudent = roleType === "eleve" || Boolean(currentUser?.studentId) || Boolean((currentUser as any)?.student_id);
+function AttendancePageContent() {
+  const searchParams = useSearchParams();
+  const date = searchParams?.get("date") || new Date().toISOString().split("T")[0];
+  const classId = searchParams?.get("classId") ? Number(searchParams.get("classId")) : null;
+  const subjectId = searchParams?.get("subjectId") ? Number(searchParams.get("subjectId")) : null;
 
-  if (isStudent) {
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [classes, setClasses] = useState<any[]>([]);
+  const [stats, setStats] = useState<any>({ presents: 0, absents: 0, lates: 0, excused: 0 });
+  const [initialRecords, setInitialRecords] = useState<any[]>([]);
+  const [canEdit, setCanEdit] = useState<boolean>(true);
+
+  // Load user from server action or cached session
+  useEffect(() => {
+    async function loadUser() {
+      try {
+        const user = await getCurrentUserAction();
+        if (user) {
+          setCurrentUser(user);
+          try {
+            localStorage.setItem("edut_session_user", JSON.stringify(user));
+          } catch {}
+        }
+      } catch {
+        try {
+          const cached = localStorage.getItem("edut_session_user") || localStorage.getItem("edut_user_session");
+          if (cached) setCurrentUser(JSON.parse(cached));
+        } catch {}
+      }
+    }
+    loadUser();
+  }, []);
+
+  // Online background data loading
+  useEffect(() => {
+    async function loadInitialData() {
+      if (!navigator.onLine) return;
+      try {
+        const [classesRes, statsRes] = await Promise.all([
+          getClasses(false).catch(() => null),
+          getAttendanceStats(date, classId, subjectId).catch(() => null),
+        ]);
+        if (classesRes) {
+          const list = (classesRes as any)?.data?.data || (classesRes as any)?.data || [];
+          if (Array.isArray(list) && list.length > 0) setClasses(list);
+        }
+        if (statsRes) {
+          const s = (statsRes as any)?.data?.data || (statsRes as any)?.data;
+          if (s) setStats(s);
+        }
+        if (classId) {
+          const recordsRes = await getAttendanceRecords(classId, date, subjectId || undefined).catch(() => null);
+          const raw = (recordsRes as any)?.data?.data !== undefined ? (recordsRes as any)?.data?.data : (recordsRes as any)?.data;
+          if (Array.isArray(raw)) setInitialRecords(raw);
+        }
+      } catch (e) {
+        console.warn("Offline initial attendance load:", e);
+      }
+    }
+    loadInitialData();
+  }, [date, classId, subjectId]);
+
+  const roleName = String(currentUser?.role?.roleName || currentUser?.role || "").toLowerCase();
+  const isStudent = roleName.includes("eleve") || roleName.includes("élève") || Boolean(currentUser?.studentId) || Boolean((currentUser as any)?.student_id);
+
+  if (isStudent && currentUser) {
     return (
       <div className="p-4 md:p-8 bg-[#0B0D14] min-h-[calc(100vh-65px)] rounded-3xl">
         <StudentAttendancePortal currentUser={currentUser} />
@@ -22,68 +81,25 @@ export default async function AttendancePage({ searchParams: searchParamsPromise
     );
   }
 
-  const searchParams = await searchParamsPromise;
-  const date = searchParams.date || new Date().toISOString().split('T')[0];
-  let classId = searchParams.classId ? Number(searchParams.classId) : null;
-  const subjectId = searchParams.subjectId ? Number(searchParams.subjectId) : null;
-
-  // Verify class access if classId is provided
-  if (classId) {
-    const hasAccess = await verifyClassEducationalLevelAccess(currentUser, classId);
-    if (!hasAccess) {
-      classId = null;
-    }
-  }
-
-  let classes: any[] = [];
-  let stats: any = { presents: 0, absents: 0, lates: 0, excused: 0 };
-  let canEdit = false;
-  let students: any[] = [];
-  let subjects: any[] = [];
-  let initialRecords: any[] = [];
-
-  try {
-    const [classesRes, statsRes] = await Promise.all([
-      getClasses(false).catch(() => ({ data: [] })),
-      getAttendanceStats(date, classId, subjectId).catch(() => ({ data: { data: { presents: 0, absents: 0, lates: 0, excused: 0 } } })),
-    ]);
-
-    classes = ((classesRes as any).data?.data || (classesRes as any).data || []) as any[];
-    stats = (statsRes.data?.data || statsRes.data) as any;
-    canEdit = !!(currentUser?.admin || currentUser?.role?.permissions?.some((p: any) => p.moduleName === "Attendance" && p.canEdit));
-
-    if (classId) {
-      const [subjectsRes, recordsRes] = await Promise.all([
-        getSubjectsForClass(classId).catch(() => ({ data: [] })),
-        getAttendanceRecords(classId, date, subjectId || undefined).catch(() => ({ data: [] }))
-      ]);
-
-      subjects = ((subjectsRes as any).data?.data || (subjectsRes as any).data || []) as any[];
-      const rawRecords = ((recordsRes as any).data?.data !== undefined ? (recordsRes as any).data?.data : (recordsRes as any).data) || [];
-      initialRecords = Array.isArray(rawRecords) ? rawRecords : [];
-
-      const selectedClass = classes.find(c => c.id === classId);
-      if (selectedClass) {
-        const selectedClassName = getClassDisplayName(selectedClass, "");
-        const studentsRes = await getStudentsByClass(selectedClassName).catch(() => ({ data: [] }));
-        students = ((studentsRes as any).data?.data || (studentsRes as any).data || []) as any[];
-      }
-    }
-  } catch (error) {
-    console.warn("[AttendancePage] Parallel fetch failed, falling back to local client database:", error);
-  }
-
   return (
     <AttendanceClient 
       classes={classes}
       stats={stats}
-      subjects={subjects}
+      subjects={[]}
       initialRecords={initialRecords}
-      students={students}
+      students={[]}
       classId={classId}
       subjectId={subjectId}
       date={date}
       canEdit={canEdit}
     />
+  );
+}
+
+export default function AttendancePage() {
+  return (
+    <Suspense fallback={null}>
+      <AttendancePageContent />
+    </Suspense>
   );
 }

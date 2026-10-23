@@ -8,13 +8,12 @@ import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import dynamic from "next/dynamic";
 import { toast } from "sonner";
 
-const AcademicFilters = dynamic(() => import("@/domains/academics/components/AcademicFilters"), { ssr: false });
-const GradesEntryGrid = dynamic(() => import("@/domains/academics/components/GradesEntryGrid"), { ssr: false });
-const BroadsheetMatrix = dynamic(() => import("@/domains/academics/components/BroadsheetMatrix"), { ssr: false });
-const ResultsReportsPanel = dynamic(() => import("@/domains/academics/components/ResultsReportsPanel"), { ssr: false });
+import AcademicFilters from "@/domains/academics/components/AcademicFilters";
+import GradesEntryGrid from "@/domains/academics/components/GradesEntryGrid";
+import BroadsheetMatrix from "@/domains/academics/components/BroadsheetMatrix";
+import ResultsReportsPanel from "@/domains/academics/components/ResultsReportsPanel";
 
 import {
   getGradingGrid,
@@ -283,14 +282,79 @@ export default function AcademicResultsPage() {
             const { getCachedReferenceItems } = await import("@/infrastructure/local-db/references");
             const cachedList = await getCachedReferenceItems<any>("examResults" as any);
             const match = cachedList.find((c: any) => c.key === cacheKey);
-            if (match) {
+            if (match && match.data?.length > 0) {
               setStudents(match.data);
               setLevel(match.level || filters.level);
               setActiveCoef(match.activeCoef || 1);
               setIsLocal(true);
               toast.info("Affichage des notes locales (hors-ligne).");
             } else {
-              toast.warning("Aucune donnée locale en cache pour cette sélection.");
+              // Smart Offline Grid Initializer: Build grading grid from local students in Dexie!
+              const { localDb } = await import("@/infrastructure/local-db/dexie");
+              const { getClassDisplayName } = await import("@/domains/academics/utils/class-name");
+
+              // 1. Resolve class name
+              const cachedClasses = await getCachedReferenceItems<any>("class");
+              const selectedClass = cachedClasses.find((c: any) => Number(c.id) === Number(filters.classId));
+              const targetClassName = selectedClass ? getClassDisplayName(selectedClass, "").toLowerCase().trim() : "";
+
+              // 2. Query students belonging to this class
+              const allStudents = await localDb.students.toArray();
+              let matchedStudents: any[] = [];
+
+              if (targetClassName) {
+                matchedStudents = allStudents.filter((s: any) => {
+                  const sc = String(s.classe || "").toLowerCase().trim();
+                  return sc === targetClassName || targetClassName.includes(sc) || sc.includes(targetClassName);
+                });
+              }
+
+              // Fallback: match by section or use students if class filter was broad
+              if (matchedStudents.length === 0 && allStudents.length > 0) {
+                matchedStudents = allStudents;
+              }
+
+              if (matchedStudents.length > 0) {
+                // 3. Query any existing results entered offline for this class & subject & term
+                const existingResults = await localDb.studentResults
+                  .where("classId")
+                  .equals(Number(filters.classId))
+                  .toArray()
+                  .catch(() => []);
+
+                const subjectResults = existingResults.filter((r: any) =>
+                  Number(r.subjectId) === Number(filters.subjectId) &&
+                  String(r.term || "").toLowerCase() === String(filters.period || "").toLowerCase()
+                );
+
+                const offlineGrid = matchedStudents.map((s: any) => {
+                  const res = subjectResults.find((r: any) => Number(r.studentId) === Number(s.id));
+                  return {
+                    id: s.id,
+                    numAdmission: s.numAdmission || `ADM-${s.id}`,
+                    nomEtudiant: s.nomEtudiant,
+                    classe: s.classe,
+                    history: "Mode Hors-Ligne",
+                    existingResult: res ? {
+                      classWorkScore: res.classWorkScore,
+                      examScore: res.examScore,
+                      totalScore: res.totalScore,
+                      weightedScore: res.weightedScore,
+                      rank: res.rank,
+                      observation: res.observation,
+                      appreciation: res.appreciation,
+                    } : null,
+                  };
+                });
+
+                setStudents(offlineGrid);
+                setLevel(filters.level);
+                setActiveCoef(1);
+                setIsLocal(true);
+                toast.success(`Grille hors-ligne initialisée avec ${offlineGrid.length} élève(s). Vous pouvez saisir les notes.`);
+              } else {
+                toast.warning("Aucun élève trouvé dans la base locale pour cette classe. Veuillez effectuer une synchronisation.");
+              }
             }
           }
         } catch (e) {
