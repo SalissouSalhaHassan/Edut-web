@@ -286,6 +286,154 @@ export async function syncOutbox() {
           const res = await postMessage(item.payload);
           success = !!res?.success;
           error = res?.error || "Unknown error";
+        } else if (item.targetTable === "classes") {
+          const { createClass, updateClass, deleteClass } = await import("@/domains/academics/actions/academics.actions");
+          const { updateCachedReferenceId, removeCachedReferenceItem } = await import("./references");
+          if (item.actionType === "DELETE") {
+            const targetId = Number(item.entityId || item.payload?.id);
+            const res = await deleteClass(targetId);
+            success = !!res?.success;
+            error = res?.error || "Unknown error";
+            if (success) {
+              await removeCachedReferenceItem("class", targetId);
+            }
+          } else if (item.actionType === "UPDATE") {
+            const { id, section, ...classData } = item.payload;
+            const res = await updateClass(Number(id), classData);
+            success = !!res?.success;
+            error = res?.error || "Unknown error";
+          } else {
+            const { id: localId, section, ...classData } = item.payload;
+            const res = (await createClass(classData)) as any;
+            if (res?.success) {
+              success = true;
+              resId = res?.id || res?.data?.id;
+              if (resId && localId && localId !== resId) {
+                await updateCachedReferenceId("class", localId, resId);
+                // Cascade temporary class ID to any pending outbox actions
+                try {
+                  const pendingActions = await localDb.outbox
+                    .filter(o => o.status !== "synced" && o.status !== "cancelled")
+                    .toArray();
+                  for (const pending of pendingActions) {
+                    if (pending.payload && pending.payload.classId === localId) {
+                      pending.payload.classId = resId;
+                      await localDb.outbox.update(pending.id!, { payload: pending.payload });
+                    }
+                  }
+                } catch (e) {
+                  console.warn("Failed to cascade class ID to outbox items:", e);
+                }
+              }
+            } else if (res?.error && res.error.includes("existe déjà")) {
+              success = true;
+            } else {
+              error = res?.error || "Unknown error";
+            }
+          }
+        } else if (item.targetTable === "sections") {
+          const { createSection, updateSection, deleteSection } = await import("@/domains/academics/actions/academics.actions");
+          const { updateCachedReferenceId, removeCachedReferenceItem } = await import("./references");
+          if (item.actionType === "DELETE") {
+            const targetId = Number(item.entityId || item.payload?.id);
+            const res = await deleteSection(targetId);
+            success = !!res?.success;
+            error = res?.error || "Unknown error";
+            if (success) {
+              await removeCachedReferenceItem("section", targetId);
+            }
+          } else if (item.actionType === "UPDATE") {
+            const { id, ...sectionData } = item.payload;
+            const res = await updateSection(Number(id), sectionData);
+            success = !!res?.success;
+            error = res?.error || "Unknown error";
+          } else {
+            const { id: localId, ...sectionData } = item.payload;
+            const res = (await createSection(sectionData)) as any;
+            if (res?.success) {
+              success = true;
+              resId = res?.id || res?.data?.id;
+              if (resId && localId && localId !== resId) {
+                await updateCachedReferenceId("section", localId, resId);
+                // Cascade temporary section ID to classes in outbox
+                try {
+                  const pendingActions = await localDb.outbox
+                    .filter(o => o.status !== "synced" && o.status !== "cancelled")
+                    .toArray();
+                  for (const pending of pendingActions) {
+                    if (pending.payload && pending.payload.sectionId === localId) {
+                      pending.payload.sectionId = resId;
+                      await localDb.outbox.update(pending.id!, { payload: pending.payload });
+                    }
+                  }
+                } catch (e) {
+                  console.warn("Failed to cascade section ID to outbox items:", e);
+                }
+              }
+            } else if (res?.error && res.error.includes("existe déjà")) {
+              success = true;
+            } else {
+              error = res?.error || "Unknown error";
+            }
+          }
+        } else if (item.targetTable === "periods") {
+          const { createPeriod, updatePeriod, deletePeriod } = await import("@/domains/academics/actions/academics.actions");
+          const { updateCachedReferenceId, removeCachedReferenceItem } = await import("./references");
+          if (item.actionType === "DELETE") {
+            const targetId = Number(item.entityId || item.payload?.id);
+            const res = await deletePeriod(targetId);
+            success = !!res?.success;
+            error = res?.error || "Unknown error";
+            if (success) {
+              await removeCachedReferenceItem("period", targetId);
+            }
+          } else if (item.actionType === "UPDATE") {
+            const { id, session, ...periodData } = item.payload;
+            const res = await updatePeriod(Number(id), periodData);
+            success = !!res?.success;
+            error = res?.error || "Unknown error";
+          } else {
+            const { id: localId, session, ...periodData } = item.payload;
+            const res = (await createPeriod(periodData)) as any;
+            if (res?.success) {
+              success = true;
+              const periodObj = res?.data?.data || res?.data || res;
+              resId = res?.id || periodObj?.id;
+              if (resId && localId && localId !== resId) {
+                await updateCachedReferenceId("period", localId, resId);
+              }
+            } else if (res?._alreadyExisted || (res?.error && res.error.includes("existe déjà"))) {
+              success = true;
+            } else {
+              error = res?.error || "Unknown error";
+            }
+          }
+        } else if (item.targetTable === "sessions") {
+          const { createSession, deleteSession } = await import("@/domains/academics/actions/academics.actions");
+          const { updateCachedReferenceId, removeCachedReferenceItem } = await import("./references");
+          if (item.actionType === "DELETE") {
+            const targetId = Number(item.entityId || item.payload?.id);
+            const res = await deleteSession(targetId);
+            success = !!res?.success;
+            error = res?.error || "Unknown error";
+            if (success) {
+              await removeCachedReferenceItem("session", targetId);
+            }
+          } else {
+            const { id: localId, sessionName } = item.payload;
+            const res = (await createSession(sessionName)) as any;
+            if (res?.success) {
+              success = true;
+              resId = res?.id || res?.data?.id;
+              if (resId && localId && localId !== resId) {
+                await updateCachedReferenceId("session", localId, resId);
+              }
+            } else if (res?.error && res.error.includes("existe déjà")) {
+              success = true;
+            } else {
+              error = res?.error || "Unknown error";
+            }
+          }
         } else if (["documents", "library", "canevas"].includes(item.targetTable)) {
           // Simulation of successful sync to target backend table
           success = true;

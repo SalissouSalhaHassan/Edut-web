@@ -18,6 +18,13 @@ import {
   createPeriod, deletePeriod, updatePeriod, togglePeriodLock, handlePeriodExtensionRequest, getPeriodExtensionRequests, promoteClassStudents,
   createEducationalLevel, deleteEducationalLevel, createCanevasReferenceItem, deleteCanevasReferenceItem
 } from "@/domains/academics/actions/academics.actions";
+import { localDb } from "@/infrastructure/local-db/dexie";
+import { 
+  addOrUpdateCachedReferenceItem, 
+  removeCachedReferenceItem, 
+  getCachedReferenceItems, 
+  cacheReferenceItems 
+} from "@/infrastructure/local-db/references";
 
 export function AcademicSettings({ 
   initialSessions, 
@@ -72,6 +79,79 @@ export function AcademicSettings({
   useEffect(() => {
     clearAcademicFilterCache();
   }, [sessionsList, classesList, sectionsList, subjectsList, sectionSubjectsList, classSubjectsList, periodsList]);
+
+  // Hydrate local cache on mount if offline or empty, and seed localDb if server props exist
+  useEffect(() => {
+    let mounted = true;
+    async function initAcademicOfflineCache() {
+      try {
+        if (initialSessions && initialSessions.length > 0) {
+          await cacheReferenceItems("session", initialSessions, "sessionName");
+        }
+        if (initialClasses && initialClasses.length > 0) {
+          await cacheReferenceItems("class", initialClasses, "className");
+        }
+        if (initialSections && initialSections.length > 0) {
+          await cacheReferenceItems("section", initialSections, "sectionName");
+        }
+        if (initialPeriods && initialPeriods.length > 0) {
+          await cacheReferenceItems("period", initialPeriods, "name");
+        }
+        if (initialSubjects && initialSubjects.length > 0) {
+          await cacheReferenceItems("subject", initialSubjects, "subjectName");
+        }
+
+        if (!initialClasses || initialClasses.length === 0) {
+          const cachedClasses = await getCachedReferenceItems("class");
+          if (mounted && cachedClasses.length > 0) setClassesList(cachedClasses);
+        }
+        if (!initialSections || initialSections.length === 0) {
+          const cachedSections = await getCachedReferenceItems("section");
+          if (mounted && cachedSections.length > 0) setSectionsList(cachedSections);
+        }
+        if (!initialPeriods || initialPeriods.length === 0) {
+          const cachedPeriods = await getCachedReferenceItems("period");
+          if (mounted && cachedPeriods.length > 0) setPeriodsList(cachedPeriods);
+        }
+        if (!initialSessions || initialSessions.length === 0) {
+          const cachedSessions = await getCachedReferenceItems("session");
+          if (mounted && cachedSessions.length > 0) setSessionsList(cachedSessions);
+        }
+      } catch (e) {
+        console.warn("[AcademicSettings] Offline init cache error:", e);
+      }
+    }
+
+    initAcademicOfflineCache();
+
+    const handleFiltersUpdated = async () => {
+      try {
+        const [cClasses, cSections, cPeriods, cSessions] = await Promise.all([
+          getCachedReferenceItems("class"),
+          getCachedReferenceItems("section"),
+          getCachedReferenceItems("period"),
+          getCachedReferenceItems("session"),
+        ]);
+        if (mounted) {
+          if (cClasses.length > 0) setClassesList(cClasses);
+          if (cSections.length > 0) setSectionsList(cSections);
+          if (cPeriods.length > 0) setPeriodsList(cPeriods);
+          if (cSessions.length > 0) setSessionsList(cSessions);
+        }
+      } catch (e) {}
+    };
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("academic_filters_updated", handleFiltersUpdated);
+    }
+
+    return () => {
+      mounted = false;
+      if (typeof window !== "undefined") {
+        window.removeEventListener("academic_filters_updated", handleFiltersUpdated);
+      }
+    };
+  }, []);
 
   // Form states
   const [sessionName, setSessionName] = useState("");
@@ -190,16 +270,50 @@ export function AcademicSettings({
     if (!sessionName) return;
     const tempName = sessionName.trim();
     const tempId = Date.now();
-    setSessionsList((prev: any[]) => [...prev, { id: tempId, sessionName: tempName, isActive: false, status: "Inactif" }]);
+    const newSession = { id: tempId, sessionName: tempName, isActive: false, status: "Inactif" };
+    setSessionsList((prev: any[]) => [...prev, newSession]);
     setSessionName("");
+
+    addOrUpdateCachedReferenceItem("session", newSession, "sessionName");
+
+    if (!navigator.onLine) {
+      localDb.outbox.add({
+        actionType: "INSERT",
+        targetTable: "sessions",
+        payload: { id: tempId, sessionName: tempName },
+        priority: 3,
+        timestamp: Date.now(),
+        status: "pending",
+      });
+      toast.success(`Année scolaire "${tempName}" ajoutée en mode hors-ligne.`);
+      return;
+    }
+
     startTransition(async () => {
-      const res = await createSession(tempName);
-      if (res.success) {
-        toast.success(`Année scolaire "${tempName}" ajoutée avec succès`);
-        router.refresh();
-      } else {
-        setSessionsList((prev: any[]) => prev.filter((s: any) => s.id !== tempId));
-        toast.error(res.error || "Erreur lors de l'ajout de l'année scolaire");
+      try {
+        const res = await createSession(tempName);
+        if (res.success) {
+          toast.success(`Année scolaire "${tempName}" ajoutée avec succès`);
+          if (res.id) {
+            setSessionsList((prev: any[]) => prev.map((s: any) => s.id === tempId ? { ...s, id: res.id } : s));
+            addOrUpdateCachedReferenceItem("session", { ...newSession, id: res.id }, "sessionName");
+          }
+          router.refresh();
+        } else {
+          setSessionsList((prev: any[]) => prev.filter((s: any) => s.id !== tempId));
+          removeCachedReferenceItem("session", tempId);
+          toast.error(res.error || "Erreur lors de l'ajout de l'année scolaire");
+        }
+      } catch {
+        localDb.outbox.add({
+          actionType: "INSERT",
+          targetTable: "sessions",
+          payload: { id: tempId, sessionName: tempName },
+          priority: 3,
+          timestamp: Date.now(),
+          status: "pending",
+        });
+        toast.info(`Année scolaire "${tempName}" enregistrée localement (hors-ligne).`);
       }
     });
   };
@@ -230,84 +344,134 @@ export function AcademicSettings({
           ? Number(selectedPeriodSessionId) 
           : (activeSessionObj?.id || null));
 
-    startTransition(async () => {
-      if (editingPeriodId) {
-        const res = await updatePeriod(editingPeriodId, {
-          name: periodName.trim(),
-          periodType: periodType,
-          sessionId: targetSessionId,
-          isActive: true,
-          startDate: periodStartDate || null,
-          endDate: periodEndDate || null,
+    const newPeriodObj = {
+      id: Date.now(),
+      name: periodName.trim(),
+      periodType,
+      sessionId: targetSessionId,
+      session_id: targetSessionId,
+      isActive: true,
+      startDate: periodStartDate || null,
+      endDate: periodEndDate || null,
+      session: activeSessionObj
+    };
+
+    if (editingPeriodId) {
+      const oldPeriods = [...periodsList];
+      const updatedPeriodObj = {
+        name: periodName.trim(),
+        periodType,
+        sessionId: targetSessionId,
+        session_id: targetSessionId,
+        isActive: true,
+        startDate: periodStartDate || null,
+        endDate: periodEndDate || null,
+        session: sessionsList?.find((s: any) => s.id === targetSessionId),
+      };
+      setPeriodsList((prev: any[]) => prev.map((p: any) => p.id === editingPeriodId ? { ...p, ...updatedPeriodObj } : p));
+      addOrUpdateCachedReferenceItem("period", { id: editingPeriodId, ...updatedPeriodObj }, "name");
+      setEditingPeriodId(null);
+      setPeriodName("");
+      setPeriodStartDate("");
+      setPeriodEndDate("");
+
+      if (!navigator.onLine) {
+        localDb.outbox.add({
+          actionType: "UPDATE",
+          targetTable: "periods",
+          payload: { id: editingPeriodId, ...updatedPeriodObj },
+          priority: 3,
+          timestamp: Date.now(),
+          status: "pending",
         });
-        if (res.success) {
-          toast.success("Période / Séquence mise à jour avec succès");
-          const sessionObj = sessionsList?.find((s: any) => s.id === targetSessionId);
-          setPeriodsList((prev: any[]) => prev.map((p: any) => p.id === editingPeriodId ? { 
-            ...p, 
-            name: periodName.trim(), 
-            periodType: periodType, 
-            sessionId: targetSessionId,
-            session_id: targetSessionId,
-            startDate: periodStartDate || null,
-            start_date: periodStartDate || null,
-            endDate: periodEndDate || null,
-            end_date: periodEndDate || null,
-            session: sessionObj || p.session
-          } : p));
-          setEditingPeriodId(null);
-          setPeriodName("");
-          setPeriodStartDate("");
-          setPeriodEndDate("");
-          router.refresh();
-        } else {
-          toast.error(res.error || "Erreur lors de la modification de la période");
-        }
-      } else {
-        const res = await createPeriod({ 
-          name: periodName.trim(), 
-          periodType: periodType, 
-          sessionId: targetSessionId,
-          isActive: true,
-          startDate: periodStartDate || null,
-          endDate: periodEndDate || null,
-        });
-        if (res.success) {
-          const createdObj = (res.data as any)?.data || res.data;
-          const alreadyExisted = (createdObj as any)?._alreadyExisted === true;
-          if (createdObj && createdObj.id && !alreadyExisted) {
-            const sessionObj = sessionsList?.find((s: any) => s.id === targetSessionId);
-            const fullObj = { 
-              ...createdObj, 
-              sessionId: createdObj.sessionId ?? createdObj.session_id ?? targetSessionId, 
-              session_id: createdObj.session_id ?? createdObj.sessionId ?? targetSessionId, 
-              startDate: periodStartDate || null,
-              endDate: periodEndDate || null,
-              session: sessionObj 
-            };
-            setPeriodsList((prev: any[]) => {
-              const exists = prev.some((p: any) => p.id === fullObj.id);
-              return exists ? prev : [...prev, fullObj];
-            });
-            toast.success(`Période / Séquence "${createdObj.name || periodName}" créée avec succès`);
-            setPeriodName("");
-            setPeriodStartDate("");
-            setPeriodEndDate("");
-            router.refresh();
-          } else if (alreadyExisted) {
-            toast.warning(`La période "${periodName}" existe déjà pour cette année scolaire.`);
-          } else {
-            toast.success(`Période / Séquence "${periodName}" créée avec succès`);
-            setPeriodName("");
-            setPeriodStartDate("");
-            setPeriodEndDate("");
-            router.refresh();
-          }
-        } else {
-          toast.error(res.error || "Erreur lors de la création de la période");
-        }
+        toast.success("Période mise à jour en mode hors-ligne.");
+        return;
       }
-    });
+
+      startTransition(async () => {
+        try {
+          const res = await updatePeriod(editingPeriodId, updatedPeriodObj);
+          if (res.success) {
+            toast.success("Période / Séquence mise à jour avec succès");
+            router.refresh();
+          } else {
+            setPeriodsList(oldPeriods);
+            toast.error(res.error || "Erreur lors de la modification de la période");
+          }
+        } catch {
+          localDb.outbox.add({
+            actionType: "UPDATE",
+            targetTable: "periods",
+            payload: { id: editingPeriodId, ...updatedPeriodObj },
+            priority: 3,
+            timestamp: Date.now(),
+            status: "pending",
+          });
+          toast.info("Modification enregistrée localement (hors-ligne).");
+        }
+      });
+    } else {
+      const tempId = newPeriodObj.id;
+      setPeriodsList((prev: any[]) => [...prev, newPeriodObj]);
+      addOrUpdateCachedReferenceItem("period", newPeriodObj, "name");
+      setPeriodName("");
+      setPeriodStartDate("");
+      setPeriodEndDate("");
+
+      if (!navigator.onLine) {
+        localDb.outbox.add({
+          actionType: "INSERT",
+          targetTable: "periods",
+          payload: newPeriodObj,
+          priority: 3,
+          timestamp: Date.now(),
+          status: "pending",
+        });
+        toast.success(`Période "${newPeriodObj.name}" créée hors-ligne. Disponible immédiatement.`);
+        return;
+      }
+
+      startTransition(async () => {
+        try {
+          const res = await createPeriod({ 
+            name: newPeriodObj.name, 
+            periodType: newPeriodObj.periodType, 
+            sessionId: targetSessionId,
+            isActive: true,
+            startDate: newPeriodObj.startDate,
+            endDate: newPeriodObj.endDate,
+          });
+          if (res.success) {
+            const createdObj = (res.data as any)?.data || res.data;
+            const alreadyExisted = (createdObj as any)?._alreadyExisted === true;
+            if (createdObj && createdObj.id && !alreadyExisted) {
+              setPeriodsList((prev: any[]) => prev.map((p: any) => p.id === tempId ? { ...p, ...createdObj } : p));
+              addOrUpdateCachedReferenceItem("period", { ...newPeriodObj, id: createdObj.id }, "name");
+              toast.success(`Période / Séquence "${createdObj.name || newPeriodObj.name}" créée avec succès`);
+            } else if (alreadyExisted) {
+              toast.warning(`La période "${newPeriodObj.name}" existe déjà pour cette année scolaire.`);
+            } else {
+              toast.success(`Période / Séquence "${newPeriodObj.name}" créée avec succès`);
+            }
+            router.refresh();
+          } else {
+            setPeriodsList((prev: any[]) => prev.filter((p: any) => p.id !== tempId));
+            removeCachedReferenceItem("period", tempId);
+            toast.error(res.error || "Erreur lors de la création de la période");
+          }
+        } catch {
+          localDb.outbox.add({
+            actionType: "INSERT",
+            targetTable: "periods",
+            payload: newPeriodObj,
+            priority: 3,
+            timestamp: Date.now(),
+            status: "pending",
+          });
+          toast.info(`Période "${newPeriodObj.name}" enregistrée localement (hors-ligne).`);
+        }
+      });
+    }
   };
 
   const handleGeneratePresetPeriods = (type: "Primaire" | "CollegeLycee" | "Superior" | "Sequences6" | "Sequences4") => {
@@ -369,6 +533,35 @@ export function AcademicSettings({
       let countSkipped = 0;
       const errors: string[] = [];
 
+      if (!navigator.onLine) {
+        for (const p of periodsToCreate) {
+          const tempId = Date.now() + Math.floor(Math.random() * 1000);
+          const sessionObj = sessionsList?.find((s: any) => s.id === sid);
+          const fullObj = {
+            id: tempId,
+            name: p.name,
+            periodType: p.periodType,
+            sessionId: sid,
+            session_id: sid,
+            isActive: true,
+            session: sessionObj,
+          };
+          setPeriodsList((prev: any[]) => [...prev, fullObj]);
+          addOrUpdateCachedReferenceItem("period", fullObj, "name");
+          localDb.outbox.add({
+            actionType: "INSERT",
+            targetTable: "periods",
+            payload: fullObj,
+            priority: 3,
+            timestamp: Date.now(),
+            status: "pending",
+          });
+          countCreated++;
+        }
+        toast.success(`${countCreated} période(s) générée(s) en mode hors-ligne. Disponible immédiatement.`);
+        return;
+      }
+
       for (const p of periodsToCreate) {
         const res = await createPeriod({
           name: p.name,
@@ -391,6 +584,7 @@ export function AcademicSettings({
               const existsInPrev = prev.some((item: any) => item.id === fullObj.id);
               return existsInPrev ? prev : [...prev, fullObj];
             });
+            addOrUpdateCachedReferenceItem("period", fullObj, "name");
             countCreated++;
           } else {
             countSkipped++;
@@ -426,7 +620,7 @@ export function AcademicSettings({
     const tempId = Date.now();
     const tempClassObj = {
       id: tempId,
-      className,
+      className: className.trim(),
       sectionId: Number(classSectionId),
       roomName,
       scolariteMensuelle: scolarite ? Number(scolarite) : 0,
@@ -447,24 +641,56 @@ export function AcademicSettings({
     setAncienSolde("");
     setStatutInitial("");
 
-    startTransition(async () => {
-      const res = await createClass({ 
-        className: tempClassObj.className, 
-        sectionId: Number(classSectionId),
-        roomName: tempClassObj.roomName,
-        scolariteMensuelle: tempClassObj.scolariteMensuelle,
-        droitsInscription: tempClassObj.droitsInscription,
-        cogesCarteId: tempClassObj.cogesCarteId,
-        transportInternat: tempClassObj.transportInternat,
-        ancienSolde: tempClassObj.ancienSolde,
-        statutInitial: tempClassObj.statutInitial
+    addOrUpdateCachedReferenceItem("class", tempClassObj, "className");
+
+    if (!navigator.onLine) {
+      localDb.outbox.add({
+        actionType: "INSERT",
+        targetTable: "classes",
+        payload: tempClassObj,
+        priority: 3,
+        timestamp: Date.now(),
+        status: "pending",
       });
-      if (res.success) {
-        toast.success(`Classe "${tempClassObj.className}" créée avec succès`);
-        router.refresh();
-      } else {
-        setClassesList((prev: any[]) => prev.filter((c: any) => c.id !== tempId));
-        toast.error(res.error || "Erreur lors de la création de la classe");
+      toast.success(`Classe "${tempClassObj.className}" ajoutée en mode hors-ligne. Disponible immédiatement.`);
+      return;
+    }
+
+    startTransition(async () => {
+      try {
+        const res = await createClass({ 
+          className: tempClassObj.className, 
+          sectionId: Number(classSectionId),
+          roomName: tempClassObj.roomName,
+          scolariteMensuelle: tempClassObj.scolariteMensuelle,
+          droitsInscription: tempClassObj.droitsInscription,
+          cogesCarteId: tempClassObj.cogesCarteId,
+          transportInternat: tempClassObj.transportInternat,
+          ancienSolde: tempClassObj.ancienSolde,
+          statutInitial: tempClassObj.statutInitial
+        });
+        if (res.success) {
+          toast.success(`Classe "${tempClassObj.className}" créée avec succès`);
+          if (res.id) {
+            setClassesList((prev: any[]) => prev.map((c: any) => c.id === tempId ? { ...c, id: res.id } : c));
+            addOrUpdateCachedReferenceItem("class", { ...tempClassObj, id: res.id }, "className");
+          }
+          router.refresh();
+        } else {
+          setClassesList((prev: any[]) => prev.filter((c: any) => c.id !== tempId));
+          removeCachedReferenceItem("class", tempId);
+          toast.error(res.error || "Erreur lors de la création de la classe");
+        }
+      } catch {
+        localDb.outbox.add({
+          actionType: "INSERT",
+          targetTable: "classes",
+          payload: tempClassObj,
+          priority: 3,
+          timestamp: Date.now(),
+          status: "pending",
+        });
+        toast.info(`Classe "${tempClassObj.className}" enregistrée localement (hors-ligne).`);
       }
     });
   };
@@ -486,9 +712,8 @@ export function AcademicSettings({
     if (!editClassName || !editClassSectionId) return;
     const targetSec = sectionsList.find((s: any) => s.id === Number(editClassSectionId));
     const oldClasses = [...classesList];
-    setClassesList((prev: any[]) => prev.map((c: any) => c.id === id ? {
-      ...c,
-      className: editClassName,
+    const updatedClassObj = {
+      className: editClassName.trim(),
       sectionId: Number(editClassSectionId),
       roomName: editRoomName,
       scolariteMensuelle: editScolarite ? Number(editScolarite) : 0,
@@ -497,28 +722,58 @@ export function AcademicSettings({
       transportInternat: editTransport ? Number(editTransport) : 0,
       ancienSolde: editAncienSolde ? Number(editAncienSolde) : 0,
       statutInitial: editStatutInitial,
-      section: targetSec || c.section,
+      section: targetSec || (oldClasses.find((c: any) => c.id === id)?.section),
+    };
+    setClassesList((prev: any[]) => prev.map((c: any) => c.id === id ? {
+      ...c,
+      ...updatedClassObj
     } : c));
+    addOrUpdateCachedReferenceItem("class", { id, ...updatedClassObj }, "className");
     setEditingClassId(null);
 
-    startTransition(async () => {
-      const res = await updateClass(id, {
-        className: editClassName,
-        sectionId: Number(editClassSectionId),
-        roomName: editRoomName,
-        scolariteMensuelle: editScolarite ? Number(editScolarite) : 0,
-        droitsInscription: editInscription ? Number(editInscription) : 0,
-        cogesCarteId: editCoges ? Number(editCoges) : 0,
-        transportInternat: editTransport ? Number(editTransport) : 0,
-        ancienSolde: editAncienSolde ? Number(editAncienSolde) : 0,
-        statutInitial: editStatutInitial,
+    if (!navigator.onLine) {
+      localDb.outbox.add({
+        actionType: "UPDATE",
+        targetTable: "classes",
+        payload: { id, ...updatedClassObj },
+        priority: 3,
+        timestamp: Date.now(),
+        status: "pending",
       });
-      if (res.success) {
-        toast.success(`Classe "${editClassName}" mise à jour avec succès`);
-        router.refresh();
-      } else {
-        setClassesList(oldClasses);
-        toast.error(res.error || "Erreur lors de la mise à jour de la classe");
+      toast.success(`Classe "${editClassName}" mise à jour en mode hors-ligne.`);
+      return;
+    }
+
+    startTransition(async () => {
+      try {
+        const res = await updateClass(id, {
+          className: editClassName,
+          sectionId: Number(editClassSectionId),
+          roomName: editRoomName,
+          scolariteMensuelle: editScolarite ? Number(editScolarite) : 0,
+          droitsInscription: editInscription ? Number(editInscription) : 0,
+          cogesCarteId: editCoges ? Number(editCoges) : 0,
+          transportInternat: editTransport ? Number(editTransport) : 0,
+          ancienSolde: editAncienSolde ? Number(editAncienSolde) : 0,
+          statutInitial: editStatutInitial,
+        });
+        if (res.success) {
+          toast.success(`Classe "${editClassName}" mise à jour avec succès`);
+          router.refresh();
+        } else {
+          setClassesList(oldClasses);
+          toast.error(res.error || "Erreur lors de la mise à jour de la classe");
+        }
+      } catch {
+        localDb.outbox.add({
+          actionType: "UPDATE",
+          targetTable: "classes",
+          payload: { id, ...updatedClassObj },
+          priority: 3,
+          timestamp: Date.now(),
+          status: "pending",
+        });
+        toast.info(`Modification enregistrée localement (hors-ligne).`);
       }
     });
   };
@@ -526,13 +781,42 @@ export function AcademicSettings({
   const handleDeleteClass = (id: number, name: string) => {
     if (!confirm(`Supprimer la classe "${name}" ?`)) return;
     setClassesList((prev: any[]) => prev.filter((c: any) => c.id !== id));
+    removeCachedReferenceItem("class", id);
+
+    if (!navigator.onLine) {
+      localDb.outbox.add({
+        actionType: "DELETE",
+        targetTable: "classes",
+        entityId: id,
+        payload: { id },
+        priority: 3,
+        timestamp: Date.now(),
+        status: "pending",
+      });
+      toast.success("Classe supprimée en mode hors-ligne.");
+      return;
+    }
+
     startTransition(async () => {
-      const res = await deleteClass(id);
-      if (res.success) {
-        toast.success("Classe supprimée avec succès");
-        router.refresh();
-      } else {
-        toast.error(res.error || "Erreur lors de la suppression de la classe");
+      try {
+        const res = await deleteClass(id);
+        if (res.success) {
+          toast.success("Classe supprimée avec succès");
+          router.refresh();
+        } else {
+          toast.error(res.error || "Erreur lors de la suppression de la classe");
+        }
+      } catch {
+        localDb.outbox.add({
+          actionType: "DELETE",
+          targetTable: "classes",
+          entityId: id,
+          payload: { id },
+          priority: 3,
+          timestamp: Date.now(),
+          status: "pending",
+        });
+        toast.info("Suppression enregistrée localement (hors-ligne).");
       }
     });
   };
@@ -575,7 +859,7 @@ export function AcademicSettings({
     const tempName = sectionName.trim();
     const tempLevel = sectionLevel;
     const tempId = Date.now();
-    setSectionsList((prev: any[]) => [...prev, {
+    const tempSecObj = {
       id: tempId,
       sectionName: tempName,
       educationalLevel: tempLevel,
@@ -583,17 +867,50 @@ export function AcademicSettings({
       redoublementThreshold: 8,
       exclusionThreshold: 5,
       numTerms: 3,
-    }]);
+    };
+    setSectionsList((prev: any[]) => [...prev, tempSecObj]);
     setSectionName("");
 
+    addOrUpdateCachedReferenceItem("section", tempSecObj, "sectionName");
+
+    if (!navigator.onLine) {
+      localDb.outbox.add({
+        actionType: "INSERT",
+        targetTable: "sections",
+        payload: tempSecObj,
+        priority: 3,
+        timestamp: Date.now(),
+        status: "pending",
+      });
+      toast.success(`Section "${tempName}" créée en mode hors-ligne. Disponible immédiatement.`);
+      return;
+    }
+
     startTransition(async () => {
-      const res = await createSection({ sectionName: tempName, educationalLevel: tempLevel });
-      if (res.success) {
-        toast.success(`Section "${tempName}" créée avec succès`);
-        router.refresh();
-      } else {
-        setSectionsList((prev: any[]) => prev.filter((s: any) => s.id !== tempId));
-        toast.error(res.error || "Erreur lors de la création de la section");
+      try {
+        const res = await createSection({ sectionName: tempName, educationalLevel: tempLevel });
+        if (res.success) {
+          toast.success(`Section "${tempName}" créée avec succès`);
+          if (res.id) {
+            setSectionsList((prev: any[]) => prev.map((s: any) => s.id === tempId ? { ...s, id: res.id } : s));
+            addOrUpdateCachedReferenceItem("section", { ...tempSecObj, id: res.id }, "sectionName");
+          }
+          router.refresh();
+        } else {
+          setSectionsList((prev: any[]) => prev.filter((s: any) => s.id !== tempId));
+          removeCachedReferenceItem("section", tempId);
+          toast.error(res.error || "Erreur lors de la création de la section");
+        }
+      } catch {
+        localDb.outbox.add({
+          actionType: "INSERT",
+          targetTable: "sections",
+          payload: tempSecObj,
+          priority: 3,
+          timestamp: Date.now(),
+          status: "pending",
+        });
+        toast.info(`Section "${tempName}" enregistrée localement (hors-ligne).`);
       }
     });
   };
@@ -619,8 +936,7 @@ export function AcademicSettings({
     const exclus = parseFloat(editExclusionThreshold) || 5;
 
     const oldSections = [...sectionsList];
-    setSectionsList((prev: any[]) => prev.map((s: any) => s.id === id ? {
-      ...s,
+    const updatedSecObj = {
       sectionName: editSectionName.trim(),
       educationalLevel: editSectionLevel,
       minPassingGrade: passing,
@@ -628,25 +944,47 @@ export function AcademicSettings({
       exclusionThreshold: exclus,
       numTerms: editNumTerms,
       termLabels: editTermLabels,
+    };
+    setSectionsList((prev: any[]) => prev.map((s: any) => s.id === id ? {
+      ...s,
+      ...updatedSecObj
     } : s));
+    addOrUpdateCachedReferenceItem("section", { id, ...updatedSecObj }, "sectionName");
     setEditingSectionId(null);
 
-    startTransition(async () => {
-      const res = await updateSection(id, {
-        sectionName: editSectionName.trim(),
-        educationalLevel: editSectionLevel,
-        minPassingGrade: passing,
-        redoublementThreshold: redoubl,
-        exclusionThreshold: exclus,
-        numTerms: editNumTerms,
-        termLabels: editTermLabels,
+    if (!navigator.onLine) {
+      localDb.outbox.add({
+        actionType: "UPDATE",
+        targetTable: "sections",
+        payload: { id, ...updatedSecObj },
+        priority: 3,
+        timestamp: Date.now(),
+        status: "pending",
       });
-      if (res.success) {
-        toast.success(`Section "${editSectionName}" mise à jour avec succès`);
-        router.refresh();
-      } else {
-        setSectionsList(oldSections);
-        toast.error(res.error || "Erreur lors de la modification de la section");
+      toast.success(`Section "${editSectionName}" mise à jour en mode hors-ligne.`);
+      return;
+    }
+
+    startTransition(async () => {
+      try {
+        const res = await updateSection(id, updatedSecObj);
+        if (res.success) {
+          toast.success(`Section "${editSectionName}" mise à jour avec succès`);
+          router.refresh();
+        } else {
+          setSectionsList(oldSections);
+          toast.error(res.error || "Erreur lors de la modification de la section");
+        }
+      } catch {
+        localDb.outbox.add({
+          actionType: "UPDATE",
+          targetTable: "sections",
+          payload: { id, ...updatedSecObj },
+          priority: 3,
+          timestamp: Date.now(),
+          status: "pending",
+        });
+        toast.info(`Modification enregistrée localement (hors-ligne).`);
       }
     });
   };
@@ -1600,13 +1938,42 @@ export function AcademicSettings({
                   <button 
                     onClick={() => {
                       if (confirm(`Supprimer la période "${p.name}" ?`)) {
+                        setPeriodsList((prev: any[]) => prev.filter((item: any) => item.id !== p.id));
+                        removeCachedReferenceItem("period", p.id);
+
+                        if (!navigator.onLine) {
+                          localDb.outbox.add({
+                            actionType: "DELETE",
+                            targetTable: "periods",
+                            entityId: p.id,
+                            payload: { id: p.id },
+                            priority: 3,
+                            timestamp: Date.now(),
+                            status: "pending",
+                          });
+                          toast.success("Période supprimée en mode hors-ligne.");
+                          return;
+                        }
+
                         startTransition(async () => {
-                          const res = await deletePeriod(p.id);
-                          if (res.success) {
-                            setPeriodsList((prev: any[]) => prev.filter((item: any) => item.id !== p.id));
-                            toast.success("Période supprimée avec succès");
-                          } else {
-                            toast.error(res.error || "Erreur lors de la suppression");
+                          try {
+                            const res = await deletePeriod(p.id);
+                            if (res.success) {
+                              toast.success("Période supprimée avec succès");
+                            } else {
+                              toast.error(res.error || "Erreur lors de la suppression");
+                            }
+                          } catch {
+                            localDb.outbox.add({
+                              actionType: "DELETE",
+                              targetTable: "periods",
+                              entityId: p.id,
+                              payload: { id: p.id },
+                              priority: 3,
+                              timestamp: Date.now(),
+                              status: "pending",
+                            });
+                            toast.info("Suppression enregistrée localement (hors-ligne).");
                           }
                         });
                       }
@@ -1851,13 +2218,42 @@ export function AcademicSettings({
                       onClick={() => {
                         if (confirm(`Supprimer la section "${s.sectionName}" ?`)) {
                           setSectionsList((prev: any[]) => prev.filter((item: any) => item.id !== s.id));
+                          removeCachedReferenceItem("section", s.id);
+
+                          if (!navigator.onLine) {
+                            localDb.outbox.add({
+                              actionType: "DELETE",
+                              targetTable: "sections",
+                              entityId: s.id,
+                              payload: { id: s.id },
+                              priority: 3,
+                              timestamp: Date.now(),
+                              status: "pending",
+                            });
+                            toast.success("Section supprimée en mode hors-ligne.");
+                            return;
+                          }
+
                           startTransition(async () => {
-                            const res = await deleteSection(s.id);
-                            if (res.success) {
-                              toast.success("Section supprimée avec succès");
-                              router.refresh();
-                            } else {
-                              toast.error(res.error || "Erreur lors de la suppression");
+                            try {
+                              const res = await deleteSection(s.id);
+                              if (res.success) {
+                                toast.success("Section supprimée avec succès");
+                                router.refresh();
+                              } else {
+                                toast.error(res.error || "Erreur lors de la suppression");
+                              }
+                            } catch {
+                              localDb.outbox.add({
+                                actionType: "DELETE",
+                                targetTable: "sections",
+                                entityId: s.id,
+                                payload: { id: s.id },
+                                priority: 3,
+                                timestamp: Date.now(),
+                                status: "pending",
+                              });
+                              toast.info("Suppression enregistrée localement (hors-ligne).");
                             }
                           });
                         }

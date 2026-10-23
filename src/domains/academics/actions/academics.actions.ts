@@ -597,7 +597,7 @@ export async function createClass(data: {
     });
     if (existing) return { error: "Cette classe existe déjà." };
 
-    await db.insert(schoolClasses).values({
+    const [inserted] = await db.insert(schoolClasses).values({
       className: data.className,
       sectionId: data.sectionId,
       roomName: data.roomName,
@@ -608,11 +608,11 @@ export async function createClass(data: {
       ancienSolde: data.ancienSolde || 0,
       statutInitial: data.statutInitial,
       schoolId: schoolId
-    });
+    }).returning();
     revalidatePath("/dashboard/academics");
     revalidatePath("/dashboard/settings");
     revalidateTag(ACADEMICS_CACHE_TAG);
-    return { success: true };
+    return { success: true, id: inserted?.id, data: inserted };
   });
 }
 
@@ -669,14 +669,14 @@ export async function createSection(data: { sectionName: string, educationalLeve
     });
     if (existing) return { error: "Cette section existe déjà." };
 
-    await db.insert(schoolSections).values({
+    const [inserted] = await db.insert(schoolSections).values({
       ...data,
       schoolId: schoolId
-    });
+    }).returning();
     revalidatePath("/dashboard/academics");
     revalidatePath("/dashboard/settings");
     revalidateTag(ACADEMICS_CACHE_TAG);
-    return { success: true };
+    return { success: true, id: inserted?.id, data: inserted };
   });
 }
 
@@ -2792,13 +2792,13 @@ export async function createSession(sessionName: string) {
     });
     if (existing) return { error: "Cette année scolaire existe déjà." };
 
-    await db.insert(schoolSessions).values({ 
+    const [inserted] = await db.insert(schoolSessions).values({ 
       sessionName,
       schoolId: schoolId 
-    });
+    }).returning();
     revalidatePath("/dashboard/settings");
     revalidateTag(ACADEMICS_CACHE_TAG);
-    return { success: true };
+    return { success: true, id: inserted?.id, data: inserted };
   });
 }
 

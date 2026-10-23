@@ -208,8 +208,22 @@ export default function AcademicFilters({ onLoad, loading }: AcademicFiltersProp
 
     loadOptions();
 
+    const handleFiltersUpdated = async () => {
+      const localCached = await getCachedAcademicFilterOptions();
+      if (localCached && !cancelled) {
+        applyOptions(localCached);
+      }
+    };
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("academic_filters_updated", handleFiltersUpdated);
+    }
+
     return () => {
       cancelled = true;
+      if (typeof window !== "undefined") {
+        window.removeEventListener("academic_filters_updated", handleFiltersUpdated);
+      }
     };
   }, []);
 
