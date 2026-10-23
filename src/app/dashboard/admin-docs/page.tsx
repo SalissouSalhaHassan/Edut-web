@@ -872,6 +872,12 @@ export default function AdminDocsPage() {
 
           <Link
             href="/dashboard/admin-docs/admit-cards"
+            onClick={(e) => {
+              if (typeof window !== "undefined" && !navigator.onLine) {
+                e.preventDefault();
+                window.location.href = "/dashboard/admin-docs/admit-cards";
+              }
+            }}
             className="flex h-11 items-center gap-2 rounded-xl border border-indigo-100 bg-indigo-50 px-5 text-xs font-black uppercase tracking-widest text-indigo-700 hover:bg-indigo-100 active:scale-95 transition-all"
           >
             <IdCard size={15} /> Cartes d’admission

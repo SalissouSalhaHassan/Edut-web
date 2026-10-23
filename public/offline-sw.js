@@ -1,4 +1,4 @@
-const CACHE_VERSION = "edut-offline-v5";
+const CACHE_VERSION = "edut-offline-v6";
 const APP_SHELL = [
   "/",
   "/dashboard",
@@ -8,6 +8,8 @@ const APP_SHELL = [
   "/dashboard/academics/grades",
   "/dashboard/academics/exams",
   "/dashboard/academics/devoirs",
+  "/dashboard/academics/homework",
+  "/dashboard/pedagogie/devoirs",
   "/dashboard/admin-docs",
   "/dashboard/admin-docs/admit-cards",
   "/dashboard/id-cards",
@@ -25,7 +27,7 @@ self.addEventListener("install", (event) => {
       // 1. Pre-cache HTML navigation shells
       for (const url of APP_SHELL) {
         try {
-          await cache.add(url);
+          await cache.add(new Request(url, { credentials: "same-origin" }));
         } catch (err) {
           console.warn("[SW] Cache add warning for", url, err);
         }
@@ -36,7 +38,8 @@ self.addEventListener("install", (event) => {
         if (url.startsWith("/dashboard")) {
           try {
             const rscRequest = new Request(url, {
-              headers: { "RSC": "1" }
+              headers: { "RSC": "1" },
+              credentials: "same-origin"
             });
             const response = await fetch(rscRequest);
             if (response && response.ok) {
@@ -102,13 +105,15 @@ self.addEventListener("fetch", (event) => {
           const cleanMatch = await caches.match(`${url.pathname}?__rsc__`);
           if (cleanMatch) return cleanMatch;
 
-          // Fallback to dashboard RSC if navigating within dashboard
-          if (url.pathname.startsWith("/dashboard")) {
-            const dashMatch = await caches.match("/dashboard?__rsc__");
-            if (dashMatch) return dashMatch;
-          }
-
-          return new Response("", { status: 503, statusText: "Offline RSC Payload Unavailable" });
+          // If no RSC cached, instruct Next.js router to trigger a full document navigation,
+          // which is immediately served by the Service Worker HTML cache!
+          return new Response("", {
+            status: 200,
+            headers: {
+              "x-nextjs-redirect": url.pathname,
+              "content-type": "text/x-component"
+            }
+          });
         })
     );
     return;

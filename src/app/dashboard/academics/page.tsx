@@ -9,7 +9,16 @@ import { BookOpen, MapPin, Calendar, PlusCircle, Edit, GraduationCap, Award, Che
 
 function NavCard({ href, title, subtitle, icon, color }: any) {
   return (
-    <Link href={href} className="group bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col gap-4">
+    <Link 
+      href={href} 
+      onClick={(e) => {
+        if (typeof window !== "undefined" && !navigator.onLine) {
+          e.preventDefault();
+          window.location.href = href;
+        }
+      }}
+      className="group bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col gap-4"
+    >
       <div className={`w-14 h-14 rounded-2xl ${color} flex items-center justify-center group-hover:scale-110 transition-transform`}>
         {icon}
       </div>
@@ -26,11 +35,22 @@ function NavCard({ href, title, subtitle, icon, color }: any) {
 }
 
 export default async function AcademicsPage() {
-  const result = await getClasses();
-  const classes: any[] = ((result as any).data?.data || (result as any).data || []) as any[];
-  
-  const secResult = await getSections();
-  const sections: any[] = ((secResult as any).data?.data || (secResult as any).data || []) as any[];
+  let classes: any[] = [];
+  let sections: any[] = [];
+
+  try {
+    const result = await getClasses();
+    classes = ((result as any).data?.data || (result as any).data || []) as any[];
+  } catch (e) {
+    console.warn("Failed to load classes for academics hub:", e);
+  }
+
+  try {
+    const secResult = await getSections();
+    sections = ((secResult as any).data?.data || (secResult as any).data || []) as any[];
+  } catch (e) {
+    console.warn("Failed to load sections for academics hub:", e);
+  }
 
   return (
     <div className="p-10 space-y-8 animate-fade-in-up">

@@ -299,6 +299,12 @@ export default function SynchronisationClient() {
             </Badge>
             <Link
               href="/dashboard/synchronisation/diagnostic"
+              onClick={(e) => {
+                if (typeof window !== "undefined" && !navigator.onLine) {
+                  e.preventDefault();
+                  window.location.href = "/dashboard/synchronisation/diagnostic";
+                }
+              }}
               className="flex items-center gap-2 h-10 px-5 rounded-2xl border border-slate-200 bg-white text-slate-700 text-sm font-black hover:bg-slate-50 transition"
             >
               <Activity className="h-4 w-4 text-indigo-500" />

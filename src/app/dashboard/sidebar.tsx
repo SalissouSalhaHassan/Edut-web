@@ -694,10 +694,16 @@ export default function DashboardSidebar({
                     href={item.href}
                     scroll={true}
                     prefetch={false}
-                    onClick={() => {
+                    onClick={(e) => {
+                      if (typeof window !== "undefined" && !navigator.onLine) {
+                        e.preventDefault();
                         setPendingHref(item.href);
-                        startNavigation();
-                      }}
+                        window.location.href = item.href;
+                        return;
+                      }
+                      setPendingHref(item.href);
+                      startNavigation();
+                    }}
                     className={cn(
                       "group relative flex items-center justify-between gap-3 rounded-2xl px-3 py-3 transition-all duration-300",
                       active

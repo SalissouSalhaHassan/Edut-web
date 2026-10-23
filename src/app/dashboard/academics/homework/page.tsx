@@ -1,31 +1,77 @@
-export const dynamic = "force-dynamic";
+"use client";
 
-import { getHomeworks, deleteHomework } from "@/domains/academics/actions/homework.actions";
+import React, { Suspense, useEffect, useState } from "react";
 import HomeworkDialog from "@/domains/academics/components/HomeworkDialog";
 import ActionMenu from "@/components/common/ActionMenu";
 import { FileText, Calendar, Clock, Paperclip, CheckCircle2 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { getClassDisplayName } from "@/domains/academics/utils/class-name";
-import { getCurrentUser } from "@/domains/auth/services/session";
-import { getUserRoleType } from "@/domains/auth/services/rbac";
+import { getHomeworks, deleteHomework } from "@/domains/academics/actions/homework.actions";
+import { getCurrentUserAction } from "@/domains/auth/actions/session.actions";
 import StudentHomeworkPortal from "./components/StudentHomeworkPortal";
 
-export default async function HomeworkPage() {
-  const user = await getCurrentUser();
-  const roleType = user ? await getUserRoleType(user) : null;
-  const isStudent = roleType === "eleve" || Boolean(user?.studentId) || Boolean((user as any)?.student_id);
+function HomeworkPageContent() {
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [homeworks, setHomeworks] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadUser() {
+      try {
+        const user = await getCurrentUserAction();
+        if (user) {
+          setCurrentUser(user);
+        } else {
+          const cached = localStorage.getItem("edut_session_user") || localStorage.getItem("edut_user_session");
+          if (cached) setCurrentUser(JSON.parse(cached));
+        }
+      } catch {
+        try {
+          const cached = localStorage.getItem("edut_session_user") || localStorage.getItem("edut_user_session");
+          if (cached) setCurrentUser(JSON.parse(cached));
+        } catch {}
+      }
+    }
+    loadUser();
+  }, []);
+
+  useEffect(() => {
+    async function loadHomeworks() {
+      if (!navigator.onLine) {
+        setLoading(false);
+        return;
+      }
+      try {
+        const res = await getHomeworks();
+        const list = ((res as any).data?.data || (res as any).data || []) as any[];
+        setHomeworks(list);
+      } catch (err) {
+        console.warn("Failed to load homeworks online:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadHomeworks();
+  }, []);
+
+  const roleName = String(currentUser?.role?.roleName || currentUser?.role || "").toLowerCase();
+  const isStudent = Boolean(
+    currentUser?.studentId ||
+    currentUser?.student_id ||
+    roleName.includes("eleve") ||
+    roleName.includes("élève") ||
+    roleName.includes("etudiant") ||
+    roleName.includes("student")
+  );
 
   if (isStudent) {
     return (
       <div className="p-4 md:p-8 bg-[#0B0D14] min-h-[calc(100vh-65px)] rounded-3xl">
-        <StudentHomeworkPortal currentUser={user} />
+        <StudentHomeworkPortal currentUser={currentUser} />
       </div>
     );
   }
-
-  const res = await getHomeworks();
-  const homeworks: any[] = ((res as any).data?.data || (res as any).data || []) as any[];
 
   return (
     <div className="p-10 space-y-10 animate-in fade-in duration-700">
@@ -39,7 +85,7 @@ export default async function HomeworkPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {homeworks.map((hw: any) => {
-          const isExpired = new Date(hw.dateDue!) < new Date();
+          const isExpired = hw.dateDue ? new Date(hw.dateDue) < new Date() : false;
           return (
             <div key={hw.id} className="group bg-white rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-2xl transition-all duration-500 flex flex-col h-full overflow-hidden">
               <div className="p-8 space-y-6 flex-grow">
@@ -112,7 +158,7 @@ export default async function HomeworkPage() {
           );
         })}
 
-        {homeworks.length === 0 && (
+        {homeworks.length === 0 && !loading && (
           <div className="col-span-full py-32 text-center bg-slate-50/50 rounded-[3rem] border-2 border-dashed border-slate-200">
             <div className="p-8 bg-white rounded-full shadow-sm w-fit mx-auto mb-6">
               <FileText size={64} className="text-slate-200" />
@@ -125,3 +171,12 @@ export default async function HomeworkPage() {
     </div>
   );
 }
+
+export default function HomeworkPage() {
+  return (
+    <Suspense fallback={null}>
+      <HomeworkPageContent />
+    </Suspense>
+  );
+}
+
