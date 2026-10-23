@@ -578,6 +578,11 @@ export default function DashboardUI(props: DashboardUIProps) {
                 <Link
                   key={a.label}
                   href={a.href}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (window.location.pathname === a.href) return;
+                    window.location.href = a.href;
+                  }}
                   className="group rounded-2xl bg-slate-50/60 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 hover:bg-white dark:hover:bg-[#1f2230] hover:border-indigo-100 dark:hover:border-indigo-900 hover:shadow-xl hover:shadow-indigo-500/10 transition-all duration-300 p-4 flex items-center gap-3"
                 >
                   <div className={cn("w-11 h-11 rounded-2xl bg-gradient-to-br text-white grid place-items-center shadow-lg transition-transform group-hover:scale-110 duration-300", a.tone)}>

@@ -699,25 +699,11 @@ export default function DashboardSidebar({
                     href={item.href}
                     scroll={true}
                     onClick={(e) => {
-                      if (typeof window !== "undefined" && !navigator.onLine) {
-                        e.preventDefault();
-                        setPendingHref(item.href);
-                        window.location.href = item.href;
-                        return;
-                      }
+                      e.preventDefault();
+                      if (window.location.pathname === item.href) return;
                       setPendingHref(item.href);
                       startNavigation();
-
-                      // Safety watchdog: if route change stalls (> 2000ms), force hard navigation
-                      // so buttons never freeze and user is guaranteed to land on the page.
-                      const targetHref = item.href;
-                      const currentPath = typeof window !== "undefined" ? window.location.pathname : "";
-                      setTimeout(() => {
-                        setPendingHref(null);
-                        if (typeof window !== "undefined" && window.location.pathname === currentPath && targetHref !== currentPath) {
-                          window.location.href = targetHref;
-                        }
-                      }, 2000);
+                      window.location.href = item.href;
                     }}
                     className={cn(
                       "group relative flex items-center justify-between gap-3 rounded-2xl px-3 py-3 transition-all duration-300",
