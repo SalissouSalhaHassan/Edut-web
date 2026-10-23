@@ -35,19 +35,21 @@ function NavCard({ href, title, subtitle, icon, color }: any) {
 }
 
 export default async function AcademicsPage() {
+  let result: any = null;
   let classes: any[] = [];
+  let secResult: any = null;
   let sections: any[] = [];
 
   try {
-    const result = await getClasses();
-    classes = ((result as any).data?.data || (result as any).data || []) as any[];
+    result = await getClasses();
+    classes = ((result as any)?.data?.data || (result as any)?.data || []) as any[];
   } catch (e) {
     console.warn("Failed to load classes for academics hub:", e);
   }
 
   try {
-    const secResult = await getSections();
-    sections = ((secResult as any).data?.data || (secResult as any).data || []) as any[];
+    secResult = await getSections();
+    sections = ((secResult as any)?.data?.data || (secResult as any)?.data || []) as any[];
   } catch (e) {
     console.warn("Failed to load sections for academics hub:", e);
   }
@@ -177,7 +179,7 @@ export default async function AcademicsPage() {
         <h2 className="text-xl font-black text-slate-800 mb-6">Liste des Classes</h2>
       </div>
 
-      {result.error && (
+      {result?.error && (
         <div className="bg-rose-50 border border-rose-100 text-rose-800 px-6 py-4 rounded-[2rem] text-sm font-semibold flex items-center gap-3 shadow-sm">
           <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
           {result.error}
