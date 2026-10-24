@@ -351,7 +351,7 @@ export default function EtablissementsClient({
     }
 
     try {
-      await updateCanevasReferenceItem("commune", oldName, cleanNew);
+      await updateCanevasReferenceItem(oldName, "commune", cleanNew);
       setCommunesList(prev => prev.map(c => c === oldName ? cleanNew : c));
       setSchoolsList(prev => prev.map(s => s.commune === oldName ? { ...s, commune: cleanNew } : s));
       setEditingCommuneName(null);
@@ -372,7 +372,7 @@ export default function EtablissementsClient({
     }
 
     try {
-      await deleteCanevasReferenceItem("commune", communeName);
+      await deleteCanevasReferenceItem(communeName, "commune");
       setCommunesList(prev => prev.filter(c => c !== communeName));
       toast.success(`Commune "${communeName}" supprimée.`);
     } catch {
