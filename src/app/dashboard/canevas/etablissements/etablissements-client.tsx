@@ -45,6 +45,8 @@ import {
 import { cn } from "@/lib/utils";
 import * as XLSX from "xlsx";
 import { createCanevasReferenceItem, updateCanevasReferenceItem, deleteCanevasReferenceItem } from "@/domains/academics/actions/academics.actions";
+import { localDb } from "@/infrastructure/local-db/dexie";
+import { syncOutbox } from "@/infrastructure/local-db/sync";
 
 interface SchoolRow {
   code: string;
@@ -381,9 +383,136 @@ export default function EtablissementsClient({
     }
   };
 
+  // Initial IndexedDB Offline Sync & Cache
+  useEffect(() => {
+    let isCancelled = false;
+    async function initOfflineCanevas() {
+      try {
+        const cached = await localDb.canevasDeclarations.toArray();
+        if (isCancelled) return;
+        if (cached && cached.length > 0) {
+          const mappedLocal: SchoolRow[] = cached.map(c => ({
+            code: c.code,
+            name: c.name,
+            type: c.type,
+            cycle: c.cycle,
+            region: c.region || "Niamey",
+            commune: c.commune,
+            quartier: c.quartier || "Centre",
+            statut: c.statut,
+            eleves: c.eleves,
+            filles: c.filles || Math.floor(c.eleves / 2),
+            garcons: c.garcons || Math.ceil(c.eleves / 2),
+            enseignants: c.enseignants,
+            salles: c.salles,
+            eau: c.eau ? "Oui" : "Non",
+            electricite: c.electricite ? "Oui" : "Non",
+            completion: c.completion || 80,
+            lastUpdate: c.lastUpdate || new Date().toLocaleDateString("fr-FR"),
+          }));
+
+          const localCodes = new Set(mappedLocal.map(m => m.code));
+          const merged = [...mappedLocal, ...initialSchools.filter(s => !localCodes.has(s.code))];
+          setSchoolsList(merged);
+        } else if (initialSchools.length > 0) {
+          const toPrime = initialSchools.map(s => ({
+            code: s.code,
+            name: s.name,
+            type: s.type,
+            cycle: s.cycle,
+            region: s.region,
+            commune: s.commune,
+            quartier: s.quartier,
+            eleves: s.eleves,
+            filles: s.filles,
+            garcons: s.garcons,
+            enseignants: s.enseignants,
+            salles: s.salles,
+            eau: s.eau === "Oui",
+            electricite: s.electricite === "Oui",
+            statut: s.statut,
+            completion: s.completion,
+            lastUpdate: s.lastUpdate,
+            updatedAt: Date.now(),
+            synced: true,
+          }));
+          await localDb.canevasDeclarations.bulkPut(toPrime);
+        }
+      } catch (err) {
+        console.warn("Offline canevas cache warning:", err);
+      }
+    }
+    initOfflineCanevas();
+    return () => { isCancelled = true; };
+  }, [initialSchools]);
+
+  // Helper to persist school changes locally and queue in outbox
+  const saveSchoolOfflineAndQueue = async (school: SchoolRow, actionType: 'INSERT' | 'UPDATE' | 'DELETE') => {
+    try {
+      if (actionType === 'DELETE') {
+        const existing = await localDb.canevasDeclarations.where("code").equals(school.code).first();
+        if (existing?.id) {
+          await localDb.canevasDeclarations.delete(existing.id);
+        }
+      } else {
+        const existing = await localDb.canevasDeclarations.where("code").equals(school.code).first();
+        await localDb.canevasDeclarations.put({
+          ...(existing ? { id: existing.id } : {}),
+          code: school.code,
+          name: school.name,
+          type: school.type,
+          cycle: school.cycle,
+          region: school.region,
+          commune: school.commune,
+          quartier: school.quartier,
+          eleves: school.eleves,
+          filles: school.filles,
+          garcons: school.garcons,
+          enseignants: school.enseignants,
+          salles: school.salles,
+          eau: school.eau === "Oui",
+          electricite: school.electricite === "Oui",
+          statut: school.statut,
+          completion: school.completion,
+          lastUpdate: school.lastUpdate,
+          updatedAt: Date.now(),
+          synced: false,
+        });
+      }
+
+      await localDb.outbox.add({
+        actionType,
+        targetTable: 'canevasDeclarations',
+        entity: 'CanevasSchool',
+        entityId: school.code,
+        payload: school,
+        status: 'pending',
+        priority: 3,
+        timestamp: Date.now(),
+        idempotencyKey: `canevas:${school.code}:${actionType}:${Date.now()}`,
+      });
+
+      if (typeof navigator !== "undefined" && navigator.onLine) {
+        syncOutbox().catch(() => {});
+      }
+    } catch (err) {
+      console.warn("Failed to queue canevas declaration to outbox:", err);
+    }
+  };
+
   // Status and Row Menu Handlers
   const handleUpdateStatus = (code: string, newStatus: string) => {
-    setSchoolsList(prev => prev.map(s => s.code === code ? { ...s, statut: newStatus, lastUpdate: new Date().toLocaleDateString("fr-FR") } : s));
+    let updatedTarget: SchoolRow | null = null;
+    setSchoolsList(prev => prev.map(s => {
+      if (s.code === code) {
+        updatedTarget = { ...s, statut: newStatus, lastUpdate: new Date().toLocaleDateString("fr-FR") };
+        return updatedTarget;
+      }
+      return s;
+    }));
+    if (updatedTarget) {
+      saveSchoolOfflineAndQueue(updatedTarget, 'UPDATE');
+    }
     toast.success(`Statut mis à jour : "${newStatus}" pour l'école ${code}`);
     setActiveRowMenuCode(null);
   };
@@ -398,6 +527,7 @@ export default function EtablissementsClient({
       lastUpdate: new Date().toLocaleDateString("fr-FR"),
     };
     setSchoolsList(prev => [duplicate, ...prev]);
+    saveSchoolOfflineAndQueue(duplicate, 'INSERT');
     toast.success(`Établissement dupliqué avec le code ${newCode}`);
     setActiveRowMenuCode(null);
   };
@@ -465,6 +595,7 @@ export default function EtablissementsClient({
     };
 
     setSchoolsList(prev => [newRow, ...prev]);
+    saveSchoolOfflineAndQueue(newRow, 'INSERT');
     setIsAddOpen(false);
     toast.success(`L'établissement "${newRow.name}" a été ajouté.`);
 
@@ -479,7 +610,9 @@ export default function EtablissementsClient({
     e.preventDefault();
     if (!editSchool) return;
 
-    setSchoolsList(prev => prev.map(s => s.code === editSchool.code ? { ...editSchool, lastUpdate: new Date().toLocaleDateString("fr-FR") } : s));
+    const updated = { ...editSchool, lastUpdate: new Date().toLocaleDateString("fr-FR") };
+    setSchoolsList(prev => prev.map(s => s.code === editSchool.code ? updated : s));
+    saveSchoolOfflineAndQueue(updated, 'UPDATE');
     setEditSchool(null);
     toast.success("Informations de l'établissement mises à jour !");
   };
@@ -487,14 +620,28 @@ export default function EtablissementsClient({
   // Delete School Handler
   const handleDeleteSchool = (code: string) => {
     if (confirm("Êtes-vous sûr de vouloir supprimer cet établissement ?")) {
+      const target = schoolsList.find(s => s.code === code);
       setSchoolsList(prev => prev.filter(s => s.code !== code));
+      if (target) {
+        saveSchoolOfflineAndQueue(target, 'DELETE');
+      }
       toast.success("Établissement supprimé.");
     }
   };
 
   // Validation Action
   const handleValidate = (code: string) => {
-    setSchoolsList(prev => prev.map(s => s.code === code ? { ...s, statut: "Validé inspection", completion: 100 } : s));
+    let updatedTarget: SchoolRow | null = null;
+    setSchoolsList(prev => prev.map(s => {
+      if (s.code === code) {
+        updatedTarget = { ...s, statut: "Validé inspection", completion: 100, lastUpdate: new Date().toLocaleDateString("fr-FR") };
+        return updatedTarget;
+      }
+      return s;
+    }));
+    if (updatedTarget) {
+      saveSchoolOfflineAndQueue(updatedTarget, 'UPDATE');
+    }
     toast.success("Le canevas a été validé par l'inspection !");
   };
 

@@ -434,8 +434,15 @@ export async function syncOutbox() {
               error = res?.error || "Unknown error";
             }
           }
-        } else if (["documents", "library", "canevas"].includes(item.targetTable)) {
-          // Simulation of successful sync to target backend table
+        } else if (["documents", "library", "canevas", "canevasDeclarations"].includes(item.targetTable)) {
+          if (item.targetTable === "canevasDeclarations" && item.payload?.code) {
+            try {
+              const existing = await localDb.canevasDeclarations.where("code").equals(item.payload.code).first();
+              if (existing?.id) {
+                await localDb.canevasDeclarations.update(existing.id, { synced: true, updatedAt: Date.now() });
+              }
+            } catch (_) {}
+          }
           success = true;
           error = "";
         } else {

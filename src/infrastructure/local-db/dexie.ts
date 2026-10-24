@@ -145,6 +145,35 @@ export interface LocalStudentAttendance {
   updatedAt?: number;
 }
 
+export interface LocalCanevasDeclaration {
+  id?: number;
+  code: string;
+  name: string;
+  type: string;
+  cycle: string;
+  region?: string;
+  commune: string;
+  quartier?: string;
+  inspection?: string;
+  eleves: number;
+  filles?: number;
+  garcons?: number;
+  enseignants: number;
+  salles: number;
+  eau: boolean;
+  electricite: boolean;
+  statut: string;
+  completion?: number;
+  lastDeclaration?: string;
+  lastUpdate?: string;
+  rejectionReason?: string;
+  needsCount?: number;
+  successRate?: number;
+  attendanceRate?: number;
+  updatedAt?: number;
+  synced?: boolean;
+}
+
 export interface OutboxAction {
   id?: number;
   actionType: 'INSERT' | 'UPDATE' | 'DELETE';
@@ -179,6 +208,7 @@ class EdutLocalDatabase extends Dexie {
   attendanceBatches!: Table<LocalAttendanceBatch>;
   studentPhotos!: Table<LocalStudentPhoto>;
   studentAttendance!: Table<LocalStudentAttendance>;
+  canevasDeclarations!: Table<LocalCanevasDeclaration>;
   outbox!: Table<OutboxAction>;
 
   constructor() {
@@ -269,6 +299,22 @@ class EdutLocalDatabase extends Dexie {
       attendanceBatches: '++id, classId, subjectId, date, updatedAt',
       studentPhotos: 'numAdmission, updatedAt',
       studentAttendance: '++id, classId, subjectId, date, studentId, updatedAt',
+      outbox: '++id, actionType, targetTable, status, priority, timestamp, updatedAt, syncedAt, retryCount, idempotencyKey, userId, schoolId',
+    });
+
+    this.version(9).stores({
+      students: '++id, schoolId, [schoolId+numAdmission], numAdmission, nomEtudiant, classe, statut, updatedAt',
+      exams: '++id, examName, classId, subjectId, updatedAt',
+      examResults: '++id, examId, studentId, updatedAt',
+      studentResults: '++id, [classId+subjectId+sessionId+term], classId, subjectId, sessionId, term, studentId, updatedAt',
+      devoirGrades: '++id, [classId+subjectId+sessionId+term], classId, subjectId, sessionId, term, studentId, updatedAt',
+      subjects: '++id, subjectName, updatedAt',
+      references: '++id, type, remoteId, label, updatedAt',
+      feePayments: '++id, feeId, reference, datePaid, updatedAt',
+      attendanceBatches: '++id, classId, subjectId, date, updatedAt',
+      studentPhotos: 'numAdmission, updatedAt',
+      studentAttendance: '++id, classId, subjectId, date, studentId, updatedAt',
+      canevasDeclarations: '++id, code, name, commune, statut, cycle, type, updatedAt, synced',
       outbox: '++id, actionType, targetTable, status, priority, timestamp, updatedAt, syncedAt, retryCount, idempotencyKey, userId, schoolId',
     });
   }

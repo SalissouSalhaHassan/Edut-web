@@ -56,6 +56,8 @@ import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 import { getSessions, getCanevasReferenceLists, getEducationalLevels } from "@/domains/academics/actions/academics.actions";
 import { getMinistrySchoolsData } from "@/domains/ministry/actions/ministry.actions";
+import { localDb } from "@/infrastructure/local-db/dexie";
+import { syncOutbox } from "@/infrastructure/local-db/sync";
 
 interface SchoolInspectionData {
   code: string;
@@ -313,6 +315,31 @@ export default function InspectionDashboardPage() {
           }));
           setSchools(mapped);
         }
+
+        // Merge offline local modifications if available
+        try {
+          const cached = await localDb.canevasDeclarations.toArray();
+          if (!cancelled && cached && cached.length > 0) {
+            setSchools(prev => {
+              const cachedMap = new Map(cached.map(c => [c.code, c]));
+              return prev.map(s => {
+                const c = cachedMap.get(s.code);
+                if (!c) return s;
+                let derivedStatus: "Validé" | "En attente" | "Rejeté" = s.status;
+                if (c.statut?.includes("Validé")) derivedStatus = "Validé";
+                else if (c.statut?.includes("Rejeté")) derivedStatus = "Rejeté";
+                else if (c.statut?.includes("Brouillon") || c.statut?.includes("attente")) derivedStatus = "En attente";
+                return {
+                  ...s,
+                  status: derivedStatus,
+                  completion: derivedStatus === "Validé" ? 100 : (c.completion || s.completion),
+                };
+              });
+            });
+          }
+        } catch (e) {
+          console.warn("Offline inspection load warning:", e);
+        }
       } catch {
         if (!cancelled) {
           setSchoolSessions([]);
@@ -415,6 +442,65 @@ export default function InspectionDashboardPage() {
     };
   }, [schools]);
 
+  // Helper to persist inspection status offline and queue in outbox
+  const saveInspectionOfflineAndQueue = async (code: string, newStatus: "Validé" | "Rejeté", reason?: string) => {
+    try {
+      const existing = await localDb.canevasDeclarations.where("code").equals(code).first();
+      const newStatut = newStatus === "Validé" ? "Validé inspection" : "Rejeté inspection";
+      if (existing) {
+        await localDb.canevasDeclarations.update(existing.id, {
+          statut: newStatut,
+          completion: newStatus === "Validé" ? 100 : existing.completion,
+          updatedAt: Date.now(),
+          synced: false,
+        });
+      } else {
+        const school = schools.find(s => s.code === code);
+        if (school) {
+          await localDb.canevasDeclarations.put({
+            code: school.code,
+            name: school.name,
+            type: school.type,
+            cycle: school.cycle,
+            region: "Niamey",
+            commune: school.commune,
+            quartier: "Centre",
+            eleves: school.eleves,
+            filles: Math.floor(school.eleves / 2),
+            garcons: Math.ceil(school.eleves / 2),
+            enseignants: school.enseignants,
+            salles: school.salles,
+            eau: school.eau,
+            electricite: school.electricite,
+            statut: newStatut,
+            completion: newStatus === "Validé" ? 100 : school.completion,
+            lastUpdate: school.lastDeclaration,
+            updatedAt: Date.now(),
+            synced: false,
+          });
+        }
+      }
+
+      await localDb.outbox.add({
+        actionType: 'UPDATE',
+        targetTable: 'canevasDeclarations',
+        entity: 'SchoolInspection',
+        entityId: code,
+        payload: { code, status: newStatus, rejectionReason: reason, updatedAt: Date.now() },
+        status: 'pending',
+        priority: 3,
+        timestamp: Date.now(),
+        idempotencyKey: `inspection:${code}:${newStatus}:${Date.now()}`,
+      });
+
+      if (typeof navigator !== "undefined" && navigator.onLine) {
+        syncOutbox().catch(() => {});
+      }
+    } catch (err) {
+      console.warn("Offline inspection queue warning:", err);
+    }
+  };
+
   // Actions handlers
   const handleValidate = (code: string) => {
     setSchools(prev => prev.map(s => {
@@ -424,6 +510,7 @@ export default function InspectionDashboardPage() {
       }
       return s;
     }));
+    saveInspectionOfflineAndQueue(code, "Validé");
   };
 
   const handleBatchValidate = () => {
@@ -434,6 +521,7 @@ export default function InspectionDashboardPage() {
     }
     const codes = new Set(pendingList.map(s => s.code));
     setSchools(prev => prev.map(s => codes.has(s.code) ? { ...s, status: "Validé", completion: 100 } : s));
+    pendingList.forEach(s => saveInspectionOfflineAndQueue(s.code, "Validé"));
     toast.success(`${pendingList.length} déclaration(s) validée(s) en lot.`);
   };
 
@@ -449,17 +537,20 @@ export default function InspectionDashboardPage() {
     }
 
     if (rejectingSchool) {
+      const targetCode = rejectingSchool.code;
+      const targetReason = rejectionObservation;
       setSchools(prev => prev.map(s => {
-        if (s.code === rejectingSchool.code) {
+        if (s.code === targetCode) {
           toast.warning(`Déclaration de ${s.name} rejetée.`);
           return {
             ...s,
             status: "Rejeté",
-            rejectionReason: rejectionObservation
+            rejectionReason: targetReason
           };
         }
         return s;
       }));
+      saveInspectionOfflineAndQueue(targetCode, "Rejeté", targetReason);
       setRejectingSchool(null);
     }
   };
