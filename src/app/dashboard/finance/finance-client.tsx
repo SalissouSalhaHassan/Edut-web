@@ -284,7 +284,7 @@ export default function FinanceClient({
     if (!confirm("Réparer les totaux financiers ? Cette opération recalcule les montants payés depuis les transactions réelles.")) return;
     setIsRepairing(true);
     try {
-      const res = await repairStudentFeeTotals(currentSchoolId || undefined);
+      const res = await repairStudentFeeTotals();
       if ((res as any)?.success) {
         const repaired = (res as any).repaired ?? 0;
         const dups = (res as any).duplicatesRemoved ?? 0;
