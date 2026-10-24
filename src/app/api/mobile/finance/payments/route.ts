@@ -389,8 +389,28 @@ export async function POST(request: NextRequest) {
           status: "Impayé",
         })
         .returning();
-      resolvedFeeId = fallbackFee.id;
+        resolvedFeeId = fallbackFee.id;
       currentFee = fallbackFee;
+    }
+
+    // Protection: verify that the academic session is not closed or locked
+    const targetSessionId = currentFee?.sessionId || payload.sessionId || payload.session_id;
+    if (targetSessionId) {
+      const sessionCheck = await readDb.query.schoolSessions.findFirst({
+        where: eq(schoolSessions.id, Number(targetSessionId)),
+      });
+      if (
+        sessionCheck &&
+        (!sessionCheck.isActive ||
+          sessionCheck.status === "Clôturé" ||
+          sessionCheck.status === "Verrouillé" ||
+          sessionCheck.status === "Archivé")
+      ) {
+        return mobileJsonError(
+          `Impossible d'enregistrer le paiement : l'année scolaire (${sessionCheck.name}) est clôturée ou verrouillée. Les opérations financières y sont gelées.`,
+          403
+        );
+      }
     }
 
     const doubleAmount = Number(amount || 0);

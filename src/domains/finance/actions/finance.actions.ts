@@ -23,6 +23,40 @@ import { getActiveSchoolId } from "@/domains/auth/services/school";
 import { getCurrentUser } from "@/domains/auth/services/session";
 import { getActiveEducationalLevel, getCompatibleLevels, getUserRoleType, checkEducationalLevelAccess, normalizeLevel, hasAllEducationalLevels, isStudentInEducationalLevel } from "@/domains/auth/services/rbac";
 
+export async function assertFinancialSessionEditable(
+  sessionId?: number | null,
+  schoolId?: number | null
+): Promise<{ editable: boolean; error?: string }> {
+  try {
+    let targetSessionId = sessionId;
+    if (!targetSessionId) {
+      const activeSession = await (readDb || db).query.schoolSessions.findFirst({
+        where: (s, { eq, and, or, isNull }) => and(
+          schoolId ? or(eq(s.schoolId, schoolId), isNull(s.schoolId)) : undefined,
+          or(eq(s.isActive, true), eq(s.status, "Actif"))
+        ),
+        orderBy: [desc(schoolSessions.id)]
+      });
+      targetSessionId = activeSession?.id;
+    }
+
+    if (targetSessionId) {
+      const session = await (readDb || db).query.schoolSessions.findFirst({
+        where: eq(schoolSessions.id, targetSessionId)
+      });
+      if (session && (!session.isActive || session.status === "Clôturé" || session.status === "Verrouillé" || session.status === "Archivé")) {
+        return {
+          editable: false,
+          error: `🔒 L'année scolaire (${session.sessionName}) est clôturée et gelée. Les opérations financières (encaissements, annulations, suppressions) sont verrouillées en mode consultation seule.`
+        };
+      }
+    }
+  } catch (e) {
+    console.warn("[assertFinancialSessionEditable] Warning:", e);
+  }
+  return { editable: true };
+}
+
 export async function getStudentFees(params?: {
   search?: string;
   class?: string;
@@ -343,6 +377,12 @@ export async function recordPayment(formData: PaymentFormData) {
       return { error: "Dossier financier introuvable.", success: false };
     }
 
+    // 0. Verify Session Freeze
+    const sessionCheck = await assertFinancialSessionEditable(fee.sessionId, fee.schoolId || schoolId);
+    if (!sessionCheck.editable) {
+      return { error: sessionCheck.error || "Exercice financier gelé.", success: false };
+    }
+
     // Enforce level isolation for level_director, level_comptable, level_caissier
     const isLevelScoped = roleType === "level_director" || roleType === "level_comptable" || roleType === "level_caissier";
     if (isLevelScoped) {
@@ -442,12 +482,20 @@ export async function deleteStudentFee(id: number) {
     const roleType = await getUserRoleType(user);
     const schoolId = await getActiveSchoolId();
 
+    const fee = await (readDb || db).query.studentFees.findFirst({
+      where: and(eq(studentFees.id, id), schoolId ? eq(studentFees.schoolId, schoolId) : undefined),
+      with: { student: true }
+    });
+
+    if (fee) {
+      const sessionCheck = await assertFinancialSessionEditable(fee.sessionId, fee.schoolId || schoolId);
+      if (!sessionCheck.editable) {
+        return { error: sessionCheck.error || "Exercice financier gelé.", success: false };
+      }
+    }
+
     const isLevelScoped = roleType === "level_director" || roleType === "level_comptable" || roleType === "level_caissier";
     if (isLevelScoped) {
-      const fee = await db.query.studentFees.findFirst({
-        where: and(eq(studentFees.id, id), eq(studentFees.schoolId, schoolId)),
-        with: { student: true }
-      });
       if (!fee || !fee.student || !checkEducationalLevelAccess(user, fee.student.educationalLevel)) {
         return { error: "Accès refusé. Cet élève appartient à un autre secteur." };
       }
@@ -508,6 +556,11 @@ export async function cancelFeePayment(paymentId: number, reason?: string) {
 
     if (!fee) {
       return { error: "Dossier financier associé introuvable.", success: false };
+    }
+
+    const sessionCheck = await assertFinancialSessionEditable(fee.sessionId, fee.schoolId || schoolId);
+    if (!sessionCheck.editable) {
+      return { error: sessionCheck.error || "Exercice financier gelé.", success: false };
     }
 
     // 3. Recalculate totals
@@ -1254,6 +1307,10 @@ export async function createExpense(formData: ExpenseFormData) {
 
   return protectedDbAction("Finance", "canEdit", async (user) => {
     const schoolId = await getActiveSchoolId();
+    const sessionCheck = await assertFinancialSessionEditable(null, schoolId);
+    if (!sessionCheck.editable) {
+      return { error: sessionCheck.error || "Exercice financier gelé.", success: false };
+    }
     const roleType = await getUserRoleType(user);
     const expenseData: any = {
       ...validation.data,
@@ -1276,6 +1333,10 @@ export async function createExpense(formData: ExpenseFormData) {
 export async function deleteExpense(expenseId: number) {
   return protectedDbAction("Finance", "canDelete", async () => {
     const schoolId = await getActiveSchoolId();
+    const sessionCheck = await assertFinancialSessionEditable(null, schoolId);
+    if (!sessionCheck.editable) {
+      return { error: sessionCheck.error || "Exercice financier gelé.", success: false };
+    }
     await db.delete(expenses).where(and(eq(expenses.id, expenseId), eq(expenses.schoolId, schoolId)));
     revalidatePath("/dashboard/finance/expenses");
     revalidatePath("/dashboard/finance");

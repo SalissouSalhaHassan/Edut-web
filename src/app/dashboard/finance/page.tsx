@@ -27,7 +27,7 @@ import { ensureStudentFeeRecord } from "@/domains/finance/actions/finance.action
 export default async function FinancePage({
   searchParams,
 }: {
-  searchParams: Promise<{ search?: string; class?: string; status?: string }>;
+  searchParams: Promise<{ search?: string; class?: string; status?: string; sessionId?: string }>;
 }) {
   try {
     const params = await searchParams;
@@ -131,14 +131,34 @@ export default async function FinancePage({
 
     const isLevelScoped = Boolean(activeLevel && !hasAllEducationalLevels(activeLevel));
 
-    // Fast single-query session lookup prioritizing active session
-    let sessionRow = await readDb.query.schoolSessions.findFirst({
+    // Session lookup supporting multi-session selection and freeze status
+    const allSessions = await readDb.query.schoolSessions.findMany({
       where: or(eq(schoolSessions.schoolId, schoolId), isNull(schoolSessions.schoolId)),
       orderBy: (s, { desc }) => [
         sql`CASE WHEN ${s.isActive} = TRUE THEN 0 WHEN LOWER(TRIM(${s.status})) = 'actif' THEN 1 ELSE 2 END`,
         desc(s.id),
       ],
-    }).catch(() => null);
+    }).catch(() => []);
+
+    const requestedSessionId = params.sessionId ? Number(params.sessionId) : null;
+    let sessionRow = requestedSessionId
+      ? allSessions.find((s) => s.id === requestedSessionId)
+      : null;
+
+    if (!sessionRow) {
+      sessionRow =
+        allSessions.find((s) => s.isActive || s.status?.toLowerCase().trim() === "actif") ||
+        allSessions[0] ||
+        null;
+    }
+
+    const isSessionFrozen = Boolean(
+      sessionRow &&
+      (!sessionRow.isActive ||
+        sessionRow.status === "Clôturé" ||
+        sessionRow.status === "Verrouillé" ||
+        sessionRow.status === "Archivé")
+    );
 
     // Fast indexed studentFees query
     let feeRows = await readDb.select().from(studentFees)
@@ -157,7 +177,8 @@ export default async function FinancePage({
     }
 
     // Auto-heal check: ensure any active student missing from studentFees, or with totalExpected = 0, is repaired
-    if (sessionRow?.id) {
+    // Guarded: never auto-heal or mutate records for a closed / frozen academic session
+    if (sessionRow?.id && !isSessionFrozen) {
       try {
         const activeStudents = await readDb.select({ id: students.id }).from(students)
           .where(
@@ -454,6 +475,9 @@ export default async function FinancePage({
         schoolName={schoolName}
         currentUser={user}
         currentSchoolId={schoolId}
+        isSessionFrozen={isSessionFrozen}
+        sessions={allSessions}
+        currentSessionId={sessionRow?.id || null}
       />
     );
   } catch (error) {
@@ -469,6 +493,9 @@ export default async function FinancePage({
         schoolName="GROUP AIIU-NIGER"
         currentUser={null}
         currentSchoolId={9}
+        isSessionFrozen={false}
+        sessions={[]}
+        currentSessionId={null}
       />
     );
   }

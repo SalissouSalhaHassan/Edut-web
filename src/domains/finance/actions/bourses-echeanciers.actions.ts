@@ -15,6 +15,7 @@ import { students } from "@/infrastructure/database/schema/students";
 import { schoolClasses, schoolSessions } from "@/infrastructure/database/schema/academics";
 import { eq, desc, and, or, isNull, sql, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { assertFinancialSessionEditable } from "./finance.actions";
 
 export interface ScholarshipInput {
   id?: number;
@@ -461,6 +462,14 @@ export async function assignScholarshipToStudent(input: StudentScholarshipAssign
       .where(eq(studentFees.studentId, input.studentId))
       .limit(1);
 
+    const feeItem = feeList[0];
+    if (feeItem?.sessionId) {
+      const lockCheck = await assertFinancialSessionEditable(feeItem.sessionId, schoolId);
+      if (!lockCheck.editable) {
+        return { success: false, error: lockCheck.error || "Exercice financier clôturé et gelé." };
+      }
+    }
+
     const baseTuition = feeList[0]?.totalExpected || 700000;
     const allocatedAmt = schItem?.type === "Pourcentage"
       ? Math.round((baseTuition * discountVal) / 100)
@@ -813,6 +822,22 @@ export async function recordSchedulePayment(
     if (!item[0]) return { success: false, error: "Échéance introuvable" };
 
     const sched = item[0];
+
+    if (sched.studentId) {
+      const feeList = await (readDb || db)
+        .select()
+        .from(studentFees)
+        .where(eq(studentFees.studentId, sched.studentId))
+        .limit(1);
+
+      if (feeList[0]?.sessionId) {
+        const lockCheck = await assertFinancialSessionEditable(feeList[0].sessionId, schoolId);
+        if (!lockCheck.editable) {
+          return { success: false, error: lockCheck.error || "Exercice financier clôturé et gelé." };
+        }
+      }
+    }
+
     const newPaid = Number(sched.paidAmount || 0) + paidAmount;
     const newBalance = Math.max(0, Number(sched.netAmount) - newPaid);
     const newStatus = newBalance === 0 ? "Payé" : newPaid > 0 ? "Partiel" : "En retard";

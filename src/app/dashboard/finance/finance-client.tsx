@@ -31,6 +31,7 @@ import {
   RefreshCw,
   Award,
   RotateCcw,
+  Lock,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -60,6 +61,9 @@ interface FinanceClientProps {
   schoolName?: string;
   currentUser?: any;
   currentSchoolId?: number | null;
+  isSessionFrozen?: boolean;
+  sessions?: any[];
+  currentSessionId?: number | null;
 }
 
 type TabId = "dashboard" | "payments" | "reports" | "unified-balance" | "alerts";
@@ -119,6 +123,9 @@ export default function FinanceClient({
   schoolName,
   currentUser,
   currentSchoolId,
+  isSessionFrozen = false,
+  sessions = [],
+  currentSessionId,
 }: FinanceClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -490,10 +497,35 @@ export default function FinanceClient({
   );
 
   const handleDelete = async (id: number) => {
+    if (isSessionFrozen) {
+      toast.error("Impossible de supprimer : l'exercice financier de cette session est clôturé et verrouillé.");
+      return;
+    }
     if (!confirm("Êtes-vous sûr de vouloir supprimer cette opération ? Cette action est irréversible.")) return;
     const res = await deleteStudentFee(id);
     if (res.success) toast.success("Opération supprimée avec succès.");
     else toast.error("Erreur lors de la suppression.");
+  };
+
+  const handleRepair = async () => {
+    if (isSessionFrozen) {
+      toast.error("Impossible de réparer : l'exercice financier de cette session est clôturé et verrouillé.");
+      return;
+    }
+    try {
+      setIsRepairing(true);
+      const res = await repairStudentFeeTotals(currentSchoolId || undefined);
+      if (res.success) {
+        toast.success(`Totaux recalculés avec succès : ${res.repairedCount} dossier(s) mis à jour.`);
+        router.refresh();
+      } else {
+        toast.error(res.error || "Erreur lors de la réparation des totaux.");
+      }
+    } catch (e: any) {
+      toast.error("Erreur inattendue : " + (e?.message || e));
+    } finally {
+      setIsRepairing(false);
+    }
   };
 
   const handlePaymentSuccess = (updatedFee: any) => {
@@ -567,7 +599,33 @@ export default function FinanceClient({
             </div>
             <div className="leading-tight">
               <p className="text-[12px] font-black uppercase tracking-widest text-slate-900 dark:text-white">{schoolName || headerConfig?.schoolName || "Établissement"}</p>
-              <p className="text-[10px] font-bold text-slate-400 dark:text-slate-400">Année {activeSessionName || "2025–2026"}</p>
+              {sessions && sessions.length > 1 ? (
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className="text-[10px] font-bold text-slate-400 dark:text-slate-400">Année:</span>
+                  <select
+                    value={currentSessionId || ""}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const url = new URL(window.location.href);
+                      if (val) url.searchParams.set("sessionId", val);
+                      else url.searchParams.delete("sessionId");
+                      router.push(url.pathname + url.search);
+                    }}
+                    className="text-[11px] font-bold bg-transparent border-b border-dashed border-slate-300 dark:border-slate-700 text-indigo-600 dark:text-indigo-400 focus:outline-none cursor-pointer py-0.5"
+                  >
+                    {sessions.map((s: any) => {
+                      const isClosed = !s.isActive || s.status === "Clôturé" || s.status === "Verrouillé" || s.status === "Archivé";
+                      return (
+                        <option key={s.id} value={s.id} className="text-slate-900 dark:text-white bg-white dark:bg-slate-900">
+                          {s.name || s.sessionName || `Session #${s.id}`} {isClosed ? "🔒 (Clôturée)" : "(Active)"}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+              ) : (
+                <p className="text-[10px] font-bold text-slate-400 dark:text-slate-400">Année {activeSessionName || "2025–2026"}</p>
+              )}
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-widest">
@@ -616,6 +674,26 @@ export default function FinanceClient({
 
       <div className="space-y-6 p-4 md:p-6 xl:p-8">
       
+      {/* ── FREEZE ALERT BANNER (Année scolaire clôturée ou verrouillée) ── */}
+      {isSessionFrozen && (
+        <div className="rounded-[24px] bg-amber-500/10 border border-amber-500/30 p-4.5 flex flex-col md:flex-row md:items-center justify-between gap-3 text-amber-800 dark:text-amber-300 shadow-sm animate-in fade-in duration-300">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-2xl bg-amber-500/20 text-amber-600 dark:text-amber-400 shrink-0">
+              <Lock size={20} />
+            </div>
+            <div>
+              <p className="font-black text-sm">Exercice financier gelé (Année scolaire clôturée ou verrouillée)</p>
+              <p className="text-xs text-amber-700 dark:text-amber-400/80 mt-0.5">
+                Les encaissements de frais scolaires, les attributions de bourses, et les modifications/suppressions d&apos;opérations sont verrouillés en mode consultation seule.
+              </p>
+            </div>
+          </div>
+          <span className="text-[10px] font-black uppercase tracking-wider px-3.5 py-1.5 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-700 dark:text-amber-300 shrink-0 self-start md:self-auto">
+            🔒 Lecture seule
+          </span>
+        </div>
+      )}
+
       {/* ── HEADER ── */}
       <div className="flex flex-col gap-5 rounded-[28px] border border-slate-200/70 dark:border-slate-800 bg-white/85 dark:bg-[#131622]/90 p-5 shadow-sm backdrop-blur md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-4">
@@ -654,20 +732,30 @@ export default function FinanceClient({
               onPaymentSuccess={handlePaymentSuccess}
               currentUser={currentUser}
               currentSchoolId={currentSchoolId}
+              isSessionFrozen={isSessionFrozen}
               trigger={
-                <Button className="h-12 px-6 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-indigo-100 dark:shadow-none transition-all cursor-pointer">
-                  <Plus size={18} /> Ajouter un paiement
+                <Button 
+                  disabled={isSessionFrozen}
+                  className={cn(
+                    "h-12 px-6 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center gap-2 transition-all",
+                    isSessionFrozen
+                      ? "bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed shadow-none"
+                      : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-100 dark:shadow-none cursor-pointer"
+                  )}
+                >
+                  {isSessionFrozen ? <Lock size={16} /> : <Plus size={18} />}
+                  {isSessionFrozen ? "Exercice Verrouillé" : "Ajouter un paiement"}
                 </Button>
               }
             />
           )}
-          {canEdit && (
+          {canEdit && !isSessionFrozen && (
             <Button
               variant="ghost"
               onClick={handleRepair}
               disabled={isRepairing}
               title="Recalculer les montants payés depuis les transactions réelles"
-              className="h-12 px-5 rounded-2xl border border-amber-200 dark:border-amber-900/50 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 font-black text-xs uppercase tracking-widest flex items-center gap-2 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-all"
+              className="h-12 px-5 rounded-2xl border border-amber-200 dark:border-amber-900/50 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 font-black text-xs uppercase tracking-widest flex items-center gap-2 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-all cursor-pointer"
             >
               {isRepairing
                 ? <><RefreshCw size={16} className="animate-spin" /> Réparation...</>
@@ -1014,21 +1102,31 @@ export default function FinanceClient({
                               <Eye size={17} />
                             </button>
                             {canEdit && (
-                              <PaymentDialog 
-                                feeData={fee}
-                                allFees={localFees}
-                                headerConfig={headerConfig}
-                                onPaymentSuccess={handlePaymentSuccess}
-                                currentUser={currentUser}
-                                currentSchoolId={currentSchoolId}
-                                trigger={
-                                  <div className="p-2.5 text-amber-400 hover:text-amber-600 dark:hover:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/50 rounded-xl transition-all cursor-pointer">
-                                    <Edit size={17} />
-                                  </div>
-                                }
-                              />
+                              isSessionFrozen ? (
+                                <div 
+                                  title="Exercice financier gelé (session clôturée)"
+                                  className="p-2.5 text-slate-300 dark:text-slate-600 rounded-xl cursor-not-allowed"
+                                >
+                                  <Lock size={16} />
+                                </div>
+                              ) : (
+                                <PaymentDialog 
+                                  feeData={fee}
+                                  allFees={localFees}
+                                  headerConfig={headerConfig}
+                                  onPaymentSuccess={handlePaymentSuccess}
+                                  currentUser={currentUser}
+                                  currentSchoolId={currentSchoolId}
+                                  isSessionFrozen={isSessionFrozen}
+                                  trigger={
+                                    <div className="p-2.5 text-amber-400 hover:text-amber-600 dark:hover:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/50 rounded-xl transition-all cursor-pointer">
+                                      <Edit size={17} />
+                                    </div>
+                                  }
+                                />
+                              )
                             )}
-                            {canDelete && (
+                            {canDelete && !isSessionFrozen && (
                               <button 
                                 onClick={() => handleDelete(fee.id)}
                                 className="p-2.5 text-rose-400 hover:text-rose-600 dark:hover:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-xl transition-all"

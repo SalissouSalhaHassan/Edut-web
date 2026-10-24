@@ -22,6 +22,7 @@ interface PaymentDialogProps {
   onPaymentSuccess?: (updatedFeeData: any) => void;
   currentUser?: any;
   currentSchoolId?: number | null;
+  isSessionFrozen?: boolean;
 }
 
 const months = ["Septembre", "Octobre", "Novembre", "Décembre", "Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août"];
@@ -33,7 +34,8 @@ export default function PaymentDialog({
   trigger, 
   onPaymentSuccess,
   currentUser,
-  currentSchoolId
+  currentSchoolId,
+  isSessionFrozen,
 }: PaymentDialogProps) {
   const { mutate, isOnline } = useOfflineMutation<PaymentFormData & { schoolId?: number; recordedBy?: string }>();
   const [open, setOpen] = useState(false);
@@ -105,6 +107,12 @@ export default function PaymentDialog({
     try {
       setLoading(true);
       setError("");
+
+      if (isSessionFrozen) {
+        setError("Impossible d'enregistrer : cette année scolaire est clôturée ou verrouillée.");
+        setLoading(false);
+        return;
+      }
 
       const currentFee = selectedFee || feeData;
       if (!currentFee?.id) {
@@ -259,6 +267,14 @@ export default function PaymentDialog({
               <DialogTitle className="text-3xl font-black text-slate-900 tracking-tight">
                 Encaissement des Frais
               </DialogTitle>
+              {isSessionFrozen && (
+                <div className="mt-3 p-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
+                  <span className="text-xs font-bold">
+                    Exercice financier gelé : Cette année scolaire est clôturée ou verrouillée. L'enregistrement de nouveaux paiements est désactivé.
+                  </span>
+                </div>
+              )}
               {allFees && allFees.length > 1 && (!feeData?.id || feeData?.id === 0) ? (
                 <div className="mt-2 relative">
                   <select
@@ -444,10 +460,10 @@ export default function PaymentDialog({
             </Button>
             <Button 
               type="submit" 
-              disabled={loading} 
-              className="rounded-2xl px-12 bg-indigo-600 text-white hover:bg-indigo-700 font-black text-xs uppercase tracking-widest h-14 shadow-xl shadow-indigo-100 transition-all cursor-pointer"
+              disabled={loading || isSessionFrozen} 
+              className="rounded-2xl px-12 bg-indigo-600 text-white hover:bg-indigo-700 font-black text-xs uppercase tracking-widest h-14 shadow-xl shadow-indigo-100 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? "Traitement..." : "Enregistrer le Paiement"}
+              {loading ? "Traitement..." : isSessionFrozen ? "Exercice Verrouillé" : "Enregistrer le Paiement"}
             </Button>
           </div>
         </form>
