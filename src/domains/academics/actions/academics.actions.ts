@@ -53,22 +53,89 @@ async function assertResultsWorkflowEditable(params: {
   period: string;
 }) {
   const schoolId = await getActiveSchoolId();
+
+  // 1. Verify Academic Session Freeze (Clôturé / Verrouillé / Inactif)
+  if (params.sessionId) {
+    const session = await (readDb || db).query.schoolSessions.findFirst({
+      where: and(
+        eq(schoolSessions.id, Number(params.sessionId)),
+        schoolId ? eq(schoolSessions.schoolId, schoolId) : undefined
+      )
+    });
+    if (session && (!session.isActive || session.status === "Clôturé" || session.status === "Verrouillé" || session.status === "Archivé")) {
+      return {
+        editable: false,
+        error: `🔒 L'année scolaire (${session.sessionName}) est totalement clôturée et gelée. Aucune modification de notes n'est autorisée (Consultation seule).`
+      };
+    }
+  }
+
+  // 2. Verify Academic Period Lock & Deadlines
+  if (params.period && params.sessionId) {
+    const termFilter = buildTermFilter(academicPeriods.name, params.period);
+    const periodObj = await (readDb || db).query.academicPeriods.findFirst({
+      where: and(
+        eq(academicPeriods.sessionId, Number(params.sessionId)),
+        termFilter,
+        schoolId ? eq(academicPeriods.schoolId, schoolId) : undefined
+      )
+    });
+
+    if (periodObj) {
+      if (periodObj.isLocked) {
+        return {
+          editable: false,
+          error: `🔒 La période "${periodObj.name}" est verrouillée manuellement par l'administration. La saisie des notes est congelée.`
+        };
+      }
+
+      const now = new Date();
+      if (periodObj.startDate && now < new Date(periodObj.startDate)) {
+        return {
+          editable: false,
+          error: `⏳ La période "${periodObj.name}" n'a pas encore commencé. La saisie des notes s'ouvrira à la date de début prévue.`
+        };
+      }
+
+      const endDateEOD = periodObj.endDate ? (() => {
+        const d = new Date(periodObj.endDate);
+        d.setHours(23, 59, 59, 999);
+        return d;
+      })() : null;
+
+      if (endDateEOD && now > endDateEOD) {
+        return {
+          editable: false,
+          error: `🔒 La période "${periodObj.name}" est clôturée (Date de fin dépassée). La saisie et la modification des notes sont fermées.`
+        };
+      }
+
+      if (periodObj.gradesDeadline && now > new Date(periodObj.gradesDeadline)) {
+        return {
+          editable: false,
+          error: `🔒 La date limite de saisie des notes pour la période "${periodObj.name}" est dépassée.`
+        };
+      }
+    }
+  }
+
+  // 3. Verify Results Workflow status
   const subjectId = params.subjectId === undefined || params.subjectId === null || params.subjectId === "All"
     ? null
     : Number(params.subjectId);
 
   const conditions = [
-    eq(resultsWorkflows.schoolId, schoolId),
+    schoolId ? eq(resultsWorkflows.schoolId, schoolId) : undefined,
     eq(resultsWorkflows.classId, Number(params.classId)),
     eq(resultsWorkflows.sessionId, Number(params.sessionId)),
     eq(resultsWorkflows.period, params.period),
-  ];
+  ].filter(Boolean) as any[];
 
   if (subjectId && !Number.isNaN(subjectId)) {
     conditions.push(eq(resultsWorkflows.subjectId, subjectId));
   }
 
-  const workflow = await db.query.resultsWorkflows.findFirst({
+  const workflow = await (readDb || db).query.resultsWorkflows.findFirst({
     where: and(...conditions),
   });
 
@@ -953,7 +1020,52 @@ export async function getGradingGrid(params: { classId: number, subjectId: numbe
       };
     });
 
-    return { data, level: cls.section?.educationalLevel || "Lycée", activeCoefficient };
+    const periodObj = (sessionIdNum && params.term) ? await (readDb || db).query.academicPeriods.findFirst({
+      where: and(
+        eq(academicPeriods.sessionId, sessionIdNum),
+        buildTermFilter(academicPeriods.name, params.term),
+        schoolId ? eq(academicPeriods.schoolId, schoolId) : undefined
+      )
+    }) : null;
+
+    let isLocked = false;
+    let lockReason = "";
+
+    if (sessionObj && (!sessionObj.isActive || sessionObj.status === "Clôturé" || sessionObj.status === "Verrouillé" || sessionObj.status === "Archivé")) {
+      isLocked = true;
+      lockReason = `🔒 L'année scolaire (${sessionObj.sessionName}) est clôturée et gelée (Mode lecture seule).`;
+    } else if (periodObj) {
+      const now = new Date();
+      const endDateEOD = periodObj.endDate ? (() => {
+        const d = new Date(periodObj.endDate);
+        d.setHours(23, 59, 59, 999);
+        return d;
+      })() : null;
+
+      if (periodObj.isLocked) {
+        isLocked = true;
+        lockReason = `🔒 La période "${periodObj.name}" est verrouillée manuellement par l'administration.`;
+      } else if (periodObj.startDate && now < new Date(periodObj.startDate)) {
+        isLocked = true;
+        lockReason = `⏳ La période "${periodObj.name}" n'a pas encore commencé.`;
+      } else if (endDateEOD && now > endDateEOD) {
+        isLocked = true;
+        lockReason = `🔒 La période "${periodObj.name}" est clôturée (Date de fin dépassée).`;
+      } else if (periodObj.gradesDeadline && now > new Date(periodObj.gradesDeadline)) {
+        isLocked = true;
+        lockReason = `🔒 La date limite de saisie des notes pour "${periodObj.name}" est expirée.`;
+      }
+    }
+
+    return { 
+      data, 
+      level: cls.section?.educationalLevel || "Lycée", 
+      activeCoefficient,
+      isLocked,
+      lockReason,
+      sessionStatus: sessionObj?.status,
+      periodIsLocked: Boolean(periodObj?.isLocked)
+    };
   });
 }
 
@@ -1157,12 +1269,53 @@ export async function getDevoirGrid(params: { classId: number, subjectId: number
       };
     });
 
+    const periodObj = (sessionIdNum && params.term) ? await (readDb || db).query.academicPeriods.findFirst({
+      where: and(
+        eq(academicPeriods.sessionId, sessionIdNum),
+        buildTermFilter(academicPeriods.name, params.term),
+        schoolId ? eq(academicPeriods.schoolId, schoolId) : undefined
+      )
+    }) : null;
+
+    let isLocked = false;
+    let lockReason = "";
+
+    if (sessionObj && (!sessionObj.isActive || sessionObj.status === "Clôturé" || sessionObj.status === "Verrouillé" || sessionObj.status === "Archivé")) {
+      isLocked = true;
+      lockReason = `🔒 L'année scolaire (${sessionObj.sessionName}) est clôturée et gelée (Mode lecture seule).`;
+    } else if (periodObj) {
+      const now = new Date();
+      const endDateEOD = periodObj.endDate ? (() => {
+        const d = new Date(periodObj.endDate);
+        d.setHours(23, 59, 59, 999);
+        return d;
+      })() : null;
+
+      if (periodObj.isLocked) {
+        isLocked = true;
+        lockReason = `🔒 La période "${periodObj.name}" est verrouillée manuellement par l'administration.`;
+      } else if (periodObj.startDate && now < new Date(periodObj.startDate)) {
+        isLocked = true;
+        lockReason = `⏳ La période "${periodObj.name}" n'a pas encore commencé.`;
+      } else if (endDateEOD && now > endDateEOD) {
+        isLocked = true;
+        lockReason = `🔒 La période "${periodObj.name}" est clôturée (Date de fin dépassée).`;
+      } else if (periodObj.gradesDeadline && now > new Date(periodObj.gradesDeadline)) {
+        isLocked = true;
+        lockReason = `🔒 La date limite de saisie des devoirs pour "${periodObj.name}" est expirée.`;
+      }
+    }
+
     return {
       data,
       coefficient,
       subjectName: subjectObj?.subjectName || "Matière",
       className: cls.className,
-      educationalLevel: cls.section?.educationalLevel || "Secondaire"
+      educationalLevel: cls.section?.educationalLevel || "Secondaire",
+      isLocked,
+      lockReason,
+      sessionStatus: sessionObj?.status,
+      periodIsLocked: Boolean(periodObj?.isLocked)
     };
   });
 }

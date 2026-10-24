@@ -14,6 +14,7 @@ interface DevoirEntryGridProps {
   students: any[];
   onSave: (data: any) => void;
   loading?: boolean;
+  readOnly?: boolean;
   subjectName?: string;
   className?: string;
   coefficient?: number;
@@ -24,6 +25,7 @@ export default function DevoirEntryGrid({
   students: initialStudents, 
   onSave,
   loading = false,
+  readOnly = false,
   subjectName = "Matière",
   className = "Classe",
   coefficient = 1,
@@ -540,7 +542,7 @@ export default function DevoirEntryGrid({
 
           <Button 
             onClick={() => onSave(processedData)}
-            disabled={loading}
+            disabled={loading || readOnly}
             className="h-10 px-6 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs shadow-md shadow-emerald-500/20 flex items-center gap-2 disabled:opacity-60"
           >
             {loading ? (
@@ -644,7 +646,7 @@ export default function DevoirEntryGrid({
                             <Input 
                               ref={el => { inputRefs.current[`${row.studentId}-${colIdx}`] = el; }}
                               value={val}
-                              disabled={loading}
+                              disabled={loading || readOnly}
                               onChange={(e) => handleDevoirInput(row.studentId, colIdx, e.target.value)}
                               onKeyDown={(e) => handleKeyDown(e, rIdx, colIdx)}
                               placeholder="--"

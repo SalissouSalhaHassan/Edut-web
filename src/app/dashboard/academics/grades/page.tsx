@@ -63,6 +63,8 @@ export default function AcademicResultsPage() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [workflowStatus, setWorkflowStatus] = useState<string>("BROUILLON");
   const [workflowRow, setWorkflowRow] = useState<any>(null);
+  const [isLockedByFreeze, setIsLockedByFreeze] = useState(false);
+  const [freezeReason, setFreezeReason] = useState("");
 
   useEffect(() => {
     async function loadUser() {
@@ -211,6 +213,18 @@ export default function AcademicResultsPage() {
     setMatrixData(null);
     setIsLocal(false);
 
+    if (filters.isLocked) {
+      setIsLockedByFreeze(true);
+      setFreezeReason(
+        filters.isSessionFrozen
+          ? "🔒 L'année scolaire sélectionnée est clôturée et gelée (Mode lecture seule)."
+          : "🔒 La période d'évaluation sélectionnée est verrouillée (Mode lecture seule)."
+      );
+    } else {
+      setIsLockedByFreeze(false);
+      setFreezeReason("");
+    }
+
     const cacheKey = `${filters.classId}-${filters.subjectId}-${filters.sessionId}-${filters.period}`;
     const matrixCacheKey = `matrix-${filters.classId}-${filters.sessionId}-${filters.period}`;
 
@@ -248,6 +262,11 @@ export default function AcademicResultsPage() {
           const effectiveLevel = resObj.level || filters.level;
           setLevel(effectiveLevel);
           setActiveCoef(resObj.activeCoefficient || 1);
+          
+          if (resObj.isLocked) {
+            setIsLockedByFreeze(true);
+            setFreezeReason(resObj.lockReason || "Cette période ou cette année scolaire est verrouillée.");
+          }
           
           if (effectiveLevel) {
             getDocumentHeaderConfig(effectiveLevel).then((res) => {
@@ -451,6 +470,12 @@ export default function AcademicResultsPage() {
 
   const handleSave = async (data: any) => {
     if (!activeFilters) return;
+    if (isLockedByFreeze) {
+      toast.error("Modification impossible", {
+        description: freezeReason || "L'année scolaire ou la période est verrouillée (Mode lecture seule)."
+      });
+      return;
+    }
     if (workflowStatus === "VERROUILLE" || workflowStatus === "PUBLIE" || workflowStatus === "ARCHIVE") {
       toast.error("Modification impossible", {
         description: "Les notes sont verrouillées, publiées ou archivées pour cette période."
@@ -992,23 +1017,42 @@ export default function AcademicResultsPage() {
             transition={{ duration: 0.4 }}
           >
             {view === "entry" ? (
-              <GradesEntryGrid
-                students={students}
-                gradingScale={gradingScale}
-                onSave={handleSave}
-                onPrintBulletin={handlePrintBulletin}
-                level={level}
-                coefficient={activeCoef}
-                readOnly={
-                  workflowStatus === "VERROUILLE" ||
-                  workflowStatus === "PUBLIE" ||
-                  workflowStatus === "ARCHIVE" ||
-                  (isEnseignant &&
-                    workflowStatus !== "BROUILLON" &&
-                    workflowStatus !== "CORRECTION_DEMANDEE")
-                }
-                loading={loading}
-              />
+              <div className="space-y-4">
+                {isLockedByFreeze && (
+                  <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-between text-rose-300">
+                    <div className="flex items-center gap-3">
+                      <span className="p-2 rounded-xl bg-rose-500/20 text-rose-400 font-bold text-lg">🔒</span>
+                      <div>
+                        <h4 className="font-bold text-sm text-rose-200">Saisie des notes verrouillée</h4>
+                        <p className="text-xs text-rose-300/80 font-medium">
+                          {freezeReason || "L'année scolaire ou la période est clôturée. La grille est affichée en mode consultation seule."}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-[11px] font-black uppercase tracking-wider px-3 py-1 bg-rose-500/20 text-rose-300 border border-rose-500/30 rounded-full">
+                      Lecture seule
+                    </span>
+                  </div>
+                )}
+                <GradesEntryGrid
+                  students={students}
+                  gradingScale={gradingScale}
+                  onSave={handleSave}
+                  onPrintBulletin={handlePrintBulletin}
+                  level={level}
+                  coefficient={activeCoef}
+                  readOnly={
+                    isLockedByFreeze ||
+                    workflowStatus === "VERROUILLE" ||
+                    workflowStatus === "PUBLIE" ||
+                    workflowStatus === "ARCHIVE" ||
+                    (isEnseignant &&
+                      workflowStatus !== "BROUILLON" &&
+                      workflowStatus !== "CORRECTION_DEMANDEE")
+                  }
+                  loading={loading}
+                />
+              </div>
             ) : view === "matrix" ? (
               <BroadsheetMatrix
                 data={matrixData}

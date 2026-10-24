@@ -332,6 +332,24 @@ export default function AcademicFilters({ onLoad, loading }: AcademicFiltersProp
 
     const selectedSession = options.sessions.find((s: any) => s.id.toString() === session);
     const selectedClass = options.classes.find((c: any) => c.id.toString() === classId);
+    const selectedPeriodObj = (options.periods || []).find((p: any) =>
+      p.name === period ||
+      p.id === period ||
+      String(p.name).toLowerCase().includes(String(period).toLowerCase())
+    );
+
+    const isSessionFrozen = selectedSession
+      ? (!selectedSession.isActive || selectedSession.status === "Clôturé" || selectedSession.status === "Verrouillé" || selectedSession.status === "Archivé")
+      : false;
+
+    const isPeriodLocked = selectedPeriodObj
+      ? Boolean(
+          selectedPeriodObj.isLocked ||
+          selectedPeriodObj.is_locked ||
+          (selectedPeriodObj.endDate && new Date() > new Date(selectedPeriodObj.endDate)) ||
+          (selectedPeriodObj.gradesDeadline && new Date() > new Date(selectedPeriodObj.gradesDeadline))
+        )
+      : false;
 
     onLoad({
       sessionId: parseInt(session),
@@ -341,7 +359,10 @@ export default function AcademicFilters({ onLoad, loading }: AcademicFiltersProp
       classId: parseInt(classId),
       className: getClassDisplayName(selectedClass, ""),
       subjectId: parseInt(subjectId),
-      period
+      period,
+      isSessionFrozen,
+      isPeriodLocked,
+      isLocked: isSessionFrozen || isPeriodLocked
     });
   };
 
@@ -398,7 +419,10 @@ export default function AcademicFilters({ onLoad, loading }: AcademicFiltersProp
         p.periodType === "Trimestre" || String(p.name).toLowerCase().includes("trimestre")
       );
       if (dbTrimestres.length > 0) {
-        return dbTrimestres.map((p: any) => ({ id: p.name, name: p.name }));
+        return dbTrimestres.map((p: any) => {
+          const isLocked = Boolean(p.isLocked || p.is_locked || (p.endDate && new Date() > new Date(p.endDate)));
+          return { id: p.name, name: isLocked ? `🔒 ${p.name} (Verrouillée)` : p.name };
+        });
       }
       return [
         { id: "1er Trimestre", name: "1er Trimestre" },
@@ -419,7 +443,10 @@ export default function AcademicFilters({ onLoad, loading }: AcademicFiltersProp
       });
 
       if (dbSuperior.length > 0) {
-        const dbList = dbSuperior.map((p: any) => ({ id: p.name, name: p.name }));
+        const dbList = dbSuperior.map((p: any) => {
+          const isLocked = Boolean(p.isLocked || p.is_locked || (p.endDate && new Date() > new Date(p.endDate)));
+          return { id: p.name, name: isLocked ? `🔒 ${p.name} (Verrouillée)` : p.name };
+        });
         return dbList.length >= 6 ? dbList : superiorPresets;
       }
       return superiorPresets;
@@ -436,7 +463,10 @@ export default function AcademicFilters({ onLoad, loading }: AcademicFiltersProp
           const n = String(p.name).toLowerCase();
           return n.includes("1") || n.includes("2") || n.includes("premiere") || n.includes("deuxieme");
         })
-        .map((p: any) => ({ id: p.name, name: p.name }));
+        .map((p: any) => {
+          const isLocked = Boolean(p.isLocked || p.is_locked || (p.endDate && new Date() > new Date(p.endDate)));
+          return { id: p.name, name: isLocked ? `🔒 ${p.name} (Verrouillée)` : p.name };
+        });
 
       if (collegePeriods.length >= 2) {
         return collegePeriods.slice(0, 2);
@@ -448,6 +478,18 @@ export default function AcademicFilters({ onLoad, loading }: AcademicFiltersProp
       { id: "2ème Semestre", name: "2ème Semestre" },
     ];
   }, [level, session, options.periods]);
+
+  const sessionOptions = useMemo(() => {
+    return (options.sessions || []).map((s: any) => {
+      const isFrozen = !s.isActive || s.status === "Clôturé" || s.status === "Verrouillé" || s.status === "Archivé";
+      const baseName = s.sessionName || s.session_name || `Session #${s.id}`;
+      return {
+        id: s.id.toString(),
+        name: isFrozen ? `🔒 ${baseName} (Clôturée)` : baseName,
+        isFrozen,
+      };
+    });
+  }, [options.sessions]);
 
   // Auto-update period if current value is not in options
   useEffect(() => {
@@ -472,7 +514,7 @@ export default function AcademicFilters({ onLoad, loading }: AcademicFiltersProp
           label="Session"
           value={session}
           onChange={setSession}
-          options={mapToOptions(options.sessions, "sessionName", "session_name")}
+          options={sessionOptions}
         />
 
         <FilterGroup

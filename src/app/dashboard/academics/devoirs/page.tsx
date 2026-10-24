@@ -33,11 +33,25 @@ export default function DevoirEntryPage() {
   }>({});
   const [showAIModal, setShowAIModal] = useState(false);
   const [isLocal, setIsLocal] = useState(false);
+  const [isLockedByFreeze, setIsLockedByFreeze] = useState(false);
+  const [freezeReason, setFreezeReason] = useState("");
 
   const handleLoad = async (filters: any) => {
     console.log("[DevoirEntry] Loading with filters:", filters);
     setLoading(true);
     setActiveFilters(filters);
+    
+    if (filters.isLocked) {
+      setIsLockedByFreeze(true);
+      setFreezeReason(
+        filters.isSessionFrozen
+          ? "🔒 L'année scolaire sélectionnée est clôturée et gelée (Mode lecture seule)."
+          : "🔒 La période d'évaluation sélectionnée est verrouillée (Mode lecture seule)."
+      );
+    } else {
+      setIsLockedByFreeze(false);
+      setFreezeReason("");
+    }
     
     try {
       let result: any = null;
@@ -62,6 +76,12 @@ export default function DevoirEntryPage() {
           className: result.className,
           educationalLevel: result.educationalLevel
         });
+
+        if (result?.isLocked) {
+          setIsLockedByFreeze(true);
+          setFreezeReason(result.lockReason || "Cette période ou cette année scolaire est verrouillée.");
+        }
+
         toast.success("Grille des devoirs (DS) chargée avec succès.");
 
         // Cache locally for offline availability
@@ -162,6 +182,13 @@ export default function DevoirEntryPage() {
   const handleSave = async (data: any[]) => {
     if (!activeFilters) return;
     
+    if (isLockedByFreeze) {
+      toast.error("Modification impossible", {
+        description: freezeReason || "L'année scolaire ou la période est verrouillée (Mode lecture seule)."
+      });
+      return;
+    }
+
     setLoading(true);
     const toastId = toast.loading("Enregistrement et synchronisation des devoirs en cours...");
 
@@ -289,15 +316,34 @@ export default function DevoirEntryPage() {
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.4 }}
             >
-              <DevoirEntryGrid 
-                students={students} 
-                onSave={handleSave} 
-                loading={loading}
-                subjectName={gridMeta.subjectName}
-                className={gridMeta.className}
-                coefficient={gridMeta.coefficient}
-                term={activeFilters?.period}
-              />
+              <div className="space-y-4">
+                {isLockedByFreeze && (
+                  <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-between text-rose-300">
+                    <div className="flex items-center gap-3">
+                      <span className="p-2 rounded-xl bg-rose-500/20 text-rose-400 font-bold text-lg">🔒</span>
+                      <div>
+                        <h4 className="font-bold text-sm text-rose-200">Saisie des devoirs verrouillée</h4>
+                        <p className="text-xs text-rose-300/80 font-medium">
+                          {freezeReason || "L'année scolaire ou la période est clôturée. La saisie des devoirs est en mode consultation seule."}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-[11px] font-black uppercase tracking-wider px-3 py-1 bg-rose-500/20 text-rose-300 border border-rose-500/30 rounded-full">
+                      Lecture seule
+                    </span>
+                  </div>
+                )}
+                <DevoirEntryGrid 
+                  students={students} 
+                  onSave={handleSave} 
+                  loading={loading}
+                  readOnly={isLockedByFreeze}
+                  subjectName={gridMeta.subjectName}
+                  className={gridMeta.className}
+                  coefficient={gridMeta.coefficient}
+                  term={activeFilters?.period}
+                />
+              </div>
             </motion.div>
           ) : (
             <motion.div 
