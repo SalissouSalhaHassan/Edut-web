@@ -407,7 +407,7 @@ export async function POST(request: NextRequest) {
           sessionCheck.status === "Archivé")
       ) {
         return mobileJsonError(
-          `Impossible d'enregistrer le paiement : l'année scolaire (${sessionCheck.name}) est clôturée ou verrouillée. Les opérations financières y sont gelées.`,
+          `Impossible d'enregistrer le paiement : l'année scolaire (${sessionCheck.sessionName}) est clôturée ou verrouillée. Les opérations financières y sont gelées.`,
           403
         );
       }
