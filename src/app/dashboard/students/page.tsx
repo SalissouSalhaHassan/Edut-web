@@ -5,12 +5,20 @@ import { getSessionUserAction } from "@/domains/auth/actions/users.actions";
 import { getActiveSchoolId } from "@/domains/auth/services/school";
 import StudentsClient from "./students-client";
 
-export default async function StudentsPage() {
+export default async function StudentsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ sessionId?: string; search?: string }>;
+}) {
+  const params = searchParams ? await searchParams : {};
   let initialStudents: any[] = [];
   let currentUser: any = null;
   let activeSchoolId: number | null = null;
   let canEdit = false;
   let canDelete = false;
+  let allSessions: any[] = [];
+  let isSessionFrozen = false;
+  let currentSessionId: number | null = null;
 
   let getStudentsError = null;
   try {
@@ -27,6 +35,41 @@ export default async function StudentsPage() {
 
     canEdit = !!(currentUser?.admin || currentUser?.role?.permissions?.some((p: any) => p.moduleName === "Students" && p.canEdit));
     canDelete = !!(currentUser?.admin || currentUser?.role?.permissions?.some((p: any) => p.moduleName === "Students" && p.canDelete));
+
+    // Resolve sessions and academic year freeze status
+    const { db } = await import("@/infrastructure/database");
+    const { sql, desc } = await import("drizzle-orm");
+    const { schoolSessions } = await import("@/infrastructure/database/schema/academics");
+
+    allSessions = await db.query.schoolSessions.findMany({
+      where: (s, { eq, or, isNull }) => activeSchoolId ? or(eq(s.schoolId, activeSchoolId), isNull(s.schoolId)) : undefined,
+      orderBy: [
+        sql`CASE WHEN ${schoolSessions.isActive} = TRUE THEN 0 WHEN LOWER(TRIM(${schoolSessions.status})) = 'actif' THEN 1 ELSE 2 END`,
+        desc(schoolSessions.id),
+      ],
+    }).catch(() => []);
+
+    const requestedSessionId = params.sessionId ? Number(params.sessionId) : null;
+    let currentSession = requestedSessionId
+      ? allSessions.find((s: any) => s.id === requestedSessionId)
+      : null;
+
+    if (!currentSession) {
+      currentSession =
+        allSessions.find((s: any) => s.isActive || s.status?.toLowerCase().trim() === "actif") ||
+        allSessions[0] ||
+        null;
+    }
+
+    currentSessionId = currentSession?.id || null;
+
+    isSessionFrozen = Boolean(
+      currentSession &&
+      (!currentSession.isActive ||
+        currentSession.status === "Clôturé" ||
+        currentSession.status === "Verrouillé" ||
+        currentSession.status === "Archivé")
+    );
   } catch (error: any) {
     getStudentsError = error.message;
     console.warn("[StudentsPage] Failed to fetch server data, falling back to client-side offline cache", error);
@@ -82,6 +125,9 @@ export default async function StudentsPage() {
       activeSchoolId={activeSchoolId}
       canEdit={canEdit}
       canDelete={canDelete}
+      isSessionFrozen={isSessionFrozen}
+      sessions={allSessions}
+      currentSessionId={currentSessionId}
     />
   );
 }

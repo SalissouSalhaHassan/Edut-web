@@ -15,7 +15,8 @@ import {
   Download, 
   ChevronDown, 
   MoreVertical,
-  ArrowUpRight
+  ArrowUpRight,
+  Lock
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -130,7 +131,39 @@ export default function PromoteClient({
     { name: "Non éligibles", value: stats.total > 0 ? (stats.nonEligibles / stats.total) * 100 : 0, color: "#ef4444" },
   ];
 
+  const sourceSessionObj = React.useMemo(() => {
+    return sessions.find(s => s.sessionName === sourceSession || String(s.id) === sourceSession);
+  }, [sessions, sourceSession]);
+
+  const targetSessionObj = React.useMemo(() => {
+    return sessions.find(s => s.sessionName === targetSession || String(s.id) === targetSession);
+  }, [sessions, targetSession]);
+
+  const isSourceSessionFrozen = Boolean(
+    sourceSessionObj && (
+      !sourceSessionObj.isActive || 
+      sourceSessionObj.status === "Clôturé" || 
+      sourceSessionObj.status === "Verrouillé" || 
+      sourceSessionObj.status === "Archivé"
+    )
+  );
+
+  const isTargetSessionFrozen = Boolean(
+    targetSessionObj && (
+      !targetSessionObj.isActive || 
+      targetSessionObj.status === "Clôturé" || 
+      targetSessionObj.status === "Verrouillé" || 
+      targetSessionObj.status === "Archivé"
+    )
+  );
+
+  const isPromotionBlocked = isSourceSessionFrozen || isTargetSessionFrozen;
+
   const handlePromote = async () => {
+    if (isPromotionBlocked) {
+      toast.error("Impossible d'effectuer une promotion vers ou depuis une année scolaire clôturée.");
+      return;
+    }
     if (selectedIds.length === 0) {
       toast.error("Veuillez sélectionner au moins un étudiant.");
       return;
@@ -209,6 +242,28 @@ export default function PromoteClient({
           Historique des promotions
         </Button>
       </div>
+
+      {/* Freeze / Lock Banner */}
+      {isPromotionBlocked && (
+        <div className="flex items-center gap-4 p-5 rounded-[2rem] bg-amber-500/10 border border-amber-500/20 text-amber-900 dark:text-amber-300 shadow-sm animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="w-12 h-12 rounded-2xl bg-amber-500/20 flex items-center justify-center shrink-0">
+            <Lock className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+          </div>
+          <div>
+            <h4 className="font-black text-sm tracking-tight flex items-center gap-2">
+              <span>Année Scolaire Clôturée / Verrouillée</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 uppercase tracking-widest font-black">Lecture Seule</span>
+            </h4>
+            <p className="text-xs text-amber-800/80 dark:text-amber-300/80 mt-0.5 font-medium">
+              {isTargetSessionFrozen && isSourceSessionFrozen
+                ? "La session source et la session de destination sont toutes deux verrouillées. Aucune promotion ne peut être effectuée."
+                : isTargetSessionFrozen
+                ? `La session cible (${targetSession}) est clôturée ou archivée. Les inscriptions y sont verrouillées.`
+                : `La session de départ (${sourceSession}) est clôturée ou archivée. Les promotions sont désactivées.`}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Selection Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -559,11 +614,22 @@ export default function PromoteClient({
               <Download size={18} /> Exporter la liste
             </Button>
             <Button 
-              disabled={isPromoting || selectedIds.length === 0}
+              disabled={isPromoting || selectedIds.length === 0 || isPromotionBlocked}
               onClick={handlePromote}
-              className="h-12 px-8 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest flex items-center gap-3 shadow-lg shadow-indigo-100 dark:shadow-none transition-all disabled:opacity-50"
+              className={cn(
+                "h-12 px-8 rounded-xl font-black uppercase tracking-widest flex items-center gap-3 transition-all",
+                isPromotionBlocked
+                  ? "bg-amber-500/20 text-amber-500 cursor-not-allowed border border-amber-500/30"
+                  : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-100 dark:shadow-none disabled:opacity-50"
+              )}
             >
-              {isPromoting ? "Traitement..." : <><ArrowUpRight size={18} /> Lancer la promotion</>}
+              {isPromoting ? (
+                "Traitement..."
+              ) : isPromotionBlocked ? (
+                <><Lock size={18} /> Promotion Verrouillée</>
+              ) : (
+                <><ArrowUpRight size={18} /> Lancer la promotion</>
+              )}
             </Button>
           </div>
         </div>
@@ -682,14 +748,25 @@ export default function PromoteClient({
                 Annuler
               </Button>
               <Button 
-                disabled={isPromoting}
+                disabled={isPromoting || isPromotionBlocked}
                 onClick={async () => {
                   setIsPreviewOpen(false);
                   await handlePromote();
                 }}
-                className="h-12 px-8 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest flex items-center gap-3 shadow-lg shadow-indigo-100 dark:shadow-none transition-all"
+                className={cn(
+                  "h-12 px-8 rounded-xl font-black uppercase tracking-widest flex items-center gap-3 transition-all",
+                  isPromotionBlocked
+                    ? "bg-amber-500/20 text-amber-500 cursor-not-allowed border border-amber-500/30"
+                    : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-100 dark:shadow-none"
+                )}
               >
-                {isPromoting ? "Traitement..." : <><CheckCircle2 size={18} /> Confirmer la promotion</>}
+                {isPromoting ? (
+                  "Traitement..."
+                ) : isPromotionBlocked ? (
+                  <><Lock size={18} /> Promotion Verrouillée</>
+                ) : (
+                  <><CheckCircle2 size={18} /> Confirmer la promotion</>
+                )}
               </Button>
             </div>
           </div>

@@ -6,6 +6,7 @@ import { eq, desc, and, or, isNull, sql, sum, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { protectedDbAction } from "@/lib/protected-action";
 import { getActiveSchoolId } from "@/domains/auth/services/school";
+import { assertHRSessionEditable } from "./employees.actions";
 
 // ── Payroll Rules ─────────────────────────────────────────────────────
 export async function getPayrollRules() {
@@ -26,6 +27,11 @@ export async function savePayrollRules(data: {
   halfDayPenalty: number;
 }) {
   return protectedDbAction("HR", "canEdit", async () => {
+    const schoolId = await getActiveSchoolId();
+    const sessionCheck = await assertHRSessionEditable(null, schoolId);
+    if (!sessionCheck.editable) {
+      return { error: sessionCheck.error || "Action impossible : l'exercice financier et scolaire est clôturé." };
+    }
     const existing = await db.query.payrollRules.findFirst();
     if (existing) {
       await db.update(payrollRules).set(data).where(eq(payrollRules.id, existing.id));
@@ -134,6 +140,12 @@ export async function createSalaryRecord(record: {
   remark?: string;
 }) {
   return protectedDbAction("HR", "canEdit", async () => {
+    const schoolId = await getActiveSchoolId();
+    const sessionCheck = await assertHRSessionEditable(null, schoolId);
+    if (!sessionCheck.editable) {
+      return { error: sessionCheck.error || "Action impossible : l'exercice financier et scolaire est clôturé." };
+    }
+
     const [created] = await db.insert(salaryRecords).values({
       ...record,
       paymentDate: record.status === "Paid" ? new Date() : undefined,
@@ -145,6 +157,12 @@ export async function createSalaryRecord(record: {
 
 export async function markSalaryAsPaid(id: number) {
   return protectedDbAction("HR", "canEdit", async () => {
+    const schoolId = await getActiveSchoolId();
+    const sessionCheck = await assertHRSessionEditable(null, schoolId);
+    if (!sessionCheck.editable) {
+      return { error: sessionCheck.error || "Action impossible : l'exercice financier et scolaire est clôturé." };
+    }
+
     await db.update(salaryRecords)
       .set({ status: "Paid", paymentDate: new Date(), paymentMode: "Virement" })
       .where(eq(salaryRecords.id, id));
@@ -155,6 +173,12 @@ export async function markSalaryAsPaid(id: number) {
 
 export async function deleteSalaryRecord(id: number) {
   return protectedDbAction("HR", "canDelete", async () => {
+    const schoolId = await getActiveSchoolId();
+    const sessionCheck = await assertHRSessionEditable(null, schoolId);
+    if (!sessionCheck.editable) {
+      return { error: sessionCheck.error || "Action impossible : l'exercice financier et scolaire est clôturé." };
+    }
+
     await db.delete(salaryRecords).where(eq(salaryRecords.id, id));
     revalidatePath("/dashboard/hr/payroll");
     return { success: true };

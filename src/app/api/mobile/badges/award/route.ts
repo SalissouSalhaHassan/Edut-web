@@ -3,7 +3,8 @@ import { getMobileUser, mobileJsonError } from "@/app/api/mobile/_lib/auth";
 import { db } from "@/infrastructure/database";
 import { behaviorRewards } from "@/infrastructure/database/schema/discipline";
 import { students } from "@/infrastructure/database/schema/students";
-import { eq } from "drizzle-orm";
+import { schoolSessions } from "@/infrastructure/database/schema/academics";
+import { eq, and, or, isNull, desc } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,21 @@ export async function POST(request: NextRequest) {
     }
 
     const schoolId = user.schoolId || 1;
+
+    // Check session freeze
+    const sessionCheck = await db.query.schoolSessions.findFirst({
+      where: (s, { eq, and, or, isNull }) => and(
+        schoolId ? or(eq(s.schoolId, schoolId), isNull(s.schoolId)) : undefined,
+        or(eq(s.isActive, true), eq(s.status, "Actif"))
+      ),
+      orderBy: (s, { desc }) => [desc(s.id)],
+    });
+    if (sessionCheck && (!sessionCheck.isActive || sessionCheck.status === "Clôturé" || sessionCheck.status === "Verrouillé" || sessionCheck.status === "Archivé")) {
+      return mobileJsonError(
+        `Impossible d'attribuer le badge : l'année scolaire (${sessionCheck.sessionName}) est clôturée ou verrouillée.`,
+        403
+      );
+    }
 
     // 1. Fetch student
     const student = await db.query.students.findFirst({

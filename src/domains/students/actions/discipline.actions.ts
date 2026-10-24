@@ -18,6 +18,7 @@ import { protectedDbAction } from "@/lib/protected-action";
 import { getUserRoleType } from "@/domains/auth/services/rbac";
 import { getActiveSchoolId } from "@/domains/auth/services/school";
 import { MessagingService } from "@/shared/services/messaging.service";
+import { assertStudentSessionEditable } from "./students.actions";
 
 // ─── Discipline Dashboard Summary Stats ─────────────────────────────────────
 
@@ -95,6 +96,11 @@ export async function createIncident(formData: IncidentFormData & {
   return protectedDbAction("Students", "canEdit", async (user) => {
     const schoolId = await getActiveSchoolId();
     if (!schoolId) return { error: "Aucune école active." };
+
+    const sessionCheck = await assertStudentSessionEditable(null, schoolId);
+    if (!sessionCheck.editable) {
+      return { error: sessionCheck.error || "Action impossible : l'année scolaire est clôturée ou verrouillée." };
+    }
 
     const { studentId, incidentType, severity, description, proposedAction, status } = validation.data;
     const sanctionType = formData.sanctionType || "Rappel à l'ordre";
@@ -212,6 +218,11 @@ export async function updateIncident(id: number, formData: IncidentFormData & {
     const schoolId = await getActiveSchoolId();
     if (!schoolId) return { error: "Aucune école active." };
 
+    const sessionCheck = await assertStudentSessionEditable(null, schoolId);
+    if (!sessionCheck.editable) {
+      return { error: sessionCheck.error || "Action impossible : l'année scolaire est clôturée ou verrouillée." };
+    }
+
     const { studentId, incidentType, severity, description, proposedAction, status } = validation.data;
 
     const existing = await db.query.disciplineIncidents.findFirst({
@@ -246,6 +257,11 @@ export async function deleteIncident(id: number) {
   return protectedDbAction("Students", "canDelete", async () => {
     const schoolId = await getActiveSchoolId();
     if (!schoolId) return { error: "Aucune école active." };
+
+    const sessionCheck = await assertStudentSessionEditable(null, schoolId);
+    if (!sessionCheck.editable) {
+      return { error: sessionCheck.error || "Action impossible : l'année scolaire est clôturée ou verrouillée." };
+    }
 
     await db
       .delete(disciplineIncidents)
@@ -302,6 +318,11 @@ export async function createDisciplinaryCouncil(data: {
   return protectedDbAction("Students", "canEdit", async (user) => {
     const schoolId = await getActiveSchoolId();
     if (!schoolId) return { error: "Aucune école active." };
+
+    const sessionCheck = await assertStudentSessionEditable(null, schoolId);
+    if (!sessionCheck.editable) {
+      return { error: sessionCheck.error || "Action impossible : l'année scolaire est clôturée ou verrouillée." };
+    }
 
     const student = await db.query.students.findFirst({
       where: and(eq(students.id, data.studentId), eq(students.schoolId, schoolId)),
@@ -380,6 +401,11 @@ export async function deleteDisciplinaryCouncil(id: number) {
     const schoolId = await getActiveSchoolId();
     if (!schoolId) return { error: "Aucune école active." };
 
+    const sessionCheck = await assertStudentSessionEditable(null, schoolId);
+    if (!sessionCheck.editable) {
+      return { error: sessionCheck.error || "Action impossible : l'année scolaire est clôturée ou verrouillée." };
+    }
+
     await db
       .delete(disciplinaryCouncils)
       .where(
@@ -426,6 +452,11 @@ export async function createParentConvocation(data: {
   return protectedDbAction("Students", "canEdit", async () => {
     const schoolId = await getActiveSchoolId();
     if (!schoolId) return { error: "Aucune école active." };
+
+    const sessionCheck = await assertStudentSessionEditable(null, schoolId);
+    if (!sessionCheck.editable) {
+      return { error: sessionCheck.error || "Action impossible : l'année scolaire est clôturée ou verrouillée." };
+    }
 
     const student = await db.query.students.findFirst({
       where: and(eq(students.id, data.studentId), eq(students.schoolId, schoolId)),
@@ -494,6 +525,11 @@ export async function deleteParentConvocation(id: number) {
     const schoolId = await getActiveSchoolId();
     if (!schoolId) return { error: "Aucune école active." };
 
+    const sessionCheck = await assertStudentSessionEditable(null, schoolId);
+    if (!sessionCheck.editable) {
+      return { error: sessionCheck.error || "Action impossible : l'année scolaire est clôturée ou verrouillée." };
+    }
+
     await db
       .delete(parentConvocations)
       .where(
@@ -520,6 +556,11 @@ export async function saveBehaviorReward(data: {
   return protectedDbAction("Students", "canEdit", async (user) => {
     const schoolId = (await getActiveSchoolId()) || user.schoolId;
     if (!schoolId) return { error: "Aucune école active." };
+
+    const sessionCheck = await assertStudentSessionEditable(null, schoolId);
+    if (!sessionCheck.editable) {
+      return { error: sessionCheck.error || "Action impossible : l'année scolaire est clôturée ou verrouillée." };
+    }
 
     const { studentId, rewardType, pointsEffect, reason, grantedBy } = data;
 
@@ -554,6 +595,11 @@ export async function deleteBehaviorReward(id: number, studentId: number) {
   return protectedDbAction("Students", "canDelete", async (user) => {
     const schoolId = (await getActiveSchoolId()) || user.schoolId;
     if (!schoolId) return { error: "Aucune école active." };
+
+    const sessionCheck = await assertStudentSessionEditable(null, schoolId);
+    if (!sessionCheck.editable) {
+      return { error: sessionCheck.error || "Action impossible : l'année scolaire est clôturée ou verrouillée." };
+    }
 
     const reward = await db.query.behaviorRewards.findFirst({
       where: and(eq(behaviorRewards.id, id), eq(behaviorRewards.schoolId, schoolId)),

@@ -280,6 +280,40 @@ export async function getStudentCategories() {
   });
 }
 
+export async function assertStudentSessionEditable(
+  sessionId?: number | null,
+  schoolId?: number | null
+): Promise<{ editable: boolean; error?: string }> {
+  try {
+    let targetSessionId = sessionId;
+    if (!targetSessionId) {
+      const activeSession = await db.query.schoolSessions.findFirst({
+        where: (s, { eq, and, or, isNull }) => and(
+          schoolId ? or(eq(s.schoolId, schoolId), isNull(s.schoolId)) : undefined,
+          or(eq(s.isActive, true), eq(s.status, "Actif"))
+        ),
+        orderBy: [desc(schoolSessions.id)]
+      });
+      targetSessionId = activeSession?.id;
+    }
+
+    if (targetSessionId) {
+      const session = await db.query.schoolSessions.findFirst({
+        where: eq(schoolSessions.id, targetSessionId)
+      });
+      if (session && (!session.isActive || session.status === "Clôturé" || session.status === "Verrouillé" || session.status === "Archivé")) {
+        return {
+          editable: false,
+          error: `🔒 L'année scolaire (${session.sessionName}) est clôturée et verrouillée. Les modifications sur les dossiers élèves (inscriptions, mises à jour, suppressions) y sont interdites.`
+        };
+      }
+    }
+  } catch (e) {
+    console.warn("[assertStudentSessionEditable] Warning:", e);
+  }
+  return { editable: true };
+}
+
 export async function createStudent(formData: StudentFormData) {
   const validation = studentSchema.safeParse(formData);
   if (!validation.success) {
@@ -288,14 +322,9 @@ export async function createStudent(formData: StudentFormData) {
 
   return protectedDbAction("Students", "canEdit", async (user) => {
     const schoolId = await getActiveSchoolId();
-    const activeSession = await db.query.schoolSessions.findFirst({
-      where: and(
-        eq(schoolSessions.schoolId, schoolId),
-        eq(schoolSessions.isActive, true)
-      )
-    });
-    if (activeSession && (activeSession.status === "Clôturé" || activeSession.status === "Verrouillé")) {
-      return { error: "Action impossible : l'année scolaire est verrouillée." };
+    const sessionCheck = await assertStudentSessionEditable(null, schoolId);
+    if (!sessionCheck.editable) {
+      return { error: sessionCheck.error || "Action impossible : l'année scolaire est clôturée ou verrouillée." };
     }
 
     const roleType = await getUserRoleType(user);
@@ -340,15 +369,9 @@ export async function createStudent(formData: StudentFormData) {
 export async function deleteStudent(id: number) {
   return protectedDbAction("Students", "canDelete", async (user) => {
     const schoolId = await getActiveSchoolId();
-    const activeSession = await db.query.schoolSessions.findFirst({
-      where: and(
-        eq(schoolSessions.schoolId, schoolId),
-        eq(schoolSessions.isActive, true)
-      ),
-      columns: { id: true, status: true, isActive: true }
-    });
-    if (activeSession && (activeSession.status === "Clôturé" || activeSession.status === "Verrouillé")) {
-      return { error: "Action impossible : l'année scolaire est verrouillée." };
+    const sessionCheck = await assertStudentSessionEditable(null, schoolId);
+    if (!sessionCheck.editable) {
+      return { error: sessionCheck.error || "Action impossible : l'année scolaire est clôturée ou verrouillée." };
     }
 
     const roleType = await getUserRoleType(user);
@@ -386,15 +409,9 @@ export async function updateStudent(id: number, formData: StudentFormData, origi
 
   return protectedDbAction("Students", "canEdit", async (user) => {
     const schoolId = await getActiveSchoolId();
-    const activeSession = await db.query.schoolSessions.findFirst({
-      where: and(
-        eq(schoolSessions.schoolId, schoolId),
-        eq(schoolSessions.isActive, true)
-      ),
-      columns: { id: true, status: true, isActive: true }
-    });
-    if (activeSession && (activeSession.status === "Clôturé" || activeSession.status === "Verrouillé")) {
-      return { error: "Action impossible : l'année scolaire est verrouillée." };
+    const sessionCheck = await assertStudentSessionEditable(null, schoolId);
+    if (!sessionCheck.editable) {
+      return { error: sessionCheck.error || "Action impossible : l'année scolaire est clôturée ou verrouillée." };
     }
 
     const roleType = await getUserRoleType(user);

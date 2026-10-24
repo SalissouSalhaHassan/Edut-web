@@ -3,9 +3,10 @@ import { getMobileUser, mobileJsonError } from "../../_lib/auth";
 import { db } from "@/infrastructure/database";
 import { disciplineIncidents } from "@/infrastructure/database/schema/discipline";
 import { students } from "@/infrastructure/database/schema/students";
+import { schoolSessions } from "@/infrastructure/database/schema/academics";
 import { notifications } from "@/infrastructure/database/schema/messaging";
 import { users } from "@/infrastructure/database/schema/auth";
-import { eq, and } from "drizzle-orm";
+import { eq, and, or, isNull, desc } from "drizzle-orm";
 import { MessagingService } from "@/shared/services/messaging.service";
 
 export const dynamic = "force-dynamic";
@@ -42,6 +43,21 @@ export async function POST(request: NextRequest) {
     }
 
     const schoolId = user.schoolId || student.schoolId || 1;
+
+    // Check session freeze
+    const sessionCheck = await db.query.schoolSessions.findFirst({
+      where: (s, { eq, and, or, isNull }) => and(
+        schoolId ? or(eq(s.schoolId, schoolId), isNull(s.schoolId)) : undefined,
+        or(eq(s.isActive, true), eq(s.status, "Actif"))
+      ),
+      orderBy: (s, { desc }) => [desc(s.id)],
+    });
+    if (sessionCheck && (!sessionCheck.isActive || sessionCheck.status === "Clôturé" || sessionCheck.status === "Verrouillé" || sessionCheck.status === "Archivé")) {
+      return mobileJsonError(
+        `Impossible d'enregistrer l'incident : l'année scolaire (${sessionCheck.sessionName}) est clôturée ou verrouillée. Les actions disciplinaires y sont gelées.`,
+        403
+      );
+    }
     const creatorName = (user as any).name || (user as any).nom || user.utilisateur || "Surveillant";
 
     const [inserted] = await db

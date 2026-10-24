@@ -2,6 +2,7 @@
 
 import { db } from "@/infrastructure/database";
 import { employees, employeeAttendance } from "@/infrastructure/database/schema/hr";
+import { schoolSessions } from "@/infrastructure/database/schema/academics";
 import { eq, desc, and, sql, inArray, or, isNull, ilike } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { employeeSchema, EmployeeFormData } from "../validators/employee.schema";
@@ -101,6 +102,40 @@ export async function getEmployees(params?: {
   });
 }
 
+export async function assertHRSessionEditable(
+  sessionId?: number | null,
+  schoolId?: number | null
+): Promise<{ editable: boolean; error?: string }> {
+  try {
+    let targetSessionId = sessionId;
+    if (!targetSessionId) {
+      const activeSession = await db.query.schoolSessions.findFirst({
+        where: (s, { eq, and, or, isNull }) => and(
+          schoolId ? or(eq(s.schoolId, schoolId), isNull(s.schoolId)) : undefined,
+          or(eq(s.isActive, true), eq(s.status, "Actif"))
+        ),
+        orderBy: [desc(schoolSessions.id)]
+      });
+      targetSessionId = activeSession?.id;
+    }
+
+    if (targetSessionId) {
+      const session = await db.query.schoolSessions.findFirst({
+        where: eq(schoolSessions.id, targetSessionId)
+      });
+      if (session && (!session.isActive || session.status === "Clôturé" || session.status === "Verrouillé" || session.status === "Archivé")) {
+        return {
+          editable: false,
+          error: `🔒 L'année scolaire (${session.sessionName}) est clôturée et verrouillée. Les opérations RH (recrutement, modifications de contrat, suppressions) y sont interdites.`
+        };
+      }
+    }
+  } catch (e) {
+    console.warn("[assertHRSessionEditable] Warning:", e);
+  }
+  return { editable: true };
+}
+
 export async function createEmployee(formData: EmployeeFormData) {
   const validation = employeeSchema.safeParse(formData);
   if (!validation.success) {
@@ -109,6 +144,10 @@ export async function createEmployee(formData: EmployeeFormData) {
 
   return protectedDbAction("HR", "canEdit", async (user) => {
     const schoolId = await getActiveSchoolId();
+    const sessionCheck = await assertHRSessionEditable(null, schoolId);
+    if (!sessionCheck.editable) {
+      return { error: sessionCheck.error || "Action impossible : l'année scolaire est clôturée ou verrouillée." };
+    }
     const roleType = await getUserRoleType(user);
 
     if (roleType === "teacher") {
@@ -133,6 +172,10 @@ export async function createEmployee(formData: EmployeeFormData) {
 export async function deleteEmployee(id: number) {
   return protectedDbAction("HR", "canDelete", async (user) => {
     const schoolId = await getActiveSchoolId();
+    const sessionCheck = await assertHRSessionEditable(null, schoolId);
+    if (!sessionCheck.editable) {
+      return { error: sessionCheck.error || "Action impossible : l'année scolaire est clôturée ou verrouillée." };
+    }
     const roleType = await getUserRoleType(user);
 
     if (roleType === "teacher") {
@@ -167,6 +210,10 @@ export async function updateEmployee(id: number, formData: EmployeeFormData) {
 
   return protectedDbAction("HR", "canEdit", async (user) => {
     const schoolId = await getActiveSchoolId();
+    const sessionCheck = await assertHRSessionEditable(null, schoolId);
+    if (!sessionCheck.editable) {
+      return { error: sessionCheck.error || "Action impossible : l'année scolaire est clôturée ou verrouillée." };
+    }
     const roleType = await getUserRoleType(user);
 
     if (roleType === "teacher") {
@@ -244,6 +291,10 @@ export async function saveEmployeeAttendance(
 ) {
   return protectedDbAction("HR", "canEdit", async (user) => {
     const schoolId = await getActiveSchoolId();
+    const sessionCheck = await assertHRSessionEditable(null, schoolId);
+    if (!sessionCheck.editable) {
+      return { error: sessionCheck.error || "Action impossible : l'année scolaire est clôturée ou verrouillée." };
+    }
     const roleType = await getUserRoleType(user);
 
     if (roleType === "teacher") {

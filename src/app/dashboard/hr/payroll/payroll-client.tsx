@@ -3,7 +3,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createSalaryRecord, markSalaryAsPaid, deleteSalaryRecord, getEmployeeAttendanceSummary, savePayrollRules } from "@/domains/hr/actions/payroll.actions";
-import { ArrowLeft, Users, TrendingUp, Clock, Plus, CheckCircle, FileText, Settings, RefreshCw, Trash2, ChevronDown, Printer, Download, Sparkles } from "lucide-react";
+import { ArrowLeft, Users, TrendingUp, Clock, Plus, CheckCircle, FileText, Settings, RefreshCw, Trash2, ChevronDown, Printer, Download, Sparkles, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import HrDocumentPrintModal, { HrDocType } from "@/domains/hr/components/HrDocumentPrintModal";
 
@@ -24,7 +24,18 @@ function StatCard({ label, value, sub, icon, color }: any) {
   );
 }
 
-export default function PayrollClient({ dashboard, initialRecords, rules, employees, headerConfig, canEdit, canDelete }: any) {
+export default function PayrollClient({
+  dashboard,
+  initialRecords,
+  rules,
+  employees,
+  headerConfig,
+  canEdit,
+  canDelete,
+  sessions = [],
+  isSessionFrozen = false,
+  currentSessionId = null,
+}: any) {
   const router = useRouter();
   const [tab, setTab] = useState<"dashboard"|"generate"|"list">("dashboard");
   const [records, setRecords] = useState<any[]>(initialRecords);
@@ -90,6 +101,10 @@ export default function PayrollClient({ dashboard, initialRecords, rules, employ
   };
 
   const handleSave = async (status: "Paid" | "Unpaid") => {
+    if (isSessionFrozen) {
+      setMsg("❌ Impossible d'enregistrer la paie : l'année scolaire sélectionnée est clôturée ou verrouillée.");
+      return;
+    }
     if (!selEmpId) return setMsg("Veuillez sélectionner un employé.");
     setSaving(true); setMsg("");
     const res = await createSalaryRecord({
@@ -105,6 +120,10 @@ export default function PayrollClient({ dashboard, initialRecords, rules, employ
   };
 
   const handleMarkPaid = (id: number) => {
+    if (isSessionFrozen) {
+      setMsg("❌ Impossible de modifier le statut : l'année scolaire est clôturée ou verrouillée.");
+      return;
+    }
     startTransition(async () => {
       await markSalaryAsPaid(id);
       setRecords(r => r.map(x => x.id === id ? {...x, status:"Paid"} : x));
@@ -114,6 +133,10 @@ export default function PayrollClient({ dashboard, initialRecords, rules, employ
   };
 
   const handleDelete = (id: number) => {
+    if (isSessionFrozen) {
+      setMsg("❌ Impossible de supprimer : l'année scolaire est clôturée ou verrouillée.");
+      return;
+    }
     if (!confirm("Supprimer cet enregistrement ?")) return;
     startTransition(async () => {
       await deleteSalaryRecord(id);
@@ -123,6 +146,10 @@ export default function PayrollClient({ dashboard, initialRecords, rules, employ
   };
 
   const handleSaveRules = async () => {
+    if (isSessionFrozen) {
+      setMsg("❌ Modification des paramètres impossible dans une session clôturée.");
+      return;
+    }
     await savePayrollRules({ leaveAllowPerMonth: rLeave, latePenalty: rLate, halfDayPenalty: 0.5 });
     setShowRules(false);
   };
@@ -136,7 +163,7 @@ export default function PayrollClient({ dashboard, initialRecords, rules, employ
   return (
     <div className="min-h-screen bg-[#F8FAFC] p-6 lg:p-10 space-y-6 font-sans text-slate-900">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-1">
           <Link href="/dashboard/hr" className="inline-flex items-center gap-1 text-xs font-bold text-slate-400 hover:text-indigo-600 transition-colors">
             <ArrowLeft size={13}/> Retour RH
@@ -146,12 +173,54 @@ export default function PayrollClient({ dashboard, initialRecords, rules, employ
             <span className="text-lg font-bold text-slate-400 font-arabic">إدارة الرواتب</span>
           </div>
         </div>
-        {canEdit && (
-          <button onClick={() => setShowRules(true)} className="h-10 px-4 rounded-xl border border-slate-200 bg-white text-slate-600 text-sm font-semibold flex items-center gap-2 hover:bg-slate-50 shadow-sm">
-            <Settings size={15}/> Paramètres RH
-          </button>
-        )}
+        <div className="flex items-center gap-3">
+          {sessions.length > 0 && (
+            <select
+              value={String(currentSessionId || "")}
+              onChange={(e) => {
+                const val = e.target.value;
+                const url = new URL(window.location.href);
+                if (val) {
+                  url.searchParams.set("sessionId", val);
+                } else {
+                  url.searchParams.delete("sessionId");
+                }
+                window.location.href = url.toString();
+              }}
+              className="h-10 px-3 rounded-xl border border-slate-200 bg-white text-slate-700 text-xs font-bold shadow-sm outline-none focus:ring-2 focus:ring-indigo-500/20"
+            >
+              {sessions.map((s: any) => (
+                <option key={s.id} value={String(s.id)}>
+                  {s.sessionName} {s.isActive ? "🟢 (Actif)" : s.status === "Clôturé" ? "🔒 (Clôturé)" : ""}
+                </option>
+              ))}
+            </select>
+          )}
+          {canEdit && !isSessionFrozen && (
+            <button onClick={() => setShowRules(true)} className="h-10 px-4 rounded-xl border border-slate-200 bg-white text-slate-600 text-sm font-semibold flex items-center gap-2 hover:bg-slate-50 shadow-sm">
+              <Settings size={15}/> Paramètres RH
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* Freeze Banner */}
+      {isSessionFrozen && (
+        <div className="flex items-center gap-4 p-5 rounded-[2rem] bg-amber-500/10 border border-amber-500/20 text-amber-900 shadow-sm animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="w-12 h-12 rounded-2xl bg-amber-500/20 flex items-center justify-center shrink-0">
+            <Lock className="w-6 h-6 text-amber-600" />
+          </div>
+          <div>
+            <h4 className="font-black text-sm tracking-tight flex items-center gap-2">
+              <span>Année Scolaire Clôturée / Verrouillée</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 uppercase tracking-widest font-black text-amber-700">Lecture Seule</span>
+            </h4>
+            <p className="text-xs text-amber-800/80 mt-0.5 font-medium">
+              L'année scolaire sélectionnée est verrouillée ou archivée. La création de salaires et le règlement des paiements sont gelés.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-1 bg-white border border-slate-200 rounded-2xl p-1 w-fit shadow-sm">
@@ -295,14 +364,22 @@ export default function PayrollClient({ dashboard, initialRecords, rules, employ
             {msg && <p className="text-sm font-bold px-4 py-2 rounded-xl bg-slate-50 border border-slate-200">{msg}</p>}
             {canEdit && (
               <div className="flex gap-3">
-                <button onClick={() => handleSave("Unpaid")} disabled={saving}
-                  className="h-12 px-6 rounded-2xl border border-slate-200 bg-white text-slate-700 font-bold hover:bg-slate-50 transition-all disabled:opacity-50">
-                  💾 Sauvegarder (Non Payé)
-                </button>
-                <button onClick={() => handleSave("Paid")} disabled={saving}
-                  className="h-12 px-8 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-lg shadow-emerald-100 transition-all disabled:opacity-50">
-                  {saving ? "Enregistrement..." : "💵 Payer Maintenant"}
-                </button>
+                {isSessionFrozen ? (
+                  <div className="h-12 px-6 rounded-2xl bg-amber-500/20 border border-amber-500/30 text-amber-600 font-bold flex items-center gap-2 cursor-not-allowed text-sm">
+                    <Lock size={16} /> Salaires Verrouillés
+                  </div>
+                ) : (
+                  <>
+                    <button onClick={() => handleSave("Unpaid")} disabled={saving}
+                      className="h-12 px-6 rounded-2xl border border-slate-200 bg-white text-slate-700 font-bold hover:bg-slate-50 transition-all disabled:opacity-50">
+                      💾 Sauvegarder (Non Payé)
+                    </button>
+                    <button onClick={() => handleSave("Paid")} disabled={saving}
+                      className="h-12 px-8 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-lg shadow-emerald-100 transition-all disabled:opacity-50">
+                      {saving ? "Enregistrement..." : "💵 Payer Maintenant"}
+                    </button>
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -337,13 +414,13 @@ export default function PayrollClient({ dashboard, initialRecords, rules, employ
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
-                        {canEdit && r.status === "Unpaid" && (
+                        {canEdit && !isSessionFrozen && r.status === "Unpaid" && (
                           <button onClick={e => { e.stopPropagation(); handleMarkPaid(r.id); }} disabled={isPending}
                             className="px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[10px] font-black border border-emerald-100 transition-colors">
                             ✅ Payer
                           </button>
                         )}
-                        {canDelete && (
+                        {canDelete && !isSessionFrozen && (
                           <button onClick={e => { e.stopPropagation(); handleDelete(r.id); }}
                             className="w-7 h-7 rounded-lg border border-rose-100 flex items-center justify-center text-rose-400 hover:bg-rose-50 transition-colors">
                             <Trash2 size={12}/>

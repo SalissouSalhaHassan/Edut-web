@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, sql, desc, or, isNull } from "drizzle-orm";
 import { db, readDb } from "@/infrastructure/database";
 import { students } from "@/infrastructure/database/schema/students";
 import { studentFees } from "@/infrastructure/database/schema/finance";
@@ -148,6 +148,31 @@ export async function POST(request: NextRequest) {
 
     if (action === "saveStudent") {
       const studentId = payload.id ? Number(payload.id) : null;
+
+      // ── Enforce Session Freeze / Lock Protection ──
+      const targetSessionId = payload.session_id || payload.sessionId;
+      const targetSchoolId = schoolId || payload.school_id;
+      let sessionCheck = null;
+      if (targetSessionId) {
+        sessionCheck = await readDb.query.schoolSessions.findFirst({
+          where: eq(schoolSessions.id, Number(targetSessionId))
+        });
+      } else if (targetSchoolId) {
+        sessionCheck = await readDb.query.schoolSessions.findFirst({
+          where: and(
+            or(eq(schoolSessions.schoolId, Number(targetSchoolId)), isNull(schoolSessions.schoolId)),
+            or(eq(schoolSessions.isActive, true), eq(schoolSessions.status, "Actif"))
+          ),
+          orderBy: [desc(schoolSessions.id)]
+        });
+      }
+      if (sessionCheck && (!sessionCheck.isActive || sessionCheck.status === "Clôturé" || sessionCheck.status === "Verrouillé" || sessionCheck.status === "Archivé")) {
+        return mobileJsonError(
+          `Impossible d'enregistrer l'élève : l'année scolaire (${sessionCheck.sessionName}) est clôturée ou verrouillée. Les modifications d'élèves y sont gelées.`,
+          403
+        );
+      }
+
       const userLevel = user.educationalLevel;
       const resolvedLevel =
         payload.educational_level ||
@@ -269,6 +294,31 @@ export async function POST(request: NextRequest) {
       const { studentIds, targetClass, targetSession, transferBalance } = payload;
       if (!studentIds || !Array.isArray(studentIds) || studentIds.length === 0) {
         return mobileJsonError("Paramètre studentIds invalide", 400);
+      }
+
+      // Check target or active session freeze
+      let targetSessionCheck = null;
+      if (targetSession) {
+        targetSessionCheck = await readDb.query.schoolSessions.findFirst({
+          where: and(
+            schoolId ? or(eq(schoolSessions.schoolId, schoolId), isNull(schoolSessions.schoolId)) : undefined,
+            eq(schoolSessions.sessionName, String(targetSession).trim())
+          )
+        });
+      } else if (schoolId) {
+        targetSessionCheck = await readDb.query.schoolSessions.findFirst({
+          where: and(
+            or(eq(schoolSessions.schoolId, schoolId), isNull(schoolSessions.schoolId)),
+            or(eq(schoolSessions.isActive, true), eq(schoolSessions.status, "Actif"))
+          ),
+          orderBy: [desc(schoolSessions.id)]
+        });
+      }
+      if (targetSessionCheck && (!targetSessionCheck.isActive || targetSessionCheck.status === "Clôturé" || targetSessionCheck.status === "Verrouillé" || targetSessionCheck.status === "Archivé")) {
+        return mobileJsonError(
+          `Impossible de promouvoir les élèves : l'année scolaire (${targetSessionCheck.sessionName}) est clôturée ou verrouillée.`,
+          403
+        );
       }
 
       // Promote class and session

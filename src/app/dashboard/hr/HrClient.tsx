@@ -71,12 +71,18 @@ export default function HrClient({
   canEdit,
   canDelete,
   deleteEmployeeAction,
+  sessions = [],
+  isSessionFrozen = false,
+  currentSessionId = null,
 }: {
   allEmployees: any[];
   headerConfig?: any;
   canEdit: boolean;
   canDelete: boolean;
   deleteEmployeeAction: (id: number) => Promise<any>;
+  sessions?: any[];
+  isSessionFrozen?: boolean;
+  currentSessionId?: number | null;
 }) {
   const [tab, setTab] = useState("employees");
   const [searchInput, setSearchInput] = useState("");
@@ -236,6 +242,32 @@ export default function HrClient({
             </SelectContent>
           </Select>
 
+          {sessions.length > 0 && (
+            <Select
+              value={String(currentSessionId || "")}
+              onValueChange={(val) => {
+                const url = new URL(window.location.href);
+                if (val) {
+                  url.searchParams.set("sessionId", val);
+                } else {
+                  url.searchParams.delete("sessionId");
+                }
+                window.location.href = url.toString();
+              }}
+            >
+              <SelectTrigger className="w-52 h-11 rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-xs font-bold">
+                <SelectValue placeholder="Année Scolaire" />
+              </SelectTrigger>
+              <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
+                {sessions.map((s: any) => (
+                  <SelectItem key={s.id} value={String(s.id)} className="text-xs font-bold">
+                    {s.sessionName} {s.isActive ? "🟢 (Actif)" : s.status === "Clôturé" ? "🔒 (Clôturé)" : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+
           <Link
             href="/dashboard/hr/reports"
             className="h-11 px-4 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 border border-indigo-200/60 dark:border-indigo-900/50 text-indigo-700 dark:text-indigo-300 font-bold flex items-center gap-2 text-xs transition-all"
@@ -250,7 +282,11 @@ export default function HrClient({
             <QrCode size={15} /> QR Codes
           </Link>
 
-          {canEdit && (
+          {isSessionFrozen ? (
+            <div className="h-11 px-5 rounded-xl bg-amber-500/20 border border-amber-500/30 text-amber-500 font-black text-xs uppercase tracking-wider flex items-center gap-2 cursor-not-allowed">
+              <Lock size={16} /> RH Verrouillées
+            </div>
+          ) : canEdit ? (
             <EmployeeDialog
               mode="add"
               trigger={
@@ -259,9 +295,27 @@ export default function HrClient({
                 </button>
               }
             />
-          )}
+          ) : null}
         </div>
       </div>
+
+      {/* Freeze / Lock Banner */}
+      {isSessionFrozen && (
+        <div className="flex items-center gap-4 p-5 rounded-[2rem] bg-amber-500/10 border border-amber-500/20 text-amber-900 dark:text-amber-300 shadow-sm animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="w-12 h-12 rounded-2xl bg-amber-500/20 flex items-center justify-center shrink-0">
+            <Lock className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+          </div>
+          <div>
+            <h4 className="font-black text-sm tracking-tight flex items-center gap-2">
+              <span>Année Scolaire Clôturée / Verrouillée</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 uppercase tracking-widest font-black">Lecture Seule</span>
+            </h4>
+            <p className="text-xs text-amber-800/80 dark:text-amber-300/80 mt-0.5 font-medium">
+              L'année scolaire sélectionnée est verrouillée ou archivée. Les recrutements d'employés, modifications de fiches et pointages sont gelés.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* ─── OFFICIAL DOCUMENT HEADER LINKAGE BANNER ─── */}
       {headerConfig && (
@@ -461,9 +515,9 @@ export default function HrClient({
                       </button>
                       <ActionMenu
                         title={`Gérer ${employee.nom}`}
-                        onDelete={canDelete ? () => deleteEmployeeAction(employee.id) : undefined}
-                        canEdit={canEdit}
-                        canDelete={canDelete}
+                        onDelete={canDelete && !isSessionFrozen ? () => deleteEmployeeAction(employee.id) : undefined}
+                        canEdit={canEdit && !isSessionFrozen}
+                        canDelete={canDelete && !isSessionFrozen}
                         editDialog={
                           <EmployeeDialog
                             mode="edit"
@@ -534,9 +588,9 @@ export default function HrClient({
                               </button>
                               <ActionMenu
                                 title={`Gérer ${employee.nom}`}
-                                onDelete={canDelete ? () => deleteEmployeeAction(employee.id) : undefined}
-                                canEdit={canEdit}
-                                canDelete={canDelete}
+                                onDelete={canDelete && !isSessionFrozen ? () => deleteEmployeeAction(employee.id) : undefined}
+                                canEdit={canEdit && !isSessionFrozen}
+                                canDelete={canDelete && !isSessionFrozen}
                               />
                             </div>
                           </td>

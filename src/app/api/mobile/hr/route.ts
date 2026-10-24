@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, sql, or, isNull } from "drizzle-orm";
 import { db, readDb } from "@/infrastructure/database";
 import { employees, employeeAttendance, payrollRules, salaryRecords } from "@/infrastructure/database/schema/hr";
+import { schoolSessions } from "@/infrastructure/database/schema/academics";
 import { getMobileUser, mobileJsonError } from "../_lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -276,6 +277,20 @@ export async function POST(request: NextRequest) {
   const schoolId = user.schoolId || 1;
 
   try {
+    const sessionCheck = await db.query.schoolSessions.findFirst({
+      where: (s, { eq, and, or, isNull }) => and(
+        schoolId ? or(eq(s.schoolId, schoolId), isNull(s.schoolId)) : undefined,
+        or(eq(s.isActive, true), eq(s.status, "Actif"))
+      ),
+      orderBy: (s, { desc }) => [desc(s.id)],
+    });
+    if (sessionCheck && (!sessionCheck.isActive || sessionCheck.status === "Clôturé" || sessionCheck.status === "Verrouillé" || sessionCheck.status === "Archivé")) {
+      return mobileJsonError(
+        `Impossible d'effectuer cette opération RH : l'année scolaire (${sessionCheck.sessionName}) est clôturée ou verrouillée. Les modifications de personnel et de paie y sont gelées.`,
+        403
+      );
+    }
+
     const body = await request.json();
     const { action } = body;
 

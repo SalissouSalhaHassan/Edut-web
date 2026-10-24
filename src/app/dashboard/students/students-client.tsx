@@ -7,7 +7,7 @@ import ActionMenu from "@/components/common/ActionMenu";
 import Link from "next/link";
 import { 
   Users, UserPlus, GraduationCap, LayoutGrid, List, Search, Filter, 
-  Edit, Bell, ChevronDown, ChevronLeft, ChevronRight, UserCheck
+  Edit, Bell, ChevronDown, ChevronLeft, ChevronRight, UserCheck, Lock
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { deleteStudent } from "@/domains/students/actions/students.actions";
@@ -89,6 +89,9 @@ interface StudentsClientProps {
   canEdit: boolean;
   canDelete: boolean;
   debugInfo?: any;
+  isSessionFrozen?: boolean;
+  sessions?: any[];
+  currentSessionId?: number | null;
 }
 
 function normalizeEducationalLevel(level: string): string {
@@ -129,7 +132,17 @@ function getCompatibleEducationalLevels(level: string): string[] {
   return [level, level.toLowerCase(), level.toUpperCase(), level.charAt(0).toUpperCase() + level.slice(1).toLowerCase()];
 }
 
-export default function StudentsClient({ initialStudents, currentUser, activeSchoolId, canEdit, canDelete, debugInfo }: StudentsClientProps) {
+export default function StudentsClient({ 
+  initialStudents, 
+  currentUser, 
+  activeSchoolId, 
+  canEdit, 
+  canDelete, 
+  debugInfo,
+  isSessionFrozen = false,
+  sessions = [],
+  currentSessionId = null
+}: StudentsClientProps) {
   const [allStudents, setAllStudents] = useState<any[]>(initialStudents);
   const [isLocal, setIsLocal] = useState(false);
   const [unsyncedAdmissions, setUnsyncedAdmissions] = useState<Set<string>>(new Set());
@@ -384,7 +397,30 @@ export default function StudentsClient({ initialStudents, currentUser, activeSch
           </div>
         </div>
         
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-4">
+          {sessions && sessions.length > 0 && (
+            <div className="relative">
+              <select
+                value={currentSessionId || ""}
+                onChange={(e) => {
+                  const newId = e.target.value;
+                  const url = new URL(window.location.href);
+                  if (newId) url.searchParams.set("sessionId", newId);
+                  else url.searchParams.delete("sessionId");
+                  window.location.href = url.toString();
+                }}
+                className="h-10 px-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 outline-none cursor-pointer pr-8 shadow-sm"
+              >
+                {sessions.map((s: any) => (
+                  <option key={s.id} value={s.id}>
+                    {s.sessionName || `Session #${s.id}`} {(!s.isActive || s.status === "Clôturé" || s.status === "Verrouillé" || s.status === "Archivé") ? "🔒 (Clôturée)" : "🟢"}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            </div>
+          )}
+
           <div className="flex items-center gap-4 border-r border-slate-200 dark:border-slate-800 pr-6">
             <button className="relative p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
               <Bell size={20} />
@@ -414,26 +450,46 @@ export default function StudentsClient({ initialStudents, currentUser, activeSch
             </div>
           </div>
           {canEdit && (
-            <StudentDialog 
-              mode="add" 
-              trigger={
-                <button className="h-11 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold flex items-center gap-2 shadow-lg shadow-indigo-100 transition-all cursor-pointer">
-                  <Plus size={18} /> Ajouter un étudiant
-                </button>
-              }
-              onSuccess={(newStd) => {
-                setAllStudents(prev => {
-                  const exists = prev.some(s => s.numAdmission === newStd.numAdmission);
-                  if (exists) {
-                    return prev.map(s => s.numAdmission === newStd.numAdmission ? { ...s, ...newStd } : s);
-                  }
-                  return [newStd, ...prev];
-                });
-              }}
-            />
+            isSessionFrozen ? (
+              <div 
+                title="Exercice scolaire clôturé et verrouillé"
+                className="h-11 px-6 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 font-semibold flex items-center gap-2 cursor-not-allowed border border-slate-200 dark:border-slate-700 select-none"
+              >
+                <Lock size={16} /> Inscriptions Verrouillées
+              </div>
+            ) : (
+              <StudentDialog 
+                mode="add" 
+                trigger={
+                  <button className="h-11 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold flex items-center gap-2 shadow-lg shadow-indigo-100 transition-all cursor-pointer">
+                    <Plus size={18} /> Ajouter un étudiant
+                  </button>
+                }
+                onSuccess={(newStd) => {
+                  setAllStudents(prev => {
+                    const exists = prev.some(s => s.numAdmission === newStd.numAdmission);
+                    if (exists) {
+                      return prev.map(s => s.numAdmission === newStd.numAdmission ? { ...s, ...newStd } : s);
+                    }
+                    return [newStd, ...prev];
+                  });
+                }}
+              />
+            )
           )}
         </div>
       </div>
+
+      {/* Session Freeze Banner */}
+      {isSessionFrozen && (
+        <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center gap-3 text-amber-700 dark:text-amber-400">
+          <Lock className="shrink-0" size={20} />
+          <div>
+            <span className="font-bold text-sm">Exercice scolaire clôturé et verrouillé :</span>
+            <span className="text-sm ml-1">L'année scolaire sélectionnée est clôturée ou archivée. Les inscriptions, modifications et suppressions d'élèves sont désactivées en mode consultation seule.</span>
+          </div>
+        </div>
+      )}
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -579,10 +635,10 @@ export default function StudentsClient({ initialStudents, currentUser, activeSch
                 <ActionMenu 
                   title={`Gérer ${student.nomEtudiant}`}
                   onDelete={deleteStudent.bind(null, student.id)}
-                  canEdit={canEdit}
-                  canDelete={canDelete}
+                  canEdit={canEdit && !isSessionFrozen}
+                  canDelete={canDelete && !isSessionFrozen}
                   studentId={student.id}
-                  onEdit={() => setEditingStudent(student)}
+                  onEdit={() => !isSessionFrozen && setEditingStudent(student)}
                 />
               </div>
             </div>
