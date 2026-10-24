@@ -27,7 +27,7 @@ import {
   Moon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { exportCanevasTableToPdf } from "../canevas-pdf-export";
+import { exportCanevasTableToPdf } from "@/app/dashboard/canevas/etablissements/canevas-pdf-export";
 
 const initialFieldsData: Record<string, [string, string][]> = {
   general: [

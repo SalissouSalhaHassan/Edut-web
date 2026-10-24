@@ -5,7 +5,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { AlertTriangle, ArrowLeft, Download, GraduationCap, Moon, Plus, Printer, RotateCcw, Save, Sun, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { exportCanevasTableToPdf } from "../canevas-pdf-export";
+import { exportCanevasTableToPdf } from "@/app/dashboard/canevas/etablissements/canevas-pdf-export";
 
 type Row = { niveau: string; redoublants: number | ""; filles: number | ""; effectif: number | ""; observations: string };
 

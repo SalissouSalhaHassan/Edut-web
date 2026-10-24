@@ -5,7 +5,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { AlertTriangle, ArrowLeft, CheckCircle2, Download, Droplets, Home, Lightbulb, Moon, Plus, Printer, RotateCcw, Save, ShieldCheck, Sun, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { exportCanevasTableToPdf } from "../canevas-pdf-export";
+import { exportCanevasTableToPdf } from "@/app/dashboard/canevas/etablissements/canevas-pdf-export";
 
 type Room = { type: string; total: number | ""; used: number | ""; functional: number | ""; bad: number | ""; observations: string };
 

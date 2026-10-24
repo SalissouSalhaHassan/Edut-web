@@ -36,7 +36,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
-import { exportFullFicheDossierPdf } from "../canevas-pdf-export";
+import { exportFullFicheDossierPdf } from "@/app/dashboard/canevas/etablissements/canevas-pdf-export";
 
 const establishmentInfo = {
   code: "ETB-2026-001",

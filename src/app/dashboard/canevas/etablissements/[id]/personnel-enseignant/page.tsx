@@ -5,7 +5,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { ArrowLeft, Download, Moon, Plus, Printer, RotateCcw, Save, Sun, Trash2, UserRoundCheck, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { exportCanevasTableToPdf } from "../canevas-pdf-export";
+import { exportCanevasTableToPdf } from "@/app/dashboard/canevas/etablissements/canevas-pdf-export";
 
 type Row = { category: string; niveau: string; hommes: number | ""; femmes: number | ""; statut: string; observations: string };
 
