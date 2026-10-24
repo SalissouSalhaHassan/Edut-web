@@ -51,6 +51,7 @@ import {
   FileDown,
   BadgeCheck,
   RotateCcw,
+  Compass,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
@@ -832,6 +833,20 @@ Date d'extraction: ${new Date().toLocaleDateString('fr-FR')}`;
             {isDarkMode ? <Sun size={17} className="animate-spin-slow" /> : <Moon size={17} />}
             <span className="hidden sm:inline">{isDarkMode ? "Clair" : "Sombre"}</span>
           </button>
+
+          {/* Carte Scolaire SIG Button */}
+          <Link
+            href="/dashboard/canevas/carte-scolaire"
+            className={cn(
+              "flex h-11 items-center gap-2 rounded-xl border px-3.5 text-xs font-black uppercase tracking-wider transition shadow-xs",
+              isDarkMode
+                ? "border-teal-500/30 bg-teal-950/30 text-teal-300 hover:bg-teal-900/40"
+                : "border-teal-200 bg-teal-50/80 text-teal-700 hover:bg-teal-100"
+            )}
+          >
+            <Compass size={16} className="text-teal-500" />
+            <span className="font-bold">Carte SIG</span>
+          </Link>
 
           {/* Advanced Actions Dropdown Menu */}
           <div className="relative" ref={menuRef}>

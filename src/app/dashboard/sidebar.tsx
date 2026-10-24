@@ -59,6 +59,9 @@ import {
   Info,
   Download,
   RefreshCw,
+  Compass,
+  Brain,
+  Send,
 } from "lucide-react";
 import { logout } from "@/domains/auth/actions/login";
 import { PWAInstallButton } from "@/components/common/PWAInstallButton";
@@ -246,6 +249,8 @@ const sections: NavSection[] = [
     items: [
       { href: "/dashboard/canevas", label: "Tableau de bord canevas", icon: <FileBarChart2 className="size-[18px]" />, color: "text-indigo-500" },
       { href: "/dashboard/canevas/etablissements", label: "Établissements", icon: <Building2 className="size-[18px]" />, color: "text-blue-500" },
+      { href: "/dashboard/canevas/carte-scolaire", label: "Carte Scolaire SIG", icon: <Compass className="size-[18px]" />, color: "text-teal-500", badge: "SIG", badgeColor: "bg-teal-100 text-teal-700 dark:bg-teal-500/20 dark:text-teal-400" },
+      { href: "/dashboard/canevas/early-warning", label: "Alerte & IA Décrochage", icon: <Brain className="size-[18px]" />, color: "text-amber-500", badge: "IA", badgeColor: "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400" },
       { href: "/dashboard/ministry", label: "Portail Ministère", icon: <Globe className="size-[18px]" />, color: "text-rose-500" },
       { href: "/dashboard/inspection", label: "Portail Inspection", icon: <Shield className="size-[18px]" />, color: "text-cyan-500" },
       { href: "/dashboard/canevas/reporting", label: "Centre de reporting", icon: <BarChart3 className="size-[18px]" />, color: "text-indigo-500" },
@@ -277,6 +282,7 @@ const sections: NavSection[] = [
     dotColor: "bg-pink-500",
     items: [
       { href: "/dashboard/messaging", label: "Messagerie", icon: <MessageSquare className="size-[18px]" />, color: "text-pink-500", badge: "12", badgeColor: "bg-pink-50 text-pink-600" },
+      { href: "/dashboard/messaging/whatsapp-hub", label: "Hub WhatsApp & SMS", icon: <Send className="size-[18px]" />, color: "text-emerald-500", badge: "Direct", badgeColor: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400" },
       { href: "/dashboard/notifications", label: "Notifications", icon: <Bell className="size-[18px]" />, color: "text-amber-500", badge: "5", badgeColor: "bg-amber-50 text-amber-600" },
     ],
   },
@@ -479,6 +485,8 @@ export default function DashboardSidebar({
           items = items.filter((item) => [
             "/dashboard/canevas",
             "/dashboard/canevas/etablissements",
+            "/dashboard/canevas/carte-scolaire",
+            "/dashboard/canevas/early-warning",
             "/dashboard/canevas/reporting",
             "/dashboard/canevas/export"
           ].includes(item.href));

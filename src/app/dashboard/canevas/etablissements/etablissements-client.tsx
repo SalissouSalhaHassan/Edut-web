@@ -41,6 +41,7 @@ import {
   ChevronDown,
   Layers,
   AlertTriangle,
+  Compass,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import * as XLSX from "xlsx";
@@ -883,6 +884,20 @@ export default function EtablissementsClient({
             <FileSpreadsheet size={16} className="text-emerald-500" />
             Excel
           </button>
+
+          {/* Carte Scolaire SIG Button */}
+          <Link
+            href="/dashboard/canevas/carte-scolaire"
+            className={cn(
+              "h-11 px-4 rounded-xl border font-bold text-xs flex items-center gap-2 transition shadow-xs",
+              isDarkMode
+                ? "border-teal-500/30 bg-teal-950/30 text-teal-300 hover:bg-teal-900/40"
+                : "border-teal-200 bg-teal-50/80 text-teal-700 hover:bg-teal-100"
+            )}
+          >
+            <Compass size={16} className="text-teal-500" />
+            <span className="font-bold">Carte SIG</span>
+          </Link>
 
           {/* القائمة الإضافية (Extra Options & Tools Menu) */}
           <div className="relative">
