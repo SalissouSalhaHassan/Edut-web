@@ -2,13 +2,15 @@
 
 import { useMemo, useState, useEffect } from "react";
 import Link from "next/link";
-import { ArrowLeft, BookOpen, Download, Moon, Printer, Save, Sun } from "lucide-react";
+import { toast } from "sonner";
+import { ArrowLeft, BookOpen, Download, Moon, Plus, Printer, RotateCcw, Save, Sun, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { exportCanevasTableToPdf } from "../canevas-pdf-export";
 
 type Row = { niveau: string; matiere: string; type: string; available: number | ""; students: number | ""; observations: string };
 
 const tabs = ["Manuels eleves", "Guides maitres", "Synthese"];
-const subjects = ["Lecture arabe", "Lecture francais", "Maths", "Etude du milieu arabe", "Etude du milieu francais"];
+const subjects = ["Lecture arabe", "Lecture francais", "Maths", "Etude du milieu arabe", "Etude du milieu francais", "Sciences", "Histoire-Geo"];
 const initialData: Record<string, Row[]> = {
   "Manuels eleves": [
     { niveau: "CI", matiere: "Lecture francais", type: "Manuel eleve", available: 82, students: 104, observations: "" },
@@ -27,6 +29,7 @@ const initialData: Record<string, Row[]> = {
 };
 
 const n = (value: number | "") => (typeof value === "number" && value >= 0 ? value : 0);
+const STORAGE_KEY = "edut_canevas_data_manuels_guides";
 
 export default function ManuelsGuidesPage() {
   const [activeTab, setActiveTab] = useState("Manuels eleves");
@@ -35,9 +38,16 @@ export default function ManuelsGuidesPage() {
 
   useEffect(() => {
     try {
-      const saved = localStorage.getItem("edut_theme") || localStorage.getItem("edut_canevas_dark_mode");
-      if (saved === "dark" || saved === "true" || (!saved && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
+      const savedTheme = localStorage.getItem("edut_theme") || localStorage.getItem("edut_canevas_dark_mode");
+      if (savedTheme === "dark" || savedTheme === "true" || (!savedTheme && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
         setIsDarkMode(true);
+      }
+      const savedData = localStorage.getItem(STORAGE_KEY);
+      if (savedData) {
+        const parsed = JSON.parse(savedData);
+        if (parsed && typeof parsed === "object") {
+          setRowsByTab(parsed);
+        }
       }
     } catch {}
   }, []);
@@ -53,8 +63,25 @@ export default function ManuelsGuidesPage() {
     });
   };
 
+  const handleSave = () => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(rowsByTab));
+      toast.success("Manuels et guides enregistrés avec succès !");
+    } catch (e) {
+      toast.error("Erreur lors de l'enregistrement local.");
+    }
+  };
+
+  const handleReset = () => {
+    if (confirm("Voulez-vous réinitialiser les manuels aux valeurs initiales ?")) {
+      setRowsByTab(initialData);
+      localStorage.removeItem(STORAGE_KEY);
+      toast.info("Données réinitialisées.");
+    }
+  };
+
   const allRows = Object.entries(rowsByTab).filter(([key]) => key !== "Synthese").flatMap(([, rows]) => rows);
-  const rows = activeTab === "Synthese" ? allRows : rowsByTab[activeTab];
+  const rows = activeTab === "Synthese" ? allRows : (rowsByTab[activeTab] || []);
   const totals = useMemo(() => {
     const available = allRows.reduce((sum, row) => sum + n(row.available), 0);
     const expected = allRows.reduce((sum, row) => sum + n(row.students), 0);
@@ -72,11 +99,63 @@ export default function ManuelsGuidesPage() {
     }));
   };
 
+  const addRow = () => {
+    if (activeTab === "Synthese") {
+      toast.info("Sélectionnez l'onglet Manuels élèves ou Guides maîtres pour ajouter.");
+      return;
+    }
+    const newRow: Row = {
+      niveau: "CI",
+      matiere: subjects[0],
+      type: activeTab === "Manuels eleves" ? "Manuel eleve" : "Guide maitre",
+      available: 10,
+      students: 50,
+      observations: "",
+    };
+    setRowsByTab((current) => ({
+      ...current,
+      [activeTab]: [...(current[activeTab] || []), newRow],
+    }));
+    toast.success("Nouveau document ajouté à " + activeTab);
+  };
+
+  const deleteRow = (index: number) => {
+    if (activeTab === "Synthese") return;
+    setRowsByTab((current) => ({
+      ...current,
+      [activeTab]: (current[activeTab] || []).filter((_, i) => i !== index),
+    }));
+    toast.info("Ligne supprimée.");
+  };
+
+  const handleExportPdf = () => {
+    exportCanevasTableToPdf({
+      title: "Gestion des Manuels Scolaires et Guides Maîtres",
+      subtitle: `Disponibilité pédagogique, ratios et besoins recensés (${activeTab})`,
+      schoolName: "ÉCOLE PRIMAIRE PUBLIQUE GUESSELBODI",
+      schoolCode: "ETB-2026-001",
+      headers: ["Niveau", "Matière", "Type", "Disponible", "Effectif Réf.", "Ratio livre/élève", "Besoin", "Observations"],
+      rows: rows.map((r) => {
+        const ratio = n(r.students) ? (n(r.available) / n(r.students)).toFixed(2) : "0.00";
+        const need = Math.max(0, n(r.students) - n(r.available));
+        return [r.niveau, r.matiere, r.type, n(r.available), n(r.students), ratio, need, r.observations || "-"];
+      }),
+      summaryNotes: [
+        { label: "Total Livres", value: totals.available },
+        { label: "Besoins Estimés", value: totals.need },
+        { label: "Ratio Moyen", value: totals.ratio.toFixed(2) },
+      ],
+      filename: "manuels_et_guides",
+      orientation: "landscape",
+    });
+  };
+
   return (
     <div className={cn(
       "min-h-screen space-y-6 p-4 md:p-6 xl:p-8 transition-colors duration-300 print:bg-white print:p-0",
       isDarkMode ? "bg-[#090D16] text-slate-100 dark" : "bg-[#F8FAFC] text-slate-950"
     )}>
+      {/* Header */}
       <header className={cn(
         "rounded-[30px] border p-5 shadow-sm print:border-b print:shadow-none transition-colors duration-300",
         isDarkMode ? "bg-[#111827]/95 border-slate-800 text-white shadow-xl shadow-black/40" : "bg-white border-slate-200"
@@ -87,7 +166,7 @@ export default function ManuelsGuidesPage() {
               href="/dashboard/canevas/etablissements/ETB-2026-001"
               className={cn(
                 "flex h-11 w-11 items-center justify-center rounded-2xl border transition print:hidden",
-                isDarkMode ? "border-slate-800 text-slate-400 hover:bg-slate-800 hover:text-white" : "border-slate-200 text-slate-500 hover:bg-slate-50"
+                isDarkMode ? "border-slate-800 bg-slate-900 text-slate-400 hover:bg-slate-800 hover:text-white" : "border-slate-200 text-slate-500 hover:bg-slate-50"
               )}
             >
               <ArrowLeft size={19} />
@@ -97,38 +176,68 @@ export default function ManuelsGuidesPage() {
             </div>
             <div>
               <p className="text-[11px] font-black uppercase tracking-[0.18em] text-indigo-500">Fiche Etablissement</p>
-              <h1 className={cn("text-3xl font-black tracking-tight", isDarkMode ? "text-white" : "text-slate-950")}>Manuels & Guides</h1>
+              <h1 className={cn("text-2xl md:text-3xl font-black tracking-tight", isDarkMode ? "text-white" : "text-slate-950")}>Manuels & Guides</h1>
               <p className={cn("mt-1 text-sm font-bold", isDarkMode ? "text-slate-400" : "text-slate-500")}>Suivi des livres scolaires et guides maitres</p>
             </div>
           </div>
+
           <div className="flex flex-wrap items-center gap-2 print:hidden">
             <button
               type="button"
               onClick={toggleDarkMode}
               className={cn(
-                "flex h-11 items-center gap-2 rounded-xl px-4 text-xs font-black uppercase tracking-wider transition-all duration-200 border",
+                "flex h-11 items-center gap-2 rounded-xl border px-3.5 text-xs font-bold transition-all shadow-xs active:scale-95",
                 isDarkMode
-                  ? "bg-amber-400/10 border-amber-400/30 text-amber-300 hover:bg-amber-400/20"
-                  : "bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200"
+                  ? "border-amber-500/30 bg-amber-950/20 text-amber-300 hover:bg-amber-900/30"
+                  : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
               )}
-              title={isDarkMode ? "Mode Clair" : "Mode Sombre"}
             >
-              {isDarkMode ? <Sun size={16} className="text-amber-400" /> : <Moon size={16} />}
-              <span>{isDarkMode ? "Clair" : "Sombre"}</span>
+              {isDarkMode ? <Sun size={17} className="text-amber-400" /> : <Moon size={17} className="text-indigo-600" />}
+              <span className="hidden sm:inline font-bold">{isDarkMode ? "Clair" : "Sombre"}</span>
             </button>
-            <button className="flex h-11 items-center gap-2 rounded-xl bg-indigo-600 px-4 text-xs font-black uppercase tracking-widest text-white shadow-md shadow-indigo-600/20 hover:bg-indigo-700 transition"><Save size={16} /> Enregistrer</button>
-            <button className={cn(
-              "flex h-11 items-center gap-2 rounded-xl border px-4 text-xs font-black uppercase tracking-widest transition",
-              isDarkMode ? "border-slate-800 bg-slate-900 text-slate-200 hover:bg-slate-800" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-            )}><Download size={16} /> Exporter</button>
-            <button onClick={() => window.print()} className={cn(
-              "flex h-11 items-center gap-2 rounded-xl border px-4 text-xs font-black uppercase tracking-widest transition",
-              isDarkMode ? "border-slate-800 bg-slate-900 text-slate-200 hover:bg-slate-800" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-            )}><Printer size={16} /> Imprimer</button>
+
+            <button
+              onClick={handleSave}
+              className="flex h-11 items-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 px-4 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-indigo-600/30 transition active:scale-95"
+            >
+              <Save size={16} /> Enregistrer
+            </button>
+
+            <button
+              onClick={handleExportPdf}
+              className={cn(
+                "flex h-11 items-center gap-2 rounded-xl border px-4 text-xs font-black uppercase tracking-widest transition shadow-xs",
+                isDarkMode ? "border-emerald-500/40 bg-emerald-950/40 text-emerald-300 hover:bg-emerald-900/60" : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+              )}
+            >
+              <Download size={16} /> Exporter PDF
+            </button>
+
+            <button
+              onClick={() => window.print()}
+              className={cn(
+                "flex h-11 items-center gap-2 rounded-xl border px-4 text-xs font-black uppercase tracking-widest transition",
+                isDarkMode ? "border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+              )}
+            >
+              <Printer size={16} /> Imprimer
+            </button>
+
+            <button
+              onClick={handleReset}
+              title="Réinitialiser"
+              className={cn(
+                "flex h-11 w-11 items-center justify-center rounded-xl border transition",
+                isDarkMode ? "border-slate-800 bg-slate-900 text-slate-400 hover:text-white" : "border-slate-200 bg-white text-slate-500 hover:text-slate-800"
+              )}
+            >
+              <RotateCcw size={16} />
+            </button>
           </div>
         </div>
       </header>
 
+      {/* KPI Cards */}
       <section className="grid gap-4 md:grid-cols-4">
         {[
           ["Documents disponibles", totals.available, isDarkMode ? "bg-indigo-950/60 text-indigo-400 border border-indigo-800/40" : "bg-indigo-50 text-indigo-700"],
@@ -149,28 +258,41 @@ export default function ManuelsGuidesPage() {
         ))}
       </section>
 
+      {/* Tabs */}
       <div className={cn(
-        "flex flex-wrap gap-2 rounded-[24px] border p-3 shadow-sm print:hidden transition-colors duration-300",
+        "flex flex-wrap items-center justify-between gap-2 rounded-[24px] border p-3 shadow-sm print:hidden transition-colors duration-300",
         isDarkMode ? "bg-[#111827]/90 border-slate-800" : "border-slate-100 bg-white"
       )}>
-        {tabs.map((tab) => (
+        <div className="flex flex-wrap gap-2">
+          {tabs.map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={cn(
+                "rounded-2xl px-4 py-3 text-xs font-black uppercase tracking-widest transition",
+                activeTab === tab
+                  ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
+                  : isDarkMode
+                    ? "bg-slate-900 text-slate-400 hover:bg-slate-800 hover:text-white"
+                    : "bg-slate-50 text-slate-600 hover:bg-slate-100"
+              )}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+
+        {activeTab !== "Synthese" && (
           <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={cn(
-              "rounded-2xl px-4 py-3 text-xs font-black uppercase tracking-widest transition",
-              activeTab === tab
-                ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
-                : isDarkMode
-                  ? "bg-slate-900 text-slate-400 hover:bg-slate-800 hover:text-white"
-                  : "bg-slate-50 text-slate-600 hover:bg-slate-100"
-            )}
+            onClick={addRow}
+            className="flex items-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 px-3.5 py-2.5 text-xs font-black text-white shadow-md shadow-indigo-600/20 transition active:scale-95"
           >
-            {tab}
+            <Plus size={15} /> Ajouter un document
           </button>
-        ))}
+        )}
       </div>
 
+      {/* Main Table */}
       <section className={cn(
         "overflow-hidden rounded-[30px] border shadow-sm transition-colors duration-300",
         isDarkMode ? "border-slate-800 bg-[#111827]/90 shadow-xl shadow-black/20" : "border-slate-100 bg-white"
@@ -190,6 +312,7 @@ export default function ManuelsGuidesPage() {
                 <th className="px-5 py-4">Ratio livre/eleve</th>
                 <th className="px-5 py-4">Besoin estime</th>
                 <th className="px-5 py-4">Observations</th>
+                {activeTab !== "Synthese" && <th className="px-5 py-4 text-center print:hidden">Action</th>}
               </tr>
             </thead>
             <tbody className={cn("divide-y", isDarkMode ? "divide-slate-800 text-slate-200" : "divide-slate-100 text-slate-700")}>
@@ -197,6 +320,7 @@ export default function ManuelsGuidesPage() {
                 const ratio = n(row.students) ? n(row.available) / n(row.students) : 0;
                 const need = Math.max(0, n(row.students) - n(row.available));
                 const readOnly = activeTab === "Synthese";
+
                 return (
                   <tr key={`${row.niveau}-${row.matiere}-${index}`} className="text-sm font-bold">
                     <td className="px-5 py-4">
@@ -242,7 +366,7 @@ export default function ManuelsGuidesPage() {
                           value={row.available}
                           onChange={(e) => updateRow(index, "available", e.target.value)}
                           className={cn(
-                            "h-11 w-28 rounded-2xl border px-4 font-black outline-none transition",
+                            "h-11 w-24 rounded-2xl border px-4 font-black outline-none transition",
                             isDarkMode ? "bg-slate-900 border-slate-700 text-white focus:border-indigo-500" : "bg-white border-slate-200 text-slate-900 focus:border-indigo-300"
                           )}
                         />
@@ -258,7 +382,7 @@ export default function ManuelsGuidesPage() {
                           value={row.students}
                           onChange={(e) => updateRow(index, "students", e.target.value)}
                           className={cn(
-                            "h-11 w-28 rounded-2xl border px-4 font-black outline-none transition",
+                            "h-11 w-24 rounded-2xl border px-4 font-black outline-none transition",
                             isDarkMode ? "bg-slate-900 border-slate-700 text-white focus:border-indigo-500" : "bg-white border-slate-200 text-slate-900 focus:border-indigo-300"
                           )}
                         />
@@ -281,6 +405,17 @@ export default function ManuelsGuidesPage() {
                         />
                       )}
                     </td>
+                    {activeTab !== "Synthese" && (
+                      <td className="px-5 py-4 text-center print:hidden">
+                        <button
+                          onClick={() => deleteRow(index)}
+                          title="Supprimer la ligne"
+                          className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 );
               })}

@@ -36,6 +36,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
+import { exportFullFicheDossierPdf } from "../canevas-pdf-export";
 
 const establishmentInfo = {
   code: "ETB-2026-001",
@@ -306,6 +307,28 @@ export default function FicheEtablissementPage() {
             >
               <UserRoundCheck size={16} /> Personnel
             </Link>
+            <button
+              onClick={() => exportFullFicheDossierPdf({
+                code: establishmentInfo.code,
+                nom: establishmentInfo.nom,
+                commune: establishmentInfo.commune,
+                region: establishmentInfo.region,
+                statut: status,
+                directeur: establishmentInfo.directeur,
+                telephone: establishmentInfo.telephone,
+                totalEleves: totals.total,
+                totalEnseignants: 47,
+                totalClasses: 20
+              })}
+              className={cn(
+                "flex h-11 items-center gap-2 rounded-xl border px-4 text-xs font-black uppercase tracking-widest transition shadow-xs",
+                isDarkMode
+                  ? "border-emerald-500/40 bg-emerald-950/60 text-emerald-300 hover:bg-emerald-900/70"
+                  : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+              )}
+            >
+              <Download size={16} /> Exporter Dossier PDF
+            </button>
             <button
               onClick={() => window.print()}
               className={cn(
