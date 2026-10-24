@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import {
@@ -10,29 +10,58 @@ import {
   Users,
   CheckCircle2,
   Filter,
+  Sun,
+  Moon,
+  Search,
+  MoreVertical,
+  Copy,
+  Share2,
+  Printer,
+  RotateCcw,
+  Sparkles,
+  ChevronDown,
+  Layers,
+  Check,
+  X,
+  FileSpreadsheet,
+  Download,
+  Send,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import UniversalReport from "@/components/reporting/universal-report";
 
-// List of 16 required reports
-const reportTypes = [
-  { id: "global", label: "Rapport global des établissements", desc: "Synthèse générale de toutes les structures scolaires" },
-  { id: "identification", label: "Rapport identification", desc: "Informations d'identification administrative des écoles" },
-  { id: "effectifs", label: "Rapport effectifs élèves", desc: "Nombre d'élèves par niveau et par cycle" },
-  { id: "filles_garcons", label: "Rapport filles/garçons", desc: "Indice de parité et répartition par genre" },
-  { id: "redoublants", label: "Rapport redoublants", desc: "Statistiques de redoublement par classe et genre" },
-  { id: "personnel", label: "Rapport personnel", desc: "Nombre d'enseignants, directeurs et statuts professionnels" },
-  { id: "infrastructures", label: "Rapport infrastructures", desc: "État des salles de classe, bureaux et équipements" },
-  { id: "mobilier", label: "Rapport mobilier", desc: "Disponibilité des tables-bancs, armoires et chaises" },
-  { id: "manuels", label: "Rapport manuels", desc: "Ratio de manuels scolaires par élève et discipline" },
-  { id: "guides", label: "Rapport guides", desc: "Disponibilité des guides pédagogiques pour enseignants" },
-  { id: "besoins", label: "Rapport besoins", desc: "Synthèse des besoins prioritaires formulés par les écoles" },
-  { id: "public_prive", label: "Rapport public/privé", desc: "Comparatif sectoriel public et privé" },
-  { id: "commune", label: "Rapport par commune", desc: "Répartition géographique et synthèse par commune" },
-  { id: "inspection", label: "Rapport par inspection", desc: "Synthèse par Inspection de l'Enseignement (IEFA)" },
-  { id: "qualite", label: "Rapport contrôle qualité", desc: "Taux de complétude et détection des anomalies de saisie" },
-  { id: "non_mappe", label: "Rapport données non mappées", desc: "Champs bruts conservés lors des imports Excel" },
+// List of 16 required reports with categories
+interface ReportItem {
+  id: string;
+  label: string;
+  desc: string;
+  category: "direction" | "eleves" | "personnel" | "infra" | "territoire";
+}
+
+const reportTypes: ReportItem[] = [
+  { id: "global", label: "Rapport global des établissements", desc: "Synthèse générale de toutes les structures scolaires", category: "direction" },
+  { id: "identification", label: "Rapport identification", desc: "Informations d'identification administrative des écoles", category: "direction" },
+  { id: "public_prive", label: "Rapport public/privé", desc: "Comparatif sectoriel public et privé", category: "direction" },
+  
+  { id: "effectifs", label: "Rapport effectifs élèves", desc: "Nombre d'élèves par niveau et par cycle", category: "eleves" },
+  { id: "filles_garcons", label: "Rapport filles/garçons", desc: "Indice de parité et répartition par genre", category: "eleves" },
+  { id: "redoublants", label: "Rapport redoublants", desc: "Statistiques de redoublement par classe et genre", category: "eleves" },
+  
+  { id: "personnel", label: "Rapport personnel", desc: "Nombre d'enseignants, directeurs et statuts professionnels", category: "personnel" },
+  { id: "guides", label: "Rapport guides pédagogiques", desc: "Disponibilité des guides pédagogiques pour enseignants", category: "personnel" },
+  
+  { id: "infrastructures", label: "Rapport infrastructures", desc: "État des salles de classe, bureaux et équipements", category: "infra" },
+  { id: "mobilier", label: "Rapport mobilier", desc: "Disponibilité des tables-bancs, armoires et chaises", category: "infra" },
+  { id: "manuels", label: "Rapport manuels", desc: "Ratio de manuels scolaires par élève et discipline", category: "infra" },
+  { id: "besoins", label: "Rapport besoins", desc: "Synthèse des besoins prioritaires formulés par les écoles", category: "infra" },
+  
+  { id: "commune", label: "Rapport par commune", desc: "Répartition géographique et synthèse par commune", category: "territoire" },
+  { id: "inspection", label: "Rapport par inspection", desc: "Synthèse par Inspection de l'Enseignement (IEFA)", category: "territoire" },
+  { id: "qualite", label: "Rapport contrôle qualité", desc: "Taux de complétude et détection des anomalies de saisie", category: "territoire" },
+  { id: "non_mappe", label: "Rapport données non mappées", desc: "Champs bruts conservés lors des imports Excel", category: "territoire" },
 ];
+
+type CategoryTab = "all" | "direction" | "eleves" | "personnel" | "infra" | "territoire";
 
 interface ReportingClientProps {
   sessions?: any[];
@@ -54,21 +83,56 @@ export default function ReportingClient({
   educationalLevels = []
 }: ReportingClientProps) {
   const [selectedReport, setSelectedReport] = useState("global");
-  
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
+  const [reportSearch, setReportSearch] = useState("");
+  const [activeCategory, setActiveCategory] = useState<CategoryTab>("all");
+  const [isOptionsOpen, setIsOptionsOpen] = useState(false);
+
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Initialize Dark Mode & Close options on outside click
+  useEffect(() => {
+    try {
+      const savedTheme = localStorage.getItem("edut_theme") || localStorage.getItem("edut_reporting_dark_mode");
+      if (savedTheme) {
+        setIsDarkMode(savedTheme === "dark");
+      } else if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) {
+        setIsDarkMode(true);
+      }
+    } catch {
+      // ignore
+    }
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setIsOptionsOpen(false);
+      }
+    };
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, []);
+
+  const toggleDarkMode = () => {
+    setIsDarkMode(prev => {
+      const next = !prev;
+      try {
+        localStorage.setItem("edut_theme", next ? "dark" : "light");
+        localStorage.setItem("edut_reporting_dark_mode", next ? "dark" : "light");
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  };
+
   // Dynamic References
   const communesList = Array.from(new Set([
     "Niamey I", "Niamey II", "Niamey III", "Niamey IV", "Niamey V",
     ...(initialCanevasReferences?.commune || []).map((c: any) => c.value || c)
   ]));
 
-  const cyclesList = Array.from(new Set([
-    "Préscolaire", "Primaire", "Collège", "Lycée", "Technique", "Supérieur",
-    ...(educationalLevels || []).map((l: any) => l.levelName || l.name || l),
-    ...(initialCanevasReferences?.cycle || []).map((c: any) => c.value || c)
-  ]));
-  
   // Filters state
-  const defaultSession = activeSessionName || "2024-2025";
+  const defaultSession = activeSessionName || "2026-2027";
   const [year, setYear] = useState(defaultSession);
   const [region, setRegion] = useState("Niamey");
   const [commune, setCommune] = useState("Toutes");
@@ -76,6 +140,17 @@ export default function ReportingClient({
   const [establishment, setEstablishment] = useState("");
 
   const activeReport = reportTypes.find((r) => r.id === selectedReport) || reportTypes[0];
+
+  // Filtered reports for sidebar
+  const filteredReportTypes = useMemo(() => {
+    return reportTypes.filter(r => {
+      const matchCategory = activeCategory === "all" || r.category === activeCategory;
+      const matchSearch = reportSearch
+        ? r.label.toLowerCase().includes(reportSearch.toLowerCase()) || r.desc.toLowerCase().includes(reportSearch.toLowerCase())
+        : true;
+      return matchCategory && matchSearch;
+    });
+  }, [activeCategory, reportSearch]);
 
   // Helper to generate dynamic mock data for each report type
   const getReportData = (id: string) => {
@@ -206,7 +281,6 @@ export default function ReportingClient({
           }
         };
 
-      // Default fallback (Rapport Global)
       default:
         return {
           title: "RAPPORT GLOBAL DES ÉTABLISSEMENTS",
@@ -243,104 +317,390 @@ export default function ReportingClient({
     return true;
   };
 
+  const handleCopySummary = () => {
+    const text = `=== ${reportData.title} ===
+Sous-titre: ${reportData.subtitle}
+Année Scolaire: ${year} | Région: ${region} | Commune: ${commune}
+${reportData.kpis.map(k => `${k.label}: ${k.value} (${k.subtext || ''})`).join(' | ')}
+Extrait le: ${new Date().toLocaleDateString('fr-FR')}`;
+
+    navigator.clipboard.writeText(text);
+    toast.success("Résumé du rapport copié dans le presse-papiers !");
+  };
+
+  const handleShareWhatsApp = () => {
+    const text = encodeURIComponent(
+      `📊 *${reportData.title}* (${year})\n` +
+      `🏛️ ${reportData.subtitle}\n` +
+      `📍 Région: ${region} - Commune: ${commune}\n` +
+      `📈 ${reportData.kpis.map(k => `${k.label}: *${k.value}*`).join(' • ')}\n` +
+      `_Généré via Edut Pro Canevas Reporting_`
+    );
+    window.open(`https://wa.me/?text=${text}`, "_blank");
+  };
+
+  const handleResetFilters = () => {
+    setYear(defaultSession);
+    setRegion("Niamey");
+    setCommune("Toutes");
+    setInspection("Toutes");
+    setEstablishment("");
+    setReportSearch("");
+    setActiveCategory("all");
+    toast.info("Tous les filtres ont été réinitialisés.");
+  };
+
   return (
-    <div className="min-h-screen space-y-6 p-4 text-slate-950 md:p-6 xl:p-8 print:bg-white print:p-0 print:m-0 print:w-full print:min-h-0">
+    <div className={cn(
+      "min-h-screen space-y-6 p-4 md:p-6 xl:p-8 transition-colors duration-200",
+      isDarkMode ? "dark bg-[#090D16] text-slate-100" : "bg-[#fcfdff] text-slate-950",
+      "print:bg-white print:p-0 print:m-0 print:w-full print:min-h-0"
+    )}>
       
       {/* ─── WEB HEADER (Hidden on print) ─── */}
-      <header className="rounded-[30px] border border-slate-200 bg-white p-5 shadow-sm print:hidden">
+      <header className={cn(
+        "rounded-[30px] border p-5 shadow-sm print:hidden transition-colors",
+        isDarkMode ? "bg-[#111827] border-slate-800" : "bg-white border-slate-200"
+      )}>
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex items-center gap-4">
-            <Link href="/dashboard/canevas" className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 text-slate-500 transition hover:bg-slate-50">
+            <Link 
+              href="/dashboard/canevas" 
+              className={cn(
+                "flex h-11 w-11 items-center justify-center rounded-2xl border transition",
+                isDarkMode 
+                  ? "border-slate-800 bg-slate-900 text-slate-400 hover:bg-slate-800 hover:text-white" 
+                  : "border-slate-200 text-slate-500 hover:bg-slate-50"
+              )}
+            >
               <ArrowLeft size={19} />
             </Link>
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-100">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-600/20">
               <FileText size={26} />
             </div>
             <div>
-              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-indigo-600">Gestion des Canevas Scolaires</p>
-              <h1 className="text-3xl font-black tracking-tight text-slate-950">Centre de Reporting</h1>
-              <p className="mt-1 text-sm font-bold text-slate-500">Générez et exportez des rapports administratifs d'impression A4</p>
+              <div className="flex items-center gap-2">
+                <p className="text-[11px] font-black uppercase tracking-[0.18em] text-indigo-500">Gestion des Canevas Scolaires</p>
+                <span className="inline-flex items-center gap-1 rounded-full bg-indigo-500/10 px-2 py-0.5 text-[9px] font-black text-indigo-400 border border-indigo-500/20">
+                  <Sparkles size={10} /> 16 Rapports Officiels
+                </span>
+              </div>
+              <h1 className={cn("text-3xl font-black tracking-tight", isDarkMode ? "text-white" : "text-slate-950")}>
+                Centre de Reporting
+              </h1>
+              <p className={cn("mt-1 text-sm font-bold", isDarkMode ? "text-slate-400" : "text-slate-500")}>
+                Générez et exportez des rapports administratifs d'impression A4
+              </p>
+            </div>
+          </div>
+
+          {/* Header Right Actions */}
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Dark Mode Toggle */}
+            <button
+              onClick={toggleDarkMode}
+              title={isDarkMode ? "Passer en mode clair" : "Passer en mode sombre"}
+              className={cn(
+                "flex h-11 items-center gap-2 rounded-xl border px-3 text-xs font-black transition",
+                isDarkMode 
+                  ? "border-slate-800 bg-slate-900 text-amber-400 hover:bg-slate-800" 
+                  : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+              )}
+            >
+              {isDarkMode ? <Sun size={17} /> : <Moon size={17} />}
+              <span className="hidden sm:inline">{isDarkMode ? "Clair" : "Sombre"}</span>
+            </button>
+
+            {/* Advanced Options Menu */}
+            <div className="relative" ref={menuRef}>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsOptionsOpen(prev => !prev);
+                }}
+                className={cn(
+                  "flex h-11 items-center gap-2 rounded-xl border px-4 text-xs font-black uppercase tracking-wider transition",
+                  isDarkMode 
+                    ? "border-slate-800 bg-slate-900 text-slate-200 hover:bg-slate-800" 
+                    : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                )}
+              >
+                <MoreVertical size={16} className="text-indigo-500" />
+                <span>Options & Actions</span>
+                <ChevronDown size={14} className={cn("transition-transform duration-200", isOptionsOpen && "rotate-180")} />
+              </button>
+
+              {isOptionsOpen && (
+                <div className={cn(
+                  "absolute right-0 mt-2 w-64 rounded-2xl border p-2 shadow-2xl z-50 animate-in fade-in zoom-in-95",
+                  isDarkMode ? "bg-[#111827] border-slate-800 text-slate-200 shadow-black/70" : "bg-white border-slate-100 text-slate-800 shadow-slate-200/50"
+                )}>
+                  <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Actions Rapides</p>
+                  </div>
+                  <div className="py-1 space-y-0.5">
+                    <button
+                      onClick={() => {
+                        handleCopySummary();
+                        setIsOptionsOpen(false);
+                      }}
+                      className={cn(
+                        "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-left transition",
+                        isDarkMode ? "hover:bg-slate-800 text-slate-200" : "hover:bg-slate-50 text-slate-700"
+                      )}
+                    >
+                      <Copy size={15} className="text-indigo-500" />
+                      <span>Copier le résumé du rapport</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        handleShareWhatsApp();
+                        setIsOptionsOpen(false);
+                      }}
+                      className={cn(
+                        "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-left transition text-emerald-500",
+                        isDarkMode ? "hover:bg-slate-800" : "hover:bg-emerald-50"
+                      )}
+                    >
+                      <Share2 size={15} />
+                      <span>Partager par WhatsApp</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        window.print();
+                        setIsOptionsOpen(false);
+                      }}
+                      className={cn(
+                        "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-left transition",
+                        isDarkMode ? "hover:bg-slate-800 text-slate-200" : "hover:bg-slate-50 text-slate-700"
+                      )}
+                    >
+                      <Printer size={15} className="text-cyan-500" />
+                      <span>Imprimer le document</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        handleResetFilters();
+                        setIsOptionsOpen(false);
+                      }}
+                      className={cn(
+                        "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-left transition text-slate-400",
+                        isDarkMode ? "hover:bg-slate-800" : "hover:bg-slate-50"
+                      )}
+                    >
+                      <RotateCcw size={15} />
+                      <span>Réinitialiser les filtres</span>
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
       </header>
 
       {/* ─── FILTERS PANEL (Hidden on print) ─── */}
-      <section className="rounded-[28px] border border-slate-100 bg-white p-5 shadow-sm print:hidden">
+      <section className={cn(
+        "rounded-[28px] border p-5 shadow-sm print:hidden transition-colors",
+        isDarkMode ? "bg-[#111827] border-slate-800" : "bg-white border-slate-100"
+      )}>
         <div className="flex items-center gap-2 mb-4">
-          <Filter size={17} className="text-indigo-600" />
-          <h2 className="text-sm font-black text-slate-990">Filtres Généraux</h2>
+          <Filter size={17} className="text-indigo-500" />
+          <h2 className={cn("text-sm font-black", isDarkMode ? "text-slate-100" : "text-slate-900")}>
+            Filtres Généraux
+          </h2>
         </div>
         <div className="grid gap-3 grid-cols-2 md:grid-cols-5">
           <div className="space-y-1">
             <span className="text-[9px] font-black text-slate-400 uppercase block">Année Scolaire</span>
-            <select value={year} onChange={(e) => setYear(e.target.value)} className="w-full h-11 px-3 border border-slate-200 rounded-xl outline-none font-semibold text-slate-700 text-xs bg-white">
+            <select 
+              value={year} 
+              onChange={(e) => setYear(e.target.value)} 
+              className={cn(
+                "w-full h-11 px-3 border rounded-xl outline-none font-semibold text-xs transition cursor-pointer",
+                isDarkMode 
+                  ? "bg-slate-900 border-slate-700 text-slate-200" 
+                  : "bg-white border-slate-200 text-slate-700"
+              )}
+            >
               {sessions.map((s: any) => (
                 <option key={s.id} value={s.sessionName}>{s.sessionName}</option>
               ))}
               {sessions.length === 0 && (
                 <>
-                  <option value="2024-2025">2024-2025</option>
-                  <option value="2025-2026">2025-2026</option>
                   <option value="2026-2027">2026-2027</option>
+                  <option value="2025-2026">2025-2026</option>
+                  <option value="2024-2025">2024-2025</option>
                 </>
               )}
             </select>
           </div>
           <div className="space-y-1">
             <span className="text-[9px] font-black text-slate-400 uppercase block">Région</span>
-            <select value={region} onChange={(e) => setRegion(e.target.value)} className="w-full h-11 px-3 border border-slate-200 rounded-xl outline-none font-semibold text-slate-700 text-xs bg-white">
+            <select 
+              value={region} 
+              onChange={(e) => setRegion(e.target.value)} 
+              className={cn(
+                "w-full h-11 px-3 border rounded-xl outline-none font-semibold text-xs transition cursor-pointer",
+                isDarkMode 
+                  ? "bg-slate-900 border-slate-700 text-slate-200" 
+                  : "bg-white border-slate-200 text-slate-700"
+              )}
+            >
               <option value="Niamey">Niamey</option>
               <option value="Maradi">Maradi</option>
               <option value="Zinder">Zinder</option>
+              <option value="Tahoua">Tahoua</option>
+              <option value="Dosso">Dosso</option>
             </select>
           </div>
           <div className="space-y-1">
             <span className="text-[9px] font-black text-slate-400 uppercase block">Commune</span>
-            <select value={commune} onChange={(e) => setCommune(e.target.value)} className="w-full h-11 px-3 border border-slate-200 rounded-xl outline-none font-semibold text-slate-700 text-xs bg-white">
+            <select 
+              value={commune} 
+              onChange={(e) => setCommune(e.target.value)} 
+              className={cn(
+                "w-full h-11 px-3 border rounded-xl outline-none font-semibold text-xs transition cursor-pointer",
+                isDarkMode 
+                  ? "bg-slate-900 border-slate-700 text-slate-200" 
+                  : "bg-white border-slate-200 text-slate-700"
+              )}
+            >
               <option value="Toutes">Toutes</option>
               {communesList.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
           <div className="space-y-1">
             <span className="text-[9px] font-black text-slate-400 uppercase block">Inspection</span>
-            <select value={inspection} onChange={(e) => setInspection(e.target.value)} className="w-full h-11 px-3 border border-slate-200 rounded-xl outline-none font-semibold text-slate-700 text-xs bg-white">
+            <select 
+              value={inspection} 
+              onChange={(e) => setInspection(e.target.value)} 
+              className={cn(
+                "w-full h-11 px-3 border rounded-xl outline-none font-semibold text-xs transition cursor-pointer",
+                isDarkMode 
+                  ? "bg-slate-900 border-slate-700 text-slate-200" 
+                  : "bg-white border-slate-200 text-slate-700"
+              )}
+            >
               <option value="Toutes">Toutes</option>
               <option value="IEFA I">IEFA I</option>
               <option value="IEFA II">IEFA II</option>
+              <option value="Niamey IV">Niamey IV</option>
             </select>
           </div>
           <div className="space-y-1">
             <span className="text-[9px] font-black text-slate-400 uppercase block">Établissement</span>
-            <input value={establishment} onChange={(e) => setEstablishment(e.target.value)} placeholder="Ex: Excellence" className="w-full h-11 px-3 border border-slate-200 rounded-xl outline-none font-semibold text-slate-700 text-xs bg-white" />
+            <input 
+              value={establishment} 
+              onChange={(e) => setEstablishment(e.target.value)} 
+              placeholder="Ex: Excellence" 
+              className={cn(
+                "w-full h-11 px-3 border rounded-xl outline-none font-semibold text-xs transition placeholder:text-slate-400",
+                isDarkMode 
+                  ? "bg-slate-900 border-slate-700 text-slate-200 focus:border-indigo-500" 
+                  : "bg-white border-slate-200 text-slate-700 focus:border-indigo-400"
+              )}
+            />
           </div>
         </div>
       </section>
 
       {/* ─── MAIN LAYOUT ─── */}
-      <section className="grid gap-5 xl:grid-cols-[280px_1fr]">
+      <section className="grid gap-5 xl:grid-cols-[300px_1fr]">
         
         {/* Left pane: Report selector (Hidden on print) */}
-        <div className="rounded-[28px] border border-slate-100 bg-white p-4 shadow-sm print:hidden max-h-[780px] overflow-y-auto custom-scrollbar">
-          <h2 className="text-xs font-black uppercase text-slate-400 tracking-wider mb-4 px-2">Types de Rapports</h2>
-          <div className="space-y-1.5">
-            {reportTypes.map((r) => (
+        <div className={cn(
+          "rounded-[28px] border p-4 shadow-sm print:hidden flex flex-col gap-3 transition-colors",
+          isDarkMode ? "bg-[#111827] border-slate-800" : "bg-white border-slate-100"
+        )}>
+          <div className="flex items-center justify-between px-1">
+            <h2 className="text-xs font-black uppercase text-slate-400 tracking-wider">Types de Rapports</h2>
+            <span className={cn(
+              "px-2 py-0.5 rounded-full text-[10px] font-bold",
+              isDarkMode ? "bg-slate-800 text-slate-300" : "bg-slate-100 text-slate-600"
+            )}>
+              {filteredReportTypes.length} / {reportTypes.length}
+            </span>
+          </div>
+
+          {/* Search box for reports */}
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+            <input
+              value={reportSearch}
+              onChange={e => setReportSearch(e.target.value)}
+              placeholder="Chercher un rapport..."
+              className={cn(
+                "w-full h-9 pl-8 pr-7 rounded-xl border text-xs font-medium outline-none transition placeholder:text-slate-400",
+                isDarkMode 
+                  ? "bg-slate-900 border-slate-700 text-slate-200 focus:border-indigo-500" 
+                  : "bg-slate-50 border-slate-200 text-slate-700 focus:border-indigo-400"
+              )}
+            />
+            {reportSearch && (
+              <X 
+                size={13} 
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 cursor-pointer" 
+                onClick={() => setReportSearch("")} 
+              />
+            )}
+          </div>
+
+          {/* Category Tabs */}
+          <div className={cn(
+            "flex flex-wrap gap-1 p-1 rounded-xl border",
+            isDarkMode ? "bg-slate-900/80 border-slate-800" : "bg-slate-100/70 border-slate-200/50"
+          )}>
+            {[
+              { id: "all" as CategoryTab, label: "Tous" },
+              { id: "direction" as CategoryTab, label: "Direction" },
+              { id: "eleves" as CategoryTab, label: "Élèves" },
+              { id: "personnel" as CategoryTab, label: "Staff" },
+              { id: "infra" as CategoryTab, label: "Infras" },
+              { id: "territoire" as CategoryTab, label: "Territoire" },
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveCategory(tab.id)}
+                className={cn(
+                  "px-2.5 py-1 rounded-lg text-[10px] font-bold transition",
+                  activeCategory === tab.id
+                    ? (isDarkMode ? "bg-indigo-600 text-white" : "bg-white text-slate-900 shadow-sm")
+                    : (isDarkMode ? "text-slate-400 hover:text-white" : "text-slate-600 hover:text-slate-900")
+                )}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* List of reports */}
+          <div className="space-y-1.5 max-h-[600px] overflow-y-auto custom-scrollbar pr-0.5">
+            {filteredReportTypes.map((r) => (
               <button
                 key={r.id}
                 onClick={() => setSelectedReport(r.id)}
                 className={cn(
                   "w-full text-left p-3 rounded-xl transition text-xs font-bold leading-normal cursor-pointer",
                   selectedReport === r.id 
-                    ? "bg-indigo-600 text-white shadow-md shadow-indigo-100" 
-                    : "hover:bg-slate-50 text-slate-700"
+                    ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30" 
+                    : (isDarkMode ? "hover:bg-slate-800 text-slate-300" : "hover:bg-slate-50 text-slate-700")
                 )}
               >
                 <p className="font-black truncate">{r.label}</p>
-                <p className={cn("text-[10px] mt-0.5 font-medium truncate", selectedReport === r.id ? "text-indigo-100" : "text-slate-400")}>
+                <p className={cn(
+                  "text-[10px] mt-0.5 font-medium truncate",
+                  selectedReport === r.id ? "text-indigo-100" : "text-slate-400"
+                )}>
                   {r.desc}
                 </p>
               </button>
             ))}
+            {filteredReportTypes.length === 0 && (
+              <div className="p-4 text-center text-xs text-slate-400">
+                Aucun rapport ne correspond.
+              </div>
+            )}
           </div>
         </div>
 
