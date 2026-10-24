@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { jsPDF } from "jspdf";
@@ -40,6 +40,17 @@ import {
   FileCheck2,
   AlertCircle,
   FileQuestion,
+  Sun,
+  Moon,
+  ChevronDown,
+  Copy,
+  Sparkles,
+  CheckCheck,
+  Send,
+  Share2,
+  FileDown,
+  BadgeCheck,
+  RotateCcw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
@@ -70,22 +81,60 @@ interface SchoolInspectionData {
 const initialSchools: SchoolInspectionData[] = [
   {
     code: "ETB-2026-001",
-    name: "Ecole Excellence",
+    name: "Université Privée Internationale Aboubacar Ibrahim",
     type: "Privé",
-    cycle: "Primaire",
-    inspection: "Niamey IV",
-    commune: "Niamey IV",
-    eleves: 642,
-    enseignants: 24,
-    salles: 18,
-    eau: true,
-    electricite: true,
-    completion: 98,
+    cycle: "Supérieur",
+    inspection: "Maradi I",
+    commune: "Commune de Maradi 1",
+    eleves: 364,
+    enseignants: 16,
+    salles: 19,
+    eau: false,
+    electricite: false,
+    completion: 100,
     lastDeclaration: "2026-06-27",
     successRate: 88.5,
     attendanceRate: 95.2,
     status: "Validé",
-    needsCount: 0,
+    needsCount: 2,
+  },
+  {
+    code: "REG-2025-0002",
+    name: "CSP ALHOUSNA",
+    type: "Privé",
+    cycle: "Collège",
+    inspection: "Maradi Zaria 3",
+    commune: "Maradi Zaria 3",
+    eleves: 364,
+    enseignants: 16,
+    salles: 19,
+    eau: false,
+    electricite: false,
+    completion: 100,
+    lastDeclaration: "2026-06-25",
+    successRate: 74.8,
+    attendanceRate: 91.0,
+    status: "Validé",
+    needsCount: 2,
+  },
+  {
+    code: "ETB-2024-132343435",
+    name: "CSP BASMA",
+    type: "Privé",
+    cycle: "Primaire",
+    inspection: "Maradi II",
+    commune: "Commune de Maradi 2",
+    eleves: 364,
+    enseignants: 16,
+    salles: 19,
+    eau: false,
+    electricite: false,
+    completion: 100,
+    lastDeclaration: "2026-06-24",
+    successRate: 82.2,
+    attendanceRate: 93.1,
+    status: "Validé",
+    needsCount: 2,
   },
   {
     code: "ETB-2026-067",
@@ -126,25 +175,6 @@ const initialSchools: SchoolInspectionData[] = [
     needsCount: 1,
   },
   {
-    code: "ETB-2026-104",
-    name: "Lycée Excellence Yantala",
-    type: "Privé",
-    cycle: "Lycée",
-    inspection: "Niamey IV",
-    commune: "Niamey IV",
-    eleves: 450,
-    enseignants: 28,
-    salles: 16,
-    eau: true,
-    electricite: true,
-    completion: 100,
-    lastDeclaration: "2026-06-26",
-    successRate: 74.5,
-    attendanceRate: 89.2,
-    status: "Validé",
-    needsCount: 0,
-  },
-  {
     code: "ETB-2026-521",
     name: "Complexe Scolaire Privé Al-Barka",
     type: "Privé",
@@ -157,37 +187,23 @@ const initialSchools: SchoolInspectionData[] = [
     eau: false,
     electricite: false,
     completion: 55,
-    lastDeclaration: "2026-05-10", // Late
+    lastDeclaration: "2026-05-10",
     successRate: 78.4,
     attendanceRate: 90.6,
     status: "Rejeté",
     rejectionReason: "Données d'infrastructure incohérentes. Veuillez vérifier les salles de classe.",
     needsCount: 3,
   },
-  {
-    code: "ETB-2026-613",
-    name: "Ecole Maternelle Yantala",
-    type: "Public",
-    cycle: "Préscolaire",
-    inspection: "Niamey IV",
-    commune: "Niamey IV",
-    eleves: 120,
-    enseignants: 5,
-    salles: 3,
-    eau: false,
-    electricite: true,
-    completion: 50,
-    lastDeclaration: "2026-06-28",
-    successRate: 95.0,
-    attendanceRate: 92.5,
-    status: "En attente",
-    needsCount: 1,
-  },
 ];
+
+type QuickTab = "all" | "pending" | "validated" | "rejected" | "infra_alerts" | "critical_needs";
 
 export default function InspectionDashboardPage() {
   const [schools, setSchools] = useState<SchoolInspectionData[]>(initialSchools);
   const [schoolSessions, setSchoolSessions] = useState<any[]>([]);
+
+  // Dark mode state
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
 
   // Filter States
   const [selectedYear, setSelectedYear] = useState("");
@@ -196,12 +212,57 @@ export default function InspectionDashboardPage() {
   const [selectedType, setSelectedType] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState<QuickTab>("all");
+
+  // Advanced Menu Dropdown State
+  const [isOptionsOpen, setIsOptionsOpen] = useState(false);
+  const [activeRowMenu, setActiveRowMenu] = useState<string | null>(null);
 
   // Modal States
   const [selectedSchoolDetail, setSelectedSchoolDetail] = useState<SchoolInspectionData | null>(null);
   const [rejectingSchool, setRejectingSchool] = useState<SchoolInspectionData | null>(null);
   const [rejectionObservation, setRejectionObservation] = useState("");
   const [dynamicCycles, setDynamicCycles] = useState<string[]>([]);
+  const [certificateSchool, setCertificateSchool] = useState<SchoolInspectionData | null>(null);
+
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Initialize Dark Mode & Close menus on outside click
+  useEffect(() => {
+    try {
+      const savedTheme = localStorage.getItem("edut_theme") || localStorage.getItem("edut_inspection_dark_mode");
+      if (savedTheme) {
+        setIsDarkMode(savedTheme === "dark");
+      } else if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) {
+        setIsDarkMode(true);
+      }
+    } catch {
+      // ignore
+    }
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setIsOptionsOpen(false);
+      }
+      setActiveRowMenu(null);
+    };
+
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, []);
+
+  const toggleDarkMode = () => {
+    setIsDarkMode(prev => {
+      const next = !prev;
+      try {
+        localStorage.setItem("edut_theme", next ? "dark" : "light");
+        localStorage.setItem("edut_inspection_dark_mode", next ? "dark" : "light");
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -219,7 +280,7 @@ export default function InspectionDashboardPage() {
 
         setSchoolSessions(sessions);
         const activeSession = sessions.find((session: any) => session.isActive) || sessions[0];
-        setSelectedYear(activeSession?.sessionName || "2025-2026");
+        setSelectedYear(activeSession?.sessionName || "2026-2027");
 
         const refCycles = (refsRes as any)?.data?.cycle || (refsRes as any)?.cycle || [];
         const eduLevels = (levelsRes as any)?.data || levelsRes || [];
@@ -247,7 +308,7 @@ export default function InspectionDashboardPage() {
             lastDeclaration: s.lastDeclaration || new Date().toISOString().slice(0, 10),
             successRate: s.successRate || 0,
             attendanceRate: s.attendanceRate || 0,
-            status: s.status === "Valide" ? "Validé" : "En attente",
+            status: s.status === "Valide" || s.status === "Validé" ? "Validé" : (s.status === "Rejeté" ? "Rejeté" : "En attente"),
             needsCount: (s.manqueEnseignants > 0 ? 1 : 0) + (s.manqueSalles > 0 ? 1 : 0) + (!s.eau ? 1 : 0) + (!s.electricite ? 1 : 0),
           }));
           setSchools(mapped);
@@ -255,7 +316,7 @@ export default function InspectionDashboardPage() {
       } catch {
         if (!cancelled) {
           setSchoolSessions([]);
-          setSelectedYear("2025-2026");
+          setSelectedYear("2026-2027");
         }
       }
     };
@@ -272,7 +333,7 @@ export default function InspectionDashboardPage() {
       .map((session: any) => String(session.sessionName || "").trim())
       .filter(Boolean);
     const uniqueSessions = Array.from(new Set(realSessions));
-    return uniqueSessions.length > 0 ? uniqueSessions : ["2025-2026", "2024-2025"];
+    return uniqueSessions.length > 0 ? uniqueSessions : ["2026-2027", "2025-2026", "2024-2025"];
   }, [schoolSessions]);
 
   const cyclesList = useMemo(() => {
@@ -281,18 +342,24 @@ export default function InspectionDashboardPage() {
     return Array.from(new Set([...defaults, ...dynamicCycles, ...schoolCycles]));
   }, [dynamicCycles, schools]);
 
+  const communesList = useMemo(() => {
+    const comms = schools.map(s => s.commune).filter(Boolean);
+    return Array.from(new Set(comms));
+  }, [schools]);
+
   // Late declaration date limit (older than June 1, 2026)
   const isDeclarationLate = (dateStr: string) => {
     return new Date(dateStr) < new Date("2026-06-01");
   };
 
-  // Filtered list
+  // Filtered list with Tab & Dropdowns
   const filteredSchools = useMemo(() => {
     return schools.filter(s => {
       const matchSearch = searchQuery ? (
         s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         s.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        s.commune.toLowerCase().includes(searchQuery.toLowerCase())
+        s.commune.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        s.cycle.toLowerCase().includes(searchQuery.toLowerCase())
       ) : true;
 
       const matchCommune = selectedCommune === "all" || s.commune === selectedCommune;
@@ -300,20 +367,34 @@ export default function InspectionDashboardPage() {
       const matchType = selectedType === "all" || s.type === selectedType;
       const matchStatus = selectedStatus === "all" || s.status === selectedStatus;
 
-      return matchSearch && matchCommune && matchCycle && matchType && matchStatus;
+      // Tab filter
+      let matchTab = true;
+      if (activeTab === "pending") matchTab = s.status === "En attente";
+      else if (activeTab === "validated") matchTab = s.status === "Validé";
+      else if (activeTab === "rejected") matchTab = s.status === "Rejeté";
+      else if (activeTab === "infra_alerts") matchTab = !s.eau || !s.electricite;
+      else if (activeTab === "critical_needs") matchTab = s.needsCount > 0;
+
+      return matchSearch && matchCommune && matchCycle && matchType && matchStatus && matchTab;
     });
-  }, [schools, searchQuery, selectedCommune, selectedCycle, selectedType, selectedStatus]);
+  }, [schools, searchQuery, selectedCommune, selectedCycle, selectedType, selectedStatus, activeTab]);
 
   // KPIs
   const kpis = useMemo(() => {
-    const totalSchools = filteredSchools.length;
+    const totalSchools = schools.length;
     let received = 0;
     let late = 0;
     let incomplete = 0;
     let infraAlerts = 0;
     let criticalNeeds = 0;
+    let validated = 0;
+    let pending = 0;
+    let rejected = 0;
 
-    filteredSchools.forEach(s => {
+    schools.forEach(s => {
+      if (s.status === "Validé") validated++;
+      if (s.status === "En attente") pending++;
+      if (s.status === "Rejeté") rejected++;
       if (s.status === "Validé" || s.status === "En attente") received++;
       if (isDeclarationLate(s.lastDeclaration)) late++;
       if (s.completion < 80) incomplete++;
@@ -328,18 +409,32 @@ export default function InspectionDashboardPage() {
       incomplete,
       infraAlerts,
       criticalNeeds,
+      validated,
+      pending,
+      rejected,
     };
-  }, [filteredSchools]);
+  }, [schools]);
 
-  // Actions handler
+  // Actions handlers
   const handleValidate = (code: string) => {
     setSchools(prev => prev.map(s => {
       if (s.code === code) {
-        toast.success(`Les données de ${s.name} ont été validées.`);
+        toast.success(`Les données de ${s.name} ont été validées avec succès.`);
         return { ...s, status: "Validé", completion: 100 };
       }
       return s;
     }));
+  };
+
+  const handleBatchValidate = () => {
+    const pendingList = filteredSchools.filter(s => s.status === "En attente");
+    if (pendingList.length === 0) {
+      toast.info("Aucune déclaration en attente dans la sélection actuelle.");
+      return;
+    }
+    const codes = new Set(pendingList.map(s => s.code));
+    setSchools(prev => prev.map(s => codes.has(s.code) ? { ...s, status: "Validé", completion: 100 } : s));
+    toast.success(`${pendingList.length} déclaration(s) validée(s) en lot.`);
   };
 
   const triggerRejectModal = (school: SchoolInspectionData) => {
@@ -349,7 +444,7 @@ export default function InspectionDashboardPage() {
 
   const handleRejectSubmit = () => {
     if (!rejectionObservation.trim()) {
-      toast.error("Veuillez saisir une observation pour expliquer le rejet.");
+      toast.error("Veuillez saisir une observation pour expliquer le motif du rejet.");
       return;
     }
 
@@ -369,7 +464,29 @@ export default function InspectionDashboardPage() {
     }
   };
 
-  // Generate Report
+  const handleCopySynthesis = () => {
+    const text = `=== SYNTHÈSE INSPECTION SCOLAIRE [${selectedYear}] ===
+Écoles déclarées: ${schools.length}
+Validées: ${kpis.validated} | En attente: ${kpis.pending} | Rejetées: ${kpis.rejected}
+Alertes Infrastructures (Eau/Élec): ${kpis.infraAlerts}
+Besoins critiques répertoriés: ${kpis.criticalNeeds}
+Date d'extraction: ${new Date().toLocaleDateString('fr-FR')}`;
+
+    navigator.clipboard.writeText(text);
+    toast.success("Synthèse d'inspection copiée dans le presse-papiers !");
+  };
+
+  const handleResetFilters = () => {
+    setSelectedCommune("all");
+    setSelectedCycle("all");
+    setSelectedType("all");
+    setSelectedStatus("all");
+    setSearchQuery("");
+    setActiveTab("all");
+    toast.info("Tous les filtres ont été réinitialisés.");
+  };
+
+  // Generate Individual School Report
   const handleGenerateReport = (school: SchoolInspectionData) => {
     try {
       const doc = new jsPDF();
@@ -380,7 +497,7 @@ export default function InspectionDashboardPage() {
 
       doc.setFont("helvetica", "bold");
       doc.setFontSize(8);
-      doc.setTextColor(6, 182, 212); // Cyan accent
+      doc.setTextColor(6, 182, 212);
       doc.text(`INSPECTION DE L'ENSEIGNEMENT - ${school.inspection.toUpperCase()}`, 15, 17);
 
       doc.setFontSize(12);
@@ -392,7 +509,7 @@ export default function InspectionDashboardPage() {
       doc.setTextColor(100, 116, 139);
       doc.text(`Code Établissement : ${school.code}    |    Date : ${new Date().toLocaleDateString()}`, 15, 30);
 
-      // Section 1: Stats
+      // Section 1
       doc.setFont("helvetica", "bold");
       doc.setFontSize(10);
       doc.setTextColor(15, 23, 42);
@@ -407,7 +524,7 @@ export default function InspectionDashboardPage() {
       doc.text(`Effectifs élèves : ${school.eleves} élèves`, 15, 72);
       doc.text(`Personnel enseignant : ${school.enseignants} enseignants`, 15, 77);
 
-      // Section 2: Infras
+      // Section 2
       doc.setFont("helvetica", "bold");
       doc.text("2. LOGISTIQUE & SERVICES ESSENTIELS", 10, 88);
       doc.line(10, 90, 200, 90);
@@ -417,7 +534,7 @@ export default function InspectionDashboardPage() {
       doc.text(`Accès électricité : ${school.electricite ? "FONCTIONNEL" : "ABSENT / À CORRIGER"}`, 15, 102);
       doc.text(`Salles de classe : ${school.salles} salles disponibles`, 15, 107);
 
-      // Section 3: Validation status
+      // Section 3
       doc.setFont("helvetica", "bold");
       doc.text("3. STATUT DE VALIDATION DU CANEVAS", 10, 118);
       doc.line(10, 120, 200, 120);
@@ -454,7 +571,7 @@ export default function InspectionDashboardPage() {
         "Salles": s.salles,
         "Eau": s.eau ? "Oui" : "Non",
         "Électricité": s.electricite ? "Oui" : "Non",
-        "Complétude (%)": s.completion,
+        "Complétude (%)": `${s.completion}%`,
         "Statut Validation": s.status,
         "Dernière Déclaration": s.lastDeclaration,
         "Besoins Critiques": s.needsCount,
@@ -472,7 +589,7 @@ export default function InspectionDashboardPage() {
     }
   };
 
-  // Export PDF
+  // Export PDF Central
   const handlePdfExport = () => {
     try {
       const doc = new jsPDF({
@@ -490,7 +607,7 @@ export default function InspectionDashboardPage() {
 
       doc.setFont("helvetica", "bold");
       doc.setFontSize(8);
-      doc.setTextColor(6, 182, 212); // Cyan accent
+      doc.setTextColor(6, 182, 212);
       doc.text("INSPECTION SCOLAIRE NATIONALE", 15, 17);
       doc.text("DASHBOARD CENTRAL DE SUIVI ET VALIDATION DES CANEVAS", 15, 22);
 
@@ -502,8 +619,6 @@ export default function InspectionDashboardPage() {
       doc.setFontSize(9);
       doc.setTextColor(100, 116, 139);
       doc.text(`Année scolaire : ${selectedYear}    |    Date d'édition : ${new Date().toLocaleDateString()}`, 15, 36);
-
-      let currentY = 48;
 
       const headers = ["N°", "Code", "Établissement", "Commune", "Type/Cycle", "Élèves", "Enseignants", "Eau", "Élec", "Complétude", "Statut"];
       const body = filteredSchools.map((s, idx) => [
@@ -521,7 +636,7 @@ export default function InspectionDashboardPage() {
       ]);
 
       autoTable(doc, {
-        startY: currentY,
+        startY: 48,
         head: [headers],
         body: body,
         theme: "striped",
@@ -539,7 +654,11 @@ export default function InspectionDashboardPage() {
   };
 
   return (
-    <div className="min-h-screen space-y-8 p-4 text-slate-950 md:p-6 xl:p-8 bg-[#fcfdff] print:bg-white print:p-0">
+    <div className={cn(
+      "min-h-screen space-y-8 p-4 md:p-6 xl:p-8 transition-colors duration-200",
+      isDarkMode ? "dark bg-[#090D16] text-slate-100" : "bg-[#fcfdff] text-slate-950",
+      "print:bg-white print:text-black print:p-0"
+    )}>
       <style>{`
         @media print {
           @page {
@@ -573,37 +692,165 @@ export default function InspectionDashboardPage() {
       `}</style>
       
       {/* Header */}
-      <header className="rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <header className={cn(
+        "rounded-[2rem] border p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6 transition-colors",
+        isDarkMode ? "bg-[#111827] border-slate-800" : "bg-white border-slate-100"
+      )}>
         <div className="flex items-center gap-4">
-          <Link href="/dashboard" className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 text-slate-500 hover:bg-slate-50 transition print:hidden">
+          <Link 
+            href="/dashboard" 
+            className={cn(
+              "flex h-11 w-11 items-center justify-center rounded-2xl border transition print:hidden",
+              isDarkMode ? "border-slate-800 bg-slate-900 text-slate-400 hover:bg-slate-800 hover:text-white" : "border-slate-200 text-slate-500 hover:bg-slate-50"
+            )}
+          >
             <ArrowLeft size={19} />
           </Link>
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-cyan-600 text-white shadow-lg shadow-cyan-100">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-cyan-600 text-white shadow-lg shadow-cyan-600/20">
             <Shield size={26} />
           </div>
           <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-600">Suivi & Validation canevas</p>
-            <h1 className="text-3xl font-black tracking-tight text-slate-900">B portal d'Inspection</h1>
-            <p className="mt-1 text-xs font-bold text-slate-500">Mise à jour, vérification et certification des déclarations d'établissements</p>
+            <div className="flex items-center gap-2">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-500">Suivi & Validation canevas</p>
+              <span className="inline-flex items-center gap-1 rounded-full bg-cyan-500/10 px-2 py-0.5 text-[9px] font-black text-cyan-400 border border-cyan-500/20">
+                <Sparkles size={10} /> Portail Officiel
+              </span>
+            </div>
+            <h1 className={cn("text-3xl font-black tracking-tight", isDarkMode ? "text-white" : "text-slate-900")}>
+              B portal d'Inspection
+            </h1>
+            <p className={cn("mt-1 text-xs font-bold", isDarkMode ? "text-slate-400" : "text-slate-500")}>
+              Mise à jour, vérification et certification des déclarations d'établissements
+            </p>
           </div>
         </div>
 
+        {/* Header Right Actions */}
         <div className="flex flex-wrap items-center gap-3 print:hidden">
+          {/* Dark Mode Toggle */}
+          <button
+            onClick={toggleDarkMode}
+            title={isDarkMode ? "Passer en mode clair" : "Passer en mode sombre"}
+            className={cn(
+              "flex h-11 items-center gap-2 rounded-xl border px-3 text-xs font-black transition",
+              isDarkMode 
+                ? "border-slate-800 bg-slate-900 text-amber-400 hover:bg-slate-800" 
+                : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+            )}
+          >
+            {isDarkMode ? <Sun size={17} className="animate-spin-slow" /> : <Moon size={17} />}
+            <span className="hidden sm:inline">{isDarkMode ? "Clair" : "Sombre"}</span>
+          </button>
+
+          {/* Advanced Actions Dropdown Menu */}
+          <div className="relative" ref={menuRef}>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsOptionsOpen(prev => !prev);
+              }}
+              className={cn(
+                "flex h-11 items-center gap-2 rounded-xl border px-4 text-xs font-black uppercase tracking-wider transition",
+                isDarkMode 
+                  ? "border-slate-800 bg-slate-900 text-slate-200 hover:bg-slate-800" 
+                  : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+              )}
+            >
+              <MoreVertical size={16} className="text-cyan-500" />
+              <span>Options & Actions</span>
+              <ChevronDown size={14} className={cn("transition-transform duration-200", isOptionsOpen && "rotate-180")} />
+            </button>
+
+            {isOptionsOpen && (
+              <div className={cn(
+                "absolute right-0 mt-2 w-64 rounded-2xl border p-2 shadow-2xl z-50 animate-in fade-in zoom-in-95",
+                isDarkMode ? "bg-[#111827] border-slate-800 text-slate-200 shadow-black/60" : "bg-white border-slate-100 text-slate-800 shadow-slate-200/50"
+              )}>
+                <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Actions d'Inspection</p>
+                </div>
+                <div className="py-1 space-y-0.5">
+                  <button
+                    onClick={() => {
+                      handleBatchValidate();
+                      setIsOptionsOpen(false);
+                    }}
+                    className={cn(
+                      "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-left transition",
+                      isDarkMode ? "hover:bg-slate-800 text-emerald-400" : "hover:bg-emerald-50 text-emerald-700"
+                    )}
+                  >
+                    <CheckCheck size={15} />
+                    <span>Valider tout le lot en attente</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      handleCopySynthesis();
+                      setIsOptionsOpen(false);
+                    }}
+                    className={cn(
+                      "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-left transition",
+                      isDarkMode ? "hover:bg-slate-800 text-slate-200" : "hover:bg-slate-50 text-slate-700"
+                    )}
+                  >
+                    <Copy size={15} className="text-cyan-500" />
+                    <span>Copier la synthèse globale</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setActiveTab("infra_alerts");
+                      setIsOptionsOpen(false);
+                    }}
+                    className={cn(
+                      "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-left transition",
+                      isDarkMode ? "hover:bg-slate-800 text-rose-400" : "hover:bg-rose-50 text-rose-700"
+                    )}
+                  >
+                    <ShieldAlert size={15} />
+                    <span>Filtrer alertes Eau & Élec</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      handleResetFilters();
+                      setIsOptionsOpen(false);
+                    }}
+                    className={cn(
+                      "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-left transition",
+                      isDarkMode ? "hover:bg-slate-800 text-slate-400" : "hover:bg-slate-50 text-slate-600"
+                    )}
+                  >
+                    <RotateCcw size={15} />
+                    <span>Réinitialiser les filtres</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
           <button 
             onClick={handlePdfExport}
-            className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 transition"
+            className={cn(
+              "flex h-11 items-center gap-2 rounded-xl border px-4 text-xs font-black uppercase tracking-widest transition",
+              isDarkMode ? "border-slate-800 bg-slate-900 text-slate-200 hover:bg-slate-800" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+            )}
           >
-            <FileText size={16} className="text-cyan-600" /> PDF
+            <FileText size={16} className="text-cyan-500" /> PDF
           </button>
           <button 
             onClick={handleExcelExport}
-            className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 transition"
+            className={cn(
+              "flex h-11 items-center gap-2 rounded-xl border px-4 text-xs font-black uppercase tracking-widest transition",
+              isDarkMode ? "border-slate-800 bg-slate-900 text-slate-200 hover:bg-slate-800" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+            )}
           >
-            <FileSpreadsheet size={16} className="text-emerald-600" /> Excel
+            <FileSpreadsheet size={16} className="text-emerald-500" /> Excel
           </button>
           <button 
             onClick={() => window.print()}
-            className="flex h-11 items-center gap-2 rounded-xl bg-slate-900 px-5 text-xs font-black uppercase tracking-widest text-white hover:bg-slate-800 transition"
+            className={cn(
+              "flex h-11 items-center gap-2 rounded-xl px-5 text-xs font-black uppercase tracking-widest transition shadow-md",
+              isDarkMode ? "bg-cyan-600 hover:bg-cyan-500 text-white" : "bg-slate-900 text-white hover:bg-slate-800"
+            )}
           >
             <Printer size={16} /> Imprimer
           </button>
@@ -611,9 +858,12 @@ export default function InspectionDashboardPage() {
       </header>
 
       {/* Filter panel */}
-      <section className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm space-y-4 print:hidden">
+      <section className={cn(
+        "p-6 rounded-[2rem] border shadow-sm space-y-4 print:hidden transition-colors",
+        isDarkMode ? "bg-[#111827] border-slate-800" : "bg-white border-slate-100"
+      )}>
         <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-          <Filter size={14} /> Filtres d'Inspection
+          <Filter size={14} className="text-cyan-500" /> Filtres d'Inspection
         </h3>
         
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
@@ -622,7 +872,10 @@ export default function InspectionDashboardPage() {
             <select 
               value={selectedYear}
               onChange={e => setSelectedYear(e.target.value)}
-              className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 text-xs font-bold outline-none cursor-pointer"
+              className={cn(
+                "h-11 w-full rounded-xl border px-3 text-xs font-bold outline-none cursor-pointer transition",
+                isDarkMode ? "bg-slate-900 border-slate-700 text-slate-200" : "bg-slate-50/50 border-slate-200 text-slate-800"
+              )}
             >
               {academicYearOptions.map((year) => (
                 <option key={year} value={year}>{year}</option>
@@ -635,10 +888,15 @@ export default function InspectionDashboardPage() {
             <select 
               value={selectedCommune}
               onChange={e => setSelectedCommune(e.target.value)}
-              className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 text-xs font-bold outline-none cursor-pointer"
+              className={cn(
+                "h-11 w-full rounded-xl border px-3 text-xs font-bold outline-none cursor-pointer transition",
+                isDarkMode ? "bg-slate-900 border-slate-700 text-slate-200" : "bg-slate-50/50 border-slate-200 text-slate-800"
+              )}
             >
               <option value="all">Toutes</option>
-              <option value="Niamey IV">Niamey IV</option>
+              {communesList.map(comm => (
+                <option key={comm} value={comm}>{comm}</option>
+              ))}
             </select>
           </div>
 
@@ -647,7 +905,10 @@ export default function InspectionDashboardPage() {
             <select 
               value={selectedCycle}
               onChange={e => setSelectedCycle(e.target.value)}
-              className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 text-xs font-bold outline-none cursor-pointer"
+              className={cn(
+                "h-11 w-full rounded-xl border px-3 text-xs font-bold outline-none cursor-pointer transition",
+                isDarkMode ? "bg-slate-900 border-slate-700 text-slate-200" : "bg-slate-50/50 border-slate-200 text-slate-800"
+              )}
             >
               <option value="all">Tous</option>
               {cyclesList.map(c => (
@@ -661,7 +922,10 @@ export default function InspectionDashboardPage() {
             <select 
               value={selectedType}
               onChange={e => setSelectedType(e.target.value)}
-              className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 text-xs font-bold outline-none cursor-pointer"
+              className={cn(
+                "h-11 w-full rounded-xl border px-3 text-xs font-bold outline-none cursor-pointer transition",
+                isDarkMode ? "bg-slate-900 border-slate-700 text-slate-200" : "bg-slate-50/50 border-slate-200 text-slate-800"
+              )}
             >
               <option value="all">Tous</option>
               <option value="Public">Public</option>
@@ -674,7 +938,10 @@ export default function InspectionDashboardPage() {
             <select 
               value={selectedStatus}
               onChange={e => setSelectedStatus(e.target.value)}
-              className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 text-xs font-bold outline-none cursor-pointer"
+              className={cn(
+                "h-11 w-full rounded-xl border px-3 text-xs font-bold outline-none cursor-pointer transition",
+                isDarkMode ? "bg-slate-900 border-slate-700 text-slate-200" : "bg-slate-50/50 border-slate-200 text-slate-800"
+              )}
             >
               <option value="all">Tous</option>
               <option value="En attente">En attente</option>
@@ -688,45 +955,107 @@ export default function InspectionDashboardPage() {
       {/* KPI Cards Grid */}
       <section className="grid gap-5 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
         {[
-          { label: "Écoles Suivies", value: kpis.totalSchools, icon: Building2, color: "text-cyan-600", bg: "bg-cyan-50" },
-          { label: "Canevas Reçus", value: kpis.received, icon: FileCheck2, color: "text-emerald-600", bg: "bg-emerald-50" },
-          { label: "Canevas En Retard", value: kpis.late, icon: Clock, color: kpis.late > 0 ? "text-rose-600" : "text-slate-400", bg: kpis.late > 0 ? "bg-rose-50" : "bg-slate-50" },
-          { label: "Données Incomplètes", value: kpis.incomplete, icon: AlertTriangle, color: kpis.incomplete > 0 ? "text-amber-600" : "text-slate-400", bg: kpis.incomplete > 0 ? "bg-amber-50" : "bg-slate-50" },
-          { label: "Alertes Infrastructure", value: kpis.infraAlerts, icon: ShieldAlert, color: kpis.infraAlerts > 0 ? "text-rose-600" : "text-slate-400", bg: kpis.infraAlerts > 0 ? "bg-rose-50" : "bg-slate-50" },
-          { label: "Besoins Critiques", value: kpis.criticalNeeds, icon: AlertCircle, color: kpis.criticalNeeds > 0 ? "text-rose-600" : "text-slate-400", bg: kpis.criticalNeeds > 0 ? "bg-rose-50" : "bg-slate-50" },
+          { label: "Écoles Suivies", value: kpis.totalSchools, icon: Building2, color: "text-cyan-500", bgLight: "bg-cyan-50", bgDark: "dark:bg-cyan-950/40" },
+          { label: "Canevas Reçus", value: kpis.received, icon: FileCheck2, color: "text-emerald-500", bgLight: "bg-emerald-50", bgDark: "dark:bg-emerald-950/40" },
+          { label: "Canevas En Retard", value: kpis.late, icon: Clock, color: kpis.late > 0 ? "text-rose-500" : "text-slate-400", bgLight: kpis.late > 0 ? "bg-rose-50" : "bg-slate-50", bgDark: kpis.late > 0 ? "dark:bg-rose-950/40" : "dark:bg-slate-900" },
+          { label: "Données Incomplètes", value: kpis.incomplete, icon: AlertTriangle, color: kpis.incomplete > 0 ? "text-amber-500" : "text-slate-400", bgLight: kpis.incomplete > 0 ? "bg-amber-50" : "bg-slate-50", bgDark: kpis.incomplete > 0 ? "dark:bg-amber-950/40" : "dark:bg-slate-900" },
+          { label: "Alertes Infrastructure", value: kpis.infraAlerts, icon: ShieldAlert, color: kpis.infraAlerts > 0 ? "text-rose-500" : "text-slate-400", bgLight: kpis.infraAlerts > 0 ? "bg-rose-50" : "bg-slate-50", bgDark: kpis.infraAlerts > 0 ? "dark:bg-rose-950/40" : "dark:bg-slate-900" },
+          { label: "Besoins Critiques", value: kpis.criticalNeeds, icon: AlertCircle, color: kpis.criticalNeeds > 0 ? "text-rose-500" : "text-slate-400", bgLight: kpis.criticalNeeds > 0 ? "bg-rose-50" : "bg-slate-50", bgDark: kpis.criticalNeeds > 0 ? "dark:bg-rose-950/40" : "dark:bg-slate-900" },
         ].map((item) => {
           const Icon = item.icon;
           return (
-            <div key={item.label} className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm hover:shadow-md transition">
-              <div className={cn("flex h-10 w-10 items-center justify-center rounded-2xl", item.bg, item.color)}>
+            <div 
+              key={item.label} 
+              className={cn(
+                "rounded-3xl border p-5 shadow-sm hover:shadow-md transition-colors",
+                isDarkMode ? "bg-[#111827] border-slate-800 hover:border-slate-700" : "bg-white border-slate-100"
+              )}
+            >
+              <div className={cn("flex h-10 w-10 items-center justify-center rounded-2xl", item.bgLight, item.bgDark, item.color)}>
                 <Icon size={20} />
               </div>
               <p className="mt-4 text-[9px] font-black uppercase tracking-widest text-slate-400">{item.label}</p>
-              <p className="mt-1 text-2xl font-black text-slate-900">{item.value}</p>
+              <p className={cn("mt-1 text-2xl font-black", isDarkMode ? "text-white" : "text-slate-900")}>{item.value}</p>
             </div>
           );
         })}
       </section>
 
       {/* Main Table area */}
-      <section className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden">
+      <section className={cn(
+        "rounded-[2.5rem] border shadow-sm overflow-hidden transition-colors",
+        isDarkMode ? "bg-[#111827] border-slate-800" : "bg-white border-slate-100"
+      )}>
         
-        {/* Header search controls */}
-        <div className="p-6 border-b border-slate-50 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        {/* Header search & Quick Segment Tabs */}
+        <div className={cn(
+          "p-6 border-b flex flex-col lg:flex-row lg:items-center justify-between gap-6",
+          isDarkMode ? "border-slate-800" : "border-slate-50"
+        )}>
           <div>
-            <h2 className="text-lg font-black text-slate-900 font-sans">Déclarations sous Inspection</h2>
-            <p className="text-xs font-bold text-slate-400">Valider, rejeter ou exporter les canevas scolaires déclarés</p>
+            <h2 className={cn("text-lg font-black font-sans", isDarkMode ? "text-white" : "text-slate-900")}>
+              Déclarations sous Inspection
+            </h2>
+            <p className={cn("text-xs font-bold", isDarkMode ? "text-slate-400" : "text-slate-400")}>
+              Valider, rejeter ou certifier les canevas scolaires déclarés ({filteredSchools.length} sur {schools.length})
+            </p>
           </div>
 
-          <div className="relative w-full md:w-80">
+          {/* Quick Segment Tabs */}
+          <div className={cn(
+            "flex flex-wrap items-center gap-1.5 p-1 rounded-2xl border",
+            isDarkMode ? "bg-slate-900 border-slate-800" : "bg-slate-100/70 border-slate-200/50"
+          )}>
+            {[
+              { id: "all" as QuickTab, label: "Tous", count: schools.length },
+              { id: "pending" as QuickTab, label: "En attente", count: kpis.pending, badgeColor: "bg-amber-500/20 text-amber-500" },
+              { id: "validated" as QuickTab, label: "Validés", count: kpis.validated, badgeColor: "bg-emerald-500/20 text-emerald-500" },
+              { id: "rejected" as QuickTab, label: "Rejetés", count: kpis.rejected, badgeColor: "bg-rose-500/20 text-rose-500" },
+              { id: "infra_alerts" as QuickTab, label: "Alertes Infras", count: kpis.infraAlerts, badgeColor: "bg-rose-500/20 text-rose-500" },
+              { id: "critical_needs" as QuickTab, label: "Besoins", count: kpis.criticalNeeds, badgeColor: "bg-blue-500/20 text-blue-500" },
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition",
+                  activeTab === tab.id
+                    ? (isDarkMode ? "bg-cyan-600 text-white shadow" : "bg-white text-slate-900 shadow-sm")
+                    : (isDarkMode ? "text-slate-400 hover:text-white" : "text-slate-600 hover:text-slate-900")
+                )}
+              >
+                <span>{tab.label}</span>
+                <span className={cn(
+                  "px-1.5 py-0.5 rounded-md text-[10px] font-bold",
+                  activeTab === tab.id ? (isDarkMode ? "bg-cyan-700 text-white" : "bg-slate-100 text-slate-800") : (tab.badgeColor || "bg-slate-200/50 dark:bg-slate-800 text-slate-500")
+                )}>
+                  {tab.count}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          {/* Search Box */}
+          <div className="relative w-full lg:w-72">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
             <input
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               placeholder="Rechercher par nom, code..."
-              className="h-10 w-full pl-9 pr-4 rounded-xl border border-slate-100 bg-slate-50/50 text-xs font-bold outline-none placeholder:text-slate-400 text-slate-800"
+              className={cn(
+                "h-10 w-full pl-9 pr-8 rounded-xl border text-xs font-bold outline-none transition placeholder:text-slate-400",
+                isDarkMode 
+                  ? "bg-slate-900 border-slate-700 text-slate-100 focus:border-cyan-500" 
+                  : "bg-slate-50/50 border-slate-100 text-slate-800 focus:border-cyan-400"
+              )}
             />
-            {searchQuery && <X size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 cursor-pointer" onClick={() => setSearchQuery("")} />}
+            {searchQuery && (
+              <X 
+                size={14} 
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 cursor-pointer" 
+                onClick={() => setSearchQuery("")} 
+              />
+            )}
           </div>
         </div>
 
@@ -734,7 +1063,10 @@ export default function InspectionDashboardPage() {
           {filteredSchools.length > 0 ? (
             <table className="w-full text-left min-w-[1000px]">
               <thead>
-                <tr className="border-b border-slate-50 bg-slate-50/40 text-[9px] font-black uppercase tracking-widest text-slate-400">
+                <tr className={cn(
+                  "border-b text-[9px] font-black uppercase tracking-widest",
+                  isDarkMode ? "border-slate-800 bg-slate-900/60 text-slate-400" : "border-slate-50 bg-slate-50/40 text-slate-400"
+                )}>
                   <th className="px-6 py-4">Établissement</th>
                   <th className="px-6 py-4">Type/Cycle</th>
                   <th className="px-6 py-4">Effectifs</th>
@@ -745,67 +1077,102 @@ export default function InspectionDashboardPage() {
                   <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-50">
+              <tbody className={cn("divide-y", isDarkMode ? "divide-slate-800/80" : "divide-slate-50")}>
                 {filteredSchools.map((s) => (
-                  <tr key={s.code} className="text-xs font-bold text-slate-600 hover:bg-slate-50/50 transition">
+                  <tr 
+                    key={s.code} 
+                    className={cn(
+                      "text-xs font-bold transition",
+                      isDarkMode ? "hover:bg-slate-900/40 text-slate-300" : "hover:bg-slate-50/50 text-slate-600"
+                    )}
+                  >
                     <td className="px-6 py-4">
-                      <p className="font-black text-slate-900">{s.name}</p>
+                      <p className={cn("font-black", isDarkMode ? "text-white" : "text-slate-900")}>{s.name}</p>
                       <p className="text-[10px] text-slate-400 mt-0.5">{s.code} / {s.commune}</p>
                     </td>
                     <td className="px-6 py-4">
-                      <span className={cn("px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider mr-1.5", s.type === "Public" ? "bg-emerald-50 text-emerald-700" : "bg-indigo-50 text-indigo-700")}>
+                      <span className={cn(
+                        "px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider mr-1.5",
+                        s.type === "Public" 
+                          ? (isDarkMode ? "bg-emerald-950/60 text-emerald-400 border border-emerald-800/50" : "bg-emerald-50 text-emerald-700")
+                          : (isDarkMode ? "bg-indigo-950/60 text-indigo-400 border border-indigo-800/50" : "bg-indigo-50 text-indigo-700")
+                      )}>
                         {s.type}
                       </span>
-                      <span className="text-[10px] font-black text-slate-500">{s.cycle}</span>
+                      <span className={cn("text-[10px] font-black", isDarkMode ? "text-slate-400" : "text-slate-500")}>
+                        {s.cycle}
+                      </span>
                     </td>
                     <td className="px-6 py-4">
-                      <p className="text-slate-950 font-black">{s.eleves} Élèves</p>
+                      <p className={cn("font-black", isDarkMode ? "text-slate-100" : "text-slate-950")}>{s.eleves} Élèves</p>
                       <p className="text-[9px] text-slate-400 mt-0.5">{s.enseignants} Enseignants / {s.salles} Salles</p>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-1.5">
-                        <span className={cn("inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full", s.eau ? "bg-blue-50 text-blue-600" : "bg-rose-50 text-rose-600")}>
+                        <span className={cn(
+                          "inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full",
+                          s.eau 
+                            ? (isDarkMode ? "bg-blue-950/60 text-blue-400 border border-blue-800/40" : "bg-blue-50 text-blue-600")
+                            : (isDarkMode ? "bg-rose-950/60 text-rose-400 border border-rose-800/40" : "bg-rose-50 text-rose-600")
+                        )}>
                           <Droplets className="size-3" /> Eau
                         </span>
-                        <span className={cn("inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full", s.electricite ? "bg-amber-50 text-amber-600" : "bg-rose-50 text-rose-600")}>
+                        <span className={cn(
+                          "inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full",
+                          s.electricite 
+                            ? (isDarkMode ? "bg-amber-950/60 text-amber-400 border border-amber-800/40" : "bg-amber-50 text-amber-600")
+                            : (isDarkMode ? "bg-rose-950/60 text-rose-400 border border-rose-800/40" : "bg-rose-50 text-rose-600")
+                        )}>
                           <Lightbulb className="size-3" /> Elec
                         </span>
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className={cn("inline-flex rounded px-2.5 py-0.5 text-[10px] font-black", s.needsCount > 0 ? "bg-rose-50 text-rose-700" : "bg-slate-50 text-slate-400")}>
+                      <span className={cn(
+                        "inline-flex rounded px-2.5 py-0.5 text-[10px] font-black",
+                        s.needsCount > 0 
+                          ? (isDarkMode ? "bg-rose-950/60 text-rose-400 border border-rose-800/50" : "bg-rose-50 text-rose-700")
+                          : (isDarkMode ? "bg-slate-900 text-slate-500" : "bg-slate-50 text-slate-400")
+                      )}>
                         {s.needsCount} besoin{s.needsCount > 1 ? "s" : ""}
                       </span>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
-                        <div className="w-12 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div className={cn("w-12 h-1.5 rounded-full overflow-hidden", isDarkMode ? "bg-slate-800" : "bg-slate-100")}>
                           <div className="h-full bg-emerald-500" style={{ width: `${s.completion}%` }} />
                         </div>
-                        <span className="text-[10px] font-black text-slate-900">{s.completion}%</span>
+                        <span className={cn("text-[10px] font-black", isDarkMode ? "text-slate-200" : "text-slate-900")}>
+                          {s.completion}%
+                        </span>
                       </div>
                     </td>
                     <td className="px-6 py-4">
                       <span className={cn(
                         "inline-flex rounded-full border px-3 py-0.5 text-[9px] font-black uppercase tracking-widest",
-                        s.status === "Validé" && "border-emerald-100 bg-emerald-50 text-emerald-700",
-                        s.status === "En attente" && "border-amber-100 bg-amber-50 text-amber-700",
-                        s.status === "Rejeté" && "border-rose-100 bg-rose-50 text-rose-700",
+                        s.status === "Validé" && (isDarkMode ? "border-emerald-800/60 bg-emerald-950/50 text-emerald-400" : "border-emerald-100 bg-emerald-50 text-emerald-700"),
+                        s.status === "En attente" && (isDarkMode ? "border-amber-800/60 bg-amber-950/50 text-amber-400" : "border-amber-100 bg-amber-50 text-amber-700"),
+                        s.status === "Rejeté" && (isDarkMode ? "border-rose-800/60 bg-rose-950/50 text-rose-400" : "border-rose-100 bg-rose-50 text-rose-700"),
                       )}>
                         {s.status}
                       </span>
                       {s.rejectionReason && (
-                        <p className="text-[9px] text-rose-500 font-bold mt-1 max-w-[200px] truncate" title={s.rejectionReason}>
+                        <p className="text-[9px] text-rose-400 font-bold mt-1 max-w-[200px] truncate" title={s.rejectionReason}>
                           {s.rejectionReason}
                         </p>
                       )}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
+                      <div className="flex items-center justify-end gap-1.5">
                         <button 
                           onClick={() => setSelectedSchoolDetail(s)}
-                          className="p-1.5 rounded-lg border border-slate-100 hover:bg-slate-50 text-slate-500 hover:text-slate-800 transition"
-                          title="Voir Fiche"
+                          className={cn(
+                            "p-1.5 rounded-lg border transition",
+                            isDarkMode 
+                              ? "border-slate-800 bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800" 
+                              : "border-slate-100 hover:bg-slate-50 text-slate-500 hover:text-slate-800"
+                          )}
+                          title="Voir Fiche Détaillée"
                         >
                           <Eye className="size-4" />
                         </button>
@@ -814,14 +1181,14 @@ export default function InspectionDashboardPage() {
                           <>
                             <button 
                               onClick={() => handleValidate(s.code)}
-                              className="px-2.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-[10px] font-black text-white uppercase tracking-widest transition"
+                              className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-[10px] font-black text-white uppercase tracking-widest transition shadow-sm"
                               title="Valider"
                             >
                               Valider
                             </button>
                             <button 
                               onClick={() => triggerRejectModal(s)}
-                              className="px-2.5 py-1.5 rounded-lg bg-rose-500 hover:bg-rose-600 text-[10px] font-black text-white uppercase tracking-widest transition"
+                              className="px-2.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-[10px] font-black text-white uppercase tracking-widest transition shadow-sm"
                               title="Rejeter"
                             >
                               Rejeter
@@ -831,11 +1198,105 @@ export default function InspectionDashboardPage() {
 
                         <button 
                           onClick={() => handleGenerateReport(s)}
-                          className="p-1.5 rounded-lg border border-slate-100 hover:bg-indigo-50 text-indigo-500 hover:text-indigo-600 transition"
-                          title="Générer Rapport"
+                          className={cn(
+                            "p-1.5 rounded-lg border transition",
+                            isDarkMode 
+                              ? "border-slate-800 bg-slate-900 text-cyan-400 hover:bg-slate-800 hover:text-cyan-300" 
+                              : "border-slate-100 hover:bg-cyan-50 text-cyan-600 hover:text-cyan-700"
+                          )}
+                          title="Générer Rapport PDF"
                         >
                           <FileText className="size-4" />
                         </button>
+
+                        {/* Extra Row Actions Dropdown */}
+                        <div className="relative">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveRowMenu(activeRowMenu === s.code ? null : s.code);
+                            }}
+                            className={cn(
+                              "p-1.5 rounded-lg border transition",
+                              isDarkMode 
+                                ? "border-slate-800 bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800" 
+                                : "border-slate-100 hover:bg-slate-50 text-slate-500 hover:text-slate-800"
+                            )}
+                            title="Plus d'actions"
+                          >
+                            <MoreVertical className="size-4" />
+                          </button>
+
+                          {activeRowMenu === s.code && (
+                            <div 
+                              onClick={(e) => e.stopPropagation()}
+                              className={cn(
+                                "absolute right-0 mt-2 w-52 rounded-2xl border p-2 shadow-2xl z-50 text-left animate-in fade-in zoom-in-95",
+                                isDarkMode ? "bg-[#111827] border-slate-800 text-slate-200 shadow-black/70" : "bg-white border-slate-100 text-slate-800 shadow-slate-200/50"
+                              )}
+                            >
+                              <div className="px-2 py-1 text-[9px] font-black uppercase text-slate-400 border-b border-slate-100 dark:border-slate-800">
+                                {s.code}
+                              </div>
+                              <div className="py-1 space-y-0.5">
+                                <button
+                                  onClick={() => {
+                                    setSelectedSchoolDetail(s);
+                                    setActiveRowMenu(null);
+                                  }}
+                                  className={cn(
+                                    "w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs font-bold transition",
+                                    isDarkMode ? "hover:bg-slate-800" : "hover:bg-slate-50"
+                                  )}
+                                >
+                                  <Eye size={14} className="text-cyan-500" />
+                                  <span>Fiche d'Inspection</span>
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    handleValidate(s.code);
+                                    setActiveRowMenu(null);
+                                  }}
+                                  className={cn(
+                                    "w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs font-bold transition text-emerald-500",
+                                    isDarkMode ? "hover:bg-slate-800" : "hover:bg-emerald-50"
+                                  )}
+                                >
+                                  <Check size={14} />
+                                  <span>Marquer Validé</span>
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    triggerRejectModal(s);
+                                    setActiveRowMenu(null);
+                                  }}
+                                  className={cn(
+                                    "w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs font-bold transition text-rose-500",
+                                    isDarkMode ? "hover:bg-slate-800" : "hover:bg-rose-50"
+                                  )}
+                                >
+                                  <AlertTriangle size={14} />
+                                  <span>Demander corrections</span>
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    const copyData = `${s.name} (${s.code}) - ${s.type} ${s.cycle} - Commune: ${s.commune} - Élèves: ${s.eleves} - Enseignants: ${s.enseignants} - Eau: ${s.eau ? "Oui" : "Non"} - Elec: ${s.electricite ? "Oui" : "Non"} - Statut: ${s.status}`;
+                                    navigator.clipboard.writeText(copyData);
+                                    toast.success("Détails de l'école copiés !");
+                                    setActiveRowMenu(null);
+                                  }}
+                                  className={cn(
+                                    "w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs font-bold transition",
+                                    isDarkMode ? "hover:bg-slate-800" : "hover:bg-slate-50"
+                                  )}
+                                >
+                                  <Copy size={14} className="text-slate-400" />
+                                  <span>Copier les infos</span>
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </td>
                   </tr>
@@ -844,9 +1305,17 @@ export default function InspectionDashboardPage() {
             </table>
           ) : (
             <div className="p-16 text-center">
-              <Building2 className="mx-auto size-12 text-slate-200" />
-              <p className="mt-4 text-sm font-black text-slate-800">Aucun établissement sous tutelle d'inspection trouvé</p>
-              <p className="text-xs text-slate-400 mt-1">Vérifiez les filtres de recherche.</p>
+              <Building2 className={cn("mx-auto size-12", isDarkMode ? "text-slate-800" : "text-slate-200")} />
+              <p className={cn("mt-4 text-sm font-black", isDarkMode ? "text-slate-200" : "text-slate-800")}>
+                Aucun établissement sous tutelle d'inspection trouvé
+              </p>
+              <p className="text-xs text-slate-400 mt-1">Vérifiez les filtres ou l'onglet sélectionné.</p>
+              <button
+                onClick={handleResetFilters}
+                className="mt-4 px-4 py-2 rounded-xl bg-cyan-600 text-white text-xs font-bold hover:bg-cyan-500 transition"
+              >
+                Réinitialiser les filtres
+              </button>
             </div>
           )}
         </div>
@@ -854,76 +1323,99 @@ export default function InspectionDashboardPage() {
 
       {/* School Details Modal */}
       {selectedSchoolDetail && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition animate-in fade-in">
-          <div className="bg-white w-full max-w-2xl rounded-[2.5rem] border border-slate-100 shadow-2xl p-8 space-y-6 animate-in slide-in-from-bottom-8">
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition animate-in fade-in">
+          <div className={cn(
+            "w-full max-w-2xl rounded-[2.5rem] border shadow-2xl p-8 space-y-6 animate-in slide-in-from-bottom-8 transition-colors",
+            isDarkMode ? "bg-[#111827] border-slate-800 text-slate-100" : "bg-white border-slate-100 text-slate-900"
+          )}>
             <div className="flex justify-between items-start">
               <div className="flex items-center gap-4">
-                <div className="h-12 w-12 rounded-2xl bg-cyan-50 text-cyan-600 flex items-center justify-center">
+                <div className={cn(
+                  "h-12 w-12 rounded-2xl flex items-center justify-center",
+                  isDarkMode ? "bg-cyan-950/60 text-cyan-400 border border-cyan-800/40" : "bg-cyan-50 text-cyan-600"
+                )}>
                   <Building2 size={22} />
                 </div>
                 <div>
-                  <h3 className="text-xl font-black text-slate-900">{selectedSchoolDetail.name}</h3>
+                  <h3 className={cn("text-xl font-black", isDarkMode ? "text-white" : "text-slate-900")}>
+                    {selectedSchoolDetail.name}
+                  </h3>
                   <p className="text-xs font-bold text-slate-400">Code Établissement : {selectedSchoolDetail.code}</p>
                 </div>
               </div>
               <button 
                 onClick={() => setSelectedSchoolDetail(null)}
-                className="h-9 w-9 rounded-full border border-slate-100 bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-500 transition"
+                className={cn(
+                  "h-9 w-9 rounded-full border flex items-center justify-center text-slate-400 hover:text-white transition",
+                  isDarkMode ? "border-slate-800 bg-slate-900 hover:bg-slate-800" : "border-slate-100 bg-slate-50 hover:bg-slate-100"
+                )}
               >
                 <X size={16} />
               </button>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-6 pt-4 border-t border-slate-50 text-xs">
+            <div className={cn("grid grid-cols-2 md:grid-cols-3 gap-6 pt-4 border-t text-xs", isDarkMode ? "border-slate-800" : "border-slate-50")}>
               <div className="space-y-1">
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Type / Cycle</p>
-                <p className="font-bold text-slate-800">{selectedSchoolDetail.type} / {selectedSchoolDetail.cycle}</p>
+                <p className={cn("font-bold", isDarkMode ? "text-slate-200" : "text-slate-800")}>{selectedSchoolDetail.type} / {selectedSchoolDetail.cycle}</p>
               </div>
               <div className="space-y-1">
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tutelle d'Inspection</p>
-                <p className="font-bold text-slate-800">{selectedSchoolDetail.inspection} / {selectedSchoolDetail.commune}</p>
+                <p className={cn("font-bold", isDarkMode ? "text-slate-200" : "text-slate-800")}>{selectedSchoolDetail.inspection} / {selectedSchoolDetail.commune}</p>
               </div>
               <div className="space-y-1">
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Effectifs Élèves</p>
-                <p className="font-bold text-slate-800">{selectedSchoolDetail.eleves} Élèves</p>
+                <p className={cn("font-bold", isDarkMode ? "text-slate-200" : "text-slate-800")}>{selectedSchoolDetail.eleves} Élèves</p>
               </div>
               <div className="space-y-1">
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Équipe Enseignante</p>
-                <p className="font-bold text-slate-800">{selectedSchoolDetail.enseignants} enseignants</p>
+                <p className={cn("font-bold", isDarkMode ? "text-slate-200" : "text-slate-800")}>{selectedSchoolDetail.enseignants} enseignants</p>
               </div>
               <div className="space-y-1">
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Salles de classe</p>
-                <p className="font-bold text-slate-800">{selectedSchoolDetail.salles} salles</p>
+                <p className={cn("font-bold", isDarkMode ? "text-slate-200" : "text-slate-800")}>{selectedSchoolDetail.salles} salles</p>
               </div>
               <div className="space-y-1">
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Réseaux Services</p>
-                <p className="font-bold text-slate-800">Eau: {selectedSchoolDetail.eau ? "Fonctionnel" : "Absent"} | Élec: {selectedSchoolDetail.electricite ? "Fonctionnel" : "Absent"}</p>
+                <p className={cn("font-bold", isDarkMode ? "text-slate-200" : "text-slate-800")}>Eau: {selectedSchoolDetail.eau ? "Fonctionnel" : "Absent"} | Élec: {selectedSchoolDetail.electricite ? "Fonctionnel" : "Absent"}</p>
               </div>
               <div className="space-y-1">
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Complétude du dossier</p>
-                <p className="font-bold text-slate-800">{selectedSchoolDetail.completion}% complété</p>
+                <p className={cn("font-bold", isDarkMode ? "text-slate-200" : "text-slate-800")}>{selectedSchoolDetail.completion}% complété</p>
               </div>
               <div className="space-y-1">
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Performance Scolaire</p>
-                <span className="font-bold text-amber-600">{selectedSchoolDetail.successRate}% succès examens</span>
+                <span className="font-bold text-amber-500">{selectedSchoolDetail.successRate}% succès examens</span>
               </div>
               <div className="space-y-1">
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Présence moyenne</p>
-                <span className="font-bold text-slate-800">{selectedSchoolDetail.attendanceRate}%</span>
+                <span className={cn("font-bold", isDarkMode ? "text-slate-200" : "text-slate-800")}>{selectedSchoolDetail.attendanceRate}%</span>
               </div>
             </div>
 
             {selectedSchoolDetail.rejectionReason && (
-              <div className="p-4 bg-rose-50 border border-rose-100 rounded-2xl">
-                <p className="text-[10px] font-black uppercase text-rose-500 tracking-wider">Motif du dernier rejet</p>
-                <p className="text-xs font-bold text-rose-800 mt-1">{selectedSchoolDetail.rejectionReason}</p>
+              <div className={cn(
+                "p-4 rounded-2xl border",
+                isDarkMode ? "bg-rose-950/40 border-rose-800/50" : "bg-rose-50 border-rose-100"
+              )}>
+                <p className="text-[10px] font-black uppercase text-rose-400 tracking-wider">Motif du dernier rejet</p>
+                <p className={cn("text-xs font-bold mt-1", isDarkMode ? "text-rose-200" : "text-rose-800")}>{selectedSchoolDetail.rejectionReason}</p>
               </div>
             )}
 
-            <div className="pt-6 border-t border-slate-50 flex justify-end gap-3">
+            <div className={cn("pt-6 border-t flex justify-end gap-3", isDarkMode ? "border-slate-800" : "border-slate-50")}>
+              <button 
+                onClick={() => handleGenerateReport(selectedSchoolDetail)}
+                className="px-5 h-12 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-black uppercase tracking-widest transition flex items-center gap-2"
+              >
+                <FileText size={15} /> Télécharger Rapport
+              </button>
               <button 
                 onClick={() => setSelectedSchoolDetail(null)}
-                className="px-6 h-12 rounded-xl bg-slate-900 text-white hover:bg-slate-800 text-xs font-black uppercase tracking-widest transition"
+                className={cn(
+                  "px-6 h-12 rounded-xl text-xs font-black uppercase tracking-widest transition",
+                  isDarkMode ? "bg-slate-800 text-slate-200 hover:bg-slate-700" : "bg-slate-900 text-white hover:bg-slate-800"
+                )}
               >
                 Fermer
               </button>
@@ -934,47 +1426,68 @@ export default function InspectionDashboardPage() {
 
       {/* Reject Modal */}
       {rejectingSchool && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition animate-in fade-in">
-          <div className="bg-white w-full max-w-md rounded-[2.5rem] border border-slate-100 shadow-2xl p-8 space-y-6 animate-in slide-in-from-bottom-8">
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition animate-in fade-in">
+          <div className={cn(
+            "w-full max-w-md rounded-[2.5rem] border shadow-2xl p-8 space-y-6 animate-in slide-in-from-bottom-8 transition-colors",
+            isDarkMode ? "bg-[#111827] border-slate-800 text-slate-100" : "bg-white border-slate-100 text-slate-900"
+          )}>
             <div className="flex justify-between items-start">
               <div className="flex items-center gap-4">
-                <div className="h-10 w-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
+                <div className={cn(
+                  "h-10 w-10 rounded-xl flex items-center justify-center",
+                  isDarkMode ? "bg-rose-950/60 text-rose-400 border border-rose-800/50" : "bg-rose-50 text-rose-600"
+                )}>
                   <AlertTriangle size={20} />
                 </div>
                 <div>
-                  <h3 className="text-lg font-black text-slate-900">Rejeter la Déclaration</h3>
+                  <h3 className={cn("text-lg font-black", isDarkMode ? "text-white" : "text-slate-900")}>
+                    Rejeter la Déclaration
+                  </h3>
                   <p className="text-xs font-bold text-slate-400">{rejectingSchool.name}</p>
                 </div>
               </div>
               <button 
                 onClick={() => setRejectingSchool(null)}
-                className="h-8 w-8 rounded-full border border-slate-100 bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-500 transition"
+                className={cn(
+                  "h-8 w-8 rounded-full border flex items-center justify-center text-slate-400 hover:text-white transition",
+                  isDarkMode ? "border-slate-800 bg-slate-900 hover:bg-slate-800" : "border-slate-100 bg-slate-50 hover:bg-slate-100"
+                )}
               >
                 <X size={14} />
               </button>
             </div>
 
             <div className="space-y-2">
-              <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Observation / Motif du rejet</Label>
+              <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">
+                Observation / Motif du rejet
+              </Label>
               <textarea
                 value={rejectionObservation}
                 onChange={e => setRejectionObservation(e.target.value)}
                 placeholder="Exemple : Les effectifs déclarés ne correspondent pas au nombre d'enseignants. Veuillez vérifier vos données."
                 rows={4}
-                className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 p-4 text-xs font-bold outline-none placeholder:text-slate-300 text-slate-800"
+                className={cn(
+                  "w-full rounded-2xl border p-4 text-xs font-bold outline-none placeholder:text-slate-400 transition",
+                  isDarkMode 
+                    ? "bg-slate-900 border-slate-700 text-slate-100 focus:border-rose-500" 
+                    : "bg-slate-50/50 border-slate-200 text-slate-800 focus:border-rose-400"
+                )}
               />
             </div>
 
-            <div className="pt-4 border-t border-slate-50 flex justify-end gap-3">
+            <div className={cn("pt-4 border-t flex justify-end gap-3", isDarkMode ? "border-slate-800" : "border-slate-50")}>
               <button 
                 onClick={() => setRejectingSchool(null)}
-                className="px-5 h-11 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 text-xs font-black uppercase tracking-widest transition"
+                className={cn(
+                  "px-5 h-11 rounded-xl text-xs font-black uppercase tracking-widest transition",
+                  isDarkMode ? "bg-slate-800 hover:bg-slate-700 text-slate-300" : "bg-slate-50 hover:bg-slate-100 text-slate-600"
+                )}
               >
                 Annuler
               </button>
               <button 
                 onClick={handleRejectSubmit}
-                className="px-5 h-11 rounded-xl bg-rose-600 text-white hover:bg-rose-700 text-xs font-black uppercase tracking-widest transition"
+                className="px-5 h-11 rounded-xl bg-rose-600 text-white hover:bg-rose-500 text-xs font-black uppercase tracking-widest transition shadow-md"
               >
                 Rejeter
               </button>
