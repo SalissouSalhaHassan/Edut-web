@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { jsPDF } from "jspdf";
@@ -29,6 +29,18 @@ import {
   Info,
   FileText,
   FileSpreadsheet,
+  Moon,
+  Sun,
+  SlidersHorizontal,
+  Share2,
+  Copy,
+  RefreshCw,
+  Sparkles,
+  Zap,
+  ShieldAlert,
+  ChevronDown,
+  Layers,
+  AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import * as XLSX from "xlsx";
@@ -154,20 +166,20 @@ const initialSchools: SchoolRow[] = [
 
 function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
-    Valide: "border-emerald-100 bg-emerald-50 text-emerald-700",
-    "A verifier": "border-amber-100 bg-amber-50 text-amber-700",
-    Incomplet: "border-rose-100 bg-rose-50 text-rose-700",
-    Brouillon: "border-slate-200 bg-slate-50 text-slate-500",
-    "En correction": "border-amber-100 bg-amber-50 text-amber-600",
-    "Validé école": "border-blue-100 bg-blue-50 text-blue-700",
-    "Rejeté inspection": "border-rose-100 bg-rose-50 text-rose-600",
-    "Validé inspection": "border-cyan-100 bg-cyan-50 text-cyan-700",
-    "Validé DREN": "border-violet-100 bg-violet-50 text-violet-700",
-    "Transmis ministère": "border-emerald-100 bg-emerald-50 text-emerald-600",
-    Archivé: "border-slate-300 bg-slate-100 text-slate-700",
+    Valide: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300",
+    "A verifier": "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/60 dark:text-amber-300",
+    Incomplet: "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800 dark:bg-rose-950/60 dark:text-rose-300",
+    Brouillon: "border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-400",
+    "En correction": "border-amber-200 bg-amber-50 text-amber-600 dark:border-amber-800 dark:bg-amber-950/60 dark:text-amber-400",
+    "Validé école": "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/60 dark:text-blue-300",
+    "Rejeté inspection": "border-rose-200 bg-rose-50 text-rose-600 dark:border-rose-800 dark:bg-rose-950/60 dark:text-rose-400",
+    "Validé inspection": "border-cyan-200 bg-cyan-50 text-cyan-700 dark:border-cyan-800 dark:bg-cyan-950/60 dark:text-cyan-300",
+    "Validé DREN": "border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-800 dark:bg-violet-950/60 dark:text-violet-300",
+    "Transmis ministère": "border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300",
+    Archivé: "border-slate-300 bg-slate-100 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300",
   };
   return (
-    <span className={cn("inline-flex rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-widest", styles[status] || "bg-slate-100")}>
+    <span className={cn("inline-flex rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-widest", styles[status] || "bg-slate-100 dark:bg-slate-800 dark:text-slate-300")}>
       {status}
     </span>
   );
@@ -176,7 +188,12 @@ function StatusBadge({ status }: { status: string }) {
 function BooleanBadge({ value }: { value: string }) {
   const ok = value === "Oui";
   return (
-    <span className={cn("inline-flex rounded-full px-2.5 py-1 text-[10px] font-black", ok ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700")}>
+    <span className={cn(
+      "inline-flex rounded-full px-2.5 py-1 text-[10px] font-black",
+      ok 
+        ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300" 
+        : "bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-400"
+    )}>
       {value}
     </span>
   );
@@ -196,6 +213,29 @@ export default function EtablissementsClient({
   educationalLevels,
 }: EtablissementsClientProps) {
   const [schoolsList, setSchoolsList] = useState<SchoolRow[]>(initialSchools);
+
+  // Dark Mode State
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("edut_theme") || localStorage.getItem("edut_canevas_dark_mode");
+      if (saved === "dark" || saved === "true" || (!saved && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
+        setIsDarkMode(true);
+      }
+    } catch {}
+  }, []);
+
+  const toggleDarkMode = () => {
+    setIsDarkMode((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("edut_canevas_dark_mode", String(next));
+        localStorage.setItem("edut_theme", next ? "dark" : "light");
+      } catch {}
+      return next;
+    });
+  };
 
   // Dynamic References State
   const [communesList, setCommunesList] = useState<string[]>(() => {
@@ -224,6 +264,15 @@ export default function EtablissementsClient({
   const [filterCycle, setFilterCycle] = useState("Cycle: tous");
   const [filterCommune, setFilterCommune] = useState("Commune");
   const [filterStatut, setFilterStatut] = useState("Statut: tous");
+
+  // Segment Tab Filter (القائمة الإضافية للتصنيف السريع)
+  const [segmentTab, setSegmentTab] = useState<"ALL" | "PUBLIC" | "PRIVE" | "INFRA_ALERT" | "VALIDE" | "PENDING">("ALL");
+
+  // Additional Actions Menu State (القائمة الإضافية العلوية)
+  const [isExtraMenuOpen, setIsExtraMenuOpen] = useState(false);
+
+  // Row Level Action Menu (القائمة الإضافية لكل مؤسسة)
+  const [activeRowMenuCode, setActiveRowMenuCode] = useState<string | null>(null);
 
   // Modal / Drawer States
   const [selectedSchool, setSelectedSchool] = useState<SchoolRow | null>(null);
@@ -302,337 +351,269 @@ export default function EtablissementsClient({
     }
 
     try {
-      await updateCanevasReferenceItem(oldName, "commune", cleanNew);
-    } catch (e) {
-      console.log("Local update fallback");
+      await updateCanevasReferenceItem("commune", oldName, cleanNew);
+      setCommunesList(prev => prev.map(c => c === oldName ? cleanNew : c));
+      setSchoolsList(prev => prev.map(s => s.commune === oldName ? { ...s, commune: cleanNew } : s));
+      setEditingCommuneName(null);
+      toast.success(`Commune modifiée en "${cleanNew}"`);
+    } catch {
+      setCommunesList(prev => prev.map(c => c === oldName ? cleanNew : c));
+      setSchoolsList(prev => prev.map(s => s.commune === oldName ? { ...s, commune: cleanNew } : s));
+      setEditingCommuneName(null);
+      toast.success(`Commune mise à jour localement en "${cleanNew}"`);
     }
-
-    setCommunesList(prev => prev.map(c => (c === oldName ? cleanNew : c)));
-    setSchoolsList(prev => prev.map(s => (s.commune === oldName ? { ...s, commune: cleanNew } : s)));
-    if (newCommune === oldName) setNewCommune(cleanNew);
-
-    setEditingCommuneName(null);
-    toast.success(`La commune "${oldName}" a été modifiée en "${cleanNew}".`);
   };
 
   const handleDeleteCommune = async (communeName: string) => {
-    if (!confirm(`Voulez-vous supprimer la commune "${communeName}" ?`)) return;
-
-    try {
-      await deleteCanevasReferenceItem(communeName, "commune");
-    } catch (e) {
-      console.log("Local delete fallback");
-    }
-
-    setCommunesList(prev => prev.filter(c => c !== communeName));
-    if (newCommune === communeName) {
-      setNewCommune(communesList.find(c => c !== communeName) || "");
-    }
-    toast.success(`La commune "${communeName}" a été supprimée.`);
-  };
-
-  // Filtering Logic
-  const filteredSchools = schoolsList.filter((school) => {
-    const matchesSearch =
-      school.name.toLowerCase().includes(search.toLowerCase()) ||
-      school.code.toLowerCase().includes(search.toLowerCase()) ||
-      school.commune.toLowerCase().includes(search.toLowerCase()) ||
-      school.quartier.toLowerCase().includes(search.toLowerCase());
-
-    const matchesType =
-      filterType === "Type: tous" || school.type === filterType;
-
-    const matchesCycle =
-      filterCycle === "Cycle: tous" || school.cycle === filterCycle;
-
-    const matchesCommune =
-      filterCommune === "Commune" || school.commune === filterCommune;
-
-    const matchesStatut =
-      filterStatut === "Statut: tous" || school.statut === filterStatut;
-
-    return matchesSearch && matchesType && matchesCycle && matchesCommune && matchesStatut;
-  });
-
-  // KPI calculations based on filtered list
-  const totalStudents = filteredSchools.reduce((sum, s) => sum + s.eleves, 0);
-  const totalPublic = filteredSchools.filter(s => s.type === "Public").length;
-  const totalPrivate = filteredSchools.filter(s => s.type === "Privé" || s.type === "Prive").length;
-
-  // Add School submit
-  const handleAddSchool = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newName || !newCode) {
-      toast.error("Veuillez remplir le nom et le code de l'établissement.");
+    const inUseCount = schoolsList.filter(s => s.commune === communeName).length;
+    if (inUseCount > 0) {
+      toast.error(`Impossible de supprimer : ${inUseCount} établissement(s) rattaché(s) à cette commune.`);
       return;
     }
 
-    const newSchool: SchoolRow = {
+    try {
+      await deleteCanevasReferenceItem("commune", communeName);
+      setCommunesList(prev => prev.filter(c => c !== communeName));
+      toast.success(`Commune "${communeName}" supprimée.`);
+    } catch {
+      setCommunesList(prev => prev.filter(c => c !== communeName));
+      toast.success(`Commune "${communeName}" retirée localement.`);
+    }
+  };
+
+  // Status and Row Menu Handlers
+  const handleUpdateStatus = (code: string, newStatus: string) => {
+    setSchoolsList(prev => prev.map(s => s.code === code ? { ...s, statut: newStatus, lastUpdate: new Date().toLocaleDateString("fr-FR") } : s));
+    toast.success(`Statut mis à jour : "${newStatus}" pour l'école ${code}`);
+    setActiveRowMenuCode(null);
+  };
+
+  const handleDuplicateSchool = (school: SchoolRow) => {
+    const newCode = `ETB-2026-${String(Math.floor(Math.random() * 899 + 100))}`;
+    const duplicate: SchoolRow = {
+      ...school,
       code: newCode,
-      name: newName,
+      name: `${school.name} (Copie)`,
+      statut: "Brouillon",
+      lastUpdate: new Date().toLocaleDateString("fr-FR"),
+    };
+    setSchoolsList(prev => [duplicate, ...prev]);
+    toast.success(`Établissement dupliqué avec le code ${newCode}`);
+    setActiveRowMenuCode(null);
+  };
+
+  const handleCopySummary = () => {
+    const summaryText = 
+      `🏛️ *SYNTHÈSE CANEVAS ÉTABLISSEMENTS SCOLAIRES*\n` +
+      `📅 Date : ${new Date().toLocaleDateString("fr-FR")}\n\n` +
+      `🏫 Total Établissements : ${schoolsList.length}\n` +
+      `👥 Effectif Total Élèves : ${totalStudents.toLocaleString("fr-FR")} (${totalGirls.toLocaleString("fr-FR")} F / ${totalBoys.toLocaleString("fr-FR")} G)\n` +
+      `🏛️ Écoles Publiques : ${totalPublic} | 🏢 Écoles Privées : ${totalPrivate}\n` +
+      `👨‍🏫 Personnel Enseignant : ${totalTeachers} Professeurs\n` +
+      `🚪 Salles de classe : ${totalClassrooms} Salles\n` +
+      `💧 Écoles avec eau potable : ${schoolsList.filter(s => s.eau === "Oui").length} / ${schoolsList.length}\n` +
+      `💡 Écoles avec électricité : ${schoolsList.filter(s => s.electricite === "Oui").length} / ${schoolsList.length}\n\n` +
+      `_Données officielles extraites via Edut Pro._`;
+
+    navigator.clipboard.writeText(summaryText);
+    toast.success("Synthèse copiée dans le presse-papier !");
+    setIsExtraMenuOpen(false);
+  };
+
+  const handleResetFilters = () => {
+    setSearch("");
+    setFilterType("Type: tous");
+    setFilterCycle("Cycle: tous");
+    setFilterCommune("Commune");
+    setFilterStatut("Statut: tous");
+    setSegmentTab("ALL");
+    toast.info("Tous les filtres ont été réinitialisés.");
+    setIsExtraMenuOpen(false);
+  };
+
+  // Add School Handler
+  const handleAddSchool = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCode.trim() || !newName.trim()) {
+      toast.error("Veuillez renseigner le code et le nom de l'établissement.");
+      return;
+    }
+
+    if (schoolsList.some(s => s.code.toLowerCase() === newCode.trim().toLowerCase())) {
+      toast.error("Ce code établissement existe déjà.");
+      return;
+    }
+
+    const newRow: SchoolRow = {
+      code: newCode.trim().toUpperCase(),
+      name: newName.trim(),
       type: newType,
       cycle: newCycle,
       region: newRegion,
       commune: newCommune,
-      quartier: newQuartier || "Quartier non spécifié",
-      statut: "A verifier",
-      eleves: Number(newEleves),
-      filles: Number(newFilles),
-      garcons: Number(newGarcons),
-      enseignants: Number(newEnseignants),
-      salles: Number(newSalles),
+      quartier: newQuartier.trim() || "Centre",
+      statut: "Brouillon",
+      eleves: newEleves,
+      filles: newFilles,
+      garcons: newGarcons,
+      enseignants: newEnseignants,
+      salles: newSalles,
       eau: newEau,
       electricite: newElectricite,
       completion: 50,
       lastUpdate: new Date().toLocaleDateString("fr-FR"),
     };
 
-    setSchoolsList([...schoolsList, newSchool]);
+    setSchoolsList(prev => [newRow, ...prev]);
     setIsAddOpen(false);
-    resetForm();
-    toast.success("Établissement ajouté avec succès !");
-  };
+    toast.success(`L'établissement "${newRow.name}" a été ajouté.`);
 
-  const resetForm = () => {
+    // Reset Form
     setNewName("");
     setNewCode("");
-    setNewType("Public");
-    setNewCycle(cyclesList[1] || "Primaire");
-    setNewRegion("Niamey");
-    setNewCommune(communesList[0] || "Niamey I");
     setNewQuartier("");
-    setNewEleves(300);
-    setNewFilles(150);
-    setNewGarcons(150);
-    setNewEnseignants(10);
-    setNewSalles(6);
-    setNewEau("Oui");
-    setNewElectricite("Oui");
   };
 
-  // Delete school
-  const handleDeleteSchool = (code: string) => {
-    if (confirm(`Voulez-vous supprimer l'établissement ${code} ?`)) {
-      setSchoolsList(schoolsList.filter((s) => s.code !== code));
-      toast.success("Établissement supprimé.");
-    }
-  };
-
-  // Edit School submit
+  // Edit School Submit Handler
   const handleEditSchoolSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editSchool) return;
 
-    setSchoolsList(
-      schoolsList.map((s) => (s.code === editSchool.code ? editSchool : s))
-    );
+    setSchoolsList(prev => prev.map(s => s.code === editSchool.code ? { ...editSchool, lastUpdate: new Date().toLocaleDateString("fr-FR") } : s));
     setEditSchool(null);
-    toast.success("Détails de l'établissement mis à jour.");
+    toast.success("Informations de l'établissement mises à jour !");
   };
 
+  // Delete School Handler
+  const handleDeleteSchool = (code: string) => {
+    if (confirm("Êtes-vous sûr de vouloir supprimer cet établissement ?")) {
+      setSchoolsList(prev => prev.filter(s => s.code !== code));
+      toast.success("Établissement supprimé.");
+    }
+  };
+
+  // Validation Action
   const handleValidate = (code: string) => {
-    setSchoolsList(schoolsList.map(s => s.code === code ? { ...s, statut: "Validé inspection", completion: 100 } : s));
-    toast.success(`Établissement ${code} validé par l'inspection.`);
+    setSchoolsList(prev => prev.map(s => s.code === code ? { ...s, statut: "Validé inspection", completion: 100 } : s));
+    toast.success("Le canevas a été validé par l'inspection !");
   };
 
+  // Filtered Schools calculation
+  const filteredSchools = schoolsList.filter((s) => {
+    const q = search.toLowerCase().trim();
+    const matchesSearch =
+      !q ||
+      s.name.toLowerCase().includes(q) ||
+      s.code.toLowerCase().includes(q) ||
+      s.commune.toLowerCase().includes(q) ||
+      s.quartier.toLowerCase().includes(q);
+
+    const matchesType = filterType === "Type: tous" || s.type === filterType;
+    const matchesCycle = filterCycle === "Cycle: tous" || s.cycle === filterCycle;
+    const matchesCommune = filterCommune === "Commune" || s.commune === filterCommune;
+    const matchesStatut = filterStatut === "Statut: tous" || s.statut === filterStatut;
+
+    let matchesSegment = true;
+    if (segmentTab === "PUBLIC") matchesSegment = s.type === "Public";
+    else if (segmentTab === "PRIVE") matchesSegment = s.type === "Privé";
+    else if (segmentTab === "INFRA_ALERT") matchesSegment = s.eau === "Non" || s.electricite === "Non";
+    else if (segmentTab === "VALIDE") matchesSegment = s.statut.toLowerCase().includes("validé");
+    else if (segmentTab === "PENDING") matchesSegment = s.statut.toLowerCase().includes("brouillon") || s.statut.toLowerCase().includes("verifier") || s.statut.toLowerCase().includes("rejeté");
+
+    return matchesSearch && matchesType && matchesCycle && matchesCommune && matchesStatut && matchesSegment;
+  });
+
+  // KPI Calculations
+  const totalStudents = filteredSchools.reduce((acc, curr) => acc + curr.eleves, 0);
+  const totalGirls = filteredSchools.reduce((acc, curr) => acc + curr.filles, 0);
+  const totalBoys = filteredSchools.reduce((acc, curr) => acc + curr.garcons, 0);
+  const totalPublic = filteredSchools.filter(s => s.type === "Public").length;
+  const totalPrivate = filteredSchools.filter(s => s.type === "Privé").length;
+  const totalTeachers = filteredSchools.reduce((acc, curr) => acc + curr.enseignants, 0);
+  const totalClassrooms = filteredSchools.reduce((acc, curr) => acc + curr.salles, 0);
+  const countInfraAlert = schoolsList.filter(s => s.eau === "Non" || s.electricite === "Non").length;
+
+  // Export Excel
   const handleExportExcel = () => {
     try {
-      toast.success("Exportation Excel en cours...");
-      const data = filteredSchools.map((s, idx) => ({
+      const exportData = filteredSchools.map((s, idx) => ({
         "N°": idx + 1,
-        "Code": s.code,
-        "Nom": s.name,
-        "Type": s.type,
-        "Cycle": s.cycle,
+        "Code Établissement": s.code,
+        "Nom de l'Établissement": s.name,
+        "Statut Juridique": s.type,
+        "Cycle / Niveau d'Étude": s.cycle,
         "Région": s.region,
         "Commune": s.commune,
-        "Quartier": s.quartier,
-        "Statut": s.statut,
-        "Élèves": s.eleves,
+        "Quartier / Village": s.quartier,
+        "Total Élèves": s.eleves,
         "Filles": s.filles,
         "Garçons": s.garcons,
         "Enseignants": s.enseignants,
-        "Salles": s.salles,
-        "Eau": s.eau,
+        "Salles de classe": s.salles,
+        "Eau potable": s.eau,
         "Électricité": s.electricite,
-        "Complétude (%)": s.completion,
-        "Dernière M.J.": s.lastUpdate
+        "Statut Validation": s.statut,
+        "Complétude (%)": `${s.completion}%`,
+        "Dernière mise à jour": s.lastUpdate,
       }));
 
-      const worksheet = XLSX.utils.json_to_sheet(data);
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, "Établissements");
-      XLSX.writeFile(workbook, `Liste_Etablissements_${Date.now()}.xlsx`);
-      toast.success("Fichier Excel exporté avec succès !");
+      XLSX.writeFile(workbook, `Canevas_Etablissements_${Date.now()}.xlsx`);
+      toast.success("Export Excel généré avec succès !");
     } catch (e: any) {
       console.error(e);
       toast.error("Erreur lors de l'export Excel.");
     }
   };
 
+  // Export PDF
   const handleExportPDF = () => {
     try {
       toast.success("Génération du rapport PDF officiel...");
-      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const doc = new jsPDF({
+        orientation: "landscape",
+        unit: "mm",
+        format: "a4"
+      });
+
       const pageWidth = doc.internal.pageSize.getWidth();
-      const pageHeight = doc.internal.pageSize.getHeight();
-
-      // Page 1 Header
-      doc.setFillColor(248, 250, 252);
-      doc.rect(10, 10, pageWidth - 20, 35, "F");
-      doc.setDrawColor(226, 232, 240);
-      doc.rect(10, 10, pageWidth - 20, 35, "S");
+      doc.setFillColor(37, 99, 235);
+      doc.rect(0, 0, pageWidth, 4, "F");
 
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(8);
-      doc.setTextColor(37, 99, 235);
-      doc.text("GESTION DES CANEVAS SCOLAIRES - RÉPUBLIQUE DU NIGER", 15, 17);
-
       doc.setFontSize(14);
       doc.setTextColor(15, 23, 42);
-      doc.text("RAPPORT SYNTHÉTIQUE DES ÉTABLISSEMENTS", 15, 24);
-
-      doc.setFont("helvetica", "normal");
+      doc.text("RÉPUBLIQUE DU NIGER", 14, 15);
       doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
       doc.setTextColor(100, 116, 139);
-      doc.text("Données d'infrastructure, effectifs et conformités des écoles", 15, 29);
-      doc.text("Année scolaire : 2025 - 2026", 15, 34);
+      doc.text("Ministère de l'Éducation Nationale — Direction des Statistiques", 14, 21);
 
-      // Metadata box
       doc.setFontSize(8);
       doc.setFont("helvetica", "bold");
-      doc.text("INFORMATIONS DOCUMENT", pageWidth - 80, 17);
+      doc.text("INFORMATIONS DOCUMENT", pageWidth - 80, 15);
       doc.setFont("helvetica", "normal");
-      doc.text(`Date d'édition : ${new Date().toLocaleDateString("fr-FR")}`, pageWidth - 80, 22);
-      doc.text("Édité par : Admin Super", pageWidth - 80, 27);
-      doc.text("Réf Rapport : RPT-ETB-2026-0001", pageWidth - 80, 32);
+      doc.text(`Date d'édition : ${new Date().toLocaleDateString("fr-FR")}`, pageWidth - 80, 20);
+      doc.text(`Total structures : ${filteredSchools.length}`, pageWidth - 80, 25);
 
-      let currentY = 52;
-
-      // Section 1: KPI
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(10);
-      doc.setTextColor(15, 23, 42);
-      doc.text("1. INDICATEURS CLÉS & SYNTHÈSE GLOBALE", 10, currentY);
-      doc.setDrawColor(226, 232, 240);
-      doc.line(10, currentY + 2, pageWidth - 10, currentY + 2);
-      currentY += 8;
-
-      const cardWidth = (pageWidth - 20 - 15) / 4;
-      const kpis = [
-        { label: "ÉTABLISSEMENTS", val: filteredSchools.length.toString(), sub: "Écoles répertoriées" },
-        { label: "TOTAL ÉLÈVES", val: totalStudents.toLocaleString("fr-FR"), sub: "Filles & Garçons" },
-        { label: "PUBLICS", val: totalPublic.toString(), sub: `${Math.round((totalPublic / (filteredSchools.length || 1)) * 100)}% de l'effectif` },
-        { label: "PRIVÉS", val: totalPrivate.toString(), sub: `${Math.round((totalPrivate / (filteredSchools.length || 1)) * 100)}% de l'effectif` },
-      ];
-
-      kpis.forEach((k, idx) => {
-        const xPos = 10 + idx * (cardWidth + 5);
-        doc.setFillColor(248, 250, 252);
-        doc.rect(xPos, currentY, cardWidth, 20, "F");
-        doc.setDrawColor(226, 232, 240);
-        doc.rect(xPos, currentY, cardWidth, 20, "S");
-
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(6.5);
-        doc.setTextColor(100, 116, 139);
-        doc.text(k.label, xPos + 4, currentY + 5);
-
-        doc.setFontSize(11);
-        doc.setTextColor(15, 23, 42);
-        doc.text(k.val, xPos + 4, currentY + 12);
-
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(6);
-        doc.setTextColor(148, 163, 184);
-        doc.text(k.sub, xPos + 4, currentY + 17);
-      });
-
-      currentY += 26;
-
-      // Section 2: Distribution
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(10);
-      doc.setTextColor(15, 23, 42);
-      doc.text("2. RÉPARTITION PAR COMMUNE & PAR CYCLE", 10, currentY);
-      doc.line(10, currentY + 2, pageWidth - 10, currentY + 2);
-      currentY += 8;
-
-      const columnWidth = (pageWidth - 20 - 10) / 2;
-
-      // Commune Table
-      const communeCounts: Record<string, number> = {};
-      filteredSchools.forEach(s => communeCounts[s.commune] = (communeCounts[s.commune] || 0) + 1);
-
-      autoTable(doc, {
-        startY: currentY,
-        head: [["Commune", "Établissements"]],
-        body: Object.entries(communeCounts).map(([c, count]) => [c, count.toString()]),
-        theme: "plain",
-        headStyles: { fillColor: [241, 245, 249], textColor: [15, 23, 42], fontSize: 8, fontStyle: "bold" },
-        bodyStyles: { fontSize: 7.5, textColor: [51, 65, 85] },
-        margin: { left: 10, right: pageWidth - 10 - columnWidth },
-      });
-
-      // Cycle Table
-      const cycleCounts: Record<string, number> = {};
-      filteredSchools.forEach(s => cycleCounts[s.cycle] = (cycleCounts[s.cycle] || 0) + 1);
-
-      autoTable(doc, {
-        startY: currentY,
-        head: [["Cycle (Niveau d'étude)", "Établissements"]],
-        body: Object.entries(cycleCounts).map(([c, count]) => [c, count.toString()]),
-        theme: "plain",
-        headStyles: { fillColor: [241, 245, 249], textColor: [15, 23, 42], fontSize: 8, fontStyle: "bold" },
-        bodyStyles: { fontSize: 7.5, textColor: [51, 65, 85] },
-        margin: { left: 10 + columnWidth + 10, right: 10 },
-      });
-
-      // Page 2: Table
-      doc.addPage();
-
-      doc.setFillColor(248, 250, 252);
-      doc.rect(10, 10, pageWidth - 20, 35, "F");
-      doc.setDrawColor(226, 232, 240);
-      doc.rect(10, 10, pageWidth - 20, 35, "S");
-
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(8);
-      doc.setTextColor(37, 99, 235);
-      doc.text("GESTION DES CANEVAS SCOLAIRES", 15, 17);
-
-      doc.setFontSize(14);
-      doc.setTextColor(15, 23, 42);
-      doc.text("LISTE DES ÉTABLISSEMENTS", 15, 24);
-
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(9);
-      doc.setTextColor(100, 116, 139);
-      doc.text("Registre central des écoles, collèges et lycées", 15, 29);
-
-      currentY = 52;
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(10);
-      doc.setTextColor(15, 23, 42);
-      doc.text("TABLEAU DES ÉTABLISSEMENTS", 10, currentY);
-      doc.line(10, currentY + 2, pageWidth - 10, currentY + 2);
-      currentY += 6;
-
-      const tableHeaders = ["N°", "Code", "Établissement", "Type", "Cycle", "Région", "Commune", "Élèves", "Statut"];
+      const tableHeaders = ["N°", "Code", "Établissement", "Type", "Cycle", "Commune", "Élèves", "Profs", "Eau/Élec", "Statut"];
       const tableBody = filteredSchools.map((s, idx) => [
         idx + 1,
         s.code,
         s.name,
         s.type,
         s.cycle,
-        s.region,
         s.commune,
         s.eleves.toLocaleString("fr-FR"),
+        s.enseignants,
+        `${s.eau === "Oui" ? "Eau✓" : "Eau✗"} / ${s.electricite === "Oui" ? "Élec✓" : "Élec✗"}`,
         s.statut
       ]);
 
       autoTable(doc, {
-        startY: currentY,
+        startY: 34,
         head: [tableHeaders],
         body: tableBody,
         theme: "striped",
@@ -658,53 +639,179 @@ export default function EtablissementsClient({
   };
 
   return (
-    <div className="min-h-screen space-y-6 p-4 text-slate-950 md:p-6 xl:p-8 print:bg-white print:p-0 print:m-0 print:w-full print:min-h-0">
+    <div className={cn(
+      "min-h-screen space-y-6 p-4 md:p-6 xl:p-8 transition-colors duration-300 print:bg-white print:p-0 print:m-0 print:w-full print:min-h-0",
+      isDarkMode ? "bg-[#090D16] text-slate-100 dark" : "bg-[#F8FAFC] text-slate-950"
+    )}>
       
       {/* Top Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm print:hidden">
+      <div className={cn(
+        "flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 p-6 rounded-[2.5rem] border shadow-sm print:hidden transition-all duration-300",
+        isDarkMode
+          ? "bg-[#111827]/90 border-slate-800 text-white shadow-xl shadow-black/40 backdrop-blur-md"
+          : "bg-white border-slate-100 text-slate-900 shadow-sm"
+      )}>
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
+          <div className={cn(
+            "w-12 h-12 rounded-2xl border flex items-center justify-center shrink-0 shadow-sm",
+            isDarkMode 
+              ? "bg-indigo-950/60 border-indigo-800/80 text-indigo-400" 
+              : "bg-indigo-50 border-indigo-100 text-indigo-600"
+          )}>
             <Building2 size={24} />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">Canevas Établissements</h1>
-              <span className="px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 text-[10px] font-black uppercase tracking-widest border border-indigo-100">
-                Officiel
+              <h1 className="text-xl md:text-2xl font-black tracking-tight">Canevas Établissements</h1>
+              <span className={cn(
+                "px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border",
+                isDarkMode 
+                  ? "bg-indigo-950/80 text-indigo-300 border-indigo-800" 
+                  : "bg-indigo-50 text-indigo-700 border-indigo-100"
+              )}>
+                OFFICIEL
               </span>
             </div>
-            <p className="text-xs font-semibold text-slate-400 mt-0.5">
+            <p className={cn("text-xs font-semibold mt-0.5", isDarkMode ? "text-slate-400" : "text-slate-400")}>
               Gestion centralisée des structures, communes, cycles et infrastructures scolaires.
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          {/* Dark Mode Toggle Button */}
+          <button 
+            type="button"
+            onClick={toggleDarkMode}
+            title={isDarkMode ? "Passer en mode clair" : "Activer le mode sombre"}
+            className={cn(
+              "h-11 px-3.5 rounded-xl border text-xs font-bold transition-all flex items-center gap-2 shadow-xs active:scale-95",
+              isDarkMode
+                ? "border-amber-500/30 bg-amber-950/20 text-amber-300 hover:bg-amber-900/30 hover:border-amber-500/50"
+                : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+            )}
+          >
+            {isDarkMode ? <Sun size={17} className="text-amber-400" /> : <Moon size={17} className="text-indigo-600" />}
+            <span className="hidden sm:inline font-bold">{isDarkMode ? "Mode Clair" : "Mode Nuit"}</span>
+          </button>
+
+          {/* Gérer les Communes */}
           <button 
             onClick={() => setIsAddCommuneOpen(true)}
-            className="h-11 px-4 rounded-xl border border-indigo-200 bg-indigo-50/50 hover:bg-indigo-100/80 text-indigo-700 font-bold text-xs flex items-center gap-2 transition"
+            className={cn(
+              "h-11 px-4 rounded-xl border font-bold text-xs flex items-center gap-2 transition",
+              isDarkMode
+                ? "border-indigo-800/80 bg-indigo-950/40 hover:bg-indigo-900/60 text-indigo-300"
+                : "border-indigo-200 bg-indigo-50/50 hover:bg-indigo-100/80 text-indigo-700"
+            )}
           >
             <MapPin size={16} />
             Gérer les Communes
           </button>
+
+          {/* PDF Export */}
           <button 
             onClick={handleExportPDF}
-            className="h-11 px-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs flex items-center gap-2 transition shadow-xs"
+            className={cn(
+              "h-11 px-4 rounded-xl border font-bold text-xs flex items-center gap-2 transition shadow-xs",
+              isDarkMode
+                ? "border-slate-800 bg-slate-900 text-slate-200 hover:bg-slate-800"
+                : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+            )}
           >
             <FileText size={16} className="text-rose-500" />
             PDF
           </button>
+
+          {/* Excel Export */}
           <button 
             onClick={handleExportExcel}
-            className="h-11 px-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs flex items-center gap-2 transition shadow-xs"
+            className={cn(
+              "h-11 px-4 rounded-xl border font-bold text-xs flex items-center gap-2 transition shadow-xs",
+              isDarkMode
+                ? "border-slate-800 bg-slate-900 text-slate-200 hover:bg-slate-800"
+                : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+            )}
           >
             <FileSpreadsheet size={16} className="text-emerald-500" />
             Excel
           </button>
 
+          {/* القائمة الإضافية (Extra Options & Tools Menu) */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setIsExtraMenuOpen(!isExtraMenuOpen)}
+              className={cn(
+                "h-11 px-3.5 rounded-xl border font-bold text-xs flex items-center gap-1.5 transition shadow-xs",
+                isDarkMode
+                  ? "border-slate-800 bg-slate-900 text-slate-200 hover:bg-slate-800"
+                  : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+              )}
+            >
+              <SlidersHorizontal size={15} className="text-indigo-500" />
+              <span className="hidden sm:inline">Options</span>
+              <ChevronDown size={14} className={cn("transition-transform", isExtraMenuOpen && "rotate-180")} />
+            </button>
+
+            {isExtraMenuOpen && (
+              <div className={cn(
+                "absolute right-0 top-12 z-50 w-64 rounded-2xl border p-2 shadow-2xl backdrop-blur-md animate-fade-in",
+                isDarkMode
+                  ? "bg-[#111827] border-slate-800 text-slate-200 shadow-black/60"
+                  : "bg-white border-slate-200 text-slate-800 shadow-slate-900/15"
+              )}>
+                <div className="px-3 py-2 text-[10px] font-black uppercase tracking-wider text-slate-400 border-b border-slate-100 dark:border-slate-800">
+                  Outils & Actions Avancées
+                </div>
+                <button
+                  onClick={handleCopySummary}
+                  className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold flex items-center gap-2.5 transition"
+                >
+                  <Copy size={15} className="text-indigo-500" />
+                  <span>Copier Synthèse Globale</span>
+                </button>
+                <button
+                  onClick={() => { setSegmentTab("INFRA_ALERT"); setIsExtraMenuOpen(false); }}
+                  className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold flex items-center gap-2.5 transition text-amber-600 dark:text-amber-400"
+                >
+                  <AlertTriangle size={15} />
+                  <span>Alerte Infrastructures ({countInfraAlert})</span>
+                </button>
+                <button
+                  onClick={() => {
+                    const input = document.createElement("input");
+                    input.type = "file";
+                    input.accept = ".xlsx,.xls,.csv";
+                    input.onchange = (e: any) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        toast.success(`Fichier ${file.name} sélectionné pour importation !`);
+                      }
+                    };
+                    input.click();
+                    setIsExtraMenuOpen(false);
+                  }}
+                  className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold flex items-center gap-2.5 transition"
+                >
+                  <Upload size={15} className="text-emerald-500" />
+                  <span>Importer Données (Excel)</span>
+                </button>
+                <button
+                  onClick={handleResetFilters}
+                  className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold flex items-center gap-2.5 transition text-rose-500"
+                >
+                  <RefreshCw size={15} />
+                  <span>Réinitialiser les Filtres</span>
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Add School Button */}
           <button 
             onClick={() => setIsAddOpen(true)}
-            className="h-11 px-5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex items-center gap-2 transition shadow-md shadow-indigo-100"
+            className="h-11 px-5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex items-center gap-2 transition shadow-md shadow-indigo-600/20 active:scale-95"
           >
             <Plus size={16} />
             Ajouter Établissement
@@ -714,63 +821,149 @@ export default function EtablissementsClient({
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 print:grid-cols-4">
-        <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm relative overflow-hidden">
+        {/* Card 1 */}
+        <div className={cn(
+          "p-5 rounded-3xl border shadow-sm relative overflow-hidden transition-colors",
+          isDarkMode ? "bg-[#111827] border-slate-800 text-white shadow-black/20" : "bg-white border-slate-100"
+        )}>
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Établissements</p>
-              <h3 className="text-2xl font-black text-slate-900 mt-1">{filteredSchools.length}</h3>
-              <p className="text-[11px] font-bold text-indigo-600 mt-1">{communesList.length} communes enregistrées</p>
+              <p className={cn("text-[10px] font-black uppercase tracking-wider", isDarkMode ? "text-slate-400" : "text-slate-400")}>
+                Établissements
+              </p>
+              <h3 className="text-2xl font-black mt-1">{filteredSchools.length}</h3>
+              <p className="text-[11px] font-bold text-indigo-500 mt-1">{communesList.length} communes enregistrées</p>
             </div>
-            <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+            <div className={cn(
+              "w-10 h-10 rounded-2xl flex items-center justify-center shrink-0",
+              isDarkMode ? "bg-indigo-950/70 text-indigo-400" : "bg-indigo-50 text-indigo-600"
+            )}>
               <Building2 size={20} />
             </div>
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm relative overflow-hidden">
+        {/* Card 2 */}
+        <div className={cn(
+          "p-5 rounded-3xl border shadow-sm relative overflow-hidden transition-colors",
+          isDarkMode ? "bg-[#111827] border-slate-800 text-white shadow-black/20" : "bg-white border-slate-100"
+        )}>
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Effectif Total Élèves</p>
-              <h3 className="text-2xl font-black text-slate-900 mt-1">{totalStudents.toLocaleString("fr-FR")}</h3>
-              <p className="text-[11px] font-bold text-slate-400 mt-1">Filles & Garçons confondus</p>
+              <p className={cn("text-[10px] font-black uppercase tracking-wider", isDarkMode ? "text-slate-400" : "text-slate-400")}>
+                Effectif Total Élèves
+              </p>
+              <h3 className="text-2xl font-black mt-1">{totalStudents.toLocaleString("fr-FR")}</h3>
+              <p className="text-[11px] font-bold text-slate-400 mt-1">
+                {totalGirls.toLocaleString("fr-FR")} F / {totalBoys.toLocaleString("fr-FR")} G
+              </p>
             </div>
-            <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
+            <div className={cn(
+              "w-10 h-10 rounded-2xl flex items-center justify-center shrink-0",
+              isDarkMode ? "bg-blue-950/70 text-blue-400" : "bg-blue-50 text-blue-600"
+            )}>
               <Users size={20} />
             </div>
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm relative overflow-hidden">
+        {/* Card 3 */}
+        <div className={cn(
+          "p-5 rounded-3xl border shadow-sm relative overflow-hidden transition-colors",
+          isDarkMode ? "bg-[#111827] border-slate-800 text-white shadow-black/20" : "bg-white border-slate-100"
+        )}>
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Écoles Publiques</p>
-              <h3 className="text-2xl font-black text-slate-900 mt-1">{totalPublic}</h3>
-              <p className="text-[11px] font-bold text-emerald-600 mt-1">
-                {Math.round((totalPublic / (filteredSchools.length || 1)) * 100)}% du total
+              <p className={cn("text-[10px] font-black uppercase tracking-wider", isDarkMode ? "text-slate-400" : "text-slate-400")}>
+                Écoles Publiques
+              </p>
+              <h3 className="text-2xl font-black mt-1">{totalPublic}</h3>
+              <p className="text-[11px] font-bold text-emerald-500 mt-1">
+                {Math.round((totalPublic / (filteredSchools.length || 1)) * 100)}% du total ({totalPrivate} privées)
               </p>
             </div>
-            <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+            <div className={cn(
+              "w-10 h-10 rounded-2xl flex items-center justify-center shrink-0",
+              isDarkMode ? "bg-emerald-950/70 text-emerald-400" : "bg-emerald-50 text-emerald-600"
+            )}>
               <CheckCircle2 size={20} />
             </div>
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm relative overflow-hidden">
+        {/* Card 4 */}
+        <div className={cn(
+          "p-5 rounded-3xl border shadow-sm relative overflow-hidden transition-colors",
+          isDarkMode ? "bg-[#111827] border-slate-800 text-white shadow-black/20" : "bg-white border-slate-100"
+        )}>
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Cycles de Formation</p>
-              <h3 className="text-2xl font-black text-slate-900 mt-1">{cyclesList.length}</h3>
-              <p className="text-[11px] font-bold text-amber-600 mt-1">Niveaux d'étude synchronisés</p>
+              <p className={cn("text-[10px] font-black uppercase tracking-wider", isDarkMode ? "text-slate-400" : "text-slate-400")}>
+                Cycles de Formation
+              </p>
+              <h3 className="text-2xl font-black mt-1">{cyclesList.length}</h3>
+              <p className="text-[11px] font-bold text-amber-500 mt-1">Niveaux d'étude synchronisés</p>
             </div>
-            <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
+            <div className={cn(
+              "w-10 h-10 rounded-2xl flex items-center justify-center shrink-0",
+              isDarkMode ? "bg-amber-950/70 text-amber-400" : "bg-amber-50 text-amber-600"
+            )}>
               <Info size={20} />
             </div>
           </div>
         </div>
       </div>
 
+      {/* ─── القائمة الإضافية: شريط التبويبات والتصنيف السريع (Quick Segment Filter Tabs) ─── */}
+      <div className={cn(
+        "p-2 rounded-2xl border print:hidden flex items-center gap-1.5 overflow-x-auto custom-scrollbar transition-colors",
+        isDarkMode ? "bg-[#111827] border-slate-800" : "bg-white border-slate-100 shadow-xs"
+      )}>
+        {[
+          { id: "ALL", label: "Tous", count: schoolsList.length },
+          { id: "PUBLIC", label: "Publics", count: totalPublic },
+          { id: "PRIVE", label: "Privés", count: totalPrivate },
+          { id: "INFRA_ALERT", label: "Sans Eau/Élec", count: countInfraAlert, alert: countInfraAlert > 0 },
+          { id: "VALIDE", label: "Validés", count: schoolsList.filter(s => s.statut.toLowerCase().includes("validé")).length },
+          { id: "PENDING", label: "En attente", count: schoolsList.filter(s => s.statut.toLowerCase().includes("brouillon") || s.statut.toLowerCase().includes("verifier") || s.statut.toLowerCase().includes("rejeté")).length },
+        ].map((tab) => {
+          const isActive = segmentTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setSegmentTab(tab.id as any)}
+              className={cn(
+                "px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap shrink-0",
+                isActive
+                  ? "bg-indigo-600 text-white shadow-sm"
+                  : isDarkMode
+                    ? "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+              )}
+            >
+              <span>{tab.label}</span>
+              <span className={cn(
+                "px-2 py-0.5 rounded-full text-[10px] font-black",
+                isActive
+                  ? "bg-white/20 text-white"
+                  : tab.alert
+                    ? "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-400"
+                    : isDarkMode
+                      ? "bg-slate-800 text-slate-400"
+                      : "bg-slate-100 text-slate-500"
+              )}>
+                {tab.count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
       {/* Filters Bar */}
-      <div className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm space-y-3 print:hidden">
+      <div className={cn(
+        "p-4 rounded-3xl border shadow-sm space-y-3 print:hidden transition-colors",
+        isDarkMode ? "bg-[#111827] border-slate-800 text-white shadow-black/20" : "bg-white border-slate-100"
+      )}>
         <div className="flex flex-col md:flex-row gap-3">
           <div className="relative flex-1">
             <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -778,7 +971,12 @@ export default function EtablissementsClient({
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Rechercher par nom, code, commune ou quartier..." 
-              className="w-full h-11 pl-11 pr-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-indigo-500 font-semibold text-slate-800 text-xs"
+              className={cn(
+                "w-full h-11 pl-11 pr-4 border rounded-2xl outline-none font-semibold text-xs transition",
+                isDarkMode 
+                  ? "bg-slate-900/90 border-slate-700/80 text-white placeholder-slate-500 focus:border-indigo-500" 
+                  : "bg-slate-50 border-slate-100 text-slate-800 placeholder-slate-400 focus:border-indigo-500"
+              )}
             />
           </div>
 
@@ -786,7 +984,12 @@ export default function EtablissementsClient({
             <select 
               value={filterType} 
               onChange={e => setFilterType(e.target.value)}
-              className="h-11 px-3 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold text-slate-700 outline-none"
+              className={cn(
+                "h-11 px-3 border rounded-2xl text-xs font-bold outline-none transition",
+                isDarkMode 
+                  ? "bg-slate-900 border-slate-700 text-slate-200" 
+                  : "bg-slate-50 border-slate-100 text-slate-700"
+              )}
             >
               <option value="Type: tous">Type: Tous</option>
               {typesList.map(t => <option key={t} value={t}>{t}</option>)}
@@ -795,7 +998,12 @@ export default function EtablissementsClient({
             <select 
               value={filterCycle} 
               onChange={e => setFilterCycle(e.target.value)}
-              className="h-11 px-3 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold text-slate-700 outline-none"
+              className={cn(
+                "h-11 px-3 border rounded-2xl text-xs font-bold outline-none transition",
+                isDarkMode 
+                  ? "bg-slate-900 border-slate-700 text-slate-200" 
+                  : "bg-slate-50 border-slate-100 text-slate-700"
+              )}
             >
               <option value="Cycle: tous">Cycle (Niveau): Tous</option>
               {cyclesList.map(c => <option key={c} value={c}>{c}</option>)}
@@ -804,7 +1012,12 @@ export default function EtablissementsClient({
             <select 
               value={filterCommune} 
               onChange={e => setFilterCommune(e.target.value)}
-              className="h-11 px-3 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold text-slate-700 outline-none"
+              className={cn(
+                "h-11 px-3 border rounded-2xl text-xs font-bold outline-none transition",
+                isDarkMode 
+                  ? "bg-slate-900 border-slate-700 text-slate-200" 
+                  : "bg-slate-50 border-slate-100 text-slate-700"
+              )}
             >
               <option value="Commune">Commune: Toutes</option>
               {communesList.map(c => <option key={c} value={c}>{c}</option>)}
@@ -813,7 +1026,12 @@ export default function EtablissementsClient({
             <select 
               value={filterStatut} 
               onChange={e => setFilterStatut(e.target.value)}
-              className="h-11 px-3 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold text-slate-700 outline-none"
+              className={cn(
+                "h-11 px-3 border rounded-2xl text-xs font-bold outline-none transition",
+                isDarkMode 
+                  ? "bg-slate-900 border-slate-700 text-slate-200" 
+                  : "bg-slate-50 border-slate-100 text-slate-700"
+              )}
             >
               <option value="Statut: tous">Statut: Tous</option>
               <option value="Brouillon">Brouillon</option>
@@ -828,11 +1046,21 @@ export default function EtablissementsClient({
       </div>
 
       {/* Main Table */}
-      <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+      <div className={cn(
+        "rounded-3xl border shadow-sm overflow-hidden transition-colors",
+        isDarkMode 
+          ? "bg-[#111827] border-slate-800 shadow-xl shadow-black/20" 
+          : "bg-white border-slate-100 shadow-sm"
+      )}>
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[900px]">
             <thead>
-              <tr className="border-b border-slate-100 bg-slate-50/50 text-[10px] uppercase tracking-widest text-slate-400 font-black">
+              <tr className={cn(
+                "border-b text-[10px] uppercase tracking-widest font-black transition-colors",
+                isDarkMode 
+                  ? "bg-slate-900/80 border-slate-800 text-slate-400" 
+                  : "bg-slate-50/50 border-slate-100 text-slate-400"
+              )}>
                 <th className="py-4 px-6">Code & Établissement</th>
                 <th className="py-4 px-4">Type</th>
                 <th className="py-4 px-4">Cycle</th>
@@ -844,7 +1072,12 @@ export default function EtablissementsClient({
                 <th className="py-4 px-6 text-right print:hidden">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-50 text-xs font-bold text-slate-700">
+            <tbody className={cn(
+              "divide-y text-xs font-bold transition-colors",
+              isDarkMode 
+                ? "divide-slate-800/80 text-slate-300" 
+                : "divide-slate-50 text-slate-700"
+            )}>
               {filteredSchools.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="py-12 text-center text-slate-400 font-medium">
@@ -853,41 +1086,55 @@ export default function EtablissementsClient({
                 </tr>
               ) : (
                 filteredSchools.map((school) => (
-                  <tr key={school.code} className="hover:bg-slate-50/80 transition-colors">
+                  <tr 
+                    key={school.code} 
+                    className={cn(
+                      "transition-colors",
+                      isDarkMode ? "hover:bg-slate-800/40" : "hover:bg-slate-50/80"
+                    )}
+                  >
                     <td className="py-4 px-6">
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 shrink-0 font-black text-xs">
+                        <div className={cn(
+                          "w-9 h-9 rounded-xl flex items-center justify-center shrink-0 font-black text-xs",
+                          isDarkMode ? "bg-slate-800 text-slate-200" : "bg-slate-100 text-slate-600"
+                        )}>
                           {school.name.substring(0, 2).toUpperCase()}
                         </div>
                         <div>
-                          <p className="font-black text-slate-900">{school.name}</p>
+                          <p className={cn("font-black", isDarkMode ? "text-white" : "text-slate-900")}>{school.name}</p>
                           <p className="text-[10px] text-slate-400 font-medium mt-0.5">{school.code}</p>
                         </div>
                       </div>
                     </td>
 
                     <td className="py-4 px-4">
-                      <span className={cn("px-2.5 py-1 rounded-full text-[10px] font-black", school.type === "Public" ? "bg-blue-50 text-blue-700" : "bg-purple-50 text-purple-700")}>
+                      <span className={cn(
+                        "px-2.5 py-1 rounded-full text-[10px] font-black",
+                        school.type === "Public" 
+                          ? "bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300" 
+                          : "bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300"
+                      )}>
                         {school.type}
                       </span>
                     </td>
 
-                    <td className="py-4 px-4 text-slate-800">
+                    <td className={cn("py-4 px-4 font-bold", isDarkMode ? "text-slate-200" : "text-slate-800")}>
                       {school.cycle}
                     </td>
 
                     <td className="py-4 px-4">
-                      <p className="text-slate-900 font-bold">{school.commune}</p>
+                      <p className={cn("font-bold", isDarkMode ? "text-slate-200" : "text-slate-900")}>{school.commune}</p>
                       <p className="text-[10px] text-slate-400 font-semibold">{school.quartier}</p>
                     </td>
 
                     <td className="py-4 px-4 text-center">
-                      <p className="font-black text-slate-900">{school.eleves}</p>
+                      <p className={cn("font-black", isDarkMode ? "text-white" : "text-slate-900")}>{school.eleves}</p>
                       <p className="text-[9px] text-slate-400 font-medium">{school.filles}F / {school.garcons}G</p>
                     </td>
 
                     <td className="py-4 px-4 text-center">
-                      <p className="font-bold text-slate-800">{school.enseignants} Profs</p>
+                      <p className={cn("font-bold", isDarkMode ? "text-slate-200" : "text-slate-800")}>{school.enseignants} Profs</p>
                       <p className="text-[10px] text-slate-400 font-medium">{school.salles} Salles</p>
                     </td>
 
@@ -902,28 +1149,92 @@ export default function EtablissementsClient({
                       <StatusBadge status={school.statut} />
                     </td>
 
-                    <td className="py-4 px-6 text-right space-x-1.5 print:hidden">
-                      <button 
-                        onClick={() => setSelectedSchool(school)}
-                        className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition"
-                        title="Voir détails"
-                      >
-                        <Eye size={15} />
-                      </button>
-                      <button 
-                        onClick={() => setEditSchool(school)}
-                        className="p-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 transition"
-                        title="Modifier"
-                      >
-                        <Edit3 size={15} />
-                      </button>
-                      <button 
-                        onClick={() => handleDeleteSchool(school.code)}
-                        className="p-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 transition"
-                        title="Supprimer"
-                      >
-                        <Trash2 size={15} />
-                      </button>
+                    <td className="py-4 px-6 text-right print:hidden relative">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button 
+                          onClick={() => setSelectedSchool(school)}
+                          className={cn(
+                            "p-2 rounded-xl transition",
+                            isDarkMode ? "bg-slate-800 hover:bg-slate-700 text-slate-200" : "bg-slate-100 hover:bg-slate-200 text-slate-700"
+                          )}
+                          title="Voir détails"
+                        >
+                          <Eye size={15} />
+                        </button>
+                        <button 
+                          onClick={() => setEditSchool(school)}
+                          className={cn(
+                            "p-2 rounded-xl transition",
+                            isDarkMode ? "bg-indigo-950/60 hover:bg-indigo-900/60 text-indigo-300" : "bg-indigo-50 hover:bg-indigo-100 text-indigo-700"
+                          )}
+                          title="Modifier"
+                        >
+                          <Edit3 size={15} />
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteSchool(school.code)}
+                          className={cn(
+                            "p-2 rounded-xl transition",
+                            isDarkMode ? "bg-rose-950/60 hover:bg-rose-900/60 text-rose-400" : "bg-rose-50 hover:bg-rose-100 text-rose-600"
+                          )}
+                          title="Supprimer"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+
+                        {/* القائمة الإضافية للسطر (Row Actions Dropdown) */}
+                        <div className="relative">
+                          <button
+                            type="button"
+                            onClick={() => setActiveRowMenuCode(activeRowMenuCode === school.code ? null : school.code)}
+                            className={cn(
+                              "p-2 rounded-xl transition",
+                              isDarkMode ? "bg-slate-800 hover:bg-slate-700 text-slate-400" : "bg-slate-100 hover:bg-slate-200 text-slate-500"
+                            )}
+                            title="Plus d'actions"
+                          >
+                            <MoreVertical size={15} />
+                          </button>
+
+                          {activeRowMenuCode === school.code && (
+                            <div className={cn(
+                              "absolute right-0 top-10 z-40 w-52 rounded-2xl border p-1.5 shadow-2xl backdrop-blur-md text-left",
+                              isDarkMode 
+                                ? "bg-[#111827] border-slate-800 text-slate-200 shadow-black/80" 
+                                : "bg-white border-slate-200 text-slate-800 shadow-slate-900/15"
+                            )}>
+                              <button
+                                onClick={() => { setSelectedSchool(school); setActiveRowMenuCode(null); }}
+                                className="w-full text-left px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold flex items-center gap-2"
+                              >
+                                <Eye size={14} className="text-blue-500" />
+                                <span>Fiche Complète</span>
+                              </button>
+                              <button
+                                onClick={() => handleUpdateStatus(school.code, "Validé inspection")}
+                                className="w-full text-left px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold flex items-center gap-2 text-cyan-600 dark:text-cyan-400"
+                              >
+                                <CheckCircle2 size={14} />
+                                <span>Valider Inspection</span>
+                              </button>
+                              <button
+                                onClick={() => handleUpdateStatus(school.code, "Transmis ministère")}
+                                className="w-full text-left px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold flex items-center gap-2 text-emerald-600 dark:text-emerald-400"
+                              >
+                                <ShieldCheck size={14} />
+                                <span>Transmis Ministère</span>
+                              </button>
+                              <button
+                                onClick={() => handleDuplicateSchool(school)}
+                                className="w-full text-left px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold flex items-center gap-2 text-purple-600 dark:text-purple-400"
+                              >
+                                <Copy size={14} />
+                                <span>Dupliquer École</span>
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -935,27 +1246,39 @@ export default function EtablissementsClient({
 
       {/* ─── MODAL: GESTION DES COMMUNES (ADD, EDIT, DELETE) ─── */}
       {isAddCommuneOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in print:hidden">
-          <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-2xl max-w-lg w-full p-8 relative max-h-[90vh] overflow-y-auto custom-scrollbar">
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in print:hidden">
+          <div className={cn(
+            "rounded-[2.5rem] border shadow-2xl max-w-lg w-full p-8 relative max-h-[90vh] overflow-y-auto custom-scrollbar transition-colors",
+            isDarkMode ? "bg-[#111827] border-slate-800 text-white" : "bg-white border-slate-100 text-slate-900"
+          )}>
             <button 
               onClick={() => setIsAddCommuneOpen(false)}
-              className="absolute right-6 top-6 w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors"
+              className={cn(
+                "absolute right-6 top-6 w-10 h-10 rounded-full flex items-center justify-center transition-colors",
+                isDarkMode ? "bg-slate-800 text-slate-400 hover:text-white" : "bg-slate-50 text-slate-400 hover:text-slate-600"
+              )}
             >
               <X size={20} />
             </button>
 
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-11 h-11 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+              <div className={cn(
+                "w-11 h-11 rounded-2xl flex items-center justify-center shrink-0",
+                isDarkMode ? "bg-indigo-950/70 text-indigo-400" : "bg-indigo-50 text-indigo-600"
+              )}>
                 <MapPin size={22} />
               </div>
               <div>
-                <h3 className="text-xl font-black text-slate-900">Gestion des Communes</h3>
+                <h3 className="text-xl font-black">Gestion des Communes</h3>
                 <p className="text-xs text-slate-400 font-semibold">Ajouter, modifier ou supprimer des communes scolaires.</p>
               </div>
             </div>
 
             {/* Add Commune Form */}
-            <form onSubmit={handleCreateCommune} className="space-y-3 p-4 bg-slate-50 border border-slate-100 rounded-2xl mb-6">
+            <form onSubmit={handleCreateCommune} className={cn(
+              "space-y-3 p-4 rounded-2xl border mb-6",
+              isDarkMode ? "bg-slate-900/60 border-slate-800" : "bg-slate-50 border-slate-100"
+            )}>
               <label className="text-[10px] font-black text-slate-400 uppercase block">Ajouter une nouvelle commune</label>
               <div className="flex gap-2">
                 <input 
@@ -963,7 +1286,12 @@ export default function EtablissementsClient({
                   value={newCommuneName} 
                   onChange={e => setNewCommuneName(e.target.value)} 
                   placeholder="Ex: Niamey VI, Dosso Commune 1, Maradi Nord..." 
-                  className="flex-1 h-11 px-4 bg-white border border-slate-200 rounded-xl outline-none focus:border-indigo-500 font-semibold text-slate-800 text-xs" 
+                  className={cn(
+                    "flex-1 h-11 px-4 border rounded-xl outline-none font-semibold text-xs transition",
+                    isDarkMode 
+                      ? "bg-slate-900 border-slate-700 text-white placeholder-slate-500 focus:border-indigo-500" 
+                      : "bg-white border-slate-200 text-slate-800 focus:border-indigo-500"
+                  )} 
                 />
                 <button 
                   type="submit" 
@@ -988,13 +1316,22 @@ export default function EtablissementsClient({
                   const schoolCount = schoolsList.filter(s => s.commune === commune).length;
 
                   return (
-                    <div key={commune} className="flex items-center justify-between p-3.5 bg-slate-50/80 border border-slate-100 rounded-2xl hover:bg-slate-100/50 transition">
+                    <div 
+                      key={commune} 
+                      className={cn(
+                        "flex items-center justify-between p-3.5 border rounded-2xl transition",
+                        isDarkMode ? "bg-slate-900/50 border-slate-800 hover:bg-slate-800/50" : "bg-slate-50/80 border-slate-100 hover:bg-slate-100/50"
+                      )}
+                    >
                       {isEditing ? (
                         <div className="flex items-center gap-2 flex-1 mr-2">
                           <input
                             value={editCommuneValue}
                             onChange={e => setEditCommuneValue(e.target.value)}
-                            className="flex-1 h-9 px-3 bg-white border border-indigo-300 rounded-lg text-xs font-bold text-slate-900 outline-none"
+                            className={cn(
+                              "flex-1 h-9 px-3 border rounded-lg text-xs font-bold outline-none",
+                              isDarkMode ? "bg-slate-900 border-indigo-400 text-white" : "bg-white border-indigo-300 text-slate-900"
+                            )}
                             autoFocus
                           />
                           <button
@@ -1008,7 +1345,10 @@ export default function EtablissementsClient({
                           <button
                             type="button"
                             onClick={() => setEditingCommuneName(null)}
-                            className="p-2 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-600 transition"
+                            className={cn(
+                              "p-2 rounded-lg transition",
+                              isDarkMode ? "bg-slate-800 text-slate-400 hover:bg-slate-700" : "bg-slate-200 text-slate-600 hover:bg-slate-300"
+                            )}
                             title="Annuler"
                           >
                             <X size={14} />
@@ -1017,11 +1357,17 @@ export default function EtablissementsClient({
                       ) : (
                         <>
                           <div className="flex items-center gap-2.5">
-                            <div className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-xs">
+                            <div className={cn(
+                              "w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs shrink-0",
+                              isDarkMode ? "bg-indigo-950/70 text-indigo-400" : "bg-indigo-50 text-indigo-600"
+                            )}>
                               <MapPin size={14} />
                             </div>
-                            <span className="font-bold text-xs text-slate-900">{commune}</span>
-                            <span className="px-2 py-0.5 rounded-full bg-slate-200/70 text-slate-600 text-[10px] font-black">
+                            <span className={cn("font-bold text-xs", isDarkMode ? "text-white" : "text-slate-900")}>{commune}</span>
+                            <span className={cn(
+                              "px-2 py-0.5 rounded-full text-[10px] font-black",
+                              isDarkMode ? "bg-slate-800 text-slate-300" : "bg-slate-200/70 text-slate-600"
+                            )}>
                               {schoolCount} {schoolCount > 1 ? "écoles" : "école"}
                             </span>
                           </div>
@@ -1033,7 +1379,10 @@ export default function EtablissementsClient({
                                 setEditingCommuneName(commune);
                                 setEditCommuneValue(commune);
                               }}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition"
+                              className={cn(
+                                "p-1.5 rounded-lg transition",
+                                isDarkMode ? "text-slate-400 hover:text-indigo-400 hover:bg-indigo-950/60" : "text-slate-400 hover:text-indigo-600 hover:bg-indigo-50"
+                              )}
                               title="Modifier cette commune"
                             >
                               <Edit3 size={14} />
@@ -1041,7 +1390,10 @@ export default function EtablissementsClient({
                             <button
                               type="button"
                               onClick={() => handleDeleteCommune(commune)}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition"
+                              className={cn(
+                                "p-1.5 rounded-lg transition",
+                                isDarkMode ? "text-slate-400 hover:text-rose-400 hover:bg-rose-950/60" : "text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                              )}
                               title="Supprimer cette commune"
                             >
                               <Trash2 size={14} />
@@ -1055,11 +1407,14 @@ export default function EtablissementsClient({
               </div>
             </div>
 
-            <div className="flex justify-end pt-6 mt-6 border-t border-slate-100">
+            <div className={cn("flex justify-end pt-6 mt-6 border-t", isDarkMode ? "border-slate-800" : "border-slate-100")}>
               <button 
                 type="button" 
                 onClick={() => setIsAddCommuneOpen(false)} 
-                className="h-11 px-6 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs"
+                className={cn(
+                  "h-11 px-6 rounded-xl font-bold text-xs transition",
+                  isDarkMode ? "bg-slate-800 hover:bg-slate-700 text-slate-200" : "bg-slate-100 hover:bg-slate-200 text-slate-600"
+                )}
               >
                 Fermer
               </button>
@@ -1070,62 +1425,96 @@ export default function EtablissementsClient({
 
       {/* ─── DRAWER / MODAL: VIEW DETAILS ─── */}
       {selectedSchool && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in print:hidden">
-          <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto custom-scrollbar p-8 relative">
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in print:hidden">
+          <div className={cn(
+            "rounded-[2.5rem] border shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto custom-scrollbar p-8 relative transition-colors",
+            isDarkMode ? "bg-[#111827] border-slate-800 text-white" : "bg-white border-slate-100 text-slate-900"
+          )}>
             <button 
               onClick={() => setSelectedSchool(null)}
-              className="absolute right-6 top-6 w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors"
+              className={cn(
+                "absolute right-6 top-6 w-10 h-10 rounded-full flex items-center justify-center transition-colors",
+                isDarkMode ? "bg-slate-800 text-slate-400 hover:text-white" : "bg-slate-50 text-slate-400 hover:text-slate-600"
+              )}
             >
               <X size={20} />
             </button>
 
             <div className="flex items-center gap-4 mb-6">
-              <div className="w-14 h-14 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 font-black text-xl">
+              <div className={cn(
+                "w-14 h-14 rounded-2xl border flex items-center justify-center font-black text-xl shrink-0",
+                isDarkMode ? "bg-indigo-950/70 border-indigo-800 text-indigo-400" : "bg-indigo-50 border-indigo-100 text-indigo-600"
+              )}>
                 {selectedSchool.name.substring(0, 2).toUpperCase()}
               </div>
               <div>
-                <h3 className="text-2xl font-black text-slate-900">{selectedSchool.name}</h3>
+                <h3 className="text-2xl font-black">{selectedSchool.name}</h3>
                 <p className="text-xs text-slate-400 font-semibold mt-0.5">Code: {selectedSchool.code} · Commune: {selectedSchool.commune}</p>
               </div>
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
-              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+              <div className={cn(
+                "p-4 rounded-2xl border",
+                isDarkMode ? "bg-slate-900/60 border-slate-800" : "bg-slate-50 border-slate-100"
+              )}>
                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Élèves Totaux</p>
-                <p className="text-lg font-black text-slate-900 mt-1">{selectedSchool.eleves}</p>
-                <p className="text-[10px] text-slate-500 font-semibold mt-0.5">{selectedSchool.filles} Filles / {selectedSchool.garcons} Garçons</p>
+                <p className="text-lg font-black mt-1">{selectedSchool.eleves}</p>
+                <p className="text-[10px] text-slate-400 font-semibold mt-0.5">{selectedSchool.filles} Filles / {selectedSchool.garcons} Garçons</p>
               </div>
-              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+              <div className={cn(
+                "p-4 rounded-2xl border",
+                isDarkMode ? "bg-slate-900/60 border-slate-800" : "bg-slate-50 border-slate-100"
+              )}>
                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Personnel Enseignant</p>
-                <p className="text-lg font-black text-slate-900 mt-1">{selectedSchool.enseignants} Profs</p>
-                <p className="text-[10px] text-slate-500 font-semibold mt-0.5">{Math.round(selectedSchool.eleves / selectedSchool.enseignants)} élèves/prof</p>
+                <p className="text-lg font-black mt-1">{selectedSchool.enseignants} Profs</p>
+                <p className="text-[10px] text-slate-400 font-semibold mt-0.5">{Math.round(selectedSchool.eleves / selectedSchool.enseignants)} élèves/prof</p>
               </div>
-              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+              <div className={cn(
+                "p-4 rounded-2xl border",
+                isDarkMode ? "bg-slate-900/60 border-slate-800" : "bg-slate-50 border-slate-100"
+              )}>
                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Salles de classe</p>
-                <p className="text-lg font-black text-slate-900 mt-1">{selectedSchool.salles} Salles</p>
-                <p className="text-[10px] text-slate-500 font-semibold mt-0.5">{Math.round(selectedSchool.eleves / selectedSchool.salles)} élèves/salle</p>
+                <p className="text-lg font-black mt-1">{selectedSchool.salles} Salles</p>
+                <p className="text-[10px] text-slate-400 font-semibold mt-0.5">{Math.round(selectedSchool.eleves / selectedSchool.salles)} élèves/salle</p>
               </div>
             </div>
 
             <div className="space-y-4 mb-8">
               <h4 className="font-black text-xs text-slate-400 uppercase tracking-wider">Infrastructures & Services</h4>
               <div className="grid grid-cols-2 gap-4">
-                <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
-                  <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center", selectedSchool.eau === "Oui" ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600")}>
+                <div className={cn(
+                  "flex items-center gap-3 p-3 rounded-xl border",
+                  isDarkMode ? "bg-slate-900/60 border-slate-800" : "bg-slate-50 border-slate-100"
+                )}>
+                  <div className={cn(
+                    "w-10 h-10 rounded-lg flex items-center justify-center shrink-0", 
+                    selectedSchool.eau === "Oui" 
+                      ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400" 
+                      : "bg-rose-50 text-rose-600 dark:bg-rose-950 dark:text-rose-400"
+                  )}>
                     <Droplets size={20} />
                   </div>
                   <div>
                     <p className="text-[10px] font-black text-slate-400 uppercase">Point d'eau</p>
-                    <p className="text-sm font-black text-slate-900 mt-0.5">{selectedSchool.eau === "Oui" ? "Disponible" : "Non équipé"}</p>
+                    <p className="text-sm font-black mt-0.5">{selectedSchool.eau === "Oui" ? "Disponible" : "Non équipé"}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
-                  <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center", selectedSchool.electricite === "Oui" ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600")}>
+                <div className={cn(
+                  "flex items-center gap-3 p-3 rounded-xl border",
+                  isDarkMode ? "bg-slate-900/60 border-slate-800" : "bg-slate-50 border-slate-100"
+                )}>
+                  <div className={cn(
+                    "w-10 h-10 rounded-lg flex items-center justify-center shrink-0", 
+                    selectedSchool.electricite === "Oui" 
+                      ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400" 
+                      : "bg-rose-50 text-rose-600 dark:bg-rose-950 dark:text-rose-400"
+                  )}>
                     <Lightbulb size={20} />
                   </div>
                   <div>
                     <p className="text-[10px] font-black text-slate-400 uppercase">Électricité</p>
-                    <p className="text-sm font-black text-slate-900 mt-0.5">{selectedSchool.electricite === "Oui" ? "Disponible" : "Non raccordé"}</p>
+                    <p className="text-sm font-black mt-0.5">{selectedSchool.electricite === "Oui" ? "Disponible" : "Non raccordé"}</p>
                   </div>
                 </div>
               </div>
@@ -1133,30 +1522,30 @@ export default function EtablissementsClient({
 
             <div className="space-y-3.5 mb-8">
               <h4 className="font-black text-xs text-slate-400 uppercase tracking-wider">Localisation & Cycle</h4>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs font-bold text-slate-600">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs font-bold">
                 <div>
                   <span className="text-[9px] font-black text-slate-400 uppercase block">Cycle (Niveau)</span>
-                  <span className="text-slate-900">{selectedSchool.cycle}</span>
+                  <span>{selectedSchool.cycle}</span>
                 </div>
                 <div>
                   <span className="text-[9px] font-black text-slate-400 uppercase block">Région</span>
-                  <span className="text-slate-900">{selectedSchool.region}</span>
+                  <span>{selectedSchool.region}</span>
                 </div>
                 <div>
                   <span className="text-[9px] font-black text-slate-400 uppercase block">Commune</span>
-                  <span className="text-slate-900">{selectedSchool.commune}</span>
+                  <span>{selectedSchool.commune}</span>
                 </div>
                 <div>
                   <span className="text-[9px] font-black text-slate-400 uppercase block">Quartier</span>
-                  <span className="text-slate-900">{selectedSchool.quartier}</span>
+                  <span>{selectedSchool.quartier}</span>
                 </div>
               </div>
             </div>
 
-            <div className="flex justify-between items-center pt-6 border-t border-slate-100">
+            <div className={cn("flex justify-between items-center pt-6 border-t", isDarkMode ? "border-slate-800" : "border-slate-100")}>
               <div className="flex items-center gap-3">
                 <span className="text-xs font-bold text-slate-400">Complétude canevas:</span>
-                <span className="text-sm font-black text-indigo-600">{selectedSchool.completion}%</span>
+                <span className="text-sm font-black text-indigo-500">{selectedSchool.completion}%</span>
               </div>
               <div className="flex gap-2">
                 {selectedSchool.statut !== "Validé inspection" && (
@@ -1169,7 +1558,10 @@ export default function EtablissementsClient({
                 )}
                 <button 
                   onClick={() => setSelectedSchool(null)}
-                  className="h-10 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs"
+                  className={cn(
+                    "h-10 px-4 rounded-xl font-bold text-xs transition",
+                    isDarkMode ? "bg-slate-800 hover:bg-slate-700 text-slate-300" : "bg-slate-100 hover:bg-slate-200 text-slate-600"
+                  )}
                 >
                   Fermer
                 </button>
@@ -1181,39 +1573,81 @@ export default function EtablissementsClient({
 
       {/* ─── MODAL: ADD SCHOOL ─── */}
       {isAddOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in print:hidden">
-          <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto custom-scrollbar p-8 relative">
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in print:hidden">
+          <div className={cn(
+            "rounded-[2.5rem] border shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto custom-scrollbar p-8 relative transition-colors",
+            isDarkMode ? "bg-[#111827] border-slate-800 text-white" : "bg-white border-slate-100 text-slate-900"
+          )}>
             <button 
               onClick={() => setIsAddOpen(false)}
-              className="absolute right-6 top-6 w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors"
+              className={cn(
+                "absolute right-6 top-6 w-10 h-10 rounded-full flex items-center justify-center transition-colors",
+                isDarkMode ? "bg-slate-800 text-slate-400 hover:text-white" : "bg-slate-50 text-slate-400 hover:text-slate-600"
+              )}
             >
               <X size={20} />
             </button>
-            <h3 className="text-2xl font-black text-slate-950 mb-6">Ajouter un établissement</h3>
+            <h3 className="text-2xl font-black mb-6">Ajouter un établissement</h3>
             
             <form onSubmit={handleAddSchool} className="space-y-5">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-black text-slate-400 uppercase">Code de l'école *</label>
-                  <input required value={newCode} onChange={e => setNewCode(e.target.value)} placeholder="Ex: ETB-2026-999" className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 font-semibold text-slate-800 text-sm" />
+                  <input 
+                    required 
+                    value={newCode} 
+                    onChange={e => setNewCode(e.target.value)} 
+                    placeholder="Ex: ETB-2026-999" 
+                    className={cn(
+                      "w-full h-12 px-4 border rounded-xl outline-none font-semibold text-sm transition",
+                      isDarkMode 
+                        ? "bg-slate-900 border-slate-700 text-white placeholder-slate-600 focus:border-indigo-500" 
+                        : "bg-slate-50 border-slate-200 text-slate-800 focus:border-indigo-500"
+                    )} 
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-black text-slate-400 uppercase">Nom complet *</label>
-                  <input required value={newName} onChange={e => setNewName(e.target.value)} placeholder="Ex: Ecole Commune V" className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 font-semibold text-slate-800 text-sm" />
+                  <input 
+                    required 
+                    value={newName} 
+                    onChange={e => setNewName(e.target.value)} 
+                    placeholder="Ex: Ecole Commune V" 
+                    className={cn(
+                      "w-full h-12 px-4 border rounded-xl outline-none font-semibold text-sm transition",
+                      isDarkMode 
+                        ? "bg-slate-900 border-slate-700 text-white placeholder-slate-600 focus:border-indigo-500" 
+                        : "bg-slate-50 border-slate-200 text-slate-800 focus:border-indigo-500"
+                    )} 
+                  />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-black text-slate-400 uppercase">Type</label>
-                  <select value={newType} onChange={e => setNewType(e.target.value)} className="w-full h-12 px-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-semibold text-slate-800 text-xs">
+                  <select 
+                    value={newType} 
+                    onChange={e => setNewType(e.target.value)} 
+                    className={cn(
+                      "w-full h-12 px-3 border rounded-xl outline-none font-semibold text-xs transition",
+                      isDarkMode ? "bg-slate-900 border-slate-700 text-slate-200" : "bg-slate-50 border-slate-200 text-slate-800"
+                    )}
+                  >
                     {typesList.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
                 
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-black text-slate-400 uppercase">Cycle (Niveau d'Étude)</label>
-                  <select value={newCycle} onChange={e => setNewCycle(e.target.value)} className="w-full h-12 px-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-semibold text-slate-800 text-xs">
+                  <select 
+                    value={newCycle} 
+                    onChange={e => setNewCycle(e.target.value)} 
+                    className={cn(
+                      "w-full h-12 px-3 border rounded-xl outline-none font-semibold text-xs transition",
+                      isDarkMode ? "bg-slate-900 border-slate-700 text-slate-200" : "bg-slate-50 border-slate-200 text-slate-800"
+                    )}
+                  >
                     {cyclesList.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
@@ -1224,65 +1658,150 @@ export default function EtablissementsClient({
                     <button 
                       type="button" 
                       onClick={() => setIsAddCommuneOpen(true)}
-                      className="text-[10px] font-black text-indigo-600 hover:underline flex items-center gap-0.5"
+                      className="text-[10px] font-black text-indigo-500 hover:underline flex items-center gap-0.5"
                     >
                       <Plus size={10} /> Nouveau
                     </button>
                   </div>
-                  <select value={newCommune} onChange={e => setNewCommune(e.target.value)} className="w-full h-12 px-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-semibold text-slate-800 text-xs">
+                  <select 
+                    value={newCommune} 
+                    onChange={e => setNewCommune(e.target.value)} 
+                    className={cn(
+                      "w-full h-12 px-3 border rounded-xl outline-none font-semibold text-xs transition",
+                      isDarkMode ? "bg-slate-900 border-slate-700 text-slate-200" : "bg-slate-50 border-slate-200 text-slate-800"
+                    )}
+                  >
                     {communesList.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
 
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-black text-slate-400 uppercase">Quartier</label>
-                  <input value={newQuartier} onChange={e => setNewQuartier(e.target.value)} placeholder="Ex: Bobiel" className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 font-semibold text-slate-800 text-sm" />
+                  <input 
+                    value={newQuartier} 
+                    onChange={e => setNewQuartier(e.target.value)} 
+                    placeholder="Ex: Bobiel" 
+                    className={cn(
+                      "w-full h-12 px-4 border rounded-xl outline-none font-semibold text-sm transition",
+                      isDarkMode 
+                        ? "bg-slate-900 border-slate-700 text-white placeholder-slate-600 focus:border-indigo-500" 
+                        : "bg-slate-50 border-slate-200 text-slate-800 focus:border-indigo-500"
+                    )} 
+                  />
                 </div>
               </div>
 
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-black text-slate-400 uppercase">Élèves</label>
-                  <input type="number" value={newEleves} onChange={e => setNewEleves(Number(e.target.value))} className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 font-semibold text-slate-800 text-sm" />
+                  <input 
+                    type="number" 
+                    value={newEleves} 
+                    onChange={e => setNewEleves(Number(e.target.value))} 
+                    className={cn(
+                      "w-full h-12 px-4 border rounded-xl outline-none font-semibold text-sm transition",
+                      isDarkMode ? "bg-slate-900 border-slate-700 text-white focus:border-indigo-500" : "bg-slate-50 border-slate-200 text-slate-800 focus:border-indigo-500"
+                    )} 
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-black text-slate-400 uppercase">Filles</label>
-                  <input type="number" value={newFilles} onChange={e => setNewFilles(Number(e.target.value))} className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 font-semibold text-slate-800 text-sm" />
+                  <input 
+                    type="number" 
+                    value={newFilles} 
+                    onChange={e => setNewFilles(Number(e.target.value))} 
+                    className={cn(
+                      "w-full h-12 px-4 border rounded-xl outline-none font-semibold text-sm transition",
+                      isDarkMode ? "bg-slate-900 border-slate-700 text-white focus:border-indigo-500" : "bg-slate-50 border-slate-200 text-slate-800 focus:border-indigo-500"
+                    )} 
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-black text-slate-400 uppercase">Garçons</label>
-                  <input type="number" value={newGarcons} onChange={e => setNewGarcons(Number(e.target.value))} className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 font-semibold text-slate-800 text-sm" />
+                  <input 
+                    type="number" 
+                    value={newGarcons} 
+                    onChange={e => setNewGarcons(Number(e.target.value))} 
+                    className={cn(
+                      "w-full h-12 px-4 border rounded-xl outline-none font-semibold text-sm transition",
+                      isDarkMode ? "bg-slate-900 border-slate-700 text-white focus:border-indigo-500" : "bg-slate-50 border-slate-200 text-slate-800 focus:border-indigo-500"
+                    )} 
+                  />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-black text-slate-400 uppercase">Profs</label>
-                  <input type="number" value={newEnseignants} onChange={e => setNewEnseignants(Number(e.target.value))} className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 font-semibold text-slate-800 text-sm" />
+                  <input 
+                    type="number" 
+                    value={newEnseignants} 
+                    onChange={e => setNewEnseignants(Number(e.target.value))} 
+                    className={cn(
+                      "w-full h-12 px-4 border rounded-xl outline-none font-semibold text-sm transition",
+                      isDarkMode ? "bg-slate-900 border-slate-700 text-white focus:border-indigo-500" : "bg-slate-50 border-slate-200 text-slate-800 focus:border-indigo-500"
+                    )} 
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-black text-slate-400 uppercase">Salles</label>
-                  <input type="number" value={newSalles} onChange={e => setNewSalles(Number(e.target.value))} className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 font-semibold text-slate-800 text-sm" />
+                  <input 
+                    type="number" 
+                    value={newSalles} 
+                    onChange={e => setNewSalles(Number(e.target.value))} 
+                    className={cn(
+                      "w-full h-12 px-4 border rounded-xl outline-none font-semibold text-sm transition",
+                      isDarkMode ? "bg-slate-900 border-slate-700 text-white focus:border-indigo-500" : "bg-slate-50 border-slate-200 text-slate-800 focus:border-indigo-500"
+                    )} 
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-black text-slate-400 uppercase">Point d'eau</label>
-                  <select value={newEau} onChange={e => setNewEau(e.target.value)} className="w-full h-12 px-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-semibold text-slate-800 text-xs">
+                  <select 
+                    value={newEau} 
+                    onChange={e => setNewEau(e.target.value)} 
+                    className={cn(
+                      "w-full h-12 px-3 border rounded-xl outline-none font-semibold text-xs transition",
+                      isDarkMode ? "bg-slate-900 border-slate-700 text-slate-200" : "bg-slate-50 border-slate-200 text-slate-800"
+                    )}
+                  >
                     <option value="Oui">Oui</option>
                     <option value="Non">Non</option>
                   </select>
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-black text-slate-400 uppercase">Électricité</label>
-                  <select value={newElectricite} onChange={e => setNewElectricite(e.target.value)} className="w-full h-12 px-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-semibold text-slate-800 text-xs">
+                  <select 
+                    value={newElectricite} 
+                    onChange={e => setNewElectricite(e.target.value)} 
+                    className={cn(
+                      "w-full h-12 px-3 border rounded-xl outline-none font-semibold text-xs transition",
+                      isDarkMode ? "bg-slate-900 border-slate-700 text-slate-200" : "bg-slate-50 border-slate-200 text-slate-800"
+                    )}
+                  >
                     <option value="Oui">Oui</option>
                     <option value="Non">Non</option>
                   </select>
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-                <button type="button" onClick={() => setIsAddOpen(false)} className="h-12 px-6 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-sm">Annuler</button>
-                <button type="submit" className="h-12 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-md shadow-indigo-100">Créer l'établissement</button>
+              <div className={cn("flex justify-end gap-3 pt-4 border-t", isDarkMode ? "border-slate-800" : "border-slate-100")}>
+                <button 
+                  type="button" 
+                  onClick={() => setIsAddOpen(false)} 
+                  className={cn(
+                    "h-12 px-6 rounded-xl font-bold text-sm transition",
+                    isDarkMode ? "bg-slate-800 hover:bg-slate-700 text-slate-300" : "bg-slate-100 hover:bg-slate-200 text-slate-600"
+                  )}
+                >
+                  Annuler
+                </button>
+                <button 
+                  type="submit" 
+                  className="h-12 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-md shadow-indigo-600/20 active:scale-95 transition"
+                >
+                  Créer l'établissement
+                </button>
               </div>
             </form>
           </div>
@@ -1291,38 +1810,75 @@ export default function EtablissementsClient({
 
       {/* ─── MODAL: EDIT SCHOOL ─── */}
       {editSchool && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in print:hidden">
-          <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto custom-scrollbar p-8 relative">
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in print:hidden">
+          <div className={cn(
+            "rounded-[2.5rem] border shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto custom-scrollbar p-8 relative transition-colors",
+            isDarkMode ? "bg-[#111827] border-slate-800 text-white" : "bg-white border-slate-100 text-slate-900"
+          )}>
             <button 
               onClick={() => setEditSchool(null)}
-              className="absolute right-6 top-6 w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors"
+              className={cn(
+                "absolute right-6 top-6 w-10 h-10 rounded-full flex items-center justify-center transition-colors",
+                isDarkMode ? "bg-slate-800 text-slate-400 hover:text-white" : "bg-slate-50 text-slate-400 hover:text-slate-600"
+              )}
             >
               <X size={20} />
             </button>
-            <h3 className="text-2xl font-black text-slate-950 mb-6">Modifier l'établissement</h3>
+            <h3 className="text-2xl font-black mb-6">Modifier l'établissement</h3>
             
             <form onSubmit={handleEditSchoolSubmit} className="space-y-5">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-black text-slate-400 uppercase">Code de l'école (Non modifiable)</label>
-                  <input readOnly value={editSchool.code} className="w-full h-12 px-4 bg-slate-100 border border-slate-200 rounded-xl outline-none font-semibold text-slate-400 text-sm cursor-not-allowed" />
+                  <input 
+                    readOnly 
+                    value={editSchool.code} 
+                    className={cn(
+                      "w-full h-12 px-4 border rounded-xl outline-none font-semibold text-sm cursor-not-allowed",
+                      isDarkMode ? "bg-slate-900/60 border-slate-800 text-slate-500" : "bg-slate-100 border-slate-200 text-slate-400"
+                    )} 
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-black text-slate-400 uppercase">Nom complet *</label>
-                  <input required value={editSchool.name} onChange={e => setEditSchool({ ...editSchool, name: e.target.value })} className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 font-semibold text-slate-800 text-sm" />
+                  <input 
+                    required 
+                    value={editSchool.name} 
+                    onChange={e => setEditSchool({ ...editSchool, name: e.target.value })} 
+                    className={cn(
+                      "w-full h-12 px-4 border rounded-xl outline-none font-semibold text-sm transition",
+                      isDarkMode 
+                        ? "bg-slate-900 border-slate-700 text-white placeholder-slate-600 focus:border-indigo-500" 
+                        : "bg-slate-50 border-slate-200 text-slate-800 focus:border-indigo-500"
+                    )} 
+                  />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-black text-slate-400 uppercase">Type</label>
-                  <select value={editSchool.type} onChange={e => setEditSchool({ ...editSchool, type: e.target.value })} className="w-full h-12 px-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-semibold text-slate-800 text-xs">
+                  <select 
+                    value={editSchool.type} 
+                    onChange={e => setEditSchool({ ...editSchool, type: e.target.value })} 
+                    className={cn(
+                      "w-full h-12 px-3 border rounded-xl outline-none font-semibold text-xs transition",
+                      isDarkMode ? "bg-slate-900 border-slate-700 text-slate-200" : "bg-slate-50 border-slate-200 text-slate-800"
+                    )}
+                  >
                     {typesList.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-black text-slate-400 uppercase">Cycle (Niveau d'Étude)</label>
-                  <select value={editSchool.cycle} onChange={e => setEditSchool({ ...editSchool, cycle: e.target.value })} className="w-full h-12 px-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-semibold text-slate-800 text-xs">
+                  <select 
+                    value={editSchool.cycle} 
+                    onChange={e => setEditSchool({ ...editSchool, cycle: e.target.value })} 
+                    className={cn(
+                      "w-full h-12 px-3 border rounded-xl outline-none font-semibold text-xs transition",
+                      isDarkMode ? "bg-slate-900 border-slate-700 text-slate-200" : "bg-slate-50 border-slate-200 text-slate-800"
+                    )}
+                  >
                     {cyclesList.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
@@ -1332,64 +1888,148 @@ export default function EtablissementsClient({
                     <button 
                       type="button" 
                       onClick={() => setIsAddCommuneOpen(true)}
-                      className="text-[10px] font-black text-indigo-600 hover:underline flex items-center gap-0.5"
+                      className="text-[10px] font-black text-indigo-500 hover:underline flex items-center gap-0.5"
                     >
                       <Plus size={10} /> Nouveau
                     </button>
                   </div>
-                  <select value={editSchool.commune} onChange={e => setEditSchool({ ...editSchool, commune: e.target.value })} className="w-full h-12 px-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-semibold text-slate-800 text-xs">
+                  <select 
+                    value={editSchool.commune} 
+                    onChange={e => setEditSchool({ ...editSchool, commune: e.target.value })} 
+                    className={cn(
+                      "w-full h-12 px-3 border rounded-xl outline-none font-semibold text-xs transition",
+                      isDarkMode ? "bg-slate-900 border-slate-700 text-slate-200" : "bg-slate-50 border-slate-200 text-slate-800"
+                    )}
+                  >
                     {communesList.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-black text-slate-400 uppercase">Quartier</label>
-                  <input value={editSchool.quartier} onChange={e => setEditSchool({ ...editSchool, quartier: e.target.value })} className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 font-semibold text-slate-800 text-sm" />
+                  <input 
+                    value={editSchool.quartier} 
+                    onChange={e => setEditSchool({ ...editSchool, quartier: e.target.value })} 
+                    className={cn(
+                      "w-full h-12 px-4 border rounded-xl outline-none font-semibold text-sm transition",
+                      isDarkMode 
+                        ? "bg-slate-900 border-slate-700 text-white placeholder-slate-600 focus:border-indigo-500" 
+                        : "bg-slate-50 border-slate-200 text-slate-800 focus:border-indigo-500"
+                    )} 
+                  />
                 </div>
               </div>
 
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-black text-slate-400 uppercase">Élèves</label>
-                  <input type="number" value={editSchool.eleves} onChange={e => setEditSchool({ ...editSchool, eleves: Number(e.target.value) })} className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 font-semibold text-slate-800 text-sm" />
+                  <input 
+                    type="number" 
+                    value={editSchool.eleves} 
+                    onChange={e => setEditSchool({ ...editSchool, eleves: Number(e.target.value) })} 
+                    className={cn(
+                      "w-full h-12 px-4 border rounded-xl outline-none font-semibold text-sm transition",
+                      isDarkMode ? "bg-slate-900 border-slate-700 text-white focus:border-indigo-500" : "bg-slate-50 border-slate-200 text-slate-800 focus:border-indigo-500"
+                    )} 
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-black text-slate-400 uppercase">Filles</label>
-                  <input type="number" value={editSchool.filles} onChange={e => setEditSchool({ ...editSchool, filles: Number(e.target.value) })} className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 font-semibold text-slate-800 text-sm" />
+                  <input 
+                    type="number" 
+                    value={editSchool.filles} 
+                    onChange={e => setEditSchool({ ...editSchool, filles: Number(e.target.value) })} 
+                    className={cn(
+                      "w-full h-12 px-4 border rounded-xl outline-none font-semibold text-sm transition",
+                      isDarkMode ? "bg-slate-900 border-slate-700 text-white focus:border-indigo-500" : "bg-slate-50 border-slate-200 text-slate-800 focus:border-indigo-500"
+                    )} 
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-black text-slate-400 uppercase">Garçons</label>
-                  <input type="number" value={editSchool.garcons} onChange={e => setEditSchool({ ...editSchool, garcons: Number(e.target.value) })} className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 font-semibold text-slate-800 text-sm" />
+                  <input 
+                    type="number" 
+                    value={editSchool.garcons} 
+                    onChange={e => setEditSchool({ ...editSchool, garcons: Number(e.target.value) })} 
+                    className={cn(
+                      "w-full h-12 px-4 border rounded-xl outline-none font-semibold text-sm transition",
+                      isDarkMode ? "bg-slate-900 border-slate-700 text-white focus:border-indigo-500" : "bg-slate-50 border-slate-200 text-slate-800 focus:border-indigo-500"
+                    )} 
+                  />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-black text-slate-400 uppercase">Profs</label>
-                  <input type="number" value={editSchool.enseignants} onChange={e => setEditSchool({ ...editSchool, enseignants: Number(e.target.value) })} className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 font-semibold text-slate-800 text-sm" />
+                  <input 
+                    type="number" 
+                    value={editSchool.enseignants} 
+                    onChange={e => setEditSchool({ ...editSchool, enseignants: Number(e.target.value) })} 
+                    className={cn(
+                      "w-full h-12 px-4 border rounded-xl outline-none font-semibold text-sm transition",
+                      isDarkMode ? "bg-slate-900 border-slate-700 text-white focus:border-indigo-500" : "bg-slate-50 border-slate-200 text-slate-800 focus:border-indigo-500"
+                    )} 
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-black text-slate-400 uppercase">Salles</label>
-                  <input type="number" value={editSchool.salles} onChange={e => setEditSchool({ ...editSchool, salles: Number(e.target.value) })} className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 font-semibold text-slate-800 text-sm" />
+                  <input 
+                    type="number" 
+                    value={editSchool.salles} 
+                    onChange={e => setEditSchool({ ...editSchool, salles: Number(e.target.value) })} 
+                    className={cn(
+                      "w-full h-12 px-4 border rounded-xl outline-none font-semibold text-sm transition",
+                      isDarkMode ? "bg-slate-900 border-slate-700 text-white focus:border-indigo-500" : "bg-slate-50 border-slate-200 text-slate-800 focus:border-indigo-500"
+                    )} 
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-black text-slate-400 uppercase">Point d'eau</label>
-                  <select value={editSchool.eau} onChange={e => setEditSchool({ ...editSchool, eau: e.target.value })} className="w-full h-12 px-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-semibold text-slate-800 text-xs">
+                  <select 
+                    value={editSchool.eau} 
+                    onChange={e => setEditSchool({ ...editSchool, eau: e.target.value })} 
+                    className={cn(
+                      "w-full h-12 px-3 border rounded-xl outline-none font-semibold text-xs transition",
+                      isDarkMode ? "bg-slate-900 border-slate-700 text-slate-200" : "bg-slate-50 border-slate-200 text-slate-800"
+                    )}
+                  >
                     <option value="Oui">Oui</option>
                     <option value="Non">Non</option>
                   </select>
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-black text-slate-400 uppercase">Électricité</label>
-                  <select value={editSchool.electricite} onChange={e => setEditSchool({ ...editSchool, electricite: e.target.value })} className="w-full h-12 px-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-semibold text-slate-800 text-xs">
+                  <select 
+                    value={editSchool.electricite} 
+                    onChange={e => setEditSchool({ ...editSchool, electricite: e.target.value })} 
+                    className={cn(
+                      "w-full h-12 px-3 border rounded-xl outline-none font-semibold text-xs transition",
+                      isDarkMode ? "bg-slate-900 border-slate-700 text-slate-200" : "bg-slate-50 border-slate-200 text-slate-800"
+                    )}
+                  >
                     <option value="Oui">Oui</option>
                     <option value="Non">Non</option>
                   </select>
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-                <button type="button" onClick={() => setEditSchool(null)} className="h-12 px-6 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-sm">Annuler</button>
-                <button type="submit" className="h-12 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-md shadow-indigo-100">Sauvegarder les modifications</button>
+              <div className={cn("flex justify-end gap-3 pt-4 border-t", isDarkMode ? "border-slate-800" : "border-slate-100")}>
+                <button 
+                  type="button" 
+                  onClick={() => setEditSchool(null)} 
+                  className={cn(
+                    "h-12 px-6 rounded-xl font-bold text-sm transition",
+                    isDarkMode ? "bg-slate-800 hover:bg-slate-700 text-slate-300" : "bg-slate-100 hover:bg-slate-200 text-slate-600"
+                  )}
+                >
+                  Annuler
+                </button>
+                <button 
+                  type="submit" 
+                  className="h-12 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-md shadow-indigo-600/20 active:scale-95 transition"
+                >
+                  Sauvegarder les modifications
+                </button>
               </div>
             </form>
           </div>
