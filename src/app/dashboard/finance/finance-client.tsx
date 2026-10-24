@@ -277,10 +277,14 @@ export default function FinanceClient({
   const totalPages = Math.ceil(filteredFees.length / pageSize) || 1;
 
   const handleRepair = async () => {
+    if (isSessionFrozen) {
+      toast.error("Impossible de réparer : l'exercice financier de cette session est clôturé et verrouillé.");
+      return;
+    }
     if (!confirm("Réparer les totaux financiers ? Cette opération recalcule les montants payés depuis les transactions réelles.")) return;
     setIsRepairing(true);
     try {
-      const res = await repairStudentFeeTotals();
+      const res = await repairStudentFeeTotals(currentSchoolId || undefined);
       if ((res as any)?.success) {
         const repaired = (res as any).repaired ?? 0;
         const dups = (res as any).duplicatesRemoved ?? 0;
@@ -289,7 +293,6 @@ export default function FinanceClient({
           : `✅ Réparation terminée — ${repaired} dossier(s) recalculé(s). Rechargement...`;
         toast.success(msg);
         setTimeout(() => window.location.reload(), 1200);
-
       } else {
         toast.error((res as any)?.error || "Erreur lors de la réparation.");
       }
@@ -299,6 +302,7 @@ export default function FinanceClient({
       setIsRepairing(false);
     }
   };
+
 
   // ── Column Resize ──────────────────────────────────────────────
   const COL_KEYS = ["check", "student", "attendu", "paye", "solde", "statut", "date", "mode", "actions"] as const;
@@ -505,27 +509,6 @@ export default function FinanceClient({
     const res = await deleteStudentFee(id);
     if (res.success) toast.success("Opération supprimée avec succès.");
     else toast.error("Erreur lors de la suppression.");
-  };
-
-  const handleRepair = async () => {
-    if (isSessionFrozen) {
-      toast.error("Impossible de réparer : l'exercice financier de cette session est clôturé et verrouillé.");
-      return;
-    }
-    try {
-      setIsRepairing(true);
-      const res = await repairStudentFeeTotals(currentSchoolId || undefined);
-      if (res.success) {
-        toast.success(`Totaux recalculés avec succès : ${res.repairedCount} dossier(s) mis à jour.`);
-        router.refresh();
-      } else {
-        toast.error(res.error || "Erreur lors de la réparation des totaux.");
-      }
-    } catch (e: any) {
-      toast.error("Erreur inattendue : " + (e?.message || e));
-    } finally {
-      setIsRepairing(false);
-    }
   };
 
   const handlePaymentSuccess = (updatedFee: any) => {
