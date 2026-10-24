@@ -10,6 +10,7 @@ import { students } from "@/infrastructure/database/schema/students";
 import { getMobileUser, mobileJsonError } from "../../_lib/auth";
 import { getUserRoleType } from "@/domains/auth/services/rbac";
 import { getParentChildrenIds } from "../../_lib/family-auth";
+import { assertExamPeriodEditable } from "../route";
 
 export const dynamic = "force-dynamic";
 
@@ -227,6 +228,11 @@ export async function POST(request: NextRequest) {
     const exam = await readDb.query.exams.findFirst({ where: eq(exams.id, examId) });
     if (!exam || (schoolId && exam.schoolId !== schoolId)) {
       return mobileJsonError("Examen introuvable ou accès refusé.", 403);
+    }
+
+    const lockCheck = await assertExamPeriodEditable({ examId, schoolId: exam.schoolId ?? undefined });
+    if (!lockCheck.editable) {
+      return mobileJsonError(lockCheck.error || "Examen ou période verrouillée. Enregistrement interdit.", 403);
     }
 
     // Teacher must be assigned to this exam's class+subject

@@ -21,55 +21,6 @@ import { resolveStudentsForClass } from "@/domains/academics/actions/academics.a
 
 export const dynamic = "force-dynamic";
 
-async function checkPeriodLock(
-  sessionId: number,
-  termName: string,
-  targetSchoolId: number,
-  roleType: string
-): Promise<{ isLocked: boolean; reason?: string }> {
-  const isAdmin =
-    roleType === "admin" ||
-    roleType === "super_admin" ||
-    roleType === "director" ||
-    roleType === "directeur" ||
-    roleType === "general_director" ||
-    roleType === "level_director" ||
-    roleType === "ministere" ||
-    roleType === "owner" ||
-    roleType === "censeur" ||
-    roleType === "proviseur" ||
-    roleType === "fondateur" ||
-    roleType === "promoteur";
-  if (isAdmin) return { isLocked: false };
-
-  try {
-    const period = await readDb.query.academicPeriods.findFirst({
-      where: and(
-        eq(academicPeriods.sessionId, sessionId),
-        ilike(academicPeriods.name, `%${termName}%`)
-      )
-    });
-
-    if (period) {
-      if (period.isLocked) {
-        return {
-          isLocked: true,
-          reason: "La période a été verrouillée par l'administration."
-        };
-      }
-      if (period.gradesDeadline && new Date() > new Date(period.gradesDeadline)) {
-        return {
-          isLocked: true,
-          reason: "La date limite de saisie des notes pour cette période est dépassée."
-        };
-      }
-    }
-  } catch (e) {
-    // Fallback if columns not migrated yet
-  }
-  return { isLocked: false };
-}
-
 function matchTerm(termInDb?: string | null, requestedTerm?: string | null): boolean {
   if (!requestedTerm || requestedTerm === "All" || requestedTerm === "Tout") return true;
   if (!termInDb) return false;
@@ -95,6 +46,110 @@ function matchTerm(termInDb?: string | null, requestedTerm?: string | null): boo
   }
 
   return normDb.includes(normReq) || normReq.includes(normDb);
+}
+
+async function checkPeriodLock(
+  sessionId: number,
+  termName: string,
+  targetSchoolId: number,
+  roleType: string,
+  classId?: number,
+  subjectId?: number
+): Promise<{ isLocked: boolean; reason?: string }> {
+  try {
+    // 1. Session Freeze Check (Clôturé / Verrouillé / Archivé / Inactif)
+    if (sessionId) {
+      const session = await (readDb || db).query.schoolSessions.findFirst({
+        where: and(
+          eq(schoolSessions.id, Number(sessionId)),
+          targetSchoolId ? eq(schoolSessions.schoolId, targetSchoolId) : undefined
+        )
+      });
+      if (session && (!session.isActive || session.status === "Clôturé" || session.status === "Verrouillé" || session.status === "Archivé")) {
+        return {
+          isLocked: true,
+          reason: `🔒 L'année scolaire (${session.sessionName}) est totalement clôturée et gelée. Aucune modification n'est autorisée (Mode consultation seule).`
+        };
+      }
+    }
+
+    // 2. Academic Period Lock & Deadlines Check
+    if (sessionId && termName) {
+      const periods = await (readDb || db).query.academicPeriods.findMany({
+        where: and(
+          eq(academicPeriods.sessionId, Number(sessionId)),
+          targetSchoolId ? eq(academicPeriods.schoolId, targetSchoolId) : undefined
+        )
+      });
+
+      const period = periods.find(p => matchTerm(p.name, termName));
+
+      if (period) {
+        if (period.isLocked) {
+          return {
+            isLocked: true,
+            reason: `🔒 La période "${period.name}" est verrouillée manuellement par l'administration. La saisie est congelée.`
+          };
+        }
+
+        const now = new Date();
+        if (period.startDate && now < new Date(period.startDate)) {
+          return {
+            isLocked: true,
+            reason: `⏳ La période "${period.name}" n'a pas encore commencé. La saisie s'ouvrira à la date de début prévue.`
+          };
+        }
+
+        const endDateEOD = period.endDate ? (() => {
+          const d = new Date(period.endDate);
+          d.setHours(23, 59, 59, 999);
+          return d;
+        })() : null;
+
+        if (endDateEOD && now > endDateEOD) {
+          return {
+            isLocked: true,
+            reason: `🔒 La période "${period.name}" est clôturée (Date de fin dépassée). La saisie est fermée.`
+          };
+        }
+
+        if (period.gradesDeadline && now > new Date(period.gradesDeadline)) {
+          return {
+            isLocked: true,
+            reason: `🔒 La date limite de saisie des notes pour "${period.name}" est expirée.`
+          };
+        }
+      }
+    }
+
+    // 3. Results Workflow Scellé Check
+    if (classId && sessionId && termName) {
+      const conditions = [
+        targetSchoolId ? eq(resultsWorkflows.schoolId, targetSchoolId) : undefined,
+        eq(resultsWorkflows.classId, Number(classId)),
+        eq(resultsWorkflows.sessionId, Number(sessionId)),
+        eq(resultsWorkflows.period, termName),
+      ].filter(Boolean) as any[];
+
+      if (subjectId && !Number.isNaN(Number(subjectId))) {
+        conditions.push(eq(resultsWorkflows.subjectId, Number(subjectId)));
+      }
+
+      const workflow = await (readDb || db).query.resultsWorkflows.findFirst({
+        where: and(...conditions),
+      });
+
+      if (workflow && ["VERROUILLE", "PUBLIE", "ARCHIVE"].includes(workflow.status)) {
+        return {
+          isLocked: true,
+          reason: `🔒 Le relevé de notes pour cette période est verrouillé ou déjà publié (Statut: ${workflow.status}).`
+        };
+      }
+    }
+  } catch (e) {
+    console.warn("[checkPeriodLock] Warning:", e);
+  }
+  return { isLocked: false };
 }
 
 export async function GET(request: NextRequest) {
@@ -363,13 +418,18 @@ export async function GET(request: NextRequest) {
         });
       }
 
-      const list = rows.map((s) => ({
-        id: s.id,
-        session_name: s.sessionName,
-        is_active: Boolean(s.isActive || s.status?.toLowerCase() === "actif"),
-        status: s.status || (s.isActive ? "Actif" : "Inactif"),
-        school_id: s.schoolId,
-      }));
+      const list = rows.map((s) => {
+        const isFrozen = !s.isActive || s.status === "Clôturé" || s.status === "Verrouillé" || s.status === "Archivé";
+        return {
+          id: s.id,
+          session_name: isFrozen ? `🔒 ${s.sessionName} (Clôturée)` : s.sessionName,
+          raw_session_name: s.sessionName,
+          is_active: Boolean(s.isActive || s.status?.toLowerCase() === "actif"),
+          is_frozen: isFrozen,
+          status: s.status || (s.isActive ? "Actif" : "Inactif"),
+          school_id: s.schoolId,
+        };
+      });
 
       return NextResponse.json({ success: true, data: list });
     }
@@ -426,16 +486,30 @@ export async function GET(request: NextRequest) {
         });
       }
 
-      let list = rows.map((p) => ({
-        id: p.id,
-        name: p.name,
-        period_type: p.periodType,
-        is_active: p.isActive,
-        grades_deadline: p.gradesDeadline ? p.gradesDeadline.toISOString() : null,
-        is_locked: p.isLocked ?? false,
-        session_id: p.sessionId,
-        school_id: p.schoolId,
-      }));
+      const now = new Date();
+      let list = rows.map((p) => {
+        const endDateEOD = p.endDate ? (() => {
+          const d = new Date(p.endDate);
+          d.setHours(23, 59, 59, 999);
+          return d;
+        })() : null;
+        const isLocked = Boolean(
+          p.isLocked ||
+          (endDateEOD && now > endDateEOD) ||
+          (p.gradesDeadline && now > new Date(p.gradesDeadline))
+        );
+        return {
+          id: p.id,
+          name: isLocked ? `🔒 ${p.name} (Verrouillée)` : p.name,
+          raw_name: p.name,
+          period_type: p.periodType,
+          is_active: p.isActive,
+          grades_deadline: p.gradesDeadline ? p.gradesDeadline.toISOString() : null,
+          is_locked: isLocked,
+          session_id: p.sessionId,
+          school_id: p.schoolId,
+        };
+      });
 
       // Smart period filter / fallback by level (EXACTLY MATCHING WEB AcademicFilters.tsx):
       // - Primaire: 3 Trimestres (1er Trimestre, 2ème Trimestre, 3ème Trimestre)
@@ -575,7 +649,7 @@ export async function GET(request: NextRequest) {
         };
       });
 
-      const lockStatus = await checkPeriodLock(sessionId, term, targetSchoolId, roleType);
+      const lockStatus = await checkPeriodLock(sessionId, term, targetSchoolId, roleType, classId, subjectId);
 
       return NextResponse.json({
         success: true,
@@ -583,6 +657,7 @@ export async function GET(request: NextRequest) {
         level,
         coefficient: Number(coeff),
         is_editable: !lockStatus.isLocked,
+        is_locked: lockStatus.isLocked,
         lock_reason: lockStatus.reason || null,
       });
     }
@@ -649,12 +724,13 @@ export async function GET(request: NextRequest) {
         };
       });
 
-      const lockStatus = await checkPeriodLock(sessionId, term, targetSchoolId, roleType);
+      const lockStatus = await checkPeriodLock(sessionId, term, targetSchoolId, roleType, classId, subjectId);
 
       return NextResponse.json({
         success: true,
         data: gridData,
         is_editable: !lockStatus.isLocked,
+        is_locked: lockStatus.isLocked,
         lock_reason: lockStatus.reason || null,
       });
     }
@@ -747,7 +823,7 @@ export async function POST(request: NextRequest) {
         return mobileJsonError("Accès refusé. La modification de la Saisie des Notes n'est pas autorisée pour votre rôle.", 403);
       }
 
-      const lockStatus = await checkPeriodLock(sessionId, term, schoolId || 1, roleType);
+      const lockStatus = await checkPeriodLock(sessionId, term, schoolId || 1, roleType, classId, subjectId);
       if (lockStatus.isLocked) {
         return mobileJsonError(lockStatus.reason || "Période verrouillée. Modification non autorisée.", 403);
       }
@@ -933,7 +1009,7 @@ export async function POST(request: NextRequest) {
         return mobileJsonError("Accès refusé. La modification de la Gestion des Devoirs n'est pas autorisée pour votre rôle.", 403);
       }
 
-      const lockStatus = await checkPeriodLock(sessionId, term, schoolId || 1, roleType);
+      const lockStatus = await checkPeriodLock(sessionId, term, schoolId || 1, roleType, classId, subjectId);
       if (lockStatus.isLocked) {
         return mobileJsonError(lockStatus.reason || "Période verrouillée. Modification non autorisée.", 403);
       }

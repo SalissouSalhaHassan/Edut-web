@@ -18,6 +18,106 @@ import { getParentChildrenIds } from "../_lib/family-auth";
 export const dynamic = "force-dynamic";
 
 // ─────────────────────────────────────────────
+//  Helper: verify academic session freeze & period lock for exams
+// ─────────────────────────────────────────────
+export async function assertExamPeriodEditable(params: {
+  examId?: number;
+  periodId?: number;
+  schoolId?: number;
+}): Promise<{ editable: boolean; error?: string; isLocked: boolean; lockReason?: string }> {
+  try {
+    let periodId = params.periodId;
+    let schoolId = params.schoolId;
+
+    if (params.examId) {
+      const ex = await (readDb || db).query.exams.findFirst({
+        where: eq(exams.id, params.examId)
+      });
+      if (ex) {
+        periodId = ex.periodId ?? undefined;
+        schoolId = schoolId || ex.schoolId || undefined;
+      }
+    }
+
+    if (periodId) {
+      const period = await (readDb || db).query.academicPeriods.findFirst({
+        where: and(
+          eq(academicPeriods.id, periodId),
+          schoolId ? eq(academicPeriods.schoolId, schoolId) : undefined
+        ),
+        with: {
+          session: true
+        }
+      });
+
+      if (period) {
+        // 1. Session Freeze Check
+        const session = period.session || (period.sessionId ? await (readDb || db).query.schoolSessions.findFirst({
+          where: eq(schoolSessions.id, period.sessionId)
+        }) : null);
+
+        if (session && (!session.isActive || session.status === "Clôturé" || session.status === "Verrouillé" || session.status === "Archivé")) {
+          return {
+            editable: false,
+            isLocked: true,
+            error: `🔒 L'année scolaire (${session.sessionName}) est totalement clôturée et gelée. Aucune modification d'examen n'est autorisée.`,
+            lockReason: `L'année scolaire (${session.sessionName}) est clôturée et gelée.`
+          };
+        }
+
+        // 2. Period Lock Check
+        if (period.isLocked) {
+          return {
+            editable: false,
+            isLocked: true,
+            error: `🔒 La période "${period.name}" est verrouillée manuellement par l'administration.`,
+            lockReason: `La période "${period.name}" est verrouillée.`
+          };
+        }
+
+        const now = new Date();
+        if (period.startDate && now < new Date(period.startDate)) {
+          return {
+            editable: false,
+            isLocked: true,
+            error: `⏳ La période "${period.name}" n'a pas encore commencé.`,
+            lockReason: `La période n'a pas encore commencé.`
+          };
+        }
+
+        const endDateEOD = period.endDate ? (() => {
+          const d = new Date(period.endDate);
+          d.setHours(23, 59, 59, 999);
+          return d;
+        })() : null;
+
+        if (endDateEOD && now > endDateEOD) {
+          return {
+            editable: false,
+            isLocked: true,
+            error: `🔒 La période "${period.name}" est clôturée (Date de fin dépassée).`,
+            lockReason: `Période clôturée (Date de fin dépassée).`
+          };
+        }
+
+        if (period.gradesDeadline && now > new Date(period.gradesDeadline)) {
+          return {
+            editable: false,
+            isLocked: true,
+            error: `🔒 La date limite de saisie des examens pour "${period.name}" est expirée.`,
+            lockReason: `Date limite de saisie expirée.`
+          };
+        }
+      }
+    }
+  } catch (e) {
+    console.warn("[assertExamPeriodEditable] Warning:", e);
+  }
+
+  return { editable: true, isLocked: false };
+}
+
+// ─────────────────────────────────────────────
 //  Helper: build exam-scoped where conditions
 // ─────────────────────────────────────────────
 async function buildExamScope(user: any, roleType: string) {
@@ -136,24 +236,68 @@ export async function GET(request: NextRequest) {
 
       const rows = await readDb.query.exams.findMany({
         where: cond.length > 0 ? and(...cond) : undefined,
-        with: { class: true, subject: true, period: true },
+        with: {
+          class: true,
+          subject: true,
+          period: {
+            with: {
+              session: true
+            }
+          }
+        },
         orderBy: [sql`created_at DESC`],
       });
 
-      const list = rows.map((exam) => ({
-        id: exam.id,
-        school_id: exam.schoolId,
-        exam_name: exam.examName,
-        class_id: exam.classId,
-        subject_id: exam.subjectId,
-        exam_date: exam.examDate?.toISOString() ?? null,
-        period_id: exam.periodId,
-        max_marks: exam.maxMarks,
-        created_at: exam.createdAt?.toISOString() ?? null,
-        school_classes: exam.class ? { class_name: exam.class.className } : null,
-        school_subjects: exam.subject ? { subject_name: exam.subject.subjectName } : null,
-        academic_periods: exam.period ? { name: exam.period.name } : null,
-      }));
+      const now = new Date();
+      const list = rows.map((exam) => {
+        const period = exam.period;
+        const session = period?.session;
+        const isSessionFrozen = session
+          ? (!session.isActive || session.status === "Clôturé" || session.status === "Verrouillé" || session.status === "Archivé")
+          : false;
+
+        const endDateEOD = period?.endDate ? (() => {
+          const d = new Date(period.endDate);
+          d.setHours(23, 59, 59, 999);
+          return d;
+        })() : null;
+
+        const isPeriodLocked = period
+          ? Boolean(
+              period.isLocked ||
+              (endDateEOD && now > endDateEOD) ||
+              (period.gradesDeadline && now > new Date(period.gradesDeadline))
+            )
+          : false;
+
+        const isLocked = isSessionFrozen || isPeriodLocked;
+        let lockReason = "";
+        if (isSessionFrozen) {
+          lockReason = `🔒 L'année scolaire (${session?.sessionName || ""}) est clôturée et gelée.`;
+        } else if (isPeriodLocked) {
+          lockReason = period?.isLocked
+            ? `🔒 La période "${period.name}" est verrouillée manuellement par l'administration.`
+            : `🔒 La période "${period?.name}" est clôturée (Date limite dépassée).`;
+        }
+
+        return {
+          id: exam.id,
+          school_id: exam.schoolId,
+          exam_name: isLocked ? `🔒 ${exam.examName}` : exam.examName,
+          raw_exam_name: exam.examName,
+          class_id: exam.classId,
+          subject_id: exam.subjectId,
+          exam_date: exam.examDate?.toISOString() ?? null,
+          period_id: exam.periodId,
+          max_marks: exam.maxMarks,
+          created_at: exam.createdAt?.toISOString() ?? null,
+          is_locked: isLocked,
+          lock_reason: lockReason || null,
+          school_classes: exam.class ? { class_name: exam.class.className } : null,
+          school_subjects: exam.subject ? { subject_name: exam.subject.subjectName } : null,
+          academic_periods: exam.period ? { name: isPeriodLocked ? `🔒 ${exam.period.name}` : exam.period.name, is_locked: isPeriodLocked } : null,
+        };
+      });
 
       return NextResponse.json({ success: true, data: list });
     }
@@ -269,7 +413,15 @@ export async function GET(request: NextRequest) {
           : null,
       }));
 
-      return NextResponse.json({ success: true, data: list });
+      const lockStatus = await assertExamPeriodEditable({ examId, schoolId: exam.schoolId ?? undefined });
+
+      return NextResponse.json({
+        success: true,
+        data: list,
+        is_locked: lockStatus.isLocked,
+        lock_reason: lockStatus.lockReason || null,
+        is_editable: lockStatus.editable,
+      });
     }
 
     // ── getStudentsForExam ────────────────────────────────────────────────────
@@ -363,6 +515,11 @@ export async function POST(request: NextRequest) {
         return mobileJsonError("Accès refusé.", 403);
       }
 
+      const lockCheck = await assertExamPeriodEditable({ examId, schoolId: exam.schoolId ?? undefined });
+      if (!lockCheck.editable) {
+        return mobileJsonError(lockCheck.error || "Examen ou période verrouillée. Enregistrement interdit.", 403);
+      }
+
       // Teachers can only save results for their assigned classes/subjects
       if (roleType === "teacher" || roleType === "enseignant") {
         const assignment = user.employeeId
@@ -414,6 +571,11 @@ export async function POST(request: NextRequest) {
 
     // ── createExam ───────────────────────────────────────────────────────────
     if (action === "createExam") {
+      const lockCheck = await assertExamPeriodEditable({ periodId: Number(payload.period_id), schoolId: schoolId || undefined });
+      if (!lockCheck.editable) {
+        return mobileJsonError(lockCheck.error || "Période ou session clôturée. Création d'examen interdite.", 403);
+      }
+
       // Teachers must own the class+subject
       if (roleType === "teacher" || roleType === "enseignant") {
         const assignment = user.employeeId
@@ -450,6 +612,11 @@ export async function POST(request: NextRequest) {
         return mobileJsonError("Accès refusé.", 403);
       }
 
+      const lockCheck = await assertExamPeriodEditable({ examId, schoolId: exam.schoolId ?? undefined });
+      if (!lockCheck.editable) {
+        return mobileJsonError(lockCheck.error || "Examen ou période verrouillée. Modification interdite.", 403);
+      }
+
       if (roleType === "teacher" || roleType === "enseignant") {
         const assignment = user.employeeId
           ? await readDb.query.classSubjects.findFirst({
@@ -482,6 +649,11 @@ export async function POST(request: NextRequest) {
       const exam = await readDb.query.exams.findFirst({ where: eq(exams.id, examId) });
       if (!exam || (schoolId && exam.schoolId !== schoolId)) {
         return mobileJsonError("Accès refusé.", 403);
+      }
+
+      const lockCheck = await assertExamPeriodEditable({ examId, schoolId: exam.schoolId ?? undefined });
+      if (!lockCheck.editable) {
+        return mobileJsonError(lockCheck.error || "Examen ou période verrouillée. Suppression interdite.", 403);
       }
 
       if (roleType === "teacher" || roleType === "enseignant") {
