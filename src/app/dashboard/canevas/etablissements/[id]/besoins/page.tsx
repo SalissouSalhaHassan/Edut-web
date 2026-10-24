@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import Link from "next/link";
-import { AlertTriangle, ArrowLeft, Download, Printer, Save } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Download, Moon, Printer, Save, Sun } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Row = { type: string; requested: number | ""; available: number | ""; priority: string; justification: string; status: string; observations: string };
@@ -23,6 +23,28 @@ const n = (value: number | "") => (typeof value === "number" && value >= 0 ? val
 
 export default function BesoinsPage() {
   const [rows, setRows] = useState(initialRows);
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("edut_theme") || localStorage.getItem("edut_canevas_dark_mode");
+      if (saved === "dark" || saved === "true" || (!saved && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
+        setIsDarkMode(true);
+      }
+    } catch {}
+  }, []);
+
+  const toggleDarkMode = () => {
+    setIsDarkMode((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("edut_canevas_dark_mode", String(next));
+        localStorage.setItem("edut_theme", next ? "dark" : "light");
+      } catch {}
+      return next;
+    });
+  };
+
   const totals = useMemo(() => ({
     requested: rows.reduce((sum, row) => sum + n(row.requested), 0),
     available: rows.reduce((sum, row) => sum + n(row.available), 0),
@@ -39,45 +61,215 @@ export default function BesoinsPage() {
   };
 
   return (
-    <div className="min-h-screen space-y-6 p-4 text-slate-950 md:p-6 xl:p-8 print:bg-white print:p-0">
-      <header className="rounded-[30px] border border-slate-200 bg-white p-5 shadow-sm print:border-b print:shadow-none">
+    <div className={cn(
+      "min-h-screen space-y-6 p-4 md:p-6 xl:p-8 transition-colors duration-300 print:bg-white print:p-0",
+      isDarkMode ? "bg-[#090D16] text-slate-100 dark" : "bg-[#F8FAFC] text-slate-950"
+    )}>
+      <header className={cn(
+        "rounded-[30px] border p-5 shadow-sm print:border-b print:shadow-none transition-colors duration-300",
+        isDarkMode ? "bg-[#111827]/95 border-slate-800 text-white shadow-xl shadow-black/40" : "bg-white border-slate-200"
+      )}>
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex items-center gap-4">
-            <Link href="/dashboard/canevas/etablissements/ETB-2026-001" className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 text-slate-500 print:hidden"><ArrowLeft size={19} /></Link>
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-100"><AlertTriangle size={26} /></div>
-            <div><p className="text-[11px] font-black uppercase tracking-[0.18em] text-indigo-600">Fiche Etablissement</p><h1 className="text-3xl font-black tracking-tight text-slate-950">Besoins</h1><p className="mt-1 text-sm font-bold text-slate-500">Enregistrement et suivi des besoins de l'etablissement</p></div>
+            <Link
+              href="/dashboard/canevas/etablissements/ETB-2026-001"
+              className={cn(
+                "flex h-11 w-11 items-center justify-center rounded-2xl border transition print:hidden",
+                isDarkMode ? "border-slate-800 text-slate-400 hover:bg-slate-800 hover:text-white" : "border-slate-200 text-slate-500 hover:bg-slate-50"
+              )}
+            >
+              <ArrowLeft size={19} />
+            </Link>
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-600/30">
+              <AlertTriangle size={26} />
+            </div>
+            <div>
+              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-indigo-500">Fiche Etablissement</p>
+              <h1 className={cn("text-3xl font-black tracking-tight", isDarkMode ? "text-white" : "text-slate-950")}>Besoins</h1>
+              <p className={cn("mt-1 text-sm font-bold", isDarkMode ? "text-slate-400" : "text-slate-500")}>Enregistrement et suivi des besoins de l'etablissement</p>
+            </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 print:hidden">
-            <button className="flex h-11 items-center gap-2 rounded-xl bg-indigo-600 px-4 text-xs font-black uppercase tracking-widest text-white"><Save size={16} /> Enregistrer</button>
-            <button className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700"><Download size={16} /> Exporter</button>
-            <button onClick={() => window.print()} className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700"><Printer size={16} /> Imprimer</button>
+            <button
+              type="button"
+              onClick={toggleDarkMode}
+              className={cn(
+                "flex h-11 items-center gap-2 rounded-xl px-4 text-xs font-black uppercase tracking-wider transition-all duration-200 border",
+                isDarkMode
+                  ? "bg-amber-400/10 border-amber-400/30 text-amber-300 hover:bg-amber-400/20"
+                  : "bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200"
+              )}
+              title={isDarkMode ? "Mode Clair" : "Mode Sombre"}
+            >
+              {isDarkMode ? <Sun size={16} className="text-amber-400" /> : <Moon size={16} />}
+              <span>{isDarkMode ? "Clair" : "Sombre"}</span>
+            </button>
+            <button className="flex h-11 items-center gap-2 rounded-xl bg-indigo-600 px-4 text-xs font-black uppercase tracking-widest text-white shadow-md shadow-indigo-600/20 hover:bg-indigo-700 transition"><Save size={16} /> Enregistrer</button>
+            <button className={cn(
+              "flex h-11 items-center gap-2 rounded-xl border px-4 text-xs font-black uppercase tracking-widest transition",
+              isDarkMode ? "border-slate-800 bg-slate-900 text-slate-200 hover:bg-slate-800" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+            )}><Download size={16} /> Exporter</button>
+            <button onClick={() => window.print()} className={cn(
+              "flex h-11 items-center gap-2 rounded-xl border px-4 text-xs font-black uppercase tracking-widest transition",
+              isDarkMode ? "border-slate-800 bg-slate-900 text-slate-200 hover:bg-slate-800" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+            )}><Printer size={16} /> Imprimer</button>
           </div>
         </div>
       </header>
 
       <section className="grid gap-4 md:grid-cols-4">
-        {[["Quantite demandee", totals.requested, "bg-indigo-50 text-indigo-700"], ["Disponible", totals.available, "bg-emerald-50 text-emerald-700"], ["Manque total", Math.max(0, totals.requested - totals.available), "bg-amber-50 text-amber-700"], ["Critiques", totals.critical, "bg-rose-50 text-rose-700"]].map(([label, value, style]) => <div key={label} className="rounded-[24px] border border-slate-100 bg-white p-5 shadow-sm"><p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</p><p className={cn("mt-2 inline-flex rounded-2xl px-4 py-2 text-3xl font-black", String(style))}>{value}</p></div>)}
+        {[
+          ["Quantite demandee", totals.requested, isDarkMode ? "bg-indigo-950/60 text-indigo-400 border border-indigo-800/40" : "bg-indigo-50 text-indigo-700"],
+          ["Disponible", totals.available, isDarkMode ? "bg-emerald-950/60 text-emerald-400 border border-emerald-800/40" : "bg-emerald-50 text-emerald-700"],
+          ["Manque total", Math.max(0, totals.requested - totals.available), isDarkMode ? "bg-amber-950/60 text-amber-400 border border-amber-800/40" : "bg-amber-50 text-amber-700"],
+          ["Critiques", totals.critical, isDarkMode ? "bg-rose-950/60 text-rose-400 border border-rose-800/40" : "bg-rose-50 text-rose-700"],
+        ].map(([label, value, style]) => (
+          <div
+            key={String(label)}
+            className={cn(
+              "rounded-[24px] border p-5 shadow-sm transition-colors duration-300",
+              isDarkMode ? "border-slate-800 bg-[#111827]/90 text-white shadow-xl shadow-black/20" : "border-slate-100 bg-white text-slate-950"
+            )}
+          >
+            <p className={cn("text-[10px] font-black uppercase tracking-widest", isDarkMode ? "text-slate-400" : "text-slate-400")}>{label}</p>
+            <p className={cn("mt-2 inline-flex rounded-2xl px-4 py-2 text-3xl font-black", String(style))}>{value}</p>
+          </div>
+        ))}
       </section>
 
-      {totals.critical > 0 && <div className="flex items-start gap-3 rounded-[24px] border border-rose-100 bg-rose-50 p-5 text-rose-800"><AlertTriangle size={20} /><div><p className="text-sm font-black">Besoins critiques detectes</p><p className="mt-1 text-xs font-bold">{totals.critical} besoin(s) critique(s) et {totals.pending} demande(s) a traiter.</p></div></div>}
+      {totals.critical > 0 && (
+        <div className={cn(
+          "flex items-start gap-3 rounded-[24px] border p-5 transition-colors duration-300",
+          isDarkMode ? "border-rose-900/40 bg-rose-950/40 text-rose-300" : "border-rose-100 bg-rose-50 text-rose-800"
+        )}>
+          <AlertTriangle size={20} className="mt-0.5 text-rose-400 shrink-0" />
+          <div>
+            <p className="text-sm font-black">Besoins critiques detectes</p>
+            <p className="mt-1 text-xs font-bold">{totals.critical} besoin(s) critique(s) et {totals.pending} demande(s) a traiter.</p>
+          </div>
+        </div>
+      )}
 
-      <section className="overflow-hidden rounded-[30px] border border-slate-100 bg-white shadow-sm">
+      <section className={cn(
+        "overflow-hidden rounded-[30px] border shadow-sm transition-colors duration-300",
+        isDarkMode ? "border-slate-800 bg-[#111827]/90 shadow-xl shadow-black/20" : "border-slate-100 bg-white"
+      )}>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1250px] text-left">
-            <thead className="bg-slate-50 text-[10px] font-black uppercase tracking-widest text-slate-400"><tr><th className="px-5 py-4">Type besoin</th><th className="px-5 py-4">Quantite demandee</th><th className="px-5 py-4">Quantite disponible</th><th className="px-5 py-4">Manque</th><th className="px-5 py-4">Priorite</th><th className="px-5 py-4">Justification</th><th className="px-5 py-4">Statut traitement</th><th className="px-5 py-4">Observations</th></tr></thead>
-            <tbody className="divide-y divide-slate-100">
+            <thead className={cn(
+              "text-[10px] font-black uppercase tracking-widest",
+              isDarkMode ? "bg-slate-900/80 text-slate-400 border-b border-slate-800" : "bg-slate-50 text-slate-400"
+            )}>
+              <tr>
+                <th className="px-5 py-4">Type besoin</th>
+                <th className="px-5 py-4">Quantite demandee</th>
+                <th className="px-5 py-4">Quantite disponible</th>
+                <th className="px-5 py-4">Manque</th>
+                <th className="px-5 py-4">Priorite</th>
+                <th className="px-5 py-4">Justification</th>
+                <th className="px-5 py-4">Statut traitement</th>
+                <th className="px-5 py-4">Observations</th>
+              </tr>
+            </thead>
+            <tbody className={cn("divide-y", isDarkMode ? "divide-slate-800 text-slate-200" : "divide-slate-100 text-slate-700")}>
               {rows.map((row, index) => {
                 const lack = Math.max(0, n(row.requested) - n(row.available));
-                return <tr key={`${row.type}-${index}`} className="text-sm font-bold text-slate-700">
-                  <td className="px-5 py-4"><select value={row.type} onChange={(e) => updateRow(index, "type", e.target.value)} className="h-11 w-52 rounded-2xl border border-slate-200 px-4 font-bold outline-none">{needTypes.map((type) => <option key={type}>{type}</option>)}</select></td>
-                  <td className="px-5 py-4"><input type="number" min={0} value={row.requested} onChange={(e) => updateRow(index, "requested", e.target.value)} className="h-11 w-28 rounded-2xl border border-slate-200 px-4 font-black outline-none" /></td>
-                  <td className="px-5 py-4"><input type="number" min={0} value={row.available} onChange={(e) => updateRow(index, "available", e.target.value)} className="h-11 w-28 rounded-2xl border border-slate-200 px-4 font-black outline-none" /></td>
-                  <td className="px-5 py-4 font-black text-amber-600">{lack}</td>
-                  <td className="px-5 py-4"><select value={row.priority} onChange={(e) => updateRow(index, "priority", e.target.value)} className={cn("h-11 w-36 rounded-2xl border px-4 font-black outline-none", row.priority === "Critique" ? "border-rose-200 bg-rose-50 text-rose-700" : row.priority === "Haute" ? "border-amber-200 bg-amber-50 text-amber-700" : "border-slate-200 bg-white text-slate-700")}>{priorities.map((p) => <option key={p}>{p}</option>)}</select></td>
-                  <td className="px-5 py-4"><input value={row.justification} onChange={(e) => updateRow(index, "justification", e.target.value)} className="h-11 w-64 rounded-2xl border border-slate-200 px-4 font-bold outline-none" /></td>
-                  <td className="px-5 py-4"><select value={row.status} onChange={(e) => updateRow(index, "status", e.target.value)} className="h-11 w-36 rounded-2xl border border-slate-200 px-4 font-bold outline-none">{statuses.map((s) => <option key={s}>{s}</option>)}</select></td>
-                  <td className="px-5 py-4"><input value={row.observations} onChange={(e) => updateRow(index, "observations", e.target.value)} placeholder="Observation..." className="h-11 w-full rounded-2xl border border-slate-200 px-4 font-bold outline-none" /></td>
-                </tr>;
+                return (
+                  <tr key={`${row.type}-${index}`} className="text-sm font-bold">
+                    <td className="px-5 py-4">
+                      <select
+                        value={row.type}
+                        onChange={(e) => updateRow(index, "type", e.target.value)}
+                        className={cn(
+                          "h-11 w-52 rounded-2xl border px-4 font-bold outline-none transition",
+                          isDarkMode ? "bg-slate-900 border-slate-700 text-white focus:border-indigo-500" : "bg-white border-slate-200 text-slate-900 focus:border-indigo-300"
+                        )}
+                      >
+                        {needTypes.map((type) => (
+                          <option key={type} className={isDarkMode ? "bg-slate-900 text-white" : ""}>{type}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="px-5 py-4">
+                      <input
+                        type="number"
+                        min={0}
+                        value={row.requested}
+                        onChange={(e) => updateRow(index, "requested", e.target.value)}
+                        className={cn(
+                          "h-11 w-28 rounded-2xl border px-4 font-black outline-none transition",
+                          isDarkMode ? "bg-slate-900 border-slate-700 text-white focus:border-indigo-500" : "bg-white border-slate-200 text-slate-900 focus:border-indigo-300"
+                        )}
+                      />
+                    </td>
+                    <td className="px-5 py-4">
+                      <input
+                        type="number"
+                        min={0}
+                        value={row.available}
+                        onChange={(e) => updateRow(index, "available", e.target.value)}
+                        className={cn(
+                          "h-11 w-28 rounded-2xl border px-4 font-black outline-none transition",
+                          isDarkMode ? "bg-slate-900 border-slate-700 text-white focus:border-indigo-500" : "bg-white border-slate-200 text-slate-900 focus:border-indigo-300"
+                        )}
+                      />
+                    </td>
+                    <td className="px-5 py-4 font-black text-amber-500">{lack}</td>
+                    <td className="px-5 py-4">
+                      <select
+                        value={row.priority}
+                        onChange={(e) => updateRow(index, "priority", e.target.value)}
+                        className={cn(
+                          "h-11 w-36 rounded-2xl border px-4 font-black outline-none transition",
+                          row.priority === "Critique"
+                            ? isDarkMode ? "border-rose-800/60 bg-rose-950/60 text-rose-300" : "border-rose-200 bg-rose-50 text-rose-700"
+                            : row.priority === "Haute"
+                              ? isDarkMode ? "border-amber-800/60 bg-amber-950/60 text-amber-300" : "border-amber-200 bg-amber-50 text-amber-700"
+                              : isDarkMode ? "border-slate-700 bg-slate-900 text-slate-200" : "border-slate-200 bg-white text-slate-700"
+                        )}
+                      >
+                        {priorities.map((p) => (
+                          <option key={p} className={isDarkMode ? "bg-slate-900 text-white" : ""}>{p}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="px-5 py-4">
+                      <input
+                        value={row.justification}
+                        onChange={(e) => updateRow(index, "justification", e.target.value)}
+                        className={cn(
+                          "h-11 w-64 rounded-2xl border px-4 font-bold outline-none transition",
+                          isDarkMode ? "bg-slate-900 border-slate-700 text-white focus:border-indigo-500" : "bg-white border-slate-200 text-slate-900 focus:border-indigo-300"
+                        )}
+                      />
+                    </td>
+                    <td className="px-5 py-4">
+                      <select
+                        value={row.status}
+                        onChange={(e) => updateRow(index, "status", e.target.value)}
+                        className={cn(
+                          "h-11 w-36 rounded-2xl border px-4 font-bold outline-none transition",
+                          isDarkMode ? "bg-slate-900 border-slate-700 text-white focus:border-indigo-500" : "bg-white border-slate-200 text-slate-900 focus:border-indigo-300"
+                        )}
+                      >
+                        {statuses.map((s) => (
+                          <option key={s} className={isDarkMode ? "bg-slate-900 text-white" : ""}>{s}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="px-5 py-4">
+                      <input
+                        value={row.observations}
+                        onChange={(e) => updateRow(index, "observations", e.target.value)}
+                        placeholder="Observation..."
+                        className={cn(
+                          "h-11 w-full rounded-2xl border px-4 font-bold outline-none transition",
+                          isDarkMode ? "bg-slate-900 border-slate-700 text-white placeholder:text-slate-500 focus:border-indigo-500" : "bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-indigo-300"
+                        )}
+                      />
+                    </td>
+                  </tr>
+                );
               })}
             </tbody>
           </table>
