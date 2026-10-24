@@ -60,7 +60,6 @@ import {
   Download,
   RefreshCw,
   Compass,
-  Brain,
   Send,
 } from "lucide-react";
 import { logout } from "@/domains/auth/actions/login";
