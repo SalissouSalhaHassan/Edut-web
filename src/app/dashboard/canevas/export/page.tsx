@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
@@ -19,6 +19,13 @@ import {
   Printer,
   ChevronRight,
   Info,
+  Sun,
+  Moon,
+  Search,
+  Sparkles,
+  RotateCcw,
+  Layers,
+  Filter,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -79,6 +86,48 @@ const initialHistory: ExportHistoryRow[] = [
 export default function CanevasExportPage() {
   const [history, setHistory] = useState<ExportHistoryRow[]>(initialHistory);
   const [isExporting, setIsExporting] = useState<string | null>(null);
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
+  const [searchFilter, setSearchFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+
+  useEffect(() => {
+    try {
+      const savedTheme = localStorage.getItem("edut_theme") || localStorage.getItem("edut_export_dark_mode");
+      if (savedTheme) {
+        setIsDarkMode(savedTheme === "dark");
+      } else if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) {
+        setIsDarkMode(true);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const toggleDarkMode = () => {
+    setIsDarkMode(prev => {
+      const next = !prev;
+      try {
+        localStorage.setItem("edut_theme", next ? "dark" : "light");
+        localStorage.setItem("edut_export_dark_mode", next ? "dark" : "light");
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  };
+
+  const filteredHistory = useMemo(() => {
+    return history.filter(row => {
+      const matchSearch = searchFilter
+        ? row.type.toLowerCase().includes(searchFilter.toLowerCase()) ||
+          row.id.toLowerCase().includes(searchFilter.toLowerCase()) ||
+          row.user.toLowerCase().includes(searchFilter.toLowerCase()) ||
+          row.sections.toLowerCase().includes(searchFilter.toLowerCase())
+        : true;
+      const matchStatus = statusFilter === "all" || row.status === statusFilter;
+      return matchSearch && matchStatus;
+    });
+  }, [history, searchFilter, statusFilter]);
 
   const triggerExport = (typeId: string, typeName: string, format: string) => {
     setIsExporting(typeId);
@@ -102,7 +151,7 @@ export default function CanevasExportPage() {
       toast.success(`${typeName} exporté avec succès !`);
 
       generateAndDownloadFile(newExport.fileName, typeName);
-    }, 1800);
+    }, 1200);
   };
 
   const generateAndDownloadFile = (fileName: string, typeName: string) => {
@@ -118,60 +167,25 @@ export default function CanevasExportPage() {
       const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
       blob = new Blob([excelBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
     } else if (format === "pdf") {
-      const pdfContent = `%PDF-1.4
-1 0 obj
-<< /Type /Catalog /Pages 2 0 R >>
-endobj
-2 0 obj
-<< /Type /Pages /Kids [3 0 R] /Count 1 >>
-endobj
-3 0 obj
-<< /Type /Page /Parent 2 0 R /Resources << /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >> /F2 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> >> >> /MediaBox [0 0 595 842] /Contents 4 0 R >>
-endobj
-4 0 obj
-<< /Length 210 >>
-stream
-BT
-/F1 16 Tf
-70 780 Td
-(Edut Pro - Canevas Export) Tj
-ET
-BT
-/F1 12 Tf
-70 740 Td
-(Fichier: ${fileName}) Tj
-ET
-BT
-/F2 11 Tf
-70 715 Td
-(Exportation: ${typeName}) Tj
-ET
-BT
-/F2 10 Tf
-70 680 Td
-(Ce document PDF officiel a ete genere par la plateforme avec succes.) Tj
-ET
-endstream
-endobj
-xref
-0 5
-0000000000 65535 f 
-0000000009 00000 n 
-0000000059 00000 n 
-0000000116 00000 n 
-0000000282 00000 n 
-trailer
-<< /Size 5 /Root 1 0 R >>
-startxref
-498
-%%EOF`;
+      const pdfContent = `%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n3 0 obj\n<< /Type /Page /Parent 2 0 R /Resources << /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >> /F2 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> >> >> /MediaBox [0 0 595 842] /Contents 4 0 R >>\nendobj\n4 0 obj\n<< /Length 210 >>\nstream\nBT\n/F1 16 Tf\n70 780 Td\n(Edut Pro - Canevas Export) Tj\nET\nBT\n/F1 12 Tf\n70 740 Td\n(Fichier: ${fileName}) Tj\nET\nBT\n/F2 11 Tf\n70 715 Td\n(Exportation: ${typeName}) Tj\nET\nBT\n/F2 10 Tf\n70 690 Td\n(Date: ${new Date().toLocaleDateString()}) Tj\nET\nendstream\nendobj\nxref\n0 5\n0000000000 65535 f \n0000000009 00000 n \n0000000058 00000 n \n0000000115 00000 n \n0000000305 00000 n \ntrailer\n<< /Size 5 /Root 1 0 R >>\nstartxref\n565\n%%EOF`;
       blob = new Blob([pdfContent], { type: "application/pdf" });
     } else if (format === "csv") {
-      blob = new Blob([`ID,Type,Date,Ecoles\nEXP,${typeName},${new Date().toLocaleDateString()},806`], { type: "text/csv;charset=utf-8;" });
-    } else if (format === "json") {
-      blob = new Blob([JSON.stringify({ id: "EXP", type: typeName, date: new Date().toLocaleDateString(), schools: 806 }, null, 2)], { type: "application/json" });
+      const csvContent = "CODE,NOM,REGION,COMMUNE,EFFECTIFS,ENSEIGNANTS,STATUS\nETB-001,Ecole Excellence,Niamey,Niamey IV,642,24,Valide\nETB-018,Ecole Primaire Bobiel,Niamey,Niamey I,481,16,En attente\nETB-043,Complexe Scolaire Sahel,Niamey,Niamey II,934,41,Valide\n";
+      blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     } else {
-      blob = new Blob([`Type: ${typeName}\nFichier: ${fileName}`], { type: "text/plain" });
+      const jsonContent = JSON.stringify({
+        metadata: {
+          exportId: fileName,
+          type: typeName,
+          date: new Date().toISOString(),
+          version: "1.0",
+        },
+        stats: {
+          totalSchools: 806,
+          validated: 750,
+        }
+      }, null, 2);
+      blob = new Blob([jsonContent], { type: "application/json" });
     }
 
     const url = URL.createObjectURL(blob);
@@ -181,64 +195,88 @@ startxref
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-  };
-
-  const downloadHistoryFile = (fileName: string, typeName: string) => {
-    toast.success(`Téléchargement de ${fileName}...`);
-    generateAndDownloadFile(fileName, typeName);
+    URL.revokeObjectURL(url);
   };
 
   const deleteHistory = (id: string) => {
-    if (confirm("Voulez-vous supprimer cette ligne de l'historique ?")) {
-      setHistory(history.filter(h => h.id !== id));
-      toast.success("Enregistrement historique supprimé.");
-    }
+    setHistory(history.filter(item => item.id !== id));
+    toast.success("Enregistrement supprimé");
+  };
+
+  const downloadHistoryFile = (fileName: string, typeName: string) => {
+    generateAndDownloadFile(fileName, typeName);
+    toast.success(`Téléchargement de ${fileName}...`);
   };
 
   return (
-    <div className="min-h-screen space-y-6 p-4 text-slate-950 md:p-6 xl:p-8 print:bg-white print:p-0 print:text-black">
+    <div className={cn(
+      "min-h-screen space-y-6 p-4 md:p-6 xl:p-8 transition-colors duration-200",
+      isDarkMode ? "dark bg-[#090D16] text-slate-100" : "bg-[#fcfdff] text-slate-950",
+      "print:bg-white print:p-0 print:text-black"
+    )}>
       
-      {/* ─── OFFICIAL PRINT HEADER ─── */}
-      <div className="hidden print:block w-full border-b-2 border-slate-900 pb-6 mb-8">
-        <div className="flex justify-between items-start text-xs font-bold uppercase">
-          <div className="text-center space-y-1">
-            <p>République du Niger</p>
-            <p>Ministère de l'Éducation Nationale</p>
-            <p>Secrétariat Général</p>
-            <p>Direction des Statistiques</p>
-          </div>
-          <div className="text-center space-y-1">
-            <p>Année Scolaire: 2025 - 2026</p>
-            <p>Type de document: Historique des Exportations</p>
-          </div>
-        </div>
-        
-        <div className="text-center mt-8">
-          <h1 className="text-2xl font-black uppercase tracking-wide decoration-double underline decoration-1">
-            Registre d'Exportation des Données
-          </h1>
-          <p className="text-sm font-bold text-slate-700 mt-2">Historique centralisé des exports canevas</p>
-        </div>
-      </div>
-
       {/* ─── WEB HEADER ─── */}
-      <header className="rounded-[30px] border border-slate-200 bg-white p-5 shadow-sm print:hidden">
+      <header className={cn(
+        "rounded-[30px] border p-5 shadow-sm print:hidden transition-colors",
+        isDarkMode ? "bg-[#111827] border-slate-800" : "bg-white border-slate-200"
+      )}>
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex items-center gap-4">
-            <Link href="/dashboard/canevas" className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 text-slate-500 transition hover:bg-slate-50">
+            <Link 
+              href="/dashboard/canevas" 
+              className={cn(
+                "flex h-11 w-11 items-center justify-center rounded-2xl border transition",
+                isDarkMode 
+                  ? "border-slate-800 bg-slate-900 text-slate-400 hover:bg-slate-800 hover:text-white" 
+                  : "border-slate-200 text-slate-500 hover:bg-slate-50"
+              )}
+            >
               <ArrowLeft size={19} />
             </Link>
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-100">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-600/20">
               <Download size={26} />
             </div>
             <div>
-              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-indigo-600">Gestion des Canevas Scolaires</p>
-              <h1 className="text-3xl font-black tracking-tight text-slate-950">Export des Canevas</h1>
-              <p className="mt-1 text-sm font-bold text-slate-500">Exportez vos données brutes ou propres dans divers formats</p>
+              <div className="flex items-center gap-2">
+                <p className="text-[11px] font-black uppercase tracking-[0.18em] text-indigo-500">Gestion des Canevas Scolaires</p>
+                <span className="inline-flex items-center gap-1 rounded-full bg-indigo-500/10 px-2 py-0.5 text-[9px] font-black text-indigo-400 border border-indigo-500/20">
+                  <Sparkles size={10} /> Hub d'Exportation
+                </span>
+              </div>
+              <h1 className={cn("text-3xl font-black tracking-tight", isDarkMode ? "text-white" : "text-slate-950")}>
+                Export des Canevas
+              </h1>
+              <p className={cn("mt-1 text-sm font-bold", isDarkMode ? "text-slate-400" : "text-slate-500")}>
+                Exportez vos données brutes ou propres dans divers formats normalisés
+              </p>
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <button onClick={() => window.print()} className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 active:scale-95 transition-all">
+
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Dark Mode Toggle */}
+            <button
+              onClick={toggleDarkMode}
+              title={isDarkMode ? "Passer en mode clair" : "Passer en mode sombre"}
+              className={cn(
+                "flex h-11 items-center gap-2 rounded-xl border px-3 text-xs font-black transition",
+                isDarkMode 
+                  ? "border-slate-800 bg-slate-900 text-amber-400 hover:bg-slate-800" 
+                  : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+              )}
+            >
+              {isDarkMode ? <Sun size={17} /> : <Moon size={17} />}
+              <span className="hidden sm:inline">{isDarkMode ? "Clair" : "Sombre"}</span>
+            </button>
+
+            <button 
+              onClick={() => window.print()} 
+              className={cn(
+                "flex h-11 items-center gap-2 rounded-xl border px-4 text-xs font-black uppercase tracking-widest transition active:scale-95",
+                isDarkMode 
+                  ? "border-slate-800 bg-slate-900 text-slate-200 hover:bg-slate-800" 
+                  : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+              )}
+            >
               <Printer size={15} /> Imprimer registre
             </button>
           </div>
@@ -253,9 +291,12 @@ startxref
             name: "Excel Format Original",
             desc: "Format identique au canevas brut importé, fiches conservées.",
             icon: FileSpreadsheet,
-            color: "text-emerald-600",
-            bg: "bg-emerald-50",
-            border: "border-emerald-100",
+            colorLight: "text-emerald-600",
+            colorDark: "text-emerald-400",
+            bgLight: "bg-emerald-50",
+            bgDark: "dark:bg-emerald-950/40",
+            borderLight: "border-emerald-100",
+            borderDark: "dark:border-emerald-900/40",
             format: "xlsx",
           },
           {
@@ -263,9 +304,12 @@ startxref
             name: "Excel Tableau Propre",
             desc: "Tableau plat, structuré, prêt pour traitement informatique.",
             icon: FileSpreadsheet,
-            color: "text-indigo-600",
-            bg: "bg-indigo-50",
-            border: "border-indigo-100",
+            colorLight: "text-indigo-600",
+            colorDark: "text-indigo-400",
+            bgLight: "bg-indigo-50",
+            bgDark: "dark:bg-indigo-950/40",
+            borderLight: "border-indigo-100",
+            borderDark: "dark:border-indigo-900/40",
             format: "xlsx",
           },
           {
@@ -273,9 +317,12 @@ startxref
             name: "PDF Administratif",
             desc: "Rapport officiel mis en page sous format A4 normalisé.",
             icon: FileText,
-            color: "text-rose-600",
-            bg: "bg-rose-50",
-            border: "border-rose-100",
+            colorLight: "text-rose-600",
+            colorDark: "text-rose-400",
+            bgLight: "bg-rose-50",
+            bgDark: "dark:bg-rose-950/40",
+            borderLight: "border-rose-100",
+            borderDark: "dark:border-rose-900/40",
             format: "pdf",
           },
           {
@@ -283,9 +330,12 @@ startxref
             name: "Format CSV",
             desc: "Fichier délimité par des virgules pour import de bases de données.",
             icon: Download,
-            color: "text-blue-600",
-            bg: "bg-blue-50",
-            border: "border-blue-100",
+            colorLight: "text-blue-600",
+            colorDark: "text-blue-400",
+            bgLight: "bg-blue-50",
+            bgDark: "dark:bg-blue-950/40",
+            borderLight: "border-blue-100",
+            borderDark: "dark:border-blue-900/40",
             format: "csv",
           },
           {
@@ -293,9 +343,12 @@ startxref
             name: "Format JSON Backup",
             desc: "Export complet structuré de l'arbre de données canevas.",
             icon: FileJson,
-            color: "text-violet-600",
-            bg: "bg-violet-50",
-            border: "border-violet-100",
+            colorLight: "text-violet-600",
+            colorDark: "text-violet-400",
+            bgLight: "bg-violet-50",
+            bgDark: "dark:bg-violet-950/40",
+            borderLight: "border-violet-100",
+            borderDark: "dark:border-violet-900/40",
             format: "json",
           },
         ].map((card) => {
@@ -305,15 +358,22 @@ startxref
             <div 
               key={card.id} 
               className={cn(
-                "rounded-[26px] border bg-white p-5 shadow-sm transition hover:shadow-lg flex flex-col justify-between min-h-[220px]",
-                card.border
+                "rounded-[26px] border p-5 shadow-sm transition hover:shadow-lg flex flex-col justify-between min-h-[220px]",
+                isDarkMode 
+                  ? cn("bg-[#111827]", card.borderDark, "hover:border-slate-700") 
+                  : cn("bg-white", card.borderLight)
               )}
             >
               <div>
-                <div className={cn("flex h-11 w-11 items-center justify-center rounded-2xl", card.bg, card.color)}>
+                <div className={cn(
+                  "flex h-11 w-11 items-center justify-center rounded-2xl",
+                  card.bgLight, card.bgDark, isDarkMode ? card.colorDark : card.colorLight
+                )}>
                   <Icon size={20} />
                 </div>
-                <h3 className="mt-4 text-sm font-black text-slate-900 leading-snug">{card.name}</h3>
+                <h3 className={cn("mt-4 text-sm font-black leading-snug", isDarkMode ? "text-white" : "text-slate-900")}>
+                  {card.name}
+                </h3>
                 <p className="mt-2 text-xs font-semibold text-slate-400 leading-normal">{card.desc}</p>
               </div>
 
@@ -322,7 +382,7 @@ startxref
                 disabled={isExporting !== null}
                 className={cn(
                   "mt-5 flex h-10 w-full items-center justify-center gap-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all active:scale-95 cursor-pointer disabled:opacity-40",
-                  card.bg, card.color
+                  card.bgLight, card.bgDark, isDarkMode ? card.colorDark : card.colorLight
                 )}
               >
                 {loading ? (
@@ -342,22 +402,72 @@ startxref
       </section>
 
       {/* ─── HISTORICAL EXPORTS TABLE ─── */}
-      <section className="rounded-[30px] border border-slate-100 bg-white shadow-sm">
-        <div className="flex flex-col gap-2 border-b border-slate-100 p-5 md:flex-row md:items-center md:justify-between print:hidden">
+      <section className={cn(
+        "rounded-[30px] border shadow-sm transition-colors overflow-hidden",
+        isDarkMode ? "bg-[#111827] border-slate-800" : "bg-white border-slate-100"
+      )}>
+        <div className={cn(
+          "flex flex-col gap-4 border-b p-5 lg:flex-row lg:items-center lg:justify-between print:hidden",
+          isDarkMode ? "border-slate-800" : "border-slate-100"
+        )}>
           <div>
-            <h2 className="text-lg font-black text-slate-950">Historique des exportations</h2>
-            <p className="mt-1 text-xs font-bold text-slate-500">Registre et téléchargement de toutes les sauvegardes exportées</p>
+            <h2 className={cn("text-lg font-black", isDarkMode ? "text-white" : "text-slate-950")}>
+              Historique des exportations
+            </h2>
+            <p className={cn("mt-1 text-xs font-bold", isDarkMode ? "text-slate-400" : "text-slate-500")}>
+              Registre et téléchargement de toutes les sauvegardes exportées ({filteredHistory.length} exports)
+            </p>
           </div>
-          <div className="flex items-center gap-2 text-xs font-bold text-slate-500 bg-slate-50 p-2 rounded-xl border border-slate-100">
-            <Info size={14} className="text-indigo-600" />
-            <span>Fichiers conservés pendant 30 jours</span>
+
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Search filter */}
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+              <input
+                value={searchFilter}
+                onChange={e => setSearchFilter(e.target.value)}
+                placeholder="Filtrer l'historique..."
+                className={cn(
+                  "w-full h-10 pl-9 pr-3 rounded-xl border text-xs font-bold outline-none transition placeholder:text-slate-400",
+                  isDarkMode ? "bg-slate-900 border-slate-700 text-slate-100" : "bg-slate-50/50 border-slate-200 text-slate-800"
+                )}
+              />
+            </div>
+
+            {/* Status filter */}
+            <select
+              value={statusFilter}
+              onChange={e => setStatusFilter(e.target.value)}
+              className={cn(
+                "h-10 px-3 rounded-xl border text-xs font-bold outline-none cursor-pointer transition",
+                isDarkMode ? "bg-slate-900 border-slate-700 text-slate-200" : "bg-slate-50/50 border-slate-200 text-slate-700"
+              )}
+            >
+              <option value="all">Tous statuts</option>
+              <option value="success">Succès</option>
+              <option value="pending">En cours</option>
+              <option value="error">Erreurs</option>
+            </select>
+
+            <div className={cn(
+              "flex items-center gap-2 text-xs font-bold p-2 px-3 rounded-xl border",
+              isDarkMode ? "bg-slate-900 border-slate-800 text-slate-400" : "bg-slate-50 border-slate-100 text-slate-500"
+            )}>
+              <Info size={14} className="text-indigo-500" />
+              <span>Conservés 30 jours</span>
+            </div>
           </div>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1200px] border-collapse text-left text-sm print:border print:border-slate-300">
             <thead>
-              <tr className="border-b border-slate-100 bg-slate-50/80 text-[10px] font-black uppercase tracking-widest text-slate-400 print:bg-slate-100 print:border-slate-300 print:text-black">
+              <tr className={cn(
+                "border-b text-[10px] font-black uppercase tracking-widest",
+                isDarkMode 
+                  ? "border-slate-800 bg-slate-900/60 text-slate-400" 
+                  : "border-slate-100 bg-slate-50/80 text-slate-400 print:bg-slate-100 print:border-slate-300 print:text-black"
+              )}>
                 <th className="px-5 py-4">ID</th>
                 <th className="px-5 py-4">Date export</th>
                 <th className="px-5 py-4">Type export</th>
@@ -368,33 +478,39 @@ startxref
                 <th className="px-5 py-4 print:hidden">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 print:divide-slate-300">
-              {history.map((row) => (
-                <tr key={row.id} className="text-sm font-bold text-slate-700 hover:bg-slate-50/40 transition-colors print:text-black">
-                  <td className="px-5 py-4 text-indigo-600 font-black">{row.id}</td>
+            <tbody className={cn("divide-y", isDarkMode ? "divide-slate-800/80" : "divide-slate-100 print:divide-slate-300")}>
+              {filteredHistory.map((row) => (
+                <tr 
+                  key={row.id} 
+                  className={cn(
+                    "text-sm font-bold transition-colors",
+                    isDarkMode ? "hover:bg-slate-900/40 text-slate-300" : "hover:bg-slate-50/40 text-slate-700 print:text-black"
+                  )}
+                >
+                  <td className="px-5 py-4 text-indigo-500 font-black">{row.id}</td>
                   <td className="px-5 py-4">
-                    <span className="flex items-center gap-1.5 text-xs text-slate-500 font-normal print:text-black">
+                    <span className="flex items-center gap-1.5 text-xs text-slate-400 font-normal print:text-black">
                       <Calendar size={13} className="print:hidden" /> {row.date}
                     </span>
                   </td>
-                  <td className="px-5 py-4 text-slate-950 font-black">{row.type}</td>
+                  <td className={cn("px-5 py-4 font-black", isDarkMode ? "text-white" : "text-slate-950")}>{row.type}</td>
                   <td className="px-5 py-4">
-                    <span className="flex items-center gap-1.5 text-xs text-slate-500 font-normal print:text-black">
+                    <span className="flex items-center gap-1.5 text-xs text-slate-400 font-normal print:text-black">
                       <User size={13} className="print:hidden" /> {row.user}
                     </span>
                   </td>
-                  <td className="px-5 py-4 text-slate-900 font-black">
+                  <td className={cn("px-5 py-4 font-black", isDarkMode ? "text-slate-200" : "text-slate-900")}>
                     <span className="flex items-center gap-1.5">
                       <School size={13} className="text-slate-400 print:hidden" /> {row.schools}
                     </span>
                   </td>
-                  <td className="px-5 py-4 text-xs font-normal text-slate-500 print:text-black">{row.sections}</td>
+                  <td className="px-5 py-4 text-xs font-normal text-slate-400 print:text-black">{row.sections}</td>
                   <td className="px-5 py-4">
                     <span className={cn(
                       "inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wider",
-                      row.status === "success" && "bg-emerald-50 border-emerald-100 text-emerald-700",
-                      row.status === "pending" && "bg-amber-50 border-amber-100 text-amber-700",
-                      row.status === "error" && "bg-rose-50 border-rose-100 text-rose-700"
+                      row.status === "success" && (isDarkMode ? "bg-emerald-950/50 border-emerald-800/50 text-emerald-400" : "bg-emerald-50 border-emerald-100 text-emerald-700"),
+                      row.status === "pending" && (isDarkMode ? "bg-amber-950/50 border-amber-800/50 text-amber-400" : "bg-amber-50 border-amber-100 text-amber-700"),
+                      row.status === "error" && (isDarkMode ? "bg-rose-950/50 border-rose-800/50 text-rose-400" : "bg-rose-50 border-rose-100 text-rose-700")
                     )}>
                       {row.status === "success" && <CheckCircle2 size={10} className="print:hidden" />}
                       {row.status === "pending" && <Loader2 size={10} className="animate-spin print:hidden" />}
@@ -408,14 +524,24 @@ startxref
                         onClick={() => downloadHistoryFile(row.fileName, row.type)}
                         disabled={row.status !== "success"}
                         title="Télécharger"
-                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-indigo-600 hover:bg-indigo-50 transition-colors disabled:opacity-30"
+                        className={cn(
+                          "flex h-8 w-8 items-center justify-center rounded-lg border transition-colors disabled:opacity-30",
+                          isDarkMode 
+                            ? "border-slate-800 bg-slate-900 text-indigo-400 hover:bg-slate-800" 
+                            : "border-slate-200 text-indigo-600 hover:bg-indigo-50"
+                        )}
                       >
                         <Download size={14} />
                       </button>
                       <button 
                         onClick={() => deleteHistory(row.id)}
                         title="Supprimer"
-                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-rose-500 hover:bg-rose-50 transition-colors"
+                        className={cn(
+                          "flex h-8 w-8 items-center justify-center rounded-lg border transition-colors",
+                          isDarkMode 
+                            ? "border-slate-800 bg-slate-900 text-rose-400 hover:bg-slate-800" 
+                            : "border-slate-200 text-rose-500 hover:bg-rose-50"
+                        )}
                       >
                         <XCircle size={14} />
                       </button>
@@ -423,24 +549,17 @@ startxref
                   </td>
                 </tr>
               ))}
+              {filteredHistory.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="p-8 text-center text-xs text-slate-400">
+                    Aucun export correspondant trouvé.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
       </section>
-
-      {/* ─── PRINT FOOTER & SIGNATURES ─── */}
-      <div className="hidden print:block w-full mt-24 pt-8 border-t border-dashed border-slate-400">
-        <div className="grid grid-cols-2 gap-8 text-center text-xs font-bold">
-          <div>
-            <p className="underline mb-12">Signature de l'Agent d'Extraction</p>
-            <div className="h-20 w-44 border border-dashed border-slate-300 mx-auto flex items-center justify-center text-[10px] text-slate-400 italic">Signature</div>
-          </div>
-          <div>
-            <p className="underline mb-12">Cachet Administratif</p>
-            <div className="h-20 w-44 border border-dashed border-slate-300 mx-auto flex items-center justify-center text-[10px] text-slate-400 italic">Cachet & Date</div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
