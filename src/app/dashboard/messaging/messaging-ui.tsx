@@ -9,8 +9,10 @@ import {
   Hash, FileText, BarChart3, RefreshCw, Filter, Search,
   AlertCircle, ArrowRight, Sparkles, ChevronUp, Edit3,
   Copy, BookTemplate, CalendarClock, UserCheck, MessageCircle,
+  Sun, Moon,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useTheme } from "@/hooks/use-theme";
 import {
   sendMessage,
   saveMessageTemplate,
@@ -104,15 +106,15 @@ function StatCard({ icon, bg, label, value, sub, trend, trendUp, sparkData, spar
   sparkData?: number[]; sparkColor?: string;
 }) {
   return (
-    <div className="bg-white rounded-3xl p-5 flex items-center gap-4 shadow-sm border border-slate-100 relative overflow-hidden group hover:shadow-md transition-shadow">
+    <div className="bg-white dark:bg-[#111625]/90 rounded-3xl p-5 flex items-center gap-4 shadow-sm border border-slate-100 dark:border-slate-800/80 relative overflow-hidden group hover:shadow-md transition-all">
       <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 ${bg}`}>
         {icon}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">{label}</p>
-        <p className="text-3xl font-black text-slate-900 leading-none tabular-nums">{value}</p>
+        <p className="text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest mb-0.5">{label}</p>
+        <p className="text-3xl font-black text-slate-900 dark:text-white leading-none tabular-nums">{value}</p>
         <div className="flex items-center gap-2 mt-1">
-          <p className="text-xs text-slate-400">{sub}</p>
+          <p className="text-xs text-slate-400 dark:text-slate-400">{sub}</p>
           {trend && (
             <span className={`flex items-center gap-0.5 text-xs font-bold ${trendUp ? "text-emerald-500" : "text-rose-500"}`}>
               {trendUp ? <TrendingUp size={10} /> : <ChevronDown size={10} />}
@@ -132,12 +134,12 @@ function StatCard({ icon, bg, label, value, sub, trend, trendUp, sparkData, spar
 
 function Badge({ type }: { type: string }) {
   const colors: Record<string, string> = {
-    SMS: "bg-indigo-50 text-indigo-600",
-    Email: "bg-purple-50 text-purple-600",
-    WhatsApp: "bg-emerald-50 text-emerald-600",
+    SMS: "bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/50",
+    Email: "bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-purple-900/50",
+    WhatsApp: "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/50",
   };
   return (
-    <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black", colors[type] || "bg-slate-50 text-slate-500")}>
+    <span className={cn("inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black", colors[type] || "bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700")}>
       {type === "SMS" ? <MessageSquare size={9} /> : type === "Email" ? <Mail size={9} /> : <MessageCircle size={9} />}
       {type}
     </span>
@@ -145,17 +147,20 @@ function Badge({ type }: { type: string }) {
 }
 
 function StatusPill({ status }: { status: string | null }) {
-  if (status === "Envoyé" || status === "En attente" && false)
-    return <span className="flex items-center gap-1 text-xs font-bold text-emerald-600"><CheckCircle2 size={12} className="text-emerald-500" />Envoyé</span>;
-  if (status === "En attente")
-    return <span className="flex items-center gap-1 text-xs font-bold text-amber-600"><Clock size={12} className="text-amber-500" />En attente</span>;
-  if (status === "Annulé")
-    return <span className="flex items-center gap-1 text-xs font-bold text-slate-400"><X size={12} />Annulé</span>;
-  return <span className="flex items-center gap-1 text-xs font-bold text-rose-600"><AlertCircle size={12} />Échoué</span>;
+  const normalized = (status || "").toUpperCase();
+  if (normalized === "ENVOYÉ" || normalized === "ENVOYE" || normalized === "SENT")
+    return <span className="flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400"><CheckCircle2 size={12} className="text-emerald-500" />Envoyé</span>;
+  if (normalized === "EN ATTENTE" || normalized === "PENDING")
+    return <span className="flex items-center gap-1 text-xs font-bold text-amber-600 dark:text-amber-400"><Clock size={12} className="text-amber-500" />En attente</span>;
+  if (normalized === "ANNULÉ" || normalized === "ANNULE" || normalized === "CANCELLED")
+    return <span className="flex items-center gap-1 text-xs font-bold text-slate-400 dark:text-slate-500"><X size={12} />Annulé</span>;
+  return <span className="flex items-center gap-1 text-xs font-bold text-rose-600 dark:text-rose-400"><AlertCircle size={12} />Échoué</span>;
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function MessagerieUI({ templates: initTemplates, logs, stats, scheduled: initScheduled }: Props) {
+  const { isDark, toggleTheme } = useTheme();
+
   const [tab, setTab] = useState<Tab>("composer");
   const [channel, setChannel] = useState<Channel>("SMS");
   const [targetKey, setTargetKey] = useState<TargetKey>("parents");
@@ -167,6 +172,7 @@ export default function MessagerieUI({ templates: initTemplates, logs, stats, sc
   const [showVars, setShowVars] = useState(false);
   const [filterType, setFilterType] = useState("Tous");
   const [searchLog, setSearchLog] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("Tous");
 
   // Templates state
   const [templates, setTemplates] = useState<Template[]>(initTemplates);
@@ -189,7 +195,7 @@ export default function MessagerieUI({ templates: initTemplates, logs, stats, sc
   const charCount = message.length;
   const smsUnits = Math.max(1, Math.ceil(charCount / 160));
   const targetObj = TARGETS.find(t => t.key === targetKey)!;
-  const targetLabel = targetObj.label;
+  const targetLabel = targetObj?.label || "Destinataires";
 
   const estimatedRecipients = (() => {
     if (targetKey === "test") return 1;
@@ -329,6 +335,12 @@ export default function MessagerieUI({ templates: initTemplates, logs, stats, sc
     });
   };
 
+  // Filtered templates by category
+  const filteredTemplates = templates.filter(t => {
+    if (selectedCategory === "Tous") return true;
+    return t.category === selectedCategory;
+  });
+
   // Filtered logs
   const filteredLogs = logs.filter(l => {
     const matchType = filterType === "Tous" || l.msgType === filterType;
@@ -344,30 +356,40 @@ export default function MessagerieUI({ templates: initTemplates, logs, stats, sc
   ];
 
   return (
-    <div className="p-6 space-y-6 min-h-screen">
+    <div className="p-6 space-y-6 min-h-screen transition-colors duration-300">
 
       {/* ── Header ── */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-200">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
             <MessageSquare size={26} className="text-white" />
           </div>
           <div>
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight">Messagerie</h1>
-            <p className="text-slate-400 text-sm mt-0.5">Centre de communication · SMS & Email</p>
+            <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Messagerie</h1>
+            <p className="text-slate-500 dark:text-slate-400 text-sm mt-0.5">Centre de communication · SMS & Email</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Dark / Light Mode Toggle */}
+          <button
+            onClick={toggleTheme}
+            type="button"
+            title={isDark ? "Passer en mode clair" : "Passer en mode sombre"}
+            className="flex items-center justify-center w-11 h-11 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111625]/90 text-slate-700 dark:text-amber-400 hover:bg-slate-100 dark:hover:bg-slate-800/80 shadow-sm transition-all"
+          >
+            {isDark ? <Sun size={19} className="animate-spin-slow" /> : <Moon size={19} />}
+          </button>
+
           <button
             onClick={() => { setTab("composer"); setShowScheduleForm(true); }}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111625]/90 text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60 shadow-sm transition-all"
           >
-            <CalendarClock size={15} className="text-indigo-500" />
+            <CalendarClock size={15} className="text-indigo-500 dark:text-indigo-400" />
             Planifier
           </button>
           <button
             onClick={() => setTab("composer")}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-indigo-600 text-white text-sm font-black shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-indigo-600 text-white text-sm font-black shadow-lg shadow-indigo-500/25 hover:bg-indigo-700 transition-all"
           >
             <Send size={15} />
             Nouveau Message
@@ -378,48 +400,61 @@ export default function MessagerieUI({ templates: initTemplates, logs, stats, sc
       {/* ── Stats ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          icon={<MessageSquare size={22} className="text-indigo-600" />} bg="bg-indigo-50"
-          label="SMS ce mois" value={stats.monthSMS ?? 0} sub={`+${stats.todaySMS ?? 0} aujourd'hui`}
-          trend="+12%" trendUp
+          icon={<MessageSquare size={22} className="text-indigo-600 dark:text-indigo-400" />}
+          bg="bg-indigo-50 dark:bg-indigo-950/60"
+          label="SMS ce mois"
+          value={stats.monthSMS ?? 0}
+          sub={`+${stats.todaySMS ?? 0} aujourd'hui`}
+          trend="+12%"
+          trendUp
           sparkData={[20,35,28,45,40,55,50,65,60,75,70,stats.monthSMS ?? 80]}
           sparkColor="#6366f1"
         />
         <StatCard
-          icon={<Mail size={22} className="text-purple-600" />} bg="bg-purple-50"
-          label="Emails ce mois" value={stats.monthEmail ?? 0} sub={`+${stats.todayEmail ?? 0} aujourd'hui`}
-          trend="+8%" trendUp
+          icon={<Mail size={22} className="text-purple-600 dark:text-purple-400" />}
+          bg="bg-purple-50 dark:bg-purple-950/60"
+          label="Emails ce mois"
+          value={stats.monthEmail ?? 0}
+          sub={`+${stats.todayEmail ?? 0} aujourd'hui`}
+          trend="+8%"
+          trendUp
           sparkData={[10,20,18,30,25,40,35,48,42,55,50,stats.monthEmail ?? 60]}
           sparkColor="#9333ea"
         />
         <StatCard
-          icon={<LayoutGrid size={22} className="text-amber-600" />} bg="bg-amber-50"
-          label="Modèles" value={stats.templateCount ?? templates.length}
-          sub="Disponibles" />
+          icon={<LayoutGrid size={22} className="text-amber-600 dark:text-amber-400" />}
+          bg="bg-amber-50 dark:bg-amber-950/60"
+          label="Modèles"
+          value={stats.templateCount ?? templates.length}
+          sub="Disponibles"
+        />
         <StatCard
-          icon={<Users size={22} className="text-emerald-600" />} bg="bg-emerald-50"
-          label="Destinataires" value={(stats.studentCount ?? 0) + (stats.staffCount ?? 0)}
+          icon={<Users size={22} className="text-emerald-600 dark:text-emerald-400" />}
+          bg="bg-emerald-50 dark:bg-emerald-950/60"
+          label="Destinataires"
+          value={(stats.studentCount ?? 0) + (stats.staffCount ?? 0)}
           sub={`${stats.studentCount ?? 0} élèves · ${stats.staffCount ?? 0} staff`}
         />
       </div>
 
       {/* ── Tabs ── */}
-      <div className="flex items-center gap-1 bg-white border border-slate-100 rounded-2xl p-1.5 w-fit shadow-sm">
+      <div className="flex items-center gap-1 bg-white dark:bg-[#111625]/90 border border-slate-100 dark:border-slate-800/80 rounded-2xl p-1.5 w-fit shadow-sm overflow-x-auto max-w-full">
         {tabItems.map(({ id, label, icon, badge }) => (
           <button
             key={id}
             onClick={() => setTab(id)}
             className={cn(
-              "flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black tracking-widest transition-all relative",
+              "flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black tracking-widest transition-all relative whitespace-nowrap",
               tab === id
-                ? "bg-indigo-600 text-white shadow-md shadow-indigo-200"
-                : "text-slate-400 hover:text-slate-700 hover:bg-slate-50"
+                ? "bg-indigo-600 text-white shadow-md shadow-indigo-500/25"
+                : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/60"
             )}
           >
             {icon} {label}
             {badge !== undefined && badge > 0 && (
               <span className={cn(
                 "min-w-5 h-5 px-1 rounded-full text-[10px] font-black grid place-items-center",
-                tab === id ? "bg-white/20 text-white" : "bg-indigo-100 text-indigo-600"
+                tab === id ? "bg-white/20 text-white" : "bg-indigo-100 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-300"
               )}>
                 {badge}
               </span>
@@ -436,10 +471,10 @@ export default function MessagerieUI({ templates: initTemplates, logs, stats, sc
           <div className="lg:col-span-4 space-y-4">
 
             {/* Cible */}
-            <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-3">
+            <div className="bg-white dark:bg-[#111625]/90 rounded-3xl border border-slate-100 dark:border-slate-800/80 shadow-sm p-5 space-y-3">
               <div className="flex items-center gap-2 mb-1">
-                <Users size={13} className="text-slate-400" />
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Cible de l&apos;envoi</span>
+                <Users size={13} className="text-slate-400 dark:text-slate-500" />
+                <span className="text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest">Cible de l&apos;envoi</span>
               </div>
               {TARGETS.map(({ key, label, sub, icon, color }) => (
                 <button
@@ -448,50 +483,52 @@ export default function MessagerieUI({ templates: initTemplates, logs, stats, sc
                   className={cn(
                     "w-full flex items-center gap-3 p-3 rounded-2xl border-2 transition-all text-left",
                     targetKey === key
-                      ? "border-indigo-200 bg-indigo-50"
-                      : "border-slate-100 hover:border-slate-200 hover:bg-slate-50"
+                      ? "border-indigo-400 dark:border-indigo-500/80 bg-indigo-50/80 dark:bg-indigo-950/40"
+                      : "border-slate-100 dark:border-slate-800/70 hover:border-slate-200 dark:hover:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/40"
                   )}
                 >
                   <div className={cn(
-                    "w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0",
-                    targetKey === key ? "bg-indigo-100 text-indigo-600" : "bg-slate-100 text-slate-400"
+                    "w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors",
+                    targetKey === key
+                      ? "bg-indigo-100 dark:bg-indigo-900/60 text-indigo-600 dark:text-indigo-300"
+                      : "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-400"
                   )}>
                     {icon}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className={cn("text-sm font-bold truncate", targetKey === key ? "text-indigo-700" : "text-slate-700")}>{label}</p>
-                    <p className="text-xs text-slate-400 truncate">{sub}</p>
+                    <p className={cn("text-sm font-bold truncate", targetKey === key ? "text-indigo-800 dark:text-indigo-200" : "text-slate-700 dark:text-slate-200")}>{label}</p>
+                    <p className="text-xs text-slate-400 dark:text-slate-400 truncate">{sub}</p>
                   </div>
-                  {targetKey === key && <CheckCircle2 size={15} className="text-indigo-500 flex-shrink-0" />}
+                  {targetKey === key && <CheckCircle2 size={15} className="text-indigo-500 dark:text-indigo-400 flex-shrink-0" />}
                 </button>
               ))}
 
               {targetKey === "test" && (
-                <div className="space-y-1.5 p-3 rounded-2xl bg-indigo-50/40 border border-indigo-100">
-                  <label className="text-[10px] font-black text-indigo-700 uppercase tracking-widest block">Numéro / Email de Test</label>
+                <div className="space-y-1.5 p-3 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/50">
+                  <label className="text-[10px] font-black text-indigo-700 dark:text-indigo-300 uppercase tracking-widest block">Numéro / Email de Test</label>
                   <input
                     value={testRecipient}
                     onChange={e => setTestRecipient(e.target.value)}
                     placeholder={channel === "Email" ? "exemple@mail.com" : "+227 90 00 00 00"}
-                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-200 bg-white"
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white dark:bg-slate-900"
                   />
                 </div>
               )}
 
               {/* Recipient count */}
-              <div className="flex items-center gap-2 p-3 rounded-xl bg-slate-50 border border-slate-100">
-                <UserCheck size={14} className="text-indigo-400" />
-                <span className="text-xs font-bold text-slate-600">
-                  ~<span className="text-indigo-600 text-sm">{estimatedRecipients}</span> destinataires estimés
+              <div className="flex items-center gap-2 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 text-slate-600 dark:text-slate-300">
+                <UserCheck size={14} className="text-indigo-500 dark:text-indigo-400" />
+                <span className="text-xs font-bold">
+                  ~<span className="text-indigo-600 dark:text-indigo-400 text-sm font-black mx-1">{estimatedRecipients}</span> destinataires estimés
                 </span>
               </div>
             </div>
 
             {/* Canal */}
-            <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-3">
+            <div className="bg-white dark:bg-[#111625]/90 rounded-3xl border border-slate-100 dark:border-slate-800/80 shadow-sm p-5 space-y-3">
               <div className="flex items-center gap-2 mb-1">
-                <Send size={13} className="text-slate-400" />
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Canal de communication</span>
+                <Send size={13} className="text-slate-400 dark:text-slate-500" />
+                <span className="text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest">Canal de communication</span>
               </div>
               <div className="grid grid-cols-3 gap-3">
                 {(["SMS", "Email", "WhatsApp"] as Channel[]).map(c => (
@@ -499,46 +536,46 @@ export default function MessagerieUI({ templates: initTemplates, logs, stats, sc
                     key={c}
                     onClick={() => setChannel(c)}
                     className={cn(
-                      "relative flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all",
+                      "relative flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all text-center",
                       channel === c
-                        ? "bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-200"
-                        : "border-slate-100 text-slate-500 hover:border-indigo-200"
+                        ? "bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-500/20"
+                        : "border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-800/30 text-slate-600 dark:text-slate-300 hover:border-indigo-300 dark:hover:border-indigo-500/50 hover:bg-slate-50 dark:hover:bg-slate-800/60"
                     )}
                   >
-                    {channel === c && <CheckCircle2 size={12} className="absolute top-2 right-2 text-white/80" />}
+                    {channel === c && <CheckCircle2 size={12} className="absolute top-2 right-2 text-white/90" />}
                     {c === "SMS" ? <MessageSquare size={22} /> : c === "Email" ? <Mail size={22} /> : <MessageCircle size={22} />}
                     <span className="text-sm font-black">{c}</span>
-                    <span className={cn("text-[10px]", channel === c ? "text-indigo-200" : "text-slate-400")}>
+                    <span className={cn("text-[10px]", channel === c ? "text-indigo-100" : "text-slate-400 dark:text-slate-400")}>
                       {c === "SMS" ? "Rapide & direct" : c === "Email" ? "Détaillé & formel" : "Instantané & gratuit"}
                     </span>
                   </button>
                 ))}
               </div>
-              <div className="flex items-center gap-2 p-2.5 rounded-xl bg-emerald-50 border border-emerald-100">
+              <div className="flex items-center gap-2 p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/50">
                 <ShieldCheck size={13} className="text-emerald-500" />
-                <span className="text-xs font-semibold text-emerald-700">Communication sécurisée</span>
+                <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">Communication sécurisée</span>
               </div>
             </div>
 
             {/* Smart templates shortcut */}
-            <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-3">
+            <div className="bg-white dark:bg-[#111625]/90 rounded-3xl border border-slate-100 dark:border-slate-800/80 shadow-sm p-5 space-y-3">
               <div className="flex items-center gap-2 mb-1">
                 <Sparkles size={13} className="text-amber-500" />
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Modèles rapides</span>
+                <span className="text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest">Modèles rapides</span>
               </div>
               <div className="space-y-2">
                 {SMART_TEMPLATES.map((t, i) => (
                   <button
                     key={i}
                     onClick={() => { setMessage(t.content); toast.success(`"${t.title}" chargé`); }}
-                    className="w-full flex items-center gap-3 p-2.5 rounded-xl border border-slate-100 hover:border-indigo-200 hover:bg-indigo-50 text-left transition-all group"
+                    className="w-full flex items-center gap-3 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800/70 hover:border-indigo-200 dark:hover:border-indigo-500/40 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/30 text-left transition-all group"
                   >
                     <span className="text-lg">{t.icon}</span>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-bold text-slate-700 group-hover:text-indigo-700 truncate">{t.title}</p>
-                      <p className="text-[10px] text-slate-400">{t.category}</p>
+                      <p className="text-xs font-bold text-slate-700 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 truncate">{t.title}</p>
+                      <p className="text-[10px] text-slate-400 dark:text-slate-400">{t.category}</p>
                     </div>
-                    <ArrowRight size={12} className="text-slate-300 group-hover:text-indigo-400 flex-shrink-0" />
+                    <ArrowRight size={12} className="text-slate-300 dark:text-slate-600 group-hover:text-indigo-400 flex-shrink-0" />
                   </button>
                 ))}
               </div>
@@ -547,31 +584,31 @@ export default function MessagerieUI({ templates: initTemplates, logs, stats, sc
 
           {/* Right: Editor */}
           <div className="lg:col-span-8 space-y-4">
-            <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 space-y-4">
+            <div className="bg-white dark:bg-[#111625]/90 rounded-3xl border border-slate-100 dark:border-slate-800/80 shadow-sm p-6 space-y-4">
 
               {/* Editor header */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Edit3 size={14} className="text-slate-400" />
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Contenu du message</span>
+                  <Edit3 size={14} className="text-slate-400 dark:text-slate-500" />
+                  <span className="text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest">Contenu du message</span>
                 </div>
                 <div className="relative">
                   <button
                     onClick={() => setShowVars(v => !v)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-all"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-all"
                   >
-                    <Hash size={12} className="text-indigo-500" />
+                    <Hash size={12} className="text-indigo-500 dark:text-indigo-400" />
                     Variables
                     <ChevronDown size={11} className={cn("transition-transform", showVars && "rotate-180")} />
                   </button>
                   {showVars && (
-                    <div className="absolute right-0 top-9 z-30 bg-white rounded-2xl border border-slate-100 shadow-2xl p-3 w-52 space-y-1">
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2 pb-1">Cliquer pour insérer</p>
+                    <div className="absolute right-0 top-9 z-30 bg-white dark:bg-[#171c2b] rounded-2xl border border-slate-100 dark:border-slate-700 shadow-2xl p-3 w-52 space-y-1">
+                      <p className="text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest px-2 pb-1">Cliquer pour insérer</p>
                       {VARS.map(v => (
                         <button
                           key={v}
                           onClick={() => insertVar(v)}
-                          className="w-full text-left px-3 py-2 rounded-xl text-xs font-mono font-bold text-indigo-600 hover:bg-indigo-50 transition-colors"
+                          className="w-full text-left px-3 py-2 rounded-xl text-xs font-mono font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 transition-colors"
                         >
                           {v}
                         </button>
@@ -587,24 +624,24 @@ export default function MessagerieUI({ templates: initTemplates, logs, stats, sc
                   value={subject}
                   onChange={e => setSubject(e.target.value)}
                   placeholder="Objet de l'email..."
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-200 bg-slate-50"
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-slate-50 dark:bg-slate-900/70"
                 />
               )}
 
               {/* Toolbar */}
-              <div className="flex items-center gap-1 p-2 rounded-xl border border-slate-100 bg-slate-50 flex-wrap">
+              <div className="flex items-center gap-1 p-2 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex-wrap">
                 {[
                   { Icon: Bold, action: () => insertVar("**") },
                   { Icon: Italic, action: () => insertVar("_") },
                   { Icon: Link2, action: () => insertVar("https://") },
                   { Icon: Smile, action: () => insertVar("😊") },
                 ].map(({ Icon, action }, i) => (
-                  <button key={i} onClick={action} className="p-1.5 rounded-lg text-slate-500 hover:bg-white hover:text-slate-800 transition-colors">
+                  <button key={i} onClick={action} className="p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-slate-200 transition-colors">
                     <Icon size={13} />
                   </button>
                 ))}
-                <div className="w-px h-4 bg-slate-200 mx-1" />
-                <span className="text-[10px] text-slate-400 font-bold">FORMAT</span>
+                <div className="w-px h-4 bg-slate-200 dark:bg-slate-700 mx-1" />
+                <span className="text-[10px] text-slate-400 dark:text-slate-400 font-bold">FORMAT</span>
               </div>
 
               {/* Textarea */}
@@ -613,23 +650,23 @@ export default function MessagerieUI({ templates: initTemplates, logs, stats, sc
                 value={message}
                 onChange={e => setMessage(e.target.value)}
                 placeholder="Tapez votre message ici... Utilisez {nom}, {classe}, {date} pour personnaliser."
-                className="w-full min-h-[180px] resize-none rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-200 font-medium leading-relaxed transition-all"
+                className="w-full min-h-[180px] resize-none rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/70 p-4 text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-400 font-medium leading-relaxed transition-all"
               />
 
               {/* Counter */}
               <div className="flex items-center justify-between px-1">
                 <div className="flex items-center gap-3">
-                  <span className="text-[11px] font-bold text-slate-400">
-                    <span className={cn(charCount > 160 && channel === "SMS" ? "text-amber-500" : "text-slate-400")}>{charCount}</span> / 160 caractères
+                  <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400">
+                    <span className={cn(charCount > 160 && channel === "SMS" ? "text-amber-500" : "text-slate-400 dark:text-slate-400")}>{charCount}</span> / 160 caractères
                   </span>
                   {channel === "SMS" && (
-                    <span className={cn("text-[11px] font-bold", smsUnits > 1 ? "text-amber-500" : "text-slate-400")}>
+                    <span className={cn("text-[11px] font-bold", smsUnits > 1 ? "text-amber-500" : "text-slate-400 dark:text-slate-400")}>
                       = {smsUnits} SMS
                     </span>
                   )}
                 </div>
-                <span className="text-[11px] text-slate-300 font-medium">
-                  Cible: <strong className="text-indigo-400">{targetLabel}</strong>
+                <span className="text-[11px] text-slate-400 dark:text-slate-400 font-medium">
+                  Cible: <strong className="text-indigo-600 dark:text-indigo-400">{targetLabel}</strong>
                 </span>
               </div>
 
@@ -637,7 +674,7 @@ export default function MessagerieUI({ templates: initTemplates, logs, stats, sc
               <div className="flex items-center gap-3 pt-1">
                 <button
                   onClick={() => setShowPreview(v => !v)}
-                  className="flex items-center gap-2 px-4 py-3 rounded-2xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all"
+                  className="flex items-center gap-2 px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-all"
                 >
                   <Eye size={15} />
                   {showPreview ? "Masquer" : "Aperçu"}
@@ -646,7 +683,7 @@ export default function MessagerieUI({ templates: initTemplates, logs, stats, sc
                 {/* Schedule button */}
                 <button
                   onClick={() => setShowScheduleForm(v => !v)}
-                  className="flex items-center gap-2 px-4 py-3 rounded-2xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-amber-50 hover:border-amber-200 transition-all"
+                  className="flex items-center gap-2 px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-amber-50 dark:hover:bg-amber-950/30 hover:border-amber-300 dark:hover:border-amber-800 transition-all"
                 >
                   <CalendarClock size={15} className="text-amber-500" />
                   Planifier
@@ -656,7 +693,7 @@ export default function MessagerieUI({ templates: initTemplates, logs, stats, sc
                 <button
                   onClick={handleSend}
                   disabled={sending || !message.trim()}
-                  className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-black uppercase tracking-widest transition-all shadow-lg shadow-indigo-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-black uppercase tracking-widest transition-all shadow-lg shadow-indigo-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {sending ? <RefreshCw size={15} className="animate-spin" /> : <Send size={15} />}
                   {sending ? "Envoi en cours..." : `ENVOYER (${estimatedRecipients} dest.)`}
@@ -664,35 +701,35 @@ export default function MessagerieUI({ templates: initTemplates, logs, stats, sc
               </div>
 
               {/* Tip */}
-              <div className="flex items-start gap-2 p-3 rounded-xl bg-amber-50 border border-amber-100">
+              <div className="flex items-start gap-2 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-100 dark:border-amber-900/40">
                 <span className="text-base mt-0.5">💡</span>
-                <p className="text-xs text-amber-700 font-medium leading-relaxed">
-                  Utilisez les variables pour personnaliser chaque message. Le mot <code className="font-mono bg-amber-100 px-1 rounded">{"{nom}"}</code> sera remplacé par le prénom de chaque destinataire.
+                <p className="text-xs text-amber-700 dark:text-amber-300 font-medium leading-relaxed">
+                  Utilisez les variables pour personnaliser chaque message. Le mot <code className="font-mono bg-amber-100 dark:bg-amber-900/50 px-1 py-0.5 rounded">{"{nom}"}</code> sera remplacé par le prénom de chaque destinataire.
                 </p>
               </div>
             </div>
 
             {/* Schedule Form */}
             {showScheduleForm && (
-              <div className="bg-white rounded-3xl border border-amber-200 shadow-sm p-5 space-y-4">
+              <div className="bg-white dark:bg-[#111625]/90 rounded-3xl border border-amber-200 dark:border-amber-800/60 shadow-sm p-5 space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <CalendarClock size={16} className="text-amber-500" />
-                    <h3 className="font-black text-slate-800">Planifier l&apos;envoi</h3>
+                    <h3 className="font-black text-slate-800 dark:text-white">Planifier l&apos;envoi</h3>
                   </div>
-                  <button onClick={() => setShowScheduleForm(false)} className="text-slate-300 hover:text-slate-500"><X size={16} /></button>
+                  <button onClick={() => setShowScheduleForm(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"><X size={16} /></button>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-xs font-bold text-slate-500 mb-1 block">Date d&apos;envoi</label>
+                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 block">Date d&apos;envoi</label>
                     <input type="date" value={scheduleDate} onChange={e => setScheduleDate(e.target.value)}
                       min={new Date().toISOString().split("T")[0]}
-                      className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-amber-200" />
+                      className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-medium text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-300" />
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-slate-500 mb-1 block">Heure d&apos;envoi</label>
+                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 block">Heure d&apos;envoi</label>
                     <input type="time" value={scheduleTime} onChange={e => setScheduleTime(e.target.value)}
-                      className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-amber-200" />
+                      className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-medium text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-300" />
                   </div>
                 </div>
                 <button
@@ -707,16 +744,16 @@ export default function MessagerieUI({ templates: initTemplates, logs, stats, sc
 
             {/* Preview */}
             {showPreview && message && (
-              <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-3">
+              <div className="bg-white dark:bg-[#111625]/90 rounded-3xl border border-slate-100 dark:border-slate-800/80 shadow-sm p-5 space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Aperçu · Exemple</span>
-                  <button onClick={() => setShowPreview(false)} className="text-slate-300 hover:text-slate-500"><X size={15} /></button>
+                  <span className="text-xs font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest">Aperçu · Exemple</span>
+                  <button onClick={() => setShowPreview(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"><X size={15} /></button>
                 </div>
                 {channel === "Email" && subject && (
-                  <p className="text-xs font-bold text-slate-500">Objet: <span className="text-slate-800">{subject}</span></p>
+                  <p className="text-xs font-bold text-slate-500 dark:text-slate-400">Objet: <span className="text-slate-800 dark:text-slate-100">{subject}</span></p>
                 )}
-                <div className="bg-gradient-to-br from-indigo-50 to-violet-50 rounded-2xl p-4 border border-indigo-100">
-                  <p className="text-sm text-slate-700 font-medium leading-relaxed whitespace-pre-wrap">
+                <div className="bg-gradient-to-br from-indigo-50 to-violet-50 dark:from-indigo-950/40 dark:to-violet-950/40 rounded-2xl p-4 border border-indigo-100 dark:border-indigo-900/50">
+                  <p className="text-sm text-slate-700 dark:text-slate-200 font-medium leading-relaxed whitespace-pre-wrap">
                     {message
                       .replace("{nom}", "Ahmed Benali")
                       .replace("{classe}", "6ème A")
@@ -726,8 +763,8 @@ export default function MessagerieUI({ templates: initTemplates, logs, stats, sc
                       .replace("{telephone}", "+221 77 000 0000")}
                   </p>
                 </div>
-                <p className="text-xs text-slate-400">
-                  Exemple avec: <strong className="text-slate-600">Ahmed Benali</strong> · Classe <strong className="text-slate-600">6ème A</strong>
+                <p className="text-xs text-slate-400 dark:text-slate-400">
+                  Exemple avec: <strong className="text-slate-700 dark:text-slate-300">Ahmed Benali</strong> · Classe <strong className="text-slate-700 dark:text-slate-300">6ème A</strong>
                 </p>
               </div>
             )}
@@ -740,50 +777,50 @@ export default function MessagerieUI({ templates: initTemplates, logs, stats, sc
         <div className="space-y-5">
           {/* Form */}
           {showTplForm && (
-            <div className="bg-white rounded-3xl border border-indigo-100 shadow-sm p-6 space-y-4">
+            <div className="bg-white dark:bg-[#111625]/90 rounded-3xl border border-indigo-100 dark:border-indigo-900/50 shadow-sm p-6 space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="font-black text-slate-800 text-lg">
+                <h3 className="font-black text-slate-800 dark:text-white text-lg">
                   {editingTpl ? "Modifier le modèle" : "Nouveau modèle"}
                 </h3>
-                <button onClick={() => setShowTplForm(false)} className="text-slate-300 hover:text-slate-500"><X size={18} /></button>
+                <button onClick={() => setShowTplForm(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"><X size={18} /></button>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
-                  <label className="text-xs font-bold text-slate-500 mb-1 block">Titre du modèle</label>
+                  <label className="text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 block">Titre du modèle</label>
                   <input value={tplTitle} onChange={e => setTplTitle(e.target.value)}
                     placeholder="Ex: Rappel de frais scolaires"
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-200" />
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-medium text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-400" />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-slate-500 mb-1 block">Type</label>
+                  <label className="text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 block">Type</label>
                   <div className="flex gap-2">
                     {(["SMS", "Email", "WhatsApp"] as Channel[]).map(c => (
                       <button key={c} onClick={() => setTplType(c)}
                         className={cn("flex-1 py-2.5 rounded-xl text-xs font-bold border-2 transition-all",
-                          tplType === c ? "bg-indigo-600 text-white border-indigo-600" : "border-slate-200 text-slate-500 hover:border-indigo-200")}>
+                          tplType === c ? "bg-indigo-600 text-white border-indigo-600" : "border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:border-indigo-300 dark:hover:border-indigo-500 bg-white dark:bg-slate-900")}>
                         {c}
                       </button>
                     ))}
                   </div>
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-slate-500 mb-1 block">Catégorie</label>
+                  <label className="text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 block">Catégorie</label>
                   <select value={tplCategory} onChange={e => setTplCategory(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-200 bg-white">
-                    {Object.keys(CATEGORY_COLORS).map(c => <option key={c}>{c}</option>)}
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100">
+                    {Object.keys(CATEGORY_COLORS).map(c => <option key={c} value={c} className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100">{c}</option>)}
                   </select>
                 </div>
               </div>
               <div>
-                <label className="text-xs font-bold text-slate-500 mb-1 block">Contenu</label>
+                <label className="text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 block">Contenu</label>
                 <textarea value={tplContent} onChange={e => setTplContent(e.target.value)}
                   placeholder="Contenu du modèle... Variables: {nom}, {classe}, {date}, {ecole}, {montant}" rows={5}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-200 resize-none" />
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-medium text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none" />
               </div>
               <div className="flex justify-end gap-3">
-                <button onClick={() => setShowTplForm(false)} className="px-5 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50">Annuler</button>
+                <button onClick={() => setShowTplForm(false)} className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800">Annuler</button>
                 <button onClick={handleSaveTpl} disabled={isPending}
-                  className="px-6 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-bold hover:bg-indigo-700 disabled:opacity-60 transition-all">
+                  className="px-6 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-bold hover:bg-indigo-700 disabled:opacity-60 transition-all shadow-md shadow-indigo-500/20">
                   {isPending ? "Enregistrement..." : editingTpl ? "Mettre à jour" : "Enregistrer"}
                 </button>
               </div>
@@ -793,13 +830,21 @@ export default function MessagerieUI({ templates: initTemplates, logs, stats, sc
           {/* Filter bar */}
           <div className="flex items-center gap-3 flex-wrap">
             {["Tous", ...Object.keys(CATEGORY_COLORS)].map(cat => (
-              <button key={cat}
-                className="px-4 py-2 rounded-full text-xs font-bold border border-slate-200 bg-white text-slate-500 hover:border-indigo-300 hover:text-indigo-600 transition-all">
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={cn(
+                  "px-4 py-2 rounded-full text-xs font-bold border transition-all",
+                  selectedCategory === cat
+                    ? "bg-indigo-600 text-white border-indigo-600 shadow-sm shadow-indigo-500/20"
+                    : "border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111625]/90 text-slate-600 dark:text-slate-400 hover:border-indigo-300 dark:hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400"
+                )}
+              >
                 {cat}
               </button>
             ))}
             <button onClick={openNewTpl}
-              className="ml-auto flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-indigo-600 text-white text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100">
+              className="ml-auto flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-indigo-600 text-white text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/25">
               <Plus size={15} /> Nouveau modèle
             </button>
           </div>
@@ -808,35 +853,35 @@ export default function MessagerieUI({ templates: initTemplates, logs, stats, sc
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {/* New card */}
             <button onClick={openNewTpl}
-              className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-3xl p-10 flex flex-col items-center justify-center gap-3 hover:border-indigo-300 hover:bg-indigo-50 transition-all group">
-              <div className="w-14 h-14 rounded-2xl bg-white flex items-center justify-center text-slate-300 group-hover:text-indigo-500 transition-colors shadow-sm">
+              className="bg-slate-50/60 dark:bg-slate-900/30 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl p-10 flex flex-col items-center justify-center gap-3 hover:border-indigo-300 dark:hover:border-indigo-500 hover:bg-indigo-50/30 dark:hover:bg-indigo-950/20 transition-all group">
+              <div className="w-14 h-14 rounded-2xl bg-white dark:bg-slate-800 flex items-center justify-center text-slate-300 dark:text-slate-500 group-hover:text-indigo-500 transition-colors shadow-sm">
                 <Plus size={28} />
               </div>
-              <p className="text-xs font-black text-slate-400 uppercase tracking-widest group-hover:text-indigo-500 transition-colors">Nouveau Modèle</p>
+              <p className="text-xs font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest group-hover:text-indigo-500 transition-colors">Nouveau Modèle</p>
             </button>
 
-            {templates.map(t => (
-              <div key={t.id} className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-lg hover:shadow-slate-100 transition-all group flex flex-col">
+            {filteredTemplates.map(t => (
+              <div key={t.id} className="bg-white dark:bg-[#111625]/90 p-6 rounded-3xl border border-slate-100 dark:border-slate-800/80 shadow-sm hover:shadow-lg transition-all group flex flex-col">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-2">
-                    <div className={cn("p-2 rounded-xl", t.msgType === "SMS" ? "bg-indigo-50 text-indigo-500" : t.msgType === "Email" ? "bg-purple-50 text-purple-500" : "bg-emerald-50 text-emerald-500")}>
+                    <div className={cn("p-2 rounded-xl", t.msgType === "SMS" ? "bg-indigo-50 dark:bg-indigo-950/60 text-indigo-500" : t.msgType === "Email" ? "bg-purple-50 dark:bg-purple-950/60 text-purple-500" : "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-500")}>
                       {t.msgType === "SMS" ? <MessageSquare size={15} /> : t.msgType === "Email" ? <Mail size={15} /> : <MessageCircle size={15} />}
                     </div>
                     <Badge type={t.msgType} />
                   </div>
                   <div className="flex items-center gap-1">
-                    <button onClick={() => copyTpl(t)} title="Copier" className="p-1.5 rounded-lg text-slate-300 hover:text-indigo-500 hover:bg-indigo-50 transition-all"><Copy size={13} /></button>
-                    <button onClick={() => openEditTpl(t)} title="Modifier" className="p-1.5 rounded-lg text-slate-300 hover:text-amber-500 hover:bg-amber-50 transition-all"><Edit3 size={13} /></button>
-                    <button onClick={() => handleDeleteTpl(t.id)} title="Supprimer" className="p-1.5 rounded-lg text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-all"><Trash2 size={13} /></button>
+                    <button onClick={() => copyTpl(t)} title="Copier" className="p-1.5 rounded-lg text-slate-300 dark:text-slate-600 hover:text-indigo-500 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-slate-800 transition-all"><Copy size={13} /></button>
+                    <button onClick={() => openEditTpl(t)} title="Modifier" className="p-1.5 rounded-lg text-slate-300 dark:text-slate-600 hover:text-amber-500 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-slate-800 transition-all"><Edit3 size={13} /></button>
+                    <button onClick={() => handleDeleteTpl(t.id)} title="Supprimer" className="p-1.5 rounded-lg text-slate-300 dark:text-slate-600 hover:text-rose-500 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-slate-800 transition-all"><Trash2 size={13} /></button>
                   </div>
                 </div>
                 {t.category && (
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">{t.category}</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-400 mb-1">{t.category}</span>
                 )}
-                <h4 className="font-black text-slate-900 text-base mb-2">{t.title}</h4>
-                <p className="text-slate-400 text-sm line-clamp-3 leading-relaxed flex-1">{t.content}</p>
+                <h4 className="font-black text-slate-900 dark:text-white text-base mb-2">{t.title}</h4>
+                <p className="text-slate-500 dark:text-slate-400 text-sm line-clamp-3 leading-relaxed flex-1">{t.content}</p>
                 <button onClick={() => useTpl(t)}
-                  className="mt-5 w-full py-2.5 rounded-xl bg-slate-50 text-slate-400 font-bold text-xs uppercase tracking-widest group-hover:bg-indigo-600 group-hover:text-white transition-all">
+                  className="mt-5 w-full py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 font-bold text-xs uppercase tracking-widest group-hover:bg-indigo-600 group-hover:text-white transition-all">
                   Utiliser ce modèle →
                 </button>
               </div>
@@ -850,22 +895,22 @@ export default function MessagerieUI({ templates: initTemplates, logs, stats, sc
         <div className="space-y-5">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="font-black text-slate-800 text-lg">Messages planifiés</h2>
-              <p className="text-sm text-slate-400 mt-0.5">Programmez des envois automatiques à une date et heure précises</p>
+              <h2 className="font-black text-slate-800 dark:text-white text-lg">Messages planifiés</h2>
+              <p className="text-sm text-slate-400 dark:text-slate-400 mt-0.5">Programmez des envois automatiques à une date et heure précises</p>
             </div>
             <button
               onClick={() => setTab("composer")}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-indigo-600 text-white text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-indigo-600 text-white text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/25"
             >
               <Plus size={15} /> Planifier un message
             </button>
           </div>
 
           {scheduled.length === 0 ? (
-            <div className="bg-white rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center justify-center py-20 gap-4 text-slate-300">
+            <div className="bg-white dark:bg-[#111625]/90 rounded-3xl border border-slate-100 dark:border-slate-800/80 shadow-sm flex flex-col items-center justify-center py-20 gap-4 text-slate-300 dark:text-slate-600">
               <CalendarClock size={52} />
-              <p className="font-black text-slate-400 text-lg">Aucun message planifié</p>
-              <p className="text-sm text-slate-400">Composez un message et cliquez sur &ldquo;Planifier&rdquo;</p>
+              <p className="font-black text-slate-700 dark:text-slate-300 text-lg">Aucun message planifié</p>
+              <p className="text-sm text-slate-400 dark:text-slate-400">Composez un message et cliquez sur &ldquo;Planifier&rdquo;</p>
               <button onClick={() => setTab("composer")} className="mt-2 flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-indigo-600 text-white text-sm font-bold hover:bg-indigo-700 transition-all">
                 <Plus size={14} /> Créer un message
               </button>
@@ -873,19 +918,19 @@ export default function MessagerieUI({ templates: initTemplates, logs, stats, sc
           ) : (
             <div className="space-y-3">
               {scheduled.map(msg => (
-                <div key={msg.id} className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 flex items-center gap-4 hover:shadow-md transition-shadow">
+                <div key={msg.id} className="bg-white dark:bg-[#111625]/90 rounded-3xl border border-slate-100 dark:border-slate-800/80 shadow-sm p-5 flex items-center gap-4 hover:shadow-md transition-shadow">
                   <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0",
-                    msg.msgType === "SMS" ? "bg-indigo-50 text-indigo-500" : msg.msgType === "Email" ? "bg-purple-50 text-purple-500" : "bg-emerald-50 text-emerald-500")}>
+                    msg.msgType === "SMS" ? "bg-indigo-50 dark:bg-indigo-950/60 text-indigo-500" : msg.msgType === "Email" ? "bg-purple-50 dark:bg-purple-950/60 text-purple-500" : "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-500")}>
                     {msg.msgType === "SMS" ? <MessageSquare size={20} /> : msg.msgType === "Email" ? <Mail size={20} /> : <MessageCircle size={20} />}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">
-                      <span className="text-sm font-bold text-slate-800 truncate">{msg.targetAudience}</span>
+                      <span className="text-sm font-bold text-slate-800 dark:text-white truncate">{msg.targetAudience}</span>
                       <Badge type={msg.msgType} />
                     </div>
-                    <p className="text-xs text-slate-400 truncate">{msg.content}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{msg.content}</p>
                     <div className="flex items-center gap-3 mt-1.5">
-                      <span className="flex items-center gap-1 text-xs font-bold text-amber-600">
+                      <span className="flex items-center gap-1 text-xs font-bold text-amber-600 dark:text-amber-400">
                         <CalendarClock size={11} />
                         {new Date(msg.scheduledAt).toLocaleString("fr-FR", { dateStyle: "medium", timeStyle: "short" })}
                       </span>
@@ -896,7 +941,7 @@ export default function MessagerieUI({ templates: initTemplates, logs, stats, sc
                     {msg.status === "En attente" && (
                       <button
                         onClick={() => handleCancelScheduled(msg.id)}
-                        className="px-3 py-1.5 rounded-xl border border-rose-100 text-rose-500 text-xs font-bold hover:bg-rose-50 transition-all"
+                        className="px-3 py-1.5 rounded-xl border border-rose-100 dark:border-rose-900/50 text-rose-500 dark:text-rose-400 text-xs font-bold hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-all"
                       >
                         Annuler
                       </button>
@@ -915,64 +960,64 @@ export default function MessagerieUI({ templates: initTemplates, logs, stats, sc
           {/* Filters */}
           <div className="flex items-center gap-3 flex-wrap">
             <div className="relative flex-1 max-w-xs">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
               <input
                 value={searchLog}
                 onChange={e => setSearchLog(e.target.value)}
                 placeholder="Rechercher..."
-                className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-medium text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-400"
               />
             </div>
             <div className="flex items-center gap-2">
-              <Filter size={14} className="text-slate-400" />
+              <Filter size={14} className="text-slate-400 dark:text-slate-500" />
               {["Tous", "SMS", "Email", "WhatsApp"].map(f => (
                 <button key={f} onClick={() => setFilterType(f)}
                   className={cn("px-4 py-2 rounded-xl text-xs font-bold transition-all border",
-                    filterType === f ? "bg-indigo-600 text-white border-indigo-600" : "border-slate-200 text-slate-500 hover:border-indigo-200")}>
+                    filterType === f ? "bg-indigo-600 text-white border-indigo-600 shadow-sm" : "border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111625]/90 text-slate-600 dark:text-slate-400 hover:border-indigo-300 dark:hover:border-indigo-500")}>
                   {f}
                 </button>
               ))}
             </div>
-            <span className="ml-auto text-xs text-slate-400 font-medium">{filteredLogs.length} messages</span>
+            <span className="ml-auto text-xs text-slate-400 dark:text-slate-400 font-medium">{filteredLogs.length} messages</span>
           </div>
 
           {/* Table */}
-          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+          <div className="bg-white dark:bg-[#111625]/90 rounded-3xl border border-slate-100 dark:border-slate-800/80 shadow-sm overflow-hidden">
             {filteredLogs.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 text-slate-300 gap-4">
+              <div className="flex flex-col items-center justify-center py-20 text-slate-300 dark:text-slate-600 gap-4">
                 <MessageCircle size={48} />
-                <p className="font-bold text-slate-400 text-lg">Aucun message trouvé</p>
-                <p className="text-sm">L&apos;historique de vos envois apparaîtra ici.</p>
+                <p className="font-bold text-slate-600 dark:text-slate-300 text-lg">Aucun message trouvé</p>
+                <p className="text-sm text-slate-400">L&apos;historique de vos envois apparaîtra ici.</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left">
                   <thead>
-                    <tr className="bg-slate-50 border-b border-slate-100">
+                    <tr className="bg-slate-50 dark:bg-slate-900/80 border-b border-slate-100 dark:border-slate-800/80">
                       {["Date & Heure", "Type", "Cible", "Destinataires", "Aperçu", "Statut", "Envoyé par"].map(h => (
-                        <th key={h} className="px-5 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">{h}</th>
+                        <th key={h} className="px-5 py-4 text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-50">
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
                     {filteredLogs.map(log => (
-                      <tr key={log.id} className="hover:bg-slate-50/70 transition-colors">
-                        <td className="px-5 py-4 text-xs font-medium text-slate-500 whitespace-nowrap">
+                      <tr key={log.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
+                        <td className="px-5 py-4 text-xs font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap">
                           {log.sentAt ? new Date(log.sentAt).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" }) : "—"}
                         </td>
                         <td className="px-5 py-4"><Badge type={log.msgType} /></td>
-                        <td className="px-5 py-4 text-sm font-bold text-slate-700 max-w-[140px] truncate">{log.targetAudience}</td>
+                        <td className="px-5 py-4 text-sm font-bold text-slate-700 dark:text-slate-200 max-w-[140px] truncate">{log.targetAudience}</td>
                         <td className="px-5 py-4">
-                          <span className="flex items-center gap-1 text-xs font-bold text-slate-500">
+                          <span className="flex items-center gap-1 text-xs font-bold text-slate-500 dark:text-slate-400">
                             <Users size={11} />
                             {log.recipientCount ?? "—"}
                           </span>
                         </td>
                         <td className="px-5 py-4 max-w-[160px]">
-                          <p className="text-xs text-slate-400 truncate">{log.content}</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{log.content}</p>
                         </td>
                         <td className="px-5 py-4"><StatusPill status={log.status} /></td>
-                        <td className="px-5 py-4 text-xs text-slate-400 font-medium">{log.sentBy || "Admin"}</td>
+                        <td className="px-5 py-4 text-xs text-slate-400 dark:text-slate-400 font-medium">{log.sentBy || "Admin"}</td>
                       </tr>
                     ))}
                   </tbody>
