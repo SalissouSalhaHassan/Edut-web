@@ -310,13 +310,13 @@ export default function FicheEtablissementPage() {
             <button
               onClick={() => exportFullFicheDossierPdf({
                 code: establishmentInfo.code,
-                nom: establishmentInfo.nom,
+                nom: establishmentInfo.name,
                 commune: establishmentInfo.commune,
                 region: establishmentInfo.region,
                 statut: status,
                 directeur: establishmentInfo.directeur,
                 telephone: establishmentInfo.telephone,
-                totalEleves: totals.total,
+                totalEleves: 642,
                 totalEnseignants: 47,
                 totalClasses: 20
               })}
