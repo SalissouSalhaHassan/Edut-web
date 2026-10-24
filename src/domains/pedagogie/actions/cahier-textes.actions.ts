@@ -207,19 +207,20 @@ export async function updateSeance(id: number, data: Partial<SeanceFormData>) {
       }
     }
 
-    await db.update(cahierTextes)
+    const [updated] = await db.update(cahierTextes)
       .set({ ...data, updatedAt: new Date() })
-      .where(and(eq(cahierTextes.id, id), eq(cahierTextes.schoolId, schoolId)));
+      .where(and(eq(cahierTextes.id, id), eq(cahierTextes.schoolId, schoolId)))
+      .returning();
 
     revalidatePath("/dashboard/pedagogie/cahier-textes");
-    return { success: true };
+    return { success: true, data: updated || { ...existing, ...data } };
   } catch (e: any) {
     return { success: false, error: e.message };
   }
 }
 
 // ─── VALIDATE ─────────────────────────────────────────────────────────────────
-export async function validerSeance(id: number, valideParId: number) {
+export async function validerSeance(id: number, valideParId?: number | boolean) {
   try {
     const user = await getCurrentUser();
     if (!user) return { success: false, error: "Non autorisé" };
@@ -229,9 +230,10 @@ export async function validerSeance(id: number, valideParId: number) {
     }
 
     const schoolId = await getActiveSchoolId();
+    const effectiveValideParId = typeof valideParId === "number" ? valideParId : (user.employeeId || user.id || null);
 
     await db.update(cahierTextes)
-      .set({ statut: "Validé", valideParId, valideAt: new Date(), updatedAt: new Date() })
+      .set({ statut: "Validé", valideParId: effectiveValideParId, valideAt: new Date(), updatedAt: new Date() })
       .where(and(eq(cahierTextes.id, id), eq(cahierTextes.schoolId, schoolId)));
 
     revalidatePath("/dashboard/pedagogie/cahier-textes");

@@ -166,7 +166,7 @@ export default function CahierTextesClient({
     startTransition(async () => {
       try {
         if (modal === "new") {
-          const res = await createSeance(form);
+          const res = (await createSeance(form)) as any;
           if (res.success && res.data) {
             setSeances(prev => [res.data, ...prev]);
             toast.success("Séance enregistrée avec succès !");
@@ -175,9 +175,10 @@ export default function CahierTextesClient({
             setFormError(res.error || "Erreur lors de la création.");
           }
         } else if (modal === "edit" && selectedRow) {
-          const res = await updateSeance(selectedRow.id, form);
-          if (res.success && res.data) {
-            setSeances(prev => prev.map(s => s.id === selectedRow.id ? res.data : s));
+          const res = (await updateSeance(selectedRow.id, form)) as any;
+          if (res.success) {
+            const updatedData = res.data || { ...selectedRow, ...form };
+            setSeances(prev => prev.map(s => s.id === selectedRow.id ? { ...s, ...updatedData } : s));
             toast.success("Séance mise à jour !");
             setModal(null);
           } else {
@@ -192,7 +193,8 @@ export default function CahierTextesClient({
 
   const handleValider = (row: any) => {
     startTransition(async () => {
-      const res = await validerSeance(row.id, true);
+      const validatorId = currentUser?.employeeId || currentUser?.id || 1;
+      const res = await validerSeance(row.id, validatorId);
       if (res.success) {
         setSeances(prev => prev.map(s => s.id === row.id ? { ...s, statut: "Validé" } : s));
         toast.success("Séance validée !");
